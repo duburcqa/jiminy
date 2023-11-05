@@ -21,11 +21,11 @@ namespace jiminy
     struct forceProfile_t
     {
     public:
-        forceProfile_t(void) = default;
-        forceProfile_t(std::string           const & frameNameIn,
-                       frameIndex_t          const & frameIdxIn,
-                       float64_t             const & updatePeriodIn,
-                       forceProfileFunctor_t const & forceFctIn);
+        forceProfile_t() = default;
+        forceProfile_t(const std::string & frameNameIn,
+                       const frameIndex_t & frameIdxIn,
+                       const float64_t & updatePeriodIn,
+                       const forceProfileFunctor_t & forceFctIn);
 
     public:
         std::string frameName;
@@ -38,12 +38,12 @@ namespace jiminy
     struct forceImpulse_t
     {
     public:
-        forceImpulse_t(void) = default;
-        forceImpulse_t(std::string      const & frameNameIn,
-                       frameIndex_t     const & frameIdxIn,
-                       float64_t        const & tIn,
-                       float64_t        const & dtIn,
-                       pinocchio::Force const & FIn);
+        forceImpulse_t() = default;
+        forceImpulse_t(const std::string & frameNameIn,
+                       const frameIndex_t & frameIdxIn,
+                       const float64_t & tIn,
+                       const float64_t & dtIn,
+                       const pinocchio::Force & FIn);
 
     public:
         std::string frameName;
@@ -56,16 +56,16 @@ namespace jiminy
     struct forceCoupling_t
     {
     public:
-        forceCoupling_t(void) = default;
-        forceCoupling_t(std::string            const & systemName1In,
-                        int32_t                const & systemIdx1In,
-                        std::string            const & systemName2In,
-                        int32_t                const & systemIdx2In,
-                        std::string            const & frameName1In,
-                        frameIndex_t           const & frameIdx1In,
-                        std::string            const & frameName2In,
-                        frameIndex_t           const & frameIdx2In,
-                        forceCouplingFunctor_t const & forceFctIn);
+        forceCoupling_t() = default;
+        forceCoupling_t(const std::string & systemName1In,
+                        const int32_t & systemIdx1In,
+                        const std::string & systemName2In,
+                        const int32_t & systemIdx2In,
+                        const std::string & frameName1In,
+                        const frameIndex_t & frameIdx1In,
+                        const std::string & frameName2In,
+                        const frameIndex_t & frameIdx2In,
+                        const forceCouplingFunctor_t & forceFctIn);
 
     public:
         std::string systemName1;
@@ -85,16 +85,16 @@ namespace jiminy
     struct systemHolder_t
     {
     public:
-        systemHolder_t(void);
-        systemHolder_t(std::string const & systemNameIn,
+        systemHolder_t();
+        systemHolder_t(const std::string & systemNameIn,
                        std::shared_ptr<Robot> robotIn,
                        std::shared_ptr<AbstractController> controllerIn,
                        callbackFunctor_t callbackFctIn);
-        systemHolder_t(systemHolder_t const & other) = default;
+        systemHolder_t(const systemHolder_t & other) = default;
         systemHolder_t(systemHolder_t && other) = default;
-        systemHolder_t & operator = (systemHolder_t const & other) = default;
-        systemHolder_t & operator = (systemHolder_t && other) = default;
-        ~systemHolder_t(void) = default;
+        systemHolder_t & operator=(const systemHolder_t & other) = default;
+        systemHolder_t & operator=(systemHolder_t && other) = default;
+        ~systemHolder_t() = default;
 
     public:
         std::string name;
@@ -107,12 +107,12 @@ namespace jiminy
     {
     public:
         // Non-default constructor to be considered initialized even if not
-        systemState_t(void);
+        systemState_t();
 
-        hresult_t initialize(Robot const & robot);
-        bool_t const & getIsInitialized(void) const;
+        hresult_t initialize(const Robot & robot);
+        const bool_t & getIsInitialized() const;
 
-        void clear(void);
+        void clear();
 
     public:
         vectorN_t q;
@@ -139,16 +139,26 @@ namespace jiminy
 
         forceProfileRegister_t forcesProfile;
         forceImpulseRegister_t forcesImpulse;
-        std::set<float64_t> forcesImpulseBreaks;                       ///< Ordered list (without repetitions) of the start and end time associated with the forces
-        std::set<float64_t>::const_iterator forcesImpulseBreakNextIt;  ///< Iterator related to the time of the next breakpoint associated with the impulse forces
-        std::vector<bool_t> forcesImpulseActive;                       ///< Flag to active the forces. This is used to handle t-, t+ properly. Otherwise, it is impossible to determine at time t if the force is active or not.
+        /// \brief Ordered list without repetitions of all the start/end times of the forces.
+        std::set<float64_t> forcesImpulseBreaks;
+        /// \brief Time of the next breakpoint associated with the impulse forces.
+        std::set<float64_t>::const_iterator forcesImpulseBreakNextIt;
+        /// \brief Set of flags tracking whether each force is active.
+        ///
+        /// \details This flag is used to handle t-, t+ properly. Without it, it is impossible to
+        ///          determine at time t if the force is active or not.
+        std::vector<bool_t> forcesImpulseActive;
 
         uint32_t successiveSolveFailed;
         std::unique_ptr<AbstractConstraintSolver> constraintSolver;
-        constraintsHolder_t constraintsHolder;                         ///< Store copy of constraints register for fast access.
-        forceVector_t contactFramesForces;                             ///< Contact forces for each contact frames in local frame
-        vector_aligned_t<forceVector_t> collisionBodiesForces;         ///< Contact forces for each geometries of each collision bodies in local frame
-        std::vector<matrix6N_t> jointsJacobians;                       ///< Jacobian of the joints in local frame. Used for computing `data.u`.
+        /// \brief Store copy of constraints register for fast access.
+        constraintsHolder_t constraintsHolder;
+        /// \brief Contact forces for each contact frames in local frame.
+        forceVector_t contactFramesForces;
+        /// \brief Contact forces for each geometries of each collision bodies in local frame.
+        vector_aligned_t<forceVector_t> collisionBodiesForces;
+        /// \brief Jacobian of the joints in local frame. Used for computing `data.u`.
+        std::vector<matrix6N_t> jointsJacobians;
 
         std::vector<std::string> logFieldnamesPosition;
         std::vector<std::string> logFieldnamesVelocity;
@@ -158,9 +168,11 @@ namespace jiminy
         std::vector<std::string> logFieldnamesMotorEffort;
         std::string logFieldnameEnergy;
 
-        systemState_t state;       ///< Internal buffer with the state for the integration loop
-        systemState_t statePrev;   ///< Internal state for the integration loop at the end of the previous iteration
+        /// \brief Internal buffer with the state for the integration loop.
+        systemState_t state;
+        /// \brief Internal state for the integration loop at the end of the previous iteration.
+        systemState_t statePrev;
     };
 }
 
-#endif //end of JIMINY_STEPPERS_H
+#endif  // end of JIMINY_STEPPERS_H

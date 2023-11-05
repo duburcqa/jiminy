@@ -19,31 +19,29 @@ namespace jiminy::python
 {
     namespace bp = boost::python;
 
-    uint32_t getRandomSeed(void)
+    uint32_t getRandomSeed()
     {
         uint32_t seed;
-        ::jiminy::getRandomSeed(seed);  // Cannot fail since random number generators are initialized when imported
+        // Cannot fail since random number generators are initialized at shared lib import
+        ::jiminy::getRandomSeed(seed);
         return seed;
     }
 
-    joint_t getJointTypeFromIdx(pinocchio::Model const & model,
-                                int32_t          const & idIn)
+    joint_t getJointTypeFromIdx(const pinocchio::Model & model, const int32_t & idIn)
     {
         joint_t jointType = joint_t::NONE;
         ::jiminy::getJointTypeFromIdx(model, idIn, jointType);
         return jointType;
     }
 
-    int32_t getJointPositionIdx(pinocchio::Model const & model,
-                                std::string      const & name)
+    int32_t getJointPositionIdx(const pinocchio::Model & model, const std::string & name)
     {
         int32_t jointPositionFirstIdx = model.nq;
         ::jiminy::getJointPositionIdx(model, name, jointPositionFirstIdx);
         return jointPositionFirstIdx;
     }
 
-    bool_t isPositionValid(pinocchio::Model const & model,
-                           vectorN_t        const & position)
+    bool_t isPositionValid(const pinocchio::Model & model, const vectorN_t & position)
     {
         bool_t isValid;
         ::jiminy::isPositionValid(
@@ -51,55 +49,51 @@ namespace jiminy::python
         return isValid;
     }
 
-    matrixN_t interpolate(pinocchio::Model const & modelIn,
-                          vectorN_t        const & timesIn,
-                          matrixN_t        const & positionsIn,
-                          vectorN_t        const & timesOut)
+    matrixN_t interpolate(const pinocchio::Model & modelIn,
+                          const vectorN_t & timesIn,
+                          const matrixN_t & positionsIn,
+                          const vectorN_t & timesOut)
     {
         matrixN_t positionOut;
         ::jiminy::interpolate(modelIn, timesIn, positionsIn, timesOut, positionOut);
         return positionOut;
     }
 
-    pinocchio::GeometryModel buildGeomFromUrdf(pinocchio::Model const & model,
-                                               std::string const & filename,
-                                               int const & typePy,
-                                               bp::list const & packageDirsPy,
-                                               bool_t const & loadMeshes,
-                                               bool_t const & makeMeshesConvex)
+    pinocchio::GeometryModel buildGeomFromUrdf(const pinocchio::Model & model,
+                                               const std::string & filename,
+                                               const int & typePy,
+                                               const bp::list & packageDirsPy,
+                                               const bool_t & loadMeshes,
+                                               const bool_t & makeMeshesConvex)
     {
-        /* Note that enum bindings interoperability is buggy, so that `pin.GeometryType`
-           is not properly converted from Python to C++ automatically in some cases. */
+        /* Note that enum bindings interoperability is buggy, so that `pin.GeometryType` is not
+           properly converted from Python to C++ automatically in some cases. */
         pinocchio::GeometryModel geometryModel;
-        auto const type = static_cast<pinocchio::GeometryType>(typePy);
-        auto packageDirs = convertFromPython<std::vector<std::string> >(packageDirsPy);
-        ::jiminy::buildGeomFromUrdf(model,
-                                    filename,
-                                    type,
-                                    geometryModel,
-                                    packageDirs,
-                                    loadMeshes,
-                                    makeMeshesConvex);
+        const auto type = static_cast<pinocchio::GeometryType>(typePy);
+        auto packageDirs = convertFromPython<std::vector<std::string>>(packageDirsPy);
+        ::jiminy::buildGeomFromUrdf(
+            model, filename, type, geometryModel, packageDirs, loadMeshes, makeMeshesConvex);
         return geometryModel;
     }
 
-    bp::tuple buildModelsFromUrdf(std::string const & urdfPath,
-                                  bool_t const & hasFreeflyer,
-                                  bp::list const & packageDirsPy,
-                                  bool_t const & buildVisualModel,
-                                  bool_t const & loadVisualMeshes)
+    bp::tuple buildModelsFromUrdf(const std::string & urdfPath,
+                                  const bool_t & hasFreeflyer,
+                                  const bp::list & packageDirsPy,
+                                  const bool_t & buildVisualModel,
+                                  const bool_t & loadVisualMeshes)
     {
-        /* Note that enum bindings interoperability is buggy, so that `pin.GeometryType`
-           is not properly converted from Python to C++ automatically in some cases. */
+        /* Note that enum bindings interoperability is buggy, so that `pin.GeometryType` is not
+           properly converted from Python to C++ automatically in some cases. */
         pinocchio::Model model;
         pinocchio::GeometryModel collisionModel;
         pinocchio::GeometryModel visualModel;
-        std::optional<std::reference_wrapper<pinocchio::GeometryModel> > visualModelOptional = std::nullopt;
+        std::optional<std::reference_wrapper<pinocchio::GeometryModel>> visualModelOptional =
+            std::nullopt;
         if (buildVisualModel)
         {
             visualModelOptional = visualModel;
         }
-        auto packageDirs = convertFromPython<std::vector<std::string> >(packageDirsPy);
+        auto packageDirs = convertFromPython<std::vector<std::string>>(packageDirsPy);
         ::jiminy::buildModelsFromUrdf(urdfPath,
                                       hasFreeflyer,
                                       packageDirs,
@@ -114,22 +108,23 @@ namespace jiminy::python
         return bp::make_tuple(model, collisionModel);
     }
 
-    np::ndarray solveJMinvJtv(pinocchio::Data & data,
-                              np::ndarray const & vPy,
-                              bool_t const & updateDecomposition)
+    np::ndarray solveJMinvJtv(
+        pinocchio::Data & data, const np::ndarray & vPy, const bool_t & updateDecomposition)
     {
-        int32_t const nDims = vPy.get_nd();
+        const int32_t nDims = vPy.get_nd();
         assert(nDims < 3 && "The number of dimensions of 'v' cannot exceed 2.");
         if (nDims == 1)
         {
-            vectorN_t const v = convertFromPython<vectorN_t>(vPy);
-            vectorN_t const x = pinocchio_overload::solveJMinvJtv<vectorN_t>(data, v, updateDecomposition);
+            const vectorN_t v = convertFromPython<vectorN_t>(vPy);
+            const vectorN_t x =
+                pinocchio_overload::solveJMinvJtv<vectorN_t>(data, v, updateDecomposition);
             return bp::extract<np::ndarray>(convertToPython(x, true));
         }
         else
         {
-            matrixN_t const v = convertFromPython<matrixN_t>(vPy);
-            matrixN_t const x = pinocchio_overload::solveJMinvJtv<matrixN_t>(data, v, updateDecomposition);
+            const matrixN_t v = convertFromPython<matrixN_t>(vPy);
+            const matrixN_t x =
+                pinocchio_overload::solveJMinvJtv<matrixN_t>(data, v, updateDecomposition);
             return bp::extract<np::ndarray>(convertToPython(x, true));
         }
     }
@@ -142,24 +137,24 @@ namespace jiminy::python
             throw std::runtime_error("'dst' must have type 'np.ndarray'.");
         }
         PyArrayObject * dstPyArray = reinterpret_cast<PyArrayObject *>(dstPy);
-        int const dstPyFlags = PyArray_FLAGS(dstPyArray);
+        const int dstPyFlags = PyArray_FLAGS(dstPyArray);
         if (!(dstPyFlags & NPY_ARRAY_WRITEABLE))
         {
             throw std::runtime_error("'dst' must be writable.");
         }
 
         // Dedicated path to fill with scalar
-        npy_intp const itemsize = PyArray_ITEMSIZE(dstPyArray);
+        const npy_intp itemsize = PyArray_ITEMSIZE(dstPyArray);
         char * dstPyData = PyArray_BYTES(dstPyArray);
-        if (!PyArray_Check(srcPy) || PyArray_IsScalar(srcPy, Generic)
-         || (PyArray_SIZE(reinterpret_cast<PyArrayObject *>(srcPy)) == 1))
+        if (!PyArray_Check(srcPy) || PyArray_IsScalar(srcPy, Generic) ||
+            (PyArray_SIZE(reinterpret_cast<PyArrayObject *>(srcPy)) == 1))
         {
             /* Eigen does a much better job than element-wise copy assignment in this scenario.
                Note that only the width of the scalar type matters here, not the actual type.
                Ensure copy and casting are both slow as they allocate new array, so avoiding
                using them entirely if possible and falling back to default routine otherwise. */
-            if ((itemsize == 8) && (dstPyFlags & NPY_ARRAY_ALIGNED)
-             && (dstPyFlags & (NPY_ARRAY_C_CONTIGUOUS | NPY_ARRAY_F_CONTIGUOUS)))
+            if ((itemsize == 8) && (dstPyFlags & NPY_ARRAY_ALIGNED) &&
+                (dstPyFlags & (NPY_ARRAY_C_CONTIGUOUS | NPY_ARRAY_F_CONTIGUOUS)))
             {
                 // Convert src scalar data to raw bytes with dst dtype, casting if necessary
                 bool_t isSuccess = false;
@@ -176,10 +171,12 @@ namespace jiminy::python
                     {
                         int dstPyTypeNum = PyArray_TYPE(dstPyArray);
                         PyArray_Descr * srcPyDtype = PyArray_DESCR(srcPyArray);
-                        if (!PyTypeNum_ISEXTENDED(dstPyTypeNum) && !PyTypeNum_ISEXTENDED(srcPyDtype->type_num))
+                        if (!PyTypeNum_ISEXTENDED(dstPyTypeNum) &&
+                            !PyTypeNum_ISEXTENDED(srcPyDtype->type_num))
                         {
                             auto srcToDstCastFunc = PyArray_GetCastFunc(srcPyDtype, dstPyTypeNum);
-                            srcToDstCastFunc(PyArray_DATA(srcPyArray), &srcPyScalar, 1, NULL, NULL);
+                            srcToDstCastFunc(
+                                PyArray_DATA(srcPyArray), &srcPyScalar, 1, NULL, NULL);
                             isSuccess = true;
                         }
                     }
@@ -217,7 +214,7 @@ namespace jiminy::python
                 // Copy scalar bytes to destination if available
                 if (isSuccess)
                 {
-                    Eigen::Map<Eigen::Matrix<float64_t, Eigen::Dynamic, 1> > dst(
+                    Eigen::Map<Eigen::Matrix<float64_t, Eigen::Dynamic, 1>> dst(
                         reinterpret_cast<float64_t *>(dstPyData), PyArray_SIZE(dstPyArray));
                     dst.setConstant(srcPyScalar);
                     return;
@@ -233,14 +230,14 @@ namespace jiminy::python
 
         // Check if too complicated to deal with it manually. Falling back to default routine.
         PyArrayObject * srcPyArray = reinterpret_cast<PyArrayObject *>(srcPy);
-        int const dstNdim = PyArray_NDIM(dstPyArray);
-        int const srcNdim = PyArray_NDIM(srcPyArray);
-        npy_intp const * const dstShape = PyArray_SHAPE(dstPyArray);
-        npy_intp const * const srcShape = PyArray_SHAPE(srcPyArray);
-        int const srcPyFlags = PyArray_FLAGS(srcPyArray);
-        int const commonPyFlags = dstPyFlags & srcPyFlags;
-        if (dstNdim != srcNdim || !PyArray_CompareLists(dstShape, srcShape, dstNdim)
-         || !(commonPyFlags & NPY_ARRAY_ALIGNED) || !PyArray_EquivArrTypes(dstPyArray, srcPyArray))
+        const int dstNdim = PyArray_NDIM(dstPyArray);
+        const int srcNdim = PyArray_NDIM(srcPyArray);
+        const npy_intp * const dstShape = PyArray_SHAPE(dstPyArray);
+        const npy_intp * const srcShape = PyArray_SHAPE(srcPyArray);
+        const int srcPyFlags = PyArray_FLAGS(srcPyArray);
+        const int commonPyFlags = dstPyFlags & srcPyFlags;
+        if (dstNdim != srcNdim || !PyArray_CompareLists(dstShape, srcShape, dstNdim) ||
+            !(commonPyFlags & NPY_ARRAY_ALIGNED) || !PyArray_EquivArrTypes(dstPyArray, srcPyArray))
         {
             if (PyArray_CopyInto(dstPyArray, srcPyArray) < 0)
             {
@@ -249,34 +246,38 @@ namespace jiminy::python
             return;
         }
 
-        // Multi-dimensional array but no broadcasting nor casting required. Easy enough to handle it.
+        // Multi-dimensional array but no broadcasting nor casting required. Easy enough to handle.
         char * srcPyData = PyArray_BYTES(srcPyArray);
         if (commonPyFlags & (NPY_ARRAY_C_CONTIGUOUS | NPY_ARRAY_F_CONTIGUOUS))
         {
             /* Fast specialization if both dst and src are jointly C- or F-contiguous.
                Note that converting arrays to Eigen matrices would leverage SIMD-vectorized
-               assignment, which is faster than `memcpy`. Yet, instantiating the mapping is
-               tricky because of memory alignment issues and dtype handling, so let's keep
-               it simple. The slowdown should be marginal for small-size arrays (size < 50). */
+               assignment, which is faster than `memcpy`. Yet, instantiating the mapping is tricky
+               because of memory alignment issues and dtype handling, so let's keep it simple. The
+               slowdown should be marginal for small-size arrays (size < 50). */
             memcpy(dstPyData, srcPyData, PyArray_NBYTES(dstPyArray));
         }
-        else if ((dstNdim == 2) && (itemsize == 8)
-         && (dstPyFlags & (NPY_ARRAY_C_CONTIGUOUS | NPY_ARRAY_F_CONTIGUOUS))
-         && (srcPyFlags & (NPY_ARRAY_C_CONTIGUOUS | NPY_ARRAY_F_CONTIGUOUS)))
+        else if ((dstNdim == 2) && (itemsize == 8) &&
+                 (dstPyFlags & (NPY_ARRAY_C_CONTIGUOUS | NPY_ARRAY_F_CONTIGUOUS)) &&
+                 (srcPyFlags & (NPY_ARRAY_C_CONTIGUOUS | NPY_ARRAY_F_CONTIGUOUS)))
         {
             /* Using Eigen once again to avoid slow element-wise copy assignment.
                TODO: Extend to support any number of dims by working on flattened view. */
             using EigenMapType = Eigen::Map<matrixN_t>;
             if (dstPyFlags & NPY_ARRAY_C_CONTIGUOUS)
             {
-                EigenMapType dst(reinterpret_cast<float64_t *>(dstPyData), dstShape[1], dstShape[0]);
-                EigenMapType src(reinterpret_cast<float64_t *>(srcPyData), dstShape[0], dstShape[1]);
+                EigenMapType dst(
+                    reinterpret_cast<float64_t *>(dstPyData), dstShape[1], dstShape[0]);
+                EigenMapType src(
+                    reinterpret_cast<float64_t *>(srcPyData), dstShape[0], dstShape[1]);
                 dst = src.transpose();
             }
             else
             {
-                EigenMapType dst(reinterpret_cast<float64_t *>(dstPyData), dstShape[0], dstShape[1]);
-                EigenMapType src(reinterpret_cast<float64_t *>(srcPyData), dstShape[1], dstShape[0]);
+                EigenMapType dst(
+                    reinterpret_cast<float64_t *>(dstPyData), dstShape[0], dstShape[1]);
+                EigenMapType src(
+                    reinterpret_cast<float64_t *>(srcPyData), dstShape[1], dstShape[0]);
                 dst = src.transpose();
             }
         }
@@ -285,8 +286,8 @@ namespace jiminy::python
             // Falling back to slow element-wise strided ND-array copy assignment
             int i = 0;
             npy_intp coord[NPY_MAXDIMS];
-            npy_intp const * const dstStrides = PyArray_STRIDES(dstPyArray);
-            npy_intp const * const srcStrides = PyArray_STRIDES(srcPyArray);
+            const npy_intp * const dstStrides = PyArray_STRIDES(dstPyArray);
+            const npy_intp * const srcStrides = PyArray_STRIDES(srcPyArray);
             memset(coord, 0, dstNdim * sizeof(npy_intp));
             while (i < dstNdim)
             {
@@ -317,8 +318,9 @@ namespace jiminy::python
         }
     }
 
-    void exposeHelpers(void)
+    void exposeHelpers()
     {
+        // clang-format off
         bp::def("get_random_seed", bp::make_function(&getRandomSeed,
                                    bp::return_value_policy<bp::return_by_value>()));
         bp::def("build_geom_from_urdf", &buildGeomFromUrdf,
@@ -345,32 +347,32 @@ namespace jiminy::python
         // Do not use EigenPy To-Python converter because it considers matrices with 1 column as vectors
         bp::def("interpolate", &interpolate,
                                (bp::arg("pinocchio_model"), "times_in", "positions_in", "times_out"),
-                               bp::return_value_policy<result_converter<true> >());
+                               bp::return_value_policy<result_converter<true>>());
 
         bp::def("aba",
                 &pinocchio_overload::aba<
                     float64_t, 0, pinocchio::JointCollectionDefaultTpl, vectorN_t, vectorN_t, vectorN_t, pinocchio::Force>,
                 (bp::arg("pinocchio_model"), "pinocchio_data", "q", "v", "u", "fext"),
                 "Compute ABA with external forces, store the result in Data::ddq and return it.",
-                bp::return_value_policy<result_converter<false> >());
+                bp::return_value_policy<result_converter<false>>());
         bp::def("rnea",
                 &pinocchio_overload::rnea<
                     float64_t, 0, pinocchio::JointCollectionDefaultTpl, vectorN_t, vectorN_t, vectorN_t>,
                 (bp::arg("pinocchio_model"), "pinocchio_data", "q", "v", "a"),
                 "Compute the RNEA without external forces, store the result in Data and return it.",
-                bp::return_value_policy<result_converter<false> >());
+                bp::return_value_policy<result_converter<false>>());
         bp::def("rnea",
                 &pinocchio_overload::rnea<
                     float64_t, 0, pinocchio::JointCollectionDefaultTpl, vectorN_t, vectorN_t, vectorN_t, pinocchio::Force>,
                 (bp::arg("pinocchio_model"), "pinocchio_data", "q", "v", "a", "fext"),
                 "Compute the RNEA with external forces, store the result in Data and return it.",
-                bp::return_value_policy<result_converter<false> >());
+                bp::return_value_policy<result_converter<false>>());
         bp::def("crba",
                 &pinocchio_overload::crba<
                     float64_t, 0, pinocchio::JointCollectionDefaultTpl, vectorN_t>,
                 (bp::arg("pinocchio_model"), "pinocchio_data", "q"),
                 "Computes CRBA, store the result in Data and return it.",
-                bp::return_value_policy<result_converter<false> >());
+                bp::return_value_policy<result_converter<false>>());
         bp::def("computeKineticEnergy",
                 &pinocchio_overload::computeKineticEnergy<
                     float64_t, 0, pinocchio::JointCollectionDefaultTpl, vectorN_t, vectorN_t>,
@@ -384,5 +386,6 @@ namespace jiminy::python
                 (bp::arg("pinocchio_model"), "pinocchio_data", "J", bp::arg("update_decomposition") = true));
         bp::def("solveJMinvJtv", &solveJMinvJtv,
                 (bp::arg("pinocchio_data"), "v", bp::arg("update_decomposition") = true));
+        // clang-format on
     }
 }

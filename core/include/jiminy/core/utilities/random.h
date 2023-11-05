@@ -9,27 +9,22 @@ namespace jiminy
 {
     // ************ Random number generator utilities ***************
 
-    void resetRandomGenerators(std::optional<uint32_t> const & seed = std::nullopt);
+    void resetRandomGenerators(const std::optional<uint32_t> & seed = std::nullopt);
 
     hresult_t getRandomSeed(uint32_t & seed);
 
-    float64_t randUniform(float64_t const & lo = 0.0,
-                          float64_t const & hi = 1.0);
+    float64_t randUniform(const float64_t & lo = 0.0, const float64_t & hi = 1.0);
 
-    float64_t randNormal(float64_t const & mean = 0.0,
-                         float64_t const & std = 1.0);
+    float64_t randNormal(const float64_t & mean = 0.0, const float64_t & std = 1.0);
 
-    vectorN_t randVectorNormal(uint32_t  const & size,
-                                float64_t const & mean,
-                                float64_t const & std);
+    vectorN_t randVectorNormal(
+        const uint32_t & size, const float64_t & mean, const float64_t & std);
 
-    vectorN_t randVectorNormal(uint32_t  const & size,
-                                float64_t const & std);
+    vectorN_t randVectorNormal(const uint32_t & size, const float64_t & std);
 
-    vectorN_t randVectorNormal(vectorN_t const & std);
+    vectorN_t randVectorNormal(const vectorN_t & std);
 
-    vectorN_t randVectorNormal(vectorN_t const & mean,
-                                vectorN_t const & std);
+    vectorN_t randVectorNormal(const vectorN_t & mean, const vectorN_t & std);
 
     void shuffleIndices(std::vector<uint32_t> & vector);
 
@@ -39,33 +34,32 @@ namespace jiminy
     {
     public:
         // Forbid the copy of the class
-        PeriodicGaussianProcess(PeriodicGaussianProcess const & process) = delete;
-        PeriodicGaussianProcess & operator = (PeriodicGaussianProcess const & process) = delete;
+        PeriodicGaussianProcess(const PeriodicGaussianProcess & process) = delete;
+        PeriodicGaussianProcess & operator=(const PeriodicGaussianProcess & process) = delete;
 
     public:
-        PeriodicGaussianProcess(float64_t const & wavelength,
-                                float64_t const & period,
-                                float64_t const & scale = 1.0);
+        PeriodicGaussianProcess(
+            const float64_t & wavelength, const float64_t & period, const float64_t & scale = 1.0);
 
-        ~PeriodicGaussianProcess(void) = default;
+        ~PeriodicGaussianProcess() = default;
 
-        void reset(void);
+        void reset();
 
-        float64_t operator()(float const & t);
+        float64_t operator()(const float & t);
 
-        float64_t const & getWavelength(void) const;
-        float64_t const & getPeriod(void) const;
-        float64_t const & getDt(void) const;
+        const float64_t & getWavelength() const;
+        const float64_t & getPeriod() const;
+        const float64_t & getDt() const;
 
     protected:
-        void initialize(void);
+        void initialize();
 
     private:
-        float64_t const wavelength_;
-        float64_t const period_;
-        float64_t const scale_;
-        float64_t const dt_;
-        int32_t const numTimes_;
+        const float64_t wavelength_;
+        const float64_t period_;
+        const float64_t scale_;
+        const float64_t dt_;
+        const int32_t numTimes_;
 
         bool_t isInitialized_;
         vectorN_t values_;
@@ -73,41 +67,40 @@ namespace jiminy
     };
 
 
+    /// \see Based on "Smooth random functions, random ODEs, and Gaussianprocesses":
+    ///      https://hal.inria.fr/hal-01944992/file/random_revision2.pdf */
     class PeriodicFourierProcess
     {
-    /* Based on "Smooth random functions, random ODEs, and Gaussianprocesses":
-        - https://hal.inria.fr/hal-01944992/file/random_revision2.pdf */
     public:
         // Forbid the copy of the class
-        PeriodicFourierProcess(PeriodicFourierProcess const & process) = delete;
-        PeriodicFourierProcess & operator = (PeriodicFourierProcess const & process) = delete;
+        PeriodicFourierProcess(const PeriodicFourierProcess & process) = delete;
+        PeriodicFourierProcess & operator=(const PeriodicFourierProcess & process) = delete;
 
     public:
-        PeriodicFourierProcess(float64_t const & wavelength,
-                               float64_t const & period,
-                               float64_t const & scale = 1.0);
+        PeriodicFourierProcess(
+            const float64_t & wavelength, const float64_t & period, const float64_t & scale = 1.0);
 
-        ~PeriodicFourierProcess(void) = default;
+        ~PeriodicFourierProcess() = default;
 
-        void reset(void);
+        void reset();
 
-        float64_t operator()(float const & t);
+        float64_t operator()(const float & t);
 
-        float64_t const & getWavelength(void) const;
-        float64_t const & getPeriod(void) const;
-        int32_t const & getNumHarmonics(void) const;
-        float64_t const & getDt(void) const;
+        const float64_t & getWavelength() const;
+        const float64_t & getPeriod() const;
+        const int32_t & getNumHarmonics() const;
+        const float64_t & getDt() const;
 
     protected:
-        void initialize(void);
+        void initialize();
 
     private:
-        float64_t const wavelength_;
-        float64_t const period_;
-        float64_t const scale_;
-        float64_t const dt_;
-        int32_t const numTimes_;
-        int32_t const numHarmonics_;
+        const float64_t wavelength_;
+        const float64_t period_;
+        const float64_t scale_;
+        const float64_t dt_;
+        const int32_t numTimes_;
+        const int32_t numHarmonics_;
 
         bool_t isInitialized_;
         vectorN_t values_;
@@ -118,30 +111,28 @@ namespace jiminy
     class AbstractPerlinNoiseOctave
     {
     public:
-        AbstractPerlinNoiseOctave(float64_t const & wavelength,
-                                  float64_t const & scale);
-        virtual ~AbstractPerlinNoiseOctave(void) = default;
+        AbstractPerlinNoiseOctave(const float64_t & wavelength, const float64_t & scale);
+        virtual ~AbstractPerlinNoiseOctave() = default;
 
-        virtual void reset(void);
+        virtual void reset();
 
-        float64_t operator()(float64_t const & t) const;
+        float64_t operator()(const float64_t & t) const;
 
-        float64_t const & getWavelength(void) const;
-        float64_t const & getScale(void) const;
-
-    protected:
-        virtual float64_t grad(int32_t knot,
-                               float64_t const & delta) const = 0;  // Copy on purpose
-
-        float64_t fade(float64_t const & delta) const;
-
-        float64_t lerp(float64_t const & ratio,
-                       float64_t const & yLeft,
-                       float64_t const & yRight) const;
+        const float64_t & getWavelength() const;
+        const float64_t & getScale() const;
 
     protected:
-        float64_t const wavelength_;
-        float64_t const scale_;
+        // Copy on purpose
+        virtual float64_t grad(int32_t knot, const float64_t & delta) const = 0;
+
+        float64_t fade(const float64_t & delta) const;
+
+        float64_t lerp(
+            const float64_t & ratio, const float64_t & yLeft, const float64_t & yRight) const;
+
+    protected:
+        const float64_t wavelength_;
+        const float64_t scale_;
 
         float64_t shift_;
     };
@@ -149,16 +140,14 @@ namespace jiminy
     class RandomPerlinNoiseOctave : public AbstractPerlinNoiseOctave
     {
     public:
-        RandomPerlinNoiseOctave(float64_t const & wavelength,
-                                float64_t const & scale);
+        RandomPerlinNoiseOctave(const float64_t & wavelength, const float64_t & scale);
 
-        virtual ~RandomPerlinNoiseOctave(void) = default;
+        virtual ~RandomPerlinNoiseOctave() = default;
 
-        virtual void reset(void) override final;
+        virtual void reset() override final;
 
     protected:
-        virtual float64_t grad(int32_t knot,
-                               float64_t const & delta) const override final;
+        virtual float64_t grad(int32_t knot, const float64_t & delta) const override final;
 
     private:
         uint32_t seed_;
@@ -167,76 +156,73 @@ namespace jiminy
     class PeriodicPerlinNoiseOctave : public AbstractPerlinNoiseOctave
     {
     public:
-        PeriodicPerlinNoiseOctave(float64_t const & wavelength,
-                                  float64_t const & period,
-                                  float64_t const & scale);
+        PeriodicPerlinNoiseOctave(
+            const float64_t & wavelength, const float64_t & period, const float64_t & scale);
 
-        virtual ~PeriodicPerlinNoiseOctave(void) = default;
+        virtual ~PeriodicPerlinNoiseOctave() = default;
 
-        virtual void reset(void) override final;
+        virtual void reset() override final;
 
     protected:
-        virtual float64_t grad(int32_t knot,
-                               float64_t const & delta) const override final;
+        virtual float64_t grad(int32_t knot, const float64_t & delta) const override final;
 
     private:
-        float64_t const period_;
+        const float64_t period_;
 
         std::vector<uint8_t> perm_;
     };
 
+    /// \brief  Sum of Perlin noise octaves.
+    ///
+    /// \details The original implementation uses fixed size permutation table to generate random
+    ///          gradient directions. As a result, the generated process is inherently periodic,
+    ///          which must be avoided. To circumvent this limitation, MurmurHash3 algorithm is
+    ///          used to get random gradients at every point in time, without any periodicity, but
+    ///          deterministically for a given seed. It is computationally more depending but not
+    ///          critically slower.
+    ///
+    /// \sa  For technical references:
+    ///      https://www.scratchapixel.com/lessons/procedural-generation-virtual-worlds/perlin-noise-part-2
+    ///      https://adrianb.io/2014/08/09/perlinnoise.html
+    ///      https://gamedev.stackexchange.com/a/23705/148509
+    ///      https://gamedev.stackexchange.com/q/161923/148509
+    ///      https://gamedev.stackexchange.com/q/134561/148509
+    ///
+    /// \sa  For reference about the implementation:
+    ///      https://github.com/bradykieffer/SimplexNoise/blob/master/simplexnoise/noise.py
+    ///      https://github.com/sol-prog/Perlin_Noise/blob/master/PerlinNoise.cpp
+    ///      https://github.com/ashima/webgl-noise/blob/master/src/classicnoise2D.glsl
     class AbstractPerlinProcess
     {
-    /* \brief  Sum of Perlin noise octaves.
-
-        \details  The original implementation uses fixed size permutation table to generate
-                  random gradient directions. As a result, the generated process is inherently
-                  periodic, which must be avoided. To circumvent this limitation, MurmurHash3
-                  algorithm is used to get random gradients at every point in time, without any
-                  periodicity, but deterministically for a given seed. It is computationally more
-                  depending but not critically slower.
-
-        /sa  For technical references:
-            - https://www.scratchapixel.com/lessons/procedural-generation-virtual-worlds/perlin-noise-part-2
-            - https://adrianb.io/2014/08/09/perlinnoise.html
-            - https://gamedev.stackexchange.com/a/23705/148509
-            - https://gamedev.stackexchange.com/q/161923/148509
-            - https://gamedev.stackexchange.com/q/134561/148509
-
-        /sa  For reference about the implementation:
-            - https://github.com/bradykieffer/SimplexNoise/blob/master/simplexnoise/noise.py
-            - https://github.com/sol-prog/Perlin_Noise/blob/master/PerlinNoise.cpp
-            - https://github.com/ashima/webgl-noise/blob/master/src/classicnoise2D.glsl
-    */
     public:
         // Forbid the copy of the class
-        AbstractPerlinProcess(AbstractPerlinProcess const & process) = delete;
-        AbstractPerlinProcess & operator = (AbstractPerlinProcess const & process) = delete;
+        AbstractPerlinProcess(const AbstractPerlinProcess & process) = delete;
+        AbstractPerlinProcess & operator=(const AbstractPerlinProcess & process) = delete;
 
     public:
-        AbstractPerlinProcess(float64_t const & wavelength,
-                              float64_t const & scale = 1.0,
-                              uint32_t  const & numOctaves = 8U);
-        virtual ~AbstractPerlinProcess(void) = default;
+        AbstractPerlinProcess(const float64_t & wavelength,
+                              const float64_t & scale = 1.0,
+                              const uint32_t & numOctaves = 8U);
+        virtual ~AbstractPerlinProcess() = default;
 
-        void reset(void);
+        void reset();
 
-        float64_t operator()(float const & t);
+        float64_t operator()(const float & t);
 
-        float64_t const & getWavelength(void) const;
-        uint32_t const & getNumOctaves(void) const;
-        float64_t const & getScale(void) const;
-
-    protected:
-        virtual void initialize(void) = 0;
+        const float64_t & getWavelength() const;
+        const uint32_t & getNumOctaves() const;
+        const float64_t & getScale() const;
 
     protected:
-        float64_t const wavelength_;
-        uint32_t const numOctaves_;
-        float64_t const scale_;
+        virtual void initialize() = 0;
+
+    protected:
+        const float64_t wavelength_;
+        const uint32_t numOctaves_;
+        const float64_t scale_;
 
         bool_t isInitialized_;
-        std::vector<std::unique_ptr<AbstractPerlinNoiseOctave> > octaves_;
+        std::vector<std::unique_ptr<AbstractPerlinNoiseOctave>> octaves_;
         float64_t amplitude_;
 
         float64_t grad_;
@@ -245,50 +231,50 @@ namespace jiminy
     class RandomPerlinProcess : public AbstractPerlinProcess
     {
     public:
-        RandomPerlinProcess(float64_t const & wavelength,
-                            float64_t const & scale = 1.0,
-                            uint32_t  const & numOctaves = 6U);
+        RandomPerlinProcess(const float64_t & wavelength,
+                            const float64_t & scale = 1.0,
+                            const uint32_t & numOctaves = 6U);
 
-        virtual ~RandomPerlinProcess(void) = default;
+        virtual ~RandomPerlinProcess() = default;
 
     protected:
-        virtual void initialize(void) override final;
+        virtual void initialize() override final;
     };
 
     class PeriodicPerlinProcess : public AbstractPerlinProcess
     {
     public:
-        PeriodicPerlinProcess(float64_t const & wavelength,
-                              float64_t const & period,
-                              float64_t const & scale = 1.0,
-                              uint32_t  const & numOctaves = 6U);
+        PeriodicPerlinProcess(const float64_t & wavelength,
+                              const float64_t & period,
+                              const float64_t & scale = 1.0,
+                              const uint32_t & numOctaves = 6U);
 
-        virtual ~PeriodicPerlinProcess(void) = default;
+        virtual ~PeriodicPerlinProcess() = default;
 
-        float64_t const & getPeriod(void) const;
+        const float64_t & getPeriod() const;
 
     protected:
-        virtual void initialize(void) override final;
+        virtual void initialize() override final;
 
     private:
-        float64_t const period_;
+        const float64_t period_;
     };
 
     // ************ Random terrain generators ***************
 
-    heightmapFunctor_t randomTileGround(vector2_t const & size,
-                                        float64_t const & heightMax,
-                                        vector2_t const & interpDelta,
-                                        uint32_t  const & sparsity,
-                                        float64_t const & orientation,
-                                        uint32_t  const & seed);
+    heightmapFunctor_t randomTileGround(const vector2_t & size,
+                                        const float64_t & heightMax,
+                                        const vector2_t & interpDelta,
+                                        const uint32_t & sparsity,
+                                        const float64_t & orientation,
+                                        const uint32_t & seed);
 
-    heightmapFunctor_t sumHeightmap(std::vector<heightmapFunctor_t> const & heightmaps);
-    heightmapFunctor_t mergeHeightmap(std::vector<heightmapFunctor_t> const & heightmaps);
+    heightmapFunctor_t sumHeightmap(const std::vector<heightmapFunctor_t> & heightmaps);
+    heightmapFunctor_t mergeHeightmap(const std::vector<heightmapFunctor_t> & heightmaps);
 
-    matrixN_t discretizeHeightmap(heightmapFunctor_t const & heightmap,
-                                  float64_t          const & gridSize,
-                                  float64_t          const & gridUnit);
+    matrixN_t discretizeHeightmap(const heightmapFunctor_t & heightmap,
+                                  const float64_t & gridSize,
+                                  const float64_t & gridUnit);
 }
 
 #endif  // JIMINY_RANDOM_H

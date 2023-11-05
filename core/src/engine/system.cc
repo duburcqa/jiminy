@@ -15,50 +15,48 @@ namespace jiminy
     // ================== forceProfile_t ==================
     // ====================================================
 
-    forceProfile_t::forceProfile_t(std::string           const & frameNameIn,
-                                   frameIndex_t          const & frameIdxIn,
-                                   float64_t             const & updatePeriodIn,
-                                   forceProfileFunctor_t const & forceFctIn) :
+    forceProfile_t::forceProfile_t(const std::string & frameNameIn,
+                                   const frameIndex_t & frameIdxIn,
+                                   const float64_t & updatePeriodIn,
+                                   const forceProfileFunctor_t & forceFctIn) :
     frameName(frameNameIn),
     frameIdx(frameIdxIn),
     updatePeriod(updatePeriodIn),
     forcePrev(pinocchio::Force::Zero()),
     forceFct(forceFctIn)
     {
-        // Empty on purpose
     }
 
     // ====================================================
     // ================== forceImpulse_t ==================
     // ====================================================
 
-    forceImpulse_t::forceImpulse_t(std::string      const & frameNameIn,
-                                   frameIndex_t     const & frameIdxIn,
-                                   float64_t        const & tIn,
-                                   float64_t        const & dtIn,
-                                   pinocchio::Force const & FIn) :
+    forceImpulse_t::forceImpulse_t(const std::string & frameNameIn,
+                                   const frameIndex_t & frameIdxIn,
+                                   const float64_t & tIn,
+                                   const float64_t & dtIn,
+                                   const pinocchio::Force & FIn) :
     frameName(frameNameIn),
     frameIdx(frameIdxIn),
     t(tIn),
     dt(dtIn),
     F(FIn)
     {
-        // Empty on purpose
     }
 
     // ====================================================
     // ================== forceCoupling_t =================
     // ====================================================
 
-    forceCoupling_t::forceCoupling_t(std::string            const & systemName1In,
-                                     int32_t                const & systemIdx1In,
-                                     std::string            const & systemName2In,
-                                     int32_t                const & systemIdx2In,
-                                     std::string            const & frameName1In,
-                                     frameIndex_t           const & frameIdx1In,
-                                     std::string            const & frameName2In,
-                                     frameIndex_t           const & frameIdx2In,
-                                     forceCouplingFunctor_t const & forceFctIn) :
+    forceCoupling_t::forceCoupling_t(const std::string & systemName1In,
+                                     const int32_t & systemIdx1In,
+                                     const std::string & systemName2In,
+                                     const int32_t & systemIdx2In,
+                                     const std::string & frameName1In,
+                                     const frameIndex_t & frameIdx1In,
+                                     const std::string & frameName2In,
+                                     const frameIndex_t & frameIdx2In,
+                                     const forceCouplingFunctor_t & forceFctIn) :
     systemName1(systemName1In),
     systemIdx1(systemIdx1In),
     systemName2(systemName2In),
@@ -69,14 +67,13 @@ namespace jiminy
     frameIdx2(frameIdx2In),
     forceFct(forceFctIn)
     {
-        // Empty on purpose
     }
 
     // ====================================================
     // ================== systemHolder_t ==================
     // ====================================================
 
-    systemHolder_t::systemHolder_t(std::string const & systemNameIn,
+    systemHolder_t::systemHolder_t(const std::string & systemNameIn,
                                    std::shared_ptr<Robot> robotIn,
                                    std::shared_ptr<AbstractController> controllerIn,
                                    callbackFunctor_t callbackFctIn) :
@@ -85,26 +82,23 @@ namespace jiminy
     controller(controllerIn),
     callbackFct(std::move(callbackFctIn))
     {
-        // Empty on purpose
     }
 
-    systemHolder_t::systemHolder_t(void) :
-    systemHolder_t("", nullptr, nullptr,
-    [](float64_t const & /* t */,
-       vectorN_t const & /* q */,
-       vectorN_t const & /* v */) -> bool_t
+    systemHolder_t::systemHolder_t() :
+    systemHolder_t("",
+                   nullptr,
+                   nullptr,
+                   [](const float64_t & /* t */,
+                      const vectorN_t & /* q */,
+                      const vectorN_t & /* v */) -> bool_t { return false; })
     {
-        return false;
-    })
-    {
-        // Empty on purpose
     }
 
     // ===============================================
     // ================ systemState_t ================
     // ===============================================
 
-    systemState_t::systemState_t(void) :
+    systemState_t::systemState_t() :
     q(),
     v(),
     a(),
@@ -116,10 +110,9 @@ namespace jiminy
     fExternal(),
     isInitialized_(false)
     {
-        // Empty on purpose.
     }
 
-    hresult_t systemState_t::initialize(Robot const & robot)
+    hresult_t systemState_t::initialize(const Robot & robot)
     {
         if (!robot.getIsInitialized())
         {
@@ -135,19 +128,18 @@ namespace jiminy
         uMotor.setZero(robot.getMotorsNames().size());
         uInternal.setZero(robot.nv());
         uCustom.setZero(robot.nv());
-        fExternal = forceVector_t(robot.pncModel_.joints.size(),
-                                  pinocchio::Force::Zero());
+        fExternal = forceVector_t(robot.pncModel_.joints.size(), pinocchio::Force::Zero());
         isInitialized_ = true;
 
         return hresult_t::SUCCESS;
     }
 
-    bool_t const & systemState_t::getIsInitialized(void) const
+    const bool_t & systemState_t::getIsInitialized() const
     {
         return isInitialized_;
     }
 
-    void systemState_t::clear(void)
+    void systemState_t::clear()
     {
         q.resize(0);
         v.resize(0);

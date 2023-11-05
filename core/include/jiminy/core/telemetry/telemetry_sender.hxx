@@ -8,11 +8,10 @@
 namespace jiminy
 {
     template<typename T>
-    hresult_t TelemetrySender::registerVariable(std::string const & fieldname,
-                                                T           const * value)
+    hresult_t TelemetrySender::registerVariable(const std::string & fieldname, const T * value)
     {
         T * positionInBuffer = nullptr;
-        std::string const fullFieldName = objectName_ + TELEMETRY_FIELDNAME_DELIMITER + fieldname;
+        const std::string fullFieldName = objectName_ + TELEMETRY_FIELDNAME_DELIMITER + fieldname;
 
         hresult_t returnCode = telemetryData_->registerVariable(fullFieldName, positionInBuffer);
         if (returnCode == hresult_t::SUCCESS)
@@ -25,11 +24,11 @@ namespace jiminy
     }
 
     template<typename Derived>
-    hresult_t TelemetrySender::registerVariable(std::vector<std::string>   const & fieldnames,
-                                                Eigen::MatrixBase<Derived> const & values)
+    hresult_t TelemetrySender::registerVariable(const std::vector<std::string> & fieldnames,
+                                                const Eigen::MatrixBase<Derived> & values)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
-        for (Eigen::Index i=0; i < values.size(); ++i)
+        for (Eigen::Index i = 0; i < values.size(); ++i)
         {
             if (returnCode == hresult_t::SUCCESS)
             {

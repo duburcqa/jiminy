@@ -1,9 +1,3 @@
-///////////////////////////////////////////////////////////////////////////////////////////////
-///
-/// \brief      Implements a 4th-order fixed-step Runge Kutta method
-///
-///////////////////////////////////////////////////////////////////////////////////////////////
-
 #ifndef JIMINY_RUNGE_KUTTA_4_STEPPER_H
 #define JIMINY_RUNGE_KUTTA_4_STEPPER_H
 
@@ -13,23 +7,24 @@ namespace jiminy
 {
     namespace RK4
     {
-        matrixN_t const A((matrixN_t(4, 4) << 0.0, 0.0,  0.0,  0.0,
+        // clang-format off
+        const matrixN_t A((matrixN_t(4, 4) << 0.0, 0.0,  0.0,  0.0,
                                               0.5, 0.0,  0.0,  0.0,
                                               0.0, 0.5,  0.0,  0.0,
                                               0.0, 0.0,  1.0,  0.0).finished());
-        vectorN_t const c((vectorN_t(4) << 0.0, 0.5, 0.5, 1.0).finished());
-        vectorN_t const b((vectorN_t(4) << 1.0 / 6.0, 1.0 / 3.0, 1.0 / 3.0, 1.0 / 6.0).finished());
+        const vectorN_t c((vectorN_t(4) << 0.0, 0.5, 0.5, 1.0).finished());
+        const vectorN_t b((vectorN_t(4) << 1.0 / 6.0, 1.0 / 3.0, 1.0 / 3.0, 1.0 / 6.0).finished());
+        // clang-format on
     }
 
-    class RungeKutta4Stepper: public AbstractRungeKuttaStepper
+    /// \brief 4th-order fixed-step Runge Kutta method
+    class RungeKutta4Stepper : public AbstractRungeKuttaStepper
     {
-        public:
-            /// \brief Constructor
-            /// \param[in] f      Dynamics function, with signature a = f(t, q, v)
-            /// \param[in] robots Robots whose dynamics the stepper will work on.
-            RungeKutta4Stepper(systemDynamics const & f,
-                               std::vector<Robot const *> const & robots);
+    public:
+        /// \param[in] f Dynamics function, with signature `a = f(t, q, v)`.
+        /// \param[in] robots Robots whose dynamics the stepper will work on.
+        RungeKutta4Stepper(const systemDynamics & f, const std::vector<const Robot *> & robots);
     };
 }
 
-#endif //end of JIMINY_RUNGE_KUTTA_DOPRI_STEPPER_H
+#endif  // end of JIMINY_RUNGE_KUTTA_DOPRI_STEPPER_H

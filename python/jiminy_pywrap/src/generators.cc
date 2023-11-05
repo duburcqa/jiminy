@@ -8,19 +8,19 @@ namespace jiminy::python
 {
     namespace bp = boost::python;
 
-    heightmapFunctor_t sumHeightmap(bp::list const & heightmapsPy)
+    heightmapFunctor_t sumHeightmap(const bp::list & heightmapsPy)
     {
-        auto heightmaps = convertFromPython<std::vector<heightmapFunctor_t> >(heightmapsPy);
+        auto heightmaps = convertFromPython<std::vector<heightmapFunctor_t>>(heightmapsPy);
         return ::jiminy::sumHeightmap(heightmaps);
     }
 
-    heightmapFunctor_t mergeHeightmap(bp::list const & heightmapsPy)
+    heightmapFunctor_t mergeHeightmap(const bp::list & heightmapsPy)
     {
-        auto heightmaps = convertFromPython<std::vector<heightmapFunctor_t> >(heightmapsPy);
+        auto heightmaps = convertFromPython<std::vector<heightmapFunctor_t>>(heightmapsPy);
         return ::jiminy::mergeHeightmap(heightmaps);
     }
 
-    void resetRandomGenerators(bp::object const & seedPy)
+    void resetRandomGenerators(const bp::object & seedPy)
     {
         std::optional<uint32_t> seed = std::nullopt;
         if (!seedPy.is_none())
@@ -30,8 +30,9 @@ namespace jiminy::python
         ::jiminy::resetRandomGenerators(seed);
     }
 
-    void exposeGenerators(void)
+    void exposeGenerators()
     {
+        // clang-format off
         bp::def("reset_random_generator", &resetRandomGenerators, (bp::arg("seed") = bp::object()));
 
         bp::class_<AbstractPerlinProcess,
@@ -53,13 +54,13 @@ namespace jiminy::python
         bp::class_<RandomPerlinProcess, bp::bases<AbstractPerlinProcess>,
                    std::shared_ptr<RandomPerlinProcess>,
                    boost::noncopyable>("RandomPerlinProcess",
-                   bp::init<float64_t const &, float64_t const &, uint32_t const &>(
+                   bp::init<const float64_t &, const float64_t &, const uint32_t &>(
                    (bp::arg("self"), "wavelength", bp::arg("scale") = 1.0, bp::arg("num_octaves") = 6U)));
 
         bp::class_<PeriodicPerlinProcess, bp::bases<AbstractPerlinProcess>,
                    std::shared_ptr<PeriodicPerlinProcess>,
                    boost::noncopyable>("PeriodicPerlinProcess",
-                   bp::init<float64_t const &, float64_t const &, float64_t const &, uint32_t const &>(
+                   bp::init<const float64_t &, const float64_t &, const float64_t &, const uint32_t &>(
                    (bp::arg("self"), "wavelength", "period", bp::arg("scale") = 1.0, bp::arg("num_octaves") = 6U)))
             .ADD_PROPERTY_GET_WITH_POLICY("period",
                                           &PeriodicPerlinProcess::getPeriod,
@@ -68,7 +69,7 @@ namespace jiminy::python
         bp::class_<PeriodicGaussianProcess,
                    std::shared_ptr<PeriodicGaussianProcess>,
                    boost::noncopyable>("PeriodicGaussianProcess",
-                   bp::init<float64_t const &, float64_t const &, float64_t const &>(
+                   bp::init<const float64_t &, const float64_t &, const float64_t &>(
                    (bp::arg("self"), "wavelength", "period", bp::arg("scale") = 1.0)))
             .def("__call__", &PeriodicGaussianProcess::operator(),
                              (bp::arg("self"), bp::arg("time")))
@@ -86,7 +87,7 @@ namespace jiminy::python
         bp::class_<PeriodicFourierProcess,
                    std::shared_ptr<PeriodicFourierProcess>,
                    boost::noncopyable>("PeriodicFourierProcess",
-                   bp::init<float64_t const &, float64_t const &, float64_t const &>(
+                   bp::init<const float64_t &, const float64_t &, const float64_t &>(
                    (bp::arg("self"), "wavelength", "period", bp::arg("scale") = 1.0)))
             .def("__call__", &PeriodicFourierProcess::operator(),
                              (bp::arg("self"), bp::arg("time")))
@@ -110,7 +111,6 @@ namespace jiminy::python
         bp::def("merge_heightmap", &mergeHeightmap, (bp::arg("heightmaps")));
 
         bp::def("discretize_heightmap", &discretizeHeightmap, (bp::arg("heightmap"), "grid_size", "grid_unit"));
+        // clang-format on
     }
 }
-
-

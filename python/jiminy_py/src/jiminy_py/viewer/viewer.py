@@ -351,7 +351,7 @@ class _ProcessWrapper:
                 # Try to terminate cleanly
                 self._proc.terminate()
                 try:
-                    self.wait(timeout=0.5)
+                    self.wait(timeout=1.0)
                 except (subprocess.TimeoutExpired,
                         multiprocessing.TimeoutError):
                     pass
@@ -365,7 +365,9 @@ class _ProcessWrapper:
                     Process(self._proc.pid).kill()
                     os.waitpid(self._proc.pid, 0)
                     os.waitpid(os.getpid(), 0)
-                except (psutil.NoSuchProcess, ChildProcessError):
+                except (psutil.NoSuchProcess,
+                        ChildProcessError,
+                        PermissionError):
                     pass
                 multiprocessing.active_children()
 

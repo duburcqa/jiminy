@@ -4,8 +4,8 @@
 
 namespace jiminy::python
 {
-    void exposeAbstractController(void);
-    void exposeControllerFunctor(void);
+    void exposeAbstractController();
+    void exposeControllerFunctor();
 }
 
 #endif  // CONTROLLERS_PYTHON_H

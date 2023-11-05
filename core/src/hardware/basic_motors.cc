@@ -7,17 +7,17 @@
 
 namespace jiminy
 {
-    SimpleMotor::SimpleMotor(std::string const & name) :
+    SimpleMotor::SimpleMotor(const std::string & name) :
     AbstractMotorBase(name),
     motorOptions_(nullptr)
     {
-        /* AbstractMotorBase constructor calls the base implementations of
-           the virtual methods since the derived class is not available at
-           this point. Thus it must be called explicitly in the constructor. */
+        /* AbstractMotorBase constructor calls the base implementations of the virtual methods
+           since the derived class is not available at this point. Thus it must be called
+           explicitly in the constructor. */
         setOptions(getDefaultMotorOptions());
     }
 
-    hresult_t SimpleMotor::initialize(std::string const & jointName)
+    hresult_t SimpleMotor::initialize(const std::string & jointName)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -34,7 +34,7 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t SimpleMotor::setOptions(configHolder_t const & motorOptions)
+    hresult_t SimpleMotor::setOptions(const configHolder_t & motorOptions)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -73,16 +73,16 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            motorOptions_ = std::make_unique<motorOptions_t const>(motorOptions);
+            motorOptions_ = std::make_unique<const motorOptions_t>(motorOptions);
         }
 
         return returnCode;
     }
 
-    hresult_t SimpleMotor::computeEffort(float64_t const & /* t */,
-                                         Eigen::VectorBlock<vectorN_t const> const & /* q */,
-                                         float64_t const & v,
-                                         float64_t const & /* a */,
+    hresult_t SimpleMotor::computeEffort(const float64_t & /* t */,
+                                         const Eigen::VectorBlock<const vectorN_t> & /* q */,
+                                         const float64_t & v,
+                                         const float64_t & /* a */,
                                          float64_t command)
     {
         if (!isInitialized_)
@@ -103,16 +103,18 @@ namespace jiminy
            It is computed on joint side instead of the motor. */
         if (motorOptions_->enableFriction)
         {
-            float64_t const & vJoint = v;
+            const float64_t & vJoint = v;
             if (vJoint > 0)
             {
-                data() += motorOptions_->frictionViscousPositive * vJoint
-                        + motorOptions_->frictionDryPositive * tanh(motorOptions_->frictionDrySlope * vJoint);
+                data() += motorOptions_->frictionViscousPositive * vJoint +
+                          motorOptions_->frictionDryPositive *
+                              tanh(motorOptions_->frictionDrySlope * vJoint);
             }
             else
             {
-                data() += motorOptions_->frictionViscousNegative * vJoint
-                        + motorOptions_->frictionDryNegative * tanh(motorOptions_->frictionDrySlope * vJoint);
+                data() += motorOptions_->frictionViscousNegative * vJoint +
+                          motorOptions_->frictionDryNegative *
+                              tanh(motorOptions_->frictionDrySlope * vJoint);
             }
         }
 

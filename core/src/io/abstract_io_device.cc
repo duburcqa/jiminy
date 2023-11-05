@@ -1,40 +1,30 @@
-///////////////////////////////////////////////////////////////////////////////
-///
-/// \brief Contains the AbstractIODevice class methods implementations.
-///
-///////////////////////////////////////////////////////////////////////////////
-
 #include "jiminy/core/macros.h"
 #include "jiminy/core/io/abstract_io_device.h"
 
 
 namespace jiminy
 {
-    openMode_t operator|(openMode_t const & modeA,
-                         openMode_t const & modeB)
+    openMode_t operator|(const openMode_t & modeA, const openMode_t & modeB)
     {
         return static_cast<openMode_t>(static_cast<int32_t>(modeA) | static_cast<int32_t>(modeB));
     }
 
-    openMode_t operator&(openMode_t const & modeA,
-                         openMode_t const & modeB)
+    openMode_t operator&(const openMode_t & modeA, const openMode_t & modeB)
     {
         return static_cast<openMode_t>(static_cast<int32_t>(modeA) & static_cast<int32_t>(modeB));
     }
 
-    openMode_t operator|=(openMode_t       & modeA,
-                          openMode_t const & modeB)
+    openMode_t operator|=(openMode_t & modeA, const openMode_t & modeB)
     {
         return modeA = modeA | modeB;
     }
 
-    openMode_t operator&=(openMode_t       & modeA,
-                          openMode_t const & modeB)
+    openMode_t operator&=(openMode_t & modeA, const openMode_t & modeB)
     {
         return modeA = modeA & modeB;
     }
 
-    openMode_t operator~(openMode_t const & mode)
+    openMode_t operator~(const openMode_t & mode)
     {
         return static_cast<openMode_t>(~static_cast<int32_t>(mode));
     }
@@ -45,10 +35,9 @@ namespace jiminy
     lastError_(hresult_t::SUCCESS),
     io_(nullptr)
     {
-        // Empty on purpose
     }
 
-    hresult_t AbstractIODevice::open(openMode_t const & modes)
+    hresult_t AbstractIODevice::open(const openMode_t & modes)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -80,7 +69,7 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t AbstractIODevice::close(void)
+    hresult_t AbstractIODevice::close()
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -102,37 +91,37 @@ namespace jiminy
         return returnCode;
     }
 
-    openMode_t const & AbstractIODevice::openModes(void) const
+    const openMode_t & AbstractIODevice::openModes() const
     {
         return modes_;
     }
 
-    openMode_t const & AbstractIODevice::supportedModes(void) const
+    const openMode_t & AbstractIODevice::supportedModes() const
     {
         return supportedModes_;
     }
 
-    bool_t AbstractIODevice::isWritable(void) const
+    bool_t AbstractIODevice::isWritable() const
     {
         return (modes_ & openMode_t::WRITE_ONLY) || (modes_ & openMode_t::READ_WRITE);
     }
 
-    bool_t AbstractIODevice::isReadable(void) const
+    bool_t AbstractIODevice::isReadable() const
     {
         return (modes_ & openMode_t::READ_ONLY) || (modes_ & openMode_t::READ_WRITE);
     }
 
-    bool_t AbstractIODevice::isOpen(void) const
+    bool_t AbstractIODevice::isOpen() const
     {
         return (modes_ != openMode_t::NOT_OPEN);
     }
 
-    bool_t AbstractIODevice::isSequential(void) const
+    bool_t AbstractIODevice::isSequential() const
     {
         return false;
     }
 
-    int64_t AbstractIODevice::size(void)
+    int64_t AbstractIODevice::size()
     {
         return bytesAvailable();
     }
@@ -151,26 +140,25 @@ namespace jiminy
         return lastError_;
     }
 
-    int64_t AbstractIODevice::pos(void)
+    int64_t AbstractIODevice::pos()
     {
         return 0;
     }
 
-    int64_t AbstractIODevice::bytesAvailable(void)
+    int64_t AbstractIODevice::bytesAvailable()
     {
         return 0;
     }
 
-    hresult_t AbstractIODevice::getLastError(void) const
+    hresult_t AbstractIODevice::getLastError() const
     {
         return lastError_;
     }
 
-    hresult_t AbstractIODevice::write(void    const * data,
-                                      int64_t         dataSize)
+    hresult_t AbstractIODevice::write(const void * data, int64_t dataSize)
     {
         int64_t toWrite = dataSize;
-        uint8_t const * bufferPos = static_cast<uint8_t const *>(data);
+        const uint8_t * bufferPos = static_cast<const uint8_t *>(data);
 
         while (toWrite > 0)
         {
@@ -187,8 +175,7 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    hresult_t AbstractIODevice::read(void    * data,
-                                     int64_t   dataSize)
+    hresult_t AbstractIODevice::read(void * data, int64_t dataSize)
     {
         int64_t toRead = dataSize;
         uint8_t * bufferPos = static_cast<uint8_t *>(data);
@@ -215,7 +202,7 @@ namespace jiminy
         return lastError_;
     }
 
-    bool_t AbstractIODevice::isBackendValid(void)
+    bool_t AbstractIODevice::isBackendValid()
     {
         return (io_.get() != nullptr);
     }
@@ -226,7 +213,7 @@ namespace jiminy
         supportedModes_ = io_->supportedModes();
     }
 
-    void AbstractIODevice::removeBackend(void)
+    void AbstractIODevice::removeBackend()
     {
         io_.reset();
         supportedModes_ = openMode_t::NOT_OPEN;
@@ -234,7 +221,7 @@ namespace jiminy
 
     // Specific implementation - std::vector<uint8_t>
     template<>
-    hresult_t AbstractIODevice::read<std::vector<uint8_t> >(std::vector<uint8_t> & v)
+    hresult_t AbstractIODevice::read<std::vector<uint8_t>>(std::vector<uint8_t> & v)
     {
         int64_t toRead = static_cast<int64_t>(v.size() * sizeof(uint8_t));
         uint8_t * bufferPos = reinterpret_cast<uint8_t *>(v.data());
@@ -243,7 +230,7 @@ namespace jiminy
 
     // Specific implementation - std::vector<char_t>
     template<>
-    hresult_t AbstractIODevice::read<std::vector<char_t> >(std::vector<char_t> & v)
+    hresult_t AbstractIODevice::read<std::vector<char_t>>(std::vector<char_t> & v)
     {
         int64_t toRead = static_cast<int64_t>(v.size() * sizeof(char_t));
         uint8_t * bufferPos = reinterpret_cast<uint8_t *>(v.data());
@@ -252,37 +239,37 @@ namespace jiminy
 
     // Specific implementation - std::string
     template<>
-    hresult_t AbstractIODevice::write<std::string>(std::string const & str)
+    hresult_t AbstractIODevice::write<std::string>(const std::string & str)
     {
         int64_t toWrite = static_cast<int64_t>(str.size());
-        uint8_t const * bufferPos = reinterpret_cast<uint8_t const *>(str.c_str());
+        const uint8_t * bufferPos = reinterpret_cast<const uint8_t *>(str.c_str());
         return write(bufferPos, toWrite);
     }
 
     // Specific implementation - std::vector<uint8_t>
     template<>
-    hresult_t AbstractIODevice::write<std::vector<uint8_t> >(std::vector<uint8_t> const & v)
+    hresult_t AbstractIODevice::write<std::vector<uint8_t>>(const std::vector<uint8_t> & v)
     {
         int64_t toWrite = static_cast<int64_t>(v.size() * sizeof(uint8_t));
-        uint8_t const * bufferPos = reinterpret_cast<uint8_t const *>(v.data());
+        const uint8_t * bufferPos = reinterpret_cast<const uint8_t *>(v.data());
         return write(bufferPos, toWrite);
     }
 
     // Specific implementation - std::vector<char_t>
     template<>
-    hresult_t AbstractIODevice::write<std::vector<char_t> >(std::vector<char_t> const & v)
+    hresult_t AbstractIODevice::write<std::vector<char_t>>(const std::vector<char_t> & v)
     {
         int64_t toWrite = static_cast<int64_t>(v.size() * sizeof(char_t));
-        uint8_t const * bufferPos = reinterpret_cast<uint8_t const *>(v.data());
+        const uint8_t * bufferPos = reinterpret_cast<const uint8_t *>(v.data());
         return write(bufferPos, toWrite);
     }
 
     // Specific implementation - std::vector<uint64_t>
     template<>
-    hresult_t AbstractIODevice::write<std::vector<uint64_t> >(std::vector<uint64_t> const & v)
+    hresult_t AbstractIODevice::write<std::vector<uint64_t>>(const std::vector<uint64_t> & v)
     {
         int64_t toWrite = static_cast<int64_t>(v.size() * sizeof(uint64_t));
-        uint8_t const * bufferPos = reinterpret_cast<uint8_t const *>(&v[0]);
+        const uint8_t * bufferPos = reinterpret_cast<const uint8_t *>(&v[0]);
         return write(bufferPos, toWrite);
     }
 }

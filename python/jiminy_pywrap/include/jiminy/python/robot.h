@@ -4,8 +4,8 @@
 
 namespace jiminy::python
 {
-    void exposeModel(void);
-    void exposeRobot(void);
+    void exposeModel();
+    void exposeRobot();
 }
 
 #endif  // ROBOT_PYTHON_H

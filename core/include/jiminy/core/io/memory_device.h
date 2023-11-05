@@ -6,57 +6,41 @@
 
 namespace jiminy
 {
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////
     /// \brief Manage a memory buffer with IODevice interface.
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////
     class MemoryDevice : public AbstractIODevice
     {
     public:
-        MemoryDevice(uint64_t const & size);
-        MemoryDevice(MemoryDevice const & other);
+        MemoryDevice(const uint64_t & size);
+        MemoryDevice(const MemoryDevice & other);
         MemoryDevice(MemoryDevice && other);
 
         MemoryDevice(std::vector<uint8_t> && initBuffer);
 
-        virtual ~MemoryDevice(void);
+        virtual ~MemoryDevice();
 
-        MemoryDevice & operator=(MemoryDevice const & other);
+        MemoryDevice & operator=(const MemoryDevice & other);
         MemoryDevice & operator=(MemoryDevice && other);
 
-        int64_t size(void) override
-        {
-            return static_cast<int64_t>(buffer_.size());
-        }
+        int64_t size() override { return static_cast<int64_t>(buffer_.size()); }
 
-        bool_t isSequential(void) const override
-        {
-            return false;
-        }
+        bool_t isSequential() const override { return false; }
 
-        int64_t pos(void) override
-        {
-            return currentPos_;
-        }
+        int64_t pos() override { return currentPos_; }
 
-        int64_t bytesAvailable(void) override
-        {
-            return size() - currentPos_;
-        }
+        int64_t bytesAvailable() override { return size() - currentPos_; }
 
         hresult_t seek(int64_t pos) override;
 
-        int64_t readData(void    * data,
-                         int64_t   dataSize) override;
-        int64_t writeData(void    const * data,
-                          int64_t         dataSize) override;
+        int64_t readData(void * data, int64_t dataSize) override;
+        int64_t writeData(const void * data, int64_t dataSize) override;
 
         hresult_t setBlockingMode(bool_t) override;
 
         hresult_t resize(int64_t size) override;
 
     protected:
-        hresult_t doOpen(openMode_t const & modes) override;
-        hresult_t doClose(void) override;
+        hresult_t doOpen(const openMode_t & modes) override;
+        hresult_t doClose() override;
 
     private:
         std::vector<uint8_t> buffer_;
@@ -64,4 +48,4 @@ namespace jiminy
     };
 }
 
-#endif // JIMINY_CORE_MEMORY_DEVICE_H
+#endif  // JIMINY_CORE_MEMORY_DEVICE_H

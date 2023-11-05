@@ -1,11 +1,3 @@
-///////////////////////////////////////////////////////////////////////////////////////////////
-///
-/// \brief      Class representing a fixed frame constraint.
-///
-/// \details    This class  implements the constraint to have a specified frame fixed (in the world frame).
-///
-///////////////////////////////////////////////////////////////////////////////////////////////
-
 #ifndef JIMINY_FIXED_FRAME_CONSTRAINT_H
 #define JIMINY_FIXED_FRAME_CONSTRAINT_H
 
@@ -19,56 +11,59 @@ namespace jiminy
 {
     class Model;
 
+    /// \brief This class implements the constraint for fixing a given frame wrt world.
     class FixedFrameConstraint : public AbstractConstraintTpl<FixedFrameConstraint>
     {
     public:
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
     public:
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Forbid the copy of the class
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        FixedFrameConstraint(FixedFrameConstraint const & abstractConstraint) = delete;
-        FixedFrameConstraint & operator = (FixedFrameConstraint const & other) = delete;
+        /// Forbid the copy of the class
+        FixedFrameConstraint(const FixedFrameConstraint & abstractConstraint) = delete;
+        FixedFrameConstraint & operator=(const FixedFrameConstraint & other) = delete;
 
         auto shared_from_this() { return shared_from(this); }
 
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Constructor
-        ///
-        /// \param[in]  frameName   Name of the frame on which the constraint is to be applied.
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        FixedFrameConstraint(std::string const & frameName,
-                             Eigen::Matrix<bool_t, 6, 1> const & maskFixed = Eigen::Matrix<bool_t, 6, 1>::Constant(true));
-        virtual ~FixedFrameConstraint(void) = default;
+        /// \param[in] frameName Name of the frame on which the constraint is to be applied.
+        FixedFrameConstraint(const std::string & frameName,
+                             const Eigen::Matrix<bool_t, 6, 1> & maskFixed =
+                                 Eigen::Matrix<bool_t, 6, 1>::Constant(true));
+        virtual ~FixedFrameConstraint() = default;
 
-        std::string const & getFrameName(void) const;
-        frameIndex_t const & getFrameIdx(void) const;
+        const std::string & getFrameName() const;
+        const frameIndex_t & getFrameIdx() const;
 
-        std::vector<uint32_t> const & getDofsFixed(void) const;
+        const std::vector<uint32_t> & getDofsFixed() const;
 
-        void setReferenceTransform(pinocchio::SE3 const & transformRef);
-        pinocchio::SE3 const & getReferenceTransform(void) const;
+        void setReferenceTransform(const pinocchio::SE3 & transformRef);
+        const pinocchio::SE3 & getReferenceTransform() const;
 
-        void setNormal(vector3_t const & normal);
-        matrix3_t const & getLocalFrame(void) const;
+        void setNormal(const vector3_t & normal);
+        const matrix3_t & getLocalFrame() const;
 
-        virtual hresult_t reset(vectorN_t const & q,
-                                vectorN_t const & v) override final;
+        virtual hresult_t reset(const vectorN_t & q, const vectorN_t & v) override final;
 
-        virtual hresult_t computeJacobianAndDrift(vectorN_t const & q,
-                                                  vectorN_t const & v) override final;
+        virtual hresult_t computeJacobianAndDrift(const vectorN_t & q,
+                                                  const vectorN_t & v) override final;
 
     private:
-        std::string const frameName_;                       ///< Name of the frame on which the constraint operates.
-        frameIndex_t frameIdx_;                             ///< Corresponding frame index.
-        std::vector<uint32_t> dofsFixed_;                   ///< Degrees of freedom to fix.
-        pinocchio::SE3 transformRef_;                       ///< Reference pose of the frame to enforce.
-        vector3_t normal_;                                  ///< Normal direction locally at the interface.
-        matrix3_t rotationLocal_;                           ///< Rotation matrix of the local frame in which to apply masking
-        matrix6N_t frameJacobian_;                          ///< Stores full frame jacobian in reference frame.
-        pinocchio::Motion frameDrift_;                      ///< Stores full frame drift in reference frame.
+        /// \brief Name of the frame on which the constraint operates.
+        const std::string frameName_;
+        /// \brief Corresponding frame index.
+        frameIndex_t frameIdx_;
+        /// \brief Degrees of freedom to fix.
+        std::vector<uint32_t> dofsFixed_;
+        /// \brief Reference pose of the frame to enforce.
+        pinocchio::SE3 transformRef_;
+        /// \brief Normal direction locally at the interface.
+        vector3_t normal_;
+        /// \brief Rotation matrix of the local frame in which to apply masking
+        matrix3_t rotationLocal_;
+        /// \brief Stores full frame jacobian in reference frame.
+        matrix6N_t frameJacobian_;
+        /// \brief Stores full frame drift in reference frame.
+        pinocchio::Motion frameDrift_;
     };
 }
 
-#endif //end of JIMINY_ABSTRACT_MOTOR_H
+#endif  // end of JIMINY_ABSTRACT_MOTOR_H
