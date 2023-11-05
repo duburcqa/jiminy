@@ -29,12 +29,12 @@ namespace jiminy
         return jointIdx_;
     }
 
-    void JointConstraint::setReferenceConfiguration(const vectorN_t & configurationRef)
+    void JointConstraint::setReferenceConfiguration(const Eigen::VectorXd & configurationRef)
     {
         configurationRef_ = configurationRef;
     }
 
-    const vectorN_t & JointConstraint::getReferenceConfiguration() const
+    const Eigen::VectorXd & JointConstraint::getReferenceConfiguration() const
     {
         return configurationRef_;
     }
@@ -56,7 +56,7 @@ namespace jiminy
         return isReversed_;
     }
 
-    hresult_t JointConstraint::reset(const vectorN_t & q, const vectorN_t & /* v */)
+    hresult_t JointConstraint::reset(const Eigen::VectorXd & q, const Eigen::VectorXd & /* v */)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -147,17 +147,18 @@ namespace jiminy
     };
 
     template<typename ConfigVectorIn1, typename ConfigVectorIn2>
-    vectorN_t difference(const pinocchio::JointModel & jmodel,
-                         const ConfigVectorIn1 & q0,
-                         const ConfigVectorIn2 & q1)
+    Eigen::VectorXd difference(const pinocchio::JointModel & jmodel,
+                               const ConfigVectorIn1 & q0,
+                               const ConfigVectorIn2 & q1)
     {
-        vectorN_t v(jmodel.nv());
-        typedef DifferenceStep<ConfigVectorIn1, ConfigVectorIn2, vectorN_t> Pass;
+        Eigen::VectorXd v(jmodel.nv());
+        typedef DifferenceStep<ConfigVectorIn1, ConfigVectorIn2, Eigen::VectorXd> Pass;
         Pass::run(jmodel, typename Pass::ArgsType(q0, q1, v, 0, 0));
         return v;
     }
 
-    hresult_t JointConstraint::computeJacobianAndDrift(const vectorN_t & q, const vectorN_t & v)
+    hresult_t JointConstraint::computeJacobianAndDrift(const Eigen::VectorXd & q,
+                                                       const Eigen::VectorXd & v)
     {
         if (!isAttached_)
         {
@@ -172,7 +173,7 @@ namespace jiminy
         const pinocchio::JointModel & jointModel = model->pncModel_.joints[jointIdx_];
 
         // Add Baumgarte stabilization drift
-        const vectorN_t deltaPosition =
+        const Eigen::VectorXd deltaPosition =
             difference(jointModel, configurationRef_, jointModel.jointConfigSelector(q));
         drift_ = kp_ * deltaPosition + kd_ * jointModel.jointVelocitySelector(v);
         if (isReversed_)

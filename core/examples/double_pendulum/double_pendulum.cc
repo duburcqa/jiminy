@@ -17,23 +17,24 @@
 using namespace jiminy;
 
 void computeCommand(const float64_t & /* t */,
-                    const vectorN_t & /* q */,
-                    const vectorN_t & /* v */,
+                    const Eigen::VectorXd & /* q */,
+                    const Eigen::VectorXd & /* v */,
                     const sensorsDataMap_t & /* sensorsData */,
-                    vectorN_t & /* command */)
+                    Eigen::VectorXd & /* command */)
 {
     // No controller: energy should be preserved
 }
 
 void internalDynamics(const float64_t & /* t */,
-                      const vectorN_t & /* q */,
-                      const vectorN_t & /* v */,
+                      const Eigen::VectorXd & /* q */,
+                      const Eigen::VectorXd & /* v */,
                       const sensorsDataMap_t & /* sensorsData */,
-                      vectorN_t & /* uCustom */)
+                      Eigen::VectorXd & /* uCustom */)
 {
 }
 
-bool_t callback(const float64_t & /* t */, const vectorN_t & /* q */, const vectorN_t & /* v */)
+bool_t callback(
+    const float64_t & /* t */, const Eigen::VectorXd & /* q */, const Eigen::VectorXd & /* v */)
 {
     return true;
 }
@@ -96,7 +97,7 @@ int main(int /* argc */, char_t * /* argv */[])
     boost::get<bool_t>(telemetryOptions.at("enableMotorEffort")) = true;
     boost::get<bool_t>(telemetryOptions.at("enableEnergy")) = true;
     configHolder_t & worldOptions = boost::get<configHolder_t>(simuOptions.at("world"));
-    boost::get<vectorN_t>(worldOptions.at("gravity"))[2] = -9.81;
+    boost::get<Eigen::VectorXd>(worldOptions.at("gravity"))[2] = -9.81;
     configHolder_t & stepperOptions = boost::get<configHolder_t>(simuOptions.at("stepper"));
     boost::get<std::string>(stepperOptions.at("odeSolver")) = std::string("runge_kutta_dopri5");
     boost::get<float64_t>(stepperOptions.at("tolRel")) = 1.0e-5;

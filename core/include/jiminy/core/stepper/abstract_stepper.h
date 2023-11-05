@@ -9,9 +9,9 @@
 namespace jiminy
 {
     using systemDynamics = std::function<void(const float64_t & /*t*/,
-                                              const std::vector<vectorN_t> & /*qSplit*/,
-                                              const std::vector<vectorN_t> & /*vSplit*/,
-                                              std::vector<vectorN_t> & /*aSplit*/)>;
+                                              const std::vector<Eigen::VectorXd> & /*qSplit*/,
+                                              const std::vector<Eigen::VectorXd> & /*vSplit*/,
+                                              std::vector<Eigen::VectorXd> & /*aSplit*/)>;
 
     /// \brief Generic interface for steppers used to integrate the dynamic equations of motion.
     ///
@@ -46,9 +46,9 @@ namespace jiminy
         ///                    unmodified.
         ///
         /// \return Whether integration was successful. If not, (q, v, a) are not updated.
-        bool_t tryStep(std::vector<vectorN_t> & q,
-                       std::vector<vectorN_t> & v,
-                       std::vector<vectorN_t> & a,
+        bool_t tryStep(std::vector<Eigen::VectorXd> & q,
+                       std::vector<Eigen::VectorXd> & v,
+                       std::vector<Eigen::VectorXd> & a,
                        float64_t & t,
                        float64_t & dt);
 

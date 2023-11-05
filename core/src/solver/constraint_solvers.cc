@@ -104,9 +104,9 @@ namespace jiminy
         yPrev_.resize(constraintsRowsMax);
     }
 
-    void PGSSolver::ProjectedGaussSeidelIter(const matrixN_t & A,
-                                             const vectorN_t::SegmentReturnType & b,
-                                             vectorN_t::SegmentReturnType & x)
+    void PGSSolver::ProjectedGaussSeidelIter(const Eigen::MatrixXd & A,
+                                             const Eigen::VectorXd::SegmentReturnType & b,
+                                             Eigen::VectorXd::SegmentReturnType & x)
     {
         // First, loop over all unbounded constraints
         for (const ConstraintData & constraintData : constraintsData_)
@@ -220,9 +220,9 @@ namespace jiminy
         }
     }
 
-    bool_t PGSSolver::ProjectedGaussSeidelSolver(const matrixN_t & A,
-                                                 const vectorN_t::SegmentReturnType & b,
-                                                 vectorN_t::SegmentReturnType & x)
+    bool_t PGSSolver::ProjectedGaussSeidelSolver(const Eigen::MatrixXd & A,
+                                                 const Eigen::VectorXd::SegmentReturnType & b,
+                                                 Eigen::VectorXd::SegmentReturnType & x)
     {
         /* For some reason, it is impossible to get a better accuracy than 1e-5 for the absolute
            tolerance, even if unconstrained. It seems to be related to compounding of errors, maybe
@@ -291,7 +291,7 @@ namespace jiminy
                         [](const ConstraintData & constraintData)
                         { return constraintData.isInactive || constraintData.nBlocks == 0; });
 
-        matrixN_t & A = data_->JMinvJt;
+        Eigen::MatrixXd & A = data_->JMinvJt;
         if (!isStateUpToDate)
         {
             /* Compute JMinvJt, including cholesky decomposition of inertia matrix.

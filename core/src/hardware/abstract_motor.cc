@@ -317,7 +317,7 @@ namespace jiminy
         return sharedHolder_->data_[motorIdx_];
     }
 
-    const vectorN_t & AbstractMotorBase::getAll() const
+    const Eigen::VectorXd & AbstractMotorBase::getAll() const
     {
         return sharedHolder_->data_;
     }
@@ -395,10 +395,10 @@ namespace jiminy
     }
 
     hresult_t AbstractMotorBase::computeEffortAll(const float64_t & t,
-                                                  const vectorN_t & q,
-                                                  const vectorN_t & v,
-                                                  const vectorN_t & a,
-                                                  const vectorN_t & command)
+                                                  const Eigen::VectorXd & q,
+                                                  const Eigen::VectorXd & v,
+                                                  const Eigen::VectorXd & a,
+                                                  const Eigen::VectorXd & command)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 

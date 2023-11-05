@@ -195,10 +195,10 @@ namespace jiminy
 
         // Create and initialize a controller doing nothing
         auto bypassFunctor = [](const float64_t & /* t */,
-                                const vectorN_t & /* q */,
-                                const vectorN_t & /* v */,
+                                const Eigen::VectorXd & /* q */,
+                                const Eigen::VectorXd & /* v */,
                                 const sensorsDataMap_t & /* sensorsData */,
-                                vectorN_t & /* out */) {
+                                Eigen::VectorXd & /* out */) {
         };
         auto controller =
             std::make_shared<ControllerFunctor<decltype(bypassFunctor), decltype(bypassFunctor)>>(
@@ -382,8 +382,8 @@ namespace jiminy
                                                                   const std::string & systemName2,
                                                                   const std::string & frameName1,
                                                                   const std::string & frameName2,
-                                                                  const vector6_t & stiffness,
-                                                                  const vector6_t & damping,
+                                                                  const Vector6d & stiffness,
+                                                                  const Vector6d & damping,
                                                                   const float64_t & alpha)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
@@ -417,14 +417,14 @@ namespace jiminy
         {
             // Allocate memory
             float64_t angle{0.0};
-            matrix3_t rot12, rotJLog12, rotJExp12, rotRef12, omega;
-            vector3_t rotLog12, pos12, posLocal12, fLin, fAng;
+            Eigen::Matrix3d rot12, rotJLog12, rotJExp12, rotRef12, omega;
+            Eigen::Vector3d rotLog12, pos12, posLocal12, fLin, fAng;
 
             auto forceFct = [=](const float64_t & /*t*/,
-                                const vectorN_t & /*q_1*/,
-                                const vectorN_t & /*v_1*/,
-                                const vectorN_t & /*q_2*/,
-                                const vectorN_t & /*v_2*/) mutable -> pinocchio::Force
+                                const Eigen::VectorXd & /*q_1*/,
+                                const Eigen::VectorXd & /*v_1*/,
+                                const Eigen::VectorXd & /*q_2*/,
+                                const Eigen::VectorXd & /*v_2*/) mutable -> pinocchio::Force
             {
                 /* One must keep track of system pointers and frames indices internally and update
                    them at reset since the systems may have changed between simulations. Note that
@@ -502,8 +502,8 @@ namespace jiminy
     hresult_t EngineMultiRobot::registerViscoelasticForceCoupling(const std::string & systemName,
                                                                   const std::string & frameName1,
                                                                   const std::string & frameName2,
-                                                                  const vector6_t & stiffness,
-                                                                  const vector6_t & damping,
+                                                                  const Vector6d & stiffness,
+                                                                  const Vector6d & damping,
                                                                   const float64_t & alpha)
     {
         return registerViscoelasticForceCoupling(
@@ -554,10 +554,10 @@ namespace jiminy
         if (returnCode == hresult_t::SUCCESS)
         {
             auto forceFct = [=](const float64_t & /*t*/,
-                                const vectorN_t & /*q_1*/,
-                                const vectorN_t & /*v_1*/,
-                                const vectorN_t & /*q_2*/,
-                                const vectorN_t & /*v_2*/) mutable -> pinocchio::Force
+                                const Eigen::VectorXd & /*q_1*/,
+                                const Eigen::VectorXd & /*v_1*/,
+                                const Eigen::VectorXd & /*q_2*/,
+                                const Eigen::VectorXd & /*v_2*/) mutable -> pinocchio::Force
             {
                 /* One must keep track of system pointers and frames indices internally and update
                    them at reset since the systems may have changed between simulations. Note that
@@ -584,7 +584,7 @@ namespace jiminy
                                                                 pinocchio::LOCAL_WORLD_ALIGNED);
 
                 // Compute the linear force coupling them
-                vector3_t dir12 = oMf2.translation() - oMf1.translation();
+                Eigen::Vector3d dir12 = oMf2.translation() - oMf1.translation();
                 const float64_t length = dir12.norm();
                 auto vel12 = oVf2.linear() - oVf1.linear();
                 if (length > EPS)
@@ -592,13 +592,13 @@ namespace jiminy
                     dir12 /= length;
                     auto vel12Proj = vel12.dot(dir12);
                     return {(stiffness * (length - restLength) + damping * vel12Proj) * dir12,
-                            vector3_t::Zero()};
+                            Eigen::Vector3d::Zero()};
                 }
                 else
                 {
                     /* The direction between frames is ill-defined, so applying
                        force in the direction of the velocity instead. */
-                    return {damping * vel12, vector3_t::Zero()};
+                    return {damping * vel12, Eigen::Vector3d::Zero()};
                 }
                 return pinocchio::Force::Zero();
             };
@@ -1063,9 +1063,9 @@ namespace jiminy
     }
 
     hresult_t EngineMultiRobot::start(
-        const std::map<std::string, vectorN_t> & qInit,
-        const std::map<std::string, vectorN_t> & vInit,
-        const std::optional<std::map<std::string, vectorN_t>> & aInit)
+        const std::map<std::string, Eigen::VectorXd> & qInit,
+        const std::map<std::string, Eigen::VectorXd> & vInit,
+        const std::optional<std::map<std::string, Eigen::VectorXd>> & aInit)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -1091,8 +1091,8 @@ namespace jiminy
         }
 
         // Check the dimension of the initial state associated with every system and order them
-        std::vector<vectorN_t> qSplit;
-        std::vector<vectorN_t> vSplit;
+        std::vector<Eigen::VectorXd> qSplit;
+        std::vector<Eigen::VectorXd> vSplit;
         qSplit.reserve(nSystems);
         vSplit.reserve(nSystems);
         for (const auto & system : systems_)
@@ -1107,8 +1107,8 @@ namespace jiminy
                 return hresult_t::ERROR_BAD_INPUT;
             }
 
-            const vectorN_t & q = qInitIt->second;
-            const vectorN_t & v = vInitIt->second;
+            const Eigen::VectorXd & q = qInitIt->second;
+            const Eigen::VectorXd & v = vInitIt->second;
             if (q.rows() != system.robot->nq() || v.rows() != system.robot->nv())
             {
                 PRINT_ERROR("The dimension of the initial configuration or velocity is "
@@ -1158,14 +1158,14 @@ namespace jiminy
             /* Make sure the configuration is normalized (as double), since normalization is
                checked using float accuracy rather than double to circumvent float/double casting
                than may occurs because of Python bindings. */
-            vectorN_t qNormalized = q;
+            Eigen::VectorXd qNormalized = q;
             pinocchio::normalize(system.robot->pncModel_, qNormalized);
 
             qSplit.emplace_back(qNormalized);
             vSplit.emplace_back(v);
         }
 
-        std::vector<vectorN_t> aSplit;
+        std::vector<Eigen::VectorXd> aSplit;
         aSplit.reserve(nSystems);
         if (aInit)
         {
@@ -1187,7 +1187,7 @@ namespace jiminy
                     return hresult_t::ERROR_BAD_INPUT;
                 }
 
-                const vectorN_t & a = aInitIt->second;
+                const Eigen::VectorXd & a = aInitIt->second;
                 if (a.rows() != system.robot->nv())
                 {
                     PRINT_ERROR("The dimension of the initial acceleration is inconsistent "
@@ -1206,7 +1206,8 @@ namespace jiminy
             std::transform(vSplit.begin(),
                            vSplit.end(),
                            std::back_inserter(aSplit),
-                           [](const auto & v) -> vectorN_t { return vectorN_t::Zero(v.size()); });
+                           [](const auto & v) -> Eigen::VectorXd
+                           { return Eigen::VectorXd::Zero(v.size()); });
         }
 
         for (auto & system : systems_)
@@ -1261,9 +1262,9 @@ namespace jiminy
 
         // Initialize the ode solver
         auto systemOde = [this](const float64_t & t,
-                                const std::vector<vectorN_t> & q,
-                                const std::vector<vectorN_t> & v,
-                                std::vector<vectorN_t> & a) -> void
+                                const std::vector<Eigen::VectorXd> & q,
+                                const std::vector<Eigen::VectorXd> & v,
+                                std::vector<Eigen::VectorXd> & a) -> void
         {
             this->computeSystemsDynamics(t, q, v, a);
         };
@@ -1357,9 +1358,9 @@ namespace jiminy
             }
 
             // Compute the forward kinematics for each system
-            const vectorN_t & q = systemDataIt->state.q;
-            const vectorN_t & v = systemDataIt->state.v;
-            const vectorN_t & a = systemDataIt->state.a;
+            const Eigen::VectorXd & q = systemDataIt->state.q;
+            const Eigen::VectorXd & v = systemDataIt->state.v;
+            const Eigen::VectorXd & a = systemDataIt->state.a;
             computeForwardKinematics(*systemIt, q, v, a);
 
             /* Backup constraint register for fast lookup.
@@ -1386,7 +1387,7 @@ namespace jiminy
                coefficients for efficiency. */
             systemDataIt->jointsJacobians.resize(
                 systemIt->robot->pncModel_.njoints,
-                matrixN_t::Zero(6, systemIt->robot->pncModel_.nv));
+                 Matrix6Xd::Zero(6, systemIt->robot->pncModel_.nv));
 
             // Reset the constraints
             returnCode = systemIt->robot->resetConstraints(q, v);
@@ -1512,7 +1513,7 @@ namespace jiminy
 
             // Backup all external forces and internal efforts excluding constraint forces
             vector_aligned_t<forceVector_t> fextNoConst;
-            std::vector<vectorN_t> uInternalConst;
+            std::vector<Eigen::VectorXd> uInternalConst;
             fextNoConst.reserve(nSystems);
             uInternalConst.reserve(nSystems);
             for (const auto & systemData : systemsDataHolder_)
@@ -1534,14 +1535,14 @@ namespace jiminy
                      ++systemIt, ++systemDataIt, ++fextNoConstIt, ++uInternalConstIt)
                 {
                     // Get some system state proxies
-                    const vectorN_t & q = systemDataIt->state.q;
-                    const vectorN_t & v = systemDataIt->state.v;
-                    vectorN_t & a = systemDataIt->state.a;
-                    vectorN_t & u = systemDataIt->state.u;
-                    vectorN_t & command = systemDataIt->state.command;
-                    vectorN_t & uMotor = systemDataIt->state.uMotor;
-                    vectorN_t & uInternal = systemDataIt->state.uInternal;
-                    vectorN_t & uCustom = systemDataIt->state.uCustom;
+                    const Eigen::VectorXd & q = systemDataIt->state.q;
+                    const Eigen::VectorXd & v = systemDataIt->state.v;
+                    Eigen::VectorXd & a = systemDataIt->state.a;
+                    Eigen::VectorXd & u = systemDataIt->state.u;
+                    Eigen::VectorXd & command = systemDataIt->state.command;
+                    Eigen::VectorXd & uMotor = systemDataIt->state.uMotor;
+                    Eigen::VectorXd & uInternal = systemDataIt->state.uInternal;
+                    Eigen::VectorXd & uCustom = systemDataIt->state.uCustom;
                     forceVector_t & fext = systemDataIt->state.fExternal;
 
                     // Reset the external forces and internal efforts
@@ -1591,10 +1592,10 @@ namespace jiminy
             systemDataIt = systemsDataHolder_.begin();
             for (; systemIt != systems_.end(); ++systemIt, ++systemDataIt)
             {
-                const vectorN_t & q = systemDataIt->state.q;
-                const vectorN_t & v = systemDataIt->state.v;
-                const vectorN_t & a = systemDataIt->state.a;
-                const vectorN_t & uMotor = systemDataIt->state.uMotor;
+                const Eigen::VectorXd & q = systemDataIt->state.q;
+                const Eigen::VectorXd & v = systemDataIt->state.v;
+                const Eigen::VectorXd & a = systemDataIt->state.a;
+                const Eigen::VectorXd & uMotor = systemDataIt->state.uMotor;
                 const forceVector_t & fext = systemDataIt->state.fExternal;
                 systemIt->robot->setSensorsData(t, q, v, a, uMotor, fext);
             }
@@ -1716,9 +1717,9 @@ namespace jiminy
 
     hresult_t EngineMultiRobot::simulate(
         const float64_t & tEnd,
-        const std::map<std::string, vectorN_t> & qInit,
-        const std::map<std::string, vectorN_t> & vInit,
-        const std::optional<std::map<std::string, vectorN_t>> & aInit)
+        const std::map<std::string, Eigen::VectorXd> & qInit,
+        const std::map<std::string, Eigen::VectorXd> & vInit,
+        const std::optional<std::map<std::string, Eigen::VectorXd>> & aInit)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -1903,9 +1904,9 @@ namespace jiminy
         float64_t & t = stepperState_.t;
         float64_t & dt = stepperState_.dt;
         float64_t & dtLargest = stepperState_.dtLargest;
-        std::vector<vectorN_t> & qSplit = stepperState_.qSplit;
-        std::vector<vectorN_t> & vSplit = stepperState_.vSplit;
-        std::vector<vectorN_t> & aSplit = stepperState_.aSplit;
+        std::vector<Eigen::VectorXd> & qSplit = stepperState_.qSplit;
+        std::vector<Eigen::VectorXd> & vSplit = stepperState_.vSplit;
+        std::vector<Eigen::VectorXd> & aSplit = stepperState_.aSplit;
 
         // Monitor iteration failure
         uint32_t successiveIterFailed = 0;
@@ -2009,8 +2010,8 @@ namespace jiminy
                             if (dtNextForceUpdatePeriod < SIMULATION_MIN_TIMESTEP ||
                                 forceUpdatePeriod - dtNextForceUpdatePeriod < STEPPER_MIN_TIMESTEP)
                             {
-                                const vectorN_t & q = systemDataIt->state.q;
-                                const vectorN_t & v = systemDataIt->state.v;
+                                const Eigen::VectorXd & q = systemDataIt->state.q;
+                                const Eigen::VectorXd & v = systemDataIt->state.v;
                                 forceProfile.forcePrev = forceProfile.forceFct(t, q, v);
                                 hasDynamicsChanged = true;
                             }
@@ -2034,9 +2035,9 @@ namespace jiminy
                     auto systemDataIt = systemsDataHolder_.begin();
                     for (; systemIt != systems_.end(); ++systemIt, ++systemDataIt)
                     {
-                        const vectorN_t & q = systemDataIt->state.q;
-                        const vectorN_t & v = systemDataIt->state.v;
-                        vectorN_t & command = systemDataIt->state.command;
+                        const Eigen::VectorXd & q = systemDataIt->state.q;
+                        const Eigen::VectorXd & v = systemDataIt->state.v;
+                        Eigen::VectorXd & command = systemDataIt->state.command;
                         computeCommand(*systemIt, t, q, v, command);
                     }
                     hasDynamicsChanged = true;
@@ -2463,10 +2464,10 @@ namespace jiminy
                     auto systemDataIt = systemsDataHolder_.begin();
                     for (; systemIt != systems_.end(); ++systemIt, ++systemDataIt)
                     {
-                        const vectorN_t & q = systemDataIt->state.q;
-                        const vectorN_t & v = systemDataIt->state.v;
-                        const vectorN_t & a = systemDataIt->state.a;
-                        const vectorN_t & uMotor = systemDataIt->state.uMotor;
+                        const Eigen::VectorXd & q = systemDataIt->state.q;
+                        const Eigen::VectorXd & v = systemDataIt->state.v;
+                        const Eigen::VectorXd & a = systemDataIt->state.a;
+                        const Eigen::VectorXd & uMotor = systemDataIt->state.uMotor;
                         const forceVector_t & fext = systemDataIt->state.fExternal;
                         systemIt->robot->setSensorsData(t, q, v, a, uMotor, fext);
                     }
@@ -2931,7 +2932,7 @@ namespace jiminy
 
         // Make sure the user-defined gravity force has the right dimension
         configHolder_t worldOptions = boost::get<configHolder_t>(engineOptions.at("world"));
-        vectorN_t gravity = boost::get<vectorN_t>(worldOptions.at("gravity"));
+        Eigen::VectorXd gravity = boost::get<Eigen::VectorXd>(worldOptions.at("gravity"));
         if (gravity.size() != 6)
         {
             PRINT_ERROR("The size of the gravity force vector must be 6.");
@@ -3107,8 +3108,10 @@ namespace jiminy
     // ========================================================
 
 
-    void EngineMultiRobot::computeForwardKinematics(
-        systemHolder_t & system, const vectorN_t & q, const vectorN_t & v, const vectorN_t & a)
+    void EngineMultiRobot::computeForwardKinematics(systemHolder_t & system,
+                                                    const Eigen::VectorXd & q,
+                                                    const Eigen::VectorXd & v,
+                                                    const Eigen::VectorXd & a)
     {
         // Create proxies for convenience
         const pinocchio::Model & model = system.robot->pncModel_;
@@ -3197,7 +3200,7 @@ namespace jiminy
                Note that there is always a single contact point while computing the collision
                between two shape objects, for instance convex geometry and box primitive. */
             const auto & contact = collisionResult.getContact(i);
-            vector3_t nGround = contact.normal.normalized();  // Normal of the ground in world
+            Eigen::Vector3d nGround = contact.normal.normalized();  // Ground normal in world frame
             float64_t depth = contact.penetration_depth;  // Penetration depth (signed, negative)
             pinocchio::SE3 posContactInWorld = pinocchio::SE3::Identity();
             // TODO double check that it may be between both interfaces
@@ -3230,7 +3233,7 @@ namespace jiminy
                     system.robot->pncData_.oMi[parentJointIdx];
                 const pinocchio::SE3 transformJointFrameInContact =
                     posContactInWorld.actInv(transformJointFrameInWorld);
-                const vector3_t vContactInWorld =
+                const Eigen::Vector3d vContactInWorld =
                     transformJointFrameInContact.act(motionJointLocal).linear();
 
                 // Compute the ground reaction force at contact point in world frame
@@ -3280,10 +3283,10 @@ namespace jiminy
         const pinocchio::SE3 & transformFrameInWorld = data.oMf[frameIdx];
 
         // Compute the ground normal and penetration depth at the contact point
-        const vector3_t & posFrame = transformFrameInWorld.translation();
+        const Eigen::Vector3d & posFrame = transformFrameInWorld.translation();
         auto ground = engineOptions_->world.groundProfile(posFrame);
         const float64_t & zGround = std::get<float64_t>(ground);
-        vector3_t & nGround = std::get<vector3_t>(ground);
+        Eigen::Vector3d & nGround = std::get<Eigen::Vector3d>(ground);
         nGround.normalize();  // Make sure the ground normal is normalized
 
         // First-order projection (exact assuming no curvature)
@@ -3296,10 +3299,10 @@ namespace jiminy
             if (contactModel_ == contactModel_t::SPRING_DAMPER)
             {
                 // Compute the linear velocity of the contact point in world frame
-                const vector3_t motionFrameLocal =
+                const Eigen::Vector3d motionFrameLocal =
                     pinocchio::getFrameVelocity(model, data, frameIdx).linear();
-                const matrix3_t & rotFrame = transformFrameInWorld.rotation();
-                const vector3_t vContactInWorld = rotFrame * motionFrameLocal;
+                const Eigen::Matrix3d & rotFrame = transformFrameInWorld.rotation();
+                const Eigen::Vector3d vContactInWorld = rotFrame * motionFrameLocal;
 
                 // Compute the ground reaction force in world frame (local world aligned)
                 const pinocchio::Force fextAtContactInGlobal =
@@ -3343,12 +3346,12 @@ namespace jiminy
     }
 
     pinocchio::Force EngineMultiRobot::computeContactDynamics(
-        const vector3_t & nGround,
+        const Eigen::Vector3d & nGround,
         const float64_t & depth,
-        const vector3_t & vContactInWorld) const
+        const Eigen::Vector3d & vContactInWorld) const
     {
         // Initialize the contact force
-        vector3_t fextInWorld;
+        Eigen::Vector3d fextInWorld;
 
         if (depth < 0.0)
         {
@@ -3364,7 +3367,7 @@ namespace jiminy
             fextInWorld.noalias() = fextNormal * nGround;
 
             // Compute friction forces
-            const vector3_t vTangential = vContactInWorld - vDepth * nGround;
+            const Eigen::Vector3d vTangential = vContactInWorld - vDepth * nGround;
             const float64_t vRatio =
                 std::min(vTangential.norm() / contactOptions_.transitionVelocity, 1.0);
             const float64_t fextTangential = contactOptions_.friction * vRatio * fextNormal;
@@ -3383,14 +3386,14 @@ namespace jiminy
             fextInWorld.setZero();
         }
 
-        return {fextInWorld, vector3_t::Zero()};
+        return {fextInWorld, Eigen::Vector3d::Zero()};
     }
 
     void EngineMultiRobot::computeCommand(systemHolder_t & system,
                                           const float64_t & t,
-                                          const vectorN_t & q,
-                                          const vectorN_t & v,
-                                          vectorN_t & command)
+                                          const Eigen::VectorXd & q,
+                                          const Eigen::VectorXd & v,
+                                          Eigen::VectorXd & command)
     {
         // Reinitialize the external forces
         command.setZero();
@@ -3442,14 +3445,14 @@ namespace jiminy
     {
         typedef boost::fusion::vector<
             const pinocchio::Data & /* pncData */,
-            const vectorN_t & /* q */,
-            const vectorN_t & /* v */,
-            const vectorN_t & /* positionLimitMin */,
-            const vectorN_t & /* positionLimitMax */,
+            const Eigen::VectorXd & /* q */,
+            const Eigen::VectorXd & /* v */,
+            const Eigen::VectorXd & /* positionLimitMin */,
+            const Eigen::VectorXd & /* positionLimitMax */,
             const std::unique_ptr<const EngineMultiRobot::engineOptions_t> & /* engineOptions */,
             const contactModel_t & /* contactModel */,
             std::shared_ptr<AbstractConstraintBase> & /* constraint */,
-            vectorN_t & /* u */>
+            Eigen::VectorXd & /* u */>
             ArgsType;
 
         template<typename JointModel>
@@ -3460,14 +3463,14 @@ namespace jiminy
                                 void>
         algo(const pinocchio::JointModelBase<JointModel> & joint,
              const pinocchio::Data & pncData,
-             const vectorN_t & q,
-             const vectorN_t & v,
-             const vectorN_t & positionLimitMin,
-             const vectorN_t & positionLimitMax,
+             const Eigen::VectorXd & q,
+             const Eigen::VectorXd & v,
+             const Eigen::VectorXd & positionLimitMin,
+             const Eigen::VectorXd & positionLimitMax,
              const std::unique_ptr<const EngineMultiRobot::engineOptions_t> & engineOptions,
              const contactModel_t & contactModel,
              std::shared_ptr<AbstractConstraintBase> & constraint,
-             vectorN_t & u)
+             Eigen::VectorXd & u)
         {
             // Define some proxies for convenience
             const jointIndex_t & jointIdx = joint.id();
@@ -3526,14 +3529,14 @@ namespace jiminy
                                 void>
         algo(const pinocchio::JointModelBase<JointModel> & /* joint */,
              const pinocchio::Data & /* pncData */,
-             const vectorN_t & /* q */,
-             const vectorN_t & /* v */,
-             const vectorN_t & /* positionLimitMin */,
-             const vectorN_t & /* positionLimitMax */,
+             const Eigen::VectorXd & /* q */,
+             const Eigen::VectorXd & /* v */,
+             const Eigen::VectorXd & /* positionLimitMin */,
+             const Eigen::VectorXd & /* positionLimitMax */,
              const std::unique_ptr<const EngineMultiRobot::engineOptions_t> & /* engineOptions */,
              const contactModel_t & contactModel,
              std::shared_ptr<AbstractConstraintBase> & constraint,
-             vectorN_t & /* u */)
+             Eigen::VectorXd & /* u */)
         {
             if (contactModel == contactModel_t::CONSTRAINT)
             {
@@ -3553,14 +3556,14 @@ namespace jiminy
                                 void>
         algo(const pinocchio::JointModelBase<JointModel> & /* joint */,
              const pinocchio::Data & /* pncData */,
-             const vectorN_t & /* q */,
-             const vectorN_t & /* v */,
-             const vectorN_t & /* positionLimitMin */,
-             const vectorN_t & /* positionLimitMax */,
+             const Eigen::VectorXd & /* q */,
+             const Eigen::VectorXd & /* v */,
+             const Eigen::VectorXd & /* positionLimitMin */,
+             const Eigen::VectorXd & /* positionLimitMax */,
              const std::unique_ptr<const EngineMultiRobot::engineOptions_t> & /* engineOptions */,
              const contactModel_t & contactModel,
              std::shared_ptr<AbstractConstraintBase> & constraint,
-             vectorN_t & /* u */)
+             Eigen::VectorXd & /* u */)
         {
             PRINT_WARNING("No position bounds implemented for this type of joint.");
             if (contactModel == contactModel_t::CONSTRAINT)
@@ -3576,11 +3579,11 @@ namespace jiminy
     {
         typedef boost::fusion::vector<
             const pinocchio::Data & /* pncData */,
-            const vectorN_t & /* v */,
-            const vectorN_t & /* velocityLimitMax */,
+            const Eigen::VectorXd & /* v */,
+            const Eigen::VectorXd & /* velocityLimitMax */,
             const std::unique_ptr<const EngineMultiRobot::engineOptions_t> & /* engineOptions */,
             const contactModel_t & /* contactModel */,
-            vectorN_t & /* u */>
+            Eigen::VectorXd & /* u */>
             ArgsType;
         template<typename JointModel>
         static std::enable_if_t<is_pinocchio_joint_revolute_v<JointModel> ||
@@ -3592,11 +3595,11 @@ namespace jiminy
                                 void>
         algo(const pinocchio::JointModelBase<JointModel> & joint,
              const pinocchio::Data & pncData,
-             const vectorN_t & v,
-             const vectorN_t & velocityLimitMax,
+             const Eigen::VectorXd & v,
+             const Eigen::VectorXd & velocityLimitMax,
              const std::unique_ptr<const EngineMultiRobot::engineOptions_t> & engineOptions,
              const contactModel_t & contactModel,
-             vectorN_t & u)
+             Eigen::VectorXd & u)
         {
             // Define some proxies for convenience
             const jointIndex_t & jointIdx = joint.id();
@@ -3644,11 +3647,11 @@ namespace jiminy
                                 void>
         algo(const pinocchio::JointModelBase<JointModel> & /* joint */,
              const pinocchio::Data & /* pncData */,
-             const vectorN_t & /* v */,
-             const vectorN_t & /* velocityLimitMax */,
+             const Eigen::VectorXd & /* v */,
+             const Eigen::VectorXd & /* velocityLimitMax */,
              const std::unique_ptr<const EngineMultiRobot::engineOptions_t> & /* engineOptions */,
              const contactModel_t & /* contactModel */,
-             vectorN_t & /* u */)
+             Eigen::VectorXd & /* u */)
         {
             PRINT_WARNING("No velocity bounds implemented for this type of joint.");
         }
@@ -3657,9 +3660,9 @@ namespace jiminy
     void EngineMultiRobot::computeInternalDynamics(const systemHolder_t & system,
                                                    systemDataHolder_t & systemData,
                                                    const float64_t & /* t */,
-                                                   const vectorN_t & q,
-                                                   const vectorN_t & v,
-                                                   vectorN_t & uInternal) const
+                                                   const Eigen::VectorXd & q,
+                                                   const Eigen::VectorXd & v,
+                                                   Eigen::VectorXd & uInternal) const
     {
         // Define some proxies
         const pinocchio::Model & pncModel = system.robot->pncModel_;
@@ -3668,8 +3671,8 @@ namespace jiminy
         // Enforce the position limit (rigid joints only)
         if (system.robot->mdlOptions_->joints.enablePositionLimit)
         {
-            const vectorN_t & positionLimitMin = system.robot->getPositionLimitMin();
-            const vectorN_t & positionLimitMax = system.robot->getPositionLimitMax();
+            const Eigen::VectorXd & positionLimitMin = system.robot->getPositionLimitMin();
+            const Eigen::VectorXd & positionLimitMax = system.robot->getPositionLimitMax();
             const std::vector<jointIndex_t> & rigidJointsIdx =
                 system.robot->getRigidJointsModelIdx();
             for (std::size_t i = 0; i < rigidJointsIdx.size(); ++i)
@@ -3692,7 +3695,7 @@ namespace jiminy
         // Enforce the velocity limit (rigid joints only)
         if (system.robot->mdlOptions_->joints.enableVelocityLimit)
         {
-            const vectorN_t & velocityLimitMax = system.robot->getVelocityLimit();
+            const Eigen::VectorXd & velocityLimitMax = system.robot->getVelocityLimit();
             for (const jointIndex_t & rigidIdx : system.robot->getRigidJointsModelIdx())
             {
                 computeVelocityLimitsForcesAlgo::run(
@@ -3704,7 +3707,7 @@ namespace jiminy
 
         // Compute the flexibilities (only support joint_t::SPHERICAL so far)
         float64_t angle;
-        matrix3_t rotJlog3;
+        Eigen::Matrix3d rotJlog3;
         const Robot::dynamicsOptions_t & mdlDynOptions = system.robot->mdlOptions_->dynamics;
         const std::vector<jointIndex_t> & flexibilityIdx =
             system.robot->getFlexibleJointsModelIdx();
@@ -3713,11 +3716,11 @@ namespace jiminy
             const jointIndex_t & jointIdx = flexibilityIdx[i];
             const uint32_t & positionIdx = pncModel.joints[jointIdx].idx_q();
             const uint32_t & velocityIdx = pncModel.joints[jointIdx].idx_v();
-            const vector3_t & stiffness = mdlDynOptions.flexibilityConfig[i].stiffness;
-            const vector3_t & damping = mdlDynOptions.flexibilityConfig[i].damping;
+            const Eigen::Vector3d & stiffness = mdlDynOptions.flexibilityConfig[i].stiffness;
+            const Eigen::Vector3d & damping = mdlDynOptions.flexibilityConfig[i].damping;
 
             const Eigen::Map<const quaternion_t> quat(q.segment<4>(positionIdx).data());
-            const vector3_t angleAxis = pinocchio::quaternion::log3(quat, angle);
+            const Eigen::Vector3d angleAxis = pinocchio::quaternion::log3(quat, angle);
             assert((angle < 0.95 * M_PI) &&
                    "Flexible joint angle must be smaller than 0.95 * pi.");
             pinocchio::Jlog3(angle, angleAxis, rotJlog3);
@@ -3786,8 +3789,8 @@ namespace jiminy
     void EngineMultiRobot::computeExternalForces(const systemHolder_t & system,
                                                  systemDataHolder_t & systemData,
                                                  const float64_t & t,
-                                                 const vectorN_t & q,
-                                                 const vectorN_t & v,
+                                                 const Eigen::VectorXd & q,
+                                                 const Eigen::VectorXd & v,
                                                  forceVector_t & fext)
     {
         // Add the effect of user-defined external impulse forces
@@ -3825,24 +3828,24 @@ namespace jiminy
     }
 
     void EngineMultiRobot::computeForcesCoupling(const float64_t & t,
-                                                 const std::vector<vectorN_t> & qSplit,
-                                                 const std::vector<vectorN_t> & vSplit)
+                                                 const std::vector<Eigen::VectorXd> & qSplit,
+                                                 const std::vector<Eigen::VectorXd> & vSplit)
     {
         for (auto & forceCoupling : forcesCoupling_)
         {
             // Extract info about the first system involved
             const int32_t & systemIdx1 = forceCoupling.systemIdx1;
             const systemHolder_t & system1 = systems_[systemIdx1];
-            const vectorN_t & q1 = qSplit[systemIdx1];
-            const vectorN_t & v1 = vSplit[systemIdx1];
+            const Eigen::VectorXd & q1 = qSplit[systemIdx1];
+            const Eigen::VectorXd & v1 = vSplit[systemIdx1];
             const frameIndex_t & frameIdx1 = forceCoupling.frameIdx1;
             forceVector_t & fext1 = systemsDataHolder_[systemIdx1].state.fExternal;
 
             // Extract info about the second system involved
             const int32_t & systemIdx2 = forceCoupling.systemIdx2;
             const systemHolder_t & system2 = systems_[systemIdx2];
-            const vectorN_t & q2 = qSplit[systemIdx2];
-            const vectorN_t & v2 = vSplit[systemIdx2];
+            const Eigen::VectorXd & q2 = qSplit[systemIdx2];
+            const Eigen::VectorXd & v2 = vSplit[systemIdx2];
             const frameIndex_t & frameIdx2 = forceCoupling.frameIdx2;
             forceVector_t & fext2 = systemsDataHolder_[systemIdx2].state.fExternal;
 
@@ -3857,8 +3860,8 @@ namespace jiminy
             force.toVector() *= -1;
             const jointIndex_t & parentJointIdx2 =
                 system2.robot->pncModel_.frames[frameIdx2].parent;
-            const vector3_t offset = system2.robot->pncData_.oMf[frameIdx2].translation() -
-                                     system1.robot->pncData_.oMf[frameIdx1].translation();
+            const Eigen::Vector3d offset = system2.robot->pncData_.oMf[frameIdx2].translation() -
+                                           system1.robot->pncData_.oMf[frameIdx1].translation();
             force.angular() -= offset.cross(force.linear());
             fext2[parentJointIdx2] += convertForceGlobalFrameToJoint(
                 system2.robot->pncModel_, system2.robot->pncData_, frameIdx2, force);
@@ -3866,8 +3869,8 @@ namespace jiminy
     }
 
     void EngineMultiRobot::computeAllTerms(const float64_t & t,
-                                           const std::vector<vectorN_t> & qSplit,
-                                           const std::vector<vectorN_t> & vSplit,
+                                           const std::vector<Eigen::VectorXd> & qSplit,
+                                           const std::vector<Eigen::VectorXd> & vSplit,
                                            const bool_t & isStateUpToDate)
     {
         // Reinitialize the external forces and internal efforts
@@ -3895,7 +3898,7 @@ namespace jiminy
         {
             // Define some proxies
             forceVector_t & fext = systemDataIt->state.fExternal;
-            vectorN_t & uInternal = systemDataIt->state.uInternal;
+            Eigen::VectorXd & uInternal = systemDataIt->state.uInternal;
 
             /* Compute internal dynamics, namely the efforts in joint space associated with
                position/velocity bounds dynamics, and flexibility dynamics. */
@@ -3914,9 +3917,9 @@ namespace jiminy
     }
 
     hresult_t EngineMultiRobot::computeSystemsDynamics(const float64_t & t,
-                                                       const std::vector<vectorN_t> & qSplit,
-                                                       const std::vector<vectorN_t> & vSplit,
-                                                       std::vector<vectorN_t> & aSplit,
+                                                       const std::vector<Eigen::VectorXd> & qSplit,
+                                                       const std::vector<Eigen::VectorXd> & vSplit,
+                                                       std::vector<Eigen::VectorXd> & aSplit,
                                                        const bool_t & isStateUpToDate)
     {
         /* Note that the position of the free flyer is in world frame, whereas the velocities and
@@ -3941,7 +3944,7 @@ namespace jiminy
             auto vIt = vSplit.begin();
             for (; systemIt != systems_.end(); ++systemIt, ++systemDataIt, ++qIt, ++vIt)
             {
-                const vectorN_t & aPrev = systemDataIt->statePrev.a;
+                const Eigen::VectorXd & aPrev = systemDataIt->statePrev.a;
                 computeForwardKinematics(*systemIt, *qIt, *vIt, aPrev);
             }
         }
@@ -3972,14 +3975,14 @@ namespace jiminy
                                            ++aPrevIt)
         {
             // Define some proxies
-            vectorN_t & u = systemDataIt->state.u;
-            vectorN_t & command = systemDataIt->state.command;
-            vectorN_t & uMotor = systemDataIt->state.uMotor;
-            vectorN_t & uInternal = systemDataIt->state.uInternal;
-            vectorN_t & uCustom = systemDataIt->state.uCustom;
+            Eigen::VectorXd & u = systemDataIt->state.u;
+            Eigen::VectorXd & command = systemDataIt->state.command;
+            Eigen::VectorXd & uMotor = systemDataIt->state.uMotor;
+            Eigen::VectorXd & uInternal = systemDataIt->state.uInternal;
+            Eigen::VectorXd & uCustom = systemDataIt->state.uCustom;
             forceVector_t & fext = systemDataIt->state.fExternal;
-            const vectorN_t & aPrev = systemDataIt->statePrev.a;
-            const vectorN_t & uMotorPrev = systemDataIt->statePrev.uMotor;
+            const Eigen::VectorXd & aPrev = systemDataIt->statePrev.a;
+            const Eigen::VectorXd & uMotorPrev = systemDataIt->statePrev.uMotor;
             const forceVector_t & fextPrev = systemDataIt->statePrev.fExternal;
 
             /* Update the sensor data if necessary (only for infinite update frequency).
@@ -4036,14 +4039,14 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    const vectorN_t & EngineMultiRobot::computeAcceleration(systemHolder_t & system,
-                                                            systemDataHolder_t & systemData,
-                                                            const vectorN_t & q,
-                                                            const vectorN_t & v,
-                                                            const vectorN_t & u,
-                                                            forceVector_t & fext,
-                                                            const bool_t & isStateUpToDate,
-                                                            const bool_t & ignoreBounds)
+    const Eigen::VectorXd & EngineMultiRobot::computeAcceleration(systemHolder_t & system,
+                                                                  systemDataHolder_t & systemData,
+                                                                  const Eigen::VectorXd & q,
+                                                                  const Eigen::VectorXd & v,
+                                                                  const Eigen::VectorXd & u,
+                                                                  forceVector_t & fext,
+                                                                  const bool_t & isStateUpToDate,
+                                                                  const bool_t & ignoreBounds)
     {
         const pinocchio::Model & model = system.robot->pncModel_;
         pinocchio::Data & data = system.robot->pncData_;
@@ -4110,7 +4113,7 @@ namespace jiminy
                         return;
                     }
 
-                    vectorN_t & uJoint = constraint->lambda_;
+                    Eigen::VectorXd & uJoint = constraint->lambda_;
                     const auto & jointConstraint =
                         static_cast<JointConstraint const &>(*constraint.get());
                     const auto & jointModel = joints[jointConstraint.getJointIdx()];
@@ -4133,10 +4136,11 @@ namespace jiminy
 
                 // Extract force in local reference-frame-aligned from lagrangian multipliers
                 pinocchio::Force fextInLocal(frameConstraint.lambda_.head<3>(),
-                                             frameConstraint.lambda_[3] * vector3_t::UnitZ());
+                                             frameConstraint.lambda_[3] *
+                                                 Eigen::Vector3d::UnitZ());
 
                 // Compute force in local world aligned frame
-                const matrix3_t & rotationLocal = frameConstraint.getLocalFrame();
+                const Eigen::Matrix3d & rotationLocal = frameConstraint.getLocalFrame();
                 const pinocchio::Force fextInWorld({
                     rotationLocal * fextInLocal.linear(),
                     rotationLocal * fextInLocal.angular(),
@@ -4168,10 +4172,11 @@ namespace jiminy
 
                     // Extract force in world frame from lagrangian multipliers
                     pinocchio::Force fextInLocal(frameConstraint.lambda_.head<3>(),
-                                                 frameConstraint.lambda_[3] * vector3_t::UnitZ());
+                                                 frameConstraint.lambda_[3] *
+                                                     Eigen::Vector3d::UnitZ());
 
                     // Compute force in world frame
-                    const matrix3_t & rotationLocal = frameConstraint.getLocalFrame();
+                    const Eigen::Matrix3d & rotationLocal = frameConstraint.getLocalFrame();
                     const pinocchio::Force fextInWorld({
                         rotationLocal * fextInLocal.linear(),
                         rotationLocal * fextInLocal.angular(),

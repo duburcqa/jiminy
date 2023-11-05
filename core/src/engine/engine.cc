@@ -89,18 +89,18 @@ namespace jiminy
     hresult_t singleToMultipleSystemsInitialData(
         const Robot & robot,
         const bool_t & isStateTheoretical,
-        const vectorN_t & qInit,
-        const vectorN_t & vInit,
-        const std::optional<vectorN_t> & aInit,
-        std::map<std::string, vectorN_t> & qInitList,
-        std::map<std::string, vectorN_t> & vInitList,
-        std::optional<std::map<std::string, vectorN_t>> & aInitList)
+        const Eigen::VectorXd & qInit,
+        const Eigen::VectorXd & vInit,
+        const std::optional<Eigen::VectorXd> & aInit,
+        std::map<std::string, Eigen::VectorXd> & qInitList,
+        std::map<std::string, Eigen::VectorXd> & vInitList,
+        std::optional<std::map<std::string, Eigen::VectorXd>> & aInitList)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
         if (isStateTheoretical && robot.mdlOptions_->dynamics.enableFlexibleModel)
         {
-            vectorN_t q0;
+            Eigen::VectorXd q0;
             returnCode = robot.getFlexibleConfigurationFromRigid(qInit, q0);
             qInitList.emplace("", std::move(q0));
         }
@@ -113,7 +113,7 @@ namespace jiminy
         {
             if (isStateTheoretical && robot.mdlOptions_->dynamics.enableFlexibleModel)
             {
-                vectorN_t v0;
+                Eigen::VectorXd v0;
                 returnCode = robot.getFlexibleVelocityFromRigid(vInit, v0);
                 vInitList.emplace("", std::move(v0));
             }
@@ -129,7 +129,7 @@ namespace jiminy
                 aInitList.emplace();
                 if (isStateTheoretical && robot.mdlOptions_->dynamics.enableFlexibleModel)
                 {
-                    vectorN_t a0;
+                    Eigen::VectorXd a0;
                     returnCode = robot.getFlexibleVelocityFromRigid(*aInit, a0);
                     aInitList->emplace("", std::move(a0));
                 }
@@ -143,9 +143,9 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t Engine::start(const vectorN_t & qInit,
-                            const vectorN_t & vInit,
-                            const std::optional<vectorN_t> & aInit,
+    hresult_t Engine::start(const Eigen::VectorXd & qInit,
+                            const Eigen::VectorXd & vInit,
+                            const std::optional<Eigen::VectorXd> & aInit,
                             const bool_t & isStateTheoretical)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
@@ -156,9 +156,9 @@ namespace jiminy
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
-        std::map<std::string, vectorN_t> qInitList;
-        std::map<std::string, vectorN_t> vInitList;
-        std::optional<std::map<std::string, vectorN_t>> aInitList = std::nullopt;
+        std::map<std::string, Eigen::VectorXd> qInitList;
+        std::map<std::string, Eigen::VectorXd> vInitList;
+        std::optional<std::map<std::string, Eigen::VectorXd>> aInitList = std::nullopt;
         if (returnCode == hresult_t::SUCCESS)
         {
             returnCode = singleToMultipleSystemsInitialData(
@@ -174,9 +174,9 @@ namespace jiminy
     }
 
     hresult_t Engine::simulate(const float64_t & tEnd,
-                               const vectorN_t & qInit,
-                               const vectorN_t & vInit,
-                               const std::optional<vectorN_t> & aInit,
+                               const Eigen::VectorXd & qInit,
+                               const Eigen::VectorXd & vInit,
+                               const std::optional<Eigen::VectorXd> & aInit,
                                const bool_t & isStateTheoretical)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
@@ -187,9 +187,9 @@ namespace jiminy
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
-        std::map<std::string, vectorN_t> qInitList;
-        std::map<std::string, vectorN_t> vInitList;
-        std::optional<std::map<std::string, vectorN_t>> aInitList = std::nullopt;
+        std::map<std::string, Eigen::VectorXd> qInitList;
+        std::map<std::string, Eigen::VectorXd> vInitList;
+        std::optional<std::map<std::string, Eigen::VectorXd>> aInitList = std::nullopt;
         if (returnCode == hresult_t::SUCCESS)
         {
             returnCode = singleToMultipleSystemsInitialData(
@@ -248,10 +248,10 @@ namespace jiminy
                                             forceProfileFunctor_t forceFct)
     {
         auto forceCouplingFct = [forceFct](const float64_t & t,
-                                           const vectorN_t & q1,
-                                           const vectorN_t & v1,
-                                           const vectorN_t & /* q2 */,
-                                           const vectorN_t & /* v2 */)
+                                           const Eigen::VectorXd & q1,
+                                           const Eigen::VectorXd & v1,
+                                           const Eigen::VectorXd & /* q2 */,
+                                           const Eigen::VectorXd & /* v2 */)
         {
             return forceFct(t, q1, v1);
         };
@@ -261,8 +261,8 @@ namespace jiminy
 
     hresult_t Engine::registerViscoelasticForceCoupling(const std::string & frameName1,
                                                         const std::string & frameName2,
-                                                        const vector6_t & stiffness,
-                                                        const vector6_t & damping,
+                                                        const Vector6d & stiffness,
+                                                        const Vector6d & damping,
                                                         const float64_t & alpha)
     {
         return EngineMultiRobot::registerViscoelasticForceCoupling(

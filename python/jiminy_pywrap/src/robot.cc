@@ -224,8 +224,8 @@ namespace jiminy::python
                     }
                     constraintsRows += static_cast<Eigen::Index>(constraint->getDim());
                 });
-            matrixN_t J(constraintsRows, self.nv());
-            vectorN_t gamma(constraintsRows);
+            Eigen::MatrixXd J(constraintsRows, self.nv());
+            Eigen::VectorXd gamma(constraintsRows);
             constraintsHolder.foreach(
                 [&J, &gamma, &constraintRow](
                     const std::shared_ptr<AbstractConstraintBase> & constraint,
@@ -244,31 +244,34 @@ namespace jiminy::python
             return bp::make_tuple(J, gamma);
         }
 
-        static vectorN_t getFlexibleConfigurationFromRigid(Model & self, const vectorN_t & qRigid)
+        static Eigen::VectorXd getFlexibleConfigurationFromRigid(Model & self,
+                                                                 const Eigen::VectorXd & qRigid)
         {
-            vectorN_t qFlexible;
+            Eigen::VectorXd qFlexible;
             self.getFlexibleConfigurationFromRigid(qRigid, qFlexible);
             return qFlexible;
         }
 
-        static vectorN_t getFlexibleVelocityFromRigid(Model & self, const vectorN_t & vRigid)
+        static Eigen::VectorXd getFlexibleVelocityFromRigid(Model & self,
+                                                            const Eigen::VectorXd & vRigid)
         {
-            vectorN_t vFlexible;
+            Eigen::VectorXd vFlexible;
             self.getFlexibleVelocityFromRigid(vRigid, vFlexible);
             return vFlexible;
         }
 
-        static vectorN_t getRigidConfigurationFromFlexible(Model & self,
-                                                           const vectorN_t & qFlexible)
+        static Eigen::VectorXd getRigidConfigurationFromFlexible(Model & self,
+                                                                 const Eigen::VectorXd & qFlexible)
         {
-            vectorN_t qRigid;
+            Eigen::VectorXd qRigid;
             self.getRigidConfigurationFromFlexible(qFlexible, qRigid);
             return qRigid;
         }
 
-        static vectorN_t getRigidVelocityFromFlexible(Model & self, const vectorN_t & vFlexible)
+        static Eigen::VectorXd getRigidVelocityFromFlexible(Model & self,
+                                                            const Eigen::VectorXd & vFlexible)
         {
-            vectorN_t vRigid;
+            Eigen::VectorXd vRigid;
             self.getRigidVelocityFromFlexible(vFlexible, vRigid);
             return vRigid;
         }

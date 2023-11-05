@@ -44,10 +44,10 @@ namespace jiminy::python
                    the overhead of translating 'StopIteration' exception when reaching the end. */
                 .def("__iter__", bp::range<bp::return_value_policy<result_converter<false>>>(
                                  static_cast<
-                                     sensorsDataMap_t::iterator (sensorsDataMap_t::*)()
+                                     sensorsDataMap_t::iterator (sensorsDataMap_t::*)(void)
                                  >(&sensorsDataMap_t::begin),
                                  static_cast<
-                                     sensorsDataMap_t::iterator (sensorsDataMap_t::*)()
+                                     sensorsDataMap_t::iterator (sensorsDataMap_t::*)(void)
                                  >(&sensorsDataMap_t::end)))
                 .def("__contains__", &PySensorsDataMapVisitor::contains,
                                      (bp::arg("self"), "key"))
@@ -66,17 +66,18 @@ namespace jiminy::python
 
         static bp::ssize_t len(sensorsDataMap_t & self) { return self.size(); }
 
-        static const Eigen::Ref<const vectorN_t> & getItem(sensorsDataMap_t & self,
-                                                           const bp::tuple & sensorInfo)
+        static const Eigen::Ref<const Eigen::VectorXd> & getItem(sensorsDataMap_t & self,
+                                                                 const bp::tuple & sensorInfo)
         {
             const std::string sensorType = bp::extract<std::string>(sensorInfo[0]);
             const std::string sensorName = bp::extract<std::string>(sensorInfo[1]);
             return PySensorsDataMapVisitor::getItemSplit(self, sensorType, sensorName);
         }
 
-        static const Eigen::Ref<const vectorN_t> & getItemSplit(sensorsDataMap_t & self,
-                                                                const std::string & sensorType,
-                                                                const std::string & sensorName)
+        static const Eigen::Ref<const Eigen::VectorXd> & getItemSplit(
+            sensorsDataMap_t & self,
+            const std::string & sensorType,
+            const std::string & sensorName)
         {
             try
             {
@@ -98,7 +99,8 @@ namespace jiminy::python
             }
         }
 
-        static const matrixN_t & getSub(sensorsDataMap_t & self, const std::string & sensorType)
+        static const Eigen::MatrixXd & getSub(sensorsDataMap_t & self,
+                                              const std::string & sensorType)
         {
             try
             {
@@ -183,7 +185,7 @@ namespace jiminy::python
                 {
                     const std::string & sensorName = sensorData.name;
                     const std::size_t & sensorIdx = sensorData.idx;
-                    const Eigen::Ref<const vectorN_t> & sensorDataValue = sensorData.value;
+                    const Eigen::Ref<const Eigen::VectorXd> & sensorDataValue = sensorData.value;
                     s << "    (" << sensorIdx << ") " << sensorName << ": "
                       << sensorDataValue.transpose().format(HeavyFmt);
                 }
@@ -246,11 +248,11 @@ namespace jiminy::python
                                               bp::return_value_policy<bp::copy_const_reference>())
                 .ADD_PROPERTY_GET_SET_WITH_POLICY("data",
                                                   static_cast<
-                                                      Eigen::Ref<const vectorN_t> (AbstractSensorBase::*)() const
+                                                      Eigen::Ref<const Eigen::VectorXd> (AbstractSensorBase::*)(void) const
                                                   >(&AbstractSensorBase::get),
                                                   bp::return_value_policy<result_converter<false>>(),
                                                   static_cast<
-                                                      hresult_t (AbstractSensorBase::*)(const Eigen::MatrixBase<vectorN_t> &)
+                                                      hresult_t (AbstractSensorBase::*)(const Eigen::MatrixBase<Eigen::VectorXd> &)
                                                   >(&AbstractSensorBase::set))
 
                 .def("set_options", &PyAbstractSensorVisitor::setOptions)
@@ -270,7 +272,7 @@ namespace jiminy::python
             s << "idx: " << self.getIdx() << "\n";
             s << "data:\n    ";
             const std::vector<std::string> & fieldnames = self.getFieldnames();
-            const Eigen::Ref<const vectorN_t> & sensorDataValue =
+            const Eigen::Ref<const Eigen::VectorXd> & sensorDataValue =
                 const_cast<const AbstractSensorBase &>(self).get();
             for (std::size_t i = 0; i < fieldnames.size(); ++i)
             {

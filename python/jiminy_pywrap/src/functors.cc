@@ -21,7 +21,7 @@ namespace jiminy::python
     template<>
     pinocchio::Force * createInternalBuffer<pinocchio::Force>()
     {
-        return (new pinocchio::Force(vector6_t::Zero()));
+        return (new pinocchio::Force(Vector6d::Zero()));
     }
 
     // **************************** PyHeightmapFunctorVisitor *****************************
@@ -48,10 +48,10 @@ namespace jiminy::python
             // clang-format on
         }
 
-        static bp::tuple eval(heightmapFunctor_t & self, const vector3_t & posFrame)
+        static bp::tuple eval(heightmapFunctor_t & self, const Eigen::Vector3d & posFrame)
         {
-            const std::pair<float64_t, vector3_t> ground = self(posFrame);
-            return bp::make_tuple(std::get<float64_t>(ground), std::get<vector3_t>(ground));
+            const std::pair<float64_t, Eigen::Vector3d> ground = self(posFrame);
+            return bp::make_tuple(std::get<float64_t>(ground), std::get<Eigen::Vector3d>(ground));
         }
 
         static bp::object getPyFun(heightmapFunctor_t & self)

@@ -31,8 +31,8 @@ namespace jiminy
         /// \param[in] wheelAxis Axis of the wheel, in the local frame.
         WheelConstraint(const std::string & frameName,
                         const float64_t & wheelRadius,
-                        const vector3_t & groundNormal,
-                        const vector3_t & wheelAxis);
+                        const Eigen::Vector3d & groundNormal,
+                        const Eigen::Vector3d & wheelAxis);
         virtual ~WheelConstraint() = default;
 
         const std::string & getFrameName() const;
@@ -41,11 +41,11 @@ namespace jiminy
         void setReferenceTransform(const pinocchio::SE3 & transformRef);
         const pinocchio::SE3 & getReferenceTransform() const;
 
-        virtual hresult_t reset(const vectorN_t & /* q */,
-                                const vectorN_t & /* v */) override final;
+        virtual hresult_t reset(const Eigen::VectorXd & /* q */,
+                                const Eigen::VectorXd & /* v */) override final;
 
-        virtual hresult_t computeJacobianAndDrift(const vectorN_t & q,
-                                                  const vectorN_t & v) override final;
+        virtual hresult_t computeJacobianAndDrift(const Eigen::VectorXd & q,
+                                                  const Eigen::VectorXd & v) override final;
 
     private:
         /// \brief Name of the frame on which the constraint operates.
@@ -55,17 +55,17 @@ namespace jiminy
         /// \brief Wheel radius.
         float64_t radius_;
         /// \brief Ground normal, world frame.
-        vector3_t normal_;
+        Eigen::Vector3d normal_;
         /// \brief Wheel axis, local frame.
-        vector3_t axis_;
+        Eigen::Vector3d axis_;
         /// \brief Skew matrix of wheel axis, in world frame, scaled by radius.
-        matrix3_t skewRadius_;
+        Eigen::Matrix3d skewRadius_;
         /// \brief Derivative of skew matrix of wheel axis, in world frame, scaled by radius.
-        matrix3_t dskewRadius_;
+        Eigen::Matrix3d dskewRadius_;
         /// \brief Reference pose of the frame to enforce.
         pinocchio::SE3 transformRef_;
         /// \brief Stores full frame jacobian in world.
-        matrix6N_t frameJacobian_;
+        Matrix6Xd frameJacobian_;
     };
 }
 

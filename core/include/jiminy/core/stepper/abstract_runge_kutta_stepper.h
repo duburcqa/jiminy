@@ -16,9 +16,9 @@ namespace jiminy
         /// \param[in] robots Robots whose dynamics the stepper will work on.
         AbstractRungeKuttaStepper(const systemDynamics & f,
                                   const std::vector<const Robot *> & robots,
-                                  const matrixN_t & RungeKuttaMatrix,
-                                  const vectorN_t & bWeights,
-                                  const vectorN_t & cNodes,
+                                  const Eigen::MatrixXd & RungeKuttaMatrix,
+                                  const Eigen::VectorXd & bWeights,
+                                  const Eigen::VectorXd & cNodes,
                                   const bool_t & isFSAL);
         virtual ~AbstractRungeKuttaStepper() = default;
 
@@ -42,11 +42,11 @@ namespace jiminy
 
     private:
         /// \brief Weight matrix.
-        matrixN_t A_;
+        Eigen::MatrixXd A_;
         /// \brief Solution coefficients.
-        vectorN_t b_;
+        Eigen::VectorXd b_;
         /// \brief Nodes
-        vectorN_t c_;
+        Eigen::VectorXd c_;
         /// \brief Does scheme support first-same-as-last.
         bool_t isFSAL_;
 

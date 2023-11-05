@@ -113,9 +113,9 @@ namespace jiminy
         ///
         /// \return Return code to determine whether the execution of the method was successful.
         virtual hresult_t computeCommand(const float64_t & t,
-                                         const vectorN_t & q,
-                                         const vectorN_t & v,
-                                         vectorN_t & command) = 0;
+                                         const Eigen::VectorXd & q,
+                                         const Eigen::VectorXd & v,
+                                         Eigen::VectorXd & command) = 0;
 
         /// \brief Emulate custom phenomenon that are part of the internal dynamics of the system
         ///        but not included in the physics engine.
@@ -127,9 +127,9 @@ namespace jiminy
         ///
         /// \return Return code to determine whether the execution of the method was successful.
         virtual hresult_t internalDynamics(const float64_t & t,
-                                           const vectorN_t & q,
-                                           const vectorN_t & v,
-                                           vectorN_t & uCustom) = 0;
+                                           const Eigen::VectorXd & q,
+                                           const Eigen::VectorXd & v,
+                                           Eigen::VectorXd & uCustom) = 0;
 
         /// \brief Dictionary with the parameters of the controller.
         configHolder_t getOptions() const;

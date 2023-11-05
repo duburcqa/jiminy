@@ -53,9 +53,9 @@ namespace jiminy
     {
     public:
         void reset(const float64_t & dtInit,
-                   const std::vector<vectorN_t> & qSplitInit,
-                   const std::vector<vectorN_t> & vSplitInit,
-                   const std::vector<vectorN_t> & aSplitInit)
+                   const std::vector<Eigen::VectorXd> & qSplitInit,
+                   const std::vector<Eigen::VectorXd> & vSplitInit,
+                   const std::vector<Eigen::VectorXd> & aSplitInit)
         {
             iter = 0U;
             iterFailed = 0U;
@@ -80,9 +80,9 @@ namespace jiminy
         float64_t dt;
         float64_t dtLargest;
         float64_t dtLargestPrev;
-        std::vector<vectorN_t> qSplit;
-        std::vector<vectorN_t> vSplit;
-        std::vector<vectorN_t> aSplit;
+        std::vector<Eigen::VectorXd> qSplit;
+        std::vector<Eigen::VectorXd> vSplit;
+        std::vector<Eigen::VectorXd> aSplit;
     };
 
     class EngineMultiRobot
@@ -128,10 +128,10 @@ namespace jiminy
         configHolder_t getDefaultWorldOptions()
         {
             configHolder_t config;
-            config["gravity"] = (vectorN_t(6) << 0.0, 0.0, -9.81, 0.0, 0.0, 0.0).finished();
+            config["gravity"] = (Eigen::VectorXd(6) << 0.0, 0.0, -9.81, 0.0, 0.0, 0.0).finished();
             config["groundProfile"] = heightmapFunctor_t(
-                [](const vector3_t & /* pos */) -> std::pair<float64_t, vector3_t> {
-                    return {0.0, vector3_t::UnitZ()};
+                [](const Eigen::Vector3d & /* pos */) -> std::pair<float64_t, Eigen::Vector3d> {
+                    return {0.0, Eigen::Vector3d::UnitZ()};
                 });
 
             return config;
@@ -237,11 +237,11 @@ namespace jiminy
 
         struct worldOptions_t
         {
-            const vectorN_t gravity;
+            const Eigen::VectorXd gravity;
             const heightmapFunctor_t groundProfile;
 
             worldOptions_t(const configHolder_t & options) :
-            gravity(boost::get<vectorN_t>(options.at("gravity"))),
+            gravity(boost::get<Eigen::VectorXd>(options.at("gravity"))),
             groundProfile(boost::get<heightmapFunctor_t>(options.at("groundProfile")))
             {
             }
@@ -389,14 +389,14 @@ namespace jiminy
                                                     const std::string & systemName2,
                                                     const std::string & frameName1,
                                                     const std::string & frameName2,
-                                                    const vector6_t & stiffness,
-                                                    const vector6_t & damping,
+                                                    const Vector6d & stiffness,
+                                                    const Vector6d & damping,
                                                     const float64_t & alpha = 0.5);
         hresult_t registerViscoelasticForceCoupling(const std::string & systemName,
                                                     const std::string & frameName1,
                                                     const std::string & frameName2,
-                                                    const vector6_t & stiffness,
-                                                    const vector6_t & damping,
+                                                    const Vector6d & stiffness,
+                                                    const Vector6d & damping,
                                                     const float64_t & alpha = 0.5);
         hresult_t removeForcesCoupling(const std::string & systemName1,
                                        const std::string & systemName2);
@@ -428,9 +428,9 @@ namespace jiminy
         /// \param[in] aInit Initial acceleration of every system.
         ///                  Optional: Zero by default.
         hresult_t start(
-            const std::map<std::string, vectorN_t> & qInit,
-            const std::map<std::string, vectorN_t> & vInit,
-            const std::optional<std::map<std::string, vectorN_t>> & aInit = std::nullopt);
+            const std::map<std::string, Eigen::VectorXd> & qInit,
+            const std::map<std::string, Eigen::VectorXd> & vInit,
+            const std::optional<std::map<std::string, Eigen::VectorXd>> & aInit = std::nullopt);
 
         /// \brief Integrate system from current state for a duration equal to stepSize
         ///
@@ -460,9 +460,9 @@ namespace jiminy
         ///                  Optional: Zero by default.
         hresult_t simulate(
             const float64_t & tEnd,
-            const std::map<std::string, vectorN_t> & qInit,
-            const std::map<std::string, vectorN_t> & vInit,
-            const std::optional<std::map<std::string, vectorN_t>> & aInit = std::nullopt);
+            const std::map<std::string, Eigen::VectorXd> & qInit,
+            const std::map<std::string, Eigen::VectorXd> & vInit,
+            const std::optional<std::map<std::string, Eigen::VectorXd>> & aInit = std::nullopt);
 
         /// \brief Apply an impulse force on a frame for a given duration at the desired time.
         ///
@@ -505,13 +505,13 @@ namespace jiminy
         static float64_t getTelemetryTimeUnit();
 
         static void computeForwardKinematics(systemHolder_t & system,
-                                             const vectorN_t & q,
-                                             const vectorN_t & v,
-                                             const vectorN_t & a);
+                                             const Eigen::VectorXd & q,
+                                             const Eigen::VectorXd & v,
+                                             const Eigen::VectorXd & a);
         hresult_t computeSystemsDynamics(const float64_t & t,
-                                         const std::vector<vectorN_t> & qSplit,
-                                         const std::vector<vectorN_t> & vSplit,
-                                         std::vector<vectorN_t> & aSplit,
+                                         const std::vector<Eigen::VectorXd> & qSplit,
+                                         const std::vector<Eigen::VectorXd> & vSplit,
+                                         std::vector<Eigen::VectorXd> & aSplit,
                                          const bool_t & isStateUpToDate = false);
 
     protected:
@@ -547,21 +547,21 @@ namespace jiminy
             pinocchio::Force & fextLocal) const;
 
         /// \brief Compute the ground reaction force for a given normal direction and depth.
-        pinocchio::Force computeContactDynamics(const vector3_t & nGround,
+        pinocchio::Force computeContactDynamics(const Eigen::Vector3d & nGround,
                                                 const float64_t & depth,
-                                                const vector3_t & vContactInWorld) const;
+                                                const Eigen::Vector3d & vContactInWorld) const;
 
         void computeCommand(systemHolder_t & system,
                             const float64_t & t,
-                            const vectorN_t & q,
-                            const vectorN_t & v,
-                            vectorN_t & command);
+                            const Eigen::VectorXd & q,
+                            const Eigen::VectorXd & v,
+                            Eigen::VectorXd & command);
         void computeInternalDynamics(const systemHolder_t & system,
                                      systemDataHolder_t & systemData,
                                      const float64_t & t,
-                                     const vectorN_t & q,
-                                     const vectorN_t & v,
-                                     vectorN_t & uInternal) const;
+                                     const Eigen::VectorXd & q,
+                                     const Eigen::VectorXd & v,
+                                     Eigen::VectorXd & uInternal) const;
         void computeCollisionForces(const systemHolder_t & system,
                                     systemDataHolder_t & systemData,
                                     forceVector_t & fext,
@@ -569,15 +569,15 @@ namespace jiminy
         void computeExternalForces(const systemHolder_t & system,
                                    systemDataHolder_t & systemData,
                                    const float64_t & t,
-                                   const vectorN_t & q,
-                                   const vectorN_t & v,
+                                   const Eigen::VectorXd & q,
+                                   const Eigen::VectorXd & v,
                                    forceVector_t & fext);
         void computeForcesCoupling(const float64_t & t,
-                                   const std::vector<vectorN_t> & qSplit,
-                                   const std::vector<vectorN_t> & vSplit);
+                                   const std::vector<Eigen::VectorXd> & qSplit,
+                                   const std::vector<Eigen::VectorXd> & vSplit);
         void computeAllTerms(const float64_t & t,
-                             const std::vector<vectorN_t> & qSplit,
-                             const std::vector<vectorN_t> & vSplit,
+                             const std::vector<Eigen::VectorXd> & qSplit,
+                             const std::vector<Eigen::VectorXd> & vSplit,
                              const bool_t & isStateUpToDate = false);
 
         /// \brief Compute system acceleration from current system state.
@@ -593,14 +593,14 @@ namespace jiminy
         /// \param[in] fext External forces applied on the system.
         ///
         /// \return System acceleration.
-        const vectorN_t & computeAcceleration(systemHolder_t & system,
-                                              systemDataHolder_t & systemData,
-                                              const vectorN_t & q,
-                                              const vectorN_t & v,
-                                              const vectorN_t & u,
-                                              forceVector_t & fext,
-                                              const bool_t & isStateUpToDate = false,
-                                              const bool_t & ignoreBounds = false);
+        const Eigen::VectorXd & computeAcceleration(systemHolder_t & system,
+                                                    systemDataHolder_t & systemData,
+                                                    const Eigen::VectorXd & q,
+                                                    const Eigen::VectorXd & v,
+                                                    const Eigen::VectorXd & u,
+                                                    forceVector_t & fext,
+                                                    const bool_t & isStateUpToDate = false,
+                                                    const bool_t & ignoreBounds = false);
 
     public:
         hresult_t getLog(std::shared_ptr<const logData_t> & logData);

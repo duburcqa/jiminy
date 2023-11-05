@@ -17,14 +17,14 @@ namespace jiminy
 
     float64_t randNormal(const float64_t & mean = 0.0, const float64_t & std = 1.0);
 
-    vectorN_t randVectorNormal(
+    Eigen::VectorXd randVectorNormal(
         const uint32_t & size, const float64_t & mean, const float64_t & std);
 
-    vectorN_t randVectorNormal(const uint32_t & size, const float64_t & std);
+    Eigen::VectorXd randVectorNormal(const uint32_t & size, const float64_t & std);
 
-    vectorN_t randVectorNormal(const vectorN_t & std);
+    Eigen::VectorXd randVectorNormal(const Eigen::VectorXd & std);
 
-    vectorN_t randVectorNormal(const vectorN_t & mean, const vectorN_t & std);
+    Eigen::VectorXd randVectorNormal(const Eigen::VectorXd & mean, const Eigen::VectorXd & std);
 
     void shuffleIndices(std::vector<uint32_t> & vector);
 
@@ -60,8 +60,8 @@ namespace jiminy
         const int32_t numTimes_;
 
         bool_t isInitialized_;
-        vectorN_t values_;
-        matrixN_t covSqrtRoot_;
+        Eigen::VectorXd values_;
+        Eigen::MatrixXd covSqrtRoot_;
     };
 
 
@@ -99,9 +99,9 @@ namespace jiminy
         const int32_t numHarmonics_;
 
         bool_t isInitialized_;
-        vectorN_t values_;
-        matrixN_t cosMat_;
-        matrixN_t sinMat_;
+        Eigen::VectorXd values_;
+        Eigen::MatrixXd cosMat_;
+        Eigen::MatrixXd sinMat_;
     };
 
     class AbstractPerlinNoiseOctave
@@ -256,9 +256,9 @@ namespace jiminy
 
     // ************ Random terrain generators ***************
 
-    heightmapFunctor_t randomTileGround(const vector2_t & size,
+    heightmapFunctor_t randomTileGround(const Eigen::Vector2d & size,
                                         const float64_t & heightMax,
-                                        const vector2_t & interpDelta,
+                                        const Eigen::Vector2d & interpDelta,
                                         const uint32_t & sparsity,
                                         const float64_t & orientation,
                                         const uint32_t & seed);
@@ -266,9 +266,9 @@ namespace jiminy
     heightmapFunctor_t sumHeightmap(const std::vector<heightmapFunctor_t> & heightmaps);
     heightmapFunctor_t mergeHeightmap(const std::vector<heightmapFunctor_t> & heightmaps);
 
-    matrixN_t discretizeHeightmap(const heightmapFunctor_t & heightmap,
-                                  const float64_t & gridSize,
-                                  const float64_t & gridUnit);
+    Eigen::MatrixXd discretizeHeightmap(const heightmapFunctor_t & heightmap,
+                                        const float64_t & gridSize,
+                                        const float64_t & gridUnit);
 }
 
 #endif  // JIMINY_RANDOM_H

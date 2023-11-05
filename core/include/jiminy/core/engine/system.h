@@ -115,14 +115,14 @@ namespace jiminy
         void clear();
 
     public:
-        vectorN_t q;
-        vectorN_t v;
-        vectorN_t a;
-        vectorN_t command;
-        vectorN_t u;
-        vectorN_t uMotor;
-        vectorN_t uInternal;
-        vectorN_t uCustom;
+        Eigen::VectorXd q;
+        Eigen::VectorXd v;
+        Eigen::VectorXd a;
+        Eigen::VectorXd command;
+        Eigen::VectorXd u;
+        Eigen::VectorXd uMotor;
+        Eigen::VectorXd uInternal;
+        Eigen::VectorXd uCustom;
         forceVector_t fExternal;
 
     private:
@@ -158,7 +158,7 @@ namespace jiminy
         /// \brief Contact forces for each geometries of each collision bodies in local frame.
         vector_aligned_t<forceVector_t> collisionBodiesForces;
         /// \brief Jacobian of the joints in local frame. Used for computing `data.u`.
-        std::vector<matrix6N_t> jointsJacobians;
+        std::vector<Matrix6Xd> jointsJacobians;
 
         std::vector<std::string> logFieldnamesPosition;
         std::vector<std::string> logFieldnamesVelocity;

@@ -160,7 +160,7 @@ namespace jiminy
         return fieldnames;
     }
 
-    vectorN_t getLogVariable(const logData_t & logData, const std::string & fieldname)
+    Eigen::VectorXd getLogVariable(const logData_t & logData, const std::string & fieldname)
     {
         if (fieldname == GLOBAL_TIME)
         {

@@ -228,7 +228,7 @@ namespace Eigen
         };
     }
 
-    template<typename _DataType = vectorN_t>
+    template<typename _DataType = Eigen::VectorXd>
     class StateDerivative : public StateDerivativeBase<StateDerivative<_DataType>>
     {
     public:
@@ -237,8 +237,9 @@ namespace Eigen
         typedef const StateDerivative & Nested;
 
     public:
-        explicit StateDerivative(
-            const Robot * const & robotIn, const vectorN_t & vIn, const vectorN_t & aIn) :
+        explicit StateDerivative(const Robot * const & robotIn,
+                                 const Eigen::VectorXd & vIn,
+                                 const Eigen::VectorXd & aIn) :
         robot_(robotIn),
         v_(vIn),
         a_(aIn)
@@ -246,14 +247,14 @@ namespace Eigen
         }
 
         explicit StateDerivative(
-            const Robot * const & robotIn, vectorN_t && vIn, vectorN_t && aIn) :
+            const Robot * const & robotIn, Eigen::VectorXd && vIn, Eigen::VectorXd && aIn) :
         robot_(robotIn),
         v_(std::move(vIn)),
         a_(std::move(aIn))
         {
         }
 
-        explicit StateDerivative(const Robot * const & robotIn, vectorN_t && vIn) :
+        explicit StateDerivative(const Robot * const & robotIn, Eigen::VectorXd && vIn) :
         robot_(robotIn),
         v_(std::move(vIn)),
         a_(robot_->nv())
@@ -473,7 +474,7 @@ namespace Eigen
         };
     }
 
-    template<typename _DataType = vectorN_t>
+    template<typename _DataType = Eigen::VectorXd>
     class State : public StateBase<State<_DataType>>
     {
     public:
@@ -482,15 +483,17 @@ namespace Eigen
         typedef const State & Nested;
 
     public:
-        explicit State(
-            const Robot * const & robotIn, const vectorN_t & qIn, const vectorN_t & vIn) :
+        explicit State(const Robot * const & robotIn,
+                       const Eigen::VectorXd & qIn,
+                       const Eigen::VectorXd & vIn) :
         robot_(robotIn),
         q_(qIn),
         v_(vIn)
         {
         }
 
-        explicit State(const Robot * const & robotIn, vectorN_t && qIn, vectorN_t && vIn) :
+        explicit State(
+            const Robot * const & robotIn, Eigen::VectorXd && qIn, Eigen::VectorXd && vIn) :
         robot_(robotIn),
         q_(std::move(qIn)),
         v_(std::move(vIn))
@@ -829,6 +832,7 @@ namespace Eigen
         VectorContainer() :
         vector_()
         {
+            // Empty on purpose
         }
 
         template<typename... Args>
@@ -1010,7 +1014,7 @@ namespace Eigen
         template<>                                                                             \
         struct traits<EIGEN_CAT(BASE, Shared)>                                                 \
         {                                                                                      \
-            typedef Eigen::Ref<vectorN_t> DataType;                                            \
+            typedef Eigen::Ref<Eigen::VectorXd> DataType;                                      \
         };                                                                                     \
     }                                                                                          \
                                                                                                \
@@ -1022,8 +1026,8 @@ namespace Eigen
         typedef EIGEN_CAT(BASE, Shared) Nested;                                                \
                                                                                                \
         explicit EIGEN_CAT(BASE, Shared)(const Robot * const & robot,                          \
-                                         const Eigen::Ref<vectorN_t> & VAR1,                   \
-                                         const Eigen::Ref<vectorN_t> & VAR2) :                 \
+                                         const Eigen::Ref<Eigen::VectorXd> & VAR1,             \
+                                         const Eigen::Ref<Eigen::VectorXd> & VAR2) :           \
         robot_(robot),                                                                         \
         EIGEN_CAT(VAR1, Ref_)(VAR1),                                                           \
         EIGEN_CAT(VAR2, Ref_)(VAR2)                                                            \
@@ -1031,15 +1035,15 @@ namespace Eigen
         }                                                                                      \
                                                                                                \
         const Robot * const & robot() const { return robot_; }                                 \
-        Eigen::Ref<vectorN_t> & VAR1() { return EIGEN_CAT(VAR1, Ref_); }                       \
-        const Eigen::Ref<vectorN_t> & VAR1() const { return EIGEN_CAT(VAR1, Ref_); }           \
-        Eigen::Ref<vectorN_t> & VAR2() { return EIGEN_CAT(VAR2, Ref_); }                       \
-        const Eigen::Ref<vectorN_t> & VAR2() const { return EIGEN_CAT(VAR2, Ref_); }           \
+        Eigen::Ref<Eigen::VectorXd> & VAR1() { return EIGEN_CAT(VAR1, Ref_); }                 \
+        const Eigen::Ref<Eigen::VectorXd> & VAR1() const { return EIGEN_CAT(VAR1, Ref_); }     \
+        Eigen::Ref<Eigen::VectorXd> & VAR2() { return EIGEN_CAT(VAR2, Ref_); }                 \
+        const Eigen::Ref<Eigen::VectorXd> & VAR2() const { return EIGEN_CAT(VAR2, Ref_); }     \
                                                                                                \
     protected:                                                                                 \
         const Robot * robot_;                                                                  \
-        Eigen::Ref<vectorN_t> EIGEN_CAT(VAR1, Ref_);                                           \
-        Eigen::Ref<vectorN_t> EIGEN_CAT(VAR2, Ref_);                                           \
+        Eigen::Ref<Eigen::VectorXd> EIGEN_CAT(VAR1, Ref_);                                     \
+        Eigen::Ref<Eigen::VectorXd> EIGEN_CAT(VAR2, Ref_);                                     \
     };                                                                                         \
                                                                                                \
     class EIGEN_CAT(BASE, Vector) :                                                            \
@@ -1054,9 +1058,10 @@ namespace Eigen
         {                                                                                      \
         }                                                                                      \
                                                                                                \
-        explicit EIGEN_CAT(BASE, Vector)(const std::vector<const Robot *> & robots,            \
-                                         const std::vector<vectorN_t> & EIGEN_CAT(VAR1, In),   \
-                                         const std::vector<vectorN_t> & EIGEN_CAT(VAR2, In)) : \
+        explicit EIGEN_CAT(BASE,                                                               \
+                           Vector)(const std::vector<const Robot *> & robots,                  \
+                                   const std::vector<Eigen::VectorXd> & EIGEN_CAT(VAR1, In),   \
+                                   const std::vector<Eigen::VectorXd> & EIGEN_CAT(VAR2, In)) : \
         VectorContainer<EIGEN_CAT(BASE, Shared)>(),                                            \
         VAR1(EIGEN_CAT(VAR1, In)),                                                             \
         VAR2(EIGEN_CAT(VAR2, In))                                                              \
@@ -1206,8 +1211,8 @@ namespace Eigen
         EIGEN_CAT(BASE, _SHARED_ADDON)                                                         \
                                                                                                \
     public:                                                                                    \
-        std::vector<vectorN_t> VAR1;                                                           \
-        std::vector<vectorN_t> VAR2;                                                           \
+        std::vector<Eigen::VectorXd> VAR1;                                                     \
+        std::vector<Eigen::VectorXd> VAR2;                                                     \
     };
 
 #define StateDerivative_SHARED_ADDON                                                        \

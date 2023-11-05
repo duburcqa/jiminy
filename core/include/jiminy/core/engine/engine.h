@@ -40,9 +40,9 @@ namespace jiminy
         ///                  Optional: Zero by default.
         /// \param[in] isStateTheoretical Specify if the initial state is associated with the
         ///                               current or theoretical model.
-        hresult_t start(const vectorN_t & qInit,
-                        const vectorN_t & vInit,
-                        const std::optional<vectorN_t> & aInit = std::nullopt,
+        hresult_t start(const Eigen::VectorXd & qInit,
+                        const Eigen::VectorXd & vInit,
+                        const std::optional<Eigen::VectorXd> & aInit = std::nullopt,
                         const bool_t & isStateTheoretical = false);
 
         /// \brief Run a simulation of duration tEnd, starting at xInit.
@@ -54,9 +54,9 @@ namespace jiminy
         /// \param[in] isStateTheoretical Specify if the initial state is associated with the
         ///                               current or theoretical model.
         hresult_t simulate(const float64_t & tEnd,
-                           const vectorN_t & qInit,
-                           const vectorN_t & vInit,
-                           const std::optional<vectorN_t> & aInit = std::nullopt,
+                           const Eigen::VectorXd & qInit,
+                           const Eigen::VectorXd & vInit,
+                           const std::optional<Eigen::VectorXd> & aInit = std::nullopt,
                            const bool_t & isStateTheoretical = false);
 
         hresult_t registerForceImpulse(const std::string & frameName,
@@ -79,8 +79,8 @@ namespace jiminy
                                         forceProfileFunctor_t forceFct);
         hresult_t registerViscoelasticForceCoupling(const std::string & frameName1,
                                                     const std::string & frameName2,
-                                                    const vector6_t & stiffness,
-                                                    const vector6_t & damping,
+                                                    const Vector6d & stiffness,
+                                                    const Vector6d & damping,
                                                     const float64_t & alpha = 0.5);
         hresult_t registerViscoelasticDirectionalForceCoupling(const std::string & frameName1,
                                                                const std::string & frameName2,

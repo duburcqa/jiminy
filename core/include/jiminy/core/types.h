@@ -56,15 +56,8 @@ namespace jiminy
     using vector_aligned_t = pinocchio::container::aligned_vector<M>;
 
     // Eigen types
-    using matrixN_t = Eigen::Matrix<float64_t, Eigen::Dynamic, Eigen::Dynamic>;
-    using matrix6N_t = Eigen::Matrix<float64_t, 6, Eigen::Dynamic>;
-    using matrix2_t = Eigen::Matrix<float64_t, 2, 2>;
-    using matrix3_t = Eigen::Matrix<float64_t, 3, 3>;
-    using vectorN_t = Eigen::Matrix<float64_t, Eigen::Dynamic, 1>;
-    using vector2_t = Eigen::Matrix<float64_t, 2, 1>;
-    using vector3_t = Eigen::Matrix<float64_t, 3, 1>;
-    using vector4_t = Eigen::Matrix<float64_t, 4, 1>;
-    using vector6_t = Eigen::Matrix<float64_t, 6, 1>;
+    using Matrix6Xd = Eigen::Matrix<float64_t, 6, Eigen::Dynamic>;
+    using Vector6d = Eigen::Matrix<float64_t, 6, 1>;
 
     using quaternion_t = Eigen::Quaternion<float64_t>;
 
@@ -114,7 +107,7 @@ namespace jiminy
     /* Ground profile signature.
        Note that it is impossible to use function pointer since it does not support functors. */
     using heightmapFunctor_t =
-        std::function<std::pair<float64_t, vector3_t>(const vector3_t & /*pos*/)>;
+        std::function<std::pair<float64_t, Eigen::Vector3d>(const Eigen::Vector3d & /*pos*/)>;
 
     // Flexible joints
     struct flexibleJointData_t
@@ -128,9 +121,9 @@ namespace jiminy
 
     public:
         std::string frameName;
-        vector3_t stiffness;
-        vector3_t damping;
-        vector3_t inertia;
+        Eigen::Vector3d stiffness;
+        Eigen::Vector3d damping;
+        Eigen::Vector3d inertia;
     };
 
     using flexibilityConfig_t = std::vector<flexibleJointData_t>;
@@ -142,12 +135,12 @@ namespace jiminy
         int32_t,
         float64_t,
         std::string,
-        vectorN_t,
-        matrixN_t,
+        Eigen::VectorXd,
+        Eigen::MatrixXd,
         heightmapFunctor_t,
         std::vector<std::string>,
-        std::vector<vectorN_t>,
-        std::vector<matrixN_t>,
+        std::vector<Eigen::VectorXd>,
+        std::vector<Eigen::MatrixXd>,
         flexibilityConfig_t,
         std::unordered_map<std::string, boost::recursive_variant_>>::type;
 
@@ -159,15 +152,17 @@ namespace jiminy
     public:
         sensorDataTypePair_t(const std::string & nameIn,
                              const Eigen::Index & idIn,
-                             const Eigen::Ref<const vectorN_t> & valueIn) :
+                             const Eigen::Ref<const Eigen::VectorXd> & valueIn) :
         name(nameIn),
         idx(idIn),
-        value(valueIn){};
+        value(valueIn)
+        {
+        }
 
     public:
         std::string name;
         Eigen::Index idx;
-        Eigen::Ref<const vectorN_t> value;
+        Eigen::Ref<const Eigen::VectorXd> value;
     };
 
     using namespace boost::multi_index;
@@ -190,13 +185,14 @@ namespace jiminy
     {
     public:
         sensorDataTypeMap_t(
-            std::optional<std::reference_wrapper<const matrixN_t>> sharedData = std::nullopt) :
+            std::optional<std::reference_wrapper<const Eigen::MatrixXd>> sharedData =
+                std::nullopt) :
         sensorDataTypeMapImpl_t(),
         sharedDataRef_(sharedData)
         {
         }
 
-        inline const matrixN_t & getAll() const
+        inline const Eigen::MatrixXd & getAll() const
         {
             if (sharedDataRef_)
             {
@@ -231,28 +227,29 @@ namespace jiminy
         }
 
     private:
-        std::optional<std::reference_wrapper<const matrixN_t>> sharedDataRef_;
+        std::optional<std::reference_wrapper<const Eigen::MatrixXd>> sharedDataRef_;
         /* Internal buffer if no shared memory available.
            It is useful if the sensors data is not contiguous in the first place, which is likely
            to be the case when allocated from Python, or when re-generating sensor data from log
            files. */
-        mutable matrixN_t sharedData_{};
+        mutable Eigen::MatrixXd sharedData_{};
     };
 
     using sensorsDataMap_t = std::unordered_map<std::string, sensorDataTypeMap_t>;
 
     // System force functors
     using forceProfileFunctor_t = std::function<pinocchio::Force(
-        const float64_t & /*t*/, const vectorN_t & /*q*/, const vectorN_t & /*v*/)>;
-    using forceCouplingFunctor_t = std::function<pinocchio::Force(const float64_t & /*t*/,
-                                                                  const vectorN_t & /*q_1*/,
-                                                                  const vectorN_t & /*v_1*/,
-                                                                  const vectorN_t & /*q_2*/,
-                                                                  const vectorN_t & /*v_2*/)>;
+        const float64_t & /*t*/, const Eigen::VectorXd & /*q*/, const Eigen::VectorXd & /*v*/)>;
+    using forceCouplingFunctor_t =
+        std::function<pinocchio::Force(const float64_t & /*t*/,
+                                       const Eigen::VectorXd & /*q_1*/,
+                                       const Eigen::VectorXd & /*v_1*/,
+                                       const Eigen::VectorXd & /*q_2*/,
+                                       const Eigen::VectorXd & /*v_2*/)>;
 
     // System callback functor
     using callbackFunctor_t = std::function<bool_t(
-        const float64_t & /*t*/, const vectorN_t & /*q*/, const vectorN_t & /*v*/)>;
+        const float64_t & /*t*/, const Eigen::VectorXd & /*q*/, const Eigen::VectorXd & /*v*/)>;
 
     // Log data type
     struct logData_t

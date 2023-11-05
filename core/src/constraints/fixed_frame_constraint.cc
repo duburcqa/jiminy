@@ -19,7 +19,7 @@ namespace jiminy
     dofsFixed_(),
     transformRef_(),
     normal_(),
-    rotationLocal_(matrix3_t::Identity()),
+    rotationLocal_(Eigen::Matrix3d::Identity()),
     frameJacobian_(),
     frameDrift_()
     {
@@ -58,20 +58,21 @@ namespace jiminy
         return transformRef_;
     }
 
-    void FixedFrameConstraint::setNormal(const vector3_t & normal)
+    void FixedFrameConstraint::setNormal(const Eigen::Vector3d & normal)
     {
         normal_ = normal;
         rotationLocal_.col(2) = normal_;
-        rotationLocal_.col(1) = normal_.cross(vector3_t::UnitX()).normalized();
+        rotationLocal_.col(1) = normal_.cross(Eigen::Vector3d::UnitX()).normalized();
         rotationLocal_.col(0) = rotationLocal_.col(1).cross(rotationLocal_.col(2));
     }
 
-    const matrix3_t & FixedFrameConstraint::getLocalFrame() const
+    const Eigen::Matrix3d & FixedFrameConstraint::getLocalFrame() const
     {
         return rotationLocal_;
     }
 
-    hresult_t FixedFrameConstraint::reset(const vectorN_t & /* q */, const vectorN_t & /* v */)
+    hresult_t FixedFrameConstraint::reset(const Eigen::VectorXd & /* q */,
+                                          const Eigen::VectorXd & /* v */)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -110,8 +111,8 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t FixedFrameConstraint::computeJacobianAndDrift(const vectorN_t & /* q */,
-                                                            const vectorN_t & /* v */)
+    hresult_t FixedFrameConstraint::computeJacobianAndDrift(const Eigen::VectorXd & /* q */,
+                                                            const Eigen::VectorXd & /* v */)
     {
         if (!isAttached_)
         {
@@ -131,14 +132,14 @@ namespace jiminy
         for (Eigen::DenseIndex j = colRef; j >= 0;
              j = model->pncData_.parents_fromRow[static_cast<std::size_t>(j)])
         {
-            const pinocchio::MotionRef<matrix6N_t::ColXpr> vIn(model->pncData_.J.col(j));
-            pinocchio::MotionRef<matrix6N_t::ColXpr> vOut(frameJacobian_.col(j));
+            const pinocchio::MotionRef<Matrix6Xd::ColXpr> vIn(model->pncData_.J.col(j));
+            pinocchio::MotionRef<Matrix6Xd::ColXpr> vOut(frameJacobian_.col(j));
             vOut = transformLocal.actInv(vIn);
         }
 
         // Compute pose error
         auto deltaPosition = framePose.translation() - transformRef_.translation();
-        const vector3_t deltaRotation =
+        const Eigen::Vector3d deltaRotation =
             pinocchio::log3(framePose.rotation() * transformRef_.rotation().transpose());
 
         // Compute frame velocity in local frame

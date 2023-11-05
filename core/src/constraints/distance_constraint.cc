@@ -49,7 +49,8 @@ namespace jiminy
         return distanceRef_;
     }
 
-    hresult_t DistanceConstraint::reset(const vectorN_t & /* q */, const vectorN_t & /* v */)
+    hresult_t DistanceConstraint::reset(const Eigen::VectorXd & /* q */,
+                                        const Eigen::VectorXd & /* v */)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -89,16 +90,17 @@ namespace jiminy
             lambda_.setZero(1);
 
             // Compute the current distance and use it as reference
-            const vector3_t deltaPosition = model->pncData_.oMf[framesIdx_[0]].translation() -
-                                            model->pncData_.oMf[framesIdx_[1]].translation();
+            const Eigen::Vector3d deltaPosition =
+                model->pncData_.oMf[framesIdx_[0]].translation() -
+                model->pncData_.oMf[framesIdx_[1]].translation();
             distanceRef_ = deltaPosition.norm();
         }
 
         return returnCode;
     }
 
-    hresult_t DistanceConstraint::computeJacobianAndDrift(const vectorN_t & /* q */,
-                                                          const vectorN_t & /* v */)
+    hresult_t DistanceConstraint::computeJacobianAndDrift(const Eigen::VectorXd & /* q */,
+                                                          const Eigen::VectorXd & /* v */)
     {
         if (!isAttached_)
         {
@@ -110,17 +112,17 @@ namespace jiminy
         auto model = model_.lock();
 
         // Compute direction between frames
-        const vector3_t deltaPosition = model->pncData_.oMf[framesIdx_[0]].translation() -
-                                        model->pncData_.oMf[framesIdx_[1]].translation();
+        const Eigen::Vector3d deltaPosition = model->pncData_.oMf[framesIdx_[0]].translation() -
+                                              model->pncData_.oMf[framesIdx_[1]].translation();
         const float64_t deltaPositionNorm = deltaPosition.norm();
-        const vector3_t direction = deltaPosition / deltaPositionNorm;
+        const Eigen::Vector3d direction = deltaPosition / deltaPositionNorm;
 
         // Compute relative velocity between frames
         const pinocchio::Motion velocity0 = getFrameVelocity(
             model->pncModel_, model->pncData_, framesIdx_[0], pinocchio::LOCAL_WORLD_ALIGNED);
         const pinocchio::Motion velocity1 = getFrameVelocity(
             model->pncModel_, model->pncData_, framesIdx_[1], pinocchio::LOCAL_WORLD_ALIGNED);
-        vector3_t deltaVelocity = velocity0.linear() - velocity1.linear();
+        Eigen::Vector3d deltaVelocity = velocity0.linear() - velocity1.linear();
 
         // Get jacobian in local frame: J_1 - J_2
         getFrameJacobian(model->pncModel_,

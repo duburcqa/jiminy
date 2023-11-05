@@ -77,12 +77,12 @@ namespace jiminy
             const bool_t & ignoreBounds = false) override final;
 
     private:
-        void ProjectedGaussSeidelIter(const matrixN_t & A,
-                                      const vectorN_t::SegmentReturnType & b,
-                                      vectorN_t::SegmentReturnType & x);
-        bool_t ProjectedGaussSeidelSolver(const matrixN_t & A,
-                                          const vectorN_t::SegmentReturnType & b,
-                                          vectorN_t::SegmentReturnType & x);
+        void ProjectedGaussSeidelIter(const Eigen::MatrixXd & A,
+                                      const Eigen::VectorXd::SegmentReturnType & b,
+                                      Eigen::VectorXd::SegmentReturnType & x);
+        bool_t ProjectedGaussSeidelSolver(const Eigen::MatrixXd & A,
+                                          const Eigen::VectorXd::SegmentReturnType & b,
+                                          Eigen::VectorXd::SegmentReturnType & x);
 
     private:
         const pinocchio::Model * model_;
@@ -95,14 +95,14 @@ namespace jiminy
         /// \brief Matrix holding the jacobian of the constraints.
         Eigen::Matrix<float64_t, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> J_;
         /// \brief Vector holding the drift of the constraints.
-        vectorN_t gamma_;
+        Eigen::VectorXd gamma_;
         /// \brief Vector holding the multipliers of the constraints.
-        vectorN_t lambda_;
+        Eigen::VectorXd lambda_;
         std::vector<ConstraintData> constraintsData_;
 
-        vectorN_t b_;
-        vectorN_t y_;
-        vectorN_t yPrev_;
+        Eigen::VectorXd b_;
+        Eigen::VectorXd y_;
+        Eigen::VectorXd yPrev_;
 
         bool_t isLcpFullyUpToDate_;
     };

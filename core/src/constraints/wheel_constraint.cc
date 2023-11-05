@@ -13,8 +13,8 @@ namespace jiminy
 
     WheelConstraint::WheelConstraint(const std::string & frameName,
                                      const float64_t & wheelRadius,
-                                     const vector3_t & groundNormal,
-                                     const vector3_t & wheelAxis) :
+                                     const Eigen::Vector3d & groundNormal,
+                                     const Eigen::Vector3d & wheelAxis) :
     AbstractConstraintTpl(),
     frameName_(frameName),
     frameIdx_(0),
@@ -48,7 +48,8 @@ namespace jiminy
         return transformRef_;
     }
 
-    hresult_t WheelConstraint::reset(const vectorN_t & /* q */, const vectorN_t & /* v */)
+    hresult_t WheelConstraint::reset(const Eigen::VectorXd & /* q */,
+                                     const Eigen::VectorXd & /* v */)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -83,8 +84,8 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t WheelConstraint::computeJacobianAndDrift(const vectorN_t & /* q */,
-                                                       const vectorN_t & /* v */)
+    hresult_t WheelConstraint::computeJacobianAndDrift(const Eigen::VectorXd & /* q */,
+                                                       const Eigen::VectorXd & /* v */)
     {
         if (!isAttached_)
         {
@@ -97,10 +98,10 @@ namespace jiminy
 
         // Compute ground normal in local frame
         const pinocchio::SE3 & framePose = model->pncData_.oMf[frameIdx_];
-        const vector3_t axis = framePose.rotation() * axis_;
-        const vector3_t x = axis.cross(normal_).cross(axis);
+        const Eigen::Vector3d axis = framePose.rotation() * axis_;
+        const Eigen::Vector3d x = axis.cross(normal_).cross(axis);
         const float64_t xNorm = x.norm();
-        const vector3_t y = x / xNorm;
+        const Eigen::Vector3d y = x / xNorm;
         pinocchio::alphaSkew(radius_, y, skewRadius_);
 
         // Compute position error
@@ -122,14 +123,15 @@ namespace jiminy
         // Compute ground normal derivative
         const pinocchio::Motion frameVelocity = getFrameVelocity(
             model->pncModel_, model->pncData_, frameIdx_, pinocchio::LOCAL_WORLD_ALIGNED);
-        const vector3_t & omega = frameVelocity.angular();
+        const Eigen::Vector3d & omega = frameVelocity.angular();
 
-        const vector3_t daxis_ = omega.cross(axis);
-        const vector3_t dx = daxis_.cross(normal_).cross(axis) + axis.cross(normal_).cross(daxis_);
-        const vector3_t z = dx / xNorm;
-        const vector3_t dy = z - y.dot(z) * y;
+        const Eigen::Vector3d daxis_ = omega.cross(axis);
+        const Eigen::Vector3d dx =
+            daxis_.cross(normal_).cross(axis) + axis.cross(normal_).cross(daxis_);
+        const Eigen::Vector3d z = dx / xNorm;
+        const Eigen::Vector3d dy = z - y.dot(z) * y;
 
-        vector3_t velocity = frameVelocity.linear();
+        Eigen::Vector3d velocity = frameVelocity.linear();
         velocity.noalias() += skewRadius_ * omega;
 
         // Compute frame drift in local frame
