@@ -282,13 +282,17 @@ namespace jiminy
     void toeplitzCholeskyLower(const Eigen::MatrixBase<DerivedType1> & a,
                                Eigen::MatrixBase<DerivedType2> & l)
     {
+        using Scalar = typename DerivedType1::Scalar;
+
         // Initialize lower Cholesky factor. Resizing is enough, no need to initialize it.
-        const uint64_t n = a.rows();
+        const Eigen::Index n = a.rows();
         l.resize(n, n);
 
-        /* Compute compressed representation of the matrix, which coincide with the Schur generator
-           for Toepliz matrices. */
-        Eigen::MatrixXd g(2, n);
+        /* Compute compressed representation of the matrix.
+           It coincides with the Schur generator for Toepliz matrices.
+           TODO: Investigate if row-major is more efficient than column-major storage order.
+           TODO: Avoid 'eval' by reversing columns and thereby shifting data to the right. */
+        Eigen::Matrix<Scalar, 2, Eigen::Dynamic> g(2, n);
         g.row(0) = a.row(0);
         g.row(1).tail(n - 1) = a.col(0).tail(n - 1);
         g(1, 0) = 0.0;
@@ -297,15 +301,14 @@ namespace jiminy
         l.col(0) = g.row(0);
         g.row(0).tail(n - 1) = g.row(0).head(n - 1).eval();
         g(0, 0) = 0.0;
-        Eigen::Matrix2d H = Eigen::Matrix2d::Ones();
-        for (uint32_t i = 1; i < n; ++i)
+        Eigen::Matrix<Scalar, 2, 2> H = Eigen::Matrix<Scalar, 2, 2>::Ones();
+        for (Eigen::Index i = 1; i < n; ++i)
         {
             const float64_t rho = -g(1, i) / g(0, i);
             // H << 1.0, rho,
             //      rho, 1.0;
-            Eigen::Map<Eigen::Vector4d>(H.data()).segment<2>(1).fill(rho);
-            g.rightCols(n - i + 1) =
-                (H * g.rightCols(n - i + 1) / std::sqrt(1.0 - rho * rho)).eval();
+            Eigen::Map<Eigen::Matrix<Scalar, 4, 1>>(H.data()).template segment<2>(1).fill(rho);
+            g.rightCols(n - i + 1) = H * g.rightCols(n - i + 1) / std::sqrt(1.0 - rho * rho);
             l.col(i).tail(n - i + 1) = g.row(0).tail(n - i + 1);
             g.row(0).tail(n - i) = g.row(0).segment(i - 1, n - i).eval();
             g(0, i - 1) = 0.0;

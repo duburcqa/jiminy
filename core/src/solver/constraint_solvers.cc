@@ -312,7 +312,7 @@ namespace jiminy
 
                See: - http://mujoco.org/book/modeling.html#CSolver
                     - http://mujoco.org/book/computation.html#soParameters  */
-            A.diagonal() += clamp(A.diagonal() * dampingInv, PGS_MIN_REGULARIZER, INF);
+            A.diagonal() += (A.diagonal() * dampingInv).cwiseMax(PGS_MIN_REGULARIZER);
 
             /* The LCP is not fully up-to-date since the upper triangular part is still missing.
                This will only be done if necessary. */
