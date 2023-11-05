@@ -19,9 +19,7 @@ namespace jiminy
         friend LockGuardLocal;
 
     public:
-        // Disable the copy of the class
-        MutexLocal(const MutexLocal & mutexLocalIn) = delete;
-        MutexLocal & operator=(const MutexLocal & other) = delete;
+        DISABLE_COPY(MutexLocal)
 
     public:
         MutexLocal();
@@ -38,9 +36,7 @@ namespace jiminy
     class LockGuardLocal
     {
     public:
-        // Disable the copy of the class
-        LockGuardLocal(const LockGuardLocal & lockGuardLocalIn) = delete;
-        LockGuardLocal & operator=(const LockGuardLocal & other) = delete;
+        DISABLE_COPY(LockGuardLocal)
 
     public:
         LockGuardLocal(MutexLocal & mutexLocal);

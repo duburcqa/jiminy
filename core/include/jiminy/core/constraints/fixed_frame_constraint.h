@@ -17,13 +17,11 @@ namespace jiminy
     public:
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-    public:
-        /// Forbid the copy of the class
-        FixedFrameConstraint(const FixedFrameConstraint & abstractConstraint) = delete;
-        FixedFrameConstraint & operator=(const FixedFrameConstraint & other) = delete;
+        DISABLE_COPY(FixedFrameConstraint)
 
         auto shared_from_this() { return shared_from(this); }
 
+    public:
         /// \param[in] frameName Name of the frame on which the constraint is to be applied.
         FixedFrameConstraint(const std::string & frameName,
                              const Eigen::Matrix<bool_t, 6, 1> & maskFixed =

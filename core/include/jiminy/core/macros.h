@@ -401,6 +401,10 @@ namespace jiminy
         return result;
     }
 
+#define DISABLE_COPY(className)                  \
+    className(const className & other) = delete; \
+    className & operator=(const className & other) = delete;
+
 #define STRINGIFY_DETAIL(x) #x
 #define STRINGIFY(x) STRINGIFY_DETAIL(x)
 

@@ -243,9 +243,7 @@ namespace jiminy
         };
 
     public:
-        // Disable the copy of the class
-        Model(const Model & robot) = delete;
-        Model & operator=(const Model & other) = delete;
+        DISABLE_COPY(Model)
 
     public:
         Model();

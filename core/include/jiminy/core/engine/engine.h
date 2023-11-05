@@ -9,9 +9,7 @@ namespace jiminy
     class Engine : public EngineMultiRobot
     {
     public:
-        // Disable the copy of the class
-        Engine(const Engine & engine) = delete;
-        Engine & operator=(const Engine & other) = delete;
+        DISABLE_COPY(Engine)
 
     public:
         Engine() = default;

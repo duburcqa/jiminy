@@ -21,10 +21,11 @@ namespace jiminy
     struct ConstraintData
     {
     public:
+        DISABLE_COPY(ConstraintData)
+
+    public:
         ConstraintData() = default;
         ConstraintData(ConstraintData && constraintData) = default;
-        ConstraintData(const ConstraintData & constraintData) = delete;
-        ConstraintData & operator=(const ConstraintData & other) = delete;
 
     public:
         AbstractConstraintBase * constraint;
@@ -57,9 +58,7 @@ namespace jiminy
     class PGSSolver : public AbstractConstraintSolver
     {
     public:
-        // Disable the copy of the class
-        PGSSolver(const PGSSolver & solver) = delete;
-        PGSSolver & operator=(const PGSSolver & solver) = delete;
+        DISABLE_COPY(PGSSolver)
 
     public:
         PGSSolver(const pinocchio::Model * model,

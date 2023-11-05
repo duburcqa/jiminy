@@ -18,9 +18,7 @@ namespace jiminy
         friend Model;
 
     public:
-        /// Forbid the copy of the class
-        AbstractConstraintBase(const AbstractConstraintBase & abstractMotor) = delete;
-        AbstractConstraintBase & operator=(const AbstractConstraintBase & other) = delete;
+        DISABLE_COPY(AbstractConstraintBase)
 
     public:
         AbstractConstraintBase() = default;

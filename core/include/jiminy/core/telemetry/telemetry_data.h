@@ -32,9 +32,7 @@ namespace jiminy
     class TelemetryData
     {
     public:
-        // Disable the copy of the class
-        TelemetryData(const TelemetryData &) = delete;
-        TelemetryData & operator=(const TelemetryData &) = delete;
+        DISABLE_COPY(TelemetryData)
 
     public:
         TelemetryData();
