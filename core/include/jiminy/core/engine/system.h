@@ -133,8 +133,6 @@ namespace jiminy
     struct JIMINY_DLLAPI systemDataHolder_t
     {
     public:
-        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
         DISABLE_COPY(systemDataHolder_t)
 
         /* Must move all definitions in source files to avoid compilation failure due to incomplete

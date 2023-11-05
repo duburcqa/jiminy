@@ -26,8 +26,6 @@ namespace jiminy
             std::unordered_map<std::string, std::shared_ptr<SensorSharedDataHolder_t>>;
 
     public:
-        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
         DISABLE_COPY(Robot)
 
     public:

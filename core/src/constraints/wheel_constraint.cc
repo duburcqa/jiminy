@@ -105,9 +105,8 @@ namespace jiminy
         pinocchio::alphaSkew(radius_, y, skewRadius_);
 
         // Compute position error
-        const float64_t deltaPosition =
-            (framePose.translation() - transformRef_.translation() + radius_ * (normal_ - y))
-                .dot(normal_);
+        auto positionRel = framePose.translation() - transformRef_.translation();
+        const float64_t deltaPosition = (positionRel + radius_ * (normal_ - y)).dot(normal_);
 
         // Compute frame jacobian in local frame
         getFrameJacobian(model->pncModel_,
@@ -139,10 +138,13 @@ namespace jiminy
             model->pncModel_, model->pncData_, frameIdx_, pinocchio::LOCAL_WORLD_ALIGNED);
         frameAcceleration.linear() += omega.cross(frameVelocity.linear());
 
-        // Compute total drift
+        /* Compute total drift.
+           Note that the cross product is (very) slightly slower than the matrix product by the
+           skew matrix. */
+        drift_ = frameAcceleration.linear();
+        drift_.noalias() += skewRadius_ * frameAcceleration.angular();
         pinocchio::alphaSkew(radius_, dy, dskewRadius_);
-        drift_ = frameAcceleration.linear() + skewRadius_ * frameAcceleration.angular() +
-                 dskewRadius_ * omega;
+        drift_.noalias() += dskewRadius_ * omega;
 
         // Add Baumgarte stabilization drift
         drift_ += kp_ * deltaPosition * normal_ + kd_ * velocity;

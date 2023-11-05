@@ -166,15 +166,14 @@ namespace jiminy
         {
             return logData.timestamps.cast<float64_t>() * logData.timeUnit;
         }
-        auto iterator =
-            std::find(logData.fieldnames.begin() + 1, logData.fieldnames.end(), fieldname);
-        if (iterator == logData.fieldnames.end())
+        const auto & firstFieldnameIt = logData.fieldnames.begin() + 1;  // Skip GLOBAL_TIME
+        auto fieldnameIt = std::find(firstFieldnameIt, logData.fieldnames.end(), fieldname);
+        if (fieldnameIt == logData.fieldnames.end())
         {
             PRINT_ERROR("Variable '", fieldname, "' does not exist.");
             return {};
         }
-        const int64_t varIdx =
-            std::distance(logData.fieldnames.begin() + 1, iterator);  // Skip GLOBAL_TIME
+        const int64_t varIdx = std::distance(firstFieldnameIt, fieldnameIt);
         const Eigen::Index numInt = logData.intData.rows();
         if (varIdx < numInt)
         {

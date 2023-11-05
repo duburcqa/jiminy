@@ -16,8 +16,6 @@ namespace jiminy
     class JIMINY_DLLAPI FixedFrameConstraint : public AbstractConstraintTpl<FixedFrameConstraint>
     {
     public:
-        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
         DISABLE_COPY(FixedFrameConstraint)
 
         auto shared_from_this() { return shared_from(this); }

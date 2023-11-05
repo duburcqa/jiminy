@@ -12,9 +12,6 @@ namespace jiminy
     class JIMINY_DLLAPI ImuSensor : public AbstractSensorTpl<ImuSensor>
     {
     public:
-        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
-    public:
         ImuSensor(const std::string & name);
         virtual ~ImuSensor() = default;
 

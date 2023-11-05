@@ -351,8 +351,7 @@ namespace jiminy
         };
 
         const int64_t idxLeft = bisectLeft();
-        if (timeDesired >= 0.0 &&
-            static_cast<std::size_t>(idxLeft + 1) < sharedHolder_->time_.size())
+        if (timeDesired >= 0.0 && idxLeft + 1 < static_cast<int64_t>(sharedHolder_->time_.size()))
         {
             if (idxLeft < 0)
             {
@@ -365,13 +364,13 @@ namespace jiminy
             }
             else if (baseSensorOptions_->delayInterpolationOrder == 1)
             {
-                // TODO: the linear interpolation is not valid for quaternion.
-                // `slerp` should be unsed instead...
-                get() = 1 / (sharedHolder_->time_[idxLeft + 1] - sharedHolder_->time_[idxLeft]) *
-                        ((timeDesired - sharedHolder_->time_[idxLeft]) *
-                             sharedHolder_->data_[idxLeft + 1].col(sensorIdx_) +
-                         (sharedHolder_->time_[idxLeft + 1] - timeDesired) *
-                             sharedHolder_->data_[idxLeft].col(sensorIdx_));
+                // FIXME: the linear interpolation is not valid for quaternion
+                const float64_t dt =
+                    sharedHolder_->time_[idxLeft + 1] - sharedHolder_->time_[idxLeft];
+                const float64_t ratioNext = (sharedHolder_->time_[idxLeft + 1] - timeDesired) / dt;
+                const float64_t ratioPrev = (timeDesired - sharedHolder_->time_[idxLeft]) / dt;
+                get() = ratioPrev * sharedHolder_->data_[idxLeft + 1].col(sensorIdx_) +
+                        ratioNext * sharedHolder_->data_[idxLeft].col(sensorIdx_);
             }
             else
             {
@@ -456,18 +455,17 @@ namespace jiminy
         // Internal buffer memory management
         if (t + EPS > sharedHolder_->time_.back())
         {
+            const std::size_t bufferSize = sharedHolder_->time_.size();
             if (timeMin > sharedHolder_->time_.front())
             {
                 // Remove some unecessary extra elements if appropriate
-                if (sharedHolder_->time_.size() > 1U + DELAY_MAX_BUFFER_EXCEED &&
+                if (bufferSize > 1U + DELAY_MAX_BUFFER_EXCEED &&
                     timeMin > sharedHolder_->time_[DELAY_MAX_BUFFER_EXCEED])
                 {
                     sharedHolder_->time_.erase_begin(DELAY_MAX_BUFFER_EXCEED);
                     sharedHolder_->data_.erase_begin(DELAY_MAX_BUFFER_EXCEED);
-                    sharedHolder_->time_.rset_capacity(sharedHolder_->time_.size() +
-                                                       DELAY_MIN_BUFFER_RESERVE);
-                    sharedHolder_->data_.rset_capacity(sharedHolder_->data_.size() +
-                                                       DELAY_MIN_BUFFER_RESERVE);
+                    sharedHolder_->time_.rset_capacity(bufferSize + DELAY_MIN_BUFFER_RESERVE);
+                    sharedHolder_->data_.rset_capacity(bufferSize + DELAY_MIN_BUFFER_RESERVE);
                 }
 
                 // Rotate the internal buffer
@@ -479,10 +477,8 @@ namespace jiminy
                 // Increase capacity if required
                 if (sharedHolder_->time_.full())
                 {
-                    sharedHolder_->time_.rset_capacity(sharedHolder_->time_.size() +
-                                                       DELAY_MIN_BUFFER_RESERVE);
-                    sharedHolder_->data_.rset_capacity(sharedHolder_->data_.size() +
-                                                       DELAY_MIN_BUFFER_RESERVE);
+                    sharedHolder_->time_.rset_capacity(bufferSize + DELAY_MIN_BUFFER_RESERVE);
+                    sharedHolder_->data_.rset_capacity(bufferSize + DELAY_MIN_BUFFER_RESERVE);
                 }
 
                 /* Push back new buffer.
