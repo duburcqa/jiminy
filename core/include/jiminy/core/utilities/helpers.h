@@ -140,8 +140,8 @@ namespace jiminy
 
     // *********************** Miscellaneous **************************
 
-    template<typename type>
-    void swapVectorBlocks(Eigen::Matrix<type, Eigen::Dynamic, 1> & vector,
+    template<typename Derived>
+    void swapMatrixBlocks(const Eigen::MatrixBase<Derived> & matrixIn,
                           const Eigen::Index & firstBlockStart,
                           const Eigen::Index & firstBlockLength,
                           const Eigen::Index & secondBlockStart,

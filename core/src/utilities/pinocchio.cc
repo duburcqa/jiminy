@@ -575,37 +575,37 @@ namespace jiminy
 
             /* Update vectors based on joint index: effortLimit, velocityLimit, lowerPositionLimit
                and upperPositionLimit. */
-            swapVectorBlocks(modelInOut.effortLimit,
+            swapMatrixBlocks(modelInOut.effortLimit,
                              modelInOut.joints[firstJointIdx].idx_v(),
                              modelInOut.joints[firstJointIdx].nv(),
                              modelInOut.joints[secondJointIdx].idx_v(),
                              modelInOut.joints[secondJointIdx].nv());
-            swapVectorBlocks(modelInOut.velocityLimit,
+            swapMatrixBlocks(modelInOut.velocityLimit,
                              modelInOut.joints[firstJointIdx].idx_v(),
                              modelInOut.joints[firstJointIdx].nv(),
                              modelInOut.joints[secondJointIdx].idx_v(),
                              modelInOut.joints[secondJointIdx].nv());
-            swapVectorBlocks(modelInOut.lowerPositionLimit,
+            swapMatrixBlocks(modelInOut.lowerPositionLimit,
                              modelInOut.joints[firstJointIdx].idx_q(),
                              modelInOut.joints[firstJointIdx].nq(),
                              modelInOut.joints[secondJointIdx].idx_q(),
                              modelInOut.joints[secondJointIdx].nq());
-            swapVectorBlocks(modelInOut.upperPositionLimit,
+            swapMatrixBlocks(modelInOut.upperPositionLimit,
                              modelInOut.joints[firstJointIdx].idx_q(),
                              modelInOut.joints[firstJointIdx].nq(),
                              modelInOut.joints[secondJointIdx].idx_q(),
                              modelInOut.joints[secondJointIdx].nq());
-            swapVectorBlocks(modelInOut.rotorInertia,
+            swapMatrixBlocks(modelInOut.rotorInertia,
                              modelInOut.joints[firstJointIdx].idx_v(),
                              modelInOut.joints[firstJointIdx].nv(),
                              modelInOut.joints[secondJointIdx].idx_v(),
                              modelInOut.joints[secondJointIdx].nv());
-            swapVectorBlocks(modelInOut.friction,
+            swapMatrixBlocks(modelInOut.friction,
                              modelInOut.joints[firstJointIdx].idx_v(),
                              modelInOut.joints[firstJointIdx].nv(),
                              modelInOut.joints[secondJointIdx].idx_v(),
                              modelInOut.joints[secondJointIdx].nv());
-            swapVectorBlocks(modelInOut.damping,
+            swapMatrixBlocks(modelInOut.damping,
                              modelInOut.joints[firstJointIdx].idx_v(),
                              modelInOut.joints[firstJointIdx].nv(),
                              modelInOut.joints[secondJointIdx].idx_v(),
