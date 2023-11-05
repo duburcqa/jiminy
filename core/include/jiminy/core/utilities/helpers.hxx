@@ -199,42 +199,47 @@ namespace jiminy
 
     // *********************** Miscellaneous **************************
 
-    /// \brief Swap two blocks of data in a vector.
+    /// \brief Swap two non-overlapping row-blocks of data in a matrix.
     ///
-    /// \details Given two uneven blocks in a vector v = (... v1 ... v2 ...), this function
-    /// modifies
-    ///          v to v = (... v2 ... v1 ...). v1 and v2 can be of arbitrary size.
+    /// \details Given two blocks of arbitrary sizes b1, b2 in a matrix B = (... b1 ... b2 ...),
+    ///          this function re-assigns B to (... b2 ... b1 ...).
     ///
     /// \pre firstBlockStart + firstBlockLength <= secondBlockStart
-    /// \pre secondBlockStart + secondBlockLength <= vector.size()
     ///
-    /// \param[in, out] vector Vector to modify.
+    /// \param[in, out] matrix Matrix to modify.
     /// \param[in] firstBlockStart Start index of the first block.
     /// \param[in] firstBlockLength Length of the first block.
     /// \param[in] secondBlockStart Start index of the second block.
     /// \param[in] secondBlockLength Length of the second block.
-    template<typename type>
-    void swapVectorBlocks(Eigen::Matrix<type, Eigen::Dynamic, 1> & vector,
+    template<typename Derived>
+    void swapMatrixBlocks(const Eigen::MatrixBase<Derived> & matrixIn,
                           const Eigen::Index & firstBlockStart,
                           const Eigen::Index & firstBlockLength,
                           const Eigen::Index & secondBlockStart,
                           const Eigen::Index & secondBlockLength)
     {
-        // Extract both blocks by copy
-        Eigen::Matrix<type, Eigen::Dynamic, 1> firstBlock =
-            vector.segment(firstBlockStart, firstBlockLength);
-        Eigen::Matrix<type, Eigen::Dynamic, 1> secondBlock =
-            vector.segment(secondBlockStart, secondBlockLength);
+        // Get plain matrix type and cast away constness
+        using Matrix = typename Eigen::MatrixBase<Derived>::PlainObject;
+        Eigen::MatrixBase<Derived> & matrix = const_cast<Eigen::MatrixBase<Derived> &>(matrixIn);
 
-        // Extract content between the blocks
-        const Eigen::Index middleLength = secondBlockStart - (firstBlockStart + firstBlockLength);
-        Eigen::Matrix<type, Eigen::Dynamic, 1> middleBlock =
-            vector.segment(firstBlockStart + firstBlockLength, middleLength);
+        // Extract first plus middle block by copy
+        const Eigen::Index middleBlockStart = firstBlockStart + firstBlockLength;
+        const Eigen::Index middleBlockLength = secondBlockStart - middleBlockStart;
+        assert(middleBlockLength >= 0 && "First and second blocks must not overlap");
+        const Eigen::Index firstMiddleBlockLength = firstBlockLength + middleBlockLength;
+        const Matrix firstMiddleBlock = matrix.middleRows(firstBlockStart, firstMiddleBlockLength);
 
-        // Reorder vector
-        vector.segment(firstBlockStart, secondBlockLength) = secondBlock;
-        vector.segment(firstBlockStart + secondBlockLength, middleLength) = middleBlock;
-        vector.segment(firstBlockStart + secondBlockLength + middleLength, firstBlockLength) =
-            firstBlock;
+        // Re-assign first block to second block
+        auto secondBlock = matrix.middleRows(secondBlockStart, secondBlockLength);
+        matrix.middleRows(firstBlockStart, secondBlockLength) = secondBlock;
+
+        // Shift middle block
+        auto middleBlock = firstMiddleBlock.topRows(middleBlockLength);
+        matrix.middleRows(firstBlockStart + secondBlockLength, middleBlockLength) = middleBlock;
+
+        // Re-assign second block to first block
+        auto firstBlock = firstMiddleBlock.bottomRows(firstBlockLength);
+        const Eigen::Index secondBlockEnd = secondBlockStart + secondBlockLength;  // Excluded
+        matrix.middleRows(secondBlockEnd - firstBlockLength, firstBlockLength) = firstBlock;
     }
 }
