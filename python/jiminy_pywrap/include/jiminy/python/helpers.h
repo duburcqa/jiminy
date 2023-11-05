@@ -4,7 +4,7 @@
 
 namespace jiminy::python
 {
-    void exposeHelpers(void);
+    void exposeHelpers();
 }
 
 #endif  // HELPERS_PYTHON_H

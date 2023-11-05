@@ -1,14 +1,14 @@
 #include <numeric>
 
-#include "pinocchio/parsers/urdf.hpp"                      // `pinocchio::urdf::buildGeom`, `pinocchio::urdf::buildModel`
-#include "pinocchio/spatial/se3.hpp"                       // `pinocchio::SE3`
-#include "pinocchio/spatial/force.hpp"                     // `pinocchio::Force`
-#include "pinocchio/spatial/inertia.hpp"                   // `pinocchio::Inertia`
-#include "pinocchio/multibody/model.hpp"                   // `pinocchio::Model`
-#include "pinocchio/multibody/fcl.hpp"                     // `pinocchio::GeometryType`
-#include "pinocchio/multibody/geometry.hpp"                // `pinocchio::GeometryModel`
-#include "pinocchio/multibody/data.hpp"                    // `pinocchio::Data`
-#include "pinocchio/multibody/visitor.hpp"                 // `pinocchio::fusion::JointUnaryVisitorBase`
+#include "pinocchio/parsers/urdf.hpp"  // `pinocchio::urdf::buildGeom`, `pinocchio::urdf::buildModel`
+#include "pinocchio/spatial/se3.hpp"         // `pinocchio::SE3`
+#include "pinocchio/spatial/force.hpp"       // `pinocchio::Force`
+#include "pinocchio/spatial/inertia.hpp"     // `pinocchio::Inertia`
+#include "pinocchio/multibody/model.hpp"     // `pinocchio::Model`
+#include "pinocchio/multibody/fcl.hpp"       // `pinocchio::GeometryType`
+#include "pinocchio/multibody/geometry.hpp"  // `pinocchio::GeometryModel`
+#include "pinocchio/multibody/data.hpp"      // `pinocchio::Data`
+#include "pinocchio/multibody/visitor.hpp"   // `pinocchio::fusion::JointUnaryVisitorBase`
 #include "pinocchio/multibody/joint/joint-model-base.hpp"  // `pinocchio::JointModelBase`
 #include "pinocchio/algorithm/joint-configuration.hpp"     // `pinocchio::isNormalized`
 
@@ -21,18 +21,17 @@
 
 namespace jiminy
 {
-    hresult_t getJointNameFromPositionIdx(pinocchio::Model const & model,
-                                          int32_t          const & idx,
-                                          std::string            & jointNameOut)
+    hresult_t getJointNameFromPositionIdx(
+        const pinocchio::Model & model, const int32_t & idx, std::string & jointNameOut)
     {
         // Iterate over all joints.
         for (jointIndex_t i = 0; i < static_cast<jointIndex_t>(model.njoints); ++i)
         {
             // Get joint starting and ending index in position vector.
-            int32_t const & startIdx = model.joints[i].idx_q();
-            int32_t const endIdx = startIdx + model.joints[i].nq();
+            const int32_t & startIdx = model.joints[i].idx_q();
+            const int32_t endIdx = startIdx + model.joints[i].nq();
 
-            // If inIn is between start and end, we found the joint we were looking for.
+            // If idx is between start and end, we found the joint we were looking for.
             if (startIdx <= idx && idx < endIdx)
             {
                 jointNameOut = model.names[i];
@@ -44,19 +43,18 @@ namespace jiminy
         return hresult_t::ERROR_BAD_INPUT;
     }
 
-    hresult_t getJointNameFromVelocityIdx(pinocchio::Model const & model,
-                                          int32_t          const & idIn,
-                                          std::string            & jointNameOut)
+    hresult_t getJointNameFromVelocityIdx(
+        const pinocchio::Model & model, const int32_t & idx, std::string & jointNameOut)
     {
         // Iterate over all joints.
         for (jointIndex_t i = 0; i < static_cast<jointIndex_t>(model.njoints); ++i)
         {
             // Get joint starting and ending index in velocity vector.
-            int32_t const & startIdx = model.joints[i].idx_v();
-            int32_t const endIdx = startIdx + model.joints[i].nv();
+            const int32_t & startIdx = model.joints[i].idx_v();
+            const int32_t endIdx = startIdx + model.joints[i].nv();
 
-            // If inIn is between start and end, we found the joint we were looking for.
-            if (startIdx <= idIn && idIn < endIdx)
+            // If idx is between start and end, we found the joint we were looking for
+            if (startIdx <= idx && idx < endIdx)
             {
                 jointNameOut = model.names[i];
                 return hresult_t::SUCCESS;
@@ -67,83 +65,85 @@ namespace jiminy
         return hresult_t::ERROR_BAD_INPUT;
     }
 
-    struct getJointTypeAlgo
-    : public pinocchio::fusion::JointUnaryVisitorBase<getJointTypeAlgo>
+    struct getJointTypeAlgo : public pinocchio::fusion::JointUnaryVisitorBase<getJointTypeAlgo>
     {
         typedef boost::fusion::vector<joint_t & /* jointType */> ArgsType;
 
         template<typename JointModel>
-        static void algo(pinocchio::JointModelBase<JointModel> const & model,
-                         joint_t & jointType)
+        static void algo(const pinocchio::JointModelBase<JointModel> & model, joint_t & jointType)
         {
             jointType = getJointType(model.derived());
         }
 
         template<typename JointModel>
         static std::enable_if_t<is_pinocchio_joint_freeflyer_v<JointModel>, joint_t>
-        getJointType(JointModel const &)
+        getJointType(const JointModel &)
         {
             return joint_t::FREE;
         }
 
         template<typename JointModel>
-        static std::enable_if_t<is_pinocchio_joint_spherical_v<JointModel>
-                             || is_pinocchio_joint_spherical_zyx_v<JointModel>, joint_t>
-        getJointType(JointModel const &)
+        static std::enable_if_t<is_pinocchio_joint_spherical_v<JointModel> ||
+                                    is_pinocchio_joint_spherical_zyx_v<JointModel>,
+                                joint_t>
+        getJointType(const JointModel &)
         {
             return joint_t::SPHERICAL;
         }
 
         template<typename JointModel>
         static std::enable_if_t<is_pinocchio_joint_translation_v<JointModel>, joint_t>
-        getJointType(JointModel const &)
+        getJointType(const JointModel &)
         {
             return joint_t::TRANSLATION;
         }
 
         template<typename JointModel>
         static std::enable_if_t<is_pinocchio_joint_planar_v<JointModel>, joint_t>
-        getJointType(JointModel const &)
+        getJointType(const JointModel &)
         {
             return joint_t::PLANAR;
         }
 
         template<typename JointModel>
-        static std::enable_if_t<is_pinocchio_joint_prismatic_v<JointModel>
-                             || is_pinocchio_joint_prismatic_unaligned_v<JointModel>, joint_t>
-        getJointType(JointModel const &)
+        static std::enable_if_t<is_pinocchio_joint_prismatic_v<JointModel> ||
+                                    is_pinocchio_joint_prismatic_unaligned_v<JointModel>,
+                                joint_t>
+        getJointType(const JointModel &)
         {
             return joint_t::LINEAR;
         }
 
         template<typename JointModel>
-        static std::enable_if_t<is_pinocchio_joint_revolute_v<JointModel>
-                             || is_pinocchio_joint_revolute_unaligned_v<JointModel>, joint_t>
-        getJointType(JointModel const &)
+        static std::enable_if_t<is_pinocchio_joint_revolute_v<JointModel> ||
+                                    is_pinocchio_joint_revolute_unaligned_v<JointModel>,
+                                joint_t>
+        getJointType(const JointModel &)
         {
             return joint_t::ROTARY;
         }
 
         template<typename JointModel>
-        static std::enable_if_t<is_pinocchio_joint_revolute_unbounded_v<JointModel>
-                             || is_pinocchio_joint_revolute_unbounded_unaligned_v<JointModel>, joint_t>
-        getJointType(JointModel const &)
+        static std::enable_if_t<is_pinocchio_joint_revolute_unbounded_v<JointModel> ||
+                                    is_pinocchio_joint_revolute_unbounded_unaligned_v<JointModel>,
+                                joint_t>
+        getJointType(const JointModel &)
         {
             return joint_t::ROTARY_UNBOUNDED;
         }
 
         template<typename JointModel>
-        static std::enable_if_t<is_pinocchio_joint_mimic_v<JointModel>
-                             || is_pinocchio_joint_composite_v<JointModel>, joint_t>
-        getJointType(JointModel const &)
+        static std::enable_if_t<is_pinocchio_joint_mimic_v<JointModel> ||
+                                    is_pinocchio_joint_composite_v<JointModel>,
+                                joint_t>
+        getJointType(const JointModel &)
         {
             return joint_t::NONE;
         }
     };
 
-    hresult_t getJointTypeFromIdx(pinocchio::Model const & model,
-                                  jointIndex_t     const & idIn,
-                                  joint_t                & jointTypeOut)
+    hresult_t getJointTypeFromIdx(
+        const pinocchio::Model & model, const jointIndex_t & idIn, joint_t & jointTypeOut)
     {
         if (model.njoints < static_cast<int32_t>(idIn) - 1)
         {
@@ -152,15 +152,16 @@ namespace jiminy
         }
 
         getJointTypeAlgo::run(model.joints[idIn],
-            typename getJointTypeAlgo::ArgsType(jointTypeOut));
+                              typename getJointTypeAlgo::ArgsType(jointTypeOut));
 
         return hresult_t::SUCCESS;
     }
 
-    hresult_t getJointTypePositionSuffixes(joint_t                  const & jointTypeIn,
-                                           std::vector<std::string>       & jointTypeSuffixesOut)
+    hresult_t getJointTypePositionSuffixes(const joint_t & jointTypeIn,
+                                           std::vector<std::string> & jointTypeSuffixesOut)
     {
-        jointTypeSuffixesOut = std::vector<std::string>({std::string("")});  // If no extra discrimination is needed
+        // If no extra discrimination is needed
+        jointTypeSuffixesOut = std::vector<std::string>({std::string("")});
         switch (jointTypeIn)
         {
         case joint_t::LINEAR:
@@ -168,17 +169,16 @@ namespace jiminy
         case joint_t::ROTARY:
             break;
         case joint_t::ROTARY_UNBOUNDED:
-            jointTypeSuffixesOut = std::vector<std::string>({std::string("Cos"),
-                                                             std::string("Sin")});
+            jointTypeSuffixesOut =
+                std::vector<std::string>({std::string("Cos"), std::string("Sin")});
             break;
         case joint_t::PLANAR:
-            jointTypeSuffixesOut = std::vector<std::string>({std::string("TransX"),
-                                                             std::string("TransY")});
+            jointTypeSuffixesOut =
+                std::vector<std::string>({std::string("TransX"), std::string("TransY")});
             break;
         case joint_t::TRANSLATION:
-            jointTypeSuffixesOut = std::vector<std::string>({std::string("TransX"),
-                                                             std::string("TransY"),
-                                                             std::string("TransZ")});
+            jointTypeSuffixesOut = std::vector<std::string>(
+                {std::string("TransX"), std::string("TransY"), std::string("TransZ")});
             break;
         case joint_t::SPHERICAL:
             jointTypeSuffixesOut = std::vector<std::string>({std::string("QuatX"),
@@ -204,10 +204,11 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    hresult_t getJointTypeVelocitySuffixes(joint_t                  const & jointTypeIn,
-                                           std::vector<std::string>       & jointTypeSuffixesOut)
+    hresult_t getJointTypeVelocitySuffixes(const joint_t & jointTypeIn,
+                                           std::vector<std::string> & jointTypeSuffixesOut)
     {
-        jointTypeSuffixesOut = std::vector<std::string>({std::string("")});  // If no extra discrimination is needed
+        // If no extra discrimination is needed
+        jointTypeSuffixesOut = std::vector<std::string>({std::string("")});
         switch (jointTypeIn)
         {
         case joint_t::LINEAR:
@@ -217,18 +218,16 @@ namespace jiminy
         case joint_t::ROTARY_UNBOUNDED:
             break;
         case joint_t::PLANAR:
-            jointTypeSuffixesOut = std::vector<std::string>({std::string("LinX"),
-                                                             std::string("LinY")});
+            jointTypeSuffixesOut =
+                std::vector<std::string>({std::string("LinX"), std::string("LinY")});
             break;
         case joint_t::TRANSLATION:
-            jointTypeSuffixesOut = std::vector<std::string>({std::string("LinX"),
-                                                             std::string("LinY"),
-                                                             std::string("LinZ")});
+            jointTypeSuffixesOut = std::vector<std::string>(
+                {std::string("LinX"), std::string("LinY"), std::string("LinZ")});
             break;
         case joint_t::SPHERICAL:
-            jointTypeSuffixesOut = std::vector<std::string>({std::string("AngX"),
-                                                             std::string("AngY"),
-                                                             std::string("AngZ")});
+            jointTypeSuffixesOut = std::vector<std::string>(
+                {std::string("AngX"), std::string("AngY"), std::string("AngZ")});
             break;
         case joint_t::FREE:
             jointTypeSuffixesOut = std::vector<std::string>({std::string("LinX"),
@@ -247,15 +246,13 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    hresult_t getFrameIdx(pinocchio::Model const & model,
-                          std::string      const & frameName,
-                          frameIndex_t           & frameIdx)
+    hresult_t getFrameIdx(
+        const pinocchio::Model & model, const std::string & frameName, frameIndex_t & frameIdx)
     {
-        auto frameIt = std::find_if(model.frames.begin(), model.frames.end(),
-                                    [&frameName](pinocchio::Frame const & frame)
-                                    {
-                                        return frame.name == frameName;
-                                    });
+        auto frameIt = std::find_if(model.frames.begin(),
+                                    model.frames.end(),
+                                    [&frameName](const pinocchio::Frame & frame)
+                                    { return frame.name == frameName; });
 
         if (frameIt == model.frames.end())
         {
@@ -267,14 +264,14 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    hresult_t getFramesIdx(pinocchio::Model          const & model,
-                           std::vector<std::string>  const & framesNames,
-                           std::vector<frameIndex_t>       & framesIdx)
+    hresult_t getFramesIdx(const pinocchio::Model & model,
+                           const std::vector<std::string> & framesNames,
+                           std::vector<frameIndex_t> & framesIdx)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
         framesIdx.resize(0);
-        for (std::string const & name : framesNames)
+        for (const std::string & name : framesNames)
         {
             if (returnCode == hresult_t::SUCCESS)
             {
@@ -287,9 +284,9 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t getJointPositionIdx(pinocchio::Model     const & model,
-                                  std::string          const & jointName,
-                                  std::vector<int32_t>       & jointPositionIdx)
+    hresult_t getJointPositionIdx(const pinocchio::Model & model,
+                                  const std::string & jointName,
+                                  std::vector<int32_t> & jointPositionIdx)
     {
         // It returns all the indices if the joint has multiple degrees of freedom
 
@@ -299,18 +296,18 @@ namespace jiminy
             return hresult_t::ERROR_BAD_INPUT;
         }
 
-        jointIndex_t const & jointModelIdx = model.getJointId(jointName);
-        int32_t const & jointPositionFirstIdx = model.joints[jointModelIdx].idx_q();
-        int32_t const & jointNq = model.joints[jointModelIdx].nq();
+        const jointIndex_t & jointModelIdx = model.getJointId(jointName);
+        const int32_t & jointPositionFirstIdx = model.joints[jointModelIdx].idx_q();
+        const int32_t & jointNq = model.joints[jointModelIdx].nq();
         jointPositionIdx.resize(static_cast<std::size_t>(jointNq));
         std::iota(jointPositionIdx.begin(), jointPositionIdx.end(), jointPositionFirstIdx);
 
         return hresult_t::SUCCESS;
     }
 
-    hresult_t getJointPositionIdx(pinocchio::Model const & model,
-                                  std::string      const & jointName,
-                                  int32_t                & jointPositionFirstIdx)
+    hresult_t getJointPositionIdx(const pinocchio::Model & model,
+                                  const std::string & jointName,
+                                  int32_t & jointPositionFirstIdx)
     {
         // It returns the first index even if the joint has multiple degrees of freedom
 
@@ -320,16 +317,16 @@ namespace jiminy
             return hresult_t::ERROR_BAD_INPUT;
         }
 
-        jointIndex_t const & jointModelIdx = model.getJointId(jointName);
+        const jointIndex_t & jointModelIdx = model.getJointId(jointName);
         jointPositionFirstIdx = model.joints[jointModelIdx].idx_q();
 
         return hresult_t::SUCCESS;
     }
 
-    hresult_t getJointsPositionIdx(pinocchio::Model         const & model,
-                                   std::vector<std::string> const & jointsNames,
-                                   std::vector<int32_t>           & jointsPositionIdx,
-                                   bool_t                   const & firstJointIdxOnly)
+    hresult_t getJointsPositionIdx(const pinocchio::Model & model,
+                                   const std::vector<std::string> & jointsNames,
+                                   std::vector<int32_t> & jointsPositionIdx,
+                                   const bool_t & firstJointIdxOnly)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -337,7 +334,7 @@ namespace jiminy
         if (!firstJointIdxOnly)
         {
             std::vector<int32_t> jointPositionIdx;
-            for (std::string const & jointName : jointsNames)
+            for (const std::string & jointName : jointsNames)
             {
                 if (returnCode == hresult_t::SUCCESS)
                 {
@@ -345,14 +342,15 @@ namespace jiminy
                 }
                 if (returnCode == hresult_t::SUCCESS)
                 {
-                    jointsPositionIdx.insert(jointsPositionIdx.end(), jointPositionIdx.begin(), jointPositionIdx.end());
+                    jointsPositionIdx.insert(
+                        jointsPositionIdx.end(), jointPositionIdx.begin(), jointPositionIdx.end());
                 }
             }
         }
         else
         {
             int32_t jointPositionIdx;
-            for (std::string const & jointName : jointsNames)
+            for (const std::string & jointName : jointsNames)
             {
                 if (returnCode == hresult_t::SUCCESS)
                 {
@@ -368,9 +366,9 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t getJointModelIdx(pinocchio::Model const & model,
-                               std::string      const & jointName,
-                               jointIndex_t           & jointModelIdx)
+    hresult_t getJointModelIdx(const pinocchio::Model & model,
+                               const std::string & jointName,
+                               jointIndex_t & jointModelIdx)
     {
         // It returns the first index even if the joint has multiple degrees of freedom
 
@@ -385,15 +383,15 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    hresult_t getJointsModelIdx(pinocchio::Model          const & model,
-                                std::vector<std::string>  const & jointsNames,
-                                std::vector<jointIndex_t>       & jointsModelIdx)
+    hresult_t getJointsModelIdx(const pinocchio::Model & model,
+                                const std::vector<std::string> & jointsNames,
+                                std::vector<jointIndex_t> & jointsModelIdx)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
         jointsModelIdx.clear();
         jointIndex_t jointModelIdx;
-        for (std::string const & jointName : jointsNames)
+        for (const std::string & jointName : jointsNames)
         {
             if (returnCode == hresult_t::SUCCESS)
             {
@@ -408,9 +406,9 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t getJointVelocityIdx(pinocchio::Model     const & model,
-                                  std::string          const & jointName,
-                                  std::vector<int32_t>       & jointVelocityIdx)
+    hresult_t getJointVelocityIdx(const pinocchio::Model & model,
+                                  const std::string & jointName,
+                                  std::vector<int32_t> & jointVelocityIdx)
     {
         // It returns all the indices if the joint has multiple degrees of freedom
 
@@ -420,18 +418,18 @@ namespace jiminy
             return hresult_t::ERROR_BAD_INPUT;
         }
 
-        jointIndex_t const & jointModelIdx = model.getJointId(jointName);
-        int32_t const & jointVelocityFirstIdx = model.joints[jointModelIdx].idx_v();
-        int32_t const & jointNv = model.joints[jointModelIdx].nv();
+        const jointIndex_t & jointModelIdx = model.getJointId(jointName);
+        const int32_t & jointVelocityFirstIdx = model.joints[jointModelIdx].idx_v();
+        const int32_t & jointNv = model.joints[jointModelIdx].nv();
         jointVelocityIdx.resize(static_cast<std::size_t>(jointNv));
         std::iota(jointVelocityIdx.begin(), jointVelocityIdx.end(), jointVelocityFirstIdx);
 
         return hresult_t::SUCCESS;
     }
 
-    hresult_t getJointVelocityIdx(pinocchio::Model const & model,
-                                  std::string      const & jointName,
-                                  int32_t                & jointVelocityFirstIdx)
+    hresult_t getJointVelocityIdx(const pinocchio::Model & model,
+                                  const std::string & jointName,
+                                  int32_t & jointVelocityFirstIdx)
     {
         // It returns the first index even if the joint has multiple degrees of freedom
 
@@ -441,16 +439,16 @@ namespace jiminy
             return hresult_t::ERROR_BAD_INPUT;
         }
 
-        jointIndex_t const & jointModelIdx = model.getJointId(jointName);
+        const jointIndex_t & jointModelIdx = model.getJointId(jointName);
         jointVelocityFirstIdx = model.joints[jointModelIdx].idx_v();
 
         return hresult_t::SUCCESS;
     }
 
-    hresult_t getJointsVelocityIdx(pinocchio::Model         const & model,
-                                   std::vector<std::string> const & jointsNames,
-                                   std::vector<int32_t>           & jointsVelocityIdx,
-                                   bool_t                   const & firstJointIdxOnly)
+    hresult_t getJointsVelocityIdx(const pinocchio::Model & model,
+                                   const std::vector<std::string> & jointsNames,
+                                   std::vector<int32_t> & jointsVelocityIdx,
+                                   const bool_t & firstJointIdxOnly)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -458,7 +456,7 @@ namespace jiminy
         if (!firstJointIdxOnly)
         {
             std::vector<int32_t> jointVelocityIdx;
-            for (std::string const & jointName : jointsNames)
+            for (const std::string & jointName : jointsNames)
             {
                 if (returnCode == hresult_t::SUCCESS)
                 {
@@ -466,14 +464,15 @@ namespace jiminy
                 }
                 if (returnCode == hresult_t::SUCCESS)
                 {
-                    jointsVelocityIdx.insert(jointsVelocityIdx.end(), jointVelocityIdx.begin(), jointVelocityIdx.end());
+                    jointsVelocityIdx.insert(
+                        jointsVelocityIdx.end(), jointVelocityIdx.begin(), jointVelocityIdx.end());
                 }
             }
         }
         else
         {
             int32_t jointVelocityIdx;
-            for (std::string const & jointName : jointsNames)
+            for (const std::string & jointName : jointsNames)
             {
                 if (returnCode == hresult_t::SUCCESS)
                 {
@@ -489,10 +488,10 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t isPositionValid(pinocchio::Model const & model,
-                              vectorN_t        const & position,
-                              bool_t                 & isValid,
-                              float64_t        const & tol)
+    hresult_t isPositionValid(const pinocchio::Model & model,
+                              const vectorN_t & position,
+                              bool_t & isValid,
+                              const float64_t & tol)
     {
         if (model.nq != position.size())
         {
@@ -506,11 +505,12 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    void switchJoints(pinocchio::Model        & modelInOut,
-                      jointIndex_t      const & firstJointIdx,
-                      jointIndex_t      const & secondJointIdx)
+    void switchJoints(pinocchio::Model & modelInOut,
+                      const jointIndex_t & firstJointIdx,
+                      const jointIndex_t & secondJointIdx)
     {
-        assert(firstJointIdx < secondJointIdx && "'firstJointIdx' must be smaller than 'secondJointIdx'.");
+        assert(firstJointIdx < secondJointIdx &&
+               "'firstJointIdx' must be smaller than 'secondJointIdx'.");
 
         // Only perform swap if firstJointIdx is less that secondJointId
         if (firstJointIdx < secondJointIdx)
@@ -573,8 +573,8 @@ namespace jiminy
                 }
             }
 
-            /* Update vectors based on joint index: effortLimit, velocityLimit,
-               lowerPositionLimit and upperPositionLimit. */
+            /* Update vectors based on joint index: effortLimit, velocityLimit, lowerPositionLimit
+               and upperPositionLimit. */
             swapVectorBlocks(modelInOut.effortLimit,
                              modelInOut.joints[firstJointIdx].idx_v(),
                              modelInOut.joints[firstJointIdx].nv(),
@@ -613,33 +613,33 @@ namespace jiminy
 
             /* Switch elements in joint-indexed vectors:
                parents, names, subtrees, joints, jointPlacements, inertias. */
-            jointIndex_t const tempParent = modelInOut.parents[firstJointIdx];
+            const jointIndex_t tempParent = modelInOut.parents[firstJointIdx];
             modelInOut.parents[firstJointIdx] = modelInOut.parents[secondJointIdx];
             modelInOut.parents[secondJointIdx] = tempParent;
 
-            std::string const tempName = modelInOut.names[firstJointIdx];
+            const std::string tempName = modelInOut.names[firstJointIdx];
             modelInOut.names[firstJointIdx] = modelInOut.names[secondJointIdx];
-            modelInOut.names[secondJointIdx] = tempName;  // std::swap is NOT used to preserve memory alignement
+            // std::swap is NOT used to preserve memory alignment
+            modelInOut.names[secondJointIdx] = tempName;
 
-            std::vector<pinocchio::Index> const tempSubtree = modelInOut.subtrees[firstJointIdx];
+            const std::vector<pinocchio::Index> tempSubtree = modelInOut.subtrees[firstJointIdx];
             modelInOut.subtrees[firstJointIdx] = modelInOut.subtrees[secondJointIdx];
             modelInOut.subtrees[secondJointIdx] = tempSubtree;
 
-            pinocchio::JointModel const jointTemp = modelInOut.joints[firstJointIdx];
+            const pinocchio::JointModel jointTemp = modelInOut.joints[firstJointIdx];
             modelInOut.joints[firstJointIdx] = modelInOut.joints[secondJointIdx];
             modelInOut.joints[secondJointIdx] = jointTemp;
 
-            pinocchio::SE3 const tempPlacement = modelInOut.jointPlacements[firstJointIdx];
+            const pinocchio::SE3 tempPlacement = modelInOut.jointPlacements[firstJointIdx];
             modelInOut.jointPlacements[firstJointIdx] = modelInOut.jointPlacements[secondJointIdx];
             modelInOut.jointPlacements[secondJointIdx] = tempPlacement;
 
-            pinocchio::Inertia const tempInertia = modelInOut.inertias[firstJointIdx];
+            const pinocchio::Inertia tempInertia = modelInOut.inertias[firstJointIdx];
             modelInOut.inertias[firstJointIdx] = modelInOut.inertias[secondJointIdx];
             modelInOut.inertias[secondJointIdx] = tempInertia;
 
-            /* Recompute all position and velocity indexes, as we may have
-               switched joints that didn't have the same size. It skips the
-               'universe' since it is not an actual joint. */
+            /* Recompute all position and velocity indexes, as we may have switched joints that
+               did not have the same size. It skips 'universe' since it is not an actual joint. */
             int32_t incrementalNq = 0;
             int32_t incrementalNv = 0;
             for (std::size_t i = 1; i < modelInOut.joints.size(); ++i)
@@ -656,9 +656,9 @@ namespace jiminy
         }
     }
 
-    hresult_t insertFlexibilityBeforeJointInModel(pinocchio::Model       & modelInOut,
-                                                  std::string      const & childJointNameIn,
-                                                  std::string      const & newJointNameIn)
+    hresult_t insertFlexibilityBeforeJointInModel(pinocchio::Model & modelInOut,
+                                                  const std::string & childJointNameIn,
+                                                  const std::string & newJointNameIn)
     {
         using namespace pinocchio;
 
@@ -668,13 +668,13 @@ namespace jiminy
             return hresult_t::ERROR_GENERIC;
         }
 
-        jointIndex_t const & childJointIdx = modelInOut.getJointId(childJointNameIn);
+        const jointIndex_t & childJointIdx = modelInOut.getJointId(childJointNameIn);
 
         // Flexible joint is placed at the same position as the child joint, in its parent frame
-        SE3 const jointPosition = modelInOut.jointPlacements[childJointIdx];
+        const SE3 jointPosition = modelInOut.jointPlacements[childJointIdx];
 
         // Create flexible joint
-        jointIndex_t const newJointIdx = modelInOut.addJoint(modelInOut.parents[childJointIdx],
+        const jointIndex_t newJointIdx = modelInOut.addJoint(modelInOut.parents[childJointIdx],
                                                              JointModelSpherical(),
                                                              jointPosition,
                                                              newJointNameIn);
@@ -685,8 +685,8 @@ namespace jiminy
 
         // Add new joint to frame list
         frameIndex_t childFrameIdx;
-        getFrameIdx(modelInOut, childJointNameIn, childFrameIdx);  // It cannot fail at this point
-        frameIndex_t const & newFrameIdx = modelInOut.addJointFrame(
+        getFrameIdx(modelInOut, childJointNameIn, childFrameIdx);  // Cannot fail at this point
+        const frameIndex_t & newFrameIdx = modelInOut.addJointFrame(
             newJointIdx, static_cast<int32_t>(modelInOut.frames[childFrameIdx].previousFrame));
 
         // Update child joint previousFrame index
@@ -702,10 +702,9 @@ namespace jiminy
         // Add weightless body
         modelInOut.appendBodyToJoint(newJointIdx, pinocchio::Inertia::Zero(), SE3::Identity());
 
-        /* Pinocchio requires that joints are in increasing order as we move to the
-           leaves of the kinematic tree. Here this is no longer the case, as an
-           intermediate joint was appended at the end. We put back this joint at the
-           correct position, by doing successive permutations. */
+        /* Pinocchio requires that joints are in increasing order as we move to the leaves of the
+           kinematic tree. Here this is no longer the case, as an intermediate joint was appended
+           at the end. We put the joint back in order by doing successive permutations. */
         for (jointIndex_t i = childJointIdx; i < newJointIdx; ++i)
         {
             switchJoints(modelInOut, i, newJointIdx);
@@ -714,8 +713,8 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    hresult_t insertFlexibilityAtFixedFrameInModel(pinocchio::Model       & modelInOut,
-                                                   std::string      const & frameNameIn)
+    hresult_t insertFlexibilityAtFixedFrameInModel(pinocchio::Model & modelInOut,
+                                                   const std::string & frameNameIn)
     {
         using namespace pinocchio;
 
@@ -726,7 +725,7 @@ namespace jiminy
             return hresult_t::ERROR_GENERIC;
         }
         frameIndex_t frameIdx;
-        getFrameIdx(modelInOut, frameNameIn, frameIdx);  // It cannot fail at this point
+        getFrameIdx(modelInOut, frameNameIn, frameIdx);  // Cannot fail at this point
         Model::Frame & frame = modelInOut.frames[frameIdx];
         if (frame.type != pinocchio::FrameType::FIXED_JOINT)
         {
@@ -735,17 +734,17 @@ namespace jiminy
         }
 
         /* Get the parent and child actual joints.
-           To this end, first get the parent joint, next get the list of frames
-           having it as parent, finally goes all the way up into their respective
-           branch to find out whether it is part of the correct branch. */
-        jointIndex_t const parentJointIdx = frame.parent;
+           To this end, first get the parent joint, next get the list of frames having it as
+           parent, finally goes all the way up into their respective branch to find out whether it
+           is part of the correct branch. */
+        const jointIndex_t parentJointIdx = frame.parent;
         std::vector<frameIndex_t> childFramesIdx;
         for (frameIndex_t i = 1; i < static_cast<frameIndex_t>(modelInOut.nframes); ++i)
         {
             // Skip joints and frames not having the right parent joint
             if (modelInOut.frames[i].type == pinocchio::FrameType::JOINT)
             {
-                jointIndex_t const & jointIdx = modelInOut.frames[i].parent;
+                const jointIndex_t & jointIdx = modelInOut.frames[i].parent;
                 if (modelInOut.parents[jointIdx] != parentJointIdx)
                 {
                     continue;
@@ -766,15 +765,15 @@ namespace jiminy
                     childFramesIdx.push_back(i);
                     break;
                 }
-            }
-            while (childFrameIdx > 0 && modelInOut.frames[childFrameIdx].type != pinocchio::FrameType::JOINT);
+            } while (childFrameIdx > 0 &&
+                     modelInOut.frames[childFrameIdx].type != pinocchio::FrameType::JOINT);
         }
 
         // The inertia of the newly created joint is the one of all child frames
         Inertia childBodyInertia = frame.inertia.se3Action(frame.placement);
-        for (frameIndex_t const & childFrameIdx : childFramesIdx)
+        for (const frameIndex_t & childFrameIdx : childFramesIdx)
         {
-            pinocchio::Frame const & childFrame = modelInOut.frames[childFrameIdx];
+            const pinocchio::Frame & childFrame = modelInOut.frames[childFrameIdx];
             childBodyInertia += childFrame.inertia.se3Action(childFrame.placement);
         }
 
@@ -789,53 +788,51 @@ namespace jiminy
             PRINT_ERROR("Child body mass too large to be subtracted to joint mass.");
             return hresult_t::ERROR_GENERIC;
         }
-        Inertia const childBodyInertiaInv(- childBodyInertia.mass(),
+        const Inertia childBodyInertiaInv(-childBodyInertia.mass(),
                                           childBodyInertia.lever(),
-                                          Symmetric3(- childBodyInertia.inertia().data()));
+                                          Symmetric3(-childBodyInertia.inertia().data()));
         modelInOut.inertias[parentJointIdx] += childBodyInertiaInv;
 
         // Create flexible joint
-        jointIndex_t const newJointIdx = modelInOut.addJoint(parentJointIdx,
-                                                             JointModelSpherical(),
-                                                             frame.placement,
-                                                             frame.name);
+        const jointIndex_t newJointIdx = modelInOut.addJoint(
+            parentJointIdx, JointModelSpherical(), frame.placement, frame.name);
         modelInOut.inertias[newJointIdx] = childBodyInertia.se3Action(frame.placement.inverse());
 
         // Get min child joint index for swapping
         jointIndex_t childMinJointIdx = newJointIdx;
-        for (frameIndex_t const & childFrameIdx : childFramesIdx)
+        for (const frameIndex_t & childFrameIdx : childFramesIdx)
         {
             if (modelInOut.frames[childFrameIdx].type == pinocchio::FrameType::JOINT)
             {
-                childMinJointIdx = std::min(childMinJointIdx, modelInOut.frames[childFrameIdx].parent);
+                childMinJointIdx =
+                    std::min(childMinJointIdx, modelInOut.frames[childFrameIdx].parent);
             }
         }
 
         // Update information for child joints
-        for (frameIndex_t const & childFrameIdx : childFramesIdx)
+        for (const frameIndex_t & childFrameIdx : childFramesIdx)
         {
             // Get joint index for frames that are actual joints
             if (modelInOut.frames[childFrameIdx].type != pinocchio::FrameType::JOINT)
             {
                 continue;
             }
-            jointIndex_t const & childJointIdx = modelInOut.frames[childFrameIdx].parent;
+            const jointIndex_t & childJointIdx = modelInOut.frames[childFrameIdx].parent;
 
             // Set child joint to be a child of the new joint
             modelInOut.parents[childJointIdx] = newJointIdx;
-            modelInOut.jointPlacements[childJointIdx] = frame.placement.actInv(
-                modelInOut.jointPlacements[childJointIdx]);
+            modelInOut.jointPlacements[childJointIdx] =
+                frame.placement.actInv(modelInOut.jointPlacements[childJointIdx]);
 
             // Update new joint subtree to include all the joints below it
             for (std::size_t i = 0; i < modelInOut.subtrees[childJointIdx].size(); ++i)
             {
-                modelInOut.subtrees[newJointIdx].push_back(
-                    modelInOut.subtrees[childJointIdx][i]);
+                modelInOut.subtrees[newJointIdx].push_back(modelInOut.subtrees[childJointIdx][i]);
             }
         }
 
         // Update information for child frames
-        for (frameIndex_t const & childFrameIdx : childFramesIdx)
+        for (const frameIndex_t & childFrameIdx : childFramesIdx)
         {
             // Skip actual joints
             if (modelInOut.frames[childFrameIdx].type == pinocchio::FrameType::JOINT)
@@ -845,8 +842,8 @@ namespace jiminy
 
             // Set child frame to be a child of the new joint
             modelInOut.frames[childFrameIdx].parent = newJointIdx;
-            modelInOut.frames[childFrameIdx].placement = frame.placement.actInv(
-                modelInOut.frames[childFrameIdx].placement);
+            modelInOut.frames[childFrameIdx].placement =
+                frame.placement.actInv(modelInOut.frames[childFrameIdx].placement);
         }
 
         // Replace fixed frame by joint frame
@@ -855,10 +852,9 @@ namespace jiminy
         frame.inertia.setZero();
         frame.placement.setIdentity();
 
-        /* Pinocchio requires joints to be stored by increasing index as we go down
-           the kinematic tree. Here this is no longer the case, as an intermediate
-           joint was appended at the end. We move it back this at the correct place
-           by doing successive permutations. */
+        /* Pinocchio requires joints to be stored by increasing index as we go down the kinematic
+           tree. Here this is no longer the case, as an intermediate joint was appended at the end.
+           We move it back this at the correct place by doing successive permutations. */
         for (jointIndex_t i = childMinJointIdx; i < newJointIdx; ++i)
         {
             switchJoints(modelInOut, i, newJointIdx);
@@ -867,11 +863,11 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    hresult_t interpolate(pinocchio::Model const & modelIn,
-                          vectorN_t        const & timesIn,
-                          matrixN_t        const & positionsIn,
-                          vectorN_t        const & timesOut,
-                          matrixN_t              & positionsOut)
+    hresult_t interpolate(const pinocchio::Model & modelIn,
+                          const vectorN_t & timesIn,
+                          const matrixN_t & positionsIn,
+                          const vectorN_t & timesOut,
+                          matrixN_t & positionsOut)
     {
         // Nothing to do. Return early.
         if (timesIn.size() == 0)
@@ -880,8 +876,8 @@ namespace jiminy
             return hresult_t::SUCCESS;
         }
 
-        if (!std::is_sorted(timesIn.data(), timesIn.data() + timesIn.size())
-         || !std::is_sorted(timesOut.data(), timesOut.data() + timesOut.size()))
+        if (!std::is_sorted(timesIn.data(), timesIn.data() + timesIn.size()) ||
+            !std::is_sorted(timesOut.data(), timesOut.data() + timesOut.size()))
         {
             PRINT_ERROR("Input and output time sequences must be sorted.");
             return hresult_t::ERROR_BAD_INPUT;
@@ -889,14 +885,15 @@ namespace jiminy
 
         if (timesIn.size() != positionsIn.rows() || modelIn.nq != positionsIn.cols())
         {
-            PRINT_ERROR("Input position sequence dimension not consistent with model and time sequence. Time expected as first dimension.");
+            PRINT_ERROR("Input position sequence dimension not consistent with model and time "
+                        "sequence. Time expected as first dimension.");
             return hresult_t::ERROR_BAD_INPUT;
         }
 
         int32_t timesInIdx = -1;
         vectorN_t qInterp(positionsIn.cols());
         positionsOut.resize(timesOut.size(), positionsIn.cols());
-        for (Eigen::Index i = 0; i < timesOut.size() ; ++i)
+        for (Eigen::Index i = 0; i < timesOut.size(); ++i)
         {
             float64_t t = timesOut[i];
             while (timesInIdx < timesIn.size() - 1 && timesIn[timesInIdx + 1] < t)
@@ -905,10 +902,13 @@ namespace jiminy
             }
             if (0 <= timesInIdx && timesInIdx < timesIn.size() - 1)
             {
-                // Must use Eigen::Ref/vectorN_t buffers instead of Transpose Eigen::RowXpr, otherwise `interpolate` result will be wrong for SE3
-                Eigen::Ref<vectorN_t const> const qRight = positionsIn.row(timesInIdx).transpose();
-                Eigen::Ref<vectorN_t const> const qLeft = positionsIn.row(timesInIdx + 1).transpose();
-                float64_t const ratio = (t - timesIn[timesInIdx]) / (timesIn[timesInIdx + 1] - timesIn[timesInIdx]);
+                // Must use Eigen::Ref/vectorN_t buffers instead of Transpose Eigen::RowXpr,
+                // otherwise `interpolate` result will be wrong for SE3
+                const Eigen::Ref<const vectorN_t> qRight = positionsIn.row(timesInIdx).transpose();
+                const Eigen::Ref<const vectorN_t> qLeft =
+                    positionsIn.row(timesInIdx + 1).transpose();
+                const float64_t ratio =
+                    (t - timesIn[timesInIdx]) / (timesIn[timesInIdx + 1] - timesIn[timesInIdx]);
                 pinocchio::interpolate(modelIn, qRight, qLeft, ratio, qInterp);
                 positionsOut.row(i) = qInterp;
             }
@@ -925,10 +925,10 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    pinocchio::Force convertForceGlobalFrameToJoint(pinocchio::Model const & model,
-                                                    pinocchio::Data  const & data,
-                                                    frameIndex_t     const & frameIdx,
-                                                    pinocchio::Force const & fextInGlobal)
+    pinocchio::Force convertForceGlobalFrameToJoint(const pinocchio::Model & model,
+                                                    const pinocchio::Data & data,
+                                                    const frameIndex_t & frameIdx,
+                                                    const pinocchio::Force & fextInGlobal)
     {
         // Compute transform from global frame to local joint frame.
         // Translation: joint_p_frame.
@@ -945,26 +945,25 @@ namespace jiminy
     public:
         virtual ~DummyMeshLoader() {}
 
-        DummyMeshLoader(void) :
+        DummyMeshLoader() :
         MeshLoader(hpp::fcl::BV_OBBRSS)
         {
-            // Empty on purpose
         }
 
-        virtual hpp::fcl::BVHModelPtr_t load(std::string     const & /* filename */,
-                                             hpp::fcl::Vec3f const & /* scale */) override final
+        virtual hpp::fcl::BVHModelPtr_t load(const std::string & /* filename */,
+                                             const hpp::fcl::Vec3f & /* scale */) override final
         {
             return hpp::fcl::BVHModelPtr_t(new hpp::fcl::BVHModel<hpp::fcl::OBBRSS>);
         }
     };
 
-    hresult_t buildGeomFromUrdf(pinocchio::Model         const & model,
-                                std::string              const & filename,
-                                pinocchio::GeometryType  const & type,
-                                pinocchio::GeometryModel       & geomModel,
-                                std::vector<std::string> const & packageDirs,
-                                bool_t                   const & loadMeshes,
-                                bool_t                   const & makeConvexMeshes)
+    hresult_t buildGeomFromUrdf(const pinocchio::Model & model,
+                                const std::string & filename,
+                                const pinocchio::GeometryType & type,
+                                pinocchio::GeometryModel & geomModel,
+                                const std::vector<std::string> & packageDirs,
+                                const bool_t & loadMeshes,
+                                const bool_t & makeConvexMeshes)
     {
         // Load geometry model
         try
@@ -976,13 +975,15 @@ namespace jiminy
             else
             {
                 hpp::fcl::MeshLoaderPtr MeshLoaderPtr(new DummyMeshLoader);
-                pinocchio::urdf::buildGeom(model, filename, type, geomModel, packageDirs, MeshLoaderPtr);
+                pinocchio::urdf::buildGeom(
+                    model, filename, type, geomModel, packageDirs, MeshLoaderPtr);
             }
         }
-        catch (std::exception const & e)
+        catch (const std::exception & e)
         {
-            PRINT_ERROR("Something is wrong with the URDF. Impossible to load the collision geometries.\n"
-                        "Raised from exception: ", e.what());
+            PRINT_ERROR("Something is wrong with the URDF. Impossible to load the collision "
+                        "geometries.\nRaised from exception: ",
+                        e.what());
             return hresult_t::ERROR_GENERIC;
         }
 
@@ -996,28 +997,31 @@ namespace jiminy
                     auto & geometry = geomModel.geometryObjects[i].geometry;
                     if (geometry->getObjectType() == hpp::fcl::OT_BVH)
                     {
-                        hpp::fcl::BVHModelPtr_t bvh = std::static_pointer_cast<hpp::fcl::BVHModelBase>(geometry);
+                        hpp::fcl::BVHModelPtr_t bvh =
+                            std::static_pointer_cast<hpp::fcl::BVHModelBase>(geometry);
                         bvh->buildConvexHull(true);
                         geometry = bvh->convex;
                     }
                 }
             }
-            catch (std::logic_error const & e)
+            catch (const std::logic_error & e)
             {
-                PRINT_WARNING("hpp-fcl not built with qhull. Impossible to convert meshes to convex hulls.");
+                PRINT_WARNING(
+                    "hpp-fcl not built with qhull. Impossible to convert meshes to convex hulls.");
             }
         }
 
         return hresult_t::SUCCESS;
     }
 
-    hresult_t buildModelsFromUrdf(std::string const & urdfPath,
-                                  bool_t const & hasFreeflyer,
-                                  std::vector<std::string> const & meshPackageDirs,
-                                  pinocchio::Model & pncModel,
-                                  pinocchio::GeometryModel & collisionModel,
-                                  std::optional<std::reference_wrapper<pinocchio::GeometryModel> > visualModel,
-                                  bool_t const & loadVisualMeshes)
+    hresult_t buildModelsFromUrdf(
+        const std::string & urdfPath,
+        const bool_t & hasFreeflyer,
+        const std::vector<std::string> & meshPackageDirs,
+        pinocchio::Model & pncModel,
+        pinocchio::GeometryModel & collisionModel,
+        std::optional<std::reference_wrapper<pinocchio::GeometryModel>> visualModel,
+        const bool_t & loadVisualMeshes)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -1033,18 +1037,18 @@ namespace jiminy
         {
             if (hasFreeflyer)
             {
-                pinocchio::urdf::buildModel(
-                    urdfPath, pinocchio::JointModelFreeFlyer(), pncModel);
+                pinocchio::urdf::buildModel(urdfPath, pinocchio::JointModelFreeFlyer(), pncModel);
             }
             else
             {
                 pinocchio::urdf::buildModel(urdfPath, pncModel);
             }
         }
-        catch (std::exception const & e)
+        catch (const std::exception & e)
         {
-            PRINT_ERROR("Something is wrong with the URDF. Impossible to build a model from it.\n"
-                        "Raised from exception: ", e.what());
+            PRINT_ERROR("Something is wrong with the URDF. Impossible to build a model from "
+                        "it.\nRaised from exception: ",
+                        e.what());
             returnCode = hresult_t::ERROR_BAD_INPUT;
         }
 

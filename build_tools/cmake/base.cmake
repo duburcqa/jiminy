@@ -28,7 +28,7 @@ endif()
 if(MSVC)
     # It would be great to have the same quality standard for Windows but
     # system include of dependencies is not working properly so far.
-    set(WARN_FULL "/W2 /wd4068 /wd4715 /wd4820 /wd4244 /wd4005 /wd4834 /WX")
+    set(WARN_FULL "/W2 /wd4068 /wd4715 /wd4820 /wd4244 /wd4005 /wd4834 /wd5105 /WX")
 else()
     set(WARN_FULL "-Wall -Wextra -pedantic \
                    -pedantic-errors -Wcast-align -Wcast-qual \

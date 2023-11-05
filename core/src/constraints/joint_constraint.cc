@@ -8,34 +8,33 @@
 namespace jiminy
 {
     template<>
-    std::string const AbstractConstraintTpl<JointConstraint>::type_("JointConstraint");
+    const std::string AbstractConstraintTpl<JointConstraint>::type_("JointConstraint");
 
-    JointConstraint::JointConstraint(std::string const & jointName) :
+    JointConstraint::JointConstraint(const std::string & jointName) :
     AbstractConstraintTpl(),
     jointName_(jointName),
     jointIdx_(0),
     configurationRef_(),
     isReversed_(false)
     {
-        // Empty on purpose
     }
 
-    std::string const & JointConstraint::getJointName(void) const
+    const std::string & JointConstraint::getJointName() const
     {
         return jointName_;
     }
 
-    jointIndex_t const & JointConstraint::getJointIdx(void) const
+    const jointIndex_t & JointConstraint::getJointIdx() const
     {
         return jointIdx_;
     }
 
-    void JointConstraint::setReferenceConfiguration(vectorN_t const & configurationRef)
+    void JointConstraint::setReferenceConfiguration(const vectorN_t & configurationRef)
     {
         configurationRef_ = configurationRef;
     }
 
-    vectorN_t const & JointConstraint::getReferenceConfiguration(void) const
+    const vectorN_t & JointConstraint::getReferenceConfiguration() const
     {
         return configurationRef_;
     }
@@ -52,13 +51,12 @@ namespace jiminy
         isReversed_ = isReversed;
     }
 
-    bool_t const & JointConstraint::getRotationDir(void)
+    const bool_t & JointConstraint::getRotationDir()
     {
         return isReversed_;
     }
 
-    hresult_t JointConstraint::reset(vectorN_t const & q,
-                                     vectorN_t const & /* v */)
+    hresult_t JointConstraint::reset(const vectorN_t & q, const vectorN_t & /* v */)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -84,7 +82,7 @@ namespace jiminy
         if (returnCode == hresult_t::SUCCESS)
         {
             // Get the joint model
-            pinocchio::JointModel const & jointModel = model->pncModel_.joints[jointIdx_];
+            const pinocchio::JointModel & jointModel = model->pncModel_.joints[jointIdx_];
 
             // Initialize constraint jacobian, drift and multipliers
             jacobian_.setZero(jointModel.nv(), model->pncModel_.nv);
@@ -106,19 +104,20 @@ namespace jiminy
     template<typename ConfigVectorIn1, typename ConfigVectorIn2, typename TangentVectorType>
     struct DifferenceStep :
     public pinocchio::fusion::JointUnaryVisitorBase<
-        DifferenceStep<ConfigVectorIn1, ConfigVectorIn2, TangentVectorType> >
+        DifferenceStep<ConfigVectorIn1, ConfigVectorIn2, TangentVectorType>>
     {
-        typedef boost::fusion::vector<ConfigVectorIn1 const &,
-                                      ConfigVectorIn2 const &,
+        typedef boost::fusion::vector<const ConfigVectorIn1 &,
+                                      const ConfigVectorIn2 &,
                                       TangentVectorType &,
                                       size_t,
-                                      size_t> ArgsType;
+                                      size_t>
+            ArgsType;
 
         template<typename JointModel>
         static std::enable_if_t<!is_pinocchio_joint_composite_v<JointModel>, void>
-        algo(pinocchio::JointModelBase<JointModel> const & jmodel,
-             ConfigVectorIn1 const & q0,
-             ConfigVectorIn2 const & q1,
+        algo(const pinocchio::JointModelBase<JointModel> & jmodel,
+             const ConfigVectorIn1 & q0,
+             const ConfigVectorIn2 & q1,
              TangentVectorType & v,
              size_t qIdx,
              size_t vIdx)
@@ -131,14 +130,14 @@ namespace jiminy
 
         template<typename JointModel>
         static std::enable_if_t<is_pinocchio_joint_composite_v<JointModel>, void>
-        algo(pinocchio::JointModelBase<JointModel> const & jmodel,
-             ConfigVectorIn1 const & q0,
-             ConfigVectorIn2 const & q1,
+        algo(const pinocchio::JointModelBase<JointModel> & jmodel,
+             const ConfigVectorIn1 & q0,
+             const ConfigVectorIn2 & q1,
              TangentVectorType & v,
              size_t qIdx,
              size_t vIdx)
         {
-            for (auto const & joint : jmodel.derived().joints)
+            for (const auto & joint : jmodel.derived().joints)
             {
                 algo(joint.derived(), q0, q1, v, qIdx, vIdx);
                 qIdx += joint.nq();
@@ -148,9 +147,9 @@ namespace jiminy
     };
 
     template<typename ConfigVectorIn1, typename ConfigVectorIn2>
-    vectorN_t difference(pinocchio::JointModel              const & jmodel,
-                         ConfigVectorIn1 const & q0,
-                         ConfigVectorIn2 const & q1)
+    vectorN_t difference(const pinocchio::JointModel & jmodel,
+                         const ConfigVectorIn1 & q0,
+                         const ConfigVectorIn2 & q1)
     {
         vectorN_t v(jmodel.nv());
         typedef DifferenceStep<ConfigVectorIn1, ConfigVectorIn2, vectorN_t> Pass;
@@ -158,8 +157,7 @@ namespace jiminy
         return v;
     }
 
-    hresult_t JointConstraint::computeJacobianAndDrift(vectorN_t const & q,
-                                                       vectorN_t const & v)
+    hresult_t JointConstraint::computeJacobianAndDrift(const vectorN_t & q, const vectorN_t & v)
     {
         if (!isAttached_)
         {
@@ -171,11 +169,11 @@ namespace jiminy
         auto model = model_.lock();
 
         // Get the joint model
-        pinocchio::JointModel const & jointModel = model->pncModel_.joints[jointIdx_];
+        const pinocchio::JointModel & jointModel = model->pncModel_.joints[jointIdx_];
 
         // Add Baumgarte stabilization drift
-        vectorN_t const deltaPosition = difference(
-            jointModel, configurationRef_, jointModel.jointConfigSelector(q));
+        const vectorN_t deltaPosition =
+            difference(jointModel, configurationRef_, jointModel.jointConfigSelector(q));
         drift_ = kp_ * deltaPosition + kd_ * jointModel.jointVelocitySelector(v);
         if (isReversed_)
         {

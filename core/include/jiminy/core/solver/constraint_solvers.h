@@ -21,10 +21,10 @@ namespace jiminy
     struct ConstraintData
     {
     public:
-        ConstraintData(void) = default;
+        ConstraintData() = default;
         ConstraintData(ConstraintData && constraintData) = default;
-        ConstraintData(ConstraintData const & constraintData) = delete;
-        ConstraintData & operator = (ConstraintData const & other) = delete;
+        ConstraintData(const ConstraintData & constraintData) = delete;
+        ConstraintData & operator=(const ConstraintData & other) = delete;
 
     public:
         AbstractConstraintBase * constraint;
@@ -38,8 +38,8 @@ namespace jiminy
     class AbstractConstraintSolver
     {
     public:
-        AbstractConstraintSolver(void) = default;
-        virtual ~AbstractConstraintSolver(void) = default;
+        AbstractConstraintSolver() = default;
+        virtual ~AbstractConstraintSolver() = default;
 
         /// \brief Compute the solution of the Nonlinear Complementary Problem:
         ///        A x + b = w,
@@ -47,54 +47,58 @@ namespace jiminy
         ///
         ///        for non-linear boxed bounds lo(x) < x < hi(x):
         ///        s.t. if fIndices[i].size() == 0, lo[i] < x[i] < hi[i]
-        ///             else, sqrt(x[i] ** 2 + sum_{j>=1}(x[fIndices[i][j]] ** 2)) < hi[i] * max(0.0, x[fIndices[i][0]])
-        ///
-        virtual bool_t SolveBoxedForwardDynamics(float64_t const & dampingInv,
-                                                 bool_t const & isStateUpToDate,
-                                                 bool_t const & ignoreBounds) = 0;
+        ///             else, sqrt(x[i] ** 2 + sum_{j>=1}(x[fIndices[i][j]] ** 2)) < hi[i] *
+        ///                   max(0.0, x[fIndices[i][0]])
+        virtual bool_t SolveBoxedForwardDynamics(const float64_t & dampingInv,
+                                                 const bool_t & isStateUpToDate,
+                                                 const bool_t & ignoreBounds) = 0;
     };
 
     class PGSSolver : public AbstractConstraintSolver
     {
     public:
         // Disable the copy of the class
-        PGSSolver(PGSSolver const & solver) = delete;
-        PGSSolver & operator = (PGSSolver const & solver) = delete;
+        PGSSolver(const PGSSolver & solver) = delete;
+        PGSSolver & operator=(const PGSSolver & solver) = delete;
 
     public:
-        PGSSolver(pinocchio::Model const * model,
+        PGSSolver(const pinocchio::Model * model,
                   pinocchio::Data * data,
                   constraintsHolder_t * constraintsHolder,
-                  float64_t const & friction,
-                  float64_t const & torsion,
-                  float64_t const & tolAbs,
-                  float64_t const & tolRel,
-                  uint32_t const & maxIter);
-        virtual ~PGSSolver(void) = default;
+                  const float64_t & friction,
+                  const float64_t & torsion,
+                  const float64_t & tolAbs,
+                  const float64_t & tolRel,
+                  const uint32_t & maxIter);
+        virtual ~PGSSolver() = default;
 
-        virtual bool_t SolveBoxedForwardDynamics(float64_t const & dampingInv,
-                                                 bool_t const & isStateUpToDate = false,
-                                                 bool_t const & ignoreBounds = false) override final;
+        virtual bool_t SolveBoxedForwardDynamics(
+            const float64_t & dampingInv,
+            const bool_t & isStateUpToDate = false,
+            const bool_t & ignoreBounds = false) override final;
 
     private:
-        void ProjectedGaussSeidelIter(matrixN_t const & A,
-                                      vectorN_t::SegmentReturnType const & b,
+        void ProjectedGaussSeidelIter(const matrixN_t & A,
+                                      const vectorN_t::SegmentReturnType & b,
                                       vectorN_t::SegmentReturnType & x);
-        bool_t ProjectedGaussSeidelSolver(matrixN_t const & A,
-                                          vectorN_t::SegmentReturnType const & b,
+        bool_t ProjectedGaussSeidelSolver(const matrixN_t & A,
+                                          const vectorN_t::SegmentReturnType & b,
                                           vectorN_t::SegmentReturnType & x);
 
     private:
-        pinocchio::Model const * model_;
+        const pinocchio::Model * model_;
         pinocchio::Data * data_;
 
         uint32_t maxIter_;
         float64_t tolAbs_;
         float64_t tolRel_;
 
-        Eigen::Matrix<float64_t, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> J_;  ///< Matrix holding the jacobian of the constraints
-        vectorN_t gamma_;   ///< Vector holding the drift of the constraints
-        vectorN_t lambda_;  ///< Vector holding the multipliers of the constraints
+        /// \brief Matrix holding the jacobian of the constraints.
+        Eigen::Matrix<float64_t, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> J_;
+        /// \brief Vector holding the drift of the constraints.
+        vectorN_t gamma_;
+        /// \brief Vector holding the multipliers of the constraints.
+        vectorN_t lambda_;
         std::vector<ConstraintData> constraintsData_;
 
         vectorN_t b_;

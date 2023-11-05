@@ -4,9 +4,9 @@
 
 namespace jiminy::python
 {
-    void exposeSensorsDataMap(void);
-    void exposeAbstractSensor(void);
-    void exposeBasicSensors(void);
+    void exposeSensorsDataMap();
+    void exposeAbstractSensor();
+    void exposeBasicSensors();
 }
 
 #endif  // SENSORS_PYTHON_H

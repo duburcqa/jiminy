@@ -1,15 +1,3 @@
-///////////////////////////////////////////////////////////////////////////////////////////////
-///
-/// \brief          Generic interface for any sensor.
-///
-///                 Any sensor must inherit from this base class and implement its virtual
-///                 methods.
-///
-///                 Each sensor added to a Jiminy Robot is down-casted as an instance of
-///                 AbstractSensor and polymorphism is used to call the actual implementations.
-///
-///////////////////////////////////////////////////////////////////////////////////////////////
-
 #ifndef JIMINY_ABSTRACT_SENSOR_H
 #define JIMINY_ABSTRACT_SENSOR_H
 
@@ -27,46 +15,50 @@ namespace jiminy
 
     class AbstractSensorBase;
 
-    ///////////////////////////////////////////////////////////////////////////////////////////////
+    /// \brief Structure holding the data for every sensors of a given type.
     ///
-    /// \brief      Structure holding the data for every sensors of a given type.
-    ///
-    /// \details    Every sensors of a given type must have the same 'behavior', e.g. the same
-    ///             delay interpolation order and output type. However, their physical properties
-    ///             may defer, such as the delay, the noise level or the bias. This enable us to
-    ///             optimize the efficiency of data storage by gathering the state of every sensor
-    ///             of the given type in Eigen Vectors by simply adding an extra dimension
-    ///             corresponding to the sensor ID.
-    ///
-    ///////////////////////////////////////////////////////////////////////////////////////////////
+    /// \details Every sensors of a given type must have the same 'behavior', e.g. the same delay
+    ///          interpolation order and output type. However, their physical properties may
+    ///          differ, such as the delay, the noise level or the bias. This enable us to optimize
+    ///          the efficiency of data storage by gathering the state of every sensor of the given
+    ///          type in Eigen Vectors by simply adding an extra dimension corresponding to the
+    ///          sensor ID.
     struct SensorSharedDataHolder_t
     {
-        boost::circular_buffer<float64_t> time_;     ///< Circular buffer of the stored timesteps
-        boost::circular_buffer<matrixN_t> data_;     ///< Circular buffer of past sensor real data
-        matrixN_t dataMeasured_;                     ///< Buffer of current sensor measurement data
-        std::vector<AbstractSensorBase *> sensors_;  ///< Vector of pointers to the sensors
-        std::size_t num_;                            ///< Number of sensors of that type
-        float64_t delayMax_;                         ///< Maximum delay over all the sensors
+        /// \brief Circular buffer of the stored timesteps.
+        boost::circular_buffer<float64_t> time_;
+        /// \brief Circular buffer of past sensor real data.
+        boost::circular_buffer<matrixN_t> data_;
+        /// \brief Buffer of current sensor measurement data.
+        matrixN_t dataMeasured_;
+        /// \brief Vector of pointers to the sensors.
+        std::vector<AbstractSensorBase *> sensors_;
+        /// \brief Number of sensors of that type.
+        std::size_t num_;
+        /// \brief Maximum delay over all the sensors.
+        float64_t delayMax_;
     };
 
+    /// \brief Generic interface for any sensor.
+    ///
+    /// \details Any sensor must inherit from this base class and implement its virtual methods.
     class AbstractSensorBase : public std::enable_shared_from_this<AbstractSensorBase>
     {
-        /* Using friend to avoid double delegation, which would make public
-           the attach whereas only robot is able to call it.
-           TODO: remove friend declaration and use plugin mechanism instead.
-           It consist in populating a factory method in Robot at runtime with
-           lambda function able to create each type of sensors. These lambda
-           functions are registered by each sensor using static method. */
+        /* Using friend to avoid double delegation, which would make public the attach, whereas
+           only robot is able to call it.
+
+           TODO: Remove friend declaration and use plugin mechanism instead. It consist in
+           populating a factory method in Robot at runtime with lambda function able to create each
+           type of sensors. These lambda functions are registered by each sensor using static
+           method. */
         friend Robot;
 
         template<typename T>
         friend class AbstractSensorTpl;
 
     public:
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Dictionary gathering the configuration options shared between sensors
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual configHolder_t getDefaultSensorOptions(void)
+        /// \brief Dictionary gathering the configuration options shared between sensors
+        virtual configHolder_t getDefaultSensorOptions()
         {
             configHolder_t config;
             config["noiseStd"] = vectorN_t();
@@ -80,348 +72,243 @@ namespace jiminy
 
         struct abstractSensorOptions_t
         {
-            vectorN_t const noiseStd;                 ///< Standard deviation of the noise of the sensor
-            vectorN_t const bias;                     ///< Bias of the sensor
-            float64_t const delay;                    ///< Delay of the sensor
-            float64_t const jitter;                   ///< Jitter of the sensor
-            uint32_t  const delayInterpolationOrder;  ///< Order of the interpolation used to compute delayed sensor data.
-                                                      ///  [0: Zero-order holder, 1: Linear interpolation]
+            /// \brief Standard deviation of the noise of the sensor.
+            const vectorN_t noiseStd;
+            /// \brief Bias of the sensor.
+            const vectorN_t bias;
+            /// \brief Delay of the sensor.
+            const float64_t delay;
+            /// \brief Jitter of the sensor.
+            const float64_t jitter;
+            /// \brief Order of the interpolation used to compute delayed sensor data.
+            ///
+            /// \details [0: Zero-order holder, 1: Linear interpolation].
+            const uint32_t delayInterpolationOrder;
 
-            abstractSensorOptions_t(configHolder_t const & options) :
+            abstractSensorOptions_t(const configHolder_t & options) :
             noiseStd(boost::get<vectorN_t>(options.at("noiseStd"))),
             bias(boost::get<vectorN_t>(options.at("bias"))),
             delay(boost::get<float64_t>(options.at("delay"))),
             jitter(boost::get<float64_t>(options.at("jitter"))),
             delayInterpolationOrder(boost::get<uint32_t>(options.at("delayInterpolationOrder")))
             {
-                // Empty on purpose
             }
         };
 
     public:
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Forbid the copy of the class
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        AbstractSensorBase(AbstractSensorBase const & abstractSensor) = delete;
-        AbstractSensorBase & operator = (AbstractSensorBase const & other) = delete;
+        /// Forbid the copy of the class
+        AbstractSensorBase(const AbstractSensorBase & abstractSensor) = delete;
+        AbstractSensorBase & operator=(const AbstractSensorBase & other) = delete;
 
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        ///
-        /// \brief      Constructor
-        ///
-        /// \param[in]  name    Name of the sensor
-        ///
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        AbstractSensorBase(std::string const & name);
-        virtual ~AbstractSensorBase(void) = default;
+        /// \param[in] name Name of the sensor
+        AbstractSensorBase(const std::string & name);
+        virtual ~AbstractSensorBase() = default;
 
-        ///////////////////////////////////////////////////////////////////////////////////////////////
+        /// \brief Reset the internal state of the sensors.
         ///
-        /// \brief    Reset the internal state of the sensors.
+        /// \details This method resets the internal state of the sensor and unset the
+        ///          configuration of the telemetry.
         ///
-        /// \details  This method resets the internal state of the sensor and unset the configuration
-        ///           of the telemetry.
-        ///
-        /// \remark   This method is not intended to be called manually. The Robot to which the
-        ///           sensor is added is taking care of it when its own `reset` method is called.
-        ///
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual hresult_t resetAll(void) = 0;
+        /// \remark This method is not intended to be called manually. The Robot to which the
+        ///         sensor is added is taking care of it when its own `reset` method is called.
+        virtual hresult_t resetAll() = 0;
 
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief    Refresh the proxies.
+        /// \brief Refresh the proxies.
         ///
-        /// \remark   This method is not intended to be called manually. The Robot to which the
-        ///           motor is added is taking care of it when its own `refresh` method is called.
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual hresult_t refreshProxies(void) = 0;
+        /// \remark This method is not intended to be called manually. The Robot to which the motor
+        ///         is added is taking care of it when its own `refresh` method is called.
+        virtual hresult_t refreshProxies() = 0;
 
-        ///////////////////////////////////////////////////////////////////////////////////////////////
+        /// \brief Configure the telemetry of the sensor.
         ///
-        /// \brief      Configure the telemetry of the sensor.
+        /// \details This method connects the controller-specific telemetry sender to a given
+        ///          telemetry data (which is unique for a given exoskeleton robot), so that it is
+        ///          later possible to register the variables that one want to monitor. Finally,
+        ///          the telemetry recorder logs every registered variables at each timestep in a
+        ///          memory buffer.
         ///
-        /// \details    This method connects the controller-specific telemetry sender to a given
-        ///             telemetry data (which is unique for a given exoskeleton robot), so that it is
-        ///             later possible to register the variables that one want to monitor. Finally,
-        ///             the telemetry recoder logs every registered variables at each timestep in a
-        ///             memory buffer.
+        /// \remark This method is not intended to be called manually. The Robot to which the
+        ///         sensor is added is taking care of it before flushing the telemetry data at the
+        ///         end of each simulation steps.
         ///
-        /// \remark     This method is not intended to be called manually. The Robot to which the
-        ///             sensor is added is taking care of it before flushing the telemetry data
-        ///             at the end of each simulation steps.
+        /// \param[in] telemetryData Shared pointer to the robot-wide telemetry data object
         ///
-        /// \param[in]  telemetryData       Shared pointer to the robot-wide telemetry data object
-        ///
-        /// \return     Return code to determine whether the execution of the method was successful.
-        ///
-        ///////////////////////////////////////////////////////////////////////////////////////////////
+        /// \return Return code to determine whether the execution of the method was successful.
         virtual hresult_t configureTelemetry(std::shared_ptr<TelemetryData> telemetryData,
-                                             std::string const & objectPrefixName = "");
+                                             const std::string & objectPrefixName = "");
 
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Update the internal buffers of the telemetry associated with variables
-        ///             monitored by the sensor.
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        void updateTelemetry(void);
+        /// \brief Update the internal buffers of the telemetry associated with variables monitored
+        ///        by the sensor.
+        void updateTelemetry();
 
-        ///////////////////////////////////////////////////////////////////////////////////////////////
+        /// \brief Update the internal buffers of the telemetry associated with variables monitored
+        ///        every sensors of the same type than the current one.
         ///
-        /// \brief      Update the internal buffers of the telemetry associated with variables
-        ///             monitored every sensors of the same type than the current one.
-        ///
-        /// \remark     This method is not intended to be called manually. The Robot to which the
-        ///             sensor is added is taking care of it before flushing the telemetry data at
-        //              the end of each simulation steps.
-        ///
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual void updateTelemetryAll(void) = 0;
+        /// \remarks This method is not intended to be called manually. The Robot to which the
+        ///          sensor is added is taking care of it before flushing the telemetry data at the
+        ///          end of each simulation steps.
+        virtual void updateTelemetryAll() = 0;
 
-        ///////////////////////////////////////////////////////////////////////////////////////////////
+        /// \brief Set the configuration options of the sensor.
         ///
-        /// \brief      Set the configuration options of the sensor.
-        ///
-        /// \param[in]  sensorOptions   Dictionary with the parameters of the sensor
-        ///
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual hresult_t setOptions(configHolder_t const & sensorOptions);
+        /// \param[in] sensorOptions Dictionary with the parameters of the sensor.
+        virtual hresult_t setOptions(const configHolder_t & sensorOptions);
 
-        ///////////////////////////////////////////////////////////////////////////////////////////////
+        /// \brief Set the same configuration options of any sensor of the same type than the
+        ///        current one.
         ///
-        /// \brief      Set the same configuration options of any sensor of the same type than the
-        ///             current one.
-        ///
-        /// \param[in]  sensorOptions   Dictionary with the parameters used for any sensor
-        ///
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual hresult_t setOptionsAll(configHolder_t const & sensorOptions) = 0;
+        /// \param[in] sensorOptions Dictionary with the parameters used for any sensor.
+        virtual hresult_t setOptionsAll(const configHolder_t & sensorOptions) = 0;
 
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        ///
-        /// \brief      Get the configuration options of the sensor.
-        ///
-        /// \return     Dictionary with the parameters of the sensor
-        ///
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        configHolder_t getOptions(void) const;
+        /// \brief Configuration options of the sensor.
+        configHolder_t getOptions() const;
 
         template<typename DerivedType>
-        hresult_t set(Eigen::MatrixBase<DerivedType> const & value);
+        hresult_t set(const Eigen::MatrixBase<DerivedType> & value);
 
-        ///////////////////////////////////////////////////////////////////////////////////////////////
+        /// \brief Measurement of the sensor at the current time.
         ///
-        /// \brief      Get the measurement of the sensor at the current time.
+        /// \details Note that the current time corresponds to the last time sensor data was
+        ///          recorded. If the delay of the sensor is nonzero, then an interpolation method
+        ///          is used to compute the delayed measurement based on a buffer of previously
+        ///          recorded non-delayed data.
         ///
-        /// \details    Note that the current time corresponds to the last time sensor data was
-        ///             recorded. If the delay of the sensor is nonzero, then an interpolation method
-        ///             is used to compute the delayed measurement based on a buffer of previously
-        ///             recorded non-delayed data.
-        ///
-        /// \return     Eigen reference to a Eigen Vector where to store of sensor measurement.
-        ///             It can be an actual vectorN_t, or the extraction of a column vector from
-        ///             a higher dimensional tensor.
-        ///
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual Eigen::Ref<vectorN_t const> get(void) const = 0;
+        /// \return Eigen reference to a Eigen Vector where to store of sensor measurement. It can
+        ///         be an actual vectorN_t, or the extraction of a column vector from a
+        ///         higher dimensional tensor.
+        virtual Eigen::Ref<const vectorN_t> get() const = 0;
 
-        ///////////////////////////////////////////////////////////////////////////////////////////////
+        /// \brief Whether the sensor has been initialized.
         ///
-        /// \brief      Get isInitialized_.
-        ///
-        /// \details    It is a flag used to determine if the sensor has been initialized.
-        ///
-        /// \remark     Note that a sensor can be considered initialized even if its telemetry is
-        ///             not properly configured. If not, it is the only thing to do before being ready
-        ///             to use.
-        ///
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        bool_t const & getIsInitialized(void) const;
+        /// \remark Note that a sensor can be considered initialized even if its telemetry is not
+        ///         properly configured. If not, it must be done before being ready to use.
+        const bool_t & getIsInitialized() const;
 
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        ///
-        /// \brief      Get isAttached_.
-        ///
-        /// \details    It is a flag used to determine if the sensor has been attached to a robot.
-        ///
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        bool_t const & getIsAttached(void) const;
+        /// \brief Whether the sensor has been attached to a robot.
+        const bool_t & getIsAttached() const;
 
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        ///
-        /// \brief      Get isTelemetryConfigured_.
-        ///
-        /// \details    It is a flag used to determine if the telemetry of the controller has been
-        ///             initialized.
-        ///
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        bool_t const & getIsTelemetryConfigured(void) const;
+        /// \brief Whether the telemetry of the controller has been initialized.
+        const bool_t & getIsTelemetryConfigured() const;
 
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        ///
-        /// \brief      Get name_.
-        ///
-        /// \details    It is the name of the sensor.
-        ///
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        std::string const & getName(void) const;
+        /// \brief Name of the sensor.
+        const std::string & getName() const;
 
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        ///
-        /// \brief      Get sensorIdx_.
-        ///
-        /// \details    It is the index of the sensor of the global shared buffer.
-        ///
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual std::size_t const & getIdx(void) const = 0;
+        /// \brief Index of the sensor of the global shared buffer.
+        virtual const std::size_t & getIdx() const = 0;
 
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        ///
-        /// \brief      Get type_.
-        ///
-        /// \details    It is the type of the sensor.
-        ///
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual std::string const & getType(void) const = 0;
+        /// \brief Type of the sensor.
+        virtual const std::string & getType() const = 0;
 
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        ///
-        /// \brief      It is the size of the sensor's data vector.
-        ///
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual uint64_t getSize(void) const = 0;
+        /// \brief It is the size of the sensor's data vector.
+        virtual uint64_t getSize() const = 0;
 
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        ///
-        /// \brief      Get the name of each element of the data measured by the sensor
-        ///
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual std::vector<std::string> const & getFieldnames(void) const = 0;
+        /// \brief Name of each element of the data measured by the sensor.
+        virtual const std::vector<std::string> & getFieldnames() const = 0;
 
     protected:
-        ///////////////////////////////////////////////////////////////////////////////////////////////
+        /// \brief Request every sensors of the same type than the current one to record data based
+        ///        of the input data.
         ///
-        /// \brief      Request every sensors of the same type than the current one to record data
-        ///             based of the input data.
+        /// \details It assumes that the internal state of the robot is consistent with the input
+        ///          arguments.
         ///
-        /// \details    It assumes that the internal state of the robot is consistent with the
-        ///             input arguments.
+        /// \remarks This method is not intended to be called manually. The Robot to which the
+        ///          sensor is added is taking care of it while updating the state of the sensors.
         ///
-        /// \remark     This method is not intended to be called manually. The Robot to which the
-        ///             sensor is added is taking care of it while updating the state of the sensors.
+        /// \param[in] t Current time.
+        /// \param[in] q Current configuration of the robot.
+        /// \param[in] v Current velocity of the robot.
+        /// \param[in] a Current acceleration of the robot.
+        /// \param[in] uMotor Current motor efforts.
+        /// \param[in] fExternal Current external forces applied on the robot.
         ///
-        /// \param[in]  t          Current time.
-        /// \param[in]  q          Current configuration vector of the robot.
-        /// \param[in]  v          Current velocity vector of the robot.
-        /// \param[in]  a          Current acceleration vector of the robot.
-        /// \param[in]  uMotor     Current motor effort vector.
-        /// \param[in]  fExternal  std::vector of current external force vectors applied on the robot.
-        ///
-        /// \return     Return code to determine whether the execution of the method was successful.
-        ///
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual hresult_t setAll(float64_t     const & t,
-                                 vectorN_t     const & q,
-                                 vectorN_t     const & v,
-                                 vectorN_t     const & a,
-                                 vectorN_t     const & uMotor,
-                                 forceVector_t const & fExternal) = 0;
+        /// \return Return code to determine whether the execution of the method was successful.
+        virtual hresult_t setAll(const float64_t & t,
+                                 const vectorN_t & q,
+                                 const vectorN_t & v,
+                                 const vectorN_t & a,
+                                 const vectorN_t & uMotor,
+                                 const forceVector_t & fExternal) = 0;
 
-        ///////////////////////////////////////////////////////////////////////////////////////////////
+        /// \brief Request the sensor to record data based of the input data.
         ///
-        /// \brief      Request the sensor to record data based of the input data.
+        /// \details It assumes that the internal state of the robot is consistent with the input
+        ///          arguments.
         ///
-        /// \details    It assumes that the internal state of the robot is consistent with the
-        ///             input arguments.
+        /// \param[in] t Current time.
+        /// \param[in] q Current configuration of the robot.
+        /// \param[in] v Current velocity of the robot.
+        /// \param[in] a Current acceleration of the robot.
+        /// \param[in] uMotor Current motor efforts.
+        /// \param[in] fExternal Current external forces applied on the robot.
         ///
-        /// \param[in]  t          Current time.
-        /// \param[in]  q          Current configuration vector of the robot.
-        /// \param[in]  v          Current velocity vector of the robot.
-        /// \param[in]  a          Current acceleration vector of the robot.
-        /// \param[in]  uMotor     Current motor effort vector.
-        /// \param[in]  fExternal  std::vector of current external force vectors applied on the robot.
-        ///
-        /// \return     Return code to determine whether the execution of the method was successful.
-        ///
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual hresult_t set(float64_t     const & t,
-                              vectorN_t     const & q,
-                              vectorN_t     const & v,
-                              vectorN_t     const & a,
-                              vectorN_t     const & uMotor,
-                              forceVector_t const & fExternal) = 0;
+        /// \return Return code to determine whether the execution of the method was successful.
+        virtual hresult_t set(const float64_t & t,
+                              const vectorN_t & q,
+                              const vectorN_t & v,
+                              const vectorN_t & a,
+                              const vectorN_t & uMotor,
+                              const forceVector_t & fExternal) = 0;
 
-        ///////////////////////////////////////////////////////////////////////////////////////////////
+        /// \brief Attach the sensor to a robot.
         ///
-        /// \brief    Attach the sensor to a robot
-        ///
-        /// \details  This method must be called before initializing the sensor.
-        ///
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual hresult_t attach(std::weak_ptr<Robot const> robot,
+        /// \details This method must be called before initializing the sensor.
+        virtual hresult_t attach(std::weak_ptr<const Robot> robot,
                                  SensorSharedDataHolder_t * sharedHolder) = 0;
 
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        ///
-        /// \brief    Detach the sensor from the robot
-        ///
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual hresult_t detach(void) = 0;
+        /// \brief Detach the sensor from the robot.
+        virtual hresult_t detach() = 0;
 
-        ///////////////////////////////////////////////////////////////////////////////////////////////
+        /// \brief Eigen Reference to a Eigen Vector corresponding to the last data recorded (or
+        ///        being recorded) by the sensor.
         ///
-        /// \brief      Get a Eigen Reference to a Eigen Vector corresponding to the last data
-        ///             recorded (or being recorded) by the sensor.
+        /// \details More precisely, it corresponds to the memory associated with the most recent
+        ///          data in the buffer of previously recorded (non-delayed) data. It does not have
+        ///          to be filled up at this stage.
         ///
-        /// \details    More precisely, it corresponds to the memory associated with the most recent
-        ///             data in the buffer of previously recorded (non-delayed) data. It does not have
-        ///             to be filled up at this stage.
-        ///
-        /// \return     Eigen Reference to a Eigen Vector corresponding to the last data recorded
-        ///
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual Eigen::Ref<vectorN_t> data(void) = 0;
+        /// \return Eigen Reference to a Eigen Vector corresponding to the last data recorded.
+        virtual Eigen::Ref<vectorN_t> data() = 0;
 
-        virtual Eigen::Ref<vectorN_t> get(void) = 0;
+        virtual Eigen::Ref<vectorN_t> get() = 0;
 
-        ///////////////////////////////////////////////////////////////////////////////////////////////
+        /// \brief Name of the sensor in the telemetry.
         ///
-        /// \brief      Get the name of the sensor in the telemetry.
-        ///
-        /// \details    Note that the telemetry management is independent for each sensor instead of
-        ///             gatering them by type. Nevertheles, the element recorded by a given sensor
-        ///             are prefixed with the type and name of the sensor, so that it appears as if
-        ///             they were actually gathered.
-        ///
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual std::string getTelemetryName(void) const = 0;
+        /// \details Note that the telemetry management is independent for each sensor instead of
+        ///          gathering them by type. Nevertheless, the element recorded by a given sensor
+        ///          are prefixed with the type and name of the sensor, so that it appears as if
+        ///          they were actually gathered.
+        virtual std::string getTelemetryName() const = 0;
 
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Set the measurement buffer with the real data interpolated at the current time.
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual hresult_t interpolateData(void) = 0;
+        /// \brief Set the measurement buffer with the real data interpolated at the current time.
+        virtual hresult_t interpolateData() = 0;
 
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief       Add white noise and bias to the measurement buffer.
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual void measureData(void);
+        /// \brief Add white noise and bias to the measurement buffer.
+        virtual void measureData();
 
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Set the measurement buffer with the real data, but skewed with white noise and bias.
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual hresult_t measureDataAll(void) = 0;
+        /// \brief Set the measurement buffer with true data, but skewed with white noise and bias.
+        virtual hresult_t measureDataAll() = 0;
 
     public:
-        std::unique_ptr<abstractSensorOptions_t const> baseSensorOptions_;  ///< Structure with the parameters of the sensor
+        /// \brief Structure with the parameters of the sensor
+        std::unique_ptr<const abstractSensorOptions_t> baseSensorOptions_;
 
     protected:
-        configHolder_t sensorOptionsHolder_;  ///< Dictionary with the parameters of the sensor
-        bool_t isInitialized_;                ///< Flag to determine whether the sensor has been initialized or not
-        bool_t isAttached_;                   ///< Flag to determine whether the sensor is attached to a robot
-        bool_t isTelemetryConfigured_;        ///< Flag to determine whether the telemetry of the sensor has been initialized or not
-        std::weak_ptr<Robot const> robot_;    ///< Robot for which the command and internal dynamics
-        std::string name_;                    ///< Name of the sensor
+        /// \brief Dictionary with the parameters of the sensor.
+        configHolder_t sensorOptionsHolder_;
+        /// \brief Flag to determine whether the sensor has been initialized.
+        bool_t isInitialized_;
+        /// \brief Flag to determine whether the sensor is attached to a robot.
+        bool_t isAttached_;
+        /// \brief Flag to determine whether the telemetry of the sensor has been initialized.
+        bool_t isTelemetryConfigured_;
+        /// \brief Robot for which the command and internal dynamics Name of the sensor.
+        std::weak_ptr<const Robot> robot_;
+        /// \brief Name of the sensor.
+        std::string name_;
 
     private:
-        TelemetrySender telemetrySender_;     ///< Telemetry sender of the sensor used to register and update telemetry variables
+        /// \brief Telemetry sender of the sensor used to register and update telemetry variables.
+        TelemetrySender telemetrySender_;
     };
 
     template<class T>
@@ -429,53 +316,52 @@ namespace jiminy
     {
     public:
         // Disable the copy of the class
-        AbstractSensorTpl(AbstractSensorTpl const & abstractSensor) = delete;
-        AbstractSensorTpl & operator = (AbstractSensorTpl const & other) = delete;
+        AbstractSensorTpl(const AbstractSensorTpl & abstractSensor) = delete;
+        AbstractSensorTpl & operator=(const AbstractSensorTpl & other) = delete;
 
     public:
-        AbstractSensorTpl(std::string const & name);
-        virtual ~AbstractSensorTpl(void);
+        AbstractSensorTpl(const std::string & name);
+        virtual ~AbstractSensorTpl();
 
         auto shared_from_this() { return shared_from(this); }
         auto shared_from_this() const { return shared_from(this); }
 
-        virtual hresult_t resetAll(void) override;
-        void updateTelemetryAll(void) override final;
+        virtual hresult_t resetAll() override;
+        void updateTelemetryAll() override final;
 
-        virtual hresult_t setOptionsAll(configHolder_t const & sensorOptions) override final;
-        virtual std::size_t const & getIdx(void) const override final;
-        virtual std::string const & getType(void) const override final;
-        virtual std::vector<std::string> const & getFieldnames(void) const final;
-        virtual uint64_t getSize(void) const override final;
+        virtual hresult_t setOptionsAll(const configHolder_t & sensorOptions) override final;
+        virtual const std::size_t & getIdx() const override final;
+        virtual const std::string & getType() const override final;
+        virtual const std::vector<std::string> & getFieldnames() const final;
+        virtual uint64_t getSize() const override final;
 
-        virtual Eigen::Ref<vectorN_t const> get(void) const override final;
+        virtual Eigen::Ref<const vectorN_t> get() const override final;
 
     protected:
-        virtual hresult_t setAll(float64_t     const & t,
-                                 vectorN_t     const & q,
-                                 vectorN_t     const & v,
-                                 vectorN_t     const & a,
-                                 vectorN_t     const & uMotor,
-                                 forceVector_t const & fExternal) override final;
-        virtual Eigen::Ref<vectorN_t> get(void) override final;
-        virtual Eigen::Ref<vectorN_t> data(void) override final;
+        virtual hresult_t setAll(const float64_t & t,
+                                 const vectorN_t & q,
+                                 const vectorN_t & v,
+                                 const vectorN_t & a,
+                                 const vectorN_t & uMotor,
+                                 const forceVector_t & fExternal) override final;
+        virtual Eigen::Ref<vectorN_t> get() override final;
+        virtual Eigen::Ref<vectorN_t> data() override final;
 
     private:
-        virtual hresult_t attach(std::weak_ptr<Robot const> robot,
+        virtual hresult_t attach(std::weak_ptr<const Robot> robot,
                                  SensorSharedDataHolder_t * sharedHolder) override final;
-        virtual hresult_t detach(void) override final;
-        virtual std::string getTelemetryName(void) const override final;
-        virtual hresult_t interpolateData(void) override final;
-        virtual hresult_t measureDataAll(void) override final;
-        void clearDataBuffer(void);
+        virtual hresult_t detach() override final;
+        virtual std::string getTelemetryName() const override final;
+        virtual hresult_t interpolateData() override final;
+        virtual hresult_t measureDataAll() override final;
+        void clearDataBuffer();
 
     public:
-        /* Be careful, the static variables must be const since the 'static'
-           keyword binds all the sensors together, even if they are associated
-           to complete separated robots. */
-        static std::string const type_;
-        static std::vector<std::string> const fieldnames_;
-        static bool_t const areFieldnamesGrouped_;
+        /* Be careful, the static variables must be const since the 'static' keyword binds all the
+           sensors together, even if they are associated to complete separated robots. */
+        static const std::string type_;
+        static const std::vector<std::string> fieldnames_;
+        static const bool_t areFieldnamesGrouped_;
 
     protected:
         std::size_t sensorIdx_;
@@ -487,4 +373,4 @@ namespace jiminy
 
 #include "jiminy/core/hardware/abstract_sensor.hxx"
 
-#endif //end of JIMINY_ABSTRACT_SENSOR_H
+#endif  // JIMINY_ABSTRACT_SENSOR_H

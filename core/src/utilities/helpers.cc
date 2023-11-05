@@ -1,10 +1,10 @@
 #ifndef _WIN32
-#include <pwd.h>
-#include <unistd.h>
-#include <getopt.h>
+#    include <pwd.h>
+#    include <unistd.h>
+#    include <getopt.h>
 #else
-#include <stdlib.h>
-#include <stdio.h>
+#    include <stdlib.h>
+#    include <stdio.h>
 #endif
 
 #include "jiminy/core/constants.h"
@@ -16,18 +16,17 @@ namespace jiminy
 {
     // *************** Local Mutex/Lock mechanism ******************
 
-    MutexLocal::MutexLocal(void) :
+    MutexLocal::MutexLocal() :
     isLocked_(new bool_t{false})
     {
-        // Empty on purpose
     }
 
-    MutexLocal::~MutexLocal(void)
+    MutexLocal::~MutexLocal()
     {
         *isLocked_ = false;
     }
 
-    bool_t const & MutexLocal::isLocked(void) const
+    const bool_t & MutexLocal::isLocked() const
     {
         return *isLocked_;
     }
@@ -38,14 +37,14 @@ namespace jiminy
         *mutexFlag_ = true;
     }
 
-    LockGuardLocal::~LockGuardLocal(void)
+    LockGuardLocal::~LockGuardLocal()
     {
         *mutexFlag_ = false;
     }
 
     // ************************* Timer **************************
 
-    Timer::Timer(void) :
+    Timer::Timer() :
     t0(),
     tf(),
     dt(0.0)
@@ -53,13 +52,13 @@ namespace jiminy
         tic();
     }
 
-    void Timer::tic(void)
+    void Timer::tic()
     {
         t0 = Time::now();
         dt = 0.0;
     }
 
-    void Timer::toc(void)
+    void Timer::toc()
     {
         tf = Time::now();
         std::chrono::duration<float64_t> timeDiff = tf - t0;
@@ -68,32 +67,33 @@ namespace jiminy
 
     // ************ IO file and Directory utilities **************
 
-    #ifndef _WIN32
-    std::string getUserDirectory(void)
+#ifndef _WIN32
+    std::string getUserDirectory()
     {
-        struct passwd *pw = getpwuid(getuid());
+        struct passwd * pw = getpwuid(getuid());
         return pw->pw_dir;
     }
-    #else
-    std::string getUserDirectory(void)
+#else
+    std::string getUserDirectory()
     {
         return {getenv("USERPROFILE")};
     }
-    #endif
+#endif
 
     // ******************* Telemetry utilities **********************
 
-    bool_t endsWith(std::string const & fullString, std::string const & ending)
+    bool_t endsWith(const std::string & fullString, const std::string & ending)
     {
         if (fullString.length() >= ending.length())
         {
-            return fullString.compare(fullString.length() - ending.length(), ending.length(), ending) == 0;
+            return fullString.compare(
+                       fullString.length() - ending.length(), ending.length(), ending) == 0;
         }
         return false;
     }
 
-    std::vector<std::string> defaultVectorFieldnames(std::string const & baseName,
-                                                     uint32_t    const & size)
+    std::vector<std::string> defaultVectorFieldnames(const std::string & baseName,
+                                                     const uint32_t & size)
     {
         std::vector<std::string> fieldnames;
         fieldnames.reserve(size);
@@ -104,10 +104,10 @@ namespace jiminy
         return fieldnames;
     }
 
-    std::string addCircumfix(std::string         fieldname,
-                             std::string const & prefix,
-                             std::string const & suffix,
-                             std::string const & delimiter)
+    std::string addCircumfix(std::string fieldname,
+                             const std::string & prefix,
+                             const std::string & suffix,
+                             const std::string & delimiter)
     {
         if (!prefix.empty())
         {
@@ -120,24 +120,22 @@ namespace jiminy
         return fieldname;
     }
 
-    std::vector<std::string> addCircumfix(std::vector<std::string> const & fieldnamesIn,
-                                          std::string              const & prefix,
-                                          std::string              const & suffix,
-                                          std::string              const & delimiter)
+    std::vector<std::string> addCircumfix(const std::vector<std::string> & fieldnamesIn,
+                                          const std::string & prefix,
+                                          const std::string & suffix,
+                                          const std::string & delimiter)
     {
         std::vector<std::string> fieldnames;
         fieldnames.reserve(fieldnamesIn.size());
-        std::transform(fieldnamesIn.begin(), fieldnamesIn.end(),
+        std::transform(fieldnamesIn.begin(),
+                       fieldnamesIn.end(),
                        std::back_inserter(fieldnames),
-                       [&prefix, &suffix, &delimiter](std::string const & name) -> std::string
-                       {
-                           return addCircumfix(name, prefix, suffix, delimiter);
-                       });
+                       [&prefix, &suffix, &delimiter](const std::string & name) -> std::string
+                       { return addCircumfix(name, prefix, suffix, delimiter); });
         return fieldnames;
     }
 
-    std::string removeSuffix(std::string         fieldname,
-                             std::string const & suffix)
+    std::string removeSuffix(std::string fieldname, const std::string & suffix)
     {
         if (fieldname.size() > suffix.size())
         {
@@ -149,37 +147,35 @@ namespace jiminy
         return fieldname;
     }
 
-    std::vector<std::string> removeSuffix(std::vector<std::string> const & fieldnamesIn,
-                                          std::string              const & suffix)
+    std::vector<std::string> removeSuffix(const std::vector<std::string> & fieldnamesIn,
+                                          const std::string & suffix)
     {
         std::vector<std::string> fieldnames;
         fieldnames.reserve(fieldnamesIn.size());
-        std::transform(fieldnamesIn.begin(), fieldnamesIn.end(),
+        std::transform(fieldnamesIn.begin(),
+                       fieldnamesIn.end(),
                        std::back_inserter(fieldnames),
-                       [&suffix](std::string const & name) -> std::string
-                       {
-                           return removeSuffix(name, suffix);
-                       });
+                       [&suffix](const std::string & name) -> std::string
+                       { return removeSuffix(name, suffix); });
         return fieldnames;
     }
 
-    vectorN_t getLogVariable(logData_t   const & logData,
-                             std::string const & fieldname)
+    vectorN_t getLogVariable(const logData_t & logData, const std::string & fieldname)
     {
         if (fieldname == GLOBAL_TIME)
         {
             return logData.timestamps.cast<float64_t>() * logData.timeUnit;
         }
-        auto iterator = std::find(
-            logData.fieldnames.begin() + 1, logData.fieldnames.end(), fieldname);
+        auto iterator =
+            std::find(logData.fieldnames.begin() + 1, logData.fieldnames.end(), fieldname);
         if (iterator == logData.fieldnames.end())
         {
             PRINT_ERROR("Variable '", fieldname, "' does not exist.");
             return {};
         }
-        int64_t const varIdx = std::distance(
-            logData.fieldnames.begin() + 1, iterator);  // Skip GLOBAL_TIME
-        Eigen::Index const numInt = logData.intData.rows();
+        const int64_t varIdx =
+            std::distance(logData.fieldnames.begin() + 1, iterator);  // Skip GLOBAL_TIME
+        const Eigen::Index numInt = logData.intData.rows();
         if (varIdx < numInt)
         {
             return logData.intData.row(varIdx).cast<float64_t>();

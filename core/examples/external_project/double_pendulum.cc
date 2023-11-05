@@ -1,7 +1,7 @@
-// A simple test case: simulation of a double inverted pendulum.
-// There are no contact forces.
-// This simulation checks the overall simulator sanity (i.e. conservation of energy) and genericity (working
-// with something that is not an exoskeleton).
+/// \brief A simple test case: simulation of a double inverted pendulum without contact forces.
+///
+/// \details This simulation checks the overall simulator sanity (i.e. conservation of energy) and
+///          genericity (supporting systems that are not legged robots).
 
 #include <iostream>
 #include <filesystem>
@@ -17,27 +17,24 @@
 using namespace jiminy;
 
 
-void computeCommand(float64_t        const & t,
-                    vectorN_t        const & q,
-                    vectorN_t        const & v,
-                    sensorsDataMap_t const & sensorsData,
-                    vectorN_t              & command)
+void computeCommand(const float64_t & t,
+                    const vectorN_t & q,
+                    const vectorN_t & v,
+                    const sensorsDataMap_t & sensorsData,
+                    vectorN_t & command)
 {
     // No controller: energy should be preserved
 }
 
-void internalDynamics(float64_t        const & t,
-                      vectorN_t        const & q,
-                      vectorN_t        const & v,
-                      sensorsDataMap_t const & sensorsData,
-                      vectorN_t              & uCustom)
+void internalDynamics(const float64_t & t,
+                      const vectorN_t & q,
+                      const vectorN_t & v,
+                      const sensorsDataMap_t & sensorsData,
+                      vectorN_t & uCustom)
 {
-    // Empty on purpose
 }
 
-bool_t callback(float64_t const & t,
-                vectorN_t const & q,
-                vectorN_t const & v)
+bool_t callback(const float64_t & t, const vectorN_t & q, const vectorN_t & v)
 {
     return true;
 }
@@ -49,9 +46,9 @@ int main(int argc, char_t * argv[])
     // =====================================================================
 
     // Set URDF and log output.
-    std::filesystem::path const filePath(__FILE__);
-    auto const urdfPath = filePath.parent_path() / "double_pendulum.urdf";
-    auto const outputDirPath = std::filesystem::temp_directory_path();
+    const std::filesystem::path filePath(__FILE__);
+    const auto urdfPath = filePath.parent_path() / "double_pendulum.urdf";
+    const auto outputDirPath = std::filesystem::temp_directory_path();
 
     // =====================================================================
     // ============ Instantiate and configure the simulation ===============
@@ -66,11 +63,12 @@ int main(int argc, char_t * argv[])
     std::vector<std::string> motorJointNames{"SecondPendulumJoint"};
     auto robot = std::make_shared<Robot>();
     configHolder_t modelOptions = robot->getModelOptions();
-    boost::get<bool_t>(boost::get<configHolder_t>(modelOptions.at("joints")).at("positionLimitFromUrdf")) = true;
-    boost::get<bool_t>(boost::get<configHolder_t>(modelOptions.at("joints")).at("velocityLimitFromUrdf")) = true;
+    configHolder_t & jointsOptions = boost::get<configHolder_t>(modelOptions.at("joints"));
+    boost::get<bool_t>(jointsOptions.at("positionLimitFromUrdf")) = true;
+    boost::get<bool_t>(jointsOptions.at("velocityLimitFromUrdf")) = true;
     robot->setModelOptions(modelOptions);
     robot->initialize(urdfPath.string(), false, {});
-    for (std::string const & jointName : motorJointNames)
+    for (const std::string & jointName : motorJointNames)
     {
         auto motor = std::make_shared<SimpleMotor>(jointName);
         robot->attachMotor(motor);
@@ -78,8 +76,9 @@ int main(int argc, char_t * argv[])
     }
 
     // Instantiate the controller
-    auto controller = std::make_shared<ControllerFunctor<
-        decltype(computeCommand), decltype(internalDynamics)> >(computeCommand, internalDynamics);
+    auto controller =
+        std::make_shared<ControllerFunctor<decltype(computeCommand), decltype(internalDynamics)>>(
+            computeCommand, internalDynamics);
     controller->initialize(robot);
 
     // Instantiate the engine
@@ -96,7 +95,7 @@ int main(int argc, char_t * argv[])
     Eigen::VectorXd q0 = Eigen::VectorXd::Zero(2);
     q0[1] = 0.1;
     Eigen::VectorXd v0 = Eigen::VectorXd::Zero(2);
-    float64_t const tf = 3.0;
+    const float64_t tf = 3.0;
 
     // Run simulation
     timer.tic();
@@ -106,7 +105,7 @@ int main(int argc, char_t * argv[])
 
     // Write the log file
     std::vector<std::string> fieldnames;
-    std::shared_ptr<logData_t const> logData;
+    std::shared_ptr<const logData_t> logData;
     engine->getLog(logData);
     std::cout << logData->timestamps.size() << " log points" << std::endl;
     std::cout << engine->getStepperState().iter << " internal integration steps" << std::endl;

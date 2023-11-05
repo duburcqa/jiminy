@@ -1,10 +1,12 @@
 # options: https://clang.llvm.org/docs/ClangFormatStyleOptions.html
+# Based on: https://github.com/git/git/blob/master/.clang-format
 ---
 Language: Cpp
 Standard: c++17
 IndentWidth: 4
 IndentPPDirectives: AfterHash
-IndentWrappedFunctionNames: true
+IndentWrappedFunctionNames: false
+IndentCaseLabels: false
 ConstructorInitializerIndentWidth: 0
 ContinuationIndentWidth: 4
 AccessModifierOffset: -4
@@ -31,28 +33,32 @@ RemoveBracesLLVM: false
 KeepEmptyLinesAtTheStartOfBlocks: false
 LambdaBodyIndentation: Signature
 SeparateDefinitionBlocks: Leave
-SortIncludes: CaseInsensitive
+SortIncludes: false  # CaseInsensitive
 SortUsingDeclarations: false
 UseCRLF: false
+ShortNamespaceLines: 0
 ExperimentalAutoDetectBinPacking: false
-AllowAllArgumentsOnNextLine: false
-AllowAllParametersOfDeclarationOnNextLine: false
+AllowAllArgumentsOnNextLine: true
+AllowAllParametersOfDeclarationOnNextLine: true
 AllowShortEnumsOnASingleLine: false
 AllowShortCaseLabelsOnASingleLine: false
 AllowShortLoopsOnASingleLine: false
 AllowShortBlocksOnASingleLine: Never
 AllowShortIfStatementsOnASingleLine: Never
 AllowShortLambdasOnASingleLine: Inline
-AllowShortFunctionsOnASingleLine: InlineOnly
+AllowShortFunctionsOnASingleLine: Inline
 AlwaysBreakAfterReturnType: None
 AlwaysBreakTemplateDeclarations: Yes
 AlwaysBreakBeforeMultilineStrings: false
-SpaceBeforeSquareBrackets: false
+SpacesInAngles: Never
 SpacesInSquareBrackets: false
 SpaceInEmptyParentheses: false
 SpacesInParentheses: false
+SpacesInContainerLiterals: false
+SpacesInConditionalStatement: false
 SpaceAfterLogicalNot: false
 SpaceAfterTemplateKeyword: false
+SpaceBeforeSquareBrackets: false
 SpaceBeforeAssignmentOperators: true
 SpaceBeforeCaseColon: false
 SpaceBeforeCpp11BracedList: false
@@ -60,22 +66,33 @@ SpaceBeforeCtorInitializerColon: true
 SpaceBeforeInheritanceColon: true
 SpacesBeforeTrailingComments: 2
 SpaceBeforeParens: ControlStatementsExceptControlMacros
-SpacesInAngles: Never
-SpacesInConditionalStatement: false
 BreakConstructorInitializers: AfterColon
 BreakInheritanceList: AfterColon
 BreakStringLiterals: true
-BreakBeforeTernaryOperators: true
+BreakBeforeBinaryOperators: None
+BreakBeforeTernaryOperators: false
 BreakBeforeBraces: Allman
 AlignConsecutiveDeclarations: false
 AlignEscapedNewlines: Left
 AlignOperands: AlignAfterOperator
 AlignTrailingComments: true
 AlignArrayOfStructures: Right
-AlignAfterOpenBracket: Align
-PenaltyReturnTypeOnItsOwnLine: 1000
-PenaltyBreakAssignment: 1000
-BreakBeforeBinaryOperators: None
-# InsertBraces: true     # clang-format 15
-# BreakArrays: false     # clang-format 16
-# RemoveSemicolon: true  # clang-format 16
+AlignAfterOpenBracket: Align  # BlockIndent
+AlignConsecutiveAssignments: false
+
+PenaltyBreakAssignment: 10
+PenaltyBreakBeforeFirstCallParameter: 20
+PenaltyBreakOpenParenthesis: 20
+PenaltyBreakComment: 160
+PenaltyBreakFirstLessLess: 0
+PenaltyBreakString: 120
+PenaltyExcessCharacter: 250
+PenaltyReturnTypeOnItsOwnLine: 50
+PenaltyIndentedWhitespace: 0
+
+# InsertBraces: true           # clang-format 15
+# BreakArrays: false           # clang-format 16
+# RemoveSemicolon: true        # clang-format 16
+# BreakAfterAttributes: Never  # clang-format 16
+# Macros:  # clang-format 17
+# - UPCAST_FROM_TYPENAME(name)=case name: break;

@@ -10,7 +10,7 @@ namespace jiminy
     // ========================== AbstractSensorBase ==============================
 
     template<typename DerivedType>
-    hresult_t AbstractSensorBase::set(Eigen::MatrixBase<DerivedType> const & value)
+    hresult_t AbstractSensorBase::set(const Eigen::MatrixBase<DerivedType> & value)
     {
         if (!isAttached_)
         {
@@ -21,8 +21,8 @@ namespace jiminy
         auto robot = robot_.lock();
         if (!robot || robot->getIsLocked())
         {
-            PRINT_ERROR("Robot is locked, probably because a simulation is running. "
-                        "Please stop it before setting sensor value manually.");
+            PRINT_ERROR("Robot is locked, probably because a simulation is running. Please stop "
+                        "it before setting sensor value manually.");
             return hresult_t::ERROR_GENERIC;
         }
 
@@ -33,16 +33,15 @@ namespace jiminy
     // ========================== AbstractSensorTpl ===============================
 
     template<typename T>
-    AbstractSensorTpl<T>::AbstractSensorTpl(std::string const & name) :
+    AbstractSensorTpl<T>::AbstractSensorTpl(const std::string & name) :
     AbstractSensorBase(name),
     sensorIdx_(0),
     sharedHolder_(nullptr)
     {
-        // Empty on purpose
     }
 
     template<typename T>
-    AbstractSensorTpl<T>::~AbstractSensorTpl(void)
+    AbstractSensorTpl<T>::~AbstractSensorTpl()
     {
         // Detach the sensor before deleting it if necessary
         if (isAttached_)
@@ -52,13 +51,14 @@ namespace jiminy
     }
 
     template<typename T>
-    hresult_t AbstractSensorTpl<T>::attach(std::weak_ptr<Robot const> robot,
+    hresult_t AbstractSensorTpl<T>::attach(std::weak_ptr<const Robot> robot,
                                            SensorSharedDataHolder_t * sharedHolder)
     {
         // Make sure the sensor is not already attached
         if (isAttached_)
         {
-            PRINT_ERROR("Sensor already attached to a robot. Please 'detach' method before attaching it.");
+            PRINT_ERROR(
+                "Sensor already attached to a robot. Please 'detach' method before attaching it.");
             return hresult_t::ERROR_GENERIC;
         }
 
@@ -103,7 +103,7 @@ namespace jiminy
     }
 
     template<typename T>
-    hresult_t AbstractSensorTpl<T>::detach(void)
+    hresult_t AbstractSensorTpl<T>::detach()
     {
         // Delete the part of the shared memory associated with the sensor
 
@@ -116,7 +116,7 @@ namespace jiminy
         // Remove associated col in the shared data buffers
         if (sensorIdx_ < sharedHolder_->num_ - 1)
         {
-            std::size_t const sensorShift = sharedHolder_->num_ - sensorIdx_ - 1;
+            const std::size_t sensorShift = sharedHolder_->num_ - sensorIdx_ - 1;
             for (matrixN_t & data : sharedHolder_->data_)
             {
                 data.middleCols(sensorIdx_, sensorShift) =
@@ -157,14 +157,18 @@ namespace jiminy
     }
 
     template<typename T>
-    hresult_t AbstractSensorTpl<T>::resetAll(void)
+    hresult_t AbstractSensorTpl<T>::resetAll()
     {
         // Make sure all the sensors are attached to a robot
         for (AbstractSensorBase * sensor : sharedHolder_->sensors_)
         {
             if (!sensor->isAttached_)
             {
-                PRINT_ERROR("Sensor '", sensor->name_, "' of type '", type_, "' not attached to any robot.");
+                PRINT_ERROR("Sensor '",
+                            sensor->name_,
+                            "' of type '",
+                            type_,
+                            "' not attached to any robot.");
                 return hresult_t::ERROR_GENERIC;
             }
         }
@@ -183,14 +187,16 @@ namespace jiminy
         sharedHolder_->dataMeasured_.setZero();
 
         // Compute max delay
-        sharedHolder_->delayMax_ = std::accumulate(
-            sharedHolder_->sensors_.begin(), sharedHolder_->sensors_.end(), 0.0,
-            [](float64_t const & value, AbstractSensorBase * sensor)
-            {
-                float64_t const delay = sensor->baseSensorOptions_->delay
-                                      + sensor->baseSensorOptions_->jitter;
-                return std::max(delay, value);
-            });
+        sharedHolder_->delayMax_ =
+            std::accumulate(sharedHolder_->sensors_.begin(),
+                            sharedHolder_->sensors_.end(),
+                            0.0,
+                            [](const float64_t & value, AbstractSensorBase * sensor)
+                            {
+                                const float64_t delay = sensor->baseSensorOptions_->delay +
+                                                        sensor->baseSensorOptions_->jitter;
+                                return std::max(delay, value);
+                            });
 
         // Update sensor scope information
         for (AbstractSensorBase * sensor : sharedHolder_->sensors_)
@@ -206,7 +212,7 @@ namespace jiminy
     }
 
     template<typename T>
-    hresult_t AbstractSensorTpl<T>::setOptionsAll(configHolder_t const & sensorOptions)
+    hresult_t AbstractSensorTpl<T>::setOptionsAll(const configHolder_t & sensorOptions)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -228,30 +234,30 @@ namespace jiminy
     }
 
     template<typename T>
-    std::size_t const & AbstractSensorTpl<T>::getIdx(void) const
+    const std::size_t & AbstractSensorTpl<T>::getIdx() const
     {
         return sensorIdx_;
     }
 
     template<typename T>
-    std::string const & AbstractSensorTpl<T>::getType(void) const
+    const std::string & AbstractSensorTpl<T>::getType() const
     {
         return type_;
     }
 
     template<typename T>
-    std::vector<std::string> const & AbstractSensorTpl<T>::getFieldnames(void) const
+    const std::vector<std::string> & AbstractSensorTpl<T>::getFieldnames() const
     {
         return fieldnames_;
     }
 
     template<typename T>
-    uint64_t AbstractSensorTpl<T>::getSize(void) const
+    uint64_t AbstractSensorTpl<T>::getSize() const
     {
         return fieldnames_.size();
     }
     template<typename T>
-    std::string AbstractSensorTpl<T>::getTelemetryName(void) const
+    std::string AbstractSensorTpl<T>::getTelemetryName() const
     {
         if (areFieldnamesGrouped_)
         {
@@ -264,7 +270,7 @@ namespace jiminy
     }
 
     template<typename T>
-    Eigen::Ref<vectorN_t const> AbstractSensorTpl<T>::get(void) const
+    Eigen::Ref<const vectorN_t> AbstractSensorTpl<T>::get() const
     {
         static vectorN_t dataDummy = vectorN_t::Zero(fieldnames_.size());
         if (isAttached_)
@@ -274,34 +280,35 @@ namespace jiminy
         return dataDummy;
     }
 
-    template <typename T>
-    inline Eigen::Ref<vectorN_t> AbstractSensorTpl<T>::get(void)
+    template<typename T>
+    inline Eigen::Ref<vectorN_t> AbstractSensorTpl<T>::get()
     {
         // No guard, since this method is not public
         return sharedHolder_->dataMeasured_.col(sensorIdx_);
     }
 
     template<typename T>
-    inline Eigen::Ref<vectorN_t> AbstractSensorTpl<T>::data(void)
+    inline Eigen::Ref<vectorN_t> AbstractSensorTpl<T>::data()
     {
         // No guard, since this method is not public
         return sharedHolder_->data_.back().col(sensorIdx_);
     }
 
     template<typename T>
-    hresult_t AbstractSensorTpl<T>::interpolateData(void)
+    hresult_t AbstractSensorTpl<T>::interpolateData()
     {
         assert(sharedHolder_->time_.size() > 0 && "Do data to interpolate.");
 
         // Sample the delay uniformly
-        float64_t const delay = baseSensorOptions_->delay + randUniform(0.0, baseSensorOptions_->jitter);
+        const float64_t delay =
+            baseSensorOptions_->delay + randUniform(0.0, baseSensorOptions_->jitter);
 
         // Add STEPPER_MIN_TIMESTEP to timeDesired to avoid float comparison issues
-        float64_t const timeDesired = sharedHolder_->time_.back() - delay + STEPPER_MIN_TIMESTEP;
+        const float64_t timeDesired = sharedHolder_->time_.back() - delay + STEPPER_MIN_TIMESTEP;
 
         /* Determine the position of the closest right element.
            Bisection method can be used since times are sorted. */
-        auto bisectLeft = [&](void) -> std::ptrdiff_t
+        auto bisectLeft = [&]() -> std::ptrdiff_t
         {
             std::ptrdiff_t left = 0;
             std::ptrdiff_t right = sharedHolder_->time_.size() - 1;
@@ -343,8 +350,9 @@ namespace jiminy
             }
         };
 
-        int64_t const idxLeft = bisectLeft();
-        if (timeDesired >= 0.0 && static_cast<std::size_t>(idxLeft + 1) < sharedHolder_->time_.size())
+        const int64_t idxLeft = bisectLeft();
+        if (timeDesired >= 0.0 &&
+            static_cast<std::size_t>(idxLeft + 1) < sharedHolder_->time_.size())
         {
             if (idxLeft < 0)
             {
@@ -360,8 +368,10 @@ namespace jiminy
                 // TODO: the linear interpolation is not valid for quaternion.
                 // `slerp` should be unsed instead...
                 get() = 1 / (sharedHolder_->time_[idxLeft + 1] - sharedHolder_->time_[idxLeft]) *
-                    ((timeDesired - sharedHolder_->time_[idxLeft]) * sharedHolder_->data_[idxLeft + 1].col(sensorIdx_) +
-                    (sharedHolder_->time_[idxLeft + 1] - timeDesired) * sharedHolder_->data_[idxLeft].col(sensorIdx_));
+                        ((timeDesired - sharedHolder_->time_[idxLeft]) *
+                             sharedHolder_->data_[idxLeft + 1].col(sensorIdx_) +
+                         (sharedHolder_->time_[idxLeft + 1] - timeDesired) *
+                             sharedHolder_->data_[idxLeft].col(sensorIdx_));
             }
             else
             {
@@ -374,11 +384,9 @@ namespace jiminy
             if (baseSensorOptions_->delay > EPS || baseSensorOptions_->jitter > EPS)
             {
                 // Return the oldest value since the buffer is not fully initialized yet
-                auto it = std::find_if(sharedHolder_->time_.begin(), sharedHolder_->time_.end(),
-                                       [] (float64_t const & t)
-                                       {
-                                           return t > 0;
-                                       });
+                auto it = std::find_if(sharedHolder_->time_.begin(),
+                                       sharedHolder_->time_.end(),
+                                       [](const float64_t & t) { return t > 0; });
                 if (it != sharedHolder_->time_.end())
                 {
                     std::ptrdiff_t idx = std::distance(sharedHolder_->time_.begin(), it);
@@ -401,7 +409,7 @@ namespace jiminy
     }
 
     template<typename T>
-    hresult_t AbstractSensorTpl<T>::measureDataAll(void)
+    hresult_t AbstractSensorTpl<T>::measureDataAll()
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -424,12 +432,12 @@ namespace jiminy
     }
 
     template<typename T>
-    hresult_t AbstractSensorTpl<T>::setAll(float64_t     const & t,
-                                           vectorN_t     const & q,
-                                           vectorN_t     const & v,
-                                           vectorN_t     const & a,
-                                           vectorN_t     const & uMotor,
-                                           forceVector_t const & fExternal)
+    hresult_t AbstractSensorTpl<T>::setAll(const float64_t & t,
+                                           const vectorN_t & q,
+                                           const vectorN_t & v,
+                                           const vectorN_t & a,
+                                           const vectorN_t & uMotor,
+                                           const forceVector_t & fExternal)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -439,13 +447,11 @@ namespace jiminy
             return hresult_t::ERROR_GENERIC;
         }
 
-        /* Make sure at least the requested delay plus the maximum time step
-           is available to handle the case where the solver goes back in time.
-           Even though it can make the buffer quite large irrelevantly since
-           the actual maximum step is given by engineOptions_->stepper.dtMax,
-           it is not a big deal in practice since `rotate`, `pop_front`, and
-           `push_back` have O(1) complexity. */
-        float64_t const timeMin = t - sharedHolder_->delayMax_ - SIMULATION_MAX_TIMESTEP;
+        /* Make sure at least the requested delay plus the maximum time step is available to handle
+           the case where the solver goes back in time. Even though it makes the buffer much larger
+           than necessary as the actual maximum step is given by `engineOptions_->stepper.dtMax`,
+           it is not a big deal since `rotate`, `pop_front`, `push_back` have O(1) complexity. */
+        const float64_t timeMin = t - sharedHolder_->delayMax_ - SIMULATION_MAX_TIMESTEP;
 
         // Internal buffer memory management
         if (t + EPS > sharedHolder_->time_.back())
@@ -453,13 +459,15 @@ namespace jiminy
             if (timeMin > sharedHolder_->time_.front())
             {
                 // Remove some unecessary extra elements if appropriate
-                if (sharedHolder_->time_.size() > 1U + DELAY_MAX_BUFFER_EXCEED
-                && timeMin > sharedHolder_->time_[DELAY_MAX_BUFFER_EXCEED])
+                if (sharedHolder_->time_.size() > 1U + DELAY_MAX_BUFFER_EXCEED &&
+                    timeMin > sharedHolder_->time_[DELAY_MAX_BUFFER_EXCEED])
                 {
                     sharedHolder_->time_.erase_begin(DELAY_MAX_BUFFER_EXCEED);
                     sharedHolder_->data_.erase_begin(DELAY_MAX_BUFFER_EXCEED);
-                    sharedHolder_->time_.rset_capacity(sharedHolder_->time_.size() + DELAY_MIN_BUFFER_RESERVE);
-                    sharedHolder_->data_.rset_capacity(sharedHolder_->data_.size() + DELAY_MIN_BUFFER_RESERVE);
+                    sharedHolder_->time_.rset_capacity(sharedHolder_->time_.size() +
+                                                       DELAY_MIN_BUFFER_RESERVE);
+                    sharedHolder_->data_.rset_capacity(sharedHolder_->data_.size() +
+                                                       DELAY_MIN_BUFFER_RESERVE);
                 }
 
                 // Rotate the internal buffer
@@ -471,16 +479,18 @@ namespace jiminy
                 // Increase capacity if required
                 if (sharedHolder_->time_.full())
                 {
-                    sharedHolder_->time_.rset_capacity(sharedHolder_->time_.size() + DELAY_MIN_BUFFER_RESERVE);
-                    sharedHolder_->data_.rset_capacity(sharedHolder_->data_.size() + DELAY_MIN_BUFFER_RESERVE);
+                    sharedHolder_->time_.rset_capacity(sharedHolder_->time_.size() +
+                                                       DELAY_MIN_BUFFER_RESERVE);
+                    sharedHolder_->data_.rset_capacity(sharedHolder_->data_.size() +
+                                                       DELAY_MIN_BUFFER_RESERVE);
                 }
 
-                /* Push back new buffer
-                   Note that it is a copy of the last value. This is important for
-                   `data()` to always provide the last true value instead of some
-                   initialized memory. The previous value is used for the quaternion
-                   of IMU sensors to choice the right value that ensures its continuity
-                   over time amond to two possible choices. */
+                /* Push back new buffer.
+
+                   Note that it is a copy of the last value. This is important for `data()` to
+                   always provide the last true value instead of some initialized memory. The
+                   previous value is used for the quaternion of IMU sensors to choice the right
+                   value that ensures its continuity over time amond to two possible choices. */
                 sharedHolder_->time_.push_back(-1);
                 sharedHolder_->data_.push_back(sharedHolder_->data_.back());
             }
@@ -488,7 +498,7 @@ namespace jiminy
         else
         {
             /* Remove the extra last elements if for some reason the solver went back in time.
-               It happens when an iteration fails using ode solvers relying on try_step mechanism. */
+               It happens when integration fails for ode solvers relying on try_step mechanism. */
             while (t + EPS < sharedHolder_->time_.back() && sharedHolder_->time_.size() > 1)
             {
                 sharedHolder_->time_.pop_back();
@@ -516,7 +526,7 @@ namespace jiminy
     }
 
     template<typename T>
-    void AbstractSensorTpl<T>::updateTelemetryAll(void)
+    void AbstractSensorTpl<T>::updateTelemetryAll()
     {
         for (AbstractSensorBase * sensor : sharedHolder_->sensors_)
         {

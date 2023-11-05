@@ -9,14 +9,13 @@ namespace jiminy
     // *************** Convertion to JSON utilities *****************
 
     template<typename T>
-    std::enable_if_t<!is_vector_v<T>, Json::Value>
-    convertToJson(T const & value)
+    std::enable_if_t<!is_vector_v<T>, Json::Value> convertToJson(const T & value)
     {
         return {value};
     }
 
     template<typename T, int RowsAtCompileTime>
-    Json::Value convertToJson(Eigen::Matrix<T, RowsAtCompileTime, 1> const & value)
+    Json::Value convertToJson(const Eigen::Matrix<T, RowsAtCompileTime, 1> & value)
     {
         Json::Value row(Json::arrayValue);
         for (Eigen::Index i = 0; i < value.size(); ++i)
@@ -27,15 +26,15 @@ namespace jiminy
     }
 
     template<typename T>
-    Json::Value convertToJson(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> const & value)
+    Json::Value convertToJson(const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> & value)
     {
         Json::Value mat(Json::arrayValue);
         if (value.rows() > 0)
         {
-            for (Eigen::Index i = 0; i<value.rows(); ++i)
+            for (Eigen::Index i = 0; i < value.rows(); ++i)
             {
                 Json::Value row(Json::arrayValue);
-                for (Eigen::Index j = 0; j<value.cols(); ++j)
+                for (Eigen::Index j = 0; j < value.cols(); ++j)
                 {
                     row.append(value(i, j));
                 }
@@ -50,47 +49,48 @@ namespace jiminy
     }
 
     template<>
-    Json::Value convertToJson<flexibleJointData_t>(flexibleJointData_t const & value);
+    Json::Value convertToJson<flexibleJointData_t>(const flexibleJointData_t & value);
 
     template<>
-    Json::Value convertToJson<heightmapFunctor_t>(heightmapFunctor_t const & value);
+    Json::Value convertToJson<heightmapFunctor_t>(const heightmapFunctor_t & value);
 
     template<typename T, typename A>
-    constexpr std::enable_if_t<!std::is_same_v<T, vectorN_t>
-                            && !std::is_same_v<T, matrixN_t>, const char *>
-    getJsonVectorType(std::vector<T, A> const & /* value */)
+    constexpr std::enable_if_t<!std::is_same_v<T, vectorN_t> && !std::is_same_v<T, matrixN_t>,
+                               const char *>
+    getJsonVectorType(const std::vector<T, A> & /* value */)
     {
         return "unknown";
     }
 
     template<typename T, typename A>
-    constexpr std::enable_if_t<std::is_same_v<T, vectorN_t>
-                            || std::is_same_v<T, matrixN_t>, const char *>
-    getJsonVectorType(std::vector<T, A> const & /* value */)
+    constexpr std::enable_if_t<std::is_same_v<T, vectorN_t> || std::is_same_v<T, matrixN_t>,
+                               const char *>
+    getJsonVectorType(const std::vector<T, A> & /* value */)
     {
         return "list(array)";
     }
 
     template<>
-    constexpr const char * getJsonVectorType<std::string>(std::vector<std::string> const & /* value */)
+    constexpr const char *
+    getJsonVectorType<std::string>(const std::vector<std::string> & /* value */)
     {
         return "list(string)";
     }
 
     template<>
-    constexpr const char * getJsonVectorType<flexibleJointData_t>(std::vector<flexibleJointData_t> const & /* value */)
+    constexpr const char *
+    getJsonVectorType<flexibleJointData_t>(const std::vector<flexibleJointData_t> & /* value */)
     {
         return "list(flexibility)";
     }
 
     template<typename T>
-    std::enable_if_t<is_vector_v<T>, Json::Value>
-    convertToJson(T const & value)
+    std::enable_if_t<is_vector_v<T>, Json::Value> convertToJson(const T & value)
     {
         Json::Value root;
         root["type"] = getJsonVectorType(value);
         Json::Value vec(Json::arrayValue);
-        for (auto const & elem : value)
+        for (const auto & elem : value)
         {
             vec.append(convertToJson(elem));
         }
@@ -99,53 +99,51 @@ namespace jiminy
     }
 
     template<>
-    Json::Value convertToJson<configHolder_t>(configHolder_t const & value);
+    Json::Value convertToJson<configHolder_t>(const configHolder_t & value);
 
     // ************* Convertion from JSON utilities *****************
 
     template<typename T>
-    std::enable_if_t<!is_vector_v<T>, T>
-    convertFromJson(Json::Value const & /* value */)
+    std::enable_if_t<!is_vector_v<T>, T> convertFromJson(const Json::Value & /* value */)
     {
         T::undefined_template_specialization_for_this_type;
     }
 
     template<>
-    std::string convertFromJson<std::string>(Json::Value const & value);
+    std::string convertFromJson<std::string>(const Json::Value & value);
 
     template<>
-    bool_t convertFromJson<bool_t>(Json::Value const & value);
+    bool_t convertFromJson<bool_t>(const Json::Value & value);
 
     template<>
-    int32_t convertFromJson<int32_t>(Json::Value const & value);
+    int32_t convertFromJson<int32_t>(const Json::Value & value);
 
     template<>
-    uint32_t convertFromJson<uint32_t>(Json::Value const & value);
+    uint32_t convertFromJson<uint32_t>(const Json::Value & value);
 
     template<>
-    float64_t convertFromJson<float64_t>(Json::Value const & value);
+    float64_t convertFromJson<float64_t>(const Json::Value & value);
 
     template<>
-    vectorN_t convertFromJson<vectorN_t>(Json::Value const & value);
+    vectorN_t convertFromJson<vectorN_t>(const Json::Value & value);
 
     template<>
-    matrixN_t convertFromJson<matrixN_t>(Json::Value const & value);
+    matrixN_t convertFromJson<matrixN_t>(const Json::Value & value);
 
     template<>
-    flexibleJointData_t convertFromJson<flexibleJointData_t>(Json::Value const & value);
+    flexibleJointData_t convertFromJson<flexibleJointData_t>(const Json::Value & value);
 
     template<>
-    heightmapFunctor_t convertFromJson<heightmapFunctor_t>(Json::Value const & value);
+    heightmapFunctor_t convertFromJson<heightmapFunctor_t>(const Json::Value & value);
 
     template<typename T>
-    std::enable_if_t<is_vector_v<T>, T>
-    convertFromJson(Json::Value const & value)
+    std::enable_if_t<is_vector_v<T>, T> convertFromJson(const Json::Value & value)
     {
         T vec;
         if (!value.empty())
         {
             vec.resize(value.size());
-            for (auto itr = value.begin() ; itr != value.end() ; ++itr)
+            for (auto itr = value.begin(); itr != value.end(); ++itr)
             {
                 vec[itr.index()] = convertFromJson<typename T::value_type>((*itr));
             }
@@ -154,5 +152,5 @@ namespace jiminy
     }
 
     template<>
-    configHolder_t convertFromJson<configHolder_t>(Json::Value const & value);
+    configHolder_t convertFromJson<configHolder_t>(const Json::Value & value);
 }

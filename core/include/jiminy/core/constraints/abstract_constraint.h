@@ -1,16 +1,3 @@
-///////////////////////////////////////////////////////////////////////////////////////////////
-///
-/// \brief      Generic interface for a kinematic constraint.
-///
-/// \details    This class enables the support of kinematics constraints on the system.
-///             The most common constraint is to say that a given frame is fixed: this
-///             is implemented in FixedFrameConstraint
-///
-/// \remark     Each constraint applied to a system is downcasted as an instance of
-///             AbstractMotorBase and polymorphism is used to call the actual implementations.
-///
-///////////////////////////////////////////////////////////////////////////////////////////////
-
 #ifndef JIMINY_ABSTRACT_CONSTRAINT_H
 #define JIMINY_ABSTRACT_CONSTRAINT_H
 
@@ -24,100 +11,91 @@ namespace jiminy
 {
     class Model;
 
+    /// \brief Generic interface for kinematic constraints.
     class AbstractConstraintBase : public std::enable_shared_from_this<AbstractConstraintBase>
     {
         // See AbstractSensor for comment on this.
         friend Model;
 
     public:
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Forbid the copy of the class
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        AbstractConstraintBase(AbstractConstraintBase const & abstractMotor) = delete;
-        AbstractConstraintBase & operator = (AbstractConstraintBase const & other) = delete;
-
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Constructor
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        AbstractConstraintBase(void) = default;
-        virtual ~AbstractConstraintBase(void);
-
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief    Refresh the internal buffers and proxies.
-        ///
-        /// \remark   This method is not intended to be called manually. The Robot to which the
-        ///           constraint is added is taking care of it when its own `reset` method is called.
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual hresult_t reset(vectorN_t const & q,
-                                vectorN_t const & v) = 0;
-
-        void enable(void);
-        void disable(void);
-        bool_t const & getIsEnabled(void) const;
-
-        hresult_t setBaumgartePositionGain(float64_t const & kp);
-        float64_t getBaumgartePositionGain(void) const;
-        hresult_t setBaumgarteVelocityGain(float64_t const & kd);
-        float64_t getBaumgarteVelocityGain(void) const;
-        hresult_t setBaumgarteFreq(float64_t const & freq);
-        /// \brief    Natural frequency of critically damping position/velocity error correction.
-        float64_t getBaumgarteFreq(void) const;
-
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief    Compute the jacobian and drift of the constraint.
-        ///
-        /// \note     To avoid duplicate kinematic computation, it is assumed that
-        ///           computeJointJacobians and framesForwardKinematics has already
-        ///           been called on model->pncModel_.
-        ///
-        /// \param[in] q    Current joint position.
-        /// \param[in] v    Current joint velocity.
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual hresult_t computeJacobianAndDrift(vectorN_t const & q,
-                                                  vectorN_t const & v) = 0;
-
-        virtual std::string const & getType(void) const = 0;
-
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief    Return the dimension of the constraint.
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        uint64_t getDim(void) const;
-
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief    Return the jacobian of the constraint.
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        matrixN_t const & getJacobian(void) const;
-
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief    Return the drift of the constraint.
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        vectorN_t const & getDrift(void) const;
-
-    private:
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Link the constraint on the given model, and initialize it.
-        ///
-        /// \param[in] model    Model on which to apply the constraint.
-        /// \return     Error code: attach may fail, including if the constraint is already attached.
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        hresult_t attach(std::weak_ptr<Model const> model);
-
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Detach the constraint from its model.
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        void detach(void);
+        /// Forbid the copy of the class
+        AbstractConstraintBase(const AbstractConstraintBase & abstractMotor) = delete;
+        AbstractConstraintBase & operator=(const AbstractConstraintBase & other) = delete;
 
     public:
-        vectorN_t lambda_;                  ///< Lambda multipliers.
+        AbstractConstraintBase() = default;
+        virtual ~AbstractConstraintBase();
+
+        /// \brief Refresh the internal buffers and proxies.
+        ///
+        /// \remark This method is not intended to be called manually. The Robot to which the
+        ///         constraint is added is taking care of it when its own `reset` method is called.
+        virtual hresult_t reset(const vectorN_t & q, const vectorN_t & v) = 0;
+
+        void enable();
+        void disable();
+        const bool_t & getIsEnabled() const;
+
+        hresult_t setBaumgartePositionGain(const float64_t & kp);
+        float64_t getBaumgartePositionGain() const;
+        hresult_t setBaumgarteVelocityGain(const float64_t & kd);
+        float64_t getBaumgarteVelocityGain() const;
+        hresult_t setBaumgarteFreq(const float64_t & freq);
+        /// \brief Natural frequency of critically damping position/velocity error correction.
+        float64_t getBaumgarteFreq() const;
+
+        /// \brief Compute the jacobian and drift of the constraint.
+        ///
+        /// \note To avoid duplicate kinematic computation, it assumes that `computeJointJacobians`
+        ///       and `framesForwardKinematics` has already been called on `model->pncModel_`.
+        ///
+        /// \param[in] q Current joint position.
+        /// \param[in] v Current joint velocity.
+        virtual hresult_t computeJacobianAndDrift(const vectorN_t & q, const vectorN_t & v) = 0;
+
+        virtual const std::string & getType() const = 0;
+
+        /// \brief Dimension of the constraint.
+        uint64_t getDim() const;
+
+        /// \brief Jacobian of the constraint.
+        const matrixN_t & getJacobian() const;
+
+        /// \brief Drift of the constraint.
+        const vectorN_t & getDrift() const;
+
+    private:
+        /// \brief Link the constraint on the given model, and initialize it.
+        ///
+        /// \param[in] model Model on which to apply the constraint.
+        ///
+        /// \return Error code: attach may fail, including if the constraint is already attached.
+        hresult_t attach(std::weak_ptr<const Model> model);
+
+        /// \brief Detach the constraint from its model.
+        void detach();
+
+    public:
+        /// \brief Lambda multipliers.
+        vectorN_t lambda_;
 
     protected:
-        std::weak_ptr<Model const> model_;  ///< Model on which the constraint operates.
-        bool_t isAttached_;                 ///< Flag to indicate if the constraint has been attached to a model.
-        bool_t isEnabled_;                  ///< Flag to indicate if the constraint is enabled. Handling of this flag is done at Robot level.
-        float64_t kp_;                      ///< Position-related baumgarte stabilization gain.
-        float64_t kd_;                      ///< Velocity-related baumgarte stabilization gain.
-        matrixN_t jacobian_;                ///< Jacobian of the constraint.
-        vectorN_t drift_;                   ///< Drift of the constraint.
+        /// \brief Model on which the constraint operates.
+        std::weak_ptr<const Model> model_;
+        /// \brief Flag to indicate whether the constraint has been attached to a model.
+        bool_t isAttached_;
+        /// \brief Flag to indicate whether the constraint is enabled.
+        ///
+        /// \remarks Handling of this flag is done at Robot level.
+        bool_t isEnabled_;
+        /// \brief Position-related baumgarte stabilization gain.
+        float64_t kp_;
+        /// \brief Velocity-related baumgarte stabilization gain.
+        float64_t kd_;
+        /// \brief Jacobian of the constraint.
+        matrixN_t jacobian_;
+        /// \brief Drift of the constraint.
+        vectorN_t drift_;
     };
 
     template<class T>
@@ -127,11 +105,11 @@ namespace jiminy
         auto shared_from_this() { return shared_from(this); }
         auto shared_from_this() const { return shared_from(this); }
 
-        std::string const & getType(void) const { return type_; }
+        const std::string & getType() const { return type_; }
 
     public:
-        static std::string const type_;
+        static const std::string type_;
     };
 }
 
-#endif //end of JIMINY_ABSTRACT_MOTOR_H
+#endif  // end of JIMINY_ABSTRACT_MOTOR_H

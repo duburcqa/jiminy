@@ -1,9 +1,3 @@
-///////////////////////////////////////////////////////////////////////////////
-///
-/// \brief Contains the File class to manipulate a file.
-///
-///////////////////////////////////////////////////////////////////////////////
-
 #ifndef SYSTEM_FILE_DEVICE_H
 #define SYSTEM_FILE_DEVICE_H
 
@@ -14,35 +8,32 @@
 
 namespace jiminy
 {
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////
     /// \brief Class to manipulate a file.
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////
     class FileDevice : public AbstractIODevice
     {
     public:
-        FileDevice(std::string const & filename);
-        virtual ~FileDevice(void);
+        FileDevice(const std::string & filename);
+        virtual ~FileDevice();
 
-        int64_t size(void) override;
+        int64_t size() override;
         hresult_t resize(int64_t sizeIn) override;
         hresult_t seek(int64_t pos) override;
-        int64_t pos(void) override;
-        int64_t bytesAvailable(void) override;
+        int64_t pos() override;
+        int64_t bytesAvailable() override;
 
-        int64_t readData(void    * data,
-                         int64_t   dataSize) override;
-        int64_t writeData(void    const * data,
-                          int64_t         dataSize) override;
+        int64_t readData(void * data, int64_t dataSize) override;
+        int64_t writeData(const void * data, int64_t dataSize) override;
 
-        std::string const & name(void) const;
+        const std::string & name() const;
 
     protected:
-        hresult_t doOpen(openMode_t const & mode) override;
-        hresult_t doClose(void) override;
+        hresult_t doOpen(const openMode_t & mode) override;
+        hresult_t doClose() override;
 
         std::string filename_;
-        int32_t fileDescriptor_;  ///< File descriptor.
+        /// \brief File descriptor.
+        int32_t fileDescriptor_;
     };
 }
 
-#endif // FILESYSTEM_FILE_H
+#endif  // FILESYSTEM_FILE_H

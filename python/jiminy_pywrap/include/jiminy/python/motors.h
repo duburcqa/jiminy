@@ -4,8 +4,8 @@
 
 namespace jiminy::python
 {
-    void exposeAbstractMotor(void);
-    void exposeSimpleMotor(void);
+    void exposeAbstractMotor();
+    void exposeSimpleMotor();
 }
 
 #endif  // MOTORS_PYTHON_H

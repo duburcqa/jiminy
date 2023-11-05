@@ -9,11 +9,11 @@
 namespace jiminy
 {
     template<>
-    std::string const AbstractConstraintTpl<SphereConstraint>::type_("SphereConstraint");
+    const std::string AbstractConstraintTpl<SphereConstraint>::type_("SphereConstraint");
 
-    SphereConstraint::SphereConstraint(std::string const & frameName,
-                                       float64_t   const & sphereRadius,
-                                       vector3_t   const & groundNormal) :
+    SphereConstraint::SphereConstraint(const std::string & frameName,
+                                       const float64_t & sphereRadius,
+                                       const vector3_t & groundNormal) :
     AbstractConstraintTpl(),
     frameName_(frameName),
     frameIdx_(0),
@@ -23,31 +23,29 @@ namespace jiminy
     transformRef_(),
     frameJacobian_()
     {
-        // Empty on purpose
     }
 
-    std::string const & SphereConstraint::getFrameName(void) const
+    const std::string & SphereConstraint::getFrameName() const
     {
         return frameName_;
     }
 
-    frameIndex_t const & SphereConstraint::getFrameIdx(void) const
+    const frameIndex_t & SphereConstraint::getFrameIdx() const
     {
         return frameIdx_;
     }
 
-    void SphereConstraint::setReferenceTransform(pinocchio::SE3 const & transformRef)
+    void SphereConstraint::setReferenceTransform(const pinocchio::SE3 & transformRef)
     {
         transformRef_ = transformRef;
     }
 
-    pinocchio::SE3 const & SphereConstraint::getReferenceTransform(void) const
+    const pinocchio::SE3 & SphereConstraint::getReferenceTransform() const
     {
         return transformRef_;
     }
 
-    hresult_t SphereConstraint::reset(vectorN_t const & /* q */,
-                                      vectorN_t const & /* v */)
+    hresult_t SphereConstraint::reset(const vectorN_t & /* q */, const vectorN_t & /* v */)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -82,8 +80,8 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t SphereConstraint::computeJacobianAndDrift(vectorN_t const & /* q */,
-                                                        vectorN_t const & /* v */)
+    hresult_t SphereConstraint::computeJacobianAndDrift(const vectorN_t & /* q */,
+                                                        const vectorN_t & /* v */)
     {
         if (!isAttached_)
         {
@@ -109,23 +107,19 @@ namespace jiminy
         }
 
         // Compute position error
-        pinocchio::SE3 const & framePose = model->pncData_.oMf[frameIdx_];
-        float64_t const deltaPosition =
+        const pinocchio::SE3 & framePose = model->pncData_.oMf[frameIdx_];
+        const float64_t deltaPosition =
             (framePose.translation() - transformRef_.translation()).dot(normal_);
 
         // Compute velocity error
-        pinocchio::Motion const frameVelocity = getFrameVelocity(model->pncModel_,
-                                                                 model->pncData_,
-                                                                 frameIdx_,
-                                                                 pinocchio::LOCAL_WORLD_ALIGNED);
+        const pinocchio::Motion frameVelocity = getFrameVelocity(
+            model->pncModel_, model->pncData_, frameIdx_, pinocchio::LOCAL_WORLD_ALIGNED);
         vector3_t velocity = frameVelocity.linear();
         velocity.noalias() += skewRadius_ * frameVelocity.angular();
 
         // Compute frame drift in local frame
-        pinocchio::Motion driftLocal = getFrameAcceleration(model->pncModel_,
-                                                            model->pncData_,
-                                                            frameIdx_,
-                                                            pinocchio::LOCAL_WORLD_ALIGNED);
+        pinocchio::Motion driftLocal = getFrameAcceleration(
+            model->pncModel_, model->pncData_, frameIdx_, pinocchio::LOCAL_WORLD_ALIGNED);
         driftLocal.linear() += frameVelocity.angular().cross(frameVelocity.linear());
 
         // Compute total drift
