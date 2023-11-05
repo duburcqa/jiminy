@@ -135,8 +135,8 @@ namespace jiminy
                          framesIdx_[1],
                          pinocchio::LOCAL_WORLD_ALIGNED,
                          secondFrameJacobian_);
-        jacobian_ = direction.transpose() *
-                    (firstFrameJacobian_.topRows<3>() - secondFrameJacobian_.topRows<3>());
+        jacobian_.noalias() =
+            direction.transpose() * (firstFrameJacobian_ - secondFrameJacobian_).topRows<3>();
 
         // Get drift in local frame
         pinocchio::Motion accel0 = getFrameAcceleration(

@@ -165,9 +165,7 @@ namespace jiminy
     constraintsMap_t::iterator constraintsHolder_t::erase(
         const std::string & key, const constraintsHolderType_t & holderType)
     {
-        constraintsMap_t * constraintsMapPtr;
-        constraintsMap_t::iterator constraintIt;
-        std::tie(constraintsMapPtr, constraintIt) = find(key, holderType);
+        auto [constraintsMapPtr, constraintIt] = find(key, holderType);
         if (constraintsMapPtr && constraintIt != constraintsMapPtr->end())
         {
             return constraintsMapPtr->erase(constraintIt);
@@ -869,10 +867,8 @@ namespace jiminy
         hresult_t returnCode = hresult_t::SUCCESS;
 
         // Check if constraint is properly defined and not already exists
-        for (const auto & constraintPair : constraintsMap)
+        for (const auto & [constraintName, constraintPtr] : constraintsMap)
         {
-            const auto & constraintName = std::get<0>(constraintPair);
-            const auto & constraintPtr = std::get<1>(constraintPair);
             if (!constraintPtr)
             {
                 PRINT_ERROR("Constraint with name '", constraintName, "' is unspecified.");
@@ -951,9 +947,7 @@ namespace jiminy
         for (const std::string & constraintName : constraintsNames)
         {
             // Lookup constraint
-            constraintsMap_t * constraintsMapPtr;
-            constraintsMap_t::iterator constraintIt;
-            std::tie(constraintsMapPtr, constraintIt) =
+            auto [constraintsMapPtr, constraintIt] =
                 constraintsHolder_.find(constraintName, holderType);
 
             // Detach the constraint

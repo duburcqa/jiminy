@@ -9,11 +9,13 @@
 
 #include "jiminy/core/macros.h"
 #include "jiminy/core/types.h"
-#include "jiminy/core/robot/robot.h"
 #include "jiminy/core/control/abstract_controller.h"
 
 namespace jiminy
 {
+    template<typename F>
+    using callable_t = std::conditional_t<std::is_function_v<F>, std::add_pointer_t<F>, F>;
+
     template<typename F1, typename F2>
     class ControllerFunctor : public AbstractController
     {
@@ -68,9 +70,9 @@ namespace jiminy
 
     private:
         /// \brief 'Callable' computing the command.
-        std::conditional_t<std::is_function_v<F1>, std::add_pointer_t<F1>, F1>commandFct_;
+        callable_t<F1> commandFct_;
         /// \brief 'Callable' computing the internal dynamics.
-        std::conditional_t<std::is_function_v<F2>, std::add_pointer_t<F2>, F2> internalDynamicsFct_;
+        callable_t<F2> internalDynamicsFct_;
     };
 }
 

@@ -51,7 +51,7 @@ namespace jiminy::pinocchio_overload
         {
             pinocchio::forwardKinematics(model, data, q, v);
         }
-        (void)pinocchio::computeKineticEnergy(model, data);
+        pinocchio::computeKineticEnergy(model, data);
         data.kinetic_energy += 0.5 * (model.rotorInertia.array() * v.array().square()).sum();
         return data.kinetic_energy;
     }
@@ -73,7 +73,7 @@ namespace jiminy::pinocchio_overload
              const Eigen::MatrixBase<TangentVectorType2> & a,
              const vector_aligned_t<ForceDerived> & fext)
     {
-        (void)pinocchio::rnea(model, data, q, v, a, fext);
+        pinocchio::rnea(model, data, q, v, a, fext);
         data.tau.array() += model.rotorInertia.array() * a.array();
         return data.tau;
     }
@@ -93,7 +93,7 @@ namespace jiminy::pinocchio_overload
              const Eigen::MatrixBase<TangentVectorType1> & v,
              const Eigen::MatrixBase<TangentVectorType2> & a)
     {
-        (void)pinocchio::rnea(model, data, q, v, a);
+        pinocchio::rnea(model, data, q, v, a);
         data.tau.array() += model.rotorInertia.array() * a.array();
         return data.tau;
     }
@@ -109,7 +109,7 @@ namespace jiminy::pinocchio_overload
          const Eigen::MatrixBase<ConfigVectorType> & q)
     {
         data.Ycrb[0].setZero();  // FIXME: Remove this patch after migration to pinocchio>=2.6.21
-        (void)pinocchio::crbaMinimal(model, data, q);
+        pinocchio::crbaMinimal(model, data, q);
         data.M.diagonal() += model.rotorInertia;
         return data.M;
     }
@@ -149,8 +149,8 @@ namespace jiminy::pinocchio_overload
             if (parent > 0)
             {
                 Force & pa = data.f[i];
-                pa.toVector() += Ia * data.a_gf[i].toVector() +
-                                 jdata.UDinv() * jmodel.jointVelocitySelector(data.u);
+                pa.toVector().noalias() += Ia * data.a_gf[i].toVector();
+                pa.toVector().noalias() += jdata.UDinv() * jmodel.jointVelocitySelector(data.u);
                 data.Yaba[parent] += pinocchio::internal::SE3actOn<Scalar>::run(data.liMi[i], Ia);
                 data.f[parent] += data.liMi[i].act(pa);
             }
@@ -548,15 +548,14 @@ namespace jiminy::pinocchio_overload
            - Use row-major for sDUiJt and U to enable vectorization
            - Implement custom cholesky::Uiv to compute all columns at once (faster SIMD)
            - TODO: Leverage sparsity of J when multiplying by sqrt(D)^-1 */
-        Eigen::Matrix<float64_t, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> sDUiJt =
-            J.transpose();
-        Eigen::Matrix<float64_t, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> U = data.U;
-        const std::vector<int> & nvt = data.nvSubtree_fromRow;
+        using Matrix = Eigen::Matrix<float64_t, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
+        Matrix sDUiJt = J.transpose();
+        Matrix U = data.U;
         for (int k = model.nv - 2; k >= 0; --k)
         {
+            const int nvt = data.nvSubtree_fromRow[static_cast<std::size_t>(k)] - 1;
             sDUiJt.row(k).noalias() -=
-                U.row(k).segment(k + 1, nvt[static_cast<std::size_t>(k)] - 1) *
-                sDUiJt.middleRows(k + 1, nvt[static_cast<std::size_t>(k)] - 1);
+                U.row(k).segment(k + 1, nvt) * sDUiJt.middleRows(k + 1, nvt);
         }
         sDUiJt.array().colwise() *= data.Dinv.array().sqrt();
 

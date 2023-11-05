@@ -109,8 +109,8 @@ namespace jiminy
 
         // Compute position error
         const pinocchio::SE3 & framePose = model->pncData_.oMf[frameIdx_];
-        const float64_t deltaPosition =
-            (framePose.translation() - transformRef_.translation()).dot(normal_);
+        auto positionRel = framePose.translation() - transformRef_.translation();
+        const float64_t deltaPosition = positionRel.dot(normal_);
 
         // Compute velocity error
         const pinocchio::Motion frameVelocity = getFrameVelocity(

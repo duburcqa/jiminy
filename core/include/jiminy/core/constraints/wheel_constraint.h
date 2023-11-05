@@ -19,8 +19,6 @@ namespace jiminy
     class JIMINY_DLLAPI WheelConstraint : public AbstractConstraintTpl<WheelConstraint>
     {
     public:
-        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
         DISABLE_COPY(WheelConstraint)
 
         auto shared_from_this() { return shared_from(this); }

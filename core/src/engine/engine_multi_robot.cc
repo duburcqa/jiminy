@@ -468,11 +468,11 @@ namespace jiminy
 
                 /* Compute the relative velocity. The application point is the "linear"
                    interpolation between the frames placement with alpha ratio. */
+                const pinocchio::Motion oVf12 = oVf2 - oVf1;
                 pinocchio::Motion velLocal12(
                     rotRef12.transpose() *
-                        (oVf2.linear() - oVf1.linear() +
-                         pos12.cross(alpha * oVf1.angular() + (1.0 - alpha) * oVf2.angular())),
-                    rotRef12.transpose() * (oVf2.angular() - oVf1.angular()));
+                        (oVf12.linear() + pos12.cross(oVf2.angular() - alpha * oVf12.angular())),
+                    rotRef12.transpose() * oVf12.angular());
 
                 // Compute the coupling force acting on frame 2
                 pinocchio::Force f;
@@ -1844,8 +1844,7 @@ namespace jiminy
         auto aIt = stepperState_.aSplit.begin();
         for (; qIt != stepperState_.qSplit.end(); ++qIt, ++vIt, ++aIt)
         {
-            if ((qIt->array() != qIt->array()).any() || (vIt->array() != vIt->array()).any() ||
-                (aIt->array() != aIt->array()).any())  // isnan if NOT equal to itself
+            if (qIt->hasNaN() || vIt->hasNaN() || aIt->hasNaN())
             {
                 PRINT_ERROR(
                     "The low-level ode solver failed. Consider increasing the stepper accuracy.");
@@ -2592,9 +2591,7 @@ namespace jiminy
         float64_t minValue = INF;
         auto lambda = [&minValue, &values...](const systemDataHolder_t & systemData)
         {
-            bool_t isIncluded;
-            float64_t value;
-            std::tie(isIncluded, value) = isGcdIncluded(
+            auto [isIncluded, value] = isGcdIncluded(
                 systemData.forcesProfile.begin(),
                 systemData.forcesProfile.end(),
                 [](forceProfile_t const & force) { return force.updatePeriod; },
@@ -2652,9 +2649,7 @@ namespace jiminy
         }
 
         // Make sure the desired update period is a multiple of the stepper period
-        bool_t isIncluded;
-        float64_t minUpdatePeriod;
-        std::tie(isIncluded, minUpdatePeriod) =
+        auto [isIncluded, minUpdatePeriod] =
             isGcdIncluded(systemsDataHolder_, stepperUpdatePeriod_, updatePeriod);
         if (returnCode == hresult_t::SUCCESS)
         {
@@ -2864,9 +2859,7 @@ namespace jiminy
             boost::get<float64_t>(stepperOptions.at("sensorsUpdatePeriod"));
         const float64_t & controllerUpdatePeriod =
             boost::get<float64_t>(stepperOptions.at("controllerUpdatePeriod"));
-        bool_t isIncluded;
-        float64_t minUpdatePeriod;
-        std::tie(isIncluded, minUpdatePeriod) =
+        auto [isIncluded, minUpdatePeriod] =
             isGcdIncluded(systemsDataHolder_, controllerUpdatePeriod, sensorsUpdatePeriod);
         if ((EPS < sensorsUpdatePeriod && sensorsUpdatePeriod < SIMULATION_MIN_TIMESTEP) ||
             (EPS < controllerUpdatePeriod && controllerUpdatePeriod < SIMULATION_MIN_TIMESTEP))

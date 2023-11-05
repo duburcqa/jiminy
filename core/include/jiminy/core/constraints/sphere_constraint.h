@@ -19,8 +19,6 @@ namespace jiminy
     class JIMINY_DLLAPI SphereConstraint : public AbstractConstraintTpl<SphereConstraint>
     {
     public:
-        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
         DISABLE_COPY(SphereConstraint)
 
         auto shared_from_this() { return shared_from(this); }
