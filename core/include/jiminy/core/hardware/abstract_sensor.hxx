@@ -119,11 +119,13 @@ namespace jiminy
             const std::size_t sensorShift = sharedHolder_->num_ - sensorIdx_ - 1;
             for (Eigen::MatrixXd & data : sharedHolder_->data_)
             {
-                data.middleCols(sensorIdx_, sensorShift) =
-                    data.middleCols(sensorIdx_ + 1, sensorShift).eval();
+                /* Aliasing is NOT an issue when shifting left/up the columns/rows of matrices.
+                   This holds true regardless if the matrix is row- and column-major. Yet, it is
+                   necessary to make an intermediary copy when shifting right or down! */
+                data.middleCols(sensorIdx_, sensorShift) = data.rightCols(sensorShift);
             }
             sharedHolder_->dataMeasured_.middleCols(sensorIdx_, sensorShift) =
-                sharedHolder_->dataMeasured_.middleCols(sensorIdx_ + 1, sensorShift).eval();
+                sharedHolder_->dataMeasured_.rightCols(sensorShift);
         }
         for (Eigen::MatrixXd & data : sharedHolder_->data_)
         {
