@@ -20,13 +20,11 @@ namespace jiminy
     public:
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-    public:
-        /// Forbid the copy of the class
-        WheelConstraint(const WheelConstraint & abstractConstraint) = delete;
-        WheelConstraint & operator=(const WheelConstraint & other) = delete;
+        DISABLE_COPY(WheelConstraint)
 
         auto shared_from_this() { return shared_from(this); }
 
+    public:
         /// \param[in] frameName Name of the frame representing the center of the wheel.
         /// \param[in] wheelRadius Radius of the wheel (in m).
         /// \param[in] groundNormal Normal to the ground in world frame as a unit vector.

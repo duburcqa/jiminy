@@ -76,10 +76,9 @@ namespace jiminy
         };
 
     public:
-        /// Forbid the copy of the class
-        AbstractMotorBase(const AbstractMotorBase & abstractMotor) = delete;
-        AbstractMotorBase & operator=(const AbstractMotorBase & other) = delete;
+        DISABLE_COPY(AbstractMotorBase)
 
+    public:
         /// \param[in] robot Robot.
         /// \param[in] name Name of the motor.
         AbstractMotorBase(const std::string & name);

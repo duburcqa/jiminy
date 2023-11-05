@@ -96,10 +96,9 @@ namespace jiminy
         };
 
     public:
-        /// Forbid the copy of the class
-        AbstractSensorBase(const AbstractSensorBase & abstractSensor) = delete;
-        AbstractSensorBase & operator=(const AbstractSensorBase & other) = delete;
+        DISABLE_COPY(AbstractSensorBase)
 
+    public:
         /// \param[in] name Name of the sensor
         AbstractSensorBase(const std::string & name);
         virtual ~AbstractSensorBase() = default;
@@ -315,9 +314,7 @@ namespace jiminy
     class AbstractSensorTpl : public AbstractSensorBase
     {
     public:
-        // Disable the copy of the class
-        AbstractSensorTpl(const AbstractSensorTpl & abstractSensor) = delete;
-        AbstractSensorTpl & operator=(const AbstractSensorTpl & other) = delete;
+        DISABLE_COPY(AbstractSensorTpl)
 
     public:
         AbstractSensorTpl(const std::string & name);

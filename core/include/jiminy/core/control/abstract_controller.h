@@ -44,9 +44,7 @@ namespace jiminy
         };
 
     public:
-        // Forbid the copy of the class
-        AbstractController(const AbstractController & controller) = delete;
-        AbstractController & operator=(const AbstractController & controller) = delete;
+        DISABLE_COPY(AbstractController)
 
     public:
         AbstractController();

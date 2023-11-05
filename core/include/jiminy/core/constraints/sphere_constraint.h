@@ -20,15 +20,11 @@ namespace jiminy
     public:
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-    public:
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Forbid the copy of the class
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        SphereConstraint(const SphereConstraint & abstractConstraint) = delete;
-        SphereConstraint & operator=(const SphereConstraint & other) = delete;
+        DISABLE_COPY(SphereConstraint)
 
         auto shared_from_this() { return shared_from(this); }
 
+    public:
         /// \param[in] frameName Name of the frame representing the center of the sphere.
         /// \param[in] sphereRadius Radius of the sphere (in m).
         /// \param[in] groundNormal Normal to the ground in the world as a unit vector.

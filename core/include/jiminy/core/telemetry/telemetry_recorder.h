@@ -13,9 +13,8 @@ namespace jiminy
     /// \class This class is responsible of writing recorded data to devices.
     class TelemetryRecorder
     {
-        // Disable the copy of the class
-        TelemetryRecorder(const TelemetryRecorder &) = delete;
-        TelemetryRecorder & operator=(const TelemetryRecorder &) = delete;
+    public:
+        DISABLE_COPY(TelemetryRecorder)
 
     public:
         TelemetryRecorder() = default;

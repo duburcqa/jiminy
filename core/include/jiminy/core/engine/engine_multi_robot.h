@@ -326,9 +326,7 @@ namespace jiminy
         };
 
     public:
-        // Disable the copy of the class
-        EngineMultiRobot(const EngineMultiRobot & engine) = delete;
-        EngineMultiRobot & operator=(const EngineMultiRobot & other) = delete;
+        DISABLE_COPY(EngineMultiRobot)
 
     public:
         EngineMultiRobot();

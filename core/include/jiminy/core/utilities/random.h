@@ -33,9 +33,7 @@ namespace jiminy
     class PeriodicGaussianProcess
     {
     public:
-        // Forbid the copy of the class
-        PeriodicGaussianProcess(const PeriodicGaussianProcess & process) = delete;
-        PeriodicGaussianProcess & operator=(const PeriodicGaussianProcess & process) = delete;
+        DISABLE_COPY(PeriodicGaussianProcess)
 
     public:
         PeriodicGaussianProcess(
@@ -72,9 +70,7 @@ namespace jiminy
     class PeriodicFourierProcess
     {
     public:
-        // Forbid the copy of the class
-        PeriodicFourierProcess(const PeriodicFourierProcess & process) = delete;
-        PeriodicFourierProcess & operator=(const PeriodicFourierProcess & process) = delete;
+        DISABLE_COPY(PeriodicFourierProcess)
 
     public:
         PeriodicFourierProcess(
@@ -195,9 +191,7 @@ namespace jiminy
     class AbstractPerlinProcess
     {
     public:
-        // Forbid the copy of the class
-        AbstractPerlinProcess(const AbstractPerlinProcess & process) = delete;
-        AbstractPerlinProcess & operator=(const AbstractPerlinProcess & process) = delete;
+        DISABLE_COPY(AbstractPerlinProcess)
 
     public:
         AbstractPerlinProcess(const float64_t & wavelength,

@@ -14,12 +14,11 @@ namespace jiminy
     class DistanceConstraint : public AbstractConstraintTpl<DistanceConstraint>
     {
     public:
-        /// Forbid the copy of the class
-        DistanceConstraint(const DistanceConstraint & abstractConstraint) = delete;
-        DistanceConstraint & operator=(const DistanceConstraint & other) = delete;
+        DISABLE_COPY(DistanceConstraint)
 
         auto shared_from_this() { return shared_from(this); }
 
+    public:
         DistanceConstraint(const std::string & firstFrameName,
                            const std::string & secondFrameName);
         virtual ~DistanceConstraint() = default;

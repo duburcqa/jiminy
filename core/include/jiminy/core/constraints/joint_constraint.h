@@ -14,12 +14,11 @@ namespace jiminy
     class JointConstraint : public AbstractConstraintTpl<JointConstraint>
     {
     public:
-        /// Forbid the copy of the class
-        JointConstraint(const JointConstraint & abstractConstraint) = delete;
-        JointConstraint & operator=(const JointConstraint & other) = delete;
+        DISABLE_COPY(JointConstraint)
 
         auto shared_from_this() { return shared_from(this); }
 
+    public:
         /// \param[in] jointName Name of the joint.
         JointConstraint(const std::string & jointName);
         virtual ~JointConstraint() = default;

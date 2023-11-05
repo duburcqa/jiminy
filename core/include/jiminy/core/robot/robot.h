@@ -27,10 +27,7 @@ namespace jiminy
     public:
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-    public:
-        // Disable the copy of the class
-        Robot(const Robot & robot) = delete;
-        Robot & operator=(const Robot & other) = delete;
+        DISABLE_COPY(Robot)
 
     public:
         Robot();

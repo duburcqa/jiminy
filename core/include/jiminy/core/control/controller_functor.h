@@ -17,9 +17,7 @@ namespace jiminy
     class ControllerFunctor : public AbstractController
     {
     public:
-        /// Forbid the copy of the class
-        ControllerFunctor(const ControllerFunctor & controller) = delete;
-        ControllerFunctor & operator=(const ControllerFunctor & controller) = delete;
+        DISABLE_COPY(ControllerFunctor)
 
     public:
         /// \remark A valid 'callable' is a function pointer, functor or lambda with signature:
