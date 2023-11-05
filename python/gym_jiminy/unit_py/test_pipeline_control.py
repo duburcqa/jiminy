@@ -176,3 +176,18 @@ class PipelineControl(unittest.TestCase):
         pos_min = robot.position_limit_lower[robot.motors_position_idx[-1]]
         pos_max = robot.position_limit_upper[robot.motors_position_idx[-1]]
         self.assertTrue(np.all(np.logical_and(pos_min < pos, pos < pos_max)))
+
+    def test_repeatability(self):
+        # Instantiate the environment
+        env = AtlasPDControlJiminyEnv()
+
+        # Run a few steps multiple times and check that the initial state
+        # derivative remains the exactly same after reset.
+        a_prev = None
+        for n_steps in (0, 5, 20, 10, 0):
+            env.reset(seed=0)
+            if a_prev is None:
+                a_prev = env.system_state.a.copy()
+            assert np.all(a_prev == env.system_state.a)
+            for _ in range(n_steps):
+                env.step(env.action)
