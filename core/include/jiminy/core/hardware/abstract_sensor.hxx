@@ -84,7 +84,7 @@ namespace jiminy
         }
 
         // Add a column for the sensor to the shared data buffers
-        for (matrixN_t & data : sharedHolder_->data_)
+        for (Eigen::MatrixXd & data : sharedHolder_->data_)
         {
             data.conservativeResize(getSize(), sharedHolder_->num_ + 1);
             data.rightCols<1>().setZero();
@@ -117,7 +117,7 @@ namespace jiminy
         if (sensorIdx_ < sharedHolder_->num_ - 1)
         {
             const std::size_t sensorShift = sharedHolder_->num_ - sensorIdx_ - 1;
-            for (matrixN_t & data : sharedHolder_->data_)
+            for (Eigen::MatrixXd & data : sharedHolder_->data_)
             {
                 data.middleCols(sensorIdx_, sensorShift) =
                     data.middleCols(sensorIdx_ + 1, sensorShift).eval();
@@ -125,7 +125,7 @@ namespace jiminy
             sharedHolder_->dataMeasured_.middleCols(sensorIdx_, sensorShift) =
                 sharedHolder_->dataMeasured_.middleCols(sensorIdx_ + 1, sensorShift).eval();
         }
-        for (matrixN_t & data : sharedHolder_->data_)
+        for (Eigen::MatrixXd & data : sharedHolder_->data_)
         {
             data.conservativeResize(Eigen::NoChange, sharedHolder_->num_ - 1);
         }
@@ -270,9 +270,9 @@ namespace jiminy
     }
 
     template<typename T>
-    Eigen::Ref<const vectorN_t> AbstractSensorTpl<T>::get() const
+    Eigen::Ref<const Eigen::VectorXd> AbstractSensorTpl<T>::get() const
     {
-        static vectorN_t dataDummy = vectorN_t::Zero(fieldnames_.size());
+        static Eigen::VectorXd dataDummy = Eigen::VectorXd::Zero(fieldnames_.size());
         if (isAttached_)
         {
             return sharedHolder_->dataMeasured_.col(sensorIdx_);
@@ -281,14 +281,14 @@ namespace jiminy
     }
 
     template<typename T>
-    inline Eigen::Ref<vectorN_t> AbstractSensorTpl<T>::get()
+    inline Eigen::Ref<Eigen::VectorXd> AbstractSensorTpl<T>::get()
     {
         // No guard, since this method is not public
         return sharedHolder_->dataMeasured_.col(sensorIdx_);
     }
 
     template<typename T>
-    inline Eigen::Ref<vectorN_t> AbstractSensorTpl<T>::data()
+    inline Eigen::Ref<Eigen::VectorXd> AbstractSensorTpl<T>::data()
     {
         // No guard, since this method is not public
         return sharedHolder_->data_.back().col(sensorIdx_);
@@ -433,10 +433,10 @@ namespace jiminy
 
     template<typename T>
     hresult_t AbstractSensorTpl<T>::setAll(const float64_t & t,
-                                           const vectorN_t & q,
-                                           const vectorN_t & v,
-                                           const vectorN_t & a,
-                                           const vectorN_t & uMotor,
+                                           const Eigen::VectorXd & q,
+                                           const Eigen::VectorXd & v,
+                                           const Eigen::VectorXd & a,
+                                           const Eigen::VectorXd & uMotor,
                                            const forceVector_t & fExternal)
     {
         hresult_t returnCode = hresult_t::SUCCESS;

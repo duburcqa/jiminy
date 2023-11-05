@@ -129,11 +129,11 @@ namespace jiminy
             configHolder_t config;
             config["enablePositionLimit"] = true;
             config["positionLimitFromUrdf"] = true;
-            config["positionLimitMin"] = vectorN_t();
-            config["positionLimitMax"] = vectorN_t();
+            config["positionLimitMin"] = Eigen::VectorXd();
+            config["positionLimitMax"] = Eigen::VectorXd();
             config["enableVelocityLimit"] = true;
             config["velocityLimitFromUrdf"] = true;
-            config["velocityLimit"] = vectorN_t();
+            config["velocityLimit"] = Eigen::VectorXd();
 
             return config;
         };
@@ -178,20 +178,20 @@ namespace jiminy
             const bool_t positionLimitFromUrdf;
             /// \brief Min position limit of all the rigid joints, ie without freeflyer and
             ///        flexibility joints if any.
-            const vectorN_t positionLimitMin;
-            const vectorN_t positionLimitMax;
+            const Eigen::VectorXd positionLimitMin;
+            const Eigen::VectorXd positionLimitMax;
             const bool_t enableVelocityLimit;
             const bool_t velocityLimitFromUrdf;
-            const vectorN_t velocityLimit;
+            const Eigen::VectorXd velocityLimit;
 
             jointOptions_t(const configHolder_t & options) :
             enablePositionLimit(boost::get<bool_t>(options.at("enablePositionLimit"))),
             positionLimitFromUrdf(boost::get<bool_t>(options.at("positionLimitFromUrdf"))),
-            positionLimitMin(boost::get<vectorN_t>(options.at("positionLimitMin"))),
-            positionLimitMax(boost::get<vectorN_t>(options.at("positionLimitMax"))),
+            positionLimitMin(boost::get<Eigen::VectorXd>(options.at("positionLimitMin"))),
+            positionLimitMax(boost::get<Eigen::VectorXd>(options.at("positionLimitMax"))),
             enableVelocityLimit(boost::get<bool_t>(options.at("enableVelocityLimit"))),
             velocityLimitFromUrdf(boost::get<bool_t>(options.at("velocityLimitFromUrdf"))),
-            velocityLimit(boost::get<vectorN_t>(options.at("velocityLimit")))
+            velocityLimit(boost::get<Eigen::VectorXd>(options.at("velocityLimit")))
             {
             }
         };
@@ -301,7 +301,7 @@ namespace jiminy
 
         bool_t existConstraint(const std::string & constraintName) const;
 
-        hresult_t resetConstraints(const vectorN_t & q, const vectorN_t & v);
+        hresult_t resetConstraints(const Eigen::VectorXd & q, const Eigen::VectorXd & v);
 
         /// \brief Compute jacobian and drift associated to all the constraints.
         ///
@@ -311,7 +311,7 @@ namespace jiminy
         ///
         /// \param[in] q Joint position.
         /// \param[in] v Joint velocity.
-        void computeConstraints(const vectorN_t & q, const vectorN_t & v);
+        void computeConstraints(const Eigen::VectorXd & q, const Eigen::VectorXd & v);
 
         /// \brief Returns true if at least one constraint is active on the robot.
         bool_t hasConstraints() const;
@@ -347,21 +347,23 @@ namespace jiminy
         const std::vector<std::string> & getFlexibleJointsNames() const;
         const std::vector<jointIndex_t> & getFlexibleJointsModelIdx() const;
 
-        const vectorN_t & getPositionLimitMin() const;
-        const vectorN_t & getPositionLimitMax() const;
-        const vectorN_t & getVelocityLimit() const;
+        const Eigen::VectorXd & getPositionLimitMin() const;
+        const Eigen::VectorXd & getPositionLimitMax() const;
+        const Eigen::VectorXd & getVelocityLimit() const;
 
         const std::vector<std::string> & getLogFieldnamesPosition() const;
         const std::vector<std::string> & getLogFieldnamesVelocity() const;
         const std::vector<std::string> & getLogFieldnamesAcceleration() const;
         const std::vector<std::string> & getLogFieldnamesForceExternal() const;
 
-        hresult_t getFlexibleConfigurationFromRigid(const vectorN_t & qRigid,
-                                                    vectorN_t & qFlex) const;
-        hresult_t getRigidConfigurationFromFlexible(const vectorN_t & qFlex,
-                                                    vectorN_t & qRigid) const;
-        hresult_t getFlexibleVelocityFromRigid(const vectorN_t & vRigid, vectorN_t & vFlex) const;
-        hresult_t getRigidVelocityFromFlexible(const vectorN_t & vFlex, vectorN_t & vRigid) const;
+        hresult_t getFlexibleConfigurationFromRigid(const Eigen::VectorXd & qRigid,
+                                                    Eigen::VectorXd & qFlex) const;
+        hresult_t getRigidConfigurationFromFlexible(const Eigen::VectorXd & qFlex,
+                                                    Eigen::VectorXd & qRigid) const;
+        hresult_t getFlexibleVelocityFromRigid(const Eigen::VectorXd & vRigid,
+                                               Eigen::VectorXd & vFlex) const;
+        hresult_t getRigidVelocityFromFlexible(const Eigen::VectorXd & vFlex,
+                                               Eigen::VectorXd & vRigid) const;
 
     protected:
         hresult_t generateModelFlexible();
@@ -443,11 +445,11 @@ namespace jiminy
 
         /// \brief Upper position limit of the whole configuration vector (INF for non-physical
         ///        joints, ie flexibility joints and freeflyer, if any).
-        vectorN_t positionLimitMin_;
+        Eigen::VectorXd positionLimitMin_;
         /// \brief Lower position limit of the whole configuration vector.
-        vectorN_t positionLimitMax_;
+        Eigen::VectorXd positionLimitMax_;
         /// \brief Maximum absolute velocity of the whole velocity vector.
-        vectorN_t velocityLimit_;
+        Eigen::VectorXd velocityLimit_;
 
         /// \brief Fieldnames of the elements in the configuration vector of the model.
         std::vector<std::string> logFieldnamesPosition_;

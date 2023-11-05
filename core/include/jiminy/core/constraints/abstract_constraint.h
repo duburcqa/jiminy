@@ -28,7 +28,7 @@ namespace jiminy
         ///
         /// \remark This method is not intended to be called manually. The Robot to which the
         ///         constraint is added is taking care of it when its own `reset` method is called.
-        virtual hresult_t reset(const vectorN_t & q, const vectorN_t & v) = 0;
+        virtual hresult_t reset(const Eigen::VectorXd & q, const Eigen::VectorXd & v) = 0;
 
         void enable();
         void disable();
@@ -49,7 +49,8 @@ namespace jiminy
         ///
         /// \param[in] q Current joint position.
         /// \param[in] v Current joint velocity.
-        virtual hresult_t computeJacobianAndDrift(const vectorN_t & q, const vectorN_t & v) = 0;
+        virtual hresult_t computeJacobianAndDrift(const Eigen::VectorXd & q,
+                                                  const Eigen::VectorXd & v) = 0;
 
         virtual const std::string & getType() const = 0;
 
@@ -57,10 +58,10 @@ namespace jiminy
         uint64_t getDim() const;
 
         /// \brief Jacobian of the constraint.
-        const matrixN_t & getJacobian() const;
+        const Eigen::MatrixXd & getJacobian() const;
 
         /// \brief Drift of the constraint.
-        const vectorN_t & getDrift() const;
+        const Eigen::VectorXd & getDrift() const;
 
     private:
         /// \brief Link the constraint on the given model, and initialize it.
@@ -75,7 +76,7 @@ namespace jiminy
 
     public:
         /// \brief Lambda multipliers.
-        vectorN_t lambda_;
+        Eigen::VectorXd lambda_;
 
     protected:
         /// \brief Model on which the constraint operates.
@@ -91,9 +92,9 @@ namespace jiminy
         /// \brief Velocity-related baumgarte stabilization gain.
         float64_t kd_;
         /// \brief Jacobian of the constraint.
-        matrixN_t jacobian_;
+        Eigen::MatrixXd jacobian_;
         /// \brief Drift of the constraint.
-        vectorN_t drift_;
+        Eigen::VectorXd drift_;
     };
 
     template<class T>

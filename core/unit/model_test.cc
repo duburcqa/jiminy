@@ -39,7 +39,7 @@ TEST_P(ModelTestFixture, CreateFlexible)
     pinocchio::framesForwardKinematics(model->pncModel_, pncData, q);
 
     // Model is rigid, so configuration should not change
-    vectorN_t qflex;
+    Eigen::VectorXd qflex;
     ASSERT_TRUE(model->getFlexibleConfigurationFromRigid(q, qflex) == hresult_t::SUCCESS);
     ASSERT_TRUE(qflex.isApprox(q));
 
@@ -54,7 +54,7 @@ TEST_P(ModelTestFixture, CreateFlexible)
     // Add flexibility to joint and frame
     auto options = model->getOptions();
     flexibilityConfig_t flexConfig;
-    vector3_t v = vector3_t::Ones();
+    Eigen::Vector3d v = Eigen::Vector3d::Ones();
     flexConfig.push_back({"PendulumJoint", v, v, v});
     flexConfig.push_back({"PendulumMassJoint", v, v, v});
     configHolder_t & dynamicsOptions = boost::get<configHolder_t>(options.at("dynamics"));

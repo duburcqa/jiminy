@@ -80,7 +80,7 @@ namespace jiminy
     }
 
     hresult_t SimpleMotor::computeEffort(const float64_t & /* t */,
-                                         const Eigen::VectorBlock<const vectorN_t> & /* q */,
+                                         const Eigen::VectorBlock<const Eigen::VectorXd> & /* q */,
                                          const float64_t & v,
                                          const float64_t & /* a */,
                                          float64_t command)

@@ -61,7 +61,7 @@ namespace jiminy
                                    const bool_t & firstJointIdxOnly = false);
 
     hresult_t isPositionValid(const pinocchio::Model & model,
-                              const vectorN_t & position,
+                              const Eigen::VectorXd & position,
                               bool_t & isValid,
                               const float64_t & tol);
 
@@ -73,10 +73,10 @@ namespace jiminy
                                                    const std::string & frameNameIn);
 
     hresult_t interpolate(const pinocchio::Model & modelIn,
-                          const vectorN_t & timesIn,
-                          const matrixN_t & positionsIn,
-                          const vectorN_t & timesOut,
-                          matrixN_t & positionsOut);
+                          const Eigen::VectorXd & timesIn,
+                          const Eigen::MatrixXd & positionsIn,
+                          const Eigen::VectorXd & timesOut,
+                          Eigen::MatrixXd & positionsOut);
 
     /// \brief Convert a force expressed in the global frame of a specific frame to its parent
     ///        joint frame.

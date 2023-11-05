@@ -151,38 +151,40 @@ namespace jiminy
         return mean + r4_nor() * std;
     }
 
-    vectorN_t randVectorNormal(
+    Eigen::VectorXd randVectorNormal(
         const uint32_t & size, const float64_t & mean, const float64_t & std)
     {
         if (std > 0.0)
         {
-            return vectorN_t::NullaryExpr(size,
-                                          [&mean, &std](const vectorN_t::Index &) -> float64_t
-                                          { return randNormal(mean, std); });
+            return Eigen::VectorXd::NullaryExpr(
+                size,
+                [&mean, &std](const Eigen::VectorXd::Index &) -> float64_t
+                { return randNormal(mean, std); });
         }
         else
         {
-            return vectorN_t::Constant(size, mean);
+            return Eigen::VectorXd::Constant(size, mean);
         }
     }
 
-    vectorN_t randVectorNormal(const uint32_t & size, const float64_t & std)
+    Eigen::VectorXd randVectorNormal(const uint32_t & size, const float64_t & std)
     {
         return randVectorNormal(size, 0.0, std);
     }
 
-    vectorN_t randVectorNormal(const vectorN_t & mean, const vectorN_t & std)
+    Eigen::VectorXd randVectorNormal(const Eigen::VectorXd & mean, const Eigen::VectorXd & std)
     {
-        return vectorN_t::NullaryExpr(std.size(),
-                                      [&mean, &std](const vectorN_t::Index & i) -> float64_t
-                                      { return randNormal(mean[i], std[i]); });
+        return Eigen::VectorXd::NullaryExpr(
+            std.size(),
+            [&mean, &std](const Eigen::VectorXd::Index & i) -> float64_t
+            { return randNormal(mean[i], std[i]); });
     }
 
-    vectorN_t randVectorNormal(const vectorN_t & std)
+    Eigen::VectorXd randVectorNormal(const Eigen::VectorXd & std)
     {
-        return vectorN_t::NullaryExpr(std.size(),
-                                      [&std](const vectorN_t::Index & i) -> float64_t
-                                      { return randNormal(0, std[i]); });
+        return Eigen::VectorXd::NullaryExpr(std.size(),
+                                            [&std](const Eigen::VectorXd::Index & i) -> float64_t
+                                            { return randNormal(0, std[i]); });
     }
 
     void shuffleIndices(std::vector<uint32_t> & vector)
@@ -286,7 +288,7 @@ namespace jiminy
 
         /* Compute compressed representation of the matrix, which coincide with the Schur generator
            for Toepliz matrices. */
-        matrixN_t g(2, n);
+        Eigen::MatrixXd g(2, n);
         g.row(0) = a.row(0);
         g.row(1).tail(n - 1) = a.col(0).tail(n - 1);
         g(1, 0) = 0.0;
@@ -295,13 +297,13 @@ namespace jiminy
         l.col(0) = g.row(0);
         g.row(0).tail(n - 1) = g.row(0).head(n - 1).eval();
         g(0, 0) = 0.0;
-        matrix2_t H = matrix2_t::Ones();
+        Eigen::Matrix2d H = Eigen::Matrix2d::Ones();
         for (uint32_t i = 1; i < n; ++i)
         {
             const float64_t rho = -g(1, i) / g(0, i);
             // H << 1.0, rho,
             //      rho, 1.0;
-            Eigen::Map<vector4_t>(H.data()).segment<2>(1).fill(rho);
+            Eigen::Map<Eigen::Vector4d>(H.data()).segment<2>(1).fill(rho);
             g.rightCols(n - i + 1) =
                 (H * g.rightCols(n - i + 1) / std::sqrt(1.0 - rho * rho)).eval();
             l.col(i).tail(n - i + 1) = g.row(0).tail(n - i + 1);
@@ -332,8 +334,8 @@ namespace jiminy
         }
 
         // Sample normal vector
-        const vectorN_t normalVec =
-            vectorN_t::NullaryExpr(numTimes_, [](const float64_t &) { return randNormal(); });
+        const Eigen::VectorXd normalVec = Eigen::VectorXd::NullaryExpr(
+            numTimes_, [](const float64_t &) { return randNormal(); });
 
         // Compute discrete periodic gaussian process values
         values_.noalias() = covSqrtRoot_.triangularView<Eigen::Lower>() * normalVec;
@@ -381,7 +383,7 @@ namespace jiminy
     void PeriodicGaussianProcess::initialize()
     {
         // Compute distance matrix
-        matrixN_t distMat(numTimes_, numTimes_);
+        Eigen::MatrixXd distMat(numTimes_, numTimes_);
         for (int32_t i = 0; i < numTimes_; ++i)
         {
             distMat.diagonal(i).setConstant(dt_ * i);
@@ -389,7 +391,7 @@ namespace jiminy
         distMat.triangularView<Eigen::StrictlyLower>() = distMat.transpose();
 
         // Compute covariance matrix
-        matrixN_t cov(numTimes_, numTimes_);
+        Eigen::MatrixXd cov(numTimes_, numTimes_);
         cov = distMat.array().abs().unaryExpr(
             [period = period_, wavelength = wavelength_](const float64_t & dist)
             { return std::exp(-2.0 * std::pow(std::sin(M_PI / period * dist) / wavelength, 2)); });
@@ -400,7 +402,7 @@ namespace jiminy
            is by far the most efficient one (https://math.stackexchange.com/q/22825/375496).
            Moreover, the covariance is positive semi-definite toepliz matrix, so computational
            complexity can be reduced even further using optimized Cholesky algorithm. */
-        toeplitzCholeskyLower(cov + 1.0e-9 * matrixN_t::Identity(numTimes_, numTimes_),
+        toeplitzCholeskyLower(cov + 1.0e-9 * Eigen::MatrixXd::Identity(numTimes_, numTimes_),
                               covSqrtRoot_);
 
         // At this point, it is fully initialized
@@ -431,10 +433,10 @@ namespace jiminy
         }
 
         // Sample normal vectors
-        vectorN_t normalVec1 =
-            vectorN_t::NullaryExpr(numHarmonics_, [](const float64_t &) { return randNormal(); });
-        vectorN_t normalVec2 =
-            vectorN_t::NullaryExpr(numHarmonics_, [](const float64_t &) { return randNormal(); });
+        Eigen::VectorXd normalVec1 = Eigen::VectorXd::NullaryExpr(
+            numHarmonics_, [](const float64_t &) { return randNormal(); });
+        Eigen::VectorXd normalVec2 = Eigen::VectorXd::NullaryExpr(
+            numHarmonics_, [](const float64_t &) { return randNormal(); });
 
         // Compute discrete periodic gaussian process values
         values_ = M_SQRT2 / std::sqrt(2 * numHarmonics_ + 1) *
@@ -791,12 +793,12 @@ namespace jiminy
     }
 
     std::pair<float64_t, float64_t> tile2dInterp1d(Eigen::Matrix<int32_t, 2, 1> & posIdx,
-                                                   const vector2_t & posRel,
+                                                   const Eigen::Vector2d & posRel,
                                                    const uint32_t & dim,
-                                                   const vector2_t & size,
+                                                   const Eigen::Vector2d & size,
                                                    const int64_t & sparsity,
                                                    const float64_t & heightMax,
-                                                   const vector2_t & interpThreshold,
+                                                   const Eigen::Vector2d & interpThreshold,
                                                    const uint32_t & seed)
     {
         const float64_t z = randomDouble(posIdx, sparsity, heightMax, seed);
@@ -830,9 +832,9 @@ namespace jiminy
         return {height, dheight};
     }
 
-    heightmapFunctor_t randomTileGround(const vector2_t & size,
+    heightmapFunctor_t randomTileGround(const Eigen::Vector2d & size,
                                         const float64_t & heightMax,
-                                        const vector2_t & interpDelta,
+                                        const Eigen::Vector2d & interpDelta,
                                         const uint32_t & sparsity,
                                         const float64_t & orientation,
                                         const uint32_t & seed)
@@ -843,13 +845,13 @@ namespace jiminy
             PRINT_WARNING("'interpDelta' must be in range [0.01, 'size'/2.0].");
         }
 
-        vector2_t interpThreshold = interpDelta.cwiseMax(0.01).cwiseMin(size / 2.0);
+        Eigen::Vector2d interpThreshold = interpDelta.cwiseMax(0.01).cwiseMin(size / 2.0);
         interpThreshold.array() /= size.array();
 
-        const vector2_t offset = vector2_t::NullaryExpr(
-            [&size, &seed](const vectorN_t::Index & i) -> float64_t
+        const Eigen::Vector2d offset = Eigen::Vector2d::NullaryExpr(
+            [&size, &seed](const Eigen::VectorXd::Index & i) -> float64_t
             {
-                Eigen::Matrix<vectorN_t::Index, 1, 1> key;
+                Eigen::Matrix<Eigen::VectorXd::Index, 1, 1> key;
                 key[0] = i;
                 return randomDouble(key, 1, size[i], seed);
             });
@@ -858,17 +860,17 @@ namespace jiminy
 
         return
             [size, heightMax, interpDelta, rotationMat, sparsity, interpThreshold, offset, seed](
-                const vector3_t & pos3) -> std::pair<float64_t, vector3_t>
+                const Eigen::Vector3d & pos3) -> std::pair<float64_t, Eigen::Vector3d>
         {
             // Compute the tile index and relative coordinate
-            vector2_t pos = rotationMat * (pos3.head<2>() + offset);
-            vector2_t posRel = pos.array() / size.array();
+            Eigen::Vector2d pos = rotationMat * (pos3.head<2>() + offset);
+            Eigen::Vector2d posRel = pos.array() / size.array();
             Eigen::Matrix<int32_t, 2, 1> posIdx = posRel.array().floor().cast<int32_t>();
             posRel -= posIdx.cast<float64_t>();
 
             // Interpolate height based on nearby tiles if necessary
             float64_t height;
-            vector3_t normal;
+            Eigen::Vector3d normal;
             Eigen::Matrix<bool_t, 2, 1> isEdge = (posRel.array() < interpThreshold.array()) ||
                                                  (1.0 - posRel.array() < interpThreshold.array());
             if (isEdge[0] && !isEdge[1])
@@ -923,7 +925,7 @@ namespace jiminy
             else
             {
                 height = randomDouble(posIdx, sparsity, heightMax, seed);
-                normal = vector3_t::UnitZ();
+                normal = Eigen::Vector3d::UnitZ();
             }
 
             return std::make_pair(height, std::move(normal));
@@ -936,10 +938,10 @@ namespace jiminy
         {
             return heightmaps[0];
         }
-        return [heightmaps](const vector3_t & pos3) -> std::pair<float64_t, vector3_t>
+        return [heightmaps](const Eigen::Vector3d & pos3) -> std::pair<float64_t, Eigen::Vector3d>
         {
             float64_t height = 0.0;
-            vector3_t normal = vector3_t::Zero();
+            Eigen::Vector3d normal = Eigen::Vector3d::Zero();
             for (const heightmapFunctor_t & heightmap : heightmaps)
             {
                 const auto [height_i, normal_i] = heightmap(pos3);
@@ -957,10 +959,10 @@ namespace jiminy
         {
             return heightmaps[0];
         }
-        return [heightmaps](const vector3_t & pos3) -> std::pair<float64_t, vector3_t>
+        return [heightmaps](const Eigen::Vector3d & pos3) -> std::pair<float64_t, Eigen::Vector3d>
         {
             float64_t heightmax = -INF;
-            vector3_t normal;  // It will be initialized to `normal_i`
+            Eigen::Vector3d normal;  // It will be initialized to `normal_i`
             bool_t isDirty = false;
             for (const heightmapFunctor_t & heightmap : heightmaps)
             {
@@ -985,20 +987,20 @@ namespace jiminy
         };
     }
 
-    matrixN_t discretizeHeightmap(const heightmapFunctor_t & heightmap,
-                                  const float64_t & gridSize,
-                                  const float64_t & gridUnit)
+    Eigen::MatrixXd discretizeHeightmap(const heightmapFunctor_t & heightmap,
+                                        const float64_t & gridSize,
+                                        const float64_t & gridUnit)
     {
         // Allocate empty discrete grid
         uint32_t gridDim = static_cast<int32_t>(std::ceil(gridSize / gridUnit)) + 1U;
-        matrixN_t heightGrid(gridDim * gridDim, 6);
+        Eigen::MatrixXd heightGrid(gridDim * gridDim, 6);
 
         // Fill x and y discrete grid coordinates
-        const vectorN_t values =
-            (vectorN_t::LinSpaced(gridDim, 0, gridDim - 1) * gridUnit).array() -
+        const Eigen::VectorXd values =
+            (Eigen::VectorXd::LinSpaced(gridDim, 0, gridDim - 1) * gridUnit).array() -
             (gridDim - 1) * (gridUnit / 2.0);
-        Eigen::Map<matrixN_t>(heightGrid.col(0).data(), gridDim, gridDim).colwise() = values;
-        Eigen::Map<matrixN_t>(heightGrid.col(1).data(), gridDim, gridDim).rowwise() =
+        Eigen::Map<Eigen::MatrixXd>(heightGrid.col(0).data(), gridDim, gridDim).colwise() = values;
+        Eigen::Map<Eigen::MatrixXd>(heightGrid.col(1).data(), gridDim, gridDim).rowwise() =
             values.transpose();
 
         // Fill discrete grid
@@ -1006,7 +1008,7 @@ namespace jiminy
         {
             auto result = heightmap(heightGrid.block<1, 3>(i, 0));
             heightGrid(i, 2) = std::get<float64_t>(result);
-            heightGrid.block<1, 3>(i, 3) = std::get<vector3_t>(result);
+            heightGrid.block<1, 3>(i, 3) = std::get<Eigen::Vector3d>(result);
         }
 
         return heightGrid;

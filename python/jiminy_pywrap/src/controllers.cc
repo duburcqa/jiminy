@@ -41,8 +41,10 @@ namespace jiminy::python
             return this->AbstractController::reset(resetDynamicTelemetry);
         }
 
-        hresult_t computeCommand(
-            const float64_t & t, const vectorN_t & q, const vectorN_t & v, vectorN_t & command)
+        hresult_t computeCommand(const float64_t & t,
+                                 const Eigen::VectorXd & q,
+                                 const Eigen::VectorXd & v,
+                                 Eigen::VectorXd & command)
         {
             bp::override func = this->get_override("compute_command");
             if (func)
@@ -55,8 +57,10 @@ namespace jiminy::python
             return hresult_t::SUCCESS;
         }
 
-        hresult_t internalDynamics(
-            const float64_t & t, const vectorN_t & q, const vectorN_t & v, vectorN_t & uCustom)
+        hresult_t internalDynamics(const float64_t & t,
+                                   const Eigen::VectorXd & q,
+                                   const Eigen::VectorXd & v,
+                                   Eigen::VectorXd & uCustom)
         {
             bp::override func = this->get_override("internal_dynamics");
             if (func)
@@ -362,10 +366,10 @@ namespace jiminy::python
             else
             {
                 commandFct = [](const float64_t & /* t */,
-                                const vectorN_t & /* q */,
-                                const vectorN_t & /* v */,
+                                const Eigen::VectorXd & /* q */,
+                                const Eigen::VectorXd & /* v */,
                                 const sensorsDataMap_t & /* sensorsData */,
-                                vectorN_t & /* command */) {
+                                Eigen::VectorXd & /* command */) {
                 };
             }
             ControllerFct internalDynamicsFct;
@@ -376,10 +380,10 @@ namespace jiminy::python
             else
             {
                 internalDynamicsFct = [](const float64_t & /* t */,
-                                         const vectorN_t & /* q */,
-                                         const vectorN_t & /* v */,
+                                         const Eigen::VectorXd & /* q */,
+                                         const Eigen::VectorXd & /* v */,
                                          const sensorsDataMap_t & /* sensorsData */,
-                                         vectorN_t & /* command */) {
+                                         Eigen::VectorXd & /* command */) {
                 };
             }
             return std::make_shared<CtrlFunctor>(std::move(commandFct),

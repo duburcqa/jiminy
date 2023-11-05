@@ -27,7 +27,7 @@ namespace jiminy
     struct MotorSharedDataHolder_t
     {
         /// \brief Buffer storing the current true motor efforts.
-        vectorN_t data_;
+        Eigen::VectorXd data_;
         /// \brief Vector of pointers to the motors.
         std::vector<AbstractMotorBase *> motors_;
         /// \brief Number of motors
@@ -105,7 +105,7 @@ namespace jiminy
         const float64_t & get() const;
 
         /// \brief Actual effort of all the motors at the current time.
-        const vectorN_t & getAll() const;
+        const Eigen::VectorXd & getAll() const;
 
         /// \brief Set the configuration options of the motor.
         ///
@@ -158,7 +158,7 @@ namespace jiminy
         /// \param[in] a Current acceleration of the motor.
         /// \param[in] command Current command effort of the motor.
         virtual hresult_t computeEffort(const float64_t & t,
-                                        const Eigen::VectorBlock<const vectorN_t> & q,
+                                        const Eigen::VectorBlock<const Eigen::VectorXd> & q,
                                         const float64_t & v,
                                         const float64_t & a,
                                         float64_t command) = 0; /* copy on purpose */
@@ -179,10 +179,10 @@ namespace jiminy
         ///
         /// \return Return code to determine whether the execution of the method was successful.
         hresult_t computeEffortAll(const float64_t & t,
-                                   const vectorN_t & q,
-                                   const vectorN_t & v,
-                                   const vectorN_t & a,
-                                   const vectorN_t & command);
+                                   const Eigen::VectorXd & q,
+                                   const Eigen::VectorXd & v,
+                                   const Eigen::VectorXd & a,
+                                   const Eigen::VectorXd & command);
 
     protected:
         /// \brief Reference to the last data buffer corresponding to the true effort of the motor.

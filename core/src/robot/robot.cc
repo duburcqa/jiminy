@@ -1157,10 +1157,10 @@ namespace jiminy
     }
 
     void Robot::computeMotorsEfforts(const float64_t & t,
-                                     const vectorN_t & q,
-                                     const vectorN_t & v,
-                                     const vectorN_t & a,
-                                     const vectorN_t & command)
+                                     const Eigen::VectorXd & q,
+                                     const Eigen::VectorXd & v,
+                                     const Eigen::VectorXd & a,
+                                     const Eigen::VectorXd & command)
     {
         if (!motorsHolder_.empty())
         {
@@ -1168,9 +1168,9 @@ namespace jiminy
         }
     }
 
-    const vectorN_t & Robot::getMotorsEfforts() const
+    const Eigen::VectorXd & Robot::getMotorsEfforts() const
     {
-        static const vectorN_t motorsEffortsEmpty;
+        static const Eigen::VectorXd motorsEffortsEmpty;
 
         if (!motorsHolder_.empty())
         {
@@ -1197,10 +1197,10 @@ namespace jiminy
     }
 
     void Robot::setSensorsData(const float64_t & t,
-                               const vectorN_t & q,
-                               const vectorN_t & v,
-                               const vectorN_t & a,
-                               const vectorN_t & uMotor,
+                               const Eigen::VectorXd & q,
+                               const Eigen::VectorXd & v,
+                               const Eigen::VectorXd & a,
+                               const Eigen::VectorXd & uMotor,
                                const forceVector_t & fExternal)
     {
         /* Note that it is assumed that the kinematic quantities have been
@@ -1235,11 +1235,11 @@ namespace jiminy
         return data;
     }
 
-    Eigen::Ref<const vectorN_t> Robot::getSensorData(const std::string & sensorType,
-                                                     const std::string & sensorName) const
+    Eigen::Ref<const Eigen::VectorXd> Robot::getSensorData(const std::string & sensorType,
+                                                           const std::string & sensorName) const
     {
-        static const vectorN_t sensorDataEmpty;
-        static const Eigen::Ref<const vectorN_t> sensorDataRefEmpty(sensorDataEmpty);
+        static const Eigen::VectorXd sensorDataEmpty;
+        static const Eigen::Ref<const Eigen::VectorXd> sensorDataRefEmpty(sensorDataEmpty);
 
         auto sensorGroupIt = sensorsGroupHolder_.find(sensorType);
         if (sensorGroupIt != sensorsGroupHolder_.end())
@@ -1336,13 +1336,13 @@ namespace jiminy
         return motorsVelocityIdx;
     }
 
-    const vectorN_t & Robot::getCommandLimit() const
+    const Eigen::VectorXd & Robot::getCommandLimit() const
     {
         return pncModel_.effortLimit;
     }
 
-    const std::unordered_map<std::string, std::vector<std::string>> & Robot::getSensorsNames(
-        void) const
+    const std::unordered_map<std::string, std::vector<std::string>> &
+    Robot::getSensorsNames() const
     {
         return sensorsNames_;
     }

@@ -6,9 +6,9 @@ namespace jiminy
 {
     AbstractRungeKuttaStepper::AbstractRungeKuttaStepper(const systemDynamics & f,
                                                          const std::vector<const Robot *> & robots,
-                                                         const matrixN_t & RungeKuttaMatrix,
-                                                         const vectorN_t & bWeights,
-                                                         const vectorN_t & cNodes,
+                                                         const Eigen::MatrixXd & RungeKuttaMatrix,
+                                                         const Eigen::VectorXd & bWeights,
+                                                         const Eigen::VectorXd & cNodes,
                                                          const bool_t & isFSAL) :
     AbstractStepper(f, robots),
     A_(RungeKuttaMatrix),

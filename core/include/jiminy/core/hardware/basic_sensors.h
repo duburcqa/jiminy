@@ -30,10 +30,10 @@ namespace jiminy
 
     private:
         virtual hresult_t set(const float64_t & t,
-                              const vectorN_t & q,
-                              const vectorN_t & v,
-                              const vectorN_t & a,
-                              const vectorN_t & uMotor,
+                              const Eigen::VectorXd & q,
+                              const Eigen::VectorXd & v,
+                              const Eigen::VectorXd & a,
+                              const Eigen::VectorXd & uMotor,
                               const forceVector_t & fExternal) final override;
         virtual void measureData() final override;
 
@@ -41,7 +41,7 @@ namespace jiminy
         std::string frameName_;
         frameIndex_t frameIdx_;
         /// \brief Sensor inverse rotation bias.
-        matrix3_t sensorRotationBiasInv_;
+        Eigen::Matrix3d sensorRotationBiasInv_;
     };
 
     class ContactSensor : public AbstractSensorTpl<ContactSensor>
@@ -61,10 +61,10 @@ namespace jiminy
 
     private:
         virtual hresult_t set(const float64_t & t,
-                              const vectorN_t & q,
-                              const vectorN_t & v,
-                              const vectorN_t & a,
-                              const vectorN_t & uMotor,
+                              const Eigen::VectorXd & q,
+                              const Eigen::VectorXd & v,
+                              const Eigen::VectorXd & a,
+                              const Eigen::VectorXd & uMotor,
                               const forceVector_t & fExternal) final override;
 
     private:
@@ -90,10 +90,10 @@ namespace jiminy
 
     private:
         virtual hresult_t set(const float64_t & t,
-                              const vectorN_t & q,
-                              const vectorN_t & v,
-                              const vectorN_t & a,
-                              const vectorN_t & uMotor,
+                              const Eigen::VectorXd & q,
+                              const Eigen::VectorXd & v,
+                              const Eigen::VectorXd & a,
+                              const Eigen::VectorXd & uMotor,
                               const forceVector_t & fExternal) final override;
 
     private:
@@ -121,10 +121,10 @@ namespace jiminy
 
     private:
         virtual hresult_t set(const float64_t & t,
-                              const vectorN_t & q,
-                              const vectorN_t & v,
-                              const vectorN_t & a,
-                              const vectorN_t & uMotor,
+                              const Eigen::VectorXd & q,
+                              const Eigen::VectorXd & v,
+                              const Eigen::VectorXd & a,
+                              const Eigen::VectorXd & uMotor,
                               const forceVector_t & fExternal) final override;
 
     private:
@@ -150,10 +150,10 @@ namespace jiminy
 
     private:
         virtual hresult_t set(const float64_t & t,
-                              const vectorN_t & q,
-                              const vectorN_t & v,
-                              const vectorN_t & a,
-                              const vectorN_t & uMotor,
+                              const Eigen::VectorXd & q,
+                              const Eigen::VectorXd & v,
+                              const Eigen::VectorXd & a,
+                              const Eigen::VectorXd & uMotor,
                               const forceVector_t & fExternal) final override;
 
     private:

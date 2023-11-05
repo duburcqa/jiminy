@@ -29,10 +29,11 @@ namespace jiminy
         hresult_t setReferenceDistance(const float64_t & distanceRef);
         const float64_t & getReferenceDistance() const;
 
-        virtual hresult_t reset(const vectorN_t & q, const vectorN_t & v) override final;
+        virtual hresult_t reset(const Eigen::VectorXd & q,
+                                const Eigen::VectorXd & v) override final;
 
-        virtual hresult_t computeJacobianAndDrift(const vectorN_t & q,
-                                                  const vectorN_t & v) override final;
+        virtual hresult_t computeJacobianAndDrift(const Eigen::VectorXd & q,
+                                                  const Eigen::VectorXd & v) override final;
 
     private:
         /// \brief Names of the frames on which the constraint operates.
@@ -42,9 +43,9 @@ namespace jiminy
         /// \brief Reference Distance between the frames
         float64_t distanceRef_;
         /// \brief Stores first frame jacobian in world.
-        matrix6N_t firstFrameJacobian_;
+        Matrix6Xd firstFrameJacobian_;
         /// \brief Stores second frame jacobian in world.
-        matrix6N_t secondFrameJacobian_;
+        Matrix6Xd secondFrameJacobian_;
     };
 }
 

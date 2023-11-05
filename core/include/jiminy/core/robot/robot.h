@@ -64,22 +64,22 @@ namespace jiminy
         hresult_t detachSensors(const std::string & sensorType = {});
 
         void computeMotorsEfforts(const float64_t & t,
-                                  const vectorN_t & q,
-                                  const vectorN_t & v,
-                                  const vectorN_t & a,
-                                  const vectorN_t & command);
-        const vectorN_t & getMotorsEfforts() const;
+                                  const Eigen::VectorXd & q,
+                                  const Eigen::VectorXd & v,
+                                  const Eigen::VectorXd & a,
+                                  const Eigen::VectorXd & command);
+        const Eigen::VectorXd & getMotorsEfforts() const;
         const float64_t & getMotorEffort(const std::string & motorName) const;
         void setSensorsData(const float64_t & t,
-                            const vectorN_t & q,
-                            const vectorN_t & v,
-                            const vectorN_t & a,
-                            const vectorN_t & uMotor,
+                            const Eigen::VectorXd & q,
+                            const Eigen::VectorXd & v,
+                            const Eigen::VectorXd & a,
+                            const Eigen::VectorXd & uMotor,
                             const forceVector_t & fExternal);
 
         sensorsDataMap_t getSensorsData() const;
-        Eigen::Ref<const vectorN_t> getSensorData(const std::string & sensorType,
-                                                  const std::string & sensorName) const;
+        Eigen::Ref<const Eigen::VectorXd> getSensorData(const std::string & sensorType,
+                                                        const std::string & sensorName) const;
 
         hresult_t setOptions(const configHolder_t & robotOptions);
         configHolder_t getOptions() const;
@@ -121,11 +121,10 @@ namespace jiminy
         std::vector<jointIndex_t> getMotorsModelIdx() const;
         std::vector<std::vector<int32_t>> getMotorsPositionIdx() const;
         std::vector<int32_t> getMotorsVelocityIdx() const;
-        const std::unordered_map<std::string, std::vector<std::string>> & getSensorsNames(
-            void) const;
+        const std::unordered_map<std::string, std::vector<std::string>> & getSensorsNames() const;
         const std::vector<std::string> & getSensorsNames(const std::string & sensorType) const;
 
-        const vectorN_t & getCommandLimit() const;
+        const Eigen::VectorXd & getCommandLimit() const;
 
         const std::vector<std::string> & getCommandFieldnames() const;
         const std::vector<std::string> & getMotorEffortFieldnames() const;

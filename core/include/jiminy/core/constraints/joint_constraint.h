@@ -26,16 +26,17 @@ namespace jiminy
         const std::string & getJointName() const;
         const jointIndex_t & getJointIdx() const;
 
-        void setReferenceConfiguration(const vectorN_t & configurationRef);
-        const vectorN_t & getReferenceConfiguration() const;
+        void setReferenceConfiguration(const Eigen::VectorXd & configurationRef);
+        const Eigen::VectorXd & getReferenceConfiguration() const;
 
         void setRotationDir(bool_t isReversed);
         const bool_t & getRotationDir();
 
-        virtual hresult_t reset(const vectorN_t & q, const vectorN_t & v) override final;
+        virtual hresult_t reset(const Eigen::VectorXd & q,
+                                const Eigen::VectorXd & v) override final;
 
-        virtual hresult_t computeJacobianAndDrift(const vectorN_t & q,
-                                                  const vectorN_t & v) override final;
+        virtual hresult_t computeJacobianAndDrift(const Eigen::VectorXd & q,
+                                                  const Eigen::VectorXd & v) override final;
 
     private:
         /// \brief Name of the joint on which the constraint operates.
@@ -43,7 +44,7 @@ namespace jiminy
         /// \brief Corresponding joint index.
         jointIndex_t jointIdx_;
         /// \brief Reference position of the joint to enforce.
-        vectorN_t configurationRef_;
+        Eigen::VectorXd configurationRef_;
         /// \brief Whether to reverse the sign of the constraint.
         bool_t isReversed_;
     };

@@ -56,10 +56,10 @@ namespace jiminy
         try
         {
             float64_t t = 0.0;
-            vectorN_t q = pinocchio::neutral(robot->pncModel_);
-            vectorN_t v = vectorN_t::Zero(robot->nv());
-            vectorN_t command = vectorN_t::Zero(robot->getMotorsNames().size());
-            vectorN_t uCustom = vectorN_t::Zero(robot->nv());
+            Eigen::VectorXd const q = pinocchio::neutral(robot->pncModel_);
+            Eigen::VectorXd const v = Eigen::VectorXd::Zero(robot->nv());
+            Eigen::VectorXd command = Eigen::VectorXd(robot->getMotorsNames().size());
+            Eigen::VectorXd uCustom = Eigen::VectorXd(robot->nv());
             hresult_t returnCode = computeCommand(t, q, v, command);
             if (returnCode == hresult_t::SUCCESS)
             {

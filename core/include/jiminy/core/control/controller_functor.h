@@ -22,10 +22,10 @@ namespace jiminy
     public:
         /// \remark A valid 'callable' is a function pointer, functor or lambda with signature:
         ///             void(const float64_t & t,
-        ///                  const vectorN_t & q,
-        ///                  const vectorN_t & v,
+        ///                  const Eigen::VectorXd & q,
+        ///                  const Eigen::VectorXd & v,
         ///                  const sensorsDataMap_t & sensorsData,
-        ///                  vectorN_t & command)
+        ///                  Eigen::VectorXd & command)
         ///         where I is range(n), with n the number of different type of sensor.
         ///
         /// \param[in] commandFct 'Callable' computing the command.
@@ -47,9 +47,9 @@ namespace jiminy
         ///
         /// \return Return code to determine whether the execution of the method was successful.
         virtual hresult_t computeCommand(const float64_t & t,
-                                         const vectorN_t & q,
-                                         const vectorN_t & v,
-                                         vectorN_t & command) override;
+                                         const Eigen::VectorXd & q,
+                                         const Eigen::VectorXd & v,
+                                         Eigen::VectorXd & command) override;
 
         /// \brief Emulate custom phenomenon that are part of the internal dynamics of the system
         ///        but not included in the physics engine.
@@ -61,9 +61,9 @@ namespace jiminy
         ///
         /// \return Return code to determine whether the execution of the method was successful.
         virtual hresult_t internalDynamics(const float64_t & t,
-                                           const vectorN_t & q,
-                                           const vectorN_t & v,
-                                           vectorN_t & uCustom) override;
+                                           const Eigen::VectorXd & q,
+                                           const Eigen::VectorXd & v,
+                                           Eigen::VectorXd & uCustom) override;
 
     private:
         /// \brief 'Callable' computing the command.

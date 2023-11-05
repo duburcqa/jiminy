@@ -89,8 +89,8 @@ namespace jiminy
                    nullptr,
                    nullptr,
                    [](const float64_t & /* t */,
-                      const vectorN_t & /* q */,
-                      const vectorN_t & /* v */) -> bool_t { return false; })
+                      const Eigen::VectorXd & /* q */,
+                      const Eigen::VectorXd & /* v */) -> bool_t { return false; })
     {
     }
 

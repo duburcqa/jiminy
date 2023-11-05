@@ -126,12 +126,12 @@ namespace jiminy
         return static_cast<uint64_t>(drift_.size());
     }
 
-    const matrixN_t & AbstractConstraintBase::getJacobian() const
+    const Eigen::MatrixXd & AbstractConstraintBase::getJacobian() const
     {
         return jacobian_;
     }
 
-    const vectorN_t & AbstractConstraintBase::getDrift() const
+    const Eigen::VectorXd & AbstractConstraintBase::getDrift() const
     {
         return drift_;
     }

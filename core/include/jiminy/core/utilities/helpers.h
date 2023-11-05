@@ -98,7 +98,7 @@ namespace jiminy
     /// \param[in] fieldName Full name of the variable to get.
     ///
     /// \return Vector of values for a given variable as a contiguous array.
-    vectorN_t getLogVariable(const logData_t & logData, const std::string & fieldname);
+    Eigen::VectorXd getLogVariable(const logData_t & logData, const std::string & fieldname);
 
     // ********************** Math utilities *************************
 
