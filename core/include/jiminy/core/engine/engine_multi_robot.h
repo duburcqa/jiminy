@@ -3,10 +3,10 @@
 
 #include <functional>
 
-#include "jiminy/core/telemetry/telemetry_sender.h"
+#include "jiminy/core/macros.h"
 #include "jiminy/core/types.h"
 #include "jiminy/core/constants.h"
-
+#include "jiminy/core/telemetry/telemetry_sender.h"
 #include "jiminy/core/engine/system.h"
 
 
@@ -14,14 +14,14 @@ namespace jiminy
 {
     const std::string ENGINE_TELEMETRY_NAMESPACE("HighLevelController");
 
-    enum class contactModel_t : uint8_t
+    enum class JIMINY_DLLAPI contactModel_t : uint8_t
     {
         NONE = 0,
         SPRING_DAMPER = 1,
         CONSTRAINT = 2
     };
 
-    enum class constraintSolver_t : uint8_t
+    enum class JIMINY_DLLAPI constraintSolver_t : uint8_t
     {
         NONE = 0,
         PGS = 1  // Projected Gauss-Seidel
@@ -49,7 +49,7 @@ namespace jiminy
 
     using forceCouplingRegister_t = std::vector<forceCoupling_t>;
 
-    struct stepperState_t
+    struct JIMINY_DLLAPI stepperState_t
     {
     public:
         void reset(const float64_t & dtInit,
@@ -85,7 +85,7 @@ namespace jiminy
         std::vector<Eigen::VectorXd> aSplit;
     };
 
-    class EngineMultiRobot
+    class JIMINY_DLLAPI EngineMultiRobot
     {
     public:
         configHolder_t getDefaultConstraintOptions()

@@ -7,6 +7,7 @@
 #include "pinocchio/algorithm/frames.hpp"  // `pinocchio::getFrameVelocity`, `pinocchio::getFrameAcceleration`
 
 #include "jiminy/core/robot/robot.h"
+#include "jiminy/core/hardware/abstract_motor.h"
 #include "jiminy/core/utilities/pinocchio.h"
 #include "jiminy/core/utilities/random.h"
 

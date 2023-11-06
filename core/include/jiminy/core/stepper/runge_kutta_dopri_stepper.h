@@ -1,6 +1,7 @@
 #ifndef JIMINY_RUNGE_KUTTA_DOPRI_STEPPER_H
 #define JIMINY_RUNGE_KUTTA_DOPRI_STEPPER_H
 
+#include "jiminy/core/macros.h"
 #include "jiminy/core/stepper/abstract_runge_kutta_stepper.h"
 
 namespace jiminy
@@ -41,7 +42,7 @@ namespace jiminy
     }
 
     /// \brief Implements the Dormand-Prince Runge-Kutta algorithm.
-    class RungeKuttaDOPRIStepper : public AbstractRungeKuttaStepper
+    class JIMINY_DLLAPI RungeKuttaDOPRIStepper : public AbstractRungeKuttaStepper
     {
     public:
         /// \param[in] f Dynamics function, with signature a = f(t, q, v)

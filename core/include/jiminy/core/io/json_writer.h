@@ -1,6 +1,7 @@
 #ifndef JIMINY_JSON_WRITER_H
 #define JIMINY_JSON_WRITER_H
 
+#include "jiminy/core/macros.h"
 #include "jiminy/core/types.h"
 
 
@@ -13,7 +14,7 @@ namespace jiminy
 {
     class AbstractIODevice;
 
-    class JsonWriter
+    class JIMINY_DLLAPI JsonWriter
     {
     public:
         JsonWriter(std::shared_ptr<AbstractIODevice> device);

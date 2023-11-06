@@ -3,6 +3,7 @@
 
 #include <memory>
 
+#include "jiminy/core/macros.h"
 #include "jiminy/core/types.h"
 #include "jiminy/core/constraints/abstract_constraint.h"
 
@@ -11,7 +12,7 @@ namespace jiminy
 {
     class Model;
 
-    class DistanceConstraint : public AbstractConstraintTpl<DistanceConstraint>
+    class JIMINY_DLLAPI DistanceConstraint : public AbstractConstraintTpl<DistanceConstraint>
     {
     public:
         DISABLE_COPY(DistanceConstraint)

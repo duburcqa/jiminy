@@ -6,8 +6,9 @@
 
 #include <set>
 
-#include "jiminy/core/robot/model.h"
+#include "jiminy/core/macros.h"
 #include "jiminy/core/types.h"
+#include "jiminy/core/robot/model.h"
 
 
 namespace jiminy
@@ -18,7 +19,7 @@ namespace jiminy
     class AbstractController;
     class LockGuardLocal;
 
-    struct forceProfile_t
+    struct JIMINY_DLLAPI forceProfile_t
     {
     public:
         forceProfile_t() = default;
@@ -35,7 +36,7 @@ namespace jiminy
         forceProfileFunctor_t forceFct;
     };
 
-    struct forceImpulse_t
+    struct JIMINY_DLLAPI forceImpulse_t
     {
     public:
         forceImpulse_t() = default;
@@ -82,7 +83,7 @@ namespace jiminy
     using forceProfileRegister_t = std::vector<forceProfile_t>;
     using forceImpulseRegister_t = std::vector<forceImpulse_t>;
 
-    struct systemHolder_t
+    struct JIMINY_DLLAPI systemHolder_t
     {
     public:
         systemHolder_t();
@@ -103,7 +104,7 @@ namespace jiminy
         callbackFunctor_t callbackFct;
     };
 
-    struct systemState_t
+    struct JIMINY_DLLAPI systemState_t
     {
     public:
         // Non-default constructor to be considered initialized even if not
@@ -129,10 +130,22 @@ namespace jiminy
         bool_t isInitialized_;
     };
 
-    struct systemDataHolder_t
+    struct JIMINY_DLLAPI systemDataHolder_t
     {
     public:
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+        DISABLE_COPY(systemDataHolder_t)
+
+        /* Must move all definitions in source files to avoid compilation failure due to incomplete
+           destructor for objects managed by `unique_ptr` member variable with MSVC compiler.
+           See: https://stackoverflow.com/a/9954553
+                https://developercommunity.visualstudio.com/t/unique-ptr-cant-delete-an-incomplete-type/1371585
+        */
+        explicit systemDataHolder_t();
+        explicit systemDataHolder_t(systemDataHolder_t &&);
+        systemDataHolder_t & operator=(systemDataHolder_t &&);
+        ~systemDataHolder_t();
 
     public:
         std::unique_ptr<LockGuardLocal> robotLock;

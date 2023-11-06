@@ -1,6 +1,7 @@
 #ifndef JIMINY_RUNGE_KUTTA_STEPPER_H
 #define JIMINY_RUNGE_KUTTA_STEPPER_H
 
+#include "jiminy/core/macros.h"
 #include "jiminy/core/stepper/abstract_stepper.h"
 
 namespace jiminy
@@ -9,7 +10,7 @@ namespace jiminy
     /// \details This class constructs a Runge-Kutta stepper from the supplied weights forming the
     ///          Butcher table (a_ij, c_i, b_i) ; the vector e is used in error evaluation for step
     ///          adjustment.
-    class AbstractRungeKuttaStepper : public AbstractStepper
+    class JIMINY_DLLAPI AbstractRungeKuttaStepper : public AbstractStepper
     {
     public:
         /// \param[in] f Dynamics function, with signature `a = f(t, q, v)`.

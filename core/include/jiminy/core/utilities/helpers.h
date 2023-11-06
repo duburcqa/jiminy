@@ -14,7 +14,7 @@ namespace jiminy
 
     class LockGuardLocal;
 
-    class MutexLocal
+    class JIMINY_DLLAPI MutexLocal
     {
         friend LockGuardLocal;
 
@@ -33,7 +33,7 @@ namespace jiminy
         std::shared_ptr<bool_t> isLocked_;
     };
 
-    class LockGuardLocal
+    class JIMINY_DLLAPI LockGuardLocal
     {
     public:
         DISABLE_COPY(LockGuardLocal)
@@ -50,7 +50,7 @@ namespace jiminy
 
     // ************************ Timer *******************************
 
-    class Timer
+    class JIMINY_DLLAPI Timer
     {
         using Time = std::chrono::high_resolution_clock;
 
@@ -67,7 +67,7 @@ namespace jiminy
 
     // ************* IO file and Directory utilities ****************
 
-    std::string getUserDirectory();
+    std::string JIMINY_DLLAPI getUserDirectory();
 
     // ******************* Telemetry utilities **********************
 
@@ -98,7 +98,8 @@ namespace jiminy
     /// \param[in] fieldName Full name of the variable to get.
     ///
     /// \return Vector of values for a given variable as a contiguous array.
-    Eigen::VectorXd getLogVariable(const logData_t & logData, const std::string & fieldname);
+    Eigen::VectorXd JIMINY_DLLAPI getLogVariable(const logData_t & logData,
+                                                 const std::string & fieldname);
 
     // ********************** Math utilities *************************
 

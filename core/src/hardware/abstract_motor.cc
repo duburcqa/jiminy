@@ -1,7 +1,6 @@
 #include "jiminy/core/robot/robot.h"
-#include "jiminy/core/macros.h"
-
 #include "jiminy/core/utilities/pinocchio.h"
+
 #include "jiminy/core/hardware/abstract_motor.h"
 
 

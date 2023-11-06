@@ -151,4 +151,9 @@ namespace jiminy
         uCustom.resize(0);
         fExternal.clear();
     }
+
+    systemDataHolder_t::systemDataHolder_t() = default;
+    systemDataHolder_t::systemDataHolder_t(systemDataHolder_t &&) = default;
+    systemDataHolder_t & systemDataHolder_t::operator=(systemDataHolder_t &&) = default;
+    systemDataHolder_t::~systemDataHolder_t() = default;
 }

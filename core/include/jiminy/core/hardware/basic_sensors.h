@@ -1,7 +1,7 @@
 #ifndef JIMINY_BASIC_SENSORS_H
 #define JIMINY_BASIC_SENSORS_H
 
-#include "jiminy/core/hardware/abstract_motor.h"
+#include "jiminy/core/macros.h"
 #include "jiminy/core/hardware/abstract_sensor.h"
 
 
@@ -9,7 +9,7 @@ namespace jiminy
 {
     class Robot;
 
-    class ImuSensor : public AbstractSensorTpl<ImuSensor>
+    class JIMINY_DLLAPI ImuSensor : public AbstractSensorTpl<ImuSensor>
     {
     public:
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -44,7 +44,7 @@ namespace jiminy
         Eigen::Matrix3d sensorRotationBiasInv_;
     };
 
-    class ContactSensor : public AbstractSensorTpl<ContactSensor>
+    class JIMINY_DLLAPI ContactSensor : public AbstractSensorTpl<ContactSensor>
     {
     public:
         ContactSensor(const std::string & name);
@@ -72,7 +72,7 @@ namespace jiminy
         frameIndex_t frameIdx_;
     };
 
-    class ForceSensor : public AbstractSensorTpl<ForceSensor>
+    class JIMINY_DLLAPI ForceSensor : public AbstractSensorTpl<ForceSensor>
     {
     public:
         ForceSensor(const std::string & name);
@@ -103,7 +103,7 @@ namespace jiminy
         pinocchio::Force f_;
     };
 
-    class EncoderSensor : public AbstractSensorTpl<EncoderSensor>
+    class JIMINY_DLLAPI EncoderSensor : public AbstractSensorTpl<EncoderSensor>
     {
     public:
         EncoderSensor(const std::string & name);
@@ -133,7 +133,7 @@ namespace jiminy
         joint_t jointType_;
     };
 
-    class EffortSensor : public AbstractSensorTpl<EffortSensor>
+    class JIMINY_DLLAPI EffortSensor : public AbstractSensorTpl<EffortSensor>
     {
     public:
         EffortSensor(const std::string & name);

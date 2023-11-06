@@ -29,13 +29,13 @@
 #include "jiminy/core/io/serialization.h"
 #include "jiminy/core/telemetry/telemetry_data.h"
 #include "jiminy/core/telemetry/telemetry_recorder.h"
+#include "jiminy/core/robot/robot.h"
 #include "jiminy/core/robot/pinocchio_overload_algorithms.h"
 #include "jiminy/core/hardware/abstract_motor.h"
 #include "jiminy/core/hardware/abstract_sensor.h"
 #include "jiminy/core/constraints/abstract_constraint.h"
 #include "jiminy/core/constraints/joint_constraint.h"
 #include "jiminy/core/constraints/fixed_frame_constraint.h"
-#include "jiminy/core/robot/robot.h"
 #include "jiminy/core/control/abstract_controller.h"
 #include "jiminy/core/control/controller_functor.h"
 #include "jiminy/core/solver/constraint_solvers.h"
@@ -43,13 +43,13 @@
 #include "jiminy/core/stepper/euler_explicit_stepper.h"
 #include "jiminy/core/stepper/runge_kutta_dopri_stepper.h"
 #include "jiminy/core/stepper/runge_kutta4_stepper.h"
-#include "jiminy/core/engine/engine_multi_robot.h"
 #include "jiminy/core/utilities/pinocchio.h"
 #include "jiminy/core/utilities/random.h"
 #include "jiminy/core/utilities/json.h"
 #include "jiminy/core/utilities/helpers.h"
 #include "jiminy/core/constants.h"
 
+#include "jiminy/core/engine/engine_multi_robot.h"
 
 namespace jiminy
 {

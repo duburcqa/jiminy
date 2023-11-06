@@ -3,6 +3,7 @@
 
 #include <memory>
 
+#include "jiminy/core/macros.h"
 #include "jiminy/core/types.h"
 #include "jiminy/core/constraints/abstract_constraint.h"
 
@@ -15,7 +16,7 @@ namespace jiminy
     ///
     /// \details Given a frame to represent the wheel center, this class constrains it to move
     ///          like it were rolling without slipping on a flat (not necessarily level) surface.
-    class WheelConstraint : public AbstractConstraintTpl<WheelConstraint>
+    class JIMINY_DLLAPI WheelConstraint : public AbstractConstraintTpl<WheelConstraint>
     {
     public:
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW

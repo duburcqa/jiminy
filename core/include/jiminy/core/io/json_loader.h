@@ -1,6 +1,7 @@
 #ifndef JIMINY_JSON_LOADER_H
 #define JIMINY_JSON_LOADER_H
 
+#include "jiminy/core/macros.h"
 #include "jiminy/core/types.h"
 
 
@@ -17,7 +18,7 @@ namespace jiminy
     ///
     /// \details This module depends on jsoncpp library to load all relevant data. It provides
     ///          methods to extract data from a json document.
-    class JsonLoader
+    class JIMINY_DLLAPI JsonLoader
     {
     public:
         explicit JsonLoader(std::shared_ptr<AbstractIODevice> device);
