@@ -1,15 +1,17 @@
 #ifndef SIMULATOR_PYTHON_H
 #define SIMULATOR_PYTHON_H
 
+#include "jiminy/core/macros.h"
+
 
 namespace jiminy::python
 {
-    void exposeForces();
-    void exposeStepperState();
-    void exposeSystemState();
-    void exposeSystem();
-    void exposeEngineMultiRobot();
-    void exposeEngine();
+    void JIMINY_DLLAPI exposeForces();
+    void JIMINY_DLLAPI exposeStepperState();
+    void JIMINY_DLLAPI exposeSystemState();
+    void JIMINY_DLLAPI exposeSystem();
+    void JIMINY_DLLAPI exposeEngineMultiRobot();
+    void JIMINY_DLLAPI exposeEngine();
 }
 
 #endif  // SIMULATOR_PYTHON_H

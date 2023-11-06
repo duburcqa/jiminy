@@ -1,4 +1,3 @@
-#include "jiminy/core/macros.h"
 #include "jiminy/core/io/memory_device.h"
 
 

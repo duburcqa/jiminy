@@ -1,12 +1,13 @@
 #ifndef JIMINY_BASIC_MOTORS_H
 #define JIMINY_BASIC_MOTORS_H
 
+#include "jiminy/core/macros.h"
 #include "jiminy/core/hardware/abstract_motor.h"
 
 
 namespace jiminy
 {
-    class SimpleMotor : public AbstractMotorBase
+    class JIMINY_DLLAPI SimpleMotor : public AbstractMotorBase
     {
     public:
         /// \brief Dictionary gathering the configuration options shared between motors.

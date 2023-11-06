@@ -66,9 +66,6 @@ set(SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/src/engine/engine.cc"
 )
 
-# Export all symbols when building a shared library to enable building extension module
-set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
-
 # Create intermediary object
 add_library(${PROJECT_NAME}-object OBJECT ${SRC})
 

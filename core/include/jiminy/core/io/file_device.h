@@ -3,13 +3,14 @@
 
 #include <string>
 
+#include "jiminy/core/macros.h"
 #include "jiminy/core/io/abstract_io_device.h"
 
 
 namespace jiminy
 {
     /// \brief Class to manipulate a file.
-    class FileDevice : public AbstractIODevice
+    class JIMINY_DLLAPI FileDevice : public AbstractIODevice
     {
     public:
         FileDevice(const std::string & filename);

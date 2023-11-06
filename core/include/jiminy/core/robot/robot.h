@@ -1,8 +1,9 @@
 #ifndef JIMINY_ROBOT_H
 #define JIMINY_ROBOT_H
 
-#include "jiminy/core/robot/model.h"
+#include "jiminy/core/macros.h"
 #include "jiminy/core/types.h"
+#include "jiminy/core/robot/model.h"
 
 
 namespace jiminy
@@ -15,7 +16,7 @@ namespace jiminy
     class MutexLocal;
     class LockGuardLocal;
 
-    class Robot : public Model
+    class JIMINY_DLLAPI Robot : public Model
     {
     public:
         using motorsHolder_t = std::vector<std::shared_ptr<AbstractMotorBase>>;
