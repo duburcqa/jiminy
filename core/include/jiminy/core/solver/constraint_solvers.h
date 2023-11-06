@@ -1,6 +1,7 @@
 #ifndef JIMINY_LCP_SOLVERS_H
 #define JIMINY_LCP_SOLVERS_H
 
+#include "jiminy/core/macros.h"
 #include "jiminy/core/types.h"
 
 
@@ -36,7 +37,7 @@ namespace jiminy
         std::uint_fast8_t nBlocks;
     };
 
-    class AbstractConstraintSolver
+    class JIMINY_DLLAPI AbstractConstraintSolver
     {
     public:
         AbstractConstraintSolver() = default;
@@ -55,7 +56,7 @@ namespace jiminy
                                                  const bool_t & ignoreBounds) = 0;
     };
 
-    class PGSSolver : public AbstractConstraintSolver
+    class JIMINY_DLLAPI PGSSolver : public AbstractConstraintSolver
     {
     public:
         DISABLE_COPY(PGSSolver)

@@ -1,7 +1,7 @@
 #include "json/json.h"
 
-#include "jiminy/core/io/json_writer.h"
 #include "jiminy/core/macros.h"
+#include "jiminy/core/io/json_writer.h"
 
 
 namespace jiminy

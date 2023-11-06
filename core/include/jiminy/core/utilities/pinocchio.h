@@ -60,10 +60,10 @@ namespace jiminy
                                    std::vector<int32_t> & jointsVelocityIdx,
                                    const bool_t & firstJointIdxOnly = false);
 
-    hresult_t isPositionValid(const pinocchio::Model & model,
-                              const Eigen::VectorXd & position,
-                              bool_t & isValid,
-                              const float64_t & tol);
+    hresult_t JIMINY_DLLAPI isPositionValid(const pinocchio::Model & model,
+                                            const Eigen::VectorXd & position,
+                                            bool_t & isValid,
+                                            const float64_t & tol);
 
     hresult_t insertFlexibilityBeforeJointInModel(pinocchio::Model & modelInOut,
                                                   const std::string & childJointNameIn,
@@ -72,11 +72,11 @@ namespace jiminy
     hresult_t insertFlexibilityAtFixedFrameInModel(pinocchio::Model & modelInOut,
                                                    const std::string & frameNameIn);
 
-    hresult_t interpolate(const pinocchio::Model & modelIn,
-                          const Eigen::VectorXd & timesIn,
-                          const Eigen::MatrixXd & positionsIn,
-                          const Eigen::VectorXd & timesOut,
-                          Eigen::MatrixXd & positionsOut);
+    hresult_t JIMINY_DLLAPI interpolate(const pinocchio::Model & modelIn,
+                                        const Eigen::VectorXd & timesIn,
+                                        const Eigen::MatrixXd & positionsIn,
+                                        const Eigen::VectorXd & timesOut,
+                                        Eigen::MatrixXd & positionsOut);
 
     /// \brief Convert a force expressed in the global frame of a specific frame to its parent
     ///        joint frame.
@@ -100,7 +100,7 @@ namespace jiminy
                                 const bool_t & loadMeshes = true,
                                 const bool_t & makeConvexMeshes = false);
 
-    hresult_t buildModelsFromUrdf(
+    hresult_t JIMINY_DLLAPI buildModelsFromUrdf(
         const std::string & urdfPath,
         const bool_t & hasFreeflyer,
         const std::vector<std::string> & meshPackageDirs,

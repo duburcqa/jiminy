@@ -12,7 +12,8 @@ namespace jiminy
     class Model;
 
     /// \brief Generic interface for kinematic constraints.
-    class AbstractConstraintBase : public std::enable_shared_from_this<AbstractConstraintBase>
+    class JIMINY_DLLAPI AbstractConstraintBase : 
+    public std::enable_shared_from_this<AbstractConstraintBase>
     {
         // See AbstractSensor for comment on this.
         friend Model;
@@ -98,7 +99,7 @@ namespace jiminy
     };
 
     template<class T>
-    class AbstractConstraintTpl : public AbstractConstraintBase
+    class JIMINY_DLLAPI AbstractConstraintTpl : public AbstractConstraintBase
     {
     public:
         auto shared_from_this() { return shared_from(this); }

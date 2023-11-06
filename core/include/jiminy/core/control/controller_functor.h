@@ -7,9 +7,10 @@
 #ifndef CONTROLLER_FUNCTOR_H
 #define CONTROLLER_FUNCTOR_H
 
+#include "jiminy/core/macros.h"
+#include "jiminy/core/types.h"
 #include "jiminy/core/robot/robot.h"
 #include "jiminy/core/control/abstract_controller.h"
-#include "jiminy/core/types.h"
 
 namespace jiminy
 {

@@ -1,9 +1,9 @@
 #ifndef JIMINY_ABSTRACT_SENSOR_H
 #define JIMINY_ABSTRACT_SENSOR_H
 
-#include "jiminy/core/telemetry/telemetry_sender.h"
 #include "jiminy/core/macros.h"
 #include "jiminy/core/types.h"
+#include "jiminy/core/telemetry/telemetry_sender.h"
 
 #include <boost/circular_buffer.hpp>
 
@@ -42,7 +42,8 @@ namespace jiminy
     /// \brief Generic interface for any sensor.
     ///
     /// \details Any sensor must inherit from this base class and implement its virtual methods.
-    class AbstractSensorBase : public std::enable_shared_from_this<AbstractSensorBase>
+    class JIMINY_DLLAPI AbstractSensorBase :
+    public std::enable_shared_from_this<AbstractSensorBase>
     {
         /* Using friend to avoid double delegation, which would make public the attach, whereas
            only robot is able to call it.
@@ -311,7 +312,7 @@ namespace jiminy
     };
 
     template<class T>
-    class AbstractSensorTpl : public AbstractSensorBase
+    class JIMINY_DLLAPI AbstractSensorTpl : public AbstractSensorBase
     {
     public:
         DISABLE_COPY(AbstractSensorTpl)

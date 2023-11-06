@@ -19,7 +19,7 @@ namespace jiminy
 
     using constraintsMap_t = static_map_t<std::string, std::shared_ptr<AbstractConstraintBase>>;
 
-    enum class constraintsHolderType_t : uint8_t
+    enum class JIMINY_DLLAPI constraintsHolderType_t : uint8_t
     {
         BOUNDS_JOINTS = 0,
         CONTACT_FRAMES = 1,
@@ -34,7 +34,7 @@ namespace jiminy
          constraintsHolderType_t::USER}
     };
 
-    struct constraintsHolder_t
+    struct JIMINY_DLLAPI constraintsHolder_t
     {
     public:
         void clear();
@@ -118,7 +118,7 @@ namespace jiminy
         constraintsMap_t registered;
     };
 
-    class Model : public std::enable_shared_from_this<Model>
+    class JIMINY_DLLAPI Model : public std::enable_shared_from_this<Model>
     {
     public:
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW

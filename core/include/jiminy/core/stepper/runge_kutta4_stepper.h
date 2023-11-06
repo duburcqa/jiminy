@@ -1,6 +1,7 @@
 #ifndef JIMINY_RUNGE_KUTTA_4_STEPPER_H
 #define JIMINY_RUNGE_KUTTA_4_STEPPER_H
 
+#include "jiminy/core/macros.h"
 #include "jiminy/core/stepper/abstract_runge_kutta_stepper.h"
 
 namespace jiminy
@@ -24,7 +25,7 @@ namespace jiminy
     }
 
     /// \brief 4th-order fixed-step Runge Kutta method
-    class RungeKutta4Stepper : public AbstractRungeKuttaStepper
+    class JIMINY_DLLAPI RungeKutta4Stepper : public AbstractRungeKuttaStepper
     {
     public:
         /// \param[in] f Dynamics function, with signature `a = f(t, q, v)`.

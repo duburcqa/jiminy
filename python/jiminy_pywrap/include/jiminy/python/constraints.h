@@ -1,11 +1,13 @@
 #ifndef CONSTRAINTS_PYTHON_H
 #define CONSTRAINTS_PYTHON_H
 
+#include "jiminy/core/macros.h"
+
 
 namespace jiminy::python
 {
-    void exposeConstraint();
-    void exposeConstraintsHolder();
+    void JIMINY_DLLAPI exposeConstraint();
+    void JIMINY_DLLAPI exposeConstraintsHolder();
 }
 
 #endif  // CONSTRAINTS_PYTHON_H

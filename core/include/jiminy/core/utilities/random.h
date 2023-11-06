@@ -9,28 +9,29 @@ namespace jiminy
 {
     // ************ Random number generator utilities ***************
 
-    void resetRandomGenerators(const std::optional<uint32_t> & seed = std::nullopt);
+    void JIMINY_DLLAPI resetRandomGenerators(const std::optional<uint32_t> & seed = std::nullopt);
 
-    hresult_t getRandomSeed(uint32_t & seed);
+    hresult_t JIMINY_DLLAPI getRandomSeed(uint32_t & seed);
 
-    float64_t randUniform(const float64_t & lo = 0.0, const float64_t & hi = 1.0);
+    float64_t JIMINY_DLLAPI randUniform(const float64_t & lo = 0.0, const float64_t & hi = 1.0);
 
-    float64_t randNormal(const float64_t & mean = 0.0, const float64_t & std = 1.0);
+    float64_t JIMINY_DLLAPI randNormal(const float64_t & mean = 0.0, const float64_t & std = 1.0);
 
-    Eigen::VectorXd randVectorNormal(
+    Eigen::VectorXd JIMINY_DLLAPI randVectorNormal(
         const uint32_t & size, const float64_t & mean, const float64_t & std);
 
-    Eigen::VectorXd randVectorNormal(const uint32_t & size, const float64_t & std);
+    Eigen::VectorXd JIMINY_DLLAPI randVectorNormal(const uint32_t & size, const float64_t & std);
 
-    Eigen::VectorXd randVectorNormal(const Eigen::VectorXd & std);
+    Eigen::VectorXd JIMINY_DLLAPI randVectorNormal(const Eigen::VectorXd & std);
 
-    Eigen::VectorXd randVectorNormal(const Eigen::VectorXd & mean, const Eigen::VectorXd & std);
+    Eigen::VectorXd JIMINY_DLLAPI randVectorNormal(
+        const Eigen::VectorXd & mean, const Eigen::VectorXd & std);
 
-    void shuffleIndices(std::vector<uint32_t> & vector);
+    void JIMINY_DLLAPI shuffleIndices(std::vector<uint32_t> & vector);
 
     // ************ Continuous 1D Perlin processes ***************
 
-    class PeriodicGaussianProcess
+    class JIMINY_DLLAPI PeriodicGaussianProcess
     {
     public:
         DISABLE_COPY(PeriodicGaussianProcess)
@@ -67,7 +68,7 @@ namespace jiminy
 
     /// \see Based on "Smooth random functions, random ODEs, and Gaussianprocesses":
     ///      https://hal.inria.fr/hal-01944992/file/random_revision2.pdf */
-    class PeriodicFourierProcess
+    class JIMINY_DLLAPI PeriodicFourierProcess
     {
     public:
         DISABLE_COPY(PeriodicFourierProcess)
@@ -104,7 +105,7 @@ namespace jiminy
         Eigen::MatrixXd sinMat_;
     };
 
-    class AbstractPerlinNoiseOctave
+    class JIMINY_DLLAPI AbstractPerlinNoiseOctave
     {
     public:
         AbstractPerlinNoiseOctave(const float64_t & wavelength, const float64_t & scale);
@@ -133,7 +134,7 @@ namespace jiminy
         float64_t shift_;
     };
 
-    class RandomPerlinNoiseOctave : public AbstractPerlinNoiseOctave
+    class JIMINY_DLLAPI RandomPerlinNoiseOctave : public AbstractPerlinNoiseOctave
     {
     public:
         RandomPerlinNoiseOctave(const float64_t & wavelength, const float64_t & scale);
@@ -149,7 +150,7 @@ namespace jiminy
         uint32_t seed_;
     };
 
-    class PeriodicPerlinNoiseOctave : public AbstractPerlinNoiseOctave
+    class JIMINY_DLLAPI PeriodicPerlinNoiseOctave : public AbstractPerlinNoiseOctave
     {
     public:
         PeriodicPerlinNoiseOctave(
@@ -188,7 +189,7 @@ namespace jiminy
     ///      https://github.com/bradykieffer/SimplexNoise/blob/master/simplexnoise/noise.py
     ///      https://github.com/sol-prog/Perlin_Noise/blob/master/PerlinNoise.cpp
     ///      https://github.com/ashima/webgl-noise/blob/master/src/classicnoise2D.glsl
-    class AbstractPerlinProcess
+    class JIMINY_DLLAPI AbstractPerlinProcess
     {
     public:
         DISABLE_COPY(AbstractPerlinProcess)
@@ -222,7 +223,7 @@ namespace jiminy
         float64_t grad_;
     };
 
-    class RandomPerlinProcess : public AbstractPerlinProcess
+    class JIMINY_DLLAPI RandomPerlinProcess : public AbstractPerlinProcess
     {
     public:
         RandomPerlinProcess(const float64_t & wavelength,
@@ -256,19 +257,21 @@ namespace jiminy
 
     // ************ Random terrain generators ***************
 
-    heightmapFunctor_t randomTileGround(const Eigen::Vector2d & size,
-                                        const float64_t & heightMax,
-                                        const Eigen::Vector2d & interpDelta,
-                                        const uint32_t & sparsity,
-                                        const float64_t & orientation,
-                                        const uint32_t & seed);
+    heightmapFunctor_t JIMINY_DLLAPI randomTileGround(const Eigen::Vector2d & size,
+                                                      const float64_t & heightMax,
+                                                      const Eigen::Vector2d & interpDelta,
+                                                      const uint32_t & sparsity,
+                                                      const float64_t & orientation,
+                                                      const uint32_t & seed);
 
-    heightmapFunctor_t sumHeightmap(const std::vector<heightmapFunctor_t> & heightmaps);
-    heightmapFunctor_t mergeHeightmap(const std::vector<heightmapFunctor_t> & heightmaps);
+    heightmapFunctor_t JIMINY_DLLAPI sumHeightmap(
+        const std::vector<heightmapFunctor_t> & heightmaps);
+    heightmapFunctor_t JIMINY_DLLAPI mergeHeightmap(
+        const std::vector<heightmapFunctor_t> & heightmaps);
 
-    Eigen::MatrixXd discretizeHeightmap(const heightmapFunctor_t & heightmap,
-                                        const float64_t & gridSize,
-                                        const float64_t & gridUnit);
+    Eigen::MatrixXd JIMINY_DLLAPI discretizeHeightmap(const heightmapFunctor_t & heightmap,
+                                                      const float64_t & gridSize,
+                                                      const float64_t & gridUnit);
 }
 
 #endif  // JIMINY_RANDOM_H

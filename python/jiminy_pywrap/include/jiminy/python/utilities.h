@@ -3,8 +3,8 @@
 
 #include <functional>
 
-#include "jiminy/core/types.h"
 #include "jiminy/core/macros.h"
+#include "jiminy/core/types.h"
 
 #include <boost/mpl/vector.hpp>
 

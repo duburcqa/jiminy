@@ -4,6 +4,7 @@
 #include <string>
 #include <unordered_map>
 
+#include "jiminy/core/macros.h"
 #include "jiminy/core/types.h"
 
 
@@ -14,8 +15,11 @@ namespace jiminy
     const std::string DEFAULT_TELEMETRY_NAMESPACE("Uninitialized Object");
 
     /// \brief Class to inherit for sending telemetry data.
-    class TelemetrySender
+    class JIMINY_DLLAPI TelemetrySender
     {
+    public:
+        DISABLE_COPY(TelemetrySender)
+
     public:
         template<typename T>
         using telemetry_data_pair_t = std::pair<const T * const, T * const>;
@@ -24,6 +28,7 @@ namespace jiminy
         using telemetry_data_registry_t = std::vector<std::variant<telemetry_data_pair_t<T>...>>;
 
         explicit TelemetrySender();
+        explicit TelemetrySender(TelemetrySender &&) = default;
         ~TelemetrySender() = default;
 
         /// \brief Configure the object.

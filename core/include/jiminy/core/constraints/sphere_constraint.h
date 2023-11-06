@@ -3,6 +3,7 @@
 
 #include <memory>
 
+#include "jiminy/core/macros.h"
 #include "jiminy/core/types.h"
 #include "jiminy/core/constraints/abstract_constraint.h"
 
@@ -15,7 +16,7 @@ namespace jiminy
     ///
     /// \details Given a frame to represent the sphere center, this class constrains it to move
     ///          like it were rolling without slipping on a flat (not necessarily level) surface.
-    class SphereConstraint : public AbstractConstraintTpl<SphereConstraint>
+    class JIMINY_DLLAPI SphereConstraint : public AbstractConstraintTpl<SphereConstraint>
     {
     public:
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW

@@ -34,7 +34,7 @@ namespace jiminy
         std::size_t num_;
     };
 
-    class AbstractMotorBase : public std::enable_shared_from_this<AbstractMotorBase>
+    class JIMINY_DLLAPI AbstractMotorBase : public std::enable_shared_from_this<AbstractMotorBase>
     {
         /* AKA AbstractSensorBase */
         friend Robot;
