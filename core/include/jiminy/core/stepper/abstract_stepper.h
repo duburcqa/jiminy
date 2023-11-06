@@ -3,6 +3,7 @@
 
 #include <functional>
 
+#include "jiminy/core/macros.h"
 #include "jiminy/core/types.h"
 #include "jiminy/core/stepper/lie_group.h"
 
@@ -22,7 +23,7 @@ namespace jiminy
     ///          derivative of the configuration q. This means that classical stepper
     ///          implementations cannot be used as is: this class thus defines an interface for
     ///          implementing variable-step numerical solvers on this type of system.
-    class AbstractStepper
+    class JIMINY_DLLAPI AbstractStepper
     {
     public:
         /// \param[in] f Dynamics function, with signature `a = f(t, q, v)`.

@@ -3,6 +3,7 @@
 
 #include <memory>
 
+#include "jiminy/core/macros.h"
 #include "jiminy/core/types.h"
 #include "jiminy/core/constraints/abstract_constraint.h"
 
@@ -12,7 +13,7 @@ namespace jiminy
     class Model;
 
     /// \brief This class implements the constraint for fixing a given frame wrt world.
-    class FixedFrameConstraint : public AbstractConstraintTpl<FixedFrameConstraint>
+    class JIMINY_DLLAPI FixedFrameConstraint : public AbstractConstraintTpl<FixedFrameConstraint>
     {
     public:
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW

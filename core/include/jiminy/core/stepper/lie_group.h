@@ -10,9 +10,9 @@
 
 #include "pinocchio/algorithm/joint-configuration.hpp"  // `pinocchio::integrate`, `pinocchio::difference`
 
-#include "jiminy/core/robot/robot.h"
 #include "jiminy/core/macros.h"
 #include "jiminy/core/types.h"
+#include "jiminy/core/robot/robot.h"
 
 
 namespace Eigen

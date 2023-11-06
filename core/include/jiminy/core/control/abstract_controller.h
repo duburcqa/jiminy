@@ -1,9 +1,9 @@
 #ifndef JIMINY_ABSTRACT_CONTROLLER_H
 #define JIMINY_ABSTRACT_CONTROLLER_H
 
-#include "jiminy/core/telemetry/telemetry_sender.h"
-#include "jiminy/core/types.h"
 #include "jiminy/core/macros.h"
+#include "jiminy/core/types.h"
+#include "jiminy/core/telemetry/telemetry_sender.h"
 
 
 namespace jiminy
@@ -19,7 +19,7 @@ namespace jiminy
     ///
     /// \details Any controller must inherit from this base class and implement its virtual
     ///          methods. Polymorphism is used to call the actual implementations.
-    class AbstractController
+    class JIMINY_DLLAPI AbstractController
     {
     public:
         /// \brief Dictionary gathering the configuration options shared between controllers.

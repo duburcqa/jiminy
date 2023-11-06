@@ -3,6 +3,7 @@
 
 #include <deque>
 
+#include "jiminy/core/macros.h"
 #include "jiminy/core/io/memory_device.h"
 
 
@@ -11,7 +12,7 @@ namespace jiminy
     class TelemetryData;
 
     /// \class This class is responsible of writing recorded data to devices.
-    class TelemetryRecorder
+    class JIMINY_DLLAPI TelemetryRecorder
     {
     public:
         DISABLE_COPY(TelemetryRecorder)

@@ -401,6 +401,23 @@ namespace jiminy
         return result;
     }
 
+#if defined _WIN32 || defined __CYGWIN__
+// On Microsoft Windows, use dllimport and dllexport to tag symbols
+#    define JIMINY_DLLIMPORT __declspec(dllimport)
+#    define JIMINY_DLLEXPORT __declspec(dllexport)
+#else
+// On Linux, for GCC >= 4, tag symbols using GCC extension
+#    define JIMINY_DLLIMPORT __attribute__ ((visibility("default")))
+#    define JIMINY_DLLEXPORT __attribute__ ((visibility("default")))
+#endif
+
+// Define DLLAPI to import or export depending on whether one is building or using the library
+#ifdef EXPORT_SYMBOLS
+#    define JIMINY_DLLAPI JIMINY_DLLEXPORT
+#else
+#    define JIMINY_DLLAPI JIMINY_DLLIMPORT
+#endif
+
 #define DISABLE_COPY(className)                  \
     className(const className & other) = delete; \
     className & operator=(const className & other) = delete;

@@ -1,6 +1,5 @@
-#include "jiminy/core/robot/robot.h"
-#include "jiminy/core/macros.h"
 #include "jiminy/core/types.h"
+#include "jiminy/core/robot/robot.h"
 
 #include "jiminy/core/constraints/joint_constraint.h"
 

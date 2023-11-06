@@ -87,6 +87,9 @@ if (MSVC)
     set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MDd")
 endif()
 
+# Export symbols to enable building extension module
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DEXPORT_SYMBOLS")
+
 # Sub-projects
 add_subdirectory(soup)
 add_subdirectory(core)

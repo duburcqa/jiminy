@@ -1,5 +1,4 @@
 #include "jiminy/core/robot/robot.h"
-#include "jiminy/core/macros.h"
 
 #include "jiminy/core/constraints/abstract_constraint.h"
 

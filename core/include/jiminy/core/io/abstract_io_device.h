@@ -3,6 +3,7 @@
 
 #include <memory>
 
+#include "jiminy/core/macros.h"
 #include "jiminy/core/types.h"
 
 
@@ -49,7 +50,7 @@ namespace jiminy
 
     /// \brief Base interface class to handle all possibles I/O that can act as a stream (file /
     ///        TCP socket / pipe and so on).
-    class AbstractIODevice
+    class JIMINY_DLLAPI AbstractIODevice
     {
     public:
         AbstractIODevice();

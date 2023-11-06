@@ -1,12 +1,13 @@
 #ifndef JIMINY_ENGINE_H
 #define JIMINY_ENGINE_H
 
+#include "jiminy/core/macros.h"
 #include "jiminy/core/engine/engine_multi_robot.h"
 
 
 namespace jiminy
 {
-    class Engine : public EngineMultiRobot
+    class JIMINY_DLLAPI Engine : public EngineMultiRobot
     {
     public:
         DISABLE_COPY(Engine)

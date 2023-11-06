@@ -29,7 +29,7 @@ namespace jiminy
     const std::string START_DATA("StartData");
 
     /// \brief This class manages the data structures of the telemetry.
-    class TelemetryData
+    class JIMINY_DLLAPI TelemetryData
     {
     public:
         DISABLE_COPY(TelemetryData)
