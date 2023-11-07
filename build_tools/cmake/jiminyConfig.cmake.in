@@ -3,7 +3,7 @@ if(TARGET jiminy::core)
     return()
 endif()
 
-if (NOT CMAKE_CXX_COMPILER_ID STREQUAL @CMAKE_CXX_COMPILER_ID@ OR
+if (NOT CMAKE_CXX_COMPILER_ID STREQUAL "@CMAKE_CXX_COMPILER_ID@" OR
         CMAKE_CXX_COMPILER_VERSION VERSION_LESS @CMAKE_CXX_COMPILER_VERSION@)
     message(WARNING
         "Jiminy was compiled using @CMAKE_CXX_COMPILER_ID@ @CMAKE_CXX_COMPILER_VERSION@.\n"
@@ -132,7 +132,8 @@ else()
     list(APPEND jiminy_OPTIONS -fPIC)
 endif()
 if(MSVC)
-    list(APPEND jiminy_OPTIONS /EHsc /bigobj /Zc:preprocessor /Zc:__cplusplus /permissive- /wd4996 /wd4554 /wd4005)
+    list(APPEND jiminy_OPTIONS /EHsc /bigobj /Gy /Zc:inline /Zc:preprocessor /Zc:__cplusplus /permissive- /wd4996 /wd4554 /wd4005)
+    list(APPEND jiminy_OPTIONS "/MD$<$<CONFIG:Debug>:d>")
 endif()
 
 # Define imported target
@@ -167,4 +168,4 @@ if(WIN32)
 endif()
 
 # Display import is success
-message(STATUS "Found jiminy ('${jiminy_VERSION}'): ${jiminy_INCLUDE_DIRS} (${jiminy_CORE_LIBRARY})")
+message(STATUS "Found jiminy ('@BUILD_VERSION'): ${jiminy_INCLUDE_DIRS} (${jiminy_CORE_LIBRARY})")

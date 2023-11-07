@@ -1959,7 +1959,7 @@ namespace jiminy
         // Compute the rigid state based on the flexible state
         int32_t idxRigid = 0;
         int32_t idxFlex = 0;
-        for (; idxFlex < pncModelFlexibleOrig_.njoints; ++idxFlex)
+        for (; idxRigid < pncModelOrig_.njoints; ++idxFlex)
         {
             const std::string & jointRigidName = pncModelOrig_.names[idxRigid];
             const std::string & jointFlexName = pncModelFlexibleOrig_.names[idxFlex];
@@ -2039,7 +2039,7 @@ namespace jiminy
         // Compute the rigid state based on the flexible state
         int32_t idxRigid = 0;
         int32_t idxFlex = 0;
-        for (; idxFlex < pncModelFlexibleOrig_.njoints; ++idxRigid, ++idxFlex)
+        for (; idxRigid < pncModelOrig_.njoints; ++idxFlex)
         {
             const std::string & jointRigidName = pncModelOrig_.names[idxRigid];
             const std::string & jointFlexName = pncModelFlexibleOrig_.names[idxFlex];

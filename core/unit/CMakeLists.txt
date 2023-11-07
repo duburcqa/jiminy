@@ -36,6 +36,8 @@ target_include_directories(${PROJECT_NAME} SYSTEM PRIVATE
 )
 target_link_libraries(${PROJECT_NAME} gtest::gtest gtest::gtest_main gtest::gmock gtest::gmock_main)
 target_link_libraries(${PROJECT_NAME} "${CMAKE_THREAD_LIBS_INIT}")
+
+# Configure MSVC multithreading library to link against
 set_property(TARGET ${PROJECT_NAME} PROPERTY
     MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL"
 )

@@ -93,6 +93,11 @@ if (urdfdom_VERSION) # Assume version strictly older than 0.4.0 if urdfdom versi
     endif()
 endif()
 
+# Configure MSVC multithreading library to link against
+set_property(TARGET ${PROJECT_NAME}-object PROPERTY
+    MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL"
+)
+
 # Boost-specific definitions. It must be defined before pinocchio does it,
 # otherwise it messes with LTO.
 list(APPEND CORE_DEFINITIONS
@@ -164,10 +169,19 @@ if(BUILD_EXAMPLES)
     add_subdirectory(examples)
 endif()
 
-# Specialize jiminy core configuration file
-set(JIMINY_CONFIG_IN ${CMAKE_SOURCE_DIR}/build_tools/cmake/jiminyConfig.cmake.in)
-set(JIMINY_CONFIG_OUT ${CMAKE_BINARY_DIR}/cmake/jiminyConfig.cmake)
+# Specialize jiminy core configuration file and install it
+set(JIMINY_CONFIG_IN "${CMAKE_SOURCE_DIR}/build_tools/cmake/jiminyConfig.cmake.in")
+set(JIMINY_CONFIG_OUT "${CMAKE_BINARY_DIR}/cmake/jiminyConfig.cmake")
 configure_file(${JIMINY_CONFIG_IN} ${JIMINY_CONFIG_OUT} @ONLY)
+install(FILES "${JIMINY_CONFIG_OUT}"
+        DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/jiminy"
+)
+
+# Install all cmake configuration files
+file(GLOB FIND_PACKAGE_EXTERNALS "${CMAKE_SOURCE_DIR}/build_tools/cmake/Find*.cmake")
+install(FILES "${JIMINY_CONFIG_OUT}" ${FIND_PACKAGE_EXTERNALS}
+        DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/jiminy"
+)
 
 # Install C++ headers
 install(DIRECTORY "include/${LIBRARY_NAME}"
