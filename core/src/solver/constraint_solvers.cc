@@ -48,7 +48,7 @@ namespace jiminy
                 {
                 case constraintsHolderType_t::BOUNDS_JOINTS:
                     // The joint is blocked in only one direction
-                    block.lo = 0;
+                    block.lo = 0.0;
                     block.hi = INF;
                     block.fIdx[0] = 0;
                     block.fSize = 1;
@@ -58,7 +58,7 @@ namespace jiminy
                 case constraintsHolderType_t::CONTACT_FRAMES:
                 case constraintsHolderType_t::COLLISION_BODIES:
                     // Non-penetration normal force
-                    block.lo = 0;
+                    block.lo = 0.0;
                     block.hi = INF;
                     block.fIdx[0] = 2;
                     block.fSize = 1;
