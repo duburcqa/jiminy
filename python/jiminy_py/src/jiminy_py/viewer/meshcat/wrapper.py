@@ -39,6 +39,7 @@ if interactive_mode() >= 2:
         logging.warning(
             "ipykernel version 7 detected. The viewer works optimally with "
             " ipykernel 5 or 6. Revert to old version in case of issues.")
+    from comm import BaseComm
 
     class CommProcessor:
         """Re-implementation of ipykernel.kernelbase.do_one_iteration to only
@@ -270,7 +271,7 @@ class CommManager:
             self.__comm_socket.send(f"close:{comm_id}".encode())
 
     def __comm_register(self,
-                        comm: 'ipykernel.comm.Comm',  # noqa
+                        comm: 'BaseComm',  # noqa
                         msg: Dict[str, Any]  # pylint: disable=unused-argument
                         ) -> None:
         # There is a major limitation of using `comm.on_msg` callback

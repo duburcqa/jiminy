@@ -49,6 +49,7 @@ jobs:
 
         PYTHON_EXECUTABLE="${pythonLocation}/bin/python"
         echo "PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE}" >> $GITHUB_ENV
+
         echo "RootDir=${GITHUB_WORKSPACE}" >> $GITHUB_ENV
         echo "InstallDir=${GITHUB_WORKSPACE}/install" >> $GITHUB_ENV
 

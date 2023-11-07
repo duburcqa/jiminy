@@ -11,8 +11,7 @@ jobs:
   build-test-and-deploy-doc-ubuntu:
     name: >-
       (${{ matrix.os }}) (${{ matrix.BUILD_TYPE }}) (${{ matrix.COMPILER }}, ${{ matrix.GENERATOR }})
-      Easy install the dependencies. Build the project and run the unit tests.
-      Generate and deploy the documentation.
+      Easy install the dependencies. Build the project and run the unit tests. Generate and deploy the documentation.
     runs-on: ${{ matrix.os }}
 
     strategy:
@@ -67,8 +66,6 @@ jobs:
         fi
 
         echo "PYTHON_EXECUTABLE=/usr/bin/python3" >> $GITHUB_ENV
-        echo "PYTHON_INCLUDE_DIRS=$(${PYTHON_EXECUTABLE} -c \
-          'import sysconfig as sysconfig; print(sysconfig.get_path("include"))')" >> $GITHUB_ENV
 
         echo "RootDir=${GITHUB_WORKSPACE}" >> $GITHUB_ENV
         echo "InstallDir=${GITHUB_WORKSPACE}/install" >> $GITHUB_ENV
@@ -103,7 +100,7 @@ jobs:
         cmake "$RootDir" -G "${{ matrix.GENERATOR }}" -DCMAKE_EXE_LINKER_FLAGS="${{ matrix.LINKER_FLAGS }}" \
               -DCMAKE_PREFIX_PATH="/opt/openrobots/" -DCMAKE_INSTALL_PREFIX="$InstallDir" \
               -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DBoost_NO_SYSTEM_PATHS=OFF \
-              -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" -DPYTHON_INCLUDE_DIR="${PYTHON_INCLUDE_DIRS}" \
+              -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
               -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON \
               -DCMAKE_BUILD_TYPE="${{ matrix.BUILD_TYPE }}"
         if [[ "${{ matrix.GENERATOR }}" == 'Ninja' ]] ; then
@@ -123,8 +120,7 @@ jobs:
         cd "$RootDir/build"
         cmake "$RootDir" -G "${{ matrix.GENERATOR }}" -DCMAKE_EXE_LINKER_FLAGS="${{ matrix.LINKER_FLAGS }}" \
               -DCMAKE_PREFIX_PATH="/opt/openrobots/" -DCMAKE_INSTALL_PREFIX="$InstallDir" \
-              -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON \
-              -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" -DPYTHON_INCLUDE_DIR="${PYTHON_INCLUDE_DIRS}" \
+              -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
               -DCMAKE_BUILD_TYPE="${{ matrix.BUILD_TYPE }}"
         if [[ "${{ matrix.GENERATOR }}" == 'Ninja' ]] ; then
           ninja install
@@ -141,6 +137,12 @@ jobs:
 
         cd "$RootDir/python/jiminy_py/unit_py"
         "${PYTHON_EXECUTABLE}" -m unittest discover -v
+
+    - name: Run unit tests for gym_jiminy
+      if: matrix.BUILD_TYPE != 'Release'
+      run: |
+        cd "$RootDir/python/gym_jiminy/unit_py"
+        "${PYTHON_EXECUTABLE}" -m unittest test_pipeline_control.py test_pipeline_design.py -v
 
     - name: Run unit tests for gym_jiminy
       if: matrix.BUILD_TYPE == 'Release'

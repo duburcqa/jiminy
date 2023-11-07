@@ -6,12 +6,18 @@ project(hdf5_external)
 
 # Define path of the generated zlib library
 if(WIN32)
-     set(zlib_BUILD_LIB_PATH "<BINARY_DIR>/Release/zlibstatic.lib")
-     set(zlib_PATH "${CMAKE_INSTALL_PREFIX}/lib/zlibstatic.lib")
+     set(zlib_BUILD_LIB_PATH "<BINARY_DIR>/$<CONFIG>/zlibstatic$<$<CONFIG:Debug>:d>.lib")
+     set(zlib_INSTALL_LIB_PATH "${CMAKE_INSTALL_PREFIX}/lib/$<CONFIG>/zlibstatic$<$<CONFIG:Debug>:d>.lib")
+     set(zlib_PATH_Release "${CMAKE_INSTALL_PREFIX}/lib/Release/zlibstatic.lib")
+     set(zlib_PATH_Debug "${CMAKE_INSTALL_PREFIX}/lib/Debug/zlibstaticd.lib")
 else()
-     set(zlib_BUILD_LIB_PATH "<BINARY_DIR>/libz.a")
-     set(zlib_PATH "${CMAKE_INSTALL_PREFIX}/lib/libz.a")
-     set(zlib_NINJA BUILD_BYPRODUCTS "${zlib_PATH}")
+     set(zlib_BUILD_LIB_PATH "<BINARY_DIR>/libz$<$<CONFIG:Debug>:d>.a")
+     set(zlib_INSTALL_LIB_PATH "${CMAKE_INSTALL_PREFIX}/lib/libz$<$<CONFIG:Debug>:d>.a")
+     set(zlib_PATH_Release "${CMAKE_INSTALL_PREFIX}/lib/libz.a")
+     set(zlib_PATH_Debug "${CMAKE_INSTALL_PREFIX}/lib/libzd.a")
+endif()
+if(CMAKE_GENERATOR STREQUAL "Ninja")
+     set(zlib_NINJA BUILD_BYPRODUCTS "${zlib_PATH_${CMAKE_BUILD_TYPE}}")
 endif()
 
 # Download, build and install zlib.
@@ -20,21 +26,26 @@ endif()
 # installed manually and set add dependency of hdf5
 externalproject_add(zlib_external
      GIT_REPOSITORY    https://github.com/madler/zlib.git
-     GIT_TAG           v1.2.11
+     GIT_TAG           v1.3
      GIT_SHALLOW       TRUE
      GIT_CONFIG        advice.detachedHead=false;${GIT_CREDENTIAL_EXTERNAL}
 
      CMAKE_ARGS
           -DSKIP_INSTALL_FILES=ON  # Disable install of manual and pkgconfig files
-          -DSKIP_INSTALL_LIBRARIES=ON  # Do not install libraries automatically. It will be handled manually to avoid installing shared libs
+          -DSKIP_INSTALL_LIBRARIES=ON  # Install manually to skip shared libs
+          -DCMAKE_DEBUG_POSTFIX=d  # Force adding "d" suffix for config debug
           -DBUILD_SHARED_LIBS=OFF
           -DCMAKE_POSITION_INDEPENDENT_CODE=ON
-          -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}
+          -DCMAKE_MSVC_RUNTIME_LIBRARY:STRING=${CMAKE_MSVC_RUNTIME_LIBRARY}
+          -DCMAKE_TOOLCHAIN_FILE:PATH=${CMAKE_TOOLCHAIN_FILE}
           -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_INSTALL_PREFIX}
           -DCMAKE_C_FLAGS:STRING=${CMAKE_CXX_FLAGS_EXTERNAL}
           -DCMAKE_C_FLAGS_DEBUG:STRING=${CMAKE_CXX_FLAGS_DEBUG_EXTERNAL}
           -DCMAKE_C_FLAGS_RELEASE:STRING=${CMAKE_CXX_FLAGS_RELEASE}
           -DCMAKE_C_FLAGS_RELWITHDEBINFO:STRING=${CMAKE_CXX_FLAGS_RELWITHDEBINFO}
+          -DCMAKE_SHARED_LINKER_FLAGS_DEBUG:STRING=${CMAKE_SHARED_LINKER_FLAGS_DEBUG}
+          -DCMAKE_SHARED_LINKER_FLAGS_RELEASE:STRING=${CMAKE_SHARED_LINKER_FLAGS_RELEASE}
+          -DCMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO:STRING=${CMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO}
           -Wno-dev  # Silent Cmake warnings about deprecated support of Cmake < 2.8.12
           ${EXTERNALPROJECT_OSX_CONFIG}
           ${EXTERNALPROJECT_BUILD_TYPE_CMD}
@@ -48,30 +59,30 @@ externalproject_add(zlib_external
 
 ExternalProject_Add_Step(
      zlib_external zlib_install_static_only
-     COMMENT "Manually installing only static library"
+     COMMENT "Manually installing static zlib library"
      DEPENDEES install
-     COMMAND ${CMAKE_COMMAND} -E copy ${zlib_BUILD_LIB_PATH} ${zlib_PATH}
+     COMMAND ${CMAKE_COMMAND} -E copy_if_different ${zlib_BUILD_LIB_PATH} ${zlib_INSTALL_LIB_PATH}
 )
 
 # Define paths of the generated hdf5 libraries
 if(WIN32)
      set(libhdf5_PATH_Release "${CMAKE_INSTALL_PREFIX}/lib/libhdf5.lib")
-     set(libhdf5_PATH_Debug "${CMAKE_INSTALL_PREFIX}/lib/libhdf5.lib")
+     set(libhdf5_PATH_Debug "${CMAKE_INSTALL_PREFIX}/lib/libhdf5_D.lib")
      set(libhdf5_cpp_PATH_Release "${CMAKE_INSTALL_PREFIX}/lib/libhdf5_cpp.lib")
-     set(libhdf5_cpp_PATH_Debug "${CMAKE_INSTALL_PREFIX}/lib/libhdf5_cpp.lib")
+     set(libhdf5_cpp_PATH_Debug "${CMAKE_INSTALL_PREFIX}/lib/libhdf5_cpp_D.lib")
 else()
      set(libhdf5_PATH_Release "${CMAKE_INSTALL_PREFIX}/lib/libhdf5.a")
      set(libhdf5_PATH_Debug "${CMAKE_INSTALL_PREFIX}/lib/libhdf5_debug.a")
-     set(libhdf5_NINJA BUILD_BYPRODUCTS "${libhdf5_PATH_${CMAKE_BUILD_TYPE}}")
      set(libhdf5_cpp_PATH_Release "${CMAKE_INSTALL_PREFIX}/lib/libhdf5_cpp.a")
      set(libhdf5_cpp_PATH_Debug "${CMAKE_INSTALL_PREFIX}/lib/libhdf5_cpp_debug.a")
+endif()
+if(CMAKE_GENERATOR STREQUAL "Ninja")
+     set(libhdf5_NINJA BUILD_BYPRODUCTS "${libhdf5_PATH_${CMAKE_BUILD_TYPE}}")
      set(libhdf5_cpp_NINJA BUILD_BYPRODUCTS "${libhdf5_cpp_PATH_${CMAKE_BUILD_TYPE}}")
 endif()
 
-# Pick different version of HDF5 depending on the platform:
-# macOS Universal Binaries is supported since 2021/02/07, github-311.
-
 # Download, build and install hdf5.
+# macOS Universal Binaries is supported since 2021/02/07, github-311.
 externalproject_add(${PROJECT_NAME}
      GIT_REPOSITORY    https://github.com/HDFGroup/hdf5.git
      GIT_TAG           hdf5-1_14_0
@@ -108,9 +119,6 @@ externalproject_add(${PROJECT_NAME}
           -DHDF5_ALLOW_EXTERNAL_SUPPORT:STRING=NO
           -DHDF5_ENABLE_Z_LIB_SUPPORT=ON
           -DHDF5_ENABLE_SZIP_SUPPORT=OFF
-          -DZLIB_PACKAGE_NAME:STRING=NOT_FOUND  # Hack to avoid finding some zlib config files already installed and not skipping find_package(ZLIB)
-          -DZLIB_ROOT:PATH=${CMAKE_INSTALL_PREFIX}
-          -DZLIB_LIBRARY:PATH=${zlib_PATH}  # Using ZLIB_ROOT only is finding the shared lib instead of the static one
           -DHDF5_ENABLE_SYMBOLS=OFF
           -DHDF5_ENABLE_OPTIMIZATION=ON
           -DBUILD_TESTING=OFF
@@ -118,7 +126,11 @@ externalproject_add(${PROJECT_NAME}
           -DBUILD_SHARED_LIBS=OFF
           -DBUILD_STATIC_EXECS=OFF
           -DCMAKE_POSITION_INDEPENDENT_CODE=ON
-          -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}
+          -DZLIB_PACKAGE_NAME:STRING=NOT_FOUND  # Hack to avoid finding some zlib config files already installed and not skipping find_package(ZLIB)
+          -DZLIB_ROOT:PATH=${CMAKE_INSTALL_PREFIX}
+          -DZLIB_LIBRARY:PATH=${zlib_INSTALL_LIB_PATH}  # Using ZLIB_ROOT only is finding the shared lib instead of the static one
+          -DCMAKE_MSVC_RUNTIME_LIBRARY:STRING=${CMAKE_MSVC_RUNTIME_LIBRARY}
+          -DCMAKE_TOOLCHAIN_FILE:PATH=${CMAKE_TOOLCHAIN_FILE}
           -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_INSTALL_PREFIX}
           -DCMAKE_C_FLAGS:STRING=${CMAKE_CXX_FLAGS_EXTERNAL}
           -DCMAKE_C_FLAGS_DEBUG:STRING=${CMAKE_CXX_FLAGS_DEBUG_EXTERNAL}
@@ -128,6 +140,9 @@ externalproject_add(${PROJECT_NAME}
           -DCMAKE_CXX_FLAGS_DEBUG:STRING=${CMAKE_CXX_FLAGS_DEBUG_EXTERNAL}
           -DCMAKE_CXX_FLAGS_RELEASE:STRING=${CMAKE_CXX_FLAGS_RELEASE}
           -DCMAKE_CXX_FLAGS_RELWITHDEBINFO:STRING=${CMAKE_CXX_FLAGS_RELWITHDEBINFO}
+          -DCMAKE_SHARED_LINKER_FLAGS_DEBUG:STRING=${CMAKE_SHARED_LINKER_FLAGS_DEBUG}
+          -DCMAKE_SHARED_LINKER_FLAGS_RELEASE:STRING=${CMAKE_SHARED_LINKER_FLAGS_RELEASE}
+          -DCMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO:STRING=${CMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO}
           ${EXTERNALPROJECT_OSX_CONFIG}
           ${EXTERNALPROJECT_BUILD_TYPE_CMD}
 
@@ -144,7 +159,9 @@ externalproject_add(${PROJECT_NAME}
 # Import the generated libraries as targets
 add_library(hdf5::zlib STATIC IMPORTED GLOBAL)
 set_target_properties(hdf5::zlib PROPERTIES
-     IMPORTED_LOCATION ${zlib_PATH}
+     IMPORTED_CONFIGURATIONS "Debug;Release"
+     IMPORTED_LOCATION ${zlib_PATH_Release}
+     IMPORTED_LOCATION_DEBUG ${zlib_PATH_Debug}
 )
 add_library(hdf5::hdf5 STATIC IMPORTED GLOBAL)
 set_target_properties(hdf5::hdf5 PROPERTIES
