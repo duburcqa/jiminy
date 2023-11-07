@@ -27,9 +27,9 @@ jobs:
       matrix:
         PYTHON_VERSION: ['3.8', '3.9', '3.10', '3.11']
         BUILD_TYPE: ['Release']
-        #include:
-        #  - PYTHON_VERSION: '3.11'
-        #    BUILD_TYPE: 'Debug'
+        include:
+          - PYTHON_VERSION: '3.10'
+            BUILD_TYPE: 'Debug'
 
     #####################################################################################
 
@@ -188,6 +188,8 @@ jobs:
     - name: Run unit tests for gym_jiminy
       if: matrix.BUILD_TYPE != 'Release'
       run: |
+        $RootDir = "${env:GITHUB_WORKSPACE}/workspace" -replace '\\', '/'
+
         Set-Location -Path "$RootDir/python/gym_jiminy/unit_py"
         python -m unittest test_pipeline_control.py test_pipeline_design.py -v
 
