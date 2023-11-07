@@ -1419,11 +1419,15 @@ namespace jiminy
                             {
                                 return;
                             }
+                            {
+                                auto & jointConstraint = static_cast<JointConstraint &>(*constraint.get());
+                                jointConstraint.setRotationDir(false);
+                            }
                             [[fallthrough]];
                         case constraintsHolderType_t::CONTACT_FRAMES:
                         case constraintsHolderType_t::COLLISION_BODIES:
                             constraint->enable();
-                            [[fallthrough]];
+                            break;
                         case constraintsHolderType_t::USER:
                         default:
                             break;
