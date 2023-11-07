@@ -23,11 +23,11 @@ fi
 
 ### Set common CMAKE_C/CXX_FLAGS
 if [ "${BUILD_TYPE}" == "Release" ]; then
-  CMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -O3 -DNDEBUG"
+  CMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -DNDEBUG -O3"
 elif [ "${BUILD_TYPE}" == "Debug" ]; then
-  CMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -O0 -g"
+  CMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -DBOOST_PYTHON_DEBUG -O0 -g"
 elif [ "${BUILD_TYPE}" == "RelWithDebInfo" ]; then
-  CMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -O2 -g -DNDEBUG"
+  CMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -DNDEBUG -O2 -g"
 fi
 echo "CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}"
 
@@ -71,14 +71,13 @@ unset Boost_ROOT
 #   - Boost < 1.77 causes compilation failure with gcc-12.
 #   - Boost >= 1.77 affects the memory layout to improve alignment, breaking retro-compatibility
 if [ ! -d "$RootDir/boost" ]; then
-  git clone https://github.com/boostorg/boost.git "$RootDir/boost"
+  git clone --depth 1 https://github.com/boostorg/boost.git "$RootDir/boost"
 fi
 cd "$RootDir/boost"
 git reset --hard
-git fetch --all || true
-git checkout --force "boost-1.76.0"
+git fetch origin "boost-1.76.0" && git checkout --force FETCH_HEAD || true
 git submodule --quiet foreach --recursive git reset --quiet --hard
-git submodule --quiet update --init --recursive --jobs 8
+git submodule --quiet update --init --recursive --depth 1 --jobs 8
 cd "$RootDir/boost/libs/math"
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_unix/boost-math.patch"
 cd "$RootDir/boost/libs/python"
@@ -86,116 +85,105 @@ git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_unix/boost-
 
 ### Checkout eigen3
 if [ ! -d "$RootDir/eigen3" ]; then
-  git clone https://gitlab.com/libeigen/eigen.git "$RootDir/eigen3"
+  git clone --depth 1 https://gitlab.com/libeigen/eigen.git "$RootDir/eigen3"
 fi
 cd "$RootDir/eigen3"
 git reset --hard
-git fetch --all || true
-git checkout --force "3.4.0"
+git fetch origin "3.4.0" && git checkout --force FETCH_HEAD || true
 
 ### Checkout eigenpy and its submodules
 if [ ! -d "$RootDir/eigenpy" ]; then
-  git clone https://github.com/stack-of-tasks/eigenpy.git "$RootDir/eigenpy"
+  git clone --depth 1 https://github.com/stack-of-tasks/eigenpy.git "$RootDir/eigenpy"
 fi
 cd "$RootDir/eigenpy"
 git reset --hard
-git fetch --all || true
-git checkout --force "v3.1.1"
+git fetch origin "v3.1.1" && git checkout --force FETCH_HEAD || true
 git submodule --quiet foreach --recursive git reset --quiet --hard
-git submodule --quiet update --init --recursive --jobs 8
+git submodule --quiet update --init --recursive --depth 1 --jobs 8
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_unix/eigenpy.patch"
 
 ### Checkout tinyxml (robotology fork for cmake compatibility)
 if [ ! -d "$RootDir/tinyxml" ]; then
-  git clone https://github.com/robotology-dependencies/tinyxml.git "$RootDir/tinyxml"
+  git clone --depth 1 https://github.com/robotology-dependencies/tinyxml.git "$RootDir/tinyxml"
 fi
 cd "$RootDir/tinyxml"
 git reset --hard
-git fetch --all || true
-git checkout --force "master"
+git fetch origin "master" && git checkout --force FETCH_HEAD || true
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_unix/tinyxml.patch"
 
 ### Checkout console_bridge, then apply some patches (generated using `git diff --submodule=diff`)
 if [ ! -d "$RootDir/console_bridge" ]; then
-  git clone https://github.com/ros/console_bridge.git "$RootDir/console_bridge"
+  git clone --depth 1 https://github.com/ros/console_bridge.git "$RootDir/console_bridge"
 fi
 cd "$RootDir/console_bridge"
 git reset --hard
-git fetch --all || true
-git checkout --force "0.3.2"
+git fetch origin "0.3.2" && git checkout --force FETCH_HEAD || true
 
 ### Checkout urdfdom_headers
 if [ ! -d "$RootDir/urdfdom_headers" ]; then
-  git clone https://github.com/ros/urdfdom_headers.git "$RootDir/urdfdom_headers"
+  git clone --depth 1 https://github.com/ros/urdfdom_headers.git "$RootDir/urdfdom_headers"
 fi
 cd "$RootDir/urdfdom_headers"
 git reset --hard
-git fetch --all || true
-git checkout --force "1.0.4"
+git fetch origin "1.0.4" && git checkout --force FETCH_HEAD || true
 
 ### Checkout urdfdom, then apply some patches (generated using `git diff --submodule=diff`)
 if [ ! -d "$RootDir/urdfdom" ]; then
-  git clone https://github.com/ros/urdfdom.git "$RootDir/urdfdom"
+  git clone --depth 1 https://github.com/ros/urdfdom.git "$RootDir/urdfdom"
 fi
 cd "$RootDir/urdfdom"
 git reset --hard
-git fetch --all || true
-git checkout --force "1.0.3"
+git fetch origin "1.0.3" && git checkout --force FETCH_HEAD || true
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_unix/urdfdom.patch"
 
 ### Checkout CppAD
 if [ ! -d "$RootDir/cppad" ]; then
-  git clone https://github.com/coin-or/CppAD.git "$RootDir/cppad"
+  git clone --depth 1 https://github.com/coin-or/CppAD.git "$RootDir/cppad"
 fi
 cd "$RootDir/cppad"
 git reset --hard
-git fetch --all
-git checkout --force "20230000.0"
+git fetch origin "20230000.0" && git checkout --force FETCH_HEAD || true
 
 ### Checkout CppADCodeGen
 if [ ! -d "$RootDir/cppadcodegen" ]; then
-  git clone https://github.com/joaoleal/CppADCodeGen.git "$RootDir/cppadcodegen"
+  git clone --depth 1 https://github.com/joaoleal/CppADCodeGen.git "$RootDir/cppadcodegen"
 fi
 cd "$RootDir/cppadcodegen"
 git reset --hard
-git fetch --all
-git checkout --force "v2.4.3"
+git fetch origin "v2.4.3" && git checkout --force FETCH_HEAD || true
 
 ### Checkout assimp
 if [ ! -d "$RootDir/assimp" ]; then
-  git clone https://github.com/assimp/assimp.git "$RootDir/assimp"
+  git clone --depth 1 https://github.com/assimp/assimp.git "$RootDir/assimp"
 fi
 cd "$RootDir/assimp"
 git reset --hard
-git fetch --all || true
-git checkout --force "v5.2.5"
+git fetch origin "v5.2.5" && git checkout --force FETCH_HEAD || true
 
 ### Checkout hpp-fcl
 if [ ! -d "$RootDir/hpp-fcl" ]; then
-  git clone https://github.com/humanoid-path-planner/hpp-fcl.git "$RootDir/hpp-fcl"
+  git clone --depth 1 https://github.com/humanoid-path-planner/hpp-fcl.git "$RootDir/hpp-fcl"
   git config --global url."https://".insteadOf git://
 fi
 cd "$RootDir/hpp-fcl"
 git reset --hard
-git fetch --all || true
-git checkout --force "v2.3.5"
+git fetch origin "v2.3.5" && git checkout --force FETCH_HEAD || true
 git submodule --quiet foreach --recursive git reset --quiet --hard
-git submodule --quiet update --init --recursive --jobs 8
+git submodule --quiet update --init --recursive --depth 1 --jobs 8
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_unix/hppfcl.patch"
 cd "$RootDir/hpp-fcl/third-parties/qhull"
-git checkout --force "v8.0.2"
+git fetch origin "v8.0.2" && git checkout --force FETCH_HEAD || true
 
 ### Checkout pinocchio and its submodules
 if [ ! -d "$RootDir/pinocchio" ]; then
-  git clone https://github.com/stack-of-tasks/pinocchio.git "$RootDir/pinocchio"
+  git clone --depth 1 https://github.com/stack-of-tasks/pinocchio.git "$RootDir/pinocchio"
   git config --global url."https://".insteadOf git://
 fi
 cd "$RootDir/pinocchio"
 git reset --hard
-git fetch --all || true
-git checkout --force "v2.6.20"
+git fetch origin "v2.6.20" && git checkout --force FETCH_HEAD || true
 git submodule --quiet foreach --recursive git reset --quiet --hard
-git submodule --quiet update --init --recursive --jobs 8
+git submodule --quiet update --init --recursive --depth 1 --jobs 8
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_unix/pinocchio.patch"
 
 ################################### Build and install boost ############################################
@@ -226,6 +214,7 @@ if [ "${BUILD_TYPE}" == "Release" ]; then
   BuildTypeB2="release"
 elif [ "${BUILD_TYPE}" == "Debug" ]; then
   BuildTypeB2="debug"
+  DebugOptionsB2="debug-symbols=on python-debugging=on"
 # elif [ "${BUILD_TYPE}" == "RelWithDebInfo" ]; then
 #   BuildTypeB2="profile"
 else
@@ -246,8 +235,8 @@ mkdir -p "$RootDir/boost/build"
      --with-chrono --with-timer --with-date_time --with-system --with-test \
      --with-filesystem --with-atomic --with-serialization --with-thread \
      --build-type=minimal --layout=system --lto=off \
-     architecture= address-model=64 \
-     threading=single link=static runtime-link=static debug-symbols=off \
+     architecture= address-model=64 $DebugOptionsB2 \
+     threading=single link=static runtime-link=static \
      cxxflags="${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_B2}" \
      linkflags="${CMAKE_CXX_FLAGS_B2}" \
      variant="$BuildTypeB2" install -q -d0 -j2
@@ -255,8 +244,8 @@ mkdir -p "$RootDir/boost/build"
 ./b2 --prefix="$InstallDir" --build-dir="$RootDir/boost/build" \
      --with-python \
      --build-type=minimal --layout=system --lto=off \
-     architecture= address-model=64 \
-     threading=single link=shared runtime-link=shared debug-symbols=off \
+     architecture= address-model=64 $DebugOptionsB2 \
+     threading=single link=shared runtime-link=shared \
      cxxflags="${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_B2}" \
      linkflags="${CMAKE_CXX_FLAGS_B2}" \
      variant="$BuildTypeB2" install -q -d0 -j2

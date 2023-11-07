@@ -34,7 +34,7 @@ fi
 echo "-- Linux distribution: ${DISTRIB_ID} ${DISTRIB_CODENAME}"
 
 # Check if current python executable has the same version as the built-in one
-GET_PYTHON_VERSION="python3 -c \"import sys ; print('.'.join(map(str, sys.version_info[:2])), end='')\""
+GET_PYTHON_VERSION="python3 -c \"import sysconfig; print(sysconfig.get_config_var('py_version_short'))\""
 PYTHON_VERSION="$(eval ${GET_PYTHON_VERSION})"
 if type "sudo" > /dev/null 2>&1; then
     PYTHON_SYS_VERSION="$(sudo -s eval ${GET_PYTHON_VERSION})"

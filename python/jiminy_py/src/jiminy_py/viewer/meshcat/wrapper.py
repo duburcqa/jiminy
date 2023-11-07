@@ -28,6 +28,7 @@ from .recorder import MeshcatRecorder
 
 
 if interactive_mode() >= 2:
+    import comm
     import ipykernel
     from ipykernel.ipkernel import IPythonKernel
     SHELL_PRIORITY = 0
@@ -270,7 +271,7 @@ class CommManager:
             self.__comm_socket.send(f"close:{comm_id}".encode())
 
     def __comm_register(self,
-                        comm: 'ipykernel.comm.Comm',  # noqa
+                        comm: 'comm.BaseComm',  # noqa
                         msg: Dict[str, Any]  # pylint: disable=unused-argument
                         ) -> None:
         # There is a major limitation of using `comm.on_msg` callback
