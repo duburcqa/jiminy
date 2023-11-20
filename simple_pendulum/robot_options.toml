@@ -1,0 +1,87 @@
+# ============= Engine stepper =================
+
+[engine.stepper]
+verbose = false
+odeSolver = "runge_kutta_dopri5"
+sensorsUpdatePeriod = 0.005
+controllerUpdatePeriod = 0.005
+tolRel = 1.0e-6
+tolAbs = 1.0e-5
+iterMax = 0
+timeout = -1
+randomSeed = 0
+logInternalStepperSteps = false
+
+# ================= Telemetry ==================
+
+[engine.telemetry]
+isPersistent = true
+enableConfiguration = true
+enableVelocity = false
+enableAcceleration = false
+enableForceExternal = false
+enableCommand = true
+enableMotorEffort = false
+enableEnergy = false
+
+[system.controller]
+telemetryEnable = true
+
+[system.robot.telemetry]
+enableEffortSensors = true
+enableEncoderSensors = true
+enableImuSensors = true
+
+# =============== Flexibilities ===============
+
+[[system.robot.model.dynamics.flexibilityConfig]]
+frameName = "PendulumJoint"
+stiffness = [500.0, 1e6, 1e6]
+damping = [70.0, 2e5, 2e5]
+inertia = [1e-3, 1e4, 1e4]
+
+# ======== Model dynamic configuration =========
+
+[system.robot.model.dynamics]
+inertiaBodiesBiasStd = 0.0
+massBodiesBiasStd = 0.0
+centerOfMassPositionBodiesBiasStd = 0.0
+relativePositionBodiesBiasStd = 0.0
+enableFlexibleModel = true
+
+# ================== Motors ===================
+
+[system.robot.motors.PendulumJoint]
+enableCommandLimit = true
+enableFriction = true
+enableArmature = true
+frictionDryNegative = -5.0
+frictionDryPositive = -5.0
+frictionDrySlope = 1000.0
+frictionViscousNegative = 0.0
+frictionViscousPositive = 0.0
+armature = 0.0
+
+# ============= Encoder sensors ===============
+
+[system.robot.sensors.EncoderSensor.PendulumJoint]
+bias = [0.0, 0.0]
+delay = 0.0
+delayInterpolationOrder = 0
+noiseStd = [0.0, 0.0]
+
+# ============= Effort sensors ===============
+
+[system.robot.sensors.EffortSensor.PendulumJoint]
+bias = [0.0,]
+delay = 0.0
+delayInterpolationOrder = 0
+noiseStd = [0.0,]
+
+# =============== IMU sensors =================
+
+[system.robot.sensors.ImuSensor.PendulumMass]
+bias = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+delay = 0.0
+delayInterpolationOrder = 0
+noiseStd = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]

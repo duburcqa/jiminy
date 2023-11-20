@@ -1,0 +1,19 @@
+# ================== Motors ==================
+
+[Motor.SimpleMotor.PendulumJoint]
+joint_name = "PendulumJoint"
+
+# ============= Encoder sensors ===============
+
+[Sensor.EncoderSensor.PendulumJoint]
+joint_name = "PendulumJoint"
+
+# ============= Effort sensors ===============
+
+[Sensor.EffortSensor.PendulumJoint]
+motor_name = "PendulumJoint"
+
+# =============== IMU sensors =================
+
+[Sensor.ImuSensor.PendulumMass]
+frame_name = "PendulumMass"

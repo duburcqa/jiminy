@@ -1,0 +1,10 @@
+[engine.stepper]
+sensorsUpdatePeriod = 0.0
+controllerUpdatePeriod = 0.0
+
+[system.robot.model.dynamics]
+enableFlexibleModel = false
+
+[system.robot.motors.PendulumJoint]
+enableCommandLimit = false
+enableFriction = false
