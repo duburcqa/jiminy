@@ -292,6 +292,17 @@ def _with_lock(fun: Callable[..., Any]) -> Callable[..., Any]:
     return fun_safe
 
 
+def _is_async(fun: Callable[..., Any]) -> Callable[..., Any]:
+    @wraps(fun)
+    def fun_safe(*args: Any, **kwargs: Any) -> Any:
+        if Viewer.backend == 'panda3d':
+            assert Viewer._backend_obj is not None
+            with Viewer._backend_obj.gui.async_mode():
+                return fun(*args, **kwargs)
+        return fun(*args, **kwargs)
+    return fun_safe
+
+
 class _ProcessWrapper:
     """Wrap `multiprocessing.process.BaseProcess`, `subprocess.Popen`, and
     `psutil.Process` in the same object to provide the same user interface.
@@ -651,8 +662,8 @@ class Viewer:
         """
         self.close()
 
-    @_must_be_open
     @_with_lock
+    @_must_be_open
     def _setup(self,
                robot: jiminy.Model,
                robot_color: Optional[Union[str, Tuple4FType]] = None) -> None:
@@ -863,8 +874,8 @@ class Viewer:
             self.display_external_forces(self._display_f_external)
 
     @staticmethod
-    @_must_be_open
     @_with_lock
+    @_must_be_open
     def open_gui() -> None:
         """Open a new viewer graphical interface. It is only possible if a
         backend is already running.
@@ -1016,8 +1027,8 @@ class Viewer:
         return False
 
     @staticmethod
-    @_must_be_open
     @_with_lock
+    @_must_be_open
     def wait(require_client: bool = False) -> None:
         """Wait for all the meshes to finish loading in every clients.
 
@@ -1205,7 +1216,7 @@ class Viewer:
                     "backend.") from e
 
             # The gui is the client itself
-            client.gui = client
+            client.gui = client  # type: ignore[union-attr]
         else:
             # List of connections likely to correspond to Meshcat servers
             import psutil
@@ -1290,8 +1301,8 @@ class Viewer:
             atexit.register(Viewer.close)
 
     @staticmethod
-    @_must_be_open
     @_with_lock
+    @_must_be_open
     def _delete_nodes_viewer(nodes_path: Sequence[str]) -> None:
         """Delete an object or a group of objects in the scene.
 
@@ -1317,8 +1328,8 @@ class Viewer:
                 Viewer._backend_obj.gui[node_path].delete()
 
     @staticmethod
-    @_must_be_open
     @_with_lock
+    @_must_be_open
     def set_watermark(img_fullpath: Optional[str] = None,
                       width: Optional[int] = None,
                       height: Optional[int] = None) -> None:
@@ -1353,8 +1364,8 @@ class Viewer:
                 Viewer._backend_obj.remove_watermark()
 
     @staticmethod
-    @_must_be_open
     @_with_lock
+    @_must_be_open
     def set_legend(labels: Optional[Sequence[str]] = None) -> None:
         """Insert legend on top left corner of the window.
 
@@ -1405,8 +1416,9 @@ class Viewer:
                         robot_name, color_text, text)
 
     @staticmethod
-    @_must_be_open
     @_with_lock
+    @_must_be_open
+    @_is_async
     def set_clock(t: Optional[float] = None) -> None:
         """Insert clock on bottom right corner of the window.
 
@@ -1426,8 +1438,8 @@ class Viewer:
             LOGGER.warning("Adding clock is only available for Panda3d.")
 
     @staticmethod
-    @_must_be_open
     @_with_lock
+    @_must_be_open
     def get_camera_transform() -> Tuple[Tuple3FType, Tuple3FType]:
         """Get transform of the camera pose.
 
@@ -1453,8 +1465,8 @@ class Viewer:
             xyz, rpy = deepcopy(Viewer._camera_xyzrpy)
         return xyz, rpy
 
-    @_must_be_open
     @_with_lock
+    @_must_be_open
     def set_camera_transform(self: Optional[
                                  Union["Viewer", Type["Viewer"]]] = None,
                              position: Optional[Tuple3FType] = None,
@@ -1565,8 +1577,8 @@ class Viewer:
         if wait:
             Viewer.wait(require_client=False)
 
-    @_must_be_open
     @_with_lock
+    @_must_be_open
     def set_camera_lookat(self,
                           position: Tuple3FType,
                           relative: Optional[Union[str, int]] = None,
@@ -1720,8 +1732,8 @@ class Viewer:
         """
         Viewer._camera_travelling = None
 
-    @_must_be_open
     @_with_lock
+    @_must_be_open
     def set_color(self,
                   color: Optional[Union[str, Tuple4FType]] = None
                   ) -> None:
@@ -1764,8 +1776,8 @@ class Viewer:
         Viewer._backend_obj.gui.set_legend()
 
     @staticmethod
-    @_must_be_open
     @_with_lock
+    @_must_be_open
     def update_floor(ground_profile: Optional[jiminy.HeightmapFunctor] = None,
                      grid_size: float = 20.0,
                      grid_unit: float = 0.04,
@@ -1813,8 +1825,8 @@ class Viewer:
         Viewer._backend_obj.gui.update_floor(grid, show_meshes)
 
     @staticmethod
-    @_must_be_open
     @_with_lock
+    @_must_be_open
     def capture_frame(width: Optional[int] = None,
                       height: Optional[int] = None,
                       raw_data: bool = False) -> Union[np.ndarray, bytes]:
@@ -1878,8 +1890,8 @@ class Viewer:
         return rgba_array[:, :, :-1]
 
     @staticmethod
-    @_must_be_open
     @_with_lock
+    @_must_be_open
     def save_frame(image_path: str,
                    width: Optional[int] = None,
                    height: Optional[int] = None) -> None:
@@ -1910,8 +1922,8 @@ class Viewer:
             with open(image_path, "wb") as f:
                 f.write(img_data)
 
-    @_must_be_open
     @_with_lock
+    @_must_be_open
     def display_visuals(self, visibility: bool) -> None:
         """Set the visibility of the visual model of the robot.
 
@@ -1921,8 +1933,8 @@ class Viewer:
         self._client.displayVisuals(visibility)
         self.refresh()
 
-    @_must_be_open
     @_with_lock
+    @_must_be_open
     def display_collisions(self, visibility: bool) -> None:
         """Set the visibility of the collision model of the robot.
 
@@ -1932,8 +1944,8 @@ class Viewer:
         self._client.displayCollisions(visibility)
         self.refresh()
 
-    @_must_be_open
     @_with_lock
+    @_must_be_open
     def add_marker(
             self,
             name: str,
@@ -2042,8 +2054,8 @@ class Viewer:
 
         return marker_data
 
-    @_must_be_open
     @_with_lock
+    @_must_be_open
     def display_center_of_mass(self, visibility: bool) -> None:
         """Display the position of the center of mass as a sphere.
 
@@ -2072,8 +2084,8 @@ class Viewer:
                 self._markers_visibility[name] = visibility
         self._display_com = visibility
 
-    @_must_be_open
     @_with_lock
+    @_must_be_open
     def display_capture_point(self, visibility: bool) -> None:
         """Display the position of the capture point,also called divergent
         component of motion (DCM) as a sphere.
@@ -2107,8 +2119,8 @@ class Viewer:
         if visibility:
             self.refresh()
 
-    @_must_be_open
     @_with_lock
+    @_must_be_open
     def display_contact_frames(self, visibility: bool) -> None:
         """Display the contact frames of the robot as spheres.
 
@@ -2145,8 +2157,8 @@ class Viewer:
         if visibility:
             self.refresh()
 
-    @_must_be_open
     @_with_lock
+    @_must_be_open
     def display_contact_forces(self, visibility: bool) -> None:
         """Display forces associated with the contact sensors attached to the
         robot, as cylinders of variable length depending of Fz.
@@ -2186,8 +2198,8 @@ class Viewer:
         if visibility:
             self.refresh()
 
-    @_must_be_open
     @_with_lock
+    @_must_be_open
     def display_external_forces(self,
                                 visibility: Union[Sequence[bool], bool]
                                 ) -> None:
@@ -2246,8 +2258,8 @@ class Viewer:
         if any(visibility):
             self.refresh()
 
-    @_must_be_open
     @_with_lock
+    @_must_be_open
     def remove_marker(self, name: str) -> None:
         """Remove a marker, based on its name.
 
@@ -2258,8 +2270,9 @@ class Viewer:
         self.markers.pop(name)
         self._gui.remove_node(self._markers_group, name)
 
-    @_must_be_open
     @_with_lock
+    @_must_be_open
+    @_is_async
     def refresh(self,
                 force_update_visual: bool = False,
                 force_update_collision: bool = False,
