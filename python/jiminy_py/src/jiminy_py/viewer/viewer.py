@@ -292,6 +292,16 @@ def _with_lock(fun: Callable[..., Any]) -> Callable[..., Any]:
     return fun_safe
 
 
+def _is_async(fun: Callable[..., Any]) -> Callable[..., Any]:
+    @wraps(fun)
+    def fun_safe(*args: Any, **kwargs: Any) -> Any:
+        if Viewer.backend == 'panda3d':
+            with Viewer._backend_obj.gui.async_mode():
+                return fun(*args, **kwargs)
+        return fun(*args, **kwargs)
+    return fun_safe
+
+
 class _ProcessWrapper:
     """Wrap `multiprocessing.process.BaseProcess`, `subprocess.Popen`, and
     `psutil.Process` in the same object to provide the same user interface.
@@ -1405,6 +1415,7 @@ class Viewer:
                         robot_name, color_text, text)
 
     @staticmethod
+    @_is_async
     @_must_be_open
     @_with_lock
     def set_clock(t: Optional[float] = None) -> None:
@@ -2258,6 +2269,7 @@ class Viewer:
         self.markers.pop(name)
         self._gui.remove_node(self._markers_group, name)
 
+    @_is_async
     @_must_be_open
     @_with_lock
     def refresh(self,
