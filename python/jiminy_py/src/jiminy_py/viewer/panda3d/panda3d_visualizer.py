@@ -57,6 +57,9 @@ from pinocchio.visualize import BaseVisualizer
 WINDOW_SIZE_DEFAULT = (600, 600)
 CAMERA_POS_DEFAULT = [(4.0, -4.0, 1.5), (0, 0, 0.5)]
 
+SKY_TOP_COLOR = (0.53, 0.8, 0.98, 1.0)
+SKY_BOTTOM_COLOR = (0.1, 0.1, 0.43, 1.0)
+
 LEGEND_DPI = 400
 LEGEND_SCALE_MAX = 0.42
 WATERMARK_SCALE_MAX = 0.2
@@ -231,7 +234,7 @@ def make_cone(num_sides: int = 16) -> Geom:
     # the triangles. For reference, see:
     # https://discourse.panda3d.org/t/procedurally-generated-geometry-and-the-default-normals/24986/2  # noqa: E501  # pylint: disable=line-too-long
     prim = GeomTriangles(Geom.UH_static)
-    prim.reserveNumVertices(6 * num_sides)
+    prim.reserve_num_vertices(6 * num_sides)
     for i in range(num_sides):
         prim.add_vertices(i, i + 1, num_sides + 1)
         prim.add_vertices(i + 1, i, num_sides + 2)
@@ -239,6 +242,69 @@ def make_cone(num_sides: int = 16) -> Geom:
     # Create geometry object
     geom = Geom(vdata)
     geom.add_primitive(prim)
+
+    return geom
+
+
+def make_pie(theta_start: float = 0.0,
+             theta_end: float = 2.0 * math.pi,
+             num_segments: int = 16):
+    """Make a uniform cylinder geometry.
+
+    Keyword Arguments:
+        num_segments {int} -- segments number (default: {16})
+        closed {bool} -- add caps (default: {True})
+
+    Returns:
+        Geom -- p3d geometry
+    """
+    cyl_rows = num_segments * 2
+    cap_rows = num_segments + 1
+    r0, r1 = cyl_rows, cyl_rows + cap_rows
+    is_pie = theta_end - theta_start < 2.0 * math.pi
+
+    vformat = GeomVertexFormat.get_v3n3()
+    vdata = GeomVertexData('vdata', vformat, Geom.UHStatic)
+    vdata.uncleanSetNumRows(cyl_rows + 2 * cap_rows)
+    vertex = GeomVertexWriter(vdata, 'vertex')
+    normal = GeomVertexWriter(vdata, 'normal')
+
+    # Add radial points
+    for phi in np.linspace(theta_start, theta_end, num_segments):
+        x, y = math.cos(phi), math.sin(phi)
+        for z in (-1, 1):
+            vertex.addData3(x, y, z * 0.5)
+            normal.addData3(x, y, 0)
+
+    # Add top and bottom points
+    for z in (-1, 1):
+        vertex.addData3(0, 0, z * 0.5)
+        normal.addData3(0, 0, z)
+        for phi in np.linspace(theta_start, theta_end, num_segments):
+            x, y = math.cos(phi), math.sin(phi)
+            vertex.addData3(x, y, z * 0.5)
+            normal.addData3(0, 0, z)
+
+    # Make triangles
+    prim = GeomTriangles(Geom.UHStatic)
+    prim.reserve_num_vertices(4 * (num_segments + int(is_pie)) - 2)
+    for i in range(num_segments - 1):
+        prim.addVertices(i * 2, i * 2 + 3, i * 2 + 1)
+        prim.addVertices(i * 2, i * 2 + 2, i * 2 + 3)
+
+    if is_pie:
+        prim.addVertices(r0, r0 + 1, r1 + 1)
+        prim.addVertices(r0, r1 + 1, r1)
+        prim.addVertices(r0, r1, r1 + num_segments - 1)
+        prim.addVertices(r0, r1 + num_segments - 1, r0 + num_segments - 1)
+
+    for i in range(num_segments):
+        prim.addVertices(r0, r0 + i + 1, r0 + i)
+        prim.addVertices(r1, r1 + i, r1 + i + 1)
+
+    # Create geometry object
+    geom = Geom(vdata)
+    geom.addPrimitive(prim)
 
     return geom
 
@@ -382,9 +448,8 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self._floor = self._make_floor()
 
         # Create gradient for skybox
-        sky_color = (0.53, 0.8, 0.98, 1.0)
-        ground_color = (0.1, 0.1, 0.43, 1.0)
-        self.skybox = make_gradient_skybox(sky_color, ground_color, 0.35, 0.17)
+        self.skybox = make_gradient_skybox(
+            SKY_TOP_COLOR, SKY_BOTTOM_COLOR, 0.35, 0.17)
         self.skybox.set_shader_auto(True)
         self.skybox.set_light_off()
         self.skybox.hide(self.LightMask)
@@ -998,13 +1063,15 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                         name: str,
                         radius: float,
                         length: float,
+                        theta_start: float = 0.0,
+                        theta_end: float = 2.0 * math.pi,
                         anchor_bottom: bool = False,
                         frame: Optional[FrameType] = None) -> None:
         """Patched to add optional to place anchor at the bottom of the
         cylinder instead of the middle.
         """
         geom_node = GeomNode('cylinder')
-        geom_node.add_geom(geometry.make_cylinder())
+        geom_node.add_geom(make_pie(theta_start, theta_end))
         node = NodePath(geom_node)
         node.set_scale(Vec3(radius, radius, length))
         if anchor_bottom:
@@ -1027,14 +1094,14 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         arrow_node = NodePath(arrow_geom)
         head = make_cone()
         head_geom = GeomNode("head")
-        head_geom.addGeom(head)
+        head_geom.add_geom(head)
         head_node = NodePath(head_geom)
         head_node.reparent_to(arrow_node.attach_new_node("head"))
         head_node.set_scale(1.75, 1.75, 3.5*radius)
         head_node.set_pos(0.0, 0.0, -3.5*radius)
         body = geometry.make_cylinder()
         body_geom = GeomNode("body")
-        body_geom.addGeom(body)
+        body_geom.add_geom(body)
         body_node = NodePath(body_geom)
         body_node.reparent_to(arrow_node.attach_new_node("body"))
         body_node.set_scale(1.0, 1.0, length)
@@ -1849,7 +1916,7 @@ class Panda3dVisualizer(BaseVisualizer):
                     for i in range(3):
                         nwriter.add_data3(*normal)
                 prim = GeomTriangles(Geom.UHStatic)
-                prim.reserveNumVertices(len(faces))
+                prim.reserve_num_vertices(len(faces))
                 faces.flat[:] = np.arange(faces.size)
                 for face in faces:
                     prim.addVertices(*face)
