@@ -75,6 +75,7 @@ def play_trajectories(
         display_com: Optional[bool] = None,
         display_dcm: Optional[bool] = None,
         display_contacts: Optional[bool] = None,
+        display_imus: Optional[bool] = None,
         display_f_external: Optional[Union[Sequence[bool], bool]] = None,
         scene_name: str = 'world',
         record_video_path: Optional[str] = None,
@@ -284,9 +285,11 @@ def play_trajectories(
                 display_dcm = True
             if display_contacts is None:
                 display_contacts = all(fun is not None for fun in update_hooks)
+            if display_imus is None:
+                display_imus = all(func is not None for func in update_hooks)
 
     # Make sure it is possible to display contacts if requested
-    if display_contacts:
+    if display_contacts or display_imus:
         for traj in trajs_data:
             robot = traj['robot']
             assert robot is not None
@@ -295,6 +298,7 @@ def play_trajectories(
                     "`display_contacts` is not available if robot is locked. "
                     "Please stop any running simulation before replay.")
                 display_contacts = False
+                display_imus = False
                 break
 
     # Sanitize user-specified robot offsets
@@ -422,6 +426,8 @@ def play_trajectories(
                 viewer_i.display_capture_point(display_dcm)
             if display_contacts is not None:
                 viewer_i.display_contact_forces(display_contacts)
+            if display_imus is not None:
+                viewer_i.display_imu_accel(display_imus)
             if display_f_external is not None:
                 viewer_i.display_external_forces(display_f_external)
 

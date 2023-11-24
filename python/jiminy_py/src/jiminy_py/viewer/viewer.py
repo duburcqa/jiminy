@@ -42,6 +42,7 @@ from pinocchio.rpy import (  # pylint: disable=import-error
 from .. import core as jiminy
 from ..core import (  # pylint: disable=no-name-in-module
     ContactSensor as contact,
+    ImuSensor as imu,
     discretize_heightmap)
 from ..robot import _DuplicateFilter
 from ..dynamics import State
@@ -459,6 +460,7 @@ class Viewer:
                  display_dcm: bool = False,
                  display_contact_frames: bool = False,
                  display_contact_forces: bool = False,
+                 display_imu_accel: bool = False,
                  display_f_external: Optional[
                      Union[Sequence[bool], bool]] = None,
                  **kwargs: Any):
@@ -556,14 +558,15 @@ class Viewer:
         # Enforce some arguments based on available features
         if not backend.startswith('panda3d'):
             if display_com or display_dcm or display_contact_frames or \
-                    display_contact_forces:
+                    display_contact_forces or display_imu_accel:
                 LOGGER.warning(
                     "Panda3d backend is required to display markers, e.g. "
-                    "CoM, DCM or Contact.")
+                    "CoM, DCM, Contact or IMU accel.")
             display_com = False
             display_dcm = False
             display_contact_frames = False
             display_contact_forces = False
+            display_imu_accel = False
 
         # Backup some user arguments
         self.robot_color = get_color_code(robot_color)
@@ -576,6 +579,7 @@ class Viewer:
         self._display_dcm = display_dcm
         self._display_contact_frames = display_contact_frames
         self._display_contact_forces = display_contact_forces
+        self._display_imu_accel = display_imu_accel
         self._display_f_external = display_f_external
 
         # Initialize marker register
@@ -825,6 +829,96 @@ class Viewer:
                                     anchor_bottom=True)
 
             self.display_contact_forces(self._display_contact_forces)
+
+            # Add IMU acceleration
+            # def get_accel_pose(axis: int,
+            #                    imu_position: np.ndarray,
+            #                    imu_rotation: np.ndarray,
+            #                    imu_rotation_ref: np.ndarray
+            #                    ) -> Tuple[Tuple3FType, Tuple4FType]:
+            #     imu_rotation_axis_local = imu_rotation @ imu_rotation_ref.T
+            #     if axis == 0:
+            #         imu_rotation_axis_local = np.stack((
+            #              imu_rotation_axis_local[2],
+            #              imu_rotation_axis_local[1],
+            #             -imu_rotation_axis_local[0],
+            #         ), axis=0)
+            #     elif axis == 1:
+            #         imu_rotation_axis_local = np.stack((
+            #              imu_rotation_axis_local[0],
+            #              imu_rotation_axis_local[2],
+            #             -imu_rotation_axis_local[1],
+            #         ), axis=0)
+            #     return (imu_position, imu_rotation_axis_local)
+
+            # def get_accel_scale(axis: int,
+            #                     imu_rotation_ref: np.ndarray,
+            #                     accel: np.ndarray) -> Tuple[float, float, float]:
+            #     accel_axis_local = imu_rotation_ref[axis].dot(accel)
+            #     scale = (
+            #         accel_axis_local * (abs(accel_axis_local) > 3.0) +
+            #         math.copysign(5.0, accel_axis_local + 3.0))
+            #     return (1.0, 1.0, scale)
+
+            # if imu.type in robot.sensors_names.keys():
+            #     for name in robot.sensors_names[imu.type]:
+            #         sensor = robot.get_sensor(imu.type, name)
+            #         frame_idx, data = sensor.frame_idx, sensor.data
+            #         imu_pose = self._client.data.oMf[frame_idx]
+            #         imu_pos, imu_rot = imu_pose.translation, imu_pose.rotation
+            #         imu_rot_ref = self._client.model.frames[frame_idx].placement.rotation
+            #         for axis, color in enumerate((
+            #                 (1.0, 0.45, 0.45, 1.0),
+            #                 (1.0, 0.3, 0.3, 1.0),
+            #                 (1.0, 0.1, 0.1, 1.0),
+            #             )):
+            #             self.add_marker(name='_'.join(map(str, (imu.type, name, axis))),
+            #                             shape="cylinder",
+            #                             pose=partial(get_accel_pose, axis, imu_pos, imu_rot, imu_rot_ref),
+            #                             scale=partial(get_accel_scale, axis, imu_rot_ref, data[-3:]),
+            #                             color=color,
+            #                             remove_if_exists=True,
+            #                             auto_refresh=False,
+            #                             radius=0.005,
+            #                             length=0.006,
+            #                             anchor_bottom=True)
+
+            def get_imu_data_pose(pos_ref: np.ndarray,
+                                  rot_ref: np.ndarray,
+                                  data: np.ndarray
+                                  ) -> Tuple[Tuple3FType, Tuple4FType]:
+                rot_local = pin.Quaternion(np.array([0.0, 0.0, 1.0]), data)
+                rot_world = pin.Quaternion(rot_ref) * rot_local
+                return (pos_ref, rot_world.coeffs())
+
+            def get_imu_data_scale(data: np.ndarray) -> Tuple[float, float, float]:
+                return (1.0, 1.0, np.linalg.norm(data, 2))
+
+            if imu.type in robot.sensors_names.keys():
+                for name in robot.sensors_names[imu.type]:
+                    sensor = robot.get_sensor(imu.type, name)
+                    frame_idx, data = sensor.frame_idx, sensor.data
+                    imu_pose = self._client.data.oMf[frame_idx]
+                    for data_type, data_slice, default_scale, color in (
+                            ("gyro", data[-6:-3], 0.05, (1.0, 0.45, 0.45, 1.0)),
+                            ("accel", data[-3:], 0.006, (1.0, 0.1, 0.1, 1.0))
+                        ):
+                        self.add_marker(name='_'.join((imu.type, name, data_type)),
+                                        shape="cylinder",
+                                        pose=partial(
+                                            get_imu_data_pose,
+                                            imu_pose.translation,
+                                            imu_pose.rotation,
+                                            data_slice),
+                                        scale=partial(get_imu_data_scale, data_slice),
+                                        color=color,
+                                        remove_if_exists=True,
+                                        auto_refresh=False,
+                                        radius=0.005,
+                                        length=default_scale,
+                                        anchor_bottom=True)
+
+            self.display_imu_accel(self._display_imu_accel)
 
             # Add external forces
             def get_force_pose(joint_idx: int,
@@ -2199,6 +2293,25 @@ class Viewer:
 
     @_must_be_open
     @_with_lock
+    def display_imu_accel(self, visibility: bool) -> None:
+        # Make sure the current backend is supported by this method
+        if not Viewer.backend.startswith('panda3d'):
+            raise NotImplementedError(
+                "This method is only supported by Panda3d.")
+
+        # Update visibility
+        for name in self.markers:
+            if name.startswith(imu.type):
+                self._gui.show_node(self._markers_group, name, visibility)
+                self._markers_visibility[name] = visibility
+        self._display_imu_accel = visibility
+
+        # Must refresh the scene
+        if visibility:
+            self.refresh()
+
+    @_must_be_open
+    @_with_lock
     def display_external_forces(self,
                                 visibility: Union[Sequence[bool], bool]
                                 ) -> None:
@@ -2504,6 +2617,10 @@ class Viewer:
         if update_hook is None and self._display_contact_forces:
             disable_display_contact_forces = True
             self.display_contact_forces(False)
+        disable_display_imu_accel = False
+        if update_hook is None and self._display_imu_accel:
+            disable_display_imu_accel = True
+            self.display_imu_accel(False)
 
         # Disable display of DCM if no velocity data provided
         disable_display_dcm = False
@@ -2606,5 +2723,7 @@ class Viewer:
             # Restore display if necessary
             if disable_display_contact_forces:
                 self.display_contact_forces(True)
+            if disable_display_imu_accel:
+                self.display_imu_accel(True)
             if disable_display_dcm:
                 self.display_capture_point(True)
