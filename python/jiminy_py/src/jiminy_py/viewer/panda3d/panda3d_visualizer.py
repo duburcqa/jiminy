@@ -249,15 +249,6 @@ def make_cone(num_sides: int = 16) -> Geom:
 def make_pie(theta_start: float = 0.0,
              theta_end: float = 2.0 * math.pi,
              num_segments: int = 16):
-    """Make a uniform cylinder geometry.
-
-    Keyword Arguments:
-        num_segments {int} -- segments number (default: {16})
-        closed {bool} -- add caps (default: {True})
-
-    Returns:
-        Geom -- p3d geometry
-    """
     cyl_rows = num_segments * 2
     cap_rows = num_segments + 1
     r0, r1 = cyl_rows, cyl_rows + cap_rows
@@ -301,6 +292,42 @@ def make_pie(theta_start: float = 0.0,
     for i in range(num_segments):
         prim.addVertices(r0, r0 + i + 1, r0 + i)
         prim.addVertices(r1, r1 + i, r1 + i + 1)
+
+    # Create geometry object
+    geom = Geom(vdata)
+    geom.addPrimitive(prim)
+
+    return geom
+
+def make_torus(radius: Optional[float] = None,
+               num_segments: int = 16):
+    if radius is None:
+        radius = 0.2
+
+    vformat = GeomVertexFormat.get_v3n3()
+    vdata = GeomVertexData('vdata', vformat, Geom.UHStatic)
+    vdata.uncleanSetNumRows(num_segments * num_segments)
+    vertex = GeomVertexWriter(vdata, 'vertex')
+    normal = GeomVertexWriter(vdata, 'normal')
+
+    # Add radial points
+    for u in np.linspace(0.0, 2.0 * math.pi, num_segments):
+        for v in np.linspace(0.0, 2.0 * math.pi, num_segments):
+            x_c, y_c = math.cos(u), math.sin(u)
+            x_t = radius * math.cos(v) * math.cos(u)
+            y_t = radius * math.cos(v) * math.sin(u)
+            z_t = radius * math.sin(v)
+            vertex.addData3(x_c + x_t, y_c + y_t, z_t)
+            normal.addData3(x_t, y_t, z_t)
+
+    # Make triangles
+    prim = GeomTriangles(Geom.UHStatic)
+    prim.reserve_num_vertices(2 * (num_segments - 1) ** 2)
+    for i in range(num_segments - 1):
+        for j in range(num_segments - 1):
+            k = i * num_segments + j
+            prim.addVertices(k, k + 1, k + num_segments)
+            prim.addVertices(k + 1, k + 1 + num_segments, k + num_segments)
 
     # Create geometry object
     geom = Geom(vdata)
@@ -1058,6 +1085,23 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         node.set_scale(radius, radius, length)
         self.append_node(root_path, name, node, frame)
 
+    def append_torus(self,
+                     root_path: str,
+                     name: str,
+                     radius: float,
+                     inner_radius: Optional[float] = None,
+                     num_sides: int = 12,
+                     frame: Optional[FrameType] = None) -> None:
+        """Append a torus primitive node to the group.
+        """
+        if inner_radius is not None:
+            inner_radius /= radius
+        geom_node = GeomNode("torus")
+        geom_node.add_geom(make_torus(inner_radius, num_sides))
+        node = NodePath(geom_node)
+        node.set_scale(radius, radius, radius)
+        self.append_node(root_path, name, node, frame)
+
     def append_cylinder(self,  # pylint: disable=arguments-renamed
                         root_path: str,
                         name: str,
@@ -1075,7 +1119,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         node = NodePath(geom_node)
         node.set_scale(Vec3(radius, radius, length))
         if anchor_bottom:
-            node.set_pos(0.0, 0.0, -length/2)
+            node.set_pos(0.0, 0.0, length/2)
         self.append_node(root_path, name, node, frame)
 
     def append_arrow(self,
@@ -1098,14 +1142,14 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         head_node = NodePath(head_geom)
         head_node.reparent_to(arrow_node.attach_new_node("head"))
         head_node.set_scale(1.75, 1.75, 3.5*radius)
-        head_node.set_pos(0.0, 0.0, -3.5*radius)
+        head_node.set_pos(0.0, 0.0, length)
         body = geometry.make_cylinder()
         body_geom = GeomNode("body")
         body_geom.add_geom(body)
         body_node = NodePath(body_geom)
         body_node.reparent_to(arrow_node.attach_new_node("body"))
         body_node.set_scale(1.0, 1.0, length)
-        body_node.set_pos(0.0, 0.0, -length/2-3.5*radius)
+        body_node.set_pos(0.0, 0.0, length/2)
         arrow_node.set_scale(radius, radius, 1.0)
         self.append_node(root_path, name, arrow_node, frame)
 

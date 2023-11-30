@@ -809,10 +809,9 @@ class Viewer:
             self.display_contact_frames(self._display_contact_frames)
 
             # Add contact sensor markers
-            def get_contact_scale(sensor_data: contact) -> Tuple3FType:
-                f_z: float = - sensor_data[2]
-                length = min(max(f_z / CONTACT_FORCE_SCALE, -1.0), 1.0)
-                return (1.0, 1.0, length)
+            def get_contact_scale(sensor_data: np.ndarray) -> Tuple3FType:
+                f_z_rel = sensor_data[2] / CONTACT_FORCE_SCALE
+                return (1.0, 1.0, min(max(f_z_rel, -1.0), 1.0))
 
             if contact.type in robot.sensors_names.keys():
                 for name in robot.sensors_names[contact.type]:
@@ -831,92 +830,73 @@ class Viewer:
             self.display_contact_forces(self._display_contact_forces)
 
             # Add IMU acceleration
-            # def get_accel_pose(axis: int,
-            #                    imu_position: np.ndarray,
-            #                    imu_rotation: np.ndarray,
-            #                    imu_rotation_ref: np.ndarray
-            #                    ) -> Tuple[Tuple3FType, Tuple4FType]:
-            #     imu_rotation_axis_local = imu_rotation @ imu_rotation_ref.T
-            #     if axis == 0:
-            #         imu_rotation_axis_local = np.stack((
-            #              imu_rotation_axis_local[2],
-            #              imu_rotation_axis_local[1],
-            #             -imu_rotation_axis_local[0],
-            #         ), axis=0)
-            #     elif axis == 1:
-            #         imu_rotation_axis_local = np.stack((
-            #              imu_rotation_axis_local[0],
-            #              imu_rotation_axis_local[2],
-            #             -imu_rotation_axis_local[1],
-            #         ), axis=0)
-            #     return (imu_position, imu_rotation_axis_local)
+            def get_imu_pose(axis: int,
+                             offset: float,
+                             imu_position: np.ndarray,
+                             imu_rotation: np.ndarray,
+                             imu_rotation_ref: np.ndarray,
+                             omega: np.ndarray
+                             ) -> Tuple[Tuple3FType, Tuple4FType]:
+                imu_rotation_axis_local = imu_rotation @ imu_rotation_ref[axis]
+                rot_world = pin.Quaternion(
+                    np.array([0.0, 0.0, 1.0]), imu_rotation_axis_local)
+                omega_local_axis = imu_rotation_ref[axis].dot(omega)
+                if omega_local_axis < 0.0:
+                    offset *= -1
+                pos_world = imu_position + offset * imu_rotation_axis_local
+                return (pos_world, rot_world.coeffs())
 
-            # def get_accel_scale(axis: int,
-            #                     imu_rotation_ref: np.ndarray,
-            #                     accel: np.ndarray) -> Tuple[float, float, float]:
-            #     accel_axis_local = imu_rotation_ref[axis].dot(accel)
-            #     scale = (
-            #         accel_axis_local * (abs(accel_axis_local) > 3.0) +
-            #         math.copysign(5.0, accel_axis_local + 3.0))
-            #     return (1.0, 1.0, scale)
+            def get_gyro_scale(axis: int,
+                               imu_rotation_ref: np.ndarray,
+                               omega: np.ndarray) -> Tuple[float, float, float]:
+                omega_local_axis = imu_rotation_ref[axis].dot(omega)
+                return (omega_local_axis,) * 3
 
-            # if imu.type in robot.sensors_names.keys():
-            #     for name in robot.sensors_names[imu.type]:
-            #         sensor = robot.get_sensor(imu.type, name)
-            #         frame_idx, data = sensor.frame_idx, sensor.data
-            #         imu_pose = self._client.data.oMf[frame_idx]
-            #         imu_pos, imu_rot = imu_pose.translation, imu_pose.rotation
-            #         imu_rot_ref = self._client.model.frames[frame_idx].placement.rotation
-            #         for axis, color in enumerate((
-            #                 (1.0, 0.45, 0.45, 1.0),
-            #                 (1.0, 0.3, 0.3, 1.0),
-            #                 (1.0, 0.1, 0.1, 1.0),
-            #             )):
-            #             self.add_marker(name='_'.join(map(str, (imu.type, name, axis))),
-            #                             shape="cylinder",
-            #                             pose=partial(get_accel_pose, axis, imu_pos, imu_rot, imu_rot_ref),
-            #                             scale=partial(get_accel_scale, axis, imu_rot_ref, data[-3:]),
-            #                             color=color,
-            #                             remove_if_exists=True,
-            #                             auto_refresh=False,
-            #                             radius=0.005,
-            #                             length=0.006,
-            #                             anchor_bottom=True)
-
-            def get_imu_data_pose(pos_ref: np.ndarray,
-                                  rot_ref: np.ndarray,
-                                  data: np.ndarray
-                                  ) -> Tuple[Tuple3FType, Tuple4FType]:
-                rot_local = pin.Quaternion(np.array([0.0, 0.0, 1.0]), data)
-                rot_world = pin.Quaternion(rot_ref) * rot_local
-                return (pos_ref, rot_world.coeffs())
-
-            def get_imu_data_scale(data: np.ndarray) -> Tuple[float, float, float]:
-                return (1.0, 1.0, np.linalg.norm(data, 2))
+            def get_accel_scale(axis: int,
+                                imu_rotation_ref: np.ndarray,
+                                accel: np.ndarray) -> Tuple[float, float, float]:
+                accel_local_axis = imu_rotation_ref[axis].dot(accel)
+                return (1.0, 1.0, accel_local_axis)
 
             if imu.type in robot.sensors_names.keys():
                 for name in robot.sensors_names[imu.type]:
                     sensor = robot.get_sensor(imu.type, name)
                     frame_idx, data = sensor.frame_idx, sensor.data
                     imu_pose = self._client.data.oMf[frame_idx]
-                    for data_type, data_slice, default_scale, color in (
-                            ("gyro", data[-6:-3], 0.05, (1.0, 0.45, 0.45, 1.0)),
-                            ("accel", data[-3:], 0.006, (1.0, 0.1, 0.1, 1.0))
-                        ):
-                        self.add_marker(name='_'.join((imu.type, name, data_type)),
+                    imu_pos, imu_rot = imu_pose.translation, imu_pose.rotation
+                    imu_rot_ref = self._client.model.frames[frame_idx].placement.rotation
+                    gyro, accel = data[-6:-3], data[-3:]
+                    for axis, color in enumerate((
+                            (1.0, 0.45, 0.45, 1.0),
+                            (1.0, 0.3, 0.3, 1.0),
+                            (1.0, 0.15, 0.15, 1.0),
+                        )):
+                        self.add_marker(name='_'.join(map(str, (imu.type, name, "frame", axis))),
                                         shape="cylinder",
                                         pose=partial(
-                                            get_imu_data_pose,
-                                            imu_pose.translation,
-                                            imu_pose.rotation,
-                                            data_slice),
-                                        scale=partial(get_imu_data_scale, data_slice),
-                                        color=color,
+                                            get_imu_pose, axis, 0.0,
+                                            imu_pos, imu_rot, imu_rot_ref, gyro),
+                                        scale=(1.0, 1.0, 1.0),
+                                        color=(0.35, 0.35, 0.35, 0.8),
                                         remove_if_exists=True,
                                         auto_refresh=False,
-                                        radius=0.005,
-                                        length=default_scale,
-                                        anchor_bottom=True)
+                                        radius=0.0025,
+                                        length=0.08)
+                        for data_type, data_slice, pos_offset, scale_fun, shape_type, shape_kwargs in (
+                                ("gyro", gyro, 0.025, get_gyro_scale, "torus", {"radius": 0.04}),
+                                ("accel", accel, 0.0, get_accel_scale, "cylinder", {
+                                    "radius": 0.005, "length": 0.006, "anchor_bottom": True}),
+                            ):
+                            self.add_marker(name='_'.join(map(str, (imu.type, name, data_type, axis))),
+                                            shape=shape_type,
+                                            pose=partial(
+                                                get_imu_pose, axis, pos_offset,
+                                                imu_pos, imu_rot, imu_rot_ref, gyro),
+                                            scale=partial(scale_fun, axis, imu_rot_ref, data_slice),
+                                            color=color,
+                                            remove_if_exists=True,
+                                            auto_refresh=False,
+                                            **shape_kwargs)
 
             self.display_imu_accel(self._display_imu_accel)
 
