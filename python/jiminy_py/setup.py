@@ -104,10 +104,11 @@ setup(
         # - 1.10.12 fixes numerous bugs
         # - 1.10.13 crashes when generating wheels on MacOS
         "panda3d==1.10.12.*",
+        # Photo-realistic shader for Panda3d to improve rendering of meshes.
+        # - 0.11.X is not backward compatible.
+        "panda3d-simplepbr==0.11.2",
         # Provide helpers to make life easier with panda3d for roboticists
         "panda3d-viewer",
-        # Photo-realistic shader for Panda3d to improve rendering of meshes.
-        "panda3d-simplepbr",
         # Used internally by Viewer to record video programmatically when
         # Panda3d is used as rendering backend.
         # - >= 8.0.0 provides cross-platform precompiled binary wheels
@@ -153,7 +154,7 @@ setup(
             # Python linter
             "pylint>=2.16.0",
             # Python static type checker
-            "mypy>=1.4.0",
+            "mypy>=1.5.0",
             # Dependency for documentation generation
             "pygments",
             # Dependency for documentation generation
