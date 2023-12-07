@@ -8,9 +8,9 @@ project(${LIBRARY_NAME}_core VERSION ${BUILD_VERSION})
 find_package(Boost REQUIRED COMPONENTS system filesystem serialization date_time thread)
 find_package(urdfdom REQUIRED NO_MODULE NO_CMAKE_SYSTEM_PATH)  # It is impossible to specify the version because it is not exported in cmake config files...
 find_package(PkgConfig QUIET)  # Using pkgconfig is the only way to get the library version...
-if (PkgConfig_FOUND)
+if(PkgConfig_FOUND)
     pkg_check_modules(_URDFDOM QUIET "urdfdom")
-    if ((_URDFDOM_FOUND) AND (NOT _URDFDOM_PREFIX STREQUAL "/usr"))
+    if((_URDFDOM_FOUND) AND (NOT _URDFDOM_PREFIX STREQUAL "/usr"))
         set(urdfdom_VERSION "${_URDFDOM_VERSION}")
     endif()
 endif()
@@ -81,11 +81,11 @@ target_compile_features(${PROJECT_NAME}-object PUBLIC cxx_std_17)
 # Note that the maximum cpp version of Eigen must be consistent with
 # jiminy, otherwise memory alignment issues may occur.
 set(CORE_DEFINITIONS PINOCCHIO_WITH_URDFDOM PINOCCHIO_WITH_HPP_FCL)
-if (urdfdom_VERSION) # Assume version strictly older than 0.4.0 if urdfdom version undefined
-    if (urdfdom_VERSION VERSION_GREATER_EQUAL 0.4.0)
+if(urdfdom_VERSION) # Assume version strictly older than 0.4.0 if urdfdom version undefined
+    if(urdfdom_VERSION VERSION_GREATER_EQUAL 0.4.0)
         list(APPEND CORE_DEFINITIONS PINOCCHIO_URDFDOM_TYPEDEF_SHARED_PTR)
     endif()
-    if (urdfdom_VERSION VERSION_GREATER 0.4.2)
+    if(urdfdom_VERSION VERSION_GREATER 0.4.2)
         list(APPEND CORE_DEFINITIONS PINOCCHIO_URDFDOM_USE_STD_SHARED_PTR)
     endif()
 endif()
@@ -127,11 +127,17 @@ target_include_directories(${PROJECT_NAME}-object SYSTEM PUBLIC
 
 # Linking with other libraries (in such a way to avoid any warnings compiling them)
 target_link_libraries_system(${PROJECT_NAME}-object pinocchio::pinocchio hpp-fcl::hpp-fcl Eigen3::Eigen)
-if (NOT "${urdfdom_LIBRARIES}" MATCHES ".*tinyxml.*")
+if(NOT "${urdfdom_LIBRARIES}" MATCHES ".*tinyxml.*")
     list(APPEND urdfdom_LIBRARIES "tinyxml")
 endif()
 target_link_libraries(${PROJECT_NAME}-object ${urdfdom_LIBRARIES})
 target_link_libraries(${PROJECT_NAME}-object jsoncpp::jsoncpp hdf5::hdf5_cpp hdf5::hdf5 hdf5::zlib)  # Beware the order is critical !
+if(WIN32)
+    # Adding this dependency on Windows is necessary since HDF5 >= 1.14.3.
+    # Hopefully this broken transitive dependency when build static libary
+    # will be fixed. See: https://github.com/HDFGroup/hdf5/issues/3663
+    target_link_libraries(${PROJECT_NAME}-object shlwapi)
+endif()
 target_link_libraries(${PROJECT_NAME}-object ${Boost_LIBRARIES})
 # Link some libraries that are not automatically linked with HDF5 and assimp (through hppfcl) respectively
 if(UNIX AND NOT APPLE)

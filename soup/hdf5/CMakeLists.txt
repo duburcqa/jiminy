@@ -85,7 +85,7 @@ endif()
 # macOS Universal Binaries is supported since 2021/02/07, github-311.
 externalproject_add(${PROJECT_NAME}
      GIT_REPOSITORY    https://github.com/HDFGroup/hdf5.git
-     GIT_TAG           hdf5-1_14_0
+     GIT_TAG           hdf5-1_14_3
      GIT_SHALLOW       TRUE
      GIT_CONFIG        advice.detachedHead=false;${GIT_CREDENTIAL_EXTERNAL}
 

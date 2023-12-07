@@ -632,7 +632,7 @@ def plot_log(log_data: Dict[str, Any],
         if not enable_flexiblity_data:
             # Filter out flexibility data
             fieldnames = list(filter(
-                lambda field: not any(  # type: ignore[arg-type]
+                lambda field: not any(
                     name in field
                     for name in robot.flexible_joints_names),
                 fieldnames))
