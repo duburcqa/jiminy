@@ -41,7 +41,7 @@ class _SolveBanded(torch.autograd.Function):
         matrices, choosing between them automatically.
     """
     @staticmethod
-    def forward(ctx: Any,  # type: ignore[override]
+    def forward(ctx: Any,
                 band: Sequence[int],
                 M: torch.Tensor,
                 b: torch.Tensor) -> torch.Tensor:
@@ -127,7 +127,7 @@ class _SolvehBanded(torch.autograd.Function):
         banded matrices, choosing between them automatically.
     """
     @staticmethod
-    def forward(ctx: Any,  # type: ignore[override]
+    def forward(ctx: Any,
                 band: int,
                 M: torch.Tensor,
                 b: torch.Tensor) -> torch.Tensor:

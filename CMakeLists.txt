@@ -82,7 +82,7 @@ endif()
 
 # Configure MSVC multithreading library to link against.
 # Somehow, setting `MSVC_RUNTIME_LIBRARY` target property is not working.
-if (MSVC)
+if(MSVC)
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MD")
     set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MDd")
 endif()

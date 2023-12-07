@@ -32,7 +32,7 @@ from panda3d.core import (  # pylint: disable=no-name-in-module
     GeomVertexFormat, GeomVertexWriter, PNMImage, PNMImageHeader, TextNode,
     OmniBoundingVolume, CompassEffect, BillboardEffect, InternalName, Filename,
     Material, Texture, TextureStage, TransparencyAttrib, PGTop, Camera, Lens,
-    PerspectiveLens, OrthographicLens, Shader, ShaderAttrib, AntialiasAttrib,
+    PerspectiveLens, OrthographicLens, ShaderAttrib, AntialiasAttrib,
     CollisionNode, CollisionRay, CollisionTraverser, CollisionHandlerQueue,
     ClockObject, GraphicsPipe, GraphicsOutput, GraphicsWindow, DisplayRegion,
     RenderModeAttrib, WindowProperties, FrameBufferProperties, loadPrcFileData)
@@ -347,13 +347,18 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self._lights_mask = [True, True]
 
         # Create physics-based shader and adapt lighting accordingly.
-        # It slows down the rendering by about 30% on discrete NVIDIA GPU.
-        shader_options = {'ENABLE_SHADOWS': ''}
-        pbr_vert = simplepbr._load_shader_str('simplepbr.vert', shader_options)
-        pbr_frag = simplepbr._load_shader_str('simplepbr.frag', shader_options)
-        pbrshader = Shader.make(
-            Shader.SL_GLSL, vertex=pbr_vert, fragment=pbr_frag)
-        self.render.set_attrib(ShaderAttrib.make(pbrshader))
+        # It slows down the rendering by about 30% on discrete NVIDIA GPU.=
+        shader_options = {'ENABLE_SHADOWS': True}
+        pbr_shader = simplepbr.shaderutils.make_shader(
+            'pbr', 'simplepbr.vert', 'simplepbr.frag', shader_options)
+        self.render.set_attrib(ShaderAttrib.make(pbr_shader))
+        env_map = simplepbr.EnvMap.create_empty()
+        self.render.set_shader_input(
+            'filtered_env_map', env_map.filtered_env_map)
+        self.render.set_shader_input(
+            'max_reflection_lod',
+            env_map.filtered_env_map.num_loadable_ram_mipmap_images)
+        self.render.set_shader_input('sh_coeffs', env_map.sh_coefficients)
         self._lights = [
             self._make_light_ambient((0.5, 0.5, 0.5)),
             self._make_light_direct(1, (1.0, 1.0, 1.0), pos=(8.0, -8.0, 10.0))]

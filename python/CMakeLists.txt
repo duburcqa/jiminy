@@ -27,7 +27,7 @@ install(CODE "file(GLOB_RECURSE src_file_list FOLLOW_SYMLINKS
                   file(COPY \"\${src_file_real}/\"
                        DESTINATION \"\${build_pypi_core_dir}/\${src_file_name}\")
               endforeach()
-              if (src_file_symlinks)
+              if(src_file_symlinks)
                   file(REMOVE \${src_file_symlinks})
               endif()"
 )

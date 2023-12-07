@@ -740,7 +740,7 @@ class Simulator:
             config_path = str(pathlib.Path(
                 urdf_path).with_suffix('')) + '_options.toml'
         with open(config_path, 'w') as f:
-            toml.dump(  # type: ignore[misc]
+            toml.dump(
                 self.get_options(), f, encoder=toml.TomlNumpyEncoder())
 
     def import_options(self,
