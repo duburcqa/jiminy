@@ -1126,17 +1126,15 @@ class Viewer:
             # Assert(s) for type checker
             assert Viewer._backend_obj is not None
 
-            # Check if viewer is currently open
-            is_open = self.is_open()  # type: ignore[misc]
-
             # Make sure zmq does not hang
-            if Viewer.backend == 'meshcat' and is_open:
+            if Viewer.backend == 'meshcat' and Viewer.is_alive():
                 Viewer._backend_obj.gui.window.zmq_socket.RCVTIMEO = 200
 
             # Consider that the robot is not available anymore, no matter what
             Viewer._backend_robot_names.discard(self.robot_name)
             Viewer._backend_robot_colors.pop(self.robot_name, None)
-            if self.delete_robot_on_close and is_open:
+            if (self.delete_robot_on_close and self._client is not None and
+                    self.is_open()):  # type: ignore[misc]
                 Viewer._delete_nodes_viewer([
                     self._client.visual_group,
                     self._client.collision_group,
