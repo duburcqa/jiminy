@@ -94,8 +94,8 @@ Task.signal = _signal_guarded_module
 def _sanitize_path(path: str) -> str:
     """Sanitize path on windows to make it compatible with python bindings.
 
-    Assimp bindings used to load meshes and other C++ tools handling path does
-    not support several features on Windows. First, it does not support
+    `Assimp` bindings used to load meshes and other C++ tools handling path
+    does not support several features on Windows. First, it does not support
     symlinks, then the hard drive prefix must be `/x/` instead of `X:\\`,
     folder's name must respect the case, and backslashes must be used as
     delimiter instead of forward slashes.
@@ -118,9 +118,19 @@ def make_gradient_skybox(sky_color: Tuple4FType,
                          subdiv: int = 2) -> NodePath:
     """Simple gradient to be used as skybox.
 
-    For reference, see:
-    - https://discourse.panda3d.org/t/color-gradient-scene-background/26946/14
-    """
+    .. seealso::
+        https://discourse.panda3d.org/t/color-gradient-scene-background/26946/14
+
+    :param sky_color: Color at zenith as a normalized 4-tuple (R, G, B, A).
+    :param ground_color: Color at nadir as a normalized 4-tuple (R, G, B, A).
+    :param span: Span of the gradient from ground color to sky color. The color
+                 is flat outside range angle [-span/2-offset, span/2-offset].
+                 Optional: 1.0 by default.
+    :param offset: Offset angle defining the position of the horizon.
+                   Optional: 0.0 by default.
+    :param subdiv: Number of sub-division for the complete gradient.
+                   Optional: 2 by default.
+    """  # noqa: E501  # pylint: disable=line-too-long
     # Check validity of arguments
     assert subdiv > 1, "Number of sub-division must be strictly larger than 1."
     assert 0.0 <= span <= 1.0, "Offset must be in [0.0, 1.0]."
@@ -200,11 +210,14 @@ def make_gradient_skybox(sky_color: Tuple4FType,
 
 
 def make_cone(num_sides: int = 16) -> Geom:
-    """Create a close shaped cone, approximate by a pyramid with regular
-    convex n-sided polygon base.
+    """Make a close shaped cone, approximate by a pyramid with regular convex
+    n-sided polygon base.
 
-    For reference about regular polygon:
-    https://en.wikipedia.org/wiki/Regular_polygon
+    .. seealso::
+        For details about regular polygons:
+        https://en.wikipedia.org/wiki/Regular_polygon
+
+    :param num_sides: Number of sides for the polygon base.
     """
     # Define vertex format
     vformat = GeomVertexFormat.get_v3n3()
@@ -231,7 +244,7 @@ def make_cone(num_sides: int = 16) -> Geom:
     # the triangles. For reference, see:
     # https://discourse.panda3d.org/t/procedurally-generated-geometry-and-the-default-normals/24986/2  # noqa: E501  # pylint: disable=line-too-long
     prim = GeomTriangles(Geom.UH_static)
-    prim.reserveNumVertices(6 * num_sides)
+    prim.reserve_num_vertices(6 * num_sides)
     for i in range(num_sides):
         prim.add_vertices(i, i + 1, num_sides + 1)
         prim.add_vertices(i + 1, i, num_sides + 2)
@@ -244,7 +257,13 @@ def make_cone(num_sides: int = 16) -> Geom:
 
 
 def make_heightmap(heightmap: np.ndarray) -> Geom:
-    """Create height map.
+    """Create a unit squared height map.
+
+    :param heightmap: Elevation map along x-and y-axes as a as a 2D `nd.array`
+                      of shape [N_X * N_Y, 6], where N_X, N_Y are the number
+                      of vertices on x and y axes respectively, while the last
+                      dimension corresponds to the position (x, y, z) and
+                      normal (n_x, n_y, nz) of the vertex in space.
     """
     # Compute the number of vertices and triangles, assuming it is square
     dim = int(math.sqrt(heightmap.shape[0]))
@@ -1044,14 +1063,14 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         arrow_node = NodePath(arrow_geom)
         head = make_cone()
         head_geom = GeomNode("head")
-        head_geom.addGeom(head)
+        head_geom.add_geom(head)
         head_node = NodePath(head_geom)
         head_node.reparent_to(arrow_node.attach_new_node("head"))
         head_node.set_scale(1.75, 1.75, 3.5*radius)
         head_node.set_pos(0.0, 0.0, -3.5*radius)
         body = geometry.make_cylinder()
         body_geom = GeomNode("body")
-        body_geom.addGeom(body)
+        body_geom.add_geom(body)
         body_node = NodePath(body_geom)
         body_node.reparent_to(arrow_node.attach_new_node("body"))
         body_node.set_scale(1.0, 1.0, length)
@@ -2003,7 +2022,7 @@ class Panda3dVisualizer(BaseVisualizer):
                     for i in range(3):
                         nwriter.add_data3(*normal)
                 prim = GeomTriangles(Geom.UHStatic)
-                prim.reserveNumVertices(len(faces))
+                prim.reserve_num_vertices(len(faces))
                 faces.flat[:] = np.arange(faces.size)
                 for face in faces:
                     prim.addVertices(*face)
