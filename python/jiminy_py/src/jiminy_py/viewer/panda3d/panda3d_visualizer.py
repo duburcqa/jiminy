@@ -11,18 +11,24 @@ import signal
 import warnings
 import importlib
 import threading
+import multiprocessing as mp
 import xml.etree.ElementTree as ET
-from datetime import datetime
+from weakref import ref
+from functools import wraps
 from itertools import chain
+from datetime import datetime
+from types import TracebackType
+from traceback import TracebackException
 from pathlib import PureWindowsPath
-from multiprocessing.connection import Connection
+from contextlib import AbstractContextManager
 from typing import (
-    Callable, Optional, Dict, Tuple, Union, Sequence, Any, Iterable, Literal)
+    Dict, Any, Callable, Optional, Tuple, Union, Sequence, Iterable, Literal,
+    Type)
 
 import numpy as np
 
 import simplepbr
-import direct.task.Task
+from direct.task import Task
 from direct.showbase.ShowBase import ShowBase
 from direct.gui.OnscreenImage import OnscreenImage
 from direct.gui.OnscreenText import OnscreenText
@@ -37,13 +43,10 @@ from panda3d.core import (  # pylint: disable=no-name-in-module
     ClockObject, GraphicsPipe, GraphicsOutput, GraphicsWindow, DisplayRegion,
     RenderModeAttrib, WindowProperties, FrameBufferProperties, loadPrcFileData)
 
-import panda3d_viewer
-import panda3d_viewer.viewer
 import panda3d_viewer.viewer_app
-import panda3d_viewer.viewer_proxy
 from panda3d_viewer import geometry
-from panda3d_viewer.viewer_errors import ViewerClosedError
 from panda3d_viewer.viewer_config import ViewerConfig
+from panda3d_viewer.viewer_errors import ViewerClosedError, ViewerError
 
 import hppfcl
 import pinocchio as pin
@@ -85,7 +88,7 @@ def _signal_guarded(
 _signal_guarded_module = type(signal)(signal.__name__, signal.__doc__)
 _signal_guarded_module.__dict__.update(signal.__dict__)
 _signal_guarded_module.__dict__['signal'] = _signal_guarded
-direct.task.Task.signal = _signal_guarded_module
+Task.signal = _signal_guarded_module
 
 
 def _sanitize_path(path: str) -> str:
@@ -285,7 +288,7 @@ def make_heightmap(heightmap: np.ndarray) -> Geom:
 
 
 class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
-    """ TODO: Write documentation.
+    """A Panda3D based application.
     """
     def __init__(self,  # pylint: disable=super-init-not-called
                  config: Optional[ViewerConfig] = None) -> None:
@@ -325,7 +328,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                 ) -> None:
             pass
 
-        self.taskMgr.keyboardInterruptHandler = keyboardInterruptHandler
+        self.task_mgr.keyboardInterruptHandler = keyboardInterruptHandler
 
         # Disable the task manager loop for now. Only useful if onscreen.
         self.shutdown()
@@ -486,6 +489,8 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self.show_floor(True)
 
     def has_gui(self) -> bool:
+        """Whether a onscreen graphical window is opened.
+        """
         return any(isinstance(win, GraphicsWindow) for win in self.winList)
 
     def open_window(self) -> None:
@@ -516,7 +521,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
             for i in range(1, 4):
                 self.accept(f"mouse{i}", self.handle_key, [f"mouse{i}", 1])
                 self.accept(f"mouse{i}-up", self.handle_key, [f"mouse{i}", 0])
-            self.taskMgr.add(
+            self.task_mgr.add(
                 self.move_orbital_camera_task, "move_camera_task", sort=2)
 
             # Setup object pickler
@@ -943,6 +948,16 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         super().append_node(root_path, name, node, frame)
 
     def highlight_node(self, root_path: str, name: str, enable: bool) -> None:
+        """Enable or disable highlighting of a given node.
+
+        .. note::
+            It displays the wireframe of the corresponding geometry on top of
+            the original shader rendering.
+
+        :param root_path: Path to the root node of the group.
+        :param name: Name of the node within the specified group.
+        :param enable: Whether hightlighting must be enabled or disabled.
+        """
         node = self._groups[root_path].find(name)
         if node:
             render_mode = node.get_render_mode()
@@ -1107,6 +1122,17 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                       img_fullpath: Optional[str] = None,
                       width: Optional[int] = None,
                       height: Optional[int] = None) -> None:
+        """Add an image on the bottom left corner of the window, as part of
+        the 2D overlay. It will always appear on foreground.
+
+        :param img_fullpath: Full path of the image. Internally, the format
+                             must be supported by `panda3d.core.OnscreenImage`.
+                             Note that alpha (transparency) is supported.
+        :param width: Desired absolute width of the image in pixels. The aspect
+                      ratio is not preserved if inconsistent with the original
+                      width and height.
+        :param height: Desired absolute height of the image in pixels.
+        """
         # Remove existing watermark, if any
         if self._watermark is not None:
             self._watermark.remove_node()
@@ -1144,7 +1170,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         # Add it on secondary window
         self.offA2dBottomLeft.node().add_child(self._watermark.node())
 
-        # Move the watermark in bottom right corner
+        # Move the watermark in bottom left corner
         self._watermark.set_pos(
             WIDGET_MARGIN_REL + width_rel, 0, WIDGET_MARGIN_REL + height_rel)
 
@@ -1156,6 +1182,18 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
     def set_legend(self,
                    items: Optional[Sequence[
                        Tuple[str, Optional[Sequence[int]]]]] = None) -> None:
+        """Add a matplotlib legend on bottom center on the window, as part of
+        the 2D overlay. It will always appear on foreground.
+
+        .. warning::
+            This method requires installing `matplolib` manually since it is an
+            optional dependency.
+
+        :param items: Sequence of pair (label, color), where `label` is a
+                      string and `color` is a sequence of integer (R, G, B
+                      [, A]). `None` to disable.
+                      Optional: `None` by default.
+        """
         # Make sure plot submodule is available
         try:
             # pylint: disable=import-outside-toplevel
@@ -1254,6 +1292,17 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
             self._legend.set_tex_scale(TextureStage.getDefault(), 1.0, -1.0)
 
     def set_clock(self, time: Optional[float] = None) -> None:
+        """Add a clock on the bottom right corner of the window, as part of
+        the 2D overlay. It will always appear on foreground.
+
+        .. warning::
+            This method requires installing `matplolib` manually since it is an
+            optional dependency.
+
+        :param time: Current time in seconds as a float. Its fractional part
+                     can be used to specified milliseconds but anything smaller
+                     will be ignored.
+        """
         # Make sure plot submodule is available
         try:
             # pylint: disable=import-outside-toplevel
@@ -1423,6 +1472,12 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                 node.set_depth_write(not always_foreground)
 
     def get_camera_transform(self) -> Tuple[np.ndarray, np.ndarray]:
+        """Get the current absolute pose of the camera.
+
+        :returns: Gather the current position (X, Y, Z) and quaternion
+                  representation of the orientation (X, Y, Z, W) as a
+                  pair of `np.ndarray`.
+        """
         return (np.array(self.camera.get_pos()),
                 np.array(self.camera.get_quat()))
 
@@ -1430,17 +1485,36 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                              pos: Tuple3FType,
                              quat: np.ndarray,
                              lookat: Tuple3FType = (0.0, 0.0, 0.0)) -> None:
+        """Set the current absolute pose of the camera.
+
+        :param pos: Desired position of the camera.
+        :param quat: Desired orientation of the camera as a quaternion
+                     (X, Y, Z, W).
+        :param lookat: Point at which the camera is looking at. It is partially
+                       redundant with the desired orientation and will take
+                       precedence in case of inconsistency. It is also involved
+                       in zoom control.
+        """
         self.camera.set_pos(*pos)
         self.camera.set_quat(LQuaternion(quat[-1], *quat[:-1]))
         self.camera_lookat = np.array(lookat)
 
     def set_camera_lookat(self,
                           pos: Tuple3FType) -> None:
+        """Set the point at which the camera is looking at.
+
+        :param pos: Position of the point at which the camera is looking at.
+        """
         self.camera.set_pos(
             self.camera.get_pos() + Vec3(*pos) - Vec3(*self.camera_lookat))
         self.camera_lookat = np.asarray(pos)
 
     def set_window_size(self, width: int, height: int) -> None:
+        """Set the size of the offscreen window used for screenshot.
+
+        :param width: Width of the window in pixels.
+        :param height: Height of the window in pixels.
+        """
         assert self.buff is not None
         self.buff.set_size(width, height)
         self._adjust_offscreen_window_aspect_ratio()
@@ -1464,6 +1538,18 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         return self.framerate
 
     def save_screenshot(self, filename: Optional[str] = None) -> bool:
+        """Save a screenshot of the scene from the current viewpoint of the
+        camera as an image file.
+
+        :param filename: Fullpath where store the image of the local
+                         filesystem. An extension must be specified to indicate
+                         the desired format. The later must be supported by
+                         `panda3d.core.PNMImage`.
+                         Optional: Store a PNG image in the working directory
+                         named 'screenshot-%Y-%m-%d-%H-%M-%S.png' by default.
+
+        :returns: Whether export has been successful.
+        """
         # Generate filename based on current time if not provided
         if filename is None:
             template = 'screenshot-%Y-%m-%d-%H-%M-%S.png'
@@ -1536,18 +1622,39 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         return np.frombuffer(image, np.uint8).reshape((ysize, xsize, -1))
 
     def enable_shadow(self, enable: bool) -> None:
+        """Enable or disable shadow casting.
+
+        :param enable: Whether shoadows must be enabled or disabled.
+        """
         for light in self._lights:
             if not light.node().is_ambient_light():
                 light.node().set_shadow_caster(enable)
         self.render.set_depth_offset(-2 if enable else 0)
         self._shadow_enabled = enable
 
-panda3d_viewer.viewer_app.ViewerApp = Panda3dApp  # noqa
 
+class Panda3dProxy(mp.Process):
+    """Panda3d viewer instance running in separate process for asynchronous
+    execution.
 
-class Panda3dProxy(panda3d_viewer.viewer_proxy.ViewerAppProxy):
-    """ TODO: Write documentation.
-    """
+    Based on `panda3d_viewer.ViewerAppProxy`:
+    https://github.com/ikalevatykh/panda3d_viewer/blob/1105e082b75943aa0a81e623e003d1d649c85a14/panda3d_viewer/viewer_proxy.py
+    """  # noqa: E501  # pylint: disable=line-too-long
+    @wraps(Panda3dApp.__init__)
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """Start an application in a sub-process.
+        """
+        super().__init__()
+        self._args = args
+        self._kwargs = kwargs
+        self._is_async = False
+        self.daemon = True
+        self._host_conn, self._proc_conn = mp.Pipe()
+        self.start()
+        reply = self._host_conn.recv()
+        if isinstance(reply, Exception):
+            raise reply
+
     def __getstate__(self) -> Dict[str, Any]:
         """Required for Windows and OS X support, which use spawning instead of
         forking to create subprocesses, requiring pickling objects.
@@ -1559,31 +1666,91 @@ class Panda3dProxy(panda3d_viewer.viewer_proxy.ViewerAppProxy):
         """
         self.__dict__.update(state)
 
-    def __getattr__(self, name: str) -> Callable[..., Any]:
-        """Patched to avoid deadlock after closing main window, and to discard
-        any incoming message before sending request since it is probably coming
-        from a ealier request that has been keyboard-interrupted.
+    def __dir__(self) -> Iterable[str]:
+        """Attribute lookup.
+
+        It is mainly used by autocomplete feature of Ipython. It is overloaded
+        to get consistent autocompletion wrt `getattr`.
         """
+        return chain(super().__dir__(), dir(Panda3dApp))
+
+    def async_mode(self) -> AbstractContextManager:
+        """Context specifically designed for executing methods asynchronously.
+
+        .. note::
+            Using this mode would result in a significant speed up if waiting
+            for request completion is not necessary, tpyically when refreshing
+            the pose of nodes, adding some geometries, removing others...etc
+
+        .. warning::
+            Beware that methods called asynchronously always returns `None`.
+            Their original outputs are simply discarded if any. Moreover, an
+            exception raised during asynchronous exception will only be printed
+            right before the next method execution instead of being thrown on
+            the spot.
+        """
+        proxy_ref = ref(self)
+
+        class ContextAsyncMode(AbstractContextManager):
+            """Context manager forcing async execution when forwarding request
+            to the underlying panda3d viewer instance.
+            """
+            def __enter__(self) -> "ContextAsyncMode":
+                nonlocal proxy_ref
+                proxy = proxy_ref()
+                assert proxy is not None
+                proxy._is_async = True
+                return self
+
+            def __exit__(self,
+                         exc_type: Optional[Type[BaseException]],
+                         exc_value: Optional[BaseException],
+                         traceback: Optional[TracebackType]) -> None:
+                nonlocal proxy_ref
+                proxy = proxy_ref()
+                assert proxy is not None
+                proxy._is_async = False
+
+        return ContextAsyncMode()
+
+    def __getattr__(self, name: str) -> Callable[..., Any]:
+        """Forward method and attribute lookup to the underlying panda3d viewer
+        instance.
+
+        :param name: Name of the instance method or attribute.
+
+        :returns: Callable that would redirect the attribute access or instance
+                  method call. It ensures signature matching and it preserves
+                  the original docstring.
+        """
+        @wraps(getattr(Panda3dApp, name))
         def _send(*args: Any, **kwargs: Any) -> Any:
-            self._host_conn: Connection
             if self._host_conn.closed:
-                raise ViewerClosedError(
-                    "Viewer not available. Maybe the graphical window has "
-                    "been closed.")
-            if self._host_conn.poll(0.0):
+                raise ViewerError("Viewer not available anymore.")
+            while self._host_conn.poll():
                 try:
                     reply = self._host_conn.recv()
                 except EOFError:
                     pass
-            self._host_conn.send((name, args, kwargs))
+                if isinstance(reply, Exception):
+                    if isinstance(reply, ViewerClosedError):
+                        # Close pipe to make sure it is not used in future
+                        self._host_conn.close()
+                        raise reply
+                    traceback = TracebackException.from_exception(reply)
+                    print(''.join(traceback.format()))
+            self._host_conn.send((name, args, kwargs, self._is_async))
+            if self._is_async:
+                return None
             if self._host_conn.poll(10.0):
                 reply = self._host_conn.recv()
             else:
                 # Something is wrong... aborting to prevent potential deadlock
-                return None
+                self._host_conn.close()
+                raise ViewerError("Viewer not available anymore.")
             if isinstance(reply, Exception):
                 if isinstance(reply, ViewerClosedError):
-                    # Close pipe to make sure it does not get used in future
+                    # Close pipe to make sure it is not used in future
                     self._host_conn.close()
                 raise reply
             return reply
@@ -1591,41 +1758,115 @@ class Panda3dProxy(panda3d_viewer.viewer_proxy.ViewerAppProxy):
         return _send
 
     def run(self) -> None:
-        """Patched to use Jiminy ViewerApp instead of the original one.
+        """Run a panda3d viewer instance in a sub-process.
         """
-        panda3d_viewer.viewer_app.ViewerApp = Panda3dApp  # noqa
-        return super().run()
+        # pylint: disable=broad-exception-caught
+        try:
+            app = Panda3dApp(*self._args, **self._kwargs)
+            self._proc_conn.send(None)
 
-panda3d_viewer.viewer_proxy.ViewerAppProxy = Panda3dProxy  # noqa
+            def _execute(task: Task) -> Optional[int]:
+                # pylint: disable=unused-argument
+                for _ in range(100):
+                    if self._proc_conn.closed:
+                        return Task.done
+                    if not self._proc_conn.poll(0.0002):
+                        break
+                    name, args, kwargs, is_async = self._proc_conn.recv()
+                    try:
+                        reply = getattr(app, name)(*args, **kwargs)
+                    except Exception as error:
+                        reply = error
+                        if is_async:
+                            raise
+                    if not is_async:
+                        self._proc_conn.send(reply)
+                return Task.cont
+
+            app.task_mgr.add(_execute, "Communication task", -50)
+            app.run()
+        except Exception as error:
+            self._proc_conn.send(error)
+        else:
+            self._proc_conn.send(
+                ViewerClosedError('User closed the main window'))
+        # read the rest to prevent the host process from being blocked
+        if self._proc_conn.poll(0.05):
+            self._proc_conn.recv()
+        self._proc_conn.close()
 
 
-class Panda3dViewer(panda3d_viewer.viewer.Viewer):
-    """ TODO: Write documentation.
+class Panda3dViewer:
+    """A Panda3D based viewer.
     """
+    def __init__(self,
+                 window_title: str = 'jiminy',
+                 window_type: Literal['onscreen', 'offscreen'] = 'onscreen',
+                 config: Optional[Union[Dict[str, Any], ViewerConfig]] = None,
+                 **kwargs: Any) -> None:
+        """Open a window, setup a scene.
+
+        :param window_title: Title of the window for onscreen rendering.
+                             Optional: 'onscreen' by default.
+        :param window_type: Whether the window is rendered 'onscreen' or
+                            'offscreen'. Beware onscreen rendering requieres a
+                            graphics server, eg Wayland or X11 on Linux.
+                            Optional: 'onscreen' by default.
+        :param config: Viewer options forwarded at instantiation.
+                       Optional: None by default.
+        """
+        if config is None:
+            config = ViewerConfig()
+        elif isinstance(config, dict):
+            config = ViewerConfig(**config)
+        assert isinstance(config, ViewerConfig)
+        for key, value in kwargs.items():
+            config.set_value(key, value)
+        config.set_window_title(window_title)
+        config.set_value('window-type', window_type)
+        self._window_type = window_type
+
+        if window_type == 'onscreen':
+            # run application asynchronously in a sub-process
+            self._app = Panda3dProxy(config)
+        elif window_type == 'offscreen':
+            # start application in the main process
+            self._app = Panda3dApp(config)
+        else:
+            raise ViewerError(f"Unknown window type: '{window_type}'")
+
+    def join(self) -> None:
+        """Run the application until the user close the main window.
+        """
+        if self._window_type == 'onscreen':
+            self._app.join()
+
+    def stop(self) -> None:
+        """Stop the application.
+        """
+        self._app.stop()
+        self.destroy()
+
+    def destroy(self) -> None:
+        """Destroy the application and free all resources.
+        """
+        if self._window_type == 'offscreen':
+            self._app.destroy()
+
     def __getattr__(self, name: str) -> Any:
+        """Forward methods to the  underlying panda3d viewer instance.
+
+        :param name: Name of the instance method or attribute.
+        """
         return getattr(self.__getattribute__('_app'), name)
 
     def __dir__(self) -> Iterable[str]:
-        return chain(super().__dir__(), dir(Panda3dApp))
+        """Attribute lookup.
 
-    def set_material(self, *args: Any, **kwargs: Any) -> None:
-        self._app.set_material(*args, **kwargs)
-
-    def append_frame(self, *args: Any, **kwargs: Any) -> None:
-        self._app.append_frame(*args, **kwargs)
-
-    def append_cylinder(self, *args: Any, **kwargs: Any) -> None:
-        self._app.append_cylinder(*args, **kwargs)
-
-    def save_screenshot(self, filename: Optional[str] = None) -> bool:
-        return self._app.save_screenshot(filename)
-
-    def get_screenshot(self,
-                       requested_format: str = 'RGBA',
-                       raw: bool = False) -> Union[np.ndarray, bytes]:
-        return self._app.get_screenshot(requested_format, raw)
-
-panda3d_viewer.viewer.Viewer = Panda3dViewer  # noqa
+        It is mainly used by autocomplete feature of Ipython. It is overloaded
+        to get consistent autocompletion wrt `getattr`.
+        """
+        return chain(super().__dir__(), dir(self._app))
 
 
 class Panda3dVisualizer(BaseVisualizer):
