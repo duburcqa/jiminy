@@ -28,7 +28,7 @@ diff --git a/CMakeLists.txt b/CMakeLists.txt
  IF(BUILD_WITH_HPP_FCL_SUPPORT)
    ADD_DEFINITIONS(-DPINOCCHIO_WITH_HPP_FCL)
    LIST(APPEND CFLAGS_DEPENDENCIES "-DPINOCCHIO_WITH_HPP_FCL")
-   ADD_PROJECT_DEPENDENCY(hpp-fcl 1.7.3 REQUIRED PKG_CONFIG_REQUIRES "hpp-fcl >= 1.7.3")
+   ADD_PROJECT_DEPENDENCY(hpp-fcl 2.0.0 REQUIRED PKG_CONFIG_REQUIRES "hpp-fcl >= 2.0.0")
    # Check whether hpp-fcl python bindings are available.
    SET(BUILD_WITH_HPP_FCL_PYTHON_BINDINGS FALSE)
 +  IF(NOT IS_ABSOLUTE ${PYTHON_SITELIB})
@@ -83,3 +83,16 @@ diff --git a/cmake/boost.cmake b/cmake/boost.cmake
      set(Boost_NO_BOOST_CMAKE ON)
    endif("${Boost_SHORT_VERSION}" VERSION_GREATER "1.70"
          OR "${Boost_SHORT_VERSION}" VERSION_EQUAL "1.70")
+diff --git a/bindings/python/utils/conversions.cpp b/bindings/python/utils/conversions.cpp
+index 87800d2b..c73707e5 100644
+--- a/bindings/python/utils/conversions.cpp
++++ b/bindings/python/utils/conversions.cpp
+@@ -37,7 +37,7 @@ namespace pinocchio
+     template <typename TupleOrList>
+     SE3 XYZQUATToSE3_bp(const TupleOrList& v)
+     {
+-      ssize_t size = bp::len(v);
++      bp::ssize_t size = bp::len(v);
+       if(size != 7)
+       {
+         throw std::invalid_argument(

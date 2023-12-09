@@ -92,7 +92,7 @@ git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_unix/boost-
 Pop-Location
 
 ### Checkout eigen3
-#   A specific commit (post 3.4.0) is supposed to fix CXX STANDARD detection with MSVC
+#   A specific commit from Aug 25, 2021 (post 3.4.0) fixes CXX STANDARD detection with MSVC
 if (-not (Test-Path -PathType Container "$RootDir/eigen3")) {
   git clone --depth=1 https://gitlab.com/libeigen/eigen.git "$RootDir/eigen3"
 }
@@ -108,7 +108,7 @@ if (-not (Test-Path -PathType Container "$RootDir/eigenpy")) {
 }
 Push-Location -Path "$RootDir/eigenpy"
 git reset --hard
-git fetch origin "v3.1.1"
+git fetch origin "v3.1.4"
 git checkout --force FETCH_HEAD
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --depth 1 --jobs 8
@@ -195,7 +195,7 @@ if (-not (Test-Path -PathType Container "$RootDir/hpp-fcl")) {
 }
 Push-Location -Path "$RootDir/hpp-fcl"
 git reset --hard
-git fetch origin "v2.3.5"
+git fetch origin "v2.4.0"
 git checkout --force FETCH_HEAD
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --depth 1 --jobs 8
@@ -214,7 +214,7 @@ if (-not (Test-Path -PathType Container "$RootDir/pinocchio")) {
 }
 Push-Location -Path "$RootDir/pinocchio"
 git reset --hard
-git fetch origin "v2.6.20"
+git fetch origin "v2.6.21"
 git checkout --force FETCH_HEAD
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --depth 1 --jobs 8
