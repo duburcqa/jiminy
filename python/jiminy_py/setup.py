@@ -175,6 +175,8 @@ setup(
             # Repair wheels to embed shared libraries.
             # - 5.2.1: Speed up and binary size reduction
             "auditwheel>=5.2.1",
+            # Required by auditwheel but not explicitly added as dependency...
+            "patchelf >= 0.14; sys_platform == 'linux'",
             # Official package for building wheels
             "build"
         ]
