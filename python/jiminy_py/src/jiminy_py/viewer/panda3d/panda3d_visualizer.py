@@ -1154,7 +1154,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         node = NodePath(geom_node)
         node.set_scale(Vec3(radius, radius, length))
         if anchor_bottom:
-            node.set_pos(0.0, 0.0, -length/2)
+            node.set_pos(0.0, 0.0, length / 2.0)
         self.append_node(root_path, name, node, frame)
 
     def append_arrow(self,
@@ -1162,6 +1162,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                      name: str,
                      radius: float,
                      length: float,
+                     anchor_top: bool = False,
                      frame: Optional[FrameType] = None) -> None:
         """Append an arrow primitive node to the group.
 
@@ -1176,15 +1177,15 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         head_geom.add_geom(head)
         head_node = NodePath(head_geom)
         head_node.reparent_to(arrow_node.attach_new_node("head"))
-        head_node.set_scale(1.75, 1.75, 3.5*radius)
-        head_node.set_pos(0.0, 0.0, -3.5*radius)
+        head_node.set_scale(1.75, 1.75, 3.5 * radius)
+        head_node.set_pos(0.0, 0.0, length)
         body = geometry.make_cylinder()
         body_geom = GeomNode("body")
         body_geom.add_geom(body)
         body_node = NodePath(body_geom)
         body_node.reparent_to(arrow_node.attach_new_node("body"))
         body_node.set_scale(1.0, 1.0, length)
-        body_node.set_pos(0.0, 0.0, -length/2-3.5*radius)
+        body_node.set_pos(0.0, 0.0, (-0.5 if anchor_top else 0.5) * length)
         arrow_node.set_scale(radius, radius, 1.0)
         self.append_node(root_path, name, arrow_node, frame)
 

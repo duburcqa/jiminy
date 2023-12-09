@@ -806,10 +806,9 @@ class Viewer:
             self.display_contact_frames(self._display_contact_frames)
 
             # Add contact sensor markers
-            def get_contact_scale(sensor_data: contact) -> Tuple3FType:
-                f_z: float = - sensor_data[2]
-                length = min(max(f_z / CONTACT_FORCE_SCALE, -1.0), 1.0)
-                return (1.0, 1.0, length)
+            def get_contact_scale(sensor_data: np.ndarray) -> Tuple3FType:
+                f_z_rel = sensor_data[2] / CONTACT_FORCE_SCALE
+                return (1.0, 1.0, min(max(f_z_rel, -1.0), 1.0))
 
             if contact.type in robot.sensors_names.keys():
                 for name in robot.sensors_names[contact.type]:
@@ -858,6 +857,7 @@ class Viewer:
                                 scale=partial(get_force_scale, joint_idx),
                                 remove_if_exists=True,
                                 auto_refresh=False,
+                                anchor_top=True,
                                 radius=0.015,
                                 length=0.7)
 
