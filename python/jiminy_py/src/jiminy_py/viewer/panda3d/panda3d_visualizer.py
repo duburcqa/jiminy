@@ -1844,7 +1844,10 @@ class Panda3dViewer:
     def stop(self) -> None:
         """Stop the application.
         """
-        self._app.stop()
+        try:
+            self._app.stop()
+        except ViewerError:
+            return
         self.destroy()
 
     def destroy(self) -> None:
