@@ -28,7 +28,7 @@ from typing import (
 
 import numpy as np
 
-from panda3d_viewer.viewer_errors import ViewerClosedError
+from panda3d_viewer.viewer_errors import ViewerError, ViewerClosedError
 try:
     from psutil import Process
 except ImportError:
@@ -552,7 +552,6 @@ class Viewer:
             raise ValueError(
                 "Robot name already exists but must be unique. Please choose "
                 "a different one, or close the associated viewer.")
-        Viewer._backend_robot_names.add(robot_name)
 
         # Enforce some arguments based on available features
         if not backend.startswith('panda3d'):
@@ -598,6 +597,7 @@ class Viewer:
             prefix="_".join((Viewer.window_name, scene_name, robot_name, "")))
 
         # Access the current backend or create one if none is available
+        self._client = None
         self.__is_open = False
         self.is_backend_parent = not Viewer.is_alive()
         try:
@@ -643,6 +643,8 @@ class Viewer:
                 "Impossible to create backend or connect to it.") from e
 
         # Load the robot
+        Viewer._backend_robot_names.add(robot_name)
+        Viewer._backend_robot_colors[robot_name] = None
         self._setup(robot, self.robot_color)
 
         # Set default camera pose
@@ -688,15 +690,16 @@ class Viewer:
         assert Viewer.backend is not None
 
         # Delete existing robot, if any
+        assert self.robot_name in Viewer._backend_robot_names
         robot_node_path = '/'.join((self.scene_name, self.robot_name))
         Viewer._delete_nodes_viewer([
             '/'.join((robot_node_path, "visuals")),
             '/'.join((robot_node_path, "collisions"))])
 
         # Backup desired color
+        assert self.robot_name in Viewer._backend_robot_colors.keys()
         self.robot_color = get_color_code(robot_color)
-        Viewer._backend_robot_colors.update({
-            self.robot_name: self.robot_color})
+        Viewer._backend_robot_colors[self.robot_name] = self.robot_color
 
         # Create backend wrapper to get (almost) backend-independent API.
         backend_type = get_backend_type(Viewer.backend)
@@ -1111,6 +1114,10 @@ class Viewer:
             Viewer._backend_proc = None
             Viewer._has_gui = False
         else:
+            # Consider that the robot is not available anymore, no matter what
+            Viewer._backend_robot_names.discard(self.robot_name)
+            Viewer._backend_robot_colors.pop(self.robot_name, None)
+
             # Disable travelling if associated with this viewer instance
             if (Viewer._camera_travelling is not None and
                     Viewer._camera_travelling['viewer'] is self):
@@ -1130,15 +1137,16 @@ class Viewer:
             if Viewer.backend == 'meshcat' and Viewer.is_alive():
                 Viewer._backend_obj.gui.window.zmq_socket.RCVTIMEO = 200
 
-            # Consider that the robot is not available anymore, no matter what
-            Viewer._backend_robot_names.discard(self.robot_name)
-            Viewer._backend_robot_colors.pop(self.robot_name, None)
+            # Delete robot from scene if requested
             if (self.delete_robot_on_close and self._client is not None and
-                    self.is_open()):  # type: ignore[misc]
-                Viewer._delete_nodes_viewer([
-                    self._client.visual_group,
-                    self._client.collision_group,
-                    self._markers_group])
+                    self.is_open()):  # type: ignore[unreachable]
+                try:  # type: ignore[unreachable]
+                    Viewer._delete_nodes_viewer([
+                        self._client.visual_group,
+                        self._client.collision_group,
+                        self._markers_group])
+                except ViewerError:
+                    pass
 
             # Restore zmq socket timeout, which is disable by default
             if Viewer.backend == 'meshcat':
@@ -1386,8 +1394,8 @@ class Viewer:
         if labels is not None and (
                 len(labels) != len(Viewer._backend_robot_colors)):
             raise RuntimeError(
-                f"Inconsistency between robots {Viewer._backend_robot_names}' "
-                f"and labels {labels}")
+                f"Inconsistency between robots {Viewer._backend_robot_names} "
+                f"({Viewer._backend_robot_colors}) and labels {labels}")
 
         # Make sure all robots have a specific color
         if any(color is None for color in Viewer._backend_robot_colors):
@@ -1762,6 +1770,7 @@ class Viewer:
         # Sanitize user-specified color code
         color_ = get_color_code(color)
 
+        # Update the color of all the geometries of the robot
         for model, geom_type in zip(
                 (self._client.visual_model, self._client.collision_model),
                 pin.GeometryType.names.values()):
@@ -1772,8 +1781,12 @@ class Viewer:
                     color = geom.meshColor
                 self._gui.set_material(*node_name, color)
 
+        # Backup the new color
+        assert self.robot_name in Viewer._backend_robot_colors.keys()
         self.robot_color = color_
         Viewer._backend_robot_colors[self.robot_name] = color_
+
+        # Refresh the legend accordingly
         Viewer._backend_obj.gui.set_legend()
 
     @staticmethod
