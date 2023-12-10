@@ -44,10 +44,10 @@ diff --git a/CMakeLists.txt b/CMakeLists.txt
 -  list(GET VERSION_LIST 0 OCTOMAP_MAJOR_VERSION)
 -  list(GET VERSION_LIST 1 OCTOMAP_MINOR_VERSION)
 -  list(GET VERSION_LIST 2 OCTOMAP_PATCH_VERSION)
--  message(STATUS "FCL uses Octomap")
+-  message(STATUS "HPP-FCL uses Octomap")
 -else()
 -  SET(HPP_FCL_HAS_OCTOMAP FALSE)
--  message(STATUS "FCL does not use Octomap")
+-  message(STATUS "HPP-FCL does not use Octomap")
 -endif()
 +SET(HPP_FCL_HAS_OCTOMAP FALSE)
 +message(STATUS "FCL does not use Octomap")
@@ -58,7 +58,7 @@ diff --git a/CMakeLists.txt b/CMakeLists.txt
 +  ADD_PROJECT_DEPENDENCY(Qhull REQUIRED COMPONENTS qhullstatic_r qhullcpp)
    if(Qhull_FOUND)
      set(HPP_FCL_USE_SYSTEM_QHULL TRUE)
-   else()
+     message(STATUS "HPP-FCL uses system Qhull")
 @@ -283,7 +274,6 @@
    include/hpp/fcl/timings.h
    )

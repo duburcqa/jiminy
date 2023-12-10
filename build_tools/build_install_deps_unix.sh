@@ -97,7 +97,7 @@ if [ ! -d "$RootDir/eigenpy" ]; then
 fi
 cd "$RootDir/eigenpy"
 git reset --hard
-git fetch origin "v3.1.1" && git checkout --force FETCH_HEAD || true
+git fetch origin "v3.1.4" && git checkout --force FETCH_HEAD || true
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --depth 1 --jobs 8
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_unix/eigenpy.patch"
@@ -167,7 +167,7 @@ if [ ! -d "$RootDir/hpp-fcl" ]; then
 fi
 cd "$RootDir/hpp-fcl"
 git reset --hard
-git fetch origin "v2.3.5" && git checkout --force FETCH_HEAD || true
+git fetch origin "v2.4.0" && git checkout --force FETCH_HEAD || true
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --depth 1 --jobs 8
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_unix/hppfcl.patch"
@@ -181,7 +181,7 @@ if [ ! -d "$RootDir/pinocchio" ]; then
 fi
 cd "$RootDir/pinocchio"
 git reset --hard
-git fetch origin "v2.6.20" && git checkout --force FETCH_HEAD || true
+git fetch origin "v2.6.21" && git checkout --force FETCH_HEAD || true
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --depth 1 --jobs 8
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_unix/pinocchio.patch"
@@ -273,7 +273,7 @@ cmake "$RootDir/eigenpy" \
       -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" \
       -DGENERATE_PYTHON_STUBS=OFF -DBUILD_TESTING=OFF -DINSTALL_DOCUMENTATION=OFF  \
       -DCMAKE_CXX_FLAGS_RELEASE_INIT="" -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} $(
-      ) -Wno-strict-aliasing" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+      ) -Wno-strict-aliasing -Wno-maybe-uninitialized" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2
 
 ################################## Build and install tinyxml ###########################################
@@ -359,8 +359,9 @@ cmake "$RootDir/assimp" \
       -DASSIMP_BUILD_ASSIMP_TOOLS=OFF -DASSIMP_BUILD_ZLIB=ON -DASSIMP_BUILD_TESTS=OFF \
       -DASSIMP_BUILD_SAMPLES=OFF -DBUILD_DOCS=OFF -DBUILD_TESTING=OFF \
       -DCMAKE_C_FLAGS="${CMAKE_CXX_FLAGS} -DHAVE_HIDDEN" -DCMAKE_CXX_FLAGS_RELEASE_INIT="" \
-      -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -Wno-strict-overflow -Wno-tautological-compare $(
-      ) -Wno-array-compare -Wno-unknown-warning-option -Wno-unknown-warning" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+      -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -Wno-strict-overflow -Wno-tautological-compare -Wno-array-compare $(
+      ) -Wno-alloc-size-larger-than -Wno-unknown-warning-option -Wno-unknown-warning" \
+      -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2
 
 ############################# Build and install qhull and hpp-fcl ######################################

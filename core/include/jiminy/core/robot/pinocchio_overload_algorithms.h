@@ -108,7 +108,6 @@ namespace jiminy::pinocchio_overload
          pinocchio::DataTpl<Scalar, Options, JointCollectionTpl> & data,
          const Eigen::MatrixBase<ConfigVectorType> & q)
     {
-        data.Ycrb[0].setZero();  // FIXME: Remove this patch after migration to pinocchio>=2.6.21
         pinocchio::crbaMinimal(model, data, q);
         data.M.diagonal() += model.rotorInertia;
         return data.M;
