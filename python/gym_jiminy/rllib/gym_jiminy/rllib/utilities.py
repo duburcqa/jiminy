@@ -61,7 +61,7 @@ from ray.rllib.utils.typing import (EnvCreator,
                                     ActionConnectorDataType,
                                     AgentConnectorDataType)
 
-from jiminy_py.viewer import Viewer, async_play_and_record_logs_files
+from jiminy_py.viewer import async_play_and_record_logs_files
 from gym_jiminy.common.envs import BaseJiminyEnv
 from gym_jiminy.common.utils import DataNested
 
@@ -906,10 +906,6 @@ def evaluate_local_worker(worker: RolloutWorker,
     # Extract the indices of the best and worst trial
     idx_worst, idx_best = np.argsort(all_total_rewards)[[0, -1]]
 
-    # Make sure there is no viewer already open at this point.
-    # Otherwise adding the legend will fail.
-    Viewer.close()
-
     # Replay and/or record a video of the best and worst trials if requested.
     # Async to enable replaying and recording while training keeps going.
     viewer_kwargs, *_ = worker.foreach_env(attrgetter("viewer_kwargs"))
@@ -917,7 +913,8 @@ def evaluate_local_worker(worker: RolloutWorker,
         **viewer_kwargs, **dict(
             robots_colors=('green', 'red') if evaluation_num > 1 else None),
         **kwargs, **dict(
-            legend=("best", "worst") if evaluation_num > 1 else None)}
+            legend=("best", "worst") if evaluation_num > 1 else None,
+            close_backend=True)}
     thread = async_play_and_record_logs_files(
         list(set(all_log_paths[idx] for idx in (idx_best, idx_worst))),
         enable_replay=enable_replay,
@@ -1067,10 +1064,6 @@ def evaluate_algo(algo: Algorithm,
         shutil.move(all_log_paths[idx], log_path)
         log_paths.append(log_path)
 
-    # Make sure there is no viewer already open at this point.
-    # Otherwise adding the legend will fail.
-    Viewer.close()
-
     # Replay and/or record a video of the best and worst trials if requested.
     # Async to enable replaying and recording while training keeps going.
     viewer_kwargs, *_ = chain(*eval_workers.foreach_env(
@@ -1078,7 +1071,8 @@ def evaluate_algo(algo: Algorithm,
     viewer_kwargs.update(
         scene_name=f"iter_{algo.iteration}",
         robots_colors=('green', 'red') if num_episodes > 1 else None,
-        legend=log_labels if num_episodes > 1 else None)
+        legend=log_labels if num_episodes > 1 else None,
+        close_backend=True)
     if record_video:
         viewer_kwargs.setdefault(
             "record_video_path", f"{algo.logdir}/iter_{algo.iteration}.mp4")
