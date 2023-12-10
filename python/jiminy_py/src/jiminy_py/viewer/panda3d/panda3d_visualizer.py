@@ -57,6 +57,9 @@ from pinocchio.visualize import BaseVisualizer
 WINDOW_SIZE_DEFAULT = (600, 600)
 CAMERA_POS_DEFAULT = [(4.0, -4.0, 1.5), (0, 0, 0.5)]
 
+SKY_TOP_COLOR = (0.53, 0.8, 0.98, 1.0)
+SKY_BOTTOM_COLOR = (0.1, 0.1, 0.43, 1.0)
+
 LEGEND_DPI = 400
 LEGEND_SCALE_MAX = 0.42
 WATERMARK_SCALE_MAX = 0.2
@@ -94,8 +97,8 @@ Task.signal = _signal_guarded_module
 def _sanitize_path(path: str) -> str:
     """Sanitize path on windows to make it compatible with python bindings.
 
-    Assimp bindings used to load meshes and other C++ tools handling path does
-    not support several features on Windows. First, it does not support
+    `Assimp` bindings used to load meshes and other C++ tools handling path
+    does not support several features on Windows. First, it does not support
     symlinks, then the hard drive prefix must be `/x/` instead of `X:\\`,
     folder's name must respect the case, and backslashes must be used as
     delimiter instead of forward slashes.
@@ -118,9 +121,19 @@ def make_gradient_skybox(sky_color: Tuple4FType,
                          subdiv: int = 2) -> NodePath:
     """Simple gradient to be used as skybox.
 
-    For reference, see:
-    - https://discourse.panda3d.org/t/color-gradient-scene-background/26946/14
-    """
+    .. seealso::
+        https://discourse.panda3d.org/t/color-gradient-scene-background/26946/14
+
+    :param sky_color: Color at zenith as a normalized 4-tuple (R, G, B, A).
+    :param ground_color: Color at nadir as a normalized 4-tuple (R, G, B, A).
+    :param span: Span of the gradient from ground color to sky color. The color
+                 is flat outside range angle [-span/2-offset, span/2-offset].
+                 Optional: 1.0 by default.
+    :param offset: Offset angle defining the position of the horizon.
+                   Optional: 0.0 by default.
+    :param subdiv: Number of sub-division for the complete gradient.
+                   Optional: 2 by default.
+    """  # noqa: E501  # pylint: disable=line-too-long
     # Check validity of arguments
     assert subdiv > 1, "Number of sub-division must be strictly larger than 1."
     assert 0.0 <= span <= 1.0, "Offset must be in [0.0, 1.0]."
@@ -200,11 +213,14 @@ def make_gradient_skybox(sky_color: Tuple4FType,
 
 
 def make_cone(num_sides: int = 16) -> Geom:
-    """Create a close shaped cone, approximate by a pyramid with regular
-    convex n-sided polygon base.
+    """Make a close shaped cone, approximate by a pyramid with regular convex
+    n-sided polygon base.
 
-    For reference about regular polygon:
-    https://en.wikipedia.org/wiki/Regular_polygon
+    .. seealso::
+        For details about regular polygons:
+        https://en.wikipedia.org/wiki/Regular_polygon
+
+    :param num_sides: Number of sides for the polygon base.
     """
     # Define vertex format
     vformat = GeomVertexFormat.get_v3n3()
@@ -231,7 +247,7 @@ def make_cone(num_sides: int = 16) -> Geom:
     # the triangles. For reference, see:
     # https://discourse.panda3d.org/t/procedurally-generated-geometry-and-the-default-normals/24986/2  # noqa: E501  # pylint: disable=line-too-long
     prim = GeomTriangles(Geom.UH_static)
-    prim.reserveNumVertices(6 * num_sides)
+    prim.reserve_num_vertices(6 * num_sides)
     for i in range(num_sides):
         prim.add_vertices(i, i + 1, num_sides + 1)
         prim.add_vertices(i + 1, i, num_sides + 2)
@@ -243,13 +259,121 @@ def make_cone(num_sides: int = 16) -> Geom:
     return geom
 
 
-def make_heightmap(heightmap: np.ndarray) -> Geom:
-    """Create height map.
+def make_pie(theta_start: float = 0.0,
+             theta_end: float = 2.0 * math.pi,
+             num_segments: int = 16) -> Geom:
+    """Make a portion of cylinder along vertical axis, ie a 3D pie chart.
+
+    :param theta_start: Angle at which the filled portion starts.
+                        Optional: 0 degree by default.
+    :param theta_end: Angle at which the filled portion ends.
+                      Optional: 360 degrees by default.
+    :param num_segments: Number of segments on the caps.
+                         Optional: 16 by default.
     """
-    # Compute the number of vertices and triangles, assuming it is square
-    dim = int(math.sqrt(heightmap.shape[0]))
-    num_vertices = int(dim * dim)
-    num_triangles = int(2 * (dim - 1) ** 2)
+    cyl_rows = num_segments * 2
+    cap_rows = num_segments + 1
+    r0, r1 = cyl_rows, cyl_rows + cap_rows
+    is_pie = theta_end - theta_start < 2.0 * math.pi
+
+    vformat = GeomVertexFormat.get_v3n3()
+    vdata = GeomVertexData('vdata', vformat, Geom.UHStatic)
+    vdata.uncleanSetNumRows(cyl_rows + 2 * cap_rows)
+    vertex = GeomVertexWriter(vdata, 'vertex')
+    normal = GeomVertexWriter(vdata, 'normal')
+
+    # Add radial points
+    for phi in np.linspace(theta_start, theta_end, num_segments):
+        x, y = math.cos(phi), math.sin(phi)
+        for z in (-1, 1):
+            vertex.addData3(x, y, z * 0.5)
+            normal.addData3(x, y, 0)
+
+    # Add top and bottom points
+    for z in (-1, 1):
+        vertex.addData3(0, 0, z * 0.5)
+        normal.addData3(0, 0, z)
+        for phi in np.linspace(theta_start, theta_end, num_segments):
+            x, y = math.cos(phi), math.sin(phi)
+            vertex.addData3(x, y, z * 0.5)
+            normal.addData3(0, 0, z)
+
+    # Make triangles
+    prim = GeomTriangles(Geom.UHStatic)
+    prim.reserve_num_vertices(4 * (num_segments + int(is_pie)) - 2)
+    for i in range(num_segments - 1):
+        prim.addVertices(i * 2, i * 2 + 3, i * 2 + 1)
+        prim.addVertices(i * 2, i * 2 + 2, i * 2 + 3)
+
+    if is_pie:
+        prim.addVertices(r0, r0 + 1, r1 + 1)
+        prim.addVertices(r0, r1 + 1, r1)
+        prim.addVertices(r0, r1, r1 + num_segments - 1)
+        prim.addVertices(r0, r1 + num_segments - 1, r0 + num_segments - 1)
+
+    for i in range(num_segments):
+        prim.addVertices(r0, r0 + i + 1, r0 + i)
+        prim.addVertices(r1, r1 + i, r1 + i + 1)
+
+    # Create geometry object
+    geom = Geom(vdata)
+    geom.addPrimitive(prim)
+
+    return geom
+
+
+def make_torus(minor_radius: float = 0.2, num_segments: int = 16) -> Geom:
+    """Make a unit torus geometry which looks like a donut. The distance from
+    the axis of revolution called major radius is always 1.0.
+
+    :param minor_radius: The radius of the tube.
+    :param num_segments: Number of segments along both the axis of revolution
+                         and a slice of the tube.
+    """
+    vformat = GeomVertexFormat.get_v3n3()
+    vdata = GeomVertexData('vdata', vformat, Geom.UHStatic)
+    vdata.uncleanSetNumRows(num_segments * num_segments)
+    vertex = GeomVertexWriter(vdata, 'vertex')
+    normal = GeomVertexWriter(vdata, 'normal')
+
+    # Add radial points
+    for u in np.linspace(0.0, 2.0 * math.pi, num_segments):
+        for v in np.linspace(0.0, 2.0 * math.pi, num_segments):
+            x_c, y_c = math.cos(u), math.sin(u)
+            x_t = minor_radius * math.cos(v) * math.cos(u)
+            y_t = minor_radius * math.cos(v) * math.sin(u)
+            z_t = minor_radius * math.sin(v)
+            vertex.addData3(x_c + x_t, y_c + y_t, z_t)
+            normal.addData3(x_t, y_t, z_t)
+
+    # Make triangles
+    prim = GeomTriangles(Geom.UHStatic)
+    prim.reserve_num_vertices(2 * (num_segments - 1) ** 2)
+    for i in range(num_segments - 1):
+        for j in range(num_segments - 1):
+            k = i * num_segments + j
+            prim.addVertices(k, k + 1, k + num_segments)
+            prim.addVertices(k + 1, k + 1 + num_segments, k + num_segments)
+
+    # Create geometry object
+    geom = Geom(vdata)
+    geom.addPrimitive(prim)
+
+    return geom
+
+
+def make_heightmap(heightmap: np.ndarray) -> Geom:
+    """Create a unit squared height map.
+
+    :param heightmap: Elevation map along x-and y-axes as a as a 2D `nd.array`
+                      of shape [N_X * N_Y, 6], where N_X, N_Y are the number
+                      of vertices on x and y axes respectively, while the last
+                      dimension corresponds to the position (x, y, z) and
+                      normal (n_x, n_y, nz) of the vertex in space.
+    """
+    # Deduce the number of vertices
+    num_vertices, _ = heightmap.shape
+    x_dim, y_dim = (int(math.sqrt(num_vertices)),) * 2
 
     # Allocation vertex
     vformat = GeomVertexFormat.get_v3n3()
@@ -261,24 +385,13 @@ def make_heightmap(heightmap: np.ndarray) -> Geom:
     vdata_view[:] = array.array("f", heightmap.reshape((-1,))).tobytes()
 
     # Make triangles
-    prim = GeomTriangles(Geom.UH_static)
-    prim.set_index_type(Geom.NT_uint32)
-    tris_array = prim.modify_vertices()
-    indices = np.empty((num_triangles, 3), dtype=np.uint32)
-    tri_idx = 0
-    for i in range(dim - 1):
-        for j in range(1, dim - 1):
-            k = j * dim + i
-            indices[tri_idx] = k, k + 1, k + dim
-            indices[tri_idx + 1] = k + 1, k, k + 1 - dim
-            tri_idx += 2
-        k = (dim - 1) * dim + i
-        indices[tri_idx] = i, i + 1, i + dim
-        indices[tri_idx + 1] = k + 1, k, k + 1 - dim
-        tri_idx += 2
-    tris_array.unclean_set_num_rows(indices.size)
-    memview = memoryview(tris_array)
-    memview[:] = array.array("I", indices.reshape((-1,)))
+    prim = GeomTriangles(Geom.UHStatic)
+    prim.reserve_num_vertices(2 * (x_dim - 1) * (y_dim - 1))
+    for i in range(x_dim - 1):
+        for j in range(y_dim - 1):
+            k = i * x_dim + j
+            prim.addVertices(k, k + 1, k + x_dim)
+            prim.addVertices(k + 1, k + 1 + x_dim, k + x_dim)
 
     # Create geometry object
     geom = Geom(vdata)
@@ -387,9 +500,8 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self._floor = self._make_floor()
 
         # Create gradient for skybox
-        sky_color = (0.53, 0.8, 0.98, 1.0)
-        ground_color = (0.1, 0.1, 0.43, 1.0)
-        self.skybox = make_gradient_skybox(sky_color, ground_color, 0.35, 0.17)
+        self.skybox = make_gradient_skybox(
+            SKY_TOP_COLOR, SKY_BOTTOM_COLOR, 0.35, 0.17)
         self.skybox.set_shader_auto(True)
         self.skybox.set_light_off()
         self.skybox.hide(self.LightMask)
@@ -1010,22 +1122,39 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         node.set_scale(radius, radius, length)
         self.append_node(root_path, name, node, frame)
 
+    def append_torus(self,
+                     root_path: str,
+                     name: str,
+                     major_radius: float,
+                     minor_radius: float = 0.2,
+                     num_sides: int = 12,
+                     frame: Optional[FrameType] = None) -> None:
+        """Append a torus primitive node to the group.
+        """
+        geom_node = GeomNode("torus")
+        geom_node.add_geom(make_torus(minor_radius / major_radius, num_sides))
+        node = NodePath(geom_node)
+        node.set_scale(major_radius, major_radius, major_radius)
+        self.append_node(root_path, name, node, frame)
+
     def append_cylinder(self,  # pylint: disable=arguments-renamed
                         root_path: str,
                         name: str,
                         radius: float,
                         length: float,
+                        theta_start: float = 0.0,
+                        theta_end: float = 2.0 * math.pi,
                         anchor_bottom: bool = False,
                         frame: Optional[FrameType] = None) -> None:
         """Patched to add optional to place anchor at the bottom of the
         cylinder instead of the middle.
         """
         geom_node = GeomNode('cylinder')
-        geom_node.add_geom(geometry.make_cylinder())
+        geom_node.add_geom(make_pie(theta_start, theta_end))
         node = NodePath(geom_node)
         node.set_scale(Vec3(radius, radius, length))
         if anchor_bottom:
-            node.set_pos(0.0, 0.0, -length/2)
+            node.set_pos(0.0, 0.0, length / 2.0)
         self.append_node(root_path, name, node, frame)
 
     def append_arrow(self,
@@ -1033,6 +1162,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                      name: str,
                      radius: float,
                      length: float,
+                     anchor_top: bool = False,
                      frame: Optional[FrameType] = None) -> None:
         """Append an arrow primitive node to the group.
 
@@ -1044,18 +1174,18 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         arrow_node = NodePath(arrow_geom)
         head = make_cone()
         head_geom = GeomNode("head")
-        head_geom.addGeom(head)
+        head_geom.add_geom(head)
         head_node = NodePath(head_geom)
         head_node.reparent_to(arrow_node.attach_new_node("head"))
-        head_node.set_scale(1.75, 1.75, 3.5*radius)
-        head_node.set_pos(0.0, 0.0, -3.5*radius)
+        head_node.set_scale(1.75, 1.75, 3.5 * radius)
+        head_node.set_pos(0.0, 0.0, length)
         body = geometry.make_cylinder()
         body_geom = GeomNode("body")
-        body_geom.addGeom(body)
+        body_geom.add_geom(body)
         body_node = NodePath(body_geom)
         body_node.reparent_to(arrow_node.attach_new_node("body"))
         body_node.set_scale(1.0, 1.0, length)
-        body_node.set_pos(0.0, 0.0, -length/2-3.5*radius)
+        body_node.set_pos(0.0, 0.0, (-0.5 if anchor_top else 0.5) * length)
         arrow_node.set_scale(radius, radius, 1.0)
         self.append_node(root_path, name, arrow_node, frame)
 
@@ -1844,7 +1974,10 @@ class Panda3dViewer:
     def stop(self) -> None:
         """Stop the application.
         """
-        self._app.stop()
+        try:
+            self._app.stop()
+        except ViewerError:
+            return
         self.destroy()
 
     def destroy(self) -> None:
@@ -2000,7 +2133,7 @@ class Panda3dVisualizer(BaseVisualizer):
                     for i in range(3):
                         nwriter.add_data3(*normal)
                 prim = GeomTriangles(Geom.UHStatic)
-                prim.reserveNumVertices(len(faces))
+                prim.reserve_num_vertices(len(faces))
                 faces.flat[:] = np.arange(faces.size)
                 for face in faces:
                     prim.addVertices(*face)

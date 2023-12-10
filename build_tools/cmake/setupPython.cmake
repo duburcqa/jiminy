@@ -42,10 +42,6 @@ execute_process(COMMAND "${Python_EXECUTABLE}" -c
                         "import sysconfig; print(sysconfig.get_path('purelib'), end='')"
                 OUTPUT_VARIABLE Python_SYS_SITELIB)
 message(STATUS "Python system site-packages: ${Python_SYS_SITELIB}")
-execute_process(COMMAND "${Python_EXECUTABLE}" -m site --user-site
-                OUTPUT_STRIP_TRAILING_WHITESPACE
-                OUTPUT_VARIABLE Python_USER_SITELIB)
-message(STATUS "Python user site-package: ${Python_USER_SITELIB}")
 
 # Check write permissions on Python system site-package to
 # determine whether to use user site as fallback.
@@ -62,9 +58,13 @@ endif()
 set(PYTHON_INSTALL_FLAGS " --no-warn-script-location --prefer-binary ")
 if(${HAS_NO_WRITE_PERMISSION_ON_PYTHON_SYS_SITELIB})
     set(PYTHON_INSTALL_FLAGS "${PYTHON_INSTALL_FLAGS} --user ")
-    set(Python_SITELIB "${Python_USER_SITELIB}")
     message(STATUS "No right on Python system site-packages: ${Python_SYS_SITELIB}.\n"
                    "--   Installing on user site as fallback.")
+    execute_process(COMMAND "${Python_EXECUTABLE}" -m site --user-site
+                    OUTPUT_STRIP_TRAILING_WHITESPACE
+                    OUTPUT_VARIABLE Python_USER_SITELIB)
+    set(Python_SITELIB "${Python_USER_SITELIB}")
+    message(STATUS "Python user site-package: ${Python_USER_SITELIB}")
 else()
     set(Python_SITELIB "${Python_SYS_SITELIB}")
 endif()

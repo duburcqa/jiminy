@@ -202,7 +202,7 @@ namespace jiminy::python
             doc, std::pair{"fget", getMemberFuncPtr}, std::pair{"fset", setMemberFuncPtr});
     }
 
-    // clang-format off
+// clang-format off
     #define DEF_READONLY3(namePy, memberFuncPtr, doc) \
         def_readonly(namePy, \
                      memberFuncPtr, \
@@ -826,6 +826,13 @@ namespace jiminy::python
     {
         try
         {
+            if constexpr (std::is_same_v<std::string, T>)
+            {
+                /* Call Python string constructor explicitly to support conversion to string for
+                   objects implementing `__str__` dunder method, typically `pathlib.Path objects`.
+                */
+                return bp::extract<T>(bp::str(dataPy));
+            }
             return bp::extract<T>(dataPy);
         }
         catch (const bp::error_already_set &)

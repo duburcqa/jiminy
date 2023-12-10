@@ -61,7 +61,7 @@ from ray.rllib.utils.typing import (EnvCreator,
                                     ActionConnectorDataType,
                                     AgentConnectorDataType)
 
-from jiminy_py.viewer import async_play_and_record_logs_files
+from jiminy_py.viewer import Viewer, async_play_and_record_logs_files
 from gym_jiminy.common.envs import BaseJiminyEnv
 from gym_jiminy.common.utils import DataNested
 
@@ -905,6 +905,10 @@ def evaluate_local_worker(worker: RolloutWorker,
 
     # Extract the indices of the best and worst trial
     idx_worst, idx_best = np.argsort(all_total_rewards)[[0, -1]]
+
+    # Make sure there is no viewer already open at this point.
+    # Otherwise adding the legend will fail.
+    Viewer.close()
 
     # Replay and/or record a video of the best and worst trials if requested.
     # Async to enable replaying and recording while training keeps going.

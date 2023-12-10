@@ -864,8 +864,8 @@ def async_play_and_record_logs_files(
                 except RuntimeError as e:
                     # Replay may fail if current backend does not support it
                     LOGGER.warning(
-                        f"The current viewer backend '{Viewer.backend}' does "
-                        "not support replaying simulation: %s", e)
+                        "The current viewer backend '%s' does not support "
+                        "replaying simulation: %s", Viewer.backend, e)
             if record_video_path is not None:
                 viewers = play_logs_files(
                     logs_files, mesh_path_dir, mesh_package_dirs,
