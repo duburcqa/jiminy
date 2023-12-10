@@ -8,15 +8,15 @@ namespace jiminy::python
 {
     namespace bp = boost::python;
 
-    heightmapFunctor_t sumHeightmap(const bp::list & heightmapsPy)
+    HeightmapFunctor sumHeightmap(const bp::list & heightmapsPy)
     {
-        auto heightmaps = convertFromPython<std::vector<heightmapFunctor_t>>(heightmapsPy);
+        auto heightmaps = convertFromPython<std::vector<HeightmapFunctor>>(heightmapsPy);
         return ::jiminy::sumHeightmap(heightmaps);
     }
 
-    heightmapFunctor_t mergeHeightmap(const bp::list & heightmapsPy)
+    HeightmapFunctor mergeHeightmap(const bp::list & heightmapsPy)
     {
-        auto heightmaps = convertFromPython<std::vector<heightmapFunctor_t>>(heightmapsPy);
+        auto heightmaps = convertFromPython<std::vector<HeightmapFunctor>>(heightmapsPy);
         return ::jiminy::mergeHeightmap(heightmaps);
     }
 

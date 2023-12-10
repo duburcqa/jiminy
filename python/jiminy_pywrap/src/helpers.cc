@@ -27,9 +27,9 @@ namespace jiminy::python
         return seed;
     }
 
-    joint_t getJointTypeFromIdx(const pinocchio::Model & model, const int32_t & idIn)
+    JointModelType getJointTypeFromIdx(const pinocchio::Model & model, const int32_t & idIn)
     {
-        joint_t jointType = joint_t::NONE;
+        JointModelType jointType = JointModelType::UNSUPPORTED;
         ::jiminy::getJointTypeFromIdx(model, idIn, jointType);
         return jointType;
     }

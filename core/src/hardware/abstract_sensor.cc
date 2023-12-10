@@ -1,6 +1,7 @@
+#include "jiminy/core/exceptions.h"
 #include "jiminy/core/robot/robot.h"
-
 #include "jiminy/core/utilities/random.h"
+
 #include "jiminy/core/hardware/abstract_sensor.h"
 
 
@@ -83,14 +84,14 @@ namespace jiminy
         }
     }
 
-    hresult_t AbstractSensorBase::setOptions(const configHolder_t & sensorOptions)
+    hresult_t AbstractSensorBase::setOptions(const GenericConfig & sensorOptions)
     {
         sensorOptionsHolder_ = sensorOptions;
         baseSensorOptions_ = std::make_unique<const abstractSensorOptions_t>(sensorOptionsHolder_);
         return hresult_t::SUCCESS;
     }
 
-    configHolder_t AbstractSensorBase::getOptions() const
+    GenericConfig AbstractSensorBase::getOptions() const
     {
         return sensorOptionsHolder_;
     }

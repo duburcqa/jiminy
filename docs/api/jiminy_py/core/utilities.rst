@@ -6,7 +6,7 @@ utilities
    :undoc-members:
    :show-inheritance:
 
-.. autoclass:: jiminy_py.core.joint_t
+.. autoclass:: jiminy_py.core.JointModelType
    :members:
    :undoc-members:
    :show-inheritance:

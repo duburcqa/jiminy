@@ -1,3 +1,4 @@
+#include "jiminy/core/exceptions.h"
 #include "jiminy/core/robot/robot.h"
 
 #include "jiminy/core/constraints/abstract_constraint.h"

@@ -25,6 +25,8 @@
 
 #include "urdf_parser/urdf_parser.h"
 
+#include "jiminy/core/constants.h"
+#include "jiminy/core/exceptions.h"
 #include "jiminy/core/hardware/basic_sensors.h"
 #include "jiminy/core/robot/pinocchio_overload_algorithms.h"
 #include "jiminy/core/constraints/abstract_constraint.h"
@@ -34,7 +36,6 @@
 #include "jiminy/core/utilities/pinocchio.h"
 #include "jiminy/core/utilities/random.h"
 #include "jiminy/core/utilities/helpers.h"
-#include "jiminy/core/constants.h"
 
 #include "jiminy/core/robot/model.h"
 
@@ -239,11 +240,11 @@ namespace jiminy
             jointsAcceleration_.clear();
 
             // Reset URDF info
-            joint_t rootJointType;
+            JointModelType rootJointType;
             getJointTypeFromIdx(pncModel, 1, rootJointType);  // Cannot fail
             urdfPath_ = "";
             urdfData_ = "";
-            hasFreeflyer_ = (rootJointType == joint_t::FREE);
+            hasFreeflyer_ = (rootJointType == JointModelType::FREE);
             meshPackageDirs_.clear();
 
             // Set the models
@@ -405,7 +406,7 @@ namespace jiminy
         }
 
         // Check that parent frame exists
-        frameIndex_t parentFrameId = 0;
+        pinocchio::FrameIndex parentFrameId = 0;
         if (returnCode == hresult_t::SUCCESS)
         {
             returnCode = getFrameIdx(pncModelOrig_, parentBodyName, parentFrameId);
@@ -415,7 +416,8 @@ namespace jiminy
         {
             // Add the frame to the the original rigid model
             {
-                const jointIndex_t & parentJointId = pncModelOrig_.frames[parentFrameId].parent;
+                const pinocchio::JointIndex & parentJointId =
+                    pncModelOrig_.frames[parentFrameId].parent;
                 const pinocchio::SE3 & parentFramePlacement =
                     pncModelOrig_.frames[parentFrameId].placement;
                 const pinocchio::SE3 jointFramePlacement =
@@ -431,7 +433,7 @@ namespace jiminy
                 getFrameIdx(pncModelFlexibleOrig_,
                             parentBodyName,
                             parentFrameId);  // Cannot fail at this point
-                const jointIndex_t & parentJointId =
+                const pinocchio::JointIndex & parentJointId =
                     pncModelFlexibleOrig_.frames[parentFrameId].parent;
                 const pinocchio::SE3 & parentFramePlacement =
                     pncModelFlexibleOrig_.frames[parentFrameId].placement;
@@ -478,7 +480,7 @@ namespace jiminy
            If so, it is also the case for the original flexible models. */
         for (const std::string & frameName : frameNames)
         {
-            frameIndex_t frameId;
+            pinocchio::FrameIndex frameId;
             const pinocchio::FrameType frameType = pinocchio::FrameType::OP_FRAME;
             returnCode = getFrameIdx(pncModelOrig_, frameName, frameId);
             if (returnCode == hresult_t::SUCCESS)
@@ -497,7 +499,7 @@ namespace jiminy
             for (const std::string & frameName : frameNames)
             {
                 // Get the frame idx
-                frameIndex_t frameIdx;
+                pinocchio::FrameIndex frameIdx;
                 getFrameIdx(pncModelOrig_, frameName, frameIdx);  // Cannot fail at this point
 
                 // Remove the frame from the the original rigid model
@@ -1043,7 +1045,7 @@ namespace jiminy
         pncModelFlexibleOrig_ = pncModelOrig_;
 
         // Check that the frames exist
-        for (const flexibleJointData_t & flexibleJoint : mdlOptions_->dynamics.flexibilityConfig)
+        for (const FlexibleJointData & flexibleJoint : mdlOptions_->dynamics.flexibilityConfig)
         {
             const std::string & frameName = flexibleJoint.frameName;
             if (!pncModelOrig_.existFrame(frameName))
@@ -1060,13 +1062,12 @@ namespace jiminy
         {
             // Add all the flexible joints
             flexibleJointsNames_.clear();
-            for (const flexibleJointData_t & flexibleJoint :
-                 mdlOptions_->dynamics.flexibilityConfig)
+            for (const FlexibleJointData & flexibleJoint : mdlOptions_->dynamics.flexibilityConfig)
             {
                 // Extract some proxies
                 const std::string & frameName = flexibleJoint.frameName;
                 std::string flexName = frameName;
-                frameIndex_t frameIdx;
+                pinocchio::FrameIndex frameIdx;
                 getFrameIdx(pncModelFlexibleOrig_,
                             frameName,
                             frameIdx);  // Cannot fail at this point
@@ -1108,7 +1109,7 @@ namespace jiminy
             // Add flexibility armature-like inertia to the model
             for (std::size_t i = 0; i < flexibleJointsModelIdx_.size(); ++i)
             {
-                const flexibleJointData_t & flexibleJoint =
+                const FlexibleJointData & flexibleJoint =
                     mdlOptions_->dynamics.flexibilityConfig[i];
                 const pinocchio::JointModel & jmodel =
                     pncModelFlexibleOrig_.joints[flexibleJointsModelIdx_[i]];
@@ -1169,7 +1170,7 @@ namespace jiminy
 
             for (const std::string & jointName : rigidJointsNames_)
             {
-                const jointIndex_t & jointIdx = pncModel_.getJointId(jointName);
+                const pinocchio::JointIndex & jointIdx = pncModel_.getJointId(jointName);
 
                 // Add bias to com position
                 const float64_t & comBiasStd =
@@ -1207,7 +1208,8 @@ namespace jiminy
                     Eigen::Vector3d inertiaBodyMoments = solver.eigenvalues();
                     Eigen::Matrix3d inertiaBodyAxes = solver.eigenvectors();
                     const Eigen::Vector3d randAxis = randVectorNormal(3U, inertiaBiasStd);
-                    inertiaBodyAxes = inertiaBodyAxes * quaternion_t(pinocchio::exp3(randAxis));
+                    inertiaBodyAxes =
+                        inertiaBodyAxes * Eigen::Quaterniond(pinocchio::exp3(randAxis));
                     inertiaBodyMoments.array() *=
                         1.0 + randVectorNormal(3U, inertiaBiasStd).array();
                     inertiaBody =
@@ -1328,7 +1330,7 @@ namespace jiminy
                 const int32_t idx_v = pncModel_.joints[i].idx_v();
 
                 // Get joint prefix depending on its type
-                joint_t jointType;
+                JointModelType jointType;
                 std::string jointPrefix;
                 if (returnCode == hresult_t::SUCCESS)
                 {
@@ -1336,7 +1338,7 @@ namespace jiminy
                 }
                 if (returnCode == hresult_t::SUCCESS)
                 {
-                    if (jointType == joint_t::FREE)
+                    if (jointType == JointModelType::FREE)
                     {
                         // Discard the joint name for FREE joint type since it is unique if any
                         jointPrefix = FREE_FLYER_PREFIX_BASE_NAME;
@@ -1438,22 +1440,22 @@ namespace jiminy
                normalization and cos/sin representation. */
             for (int32_t i = 0; i < pncModel_.njoints; ++i)
             {
-                joint_t jointType(joint_t::NONE);
+                JointModelType jointType(JointModelType::UNSUPPORTED);
                 getJointTypeFromIdx(pncModel_, i, jointType);
 
-                if (jointType == joint_t::SPHERICAL)
+                if (jointType == JointModelType::SPHERICAL)
                 {
                     const uint32_t & positionIdx = pncModel_.joints[i].idx_q();
                     positionLimitMin_.segment<4>(positionIdx).setConstant(-1.0 - EPS);
                     positionLimitMax_.segment<4>(positionIdx).setConstant(+1.0 + EPS);
                 }
-                if (jointType == joint_t::FREE)
+                if (jointType == JointModelType::FREE)
                 {
                     const uint32_t & positionIdx = pncModel_.joints[i].idx_q();
                     positionLimitMin_.segment<4>(positionIdx + 3).setConstant(-1.0 - EPS);
                     positionLimitMax_.segment<4>(positionIdx + 3).setConstant(+1.0 + EPS);
                 }
-                if (jointType == joint_t::ROTARY_UNBOUNDED)
+                if (jointType == JointModelType::ROTARY_UNBOUNDED)
                 {
                     const uint32_t & positionIdx = pncModel_.joints[i].idx_q();
                     positionLimitMin_.segment<2>(positionIdx).setConstant(-1.0 - EPS);
@@ -1530,7 +1532,7 @@ namespace jiminy
                         const pinocchio::Frame & frameOrig =
                             pncModelOrig_.frames[geom.parentFrame];
                         const std::string parentJointName = pncModelOrig_.names[frameOrig.parent];
-                        frameIndex_t frameIdx;
+                        pinocchio::FrameIndex frameIdx;
                         getFrameIdx(pncModel_,
                                     frameOrig.name,
                                     frameIdx);  // Cannot fail at this point
@@ -1574,7 +1576,7 @@ namespace jiminy
             collisionPairsIdx_.clear();
             for (const std::string & name : collisionBodiesNames_)
             {
-                std::vector<pairIndex_t> collisionPairsIdx;
+                std::vector<pinocchio::PairIndex> collisionPairsIdx;
                 for (std::size_t i = 0; i < collisionModel_.collisionPairs.size(); ++i)
                 {
                     const pinocchio::CollisionPair & pair = collisionModel_.collisionPairs[i];
@@ -1608,7 +1610,7 @@ namespace jiminy
         if (returnCode == hresult_t::SUCCESS)
         {
             // Reset the contact force internal buffer
-            contactForces_ = forceVector_t(contactFramesNames_.size(), pinocchio::Force::Zero());
+            contactForces_ = ForceVector(contactFramesNames_.size(), pinocchio::Force::Zero());
 
             // Extract the contact frames indices in the model
             getFramesIdx(pncModel_, contactFramesNames_, contactFramesIdx_);
@@ -1622,7 +1624,7 @@ namespace jiminy
         hresult_t returnCode = hresult_t::SUCCESS;
 
         // Initialize backup joint space acceleration
-        jointsAcceleration_ = motionVector_t(pncData_.a.size(), pinocchio::Motion::Zero());
+        jointsAcceleration_ = MotionVector(pncData_.a.size(), pinocchio::Motion::Zero());
 
         constraintsHolder_.foreach(
             [&](const std::shared_ptr<AbstractConstraintBase> & constraint,
@@ -1653,7 +1655,7 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t Model::setOptions(configHolder_t modelOptions)
+    hresult_t Model::setOptions(GenericConfig modelOptions)
     {
         bool_t internalBuffersMustBeUpdated = false;
         bool_t areModelsInvalid = false;
@@ -1662,8 +1664,8 @@ namespace jiminy
         {
             /* Check that the following user parameters has the right dimension, then update the
                required internal buffers to reflect changes, if any. */
-            configHolder_t & jointOptionsHolder =
-                boost::get<configHolder_t>(modelOptions.at("joints"));
+            GenericConfig & jointOptionsHolder =
+                boost::get<GenericConfig>(modelOptions.at("joints"));
             bool_t positionLimitFromUrdf =
                 boost::get<bool_t>(jointOptionsHolder.at("positionLimitFromUrdf"));
             if (!positionLimitFromUrdf)
@@ -1728,15 +1730,15 @@ namespace jiminy
             }
 
             // Check if deformation points are all associated with different joints/frames
-            configHolder_t & dynOptionsHolder =
-                boost::get<configHolder_t>(modelOptions.at("dynamics"));
-            const flexibilityConfig_t & flexibilityConfig =
-                boost::get<flexibilityConfig_t>(dynOptionsHolder.at("flexibilityConfig"));
+            GenericConfig & dynOptionsHolder =
+                boost::get<GenericConfig>(modelOptions.at("dynamics"));
+            const FlexibilityConfig & flexibilityConfig =
+                boost::get<FlexibilityConfig>(dynOptionsHolder.at("flexibilityConfig"));
             std::set<std::string> flexibilityNames;
             std::transform(flexibilityConfig.begin(),
                            flexibilityConfig.end(),
                            std::inserter(flexibilityNames, flexibilityNames.begin()),
-                           [](const flexibleJointData_t & flexiblePoint) -> std::string
+                           [](const FlexibleJointData & flexiblePoint) -> std::string
                            { return flexiblePoint.frameName; });
             if (flexibilityNames.size() != flexibilityConfig.size())
             {
@@ -1750,7 +1752,7 @@ namespace jiminy
                 PRINT_ERROR("No one can make the universe itself flexible.");
                 return hresult_t::ERROR_BAD_INPUT;
             }
-            for (const flexibleJointData_t & flexibleJoint : flexibilityConfig)
+            for (const FlexibleJointData & flexibleJoint : flexibilityConfig)
             {
                 if ((flexibleJoint.stiffness.array() < 0.0).any() ||
                     (flexibleJoint.damping.array() < 0.0).any() ||
@@ -1801,8 +1803,8 @@ namespace jiminy
         }
 
         // Check that the collisions options are valid
-        configHolder_t & collisionOptionsHolder =
-            boost::get<configHolder_t>(modelOptions.at("collisions"));
+        GenericConfig & collisionOptionsHolder =
+            boost::get<GenericConfig>(modelOptions.at("collisions"));
         const uint32_t & maxContactPointsPerBody =
             boost::get<uint32_t>(collisionOptionsHolder.at("maxContactPointsPerBody"));
         if (maxContactPointsPerBody < 1)
@@ -1818,8 +1820,7 @@ namespace jiminy
         }
 
         // Check that the model randomization parameters are valid
-        configHolder_t & dynOptionsHolder =
-            boost::get<configHolder_t>(modelOptions.at("dynamics"));
+        GenericConfig & dynOptionsHolder = boost::get<GenericConfig>(modelOptions.at("dynamics"));
         for (const auto & field : std::array<std::string, 4>{
                  {"inertiaBodiesBiasStd",
                   "massBodiesBiasStd", "centerOfMassPositionBodiesBiasStd",
@@ -1860,7 +1861,7 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    configHolder_t Model::getOptions() const
+    GenericConfig Model::getOptions() const
     {
         return mdlOptionsHolder_;
     }
@@ -2066,17 +2067,17 @@ namespace jiminy
         return contactFramesNames_;
     }
 
-    const std::vector<frameIndex_t> & Model::getCollisionBodiesIdx() const
+    const std::vector<pinocchio::FrameIndex> & Model::getCollisionBodiesIdx() const
     {
         return collisionBodiesIdx_;
     }
 
-    const std::vector<std::vector<pairIndex_t>> & Model::getCollisionPairsIdx() const
+    const std::vector<std::vector<pinocchio::PairIndex>> & Model::getCollisionPairsIdx() const
     {
         return collisionPairsIdx_;
     }
 
-    const std::vector<frameIndex_t> & Model::getContactFramesIdx() const
+    const std::vector<pinocchio::FrameIndex> & Model::getContactFramesIdx() const
     {
         return contactFramesIdx_;
     }
@@ -2121,7 +2122,7 @@ namespace jiminy
         return rigidJointsNames_;
     }
 
-    const std::vector<jointIndex_t> & Model::getRigidJointsModelIdx() const
+    const std::vector<pinocchio::JointIndex> & Model::getRigidJointsModelIdx() const
     {
         return rigidJointsModelIdx_;
     }
@@ -2149,9 +2150,9 @@ namespace jiminy
         }
     }
 
-    const std::vector<jointIndex_t> & Model::getFlexibleJointsModelIdx() const
+    const std::vector<pinocchio::JointIndex> & Model::getFlexibleJointsModelIdx() const
     {
-        static const std::vector<jointIndex_t> flexibleJointsModelIdxEmpty{};
+        static const std::vector<pinocchio::JointIndex> flexibleJointsModelIdxEmpty{};
         if (mdlOptions_->dynamics.enableFlexibleModel)
         {
             return flexibleJointsModelIdx_;

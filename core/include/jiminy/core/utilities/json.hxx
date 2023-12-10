@@ -1,6 +1,6 @@
 #include "json/json.h"
 
-#include "jiminy/core/macros.h"
+#include "jiminy/core/traits.h"
 #include "jiminy/core/io/json_writer.h"
 
 
@@ -49,10 +49,10 @@ namespace jiminy
     }
 
     template<>
-    Json::Value convertToJson<flexibleJointData_t>(const flexibleJointData_t & value);
+    Json::Value convertToJson<FlexibleJointData>(const FlexibleJointData & value);
 
     template<>
-    Json::Value convertToJson<heightmapFunctor_t>(const heightmapFunctor_t & value);
+    Json::Value convertToJson<HeightmapFunctor>(const HeightmapFunctor & value);
 
     template<typename T, typename A>
     constexpr std::enable_if_t<!is_eigen_v<T>, const char *>
@@ -77,7 +77,7 @@ namespace jiminy
 
     template<>
     constexpr const char *
-    getJsonVectorType<flexibleJointData_t>(const std::vector<flexibleJointData_t> & /* value */)
+    getJsonVectorType<FlexibleJointData>(const std::vector<FlexibleJointData> & /* value */)
     {
         return "list(flexibility)";
     }
@@ -97,7 +97,7 @@ namespace jiminy
     }
 
     template<>
-    Json::Value convertToJson<configHolder_t>(const configHolder_t & value);
+    Json::Value convertToJson<GenericConfig>(const GenericConfig & value);
 
     // ************* Convertion from JSON utilities *****************
 
@@ -129,10 +129,10 @@ namespace jiminy
     Eigen::MatrixXd convertFromJson<Eigen::MatrixXd>(const Json::Value & value);
 
     template<>
-    flexibleJointData_t convertFromJson<flexibleJointData_t>(const Json::Value & value);
+    FlexibleJointData convertFromJson<FlexibleJointData>(const Json::Value & value);
 
     template<>
-    heightmapFunctor_t convertFromJson<heightmapFunctor_t>(const Json::Value & value);
+    HeightmapFunctor convertFromJson<HeightmapFunctor>(const Json::Value & value);
 
     template<typename T>
     std::enable_if_t<is_vector_v<T>, T> convertFromJson(const Json::Value & value)
@@ -150,5 +150,5 @@ namespace jiminy
     }
 
     template<>
-    configHolder_t convertFromJson<configHolder_t>(const Json::Value & value);
+    GenericConfig convertFromJson<GenericConfig>(const Json::Value & value);
 }

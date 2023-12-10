@@ -1,5 +1,4 @@
-
-
+#include "jiminy/core/exceptions.h"
 #include "jiminy/core/io/abstract_io_device.h"
 #include "jiminy/core/io/memory_device.h"
 #include "jiminy/core/io/json_writer.h"
@@ -14,7 +13,7 @@ namespace jiminy
     // *************** Convertion to JSON utilities *****************
 
     template<>
-    Json::Value convertToJson<flexibleJointData_t>(const flexibleJointData_t & value)
+    Json::Value convertToJson<FlexibleJointData>(const FlexibleJointData & value)
     {
         Json::Value flex;
         flex["frameName"] = convertToJson(value.frameName);
@@ -25,9 +24,9 @@ namespace jiminy
     }
 
     template<>
-    Json::Value convertToJson<heightmapFunctor_t>(const heightmapFunctor_t & /* value */)
+    Json::Value convertToJson<HeightmapFunctor>(const HeightmapFunctor & /* value */)
     {
-        return {"not supported"};
+        return {"unsupported"};
     }
 
     class AppendBoostVariantToJson : public boost::static_visitor<>
@@ -53,7 +52,7 @@ namespace jiminy
     };
 
     template<>
-    Json::Value convertToJson<configHolder_t>(const configHolder_t & value)
+    Json::Value convertToJson<GenericConfig>(const GenericConfig & value)
     {
         Json::Value root{Json::objectValue};
         AppendBoostVariantToJson visitor(root);
@@ -65,12 +64,12 @@ namespace jiminy
         return root;
     }
 
-    Json::Value convertToJson(const configHolder_t & value)
+    Json::Value convertToJson(const GenericConfig & value)
     {
-        return convertToJson<configHolder_t>(value);
+        return convertToJson<GenericConfig>(value);
     }
 
-    hresult_t jsonDump(const configHolder_t & config, std::shared_ptr<AbstractIODevice> & device)
+    hresult_t jsonDump(const GenericConfig & config, std::shared_ptr<AbstractIODevice> & device)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -156,7 +155,7 @@ namespace jiminy
     }
 
     template<>
-    flexibleJointData_t convertFromJson<flexibleJointData_t>(const Json::Value & value)
+    FlexibleJointData convertFromJson<FlexibleJointData>(const Json::Value & value)
     {
         return {convertFromJson<std::string>(value["frameName"]),
                 convertFromJson<Eigen::VectorXd>(value["stiffness"]),
@@ -165,21 +164,21 @@ namespace jiminy
     }
 
     template<>
-    heightmapFunctor_t convertFromJson<heightmapFunctor_t>(const Json::Value & /* value */)
+    HeightmapFunctor convertFromJson<HeightmapFunctor>(const Json::Value & /* value */)
     {
-        return {heightmapFunctor_t(
+        return {HeightmapFunctor(
             [](const Eigen::Vector3d & /* pos */) -> std::pair<float64_t, Eigen::Vector3d> {
                 return {0.0, Eigen::Vector3d::UnitZ()};
             })};
     }
 
     template<>
-    configHolder_t convertFromJson<configHolder_t>(const Json::Value & value)
+    GenericConfig convertFromJson<GenericConfig>(const Json::Value & value)
     {
-        configHolder_t config;
+        GenericConfig config;
         for (auto root = value.begin(); root != value.end(); ++root)
         {
-            configField_t field;
+            GenericConfig::mapped_type field;
 
             if (root->type() == Json::objectValue)
             {
@@ -207,7 +206,7 @@ namespace jiminy
                     }
                     else if (type == "list(flexibility)")
                     {
-                        field = convertFromJson<flexibilityConfig_t>(data);
+                        field = convertFromJson<FlexibilityConfig>(data);
                     }
                     else
                     {
@@ -217,7 +216,7 @@ namespace jiminy
                 }
                 else
                 {
-                    field = convertFromJson<configHolder_t>(*root);
+                    field = convertFromJson<GenericConfig>(*root);
                 }
             }
             else if (root->type() == Json::stringValue)
@@ -278,12 +277,12 @@ namespace jiminy
         return config;
     }
 
-    configHolder_t convertFromJson(const Json::Value & value)
+    GenericConfig convertFromJson(const Json::Value & value)
     {
-        return convertFromJson<configHolder_t>(value);
+        return convertFromJson<GenericConfig>(value);
     }
 
-    hresult_t jsonLoad(configHolder_t & config, std::shared_ptr<AbstractIODevice> & device)
+    hresult_t jsonLoad(GenericConfig & config, std::shared_ptr<AbstractIODevice> & device)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -292,7 +291,7 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            config = convertFromJson<configHolder_t>(*ioRead.getRoot());
+            config = convertFromJson<GenericConfig>(*ioRead.getRoot());
         }
 
         return returnCode;

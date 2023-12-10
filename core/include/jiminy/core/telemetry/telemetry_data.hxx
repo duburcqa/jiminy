@@ -3,6 +3,8 @@
 
 #include <string>
 
+#include "jiminy/core/exceptions.h"
+
 
 namespace jiminy
 {

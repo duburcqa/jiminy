@@ -6,7 +6,7 @@ from typing import Any, Sequence, Union
 
 import numpy as np
 
-from jiminy_py.core import (joint_t,
+from jiminy_py.core import (JointModelType,
                             get_joint_type,
                             build_models_from_urdf,
                             DistanceConstraint,
@@ -164,7 +164,7 @@ class CassieJiminyEnv(WalkerJiminyEnv):
             joint_type = get_joint_type(
                 self.robot.pinocchio_model, joint_idx)
             q_joint: Union[Sequence[float], float]
-            if joint_type == joint_t.ROTARY_UNBOUNDED:
+            if joint_type == JointModelType.ROTARY_UNBOUNDED:
                 q_joint = (math.cos(theta), math.sin(theta))
             else:
                 q_joint = theta

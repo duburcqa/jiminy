@@ -1,5 +1,6 @@
 #include "pinocchio/algorithm/frames.hpp"  // `pinocchio::getFrameVelocity`, `pinocchio::getFrameAcceleration`
 
+#include "jiminy/core/exceptions.h"
 #include "jiminy/core/robot/model.h"
 #include "jiminy/core/utilities/pinocchio.h"
 
@@ -27,7 +28,7 @@ namespace jiminy
         return framesNames_;
     }
 
-    const std::vector<frameIndex_t> & DistanceConstraint::getFramesIdx() const
+    const std::vector<pinocchio::FrameIndex> & DistanceConstraint::getFramesIdx() const
     {
         return framesIdx_;
     }
@@ -67,7 +68,7 @@ namespace jiminy
         framesIdx_.reserve(framesNames_.size());
         for (const std::string & frameName : framesNames_)
         {
-            frameIndex_t frameIdx = 0;
+            pinocchio::FrameIndex frameIdx = 0;
             if (returnCode == hresult_t::SUCCESS)
             {
                 returnCode = ::jiminy::getFrameIdx(model->pncModel_, frameName, frameIdx);

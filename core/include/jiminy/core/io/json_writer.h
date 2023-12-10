@@ -1,8 +1,7 @@
 #ifndef JIMINY_JSON_WRITER_H
 #define JIMINY_JSON_WRITER_H
 
-#include "jiminy/core/macros.h"
-#include "jiminy/core/types.h"
+#include "jiminy/core/fwd.h"
 
 
 namespace Json

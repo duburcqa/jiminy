@@ -5,7 +5,7 @@
 #include "pinocchio/spatial/force.hpp"  // `Pinocchio::Force`
 
 #include "jiminy/core/utilities/random.h"
-#include "jiminy/core/types.h"
+#include "jiminy/core/traits.h"
 
 /* Eigenpy must be imported first, since it sets pre-processor definitions used by Boost Python
    to configure Python C API. */
@@ -76,15 +76,15 @@ namespace jiminy::python
             .value("ERROR_BAD_INPUT", hresult_t::ERROR_BAD_INPUT)
             .value("ERROR_INIT_FAILED", hresult_t::ERROR_INIT_FAILED);
 
-        // Interfaces for joint_t enum
-        bp::enum_<joint_t>("joint_t")
-            .value("NONE", joint_t::NONE)
-            .value("LINEAR", joint_t::LINEAR)
-            .value("ROTARY", joint_t::ROTARY)
-            .value("ROTARY_UNBOUNDED", joint_t::ROTARY_UNBOUNDED)
-            .value("PLANAR", joint_t::PLANAR)
-            .value("SPHERICAL", joint_t::SPHERICAL)
-            .value("FREE", joint_t::FREE);
+        // Interfaces for JointModelType enum
+        bp::enum_<JointModelType>("JointModelType")
+            .value("NONE", JointModelType::UNSUPPORTED)
+            .value("LINEAR", JointModelType::LINEAR)
+            .value("ROTARY", JointModelType::ROTARY)
+            .value("ROTARY_UNBOUNDED", JointModelType::ROTARY_UNBOUNDED)
+            .value("PLANAR", JointModelType::PLANAR)
+            .value("SPHERICAL", JointModelType::SPHERICAL)
+            .value("FREE", JointModelType::FREE);
 
         // Interfaces for heightmapType_t enum
         bp::enum_<heightmapType_t>("heightmapType_t")
@@ -103,7 +103,7 @@ namespace jiminy::python
         REGISTER_CONVERTER(std::vector<int32_t>, true);
         REGISTER_CONVERTER(std::vector<Eigen::VectorXd>, true);
         REGISTER_CONVERTER(std::vector<Eigen::MatrixXd>, true);
-        REGISTER_CONVERTER(configHolder_t, true);
+        REGISTER_CONVERTER(GenericConfig, true);
 
         // Expose functors
         TIME_STATE_FCT_EXPOSE(Bool, bool_t)

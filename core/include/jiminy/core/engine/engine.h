@@ -1,7 +1,9 @@
 #ifndef JIMINY_ENGINE_H
 #define JIMINY_ENGINE_H
 
-#include "jiminy/core/macros.h"
+#include <optional>
+
+#include "jiminy/core/fwd.h"
 #include "jiminy/core/engine/engine_multi_robot.h"
 
 
@@ -18,8 +20,8 @@ namespace jiminy
 
         hresult_t initialize(std::shared_ptr<Robot> robot,
                              std::shared_ptr<AbstractController> controller,
-                             callbackFunctor_t callbackFct);
-        hresult_t initialize(std::shared_ptr<Robot> robot, callbackFunctor_t callbackFct);
+                             CallbackFunctor callbackFct);
+        hresult_t initialize(std::shared_ptr<Robot> robot, CallbackFunctor callbackFct);
 
         hresult_t setController(std::shared_ptr<AbstractController> controller);
 
@@ -65,19 +67,19 @@ namespace jiminy
                                        const float64_t & dt,
                                        const pinocchio::Force & F);
         hresult_t registerForceProfile(const std::string & frameName,
-                                       const forceProfileFunctor_t & forceFct,
+                                       const ForceProfileFunctor & forceFct,
                                        const float64_t & updatePeriod = 0.0);
 
         // Redefined to leverage C++ name hiding of overloaded base methods in derived class
         hresult_t removeForcesImpulse();
         hresult_t removeForcesProfile();
 
-        const forceImpulseRegister_t & getForcesImpulse() const;
-        const forceProfileRegister_t & getForcesProfile() const;
+        const ForceImpulseRegister & getForcesImpulse() const;
+        const ForceProfileRegister & getForcesProfile() const;
 
         hresult_t registerForceCoupling(const std::string & frameName1,
                                         const std::string & frameName2,
-                                        forceProfileFunctor_t forceFct);
+                                        ForceProfileFunctor forceFct);
         hresult_t registerViscoelasticForceCoupling(const std::string & frameName1,
                                                     const std::string & frameName2,
                                                     const Vector6d & stiffness,
@@ -102,7 +104,7 @@ namespace jiminy
     private:
         hresult_t initializeImpl(std::shared_ptr<Robot> robot,
                                  std::shared_ptr<AbstractController> controller,
-                                 callbackFunctor_t callbackFct);
+                                 CallbackFunctor callbackFct);
 
     protected:
         bool_t isInitialized_;

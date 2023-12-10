@@ -1,7 +1,9 @@
 #ifndef FUNCTORS_WRAPPERS_PYTHON_H
 #define FUNCTORS_WRAPPERS_PYTHON_H
 
-#include "jiminy/core/types.h"
+#include "jiminy/core/fwd.h"
+#include "jiminy/core/traits.h"
+#include "jiminy/core/hardware/abstract_sensor.h"
 
 #include "pinocchio/bindings/python/fwd.hpp"
 
@@ -64,8 +66,8 @@ namespace jiminy::python
     }
 
     template<typename T>
-    std::enable_if_t<std::is_same_v<T, sensorsDataMap_t>,
-                     boost::reference_wrapper<const sensorsDataMap_t>>
+    std::enable_if_t<std::is_same_v<T, SensorsDataMap>,
+                     boost::reference_wrapper<const SensorsDataMap>>
     FctPyWrapperArgToPython(const T & arg)
     {
         return boost::ref(arg);
@@ -191,12 +193,12 @@ namespace jiminy::python
                                                    float64_t /* t */,
                                                    Eigen::VectorXd /* q */,
                                                    Eigen::VectorXd /* v */,
-                                                   sensorsDataMap_t /* sensorsData*/>;
+                                                   SensorsDataMap /* sensorsData*/>;
 
     using ControllerFct = std::function<void(const float64_t & /* t */,
                                              const Eigen::VectorXd & /* q */,
                                              const Eigen::VectorXd & /* v */,
-                                             const sensorsDataMap_t & /* sensorsData */,
+                                             const SensorsDataMap & /* sensorsData */,
                                              Eigen::VectorXd & /* command */)>;
 
     // ************************** HeightmapFunctorPyWrapper ******************************

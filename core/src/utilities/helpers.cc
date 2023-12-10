@@ -8,7 +8,9 @@
 #endif
 
 #include "jiminy/core/constants.h"
-#include "jiminy/core/telemetry/telemetry_data.h"
+#include "jiminy/core/exceptions.h"
+#include "jiminy/core/telemetry/telemetry_data.h"      // `Global.Time`
+#include "jiminy/core/telemetry/telemetry_recorder.h"  // `LogData`
 #include "jiminy/core/utilities/helpers.h"
 
 
@@ -82,26 +84,13 @@ namespace jiminy
 
     // ******************* Telemetry utilities **********************
 
-    bool_t endsWith(const std::string & fullString, const std::string & ending)
+    bool_t endsWith(const std::string & text, const std::string & ending)
     {
-        if (fullString.length() >= ending.length())
+        if (text.length() >= ending.length())
         {
-            return fullString.compare(
-                       fullString.length() - ending.length(), ending.length(), ending) == 0;
+            return text.compare(text.length() - ending.length(), ending.length(), ending) == 0;
         }
         return false;
-    }
-
-    std::vector<std::string> defaultVectorFieldnames(const std::string & baseName,
-                                                     const uint32_t & size)
-    {
-        std::vector<std::string> fieldnames;
-        fieldnames.reserve(size);
-        for (uint32_t i = 0; i < size; ++i)
-        {
-            fieldnames.push_back(baseName + TELEMETRY_FIELDNAME_DELIMITER + std::to_string(i));
-        }
-        return fieldnames;
     }
 
     std::string addCircumfix(std::string fieldname,
@@ -160,25 +149,25 @@ namespace jiminy
         return fieldnames;
     }
 
-    Eigen::VectorXd getLogVariable(const logData_t & logData, const std::string & fieldname)
+    Eigen::VectorXd getLogVariable(const LogData & logData, const std::string & fieldname)
     {
         if (fieldname == GLOBAL_TIME)
         {
-            return logData.timestamps.cast<float64_t>() * logData.timeUnit;
+            return logData.times.cast<float64_t>() * logData.timeUnit;
         }
-        const auto & firstFieldnameIt = logData.fieldnames.begin() + 1;  // Skip GLOBAL_TIME
-        auto fieldnameIt = std::find(firstFieldnameIt, logData.fieldnames.end(), fieldname);
-        if (fieldnameIt == logData.fieldnames.end())
+        const auto & firstFieldnameIt = logData.variableNames.begin() + 1;  // Skip GLOBAL_TIME
+        auto fieldnameIt = std::find(firstFieldnameIt, logData.variableNames.end(), fieldname);
+        if (fieldnameIt == logData.variableNames.end())
         {
             PRINT_ERROR("Variable '", fieldname, "' does not exist.");
             return {};
         }
         const int64_t varIdx = std::distance(firstFieldnameIt, fieldnameIt);
-        const Eigen::Index numInt = logData.intData.rows();
+        const Eigen::Index numInt = logData.integerValues.rows();
         if (varIdx < numInt)
         {
-            return logData.intData.row(varIdx).cast<float64_t>();
+            return logData.integerValues.row(varIdx).cast<float64_t>();
         }
-        return logData.floatData.row(varIdx - numInt);
+        return logData.floatValues.row(varIdx - numInt);
     }
 }

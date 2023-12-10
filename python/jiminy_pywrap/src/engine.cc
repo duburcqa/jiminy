@@ -1,3 +1,4 @@
+#include "jiminy/core/exceptions.h"
 #include "jiminy/core/io/serialization.h"
 #include "jiminy/core/control/abstract_controller.h"
 #include "jiminy/core/robot/robot.h"
@@ -24,69 +25,69 @@ namespace jiminy::python
 
     // ************* Expose impulse, profile, and coupling force registers **************
 
-    static bp::object forceProfileWrapper(const forceProfile_t & self)
+    static bp::object forceProfileWrapper(const ForceProfile & self)
     {
         bp::object func = bp::make_function(self.forceFct,
                                             bp::return_value_policy<bp::return_by_value>(),
                                             (bp::arg("t"), "q", "v"),
                                             functionToMLP(self.forceFct));
-        setFunctionWrapperModule<forceProfile_t>(func);
+        setFunctionWrapperModule<ForceProfile>(func);
         return func;
     }
 
-    static bp::object forceCouplingWrapper(const forceCoupling_t & self)
+    static bp::object forceCouplingWrapper(const ForceCoupling & self)
     {
         bp::object func = bp::make_function(self.forceFct,
                                             bp::return_value_policy<bp::return_by_value>(),
                                             (bp::arg("t"), "q_1", "v_1", "q_2", "v_2"),
                                             functionToMLP(self.forceFct));
-        setFunctionWrapperModule<forceCoupling_t>(func);
+        setFunctionWrapperModule<ForceCoupling>(func);
         return func;
     }
 
     void exposeForces()
     {
         // clang-format off
-        bp::class_<forceProfile_t,
-                   std::shared_ptr<forceProfile_t>,
+        bp::class_<ForceProfile,
+                   std::shared_ptr<ForceProfile>,
                    boost::noncopyable>("ForceProfile", bp::no_init)
-            .DEF_READONLY("frame_name", &forceProfile_t::frameName)
-            .DEF_READONLY("frame_idx", &forceProfile_t::frameIdx)
-            .DEF_READONLY("update_period", &forceProfile_t::updatePeriod)
-            .DEF_READONLY("force_prev", &forceProfile_t::forcePrev)
+            .DEF_READONLY("frame_name", &ForceProfile::frameName)
+            .DEF_READONLY("frame_idx", &ForceProfile::frameIdx)
+            .DEF_READONLY("update_period", &ForceProfile::updatePeriod)
+            .DEF_READONLY("force_prev", &ForceProfile::forcePrev)
             .ADD_PROPERTY_GET("force_func", forceProfileWrapper);
 
         /* Note that it will be impossible to slice the vector if `boost::noncopyable` is set for
            the stl container, or if the value type contained itself. In such a case, it raises a
            runtime error rather than a compile-time error. */
-        bp::class_<forceProfileRegister_t>("ForceProfileVector", bp::no_init)
-            .def(vector_indexing_suite_no_contains<forceProfileRegister_t>());
+        bp::class_<ForceProfileRegister>("ForceProfileVector", bp::no_init)
+            .def(vector_indexing_suite_no_contains<ForceProfileRegister>());
 
-        bp::class_<forceImpulse_t,
-                   std::shared_ptr<forceImpulse_t>,
+        bp::class_<ForceImpulse,
+                   std::shared_ptr<ForceImpulse>,
                    boost::noncopyable>("ForceImpulse", bp::no_init)
-            .DEF_READONLY("frame_name", &forceImpulse_t::frameName)
-            .DEF_READONLY("frame_idx", &forceImpulse_t::frameIdx)
-            .DEF_READONLY("t", &forceImpulse_t::t)
-            .DEF_READONLY("dt", &forceImpulse_t::dt)
-            .DEF_READONLY("F", &forceImpulse_t::F);
+            .DEF_READONLY("frame_name", &ForceImpulse::frameName)
+            .DEF_READONLY("frame_idx", &ForceImpulse::frameIdx)
+            .DEF_READONLY("t", &ForceImpulse::t)
+            .DEF_READONLY("dt", &ForceImpulse::dt)
+            .DEF_READONLY("F", &ForceImpulse::F);
 
-        bp::class_<forceImpulseRegister_t,
+        bp::class_<ForceImpulseRegister,
                    boost::noncopyable>("ForceImpulseVector", bp::no_init)
-            .def(vector_indexing_suite_no_contains<forceImpulseRegister_t>());
+            .def(vector_indexing_suite_no_contains<ForceImpulseRegister>());
 
-        bp::class_<forceCoupling_t,
-                   std::shared_ptr<forceCoupling_t>,
+        bp::class_<ForceCoupling,
+                   std::shared_ptr<ForceCoupling>,
                    boost::noncopyable>("ForceCoupling", bp::no_init)
-            .DEF_READONLY("system_name_1", &forceCoupling_t::systemName1)
-            .DEF_READONLY("system_idx_1", &forceCoupling_t::systemIdx1)
-            .DEF_READONLY("system_name_2", &forceCoupling_t::systemName2)
-            .DEF_READONLY("system_idx_2", &forceCoupling_t::systemIdx2)
+            .DEF_READONLY("system_name_1", &ForceCoupling::systemName1)
+            .DEF_READONLY("system_idx_1", &ForceCoupling::systemIdx1)
+            .DEF_READONLY("system_name_2", &ForceCoupling::systemName2)
+            .DEF_READONLY("system_idx_2", &ForceCoupling::systemIdx2)
             .ADD_PROPERTY_GET("force_func", forceCouplingWrapper);
 
-        bp::class_<forceCouplingRegister_t,
+        bp::class_<ForceCouplingRegister,
                    boost::noncopyable>("ForceCouplingVector", bp::no_init)
-            .def(vector_indexing_suite_no_contains<forceCouplingRegister_t>());
+            .def(vector_indexing_suite_no_contains<ForceCouplingRegister>());
         // clang-format on
     }
 
@@ -101,10 +102,10 @@ namespace jiminy::python
         {
             // clang-format off
             cl
-                .DEF_READONLY("iter", &stepperState_t::iter)
-                .DEF_READONLY("iter_failed", &stepperState_t::iterFailed)
-                .DEF_READONLY("t", &stepperState_t::t)
-                .DEF_READONLY("dt", &stepperState_t::dt)
+                .DEF_READONLY("iter", &StepperState::iter)
+                .DEF_READONLY("iter_failed", &StepperState::iterFailed)
+                .DEF_READONLY("t", &StepperState::t)
+                .DEF_READONLY("dt", &StepperState::dt)
                 .ADD_PROPERTY_GET("q", &PyStepperStateVisitor::getQ)
                 .ADD_PROPERTY_GET("v", &PyStepperStateVisitor::getV)
                 .ADD_PROPERTY_GET("a", &PyStepperStateVisitor::getA)
@@ -113,22 +114,22 @@ namespace jiminy::python
             // clang-format on
         }
 
-        static bp::object getQ(const stepperState_t & self)
+        static bp::object getQ(const StepperState & self)
         {
             return convertToPython(self.qSplit, false);
         }
 
-        static bp::object getV(const stepperState_t & self)
+        static bp::object getV(const StepperState & self)
         {
             return convertToPython(self.vSplit, false);
         }
 
-        static bp::object getA(const stepperState_t & self)
+        static bp::object getA(const StepperState & self)
         {
             return convertToPython(self.aSplit, false);
         }
 
-        static std::string repr(const stepperState_t & self)
+        static std::string repr(const StepperState & self)
         {
             std::stringstream s;
             Eigen::IOFormat HeavyFmt(5, 1, ", ", "", "", "", "[", "]\n");
@@ -157,8 +158,8 @@ namespace jiminy::python
         static void expose()
         {
             // clang-format off
-            bp::class_<stepperState_t,
-                       std::shared_ptr<stepperState_t>,
+            bp::class_<StepperState,
+                       std::shared_ptr<StepperState>,
                        boost::noncopyable>("StepperState", bp::no_init)
                 .def(PyStepperStateVisitor());
             // clang-format on
@@ -445,7 +446,7 @@ namespace jiminy::python
                                    const bp::object & controllerPy,
                                    const bp::object & callbackPy)
         {
-            callbackFunctor_t callbackFct;
+            CallbackFunctor callbackFct;
             if (callbackPy.is_none())
             {
                 callbackFct = [](const float64_t & /* t */,
@@ -481,7 +482,7 @@ namespace jiminy::python
             bp::dict forceImpulsesPy;
             for (const auto & systemName : self.getSystemsNames())
             {
-                const forceImpulseRegister_t * forcesImpulse;
+                const ForceImpulseRegister * forcesImpulse;
                 self.getForcesImpulse(systemName, forcesImpulse);
                 forceImpulsesPy[systemName] = convertToPython(forcesImpulse, false);
             }
@@ -493,7 +494,7 @@ namespace jiminy::python
             bp::dict forcesProfilesPy;
             for (const auto & systemName : self.getSystemsNames())
             {
-                const forceProfileRegister_t * forcesProfile;
+                const ForceProfileRegister * forcesProfile;
                 self.getForcesProfile(systemName, forcesProfile);
                 forcesProfilesPy[systemName] = convertToPython(forcesProfile, false);
             }
@@ -599,7 +600,7 @@ namespace jiminy::python
                 systemName, frameName, std::move(forceFct), updatePeriod);
         }
 
-        static bp::dict formatLogData(const logData_t & logData)
+        static bp::dict formatLogData(const LogData & logData)
         {
             // Early return if empty
             if (logData.constants.empty())
@@ -615,8 +616,8 @@ namespace jiminy::python
             Eigen::Matrix<float64_t, Eigen::Dynamic, 1> floatVector;
 
             // Get the number of integer and float variables
-            const Eigen::Index numInt = logData.intData.rows();
-            const Eigen::Index numFloat = logData.floatData.rows();
+            const Eigen::Index numInt = logData.integerValues.rows();
+            const Eigen::Index numFloat = logData.floatValues.rows();
 
             // Get constants
             for (const auto & [key, value] : logData.constants)
@@ -626,7 +627,7 @@ namespace jiminy::python
                     std::vector<uint8_t> jsonStringVec(value.begin(), value.end());
                     std::shared_ptr<AbstractIODevice> device =
                         std::make_shared<MemoryDevice>(std::move(jsonStringVec));
-                    configHolder_t robotOptions;
+                    GenericConfig robotOptions;
                     jsonLoad(robotOptions, device);
                     constants[key] = robotOptions;
                 }
@@ -685,10 +686,10 @@ namespace jiminy::python
 
             // Get Global.Time
             bp::object timePy;
-            if (logData.timestamps.size() > 0)
+            if (logData.times.size() > 0)
             {
                 const Eigen::VectorXd timeBuffer =
-                    logData.timestamps.cast<float64_t>() * logData.timeUnit;
+                    logData.times.cast<float64_t>() * logData.timeUnit;
                 timePy = convertToPython(timeBuffer, true);
                 PyArray_CLEARFLAGS(reinterpret_cast<PyArrayObject *>(timePy.ptr()),
                                    NPY_ARRAY_WRITEABLE);
@@ -698,15 +699,15 @@ namespace jiminy::python
                 npy_intp dims[1] = {npy_intp(0)};
                 timePy = bp::object(bp::handle<>(PyArray_SimpleNew(1, dims, NPY_FLOAT64)));
             }
-            variables[logData.fieldnames[0]] = timePy;
+            variables[logData.variableNames[0]] = timePy;
 
             // Get integers
             if (numInt > 0)
             {
                 for (Eigen::Index i = 0; i < numInt; ++i)
                 {
-                    const std::string & header_i = logData.fieldnames[i + 1];
-                    intVector = logData.intData.row(i);
+                    const std::string & header_i = logData.variableNames[i + 1];
+                    intVector = logData.integerValues.row(i);
                     bp::object array = convertToPython(intVector, true);
                     PyArray_CLEARFLAGS(reinterpret_cast<PyArrayObject *>(array.ptr()),
                                        NPY_ARRAY_WRITEABLE);
@@ -718,7 +719,7 @@ namespace jiminy::python
                 npy_intp dims[1] = {npy_intp(0)};
                 for (Eigen::Index i = 0; i < numInt; ++i)
                 {
-                    const std::string & header_i = logData.fieldnames[i + 1];
+                    const std::string & header_i = logData.variableNames[i + 1];
                     variables[header_i] =
                         bp::object(bp::handle<>(PyArray_SimpleNew(1, dims, NPY_INT64)));
                 }
@@ -729,8 +730,8 @@ namespace jiminy::python
             {
                 for (Eigen::Index i = 0; i < numFloat; ++i)
                 {
-                    const std::string & header_i = logData.fieldnames[i + 1 + numInt];
-                    floatVector = logData.floatData.row(i);
+                    const std::string & header_i = logData.variableNames[i + 1 + numInt];
+                    floatVector = logData.floatValues.row(i);
                     bp::object array = convertToPython(floatVector, true);
                     PyArray_CLEARFLAGS(reinterpret_cast<PyArrayObject *>(array.ptr()),
                                        NPY_ARRAY_WRITEABLE);
@@ -742,7 +743,7 @@ namespace jiminy::python
                 npy_intp dims[1] = {npy_intp(0)};
                 for (Eigen::Index i = 0; i < numFloat; ++i)
                 {
-                    const std::string & header_i = logData.fieldnames[i + 1 + numInt];
+                    const std::string & header_i = logData.variableNames[i + 1 + numInt];
                     variables[header_i] =
                         bp::object(bp::handle<>(PyArray_SimpleNew(1, dims, NPY_FLOAT64)));
                 }
@@ -767,8 +768,8 @@ namespace jiminy::python
                - https://stackoverflow.com/a/31444751/4820605 */
 
             static std::unique_ptr<bp::dict> logDataPy(nullptr);
-            static std::shared_ptr<const logData_t> logDataOld;
-            std::shared_ptr<const logData_t> logData;
+            static std::shared_ptr<const LogData> logDataOld;
+            std::shared_ptr<const LogData> logData;
             self.getLog(logData);
             if (logData.use_count() == 2)
             {
@@ -828,7 +829,7 @@ namespace jiminy::python
                                              "automatically. Please specify it manually.");
                 }
             }
-            logData_t logData;
+            LogData logData;
             hresult_t returnCode = EngineMultiRobot::readLog(filename, format, logData);
             if (returnCode == hresult_t::SUCCESS)
             {
@@ -839,7 +840,7 @@ namespace jiminy::python
 
         static hresult_t setOptions(EngineMultiRobot & self, const bp::dict & configPy)
         {
-            configHolder_t config = self.getOptions();
+            GenericConfig config = self.getOptions();
             convertFromPython(configPy, config);
             return self.setOptions(config);
         }
@@ -896,7 +897,7 @@ namespace jiminy::python
                                                (bp::arg("self"), "frame_name", "t", "dt", "F"))
                 .ADD_PROPERTY_GET_WITH_POLICY("forces_impulse",
                                               static_cast<
-                                                  const forceImpulseRegister_t & (Engine::*)(void) const
+                                                  const ForceImpulseRegister & (Engine::*)(void) const
                                               >(&Engine::getForcesImpulse),
                                               bp::return_value_policy<result_converter<false>>())
 
@@ -905,7 +906,7 @@ namespace jiminy::python
                                                 bp::arg("update_period") = 0.0))
                 .ADD_PROPERTY_GET_WITH_POLICY("forces_profile",
                                               static_cast<
-                                                  const forceProfileRegister_t & (Engine::*)(void) const
+                                                  const ForceProfileRegister & (Engine::*)(void) const
                                               >(&Engine::getForcesProfile),
                                               bp::return_value_policy<result_converter<false>>())
 
@@ -965,9 +966,9 @@ namespace jiminy::python
         {
             if (callbackPy.is_none())
             {
-                callbackFunctor_t callbackFct = [](const float64_t & /* t */,
-                                                   const Eigen::VectorXd & /* q */,
-                                                   const Eigen::VectorXd & /* v */) -> bool_t
+                CallbackFunctor callbackFct = [](const float64_t & /* t */,
+                                                 const Eigen::VectorXd & /* q */,
+                                                 const Eigen::VectorXd & /* v */) -> bool_t
                 {
                     return true;
                 };

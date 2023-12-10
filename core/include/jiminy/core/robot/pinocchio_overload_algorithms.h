@@ -28,7 +28,9 @@
 #include "pinocchio/algorithm/energy.hpp"    // `pinocchio::computeKineticEnergy`
 #include "pinocchio/algorithm/cholesky.hpp"  // `pinocchio::cholesky::`
 
-#include "jiminy/core/macros.h"
+#include "jiminy/core/fwd.h"
+#include "jiminy/core/traits.h"
+#include "jiminy/core/exceptions.h"
 #include "jiminy/core/engine/engine_multi_robot.h"
 
 
@@ -495,8 +497,8 @@ namespace jiminy::pinocchio_overload
                          pinocchio::Data & data,
                          const Eigen::MatrixBase<TangentVectorType> & a)
         {
-            const jointIndex_t & i = jmodel.id();
-            const jointIndex_t & parent = model.parents[i];
+            const pinocchio::JointIndex & i = jmodel.id();
+            const pinocchio::JointIndex & parent = model.parents[i];
             data.a[i] =
                 jdata.S() * jmodel.jointVelocitySelector(a) + jdata.c() + (data.v[i] ^ jdata.v());
             if (parent > 0)

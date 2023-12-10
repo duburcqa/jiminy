@@ -3,7 +3,8 @@
 
 #include <math.h>
 
-#include "jiminy/core/types.h"
+#include "jiminy/core/fwd.h"
+#include "jiminy/core/traits.h"
 
 
 namespace jiminy

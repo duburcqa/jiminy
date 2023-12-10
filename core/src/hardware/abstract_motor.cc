@@ -1,3 +1,4 @@
+#include "jiminy/core/exceptions.h"
 #include "jiminy/core/robot/robot.h"
 #include "jiminy/core/utilities/pinocchio.h"
 
@@ -17,7 +18,7 @@ namespace jiminy
     motorIdx_(0),
     jointName_(),
     jointModelIdx_(0),
-    jointType_(joint_t::NONE),
+    jointType_(JointModelType::UNSUPPORTED),
     jointPositionIdx_(-1),
     jointVelocityIdx_(-1),
     commandLimit_(0.0),
@@ -152,7 +153,7 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    hresult_t AbstractMotorBase::setOptions(const configHolder_t & motorOptions)
+    hresult_t AbstractMotorBase::setOptions(const GenericConfig & motorOptions)
     {
         // Check if the internal buffers must be updated
         bool_t internalBuffersMustBeUpdated = false;
@@ -198,7 +199,7 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    configHolder_t AbstractMotorBase::getOptions() const
+    GenericConfig AbstractMotorBase::getOptions() const
     {
         return motorOptionsHolder_;
     }
@@ -254,8 +255,8 @@ namespace jiminy
         if (returnCode == hresult_t::SUCCESS)
         {
             // Motors are only supported for linear and rotary joints
-            if (jointType_ != joint_t::LINEAR && jointType_ != joint_t::ROTARY &&
-                jointType_ != joint_t::ROTARY_UNBOUNDED)
+            if (jointType_ != JointModelType::LINEAR && jointType_ != JointModelType::ROTARY &&
+                jointType_ != JointModelType::ROTARY_UNBOUNDED)
             {
                 PRINT_ERROR("A motor can only be associated with a 1-dof linear or rotary joint.");
                 returnCode = hresult_t::ERROR_BAD_INPUT;
@@ -321,7 +322,7 @@ namespace jiminy
         return sharedHolder_->data_;
     }
 
-    hresult_t AbstractMotorBase::setOptionsAll(const configHolder_t & motorOptions)
+    hresult_t AbstractMotorBase::setOptionsAll(const GenericConfig & motorOptions)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -363,12 +364,12 @@ namespace jiminy
         return jointName_;
     }
 
-    const jointIndex_t & AbstractMotorBase::getJointModelIdx() const
+    const pinocchio::JointIndex & AbstractMotorBase::getJointModelIdx() const
     {
         return jointModelIdx_;
     }
 
-    const joint_t & AbstractMotorBase::getJointType() const
+    const JointModelType & AbstractMotorBase::getJointType() const
     {
         return jointType_;
     }
@@ -414,7 +415,7 @@ namespace jiminy
             if (returnCode == hresult_t::SUCCESS)
             {
                 uint8_t nq_motor;
-                if (motor->getJointType() == joint_t::ROTARY_UNBOUNDED)
+                if (motor->getJointType() == JointModelType::ROTARY_UNBOUNDED)
                 {
                     nq_motor = 2;
                 }

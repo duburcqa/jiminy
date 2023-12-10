@@ -6,12 +6,14 @@
 #include <iostream>
 #include <filesystem>
 
-#include "jiminy/core/engine/engine.h"
+#include "jiminy/core/fwd.h"
+#include "jiminy/core/utilities/helpers.h"
+#include "jiminy/core/io/file_device.h"
+#include "jiminy/core/telemetry/telemetry_recorder.h"
+#include "jiminy/core/hardware/abstract_sensor.h"
 #include "jiminy/core/hardware/basic_motors.h"
 #include "jiminy/core/control/controller_functor.h"
-#include "jiminy/core/io/file_device.h"
-#include "jiminy/core/utilities/helpers.h"
-#include "jiminy/core/types.h"
+#include "jiminy/core/engine/engine.h"
 
 
 using namespace jiminy;
@@ -20,7 +22,7 @@ using namespace jiminy;
 void computeCommand(const float64_t & t,
                     const Eigen::VectorXd & q,
                     const Eigen::VectorXd & v,
-                    const sensorsDataMap_t & sensorsData,
+                    const SensorsDataMap & sensorsData,
                     Eigen::VectorXd & command)
 {
     // No controller: energy should be preserved
@@ -29,7 +31,7 @@ void computeCommand(const float64_t & t,
 void internalDynamics(const float64_t & t,
                       const Eigen::VectorXd & q,
                       const Eigen::VectorXd & v,
-                      const sensorsDataMap_t & sensorsData,
+                      const SensorsDataMap & sensorsData,
                       Eigen::VectorXd & uCustom)
 {
 }
@@ -62,8 +64,8 @@ int main(int argc, char_t * argv[])
     // Instantiate and configuration the robot
     std::vector<std::string> motorJointNames{"SecondPendulumJoint"};
     auto robot = std::make_shared<Robot>();
-    configHolder_t modelOptions = robot->getModelOptions();
-    configHolder_t & jointsOptions = boost::get<configHolder_t>(modelOptions.at("joints"));
+    GenericConfig modelOptions = robot->getModelOptions();
+    GenericConfig & jointsOptions = boost::get<GenericConfig>(modelOptions.at("joints"));
     boost::get<bool_t>(jointsOptions.at("positionLimitFromUrdf")) = true;
     boost::get<bool_t>(jointsOptions.at("velocityLimitFromUrdf")) = true;
     robot->setModelOptions(modelOptions);
@@ -105,9 +107,9 @@ int main(int argc, char_t * argv[])
 
     // Write the log file
     std::vector<std::string> fieldnames;
-    std::shared_ptr<const logData_t> logData;
+    std::shared_ptr<const LogData> logData;
     engine->getLog(logData);
-    std::cout << logData->timestamps.size() << " log points" << std::endl;
+    std::cout << logData->times.size() << " log points" << std::endl;
     std::cout << engine->getStepperState().iter << " internal integration steps" << std::endl;
     timer.tic();
     engine->writeLog((outputDirPath / "log.data").string(), "binary");

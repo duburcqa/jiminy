@@ -1,7 +1,7 @@
 #ifndef JIMINY_CORE_MEMORY_DEVICE_H
 #define JIMINY_CORE_MEMORY_DEVICE_H
 
-#include "jiminy/core/macros.h"
+#include "jiminy/core/fwd.h"
 #include "jiminy/core/io/abstract_io_device.h"
 
 

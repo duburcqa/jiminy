@@ -357,7 +357,7 @@ namespace jiminy::python
                                             (bp::arg("self"), "sensors_options"))
                 .def("get_sensors_options",
                     static_cast<
-                        configHolder_t (Robot::*)(void) const
+                        GenericConfig (Robot::*)(void) const
                     >(&Robot::getSensorsOptions))
                 .def("set_telemetry_options", &PyRobotVisitor::setTelemetryOptions,
                                               (bp::arg("self"), "telemetry_options"))
@@ -421,9 +421,9 @@ namespace jiminy::python
             return sensor;
         }
 
-        static std::shared_ptr<sensorsDataMap_t> getSensorsData(Robot & self)
+        static std::shared_ptr<SensorsDataMap> getSensorsData(Robot & self)
         {
-            return std::make_shared<sensorsDataMap_t>(self.getSensorsData());
+            return std::make_shared<SensorsDataMap>(self.getSensorsData());
         }
 
         static bp::dict getSensorsNames(Robot & self)
@@ -441,7 +441,7 @@ namespace jiminy::python
         static hresult_t setOptions(Robot          & self,
                                     const bp::dict & configPy)
         {
-            configHolder_t config = self.getOptions();
+            GenericConfig config = self.getOptions();
             convertFromPython(configPy, config);
             return self.setOptions(config);
         }
@@ -449,7 +449,7 @@ namespace jiminy::python
         static hresult_t setModelOptions(Robot          & self,
                                          const bp::dict & configPy)
         {
-            configHolder_t config = self.getModelOptions();
+            GenericConfig config = self.getModelOptions();
             convertFromPython(configPy, config);
             return self.setModelOptions(config);
         }
@@ -457,7 +457,7 @@ namespace jiminy::python
         static hresult_t setMotorsOptions(Robot          & self,
                                           const bp::dict & configPy)
         {
-            configHolder_t config = self.getMotorsOptions();
+            GenericConfig config = self.getMotorsOptions();
             convertFromPython(configPy, config);
             return self.setMotorsOptions(config);
         }
@@ -465,7 +465,7 @@ namespace jiminy::python
         static hresult_t setSensorsOptions(Robot          & self,
                                            const bp::dict & configPy)
         {
-            configHolder_t config = self.getSensorsOptions();
+            GenericConfig config = self.getSensorsOptions();
             convertFromPython(configPy, config);
             return self.setSensorsOptions(config);
         }
@@ -473,7 +473,7 @@ namespace jiminy::python
         static hresult_t setTelemetryOptions(Robot          & self,
                                              const bp::dict & configPy)
         {
-            configHolder_t config = self.getTelemetryOptions();
+            GenericConfig config = self.getTelemetryOptions();
             convertFromPython(configPy, config);
             return self.setTelemetryOptions(config);
         }

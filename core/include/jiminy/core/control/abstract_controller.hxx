@@ -4,30 +4,11 @@
 #include <string>
 #include <vector>
 
+#include "jiminy/core/exceptions.h"  // `jiminy::toString`
+
 
 namespace jiminy
 {
-    using std::to_string;
-
-    template<typename DerivedType>
-    std::string to_string(const Eigen::MatrixBase<DerivedType> & var)
-    {
-        Eigen::IOFormat HeavyFmt(Eigen::FullPrecision, 0, ", ", ";\n", "[", "]", "[", "]");
-        std::stringstream matrixStream;
-        matrixStream << var.format(HeavyFmt);
-        return matrixStream.str();
-    }
-
-    inline std::string to_string(const char_t * var)
-    {
-        return {var};
-    }
-
-    inline std::string to_string(const std::string & var)
-    {
-        return var;
-    }
-
     /// \brief Register a constant to the telemetry.
     ///
     /// \param[in] fieldnames Name of the variable.
@@ -55,7 +36,7 @@ namespace jiminy
             PRINT_ERROR("Constant already registered.");
             return hresult_t::ERROR_BAD_INPUT;
         }
-        registeredConstants_.emplace_back(fieldname, to_string(value));
+        registeredConstants_.emplace_back(fieldname, toString(value));
 
         return hresult_t::SUCCESS;
     }

@@ -3,10 +3,10 @@
 #include <iomanip>
 #include <fstream>
 
-
+#include "jiminy/core/constants.h"
+#include "jiminy/core/exceptions.h"
 #include "jiminy/core/io/file_device.h"
 #include "jiminy/core/telemetry/telemetry_data.h"
-#include "jiminy/core/constants.h"
 
 #include "jiminy/core/telemetry/telemetry_recorder.h"
 
@@ -204,7 +204,7 @@ namespace jiminy
                               const int64_t & integerSectionSize,
                               const int64_t & floatSectionSize,
                               const int64_t & headerSize,
-                              logData_t & logData)
+                              LogData & logData)
     {
         // Clear everything that may be stored
         logData = {};
@@ -214,8 +214,8 @@ namespace jiminy
             static_cast<Eigen::Index>(integerSectionSize / sizeof(int64_t));
         const Eigen::Index numFloat =
             static_cast<Eigen::Index>(floatSectionSize / sizeof(float64_t));
-        logData.intData.resize(numInt, 0);
-        logData.floatData.resize(numFloat, 0);
+        logData.integerValues.resize(numInt, 0);
+        logData.floatValues.resize(numFloat, 0);
 
         // Process the provided data
         Eigen::Index timeIdx = 0;
@@ -301,7 +301,7 @@ namespace jiminy
                             break;
                         }
                         posHeader += fieldname.size() + 1;  // Skip last '\0'
-                        logData.fieldnames.push_back(fieldname);
+                        logData.variableNames.push_back(fieldname);
                     }
 
                     isReadingHeaderDone = true;
@@ -326,9 +326,9 @@ namespace jiminy
                     startLineTokenSize + sizeof(uint64_t) + integerSectionSize + floatSectionSize;
                 const Eigen::Index numData =
                     timeIdx + flow->bytesAvailable() / recordedBytesDataLine;
-                logData.timestamps.conservativeResize(numData);
-                logData.intData.conservativeResize(Eigen::NoChange, numData);
-                logData.floatData.conservativeResize(Eigen::NoChange, numData);
+                logData.times.conservativeResize(numData);
+                logData.integerValues.conservativeResize(Eigen::NoChange, numData);
+                logData.floatValues.conservativeResize(Eigen::NoChange, numData);
 
                 // Read all available data lines: [token, time, integers, floats]
                 char_t startLineTokenBuffer;
@@ -344,9 +344,9 @@ namespace jiminy
                     flow->seek(flow->pos() + startLineTokenSize - 1);
 
                     // Read data line
-                    flow->readData(&logData.timestamps[timeIdx], sizeof(int64_t));
-                    flow->readData(logData.intData.col(timeIdx).data(), integerSectionSize);
-                    flow->readData(logData.floatData.col(timeIdx).data(), floatSectionSize);
+                    flow->readData(&logData.times[timeIdx], sizeof(int64_t));
+                    flow->readData(logData.integerValues.col(timeIdx).data(), integerSectionSize);
+                    flow->readData(logData.floatValues.col(timeIdx).data(), floatSectionSize);
 
                     // Increment timestamp counter
                     ++timeIdx;
@@ -358,14 +358,14 @@ namespace jiminy
         }
 
         // Remove uninitialized data if any. It occurs whenever the last memory buffer is not full.
-        logData.timestamps.conservativeResize(timeIdx);
-        logData.intData.conservativeResize(Eigen::NoChange, timeIdx);
-        logData.floatData.conservativeResize(Eigen::NoChange, timeIdx);
+        logData.times.conservativeResize(timeIdx);
+        logData.integerValues.conservativeResize(Eigen::NoChange, timeIdx);
+        logData.floatValues.conservativeResize(Eigen::NoChange, timeIdx);
 
         return hresult_t::SUCCESS;
     }
 
-    hresult_t TelemetryRecorder::getLog(logData_t & logData)
+    hresult_t TelemetryRecorder::getLog(LogData & logData)
     {
         std::vector<AbstractIODevice *> abstractFlows_;
         for (MemoryDevice & device : flows_)
@@ -377,7 +377,7 @@ namespace jiminy
             abstractFlows_, integerSectionSize_, floatSectionSize_, headerSize_, logData);
     }
 
-    hresult_t TelemetryRecorder::readLog(const std::string & filename, logData_t & logData)
+    hresult_t TelemetryRecorder::readLog(const std::string & filename, LogData & logData)
     {
         int64_t integerSectionSize;
         int64_t floatSectionSize;

@@ -2,7 +2,8 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-#include "jiminy/core/macros.h"
+#include "jiminy/core/fwd.h"
+#include "jiminy/core/exceptions.h"
 #include "jiminy/core/io/file_device.h"
 
 #ifndef _WIN32
