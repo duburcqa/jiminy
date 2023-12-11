@@ -67,6 +67,7 @@ CLOCK_SCALE = 0.1
 WIDGET_MARGIN_REL = 0.02
 
 PANDA3D_FRAMERATE_MAX = 40
+PANDA3D_REQUEST_TIMEOUT = 30.0
 
 
 Tuple3FType = Union[Tuple[float, float, float], np.ndarray]
@@ -1530,6 +1531,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
             if texture_path:
                 texture = self.loader.load_texture(texture_path)
                 node.set_texture(texture)
+                node.set_transparency(TransparencyAttrib.M_alpha)
 
     def set_scale(self,
                   root_path: str,
@@ -1856,7 +1858,7 @@ class Panda3dProxy(mp.Process):
         @wraps(getattr(Panda3dApp, name))
         def _send(*args: Any, **kwargs: Any) -> Any:
             if self._host_conn.closed:
-                raise ViewerError("Viewer not available anymore.")
+                raise ViewerClosedError("Viewer not available anymore.")
             while self._host_conn.poll():
                 try:
                     reply = self._host_conn.recv()
@@ -1872,12 +1874,14 @@ class Panda3dProxy(mp.Process):
             self._host_conn.send((name, args, kwargs, self._is_async))
             if self._is_async:
                 return None
-            if self._host_conn.poll(10.0):
+            if self._host_conn.poll(PANDA3D_REQUEST_TIMEOUT):
                 reply = self._host_conn.recv()
             else:
                 # Something is wrong... aborting to prevent potential deadlock
+                self._host_conn.send(("stop", (), (), True))
                 self._host_conn.close()
-                raise ViewerError("Viewer not available anymore.")
+                raise ViewerClosedError(
+                    "Viewer has been because it did not respond.")
             if isinstance(reply, Exception):
                 if isinstance(reply, ViewerClosedError):
                     # Close pipe to make sure it is not used in future
