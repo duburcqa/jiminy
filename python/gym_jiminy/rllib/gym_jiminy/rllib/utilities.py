@@ -1067,6 +1067,10 @@ def evaluate_algo(algo: Algorithm,
         shutil.move(all_log_paths[idx], log_path)
         log_paths.append(log_path)
 
+    # Make sure there is no viewer already open at this point.
+    # Otherwise adding the legend will fail.
+    Viewer.close()
+
     # Replay and/or record a video of the best and worst trials if requested.
     # Async to enable replaying and recording while training keeps going.
     viewer_kwargs, *_ = chain(*eval_workers.foreach_env(
