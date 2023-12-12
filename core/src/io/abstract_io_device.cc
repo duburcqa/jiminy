@@ -1,3 +1,5 @@
+#include "jiminy/core/exceptions.h"
+
 #include "jiminy/core/io/abstract_io_device.h"
 
 

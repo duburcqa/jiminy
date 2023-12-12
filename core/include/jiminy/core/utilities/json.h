@@ -1,8 +1,7 @@
 #ifndef JIMINY_JSON_H
 #define JIMINY_JSON_H
 
-#include "jiminy/core/macros.h"
-#include "jiminy/core/types.h"
+#include "jiminy/core/fwd.h"
 
 
 namespace Json
@@ -16,16 +15,16 @@ namespace jiminy
 
     // *************** Conversion to JSON utilities *****************
 
-    Json::Value JIMINY_DLLAPI convertToJson(const configHolder_t & value);
+    Json::Value JIMINY_DLLAPI convertToJson(const GenericConfig & value);
 
-    hresult_t JIMINY_DLLAPI jsonDump(const configHolder_t & config,
+    hresult_t JIMINY_DLLAPI jsonDump(const GenericConfig & config,
                                      std::shared_ptr<AbstractIODevice> & device);
 
     // ************* Conversion from JSON utilities *****************
 
-    configHolder_t JIMINY_DLLAPI convertFromJson(const Json::Value & value);
+    GenericConfig JIMINY_DLLAPI convertFromJson(const Json::Value & value);
 
-    hresult_t JIMINY_DLLAPI jsonLoad(configHolder_t & config,
+    hresult_t JIMINY_DLLAPI jsonLoad(GenericConfig & config,
                                      std::shared_ptr<AbstractIODevice> & device);
 }
 

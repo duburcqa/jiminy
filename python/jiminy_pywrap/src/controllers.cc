@@ -1,3 +1,5 @@
+#include "jiminy/core/exceptions.h"
+#include "jiminy/core/hardware/abstract_sensor.h"
 #include "jiminy/core/control/abstract_controller.h"
 #include "jiminy/core/control/controller_functor.h"
 
@@ -271,7 +273,7 @@ namespace jiminy::python
 
         static hresult_t setOptions(AbstractController & self, const bp::dict & configPy)
         {
-            configHolder_t config = self.getOptions();
+            GenericConfig config = self.getOptions();
             convertFromPython(configPy, config);
             return self.setOptions(config);
         }
@@ -368,7 +370,7 @@ namespace jiminy::python
                 commandFct = [](const float64_t & /* t */,
                                 const Eigen::VectorXd & /* q */,
                                 const Eigen::VectorXd & /* v */,
-                                const sensorsDataMap_t & /* sensorsData */,
+                                const SensorsDataMap & /* sensorsData */,
                                 Eigen::VectorXd & /* command */) {
                 };
             }
@@ -382,7 +384,7 @@ namespace jiminy::python
                 internalDynamicsFct = [](const float64_t & /* t */,
                                          const Eigen::VectorXd & /* q */,
                                          const Eigen::VectorXd & /* v */,
-                                         const sensorsDataMap_t & /* sensorsData */,
+                                         const SensorsDataMap & /* sensorsData */,
                                          Eigen::VectorXd & /* command */) {
                 };
             }

@@ -1,7 +1,8 @@
 #include <numeric>
 
-#include "jiminy/core/robot/robot.h"
 #include "jiminy/core/constants.h"
+#include "jiminy/core/exceptions.h"
+#include "jiminy/core/robot/robot.h"
 #include "jiminy/core/utilities/random.h"
 
 
@@ -214,7 +215,7 @@ namespace jiminy
     }
 
     template<typename T>
-    hresult_t AbstractSensorTpl<T>::setOptionsAll(const configHolder_t & sensorOptions)
+    hresult_t AbstractSensorTpl<T>::setOptionsAll(const GenericConfig & sensorOptions)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -438,7 +439,7 @@ namespace jiminy
                                            const Eigen::VectorXd & v,
                                            const Eigen::VectorXd & a,
                                            const Eigen::VectorXd & uMotor,
-                                           const forceVector_t & fExternal)
+                                           const ForceVector & fExternal)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 

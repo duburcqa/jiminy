@@ -10,8 +10,8 @@
 
 #include "pinocchio/algorithm/joint-configuration.hpp"  // `pinocchio::integrate`, `pinocchio::difference`
 
-#include "jiminy/core/macros.h"
-#include "jiminy/core/types.h"
+#include "jiminy/core/fwd.h"
+#include "jiminy/core/traits.h"
 #include "jiminy/core/robot/robot.h"
 
 
@@ -1215,99 +1215,100 @@ namespace Eigen
         std::vector<Eigen::VectorXd> VAR2;                                                     \
     };
 
-#define StateDerivative_SHARED_ADDON                                                        \
-    template<typename Derived,                                                              \
-             typename = typename std::enable_if_t<                                          \
-                 is_base_of_template<StateDerivativeBase,                                   \
-                                     typename internal::traits<Derived>::ValueType>::value, \
-                 void>>                                                                     \
-    StateDerivativeVector & sumInPlace(const VectorContainerBase<Derived> & other,          \
-                                       const Scalar & scale)                                \
-    {                                                                                       \
-        const std::vector<typename internal::traits<Derived>::ValueType> & vectorIn =       \
-            other.vector();                                                                 \
-        assert(vector_.size() == vectorIn.size());                                          \
-        for (std::size_t i = 0; i < vector_.size(); ++i)                                    \
-        {                                                                                   \
-            vector_[i] += scale * vectorIn[i];                                              \
-        }                                                                                   \
-        return *this;                                                                       \
+#define StateDerivative_SHARED_ADDON                                                          \
+    template<typename Derived,                                                                \
+             typename = typename std::enable_if_t<                                            \
+                 is_base_of_template_v<StateDerivativeBase,                                   \
+                                       typename internal::traits<Derived>::ValueType>::value, \
+                 void>>                                                                       \
+    StateDerivativeVector & sumInPlace(const VectorContainerBase<Derived> & other,            \
+                                       const Scalar & scale)                                  \
+    {                                                                                         \
+        const std::vector<typename internal::traits<Derived>::ValueType> & vectorIn =         \
+            other.vector();                                                                   \
+        assert(vector_.size() == vectorIn.size());                                            \
+        for (std::size_t i = 0; i < vector_.size(); ++i)                                      \
+        {                                                                                     \
+            vector_[i] += scale * vectorIn[i];                                                \
+        }                                                                                     \
+        return *this;                                                                         \
     }
 
-#define State_SHARED_ADDON                                                                          \
-    template<                                                                                       \
-        typename Derived,                                                                           \
-        typename OtherDerived,                                                                      \
-        typename = typename std::enable_if_t<                                                       \
-            is_base_of_template<StateDerivativeBase,                                                \
-                                typename internal::traits<Derived>::ValueType>::value &&            \
-                is_base_of_template<StateBase,                                                      \
-                                    typename internal::traits<OtherDerived>::ValueType>::value,     \
-            void>>                                                                                  \
-    VectorContainerBase<OtherDerived> & sum(const VectorContainerBase<Derived> & other,             \
-                                            VectorContainerBase<OtherDerived> & out) const          \
-    {                                                                                               \
-        const std::vector<typename internal::traits<Derived>::ValueType> & vectorIn =               \
-            other.vector();                                                                         \
-        std::vector<typename internal::traits<OtherDerived>::ValueType> & vectorOut =               \
-            out.vector();                                                                           \
-        assert(vectorIn.size() == vectorOut.size());                                                \
-        for (std::size_t i = 0; i < vector_.size(); ++i)                                            \
-        {                                                                                           \
-            vector_[i].sum(vectorIn[i], vectorOut[i]);                                              \
-        }                                                                                           \
-        return out;                                                                                 \
-    }                                                                                               \
-                                                                                                    \
-    template<typename Derived,                                                                      \
-             typename = typename std::enable_if_t<                                                  \
-                 is_base_of_template<StateDerivativeBase,                                           \
-                                     typename internal::traits<Derived>::ValueType>::value,         \
-                 void>>                                                                             \
-    StateVector & sumInPlace(const VectorContainerBase<Derived> & other)                            \
-    {                                                                                               \
-        sum(other, *this);                                                                          \
-        return *this;                                                                               \
-    }                                                                                               \
-                                                                                                    \
-    template<typename Derived,                                                                      \
-             typename = typename std::enable_if_t<                                                  \
-                 is_base_of_template<StateDerivativeBase,                                           \
-                                     typename internal::traits<Derived>::ValueType>::value,         \
-                 void>>                                                                             \
-    StateVector & sumInPlace(const VectorContainerBase<Derived> & other, const Scalar & scale)      \
-    {                                                                                               \
-        const std::vector<typename internal::traits<Derived>::ValueType> & vectorIn =               \
-            other.vector();                                                                         \
-        assert(vector_.size() == vectorIn.size());                                                  \
-        for (std::size_t i = 0; i < vector_.size(); ++i)                                            \
-        {                                                                                           \
-            vector_[i].sumInPlace(scale * vectorIn[i]);                                             \
-        }                                                                                           \
-        return *this;                                                                               \
-    }                                                                                               \
-                                                                                                    \
-    template<                                                                                       \
-        typename Derived,                                                                           \
-        typename OtherDerived,                                                                      \
-        typename = typename std::enable_if_t<                                                       \
-            is_base_of_template<StateBase, typename internal::traits<Derived>::ValueType>::value && \
-                is_base_of_template<StateDerivativeBase,                                            \
-                                    typename internal::traits<OtherDerived>::ValueType>::value,     \
-            void>>                                                                                  \
-    VectorContainerBase<OtherDerived> & difference(const VectorContainerBase<Derived> & other,      \
-                                                   VectorContainerBase<OtherDerived> & out) const   \
-    {                                                                                               \
-        const std::vector<typename internal::traits<Derived>::ValueType> & vectorIn =               \
-            other.vector();                                                                         \
-        std::vector<typename internal::traits<OtherDerived>::ValueType> & vectorOut =               \
-            out.vector();                                                                           \
-        assert(vectorIn.size() == vectorOut.size());                                                \
-        for (std::size_t i = 0; i < vector_.size(); ++i)                                            \
-        {                                                                                           \
-            vector_[i].difference(vectorIn[i], vectorOut[i]);                                       \
-        }                                                                                           \
-        return out;                                                                                 \
+#define State_SHARED_ADDON                                                                        \
+    template<                                                                                     \
+        typename Derived,                                                                         \
+        typename OtherDerived,                                                                    \
+        typename = typename std::enable_if_t<                                                     \
+            is_base_of_template_v<StateDerivativeBase,                                            \
+                                  typename internal::traits<Derived>::ValueType>::value &&        \
+                is_base_of_template_v<StateBase,                                                  \
+                                      typename internal::traits<OtherDerived>::ValueType>::value, \
+            void>>                                                                                \
+    VectorContainerBase<OtherDerived> & sum(const VectorContainerBase<Derived> & other,           \
+                                            VectorContainerBase<OtherDerived> & out) const        \
+    {                                                                                             \
+        const std::vector<typename internal::traits<Derived>::ValueType> & vectorIn =             \
+            other.vector();                                                                       \
+        std::vector<typename internal::traits<OtherDerived>::ValueType> & vectorOut =             \
+            out.vector();                                                                         \
+        assert(vectorIn.size() == vectorOut.size());                                              \
+        for (std::size_t i = 0; i < vector_.size(); ++i)                                          \
+        {                                                                                         \
+            vector_[i].sum(vectorIn[i], vectorOut[i]);                                            \
+        }                                                                                         \
+        return out;                                                                               \
+    }                                                                                             \
+                                                                                                  \
+    template<typename Derived,                                                                    \
+             typename = typename std::enable_if_t<                                                \
+                 is_base_of_template_v<StateDerivativeBase,                                       \
+                                       typename internal::traits<Derived>::ValueType>::value,     \
+                 void>>                                                                           \
+    StateVector & sumInPlace(const VectorContainerBase<Derived> & other)                          \
+    {                                                                                             \
+        sum(other, *this);                                                                        \
+        return *this;                                                                             \
+    }                                                                                             \
+                                                                                                  \
+    template<typename Derived,                                                                    \
+             typename = typename std::enable_if_t<                                                \
+                 is_base_of_template_v<StateDerivativeBase,                                       \
+                                       typename internal::traits<Derived>::ValueType>::value,     \
+                 void>>                                                                           \
+    StateVector & sumInPlace(const VectorContainerBase<Derived> & other, const Scalar & scale)    \
+    {                                                                                             \
+        const std::vector<typename internal::traits<Derived>::ValueType> & vectorIn =             \
+            other.vector();                                                                       \
+        assert(vector_.size() == vectorIn.size());                                                \
+        for (std::size_t i = 0; i < vector_.size(); ++i)                                          \
+        {                                                                                         \
+            vector_[i].sumInPlace(scale * vectorIn[i]);                                           \
+        }                                                                                         \
+        return *this;                                                                             \
+    }                                                                                             \
+                                                                                                  \
+    template<                                                                                     \
+        typename Derived,                                                                         \
+        typename OtherDerived,                                                                    \
+        typename = typename std::enable_if_t<                                                     \
+            is_base_of_template_v<StateBase,                                                      \
+                                  typename internal::traits<Derived>::ValueType>::value &&        \
+                is_base_of_template_v<StateDerivativeBase,                                        \
+                                      typename internal::traits<OtherDerived>::ValueType>::value, \
+            void>>                                                                                \
+    VectorContainerBase<OtherDerived> & difference(const VectorContainerBase<Derived> & other,    \
+                                                   VectorContainerBase<OtherDerived> & out) const \
+    {                                                                                             \
+        const std::vector<typename internal::traits<Derived>::ValueType> & vectorIn =             \
+            other.vector();                                                                       \
+        std::vector<typename internal::traits<OtherDerived>::ValueType> & vectorOut =             \
+            out.vector();                                                                         \
+        assert(vectorIn.size() == vectorOut.size());                                              \
+        for (std::size_t i = 0; i < vector_.size(); ++i)                                          \
+        {                                                                                         \
+            vector_[i].difference(vectorIn[i], vectorOut[i]);                                     \
+        }                                                                                         \
+        return out;                                                                               \
     }
 
     GENERATE_SHARED_IMPL(StateDerivative, v, nv, a, nv)

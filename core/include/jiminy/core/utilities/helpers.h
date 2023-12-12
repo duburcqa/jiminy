@@ -2,14 +2,16 @@
 #define JIMINY_UTILITIES_H
 
 #include <chrono>
+#include <memory>
 #include <type_traits>
 
-#include "jiminy/core/macros.h"
-#include "jiminy/core/types.h"
+#include "jiminy/core/fwd.h"
 
 
 namespace jiminy
 {
+    struct LogData;
+
     // *************** Local Mutex/Lock mechanism ******************
 
     class LockGuardLocal;
@@ -65,27 +67,45 @@ namespace jiminy
         float64_t dt;
     };
 
+    // ****************************** Generic template utilities ******************************* //
+
+    template<class F, class... Args>
+    std::enable_if_t<!(... && !std::is_same_v<std::invoke_result_t<F, Args>, void>)>
+    do_for(F f, Args &&... args);
+
+    template<class F, class... Args>
+    std::enable_if_t<(... && !std::is_same_v<std::invoke_result_t<F, Args>, void>),
+                     std::tuple<std::invoke_result_t<F, Args>...>>
+    do_for(F f, Args &&... args);
+
+    // ******************************** enable_shared_from_this ******************************** //
+
+    template<typename Base>
+    inline std::shared_ptr<Base> shared_from_base(std::enable_shared_from_this<Base> * base);
+
+    template<typename Base>
+    inline std::shared_ptr<const Base>
+    shared_from_base(const std::enable_shared_from_this<Base> * base);
+
+    template<typename T>
+    inline std::shared_ptr<T> shared_from(T * derived);
+
     // ************* IO file and Directory utilities ****************
 
     std::string JIMINY_DLLAPI getUserDirectory();
 
     // ******************* Telemetry utilities **********************
 
-    struct logData_t;
-
-    bool_t endsWith(const std::string & fullString, const std::string & ending);
-
-    std::vector<std::string> defaultVectorFieldnames(const std::string & baseName,
-                                                     const uint32_t & size);
+    bool_t endsWith(const std::string & text, const std::string & ending);
 
     std::string addCircumfix(std::string fieldname,  // Make a copy
-                             const std::string & prefix = "",
-                             const std::string & suffix = "",
-                             const std::string & delimiter = "");
+                             const std::string & prefix = {},
+                             const std::string & suffix = {},
+                             const std::string & delimiter = {});
     std::vector<std::string> addCircumfix(const std::vector<std::string> & fieldnamesIn,
-                                          const std::string & prefix = "",
-                                          const std::string & suffix = "",
-                                          const std::string & delimiter = "");
+                                          const std::string & prefix = {},
+                                          const std::string & suffix = {},
+                                          const std::string & delimiter = {});
 
     std::string removeSuffix(std::string fieldname,  // Make a copy
                              const std::string & suffix);
@@ -98,7 +118,7 @@ namespace jiminy
     /// \param[in] fieldName Full name of the variable to get.
     ///
     /// \return Vector of values for a given variable as a contiguous array.
-    Eigen::VectorXd JIMINY_DLLAPI getLogVariable(const logData_t & logData,
+    Eigen::VectorXd JIMINY_DLLAPI getLogVariable(const LogData & logData,
                                                  const std::string & fieldname);
 
     // ********************** Math utilities *************************

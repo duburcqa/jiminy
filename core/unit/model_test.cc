@@ -1,8 +1,8 @@
 #include <gtest/gtest.h>
 
-#include "jiminy/core/robot/model.h"
+#include "jiminy/core/fwd.h"
 #include "jiminy/core/utilities/helpers.h"
-#include "jiminy/core/types.h"
+#include "jiminy/core/robot/model.h"
 
 #include "pinocchio/algorithm/frames.hpp"
 #include "pinocchio/algorithm/geometry.hpp"
@@ -53,18 +53,18 @@ TEST_P(ModelTestFixture, CreateFlexible)
 
     // Add flexibility to joint and frame
     auto options = model->getOptions();
-    flexibilityConfig_t flexConfig;
+    FlexibilityConfig flexConfig;
     Eigen::Vector3d v = Eigen::Vector3d::Ones();
     flexConfig.push_back({"PendulumJoint", v, v, v});
     flexConfig.push_back({"PendulumMassJoint", v, v, v});
-    configHolder_t & dynamicsOptions = boost::get<configHolder_t>(options.at("dynamics"));
-    boost::get<flexibilityConfig_t>(dynamicsOptions.at("flexibilityConfig")) = flexConfig;
+    GenericConfig & dynamicsOptions = boost::get<GenericConfig>(options.at("dynamics"));
+    boost::get<FlexibilityConfig>(dynamicsOptions.at("flexibilityConfig")) = flexConfig;
     model->setOptions(options);
     model->reset();
 
     ASSERT_TRUE(model->getFlexibleConfigurationFromRigid(q, qflex) == hresult_t::SUCCESS);
     ASSERT_EQ(qflex.size(),
-              q.size() + quaternion_t::Coefficients::RowsAtCompileTime * flexConfig.size());
+              q.size() + Eigen::Quaterniond::Coefficients::RowsAtCompileTime * flexConfig.size());
 
     // Recompute frame, geometry and collision pose, and check that nothing has moved.
     pinocchio::framesForwardKinematics(model->pncModel_, model->pncData_, qflex);
@@ -76,7 +76,7 @@ TEST_P(ModelTestFixture, CreateFlexible)
     for (uint32_t i = 0; i < model->pncModelOrig_.frames.size(); i++)
     {
         const pinocchio::Frame & frame = model->pncModelOrig_.frames[i];
-        const frameIndex_t flexIdx = model->pncModel_.getFrameId(frame.name);
+        const pinocchio::FrameIndex flexIdx = model->pncModel_.getFrameId(frame.name);
         ASSERT_TRUE(pncData.oMf[i].isApprox(model->pncData_.oMf[flexIdx]));
     }
 

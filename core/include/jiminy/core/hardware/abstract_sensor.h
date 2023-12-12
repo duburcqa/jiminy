@@ -1,11 +1,18 @@
 #ifndef JIMINY_ABSTRACT_SENSOR_H
 #define JIMINY_ABSTRACT_SENSOR_H
 
-#include "jiminy/core/macros.h"
-#include "jiminy/core/types.h"
+#include "jiminy/core/fwd.h"
+#include "jiminy/core/utilities/helpers.h"
 #include "jiminy/core/telemetry/telemetry_sender.h"
 
 #include <boost/circular_buffer.hpp>
+#include <boost/functional/hash.hpp>
+#include <boost/multi_index/hashed_index.hpp>
+#include <boost/multi_index/member.hpp>
+#include <boost/multi_index/ordered_index.hpp>
+#include <boost/multi_index/sequenced_index.hpp>
+#include <boost/multi_index/tag.hpp>
+#include <boost/multi_index_container.hpp>
 
 
 namespace jiminy
@@ -14,6 +21,91 @@ namespace jiminy
     class Robot;
 
     class AbstractSensorBase;
+
+    // Sensor data holder
+    namespace details
+    {
+        struct SensorDataItem
+        {
+            std::string name;
+            std::size_t idx;
+            Eigen::Ref<const Eigen::VectorXd> value;
+        };
+    }
+
+    struct JIMINY_DLLAPI IndexByIndex
+    {
+    };
+    struct JIMINY_DLLAPI IndexByName
+    {
+    };
+
+    struct SensorDataTypeMap :
+    public boost::multi_index::multi_index_container<
+        details::SensorDataItem,
+        boost::multi_index::indexed_by<
+            boost::multi_index::ordered_unique<
+                boost::multi_index::tag<IndexByIndex>,
+                boost::multi_index::
+                    member<details::SensorDataItem, std::size_t, &details::SensorDataItem::idx>,
+                std::less<std::size_t>  // Ordering by ascending order
+                >,
+            boost::multi_index::hashed_unique<
+                boost::multi_index::tag<IndexByName>,
+                boost::multi_index::
+                    member<details::SensorDataItem, std::string, &details::SensorDataItem::name>>,
+            boost::multi_index::sequenced<>>>
+    {
+    public:
+        explicit SensorDataTypeMap(const Eigen::MatrixXd * sharedDataPtr = nullptr) :
+        multi_index_container(),
+        sharedDataPtr_(sharedDataPtr)
+        {
+        }
+
+        /// @brief Returning data associated with all sensors at once.
+        ///
+        /// @warning It is up to the sure to make sure that the data are up-to-date.
+        inline const Eigen::MatrixXd & getAll() const
+        {
+            if (sharedDataPtr_)
+            {
+                assert((size() == static_cast<std::size_t>(sharedDataPtr_->cols())) &&
+                       "Shared data inconsistent with sensors.");
+                return *sharedDataPtr_;
+            }
+            else
+            {
+                // Get sensors data size
+                Eigen::Index dataSize = 0;
+                if (size() > 0)
+                {
+                    dataSize = this->cbegin()->value.size();
+                }
+
+                // Resize internal buffer if needed
+                data_.resize(Eigen::NoChange, dataSize);
+
+                // Set internal buffer by copying sensor data sequentially
+                for (const auto & sensor : *this)
+                {
+                    assert(sensor.value.size() == dataSize &&
+                           "Cannot get all data at once for heterogeneous sensors.");
+                    data_.row(sensor.idx) = sensor.value;
+                }
+
+                return data_;
+            }
+        }
+
+    private:
+        const Eigen::MatrixXd * const sharedDataPtr_;
+        /* Internal buffer if no shared memory available.
+           It is useful if the sensors data is not contiguous in the first place,
+           which is likely to be the case when allocated from Python, or when
+           re-generating sensor data from log files. */
+        mutable Eigen::MatrixXd data_{};
+    };
 
     /// \brief Structure holding the data for every sensors of a given type.
     ///
@@ -59,9 +151,9 @@ namespace jiminy
 
     public:
         /// \brief Dictionary gathering the configuration options shared between sensors
-        virtual configHolder_t getDefaultSensorOptions()
+        virtual GenericConfig getDefaultSensorOptions()
         {
-            configHolder_t config;
+            GenericConfig config;
             config["noiseStd"] = Eigen::VectorXd();
             config["bias"] = Eigen::VectorXd();
             config["delay"] = 0.0;
@@ -86,7 +178,7 @@ namespace jiminy
             /// \details [0: Zero-order holder, 1: Linear interpolation].
             const uint32_t delayInterpolationOrder;
 
-            abstractSensorOptions_t(const configHolder_t & options) :
+            abstractSensorOptions_t(const GenericConfig & options) :
             noiseStd(boost::get<Eigen::VectorXd>(options.at("noiseStd"))),
             bias(boost::get<Eigen::VectorXd>(options.at("bias"))),
             delay(boost::get<float64_t>(options.at("delay"))),
@@ -135,7 +227,7 @@ namespace jiminy
         ///
         /// \return Return code to determine whether the execution of the method was successful.
         virtual hresult_t configureTelemetry(std::shared_ptr<TelemetryData> telemetryData,
-                                             const std::string & objectPrefixName = "");
+                                             const std::string & objectPrefixName = {});
 
         /// \brief Update the internal buffers of the telemetry associated with variables monitored
         ///        by the sensor.
@@ -152,16 +244,16 @@ namespace jiminy
         /// \brief Set the configuration options of the sensor.
         ///
         /// \param[in] sensorOptions Dictionary with the parameters of the sensor.
-        virtual hresult_t setOptions(const configHolder_t & sensorOptions);
+        virtual hresult_t setOptions(const GenericConfig & sensorOptions);
 
         /// \brief Set the same configuration options of any sensor of the same type than the
         ///        current one.
         ///
         /// \param[in] sensorOptions Dictionary with the parameters used for any sensor.
-        virtual hresult_t setOptionsAll(const configHolder_t & sensorOptions) = 0;
+        virtual hresult_t setOptionsAll(const GenericConfig & sensorOptions) = 0;
 
         /// \brief Configuration options of the sensor.
-        configHolder_t getOptions() const;
+        GenericConfig getOptions() const;
 
         template<typename DerivedType>
         hresult_t set(const Eigen::MatrixBase<DerivedType> & value);
@@ -228,7 +320,7 @@ namespace jiminy
                                  const Eigen::VectorXd & v,
                                  const Eigen::VectorXd & a,
                                  const Eigen::VectorXd & uMotor,
-                                 const forceVector_t & fExternal) = 0;
+                                 const ForceVector & fExternal) = 0;
 
         /// \brief Request the sensor to record data based of the input data.
         ///
@@ -248,7 +340,7 @@ namespace jiminy
                               const Eigen::VectorXd & v,
                               const Eigen::VectorXd & a,
                               const Eigen::VectorXd & uMotor,
-                              const forceVector_t & fExternal) = 0;
+                              const ForceVector & fExternal) = 0;
 
         /// \brief Attach the sensor to a robot.
         ///
@@ -294,7 +386,7 @@ namespace jiminy
 
     protected:
         /// \brief Dictionary with the parameters of the sensor.
-        configHolder_t sensorOptionsHolder_;
+        GenericConfig sensorOptionsHolder_;
         /// \brief Flag to determine whether the sensor has been initialized.
         bool_t isInitialized_;
         /// \brief Flag to determine whether the sensor is attached to a robot.
@@ -312,7 +404,7 @@ namespace jiminy
     };
 
     template<class T>
-    class JIMINY_DLLAPI AbstractSensorTpl : public AbstractSensorBase
+    class AbstractSensorTpl : public AbstractSensorBase
     {
     public:
         DISABLE_COPY(AbstractSensorTpl)
@@ -327,7 +419,7 @@ namespace jiminy
         virtual hresult_t resetAll() override;
         void updateTelemetryAll() override final;
 
-        virtual hresult_t setOptionsAll(const configHolder_t & sensorOptions) override final;
+        virtual hresult_t setOptionsAll(const GenericConfig & sensorOptions) override final;
         virtual const std::size_t & getIdx() const override final;
         virtual const std::string & getType() const override final;
         virtual const std::vector<std::string> & getFieldnames() const final;
@@ -341,7 +433,7 @@ namespace jiminy
                                  const Eigen::VectorXd & v,
                                  const Eigen::VectorXd & a,
                                  const Eigen::VectorXd & uMotor,
-                                 const forceVector_t & fExternal) override final;
+                                 const ForceVector & fExternal) override final;
         virtual Eigen::Ref<Eigen::VectorXd> get() override final;
         virtual Eigen::Ref<Eigen::VectorXd> data() override final;
 
@@ -352,7 +444,6 @@ namespace jiminy
         virtual std::string getTelemetryName() const override final;
         virtual hresult_t interpolateData() override final;
         virtual hresult_t measureDataAll() override final;
-        void clearDataBuffer();
 
     public:
         /* Be careful, the static variables must be const since the 'static' keyword binds all the

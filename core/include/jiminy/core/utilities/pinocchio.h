@@ -2,41 +2,45 @@
 #define JIMINY_PINOCCHIO_H
 
 #include <chrono>
+#include <optional>
 #include <type_traits>
 
-#include "jiminy/core/macros.h"
-#include "jiminy/core/types.h"
+#include "jiminy/core/fwd.h"
 
 
 namespace jiminy
 {
-    hresult_t getJointNameFromPositionIdx(
-        const pinocchio::Model & model, const jointIndex_t & idIn, std::string & jointNameOut);
+    hresult_t getJointNameFromPositionIdx(const pinocchio::Model & model,
+                                          const pinocchio::JointIndex & idIn,
+                                          std::string & jointNameOut);
 
-    hresult_t getJointNameFromVelocityIdx(
-        const pinocchio::Model & model, const jointIndex_t & idIn, std::string & jointNameOut);
+    hresult_t getJointNameFromVelocityIdx(const pinocchio::Model & model,
+                                          const pinocchio::JointIndex & idIn,
+                                          std::string & jointNameOut);
 
-    hresult_t getJointTypeFromIdx(
-        const pinocchio::Model & model, const jointIndex_t & idIn, joint_t & jointTypeOut);
+    hresult_t getJointTypeFromIdx(const pinocchio::Model & model,
+                                  const pinocchio::JointIndex & idIn,
+                                  JointModelType & jointTypeOut);
 
-    hresult_t getJointTypePositionSuffixes(const joint_t & jointTypeIn,
+    hresult_t getJointTypePositionSuffixes(const JointModelType & jointTypeIn,
                                            std::vector<std::string> & jointTypeSuffixesOut);
 
-    hresult_t getJointTypeVelocitySuffixes(const joint_t & jointTypeIn,
+    hresult_t getJointTypeVelocitySuffixes(const JointModelType & jointTypeIn,
                                            std::vector<std::string> & jointTypeSuffixesOut);
 
-    hresult_t getFrameIdx(
-        const pinocchio::Model & model, const std::string & frameName, frameIndex_t & frameIdx);
+    hresult_t getFrameIdx(const pinocchio::Model & model,
+                          const std::string & frameName,
+                          pinocchio::FrameIndex & frameIdx);
     hresult_t getFramesIdx(const pinocchio::Model & model,
                            const std::vector<std::string> & framesNames,
-                           std::vector<frameIndex_t> & framesIdx);
+                           std::vector<pinocchio::FrameIndex> & framesIdx);
 
     hresult_t getJointModelIdx(const pinocchio::Model & model,
                                const std::string & jointName,
-                               jointIndex_t & jointModelIdx);
+                               pinocchio::JointIndex & jointModelIdx);
     hresult_t getJointsModelIdx(const pinocchio::Model & model,
                                 const std::vector<std::string> & jointsNames,
-                                std::vector<jointIndex_t> & jointsModelIdx);
+                                std::vector<pinocchio::JointIndex> & jointsModelIdx);
 
     hresult_t getJointPositionIdx(const pinocchio::Model & model,
                                   const std::string & jointName,
@@ -89,7 +93,7 @@ namespace jiminy
     /// \return Force in the parent joint local frame.
     pinocchio::Force convertForceGlobalFrameToJoint(const pinocchio::Model & model,
                                                     const pinocchio::Data & data,
-                                                    const frameIndex_t & frameIdx,
+                                                    const pinocchio::FrameIndex & frameIdx,
                                                     const pinocchio::Force & fextInGlobal);
 
     hresult_t buildGeomFromUrdf(const pinocchio::Model & model,

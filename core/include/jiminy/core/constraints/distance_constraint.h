@@ -3,8 +3,8 @@
 
 #include <memory>
 
-#include "jiminy/core/macros.h"
-#include "jiminy/core/types.h"
+#include "jiminy/core/fwd.h"
+#include "jiminy/core/utilities/helpers.h"
 #include "jiminy/core/constraints/abstract_constraint.h"
 
 
@@ -25,7 +25,7 @@ namespace jiminy
         virtual ~DistanceConstraint() = default;
 
         const std::vector<std::string> & getFramesNames() const;
-        const std::vector<frameIndex_t> & getFramesIdx() const;
+        const std::vector<pinocchio::FrameIndex> & getFramesIdx() const;
 
         hresult_t setReferenceDistance(const float64_t & distanceRef);
         const float64_t & getReferenceDistance() const;
@@ -40,7 +40,7 @@ namespace jiminy
         /// \brief Names of the frames on which the constraint operates.
         std::vector<std::string> framesNames_;
         /// \brief Corresponding frames indices.
-        std::vector<frameIndex_t> framesIdx_;
+        std::vector<pinocchio::FrameIndex> framesIdx_;
         /// \brief Reference Distance between the frames
         float64_t distanceRef_;
         /// \brief Stores first frame jacobian in world.

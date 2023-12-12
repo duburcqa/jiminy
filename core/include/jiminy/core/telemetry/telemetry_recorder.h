@@ -3,12 +3,23 @@
 
 #include <deque>
 
-#include "jiminy/core/macros.h"
+#include "jiminy/core/fwd.h"
 #include "jiminy/core/io/memory_device.h"
 
 
 namespace jiminy
 {
+    struct JIMINY_DLLAPI LogData
+    {
+        int32_t version;
+        static_map_t<std::string, std::string> constants;
+        float64_t timeUnit;
+        VectorX<int64_t> times;
+        std::vector<std::string> variableNames;
+        MatrixX<int64_t> integerValues;
+        MatrixX<float64_t> floatValues;
+    };
+
     class TelemetryData;
 
     /// \class This class is responsible of writing recorded data to devices.
@@ -41,8 +52,8 @@ namespace jiminy
         /// \brief Create a new line in the record with the current telemetry data.
         hresult_t flushDataSnapshot(const float64_t & timestamp);
 
-        hresult_t getLog(logData_t & logData);
-        static hresult_t readLog(const std::string & filename, logData_t & logData);
+        hresult_t getLog(LogData & logData);
+        static hresult_t readLog(const std::string & filename, LogData & logData);
 
         hresult_t writeLog(const std::string & filename);
 

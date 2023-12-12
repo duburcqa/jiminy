@@ -3,8 +3,7 @@
 
 #include <functional>
 
-#include "jiminy/core/macros.h"
-#include "jiminy/core/types.h"
+#include "jiminy/core/fwd.h"
 #include "jiminy/core/stepper/lie_group.h"
 
 namespace jiminy

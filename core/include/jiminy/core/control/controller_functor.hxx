@@ -1,5 +1,6 @@
 #include <cassert>
 
+#include "jiminy/core/exceptions.h"
 #include "jiminy/core/robot/robot.h"
 
 

@@ -6,11 +6,12 @@
 
 #define EIGEN_RUNTIME_NO_MALLOC
 
-#include "jiminy/core/engine/engine.h"
+#include "jiminy/core/fwd.h"
+#include "jiminy/core/utilities/helpers.h"
+#include "jiminy/core/hardware/abstract_sensor.h"
 #include "jiminy/core/hardware/basic_motors.h"
 #include "jiminy/core/control/controller_functor.h"
-#include "jiminy/core/utilities/helpers.h"
-#include "jiminy/core/types.h"
+#include "jiminy/core/engine/engine.h"
 
 
 using namespace jiminy;
@@ -22,7 +23,7 @@ const float64_t TOLERANCE = 1e-9;
 void controllerZeroTorque(const float64_t & /* t */,
                           const Eigen::VectorXd & /* q */,
                           const Eigen::VectorXd & /* v */,
-                          const sensorsDataMap_t & /* sensorData */,
+                          const SensorsDataMap & /* sensorData */,
                           Eigen::VectorXd & /* command */)
 {
 }
@@ -31,7 +32,7 @@ void controllerZeroTorque(const float64_t & /* t */,
 void internalDynamics(const float64_t & /* t */,
                       const Eigen::VectorXd & /* q */,
                       const Eigen::VectorXd & /* v */,
-                      const sensorsDataMap_t & /* sensorData */,
+                      const SensorsDataMap & /* sensorData */,
                       Eigen::VectorXd & /* uCustom */)
 {
 }
@@ -64,17 +65,17 @@ TEST(EngineSanity, EnergyConservation)
     }
 
     // Disable velocity and position limits
-    configHolder_t modelOptions = robot->getModelOptions();
-    configHolder_t & jointsOptions = boost::get<configHolder_t>(modelOptions.at("joints"));
+    GenericConfig modelOptions = robot->getModelOptions();
+    GenericConfig & jointsOptions = boost::get<GenericConfig>(modelOptions.at("joints"));
     boost::get<bool_t>(jointsOptions.at("enablePositionLimit")) = false;
     boost::get<bool_t>(jointsOptions.at("enableVelocityLimit")) = false;
     robot->setModelOptions(modelOptions);
 
     // Disable torque limits
-    configHolder_t motorsOptions = robot->getMotorsOptions();
+    GenericConfig motorsOptions = robot->getMotorsOptions();
     for (auto & options : motorsOptions)
     {
-        configHolder_t & motorOptions = boost::get<configHolder_t>(options.second);
+        GenericConfig & motorOptions = boost::get<GenericConfig>(options.second);
         boost::get<bool_t>(motorOptions.at("enableCommandLimit")) = false;
     }
     robot->setMotorsOptions(motorsOptions);
@@ -89,9 +90,9 @@ TEST(EngineSanity, EnergyConservation)
     engine->initialize(robot, controller, callback);
 
     // Configure engine: High accuracy + Continuous-time integration
-    configHolder_t simuOptions = engine->getDefaultEngineOptions();
+    GenericConfig simuOptions = engine->getDefaultEngineOptions();
     {
-        configHolder_t & stepperOptions = boost::get<configHolder_t>(simuOptions.at("stepper"));
+        GenericConfig & stepperOptions = boost::get<GenericConfig>(simuOptions.at("stepper"));
         boost::get<float64_t>(stepperOptions.at("tolAbs")) = TOLERANCE * 1.0e-2;
         boost::get<float64_t>(stepperOptions.at("tolRel")) = TOLERANCE * 1.0e-2;
     }
@@ -112,7 +113,7 @@ TEST(EngineSanity, EnergyConservation)
     Eigen::internal::set_is_malloc_allowed(true);
 
     // Get system energy
-    std::shared_ptr<const logData_t> logDataPtr;
+    std::shared_ptr<const LogData> logDataPtr;
     engine->getLog(logDataPtr);
     const Eigen::VectorXd timesCont = getLogVariable(*logDataPtr, "Global.Time");
     ASSERT_DOUBLE_EQ(timesCont[timesCont.size() - 1], tf);
@@ -126,7 +127,7 @@ TEST(EngineSanity, EnergyConservation)
     // Configure engine: Default accuracy + Discrete-time simulation
     simuOptions = engine->getDefaultEngineOptions();
     {
-        configHolder_t & stepperOptions = boost::get<configHolder_t>(simuOptions.at("stepper"));
+        GenericConfig & stepperOptions = boost::get<GenericConfig>(simuOptions.at("stepper"));
         boost::get<float64_t>(stepperOptions.at("sensorsUpdatePeriod")) = 1.0e-3;
         boost::get<float64_t>(stepperOptions.at("controllerUpdatePeriod")) = 1.0e-3;
     }

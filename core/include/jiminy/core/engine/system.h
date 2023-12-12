@@ -6,8 +6,7 @@
 
 #include <set>
 
-#include "jiminy/core/macros.h"
-#include "jiminy/core/types.h"
+#include "jiminy/core/fwd.h"
 #include "jiminy/core/robot/model.h"
 
 
@@ -19,54 +18,65 @@ namespace jiminy
     class AbstractController;
     class LockGuardLocal;
 
-    struct JIMINY_DLLAPI forceProfile_t
+
+    // External force functors
+    using ForceProfileFunctor = std::function<pinocchio::Force(
+        const float64_t & /*t*/, const Eigen::VectorXd & /*q*/, const Eigen::VectorXd & /*v*/)>;
+
+    struct JIMINY_DLLAPI ForceProfile
     {
     public:
-        forceProfile_t() = default;
-        forceProfile_t(const std::string & frameNameIn,
-                       const frameIndex_t & frameIdxIn,
-                       const float64_t & updatePeriodIn,
-                       const forceProfileFunctor_t & forceFctIn);
+        ForceProfile() = default;
+        ForceProfile(const std::string & frameNameIn,
+                     const pinocchio::FrameIndex & frameIdxIn,
+                     const float64_t & updatePeriodIn,
+                     const ForceProfileFunctor & forceFctIn);
 
     public:
         std::string frameName;
-        frameIndex_t frameIdx;
+        pinocchio::FrameIndex frameIdx;
         float64_t updatePeriod;
         pinocchio::Force forcePrev;
-        forceProfileFunctor_t forceFct;
+        ForceProfileFunctor forceFct;
     };
 
-    struct JIMINY_DLLAPI forceImpulse_t
+    struct JIMINY_DLLAPI ForceImpulse
     {
     public:
-        forceImpulse_t() = default;
-        forceImpulse_t(const std::string & frameNameIn,
-                       const frameIndex_t & frameIdxIn,
-                       const float64_t & tIn,
-                       const float64_t & dtIn,
-                       const pinocchio::Force & FIn);
+        ForceImpulse() = default;
+        ForceImpulse(const std::string & frameNameIn,
+                     const pinocchio::FrameIndex & frameIdxIn,
+                     const float64_t & tIn,
+                     const float64_t & dtIn,
+                     const pinocchio::Force & FIn);
 
     public:
         std::string frameName;
-        frameIndex_t frameIdx;
+        pinocchio::FrameIndex frameIdx;
         float64_t t;
         float64_t dt;
         pinocchio::Force F;
     };
 
-    struct forceCoupling_t
+    using ForceCouplingFunctor = std::function<pinocchio::Force(const float64_t & /*t*/,
+                                                                const Eigen::VectorXd & /*q_1*/,
+                                                                const Eigen::VectorXd & /*v_1*/,
+                                                                const Eigen::VectorXd & /*q_2*/,
+                                                                const Eigen::VectorXd & /*v_2*/)>;
+
+    struct ForceCoupling
     {
     public:
-        forceCoupling_t() = default;
-        forceCoupling_t(const std::string & systemName1In,
-                        const int32_t & systemIdx1In,
-                        const std::string & systemName2In,
-                        const int32_t & systemIdx2In,
-                        const std::string & frameName1In,
-                        const frameIndex_t & frameIdx1In,
-                        const std::string & frameName2In,
-                        const frameIndex_t & frameIdx2In,
-                        const forceCouplingFunctor_t & forceFctIn);
+        ForceCoupling() = default;
+        ForceCoupling(const std::string & systemName1In,
+                      const int32_t & systemIdx1In,
+                      const std::string & systemName2In,
+                      const int32_t & systemIdx2In,
+                      const std::string & frameName1In,
+                      const pinocchio::FrameIndex & frameIdx1In,
+                      const std::string & frameName2In,
+                      const pinocchio::FrameIndex & frameIdx2In,
+                      const ForceCouplingFunctor & forceFctIn);
 
     public:
         std::string systemName1;
@@ -74,14 +84,18 @@ namespace jiminy
         std::string systemName2;
         int32_t systemIdx2;
         std::string frameName1;
-        frameIndex_t frameIdx1;
+        pinocchio::FrameIndex frameIdx1;
         std::string frameName2;
-        frameIndex_t frameIdx2;
-        forceCouplingFunctor_t forceFct;
+        pinocchio::FrameIndex frameIdx2;
+        ForceCouplingFunctor forceFct;
     };
 
-    using forceProfileRegister_t = std::vector<forceProfile_t>;
-    using forceImpulseRegister_t = std::vector<forceImpulse_t>;
+    using ForceProfileRegister = std::vector<ForceProfile>;
+    using ForceImpulseRegister = std::vector<ForceImpulse>;
+
+    // Early termination callback functor
+    using CallbackFunctor = std::function<bool_t(
+        const float64_t & /*t*/, const Eigen::VectorXd & /*q*/, const Eigen::VectorXd & /*v*/)>;
 
     struct JIMINY_DLLAPI systemHolder_t
     {
@@ -90,7 +104,7 @@ namespace jiminy
         systemHolder_t(const std::string & systemNameIn,
                        std::shared_ptr<Robot> robotIn,
                        std::shared_ptr<AbstractController> controllerIn,
-                       callbackFunctor_t callbackFctIn);
+                       CallbackFunctor callbackFctIn);
         systemHolder_t(const systemHolder_t & other) = default;
         systemHolder_t(systemHolder_t && other) = default;
         systemHolder_t & operator=(const systemHolder_t & other) = default;
@@ -101,7 +115,7 @@ namespace jiminy
         std::string name;
         std::shared_ptr<Robot> robot;
         std::shared_ptr<AbstractController> controller;
-        callbackFunctor_t callbackFct;
+        CallbackFunctor callbackFct;
     };
 
     struct JIMINY_DLLAPI systemState_t
@@ -124,7 +138,7 @@ namespace jiminy
         Eigen::VectorXd uMotor;
         Eigen::VectorXd uInternal;
         Eigen::VectorXd uCustom;
-        forceVector_t fExternal;
+        ForceVector fExternal;
 
     private:
         bool_t isInitialized_;
@@ -148,8 +162,8 @@ namespace jiminy
     public:
         std::unique_ptr<LockGuardLocal> robotLock;
 
-        forceProfileRegister_t forcesProfile;
-        forceImpulseRegister_t forcesImpulse;
+        ForceProfileRegister forcesProfile;
+        ForceImpulseRegister forcesImpulse;
         /// \brief Ordered list without repetitions of all the start/end times of the forces.
         std::set<float64_t> forcesImpulseBreaks;
         /// \brief Time of the next breakpoint associated with the impulse forces.
@@ -165,9 +179,9 @@ namespace jiminy
         /// \brief Store copy of constraints register for fast access.
         constraintsHolder_t constraintsHolder;
         /// \brief Contact forces for each contact frames in local frame.
-        forceVector_t contactFramesForces;
+        ForceVector contactFramesForces;
         /// \brief Contact forces for each geometries of each collision bodies in local frame.
-        vector_aligned_t<forceVector_t> collisionBodiesForces;
+        vector_aligned_t<ForceVector> collisionBodiesForces;
         /// \brief Jacobian of the joints in local frame. Used for computing `data.u`.
         std::vector<Matrix6Xd> jointsJacobians;
 

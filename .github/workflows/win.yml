@@ -146,7 +146,7 @@ jobs:
       uses: actions/upload-artifact@v3
       with:
         name: wheelhouse
-        path: build/wheelhouse
+        path: 'workspace/build/wheelhouse'
 
     #####################################################################################
 

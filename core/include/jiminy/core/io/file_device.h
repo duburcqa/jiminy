@@ -3,7 +3,7 @@
 
 #include <string>
 
-#include "jiminy/core/macros.h"
+#include "jiminy/core/fwd.h"
 #include "jiminy/core/io/abstract_io_device.h"
 
 

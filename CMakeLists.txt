@@ -89,6 +89,8 @@ endif()
 
 # Export symbols to enable building extension module
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DEXPORT_SYMBOLS")
+set(CMAKE_CXX_VISIBILITY_PRESET hidden)
+set(CMAKE_VISIBILITY_INLINES_HIDDEN 1)
 
 # Sub-projects
 add_subdirectory(soup)

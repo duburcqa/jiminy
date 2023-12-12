@@ -309,7 +309,7 @@ class PDController(
             motor = env.robot.get_motor(motor_name)
             joint_type = jiminy.get_joint_type(
                 env.robot.pinocchio_model, motor.joint_idx)
-            if joint_type == jiminy.joint_t.ROTARY_UNBOUNDED:
+            if joint_type == jiminy.JointModelType.ROTARY_UNBOUNDED:
                 lower, upper = float("-inf"), float("inf")
             else:
                 motor_position_idx = motor.joint_position_idx

@@ -1,3 +1,5 @@
+#include "jiminy/core/exceptions.h"
+
 #include "jiminy/core/io/memory_device.h"
 
 

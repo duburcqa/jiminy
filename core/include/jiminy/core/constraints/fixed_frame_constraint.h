@@ -3,8 +3,8 @@
 
 #include <memory>
 
-#include "jiminy/core/macros.h"
-#include "jiminy/core/types.h"
+#include "jiminy/core/fwd.h"
+#include "jiminy/core/utilities/helpers.h"
 #include "jiminy/core/constraints/abstract_constraint.h"
 
 
@@ -28,7 +28,7 @@ namespace jiminy
         virtual ~FixedFrameConstraint() = default;
 
         const std::string & getFrameName() const;
-        const frameIndex_t & getFrameIdx() const;
+        const pinocchio::FrameIndex & getFrameIdx() const;
 
         const std::vector<uint32_t> & getDofsFixed() const;
 
@@ -48,7 +48,7 @@ namespace jiminy
         /// \brief Name of the frame on which the constraint operates.
         const std::string frameName_;
         /// \brief Corresponding frame index.
-        frameIndex_t frameIdx_;
+        pinocchio::FrameIndex frameIdx_;
         /// \brief Degrees of freedom to fix.
         std::vector<uint32_t> dofsFixed_;
         /// \brief Reference pose of the frame to enforce.

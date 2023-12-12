@@ -1,10 +1,10 @@
 #ifndef JIMINY_ENGINE_MULTIROBOT_H
 #define JIMINY_ENGINE_MULTIROBOT_H
 
+#include <optional>
 #include <functional>
 
-#include "jiminy/core/macros.h"
-#include "jiminy/core/types.h"
+#include "jiminy/core/fwd.h"
 #include "jiminy/core/constants.h"
 #include "jiminy/core/telemetry/telemetry_sender.h"
 #include "jiminy/core/engine/system.h"
@@ -45,11 +45,11 @@ namespace jiminy
     class AbstractStepper;
     class TelemetryData;
     class TelemetryRecorder;
-    struct logData_t;
+    struct LogData;
 
-    using forceCouplingRegister_t = std::vector<forceCoupling_t>;
+    using ForceCouplingRegister = std::vector<ForceCoupling>;
 
-    struct JIMINY_DLLAPI stepperState_t
+    struct JIMINY_DLLAPI StepperState
     {
     public:
         void reset(const float64_t & dtInit,
@@ -88,9 +88,9 @@ namespace jiminy
     class JIMINY_DLLAPI EngineMultiRobot
     {
     public:
-        configHolder_t getDefaultConstraintOptions()
+        GenericConfig getDefaultConstraintOptions()
         {
-            configHolder_t config;
+            GenericConfig config;
             config["solver"] = std::string("PGS");  // ["PGS",]
             /// \brief Relative inverse damping wrt diagonal of J.Minv.J.t.
             ///
@@ -101,9 +101,9 @@ namespace jiminy
             return config;
         };
 
-        configHolder_t getDefaultContactOptions()
+        GenericConfig getDefaultContactOptions()
         {
-            configHolder_t config;
+            GenericConfig config;
             config["model"] = std::string("constraint");  // ["spring_damper", "constraint"]
             config["stiffness"] = 1.0e6;
             config["damping"] = 2.0e3;
@@ -116,20 +116,20 @@ namespace jiminy
             return config;
         };
 
-        configHolder_t getDefaultJointOptions()
+        GenericConfig getDefaultJointOptions()
         {
-            configHolder_t config;
+            GenericConfig config;
             config["boundStiffness"] = 1.0e7;
             config["boundDamping"] = 1.0e4;
 
             return config;
         };
 
-        configHolder_t getDefaultWorldOptions()
+        GenericConfig getDefaultWorldOptions()
         {
-            configHolder_t config;
+            GenericConfig config;
             config["gravity"] = (Eigen::VectorXd(6) << 0.0, 0.0, -9.81, 0.0, 0.0, 0.0).finished();
-            config["groundProfile"] = heightmapFunctor_t(
+            config["groundProfile"] = HeightmapFunctor(
                 [](const Eigen::Vector3d & /* pos */) -> std::pair<float64_t, Eigen::Vector3d> {
                     return {0.0, Eigen::Vector3d::UnitZ()};
                 });
@@ -137,9 +137,9 @@ namespace jiminy
             return config;
         };
 
-        configHolder_t getDefaultStepperOptions()
+        GenericConfig getDefaultStepperOptions()
         {
-            configHolder_t config;
+            GenericConfig config;
             config["verbose"] = false;
             config["randomSeed"] = 0U;
             /// \details Must be either "runge_kutta_dopri5", "runge_kutta_4" or "euler_explicit".
@@ -158,9 +158,9 @@ namespace jiminy
             return config;
         };
 
-        configHolder_t getDefaultTelemetryOptions()
+        GenericConfig getDefaultTelemetryOptions()
         {
-            configHolder_t config;
+            GenericConfig config;
             config["isPersistent"] = false;
             config["enableConfiguration"] = true;
             config["enableVelocity"] = true;
@@ -172,9 +172,9 @@ namespace jiminy
             return config;
         };
 
-        configHolder_t getDefaultEngineOptions()
+        GenericConfig getDefaultEngineOptions()
         {
-            configHolder_t config;
+            GenericConfig config;
             config["telemetry"] = getDefaultTelemetryOptions();
             config["stepper"] = getDefaultStepperOptions();
             config["world"] = getDefaultWorldOptions();
@@ -191,7 +191,7 @@ namespace jiminy
             const float64_t regularization;
             const uint32_t successiveSolveFailedMax;
 
-            constraintOptions_t(const configHolder_t & options) :
+            constraintOptions_t(const GenericConfig & options) :
             solver(boost::get<std::string>(options.at("solver"))),
             regularization(boost::get<float64_t>(options.at("regularization"))),
             successiveSolveFailedMax(boost::get<uint32_t>(options.at("successiveSolveFailedMax")))
@@ -210,7 +210,7 @@ namespace jiminy
             const float64_t transitionVelocity;
             const float64_t stabilizationFreq;
 
-            contactOptions_t(const configHolder_t & options) :
+            contactOptions_t(const GenericConfig & options) :
             model(boost::get<std::string>(options.at("model"))),
             stiffness(boost::get<float64_t>(options.at("stiffness"))),
             damping(boost::get<float64_t>(options.at("damping"))),
@@ -228,7 +228,7 @@ namespace jiminy
             const float64_t boundStiffness;
             const float64_t boundDamping;
 
-            jointOptions_t(const configHolder_t & options) :
+            jointOptions_t(const GenericConfig & options) :
             boundStiffness(boost::get<float64_t>(options.at("boundStiffness"))),
             boundDamping(boost::get<float64_t>(options.at("boundDamping")))
             {
@@ -238,11 +238,11 @@ namespace jiminy
         struct worldOptions_t
         {
             const Eigen::VectorXd gravity;
-            const heightmapFunctor_t groundProfile;
+            const HeightmapFunctor groundProfile;
 
-            worldOptions_t(const configHolder_t & options) :
+            worldOptions_t(const GenericConfig & options) :
             gravity(boost::get<Eigen::VectorXd>(options.at("gravity"))),
-            groundProfile(boost::get<heightmapFunctor_t>(options.at("groundProfile")))
+            groundProfile(boost::get<HeightmapFunctor>(options.at("groundProfile")))
             {
             }
         };
@@ -263,7 +263,7 @@ namespace jiminy
             const float64_t controllerUpdatePeriod;
             const bool_t logInternalStepperSteps;
 
-            stepperOptions_t(const configHolder_t & options) :
+            stepperOptions_t(const GenericConfig & options) :
             verbose(boost::get<bool_t>(options.at("verbose"))),
             randomSeed(boost::get<uint32_t>(options.at("randomSeed"))),
             odeSolver(boost::get<std::string>(options.at("odeSolver"))),
@@ -292,7 +292,7 @@ namespace jiminy
             const bool_t enableMotorEffort;
             const bool_t enableEnergy;
 
-            telemetryOptions_t(const configHolder_t & options) :
+            telemetryOptions_t(const GenericConfig & options) :
             isPersistent(boost::get<bool_t>(options.at("isPersistent"))),
             enableConfiguration(boost::get<bool_t>(options.at("enableConfiguration"))),
             enableVelocity(boost::get<bool_t>(options.at("enableVelocity"))),
@@ -314,13 +314,13 @@ namespace jiminy
             const constraintOptions_t constraints;
             const contactOptions_t contacts;
 
-            engineOptions_t(const configHolder_t & options) :
-            telemetry(boost::get<configHolder_t>(options.at("telemetry"))),
-            stepper(boost::get<configHolder_t>(options.at("stepper"))),
-            world(boost::get<configHolder_t>(options.at("world"))),
-            joints(boost::get<configHolder_t>(options.at("joints"))),
-            constraints(boost::get<configHolder_t>(options.at("constraints"))),
-            contacts(boost::get<configHolder_t>(options.at("contacts")))
+            engineOptions_t(const GenericConfig & options) :
+            telemetry(boost::get<GenericConfig>(options.at("telemetry"))),
+            stepper(boost::get<GenericConfig>(options.at("stepper"))),
+            world(boost::get<GenericConfig>(options.at("world"))),
+            joints(boost::get<GenericConfig>(options.at("joints"))),
+            constraints(boost::get<GenericConfig>(options.at("constraints"))),
+            contacts(boost::get<GenericConfig>(options.at("contacts")))
             {
             }
         };
@@ -335,10 +335,10 @@ namespace jiminy
         hresult_t addSystem(const std::string & systemName,
                             std::shared_ptr<Robot> robot,
                             std::shared_ptr<AbstractController> controller,
-                            callbackFunctor_t callbackFct);
+                            CallbackFunctor callbackFct);
         hresult_t addSystem(const std::string & systemName,
                             std::shared_ptr<Robot> robot,
-                            callbackFunctor_t callbackFct);
+                            CallbackFunctor callbackFct);
         hresult_t removeSystem(const std::string & systemName);
 
         hresult_t setController(const std::string & systemName,
@@ -361,7 +361,7 @@ namespace jiminy
                                         const std::string & systemName2,
                                         const std::string & frameName1,
                                         const std::string & frameName2,
-                                        forceCouplingFunctor_t forceFct);
+                                        ForceCouplingFunctor forceFct);
         hresult_t registerViscoelasticDirectionalForceCoupling(const std::string & systemName1,
                                                                const std::string & systemName2,
                                                                const std::string & frameName1,
@@ -403,7 +403,7 @@ namespace jiminy
         hresult_t removeForcesCoupling(const std::string & systemName);
         hresult_t removeForcesCoupling();
 
-        const forceCouplingRegister_t & getForcesCoupling() const;
+        const ForceCouplingRegister & getForcesCoupling() const;
 
         hresult_t removeAllForces();
 
@@ -478,7 +478,7 @@ namespace jiminy
         ///          state-dependent, and must be given in the world frame.
         hresult_t registerForceProfile(const std::string & systemName,
                                        const std::string & frameName,
-                                       const forceProfileFunctor_t & forceFct,
+                                       const ForceProfileFunctor & forceFct,
                                        const float64_t & updatePeriod = 0.0);
 
         hresult_t removeForcesImpulse(const std::string & systemName);
@@ -487,19 +487,19 @@ namespace jiminy
         hresult_t removeForcesProfile();
 
         hresult_t getForcesImpulse(const std::string & systemName,
-                                   const forceImpulseRegister_t *& forcesImpulsePtr) const;
+                                   const ForceImpulseRegister *& forcesImpulsePtr) const;
         hresult_t getForcesProfile(const std::string & systemName,
-                                   const forceProfileRegister_t *& forcesProfilePtr) const;
+                                   const ForceProfileRegister *& forcesProfilePtr) const;
 
-        configHolder_t getOptions() const;
-        hresult_t setOptions(const configHolder_t & engineOptions);
+        GenericConfig getOptions() const;
+        hresult_t setOptions(const GenericConfig & engineOptions);
         bool_t getIsTelemetryConfigured() const;
         std::vector<std::string> getSystemsNames() const;
         hresult_t getSystemIdx(const std::string & systemName, int32_t & systemIdx) const;
         hresult_t getSystem(const std::string & systemName, systemHolder_t *& system);
         hresult_t getSystemState(const std::string & systemName,
                                  const systemState_t *& systemState) const;
-        const stepperState_t & getStepperState() const;
+        const StepperState & getStepperState() const;
         const bool_t & getIsSimulationRunning() const;
         static float64_t getMaxSimulationDuration();
         static float64_t getTelemetryTimeUnit();
@@ -530,7 +530,7 @@ namespace jiminy
         /// \returns Contact force, at parent joint, in the local frame.
         void computeContactDynamicsAtBody(
             const systemHolder_t & system,
-            const pairIndex_t & collisionPairIdx,
+            const pinocchio::PairIndex & collisionPairIdx,
             std::shared_ptr<AbstractConstraintBase> & contactConstraint,
             pinocchio::Force & fextLocal) const;
 
@@ -542,7 +542,7 @@ namespace jiminy
         /// \returns Contact force, at parent joint, in the local frame.
         void computeContactDynamicsAtFrame(
             const systemHolder_t & system,
-            const frameIndex_t & frameIdx,
+            const pinocchio::FrameIndex & frameIdx,
             std::shared_ptr<AbstractConstraintBase> & collisionConstraint,
             pinocchio::Force & fextLocal) const;
 
@@ -564,14 +564,14 @@ namespace jiminy
                                      Eigen::VectorXd & uInternal) const;
         void computeCollisionForces(const systemHolder_t & system,
                                     systemDataHolder_t & systemData,
-                                    forceVector_t & fext,
+                                    ForceVector & fext,
                                     const bool_t & isStateUpToDate = false) const;
         void computeExternalForces(const systemHolder_t & system,
                                    systemDataHolder_t & systemData,
                                    const float64_t & t,
                                    const Eigen::VectorXd & q,
                                    const Eigen::VectorXd & v,
-                                   forceVector_t & fext);
+                                   ForceVector & fext);
         void computeForcesCoupling(const float64_t & t,
                                    const std::vector<Eigen::VectorXd> & qSplit,
                                    const std::vector<Eigen::VectorXd> & vSplit);
@@ -598,15 +598,15 @@ namespace jiminy
                                                     const Eigen::VectorXd & q,
                                                     const Eigen::VectorXd & v,
                                                     const Eigen::VectorXd & u,
-                                                    forceVector_t & fext,
+                                                    ForceVector & fext,
                                                     const bool_t & isStateUpToDate = false,
                                                     const bool_t & ignoreBounds = false);
 
     public:
-        hresult_t getLog(std::shared_ptr<const logData_t> & logData);
+        hresult_t getLog(std::shared_ptr<const LogData> & logData);
 
         static hresult_t readLog(
-            const std::string & filename, const std::string & format, logData_t & logData);
+            const std::string & filename, const std::string & format, LogData & logData);
 
         hresult_t writeLog(const std::string & filename, const std::string & format);
 
@@ -663,7 +663,7 @@ namespace jiminy
     protected:
         bool_t isTelemetryConfigured_;
         bool_t isSimulationRunning_;
-        configHolder_t engineOptionsHolder_;
+        GenericConfig engineOptionsHolder_;
 
     private:
         std::unique_ptr<Timer> timer_;
@@ -673,14 +673,14 @@ namespace jiminy
         std::unique_ptr<TelemetryRecorder> telemetryRecorder_;
         std::unique_ptr<AbstractStepper> stepper_;
         float64_t stepperUpdatePeriod_;
-        stepperState_t stepperState_;
+        StepperState stepperState_;
         vector_aligned_t<systemDataHolder_t> systemsDataHolder_;
-        forceCouplingRegister_t forcesCoupling_;
-        vector_aligned_t<forceVector_t> contactForcesPrev_;
-        vector_aligned_t<forceVector_t> fPrev_;
-        vector_aligned_t<motionVector_t> aPrev_;
+        ForceCouplingRegister forcesCoupling_;
+        vector_aligned_t<ForceVector> contactForcesPrev_;
+        vector_aligned_t<ForceVector> fPrev_;
+        vector_aligned_t<MotionVector> aPrev_;
         std::vector<float64_t> energy_;
-        std::shared_ptr<logData_t> logData_;
+        std::shared_ptr<LogData> logData_;
     };
 }
 

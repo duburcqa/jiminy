@@ -442,7 +442,7 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
                 assert isinstance(sensor, encoder)
                 sensor_idx = sensor.idx
                 joint = self.robot.pinocchio_model.joints[sensor.joint_idx]
-                if sensor.joint_type == jiminy.joint_t.ROTARY_UNBOUNDED:
+                if sensor.joint_type == jiminy.JointModelType.ROTARY_UNBOUNDED:
                     sensor_position_lower = -np.pi
                     sensor_position_upper = np.pi
                 else:
