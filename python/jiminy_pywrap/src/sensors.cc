@@ -1,6 +1,6 @@
+#include "jiminy/core/traits.h"
 #include "jiminy/core/hardware/abstract_sensor.h"
 #include "jiminy/core/hardware/basic_sensors.h"
-#include "jiminy/core/types.h"
 
 #include "pinocchio/bindings/python/fwd.hpp"
 
@@ -12,7 +12,7 @@ namespace jiminy::python
 {
     namespace bp = boost::python;
 
-    // ******************************* sensorsDataMap_t ********************************
+    // ******************************* SensorsDataMap ********************************
 
     struct PySensorsDataMapVisitor : public bp::def_visitor<PySensorsDataMapVisitor>
     {
@@ -44,11 +44,11 @@ namespace jiminy::python
                    the overhead of translating 'StopIteration' exception when reaching the end. */
                 .def("__iter__", bp::range<bp::return_value_policy<result_converter<false>>>(
                                  static_cast<
-                                     sensorsDataMap_t::iterator (sensorsDataMap_t::*)(void)
-                                 >(&sensorsDataMap_t::begin),
+                                     SensorsDataMap::iterator (SensorsDataMap::*)(void)
+                                 >(&SensorsDataMap::begin),
                                  static_cast<
-                                     sensorsDataMap_t::iterator (sensorsDataMap_t::*)(void)
-                                 >(&sensorsDataMap_t::end)))
+                                     SensorsDataMap::iterator (SensorsDataMap::*)(void)
+                                 >(&SensorsDataMap::end)))
                 .def("__contains__", &PySensorsDataMapVisitor::contains,
                                      (bp::arg("self"), "key"))
                 .def("__repr__", &PySensorsDataMapVisitor::repr)
@@ -64,9 +64,9 @@ namespace jiminy::python
             // clang-format on
         }
 
-        static bp::ssize_t len(sensorsDataMap_t & self) { return self.size(); }
+        static bp::ssize_t len(SensorsDataMap & self) { return self.size(); }
 
-        static const Eigen::Ref<const Eigen::VectorXd> & getItem(sensorsDataMap_t & self,
+        static const Eigen::Ref<const Eigen::VectorXd> & getItem(SensorsDataMap & self,
                                                                  const bp::tuple & sensorInfo)
         {
             const std::string sensorType = bp::extract<std::string>(sensorInfo[0]);
@@ -75,9 +75,7 @@ namespace jiminy::python
         }
 
         static const Eigen::Ref<const Eigen::VectorXd> & getItemSplit(
-            sensorsDataMap_t & self,
-            const std::string & sensorType,
-            const std::string & sensorName)
+            SensorsDataMap & self, const std::string & sensorType, const std::string & sensorName)
         {
             try
             {
@@ -99,7 +97,7 @@ namespace jiminy::python
             }
         }
 
-        static const Eigen::MatrixXd & getSub(sensorsDataMap_t & self,
+        static const Eigen::MatrixXd & getSub(SensorsDataMap & self,
                                               const std::string & sensorType)
         {
             try
@@ -115,7 +113,7 @@ namespace jiminy::python
             }
         }
 
-        static bool_t contains(sensorsDataMap_t & self, const bp::tuple & sensorInfo)
+        static bool_t contains(SensorsDataMap & self, const bp::tuple & sensorInfo)
         {
             const std::string sensorType = bp::extract<std::string>(sensorInfo[0]);
             const std::string sensorName = bp::extract<std::string>(sensorInfo[1]);
@@ -132,7 +130,7 @@ namespace jiminy::python
             return false;
         }
 
-        static bp::list keys(sensorsDataMap_t & self)
+        static bp::list keys(SensorsDataMap & self)
         {
             bp::list sensorsInfo;
             for (auto & sensorData : self)
@@ -142,7 +140,7 @@ namespace jiminy::python
             return sensorsInfo;
         }
 
-        static bp::list keysSensorType(sensorsDataMap_t & self, const std::string & sensorType)
+        static bp::list keysSensorType(SensorsDataMap & self, const std::string & sensorType)
         {
             bp::list sensorsInfo;
             for (auto & sensorData : self.at(sensorType))
@@ -152,7 +150,7 @@ namespace jiminy::python
             return sensorsInfo;
         }
 
-        static bp::list values(sensorsDataMap_t & self)
+        static bp::list values(SensorsDataMap & self)
         {
             bp::list sensorsValue;
             for (const auto & sensorsDataType : self)
@@ -162,7 +160,7 @@ namespace jiminy::python
             return sensorsValue;
         }
 
-        static bp::list items(sensorsDataMap_t & self)
+        static bp::list items(SensorsDataMap & self)
         {
             bp::list sensorsDataPy;
             for (const auto & sensorsDataType : self)
@@ -172,7 +170,7 @@ namespace jiminy::python
             return sensorsDataPy;
         }
 
-        static std::string repr(sensorsDataMap_t & self)
+        static std::string repr(SensorsDataMap & self)
         {
             std::stringstream s;
             Eigen::IOFormat HeavyFmt(5, 1, ", ", "", "", "", "[", "]\n");
@@ -193,10 +191,10 @@ namespace jiminy::python
             return s.str();
         }
 
-        static std::shared_ptr<sensorsDataMap_t> factory(bp::dict & sensorDataPy)
+        static std::shared_ptr<SensorsDataMap> factory(bp::dict & sensorDataPy)
         {
-            auto sensorData = convertFromPython<sensorsDataMap_t>(sensorDataPy);
-            return std::make_shared<sensorsDataMap_t>(std::move(sensorData));
+            auto sensorData = convertFromPython<SensorsDataMap>(sensorDataPy);
+            return std::make_shared<SensorsDataMap>(std::move(sensorData));
         }
 
         static void factoryWrapper(bp::object & self, bp::dict & sensorDataPy)
@@ -208,8 +206,8 @@ namespace jiminy::python
         static void expose()
         {
             // clang-format off
-            bp::class_<sensorsDataMap_t,
-                       std::shared_ptr<sensorsDataMap_t>,
+            bp::class_<SensorsDataMap,
+                       std::shared_ptr<SensorsDataMap>,
                        boost::noncopyable>("sensorsData", bp::no_init)
                 .def(PySensorsDataMapVisitor());
             // clang-format on
@@ -289,7 +287,7 @@ namespace jiminy::python
 
         static hresult_t setOptions(AbstractSensorBase & self, const bp::dict & configPy)
         {
-            configHolder_t config = self.getOptions();
+            GenericConfig config = self.getOptions();
             convertFromPython(configPy, config);
             return self.setOptions(config);
         }

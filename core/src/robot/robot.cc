@@ -1,10 +1,11 @@
 #include <fstream>
 #include <exception>
 
+#include "jiminy/core/exceptions.h"
+#include "jiminy/core/io/file_device.h"
+#include "jiminy/core/telemetry/telemetry_data.h"
 #include "jiminy/core/hardware/abstract_motor.h"
 #include "jiminy/core/hardware/abstract_sensor.h"
-#include "jiminy/core/telemetry/telemetry_data.h"
-#include "jiminy/core/io/file_device.h"
 #include "jiminy/core/utilities/helpers.h"
 #include "jiminy/core/utilities/pinocchio.h"
 #include "jiminy/core/utilities/json.h"
@@ -697,11 +698,11 @@ namespace jiminy
         return sensorsGroupHolder_;
     }
 
-    hresult_t Robot::setOptions(const configHolder_t & robotOptions)
+    hresult_t Robot::setOptions(const GenericConfig & robotOptions)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
-        configHolder_t::const_iterator modelOptionsIt;
+        GenericConfig::const_iterator modelOptionsIt;
         modelOptionsIt = robotOptions.find("model");
         if (modelOptionsIt == robotOptions.end())
         {
@@ -711,12 +712,11 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            const configHolder_t & modelOptions =
-                boost::get<configHolder_t>(modelOptionsIt->second);
+            const GenericConfig & modelOptions = boost::get<GenericConfig>(modelOptionsIt->second);
             returnCode = setModelOptions(modelOptions);
         }
 
-        configHolder_t::const_iterator motorsOptionsIt;
+        GenericConfig::const_iterator motorsOptionsIt;
         if (returnCode == hresult_t::SUCCESS)
         {
             motorsOptionsIt = robotOptions.find("motors");
@@ -729,12 +729,12 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            const configHolder_t & motorsOptions =
-                boost::get<configHolder_t>(motorsOptionsIt->second);
+            const GenericConfig & motorsOptions =
+                boost::get<GenericConfig>(motorsOptionsIt->second);
             returnCode = setMotorsOptions(motorsOptions);
         }
 
-        configHolder_t::const_iterator sensorsOptionsIt;
+        GenericConfig::const_iterator sensorsOptionsIt;
         if (returnCode == hresult_t::SUCCESS)
         {
             sensorsOptionsIt = robotOptions.find("sensors");
@@ -747,12 +747,12 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            const configHolder_t & sensorsOptions =
-                boost::get<configHolder_t>(sensorsOptionsIt->second);
+            const GenericConfig & sensorsOptions =
+                boost::get<GenericConfig>(sensorsOptionsIt->second);
             returnCode = setSensorsOptions(sensorsOptions);
         }
 
-        configHolder_t::const_iterator telemetryOptionsIt;
+        GenericConfig::const_iterator telemetryOptionsIt;
         if (returnCode == hresult_t::SUCCESS)
         {
             telemetryOptionsIt = robotOptions.find("telemetry");
@@ -765,29 +765,29 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            const configHolder_t & telemetryOptions =
-                boost::get<configHolder_t>(telemetryOptionsIt->second);
+            const GenericConfig & telemetryOptions =
+                boost::get<GenericConfig>(telemetryOptionsIt->second);
             returnCode = setTelemetryOptions(telemetryOptions);
         }
 
         return returnCode;
     }
 
-    configHolder_t Robot::getOptions() const
+    GenericConfig Robot::getOptions() const
     {
-        configHolder_t robotOptions;
+        GenericConfig robotOptions;
         robotOptions["model"] = getModelOptions();
-        configHolder_t motorsOptions;
+        GenericConfig motorsOptions;
         robotOptions["motors"] = getMotorsOptions();
-        configHolder_t sensorsOptions;
+        GenericConfig sensorsOptions;
         robotOptions["sensors"] = getSensorsOptions();
-        configHolder_t telemetryOptions;
+        GenericConfig telemetryOptions;
         robotOptions["telemetry"] = getTelemetryOptions();
         return robotOptions;
     }
 
     hresult_t Robot::setMotorOptions(const std::string & motorName,
-                                     const configHolder_t & motorOptions)
+                                     const GenericConfig & motorOptions)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -820,7 +820,7 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t Robot::setMotorsOptions(const configHolder_t & motorsOptions)
+    hresult_t Robot::setMotorsOptions(const GenericConfig & motorsOptions)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -839,7 +839,7 @@ namespace jiminy
                 if (motorOptionIt != motorsOptions.end())
                 {
                     returnCode =
-                        motor->setOptions(boost::get<configHolder_t>(motorOptionIt->second));
+                        motor->setOptions(boost::get<GenericConfig>(motorOptionIt->second));
                 }
                 else
                 {
@@ -853,7 +853,7 @@ namespace jiminy
     }
 
     hresult_t Robot::getMotorOptions(const std::string & motorName,
-                                     configHolder_t & motorOptions) const
+                                     GenericConfig & motorOptions) const
     {
         auto motorIt = std::find_if(motorsHolder_.begin(),
                                     motorsHolder_.end(),
@@ -870,9 +870,9 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    configHolder_t Robot::getMotorsOptions() const
+    GenericConfig Robot::getMotorsOptions() const
     {
-        configHolder_t motorsOptions;
+        GenericConfig motorsOptions;
         for (const motorsHolder_t::value_type & motor : motorsHolder_)
         {
             motorsOptions[motor->getName()] = motor->getOptions();
@@ -882,7 +882,7 @@ namespace jiminy
 
     hresult_t Robot::setSensorOptions(const std::string & sensorType,
                                       const std::string & sensorName,
-                                      const configHolder_t & sensorOptions)
+                                      const GenericConfig & sensorOptions)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -925,7 +925,7 @@ namespace jiminy
     }
 
     hresult_t Robot::setSensorsOptions(const std::string & sensorType,
-                                       const configHolder_t & sensorsOptions)
+                                       const GenericConfig & sensorsOptions)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -955,7 +955,7 @@ namespace jiminy
                 if (sensorOptionIt != sensorsOptions.end())
                 {
                     returnCode =
-                        sensor->setOptions(boost::get<configHolder_t>(sensorOptionIt->second));
+                        sensor->setOptions(boost::get<GenericConfig>(sensorOptionIt->second));
                 }
                 else
                 {
@@ -968,7 +968,7 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t Robot::setSensorsOptions(const configHolder_t & sensorsOptions)
+    hresult_t Robot::setSensorsOptions(const GenericConfig & sensorsOptions)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -988,8 +988,8 @@ namespace jiminy
                 auto sensorGroupOptionsIt = sensorsOptions.find(sensorType);
                 if (sensorGroupOptionsIt != sensorsOptions.end())
                 {
-                    const configHolder_t & sensorGroupOptions =
-                        boost::get<configHolder_t>(sensorGroupOptionsIt->second);
+                    const GenericConfig & sensorGroupOptions =
+                        boost::get<GenericConfig>(sensorGroupOptionsIt->second);
 
                     for (const auto & sensor : sensorGroup.second)
                     {
@@ -1000,8 +1000,8 @@ namespace jiminy
                             auto sensorOptionsIt = sensorGroupOptions.find(sensorName);
                             if (sensorOptionsIt != sensorGroupOptions.end())
                             {
-                                const configHolder_t & sensorOptions =
-                                    boost::get<configHolder_t>(sensorOptionsIt->second);
+                                const GenericConfig & sensorOptions =
+                                    boost::get<GenericConfig>(sensorOptionsIt->second);
 
                                 returnCode = sensor->setOptions(sensorOptions);
                             }
@@ -1026,7 +1026,7 @@ namespace jiminy
 
     hresult_t Robot::getSensorOptions(const std::string & sensorType,
                                       const std::string & sensorName,
-                                      configHolder_t & sensorOptions) const
+                                      GenericConfig & sensorOptions) const
     {
         auto sensorGroupIt = sensorsGroupHolder_.find(sensorType);
         if (sensorGroupIt == sensorsGroupHolder_.end())
@@ -1051,7 +1051,7 @@ namespace jiminy
     }
 
     hresult_t Robot::getSensorsOptions(const std::string & sensorType,
-                                       configHolder_t & sensorsOptions) const
+                                       GenericConfig & sensorsOptions) const
     {
         auto sensorGroupIt = sensorsGroupHolder_.find(sensorType);
         if (sensorGroupIt == sensorsGroupHolder_.end())
@@ -1068,12 +1068,12 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    configHolder_t Robot::getSensorsOptions() const
+    GenericConfig Robot::getSensorsOptions() const
     {
-        configHolder_t sensorsOptions;
+        GenericConfig sensorsOptions;
         for (const auto & sensorGroup : sensorsGroupHolder_)
         {
-            configHolder_t sensorsGroupOptions;
+            GenericConfig sensorsGroupOptions;
             for (const auto & sensor : sensorGroup.second)
             {
                 sensorsGroupOptions[sensor->getName()] = sensor->getOptions();
@@ -1083,17 +1083,17 @@ namespace jiminy
         return sensorsOptions;
     }
 
-    hresult_t Robot::setModelOptions(const configHolder_t & modelOptions)
+    hresult_t Robot::setModelOptions(const GenericConfig & modelOptions)
     {
         return Model::setOptions(modelOptions);
     }
 
-    configHolder_t Robot::getModelOptions() const
+    GenericConfig Robot::getModelOptions() const
     {
         return Model::getOptions();
     }
 
-    hresult_t Robot::setTelemetryOptions(const configHolder_t & telemetryOptions)
+    hresult_t Robot::setTelemetryOptions(const GenericConfig & telemetryOptions)
     {
         if (getIsLocked())
         {
@@ -1118,9 +1118,9 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    configHolder_t Robot::getTelemetryOptions() const
+    GenericConfig Robot::getTelemetryOptions() const
     {
-        configHolder_t telemetryOptions;
+        GenericConfig telemetryOptions;
         for (const auto & sensorGroupTelemetryOption : sensorTelemetryOptions_)
         {
             std::string optionTelemetryName = "enable" + sensorGroupTelemetryOption.first + "s";
@@ -1140,7 +1140,7 @@ namespace jiminy
         hresult_t returnCode = hresult_t::SUCCESS;
 
         std::shared_ptr<AbstractIODevice> device = std::make_shared<FileDevice>(filepath);
-        configHolder_t robotOptions;
+        GenericConfig robotOptions;
         returnCode = jsonLoad(robotOptions, device);
 
         if (returnCode == hresult_t::SUCCESS)
@@ -1201,7 +1201,7 @@ namespace jiminy
                                const Eigen::VectorXd & v,
                                const Eigen::VectorXd & a,
                                const Eigen::VectorXd & uMotor,
-                               const forceVector_t & fExternal)
+                               const ForceVector & fExternal)
     {
         /* Note that it is assumed that the kinematic quantities have been
            updated previously to be consistent with (q, v, a, u). If not,
@@ -1217,18 +1217,18 @@ namespace jiminy
         }
     }
 
-    sensorsDataMap_t Robot::getSensorsData() const
+    SensorsDataMap Robot::getSensorsData() const
     {
-        sensorsDataMap_t data;
+        SensorsDataMap data;
         sensorsGroupHolder_t::const_iterator sensorsGroupIt = sensorsGroupHolder_.begin();
         sensorsSharedHolder_t::const_iterator sensorsSharedIt = sensorsSharedHolder_.begin();
         for (; sensorsGroupIt != sensorsGroupHolder_.end(); ++sensorsGroupIt, ++sensorsSharedIt)
         {
-            sensorDataTypeMap_t dataType(sensorsSharedIt->second->dataMeasured_);
+            SensorDataTypeMap dataType(&sensorsSharedIt->second->dataMeasured_);
             for (auto & sensor : sensorsGroupIt->second)
             {
                 auto & sensorConst = const_cast<const AbstractSensorBase &>(*sensor);
-                dataType.emplace(sensorConst.getName(), sensorConst.getIdx(), sensorConst.get());
+                dataType.insert({sensorConst.getName(), sensorConst.getIdx(), sensorConst.get()});
             }
             data.emplace(sensorsGroupIt->first, std::move(dataType));
         }
@@ -1291,14 +1291,14 @@ namespace jiminy
         return motorsNames_;
     }
 
-    std::vector<jointIndex_t> Robot::getMotorsModelIdx() const
+    std::vector<pinocchio::JointIndex> Robot::getMotorsModelIdx() const
     {
-        std::vector<jointIndex_t> motorsModelIdx;
+        std::vector<pinocchio::JointIndex> motorsModelIdx;
         motorsModelIdx.reserve(nmotors_);
         std::transform(motorsHolder_.begin(),
                        motorsHolder_.end(),
                        std::back_inserter(motorsModelIdx),
-                       [](const auto & motor) -> jointIndex_t
+                       [](const auto & motor) -> pinocchio::JointIndex
                        { return motor->getJointModelIdx(); });
         return motorsModelIdx;
     }
@@ -1313,7 +1313,7 @@ namespace jiminy
                        [](const auto & elem) -> std::vector<int32_t>
                        {
                            int32_t const & jointPositionIdx = elem->getJointPositionIdx();
-                           if (elem->getJointType() == joint_t::ROTARY_UNBOUNDED)
+                           if (elem->getJointType() == JointModelType::ROTARY_UNBOUNDED)
                            {
                                return {jointPositionIdx, jointPositionIdx + 1};
                            }

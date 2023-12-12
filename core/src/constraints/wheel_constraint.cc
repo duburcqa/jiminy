@@ -1,5 +1,6 @@
 #include "pinocchio/algorithm/frames.hpp"  // `pinocchio::getFrameVelocity`, `pinocchio::getFrameAcceleration`
 
+#include "jiminy/core/exceptions.h"
 #include "jiminy/core/robot/model.h"
 #include "jiminy/core/utilities/pinocchio.h"
 
@@ -33,7 +34,7 @@ namespace jiminy
         return frameName_;
     }
 
-    const frameIndex_t & WheelConstraint::getFrameIdx() const
+    const pinocchio::FrameIndex & WheelConstraint::getFrameIdx() const
     {
         return frameIdx_;
     }

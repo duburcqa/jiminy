@@ -1,7 +1,8 @@
 #ifndef JIMINY_BASIC_SENSORS_H
 #define JIMINY_BASIC_SENSORS_H
 
-#include "jiminy/core/macros.h"
+#include "jiminy/core/fwd.h"
+#include "jiminy/core/utilities/helpers.h"
 #include "jiminy/core/hardware/abstract_sensor.h"
 
 
@@ -19,11 +20,11 @@ namespace jiminy
 
         hresult_t initialize(const std::string & frameName);
 
-        virtual hresult_t setOptions(const configHolder_t & sensorOptions) final override;
+        virtual hresult_t setOptions(const GenericConfig & sensorOptions) final override;
         virtual hresult_t refreshProxies() final override;
 
         const std::string & getFrameName() const;
-        const frameIndex_t & getFrameIdx() const;
+        const pinocchio::FrameIndex & getFrameIdx() const;
 
     private:
         virtual hresult_t set(const float64_t & t,
@@ -31,15 +32,22 @@ namespace jiminy
                               const Eigen::VectorXd & v,
                               const Eigen::VectorXd & a,
                               const Eigen::VectorXd & uMotor,
-                              const forceVector_t & fExternal) final override;
+                              const ForceVector & fExternal) final override;
         virtual void measureData() final override;
 
     private:
         std::string frameName_;
-        frameIndex_t frameIdx_;
+        pinocchio::FrameIndex frameIdx_;
         /// \brief Sensor inverse rotation bias.
         Eigen::Matrix3d sensorRotationBiasInv_;
     };
+
+    template<>
+    const std::string AbstractSensorTpl<ImuSensor>::type_;
+    template<>
+    const bool_t AbstractSensorTpl<ImuSensor>::areFieldnamesGrouped_;
+    template<>
+    const std::vector<std::string> AbstractSensorTpl<ImuSensor>::fieldnames_;
 
     class JIMINY_DLLAPI ContactSensor : public AbstractSensorTpl<ContactSensor>
     {
@@ -54,7 +62,7 @@ namespace jiminy
         virtual hresult_t refreshProxies() final override;
 
         const std::string & getFrameName() const;
-        const frameIndex_t & getFrameIdx() const;
+        const pinocchio::FrameIndex & getFrameIdx() const;
 
     private:
         virtual hresult_t set(const float64_t & t,
@@ -62,12 +70,19 @@ namespace jiminy
                               const Eigen::VectorXd & v,
                               const Eigen::VectorXd & a,
                               const Eigen::VectorXd & uMotor,
-                              const forceVector_t & fExternal) final override;
+                              const ForceVector & fExternal) final override;
 
     private:
         std::string frameName_;
-        frameIndex_t frameIdx_;
+        pinocchio::FrameIndex frameIdx_;
     };
+
+    template<>
+    const std::string AbstractSensorTpl<ContactSensor>::type_;
+    template<>
+    const bool_t AbstractSensorTpl<ContactSensor>::areFieldnamesGrouped_;
+    template<>
+    const std::vector<std::string> AbstractSensorTpl<ContactSensor>::fieldnames_;
 
     class JIMINY_DLLAPI ForceSensor : public AbstractSensorTpl<ForceSensor>
     {
@@ -82,8 +97,8 @@ namespace jiminy
         virtual hresult_t refreshProxies() final override;
 
         const std::string & getFrameName() const;
-        const frameIndex_t & getFrameIdx() const;
-        jointIndex_t getJointIdx() const;
+        const pinocchio::FrameIndex & getFrameIdx() const;
+        pinocchio::JointIndex getJointIdx() const;
 
     private:
         virtual hresult_t set(const float64_t & t,
@@ -91,14 +106,21 @@ namespace jiminy
                               const Eigen::VectorXd & v,
                               const Eigen::VectorXd & a,
                               const Eigen::VectorXd & uMotor,
-                              const forceVector_t & fExternal) final override;
+                              const ForceVector & fExternal) final override;
 
     private:
         std::string frameName_;
-        frameIndex_t frameIdx_;
-        jointIndex_t parentJointIdx_;
+        pinocchio::FrameIndex frameIdx_;
+        pinocchio::JointIndex parentJointIdx_;
         pinocchio::Force f_;
     };
+
+    template<>
+    const std::string AbstractSensorTpl<ForceSensor>::type_;
+    template<>
+    const bool_t AbstractSensorTpl<ForceSensor>::areFieldnamesGrouped_;
+    template<>
+    const std::vector<std::string> AbstractSensorTpl<ForceSensor>::fieldnames_;
 
     class JIMINY_DLLAPI EncoderSensor : public AbstractSensorTpl<EncoderSensor>
     {
@@ -113,8 +135,8 @@ namespace jiminy
         virtual hresult_t refreshProxies() final override;
 
         const std::string & getJointName() const;
-        const jointIndex_t & getJointIdx() const;
-        const joint_t & getJointType() const;
+        const pinocchio::JointIndex & getJointIdx() const;
+        const JointModelType & getJointType() const;
 
     private:
         virtual hresult_t set(const float64_t & t,
@@ -122,13 +144,20 @@ namespace jiminy
                               const Eigen::VectorXd & v,
                               const Eigen::VectorXd & a,
                               const Eigen::VectorXd & uMotor,
-                              const forceVector_t & fExternal) final override;
+                              const ForceVector & fExternal) final override;
 
     private:
         std::string jointName_;
-        jointIndex_t jointIdx_;
-        joint_t jointType_;
+        pinocchio::JointIndex jointIdx_;
+        JointModelType jointType_;
     };
+
+    template<>
+    const std::string AbstractSensorTpl<EncoderSensor>::type_;
+    template<>
+    const bool_t AbstractSensorTpl<EncoderSensor>::areFieldnamesGrouped_;
+    template<>
+    const std::vector<std::string> AbstractSensorTpl<EncoderSensor>::fieldnames_;
 
     class JIMINY_DLLAPI EffortSensor : public AbstractSensorTpl<EffortSensor>
     {
@@ -151,12 +180,19 @@ namespace jiminy
                               const Eigen::VectorXd & v,
                               const Eigen::VectorXd & a,
                               const Eigen::VectorXd & uMotor,
-                              const forceVector_t & fExternal) final override;
+                              const ForceVector & fExternal) final override;
 
     private:
         std::string motorName_;
         std::size_t motorIdx_;
     };
+
+    template<>
+    const std::string AbstractSensorTpl<EffortSensor>::type_;
+    template<>
+    const bool_t AbstractSensorTpl<EffortSensor>::areFieldnamesGrouped_;
+    template<>
+    const std::vector<std::string> AbstractSensorTpl<EffortSensor>::fieldnames_;
 }
 
 #endif  // end of JIMINY_BASIC_SENSORS_H

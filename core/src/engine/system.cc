@@ -1,24 +1,25 @@
 #include "pinocchio/spatial/force.hpp"                  // `pinocchio::Force`
 #include "pinocchio/algorithm/joint-configuration.hpp"  // `pinocchio::neutral`
 
+#include "jiminy/core/exceptions.h"
 #include "jiminy/core/robot/robot.h"
 #include "jiminy/core/solver/constraint_solvers.h"
 #include "jiminy/core/constraints/abstract_constraint.h"
 #include "jiminy/core/control/abstract_controller.h"
-#include "jiminy/core/utilities/helpers.h"
 #include "jiminy/core/engine/system.h"
+#include "jiminy/core/utilities/helpers.h"
 
 
 namespace jiminy
 {
     // ====================================================
-    // ================== forceProfile_t ==================
+    // ================== ForceProfile ==================
     // ====================================================
 
-    forceProfile_t::forceProfile_t(const std::string & frameNameIn,
-                                   const frameIndex_t & frameIdxIn,
-                                   const float64_t & updatePeriodIn,
-                                   const forceProfileFunctor_t & forceFctIn) :
+    ForceProfile::ForceProfile(const std::string & frameNameIn,
+                               const pinocchio::FrameIndex & frameIdxIn,
+                               const float64_t & updatePeriodIn,
+                               const ForceProfileFunctor & forceFctIn) :
     frameName(frameNameIn),
     frameIdx(frameIdxIn),
     updatePeriod(updatePeriodIn),
@@ -28,14 +29,14 @@ namespace jiminy
     }
 
     // ====================================================
-    // ================== forceImpulse_t ==================
+    // ================== ForceImpulse ==================
     // ====================================================
 
-    forceImpulse_t::forceImpulse_t(const std::string & frameNameIn,
-                                   const frameIndex_t & frameIdxIn,
-                                   const float64_t & tIn,
-                                   const float64_t & dtIn,
-                                   const pinocchio::Force & FIn) :
+    ForceImpulse::ForceImpulse(const std::string & frameNameIn,
+                               const pinocchio::FrameIndex & frameIdxIn,
+                               const float64_t & tIn,
+                               const float64_t & dtIn,
+                               const pinocchio::Force & FIn) :
     frameName(frameNameIn),
     frameIdx(frameIdxIn),
     t(tIn),
@@ -45,18 +46,18 @@ namespace jiminy
     }
 
     // ====================================================
-    // ================== forceCoupling_t =================
+    // ================== ForceCoupling =================
     // ====================================================
 
-    forceCoupling_t::forceCoupling_t(const std::string & systemName1In,
-                                     const int32_t & systemIdx1In,
-                                     const std::string & systemName2In,
-                                     const int32_t & systemIdx2In,
-                                     const std::string & frameName1In,
-                                     const frameIndex_t & frameIdx1In,
-                                     const std::string & frameName2In,
-                                     const frameIndex_t & frameIdx2In,
-                                     const forceCouplingFunctor_t & forceFctIn) :
+    ForceCoupling::ForceCoupling(const std::string & systemName1In,
+                                 const int32_t & systemIdx1In,
+                                 const std::string & systemName2In,
+                                 const int32_t & systemIdx2In,
+                                 const std::string & frameName1In,
+                                 const pinocchio::FrameIndex & frameIdx1In,
+                                 const std::string & frameName2In,
+                                 const pinocchio::FrameIndex & frameIdx2In,
+                                 const ForceCouplingFunctor & forceFctIn) :
     systemName1(systemName1In),
     systemIdx1(systemIdx1In),
     systemName2(systemName2In),
@@ -76,7 +77,7 @@ namespace jiminy
     systemHolder_t::systemHolder_t(const std::string & systemNameIn,
                                    std::shared_ptr<Robot> robotIn,
                                    std::shared_ptr<AbstractController> controllerIn,
-                                   callbackFunctor_t callbackFctIn) :
+                                   CallbackFunctor callbackFctIn) :
     name(systemNameIn),
     robot(robotIn),
     controller(controllerIn),
@@ -128,7 +129,7 @@ namespace jiminy
         uMotor.setZero(robot.getMotorsNames().size());
         uInternal.setZero(robot.nv());
         uCustom.setZero(robot.nv());
-        fExternal = forceVector_t(robot.pncModel_.joints.size(), pinocchio::Force::Zero());
+        fExternal = ForceVector(robot.pncModel_.joints.size(), pinocchio::Force::Zero());
         isInitialized_ = true;
 
         return hresult_t::SUCCESS;

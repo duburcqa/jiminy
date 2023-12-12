@@ -1,9 +1,11 @@
 #ifndef JIMINY_ABSTRACT_CONTROLLER_H
 #define JIMINY_ABSTRACT_CONTROLLER_H
 
-#include "jiminy/core/macros.h"
-#include "jiminy/core/types.h"
+#include <variant>
+
+#include "jiminy/core/fwd.h"
 #include "jiminy/core/telemetry/telemetry_sender.h"
+#include "jiminy/core/hardware/abstract_sensor.h"
 
 
 namespace jiminy
@@ -23,9 +25,9 @@ namespace jiminy
     {
     public:
         /// \brief Dictionary gathering the configuration options shared between controllers.
-        virtual configHolder_t getDefaultControllerOptions()
+        virtual GenericConfig getDefaultControllerOptions()
         {
-            configHolder_t config;
+            GenericConfig config;
             config["telemetryEnable"] = true;
 
             return config;
@@ -37,7 +39,7 @@ namespace jiminy
             /// \brief Flag used to enable the telemetry of the controller.
             const bool_t telemetryEnable;
 
-            controllerOptions_t(const configHolder_t & options) :
+            controllerOptions_t(const GenericConfig & options) :
             telemetryEnable(boost::get<bool_t>(options.at("telemetryEnable")))
             {
             }
@@ -132,7 +134,7 @@ namespace jiminy
                                            Eigen::VectorXd & uCustom) = 0;
 
         /// \brief Dictionary with the parameters of the controller.
-        configHolder_t getOptions() const;
+        GenericConfig getOptions() const;
 
         /// \brief Set the configuration options of the controller.
         ///
@@ -141,7 +143,7 @@ namespace jiminy
         /// \param[in] ctrlOptions Dictionary with the parameters of the controller.
         ///
         /// \return Return code to determine whether the execution of the method was successful.
-        hresult_t setOptions(const configHolder_t & ctrlOptions);
+        hresult_t setOptions(const GenericConfig & ctrlOptions);
 
         /// \brief Configure the telemetry of the controller.
         ///
@@ -158,7 +160,7 @@ namespace jiminy
         ///
         /// \return Return code to determine whether the execution of the method was successful.
         virtual hresult_t configureTelemetry(std::shared_ptr<TelemetryData> telemetryData,
-                                             const std::string & objectPrefixName = "");
+                                             const std::string & objectPrefixName = {});
 
         /// \brief Update the internal buffers of the telemetry associated with variables monitored
         ///        by the controller.
@@ -199,7 +201,7 @@ namespace jiminy
         std::unique_ptr<const controllerOptions_t> baseControllerOptions_;
         /// \brief Robot for which to compute the command and internal dynamics must be computed.
         std::weak_ptr<const Robot> robot_;
-        sensorsDataMap_t sensorsData_;
+        SensorsDataMap sensorsData_;
 
     protected:
         /// \brief Flag to determine whether the controller has been initialized or not.
@@ -207,7 +209,7 @@ namespace jiminy
         /// \brief Flag to determine whether the telemetry of the controller has been initialized.
         bool_t isTelemetryConfigured_;
         /// \brief Dictionary with the parameters of the controller.
-        configHolder_t ctrlOptionsHolder_;
+        GenericConfig ctrlOptionsHolder_;
         /// \brief Telemetry sender used to register and update telemetry variables.
         TelemetrySender telemetrySender_;
 

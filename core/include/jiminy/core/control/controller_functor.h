@@ -7,8 +7,7 @@
 #ifndef CONTROLLER_FUNCTOR_H
 #define CONTROLLER_FUNCTOR_H
 
-#include "jiminy/core/macros.h"
-#include "jiminy/core/types.h"
+#include "jiminy/core/fwd.h"
 #include "jiminy/core/control/abstract_controller.h"
 
 namespace jiminy
@@ -27,7 +26,7 @@ namespace jiminy
         ///             void(const float64_t & t,
         ///                  const Eigen::VectorXd & q,
         ///                  const Eigen::VectorXd & v,
-        ///                  const sensorsDataMap_t & sensorsData,
+        ///                  const SensorsDataMap & sensorsData,
         ///                  Eigen::VectorXd & command)
         ///         where I is range(n), with n the number of different type of sensor.
         ///

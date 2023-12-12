@@ -1,7 +1,7 @@
 #ifndef JIMINY_RUNGE_KUTTA_STEPPER_H
 #define JIMINY_RUNGE_KUTTA_STEPPER_H
 
-#include "jiminy/core/macros.h"
+#include "jiminy/core/fwd.h"
 #include "jiminy/core/stepper/abstract_stepper.h"
 
 namespace jiminy

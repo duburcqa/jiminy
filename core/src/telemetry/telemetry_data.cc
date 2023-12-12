@@ -1,4 +1,5 @@
 #include "jiminy/core/constants.h"
+#include "jiminy/core/exceptions.h"
 
 #include "jiminy/core/telemetry/telemetry_data.h"
 

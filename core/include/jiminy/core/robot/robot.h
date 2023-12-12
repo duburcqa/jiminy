@@ -1,8 +1,8 @@
 #ifndef JIMINY_ROBOT_H
 #define JIMINY_ROBOT_H
 
-#include "jiminy/core/macros.h"
-#include "jiminy/core/types.h"
+#include "jiminy/core/fwd.h"
+#include "jiminy/core/utilities/helpers.h"
 #include "jiminy/core/robot/model.h"
 
 
@@ -74,36 +74,36 @@ namespace jiminy
                             const Eigen::VectorXd & v,
                             const Eigen::VectorXd & a,
                             const Eigen::VectorXd & uMotor,
-                            const forceVector_t & fExternal);
+                            const ForceVector & fExternal);
 
-        sensorsDataMap_t getSensorsData() const;
+        SensorsDataMap getSensorsData() const;
         Eigen::Ref<const Eigen::VectorXd> getSensorData(const std::string & sensorType,
                                                         const std::string & sensorName) const;
 
-        hresult_t setOptions(const configHolder_t & robotOptions);
-        configHolder_t getOptions() const;
+        hresult_t setOptions(const GenericConfig & robotOptions);
+        GenericConfig getOptions() const;
         hresult_t setMotorOptions(const std::string & motorName,
-                                  const configHolder_t & motorOptions);
-        hresult_t setMotorsOptions(const configHolder_t & motorsOptions);
+                                  const GenericConfig & motorOptions);
+        hresult_t setMotorsOptions(const GenericConfig & motorsOptions);
         hresult_t getMotorOptions(const std::string & motorName,
-                                  configHolder_t & motorOptions) const;
-        configHolder_t getMotorsOptions() const;
+                                  GenericConfig & motorOptions) const;
+        GenericConfig getMotorsOptions() const;
         hresult_t setSensorOptions(const std::string & sensorType,
                                    const std::string & sensorName,
-                                   const configHolder_t & sensorOptions);
+                                   const GenericConfig & sensorOptions);
         hresult_t setSensorsOptions(const std::string & sensorType,
-                                    const configHolder_t & sensorsOptions);
-        hresult_t setSensorsOptions(const configHolder_t & sensorsOptions);
+                                    const GenericConfig & sensorsOptions);
+        hresult_t setSensorsOptions(const GenericConfig & sensorsOptions);
         hresult_t getSensorOptions(const std::string & sensorType,
                                    const std::string & sensorName,
-                                   configHolder_t & sensorOptions) const;
+                                   GenericConfig & sensorOptions) const;
         hresult_t getSensorsOptions(const std::string & sensorType,
-                                    configHolder_t & sensorsOptions) const;
-        configHolder_t getSensorsOptions() const;
-        hresult_t setModelOptions(const configHolder_t & modelOptions);
-        configHolder_t getModelOptions() const;
-        hresult_t setTelemetryOptions(const configHolder_t & telemetryOptions);
-        configHolder_t getTelemetryOptions() const;
+                                    GenericConfig & sensorsOptions) const;
+        GenericConfig getSensorsOptions() const;
+        hresult_t setModelOptions(const GenericConfig & modelOptions);
+        GenericConfig getModelOptions() const;
+        hresult_t setTelemetryOptions(const GenericConfig & telemetryOptions);
+        GenericConfig getTelemetryOptions() const;
 
         hresult_t dumpOptions(const std::string & filepath) const;
         hresult_t loadOptions(const std::string & filepath);
@@ -112,12 +112,12 @@ namespace jiminy
         ///          care of it.
         virtual void reset() override;
         virtual hresult_t configureTelemetry(std::shared_ptr<TelemetryData> telemetryData,
-                                             const std::string & objectPrefixName = "");
+                                             const std::string & objectPrefixName = {});
         void updateTelemetry();
         const bool_t & getIsTelemetryConfigured() const;
 
         const std::vector<std::string> & getMotorsNames() const;
-        std::vector<jointIndex_t> getMotorsModelIdx() const;
+        std::vector<pinocchio::JointIndex> getMotorsModelIdx() const;
         std::vector<std::vector<int32_t>> getMotorsPositionIdx() const;
         std::vector<int32_t> getMotorsVelocityIdx() const;
         const std::unordered_map<std::string, std::vector<std::string>> & getSensorsNames() const;

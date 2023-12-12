@@ -2,10 +2,11 @@
 #define JIMINY_TELEMETRY_CLIENT_CLASS_H
 
 #include <string>
+#include <memory>
+#include <variant>
 #include <unordered_map>
 
-#include "jiminy/core/macros.h"
-#include "jiminy/core/types.h"
+#include "jiminy/core/fwd.h"
 
 
 namespace jiminy

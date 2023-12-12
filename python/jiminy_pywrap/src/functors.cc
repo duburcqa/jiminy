@@ -1,6 +1,6 @@
 #include "pinocchio/spatial/force.hpp"  // `Pinocchio::Force`
 
-#include "jiminy/core/types.h"
+#include "jiminy/core/traits.h"
 
 #include "jiminy/python/functors.h"
 
@@ -48,13 +48,13 @@ namespace jiminy::python
             // clang-format on
         }
 
-        static bp::tuple eval(heightmapFunctor_t & self, const Eigen::Vector3d & posFrame)
+        static bp::tuple eval(HeightmapFunctor & self, const Eigen::Vector3d & posFrame)
         {
             const std::pair<float64_t, Eigen::Vector3d> ground = self(posFrame);
             return bp::make_tuple(std::get<float64_t>(ground), std::get<Eigen::Vector3d>(ground));
         }
 
-        static bp::object getPyFun(heightmapFunctor_t & self)
+        static bp::object getPyFun(HeightmapFunctor & self)
         {
             HeightmapFunctorPyWrapper * pyWrapper(self.target<HeightmapFunctorPyWrapper>());
             if (!pyWrapper || pyWrapper->heightmapType_ != heightmapType_t::GENERIC)
@@ -64,17 +64,17 @@ namespace jiminy::python
             return pyWrapper->handlePyPtr_;
         }
 
-        static std::shared_ptr<heightmapFunctor_t> factory(bp::object & objPy,
-                                                           const heightmapType_t & objType)
+        static std::shared_ptr<HeightmapFunctor> factory(bp::object & objPy,
+                                                         const heightmapType_t & objType)
         {
-            return std::make_shared<heightmapFunctor_t>(HeightmapFunctorPyWrapper(objPy, objType));
+            return std::make_shared<HeightmapFunctor>(HeightmapFunctorPyWrapper(objPy, objType));
         }
 
         static void expose()
         {
             // clang-format off
-            bp::class_<heightmapFunctor_t,
-                       std::shared_ptr<heightmapFunctor_t>>("HeightmapFunctor", bp::no_init)
+            bp::class_<HeightmapFunctor,
+                       std::shared_ptr<HeightmapFunctor>>("HeightmapFunctor", bp::no_init)
                 .def(PyHeightmapFunctorVisitor());
             // clang-format on
         }

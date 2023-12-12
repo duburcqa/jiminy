@@ -4,6 +4,44 @@
 
 namespace jiminy
 {
+    // ****************************** Generic template utilities ******************************* //
+
+    template<class F, class... Args>
+    std::enable_if_t<!(... && !std::is_same_v<std::invoke_result_t<F, Args>, void>)>
+    do_for(F f, Args &&... args)
+    {
+        (f(std::forward<Args>(args)), ...);
+    }
+
+    template<class F, class... Args>
+    std::enable_if_t<(... && !std::is_same_v<std::invoke_result_t<F, Args>, void>),
+                     std::tuple<std::invoke_result_t<F, Args>...>>
+    do_for(F f, Args &&... args)
+    {
+        return std::tuple{f(std::forward<Args>(args))...};
+    }
+
+    // ******************************** enable_shared_from_this ******************************** //
+
+    template<typename Base>
+    inline std::shared_ptr<Base> shared_from_base(std::enable_shared_from_this<Base> * base)
+    {
+        return base->shared_from_this();
+    }
+
+    template<typename Base>
+    inline std::shared_ptr<const Base>
+    shared_from_base(const std::enable_shared_from_this<Base> * base)
+    {
+        return base->shared_from_this();
+    }
+
+    template<typename T>
+    inline std::shared_ptr<T> shared_from(T * derived)
+    {
+        return std::static_pointer_cast<T>(shared_from_base(derived));
+    }
+
     // *************************** Math *****************************
 
     template<typename T>

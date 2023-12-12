@@ -1,10 +1,14 @@
 #ifndef UTILITIES_PYTHON_H
 #define UTILITIES_PYTHON_H
 
+#include <variant>
+#include <optional>
 #include <functional>
 
-#include "jiminy/core/macros.h"
-#include "jiminy/core/types.h"
+#include "jiminy/core/fwd.h"
+#include "jiminy/core/traits.h"
+#include "jiminy/core/exceptions.h"
+#include "jiminy/core/hardware/abstract_sensor.h"
 
 #include <boost/mpl/vector.hpp>
 
@@ -202,7 +206,7 @@ namespace jiminy::python
             doc, std::pair{"fget", getMemberFuncPtr}, std::pair{"fset", setMemberFuncPtr});
     }
 
-// clang-format off
+    // clang-format off
     #define DEF_READONLY3(namePy, memberFuncPtr, doc) \
         def_readonly(namePy, \
                      memberFuncPtr, \
@@ -251,7 +255,7 @@ namespace jiminy::python
     #define __RSEQ_N() 9, 8, 7, 6, 5, 4, 3, 2, 1, 0
     #define __NARG__(...)  __NARG_I_(__VA_ARGS__, __RSEQ_N())
 
-    // General definition for any function name
+    // General definition for any function name to resolve overloading based on number of arguments
     #define _VFUNC_(name, n) name ## n
     #define _VFUNC(name, n) _VFUNC_(name, n)
     #define VFUNC(func, ...) _VFUNC(func, __NARG__(__VA_ARGS__)) (__VA_ARGS__)
@@ -681,8 +685,8 @@ namespace jiminy::python
     }
 
     template<>
-    inline bp::object convertToPython<flexibleJointData_t>(
-        const flexibleJointData_t & flexibleJointData, const bool & /* copy */)
+    inline bp::object convertToPython<FlexibleJointData>(
+        const FlexibleJointData & flexibleJointData, const bool & /* copy */)
     {
         bp::dict flexibilityJointDataPy;
         flexibilityJointDataPy["frameName"] = flexibleJointData.frameName;
@@ -693,12 +697,12 @@ namespace jiminy::python
     }
 
     template<>
-    inline bp::object convertToPython<std::pair<const std::string, sensorDataTypeMap_t>>(
-        const std::pair<const std::string, sensorDataTypeMap_t> & sensorDataItem,
+    inline bp::object convertToPython<std::pair<const std::string, SensorDataTypeMap>>(
+        const std::pair<const std::string, SensorDataTypeMap> & sensorDataTypeItem,
         const bool & copy)
     {
-        return bp::make_tuple(sensorDataItem.first,
-                              convertToPython(sensorDataItem.second.getAll(), copy));
+        const auto & [sensorGroupName, sensorDataType] = sensorDataTypeItem;
+        return bp::make_tuple(sensorGroupName, convertToPython(sensorDataType.getAll(), copy));
     }
 
     class AppendBoostVariantToPython : public boost::static_visitor<bp::object>
@@ -720,8 +724,8 @@ namespace jiminy::python
     };
 
     template<>
-    inline bp::object convertToPython<configHolder_t>(const configHolder_t & config,
-                                                      const bool & copy)
+    inline bp::object convertToPython<GenericConfig>(const GenericConfig & config,
+                                                     const bool & copy)
     {
         bp::dict configPyDict;
         AppendBoostVariantToPython visitor(copy);
@@ -746,8 +750,8 @@ namespace jiminy::python
             {
                 return &PyList_Type;
             }
-            else if constexpr (std::is_same_v<T, configHolder_t> ||
-                               std::is_same_v<T, flexibleJointData_t>)
+            else if constexpr (std::is_same_v<T, GenericConfig> ||
+                               std::is_same_v<T, FlexibleJointData>)
             {
                 return &PyDict_Type;
             }
@@ -820,7 +824,7 @@ namespace jiminy::python
 
     template<typename T>
     std::enable_if_t<!is_vector_v<T> && !is_map_v<T> && !is_eigen_v<T> &&
-                         !std::is_same_v<T, sensorsDataMap_t>,
+                         !std::is_same_v<T, SensorsDataMap>,
                      T>
     convertFromPython(const bp::object & dataPy)
     {
@@ -913,9 +917,9 @@ namespace jiminy::python
     }
 
     template<>
-    inline flexibleJointData_t convertFromPython<flexibleJointData_t>(const bp::object & dataPy)
+    inline FlexibleJointData convertFromPython<FlexibleJointData>(const bp::object & dataPy)
     {
-        flexibleJointData_t flexData;
+        FlexibleJointData flexData;
         const bp::dict flexDataPy = bp::extract<bp::dict>(dataPy);
         flexData.frameName = convertFromPython<std::string>(flexDataPy["frameName"]);
         flexData.stiffness = convertFromPython<Eigen::VectorXd>(flexDataPy["stiffness"]);
@@ -939,16 +943,16 @@ namespace jiminy::python
     }
 
     template<typename T>
-    std::enable_if_t<std::is_same_v<T, sensorsDataMap_t>, T>
+    std::enable_if_t<std::is_same_v<T, SensorsDataMap>, T>
     convertFromPython(const bp::object & dataPy)
     {
-        sensorsDataMap_t data;
+        SensorsDataMap data;
         bp::dict sensorsGroupsPy = bp::extract<bp::dict>(dataPy);
         bp::list sensorsGroupsNamesPy = sensorsGroupsPy.keys();
         bp::list sensorsGroupsValuesPy = sensorsGroupsPy.values();
         for (bp::ssize_t i = 0; i < bp::len(sensorsGroupsNamesPy); ++i)
         {
-            sensorDataTypeMap_t sensorGroupData;
+            SensorDataTypeMap sensorGroupData{};
             std::string sensorGroupName = bp::extract<std::string>(sensorsGroupsNamesPy[i]);
             bp::dict sensorsDataPy = bp::extract<bp::dict>(sensorsGroupsValuesPy[i]);
             bp::list sensorsNamesPy = sensorsDataPy.keys();
@@ -959,7 +963,7 @@ namespace jiminy::python
                 np::ndarray sensorDataNumpy = bp::extract<np::ndarray>(sensorsValuesPy[j]);
                 auto sensorData =
                     convertFromPython<Eigen::Ref<const Eigen::VectorXd>>(sensorDataNumpy);
-                sensorGroupData.emplace(sensorName, j, sensorData);
+                sensorGroupData.insert({sensorName, static_cast<std::size_t>(j), sensorData});
             }
             data.emplace(sensorGroupName, std::move(sensorGroupData));
         }
@@ -967,7 +971,7 @@ namespace jiminy::python
     }
 
     template<typename T>
-    std::enable_if_t<is_map_v<T> && !std::is_same_v<T, sensorsDataMap_t>, T>
+    std::enable_if_t<is_map_v<T> && !std::is_same_v<T, SensorsDataMap>, T>
     convertFromPython(const bp::object & dataPy)
     {
         using K = typename T::key_type;
@@ -986,7 +990,7 @@ namespace jiminy::python
     }
 
     // Forward declaration
-    inline void convertFromPython(const bp::object & configPy, configHolder_t & config);
+    inline void convertFromPython(const bp::object & configPy, GenericConfig & config);
 
     class AppendPythonToBoostVariant : public boost::static_visitor<>
     {
@@ -995,13 +999,13 @@ namespace jiminy::python
         ~AppendPythonToBoostVariant() = default;
 
         template<typename T>
-        std::enable_if_t<!std::is_same_v<T, configHolder_t>, void> operator()(T & value)
+        std::enable_if_t<!std::is_same_v<T, GenericConfig>, void> operator()(T & value)
         {
             value = convertFromPython<T>(*objPy_);
         }
 
         template<typename T>
-        std::enable_if_t<std::is_same_v<T, configHolder_t>, void> operator()(T & value)
+        std::enable_if_t<std::is_same_v<T, GenericConfig>, void> operator()(T & value)
         {
             convertFromPython(*objPy_, value);
         }
@@ -1010,7 +1014,7 @@ namespace jiminy::python
         bp::object * objPy_;
     };
 
-    void convertFromPython(const bp::object & configPy, configHolder_t & config)
+    void convertFromPython(const bp::object & configPy, GenericConfig & config)
     {
         bp::dict configPyDict = bp::extract<bp::dict>(configPy);
         AppendPythonToBoostVariant visitor;

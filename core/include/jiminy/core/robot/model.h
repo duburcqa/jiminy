@@ -7,8 +7,8 @@
 #include "pinocchio/multibody/geometry.hpp"  // `pinocchio::GeometryModel`, `pinocchio::GeometryData`
 #include "pinocchio/multibody/frame.hpp"  // `pinocchio::FrameType` (C-style enum cannot be forward declared)
 
-#include "jiminy/core/macros.h"
-#include "jiminy/core/types.h"
+#include "jiminy/core/fwd.h"
+#include "jiminy/core/utilities/helpers.h"
 
 
 namespace jiminy
@@ -121,9 +121,9 @@ namespace jiminy
     class JIMINY_DLLAPI Model : public std::enable_shared_from_this<Model>
     {
     public:
-        virtual configHolder_t getDefaultJointOptions()
+        virtual GenericConfig getDefaultJointOptions()
         {
-            configHolder_t config;
+            GenericConfig config;
             config["enablePositionLimit"] = true;
             config["positionLimitFromUrdf"] = true;
             config["positionLimitMin"] = Eigen::VectorXd();
@@ -135,33 +135,33 @@ namespace jiminy
             return config;
         };
 
-        virtual configHolder_t getDefaultDynamicsOptions()
+        virtual GenericConfig getDefaultDynamicsOptions()
         {
             // Add extra options or update default values
-            configHolder_t config;
+            GenericConfig config;
             config["inertiaBodiesBiasStd"] = 0.0;
             config["massBodiesBiasStd"] = 0.0;
             config["centerOfMassPositionBodiesBiasStd"] = 0.0;
             config["relativePositionBodiesBiasStd"] = 0.0;
             config["enableFlexibleModel"] = true;
-            config["flexibilityConfig"] = flexibilityConfig_t();
+            config["flexibilityConfig"] = FlexibilityConfig();
 
             return config;
         };
 
-        virtual configHolder_t getDefaultCollisionOptions()
+        virtual GenericConfig getDefaultCollisionOptions()
         {
             // Add extra options or update default values
-            configHolder_t config;
+            GenericConfig config;
             /// \brief Max number of contact points per collision pairs.
             config["maxContactPointsPerBody"] = 5U;
 
             return config;
         };
 
-        virtual configHolder_t getDefaultModelOptions()
+        virtual GenericConfig getDefaultModelOptions()
         {
-            configHolder_t config;
+            GenericConfig config;
             config["dynamics"] = getDefaultDynamicsOptions();
             config["joints"] = getDefaultJointOptions();
             config["collisions"] = getDefaultCollisionOptions();
@@ -181,7 +181,7 @@ namespace jiminy
             const bool_t velocityLimitFromUrdf;
             const Eigen::VectorXd velocityLimit;
 
-            jointOptions_t(const configHolder_t & options) :
+            jointOptions_t(const GenericConfig & options) :
             enablePositionLimit(boost::get<bool_t>(options.at("enablePositionLimit"))),
             positionLimitFromUrdf(boost::get<bool_t>(options.at("positionLimitFromUrdf"))),
             positionLimitMin(boost::get<Eigen::VectorXd>(options.at("positionLimitMin"))),
@@ -200,9 +200,9 @@ namespace jiminy
             const float64_t centerOfMassPositionBodiesBiasStd;
             const float64_t relativePositionBodiesBiasStd;
             const bool_t enableFlexibleModel;
-            const flexibilityConfig_t flexibilityConfig;
+            const FlexibilityConfig flexibilityConfig;
 
-            dynamicsOptions_t(const configHolder_t & options) :
+            dynamicsOptions_t(const GenericConfig & options) :
             inertiaBodiesBiasStd(boost::get<float64_t>(options.at("inertiaBodiesBiasStd"))),
             massBodiesBiasStd(boost::get<float64_t>(options.at("massBodiesBiasStd"))),
             centerOfMassPositionBodiesBiasStd(
@@ -210,7 +210,7 @@ namespace jiminy
             relativePositionBodiesBiasStd(
                 boost::get<float64_t>(options.at("relativePositionBodiesBiasStd"))),
             enableFlexibleModel(boost::get<bool_t>(options.at("enableFlexibleModel"))),
-            flexibilityConfig(boost::get<flexibilityConfig_t>(options.at("flexibilityConfig")))
+            flexibilityConfig(boost::get<FlexibilityConfig>(options.at("flexibilityConfig")))
             {
             }
         };
@@ -219,7 +219,7 @@ namespace jiminy
         {
             const uint32_t maxContactPointsPerBody;
 
-            collisionOptions_t(const configHolder_t & options) :
+            collisionOptions_t(const GenericConfig & options) :
             maxContactPointsPerBody(boost::get<uint32_t>(options.at("maxContactPointsPerBody")))
             {
             }
@@ -231,10 +231,10 @@ namespace jiminy
             const jointOptions_t joints;
             const collisionOptions_t collisions;
 
-            modelOptions_t(const configHolder_t & options) :
-            dynamics(boost::get<configHolder_t>(options.at("dynamics"))),
-            joints(boost::get<configHolder_t>(options.at("joints"))),
-            collisions(boost::get<configHolder_t>(options.at("collisions")))
+            modelOptions_t(const GenericConfig & options) :
+            dynamics(boost::get<GenericConfig>(options.at("dynamics"))),
+            joints(boost::get<GenericConfig>(options.at("joints"))),
+            collisions(boost::get<GenericConfig>(options.at("collisions")))
             {
             }
         };
@@ -314,8 +314,8 @@ namespace jiminy
         bool_t hasConstraints() const;
 
         // Copy on purpose
-        hresult_t setOptions(configHolder_t modelOptions);
-        configHolder_t getOptions() const;
+        hresult_t setOptions(GenericConfig modelOptions);
+        GenericConfig getOptions() const;
 
         /// \remark This method are not intended to be called manually. The Engine is taking care
         ///         of it.
@@ -334,15 +334,15 @@ namespace jiminy
 
         const std::vector<std::string> & getCollisionBodiesNames() const;
         const std::vector<std::string> & getContactFramesNames() const;
-        const std::vector<frameIndex_t> & getCollisionBodiesIdx() const;
-        const std::vector<std::vector<pairIndex_t>> & getCollisionPairsIdx() const;
-        const std::vector<frameIndex_t> & getContactFramesIdx() const;
+        const std::vector<pinocchio::FrameIndex> & getCollisionBodiesIdx() const;
+        const std::vector<std::vector<pinocchio::PairIndex>> & getCollisionPairsIdx() const;
+        const std::vector<pinocchio::FrameIndex> & getContactFramesIdx() const;
         const std::vector<std::string> & getRigidJointsNames() const;
-        const std::vector<jointIndex_t> & getRigidJointsModelIdx() const;
+        const std::vector<pinocchio::JointIndex> & getRigidJointsModelIdx() const;
         const std::vector<int32_t> & getRigidJointsPositionIdx() const;
         const std::vector<int32_t> & getRigidJointsVelocityIdx() const;
         const std::vector<std::string> & getFlexibleJointsNames() const;
-        const std::vector<jointIndex_t> & getFlexibleJointsModelIdx() const;
+        const std::vector<pinocchio::JointIndex> & getFlexibleJointsModelIdx() const;
 
         const Eigen::VectorXd & getPositionLimitMin() const;
         const Eigen::VectorXd & getPositionLimitMax() const;
@@ -401,7 +401,7 @@ namespace jiminy
         mutable pinocchio::GeometryData visualData_;
         std::unique_ptr<const modelOptions_t> mdlOptions_;
         /// \brief Buffer storing the contact forces.
-        forceVector_t contactForces_;
+        ForceVector contactForces_;
 
     protected:
         bool_t isInitialized_;
@@ -409,22 +409,22 @@ namespace jiminy
         std::string urdfData_;
         std::vector<std::string> meshPackageDirs_;
         bool_t hasFreeflyer_;
-        configHolder_t mdlOptionsHolder_;
+        GenericConfig mdlOptionsHolder_;
 
         /// \brief Name of the collision bodies of the robot.
         std::vector<std::string> collisionBodiesNames_;
         /// \brief Name of the contact frames of the robot.
         std::vector<std::string> contactFramesNames_;
         /// \brief Indices of the collision bodies in the frame list of the robot.
-        std::vector<frameIndex_t> collisionBodiesIdx_;
+        std::vector<pinocchio::FrameIndex> collisionBodiesIdx_;
         /// \brief Indices of the collision pairs associated with each collision body.
-        std::vector<std::vector<pairIndex_t>> collisionPairsIdx_;
+        std::vector<std::vector<pinocchio::PairIndex>> collisionPairsIdx_;
         /// \brief Indices of the contact frames in the frame list of the robot.
-        std::vector<frameIndex_t> contactFramesIdx_;
+        std::vector<pinocchio::FrameIndex> contactFramesIdx_;
         /// \brief Name of the actual joints of the robot, not taking into account the freeflyer.
         std::vector<std::string> rigidJointsNames_;
         /// \brief Index of the actual joints in the pinocchio robot.
-        std::vector<jointIndex_t> rigidJointsModelIdx_;
+        std::vector<pinocchio::JointIndex> rigidJointsModelIdx_;
         /// \brief All the indices of the actual joints in the configuration vector of the robot
         ///        (ie including all the degrees of freedom).
         std::vector<int32_t> rigidJointsPositionIdx_;
@@ -436,7 +436,7 @@ namespace jiminy
         std::vector<std::string> flexibleJointsNames_;
         /// \brief Index of the flexibility joints in the pinocchio robot regardless of whether the
         ///        flexibilities are enabled.
-        std::vector<jointIndex_t> flexibleJointsModelIdx_;
+        std::vector<pinocchio::JointIndex> flexibleJointsModelIdx_;
 
         constraintsHolder_t constraintsHolder_;  ///< Store constraints
 
@@ -462,7 +462,7 @@ namespace jiminy
         pinocchio::Model pncModelFlexibleOrig_;
         /// \brief Vector of joints acceleration corresponding to a copy of data.a - temporary
         ///        buffer for computing constraints.
-        motionVector_t jointsAcceleration_;
+        MotionVector jointsAcceleration_;
 
         int32_t nq_;
         int32_t nv_;

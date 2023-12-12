@@ -1,3 +1,4 @@
+#include "jiminy/core/exceptions.h"
 #include "jiminy/core/robot/robot.h"
 #include "jiminy/core/control/abstract_controller.h"
 
@@ -8,7 +9,7 @@ namespace jiminy
 {
     hresult_t Engine::initializeImpl(std::shared_ptr<Robot> robot,
                                      std::shared_ptr<AbstractController> controller,
-                                     callbackFunctor_t callbackFct)
+                                     CallbackFunctor callbackFct)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -53,12 +54,12 @@ namespace jiminy
 
     hresult_t Engine::initialize(std::shared_ptr<Robot> robot,
                                  std::shared_ptr<AbstractController> controller,
-                                 callbackFunctor_t callbackFct)
+                                 CallbackFunctor callbackFct)
     {
         return initializeImpl(robot, controller, callbackFct);
     }
 
-    hresult_t Engine::initialize(std::shared_ptr<Robot> robot, callbackFunctor_t callbackFct)
+    hresult_t Engine::initialize(std::shared_ptr<Robot> robot, CallbackFunctor callbackFct)
     {
         return initializeImpl(robot, std::shared_ptr<AbstractController>(), callbackFct);
     }
@@ -213,7 +214,7 @@ namespace jiminy
     }
 
     hresult_t Engine::registerForceProfile(const std::string & frameName,
-                                           const forceProfileFunctor_t & forceFct,
+                                           const ForceProfileFunctor & forceFct,
                                            const float64_t & updatePeriod)
     {
         return EngineMultiRobot::registerForceProfile("", frameName, forceFct, updatePeriod);
@@ -229,23 +230,23 @@ namespace jiminy
         return EngineMultiRobot::removeForcesProfile("");
     }
 
-    const forceImpulseRegister_t & Engine::getForcesImpulse() const
+    const ForceImpulseRegister & Engine::getForcesImpulse() const
     {
-        const forceImpulseRegister_t * forcesImpulse;
+        const ForceImpulseRegister * forcesImpulse;
         EngineMultiRobot::getForcesImpulse("", forcesImpulse);
         return *forcesImpulse;
     }
 
-    const forceProfileRegister_t & Engine::getForcesProfile() const
+    const ForceProfileRegister & Engine::getForcesProfile() const
     {
-        const forceProfileRegister_t * forcesProfile;
+        const ForceProfileRegister * forcesProfile;
         EngineMultiRobot::getForcesProfile("", forcesProfile);
         return *forcesProfile;
     }
 
     hresult_t Engine::registerForceCoupling(const std::string & frameName1,
                                             const std::string & frameName2,
-                                            forceProfileFunctor_t forceFct)
+                                            ForceProfileFunctor forceFct)
     {
         auto forceCouplingFct = [forceFct](const float64_t & t,
                                            const Eigen::VectorXd & q1,

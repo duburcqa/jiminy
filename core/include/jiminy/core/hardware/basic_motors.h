@@ -1,7 +1,8 @@
 #ifndef JIMINY_BASIC_MOTORS_H
 #define JIMINY_BASIC_MOTORS_H
 
-#include "jiminy/core/macros.h"
+#include "jiminy/core/fwd.h"
+#include "jiminy/core/utilities/helpers.h"
 #include "jiminy/core/hardware/abstract_motor.h"
 
 
@@ -11,10 +12,10 @@ namespace jiminy
     {
     public:
         /// \brief Dictionary gathering the configuration options shared between motors.
-        virtual configHolder_t getDefaultMotorOptions() override
+        virtual GenericConfig getDefaultMotorOptions() override
         {
             // Add extra options or update default values
-            configHolder_t config = AbstractMotorBase::getDefaultMotorOptions();
+            GenericConfig config = AbstractMotorBase::getDefaultMotorOptions();
 
             config["enableFriction"] = false;
             config["frictionViscousPositive"] = 0.0;
@@ -55,7 +56,7 @@ namespace jiminy
             /// \pre Must be negative.
             const float64_t frictionDrySlope;
 
-            motorOptions_t(const configHolder_t & options) :
+            motorOptions_t(const GenericConfig & options) :
             abstractMotorOptions_t(options),
             enableFriction(boost::get<bool_t>(options.at("enableFriction"))),
             frictionViscousPositive(boost::get<float64_t>(options.at("frictionViscousPositive"))),
@@ -76,7 +77,7 @@ namespace jiminy
 
         hresult_t initialize(const std::string & jointName);
 
-        virtual hresult_t setOptions(const configHolder_t & motorOptions) final override;
+        virtual hresult_t setOptions(const GenericConfig & motorOptions) final override;
 
     private:
         virtual hresult_t computeEffort(const float64_t & t,

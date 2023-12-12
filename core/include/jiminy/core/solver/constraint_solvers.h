@@ -1,8 +1,7 @@
 #ifndef JIMINY_LCP_SOLVERS_H
 #define JIMINY_LCP_SOLVERS_H
 
-#include "jiminy/core/macros.h"
-#include "jiminy/core/types.h"
+#include "jiminy/core/fwd.h"
 
 
 namespace jiminy

@@ -6,6 +6,7 @@
 #include "pinocchio/spatial/motion.hpp"  // `pinocchio::Motion`
 #include "pinocchio/algorithm/frames.hpp"  // `pinocchio::getFrameVelocity`, `pinocchio::getFrameAcceleration`
 
+#include "jiminy/core/exceptions.h"
 #include "jiminy/core/robot/robot.h"
 #include "jiminy/core/hardware/abstract_motor.h"
 #include "jiminy/core/utilities/pinocchio.h"
@@ -97,7 +98,7 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t ImuSensor::setOptions(const configHolder_t & sensorOptions)
+    hresult_t ImuSensor::setOptions(const GenericConfig & sensorOptions)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -161,7 +162,7 @@ namespace jiminy
         return frameName_;
     }
 
-    const frameIndex_t & ImuSensor::getFrameIdx() const
+    const pinocchio::FrameIndex & ImuSensor::getFrameIdx() const
     {
         return frameIdx_;
     }
@@ -171,7 +172,7 @@ namespace jiminy
                              const Eigen::VectorXd & /* v */,
                              const Eigen::VectorXd & /* a */,
                              const Eigen::VectorXd & /* uMotor */,
-                             const forceVector_t & /* fExternal */)
+                             const ForceVector & /* fExternal */)
     {
         GET_ROBOT_IF_INITIALIZED()
 
@@ -281,7 +282,7 @@ namespace jiminy
         return frameName_;
     }
 
-    const frameIndex_t & ContactSensor::getFrameIdx() const
+    const pinocchio::FrameIndex & ContactSensor::getFrameIdx() const
     {
         return frameIdx_;
     }
@@ -291,11 +292,11 @@ namespace jiminy
                                  const Eigen::VectorXd & /* v */,
                                  const Eigen::VectorXd & /* a */,
                                  const Eigen::VectorXd & /* uMotor */,
-                                 const forceVector_t & /* fExternal */)
+                                 const ForceVector & /* fExternal */)
     {
         GET_ROBOT_IF_INITIALIZED()
 
-        const std::vector<frameIndex_t> & contactFramesIdx = robot->getContactFramesIdx();
+        const std::vector<pinocchio::FrameIndex> & contactFramesIdx = robot->getContactFramesIdx();
         auto it = std::find(contactFramesIdx.begin(), contactFramesIdx.end(), frameIdx_);
         data() = robot->contactForces_[std::distance(contactFramesIdx.begin(), it)].linear();
 
@@ -363,12 +364,12 @@ namespace jiminy
         return frameName_;
     }
 
-    const frameIndex_t & ForceSensor::getFrameIdx() const
+    const pinocchio::FrameIndex & ForceSensor::getFrameIdx() const
     {
         return frameIdx_;
     }
 
-    jointIndex_t ForceSensor::getJointIdx() const
+    pinocchio::JointIndex ForceSensor::getJointIdx() const
     {
         return parentJointIdx_;
     }
@@ -378,14 +379,14 @@ namespace jiminy
                                const Eigen::VectorXd & /* v */,
                                const Eigen::VectorXd & /* a */,
                                const Eigen::VectorXd & /* uMotor */,
-                               const forceVector_t & fExternal)
+                               const ForceVector & fExternal)
     {
         // Returns the force applied on parent body in frame
 
         GET_ROBOT_IF_INITIALIZED()
 
         // Get the sum of external forces applied on parent joint
-        const jointIndex_t & i = parentJointIdx_;
+        const pinocchio::JointIndex & i = parentJointIdx_;
         const pinocchio::Force & fJoint = fExternal[i];
 
         // Transform the force from joint frame to sensor frame
@@ -409,7 +410,7 @@ namespace jiminy
     AbstractSensorTpl(name),
     jointName_(),
     jointIdx_(0),
-    jointType_(joint_t::NONE)
+    jointType_(JointModelType::UNSUPPORTED)
     {
     }
 
@@ -451,8 +452,8 @@ namespace jiminy
             getJointTypeFromIdx(robot->pncModel_, jointIdx_, jointType_);
 
             // Motors are only supported for linear and rotary joints
-            if (jointType_ != joint_t::LINEAR && jointType_ != joint_t::ROTARY &&
-                jointType_ != joint_t::ROTARY_UNBOUNDED)
+            if (jointType_ != JointModelType::LINEAR && jointType_ != JointModelType::ROTARY &&
+                jointType_ != JointModelType::ROTARY_UNBOUNDED)
             {
                 PRINT_ERROR("An encoder sensor can only be associated with a 1-dof linear or "
                             "rotary joint.");
@@ -468,12 +469,12 @@ namespace jiminy
         return jointName_;
     }
 
-    const jointIndex_t & EncoderSensor::getJointIdx() const
+    const pinocchio::JointIndex & EncoderSensor::getJointIdx() const
     {
         return jointIdx_;
     }
 
-    const joint_t & EncoderSensor::getJointType() const
+    const JointModelType & EncoderSensor::getJointType() const
     {
         return jointType_;
     }
@@ -483,14 +484,14 @@ namespace jiminy
                                  const Eigen::VectorXd & v,
                                  const Eigen::VectorXd & /* a */,
                                  const Eigen::VectorXd & /* uMotor */,
-                                 const forceVector_t & /* fExternal */)
+                                 const ForceVector & /* fExternal */)
     {
         GET_ROBOT_IF_INITIALIZED()
 
         const auto & joint = robot->pncModel_.joints[jointIdx_];
         const int32_t & jointPositionIdx = joint.idx_q();
         const int32_t & jointVelocityIdx = joint.idx_v();
-        if (jointType_ == joint_t::ROTARY_UNBOUNDED)
+        if (jointType_ == JointModelType::ROTARY_UNBOUNDED)
         {
             const float64_t & cosTheta = q[jointPositionIdx];
             const float64_t & sinTheta = q[jointPositionIdx + 1];
@@ -573,7 +574,7 @@ namespace jiminy
                                 const Eigen::VectorXd & /* v */,
                                 const Eigen::VectorXd & /* a */,
                                 const Eigen::VectorXd & uMotor,
-                                const forceVector_t & /* fExternal */)
+                                const ForceVector & /* fExternal */)
     {
         if (!isInitialized_)
         {

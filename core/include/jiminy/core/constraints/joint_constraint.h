@@ -3,8 +3,8 @@
 
 #include <memory>
 
-#include "jiminy/core/macros.h"
-#include "jiminy/core/types.h"
+#include "jiminy/core/fwd.h"
+#include "jiminy/core/utilities/helpers.h"
 #include "jiminy/core/constraints/abstract_constraint.h"
 
 
@@ -25,7 +25,7 @@ namespace jiminy
         virtual ~JointConstraint() = default;
 
         const std::string & getJointName() const;
-        const jointIndex_t & getJointIdx() const;
+        const pinocchio::JointIndex & getJointIdx() const;
 
         void setReferenceConfiguration(const Eigen::VectorXd & configurationRef);
         const Eigen::VectorXd & getReferenceConfiguration() const;
@@ -43,7 +43,7 @@ namespace jiminy
         /// \brief Name of the joint on which the constraint operates.
         std::string jointName_;
         /// \brief Corresponding joint index.
-        jointIndex_t jointIdx_;
+        pinocchio::JointIndex jointIdx_;
         /// \brief Reference position of the joint to enforce.
         Eigen::VectorXd configurationRef_;
         /// \brief Whether to reverse the sign of the constraint.

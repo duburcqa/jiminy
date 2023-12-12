@@ -1,7 +1,8 @@
 #include "pinocchio/algorithm/joint-configuration.hpp"  // pinocchio::neutral
 
-#include "jiminy/core/robot/robot.h"
 #include "jiminy/core/constants.h"
+#include "jiminy/core/exceptions.h"
+#include "jiminy/core/robot/robot.h"
 
 #include "jiminy/core/control/abstract_controller.h"
 
@@ -240,12 +241,12 @@ namespace jiminy
         }
     }
 
-    configHolder_t AbstractController::getOptions() const
+    GenericConfig AbstractController::getOptions() const
     {
         return ctrlOptionsHolder_;
     }
 
-    hresult_t AbstractController::setOptions(const configHolder_t & ctrlOptions)
+    hresult_t AbstractController::setOptions(const GenericConfig & ctrlOptions)
     {
         ctrlOptionsHolder_ = ctrlOptions;
         baseControllerOptions_ = std::make_unique<const controllerOptions_t>(ctrlOptionsHolder_);

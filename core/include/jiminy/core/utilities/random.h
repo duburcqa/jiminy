@@ -1,8 +1,9 @@
 #ifndef JIMINY_RANDOM_H
 #define JIMINY_RANDOM_H
 
-#include "jiminy/core/macros.h"
-#include "jiminy/core/types.h"
+#include <optional>
+
+#include "jiminy/core/fwd.h"
 
 
 namespace jiminy
@@ -24,8 +25,8 @@ namespace jiminy
 
     Eigen::VectorXd JIMINY_DLLAPI randVectorNormal(const Eigen::VectorXd & std);
 
-    Eigen::VectorXd JIMINY_DLLAPI randVectorNormal(
-        const Eigen::VectorXd & mean, const Eigen::VectorXd & std);
+    Eigen::VectorXd JIMINY_DLLAPI randVectorNormal(const Eigen::VectorXd & mean,
+                                                   const Eigen::VectorXd & std);
 
     void JIMINY_DLLAPI shuffleIndices(std::vector<uint32_t> & vector);
 
@@ -257,19 +258,18 @@ namespace jiminy
 
     // ************ Random terrain generators ***************
 
-    heightmapFunctor_t JIMINY_DLLAPI randomTileGround(const Eigen::Vector2d & size,
-                                                      const float64_t & heightMax,
-                                                      const Eigen::Vector2d & interpDelta,
-                                                      const uint32_t & sparsity,
-                                                      const float64_t & orientation,
-                                                      const uint32_t & seed);
+    HeightmapFunctor JIMINY_DLLAPI randomTileGround(const Eigen::Vector2d & size,
+                                                    const float64_t & heightMax,
+                                                    const Eigen::Vector2d & interpDelta,
+                                                    const uint32_t & sparsity,
+                                                    const float64_t & orientation,
+                                                    const uint32_t & seed);
 
-    heightmapFunctor_t JIMINY_DLLAPI sumHeightmap(
-        const std::vector<heightmapFunctor_t> & heightmaps);
-    heightmapFunctor_t JIMINY_DLLAPI mergeHeightmap(
-        const std::vector<heightmapFunctor_t> & heightmaps);
+    HeightmapFunctor JIMINY_DLLAPI sumHeightmap(const std::vector<HeightmapFunctor> & heightmaps);
+    HeightmapFunctor JIMINY_DLLAPI mergeHeightmap(
+        const std::vector<HeightmapFunctor> & heightmaps);
 
-    Eigen::MatrixXd JIMINY_DLLAPI discretizeHeightmap(const heightmapFunctor_t & heightmap,
+    Eigen::MatrixXd JIMINY_DLLAPI discretizeHeightmap(const HeightmapFunctor & heightmap,
                                                       const float64_t & gridSize,
                                                       const float64_t & gridUnit);
 }

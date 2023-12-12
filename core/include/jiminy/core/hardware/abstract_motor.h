@@ -10,8 +10,7 @@
 
 #include <memory>
 
-#include "jiminy/core/macros.h"
-#include "jiminy/core/types.h"
+#include "jiminy/core/fwd.h"
 
 
 namespace jiminy
@@ -41,9 +40,9 @@ namespace jiminy
 
     public:
         /// \brief Dictionary gathering the configuration options shared between motors.
-        virtual configHolder_t getDefaultMotorOptions()
+        virtual GenericConfig getDefaultMotorOptions()
         {
-            configHolder_t config;
+            GenericConfig config;
             config["mechanicalReduction"] = 1.0;
             config["enableCommandLimit"] = true;
             config["commandLimitFromUrdf"] = true;
@@ -64,7 +63,7 @@ namespace jiminy
             const bool_t enableArmature;
             const float64_t armature;
 
-            abstractMotorOptions_t(const configHolder_t & options) :
+            abstractMotorOptions_t(const GenericConfig & options) :
             mechanicalReduction(boost::get<float64_t>(options.at("mechanicalReduction"))),
             enableCommandLimit(boost::get<bool_t>(options.at("enableCommandLimit"))),
             commandLimitFromUrdf(boost::get<bool_t>(options.at("commandLimitFromUrdf"))),
@@ -99,7 +98,7 @@ namespace jiminy
         virtual hresult_t resetAll();
 
         /// \brief Configuration options of the motor.
-        configHolder_t getOptions() const;
+        GenericConfig getOptions() const;
 
         /// \brief Actual effort of the motor at the current time.
         const float64_t & get() const;
@@ -110,12 +109,12 @@ namespace jiminy
         /// \brief Set the configuration options of the motor.
         ///
         /// \param[in] motorOptions Dictionary with the parameters of the motor.
-        virtual hresult_t setOptions(const configHolder_t & motorOptions);
+        virtual hresult_t setOptions(const GenericConfig & motorOptions);
 
         /// \brief Set the same configuration options for all motors of same type as current one.
         ///
         /// \param[in] motorOptions Dictionary with the parameters used for any motor.
-        hresult_t setOptionsAll(const configHolder_t & motorOptions);
+        hresult_t setOptionsAll(const GenericConfig & motorOptions);
 
         /// \brief Whether the motor has been initialized.
         const bool_t & getIsInitialized() const;
@@ -130,10 +129,10 @@ namespace jiminy
         const std::string & getJointName() const;
 
         /// \brief Index of the joint associated with the motor in the kinematic tree.
-        const jointIndex_t & getJointModelIdx() const;
+        const pinocchio::JointIndex & getJointModelIdx() const;
 
         /// \brief Type of joint associated with the motor.
-        const joint_t & getJointType() const;
+        const JointModelType & getJointType() const;
 
         /// \brief Index of the joint associated with the motor in configuration vector.
         const int32_t & getJointPositionIdx() const;
@@ -205,7 +204,7 @@ namespace jiminy
 
     protected:
         /// \brief Dictionary with the parameters of the motor.
-        configHolder_t motorOptionsHolder_;
+        GenericConfig motorOptionsHolder_;
         /// \brief Flag to determine whether the controller has been initialized or not.
         bool_t isInitialized_;
         /// \brief Flag to determine whether the motor is attached to a robot.
@@ -219,8 +218,8 @@ namespace jiminy
         /// \brief Index of the motor in the measurement buffer.
         std::size_t motorIdx_;
         std::string jointName_;
-        jointIndex_t jointModelIdx_;
-        joint_t jointType_;
+        pinocchio::JointIndex jointModelIdx_;
+        JointModelType jointType_;
         int32_t jointPositionIdx_;
         int32_t jointVelocityIdx_;
         float64_t commandLimit_;

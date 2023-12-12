@@ -3,8 +3,8 @@
 
 #include <memory>
 
-#include "jiminy/core/macros.h"
-#include "jiminy/core/types.h"
+#include "jiminy/core/fwd.h"
+#include "jiminy/core/utilities/helpers.h"
 
 
 namespace jiminy
@@ -12,7 +12,7 @@ namespace jiminy
     class Model;
 
     /// \brief Generic interface for kinematic constraints.
-    class JIMINY_DLLAPI AbstractConstraintBase : 
+    class JIMINY_DLLAPI AbstractConstraintBase :
     public std::enable_shared_from_this<AbstractConstraintBase>
     {
         // See AbstractSensor for comment on this.

@@ -1,4 +1,5 @@
-#include "jiminy/core/types.h"
+#include "jiminy/core/traits.h"
+#include "jiminy/core/exceptions.h"
 #include "jiminy/core/robot/robot.h"
 
 #include "jiminy/core/constraints/joint_constraint.h"
@@ -23,7 +24,7 @@ namespace jiminy
         return jointName_;
     }
 
-    const jointIndex_t & JointConstraint::getJointIdx() const
+    const pinocchio::JointIndex & JointConstraint::getJointIdx() const
     {
         return jointIdx_;
     }

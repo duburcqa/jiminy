@@ -1,5 +1,6 @@
 #include <algorithm>
 
+#include "jiminy/core/exceptions.h"
 #include "jiminy/core/utilities/helpers.h"
 
 #include "jiminy/core/hardware/basic_motors.h"
@@ -34,7 +35,7 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t SimpleMotor::setOptions(const configHolder_t & motorOptions)
+    hresult_t SimpleMotor::setOptions(const GenericConfig & motorOptions)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 

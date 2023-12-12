@@ -1,5 +1,8 @@
 #include <numeric>
 
+#include "jiminy/core/traits.h"
+#include "jiminy/core/exceptions.h"
+
 #include "jiminy/core/utilities/random.h"
 
 
@@ -835,12 +838,12 @@ namespace jiminy
         return {height, dheight};
     }
 
-    heightmapFunctor_t randomTileGround(const Eigen::Vector2d & size,
-                                        const float64_t & heightMax,
-                                        const Eigen::Vector2d & interpDelta,
-                                        const uint32_t & sparsity,
-                                        const float64_t & orientation,
-                                        const uint32_t & seed)
+    HeightmapFunctor randomTileGround(const Eigen::Vector2d & size,
+                                      const float64_t & heightMax,
+                                      const Eigen::Vector2d & interpDelta,
+                                      const uint32_t & sparsity,
+                                      const float64_t & orientation,
+                                      const uint32_t & seed)
     {
         if ((0.01 <= interpDelta.array()).all() &&
             (interpDelta.array() <= size.array() / 2.0).all())
@@ -935,7 +938,7 @@ namespace jiminy
         };
     }
 
-    heightmapFunctor_t sumHeightmap(const std::vector<heightmapFunctor_t> & heightmaps)
+    HeightmapFunctor sumHeightmap(const std::vector<HeightmapFunctor> & heightmaps)
     {
         if (heightmaps.size() == 1)
         {
@@ -945,7 +948,7 @@ namespace jiminy
         {
             float64_t height = 0.0;
             Eigen::Vector3d normal = Eigen::Vector3d::Zero();
-            for (const heightmapFunctor_t & heightmap : heightmaps)
+            for (const HeightmapFunctor & heightmap : heightmaps)
             {
                 const auto [height_i, normal_i] = heightmap(pos3);
                 height += height_i;
@@ -956,7 +959,7 @@ namespace jiminy
         };
     }
 
-    heightmapFunctor_t mergeHeightmap(const std::vector<heightmapFunctor_t> & heightmaps)
+    HeightmapFunctor mergeHeightmap(const std::vector<HeightmapFunctor> & heightmaps)
     {
         if (heightmaps.size() == 1)
         {
@@ -967,7 +970,7 @@ namespace jiminy
             float64_t heightmax = -INF;
             Eigen::Vector3d normal;  // It will be initialized to `normal_i`
             bool_t isDirty = false;
-            for (const heightmapFunctor_t & heightmap : heightmaps)
+            for (const HeightmapFunctor & heightmap : heightmaps)
             {
                 const auto [height, normal_i] = heightmap(pos3);
                 if (std::abs(height - heightmax) < EPS)
@@ -990,9 +993,8 @@ namespace jiminy
         };
     }
 
-    Eigen::MatrixXd discretizeHeightmap(const heightmapFunctor_t & heightmap,
-                                        const float64_t & gridSize,
-                                        const float64_t & gridUnit)
+    Eigen::MatrixXd discretizeHeightmap(
+        const HeightmapFunctor & heightmap, const float64_t & gridSize, const float64_t & gridUnit)
     {
         // Allocate empty discrete grid
         uint32_t gridDim = static_cast<int32_t>(std::ceil(gridSize / gridUnit)) + 1U;

@@ -61,7 +61,7 @@ namespace jiminy::python
     public:
         static hresult_t setOptions(AbstractMotorBase & self, const bp::dict & configPy)
         {
-            configHolder_t config = self.getOptions();
+            GenericConfig config = self.getOptions();
             convertFromPython(configPy, config);
             return self.setOptions(config);
         }

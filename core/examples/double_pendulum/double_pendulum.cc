@@ -6,20 +6,21 @@
 #include <iostream>
 #include <filesystem>
 
-#include "jiminy/core/engine/engine.h"
+#include "jiminy/core/fwd.h"
+#include "jiminy/core/utilities/helpers.h"
+#include "jiminy/core/io/file_device.h"
+#include "jiminy/core/telemetry/telemetry_recorder.h"
+#include "jiminy/core/hardware/abstract_sensor.h"
 #include "jiminy/core/hardware/basic_motors.h"
 #include "jiminy/core/control/controller_functor.h"
-#include "jiminy/core/io/file_device.h"
-#include "jiminy/core/utilities/helpers.h"
-#include "jiminy/core/types.h"
-
+#include "jiminy/core/engine/engine.h"
 
 using namespace jiminy;
 
 void computeCommand(const float64_t & /* t */,
                     const Eigen::VectorXd & /* q */,
                     const Eigen::VectorXd & /* v */,
-                    const sensorsDataMap_t & /* sensorsData */,
+                    const SensorsDataMap & /* sensorsData */,
                     Eigen::VectorXd & /* command */)
 {
     // No controller: energy should be preserved
@@ -28,7 +29,7 @@ void computeCommand(const float64_t & /* t */,
 void internalDynamics(const float64_t & /* t */,
                       const Eigen::VectorXd & /* q */,
                       const Eigen::VectorXd & /* v */,
-                      const sensorsDataMap_t & /* sensorsData */,
+                      const SensorsDataMap & /* sensorsData */,
                       Eigen::VectorXd & /* uCustom */)
 {
 }
@@ -65,8 +66,8 @@ int main(int /* argc */, char_t * /* argv */[])
     std::vector<std::string> motorJointNames{"SecondPendulumJoint"};
 
     auto robot = std::make_shared<Robot>();
-    configHolder_t modelOptions = robot->getModelOptions();
-    configHolder_t & jointsOptions = boost::get<configHolder_t>(modelOptions.at("joints"));
+    GenericConfig modelOptions = robot->getModelOptions();
+    GenericConfig & jointsOptions = boost::get<GenericConfig>(modelOptions.at("joints"));
     boost::get<bool_t>(jointsOptions.at("positionLimitFromUrdf")) = true;
     boost::get<bool_t>(jointsOptions.at("velocityLimitFromUrdf")) = true;
     robot->setModelOptions(modelOptions);
@@ -86,8 +87,8 @@ int main(int /* argc */, char_t * /* argv */[])
 
     // Instantiate and configuration the engine
     auto engine = std::make_shared<Engine>();
-    configHolder_t simuOptions = engine->getOptions();
-    configHolder_t & telemetryOptions = boost::get<configHolder_t>(simuOptions.at("telemetry"));
+    GenericConfig simuOptions = engine->getOptions();
+    GenericConfig & telemetryOptions = boost::get<GenericConfig>(simuOptions.at("telemetry"));
     boost::get<bool_t>(telemetryOptions.at("isPersistent")) = true;
     boost::get<bool_t>(telemetryOptions.at("enableConfiguration")) = true;
     boost::get<bool_t>(telemetryOptions.at("enableVelocity")) = true;
@@ -96,9 +97,9 @@ int main(int /* argc */, char_t * /* argv */[])
     boost::get<bool_t>(telemetryOptions.at("enableCommand")) = true;
     boost::get<bool_t>(telemetryOptions.at("enableMotorEffort")) = true;
     boost::get<bool_t>(telemetryOptions.at("enableEnergy")) = true;
-    configHolder_t & worldOptions = boost::get<configHolder_t>(simuOptions.at("world"));
+    GenericConfig & worldOptions = boost::get<GenericConfig>(simuOptions.at("world"));
     boost::get<Eigen::VectorXd>(worldOptions.at("gravity"))[2] = -9.81;
-    configHolder_t & stepperOptions = boost::get<configHolder_t>(simuOptions.at("stepper"));
+    GenericConfig & stepperOptions = boost::get<GenericConfig>(simuOptions.at("stepper"));
     boost::get<std::string>(stepperOptions.at("odeSolver")) = std::string("runge_kutta_dopri5");
     boost::get<float64_t>(stepperOptions.at("tolRel")) = 1.0e-5;
     boost::get<float64_t>(stepperOptions.at("tolAbs")) = 1.0e-4;
@@ -110,7 +111,7 @@ int main(int /* argc */, char_t * /* argv */[])
     boost::get<float64_t>(stepperOptions.at("controllerUpdatePeriod")) = 1.0e-3;
     boost::get<bool_t>(stepperOptions.at("logInternalStepperSteps")) = false;
     boost::get<uint32_t>(stepperOptions.at("randomSeed")) = 0U;  // `time(nullptr)` for random seed
-    configHolder_t & contactsOptions = boost::get<configHolder_t>(simuOptions.at("contacts"));
+    GenericConfig & contactsOptions = boost::get<GenericConfig>(simuOptions.at("contacts"));
     boost::get<std::string>(contactsOptions.at("model")) = std::string("spring_damper");
     boost::get<float64_t>(contactsOptions.at("stiffness")) = 1.0e6;
     boost::get<float64_t>(contactsOptions.at("damping")) = 2000.0;
@@ -140,9 +141,9 @@ int main(int /* argc */, char_t * /* argv */[])
 
     // Write the log file
     std::vector<std::string> fieldnames;
-    std::shared_ptr<const logData_t> logData;
+    std::shared_ptr<const LogData> logData;
     engine->getLog(logData);
-    std::cout << logData->timestamps.size() << " log points" << std::endl;
+    std::cout << logData->times.size() << " log points" << std::endl;
     std::cout << engine->getStepperState().iter << " internal integration steps" << std::endl;
     timer.tic();
     engine->writeLog((outputDirPath / "log.data").string(), "binary");
