@@ -44,6 +44,24 @@ namespace jiminy::python
     // ************************ BOOST PYTHON HELPERS ******************************
     // ****************************************************************************
 
+    template<class E>
+    PyObject * createExceptionClass(const char * name, PyObject * baseTypeObj = PyExc_Exception)
+    {
+        const std::string scopeName = bp::extract<std::string>(bp::scope().attr("__name__"));
+        std::size_t moduleNameEnd = scopeName.find('.');
+        const std::string qualifiedName0 = scopeName.substr(0, moduleNameEnd) + "." + name;
+        PyObject * pythonExceptionTypeObj =
+            PyErr_NewException(qualifiedName0.c_str(), baseTypeObj, 0);
+        if (!pythonExceptionTypeObj)
+            bp::throw_error_already_set();
+        bp::scope().attr(name) = bp::handle<>(bp::borrowed(pythonExceptionTypeObj));
+
+        bp::register_exception_translator<E>([ptr = pythonExceptionTypeObj](E const & e)
+                                             { PyErr_SetString(ptr, e.what()); });
+
+        return pythonExceptionTypeObj;
+    }
+
 #define BOOST_PYTHON_VISITOR_EXPOSE(class) \
     void expose##class()                   \
     {                                      \
@@ -206,7 +224,7 @@ namespace jiminy::python
             doc, std::pair{"fget", getMemberFuncPtr}, std::pair{"fset", setMemberFuncPtr});
     }
 
-    // clang-format off
+// clang-format off
     #define DEF_READONLY3(namePy, memberFuncPtr, doc) \
         def_readonly(namePy, \
                      memberFuncPtr, \
