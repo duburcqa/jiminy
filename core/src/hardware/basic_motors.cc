@@ -80,10 +80,10 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t SimpleMotor::computeEffort(const float64_t & /* t */,
+    hresult_t SimpleMotor::computeEffort(float64_t /* t */,
                                          const Eigen::VectorBlock<const Eigen::VectorXd> & /* q */,
-                                         const float64_t & v,
-                                         const float64_t & /* a */,
+                                         float64_t v,
+                                         float64_t /* a */,
                                          float64_t command)
     {
         if (!isInitialized_)
@@ -104,7 +104,7 @@ namespace jiminy
            It is computed on joint side instead of the motor. */
         if (motorOptions_->enableFriction)
         {
-            const float64_t & vJoint = v;
+            float64_t vJoint = v;
             if (vJoint > 0)
             {
                 data() += motorOptions_->frictionViscousPositive * vJoint +

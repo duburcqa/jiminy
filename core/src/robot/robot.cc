@@ -41,9 +41,9 @@ namespace jiminy
     }
 
     hresult_t Robot::initialize(const std::string & urdfPath,
-                                const bool_t & hasFreeflyer,
+                                bool_t hasFreeflyer,
                                 const std::vector<std::string> & meshPackageDirs,
-                                const bool_t & loadVisualMeshes)
+                                bool_t loadVisualMeshes)
     {
         // Detach all the motors and sensors
         detachSensors({});
@@ -1151,12 +1151,12 @@ namespace jiminy
         return returnCode;
     }
 
-    const bool_t & Robot::getIsTelemetryConfigured() const
+    bool_t Robot::getIsTelemetryConfigured() const
     {
         return isTelemetryConfigured_;
     }
 
-    void Robot::computeMotorsEfforts(const float64_t & t,
+    void Robot::computeMotorsEfforts(float64_t t,
                                      const Eigen::VectorXd & q,
                                      const Eigen::VectorXd & v,
                                      const Eigen::VectorXd & a,
@@ -1180,7 +1180,7 @@ namespace jiminy
         return motorsEffortsEmpty;
     }
 
-    const float64_t & Robot::getMotorEffort(const std::string & motorName) const
+    float64_t Robot::getMotorEffort(const std::string & motorName) const
     {
         static const float64_t motorEffortEmpty = -1;
 
@@ -1196,7 +1196,7 @@ namespace jiminy
         return motorEffortEmpty;
     }
 
-    void Robot::setSensorsData(const float64_t & t,
+    void Robot::setSensorsData(float64_t t,
                                const Eigen::VectorXd & q,
                                const Eigen::VectorXd & v,
                                const Eigen::VectorXd & a,
@@ -1281,7 +1281,7 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    const bool_t & Robot::getIsLocked() const
+    bool_t Robot::getIsLocked() const
     {
         return mutexLocal_->isLocked();
     }
@@ -1372,7 +1372,7 @@ namespace jiminy
         return logFieldnamesMotorEffort_;
     }
 
-    const uint64_t & Robot::nmotors() const
+    uint64_t Robot::nmotors() const
     {
         return nmotors_;
     }

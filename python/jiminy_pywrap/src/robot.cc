@@ -172,7 +172,7 @@ namespace jiminy::python
         }
 
         static hresult_t addCollisionBodies(
-            Model & self, const bp::list & linkNamesPy, const bool_t & ignoreMeshes)
+            Model & self, const bp::list & linkNamesPy, bool_t ignoreMeshes)
         {
             auto linkNames = convertFromPython<std::vector<std::string>>(linkNamesPy);
             return self.addCollisionBodies(linkNames, ignoreMeshes);
@@ -216,7 +216,7 @@ namespace jiminy::python
             constraintsHolder_t constraintsHolder = self.getConstraints();
             constraintsHolder.foreach(
                 [&constraintsRows](const std::shared_ptr<AbstractConstraintBase> & constraint,
-                                   const constraintsHolderType_t & /* holderType */)
+                                   constraintsHolderType_t /* holderType */)
                 {
                     if (!constraint->getIsEnabled())
                     {
@@ -229,7 +229,7 @@ namespace jiminy::python
             constraintsHolder.foreach(
                 [&J, &gamma, &constraintRow](
                     const std::shared_ptr<AbstractConstraintBase> & constraint,
-                    const constraintsHolderType_t & /* holderType */)
+                    constraintsHolderType_t /* holderType */)
                 {
                     if (!constraint->getIsEnabled())
                     {

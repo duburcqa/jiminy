@@ -23,7 +23,7 @@ namespace jiminy
     }
 
     template<typename F1, typename F2>
-    hresult_t ControllerFunctor<F1, F2>::computeCommand(const float64_t & t,
+    hresult_t ControllerFunctor<F1, F2>::computeCommand(float64_t t,
                                                         const Eigen::VectorXd & q,
                                                         const Eigen::VectorXd & v,
                                                         Eigen::VectorXd & command)
@@ -40,7 +40,7 @@ namespace jiminy
     }
 
     template<typename F1, typename F2>
-    hresult_t ControllerFunctor<F1, F2>::internalDynamics(const float64_t & t,
+    hresult_t ControllerFunctor<F1, F2>::internalDynamics(float64_t t,
                                                           const Eigen::VectorXd & q,
                                                           const Eigen::VectorXd & v,
                                                           Eigen::VectorXd & uCustom)

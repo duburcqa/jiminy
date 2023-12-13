@@ -58,12 +58,12 @@ namespace jiminy
         isEnabled_ = false;
     }
 
-    const bool_t & AbstractConstraintBase::getIsEnabled() const
+    bool_t AbstractConstraintBase::getIsEnabled() const
     {
         return isEnabled_;
     }
 
-    hresult_t AbstractConstraintBase::setBaumgartePositionGain(const float64_t & kp)
+    hresult_t AbstractConstraintBase::setBaumgartePositionGain(float64_t kp)
     {
         if (kp < 0.0)
         {
@@ -79,7 +79,7 @@ namespace jiminy
         return kp_;
     }
 
-    hresult_t AbstractConstraintBase::setBaumgarteVelocityGain(const float64_t & kd)
+    hresult_t AbstractConstraintBase::setBaumgarteVelocityGain(float64_t kd)
     {
         if (kd < 0.0)
         {
@@ -95,7 +95,7 @@ namespace jiminy
         return kd_;
     }
 
-    hresult_t AbstractConstraintBase::setBaumgarteFreq(const float64_t & freq)
+    hresult_t AbstractConstraintBase::setBaumgarteFreq(float64_t freq)
     {
         if (freq < 0.0)
         {

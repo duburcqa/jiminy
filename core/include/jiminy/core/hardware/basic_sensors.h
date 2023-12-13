@@ -24,10 +24,10 @@ namespace jiminy
         virtual hresult_t refreshProxies() final override;
 
         const std::string & getFrameName() const;
-        const pinocchio::FrameIndex & getFrameIdx() const;
+        pinocchio::FrameIndex getFrameIdx() const;
 
     private:
-        virtual hresult_t set(const float64_t & t,
+        virtual hresult_t set(float64_t t,
                               const Eigen::VectorXd & q,
                               const Eigen::VectorXd & v,
                               const Eigen::VectorXd & a,
@@ -62,10 +62,10 @@ namespace jiminy
         virtual hresult_t refreshProxies() final override;
 
         const std::string & getFrameName() const;
-        const pinocchio::FrameIndex & getFrameIdx() const;
+        pinocchio::FrameIndex getFrameIdx() const;
 
     private:
-        virtual hresult_t set(const float64_t & t,
+        virtual hresult_t set(float64_t t,
                               const Eigen::VectorXd & q,
                               const Eigen::VectorXd & v,
                               const Eigen::VectorXd & a,
@@ -97,11 +97,11 @@ namespace jiminy
         virtual hresult_t refreshProxies() final override;
 
         const std::string & getFrameName() const;
-        const pinocchio::FrameIndex & getFrameIdx() const;
+        pinocchio::FrameIndex getFrameIdx() const;
         pinocchio::JointIndex getJointIdx() const;
 
     private:
-        virtual hresult_t set(const float64_t & t,
+        virtual hresult_t set(float64_t t,
                               const Eigen::VectorXd & q,
                               const Eigen::VectorXd & v,
                               const Eigen::VectorXd & a,
@@ -135,11 +135,11 @@ namespace jiminy
         virtual hresult_t refreshProxies() final override;
 
         const std::string & getJointName() const;
-        const pinocchio::JointIndex & getJointIdx() const;
-        const JointModelType & getJointType() const;
+        pinocchio::JointIndex getJointIdx() const;
+        JointModelType getJointType() const;
 
     private:
-        virtual hresult_t set(const float64_t & t,
+        virtual hresult_t set(float64_t t,
                               const Eigen::VectorXd & q,
                               const Eigen::VectorXd & v,
                               const Eigen::VectorXd & a,
@@ -175,7 +175,7 @@ namespace jiminy
         const std::size_t & getMotorIdx() const;
 
     private:
-        virtual hresult_t set(const float64_t & t,
+        virtual hresult_t set(float64_t t,
                               const Eigen::VectorXd & q,
                               const Eigen::VectorXd & v,
                               const Eigen::VectorXd & a,

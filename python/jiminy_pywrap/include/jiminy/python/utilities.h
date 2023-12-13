@@ -224,7 +224,7 @@ namespace jiminy::python
             doc, std::pair{"fget", getMemberFuncPtr}, std::pair{"fset", setMemberFuncPtr});
     }
 
-// clang-format off
+    // clang-format off
     #define DEF_READONLY3(namePy, memberFuncPtr, doc) \
         def_readonly(namePy, \
                      memberFuncPtr, \

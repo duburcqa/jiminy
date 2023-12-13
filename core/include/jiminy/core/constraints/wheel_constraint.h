@@ -29,13 +29,13 @@ namespace jiminy
         /// \param[in] groundNormal Normal to the ground in world frame as a unit vector.
         /// \param[in] wheelAxis Axis of the wheel, in the local frame.
         WheelConstraint(const std::string & frameName,
-                        const float64_t & wheelRadius,
+                        float64_t wheelRadius,
                         const Eigen::Vector3d & groundNormal,
                         const Eigen::Vector3d & wheelAxis);
         virtual ~WheelConstraint() = default;
 
         const std::string & getFrameName() const;
-        const pinocchio::FrameIndex & getFrameIdx() const;
+        pinocchio::FrameIndex getFrameIdx() const;
 
         void setReferenceTransform(const pinocchio::SE3 & transformRef);
         const pinocchio::SE3 & getReferenceTransform() const;

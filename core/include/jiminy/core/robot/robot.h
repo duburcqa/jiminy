@@ -39,9 +39,9 @@ namespace jiminy
                              const pinocchio::GeometryModel & collisionModel,
                              const pinocchio::GeometryModel & visualModel);
         hresult_t initialize(const std::string & urdfPath,
-                             const bool_t & hasFreeflyer = true,
+                             bool_t hasFreeflyer = true,
                              const std::vector<std::string> & meshPackageDirs = {},
-                             const bool_t & loadVisualMeshes = false);
+                             bool_t loadVisualMeshes = false);
 
         hresult_t attachMotor(std::shared_ptr<AbstractMotorBase> motor);
         hresult_t getMotor(const std::string & motorName,
@@ -62,14 +62,14 @@ namespace jiminy
         hresult_t detachSensor(const std::string & sensorType, const std::string & sensorName);
         hresult_t detachSensors(const std::string & sensorType = {});
 
-        void computeMotorsEfforts(const float64_t & t,
+        void computeMotorsEfforts(float64_t t,
                                   const Eigen::VectorXd & q,
                                   const Eigen::VectorXd & v,
                                   const Eigen::VectorXd & a,
                                   const Eigen::VectorXd & command);
         const Eigen::VectorXd & getMotorsEfforts() const;
-        const float64_t & getMotorEffort(const std::string & motorName) const;
-        void setSensorsData(const float64_t & t,
+        float64_t getMotorEffort(const std::string & motorName) const;
+        void setSensorsData(float64_t t,
                             const Eigen::VectorXd & q,
                             const Eigen::VectorXd & v,
                             const Eigen::VectorXd & a,
@@ -114,7 +114,7 @@ namespace jiminy
         virtual hresult_t configureTelemetry(std::shared_ptr<TelemetryData> telemetryData,
                                              const std::string & objectPrefixName = {});
         void updateTelemetry();
-        const bool_t & getIsTelemetryConfigured() const;
+        bool_t getIsTelemetryConfigured() const;
 
         const std::vector<std::string> & getMotorsNames() const;
         std::vector<pinocchio::JointIndex> getMotorsModelIdx() const;
@@ -129,10 +129,10 @@ namespace jiminy
         const std::vector<std::string> & getMotorEffortFieldnames() const;
 
         // Getters without 'get' prefix for consistency with pinocchio C++ API
-        const uint64_t & nmotors() const;
+        uint64_t nmotors() const;
 
         hresult_t getLock(std::unique_ptr<LockGuardLocal> & lock);
-        const bool_t & getIsLocked() const;
+        bool_t getIsLocked() const;
 
     protected:
         hresult_t refreshMotorsProxies();

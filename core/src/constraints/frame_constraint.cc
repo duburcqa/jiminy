@@ -54,7 +54,7 @@ namespace jiminy
         return frameName_;
     }
 
-    const pinocchio::FrameIndex & FrameConstraint::getFrameIdx() const
+    pinocchio::FrameIndex FrameConstraint::getFrameIdx() const
     {
         return frameIdx_;
     }
@@ -180,7 +180,7 @@ namespace jiminy
         // Extract masked jacobian and drift, only containing fixed dofs
         for (uint32_t i = 0; i < dofsFixed_.size(); ++i)
         {
-            const uint32_t & dofIndex = dofsFixed_[i];
+            uint32_t dofIndex = dofsFixed_[i];
             jacobian_.row(i) = frameJacobian_.row(dofIndex);
             drift_[i] = frameDrift_.toVector()[dofIndex];
         }

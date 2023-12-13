@@ -281,7 +281,7 @@ namespace jiminy::python
 
                 .def("reset",
                     static_cast<
-                        void (EngineMultiRobot::*)(const bool_t &, const bool_t &)
+                        void (EngineMultiRobot::*)(bool_t, bool_t)
                     >(&EngineMultiRobot::reset),
                     (bp::arg("self"),
                      bp::arg("reset_random_generator") = false,
@@ -358,7 +358,7 @@ namespace jiminy::python
                             const std::string &,
                             const Vector6d &,
                             const Vector6d &,
-                            const float64_t &)
+                            float64_t)
                     >(&EngineMultiRobot::registerViscoelasticForceCoupling),
                     (bp::arg("self"), "system_name_1", "system_name_2",
                      "frame_name_1", "frame_name_2", "stiffness", "damping", bp::arg("alpha") = 0.5))
@@ -370,7 +370,7 @@ namespace jiminy::python
                             const std::string &,
                             const Vector6d &,
                             const Vector6d &,
-                            const float64_t &)
+                            float64_t)
                     >(&EngineMultiRobot::registerViscoelasticForceCoupling),
                     (bp::arg("self"), "system_name", "frame_name_1", "frame_name_2",
                      "stiffness", "damping", bp::arg("alpha") = 0.5))
@@ -381,9 +381,9 @@ namespace jiminy::python
                             const std::string &,
                             const std::string &,
                             const std::string &,
-                            const float64_t &,
-                            const float64_t &,
-                            const float64_t &)
+                            float64_t,
+                            float64_t,
+                            float64_t)
                     >(&EngineMultiRobot::registerViscoelasticDirectionalForceCoupling),
                     (bp::arg("self"), "system_name_1", "system_name_2", "frame_name_1", "frame_name_2",
                      "stiffness", "damping", bp::arg("rest_length") = 0.0))
@@ -393,9 +393,9 @@ namespace jiminy::python
                             const std::string &,
                             const std::string &,
                             const std::string &,
-                            const float64_t &,
-                            const float64_t &,
-                            const float64_t &)
+                            float64_t,
+                            float64_t,
+                            float64_t)
                     >(&EngineMultiRobot::registerViscoelasticDirectionalForceCoupling),
                     (bp::arg("self"), "system_name", "frame_name_1", "frame_name_2",
                      "stiffness", "damping", bp::arg("rest_length") = 0.0))
@@ -449,7 +449,7 @@ namespace jiminy::python
             CallbackFunctor callbackFct;
             if (callbackPy.is_none())
             {
-                callbackFct = [](const float64_t & /* t */,
+                callbackFct = [](float64_t /* t */,
                                  const Eigen::VectorXd & /* q */,
                                  const Eigen::VectorXd & /* v */) -> bool_t
                 {
@@ -542,14 +542,14 @@ namespace jiminy::python
                               aInit);
         }
 
-        static hresult_t step(EngineMultiRobot & self, const float64_t & dtDesired)
+        static hresult_t step(EngineMultiRobot & self, float64_t dtDesired)
         {
             // Only way to handle C++ default values that are not accessible in Python
             return self.step(dtDesired);
         }
 
         static hresult_t simulate(EngineMultiRobot & self,
-                                  const float64_t & endTime,
+                                  float64_t endTime,
                                   const bp::dict & qInitPy,
                                   const bp::dict & vInitPy,
                                   const bp::object & aInitPy)
@@ -567,7 +567,7 @@ namespace jiminy::python
         }
 
         static std::vector<Eigen::VectorXd> computeSystemsDynamics(EngineMultiRobot & self,
-                                                                   const float64_t & endTime,
+                                                                   float64_t endTime,
                                                                    const bp::list & qSplitPy,
                                                                    const bp::list & vSplitPy)
         {
@@ -582,8 +582,8 @@ namespace jiminy::python
         static hresult_t registerForceImpulse(EngineMultiRobot & self,
                                               const std::string & systemName,
                                               const std::string & frameName,
-                                              const float64_t & t,
-                                              const float64_t & dt,
+                                              float64_t t,
+                                              float64_t dt,
                                               const Vector6d & F)
         {
             return self.registerForceImpulse(systemName, frameName, t, dt, pinocchio::Force(F));
@@ -593,7 +593,7 @@ namespace jiminy::python
                                               const std::string & systemName,
                                               const std::string & frameName,
                                               const bp::object & forcePy,
-                                              const float64_t & updatePeriod)
+                                              float64_t updatePeriod)
         {
             TimeStateFctPyWrapper<pinocchio::Force> forceFct(forcePy);
             return self.registerForceProfile(
@@ -810,15 +810,13 @@ namespace jiminy::python
             }
             else
             {
-                const std::array<std::string, 3> extHdf5{
-                    {".h5", ".hdf5", ".tlmc"}
-                };
+                const std::array<std::string, 3> extHDF5{{".h5", ".hdf5", ".tlmc"}};
                 if (endsWith(filename, ".data"))
                 {
                     format = "binary";
                 }
-                else if (std::any_of(extHdf5.begin(),
-                                     extHdf5.end(),
+                else if (std::any_of(extHDF5.begin(),
+                                     extHDF5.end(),
                                      std::bind(endsWith, filename, std::placeholders::_1)))
                 {
                     format = "hdf5";
@@ -919,7 +917,7 @@ namespace jiminy::python
                             const std::string &,
                             const Vector6d &,
                             const Vector6d &,
-                            const float64_t &)
+                            float64_t)
                     >(&Engine::registerViscoelasticForceCoupling),
                     (bp::arg("self"), "frame_name_1", "frame_name_2", "stiffness", "damping", bp::arg("alpha") = 0.5))
                 .def("register_viscoelastic_directional_force_coupling",
@@ -927,9 +925,9 @@ namespace jiminy::python
                         hresult_t (Engine::*)(
                             const std::string &,
                             const std::string &,
-                            const float64_t &,
-                            const float64_t &,
-                            const float64_t &)
+                            float64_t,
+                            float64_t,
+                            float64_t)
                     >(&Engine::registerViscoelasticDirectionalForceCoupling),
                     (bp::arg("self"), "frame_name_1", "frame_name_2", "stiffness", "damping",
 		             bp::arg("rest_length") = 0.0))
@@ -966,7 +964,7 @@ namespace jiminy::python
         {
             if (callbackPy.is_none())
             {
-                CallbackFunctor callbackFct = [](const float64_t & /* t */,
+                CallbackFunctor callbackFct = [](float64_t /* t */,
                                                  const Eigen::VectorXd & /* q */,
                                                  const Eigen::VectorXd & /* v */) -> bool_t
                 {
@@ -991,8 +989,8 @@ namespace jiminy::python
 
         static hresult_t registerForceImpulse(Engine & self,
                                               const std::string & frameName,
-                                              const float64_t & t,
-                                              const float64_t & dt,
+                                              float64_t t,
+                                              float64_t dt,
                                               const Vector6d & F)
         {
             return self.registerForceImpulse(frameName, t, dt, pinocchio::Force(F));
@@ -1001,7 +999,7 @@ namespace jiminy::python
         static hresult_t registerForceProfile(Engine & self,
                                               const std::string & frameName,
                                               const bp::object & forcePy,
-                                              const float64_t & updatePeriod)
+                                              float64_t updatePeriod)
         {
             TimeStateFctPyWrapper<pinocchio::Force> forceFct(forcePy);
             return self.registerForceProfile(frameName, std::move(forceFct), updatePeriod);
@@ -1049,7 +1047,7 @@ namespace jiminy::python
                                const Eigen::VectorXd & qInit,
                                const Eigen::VectorXd & vInit,
                                const bp::object & aInitPy,
-                               const bool_t & isStateTheoretical)
+                               bool_t isStateTheoretical)
         {
             std::optional<Eigen::VectorXd> aInit = std::nullopt;
             if (!aInitPy.is_none())
@@ -1060,11 +1058,11 @@ namespace jiminy::python
         }
 
         static hresult_t simulate(Engine & self,
-                                  const float64_t & endTime,
+                                  float64_t endTime,
                                   const Eigen::VectorXd & qInit,
                                   const Eigen::VectorXd & vInit,
                                   const bp::object & aInitPy,
-                                  const bool_t & isStateTheoretical)
+                                  bool_t isStateTheoretical)
         {
             std::optional<Eigen::VectorXd> aInit = std::nullopt;
             if (!aInitPy.is_none())

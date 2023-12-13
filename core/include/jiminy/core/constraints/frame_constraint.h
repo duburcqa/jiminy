@@ -29,7 +29,7 @@ namespace jiminy
         virtual ~FrameConstraint() = default;
 
         const std::string & getFrameName() const;
-        const pinocchio::FrameIndex & getFrameIdx() const;
+        pinocchio::FrameIndex getFrameIdx() const;
 
         const std::vector<uint32_t> & getDofsFixed() const;
 

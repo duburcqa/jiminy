@@ -118,7 +118,7 @@ namespace jiminy::python
             return std::make_shared<FrameConstraint>(frameName, maskDoFs);
         }
 
-        static void setIsEnable(AbstractConstraintBase & self, const bool_t & value)
+        static void setIsEnable(AbstractConstraintBase & self, bool_t value)
         {
             if (value)
             {
@@ -216,7 +216,7 @@ namespace jiminy::python
             bp::class_<SphereConstraint, bp::bases<AbstractConstraintBase>,
                        std::shared_ptr<SphereConstraint>,
                        boost::noncopyable>("SphereConstraint",
-                       bp::init<const std::string &, const float64_t &>(
+                       bp::init<const std::string &, float64_t>(
                        (bp::arg("self"), "frame_name", "radius")))
                 .def_readonly("type", &SphereConstraint::type_)
                 .ADD_PROPERTY_GET_WITH_POLICY("frame_name",
@@ -233,7 +233,7 @@ namespace jiminy::python
             bp::class_<WheelConstraint, bp::bases<AbstractConstraintBase>,
                        std::shared_ptr<WheelConstraint>,
                        boost::noncopyable>("WheelConstraint",
-                       bp::init<const std::string &, const float64_t &, const Eigen::Vector3d &, const Eigen::Vector3d &>(
+                       bp::init<const std::string &, float64_t, const Eigen::Vector3d &, const Eigen::Vector3d &>(
                        (bp::arg("self"), "frame_name", "radius", "ground_normal", "wheel_axis")))
                 .def_readonly("type", &WheelConstraint::type_)
                 .ADD_PROPERTY_GET_WITH_POLICY("frame_name",

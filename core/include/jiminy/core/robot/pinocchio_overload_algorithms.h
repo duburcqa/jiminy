@@ -47,7 +47,7 @@ namespace jiminy::pinocchio_overload
                          pinocchio::DataTpl<Scalar, Options, JointCollectionTpl> & data,
                          const Eigen::MatrixBase<ConfigVectorType> & q,
                          const Eigen::MatrixBase<TangentVectorType> & v,
-                         const bool_t & update_kinematics = true)
+                         bool_t update_kinematics = true)
     {
         if (update_kinematics)
         {
@@ -497,8 +497,8 @@ namespace jiminy::pinocchio_overload
                          pinocchio::Data & data,
                          const Eigen::MatrixBase<TangentVectorType> & a)
         {
-            const pinocchio::JointIndex & i = jmodel.id();
-            const pinocchio::JointIndex & parent = model.parents[i];
+            pinocchio::JointIndex i = jmodel.id();
+            pinocchio::JointIndex parent = model.parents[i];
             data.a[i] =
                 jdata.S() * jmodel.jointVelocitySelector(a) + jdata.c() + (data.v[i] ^ jdata.v());
             if (parent > 0)
@@ -530,7 +530,7 @@ namespace jiminy::pinocchio_overload
     hresult_t computeJMinvJt(const pinocchio::Model & model,
                              pinocchio::Data & data,
                              const Eigen::MatrixBase<JacobianType> & J,
-                             const bool_t & updateDecomposition = true)
+                             bool_t updateDecomposition = true)
     {
         // Compute the Cholesky decomposition of mass matrix M if requested
         if (updateDecomposition)
@@ -576,7 +576,7 @@ namespace jiminy::pinocchio_overload
     template<typename RhsType>
     inline auto solveJMinvJtv(pinocchio::Data & data,
                               const Eigen::MatrixBase<RhsType> & v,
-                              const bool_t & updateDecomposition = true)
+                              bool_t updateDecomposition = true)
     {
         // Compute Cholesky decomposition of JMinvJt
         if (updateDecomposition)

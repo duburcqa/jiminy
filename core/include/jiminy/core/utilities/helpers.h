@@ -29,7 +29,7 @@ namespace jiminy
 
         ~MutexLocal();
 
-        const bool_t & isLocked() const;
+        bool_t isLocked() const;
 
     private:
         std::shared_ptr<bool_t> isLocked_;
@@ -162,10 +162,10 @@ namespace jiminy
 
     template<typename Derived>
     void swapMatrixBlocks(const Eigen::MatrixBase<Derived> & matrixIn,
-                          const Eigen::Index & firstBlockStart,
-                          const Eigen::Index & firstBlockLength,
-                          const Eigen::Index & secondBlockStart,
-                          const Eigen::Index & secondBlockLength);
+                          Eigen::Index firstBlockStart,
+                          Eigen::Index firstBlockLength,
+                          Eigen::Index secondBlockStart,
+                          Eigen::Index secondBlockLength);
 }
 
 #include "jiminy/core/utilities/helpers.hxx"

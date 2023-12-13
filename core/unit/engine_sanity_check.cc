@@ -20,7 +20,7 @@ const float64_t TOLERANCE = 1e-9;
 
 
 /// \brief Controller sending zero torque to the motors.
-void controllerZeroTorque(const float64_t & /* t */,
+void controllerZeroTorque(float64_t /* t */,
                           const Eigen::VectorXd & /* q */,
                           const Eigen::VectorXd & /* v */,
                           const SensorsDataMap & /* sensorData */,
@@ -29,7 +29,7 @@ void controllerZeroTorque(const float64_t & /* t */,
 }
 
 /// \brief Internal dynamics of the system (friction, ...)
-void internalDynamics(const float64_t & /* t */,
+void internalDynamics(float64_t /* t */,
                       const Eigen::VectorXd & /* q */,
                       const Eigen::VectorXd & /* v */,
                       const SensorsDataMap & /* sensorData */,
@@ -38,7 +38,7 @@ void internalDynamics(const float64_t & /* t */,
 }
 
 bool_t callback(
-    const float64_t & /* t */, const Eigen::VectorXd & /* q */, const Eigen::VectorXd & /* v */)
+    float64_t /* t */, const Eigen::VectorXd & /* q */, const Eigen::VectorXd & /* v */)
 {
     return true;
 }

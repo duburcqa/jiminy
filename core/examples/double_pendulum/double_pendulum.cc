@@ -17,7 +17,7 @@
 
 using namespace jiminy;
 
-void computeCommand(const float64_t & /* t */,
+void computeCommand(float64_t /* t */,
                     const Eigen::VectorXd & /* q */,
                     const Eigen::VectorXd & /* v */,
                     const SensorsDataMap & /* sensorsData */,
@@ -26,7 +26,7 @@ void computeCommand(const float64_t & /* t */,
     // No controller: energy should be preserved
 }
 
-void internalDynamics(const float64_t & /* t */,
+void internalDynamics(float64_t /* t */,
                       const Eigen::VectorXd & /* q */,
                       const Eigen::VectorXd & /* v */,
                       const SensorsDataMap & /* sensorsData */,
@@ -35,7 +35,7 @@ void internalDynamics(const float64_t & /* t */,
 }
 
 bool_t callback(
-    const float64_t & /* t */, const Eigen::VectorXd & /* q */, const Eigen::VectorXd & /* v */)
+    float64_t /* t */, const Eigen::VectorXd & /* q */, const Eigen::VectorXd & /* v */)
 {
     return true;
 }

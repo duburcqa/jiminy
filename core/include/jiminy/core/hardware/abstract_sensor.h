@@ -274,13 +274,13 @@ namespace jiminy
         ///
         /// \remark Note that a sensor can be considered initialized even if its telemetry is not
         ///         properly configured. If not, it must be done before being ready to use.
-        const bool_t & getIsInitialized() const;
+        bool_t getIsInitialized() const;
 
         /// \brief Whether the sensor has been attached to a robot.
-        const bool_t & getIsAttached() const;
+        bool_t getIsAttached() const;
 
         /// \brief Whether the telemetry of the controller has been initialized.
-        const bool_t & getIsTelemetryConfigured() const;
+        bool_t getIsTelemetryConfigured() const;
 
         /// \brief Name of the sensor.
         const std::string & getName() const;
@@ -315,7 +315,7 @@ namespace jiminy
         /// \param[in] fExternal Current external forces applied on the robot.
         ///
         /// \return Return code to determine whether the execution of the method was successful.
-        virtual hresult_t setAll(const float64_t & t,
+        virtual hresult_t setAll(float64_t t,
                                  const Eigen::VectorXd & q,
                                  const Eigen::VectorXd & v,
                                  const Eigen::VectorXd & a,
@@ -335,7 +335,7 @@ namespace jiminy
         /// \param[in] fExternal Current external forces applied on the robot.
         ///
         /// \return Return code to determine whether the execution of the method was successful.
-        virtual hresult_t set(const float64_t & t,
+        virtual hresult_t set(float64_t t,
                               const Eigen::VectorXd & q,
                               const Eigen::VectorXd & v,
                               const Eigen::VectorXd & a,
@@ -428,7 +428,7 @@ namespace jiminy
         virtual Eigen::Ref<const Eigen::VectorXd> get() const override final;
 
     protected:
-        virtual hresult_t setAll(const float64_t & t,
+        virtual hresult_t setAll(float64_t t,
                                  const Eigen::VectorXd & q,
                                  const Eigen::VectorXd & v,
                                  const Eigen::VectorXd & a,

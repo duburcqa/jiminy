@@ -21,15 +21,15 @@ namespace jiminy
 
     // External force functors
     using ForceProfileFunctor = std::function<pinocchio::Force(
-        const float64_t & /*t*/, const Eigen::VectorXd & /*q*/, const Eigen::VectorXd & /*v*/)>;
+        float64_t /*t*/, const Eigen::VectorXd & /*q*/, const Eigen::VectorXd & /*v*/)>;
 
     struct JIMINY_DLLAPI ForceProfile
     {
     public:
         ForceProfile() = default;
         ForceProfile(const std::string & frameNameIn,
-                     const pinocchio::FrameIndex & frameIdxIn,
-                     const float64_t & updatePeriodIn,
+                     pinocchio::FrameIndex frameIdxIn,
+                     float64_t updatePeriodIn,
                      const ForceProfileFunctor & forceFctIn);
 
     public:
@@ -45,9 +45,9 @@ namespace jiminy
     public:
         ForceImpulse() = default;
         ForceImpulse(const std::string & frameNameIn,
-                     const pinocchio::FrameIndex & frameIdxIn,
-                     const float64_t & tIn,
-                     const float64_t & dtIn,
+                     pinocchio::FrameIndex frameIdxIn,
+                     float64_t tIn,
+                     float64_t dtIn,
                      const pinocchio::Force & FIn);
 
     public:
@@ -58,7 +58,7 @@ namespace jiminy
         pinocchio::Force F;
     };
 
-    using ForceCouplingFunctor = std::function<pinocchio::Force(const float64_t & /*t*/,
+    using ForceCouplingFunctor = std::function<pinocchio::Force(float64_t /*t*/,
                                                                 const Eigen::VectorXd & /*q_1*/,
                                                                 const Eigen::VectorXd & /*v_1*/,
                                                                 const Eigen::VectorXd & /*q_2*/,
@@ -69,13 +69,13 @@ namespace jiminy
     public:
         ForceCoupling() = default;
         ForceCoupling(const std::string & systemName1In,
-                      const int32_t & systemIdx1In,
+                      int32_t systemIdx1In,
                       const std::string & systemName2In,
-                      const int32_t & systemIdx2In,
+                      int32_t systemIdx2In,
                       const std::string & frameName1In,
-                      const pinocchio::FrameIndex & frameIdx1In,
+                      pinocchio::FrameIndex frameIdx1In,
                       const std::string & frameName2In,
-                      const pinocchio::FrameIndex & frameIdx2In,
+                      pinocchio::FrameIndex frameIdx2In,
                       const ForceCouplingFunctor & forceFctIn);
 
     public:
@@ -95,7 +95,7 @@ namespace jiminy
 
     // Early termination callback functor
     using CallbackFunctor = std::function<bool_t(
-        const float64_t & /*t*/, const Eigen::VectorXd & /*q*/, const Eigen::VectorXd & /*v*/)>;
+        float64_t /*t*/, const Eigen::VectorXd & /*q*/, const Eigen::VectorXd & /*v*/)>;
 
     struct JIMINY_DLLAPI systemHolder_t
     {
@@ -125,7 +125,7 @@ namespace jiminy
         systemState_t();
 
         hresult_t initialize(const Robot & robot);
-        const bool_t & getIsInitialized() const;
+        bool_t getIsInitialized() const;
 
         void clear();
 
