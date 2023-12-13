@@ -240,7 +240,7 @@ class SimulateTwoMasses(unittest.TestCase):
         engine.set_options(engine_options)
 
         # Add a kinematic constraint on the second mass
-        constraint = jiminy.FixedFrameConstraint("SecondMass")
+        constraint = jiminy.FrameConstraint("SecondMass")
         self.robot.add_constraint("fixMass", constraint)
 
         # The dynamics of the first mass is not changed, the acceleration of
@@ -282,9 +282,9 @@ class SimulateTwoMasses(unittest.TestCase):
         engine.set_options(engine_options)
 
         # Add a kinematic constraints.
-        freeflyer_constraint = jiminy.FixedFrameConstraint("world")
+        freeflyer_constraint = jiminy.FrameConstraint("world")
         robot.add_constraint("world", freeflyer_constraint)
-        fix_mass_constraint = jiminy.FixedFrameConstraint("SecondMass")
+        fix_mass_constraint = jiminy.FrameConstraint("SecondMass")
         robot.add_constraint("fixMass", fix_mass_constraint)
 
         # Initialize with a random freeflyer configuration and zero velocity
@@ -355,9 +355,9 @@ class SimulateTwoMasses(unittest.TestCase):
                 self.urdf_name, self.motors_names, has_freeflyer=True)
 
             # Apply constraints
-            freeflyer_constraint = jiminy.FixedFrameConstraint("world")
+            freeflyer_constraint = jiminy.FrameConstraint("world")
             robots[i].add_constraint("world", freeflyer_constraint)
-            fix_mass_constraint = jiminy.FixedFrameConstraint("SecondMass")
+            fix_mass_constraint = jiminy.FrameConstraint("SecondMass")
             robots[i].add_constraint("fixMass", fix_mass_constraint)
 
             # Create controller

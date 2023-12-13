@@ -3,29 +3,30 @@
 
 #include <memory>
 
+#include "jiminy/core/constraints/abstract_constraint.h"
 #include "jiminy/core/fwd.h"
 #include "jiminy/core/utilities/helpers.h"
-#include "jiminy/core/constraints/abstract_constraint.h"
-
 
 namespace jiminy
 {
     class Model;
 
-    /// \brief This class implements the constraint for fixing a given frame wrt world.
-    class JIMINY_DLLAPI FixedFrameConstraint : public AbstractConstraintTpl<FixedFrameConstraint>
+    /// \brief This class implements the constraint for fixing a given frame wrt
+    /// world.
+    class JIMINY_DLLAPI FrameConstraint : public AbstractConstraintTpl<FrameConstraint>
     {
     public:
-        DISABLE_COPY(FixedFrameConstraint)
+        DISABLE_COPY(FrameConstraint)
 
         auto shared_from_this() { return shared_from(this); }
 
     public:
-        /// \param[in] frameName Name of the frame on which the constraint is to be applied.
-        FixedFrameConstraint(const std::string & frameName,
-                             const Eigen::Matrix<bool_t, 6, 1> & maskFixed =
-                                 Eigen::Matrix<bool_t, 6, 1>::Constant(true));
-        virtual ~FixedFrameConstraint() = default;
+        /// \param[in] frameName Name of the frame on which the constraint is to be
+        /// applied.
+        FrameConstraint(
+            const std::string & frameName,
+            const std::array<bool_t, 6> & maskDoFs = {{true, true, true, true, true, true}});
+        virtual ~FrameConstraint() = default;
 
         const std::string & getFrameName() const;
         const pinocchio::FrameIndex & getFrameIdx() const;
@@ -62,6 +63,6 @@ namespace jiminy
         /// \brief Stores full frame drift in reference frame.
         pinocchio::Motion frameDrift_;
     };
-}
+}  // namespace jiminy
 
 #endif  // end of JIMINY_ABSTRACT_MOTOR_H

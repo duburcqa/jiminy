@@ -1,7 +1,7 @@
 #include "jiminy/core/robot/model.h"
 #include "jiminy/core/constraints/abstract_constraint.h"
 #include "jiminy/core/constraints/joint_constraint.h"
-#include "jiminy/core/constraints/fixed_frame_constraint.h"
+#include "jiminy/core/constraints/frame_constraint.h"
 #include "jiminy/core/constraints/distance_constraint.h"
 #include "jiminy/core/constraints/sphere_constraint.h"
 #include "jiminy/core/constraints/wheel_constraint.h"
@@ -94,29 +94,28 @@ namespace jiminy::python
             // clang-format on
         }
 
-        static std::shared_ptr<FixedFrameConstraint> fixedFrameConstraintFactory(
-            const std::string & frameName, const bp::object & maskFixedPy)
+        static std::shared_ptr<FrameConstraint> frameConstraintFactory(
+            const std::string & frameName, const bp::object & maskDoFsPy)
         {
-            Eigen::Matrix<bool_t, 6, 1> maskFixed;
-            if (maskFixedPy.is_none())
+            std::array<bool_t, 6> maskDoFs;
+            if (maskDoFsPy.is_none())
             {
-                maskFixed = Eigen::Matrix<bool_t, 6, 1>::Constant(true);
+                maskDoFs = {{true, true, true, true, true, true}};
             }
             else
             {
-                bp::extract<bp::list> maskFixedPyExtract(maskFixedPy);
-                assert(maskFixedPyExtract.check() && "'maskFixedPy' must be a list.");
-                bp::list maskFixedListPy = maskFixedPyExtract();
-                assert(bp::len(maskFixedListPy) == 6 && "'maskFixedPy' must have length 6.");
+                bp::extract<bp::list> maskDoFsPyExtract(maskDoFsPy);
+                assert(maskDoFsPyExtract.check() && "'maskDoFsPy' must be a list.");
+                bp::list maskDoFsListPy = maskDoFsPyExtract();
+                assert(bp::len(maskDoFsListPy) == 6 && "'maskDoFsPy' must have length 6.");
                 for (uint32_t i = 0; i < 6; ++i)
                 {
-                    bp::extract<bool_t> maskFixedListPyExtract(maskFixedPy[i]);
-                    assert(maskFixedListPyExtract.check() &&
-                           "'maskFixedPy' elements must be bool.");
-                    maskFixed[i] = maskFixedListPyExtract();
+                    bp::extract<bool_t> boolPyExtract(maskDoFsListPy[i]);
+                    assert(boolPyExtract.check() && "'maskDoFsPy' elements must be bool.");
+                    maskDoFs[i] = boolPyExtract();
                 }
             }
-            return std::make_shared<FixedFrameConstraint>(frameName, maskFixed);
+            return std::make_shared<FrameConstraint>(frameName, maskDoFs);
         }
 
         static void setIsEnable(AbstractConstraintBase & self, const bool_t & value)
@@ -172,30 +171,30 @@ namespace jiminy::python
                                                   bp::return_value_policy<bp::return_by_value>(),
                                                   &JointConstraint::setRotationDir);
 
-            bp::class_<FixedFrameConstraint, bp::bases<AbstractConstraintBase>,
-                       std::shared_ptr<FixedFrameConstraint>,
-                       boost::noncopyable>("FixedFrameConstraint", bp::no_init)
-                .def("__init__", bp::make_constructor(&PyConstraintVisitor::fixedFrameConstraintFactory,
+            bp::class_<FrameConstraint, bp::bases<AbstractConstraintBase>,
+                       std::shared_ptr<FrameConstraint>,
+                       boost::noncopyable>("FrameConstraint", bp::no_init)
+                .def("__init__", bp::make_constructor(&PyConstraintVisitor::frameConstraintFactory,
                                  bp::default_call_policies(), (bp::arg("frame_name"),
                                                                bp::arg("mask_fixed")=bp::object())))
-                .def_readonly("type", &FixedFrameConstraint::type_)
+                .def_readonly("type", &FrameConstraint::type_)
                 .ADD_PROPERTY_GET_WITH_POLICY("frame_name",
-                                              &FixedFrameConstraint::getFrameName,
+                                              &FrameConstraint::getFrameName,
                                               bp::return_value_policy<bp::return_by_value>())
                 .ADD_PROPERTY_GET_WITH_POLICY("frame_idx",
-                                              &FixedFrameConstraint::getFrameIdx,
+                                              &FrameConstraint::getFrameIdx,
                                               bp::return_value_policy<bp::return_by_value>())
                 .ADD_PROPERTY_GET_WITH_POLICY("dofs_fixed",
-                                              &FixedFrameConstraint::getDofsFixed,
+                                              &FrameConstraint::getDofsFixed,
                                               bp::return_value_policy<bp::return_by_value>())
                 .ADD_PROPERTY_GET_SET_WITH_POLICY("reference_transform",
-                                                  &FixedFrameConstraint::getReferenceTransform,
+                                                  &FrameConstraint::getReferenceTransform,
                                                   bp::return_value_policy<result_converter<false>>(),
-                                                  &FixedFrameConstraint::setReferenceTransform)
+                                                  &FrameConstraint::setReferenceTransform)
                 .ADD_PROPERTY_GET_WITH_POLICY("local_rotation",
-                                              &FixedFrameConstraint::getLocalFrame,
+                                              &FrameConstraint::getLocalFrame,
                                               bp::return_value_policy<result_converter<false>>())
-                .def("set_normal", &FixedFrameConstraint::setNormal);
+                .def("set_normal", &FrameConstraint::setNormal);
 
             bp::class_<DistanceConstraint, bp::bases<AbstractConstraintBase>,
                        std::shared_ptr<DistanceConstraint>,

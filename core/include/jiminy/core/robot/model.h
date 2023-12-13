@@ -14,7 +14,7 @@
 namespace jiminy
 {
     class AbstractConstraintBase;
-    class FixedFrameConstraint;
+    class FrameConstraint;
     class JointConstraint;
 
     using constraintsMap_t = static_map_t<std::string, std::shared_ptr<AbstractConstraintBase>>;

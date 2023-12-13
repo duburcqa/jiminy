@@ -11,7 +11,7 @@ analytical constraints
    :members:
    :undoc-members:
 
-.. doxygenclass:: jiminy::FixedFrameConstraint
+.. doxygenclass:: jiminy::FrameConstraint
    :project: jiminy
    :members:
    :undoc-members:

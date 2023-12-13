@@ -4,20 +4,35 @@
 #include "jiminy/core/robot/model.h"
 #include "jiminy/core/utilities/pinocchio.h"
 
-#include "jiminy/core/constraints/fixed_frame_constraint.h"
+#include "jiminy/core/constraints/frame_constraint.h"
 
 
 namespace jiminy
 {
-    template<>
-    const std::string AbstractConstraintTpl<FixedFrameConstraint>::type_("FixedFrameConstraint");
+    template<int N>
+    std::vector<uint32_t> maskToVector(const std::array<bool_t, N> & mask)
+    {
+        std::vector<uint32_t> vec;
+        vec.reserve(N);
+        for (uint32_t i = 0; i < N; ++i)
+        {
+            if (mask[i])
+            {
+                vec.push_back(i);
+            }
+        }
+        return vec;
+    }
 
-    FixedFrameConstraint::FixedFrameConstraint(const std::string & frameName,
-                                               const Eigen::Matrix<bool_t, 6, 1> & maskFixed) :
+    template<>
+    const std::string AbstractConstraintTpl<FrameConstraint>::type_("FrameConstraint");
+
+    FrameConstraint::FrameConstraint(const std::string & frameName,
+                                     const std::array<bool_t, 6> & maskDoFs) :
     AbstractConstraintTpl(),
     frameName_(frameName),
     frameIdx_(0),
-    dofsFixed_(),
+    dofsFixed_(maskToVector<6>(maskDoFs)),
     transformRef_(),
     normal_(),
     rotationLocal_(Eigen::Matrix3d::Identity()),
@@ -27,39 +42,39 @@ namespace jiminy
         dofsFixed_.clear();
         for (uint32_t i = 0; i < 6; ++i)
         {
-            if (maskFixed[i])
+            if (maskDoFs[i])
             {
                 dofsFixed_.push_back(i);
             }
         }
     }
 
-    const std::string & FixedFrameConstraint::getFrameName() const
+    const std::string & FrameConstraint::getFrameName() const
     {
         return frameName_;
     }
 
-    const pinocchio::FrameIndex & FixedFrameConstraint::getFrameIdx() const
+    const pinocchio::FrameIndex & FrameConstraint::getFrameIdx() const
     {
         return frameIdx_;
     }
 
-    const std::vector<uint32_t> & FixedFrameConstraint::getDofsFixed() const
+    const std::vector<uint32_t> & FrameConstraint::getDofsFixed() const
     {
         return dofsFixed_;
     }
 
-    void FixedFrameConstraint::setReferenceTransform(const pinocchio::SE3 & transformRef)
+    void FrameConstraint::setReferenceTransform(const pinocchio::SE3 & transformRef)
     {
         transformRef_ = transformRef;
     }
 
-    const pinocchio::SE3 & FixedFrameConstraint::getReferenceTransform() const
+    const pinocchio::SE3 & FrameConstraint::getReferenceTransform() const
     {
         return transformRef_;
     }
 
-    void FixedFrameConstraint::setNormal(const Eigen::Vector3d & normal)
+    void FrameConstraint::setNormal(const Eigen::Vector3d & normal)
     {
         normal_ = normal;
         rotationLocal_.col(2) = normal_;
@@ -67,13 +82,13 @@ namespace jiminy
         rotationLocal_.col(0) = rotationLocal_.col(1).cross(rotationLocal_.col(2));
     }
 
-    const Eigen::Matrix3d & FixedFrameConstraint::getLocalFrame() const
+    const Eigen::Matrix3d & FrameConstraint::getLocalFrame() const
     {
         return rotationLocal_;
     }
 
-    hresult_t FixedFrameConstraint::reset(const Eigen::VectorXd & /* q */,
-                                          const Eigen::VectorXd & /* v */)
+    hresult_t FrameConstraint::reset(const Eigen::VectorXd & /* q */,
+                                     const Eigen::VectorXd & /* v */)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -112,8 +127,8 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t FixedFrameConstraint::computeJacobianAndDrift(const Eigen::VectorXd & /* q */,
-                                                            const Eigen::VectorXd & /* v */)
+    hresult_t FrameConstraint::computeJacobianAndDrift(const Eigen::VectorXd & /* q */,
+                                                       const Eigen::VectorXd & /* v */)
     {
         if (!isAttached_)
         {

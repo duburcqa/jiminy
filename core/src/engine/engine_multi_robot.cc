@@ -38,7 +38,7 @@
 #include "jiminy/core/telemetry/telemetry_recorder.h"
 #include "jiminy/core/constraints/abstract_constraint.h"
 #include "jiminy/core/constraints/joint_constraint.h"
-#include "jiminy/core/constraints/fixed_frame_constraint.h"
+#include "jiminy/core/constraints/frame_constraint.h"
 #include "jiminy/core/hardware/abstract_motor.h"
 #include "jiminy/core/hardware/abstract_sensor.h"
 #include "jiminy/core/robot/robot.h"
@@ -3249,8 +3249,7 @@ namespace jiminy
                 {
                     // In case of slippage the contact point has actually moved and must be updated
                     constraint->enable();
-                    auto & frameConstraint =
-                        static_cast<FixedFrameConstraint &>(*constraint.get());
+                    auto & frameConstraint = static_cast<FrameConstraint &>(*constraint.get());
                     const pinocchio::FrameIndex & frameIdx = frameConstraint.getFrameIdx();
                     frameConstraint.setReferenceTransform(
                         {system.robot->pncData_.oMf[frameIdx].rotation(),
@@ -3337,7 +3336,7 @@ namespace jiminy
            case of slippage the contact point has actually moved. */
         if (constraint->getIsEnabled())
         {
-            auto & frameConstraint = static_cast<FixedFrameConstraint &>(*constraint.get());
+            auto & frameConstraint = static_cast<FrameConstraint &>(*constraint.get());
             frameConstraint.setReferenceTransform(
                 {transformFrameInWorld.rotation(), posFrame - depth * nGround});
             frameConstraint.setNormal(nGround);
@@ -4134,8 +4133,7 @@ namespace jiminy
                 {
                     continue;
                 }
-                const auto & frameConstraint =
-                    static_cast<const FixedFrameConstraint &>(constraint);
+                const auto & frameConstraint = static_cast<const FrameConstraint &>(constraint);
 
                 // Extract force in local reference-frame-aligned from lagrangian multipliers
                 pinocchio::Force fextInLocal(frameConstraint.lambda_.head<3>(),
@@ -4171,7 +4169,7 @@ namespace jiminy
                         return;
                     }
                     const auto & frameConstraint =
-                        static_cast<const FixedFrameConstraint &>(*constraint.get());
+                        static_cast<const FrameConstraint &>(*constraint.get());
 
                     // Extract force in world frame from lagrangian multipliers
                     pinocchio::Force fextInLocal(frameConstraint.lambda_.head<3>(),

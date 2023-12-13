@@ -32,7 +32,7 @@
 #include "jiminy/core/constraints/abstract_constraint.h"
 #include "jiminy/core/constraints/joint_constraint.h"
 #include "jiminy/core/constraints/sphere_constraint.h"
-#include "jiminy/core/constraints/fixed_frame_constraint.h"
+#include "jiminy/core/constraints/frame_constraint.h"
 #include "jiminy/core/utilities/pinocchio.h"
 #include "jiminy/core/utilities/random.h"
 #include "jiminy/core/utilities/helpers.h"
@@ -651,15 +651,10 @@ namespace jiminy
                             //     std::make_shared<SphereConstraint>(geom.name, sphere.radius));
                             collisionConstraintsMap.emplace_back(
                                 geom.name,
-                                std::make_shared<FixedFrameConstraint>(
+                                std::make_shared<FrameConstraint>(
                                     geom.name,
-                                    (Eigen::Matrix<bool_t, 6, 1>() << true,
-                                     true,
-                                     true,
-                                     false,
-                                     false,
-                                     true)
-                                        .finished()));
+                                    std::array<bool_t, 6>{
+                                        {true, true, true, false, false, true}}));
                         }
 
                         // TODO: Add warning or error to notify that a geometry has been ignored
@@ -804,10 +799,8 @@ namespace jiminy
         {
             frameConstraintsMap.emplace_back(
                 frameName,
-                std::make_shared<FixedFrameConstraint>(
-                    frameName,
-                    (Eigen::Matrix<bool_t, 6, 1>() << true, true, true, false, false, true)
-                        .finished()));
+                std::make_shared<FrameConstraint>(
+                    frameName, std::array<bool_t, 6>{{true, true, true, false, false, true}}));
         }
         returnCode = addConstraints(frameConstraintsMap, constraintsHolderType_t::CONTACT_FRAMES);
 

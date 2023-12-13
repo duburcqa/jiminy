@@ -16,7 +16,7 @@ analytical constraints
    :undoc-members:
    :show-inheritance:
 
-.. autoclass:: jiminy_py.core.FixedFrameConstraint
+.. autoclass:: jiminy_py.core.FrameConstraint
    :members:
    :undoc-members:
    :show-inheritance:
