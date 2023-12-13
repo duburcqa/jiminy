@@ -35,6 +35,7 @@ from jiminy_py.viewer.viewer import (DEFAULT_CAMERA_XYZRPY_REL,
                                      interactive_mode,
                                      get_default_backend,
                                      Viewer)
+from jiminy_py.viewer.replay import viewer_lock  # type: ignore[attr-defined]
 
 from pinocchio import neutral, normalize, framesForwardKinematics
 
@@ -1051,17 +1052,18 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
         if self.is_simulation_running and any(self.has_terminated()):
             self.simulator.stop()
 
-        # Call render before replay in order to take into account custom
-        # backend viewer instantiation options, such as initial camera pose,
-        # and to update the ground profile.
-        self.simulator.render(update_ground_profile=True, **kwargs)
+        with viewer_lock:
+            # Call render before replay in order to take into account custom
+            # backend viewer instantiation options, eg the initial camera pose,
+            # and to update the ground profile.
+            self.simulator.render(update_ground_profile=True, **kwargs)
 
-        kwargs: Dict[str, Any] = {
-            'verbose': False,
-            'enable_travelling': self.robot.has_freeflyer,
-            'camera_pose': None,
-            **kwargs}
-        self.simulator.replay(**kwargs)
+            viewer_kwargs: Dict[str, Any] = {
+                'verbose': False,
+                'enable_travelling': self.robot.has_freeflyer,
+                'camera_pose': None,
+                **kwargs}
+            self.simulator.replay(**viewer_kwargs)
 
     def play_interactive(self,
                          enable_travelling: Optional[bool] = None,

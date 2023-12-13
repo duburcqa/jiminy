@@ -12,11 +12,14 @@ import tempfile
 import argparse
 from base64 import b64encode
 from bisect import bisect_right
-from functools import partial
-from threading import RLock, Thread
+from collections import deque
+from types import TracebackType
+from functools import wraps, partial
+from threading import get_ident, Thread, Lock
 from itertools import cycle, islice
 from typing import (
-    Optional, Union, Sequence, Tuple, Dict, Any, Callable, cast, List)
+    cast, List, Dict, Deque, Any, Optional, Union, Sequence, Tuple, Callable,
+    Type)
 
 import av
 import numpy as np
@@ -45,14 +48,107 @@ from .meshcat.utilities import interactive_mode
 VIDEO_FRAMERATE = 30
 VIDEO_QUALITY = 0.3  # [Mbytes/s]
 
-
 LOGGER = logging.getLogger(__name__)
-
-viewer_lock = RLock()  # Unique lock for threads
 
 ColorType = Union[str, Tuple4FType]
 
 
+class QRLock:
+    """Fair (FIFO) reentrant lock.
+
+    It is similar to the built-in `threading.RLock` object that is also
+    reentrant but unfair.
+
+    .. seealso::
+        For reference: https://stackoverflow.com/a/19695878/4820605
+    """
+    def __init__(self) -> None:
+        self._lock = Lock()
+        self._waiters: Deque = deque()
+        self._owner: Optional[int] = None
+        self._count = 0
+
+    def acquire(self) -> None:
+        """Acquire a lock in a blocking way.
+
+        .. note::
+            If this thread already owns the lock, increment the recursion level
+            by one, and return immediately. Otherwise, if another thread owns
+            the lock, block until the lock is unlocked. Once the lock is
+            unlocked (not owned by any thread), then grab ownership, set the
+            recursion level to one, and return. If more than one thread is
+            blocked waiting until the lock is unlocked, only one at a time will
+            be able to grab ownership of the lock.
+
+        .. warning::
+            Unlike built-in `threading.RLock`, if multiple threads are waiting
+            for acquiring the lock, which one will get it next is not system
+            dependent. The priority is given to the first thread in queue that
+            waited for it.
+        """
+        # pylint: disable=consider-using-with
+        thread_id = get_ident()
+        if self._owner == thread_id:
+            self._count += 1
+            return
+        self._lock.acquire()
+        if self._count:
+            new_lock = Lock()
+            new_lock.acquire()
+            self._waiters.append(new_lock)
+            self._lock.release()
+            new_lock.acquire()
+            self._lock.acquire()
+        self._owner = thread_id
+        self._count += 1
+        self._lock.release()
+
+    def release(self) -> None:
+        """Release a lock, decrementing the recursion level.
+
+        .. note::
+            If after the decrement it is zero, reset the lock to unlocked (not
+            owned by any thread), and if any other threads are blocked waiting
+            for the lock to become unlocked, allow exactly one of them to
+            proceed. If after the decrement the recursion level is still
+            nonzero, the lock remains locked and owned by the calling thread.
+
+        .. warning::
+            Only call this method when the calling thread owns the lock. A
+            RuntimeError is raised if this method is called when the lock is
+            unlocked.
+        """
+        with self._lock:
+            if self._owner != get_ident():
+                raise RuntimeError("cannot release un-acquired lock")
+            self._count = count = self._count - 1
+            if not count:
+                self._owner = None
+                if self._waiters:
+                    self._waiters.popleft().release()
+
+    def __enter__(self) -> None:
+        self.acquire()
+
+    def __exit__(self,
+                 exc_type: Optional[Type[BaseException]],
+                 exc_value: Optional[BaseException],
+                 traceback: Optional[TracebackType]) -> None:
+        self.release()
+
+
+viewer_lock = QRLock()
+
+
+def _with_lock(fun: Callable[..., Any]) -> Callable[..., Any]:
+    @wraps(fun)
+    def fun_safe(*args: Any, **kwargs: Any) -> Any:
+        with viewer_lock:
+            return fun(*args, **kwargs)  # pylint: disable=not-callable
+    return fun_safe
+
+
+@_with_lock
 def play_trajectories(
         trajs_data: Union[  # pylint: disable=unused-argument
             TrajectoryDataType, Sequence[TrajectoryDataType]],
@@ -248,6 +344,11 @@ def play_trajectories(
         else:
             backend = get_default_backend()
     assert backend is not None
+
+    # Always close viewer if gui is open if necessary for efficiency
+    if (backend.startswith("panda3d") and record_video_path is not None and
+            Viewer.has_gui()):
+        Viewer.close()
 
     # Create a temporary video if the backend is 'panda3d-sync', no
     # 'record_video_path' is provided, and running in interactive mode
@@ -840,7 +941,7 @@ def async_play_and_record_logs_files(
         return None
 
     # Define method to pass to threading
-    def _locked_play_and_record(lock: RLock,
+    def _locked_play_and_record(lock: QRLock,
                                 logs_files: Sequence[str],
                                 mesh_path_dir: Optional[str],
                                 mesh_package_dirs: Sequence[str],
@@ -853,25 +954,30 @@ def async_play_and_record_logs_files(
         The viewer must be closed after replay if recording is requested,
         otherwise the graphical window will dramatically slowdown rendering.
         """
+        close_backend = kwargs.get("close_backend", None)
         record_video_path = kwargs.pop("record_video_path", None)
         with lock:
+            if close_backend:
+                # Make sure there is no viewer already open at this point.
+                # Otherwise adding the legend will fail if some robots have not
+                # been deleted from the scene.
+                Viewer.close()
             if enable_replay:
                 try:
-                    viewers = play_logs_files(
+                    play_logs_files(
                         logs_files, mesh_path_dir, mesh_package_dirs, **kwargs)
-                    for viewer in viewers:
-                        viewer.close()
                 except RuntimeError as e:
                     # Replay may fail if current backend does not support it
                     LOGGER.warning(
                         "The current viewer backend '%s' does not support "
                         "replaying simulation: %s", Viewer.backend, e)
             if record_video_path is not None:
-                viewers = play_logs_files(
+                play_logs_files(
                     logs_files, mesh_path_dir, mesh_package_dirs,
                     record_video_path=record_video_path, **kwargs)
-                for viewer in viewers:
-                    viewer.close()
+            if close_backend:
+                # Honor close backend at exit but not between replay and record
+                Viewer.close()
 
     # Start replay and record thread
     thread = Thread(

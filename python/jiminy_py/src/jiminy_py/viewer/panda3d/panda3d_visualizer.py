@@ -1827,12 +1827,11 @@ class Panda3dProxy(mp.Process):
             """Context manager forcing async execution when forwarding request
             to the underlying panda3d viewer instance.
             """
-            def __enter__(self) -> "ContextAsyncMode":
+            def __enter__(self) -> None:
                 nonlocal proxy_ref
                 proxy = proxy_ref()
                 assert proxy is not None
                 proxy._is_async = True
-                return self
 
             def __exit__(self,
                          exc_type: Optional[Type[BaseException]],
