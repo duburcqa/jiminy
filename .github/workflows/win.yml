@@ -58,7 +58,7 @@ jobs:
       run: |
         git config --global advice.detachedHead false
         python -m pip install setuptools wheel "pip>=20.3"
-        python -m pip install "numpy>=1.21" "numba>=0.54.0"
+        python -m pip install "numpy>=1.21,<2.0" "numba>=0.54.0"
         python -m pip install pefile machomachomangler
     - name: Build project dependencies
       run: |
