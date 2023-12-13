@@ -914,9 +914,7 @@ namespace jiminy
                                    const std::shared_ptr<AbstractConstraintBase> & constraint,
                                    const constraintsHolderType_t & holderType)
     {
-        // clang-format off
-        return addConstraints({{constraintName , constraint}} , holderType);
-        // clang-format on
+        return addConstraints({{constraintName, constraint}}, holderType);
     }
 
     hresult_t Model::addConstraint(const std::string & constraintName,
@@ -1028,8 +1026,7 @@ namespace jiminy
                 std::array<constraintsHolderType_t, 3>{
                     {constraintsHolderType_t::BOUNDS_JOINTS,
                      constraintsHolderType_t::CONTACT_FRAMES,
-                     constraintsHolderType_t::COLLISION_BODIES}
-            },
+                     constraintsHolderType_t::COLLISION_BODIES}},
                 [](const std::shared_ptr<AbstractConstraintBase> & constraint,
                    const constraintsHolderType_t & /* holderType */) { constraint->disable(); });
         }
@@ -1522,9 +1519,8 @@ namespace jiminy
             // Update joint/frame fix for every geometry objects
             if (mdlOptions_->dynamics.enableFlexibleModel)
             {
-                for (auto model : std::array<pinocchio::GeometryModel *, 2>{
-                         {&collisionModel_, &visualModel_}
-                })
+                for (auto model :
+                     std::array<pinocchio::GeometryModel *, 2>{{&collisionModel_, &visualModel_}})
                 {
                     for (pinocchio::GeometryObject & geom : model->geometryObjects)
                     {
@@ -1821,11 +1817,10 @@ namespace jiminy
 
         // Check that the model randomization parameters are valid
         GenericConfig & dynOptionsHolder = boost::get<GenericConfig>(modelOptions.at("dynamics"));
-        for (const auto & field : std::array<std::string, 4>{
-                 {"inertiaBodiesBiasStd",
-                  "massBodiesBiasStd", "centerOfMassPositionBodiesBiasStd",
-                  "relativePositionBodiesBiasStd"}
-        })
+        for (const auto & field : std::array<std::string, 4>{{"inertiaBodiesBiasStd",
+                                                              "massBodiesBiasStd",
+                                                              "centerOfMassPositionBodiesBiasStd",
+                                                              "relativePositionBodiesBiasStd"}})
         {
             const float64_t & value = boost::get<float64_t>(dynOptionsHolder.at(field));
             if (0.9 < value || value < 0.0)
