@@ -79,7 +79,7 @@ make install -j2
 
 ```bash
 sudo apt install -y gnupg curl wget build-essential cmake doxygen graphviz
-python -m pip install "numpy>=1.21,<1.24"
+python -m pip install "numpy>=1.21,<2.0"
 ```
 
 ### Jiminy dependencies build and install
@@ -121,7 +121,7 @@ You have to preinstall by yourself the (free) MSVC 2019 toolchain.
 Then, install `setuptools`, `wheel` and `numpy`.
 
 ```powershell
-python -m pip install setuptools wheel "numpy>=1.21"
+python -m pip install setuptools wheel "numpy>=1.21,<2.0"
 ```
 
 ### Jiminy dependencies build and install

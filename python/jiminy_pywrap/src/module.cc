@@ -92,6 +92,11 @@ namespace jiminy::python
             .value("STAIRS", heightmapType_t::STAIRS)
             .value("GENERIC", heightmapType_t::GENERIC);
 
+        // Expose custom Jiminy exceptions
+        PyObject * jiminyException = createExceptionClass<jiminy_exception>("JiminyException");
+        createExceptionClass<not_initialized>("NotInitialized", jiminyException);
+        createExceptionClass<initialization_failed>("InitializationFailed", jiminyException);
+
         // Disable CPP docstring
         bp::docstring_options doc_options;
         doc_options.disable_cpp_signatures();

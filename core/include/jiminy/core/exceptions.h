@@ -21,16 +21,24 @@ namespace jiminy
 {
     // ********************************** Exception utilities ********************************** //
 
-    class not_initialized : public std::logic_error  // NOLINT
+    class jiminy_exception : public std::exception
+    {
+    public:
+        using std::exception::exception;
+    };
+
+    class not_initialized : public jiminy_exception, public std::logic_error
     {
     public:
         using std::logic_error::logic_error;
+        using std::logic_error::logic_error::what;
     };
 
-    class initialization_failed : public std::runtime_error  // NOLINT
+    class initialization_failed : public jiminy_exception, public std::runtime_error
     {
     public:
         using std::runtime_error::runtime_error;
+        using std::runtime_error::runtime_error::what;
     };
 
     // ********************************** Warnings utilities *********************************** //
