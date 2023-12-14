@@ -18,7 +18,6 @@ namespace jiminy
     class AbstractController;
     class LockGuardLocal;
 
-
     // External force functors
     using ForceProfileFunctor = std::function<pinocchio::Force(
         float64_t /*t*/, const Eigen::VectorXd & /*q*/, const Eigen::VectorXd & /*v*/)>;

@@ -122,7 +122,7 @@ namespace jiminy::python
     {
         if (strncmp(s.basename, "void", 4) == 0)
         {
-            static const char * none = "None";
+            static char constexpr none[] = "None";
             return none;
         }
         const PyTypeObject * py_type = s.pytype_f ? s.pytype_f() : nullptr;
@@ -132,7 +132,7 @@ namespace jiminy::python
         }
         else
         {
-            static const char * object = "object";
+            static char constexpr object[] = "object";
             return object;
         }
     }

@@ -19,7 +19,6 @@ namespace jiminy
 {
     class TelemetryData;
     class Robot;
-
     class AbstractSensorBase;
 
     // Sensor data holder
@@ -286,7 +285,7 @@ namespace jiminy
         const std::string & getName() const;
 
         /// \brief Index of the sensor of the global shared buffer.
-        virtual const std::size_t & getIdx() const = 0;
+        virtual std::size_t getIdx() const = 0;
 
         /// \brief Type of the sensor.
         virtual const std::string & getType() const = 0;
@@ -420,7 +419,7 @@ namespace jiminy
         void updateTelemetryAll() override final;
 
         virtual hresult_t setOptionsAll(const GenericConfig & sensorOptions) override final;
-        virtual const std::size_t & getIdx() const override final;
+        virtual std::size_t getIdx() const override final;
         virtual const std::string & getType() const override final;
         virtual const std::vector<std::string> & getFieldnames() const final;
         virtual uint64_t getSize() const override final;
