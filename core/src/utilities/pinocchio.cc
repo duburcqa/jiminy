@@ -32,7 +32,7 @@ namespace jiminy
              ++i)
         {
             // Get joint starting and ending index in position vector.
-            int32_t startIdx = model.joints[i].idx_q();
+            const int32_t startIdx = model.joints[i].idx_q();
             const int32_t endIdx = startIdx + model.joints[i].nq();
 
             // If idx is between start and end, we found the joint we were looking for.
@@ -55,7 +55,7 @@ namespace jiminy
              ++i)
         {
             // Get joint starting and ending index in velocity vector.
-            int32_t startIdx = model.joints[i].idx_v();
+            const int32_t startIdx = model.joints[i].idx_v();
             const int32_t endIdx = startIdx + model.joints[i].nv();
 
             // If idx is between start and end, we found the joint we were looking for
@@ -303,9 +303,9 @@ namespace jiminy
             return hresult_t::ERROR_BAD_INPUT;
         }
 
-        pinocchio::JointIndex jointModelIdx = model.getJointId(jointName);
-        int32_t jointPositionFirstIdx = model.joints[jointModelIdx].idx_q();
-        int32_t jointNq = model.joints[jointModelIdx].nq();
+        const pinocchio::JointIndex jointModelIdx = model.getJointId(jointName);
+        const int32_t jointPositionFirstIdx = model.joints[jointModelIdx].idx_q();
+        const int32_t jointNq = model.joints[jointModelIdx].nq();
         jointPositionIdx.resize(static_cast<std::size_t>(jointNq));
         std::iota(jointPositionIdx.begin(), jointPositionIdx.end(), jointPositionFirstIdx);
 
@@ -425,9 +425,9 @@ namespace jiminy
             return hresult_t::ERROR_BAD_INPUT;
         }
 
-        pinocchio::JointIndex jointModelIdx = model.getJointId(jointName);
-        int32_t jointVelocityFirstIdx = model.joints[jointModelIdx].idx_v();
-        int32_t jointNv = model.joints[jointModelIdx].nv();
+        const pinocchio::JointIndex jointModelIdx = model.getJointId(jointName);
+        const int32_t jointVelocityFirstIdx = model.joints[jointModelIdx].idx_v();
+        const int32_t jointNv = model.joints[jointModelIdx].nv();
         jointVelocityIdx.resize(static_cast<std::size_t>(jointNv));
         std::iota(jointVelocityIdx.begin(), jointVelocityIdx.end(), jointVelocityFirstIdx);
 
@@ -446,7 +446,7 @@ namespace jiminy
             return hresult_t::ERROR_BAD_INPUT;
         }
 
-        pinocchio::JointIndex jointModelIdx = model.getJointId(jointName);
+        const pinocchio::JointIndex jointModelIdx = model.getJointId(jointName);
         jointVelocityFirstIdx = model.joints[jointModelIdx].idx_v();
 
         return hresult_t::SUCCESS;
@@ -694,7 +694,7 @@ namespace jiminy
         // Add new joint to frame list
         pinocchio::FrameIndex childFrameIdx;
         getFrameIdx(modelInOut, childJointNameIn, childFrameIdx);  // Cannot fail at this point
-        pinocchio::FrameIndex newFrameIdx = modelInOut.addJointFrame(
+        const pinocchio::FrameIndex newFrameIdx = modelInOut.addJointFrame(
             newJointIdx, static_cast<int32_t>(modelInOut.frames[childFrameIdx].previousFrame));
 
         // Update child joint previousFrame index
@@ -827,7 +827,7 @@ namespace jiminy
             {
                 continue;
             }
-            pinocchio::JointIndex childJointIdx = modelInOut.frames[childFrameIdx].parent;
+            const pinocchio::JointIndex childJointIdx = modelInOut.frames[childFrameIdx].parent;
 
             // Set child joint to be a child of the new joint
             modelInOut.parents[childJointIdx] = newJointIdx;

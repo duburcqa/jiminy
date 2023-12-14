@@ -172,7 +172,7 @@ namespace jiminy
         virtual hresult_t refreshProxies() final override;
 
         const std::string & getMotorName() const;
-        const std::size_t & getMotorIdx() const;
+        std::size_t getMotorIdx() const;
 
     private:
         virtual hresult_t set(float64_t t,

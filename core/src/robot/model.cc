@@ -1159,10 +1159,11 @@ namespace jiminy
 
             for (const std::string & jointName : rigidJointsNames_)
             {
-                pinocchio::JointIndex jointIdx = pncModel_.getJointId(jointName);
+                const pinocchio::JointIndex jointIdx = pncModel_.getJointId(jointName);
 
                 // Add bias to com position
-                float64_t comBiasStd = mdlOptions_->dynamics.centerOfMassPositionBodiesBiasStd;
+                const float64_t comBiasStd =
+                    mdlOptions_->dynamics.centerOfMassPositionBodiesBiasStd;
                 if (comBiasStd > EPS)
                 {
                     Eigen::Vector3d & comRelativePositionBody =
@@ -1173,7 +1174,7 @@ namespace jiminy
 
                 /* Add bias to body mass.
                    It cannot be less than min(original mass, 1g) for numerical stability. */
-                float64_t massBiasStd = mdlOptions_->dynamics.massBodiesBiasStd;
+                const float64_t massBiasStd = mdlOptions_->dynamics.massBodiesBiasStd;
                 if (massBiasStd > EPS)
                 {
                     float64_t & massBody = pncModel_.inertias[jointIdx].mass();
@@ -1188,7 +1189,7 @@ namespace jiminy
                    small rotation is applied to the principal axes based on a randomly generated
                    rotation axis. Finally, the biased inertia matrix is obtained doing
                    `A @ diag(M) @ A.T`. If no bias, the original inertia matrix is recovered. */
-                float64_t inertiaBiasStd = mdlOptions_->dynamics.inertiaBodiesBiasStd;
+                const float64_t inertiaBiasStd = mdlOptions_->dynamics.inertiaBodiesBiasStd;
                 if (inertiaBiasStd > EPS)
                 {
                     pinocchio::Symmetric3 & inertiaBody = pncModel_.inertias[jointIdx].inertia();
@@ -1207,7 +1208,7 @@ namespace jiminy
                 }
 
                 // Add bias to relative body position (rotation excluded !)
-                float64_t relativeBodyPosBiasStd =
+                const float64_t relativeBodyPosBiasStd =
                     mdlOptions_->dynamics.relativePositionBodiesBiasStd;
                 if (relativeBodyPosBiasStd > EPS)
                 {
@@ -1813,7 +1814,7 @@ namespace jiminy
                                                               "centerOfMassPositionBodiesBiasStd",
                                                               "relativePositionBodiesBiasStd"}})
         {
-            float64_t value = boost::get<float64_t>(dynOptionsHolder.at(field));
+            const float64_t value = boost::get<float64_t>(dynOptionsHolder.at(field));
             if (0.9 < value || value < 0.0)
             {
                 PRINT_ERROR(

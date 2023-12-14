@@ -160,23 +160,24 @@ namespace jiminy
         if (isInitialized_)
         {
             // Check if armature has changed
-            bool_t enableArmature = boost::get<bool_t>(motorOptions.at("enableArmature"));
+            const bool_t enableArmature = boost::get<bool_t>(motorOptions.at("enableArmature"));
             internalBuffersMustBeUpdated |= (baseMotorOptions_->enableArmature != enableArmature);
             if (enableArmature)
             {
-                float64_t armature = boost::get<float64_t>(motorOptions.at("armature"));
+                const float64_t armature = boost::get<float64_t>(motorOptions.at("armature"));
                 internalBuffersMustBeUpdated |=  //
                     std::abs(armature - baseMotorOptions_->armature) > EPS;
             }
 
             // Check if command limit has changed
-            bool_t commandLimitFromUrdf =
+            const bool_t commandLimitFromUrdf =
                 boost::get<bool_t>(motorOptions.at("commandLimitFromUrdf"));
             internalBuffersMustBeUpdated |=
                 (baseMotorOptions_->commandLimitFromUrdf != commandLimitFromUrdf);
             if (!commandLimitFromUrdf)
             {
-                float64_t commandLimit = boost::get<float64_t>(motorOptions.at("commandLimit"));
+                const float64_t commandLimit =
+                    boost::get<float64_t>(motorOptions.at("commandLimit"));
                 internalBuffersMustBeUpdated |=
                     std::abs(commandLimit - baseMotorOptions_->commandLimit) > EPS;
             }
@@ -353,7 +354,7 @@ namespace jiminy
         return name_;
     }
 
-    const std::size_t & AbstractMotorBase::getIdx() const
+    std::size_t AbstractMotorBase::getIdx() const
     {
         return motorIdx_;
     }

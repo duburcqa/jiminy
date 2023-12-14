@@ -386,7 +386,7 @@ namespace jiminy
         GET_ROBOT_IF_INITIALIZED()
 
         // Get the sum of external forces applied on parent joint
-        pinocchio::JointIndex i = parentJointIdx_;
+        const pinocchio::JointIndex i = parentJointIdx_;
         const pinocchio::Force & fJoint = fExternal[i];
 
         // Transform the force from joint frame to sensor frame
@@ -489,12 +489,12 @@ namespace jiminy
         GET_ROBOT_IF_INITIALIZED()
 
         const auto & joint = robot->pncModel_.joints[jointIdx_];
-        int32_t jointPositionIdx = joint.idx_q();
-        int32_t jointVelocityIdx = joint.idx_v();
+        const int32_t jointPositionIdx = joint.idx_q();
+        const int32_t jointVelocityIdx = joint.idx_v();
         if (jointType_ == JointModelType::ROTARY_UNBOUNDED)
         {
-            float64_t cosTheta = q[jointPositionIdx];
-            float64_t sinTheta = q[jointPositionIdx + 1];
+            const float64_t cosTheta = q[jointPositionIdx];
+            const float64_t sinTheta = q[jointPositionIdx + 1];
             data()[0] = std::atan2(sinTheta, cosTheta);
         }
         else
@@ -564,7 +564,7 @@ namespace jiminy
         return motorName_;
     }
 
-    const std::size_t & EffortSensor::getMotorIdx() const
+    std::size_t EffortSensor::getMotorIdx() const
     {
         return motorIdx_;
     }

@@ -16,7 +16,6 @@
 namespace jiminy
 {
     class Robot;
-
     class AbstractMotorBase;
 
     /// \brief Structure holding the data for every motor.
@@ -123,7 +122,7 @@ namespace jiminy
         const std::string & getName() const;
 
         /// \brief Index of the motor.
-        const std::size_t & getIdx() const;
+        std::size_t getIdx() const;
 
         /// \brief Name of the joint associated with the motor.
         const std::string & getJointName() const;

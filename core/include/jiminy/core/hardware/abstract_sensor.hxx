@@ -237,7 +237,7 @@ namespace jiminy
     }
 
     template<typename T>
-    const std::size_t & AbstractSensorTpl<T>::getIdx() const
+    std::size_t AbstractSensorTpl<T>::getIdx() const
     {
         return sensorIdx_;
     }

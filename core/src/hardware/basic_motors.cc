@@ -104,18 +104,17 @@ namespace jiminy
            It is computed on joint side instead of the motor. */
         if (motorOptions_->enableFriction)
         {
-            float64_t vJoint = v;
-            if (vJoint > 0)
+            if (v > 0)
             {
-                data() += motorOptions_->frictionViscousPositive * vJoint +
-                          motorOptions_->frictionDryPositive *
-                              tanh(motorOptions_->frictionDrySlope * vJoint);
+                data() +=
+                    motorOptions_->frictionViscousPositive * v +
+                    motorOptions_->frictionDryPositive * tanh(motorOptions_->frictionDrySlope * v);
             }
             else
             {
-                data() += motorOptions_->frictionViscousNegative * vJoint +
-                          motorOptions_->frictionDryNegative *
-                              tanh(motorOptions_->frictionDrySlope * vJoint);
+                data() +=
+                    motorOptions_->frictionViscousNegative * v +
+                    motorOptions_->frictionDryNegative * tanh(motorOptions_->frictionDrySlope * v);
             }
         }
 
