@@ -27,7 +27,7 @@ namespace jiminy::python
         return seed;
     }
 
-    JointModelType getJointTypeFromIdx(const pinocchio::Model & model, const int32_t & idIn)
+    JointModelType getJointTypeFromIdx(const pinocchio::Model & model, int32_t idIn)
     {
         JointModelType jointType = JointModelType::UNSUPPORTED;
         ::jiminy::getJointTypeFromIdx(model, idIn, jointType);
@@ -63,8 +63,8 @@ namespace jiminy::python
                                                const std::string & filename,
                                                const int & typePy,
                                                const bp::list & packageDirsPy,
-                                               const bool_t & loadMeshes,
-                                               const bool_t & makeMeshesConvex)
+                                               bool_t loadMeshes,
+                                               bool_t makeMeshesConvex)
     {
         /* Note that enum bindings interoperability is buggy, so that `pin.GeometryType` is not
            properly converted from Python to C++ automatically in some cases. */
@@ -77,10 +77,10 @@ namespace jiminy::python
     }
 
     bp::tuple buildModelsFromUrdf(const std::string & urdfPath,
-                                  const bool_t & hasFreeflyer,
+                                  bool_t hasFreeflyer,
                                   const bp::list & packageDirsPy,
-                                  const bool_t & buildVisualModel,
-                                  const bool_t & loadVisualMeshes)
+                                  bool_t buildVisualModel,
+                                  bool_t loadVisualMeshes)
     {
         /* Note that enum bindings interoperability is buggy, so that `pin.GeometryType` is not
            properly converted from Python to C++ automatically in some cases. */
@@ -109,7 +109,7 @@ namespace jiminy::python
     }
 
     np::ndarray solveJMinvJtv(
-        pinocchio::Data & data, const np::ndarray & vPy, const bool_t & updateDecomposition)
+        pinocchio::Data & data, const np::ndarray & vPy, bool_t updateDecomposition)
     {
         const int32_t nDims = vPy.get_nd();
         assert(nDims < 3 && "The number of dimensions of 'v' cannot exceed 2.");

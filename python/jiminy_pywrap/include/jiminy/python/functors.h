@@ -195,7 +195,7 @@ namespace jiminy::python
                                                    Eigen::VectorXd /* v */,
                                                    SensorsDataMap /* sensorsData*/>;
 
-    using ControllerFct = std::function<void(const float64_t & /* t */,
+    using ControllerFct = std::function<void(float64_t /* t */,
                                              const Eigen::VectorXd & /* q */,
                                              const Eigen::VectorXd & /* v */,
                                              const SensorsDataMap & /* sensorsData */,
@@ -217,7 +217,7 @@ namespace jiminy::python
         HeightmapFunctorPyWrapper & operator=(const HeightmapFunctorPyWrapper & other) = delete;
 
     public:
-        HeightmapFunctorPyWrapper(const bp::object & objPy, const heightmapType_t & objType) :
+        HeightmapFunctorPyWrapper(const bp::object & objPy, heightmapType_t objType) :
         heightmapType_(objType),
         handlePyPtr_(objPy),
         out1Ptr_(new float64_t),

@@ -8,7 +8,7 @@
 
 namespace jiminy
 {
-    using systemDynamics = std::function<void(const float64_t & /*t*/,
+    using systemDynamics = std::function<void(float64_t /*t*/,
                                               const std::vector<Eigen::VectorXd> & /*qSplit*/,
                                               const std::vector<Eigen::VectorXd> & /*vSplit*/,
                                               std::vector<Eigen::VectorXd> & /*aSplit*/)>;
@@ -54,13 +54,11 @@ namespace jiminy
 
     protected:
         /// \brief Internal tryStep method wrapping the arguments as state_t and stateDerivative_t.
-        virtual bool_t tryStepImpl(state_t & state,
-                                   stateDerivative_t & stateDerivative,
-                                   const float64_t & t,
-                                   float64_t & dt) = 0;
+        virtual bool_t tryStepImpl(
+            state_t & state, stateDerivative_t & stateDerivative, float64_t t, float64_t & dt) = 0;
 
         /// \brief Wrapper around the system dynamics: `stateDerivative = f(t, state)`.
-        const stateDerivative_t & f(const float64_t & t, const state_t & state);
+        const stateDerivative_t & f(float64_t t, const state_t & state);
 
     private:
         /// \brief Dynamics to integrate.

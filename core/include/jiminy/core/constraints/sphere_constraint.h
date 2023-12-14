@@ -28,12 +28,12 @@ namespace jiminy
         /// \param[in] sphereRadius Radius of the sphere (in m).
         /// \param[in] groundNormal Normal to the ground in the world as a unit vector.
         SphereConstraint(const std::string & frameName,
-                         const float64_t & sphereRadius,
+                         float64_t sphereRadius,
                          const Eigen::Vector3d & groundNormal = Eigen::Vector3d::UnitZ());
         virtual ~SphereConstraint() = default;
 
         const std::string & getFrameName() const;
-        const pinocchio::FrameIndex & getFrameIdx() const;
+        pinocchio::FrameIndex getFrameIdx() const;
 
         void setReferenceTransform(const pinocchio::SE3 & transformRef);
         const pinocchio::SE3 & getReferenceTransform() const;

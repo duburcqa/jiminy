@@ -51,8 +51,8 @@ namespace jiminy
         /// \param[in] tolAbs Absolute tolerance used to assess step success and timestep update.
         RungeKuttaDOPRIStepper(const systemDynamics & f,
                                const std::vector<const Robot *> & robots,
-                               const float64_t & tolRel,
-                               const float64_t & tolAbs);
+                               float64_t tolRel,
+                               float64_t tolAbs);
 
     protected:
         /// \brief Determine if step has succeeded or failed, and adjust dt.
@@ -75,10 +75,10 @@ namespace jiminy
         ///
         /// \returns Normalized error, >1 indicates step failure.
         float64_t computeError(
-            const state_t & initialState, const state_t & solution, const float64_t & dt);
+            const state_t & initialState, const state_t & solution, float64_t dt);
 
         /// \brief Scale timestep based on normalized error value.
-        bool_t adjustStepImpl(const float64_t & error, float64_t & dt);
+        bool_t adjustStepImpl(float64_t error, float64_t & dt);
 
     private:
         /// \brief Relative tolerance.

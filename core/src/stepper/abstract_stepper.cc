@@ -53,7 +53,7 @@ namespace jiminy
         return result;
     }
 
-    const stateDerivative_t & AbstractStepper::f(const float64_t & t, const state_t & state)
+    const stateDerivative_t & AbstractStepper::f(float64_t t, const state_t & state)
     {
         f_(t, state.q, state.v, fOutput_.a);
         fOutput_.v = state.v;

@@ -28,7 +28,7 @@ namespace jiminy
         *isLocked_ = false;
     }
 
-    const bool_t & MutexLocal::isLocked() const
+    bool_t MutexLocal::isLocked() const
     {
         return *isLocked_;
     }

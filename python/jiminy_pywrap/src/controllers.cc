@@ -27,7 +27,7 @@ namespace jiminy::python
         public bp::wrapper<AbstractControllerImpl>
     {
     public:
-        hresult_t reset(const bool_t & resetDynamicTelemetry)
+        hresult_t reset(bool_t resetDynamicTelemetry)
         {
             bp::override func = this->get_override("reset");
             if (func)
@@ -38,12 +38,12 @@ namespace jiminy::python
             return AbstractController::reset(resetDynamicTelemetry);
         }
 
-        hresult_t default_reset(const bool_t & resetDynamicTelemetry)
+        hresult_t default_reset(bool_t resetDynamicTelemetry)
         {
             return this->AbstractController::reset(resetDynamicTelemetry);
         }
 
-        hresult_t computeCommand(const float64_t & t,
+        hresult_t computeCommand(float64_t t,
                                  const Eigen::VectorXd & q,
                                  const Eigen::VectorXd & v,
                                  Eigen::VectorXd & command)
@@ -59,7 +59,7 @@ namespace jiminy::python
             return hresult_t::SUCCESS;
         }
 
-        hresult_t internalDynamics(const float64_t & t,
+        hresult_t internalDynamics(float64_t t,
                                    const Eigen::VectorXd & q,
                                    const Eigen::VectorXd & v,
                                    Eigen::VectorXd & uCustom)
@@ -323,7 +323,7 @@ namespace jiminy::python
     class CtrlFunctorWrapper : public CtrlFunctorImpl, public bp::wrapper<CtrlFunctorImpl>
     {
     public:
-        hresult_t reset(const bool_t & resetDynamicTelemetry)
+        hresult_t reset(bool_t resetDynamicTelemetry)
         {
             bp::override func = this->get_override("reset");
             if (func)
@@ -334,7 +334,7 @@ namespace jiminy::python
             return CtrlFunctor::reset(resetDynamicTelemetry);
         }
 
-        hresult_t default_reset(const bool_t & resetDynamicTelemetry)
+        hresult_t default_reset(bool_t resetDynamicTelemetry)
         {
             return this->CtrlFunctor::reset(resetDynamicTelemetry);
         }
@@ -367,7 +367,7 @@ namespace jiminy::python
             }
             else
             {
-                commandFct = [](const float64_t & /* t */,
+                commandFct = [](float64_t /* t */,
                                 const Eigen::VectorXd & /* q */,
                                 const Eigen::VectorXd & /* v */,
                                 const SensorsDataMap & /* sensorsData */,
@@ -381,7 +381,7 @@ namespace jiminy::python
             }
             else
             {
-                internalDynamicsFct = [](const float64_t & /* t */,
+                internalDynamicsFct = [](float64_t /* t */,
                                          const Eigen::VectorXd & /* q */,
                                          const Eigen::VectorXd & /* v */,
                                          const SensorsDataMap & /* sensorsData */,

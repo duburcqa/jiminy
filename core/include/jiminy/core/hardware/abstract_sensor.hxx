@@ -190,16 +190,16 @@ namespace jiminy
         sharedHolder_->dataMeasured_.setZero();
 
         // Compute max delay
-        sharedHolder_->delayMax_ =
-            std::accumulate(sharedHolder_->sensors_.begin(),
-                            sharedHolder_->sensors_.end(),
-                            0.0,
-                            [](const float64_t & value, AbstractSensorBase * sensor)
-                            {
-                                const float64_t delay = sensor->baseSensorOptions_->delay +
-                                                        sensor->baseSensorOptions_->jitter;
-                                return std::max(delay, value);
-                            });
+        sharedHolder_->delayMax_ = std::accumulate(sharedHolder_->sensors_.begin(),
+                                                   sharedHolder_->sensors_.end(),
+                                                   0.0,
+                                                   [](float64_t value, AbstractSensorBase * sensor)
+                                                   {
+                                                       const float64_t delay =
+                                                           sensor->baseSensorOptions_->delay +
+                                                           sensor->baseSensorOptions_->jitter;
+                                                       return std::max(delay, value);
+                                                   });
 
         // Update sensor scope information
         for (AbstractSensorBase * sensor : sharedHolder_->sensors_)
@@ -388,7 +388,7 @@ namespace jiminy
                 // Return the oldest value since the buffer is not fully initialized yet
                 auto it = std::find_if(sharedHolder_->time_.begin(),
                                        sharedHolder_->time_.end(),
-                                       [](const float64_t & t) { return t > 0; });
+                                       [](float64_t t) { return t > 0; });
                 if (it != sharedHolder_->time_.end())
                 {
                     std::ptrdiff_t idx = std::distance(sharedHolder_->time_.begin(), it);
@@ -434,7 +434,7 @@ namespace jiminy
     }
 
     template<typename T>
-    hresult_t AbstractSensorTpl<T>::setAll(const float64_t & t,
+    hresult_t AbstractSensorTpl<T>::setAll(float64_t t,
                                            const Eigen::VectorXd & q,
                                            const Eigen::VectorXd & v,
                                            const Eigen::VectorXd & a,

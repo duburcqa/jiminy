@@ -9,7 +9,7 @@ namespace jiminy
                                                          const Eigen::MatrixXd & RungeKuttaMatrix,
                                                          const Eigen::VectorXd & bWeights,
                                                          const Eigen::VectorXd & cNodes,
-                                                         const bool_t & isFSAL) :
+                                                         bool_t isFSAL) :
     AbstractStepper(f, robots),
     A_(RungeKuttaMatrix),
     b_(bWeights),
@@ -27,7 +27,7 @@ namespace jiminy
     }
 
     bool_t AbstractRungeKuttaStepper::tryStepImpl(
-        state_t & state, stateDerivative_t & stateDerivative, const float64_t & t, float64_t & dt)
+        state_t & state, stateDerivative_t & stateDerivative, float64_t t, float64_t & dt)
     {
         // First ki is simply the provided stateDerivative
         ki_[0] = stateDerivative;

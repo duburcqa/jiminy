@@ -114,7 +114,7 @@ namespace jiminy
         /// \param[out] command Output effort vector.
         ///
         /// \return Return code to determine whether the execution of the method was successful.
-        virtual hresult_t computeCommand(const float64_t & t,
+        virtual hresult_t computeCommand(float64_t t,
                                          const Eigen::VectorXd & q,
                                          const Eigen::VectorXd & v,
                                          Eigen::VectorXd & command) = 0;
@@ -128,7 +128,7 @@ namespace jiminy
         /// \param[in] uCustom Output effort vector.
         ///
         /// \return Return code to determine whether the execution of the method was successful.
-        virtual hresult_t internalDynamics(const float64_t & t,
+        virtual hresult_t internalDynamics(float64_t t,
                                            const Eigen::VectorXd & q,
                                            const Eigen::VectorXd & v,
                                            Eigen::VectorXd & uCustom) = 0;
@@ -185,16 +185,16 @@ namespace jiminy
         ///
         /// \param[in] resetDynamicTelemetry Whether variables dynamically registered to the
         ///                                  telemetry must be removed. Optional: False by default.
-        virtual hresult_t reset(const bool_t & resetDynamicTelemetry = false);
+        virtual hresult_t reset(bool_t resetDynamicTelemetry = false);
 
         /// \brief Whether the controller has been initialized.
         ///
         /// \remark Note that a controller can be considered initialized even if its telemetry is
         ///         not properly configured. If not, it must be done before being ready to use.
-        const bool_t & getIsInitialized() const;
+        bool_t getIsInitialized() const;
 
         /// \brief Whether the telemetry of the controller has been initialized.
-        const bool_t & getIsTelemetryConfigured() const;
+        bool_t getIsTelemetryConfigured() const;
 
     public:
         /// \brief Structure with the parameters of the controller.

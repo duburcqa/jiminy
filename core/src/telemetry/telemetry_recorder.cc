@@ -21,8 +21,7 @@ namespace jiminy
         }
     }
 
-    hresult_t TelemetryRecorder::initialize(TelemetryData * telemetryData,
-                                            const float64_t & timeUnit)
+    hresult_t TelemetryRecorder::initialize(TelemetryData * telemetryData, float64_t timeUnit)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -77,7 +76,7 @@ namespace jiminy
         return returnCode;
     }
 
-    float64_t TelemetryRecorder::getMaximumLogTime(const float64_t & timeUnit)
+    float64_t TelemetryRecorder::getMaximumLogTime(float64_t timeUnit)
     {
         return static_cast<float64_t>(std::numeric_limits<int64_t>::max()) * timeUnit;
     }
@@ -87,7 +86,7 @@ namespace jiminy
         return getMaximumLogTime(1.0 / timeUnitInv_);
     }
 
-    const bool_t & TelemetryRecorder::getIsInitialized()
+    bool_t TelemetryRecorder::getIsInitialized()
     {
         return isInitialized_;
     }
@@ -134,7 +133,7 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t TelemetryRecorder::flushDataSnapshot(const float64_t & timestamp)
+    hresult_t TelemetryRecorder::flushDataSnapshot(float64_t timestamp)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -201,9 +200,9 @@ namespace jiminy
     }
 
     hresult_t parseLogDataRaw(std::vector<AbstractIODevice *> & flows,
-                              const int64_t & integerSectionSize,
-                              const int64_t & floatSectionSize,
-                              const int64_t & headerSize,
+                              int64_t integerSectionSize,
+                              int64_t floatSectionSize,
+                              int64_t headerSize,
                               LogData & logData)
     {
         // Clear everything that may be stored

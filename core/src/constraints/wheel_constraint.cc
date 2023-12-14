@@ -13,7 +13,7 @@ namespace jiminy
     const std::string AbstractConstraintTpl<WheelConstraint>::type_("WheelConstraint");
 
     WheelConstraint::WheelConstraint(const std::string & frameName,
-                                     const float64_t & wheelRadius,
+                                     float64_t wheelRadius,
                                      const Eigen::Vector3d & groundNormal,
                                      const Eigen::Vector3d & wheelAxis) :
     AbstractConstraintTpl(),
@@ -34,7 +34,7 @@ namespace jiminy
         return frameName_;
     }
 
-    const pinocchio::FrameIndex & WheelConstraint::getFrameIdx() const
+    pinocchio::FrameIndex WheelConstraint::getFrameIdx() const
     {
         return frameIdx_;
     }

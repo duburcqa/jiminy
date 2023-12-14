@@ -20,14 +20,14 @@ namespace jiminy
                                   const Eigen::MatrixXd & RungeKuttaMatrix,
                                   const Eigen::VectorXd & bWeights,
                                   const Eigen::VectorXd & cNodes,
-                                  const bool_t & isFSAL);
+                                  bool_t isFSAL);
         virtual ~AbstractRungeKuttaStepper() = default;
 
     protected:
         /// \brief Internal tryStep method wrapping the arguments as state_t and stateDerivative_t.
         virtual bool_t tryStepImpl(state_t & state,
                                    stateDerivative_t & stateDerivative,
-                                   const float64_t & t,
+                                   float64_t t,
                                    float64_t & dt) final override;
 
         /// \brief Determine if step has succeeded or failed, and adjust dt.

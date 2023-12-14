@@ -33,7 +33,7 @@ namespace jiminy
         return framesIdx_;
     }
 
-    hresult_t DistanceConstraint::setReferenceDistance(const float64_t & distanceRef)
+    hresult_t DistanceConstraint::setReferenceDistance(float64_t distanceRef)
     {
         if (distanceRef < 0.0)
         {
@@ -45,7 +45,7 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    const float64_t & DistanceConstraint::getReferenceDistance() const
+    float64_t DistanceConstraint::getReferenceDistance() const
     {
         return distanceRef_;
     }

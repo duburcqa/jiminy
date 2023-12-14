@@ -16,11 +16,11 @@ namespace jiminy
     PGSSolver::PGSSolver(const pinocchio::Model * model,
                          pinocchio::Data * data,
                          constraintsHolder_t * constraintsHolder,
-                         const float64_t & friction,
-                         const float64_t & torsion,
-                         const float64_t & tolAbs,
-                         const float64_t & tolRel,
-                         const uint32_t & maxIter) :
+                         float64_t friction,
+                         float64_t torsion,
+                         float64_t tolAbs,
+                         float64_t tolRel,
+                         uint32_t maxIter) :
     model_(model),
     data_(data),
     maxIter_(maxIter),
@@ -38,7 +38,7 @@ namespace jiminy
         Eigen::Index constraintsRowsMax = 0U;
         constraintsHolder->foreach(
             [&](const std::shared_ptr<AbstractConstraintBase> & constraint,
-                const constraintsHolderType_t & holderType)
+                constraintsHolderType_t holderType)
             {
                 // Define constraint blocks
                 const Eigen::Index constraintDim = static_cast<Eigen::Index>(constraint->getDim());
@@ -144,10 +144,10 @@ namespace jiminy
                 const ConstraintBlock & block = constraintData.blocks[i];
                 const Eigen::Index * fIdx = block.fIdx;
                 const std::uint_fast8_t & fSize = block.fSize;
-                const Eigen::Index & o = constraintData.startIdx;
+                Eigen::Index o = constraintData.startIdx;
                 const Eigen::Index i0 = o + fIdx[0];
-                const float64_t & hi = block.hi;
-                const float64_t & lo = block.lo;
+                float64_t hi = block.hi;
+                float64_t lo = block.lo;
                 float64_t & e = x[i0];
 
                 // Bypass zero-ed coefficients
@@ -169,7 +169,7 @@ namespace jiminy
                 {
                     const Eigen::Index k = o + fIdx[j];
                     y_[k] = b[k] - A.col(k).dot(x);
-                    const float64_t & A_kk = A(k, k);
+                    float64_t A_kk = A(k, k);
                     if (A_kk > A_max)
                     {
                         A_max = A_kk;
@@ -202,7 +202,7 @@ namespace jiminy
                         float64_t squaredNorm = e * e;
                         for (std::uint_fast8_t j = 1; j < fSize - 1; ++j)
                         {
-                            const float64_t & f = xConst[fIdx[j]];
+                            float64_t f = xConst[fIdx[j]];
                             squaredNorm += f * f;
                         }
                         if (squaredNorm > thr * thr)
@@ -255,7 +255,7 @@ namespace jiminy
     }
 
     bool_t PGSSolver::SolveBoxedForwardDynamics(
-        const float64_t & dampingInv, const bool_t & isStateUpToDate, const bool_t & ignoreBounds)
+        float64_t dampingInv, bool_t isStateUpToDate, bool_t ignoreBounds)
     {
         // Update constraints start indices, jacobian, drift and multipliers
         Eigen::Index constraintRows = 0U;

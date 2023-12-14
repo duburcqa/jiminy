@@ -29,7 +29,7 @@ engine_options["stepper"]["sensorsUpdatePeriod"] = 0.0
 simulator.engine.set_options(engine_options)
 
 # Add fixed frame constraint
-constraint = jiminy.FixedFrameConstraint(
+constraint = jiminy.FrameConstraint(
     "MassBody", [True, True, True, True, True, True])
 simulator.robot.add_constraint("MassBody", constraint)
 constraint.baumgarte_freq = 1.0

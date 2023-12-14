@@ -41,11 +41,11 @@ namespace jiminy
     };
 
     // Facility operators to avoid cast.
-    openMode_t operator|(const openMode_t & modeA, const openMode_t & modeB);
-    openMode_t operator&(const openMode_t & modeA, const openMode_t & modeB);
-    openMode_t operator|=(openMode_t & modeA, const openMode_t & modeB);
-    openMode_t operator&=(openMode_t & modeA, const openMode_t & modeB);
-    openMode_t operator~(const openMode_t & mode);
+    openMode_t operator|(openMode_t modeA, openMode_t modeB);
+    openMode_t operator&(openMode_t modeA, openMode_t modeB);
+    openMode_t operator|=(openMode_t & modeA, openMode_t modeB);
+    openMode_t operator&=(openMode_t & modeA, openMode_t modeB);
+    openMode_t operator~(openMode_t mode);
 
     /// \brief Base interface class to handle all possibles I/O that can act as a stream (file /
     ///        TCP socket / pipe and so on).
@@ -60,7 +60,7 @@ namespace jiminy
         /// \param mode Mode to apply for opening the device.
         ///
         /// \return hresult_t::SUCCESS if successful, another hresult_t value otherwise.
-        hresult_t open(const openMode_t & mode);
+        hresult_t open(openMode_t mode);
 
         /// \brief Write data in the device.
         ///
@@ -73,10 +73,10 @@ namespace jiminy
         hresult_t close();
 
         /// \brief Current opening modes.
-        const openMode_t & openModes() const;
+        openMode_t openModes() const;
 
         /// \brief Supported opening modes.
-        const openMode_t & supportedModes() const;
+        openMode_t supportedModes() const;
 
         /// \brief Whether the device is writable.
         bool_t isWritable() const;
@@ -187,7 +187,7 @@ namespace jiminy
         virtual void removeBackend();
 
     protected:
-        virtual hresult_t doOpen(const openMode_t & mode) = 0;
+        virtual hresult_t doOpen(openMode_t mode) = 0;
         virtual hresult_t doClose() = 0;
 
         /// \brief Current opening mode.

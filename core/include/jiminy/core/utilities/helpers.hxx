@@ -57,11 +57,9 @@ namespace jiminy
     }
 
     template<typename DerivedType>
-    auto clamp(const Eigen::MatrixBase<DerivedType> & data,
-               const float64_t & minThr,
-               const float64_t & maxThr)
+    auto clamp(const Eigen::MatrixBase<DerivedType> & data, float64_t minThr, float64_t maxThr)
     {
-        return data.unaryExpr([&minThr, &maxThr](const float64_t & x) -> float64_t
+        return data.unaryExpr([&minThr, &maxThr](float64_t x) -> float64_t
                               { return std::clamp(x, minThr, maxThr); });
     }
 
@@ -115,7 +113,7 @@ namespace jiminy
         {
             return {true, INF};
         }
-        auto lambda = [&minValue](const float64_t & value)
+        auto lambda = [&minValue](float64_t value)
         {
             if (value < EPS)
             {
@@ -251,10 +249,10 @@ namespace jiminy
     /// \param[in] secondBlockLength Length of the second block.
     template<typename Derived>
     void swapMatrixBlocks(const Eigen::MatrixBase<Derived> & matrixIn,
-                          const Eigen::Index & firstBlockStart,
-                          const Eigen::Index & firstBlockLength,
-                          const Eigen::Index & secondBlockStart,
-                          const Eigen::Index & secondBlockLength)
+                          Eigen::Index firstBlockStart,
+                          Eigen::Index firstBlockLength,
+                          Eigen::Index secondBlockStart,
+                          Eigen::Index secondBlockLength)
     {
         // Get plain matrix type and cast away constness
         using Matrix = typename Eigen::MatrixBase<Derived>::PlainObject;

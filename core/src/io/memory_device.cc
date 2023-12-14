@@ -5,7 +5,7 @@
 
 namespace jiminy
 {
-    MemoryDevice::MemoryDevice(const uint64_t & size) :
+    MemoryDevice::MemoryDevice(uint64_t size) :
     buffer_(static_cast<std::size_t>(size)),
     currentPos_(0)
     {
@@ -102,7 +102,7 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    hresult_t MemoryDevice::doOpen(const openMode_t & modes)
+    hresult_t MemoryDevice::doOpen(openMode_t modes)
     {
         if (!(modes & openMode_t::APPEND))
         {

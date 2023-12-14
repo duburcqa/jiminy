@@ -11,7 +11,7 @@ namespace jiminy
     class JIMINY_DLLAPI MemoryDevice : public AbstractIODevice
     {
     public:
-        MemoryDevice(const uint64_t & size);
+        MemoryDevice(uint64_t size);
         MemoryDevice(const MemoryDevice & other);
         MemoryDevice(MemoryDevice && other);
 
@@ -40,7 +40,7 @@ namespace jiminy
         hresult_t resize(int64_t size) override;
 
     protected:
-        hresult_t doOpen(const openMode_t & modes) override;
+        hresult_t doOpen(openMode_t modes) override;
         hresult_t doClose() override;
 
     private:

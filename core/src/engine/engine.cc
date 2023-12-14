@@ -89,7 +89,7 @@ namespace jiminy
 
     hresult_t singleToMultipleSystemsInitialData(
         const Robot & robot,
-        const bool_t & isStateTheoretical,
+        bool_t isStateTheoretical,
         const Eigen::VectorXd & qInit,
         const Eigen::VectorXd & vInit,
         const std::optional<Eigen::VectorXd> & aInit,
@@ -147,7 +147,7 @@ namespace jiminy
     hresult_t Engine::start(const Eigen::VectorXd & qInit,
                             const Eigen::VectorXd & vInit,
                             const std::optional<Eigen::VectorXd> & aInit,
-                            const bool_t & isStateTheoretical)
+                            bool_t isStateTheoretical)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -174,11 +174,11 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t Engine::simulate(const float64_t & tEnd,
+    hresult_t Engine::simulate(float64_t tEnd,
                                const Eigen::VectorXd & qInit,
                                const Eigen::VectorXd & vInit,
                                const std::optional<Eigen::VectorXd> & aInit,
-                               const bool_t & isStateTheoretical)
+                               bool_t isStateTheoretical)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -205,17 +205,15 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t Engine::registerForceImpulse(const std::string & frameName,
-                                           const float64_t & t,
-                                           const float64_t & dt,
-                                           const pinocchio::Force & F)
+    hresult_t Engine::registerForceImpulse(
+        const std::string & frameName, float64_t t, float64_t dt, const pinocchio::Force & F)
     {
         return EngineMultiRobot::registerForceImpulse("", frameName, t, dt, F);
     }
 
     hresult_t Engine::registerForceProfile(const std::string & frameName,
                                            const ForceProfileFunctor & forceFct,
-                                           const float64_t & updatePeriod)
+                                           float64_t updatePeriod)
     {
         return EngineMultiRobot::registerForceProfile("", frameName, forceFct, updatePeriod);
     }
@@ -248,7 +246,7 @@ namespace jiminy
                                             const std::string & frameName2,
                                             ForceProfileFunctor forceFct)
     {
-        auto forceCouplingFct = [forceFct](const float64_t & t,
+        auto forceCouplingFct = [forceFct](float64_t t,
                                            const Eigen::VectorXd & q1,
                                            const Eigen::VectorXd & v1,
                                            const Eigen::VectorXd & /* q2 */,
@@ -264,7 +262,7 @@ namespace jiminy
                                                         const std::string & frameName2,
                                                         const Vector6d & stiffness,
                                                         const Vector6d & damping,
-                                                        const float64_t & alpha)
+                                                        float64_t alpha)
     {
         return EngineMultiRobot::registerViscoelasticForceCoupling(
             "", "", frameName1, frameName2, stiffness, damping, alpha);
@@ -272,9 +270,9 @@ namespace jiminy
 
     hresult_t Engine::registerViscoelasticDirectionalForceCoupling(const std::string & frameName1,
                                                                    const std::string & frameName2,
-                                                                   const float64_t & stiffness,
-                                                                   const float64_t & damping,
-                                                                   const float64_t & restLength)
+                                                                   float64_t stiffness,
+                                                                   float64_t damping,
+                                                                   float64_t restLength)
     {
         return EngineMultiRobot::registerViscoelasticDirectionalForceCoupling(
             "", "", frameName1, frameName2, stiffness, damping, restLength);
@@ -285,7 +283,7 @@ namespace jiminy
         return EngineMultiRobot::removeForcesCoupling("");
     }
 
-    const bool_t & Engine::getIsInitialized() const
+    bool_t Engine::getIsInitialized() const
     {
         return isInitialized_;
     }

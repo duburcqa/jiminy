@@ -162,12 +162,12 @@ namespace jiminy
         return frameName_;
     }
 
-    const pinocchio::FrameIndex & ImuSensor::getFrameIdx() const
+    pinocchio::FrameIndex ImuSensor::getFrameIdx() const
     {
         return frameIdx_;
     }
 
-    hresult_t ImuSensor::set(const float64_t & /* t */,
+    hresult_t ImuSensor::set(float64_t /* t */,
                              const Eigen::VectorXd & /* q */,
                              const Eigen::VectorXd & /* v */,
                              const Eigen::VectorXd & /* a */,
@@ -282,12 +282,12 @@ namespace jiminy
         return frameName_;
     }
 
-    const pinocchio::FrameIndex & ContactSensor::getFrameIdx() const
+    pinocchio::FrameIndex ContactSensor::getFrameIdx() const
     {
         return frameIdx_;
     }
 
-    hresult_t ContactSensor::set(const float64_t & /* t */,
+    hresult_t ContactSensor::set(float64_t /* t */,
                                  const Eigen::VectorXd & /* q */,
                                  const Eigen::VectorXd & /* v */,
                                  const Eigen::VectorXd & /* a */,
@@ -364,7 +364,7 @@ namespace jiminy
         return frameName_;
     }
 
-    const pinocchio::FrameIndex & ForceSensor::getFrameIdx() const
+    pinocchio::FrameIndex ForceSensor::getFrameIdx() const
     {
         return frameIdx_;
     }
@@ -374,7 +374,7 @@ namespace jiminy
         return parentJointIdx_;
     }
 
-    hresult_t ForceSensor::set(const float64_t & /* t */,
+    hresult_t ForceSensor::set(float64_t /* t */,
                                const Eigen::VectorXd & /* q */,
                                const Eigen::VectorXd & /* v */,
                                const Eigen::VectorXd & /* a */,
@@ -386,7 +386,7 @@ namespace jiminy
         GET_ROBOT_IF_INITIALIZED()
 
         // Get the sum of external forces applied on parent joint
-        const pinocchio::JointIndex & i = parentJointIdx_;
+        pinocchio::JointIndex i = parentJointIdx_;
         const pinocchio::Force & fJoint = fExternal[i];
 
         // Transform the force from joint frame to sensor frame
@@ -469,17 +469,17 @@ namespace jiminy
         return jointName_;
     }
 
-    const pinocchio::JointIndex & EncoderSensor::getJointIdx() const
+    pinocchio::JointIndex EncoderSensor::getJointIdx() const
     {
         return jointIdx_;
     }
 
-    const JointModelType & EncoderSensor::getJointType() const
+    JointModelType EncoderSensor::getJointType() const
     {
         return jointType_;
     }
 
-    hresult_t EncoderSensor::set(const float64_t & /* t */,
+    hresult_t EncoderSensor::set(float64_t /* t */,
                                  const Eigen::VectorXd & q,
                                  const Eigen::VectorXd & v,
                                  const Eigen::VectorXd & /* a */,
@@ -489,12 +489,12 @@ namespace jiminy
         GET_ROBOT_IF_INITIALIZED()
 
         const auto & joint = robot->pncModel_.joints[jointIdx_];
-        const int32_t & jointPositionIdx = joint.idx_q();
-        const int32_t & jointVelocityIdx = joint.idx_v();
+        int32_t jointPositionIdx = joint.idx_q();
+        int32_t jointVelocityIdx = joint.idx_v();
         if (jointType_ == JointModelType::ROTARY_UNBOUNDED)
         {
-            const float64_t & cosTheta = q[jointPositionIdx];
-            const float64_t & sinTheta = q[jointPositionIdx + 1];
+            float64_t cosTheta = q[jointPositionIdx];
+            float64_t sinTheta = q[jointPositionIdx + 1];
             data()[0] = std::atan2(sinTheta, cosTheta);
         }
         else
@@ -569,7 +569,7 @@ namespace jiminy
         return motorIdx_;
     }
 
-    hresult_t EffortSensor::set(const float64_t & /* t */,
+    hresult_t EffortSensor::set(float64_t /* t */,
                                 const Eigen::VectorXd & /* q */,
                                 const Eigen::VectorXd & /* v */,
                                 const Eigen::VectorXd & /* a */,

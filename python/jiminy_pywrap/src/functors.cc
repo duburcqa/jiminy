@@ -65,7 +65,7 @@ namespace jiminy::python
         }
 
         static std::shared_ptr<HeightmapFunctor> factory(bp::object & objPy,
-                                                         const heightmapType_t & objType)
+                                                         heightmapType_t objType)
         {
             return std::make_shared<HeightmapFunctor>(HeightmapFunctorPyWrapper(objPy, objType));
         }

@@ -101,7 +101,7 @@ namespace jiminy
         GenericConfig getOptions() const;
 
         /// \brief Actual effort of the motor at the current time.
-        const float64_t & get() const;
+        float64_t get() const;
 
         /// \brief Actual effort of all the motors at the current time.
         const Eigen::VectorXd & getAll() const;
@@ -117,7 +117,7 @@ namespace jiminy
         hresult_t setOptionsAll(const GenericConfig & motorOptions);
 
         /// \brief Whether the motor has been initialized.
-        const bool_t & getIsInitialized() const;
+        bool_t getIsInitialized() const;
 
         /// \brief Name of the motor.
         const std::string & getName() const;
@@ -129,22 +129,22 @@ namespace jiminy
         const std::string & getJointName() const;
 
         /// \brief Index of the joint associated with the motor in the kinematic tree.
-        const pinocchio::JointIndex & getJointModelIdx() const;
+        pinocchio::JointIndex getJointModelIdx() const;
 
         /// \brief Type of joint associated with the motor.
-        const JointModelType & getJointType() const;
+        JointModelType getJointType() const;
 
         /// \brief Index of the joint associated with the motor in configuration vector.
-        const int32_t & getJointPositionIdx() const;
+        int32_t getJointPositionIdx() const;
 
         /// \brief Index of the joint associated with the motor in the velocity vector.
-        const int32_t & getJointVelocityIdx() const;
+        int32_t getJointVelocityIdx() const;
 
         /// \brief Maximum effort of the motor.
-        const float64_t & getCommandLimit() const;
+        float64_t getCommandLimit() const;
 
         /// \brief Rotor inertia of the motor.
-        const float64_t & getArmature() const;
+        float64_t getArmature() const;
 
         /// \brief Request the motor to update its actual effort based of the input data.
         ///
@@ -156,10 +156,10 @@ namespace jiminy
         /// \param[in] v Current velocity of the motor.
         /// \param[in] a Current acceleration of the motor.
         /// \param[in] command Current command effort of the motor.
-        virtual hresult_t computeEffort(const float64_t & t,
+        virtual hresult_t computeEffort(float64_t t,
                                         const Eigen::VectorBlock<const Eigen::VectorXd> & q,
-                                        const float64_t & v,
-                                        const float64_t & a,
+                                        float64_t v,
+                                        float64_t a,
                                         float64_t command) = 0; /* copy on purpose */
 
         /// \brief Request every motors to update their actual effort based of the input data.
@@ -177,7 +177,7 @@ namespace jiminy
         /// \param[in] command Current command effort vector of the robot.
         ///
         /// \return Return code to determine whether the execution of the method was successful.
-        hresult_t computeEffortAll(const float64_t & t,
+        hresult_t computeEffortAll(float64_t t,
                                    const Eigen::VectorXd & q,
                                    const Eigen::VectorXd & v,
                                    const Eigen::VectorXd & a,

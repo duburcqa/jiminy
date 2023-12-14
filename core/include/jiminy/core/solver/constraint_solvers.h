@@ -50,9 +50,8 @@ namespace jiminy
         ///        s.t. if fIndices[i].size() == 0, lo[i] < x[i] < hi[i]
         ///             else, sqrt(x[i] ** 2 + sum_{j>=1}(x[fIndices[i][j]] ** 2)) < hi[i] *
         ///                   max(0.0, x[fIndices[i][0]])
-        virtual bool_t SolveBoxedForwardDynamics(const float64_t & dampingInv,
-                                                 const bool_t & isStateUpToDate,
-                                                 const bool_t & ignoreBounds) = 0;
+        virtual bool_t SolveBoxedForwardDynamics(
+            float64_t dampingInv, bool_t isStateUpToDate, bool_t ignoreBounds) = 0;
     };
 
     class JIMINY_DLLAPI PGSSolver : public AbstractConstraintSolver
@@ -64,17 +63,16 @@ namespace jiminy
         PGSSolver(const pinocchio::Model * model,
                   pinocchio::Data * data,
                   constraintsHolder_t * constraintsHolder,
-                  const float64_t & friction,
-                  const float64_t & torsion,
-                  const float64_t & tolAbs,
-                  const float64_t & tolRel,
-                  const uint32_t & maxIter);
+                  float64_t friction,
+                  float64_t torsion,
+                  float64_t tolAbs,
+                  float64_t tolRel,
+                  uint32_t maxIter);
         virtual ~PGSSolver() = default;
 
-        virtual bool_t SolveBoxedForwardDynamics(
-            const float64_t & dampingInv,
-            const bool_t & isStateUpToDate = false,
-            const bool_t & ignoreBounds = false) override final;
+        virtual bool_t SolveBoxedForwardDynamics(float64_t dampingInv,
+                                                 bool_t isStateUpToDate = false,
+                                                 bool_t ignoreBounds = false) override final;
 
     private:
         void ProjectedGaussSeidelIter(const Eigen::MatrixXd & A,
