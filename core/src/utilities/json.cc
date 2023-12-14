@@ -263,7 +263,7 @@ namespace jiminy
                 }
                 else
                 {
-                    field = Eigen::VectorXd();
+                    field = Eigen::VectorXd{};
                 }
             }
             else

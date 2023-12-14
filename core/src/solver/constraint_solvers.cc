@@ -144,10 +144,10 @@ namespace jiminy
                 const ConstraintBlock & block = constraintData.blocks[i];
                 const Eigen::Index * fIdx = block.fIdx;
                 const std::uint_fast8_t & fSize = block.fSize;
-                Eigen::Index o = constraintData.startIdx;
+                const Eigen::Index o = constraintData.startIdx;
                 const Eigen::Index i0 = o + fIdx[0];
-                float64_t hi = block.hi;
-                float64_t lo = block.lo;
+                const float64_t hi = block.hi;
+                const float64_t lo = block.lo;
                 float64_t & e = x[i0];
 
                 // Bypass zero-ed coefficients
@@ -169,7 +169,7 @@ namespace jiminy
                 {
                     const Eigen::Index k = o + fIdx[j];
                     y_[k] = b[k] - A.col(k).dot(x);
-                    float64_t A_kk = A(k, k);
+                    const float64_t A_kk = A(k, k);
                     if (A_kk > A_max)
                     {
                         A_max = A_kk;
@@ -202,7 +202,7 @@ namespace jiminy
                         float64_t squaredNorm = e * e;
                         for (std::uint_fast8_t j = 1; j < fSize - 1; ++j)
                         {
-                            float64_t f = xConst[fIdx[j]];
+                            const float64_t f = xConst[fIdx[j]];
                             squaredNorm += f * f;
                         }
                         if (squaredNorm > thr * thr)

@@ -182,7 +182,7 @@ namespace jiminy::python
                 for (const auto & sensorData : sensorsDataType.second)
                 {
                     const std::string & sensorName = sensorData.name;
-                    const std::size_t & sensorIdx = sensorData.idx;
+                    std::size_t sensorIdx = sensorData.idx;
                     const Eigen::Ref<const Eigen::VectorXd> & sensorDataValue = sensorData.value;
                     s << "    (" << sensorIdx << ") " << sensorName << ": "
                       << sensorDataValue.transpose().format(HeavyFmt);
@@ -275,7 +275,7 @@ namespace jiminy::python
             for (std::size_t i = 0; i < fieldnames.size(); ++i)
             {
                 const std::string & field = fieldnames[i];
-                float64_t value = sensorDataValue[i];
+                const float64_t value = sensorDataValue[i];
                 if (i > 0)
                 {
                     s << ", ";
