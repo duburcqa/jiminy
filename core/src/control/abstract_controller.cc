@@ -93,7 +93,7 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    hresult_t AbstractController::reset(const bool_t & resetDynamicTelemetry)
+    hresult_t AbstractController::reset(bool_t resetDynamicTelemetry)
     {
         if (!isInitialized_)
         {
@@ -182,7 +182,7 @@ namespace jiminy
     hresult_t registerVariableImpl(
         static_map_t<std::string, std::variant<const float64_t *, const int64_t *>> &
             registeredVariables,
-        const bool_t & isTelemetryConfigured,
+        bool_t isTelemetryConfigured,
         const std::vector<std::string> & fieldnames,
         const Eigen::Ref<Eigen::Matrix<T, -1, 1>, 0, Eigen::InnerStride<>> & values)
     {
@@ -253,12 +253,12 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    const bool_t & AbstractController::getIsInitialized() const
+    bool_t AbstractController::getIsInitialized() const
     {
         return isInitialized_;
     }
 
-    const bool_t & AbstractController::getIsTelemetryConfigured() const
+    bool_t AbstractController::getIsTelemetryConfigured() const
     {
         return isTelemetryConfigured_;
     }

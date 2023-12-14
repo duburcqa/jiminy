@@ -61,7 +61,7 @@ namespace jiminy
 #endif
     }
 
-    hresult_t FileDevice::doOpen(const openMode_t & mode)
+    hresult_t FileDevice::doOpen(openMode_t mode)
     {
         int32_t posixFLags = 0;
         if (mode & openMode_t::READ_ONLY)

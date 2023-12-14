@@ -96,12 +96,12 @@ namespace jiminy
         return sensorOptionsHolder_;
     }
 
-    const bool_t & AbstractSensorBase::getIsInitialized() const
+    bool_t AbstractSensorBase::getIsInitialized() const
     {
         return isInitialized_;
     }
 
-    const bool_t & AbstractSensorBase::getIsTelemetryConfigured() const
+    bool_t AbstractSensorBase::getIsTelemetryConfigured() const
     {
         return isTelemetryConfigured_;
     }

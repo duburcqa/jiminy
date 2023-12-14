@@ -80,10 +80,10 @@ namespace jiminy
         virtual hresult_t setOptions(const GenericConfig & motorOptions) final override;
 
     private:
-        virtual hresult_t computeEffort(const float64_t & t,
+        virtual hresult_t computeEffort(float64_t t,
                                         const Eigen::VectorBlock<const Eigen::VectorXd> & q,
-                                        const float64_t & v,
-                                        const float64_t & a,
+                                        float64_t v,
+                                        float64_t a,
                                         float64_t command) final override;
 
     private:

@@ -32,7 +32,7 @@
 #include "jiminy/core/constraints/abstract_constraint.h"
 #include "jiminy/core/constraints/joint_constraint.h"
 #include "jiminy/core/constraints/sphere_constraint.h"
-#include "jiminy/core/constraints/fixed_frame_constraint.h"
+#include "jiminy/core/constraints/frame_constraint.h"
 #include "jiminy/core/utilities/pinocchio.h"
 #include "jiminy/core/utilities/random.h"
 #include "jiminy/core/utilities/helpers.h"
@@ -59,7 +59,7 @@ namespace jiminy
     }
 
     std::pair<constraintsMap_t *, constraintsMap_t::iterator> constraintsHolder_t::find(
-        const std::string & key, const constraintsHolderType_t & holderType)
+        const std::string & key, constraintsHolderType_t holderType)
     {
         // Pointers are NOT initialized to nullptr by default
         constraintsMap_t * constraintsMapPtr = nullptr;
@@ -98,7 +98,7 @@ namespace jiminy
     }
 
     bool_t constraintsHolder_t::exist(const std::string & key,
-                                      const constraintsHolderType_t & holderType) const
+                                      constraintsHolderType_t holderType) const
     {
         const auto [constraintsMapPtr, constraintIt] =
             const_cast<constraintsHolder_t *>(this)->find(key, holderType);
@@ -107,7 +107,7 @@ namespace jiminy
 
     bool_t constraintsHolder_t::exist(const std::string & key) const
     {
-        for (const constraintsHolderType_t & holderType : constraintsHolderTypesAll)
+        for (constraintsHolderType_t holderType : constraintsHolderTypesAll)
         {
             if (exist(key, holderType))
             {
@@ -118,7 +118,7 @@ namespace jiminy
     }
 
     std::shared_ptr<AbstractConstraintBase> constraintsHolder_t::get(
-        const std::string & key, const constraintsHolderType_t & holderType)
+        const std::string & key, constraintsHolderType_t holderType)
     {
         auto [constraintsMapPtr, constraintIt] = find(key, holderType);
         if (constraintsMapPtr && constraintIt != constraintsMapPtr->end())
@@ -131,7 +131,7 @@ namespace jiminy
     std::shared_ptr<AbstractConstraintBase> constraintsHolder_t::get(const std::string & key)
     {
         std::shared_ptr<AbstractConstraintBase> constraint;
-        for (const constraintsHolderType_t & holderType : constraintsHolderTypesAll)
+        for (constraintsHolderType_t holderType : constraintsHolderTypesAll)
         {
             constraint = get(key, holderType);
             if (constraint)
@@ -143,7 +143,7 @@ namespace jiminy
     }
 
     void constraintsHolder_t::insert(const constraintsMap_t & constraintsMap,
-                                     const constraintsHolderType_t & holderType)
+                                     constraintsHolderType_t holderType)
     {
         switch (holderType)
         {
@@ -163,8 +163,8 @@ namespace jiminy
         }
     }
 
-    constraintsMap_t::iterator constraintsHolder_t::erase(
-        const std::string & key, const constraintsHolderType_t & holderType)
+    constraintsMap_t::iterator constraintsHolder_t::erase(const std::string & key,
+                                                          constraintsHolderType_t holderType)
     {
         auto [constraintsMapPtr, constraintIt] = find(key, holderType);
         if (constraintsMapPtr && constraintIt != constraintsMapPtr->end())
@@ -333,9 +333,9 @@ namespace jiminy
     }
 
     hresult_t Model::initialize(const std::string & urdfPath,
-                                const bool_t & hasFreeflyer,
+                                bool_t hasFreeflyer,
                                 const std::vector<std::string> & meshPackageDirs,
-                                const bool_t & loadVisualMeshes)
+                                bool_t loadVisualMeshes)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -416,8 +416,7 @@ namespace jiminy
         {
             // Add the frame to the the original rigid model
             {
-                const pinocchio::JointIndex & parentJointId =
-                    pncModelOrig_.frames[parentFrameId].parent;
+                pinocchio::JointIndex parentJointId = pncModelOrig_.frames[parentFrameId].parent;
                 const pinocchio::SE3 & parentFramePlacement =
                     pncModelOrig_.frames[parentFrameId].placement;
                 const pinocchio::SE3 jointFramePlacement =
@@ -433,7 +432,7 @@ namespace jiminy
                 getFrameIdx(pncModelFlexibleOrig_,
                             parentBodyName,
                             parentFrameId);  // Cannot fail at this point
-                const pinocchio::JointIndex & parentJointId =
+                pinocchio::JointIndex parentJointId =
                     pncModelFlexibleOrig_.frames[parentFrameId].parent;
                 const pinocchio::SE3 & parentFramePlacement =
                     pncModelFlexibleOrig_.frames[parentFrameId].placement;
@@ -532,7 +531,7 @@ namespace jiminy
     }
 
     hresult_t Model::addCollisionBodies(const std::vector<std::string> & bodyNames,
-                                        const bool_t & ignoreMeshes)
+                                        bool_t ignoreMeshes)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -651,15 +650,10 @@ namespace jiminy
                             //     std::make_shared<SphereConstraint>(geom.name, sphere.radius));
                             collisionConstraintsMap.emplace_back(
                                 geom.name,
-                                std::make_shared<FixedFrameConstraint>(
+                                std::make_shared<FrameConstraint>(
                                     geom.name,
-                                    (Eigen::Matrix<bool_t, 6, 1>() << true,
-                                     true,
-                                     true,
-                                     false,
-                                     false,
-                                     true)
-                                        .finished()));
+                                    std::array<bool_t, 6>{
+                                        {true, true, true, false, false, true}}));
                         }
 
                         // TODO: Add warning or error to notify that a geometry has been ignored
@@ -804,10 +798,8 @@ namespace jiminy
         {
             frameConstraintsMap.emplace_back(
                 frameName,
-                std::make_shared<FixedFrameConstraint>(
-                    frameName,
-                    (Eigen::Matrix<bool_t, 6, 1>() << true, true, true, false, false, true)
-                        .finished()));
+                std::make_shared<FrameConstraint>(
+                    frameName, std::array<bool_t, 6>{{true, true, true, false, false, true}}));
         }
         returnCode = addConstraints(frameConstraintsMap, constraintsHolderType_t::CONTACT_FRAMES);
 
@@ -864,7 +856,7 @@ namespace jiminy
     }
 
     hresult_t Model::addConstraints(const constraintsMap_t & constraintsMap,
-                                    const constraintsHolderType_t & holderType)
+                                    constraintsHolderType_t holderType)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -912,11 +904,9 @@ namespace jiminy
 
     hresult_t Model::addConstraint(const std::string & constraintName,
                                    const std::shared_ptr<AbstractConstraintBase> & constraint,
-                                   const constraintsHolderType_t & holderType)
+                                   constraintsHolderType_t holderType)
     {
-        // clang-format off
-        return addConstraints({{constraintName , constraint}} , holderType);
-        // clang-format on
+        return addConstraints({{constraintName, constraint}}, holderType);
     }
 
     hresult_t Model::addConstraint(const std::string & constraintName,
@@ -926,7 +916,7 @@ namespace jiminy
     }
 
     hresult_t Model::removeConstraints(const std::vector<std::string> & constraintsNames,
-                                       const constraintsHolderType_t & holderType)
+                                       constraintsHolderType_t holderType)
     {
         // Make sure the constraints exists
         for (const std::string & constraintName : constraintsNames)
@@ -963,7 +953,7 @@ namespace jiminy
     }
 
     hresult_t Model::removeConstraint(const std::string & constraintName,
-                                      const constraintsHolderType_t & holderType)
+                                      constraintsHolderType_t holderType)
     {
         return removeConstraints({constraintName}, holderType);
     }
@@ -1014,7 +1004,7 @@ namespace jiminy
 
         constraintsHolder_.foreach(
             [&q, &v, &returnCode](const std::shared_ptr<AbstractConstraintBase> & constraint,
-                                  const constraintsHolderType_t & /* holderType */)
+                                  constraintsHolderType_t /* holderType */)
             {
                 if (returnCode == hresult_t::SUCCESS)
                 {
@@ -1028,10 +1018,9 @@ namespace jiminy
                 std::array<constraintsHolderType_t, 3>{
                     {constraintsHolderType_t::BOUNDS_JOINTS,
                      constraintsHolderType_t::CONTACT_FRAMES,
-                     constraintsHolderType_t::COLLISION_BODIES}
-            },
+                     constraintsHolderType_t::COLLISION_BODIES}},
                 [](const std::shared_ptr<AbstractConstraintBase> & constraint,
-                   const constraintsHolderType_t & /* holderType */) { constraint->disable(); });
+                   constraintsHolderType_t /* holderType */) { constraint->disable(); });
         }
 
         return returnCode;
@@ -1118,7 +1107,7 @@ namespace jiminy
             }
 
             // Check that the armature inertia is valid
-            for (const pinocchio::JointIndex & flexibleJointModelIdx : flexibleJointsModelIdx_)
+            for (pinocchio::JointIndex flexibleJointModelIdx : flexibleJointsModelIdx_)
             {
                 const pinocchio::Inertia & flexibleInertia =
                     pncModelFlexibleOrig_.inertias[flexibleJointModelIdx];
@@ -1170,11 +1159,10 @@ namespace jiminy
 
             for (const std::string & jointName : rigidJointsNames_)
             {
-                const pinocchio::JointIndex & jointIdx = pncModel_.getJointId(jointName);
+                pinocchio::JointIndex jointIdx = pncModel_.getJointId(jointName);
 
                 // Add bias to com position
-                const float64_t & comBiasStd =
-                    mdlOptions_->dynamics.centerOfMassPositionBodiesBiasStd;
+                float64_t comBiasStd = mdlOptions_->dynamics.centerOfMassPositionBodiesBiasStd;
                 if (comBiasStd > EPS)
                 {
                     Eigen::Vector3d & comRelativePositionBody =
@@ -1185,7 +1173,7 @@ namespace jiminy
 
                 /* Add bias to body mass.
                    It cannot be less than min(original mass, 1g) for numerical stability. */
-                const float64_t & massBiasStd = mdlOptions_->dynamics.massBodiesBiasStd;
+                float64_t massBiasStd = mdlOptions_->dynamics.massBodiesBiasStd;
                 if (massBiasStd > EPS)
                 {
                     float64_t & massBody = pncModel_.inertias[jointIdx].mass();
@@ -1200,7 +1188,7 @@ namespace jiminy
                    small rotation is applied to the principal axes based on a randomly generated
                    rotation axis. Finally, the biased inertia matrix is obtained doing
                    `A @ diag(M) @ A.T`. If no bias, the original inertia matrix is recovered. */
-                const float64_t & inertiaBiasStd = mdlOptions_->dynamics.inertiaBodiesBiasStd;
+                float64_t inertiaBiasStd = mdlOptions_->dynamics.inertiaBodiesBiasStd;
                 if (inertiaBiasStd > EPS)
                 {
                     pinocchio::Symmetric3 & inertiaBody = pncModel_.inertias[jointIdx].inertia();
@@ -1219,7 +1207,7 @@ namespace jiminy
                 }
 
                 // Add bias to relative body position (rotation excluded !)
-                const float64_t & relativeBodyPosBiasStd =
+                float64_t relativeBodyPosBiasStd =
                     mdlOptions_->dynamics.relativePositionBodiesBiasStd;
                 if (relativeBodyPosBiasStd > EPS)
                 {
@@ -1272,7 +1260,7 @@ namespace jiminy
         // Compute sequentially the jacobian and drift of each enabled constraint
         constraintsHolder_.foreach(
             [&](const std::shared_ptr<AbstractConstraintBase> & constraint,
-                const constraintsHolderType_t & /* holderType */)
+                constraintsHolderType_t /* holderType */)
             {
                 // Skip constraint if disabled
                 if (!constraint || !constraint->getIsEnabled())
@@ -1429,7 +1417,7 @@ namespace jiminy
                 {
                     for (std::size_t i = 0; i < rigidJointsPositionIdx_.size(); ++i)
                     {
-                        const uint32_t & positionIdx = rigidJointsPositionIdx_[i];
+                        uint32_t positionIdx = rigidJointsPositionIdx_[i];
                         positionLimitMin_[positionIdx] = mdlOptions_->joints.positionLimitMin[i];
                         positionLimitMax_[positionIdx] = mdlOptions_->joints.positionLimitMax[i];
                     }
@@ -1445,19 +1433,19 @@ namespace jiminy
 
                 if (jointType == JointModelType::SPHERICAL)
                 {
-                    const uint32_t & positionIdx = pncModel_.joints[i].idx_q();
+                    uint32_t positionIdx = pncModel_.joints[i].idx_q();
                     positionLimitMin_.segment<4>(positionIdx).setConstant(-1.0 - EPS);
                     positionLimitMax_.segment<4>(positionIdx).setConstant(+1.0 + EPS);
                 }
                 if (jointType == JointModelType::FREE)
                 {
-                    const uint32_t & positionIdx = pncModel_.joints[i].idx_q();
+                    uint32_t positionIdx = pncModel_.joints[i].idx_q();
                     positionLimitMin_.segment<4>(positionIdx + 3).setConstant(-1.0 - EPS);
                     positionLimitMax_.segment<4>(positionIdx + 3).setConstant(+1.0 + EPS);
                 }
                 if (jointType == JointModelType::ROTARY_UNBOUNDED)
                 {
-                    const uint32_t & positionIdx = pncModel_.joints[i].idx_q();
+                    uint32_t positionIdx = pncModel_.joints[i].idx_q();
                     positionLimitMin_.segment<2>(positionIdx).setConstant(-1.0 - EPS);
                     positionLimitMax_.segment<2>(positionIdx).setConstant(+1.0 + EPS);
                 }
@@ -1478,7 +1466,7 @@ namespace jiminy
                 {
                     for (std::size_t i = 0; i < rigidJointsVelocityIdx_.size(); ++i)
                     {
-                        const uint32_t & velocityIdx = rigidJointsVelocityIdx_[i];
+                        uint32_t velocityIdx = rigidJointsVelocityIdx_[i];
                         velocityLimit_[velocityIdx] = mdlOptions_->joints.velocityLimit[i];
                     }
                 }
@@ -1522,9 +1510,8 @@ namespace jiminy
             // Update joint/frame fix for every geometry objects
             if (mdlOptions_->dynamics.enableFlexibleModel)
             {
-                for (auto model : std::array<pinocchio::GeometryModel *, 2>{
-                         {&collisionModel_, &visualModel_}
-                })
+                for (auto model :
+                     std::array<pinocchio::GeometryModel *, 2>{{&collisionModel_, &visualModel_}})
                 {
                     for (pinocchio::GeometryObject & geom : model->geometryObjects)
                     {
@@ -1628,7 +1615,7 @@ namespace jiminy
 
         constraintsHolder_.foreach(
             [&](const std::shared_ptr<AbstractConstraintBase> & constraint,
-                const constraintsHolderType_t & /* holderType */)
+                constraintsHolderType_t /* holderType */)
             {
                 if (returnCode == hresult_t::SUCCESS)
                 {
@@ -1789,7 +1776,7 @@ namespace jiminy
             }
 
             // Check if the flexible model and its proxies must be regenerated
-            const bool_t & enableFlexibleModel =
+            bool_t enableFlexibleModel =
                 boost::get<bool_t>(dynOptionsHolder.at("enableFlexibleModel"));
             if (mdlOptions_ &&
                 (flexibilityConfig.size() != mdlOptions_->dynamics.flexibilityConfig.size() ||
@@ -1805,7 +1792,7 @@ namespace jiminy
         // Check that the collisions options are valid
         GenericConfig & collisionOptionsHolder =
             boost::get<GenericConfig>(modelOptions.at("collisions"));
-        const uint32_t & maxContactPointsPerBody =
+        uint32_t maxContactPointsPerBody =
             boost::get<uint32_t>(collisionOptionsHolder.at("maxContactPointsPerBody"));
         if (maxContactPointsPerBody < 1)
         {
@@ -1821,13 +1808,12 @@ namespace jiminy
 
         // Check that the model randomization parameters are valid
         GenericConfig & dynOptionsHolder = boost::get<GenericConfig>(modelOptions.at("dynamics"));
-        for (const auto & field : std::array<std::string, 4>{
-                 {"inertiaBodiesBiasStd",
-                  "massBodiesBiasStd", "centerOfMassPositionBodiesBiasStd",
-                  "relativePositionBodiesBiasStd"}
-        })
+        for (const auto & field : std::array<std::string, 4>{{"inertiaBodiesBiasStd",
+                                                              "massBodiesBiasStd",
+                                                              "centerOfMassPositionBodiesBiasStd",
+                                                              "relativePositionBodiesBiasStd"}})
         {
-            const float64_t & value = boost::get<float64_t>(dynOptionsHolder.at(field));
+            float64_t value = boost::get<float64_t>(dynOptionsHolder.at(field));
             if (0.9 < value || value < 0.0)
             {
                 PRINT_ERROR(
@@ -1866,7 +1852,7 @@ namespace jiminy
         return mdlOptionsHolder_;
     }
 
-    const bool_t & Model::getIsInitialized() const
+    bool_t Model::getIsInitialized() const
     {
         return isInitialized_;
     }
@@ -1891,7 +1877,7 @@ namespace jiminy
         return meshPackageDirs_;
     }
 
-    const bool_t & Model::getHasFreeflyer() const
+    bool_t Model::getHasFreeflyer() const
     {
         return hasFreeflyer_;
     }
@@ -1900,7 +1886,7 @@ namespace jiminy
                                                        Eigen::VectorXd & qFlex) const
     {
         // Define some proxies
-        const uint32_t & nqRigid = pncModelOrig_.nq;
+        uint32_t nqRigid = pncModelOrig_.nq;
 
         // Check the size of the input state
         if (qRigid.size() != nqRigid)
@@ -1939,7 +1925,7 @@ namespace jiminy
                                                        Eigen::VectorXd & qRigid) const
     {
         // Define some proxies
-        const uint32_t & nqFlex = pncModelFlexibleOrig_.nq;
+        uint32_t nqFlex = pncModelFlexibleOrig_.nq;
 
         // Check the size of the input state
         if (qFlex.size() != nqFlex)
@@ -1978,8 +1964,8 @@ namespace jiminy
                                                   Eigen::VectorXd & vFlex) const
     {
         // Define some proxies
-        const uint32_t & nvRigid = pncModelOrig_.nv;
-        const uint32_t & nvFlex = pncModelFlexibleOrig_.nv;
+        uint32_t nvRigid = pncModelOrig_.nv;
+        uint32_t nvFlex = pncModelFlexibleOrig_.nv;
 
         // Check the size of the input state
         if (vRigid.size() != nvRigid)
@@ -2018,8 +2004,8 @@ namespace jiminy
                                                   Eigen::VectorXd & vRigid) const
     {
         // Define some proxies
-        const uint32_t & nvRigid = pncModelOrig_.nv;
-        const uint32_t & nvFlex = pncModelFlexibleOrig_.nv;
+        uint32_t nvRigid = pncModelOrig_.nv;
+        uint32_t nvFlex = pncModelFlexibleOrig_.nv;
 
         // Check the size of the input state
         if (vFlex.size() != nvFlex)
@@ -2171,7 +2157,7 @@ namespace jiminy
             .foreach(
                 [&hasConstraintsEnabled](
                     const std::shared_ptr<AbstractConstraintBase> & constraint,
-                    const constraintsHolderType_t & /* holderType */)
+                    constraintsHolderType_t /* holderType */)
                 {
                     if (constraint->getIsEnabled())
                     {
@@ -2181,17 +2167,17 @@ namespace jiminy
         return hasConstraintsEnabled;
     }
 
-    const int32_t & Model::nq() const
+    int32_t Model::nq() const
     {
         return nq_;
     }
 
-    const int32_t & Model::nv() const
+    int32_t Model::nv() const
     {
         return nv_;
     }
 
-    const int32_t & Model::nx() const
+    int32_t Model::nx() const
     {
         return nx_;
     }

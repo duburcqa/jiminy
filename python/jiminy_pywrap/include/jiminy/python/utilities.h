@@ -224,7 +224,7 @@ namespace jiminy::python
             doc, std::pair{"fget", getMemberFuncPtr}, std::pair{"fset", setMemberFuncPtr});
     }
 
-// clang-format off
+    // clang-format off
     #define DEF_READONLY3(namePy, memberFuncPtr, doc) \
         def_readonly(namePy, \
                      memberFuncPtr, \
@@ -553,36 +553,29 @@ namespace jiminy::python
         switch (PyArray_NDIM(dataPyArray))
         {
         case 0:
-            return {
-                {static_cast<T *>(PyArray_DATA(dataPyArray)), 1, 1, {1, 1}}
-            };
+            return {{static_cast<T *>(PyArray_DATA(dataPyArray)), 1, 1, {1, 1}}};
         case 1:
-            return {
-                {static_cast<T *>(PyArray_DATA(dataPyArray)),
-                 PyArray_SIZE(dataPyArray),
-                 1, {PyArray_SIZE(dataPyArray), 1}}
-            };
+            return {{static_cast<T *>(PyArray_DATA(dataPyArray)),
+                     PyArray_SIZE(dataPyArray),
+                     1,
+                     {PyArray_SIZE(dataPyArray), 1}}};
         case 2:
         {
             int32_t flags = PyArray_FLAGS(dataPyArray);
             npy_intp * dataPyArrayShape = PyArray_SHAPE(dataPyArray);
             if (flags & NPY_ARRAY_C_CONTIGUOUS)
             {
-                return {
-                    {static_cast<T *>(PyArray_DATA(dataPyArray)),
-                     dataPyArrayShape[0],
-                     dataPyArrayShape[1],
-                     {1, dataPyArrayShape[1]}}
-                };
+                return {{static_cast<T *>(PyArray_DATA(dataPyArray)),
+                         dataPyArrayShape[0],
+                         dataPyArrayShape[1],
+                         {1, dataPyArrayShape[1]}}};
             }
             if (flags & NPY_ARRAY_F_CONTIGUOUS)
             {
-                return {
-                    {static_cast<T *>(PyArray_DATA(dataPyArray)),
-                     dataPyArrayShape[0],
-                     dataPyArrayShape[1],
-                     {dataPyArrayShape[0], 1}}
-                };
+                return {{static_cast<T *>(PyArray_DATA(dataPyArray)),
+                         dataPyArrayShape[0],
+                         dataPyArrayShape[1],
+                         {dataPyArrayShape[0], 1}}};
             }
             PRINT_ERROR("Numpy arrays must be either row or column contiguous.");
             return {};

@@ -160,24 +160,23 @@ namespace jiminy
         if (isInitialized_)
         {
             // Check if armature has changed
-            const bool_t & enableArmature = boost::get<bool_t>(motorOptions.at("enableArmature"));
+            bool_t enableArmature = boost::get<bool_t>(motorOptions.at("enableArmature"));
             internalBuffersMustBeUpdated |= (baseMotorOptions_->enableArmature != enableArmature);
             if (enableArmature)
             {
-                const float64_t & armature = boost::get<float64_t>(motorOptions.at("armature"));
+                float64_t armature = boost::get<float64_t>(motorOptions.at("armature"));
                 internalBuffersMustBeUpdated |=  //
                     std::abs(armature - baseMotorOptions_->armature) > EPS;
             }
 
             // Check if command limit has changed
-            const bool_t & commandLimitFromUrdf =
+            bool_t commandLimitFromUrdf =
                 boost::get<bool_t>(motorOptions.at("commandLimitFromUrdf"));
             internalBuffersMustBeUpdated |=
                 (baseMotorOptions_->commandLimitFromUrdf != commandLimitFromUrdf);
             if (!commandLimitFromUrdf)
             {
-                const float64_t & commandLimit =
-                    boost::get<float64_t>(motorOptions.at("commandLimit"));
+                float64_t commandLimit = boost::get<float64_t>(motorOptions.at("commandLimit"));
                 internalBuffersMustBeUpdated |=
                     std::abs(commandLimit - baseMotorOptions_->commandLimit) > EPS;
             }
@@ -302,7 +301,7 @@ namespace jiminy
         return returnCode;
     }
 
-    const float64_t & AbstractMotorBase::get() const
+    float64_t AbstractMotorBase::get() const
     {
         static float64_t dataEmpty;
         if (isAttached_)
@@ -344,7 +343,7 @@ namespace jiminy
         return returnCode;
     }
 
-    const bool_t & AbstractMotorBase::getIsInitialized() const
+    bool_t AbstractMotorBase::getIsInitialized() const
     {
         return isInitialized_;
     }
@@ -364,37 +363,37 @@ namespace jiminy
         return jointName_;
     }
 
-    const pinocchio::JointIndex & AbstractMotorBase::getJointModelIdx() const
+    pinocchio::JointIndex AbstractMotorBase::getJointModelIdx() const
     {
         return jointModelIdx_;
     }
 
-    const JointModelType & AbstractMotorBase::getJointType() const
+    JointModelType AbstractMotorBase::getJointType() const
     {
         return jointType_;
     }
 
-    const int32_t & AbstractMotorBase::getJointPositionIdx() const
+    int32_t AbstractMotorBase::getJointPositionIdx() const
     {
         return jointPositionIdx_;
     }
 
-    const int32_t & AbstractMotorBase::getJointVelocityIdx() const
+    int32_t AbstractMotorBase::getJointVelocityIdx() const
     {
         return jointVelocityIdx_;
     }
 
-    const float64_t & AbstractMotorBase::getCommandLimit() const
+    float64_t AbstractMotorBase::getCommandLimit() const
     {
         return commandLimit_;
     }
 
-    const float64_t & AbstractMotorBase::getArmature() const
+    float64_t AbstractMotorBase::getArmature() const
     {
         return armature_;
     }
 
-    hresult_t AbstractMotorBase::computeEffortAll(const float64_t & t,
+    hresult_t AbstractMotorBase::computeEffortAll(float64_t t,
                                                   const Eigen::VectorXd & q,
                                                   const Eigen::VectorXd & v,
                                                   const Eigen::VectorXd & a,

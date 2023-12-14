@@ -350,7 +350,7 @@ class SimulateSimpleMass(unittest.TestCase):
         engine.set_options(engine_options)
 
         # Add fixed frame constraint
-        constraint = jiminy.FixedFrameConstraint(
+        constraint = jiminy.FrameConstraint(
             "MassBody", [True, True, True, True, True, True])
         robot.add_constraint("MassBody", constraint)
         constraint.baumgarte_freq = 1.0

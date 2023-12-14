@@ -24,7 +24,7 @@ namespace jiminy
         return jointName_;
     }
 
-    const pinocchio::JointIndex & JointConstraint::getJointIdx() const
+    pinocchio::JointIndex JointConstraint::getJointIdx() const
     {
         return jointIdx_;
     }
@@ -51,7 +51,7 @@ namespace jiminy
         isReversed_ = isReversed;
     }
 
-    const bool_t & JointConstraint::getRotationDir()
+    bool_t JointConstraint::getRotationDir()
     {
         return isReversed_;
     }

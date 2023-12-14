@@ -54,13 +54,13 @@ namespace jiminy::python
         bp::class_<RandomPerlinProcess, bp::bases<AbstractPerlinProcess>,
                    std::shared_ptr<RandomPerlinProcess>,
                    boost::noncopyable>("RandomPerlinProcess",
-                   bp::init<const float64_t &, const float64_t &, const uint32_t &>(
+                   bp::init<float64_t, float64_t, uint32_t>(
                    (bp::arg("self"), "wavelength", bp::arg("scale") = 1.0, bp::arg("num_octaves") = 6U)));
 
         bp::class_<PeriodicPerlinProcess, bp::bases<AbstractPerlinProcess>,
                    std::shared_ptr<PeriodicPerlinProcess>,
                    boost::noncopyable>("PeriodicPerlinProcess",
-                   bp::init<const float64_t &, const float64_t &, const float64_t &, const uint32_t &>(
+                   bp::init<float64_t, float64_t, float64_t, uint32_t>(
                    (bp::arg("self"), "wavelength", "period", bp::arg("scale") = 1.0, bp::arg("num_octaves") = 6U)))
             .ADD_PROPERTY_GET_WITH_POLICY("period",
                                           &PeriodicPerlinProcess::getPeriod,
@@ -69,7 +69,7 @@ namespace jiminy::python
         bp::class_<PeriodicGaussianProcess,
                    std::shared_ptr<PeriodicGaussianProcess>,
                    boost::noncopyable>("PeriodicGaussianProcess",
-                   bp::init<const float64_t &, const float64_t &, const float64_t &>(
+                   bp::init<float64_t, float64_t, float64_t>(
                    (bp::arg("self"), "wavelength", "period", bp::arg("scale") = 1.0)))
             .def("__call__", &PeriodicGaussianProcess::operator(),
                              (bp::arg("self"), bp::arg("time")))
@@ -87,7 +87,7 @@ namespace jiminy::python
         bp::class_<PeriodicFourierProcess,
                    std::shared_ptr<PeriodicFourierProcess>,
                    boost::noncopyable>("PeriodicFourierProcess",
-                   bp::init<const float64_t &, const float64_t &, const float64_t &>(
+                   bp::init<float64_t, float64_t, float64_t>(
                    (bp::arg("self"), "wavelength", "period", bp::arg("scale") = 1.0)))
             .def("__call__", &PeriodicFourierProcess::operator(),
                              (bp::arg("self"), bp::arg("time")))

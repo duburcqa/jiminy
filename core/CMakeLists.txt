@@ -44,7 +44,7 @@ set(SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/src/telemetry/telemetry_recorder.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/constraints/abstract_constraint.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/constraints/joint_constraint.cc"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/constraints/fixed_frame_constraint.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/constraints/frame_constraint.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/constraints/distance_constraint.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/constraints/sphere_constraint.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/constraints/wheel_constraint.cc"

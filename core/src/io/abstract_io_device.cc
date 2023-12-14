@@ -5,27 +5,27 @@
 
 namespace jiminy
 {
-    openMode_t operator|(const openMode_t & modeA, const openMode_t & modeB)
+    openMode_t operator|(openMode_t modeA, openMode_t modeB)
     {
         return static_cast<openMode_t>(static_cast<int32_t>(modeA) | static_cast<int32_t>(modeB));
     }
 
-    openMode_t operator&(const openMode_t & modeA, const openMode_t & modeB)
+    openMode_t operator&(openMode_t modeA, openMode_t modeB)
     {
         return static_cast<openMode_t>(static_cast<int32_t>(modeA) & static_cast<int32_t>(modeB));
     }
 
-    openMode_t operator|=(openMode_t & modeA, const openMode_t & modeB)
+    openMode_t operator|=(openMode_t & modeA, openMode_t modeB)
     {
         return modeA = modeA | modeB;
     }
 
-    openMode_t operator&=(openMode_t & modeA, const openMode_t & modeB)
+    openMode_t operator&=(openMode_t & modeA, openMode_t modeB)
     {
         return modeA = modeA & modeB;
     }
 
-    openMode_t operator~(const openMode_t & mode)
+    openMode_t operator~(openMode_t mode)
     {
         return static_cast<openMode_t>(~static_cast<int32_t>(mode));
     }
@@ -38,7 +38,7 @@ namespace jiminy
     {
     }
 
-    hresult_t AbstractIODevice::open(const openMode_t & modes)
+    hresult_t AbstractIODevice::open(openMode_t modes)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -92,12 +92,12 @@ namespace jiminy
         return returnCode;
     }
 
-    const openMode_t & AbstractIODevice::openModes() const
+    openMode_t AbstractIODevice::openModes() const
     {
         return modes_;
     }
 
-    const openMode_t & AbstractIODevice::supportedModes() const
+    openMode_t AbstractIODevice::supportedModes() const
     {
         return supportedModes_;
     }

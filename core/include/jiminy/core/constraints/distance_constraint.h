@@ -27,8 +27,8 @@ namespace jiminy
         const std::vector<std::string> & getFramesNames() const;
         const std::vector<pinocchio::FrameIndex> & getFramesIdx() const;
 
-        hresult_t setReferenceDistance(const float64_t & distanceRef);
-        const float64_t & getReferenceDistance() const;
+        hresult_t setReferenceDistance(float64_t distanceRef);
+        float64_t getReferenceDistance() const;
 
         virtual hresult_t reset(const Eigen::VectorXd & q,
                                 const Eigen::VectorXd & v) override final;

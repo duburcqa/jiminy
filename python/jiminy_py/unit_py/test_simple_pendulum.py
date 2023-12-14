@@ -571,7 +571,7 @@ class SimulateSimplePendulum(unittest.TestCase):
         robot.set_motors_options(motor_options)
 
         # Set fixed body constraint.
-        freeflyer_constraint = jiminy.FixedFrameConstraint("world")
+        freeflyer_constraint = jiminy.FrameConstraint("world")
         robot.add_constraint("world", freeflyer_constraint)
 
         # Create an engine: simulate a spring internal dynamics

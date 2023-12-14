@@ -10,7 +10,7 @@ namespace jiminy
     }
 
     bool_t EulerExplicitStepper::tryStepImpl(
-        state_t & state, stateDerivative_t & stateDerivative, const float64_t & t, float64_t & dt)
+        state_t & state, stateDerivative_t & stateDerivative, float64_t t, float64_t & dt)
     {
         // Simple explicit Euler: x(t + dt) = x(t) + dt dx(t)
         state.sumInPlace(stateDerivative, dt);

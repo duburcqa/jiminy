@@ -33,13 +33,13 @@ namespace jiminy
 
         void enable();
         void disable();
-        const bool_t & getIsEnabled() const;
+        bool_t getIsEnabled() const;
 
-        hresult_t setBaumgartePositionGain(const float64_t & kp);
+        hresult_t setBaumgartePositionGain(float64_t kp);
         float64_t getBaumgartePositionGain() const;
-        hresult_t setBaumgarteVelocityGain(const float64_t & kd);
+        hresult_t setBaumgarteVelocityGain(float64_t kd);
         float64_t getBaumgarteVelocityGain() const;
-        hresult_t setBaumgarteFreq(const float64_t & freq);
+        hresult_t setBaumgarteFreq(float64_t freq);
         /// \brief Natural frequency of critically damping position/velocity error correction.
         float64_t getBaumgarteFreq() const;
 

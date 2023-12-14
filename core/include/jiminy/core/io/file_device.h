@@ -28,7 +28,7 @@ namespace jiminy
         const std::string & name() const;
 
     protected:
-        hresult_t doOpen(const openMode_t & mode) override;
+        hresult_t doOpen(openMode_t mode) override;
         hresult_t doClose() override;
 
         std::string filename_;

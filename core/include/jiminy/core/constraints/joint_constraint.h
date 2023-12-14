@@ -25,13 +25,13 @@ namespace jiminy
         virtual ~JointConstraint() = default;
 
         const std::string & getJointName() const;
-        const pinocchio::JointIndex & getJointIdx() const;
+        pinocchio::JointIndex getJointIdx() const;
 
         void setReferenceConfiguration(const Eigen::VectorXd & configurationRef);
         const Eigen::VectorXd & getReferenceConfiguration() const;
 
         void setRotationDir(bool_t isReversed);
-        const bool_t & getRotationDir();
+        bool_t getRotationDir();
 
         virtual hresult_t reset(const Eigen::VectorXd & q,
                                 const Eigen::VectorXd & v) override final;

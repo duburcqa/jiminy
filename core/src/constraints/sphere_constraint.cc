@@ -13,7 +13,7 @@ namespace jiminy
     const std::string AbstractConstraintTpl<SphereConstraint>::type_("SphereConstraint");
 
     SphereConstraint::SphereConstraint(const std::string & frameName,
-                                       const float64_t & sphereRadius,
+                                       float64_t sphereRadius,
                                        const Eigen::Vector3d & groundNormal) :
     AbstractConstraintTpl(),
     frameName_(frameName),
@@ -31,7 +31,7 @@ namespace jiminy
         return frameName_;
     }
 
-    const pinocchio::FrameIndex & SphereConstraint::getFrameIdx() const
+    pinocchio::FrameIndex SphereConstraint::getFrameIdx() const
     {
         return frameIdx_;
     }

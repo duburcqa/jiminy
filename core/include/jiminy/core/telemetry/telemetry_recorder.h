@@ -36,21 +36,21 @@ namespace jiminy
         ///
         /// \param[in] telemetryData Data to log.
         /// \param[in] timeUnit Unit with which the time will be logged.
-        hresult_t initialize(TelemetryData * telemetryData, const float64_t & timeUnit);
+        hresult_t initialize(TelemetryData * telemetryData, float64_t timeUnit);
 
-        const bool_t & getIsInitialized();
+        bool_t getIsInitialized();
 
         /// \brief Maximum time that can be logged with the current precision.
         float64_t getMaximumLogTime() const;
 
         /// \brief Maximum time that can be logged with the given precision.
-        static float64_t getMaximumLogTime(const float64_t & timeUnit);
+        static float64_t getMaximumLogTime(float64_t timeUnit);
 
         /// \brief Reset the recorder.
         void reset();
 
         /// \brief Create a new line in the record with the current telemetry data.
-        hresult_t flushDataSnapshot(const float64_t & timestamp);
+        hresult_t flushDataSnapshot(float64_t timestamp);
 
         hresult_t getLog(LogData & logData);
         static hresult_t readLog(const std::string & filename, LogData & logData);

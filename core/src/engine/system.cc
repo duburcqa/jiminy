@@ -17,8 +17,8 @@ namespace jiminy
     // ====================================================
 
     ForceProfile::ForceProfile(const std::string & frameNameIn,
-                               const pinocchio::FrameIndex & frameIdxIn,
-                               const float64_t & updatePeriodIn,
+                               pinocchio::FrameIndex frameIdxIn,
+                               float64_t updatePeriodIn,
                                const ForceProfileFunctor & forceFctIn) :
     frameName(frameNameIn),
     frameIdx(frameIdxIn),
@@ -33,9 +33,9 @@ namespace jiminy
     // ====================================================
 
     ForceImpulse::ForceImpulse(const std::string & frameNameIn,
-                               const pinocchio::FrameIndex & frameIdxIn,
-                               const float64_t & tIn,
-                               const float64_t & dtIn,
+                               pinocchio::FrameIndex frameIdxIn,
+                               float64_t tIn,
+                               float64_t dtIn,
                                const pinocchio::Force & FIn) :
     frameName(frameNameIn),
     frameIdx(frameIdxIn),
@@ -50,13 +50,13 @@ namespace jiminy
     // ====================================================
 
     ForceCoupling::ForceCoupling(const std::string & systemName1In,
-                                 const int32_t & systemIdx1In,
+                                 int32_t systemIdx1In,
                                  const std::string & systemName2In,
-                                 const int32_t & systemIdx2In,
+                                 int32_t systemIdx2In,
                                  const std::string & frameName1In,
-                                 const pinocchio::FrameIndex & frameIdx1In,
+                                 pinocchio::FrameIndex frameIdx1In,
                                  const std::string & frameName2In,
-                                 const pinocchio::FrameIndex & frameIdx2In,
+                                 pinocchio::FrameIndex frameIdx2In,
                                  const ForceCouplingFunctor & forceFctIn) :
     systemName1(systemName1In),
     systemIdx1(systemIdx1In),
@@ -89,7 +89,7 @@ namespace jiminy
     systemHolder_t("",
                    nullptr,
                    nullptr,
-                   [](const float64_t & /* t */,
+                   [](float64_t /* t */,
                       const Eigen::VectorXd & /* q */,
                       const Eigen::VectorXd & /* v */) -> bool_t { return false; })
     {
@@ -135,7 +135,7 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    const bool_t & systemState_t::getIsInitialized() const
+    bool_t systemState_t::getIsInitialized() const
     {
         return isInitialized_;
     }

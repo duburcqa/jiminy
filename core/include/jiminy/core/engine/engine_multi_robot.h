@@ -29,12 +29,11 @@ namespace jiminy
 
     const std::map<std::string, contactModel_t> CONTACT_MODELS_MAP{
         {"spring_damper", contactModel_t::SPRING_DAMPER},
-        {   "constraint",    contactModel_t::CONSTRAINT},
+        {"constraint", contactModel_t::CONSTRAINT},
     };
 
     const std::map<std::string, constraintSolver_t> CONSTRAINT_SOLVERS_MAP{
-        {"PGS", constraintSolver_t::PGS}
-    };
+        {"PGS", constraintSolver_t::PGS}};
 
     const std::set<std::string> STEPPERS{"euler_explicit", "runge_kutta_4", "runge_kutta_dopri5"};
 
@@ -52,7 +51,7 @@ namespace jiminy
     struct JIMINY_DLLAPI StepperState
     {
     public:
-        void reset(const float64_t & dtInit,
+        void reset(float64_t dtInit,
                    const std::vector<Eigen::VectorXd> & qSplitInit,
                    const std::vector<Eigen::VectorXd> & vSplitInit,
                    const std::vector<Eigen::VectorXd> & aSplitInit)
@@ -366,15 +365,15 @@ namespace jiminy
                                                                const std::string & systemName2,
                                                                const std::string & frameName1,
                                                                const std::string & frameName2,
-                                                               const float64_t & stiffness,
-                                                               const float64_t & damping,
-                                                               const float64_t & restLength = 0.0);
+                                                               float64_t stiffness,
+                                                               float64_t damping,
+                                                               float64_t restLength = 0.0);
         hresult_t registerViscoelasticDirectionalForceCoupling(const std::string & systemName,
                                                                const std::string & frameName1,
                                                                const std::string & frameName2,
-                                                               const float64_t & stiffness,
-                                                               const float64_t & damping,
-                                                               const float64_t & restLength = 0.0);
+                                                               float64_t stiffness,
+                                                               float64_t damping,
+                                                               float64_t restLength = 0.0);
 
         /// \brief 6-DoFs spring-damper coupling force modelling a flexible bushing.
         ///
@@ -391,13 +390,13 @@ namespace jiminy
                                                     const std::string & frameName2,
                                                     const Vector6d & stiffness,
                                                     const Vector6d & damping,
-                                                    const float64_t & alpha = 0.5);
+                                                    float64_t alpha = 0.5);
         hresult_t registerViscoelasticForceCoupling(const std::string & systemName,
                                                     const std::string & frameName1,
                                                     const std::string & frameName2,
                                                     const Vector6d & stiffness,
                                                     const Vector6d & damping,
-                                                    const float64_t & alpha = 0.5);
+                                                    float64_t alpha = 0.5);
         hresult_t removeForcesCoupling(const std::string & systemName1,
                                        const std::string & systemName2);
         hresult_t removeForcesCoupling(const std::string & systemName);
@@ -415,8 +414,7 @@ namespace jiminy
         ///
         /// \param[in] resetRandomNumbers Whether to reset the random number generators.
         /// \param[in] removeAllForce Whether to remove registered external forces.
-        void reset(const bool_t & resetRandomNumbers = false,
-                   const bool_t & removeAllForce = false);
+        void reset(bool_t resetRandomNumbers = false, bool_t removeAllForce = false);
 
         /// \brief Reset the engine and compute initial state.
         ///
@@ -459,7 +457,7 @@ namespace jiminy
         /// \param[in] aInit Initial acceleration of every system, i.e. at t=0.0.
         ///                  Optional: Zero by default.
         hresult_t simulate(
-            const float64_t & tEnd,
+            float64_t tEnd,
             const std::map<std::string, Eigen::VectorXd> & qInit,
             const std::map<std::string, Eigen::VectorXd> & vInit,
             const std::optional<std::map<std::string, Eigen::VectorXd>> & aInit = std::nullopt);
@@ -469,8 +467,8 @@ namespace jiminy
         /// \warning The force must be given in the world frame.
         hresult_t registerForceImpulse(const std::string & systemName,
                                        const std::string & frameName,
-                                       const float64_t & t,
-                                       const float64_t & dt,
+                                       float64_t t,
+                                       float64_t dt,
                                        const pinocchio::Force & F);
         /// \brief Apply an external force profile on a frame.
         ///
@@ -479,7 +477,7 @@ namespace jiminy
         hresult_t registerForceProfile(const std::string & systemName,
                                        const std::string & frameName,
                                        const ForceProfileFunctor & forceFct,
-                                       const float64_t & updatePeriod = 0.0);
+                                       float64_t updatePeriod = 0.0);
 
         hresult_t removeForcesImpulse(const std::string & systemName);
         hresult_t removeForcesProfile(const std::string & systemName);
@@ -500,7 +498,7 @@ namespace jiminy
         hresult_t getSystemState(const std::string & systemName,
                                  const systemState_t *& systemState) const;
         const StepperState & getStepperState() const;
-        const bool_t & getIsSimulationRunning() const;
+        const bool_t & getIsSimulationRunning() const;  // return const reference on purpose
         static float64_t getMaxSimulationDuration();
         static float64_t getTelemetryTimeUnit();
 
@@ -508,18 +506,18 @@ namespace jiminy
                                              const Eigen::VectorXd & q,
                                              const Eigen::VectorXd & v,
                                              const Eigen::VectorXd & a);
-        hresult_t computeSystemsDynamics(const float64_t & t,
+        hresult_t computeSystemsDynamics(float64_t t,
                                          const std::vector<Eigen::VectorXd> & qSplit,
                                          const std::vector<Eigen::VectorXd> & vSplit,
                                          std::vector<Eigen::VectorXd> & aSplit,
-                                         const bool_t & isStateUpToDate = false);
+                                         bool_t isStateUpToDate = false);
 
     protected:
         hresult_t configureTelemetry();
         void updateTelemetry();
 
         void syncStepperStateWithSystems();
-        void syncSystemsStateWithStepper(const bool_t & isStateUpToDate = false);
+        void syncSystemsStateWithStepper(bool_t isStateUpToDate = false);
 
 
         /// \brief Compute the force resulting from ground contact on a given body.
@@ -542,43 +540,43 @@ namespace jiminy
         /// \returns Contact force, at parent joint, in the local frame.
         void computeContactDynamicsAtFrame(
             const systemHolder_t & system,
-            const pinocchio::FrameIndex & frameIdx,
+            pinocchio::FrameIndex frameIdx,
             std::shared_ptr<AbstractConstraintBase> & collisionConstraint,
             pinocchio::Force & fextLocal) const;
 
         /// \brief Compute the ground reaction force for a given normal direction and depth.
         pinocchio::Force computeContactDynamics(const Eigen::Vector3d & nGround,
-                                                const float64_t & depth,
+                                                float64_t depth,
                                                 const Eigen::Vector3d & vContactInWorld) const;
 
         void computeCommand(systemHolder_t & system,
-                            const float64_t & t,
+                            float64_t t,
                             const Eigen::VectorXd & q,
                             const Eigen::VectorXd & v,
                             Eigen::VectorXd & command);
         void computeInternalDynamics(const systemHolder_t & system,
                                      systemDataHolder_t & systemData,
-                                     const float64_t & t,
+                                     float64_t t,
                                      const Eigen::VectorXd & q,
                                      const Eigen::VectorXd & v,
                                      Eigen::VectorXd & uInternal) const;
         void computeCollisionForces(const systemHolder_t & system,
                                     systemDataHolder_t & systemData,
                                     ForceVector & fext,
-                                    const bool_t & isStateUpToDate = false) const;
+                                    bool_t isStateUpToDate = false) const;
         void computeExternalForces(const systemHolder_t & system,
                                    systemDataHolder_t & systemData,
-                                   const float64_t & t,
+                                   float64_t t,
                                    const Eigen::VectorXd & q,
                                    const Eigen::VectorXd & v,
                                    ForceVector & fext);
-        void computeForcesCoupling(const float64_t & t,
+        void computeForcesCoupling(float64_t t,
                                    const std::vector<Eigen::VectorXd> & qSplit,
                                    const std::vector<Eigen::VectorXd> & vSplit);
-        void computeAllTerms(const float64_t & t,
+        void computeAllTerms(float64_t t,
                              const std::vector<Eigen::VectorXd> & qSplit,
                              const std::vector<Eigen::VectorXd> & vSplit,
-                             const bool_t & isStateUpToDate = false);
+                             bool_t isStateUpToDate = false);
 
         /// \brief Compute system acceleration from current system state.
         ///
@@ -599,8 +597,8 @@ namespace jiminy
                                                     const Eigen::VectorXd & v,
                                                     const Eigen::VectorXd & u,
                                                     ForceVector & fext,
-                                                    const bool_t & isStateUpToDate = false,
-                                                    const bool_t & ignoreBounds = false);
+                                                    bool_t isStateUpToDate = false,
+                                                    bool_t ignoreBounds = false);
 
     public:
         hresult_t getLog(std::shared_ptr<const LogData> & logData);
@@ -622,7 +620,7 @@ namespace jiminy
                       pinocchio::DataTpl<Scalar, Options, JointCollectionTpl> & data,
                       const Eigen::MatrixBase<ConfigVectorType> & q,
                       const Eigen::MatrixBase<TangentVectorType> & v,
-                      const bool_t & update_kinematics);
+                      bool_t update_kinematics);
         template<typename Scalar,
                  int Options,
                  template<typename, int>

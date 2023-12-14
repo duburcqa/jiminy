@@ -31,8 +31,8 @@ namespace jiminy::python
     namespace np = boost::python::numpy;
 
     template<typename T>
-    using TimeStateFct = typename std::function<T(
-        const float64_t &, const Eigen::VectorXd &, const Eigen::VectorXd &)>;
+    using TimeStateFct =
+        typename std::function<T(float64_t, const Eigen::VectorXd &, const Eigen::VectorXd &)>;
 
 #define TIME_STATE_FCT_EXPOSE(Name, Type)                                                     \
     bp::class_<TimeStateFct<Type>, boost::noncopyable>("TimeStateFunctor" #Name, bp::no_init) \
