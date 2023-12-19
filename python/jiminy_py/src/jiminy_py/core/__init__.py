@@ -6,49 +6,61 @@ import sys as _sys
 import ctypes as _ctypes
 import inspect as _inspect
 import logging as _logging
+import subprocess as _subprocess
+from glob import glob as _glob
 from importlib import import_module as _import_module
 from importlib.util import find_spec as _find_spec
 from sysconfig import get_config_var as _get_config_var
 
+# Ordered list of modules on which jiminy depends
+_JIMINY_REQUIRED_MODULES = ("eigenpy", "hppfcl", "pinocchio")
 
+# Check if all the jiminy dependencies are already available on the system.
+# The system dependencies will be used instead of the one bundled with
+# jiminy if and only if all of them are available and boost python is shared.
+_are_all_dependencies_available = any(
+    _find_spec(_module_name) is not None
+    for _module_name in _JIMINY_REQUIRED_MODULES)
+
+# Load Boost Python shared library if necessary.
+# This is a pre-requisite for using non-shipped dependencies while ensuring
+# inter-operability between modules.
 _is_boost_shared = False
 if "JIMINY_FORCE_STANDALONE" not in _os.environ:
-    # Special dlopen flags are used when loading Boost Python shared library
-    # available in search path on the system if any. This is necessary to make
-    # sure the same boost python runtime is shared between every modules, even
-    # if linked versions are different. It is necessary to share the same boost
-    # python registers, required for inter-operability between modules.
-    # This mechanism causes segfault at import when compiled with Boost>=1.78.
-    _pyver_suffix = "".join(map(str, _sys.version_info[:2]))
-    if _sys.platform.startswith('win'):
-        _lib_prefix = ""
-        _lib_suffix = ".dll"
-    elif _sys.platform == 'darwin':
-        _lib_prefix = "lib"
-        _lib_suffix = ".dylib"
-    else:
-        _lib_prefix = "lib"
-        _lib_suffix = _get_config_var('SHLIB_SUFFIX')
-        for _boost_python_lib in (
+    # Try to load Boost Python shared library if available.
+    # FIXME: This mechanism is fundamentally unsafe and partially broken.
+    # It does work at all on OSX and causes segfault at when when mixing
+    # modules linking against Boost>=1.78 and <1.78.
+    if _sys.platform != 'darwin' and _are_all_dependencies_available:
+        # Determine candidate names
+        _pyver_suffix = "".join(map(str, _sys.version_info[:2]))
+        if _sys.platform.startswith('win'):
+            _lib_prefix = ""
+            _lib_suffix = ".dll"
+        else:
+            _lib_prefix = "lib"
+            _lib_suffix = _get_config_var('SHLIB_SUFFIX')
+
+        # Try loading the shared library.
+        # Note that a special dlopen flag must be set to make sure the same
+        # boost python runtime is shared between every modules, even if linked
+        # versions are supposed to be different. It is necessary to share the
+        # same boost python registers, required for inter-operability.
+        for _boost_python_lib_path in (
                 f"{_lib_prefix}boost_python{_pyver_suffix}{_lib_suffix}",
                 f"{_lib_prefix}boost_python3-py{_pyver_suffix}{_lib_suffix}"):
             try:
-                _ctypes.CDLL(_boost_python_lib, _ctypes.RTLD_GLOBAL)
+                _ctypes.CDLL(_boost_python_lib_path, _ctypes.RTLD_GLOBAL)
                 _is_boost_shared = True
                 break
             except OSError:
                 pass
 
-    # Check if all the boost python dependencies are already available on the
-    # system. The system dependencies will be used instead of the one embedded
-    # with jiminy if and only if all of them are available.
-    _is_dependency_available = any(
-        _find_spec(_module_name) is not None
-        for _module_name in ("eigenpy", "hppfcl", "pinocchio"))
-    if not _is_boost_shared and _is_dependency_available:
+    # Force importing bundled dependencies in Boost::Python was not found
+    if not _is_boost_shared and _are_all_dependencies_available:
         _logging.warning(
-            "Boost::Python not found on the system. Importing bundled jiminy "
-            "dependencies instead of system-wide install as a fallback.")
+            "Boost.Python cannot be shared between modules. Importing bundled "
+            "jiminy dependencies instead of system-wide install as fallback.")
 
 # The env variable PATH and the current working directory are ignored by
 # default for DLL resolution on Windows OS.
@@ -60,8 +72,8 @@ if _sys.platform.startswith('win'):
             _os.add_dll_directory(path)  # type: ignore[attr-defined]
 
 # Import all dependencies in the right order
-for _module_name in ("eigenpy", "hppfcl", "pinocchio"):
-    if _is_boost_shared and _find_spec(_module_name) is not None:
+for _module_name in _JIMINY_REQUIRED_MODULES:
+    if _is_boost_shared and _are_all_dependencies_available:
         _import_module(_module_name)
     else:
         _module = _import_module(".".join((__name__, _module_name)))

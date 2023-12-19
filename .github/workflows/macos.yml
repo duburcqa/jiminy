@@ -28,8 +28,8 @@ jobs:
 
     env:
       TORCH_VERSION: "2.0.1"
-      C_COMPILER: "/usr/bin/clang"
-      CXX_COMPILER: "/usr/bin/clang++"
+      CMAKE_C_COMPILER: "/usr/bin/clang"
+      CMAKE_CXX_COMPILER: "/usr/bin/clang++"
       CMAKE_CXX_FLAGS: "-DEIGEN_MPL2_ONLY -Wno-deprecated-declarations"
       MACOSX_DEPLOYMENT_TARGET: "10.15"
       OSX_ARCHITECTURES: "x86_64;arm64"
@@ -140,8 +140,6 @@ jobs:
 
     - name: Build extension module
       run: |
-        export LD_LIBRARY_PATH="${InstallDir}/lib/:/usr/local/lib"
-
         "${InstallDir}/bin/jiminy_double_pendulum"
 
         mkdir -p "${RootDir}/core/examples/external_project/build"
@@ -158,8 +156,6 @@ jobs:
 
     - name: Run unit tests for jiminy
       run: |
-        # Do NOT set LD_LIBRARY_PATH to check the import of bundled dependencies as fallback
-
         cd "${RootDir}/build/core/unit"
         ctest --output-on-failure
 
