@@ -6,11 +6,10 @@ import sys as _sys
 import ctypes as _ctypes
 import inspect as _inspect
 import logging as _logging
-import subprocess as _subprocess
-from glob import glob as _glob
 from importlib import import_module as _import_module
 from importlib.util import find_spec as _find_spec
 from sysconfig import get_config_var as _get_config_var
+
 
 # Ordered list of modules on which jiminy depends
 _JIMINY_REQUIRED_MODULES = ("eigenpy", "hppfcl", "pinocchio")
@@ -46,11 +45,11 @@ if "JIMINY_FORCE_STANDALONE" not in _os.environ:
         # boost python runtime is shared between every modules, even if linked
         # versions are supposed to be different. It is necessary to share the
         # same boost python registers, required for inter-operability.
-        for _boost_python_lib_path in (
+        for _boost_python_lib in (
                 f"{_lib_prefix}boost_python{_pyver_suffix}{_lib_suffix}",
                 f"{_lib_prefix}boost_python3-py{_pyver_suffix}{_lib_suffix}"):
             try:
-                _ctypes.CDLL(_boost_python_lib_path, _ctypes.RTLD_GLOBAL)
+                _ctypes.CDLL(_boost_python_lib, _ctypes.RTLD_GLOBAL)
                 _is_boost_shared = True
                 break
             except OSError:

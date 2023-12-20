@@ -66,7 +66,7 @@ echo "${InstallDir}/lib/python${PYTHON_VERSION}/site-packages" > "${PYTHON_USER_
 
 ### Add install library to path. This is necessary to generate stubs.
 LD_LIBRARY_PATH="${InstallDir}/lib:${InstallDir}/lib64:/usr/local/lib"
-DYLD_LIBRARY_PATH="$LD_LIBRARY_PATH"
+DYLD_FALLBACK_LIBRARY_PATH="$LD_LIBRARY_PATH"
 
 ### Remove the preinstalled boost library from search path
 unset Boost_ROOT

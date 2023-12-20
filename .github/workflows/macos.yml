@@ -109,15 +109,14 @@ jobs:
     - name: Generate and install Python Pip wheels
       run: |
         export LD_LIBRARY_PATH="${InstallDir}/lib/:/usr/local/lib"
-        export DYLD_LIBRARY_PATH="$LD_LIBRARY_PATH"
+        export DYLD_FALLBACK_LIBRARY_PATH="$LD_LIBRARY_PATH"
 
-        # Generate stubs.
-        # It does not work on MacOS because of panda3d import errors in frozen mode. Disabling for now.
-        # stubgen -p jiminy_py -o ${RootDir}/build/pypi/jiminy_py/src
-        # "${PYTHON_EXECUTABLE}" "${RootDir}/build_tools/stub_gen.py" \
-        #   -o ${RootDir}/build/stubs --ignore-invalid=all jiminy_py
-        # cp ${RootDir}/build/stubs/jiminy_py-stubs/core/__init__.pyi \
-        #    ${RootDir}/build/pypi/jiminy_py/src/jiminy_py/core/core.pyi
+        # Generate stubs
+        stubgen -p jiminy_py -o ${RootDir}/build/pypi/jiminy_py/src
+        "${PYTHON_EXECUTABLE}" "${RootDir}/build_tools/stub_gen.py" \
+          -o ${RootDir}/build/stubs --ignore-invalid=all jiminy_py
+        cp ${RootDir}/build/stubs/jiminy_py-stubs/core/__init__.pyi \
+           ${RootDir}/build/pypi/jiminy_py/src/jiminy_py/core/core.pyi
 
         # Generate wheels
         cd "${RootDir}/build"
@@ -140,6 +139,7 @@ jobs:
 
     - name: Build extension module
       run: |
+        export LD_LIBRARY_PATH="${InstallDir}/lib/:/usr/local/lib"
         "${InstallDir}/bin/jiminy_double_pendulum"
 
         mkdir -p "${RootDir}/core/examples/external_project/build"
