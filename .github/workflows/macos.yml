@@ -28,7 +28,9 @@ jobs:
 
     env:
       TORCH_VERSION: "2.0.1"
-      CMAKE_CXX_FLAGS: "-DEIGEN_MPL2_ONLY"
+      CMAKE_C_COMPILER: "/usr/bin/clang"
+      CMAKE_CXX_COMPILER: "/usr/bin/clang++"
+      CMAKE_CXX_FLAGS: "-DEIGEN_MPL2_ONLY -Wno-deprecated-declarations"
       MACOSX_DEPLOYMENT_TARGET: "10.15"
       OSX_ARCHITECTURES: "x86_64;arm64"
       WHEEL_ARCH: "universal2"
@@ -58,7 +60,7 @@ jobs:
         echo "InstallDir=${GITHUB_WORKSPACE}/install" >> $GITHUB_ENV
 
         "${PYTHON_EXECUTABLE}" -m pip install setuptools wheel "pip>=20.3"
-        "${PYTHON_EXECUTABLE}" -m pip install "numpy>=1.21,<2.0" "numba>=0.54.0"
+        "${PYTHON_EXECUTABLE}" -m pip install "numpy>=1.21,<2.0" "numba>=0.54.0" "panda3d==1.10.12.*"
         "${PYTHON_EXECUTABLE}" -m pip install delocate twine
     - name: Build project dependencies
       run: |
@@ -74,14 +76,15 @@ jobs:
         unset Boost_ROOT
 
         # Build jiminy
-        mkdir "$RootDir/build"
-        cd "$RootDir/build"
-        export LD_LIBRARY_PATH="$InstallDir/lib/:/usr/local/lib"
-        cmake "$RootDir" -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" \
-              -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF \
+        mkdir "${RootDir}/build"
+        cd "${RootDir}/build"
+        export LD_LIBRARY_PATH="${InstallDir}/lib/:/usr/local/lib"
+        cmake "${RootDir}" -DCMAKE_INSTALL_PREFIX="${InstallDir}" -DCMAKE_PREFIX_PATH="${InstallDir}" \
+              -DCMAKE_C_COMPILER="${CMAKE_C_COMPILER}" -DCMAKE_CXX_COMPILER="${CMAKE_CXX_COMPILER}" \
               -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" \
               -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET}" \
-              -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" \
+              -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON \
+              -DBOOST_ROOT="${InstallDir}" -DBoost_INCLUDE_DIR="${InstallDir}/include" \
               -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
               -DBoost_USE_STATIC_LIBS=ON -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
               -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON \
@@ -90,42 +93,41 @@ jobs:
         make -j2
 
         # Bundle the boost python dependencies with jiminy
-        mkdir -p "$RootDir/build/pypi/jiminy_py/src/jiminy_py"
-        cp -R -H "$InstallDir/lib/python${{ matrix.PYTHON_VERSION }}/site-packages/." \
-                 "$RootDir/build/pypi/jiminy_py/src/jiminy_py/core"
+        mkdir -p "${RootDir}/build/pypi/jiminy_py/src/jiminy_py"
+        cp -R -H "${InstallDir}/lib/python${{ matrix.PYTHON_VERSION }}/site-packages/." \
+                 "${RootDir}/build/pypi/jiminy_py/src/jiminy_py/core"
 
         # Install jiminy along with its dependencies
         make install
 
         # Strip all symbol table and relocation information from python bindings and shared libraries
-        find "$RootDir/build/pypi/" -name "*.so" -print -exec strip -x {} +
-        find "$InstallDir/lib" -name "*.dylib" -maxdepth 1 -print -exec strip -x {} +
+        find "${RootDir}/build/pypi/" -name "*.so" -print -exec strip -x {} +
+        find "${InstallDir}/lib" -name "*.dylib" -maxdepth 1 -print -exec strip -x {} +
 
     #####################################################################################
 
     - name: Generate and install Python Pip wheels
       run: |
-        export LD_LIBRARY_PATH="$InstallDir/lib/:/usr/local/lib"
-        export DYLD_LIBRARY_PATH="$LD_LIBRARY_PATH"
+        export LD_LIBRARY_PATH="${InstallDir}/lib/:/usr/local/lib"
+        export DYLD_FALLBACK_LIBRARY_PATH="$LD_LIBRARY_PATH"
 
-        # Generate stubs.
-        # It does not work on MacOS because of panda3d import errors in frozen mode. Disabling for now.
-        # stubgen -p jiminy_py -o $RootDir/build/pypi/jiminy_py/src
-        # "${PYTHON_EXECUTABLE}" "$RootDir/build_tools/stub_gen.py" \
-        #   -o $RootDir/build/stubs --ignore-invalid=all jiminy_py
-        # cp $RootDir/build/stubs/jiminy_py-stubs/core/__init__.pyi \
-        #    $RootDir/build/pypi/jiminy_py/src/jiminy_py/core/core.pyi
+        # Generate stubs
+        stubgen -p jiminy_py -o ${RootDir}/build/pypi/jiminy_py/src
+        "${PYTHON_EXECUTABLE}" "${RootDir}/build_tools/stub_gen.py" \
+          -o ${RootDir}/build/stubs --ignore-invalid=all jiminy_py
+        cp ${RootDir}/build/stubs/jiminy_py-stubs/core/__init__.pyi \
+           ${RootDir}/build/pypi/jiminy_py/src/jiminy_py/core/core.pyi
 
         # Generate wheels
-        cd "$RootDir/build"
+        cd "${RootDir}/build"
         cmake . -DCOMPONENT=pypi -P ./cmake_install.cmake
 
         # Bundle non-standard dependencies with the wheels
         delocate-wheel -vvv --require-archs "${WHEEL_ARCH}" \
-                       -w "$RootDir/build/wheelhouse" "$RootDir/build/pypi/dist/jiminy_py/"*.whl
-        "${PYTHON_EXECUTABLE}" "$RootDir/build_tools/wheel_addplat_macos.py" -vvv --rm-orig --clobber \
-            -p "macosx_${MACOSX_DEPLOYMENT_TARGET//./_}_${WHEEL_ARCH}" "$RootDir/build/wheelhouse/"*.whl
-        "${PYTHON_EXECUTABLE}" -m pip install --force-reinstall --no-deps "$RootDir/build/wheelhouse/"*.whl
+                       -w "${RootDir}/build/wheelhouse" "${RootDir}/build/pypi/dist/jiminy_py/"*.whl
+        "${PYTHON_EXECUTABLE}" "${RootDir}/build_tools/wheel_addplat_macos.py" -vvv --rm-orig --clobber \
+            -p "macosx_${MACOSX_DEPLOYMENT_TARGET//./_}_${WHEEL_ARCH}" "${RootDir}/build/wheelhouse/"*.whl
+        "${PYTHON_EXECUTABLE}" -m pip install --force-reinstall --no-deps "${RootDir}/build/wheelhouse/"*.whl
     - name: Upload the wheel for Linux of jiminy_py
       if: matrix.BUILD_TYPE == 'Release'
       uses: actions/upload-artifact@v3
@@ -137,29 +139,27 @@ jobs:
 
     - name: Build extension module
       run: |
-        export LD_LIBRARY_PATH="$InstallDir/lib/:/usr/local/lib"
+        export LD_LIBRARY_PATH="${InstallDir}/lib/:/usr/local/lib"
+        "${InstallDir}/bin/jiminy_double_pendulum"
 
-        "$InstallDir/bin/jiminy_double_pendulum"
-
-        mkdir -p "$RootDir/core/examples/external_project/build"
-        cd "$RootDir/core/examples/external_project/build"
-        cmake "$RootDir/core/examples/external_project/" -DCMAKE_INSTALL_PREFIX="$InstallDir" \
-              -DCMAKE_PREFIX_PATH="$InstallDir" -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
+        mkdir -p "${RootDir}/core/examples/external_project/build"
+        cd "${RootDir}/core/examples/external_project/build"
+        cmake "${RootDir}/core/examples/external_project/" -DCMAKE_INSTALL_PREFIX="${InstallDir}" \
+              -DCMAKE_C_COMPILER="${CMAKE_C_COMPILER}" -DCMAKE_CXX_COMPILER="${CMAKE_CXX_COMPILER}" \
+              -DCMAKE_PREFIX_PATH="${InstallDir}" -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
               -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}" -DCMAKE_BUILD_TYPE="${{ matrix.BUILD_TYPE }}"
         make install
 
-        "$InstallDir/bin/pip_double_pendulum"
+        "${InstallDir}/bin/pip_double_pendulum"
 
     #####################################################################################
 
     - name: Run unit tests for jiminy
       run: |
-        # Do NOT set LD_LIBRARY_PATH to check the import of bundled dependencies as fallback
-
-        cd "$RootDir/build/core/unit"
+        cd "${RootDir}/build/core/unit"
         ctest --output-on-failure
 
-        cd "$RootDir/python/jiminy_py/unit_py"
+        cd "${RootDir}/python/jiminy_py/unit_py"
         "${PYTHON_EXECUTABLE}" -m unittest discover -v
 
     - name: Run unit tests for gym_jiminy
@@ -167,21 +167,21 @@ jobs:
       run: |
         # Disabling `test_pipeline_control.py` on MacOS because `test_pid_standing` is failing
         # for 'panda3d-sync' backend due to meshes still loading at screenshot time.
-        cd "$RootDir/python/gym_jiminy/unit_py"
+        cd "${RootDir}/python/gym_jiminy/unit_py"
         "${PYTHON_EXECUTABLE}" -m unittest test_pipeline_design.py -v
 
     - name: Run unit tests for gym jiminy
       if: matrix.BUILD_TYPE == 'Release'
       run: |
-        export LD_LIBRARY_PATH="$InstallDir/lib/:/usr/local/lib"
+        export LD_LIBRARY_PATH="${InstallDir}/lib/:/usr/local/lib"
 
         # FIXME: segfault when enabling viewer for Panda3D 1.10.12
-        cd "$RootDir/python/gym_jiminy/examples/reinforcement_learning/rllib"
+        cd "${RootDir}/python/gym_jiminy/examples/reinforcement_learning/rllib"
         JIMINY_VIEWER_DISABLE= "${PYTHON_EXECUTABLE}" acrobot_ppo.py
 
         "${PYTHON_EXECUTABLE}" -m pip install "stable_baselines3>=2.0"
 
-        cd "$RootDir/python/gym_jiminy/unit_py"
+        cd "${RootDir}/python/gym_jiminy/unit_py"
         "${PYTHON_EXECUTABLE}" -m unittest discover -v
 
 #########################################################################################

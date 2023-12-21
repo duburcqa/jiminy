@@ -577,6 +577,8 @@ class Viewer:
         self._display_contact_frames = display_contact_frames
         self._display_contact_forces = display_contact_forces
         self._display_f_external = display_f_external
+        self._client = None
+        self.__is_open = False
 
         # Initialize marker register
         self.markers: Dict[str, MarkerDataType] = {}
@@ -597,8 +599,6 @@ class Viewer:
             prefix="_".join((Viewer.window_name, scene_name, robot_name, "")))
 
         # Access the current backend or create one if none is available
-        self._client = None
-        self.__is_open = False
         self.is_backend_parent = not Viewer.is_alive()
         try:
             # Start viewer backend
