@@ -10,20 +10,22 @@
 
 namespace jiminy
 {
+    JointModelType getJointType(const pinocchio::JointModel & jointModel);
+
+    hresult_t getJointTypeFromIdx(
+        const pinocchio::Model & model, pinocchio::JointIndex idIn, JointModelType & jointTypeOut);
+
     hresult_t getJointNameFromPositionIdx(
         const pinocchio::Model & model, pinocchio::JointIndex idIn, std::string & jointNameOut);
 
     hresult_t getJointNameFromVelocityIdx(
         const pinocchio::Model & model, pinocchio::JointIndex idIn, std::string & jointNameOut);
 
-    hresult_t getJointTypeFromIdx(
-        const pinocchio::Model & model, pinocchio::JointIndex idIn, JointModelType & jointTypeOut);
-
     hresult_t getJointTypePositionSuffixes(JointModelType jointTypeIn,
-                                           std::vector<std::string> & jointTypeSuffixesOut);
+                                           std::vector<std::string_view> & jointTypeSuffixesOut);
 
     hresult_t getJointTypeVelocitySuffixes(JointModelType jointTypeIn,
-                                           std::vector<std::string> & jointTypeSuffixesOut);
+                                           std::vector<std::string_view> & jointTypeSuffixesOut);
 
     hresult_t getFrameIdx(const pinocchio::Model & model,
                           const std::string & frameName,

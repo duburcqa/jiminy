@@ -23,8 +23,7 @@ namespace jiminy
         isRegisteringAvailable_ = true;
     }
 
-    hresult_t TelemetryData::registerConstant(const std::string & variableNameIn,
-                                              const std::string & constantValueIn)
+    hresult_t TelemetryData::registerConstant(const std::string & name, const std::string & value)
     {
         // Check if registration is possible
         if (!isRegisteringAvailable_)
@@ -34,11 +33,11 @@ namespace jiminy
         }
 
         // Check if already in memory
-        auto variableIt = std::find_if(
-            constantsRegistry_.begin(),
-            constantsRegistry_.end(),
-            [&variableNameIn](const std::pair<std::string, std::string> & element) -> bool_t
-            { return element.first == variableNameIn; });
+        auto variableIt =
+            std::find_if(constantsRegistry_.begin(),
+                         constantsRegistry_.end(),
+                         [&name](const std::pair<std::string, std::string> & element) -> bool_t
+                         { return element.first == name; });
         if (variableIt != constantsRegistry_.end())
         {
             PRINT_ERROR("Entry already exists.");
@@ -46,7 +45,7 @@ namespace jiminy
         }
 
         // Register new constant
-        constantsRegistry_.emplace_back(variableNameIn, constantValueIn);
+        constantsRegistry_.emplace_back(name, value);
         return hresult_t::SUCCESS;
     }
 
@@ -94,10 +93,14 @@ namespace jiminy
         }
 
         // Record number of integer variables (+1 because we add Global.Time)
-        insertLineInHeader(START_LINE_TOKEN, NUM_INTS, integersRegistry_.size() + 1);
+        insertLineInHeader(START_LINE_TOKEN,
+                           NUM_INTS,
+                           TELEMETRY_CONSTANT_DELIMITER,
+                           integersRegistry_.size() + 1);
 
         // Record number of floating-point variables
-        insertLineInHeader(START_LINE_TOKEN, NUM_FLOATS, floatsRegistry_.size());
+        insertLineInHeader(
+            START_LINE_TOKEN, NUM_FLOATS, TELEMETRY_CONSTANT_DELIMITER, floatsRegistry_.size());
 
         // Insert column token
         insertLineInHeader(START_COLUMNS);

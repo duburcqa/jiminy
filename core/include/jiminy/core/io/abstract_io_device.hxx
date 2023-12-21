@@ -34,7 +34,7 @@ namespace jiminy
 
     // write
     template<>
-    hresult_t AbstractIODevice::write<std::string>(const std::string & str);
+    hresult_t AbstractIODevice::write<std::string_view>(const std::string_view & str);
     template<>
     hresult_t AbstractIODevice::write<std::vector<uint8_t>>(const std::vector<uint8_t> & v);
     template<>

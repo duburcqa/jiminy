@@ -139,7 +139,7 @@ namespace jiminy
     // Flexible joints
     struct FlexibleJointData
     {
-        // FIXME: Replace by default spaceship operator `<=>` starting from C++20.
+        // FIXME: Replace by default spaceship operator `<=>` when moving to C++20.
         inline bool_t operator==(const FlexibleJointData & other) const noexcept
         {
             return (this->frameName == other.frameName && this->stiffness == other.stiffness &&

@@ -669,8 +669,7 @@ namespace jiminy::python
                     }
                     constants[key] = meshPackageDirs;
                 }
-                else if (key == NUM_INTS.substr(0, key.size()) ||
-                         key == NUM_FLOATS.substr(0, key.size()))
+                else if (key == NUM_INTS || key == NUM_FLOATS)
                 {
                     constants[key] = std::stol(value);
                 }

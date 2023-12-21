@@ -28,7 +28,6 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${WARN_FULL}")
 
 # Add sources
 set(SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/constants.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/utilities/helpers.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/utilities/pinocchio.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/utilities/json.cc"

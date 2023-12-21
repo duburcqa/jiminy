@@ -148,62 +148,58 @@ namespace jiminy
         }
     };
 
+    JointModelType getJointType(const pinocchio::JointModel & jointModel)
+    {
+        JointModelType jointTypeOut{JointModelType::UNSUPPORTED};
+        getJointTypeAlgo::run(jointModel, typename getJointTypeAlgo::ArgsType(jointTypeOut));
+        return jointTypeOut;
+    }
+
     hresult_t getJointTypeFromIdx(
         const pinocchio::Model & model, pinocchio::JointIndex idIn, JointModelType & jointTypeOut)
     {
         if (model.njoints < static_cast<int32_t>(idIn) - 1)
         {
+            jointTypeOut = JointModelType::UNSUPPORTED;
             PRINT_ERROR("Joint index '", idIn, "' is out of range.");
             return hresult_t::ERROR_GENERIC;
         }
 
-        getJointTypeAlgo::run(model.joints[idIn],
-                              typename getJointTypeAlgo::ArgsType(jointTypeOut));
+        jointTypeOut = getJointType(model.joints[idIn]);
 
         return hresult_t::SUCCESS;
     }
 
     hresult_t getJointTypePositionSuffixes(JointModelType jointTypeIn,
-                                           std::vector<std::string> & jointTypeSuffixesOut)
+                                           std::vector<std::string_view> & jointTypeSuffixesOut)
     {
         // If no extra discrimination is needed
-        jointTypeSuffixesOut = std::vector<std::string>({std::string("")});
         switch (jointTypeIn)
         {
         case JointModelType::LINEAR:
-            break;
         case JointModelType::ROTARY:
+            jointTypeSuffixesOut = {""};
             break;
         case JointModelType::ROTARY_UNBOUNDED:
-            jointTypeSuffixesOut =
-                std::vector<std::string>({std::string("Cos"), std::string("Sin")});
+            jointTypeSuffixesOut = {"Cos", "Sin"};
             break;
         case JointModelType::PLANAR:
-            jointTypeSuffixesOut =
-                std::vector<std::string>({std::string("TransX"), std::string("TransY")});
+            jointTypeSuffixesOut = {"TransX", "TransY"};
             break;
         case JointModelType::TRANSLATION:
-            jointTypeSuffixesOut = std::vector<std::string>(
-                {std::string("TransX"), std::string("TransY"), std::string("TransZ")});
+            jointTypeSuffixesOut = {"TransX", "TransY", "TransZ"};
             break;
         case JointModelType::SPHERICAL:
-            jointTypeSuffixesOut = std::vector<std::string>({std::string("QuatX"),
-                                                             std::string("QuatY"),
-                                                             std::string("QuatZ"),
-                                                             std::string("QuatW")});
+            jointTypeSuffixesOut = {"QuatX", "QuatY", "QuatZ", "QuatW"};
             break;
         case JointModelType::FREE:
-            jointTypeSuffixesOut = std::vector<std::string>({std::string("TransX"),
-                                                             std::string("TransY"),
-                                                             std::string("TransZ"),
-                                                             std::string("QuatX"),
-                                                             std::string("QuatY"),
-                                                             std::string("QuatZ"),
-                                                             std::string("QuatW")});
+            jointTypeSuffixesOut = {
+                "TransX", "TransY", "TransZ", "QuatX", "QuatY", "QuatZ", "QuatW"};
             break;
         case JointModelType::UNSUPPORTED:
         default:
-            PRINT_ERROR("Joints of type 'NONE' do not have fieldnames.");
+            jointTypeSuffixesOut = {""};
+            PRINT_ERROR("Joints of type 'UNSUPPORTED' do not have fieldnames.");
             return hresult_t::ERROR_GENERIC;
         }
 
@@ -211,41 +207,33 @@ namespace jiminy
     }
 
     hresult_t getJointTypeVelocitySuffixes(JointModelType jointTypeIn,
-                                           std::vector<std::string> & jointTypeSuffixesOut)
+                                           std::vector<std::string_view> & jointTypeSuffixesOut)
     {
         // If no extra discrimination is needed
-        jointTypeSuffixesOut = std::vector<std::string>({std::string("")});
+        jointTypeSuffixesOut = {""};
         switch (jointTypeIn)
         {
         case JointModelType::LINEAR:
-            break;
         case JointModelType::ROTARY:
-            break;
         case JointModelType::ROTARY_UNBOUNDED:
+            jointTypeSuffixesOut = {""};
             break;
         case JointModelType::PLANAR:
-            jointTypeSuffixesOut =
-                std::vector<std::string>({std::string("LinX"), std::string("LinY")});
+            jointTypeSuffixesOut = {"LinX", "LinY"};
             break;
         case JointModelType::TRANSLATION:
-            jointTypeSuffixesOut = std::vector<std::string>(
-                {std::string("LinX"), std::string("LinY"), std::string("LinZ")});
+            jointTypeSuffixesOut = {"LinX", "LinY", "LinZ"};
             break;
         case JointModelType::SPHERICAL:
-            jointTypeSuffixesOut = std::vector<std::string>(
-                {std::string("AngX"), std::string("AngY"), std::string("AngZ")});
+            jointTypeSuffixesOut = {"AngX", "AngY", "AngZ"};
             break;
         case JointModelType::FREE:
-            jointTypeSuffixesOut = std::vector<std::string>({std::string("LinX"),
-                                                             std::string("LinY"),
-                                                             std::string("LinZ"),
-                                                             std::string("AngX"),
-                                                             std::string("AngY"),
-                                                             std::string("AngZ")});
+            jointTypeSuffixesOut = {"LinX", "LinY", "LinZ", "AngX", "AngY", "AngZ"};
             break;
         case JointModelType::UNSUPPORTED:
         default:
-            PRINT_ERROR("Joints of type 'NONE' do not have fieldnames.");
+            jointTypeSuffixesOut = {""};
+            PRINT_ERROR("Joints of type 'UNSUPPORTED' do not have fieldnames.");
             return hresult_t::ERROR_GENERIC;
         }
 
@@ -582,41 +570,41 @@ namespace jiminy
 
             /* Update vectors based on joint index: effortLimit, velocityLimit, lowerPositionLimit
                and upperPositionLimit. */
-            swapMatrixBlocks(modelInOut.effortLimit,
-                             modelInOut.joints[firstJointIdx].idx_v(),
-                             modelInOut.joints[firstJointIdx].nv(),
-                             modelInOut.joints[secondJointIdx].idx_v(),
-                             modelInOut.joints[secondJointIdx].nv());
-            swapMatrixBlocks(modelInOut.velocityLimit,
-                             modelInOut.joints[firstJointIdx].idx_v(),
-                             modelInOut.joints[firstJointIdx].nv(),
-                             modelInOut.joints[secondJointIdx].idx_v(),
-                             modelInOut.joints[secondJointIdx].nv());
-            swapMatrixBlocks(modelInOut.lowerPositionLimit,
-                             modelInOut.joints[firstJointIdx].idx_q(),
-                             modelInOut.joints[firstJointIdx].nq(),
-                             modelInOut.joints[secondJointIdx].idx_q(),
-                             modelInOut.joints[secondJointIdx].nq());
-            swapMatrixBlocks(modelInOut.upperPositionLimit,
-                             modelInOut.joints[firstJointIdx].idx_q(),
-                             modelInOut.joints[firstJointIdx].nq(),
-                             modelInOut.joints[secondJointIdx].idx_q(),
-                             modelInOut.joints[secondJointIdx].nq());
-            swapMatrixBlocks(modelInOut.rotorInertia,
-                             modelInOut.joints[firstJointIdx].idx_v(),
-                             modelInOut.joints[firstJointIdx].nv(),
-                             modelInOut.joints[secondJointIdx].idx_v(),
-                             modelInOut.joints[secondJointIdx].nv());
-            swapMatrixBlocks(modelInOut.friction,
-                             modelInOut.joints[firstJointIdx].idx_v(),
-                             modelInOut.joints[firstJointIdx].nv(),
-                             modelInOut.joints[secondJointIdx].idx_v(),
-                             modelInOut.joints[secondJointIdx].nv());
-            swapMatrixBlocks(modelInOut.damping,
-                             modelInOut.joints[firstJointIdx].idx_v(),
-                             modelInOut.joints[firstJointIdx].nv(),
-                             modelInOut.joints[secondJointIdx].idx_v(),
-                             modelInOut.joints[secondJointIdx].nv());
+            swapMatrixRows(modelInOut.effortLimit,
+                           modelInOut.joints[firstJointIdx].idx_v(),
+                           modelInOut.joints[firstJointIdx].nv(),
+                           modelInOut.joints[secondJointIdx].idx_v(),
+                           modelInOut.joints[secondJointIdx].nv());
+            swapMatrixRows(modelInOut.velocityLimit,
+                           modelInOut.joints[firstJointIdx].idx_v(),
+                           modelInOut.joints[firstJointIdx].nv(),
+                           modelInOut.joints[secondJointIdx].idx_v(),
+                           modelInOut.joints[secondJointIdx].nv());
+            swapMatrixRows(modelInOut.lowerPositionLimit,
+                           modelInOut.joints[firstJointIdx].idx_q(),
+                           modelInOut.joints[firstJointIdx].nq(),
+                           modelInOut.joints[secondJointIdx].idx_q(),
+                           modelInOut.joints[secondJointIdx].nq());
+            swapMatrixRows(modelInOut.upperPositionLimit,
+                           modelInOut.joints[firstJointIdx].idx_q(),
+                           modelInOut.joints[firstJointIdx].nq(),
+                           modelInOut.joints[secondJointIdx].idx_q(),
+                           modelInOut.joints[secondJointIdx].nq());
+            swapMatrixRows(modelInOut.rotorInertia,
+                           modelInOut.joints[firstJointIdx].idx_v(),
+                           modelInOut.joints[firstJointIdx].nv(),
+                           modelInOut.joints[secondJointIdx].idx_v(),
+                           modelInOut.joints[secondJointIdx].nv());
+            swapMatrixRows(modelInOut.friction,
+                           modelInOut.joints[firstJointIdx].idx_v(),
+                           modelInOut.joints[firstJointIdx].nv(),
+                           modelInOut.joints[secondJointIdx].idx_v(),
+                           modelInOut.joints[secondJointIdx].nv());
+            swapMatrixRows(modelInOut.damping,
+                           modelInOut.joints[firstJointIdx].idx_v(),
+                           modelInOut.joints[firstJointIdx].nv(),
+                           modelInOut.joints[secondJointIdx].idx_v(),
+                           modelInOut.joints[secondJointIdx].nv());
 
             /* Switch elements in joint-indexed vectors:
                parents, names, subtrees, joints, jointPlacements, inertias. */

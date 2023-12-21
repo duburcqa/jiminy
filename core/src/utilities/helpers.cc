@@ -9,7 +9,6 @@
 
 #include "jiminy/core/constants.h"
 #include "jiminy/core/exceptions.h"
-#include "jiminy/core/telemetry/telemetry_data.h"      // `Global.Time`
 #include "jiminy/core/telemetry/telemetry_recorder.h"  // `LogData`
 #include "jiminy/core/utilities/helpers.h"
 
@@ -94,25 +93,25 @@ namespace jiminy
     }
 
     std::string addCircumfix(std::string fieldname,
-                             const std::string & prefix,
-                             const std::string & suffix,
-                             const std::string & delimiter)
+                             const std::string_view & prefix,
+                             const std::string_view & suffix,
+                             const std::string_view & delimiter)
     {
         if (!prefix.empty())
         {
-            fieldname = prefix + delimiter + fieldname;
+            fieldname = toString(prefix, delimiter, fieldname);
         }
         if (!suffix.empty())
         {
-            fieldname = fieldname + delimiter + suffix;
+            fieldname = toString(fieldname, delimiter, suffix);
         }
         return fieldname;
     }
 
     std::vector<std::string> addCircumfix(const std::vector<std::string> & fieldnamesIn,
-                                          const std::string & prefix,
-                                          const std::string & suffix,
-                                          const std::string & delimiter)
+                                          const std::string_view & prefix,
+                                          const std::string_view & suffix,
+                                          const std::string_view & delimiter)
     {
         std::vector<std::string> fieldnames;
         fieldnames.reserve(fieldnamesIn.size());
