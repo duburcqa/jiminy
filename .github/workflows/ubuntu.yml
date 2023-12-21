@@ -58,11 +58,11 @@ jobs:
 
     - name: Define environment variables
       run: |
-        echo "CC=/usr/bin/${{ matrix.COMPILER }}" >> $GITHUB_ENV
+        echo "CMAKE_C_COMPILER=/usr/bin/${{ matrix.COMPILER }}" >> $GITHUB_ENV
         if [[ "${{ matrix.COMPILER }}" == 'gcc' ]] ; then
-          echo "CXX=/usr/bin/g++" >> $GITHUB_ENV
+          echo "CMAKE_CXX_COMPILER=/usr/bin/g++" >> $GITHUB_ENV
         else
-          echo "CXX=/usr/bin/${{ matrix.COMPILER }}++" >> $GITHUB_ENV
+          echo "CMAKE_CXX_COMPILER=/usr/bin/${{ matrix.COMPILER }}++" >> $GITHUB_ENV
         fi
 
         echo "PYTHON_EXECUTABLE=/usr/bin/python3" >> $GITHUB_ENV
@@ -73,7 +73,7 @@ jobs:
         echo "/home/runner/.local/bin" >> $GITHUB_PATH
     - name: Install pre-compiled dependencies
       run: |
-        sudo env "PATH=$PATH" "$RootDir/build_tools/easy_install_deps_ubuntu.sh"
+        sudo env "PATH=$PATH" "${RootDir}/build_tools/easy_install_deps_ubuntu.sh"
         if [[ "${{ matrix.GENERATOR }}" == 'Ninja' ]] ; then
           sudo apt install ninja-build
         fi
@@ -88,17 +88,18 @@ jobs:
       run: |
         "${PYTHON_EXECUTABLE}" -m pip install flake8
         flake8 --ignore=E121,E126,E123,E226,E241,E266,E402,E741,F405,W504 \
-               --count --show-source --statistics --exclude unit_py,examples "$RootDir/python/"
+               --count --show-source --statistics --exclude unit_py,examples "${RootDir}/python/"
 
     #####################################################################################
 
     - name: Build and install Jiminy
       run: |
-        mkdir "$RootDir/build" "$InstallDir"
-        cd "$RootDir/build"
+        mkdir "${RootDir}/build" "${InstallDir}"
+        cd "${RootDir}/build"
 
-        cmake "$RootDir" -G "${{ matrix.GENERATOR }}" -DCMAKE_EXE_LINKER_FLAGS="${{ matrix.LINKER_FLAGS }}" \
-              -DCMAKE_PREFIX_PATH="/opt/openrobots/" -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+        cmake "${RootDir}" -G "${{ matrix.GENERATOR }}" -DCMAKE_EXE_LINKER_FLAGS="${{ matrix.LINKER_FLAGS }}" \
+              -DCMAKE_C_COMPILER="${CMAKE_C_COMPILER}" -DCMAKE_CXX_COMPILER="${CMAKE_CXX_COMPILER}" \
+              -DCMAKE_PREFIX_PATH="/opt/openrobots/" -DCMAKE_INSTALL_PREFIX="${InstallDir}" \
               -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DBoost_NO_SYSTEM_PATHS=OFF \
               -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
               -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON \
@@ -113,13 +114,14 @@ jobs:
 
     - name: Build extension module
       run: |
-        "$InstallDir/bin/jiminy_double_pendulum"
+        "${InstallDir}/bin/jiminy_double_pendulum"
 
-        RootDir="$RootDir/core/examples/external_project/"
-        mkdir -p "$RootDir/build"
-        cd "$RootDir/build"
-        cmake "$RootDir" -G "${{ matrix.GENERATOR }}" -DCMAKE_EXE_LINKER_FLAGS="${{ matrix.LINKER_FLAGS }}" \
-              -DCMAKE_PREFIX_PATH="/opt/openrobots/" -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+        RootDir="${RootDir}/core/examples/external_project/"
+        mkdir -p "${RootDir}/build"
+        cd "${RootDir}/build"
+        cmake "${RootDir}" -G "${{ matrix.GENERATOR }}" -DCMAKE_EXE_LINKER_FLAGS="${{ matrix.LINKER_FLAGS }}" \
+              -DCMAKE_C_COMPILER="${CMAKE_C_COMPILER}" -DCMAKE_CXX_COMPILER="${CMAKE_CXX_COMPILER}" \
+              -DCMAKE_PREFIX_PATH="/opt/openrobots/" -DCMAKE_INSTALL_PREFIX="${InstallDir}" \
               -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
               -DCMAKE_BUILD_TYPE="${{ matrix.BUILD_TYPE }}"
         if [[ "${{ matrix.GENERATOR }}" == 'Ninja' ]] ; then
@@ -128,31 +130,31 @@ jobs:
           make install
         fi
 
-        "$InstallDir/bin/pip_double_pendulum"
+        "${InstallDir}/bin/pip_double_pendulum"
 
     - name: Run unit tests for jiminy
       run: |
-        cd "$RootDir/build/core/unit"
+        cd "${RootDir}/build/core/unit"
         ctest --output-on-failure
 
-        cd "$RootDir/python/jiminy_py/unit_py"
+        cd "${RootDir}/python/jiminy_py/unit_py"
         "${PYTHON_EXECUTABLE}" -m unittest discover -v
 
     - name: Run unit tests for gym_jiminy
       if: matrix.BUILD_TYPE != 'Release'
       run: |
-        cd "$RootDir/python/gym_jiminy/unit_py"
+        cd "${RootDir}/python/gym_jiminy/unit_py"
         "${PYTHON_EXECUTABLE}" -m unittest test_pipeline_control.py test_pipeline_design.py -v
 
     - name: Run unit tests for gym_jiminy
       if: matrix.BUILD_TYPE == 'Release'
       run: |
-        cd "$RootDir/python/gym_jiminy/examples/reinforcement_learning/rllib"
+        cd "${RootDir}/python/gym_jiminy/examples/reinforcement_learning/rllib"
         "${PYTHON_EXECUTABLE}" acrobot_ppo.py
 
         "${PYTHON_EXECUTABLE}" -m pip install "stable_baselines3>=2.0"
 
-        cd "$RootDir/python/gym_jiminy/unit_py"
+        cd "${RootDir}/python/gym_jiminy/unit_py"
         "${PYTHON_EXECUTABLE}" -m unittest discover -v
 
     #####################################################################################
@@ -160,11 +162,11 @@ jobs:
     - name: Python linter
       if: matrix.os == 'ubuntu-20.04' && matrix.BUILD_TYPE == 'Release' && matrix.COMPILER == 'gcc'
       run: |
-        cd "$RootDir/python/jiminy_py/"
-        pylint --rcfile="$RootDir/.pylintrc" "src/"
+        cd "${RootDir}/python/jiminy_py/"
+        pylint --rcfile="${RootDir}/.pylintrc" "src/"
         for name in "common" "toolbox" "rllib"; do
-          cd "$RootDir/python/gym_jiminy/$name"
-          pylint --rcfile="$RootDir/.pylintrc" "gym_jiminy/"
+          cd "${RootDir}/python/gym_jiminy/$name"
+          pylint --rcfile="${RootDir}/.pylintrc" "gym_jiminy/"
         done
 
     #####################################################################################

@@ -103,7 +103,7 @@ setup(
         # Panda3d is NOT supported by PyPy even if built from source.
         # - 1.10.12 fixes numerous bugs
         # - 1.10.13 crashes when generating wheels on MacOS
-        "panda3d==1.10.12.*",
+        "panda3d>=1.10.12",
         # Photo-realistic shader for Panda3d to improve rendering of meshes.
         # - 0.11.X is not backward compatible.
         "panda3d-simplepbr==0.11.2",
