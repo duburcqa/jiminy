@@ -3,7 +3,6 @@
 
 #include "jiminy/core/exceptions.h"
 #include "jiminy/core/io/file_device.h"
-#include "jiminy/core/telemetry/telemetry_data.h"
 #include "jiminy/core/hardware/abstract_motor.h"
 #include "jiminy/core/hardware/abstract_sensor.h"
 #include "jiminy/core/utilities/helpers.h"
@@ -36,8 +35,8 @@ namespace jiminy
     Robot::~Robot()
     {
         // Detach all the motors and sensors
-        detachSensors({});
-        detachMotors({});
+        detachSensors();
+        detachMotors();
     }
 
     hresult_t Robot::initialize(const std::string & urdfPath,
@@ -46,8 +45,8 @@ namespace jiminy
                                 bool_t loadVisualMeshes)
     {
         // Detach all the motors and sensors
-        detachSensors({});
-        detachMotors({});
+        detachSensors();
+        detachMotors();
 
         /* Delete the current model and generate a new one.
            Note that is also refresh all proxies automatically. */
@@ -59,8 +58,8 @@ namespace jiminy
                                 const pinocchio::GeometryModel & visualModel)
     {
         // Detach all the motors and sensors
-        detachSensors({});
-        detachMotors({});
+        detachSensors();
+        detachMotors();
 
         /* Delete the current model and generate a new one.
            Note that is also refresh all proxies automatically. */
@@ -79,11 +78,11 @@ namespace jiminy
         }
 
         // Reset the sensors
-        for (auto & sensorGroup : sensorsGroupHolder_)
+        for (auto & sensorsGroupItem : sensorsGroupHolder_)
         {
-            if (!sensorGroup.second.empty())
+            if (!sensorsGroupItem.second.empty())
             {
-                (*sensorGroup.second.begin())->resetAll();
+                (*sensorsGroupItem.second.begin())->resetAll();
             }
         }
 
@@ -112,13 +111,13 @@ namespace jiminy
         {
             if (!isTelemetryConfigured_)
             {
-                for (const auto & sensorGroup : sensorsGroupHolder_)
+                for (const auto & [sensorType, sensorsGroup] : sensorsGroupHolder_)
                 {
-                    for (const auto & sensor : sensorGroup.second)
+                    for (const auto & sensor : sensorsGroup)
                     {
                         if (returnCode == hresult_t::SUCCESS)
                         {
-                            if (sensorTelemetryOptions_[sensorGroup.first])
+                            if (sensorTelemetryOptions_[sensorType])
                             {
                                 returnCode =
                                     sensor->configureTelemetry(telemetryData_, objectPrefixName);
@@ -264,7 +263,18 @@ namespace jiminy
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
-        if (!motorsNames.empty())
+        if (motorsNames.empty())
+        {
+            // Remove all sensors if none is specified
+            if (returnCode == hresult_t::SUCCESS)
+            {
+                if (!motorsNames_.empty())
+                {
+                    returnCode = detachMotors(std::vector<std::string>{motorsNames_});
+                }
+            }
+        }
+        else
         {
             // Make sure that no motor names are duplicates
             if (checkDuplicates(motorsNames))
@@ -283,21 +293,12 @@ namespace jiminy
                 }
             }
 
+            // Detach motors one-by-one
             for (const std::string & name : motorsNames)
             {
                 if (returnCode == hresult_t::SUCCESS)
                 {
                     returnCode = detachMotor(name);
-                }
-            }
-        }
-        else
-        {
-            if (returnCode == hresult_t::SUCCESS)
-            {
-                if (!motorsNames_.empty())
-                {
-                    returnCode = detachMotors(std::vector<std::string>(motorsNames_));
                 }
             }
         }
@@ -352,10 +353,10 @@ namespace jiminy
             // Create a new sensor data holder if necessary
             if (sensorGroupIt == sensorsGroupHolder_.end())
             {
-                sensorsSharedHolder_.emplace(
-                    std::make_pair(sensorType, std::make_shared<SensorSharedDataHolder_t>()));
-                sensorTelemetryOptions_.emplace(
-                    std::make_pair(sensorType, true));  // Enable the telemetry by default
+                sensorsSharedHolder_.emplace(sensorType,
+                                             std::make_shared<SensorSharedDataHolder_t>());
+                sensorTelemetryOptions_.emplace(sensorType,
+                                                true);  // Enable the telemetry by default
             }
 
             // Attach the sensor
@@ -390,7 +391,8 @@ namespace jiminy
             return hresult_t::ERROR_INIT_FAILED;
         }
 
-        auto sensorGroupIt = sensorsGroupHolder_.find(sensorType);
+        // FIXME: remove explicit conversion to `std::string` when moving to C++20
+        auto sensorGroupIt = sensorsGroupHolder_.find(std::string{sensorType});
         if (sensorGroupIt == sensorsGroupHolder_.end())
         {
             PRINT_ERROR("This type of sensor does not exist.");
@@ -525,22 +527,22 @@ namespace jiminy
             // Generate the fieldnames associated with command
             logFieldnamesCommand_.clear();
             logFieldnamesCommand_.reserve(nmotors_);
-            std::transform(motorsHolder_.begin(),
-                           motorsHolder_.end(),
-                           std::back_inserter(logFieldnamesCommand_),
-                           [](const auto & elem) -> std::string {
-                               return addCircumfix(elem->getName(), JOINT_PREFIX_BASE + "Command");
-                           });
+            std::transform(
+                motorsHolder_.begin(),
+                motorsHolder_.end(),
+                std::back_inserter(logFieldnamesCommand_),
+                [](const auto & elem) -> std::string
+                { return addCircumfix(elem->getName(), toString(JOINT_PREFIX_BASE, "Command")); });
 
             // Generate the fieldnames associated with motor efforts
             logFieldnamesMotorEffort_.clear();
             logFieldnamesMotorEffort_.reserve(nmotors_);
-            std::transform(motorsHolder_.begin(),
-                           motorsHolder_.end(),
-                           std::back_inserter(logFieldnamesMotorEffort_),
-                           [](const auto & elem) -> std::string {
-                               return addCircumfix(elem->getName(), JOINT_PREFIX_BASE + "Effort");
-                           });
+            std::transform(
+                motorsHolder_.begin(),
+                motorsHolder_.end(),
+                std::back_inserter(logFieldnamesMotorEffort_),
+                [](const auto & elem) -> std::string
+                { return addCircumfix(elem->getName(), toString(JOINT_PREFIX_BASE, "Effort")); });
         }
 
         return returnCode;
@@ -561,15 +563,15 @@ namespace jiminy
             // Extract the motor names
             sensorsNames_.clear();
             sensorsNames_.reserve(sensorsGroupHolder_.size());
-            for (const auto & sensorGroup : sensorsGroupHolder_)
+            for (const auto & [sensorType, sensorsGroup] : sensorsGroupHolder_)
             {
                 std::vector<std::string> sensorGroupNames;
-                sensorGroupNames.reserve(sensorGroup.second.size());
-                std::transform(sensorGroup.second.begin(),
-                               sensorGroup.second.end(),
+                sensorGroupNames.reserve(sensorsGroup.size());
+                std::transform(sensorsGroup.begin(),
+                               sensorsGroup.end(),
                                std::back_inserter(sensorGroupNames),
                                [](const auto & elem) -> std::string { return elem->getName(); });
-                sensorsNames_.insert({sensorGroup.first, std::move(sensorGroupNames)});
+                sensorsNames_.emplace(sensorType, std::move(sensorGroupNames));
             }
         }
 
@@ -979,19 +981,18 @@ namespace jiminy
             returnCode = hresult_t::ERROR_GENERIC;
         }
 
-        for (const auto & sensorGroup : sensorsGroupHolder_)
+        for (const auto & [sensorType, sensorsGroup] : sensorsGroupHolder_)
         {
             if (returnCode == hresult_t::SUCCESS)
             {
-                const std::string & sensorType = sensorGroup.first;
-
-                auto sensorGroupOptionsIt = sensorsOptions.find(sensorType);
+                // FIXME: remove explicit conversion to `std::string` when moving to C++20
+                auto sensorGroupOptionsIt = sensorsOptions.find(std::string{sensorType});
                 if (sensorGroupOptionsIt != sensorsOptions.end())
                 {
                     const GenericConfig & sensorGroupOptions =
                         boost::get<GenericConfig>(sensorGroupOptionsIt->second);
 
-                    for (const auto & sensor : sensorGroup.second)
+                    for (const auto & sensor : sensorsGroup)
                     {
                         if (returnCode == hresult_t::SUCCESS)
                         {
@@ -1071,14 +1072,14 @@ namespace jiminy
     GenericConfig Robot::getSensorsOptions() const
     {
         GenericConfig sensorsOptions;
-        for (const auto & sensorGroup : sensorsGroupHolder_)
+        for (const auto & [sensorType, sensorsGroup] : sensorsGroupHolder_)
         {
             GenericConfig sensorsGroupOptions;
-            for (const auto & sensor : sensorGroup.second)
+            for (const auto & sensor : sensorsGroup)
             {
                 sensorsGroupOptions[sensor->getName()] = sensor->getOptions();
             }
-            sensorsOptions[sensorGroup.first] = sensorsGroupOptions;
+            sensorsOptions[sensorType] = sensorsGroupOptions;
         }
         return sensorsOptions;
     }
@@ -1102,17 +1103,16 @@ namespace jiminy
             return hresult_t::ERROR_GENERIC;
         }
 
-        for (auto & sensorGroupTelemetryOption : sensorTelemetryOptions_)
+        for (auto & [sensorType, sensorGroupTelemetryOption] : sensorTelemetryOptions_)
         {
-            std::string optionTelemetryName = "enable" + sensorGroupTelemetryOption.first + "s";
+            const std::string optionTelemetryName = toString("enable", sensorType, "s");
             auto sensorTelemetryOptionIt = telemetryOptions.find(optionTelemetryName);
             if (sensorTelemetryOptionIt == telemetryOptions.end())
             {
                 PRINT_ERROR("Missing field.");
                 return hresult_t::ERROR_GENERIC;
             }
-            sensorGroupTelemetryOption.second =
-                boost::get<bool_t>(sensorTelemetryOptionIt->second);
+            sensorGroupTelemetryOption = boost::get<bool_t>(sensorTelemetryOptionIt->second);
         }
 
         return hresult_t::SUCCESS;
@@ -1121,10 +1121,10 @@ namespace jiminy
     GenericConfig Robot::getTelemetryOptions() const
     {
         GenericConfig telemetryOptions;
-        for (const auto & sensorGroupTelemetryOption : sensorTelemetryOptions_)
+        for (const auto & [sensorType, sensorGroupTelemetryOption] : sensorTelemetryOptions_)
         {
-            std::string optionTelemetryName = "enable" + sensorGroupTelemetryOption.first + "s";
-            telemetryOptions[optionTelemetryName] = sensorGroupTelemetryOption.second;
+            const std::string optionTelemetryName = toString("enable", sensorType, "s");
+            telemetryOptions[optionTelemetryName] = sensorGroupTelemetryOption;
         }
         return telemetryOptions;
     }
@@ -1208,11 +1208,11 @@ namespace jiminy
            one is supposed to call  `pinocchio::forwardKinematics` and
            `pinocchio::updateFramePlacements` before calling this method. */
 
-        for (const auto & sensorGroup : sensorsGroupHolder_)
+        for (const auto & sensorsGroupItem : sensorsGroupHolder_)
         {
-            if (!sensorGroup.second.empty())
+            if (!sensorsGroupItem.second.empty())
             {
-                (*sensorGroup.second.begin())->setAll(t, q, v, a, uMotor, fExternal);
+                (*sensorsGroupItem.second.begin())->setAll(t, q, v, a, uMotor, fExternal);
             }
         }
     }
@@ -1224,13 +1224,14 @@ namespace jiminy
         sensorsSharedHolder_t::const_iterator sensorsSharedIt = sensorsSharedHolder_.begin();
         for (; sensorsGroupIt != sensorsGroupHolder_.end(); ++sensorsGroupIt, ++sensorsSharedIt)
         {
+            auto & [sensorType, sensorsGroup] = *sensorsGroupIt;
             SensorDataTypeMap dataType(&sensorsSharedIt->second->dataMeasured_);
-            for (auto & sensor : sensorsGroupIt->second)
+            for (auto & sensor : sensorsGroup)
             {
                 auto & sensorConst = const_cast<const AbstractSensorBase &>(*sensor);
                 dataType.insert({sensorConst.getName(), sensorConst.getIdx(), sensorConst.get()});
             }
-            data.emplace(sensorsGroupIt->first, std::move(dataType));
+            data.emplace(sensorType, std::move(dataType));
         }
         return data;
     }
@@ -1259,11 +1260,11 @@ namespace jiminy
 
     void Robot::updateTelemetry()
     {
-        for (const auto & sensorGroup : sensorsGroupHolder_)
+        for (const auto & sensorsGroupItem : sensorsGroupHolder_)
         {
-            if (!sensorGroup.second.empty())
+            if (!sensorsGroupItem.second.empty())
             {
-                (*sensorGroup.second.begin())->updateTelemetryAll();
+                (*sensorsGroupItem.second.begin())->updateTelemetryAll();
             }
         }
     }

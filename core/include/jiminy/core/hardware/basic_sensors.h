@@ -45,9 +45,9 @@ namespace jiminy
     template<>
     const std::string AbstractSensorTpl<ImuSensor>::type_;
     template<>
-    const bool_t AbstractSensorTpl<ImuSensor>::areFieldnamesGrouped_;
-    template<>
     const std::vector<std::string> AbstractSensorTpl<ImuSensor>::fieldnames_;
+    template<>
+    const bool_t AbstractSensorTpl<ImuSensor>::areFieldnamesGrouped_;
 
     class JIMINY_DLLAPI ContactSensor : public AbstractSensorTpl<ContactSensor>
     {
@@ -80,9 +80,9 @@ namespace jiminy
     template<>
     const std::string AbstractSensorTpl<ContactSensor>::type_;
     template<>
-    const bool_t AbstractSensorTpl<ContactSensor>::areFieldnamesGrouped_;
-    template<>
     const std::vector<std::string> AbstractSensorTpl<ContactSensor>::fieldnames_;
+    template<>
+    const bool_t AbstractSensorTpl<ContactSensor>::areFieldnamesGrouped_;
 
     class JIMINY_DLLAPI ForceSensor : public AbstractSensorTpl<ForceSensor>
     {
@@ -118,9 +118,9 @@ namespace jiminy
     template<>
     const std::string AbstractSensorTpl<ForceSensor>::type_;
     template<>
-    const bool_t AbstractSensorTpl<ForceSensor>::areFieldnamesGrouped_;
-    template<>
     const std::vector<std::string> AbstractSensorTpl<ForceSensor>::fieldnames_;
+    template<>
+    const bool_t AbstractSensorTpl<ForceSensor>::areFieldnamesGrouped_;
 
     class JIMINY_DLLAPI EncoderSensor : public AbstractSensorTpl<EncoderSensor>
     {
@@ -155,9 +155,9 @@ namespace jiminy
     template<>
     const std::string AbstractSensorTpl<EncoderSensor>::type_;
     template<>
-    const bool_t AbstractSensorTpl<EncoderSensor>::areFieldnamesGrouped_;
-    template<>
     const std::vector<std::string> AbstractSensorTpl<EncoderSensor>::fieldnames_;
+    template<>
+    const bool_t AbstractSensorTpl<EncoderSensor>::areFieldnamesGrouped_;
 
     class JIMINY_DLLAPI EffortSensor : public AbstractSensorTpl<EffortSensor>
     {
@@ -190,9 +190,9 @@ namespace jiminy
     template<>
     const std::string AbstractSensorTpl<EffortSensor>::type_;
     template<>
-    const bool_t AbstractSensorTpl<EffortSensor>::areFieldnamesGrouped_;
-    template<>
     const std::vector<std::string> AbstractSensorTpl<EffortSensor>::fieldnames_;
+    template<>
+    const bool_t AbstractSensorTpl<EffortSensor>::areFieldnamesGrouped_;
 }
 
 #endif  // end of JIMINY_BASIC_SENSORS_H

@@ -240,10 +240,10 @@ namespace jiminy
 
     // Specific implementation - std::string
     template<>
-    hresult_t AbstractIODevice::write<std::string>(const std::string & str)
+    hresult_t AbstractIODevice::write<std::string_view>(const std::string_view & str)
     {
         int64_t toWrite = static_cast<int64_t>(str.size());
-        const uint8_t * bufferPos = reinterpret_cast<const uint8_t *>(str.c_str());
+        const uint8_t * bufferPos = reinterpret_cast<const uint8_t *>(str.data());
         return write(bufferPos, toWrite);
     }
 

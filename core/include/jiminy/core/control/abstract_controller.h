@@ -11,7 +11,7 @@
 namespace jiminy
 {
     /// \brief Namespace of the telemetry object.
-    const std::string CONTROLLER_TELEMETRY_NAMESPACE("HighLevelController");
+    inline constexpr std::string_view CONTROLLER_TELEMETRY_NAMESPACE{"HighLevelController"};
 
     class TelemetryData;
     class Robot;
@@ -67,12 +67,12 @@ namespace jiminy
         ///          check. The user has to take care of the life span of the variable, and to
         ///          update it manually whenever it is necessary to do so.
         ///
-        /// \param[in] fieldnames Name of the variable. It will appear in the header of the log.
+        /// \param[in] name Name of the variable. It will appear in the header of the log.
         /// \param[in] values Variable to add to the telemetry.
         ///
         /// \return Return code to determine whether the execution of the method was successful.
         template<typename T>
-        hresult_t registerVariable(const std::string & fieldname, const T & value);
+        hresult_t registerVariable(const std::string_view & name, const T & value);
 
         /// \brief Dynamically registered a Eigen Vector to the telemetry.
         ///
@@ -91,12 +91,12 @@ namespace jiminy
 
         /// \brief Register a constant float64 to the telemetry.
         ///
-        /// \param[in] fieldnames Name of the variable.
+        /// \param[in] name Name of the variable.
         /// \param[in] values Variable to add to the telemetry
         ///
         /// \return Return code to determine whether the execution of the method was successful.
         template<typename T>
-        hresult_t registerConstant(const std::string & fieldname, const T & value);
+        hresult_t registerConstant(const std::string_view & name, const T & value);
 
         /// \brief Remove all variables dynamically registered to the telemetry.
         ///

@@ -11,18 +11,18 @@ namespace jiminy
     }
 
     void TelemetrySender::configureObject(std::shared_ptr<TelemetryData> telemetryDataInstance,
-                                          const std::string & objectName)
+                                          const std::string_view & objectName)
     {
         objectName_ = objectName;
         telemetryData_ = telemetryDataInstance;
         bufferPosition_.clear();
     }
 
-    hresult_t TelemetrySender::registerConstant(const std::string & variableName,
+    hresult_t TelemetrySender::registerConstant(const std::string & name,
                                                 const std::string & value)
     {
         const std::string fullFieldName =
-            objectName_ + TELEMETRY_FIELDNAME_DELIMITER + variableName;
+            addCircumfix(name, objectName_, {}, TELEMETRY_FIELDNAME_DELIMITER);
         return telemetryData_->registerConstant(fullFieldName, value);
     }
 

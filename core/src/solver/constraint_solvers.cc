@@ -13,6 +13,8 @@
 
 namespace jiminy
 {
+    inline constexpr float64_t PGS_MIN_REGULARIZER{1.0e-11};
+
     PGSSolver::PGSSolver(const pinocchio::Model * model,
                          pinocchio::Data * data,
                          constraintsHolder_t * constraintsHolder,

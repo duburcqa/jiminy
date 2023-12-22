@@ -16,7 +16,8 @@ namespace jiminy
     ///
     /// \return Return code to determine whether the execution of the method was successful.
     template<typename T>
-    hresult_t AbstractController::registerConstant(const std::string & fieldname, const T & value)
+    hresult_t AbstractController::registerConstant(const std::string_view & fieldname,
+                                                   const T & value)
     {
         // Delayed variable registration (Taken into account by 'configureTelemetry')
 
@@ -42,7 +43,7 @@ namespace jiminy
     }
 
     template<typename T>
-    hresult_t AbstractController::registerVariable(const std::string & fieldname, const T & value)
+    hresult_t AbstractController::registerVariable(const std::string_view & name, const T & value)
     {
         if (isTelemetryConfigured_)
         {
@@ -53,14 +54,14 @@ namespace jiminy
         // Check in local cache before.
         auto variableIt = std::find_if(registeredVariables_.begin(),
                                        registeredVariables_.end(),
-                                       [&fieldname](const auto & element)
-                                       { return element.first == fieldname; });
+                                       [&name](const auto & element)
+                                       { return element.first == name; });
         if (variableIt != registeredVariables_.end())
         {
             PRINT_ERROR("Variable already registered.");
             return hresult_t::ERROR_BAD_INPUT;
         }
-        registeredVariables_.emplace_back(fieldname, &value);
+        registeredVariables_.emplace_back(name, &value);
 
         return hresult_t::SUCCESS;
     }

@@ -9,21 +9,19 @@
 namespace jiminy
 {
     template<typename T>
-    hresult_t TelemetryData::registerVariable(const std::string & variableName,
-                                              T *& positionInBufferOut)
+    hresult_t TelemetryData::registerVariable(const std::string & name, T *& positionInBuffer)
     {
         // Get the right registry
         std::deque<std::pair<std::string, T>> * registry = getRegistry<T>();
 
         // Check if already in memory
-        auto variableIt =
-            std::find_if(registry->begin(),
-                         registry->end(),
-                         [&variableName](const std::pair<std::string, T> & element) -> bool_t
-                         { return element.first == variableName; });
+        auto variableIt = std::find_if(registry->begin(),
+                                       registry->end(),
+                                       [&name](const std::pair<std::string, T> & element) -> bool_t
+                                       { return element.first == name; });
         if (variableIt != registry->end())
         {
-            positionInBufferOut = &(variableIt->second);
+            positionInBuffer = &(variableIt->second);
             return hresult_t::SUCCESS;
         }
 
@@ -35,8 +33,8 @@ namespace jiminy
         }
 
         // Create new variable in registry
-        registry->push_back({variableName, {}});
-        positionInBufferOut = &(registry->back().second);
+        registry->emplace_back(name, T{});
+        positionInBuffer = &(registry->back().second);
 
         return hresult_t::SUCCESS;
     }

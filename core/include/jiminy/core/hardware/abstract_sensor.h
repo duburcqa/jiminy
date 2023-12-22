@@ -153,8 +153,8 @@ namespace jiminy
         virtual GenericConfig getDefaultSensorOptions()
         {
             GenericConfig config;
-            config["noiseStd"] = Eigen::VectorXd();
-            config["bias"] = Eigen::VectorXd();
+            config["noiseStd"] = Eigen::VectorXd{};
+            config["bias"] = Eigen::VectorXd{};
             config["delay"] = 0.0;
             config["jitter"] = 0.0;
             config["delayInterpolationOrder"] = 1U;
@@ -402,7 +402,7 @@ namespace jiminy
         TelemetrySender telemetrySender_;
     };
 
-    template<class T>
+    template<typename T>
     class AbstractSensorTpl : public AbstractSensorBase
     {
     public:

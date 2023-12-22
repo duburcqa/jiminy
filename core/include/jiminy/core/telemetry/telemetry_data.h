@@ -9,23 +9,19 @@
 namespace jiminy
 {
     /// \brief Version of the telemetry format.
-    const int32_t TELEMETRY_VERSION = 1;
+    inline constexpr int32_t TELEMETRY_VERSION{1};
     /// \brief Number of integers in the data section.
-    const std::string NUM_INTS("NumIntEntries=");
+    inline constexpr std::string_view NUM_INTS{"NumIntEntries"};
     /// \brief Number of floats in the data section.
-    const std::string NUM_FLOATS("NumFloatEntries=");
-    /// \brief Special column
-    const std::string GLOBAL_TIME("Global.Time");
-    /// \brief Special constant
-    const std::string TIME_UNIT("Global.TIME_UNIT");
+    inline constexpr std::string_view NUM_FLOATS{"NumFloatEntries"};
     /// \brief Marker of the beginning the constants section.
-    const std::string START_CONSTANTS("StartConstants");
+    inline constexpr std::string_view START_CONSTANTS{"StartConstants"};
     /// \brief Marker of the beginning the columns section.
-    const std::string START_COLUMNS("StartColumns");
+    inline constexpr std::string_view START_COLUMNS{"StartColumns"};
     /// \brief Marker of the beginning of a line of data.
-    const std::string START_LINE_TOKEN("StartLine");
+    inline constexpr std::string_view START_LINE_TOKEN{"StartLine"};
     /// \brief Marker of the beginning of the data section.
-    const std::string START_DATA("StartData");
+    inline constexpr std::string_view START_DATA{"StartData"};
 
     /// \brief This class manages the data structures of the telemetry.
     class JIMINY_DLLAPI TelemetryData
@@ -44,21 +40,20 @@ namespace jiminy
         ///
         /// \warning The only supported types are int64_t and float64_t.
         ///
-        /// \param[in] variableNameIn Name of the variable to register.
-        /// \param[out] positionInBufferOut Pointer on the allocated buffer holding the variable.
+        /// \param[in] name Name of the variable to register.
+        /// \param[out] positionInBuffer Pointer on the allocated buffer holding the variable.
         ///
         /// \return S_OK if successful, the corresponding telemetry error otherwise.
         template<typename T>
-        hresult_t registerVariable(const std::string & variableNameIn, T *& positionInBufferOut);
+        hresult_t registerVariable(const std::string & name, T *& positionInBuffer);
 
         /// \brief Register a constant for the telemetry.
         ///
-        /// \param[in] invariantNameIn Name of the invariant.
-        /// \param[in] valueIn Value of the invariant.
+        /// \param[in] name Name of the invariant.
+        /// \param[in] value Value of the invariant.
         ///
         /// \return S_OK if successful, the corresponding telemetry error otherwise.
-        hresult_t registerConstant(const std::string & invariantNameIn,
-                                   const std::string & valueIn);
+        hresult_t registerConstant(const std::string & name, const std::string & value);
 
         /// \brief Format the telemetry header with the current recorded informations.
         ///

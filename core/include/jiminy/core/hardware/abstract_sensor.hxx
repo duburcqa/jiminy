@@ -8,6 +8,9 @@
 
 namespace jiminy
 {
+    inline constexpr uint8_t DELAY_MIN_BUFFER_RESERVE{20U};
+    inline constexpr uint8_t DELAY_MAX_BUFFER_EXCEED{100U};
+
     // ========================== AbstractSensorBase ==============================
 
     template<typename DerivedType>
@@ -259,12 +262,13 @@ namespace jiminy
     {
         return fieldnames_.size();
     }
+
     template<typename T>
     std::string AbstractSensorTpl<T>::getTelemetryName() const
     {
         if (areFieldnamesGrouped_)
         {
-            return getType() + TELEMETRY_FIELDNAME_DELIMITER + name_;
+            return addCircumfix(name_, getType(), {}, TELEMETRY_FIELDNAME_DELIMITER);
         }
         else
         {
