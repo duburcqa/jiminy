@@ -20,15 +20,15 @@ namespace jiminy
                                   const Eigen::MatrixXd & RungeKuttaMatrix,
                                   const Eigen::VectorXd & bWeights,
                                   const Eigen::VectorXd & cNodes,
-                                  bool_t isFSAL);
+                                  bool isFSAL);
         virtual ~AbstractRungeKuttaStepper() = default;
 
     protected:
         /// \brief Internal tryStep method wrapping the arguments as state_t and stateDerivative_t.
-        virtual bool_t tryStepImpl(state_t & state,
-                                   stateDerivative_t & stateDerivative,
-                                   float64_t t,
-                                   float64_t & dt) final override;
+        virtual bool tryStepImpl(state_t & state,
+                                 stateDerivative_t & stateDerivative,
+                                 double t,
+                                 double & dt) final override;
 
         /// \brief Determine if step has succeeded or failed, and adjust dt.
         ///
@@ -38,8 +38,8 @@ namespace jiminy
         /// \param[in, out] dt Timestep to be scaled.
         ///
         /// \return Whether the step is successful. The timestep dt is updated in place.
-        virtual bool_t adjustStep(
-            const state_t & initialState, const state_t & solution, float64_t & dt);
+        virtual bool adjustStep(
+            const state_t & initialState, const state_t & solution, double & dt);
 
     private:
         /// \brief Weight matrix.
@@ -49,7 +49,7 @@ namespace jiminy
         /// \brief Nodes
         Eigen::VectorXd c_;
         /// \brief Does scheme support first-same-as-last.
-        bool_t isFSAL_;
+        bool isFSAL_;
 
     protected:
         /// \brief Derivatives at knots.

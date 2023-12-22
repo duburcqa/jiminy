@@ -29,7 +29,7 @@ namespace jiminy
         /// \param[in] groundNormal Normal to the ground in world frame as a unit vector.
         /// \param[in] wheelAxis Axis of the wheel, in the local frame.
         WheelConstraint(const std::string & frameName,
-                        float64_t wheelRadius,
+                        double wheelRadius,
                         const Eigen::Vector3d & groundNormal,
                         const Eigen::Vector3d & wheelAxis);
         virtual ~WheelConstraint() = default;
@@ -52,7 +52,7 @@ namespace jiminy
         /// \brief Corresponding frame index.
         pinocchio::FrameIndex frameIdx_;
         /// \brief Wheel radius.
-        float64_t radius_;
+        double radius_;
         /// \brief Ground normal, world frame.
         Eigen::Vector3d normal_;
         /// \brief Wheel axis, local frame.

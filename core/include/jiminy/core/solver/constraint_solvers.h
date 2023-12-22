@@ -11,9 +11,9 @@ namespace jiminy
 
     struct ConstraintBlock
     {
-        float64_t lo;
-        float64_t hi;
-        bool_t isZero;
+        double lo;
+        double hi;
+        bool isZero;
         Eigen::Index fIdx[3];
         std::uint_fast8_t fSize;
     };
@@ -30,7 +30,7 @@ namespace jiminy
     public:
         AbstractConstraintBase * constraint;
         Eigen::Index startIdx;
-        bool_t isInactive;
+        bool isInactive;
         Eigen::Index dim;
         ConstraintBlock blocks[3];
         std::uint_fast8_t nBlocks;
@@ -50,8 +50,8 @@ namespace jiminy
         ///        s.t. if fIndices[i].size() == 0, lo[i] < x[i] < hi[i]
         ///             else, sqrt(x[i] ** 2 + sum_{j>=1}(x[fIndices[i][j]] ** 2)) < hi[i] *
         ///                   max(0.0, x[fIndices[i][0]])
-        virtual bool_t SolveBoxedForwardDynamics(
-            float64_t dampingInv, bool_t isStateUpToDate, bool_t ignoreBounds) = 0;
+        virtual bool SolveBoxedForwardDynamics(
+            double dampingInv, bool isStateUpToDate, bool ignoreBounds) = 0;
     };
 
     class JIMINY_DLLAPI PGSSolver : public AbstractConstraintSolver
@@ -63,35 +63,35 @@ namespace jiminy
         PGSSolver(const pinocchio::Model * model,
                   pinocchio::Data * data,
                   constraintsHolder_t * constraintsHolder,
-                  float64_t friction,
-                  float64_t torsion,
-                  float64_t tolAbs,
-                  float64_t tolRel,
+                  double friction,
+                  double torsion,
+                  double tolAbs,
+                  double tolRel,
                   uint32_t maxIter);
         virtual ~PGSSolver() = default;
 
-        virtual bool_t SolveBoxedForwardDynamics(float64_t dampingInv,
-                                                 bool_t isStateUpToDate = false,
-                                                 bool_t ignoreBounds = false) override final;
+        virtual bool SolveBoxedForwardDynamics(double dampingInv,
+                                               bool isStateUpToDate = false,
+                                               bool ignoreBounds = false) override final;
 
     private:
         void ProjectedGaussSeidelIter(const Eigen::MatrixXd & A,
                                       const Eigen::VectorXd::SegmentReturnType & b,
                                       Eigen::VectorXd::SegmentReturnType & x);
-        bool_t ProjectedGaussSeidelSolver(const Eigen::MatrixXd & A,
-                                          const Eigen::VectorXd::SegmentReturnType & b,
-                                          Eigen::VectorXd::SegmentReturnType & x);
+        bool ProjectedGaussSeidelSolver(const Eigen::MatrixXd & A,
+                                        const Eigen::VectorXd::SegmentReturnType & b,
+                                        Eigen::VectorXd::SegmentReturnType & x);
 
     private:
         const pinocchio::Model * model_;
         pinocchio::Data * data_;
 
         uint32_t maxIter_;
-        float64_t tolAbs_;
-        float64_t tolRel_;
+        double tolAbs_;
+        double tolRel_;
 
         /// \brief Matrix holding the jacobian of the constraints.
-        Eigen::Matrix<float64_t, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> J_;
+        Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> J_;
         /// \brief Vector holding the drift of the constraints.
         Eigen::VectorXd gamma_;
         /// \brief Vector holding the multipliers of the constraints.
@@ -102,7 +102,7 @@ namespace jiminy
         Eigen::VectorXd y_;
         Eigen::VectorXd yPrev_;
 
-        bool_t isLcpFullyUpToDate_;
+        bool isLcpFullyUpToDate_;
     };
 }
 

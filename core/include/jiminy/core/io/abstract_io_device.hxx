@@ -28,7 +28,7 @@ namespace jiminy
     template<>
     hresult_t AbstractIODevice::read<std::vector<uint8_t>>(std::vector<uint8_t> & v);
     template<>
-    hresult_t AbstractIODevice::read<std::vector<char_t>>(std::vector<char_t> & v);
+    hresult_t AbstractIODevice::read<std::vector<char>>(std::vector<char> & v);
     template<>
     hresult_t AbstractIODevice::read<std::string>(std::string & str) = delete;
 
@@ -38,7 +38,7 @@ namespace jiminy
     template<>
     hresult_t AbstractIODevice::write<std::vector<uint8_t>>(const std::vector<uint8_t> & v);
     template<>
-    hresult_t AbstractIODevice::write<std::vector<char_t>>(const std::vector<char_t> & v);
+    hresult_t AbstractIODevice::write<std::vector<char>>(const std::vector<char> & v);
     template<>
     hresult_t AbstractIODevice::write<std::vector<uint64_t>>(const std::vector<uint64_t> & v);
 }

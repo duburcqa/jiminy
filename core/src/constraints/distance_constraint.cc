@@ -1,6 +1,5 @@
 #include "pinocchio/algorithm/frames.hpp"  // `pinocchio::getFrameVelocity`, `pinocchio::getFrameAcceleration`
 
-#include "jiminy/core/exceptions.h"
 #include "jiminy/core/robot/model.h"
 #include "jiminy/core/utilities/pinocchio.h"
 
@@ -33,7 +32,7 @@ namespace jiminy
         return framesIdx_;
     }
 
-    hresult_t DistanceConstraint::setReferenceDistance(float64_t distanceRef)
+    hresult_t DistanceConstraint::setReferenceDistance(double distanceRef)
     {
         if (distanceRef < 0.0)
         {
@@ -45,7 +44,7 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    float64_t DistanceConstraint::getReferenceDistance() const
+    double DistanceConstraint::getReferenceDistance() const
     {
         return distanceRef_;
     }
@@ -115,7 +114,7 @@ namespace jiminy
         // Compute direction between frames
         const Eigen::Vector3d deltaPosition = model->pncData_.oMf[framesIdx_[0]].translation() -
                                               model->pncData_.oMf[framesIdx_[1]].translation();
-        const float64_t deltaPositionNorm = deltaPosition.norm();
+        const double deltaPositionNorm = deltaPosition.norm();
         const Eigen::Vector3d direction = deltaPosition / deltaPositionNorm;
 
         // Compute relative velocity between frames
@@ -150,7 +149,7 @@ namespace jiminy
 
         /* dDir.T * (dp_A - dp_B) =
                [(dp_A - dp_B) ** 2 - (dir.T * (dp_A - dp_B)) ** 2] / norm(p_A - p_B) */
-        const float64_t deltaVelocityProj = deltaVelocity.dot(direction);
+        const double deltaVelocityProj = deltaVelocity.dot(direction);
         drift_[0] +=
             (deltaVelocity.squaredNorm() - std::pow(deltaVelocityProj, 2)) / deltaPositionNorm;
 

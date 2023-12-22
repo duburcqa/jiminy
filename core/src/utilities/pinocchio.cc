@@ -16,7 +16,6 @@
 #include "hpp/fcl/BVH/BVH_model.h"
 
 #include "jiminy/core/traits.h"
-#include "jiminy/core/exceptions.h"
 #include "jiminy/core/telemetry/telemetry_recorder.h"  // `LogData`
 #include "jiminy/core/utilities/helpers.h"
 #include "jiminy/core/utilities/pinocchio.h"
@@ -321,7 +320,7 @@ namespace jiminy
     hresult_t getJointsPositionIdx(const pinocchio::Model & model,
                                    const std::vector<std::string> & jointsNames,
                                    std::vector<int32_t> & jointsPositionIdx,
-                                   bool_t firstJointIdxOnly)
+                                   bool firstJointIdxOnly)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -443,7 +442,7 @@ namespace jiminy
     hresult_t getJointsVelocityIdx(const pinocchio::Model & model,
                                    const std::vector<std::string> & jointsNames,
                                    std::vector<int32_t> & jointsVelocityIdx,
-                                   bool_t firstJointIdxOnly)
+                                   bool firstJointIdxOnly)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -485,8 +484,8 @@ namespace jiminy
 
     hresult_t isPositionValid(const pinocchio::Model & model,
                               const Eigen::VectorXd & position,
-                              bool_t & isValid,
-                              float64_t tol)
+                              bool & isValid,
+                              double tol)
     {
         if (model.nq != position.size())
         {
@@ -893,7 +892,7 @@ namespace jiminy
         positionsOut.resize(timesOut.size(), positionsIn.cols());
         for (Eigen::Index i = 0; i < timesOut.size(); ++i)
         {
-            float64_t t = timesOut[i];
+            double t = timesOut[i];
             while (timesInIdx < timesIn.size() - 1 && timesIn[timesInIdx + 1] < t)
             {
                 ++timesInIdx;
@@ -906,7 +905,7 @@ namespace jiminy
                     positionsIn.row(timesInIdx).transpose();
                 const Eigen::Ref<const Eigen::VectorXd> qLeft =
                     positionsIn.row(timesInIdx + 1).transpose();
-                const float64_t ratio =
+                const double ratio =
                     (t - timesIn[timesInIdx]) / (timesIn[timesInIdx + 1] - timesIn[timesInIdx]);
                 pinocchio::interpolate(modelIn, qRight, qLeft, ratio, qInterp);
                 positionsOut.row(i) = qInterp;
@@ -961,8 +960,8 @@ namespace jiminy
                                 const pinocchio::GeometryType & type,
                                 pinocchio::GeometryModel & geomModel,
                                 const std::vector<std::string> & packageDirs,
-                                bool_t loadMeshes,
-                                bool_t makeConvexMeshes)
+                                bool loadMeshes,
+                                bool makeConvexMeshes)
     {
         // Load geometry model
         try
@@ -1015,12 +1014,12 @@ namespace jiminy
 
     hresult_t buildModelsFromUrdf(
         const std::string & urdfPath,
-        bool_t hasFreeflyer,
+        bool hasFreeflyer,
         const std::vector<std::string> & meshPackageDirs,
         pinocchio::Model & pncModel,
         pinocchio::GeometryModel & collisionModel,
         std::optional<std::reference_wrapper<pinocchio::GeometryModel>> visualModel,
-        bool_t loadVisualMeshes)
+        bool loadVisualMeshes)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 

@@ -1,7 +1,5 @@
 #include <numeric>
 
-#include "jiminy/core/constants.h"
-#include "jiminy/core/exceptions.h"
 #include "jiminy/core/robot/robot.h"
 #include "jiminy/core/utilities/random.h"
 
@@ -196,9 +194,9 @@ namespace jiminy
         sharedHolder_->delayMax_ = std::accumulate(sharedHolder_->sensors_.begin(),
                                                    sharedHolder_->sensors_.end(),
                                                    0.0,
-                                                   [](float64_t value, AbstractSensorBase * sensor)
+                                                   [](double value, AbstractSensorBase * sensor)
                                                    {
-                                                       const float64_t delay =
+                                                       const double delay =
                                                            sensor->baseSensorOptions_->delay +
                                                            sensor->baseSensorOptions_->jitter;
                                                        return std::max(delay, value);
@@ -307,11 +305,11 @@ namespace jiminy
         assert(sharedHolder_->time_.size() > 0 && "Do data to interpolate.");
 
         // Sample the delay uniformly
-        const float64_t delay =
+        const double delay =
             baseSensorOptions_->delay + randUniform(0.0, baseSensorOptions_->jitter);
 
         // Add STEPPER_MIN_TIMESTEP to timeDesired to avoid float comparison issues
-        const float64_t timeDesired = sharedHolder_->time_.back() - delay + STEPPER_MIN_TIMESTEP;
+        const double timeDesired = sharedHolder_->time_.back() - delay + STEPPER_MIN_TIMESTEP;
 
         /* Determine the position of the closest right element.
            Bisection method can be used since times are sorted. */
@@ -372,10 +370,10 @@ namespace jiminy
             else if (baseSensorOptions_->delayInterpolationOrder == 1)
             {
                 // FIXME: the linear interpolation is not valid for quaternion
-                const float64_t dt =
+                const double dt =
                     sharedHolder_->time_[idxLeft + 1] - sharedHolder_->time_[idxLeft];
-                const float64_t ratioNext = (sharedHolder_->time_[idxLeft + 1] - timeDesired) / dt;
-                const float64_t ratioPrev = (timeDesired - sharedHolder_->time_[idxLeft]) / dt;
+                const double ratioNext = (sharedHolder_->time_[idxLeft + 1] - timeDesired) / dt;
+                const double ratioPrev = (timeDesired - sharedHolder_->time_[idxLeft]) / dt;
                 get() = ratioPrev * sharedHolder_->data_[idxLeft + 1].col(sensorIdx_) +
                         ratioNext * sharedHolder_->data_[idxLeft].col(sensorIdx_);
             }
@@ -392,7 +390,7 @@ namespace jiminy
                 // Return the oldest value since the buffer is not fully initialized yet
                 auto it = std::find_if(sharedHolder_->time_.begin(),
                                        sharedHolder_->time_.end(),
-                                       [](float64_t t) { return t > 0; });
+                                       [](double t) -> bool { return t > 0; });
                 if (it != sharedHolder_->time_.end())
                 {
                     std::ptrdiff_t idx = std::distance(sharedHolder_->time_.begin(), it);
@@ -438,7 +436,7 @@ namespace jiminy
     }
 
     template<typename T>
-    hresult_t AbstractSensorTpl<T>::setAll(float64_t t,
+    hresult_t AbstractSensorTpl<T>::setAll(double t,
                                            const Eigen::VectorXd & q,
                                            const Eigen::VectorXd & v,
                                            const Eigen::VectorXd & a,
@@ -457,7 +455,7 @@ namespace jiminy
            the case where the solver goes back in time. Even though it makes the buffer much larger
            than necessary as the actual maximum step is given by `engineOptions_->stepper.dtMax`,
            it is not a big deal since `rotate`, `pop_front`, `push_back` have O(1) complexity. */
-        const float64_t timeMin = t - sharedHolder_->delayMax_ - SIMULATION_MAX_TIMESTEP;
+        const double timeMin = t - sharedHolder_->delayMax_ - SIMULATION_MAX_TIMESTEP;
 
         // Internal buffer memory management
         if (t + EPS > sharedHolder_->time_.back())

@@ -1,8 +1,6 @@
 #ifndef JIMINY_TELEMETRY_SENDER_HXX
 #define JIMINY_TELEMETRY_SENDER_HXX
 
-#include "jiminy/core/constants.h"
-#include "jiminy/core/exceptions.h"
 #include "jiminy/core/utilities/helpers.h"
 #include "jiminy/core/telemetry/telemetry_data.h"
 

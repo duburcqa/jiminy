@@ -81,7 +81,7 @@ namespace jiminy
         std::shared_ptr<TelemetryData> telemetryData_;
         /// \brief Associate each variable pointer provided by the user to their reserved position
         ///        in the contiguous storage of telemetry data.
-        telemetry_data_registry_t<float64_t, int64_t> bufferPosition_;
+        telemetry_data_registry_t<double, int64_t> bufferPosition_;
     };
 }
 

@@ -25,8 +25,6 @@
 
 #include "urdf_parser/urdf_parser.h"
 
-#include "jiminy/core/constants.h"
-#include "jiminy/core/exceptions.h"
 #include "jiminy/core/hardware/basic_sensors.h"
 #include "jiminy/core/robot/pinocchio_overload_algorithms.h"
 #include "jiminy/core/constraints/abstract_constraint.h"
@@ -97,15 +95,15 @@ namespace jiminy
         return {constraintsMapPtr, constraintIt};
     }
 
-    bool_t constraintsHolder_t::exist(const std::string & key,
-                                      constraintsHolderType_t holderType) const
+    bool constraintsHolder_t::exist(const std::string & key,
+                                    constraintsHolderType_t holderType) const
     {
         const auto [constraintsMapPtr, constraintIt] =
             const_cast<constraintsHolder_t *>(this)->find(key, holderType);
         return (constraintsMapPtr && constraintIt != constraintsMapPtr->end());
     }
 
-    bool_t constraintsHolder_t::exist(const std::string & key) const
+    bool constraintsHolder_t::exist(const std::string & key) const
     {
         for (constraintsHolderType_t holderType : constraintsHolderTypesAll)
         {
@@ -333,9 +331,9 @@ namespace jiminy
     }
 
     hresult_t Model::initialize(const std::string & urdfPath,
-                                bool_t hasFreeflyer,
+                                bool hasFreeflyer,
                                 const std::vector<std::string> & meshPackageDirs,
-                                bool_t loadVisualMeshes)
+                                bool loadVisualMeshes)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -362,8 +360,8 @@ namespace jiminy
         {
             urdfPath_ = urdfPath;
             std::ifstream urdfFileStream(urdfPath_);
-            urdfData_ = std::string(std::istreambuf_iterator<char_t>(urdfFileStream),
-                                    std::istreambuf_iterator<char_t>());
+            urdfData_ = std::string(std::istreambuf_iterator<char>(urdfFileStream),
+                                    std::istreambuf_iterator<char>());
             meshPackageDirs_ = meshPackageDirs;
         }
 
@@ -531,7 +529,7 @@ namespace jiminy
     }
 
     hresult_t Model::addCollisionBodies(const std::vector<std::string> & bodyNames,
-                                        bool_t ignoreMeshes)
+                                        bool ignoreMeshes)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -582,11 +580,11 @@ namespace jiminy
         // Make sure that at least one geometry is associated with each body
         for (const std::string & name : bodyNames)
         {
-            bool_t hasGeometry = false;
+            bool hasGeometry = false;
             for (const pinocchio::GeometryObject & geom : collisionModelOrig_.geometryObjects)
             {
-                const bool_t isGeomMesh = (geom.meshPath.find('/') != std::string::npos ||
-                                           geom.meshPath.find('\\') != std::string::npos);
+                const bool isGeomMesh = (geom.meshPath.find('/') != std::string::npos ||
+                                         geom.meshPath.find('\\') != std::string::npos);
                 // geom.meshPath is the geometry type if it is not an actual mesh
                 if (!(ignoreMeshes && isGeomMesh) &&
                     pncModel_.frames[geom.parentFrame].name == name)
@@ -619,8 +617,8 @@ namespace jiminy
                 {
                     const pinocchio::GeometryObject & geom =
                         collisionModelOrig_.geometryObjects[i];
-                    const bool_t isGeomMesh = (geom.meshPath.find('/') != std::string::npos ||
-                                               geom.meshPath.find('\\') != std::string::npos);
+                    const bool isGeomMesh = (geom.meshPath.find('/') != std::string::npos ||
+                                             geom.meshPath.find('\\') != std::string::npos);
                     const std::string & frameName = pncModel_.frames[geom.parentFrame].name;
                     if (!(ignoreMeshes && isGeomMesh) && frameName == name)
                     {
@@ -652,8 +650,7 @@ namespace jiminy
                                 geom.name,
                                 std::make_shared<FrameConstraint>(
                                     geom.name,
-                                    std::array<bool_t, 6>{
-                                        {true, true, true, false, false, true}}));
+                                    std::array<bool, 6>{{true, true, true, false, false, true}}));
                         }
 
                         // TODO: Add warning or error to notify that a geometry has been ignored
@@ -799,7 +796,7 @@ namespace jiminy
             frameConstraintsMap.emplace_back(
                 frameName,
                 std::make_shared<FrameConstraint>(
-                    frameName, std::array<bool_t, 6>{{true, true, true, false, false, true}}));
+                    frameName, std::array<bool, 6>{{true, true, true, false, false, true}}));
         }
         returnCode = addConstraints(frameConstraintsMap, constraintsHolderType_t::CONTACT_FRAMES);
 
@@ -993,7 +990,7 @@ namespace jiminy
         return constraintsHolder_;
     }
 
-    bool_t Model::existConstraint(const std::string & constraintName) const
+    bool Model::existConstraint(const std::string & constraintName) const
     {
         return constraintsHolder_.exist(constraintName);
     }
@@ -1162,8 +1159,7 @@ namespace jiminy
                 const pinocchio::JointIndex jointIdx = pncModel_.getJointId(jointName);
 
                 // Add bias to com position
-                const float64_t comBiasStd =
-                    mdlOptions_->dynamics.centerOfMassPositionBodiesBiasStd;
+                const double comBiasStd = mdlOptions_->dynamics.centerOfMassPositionBodiesBiasStd;
                 if (comBiasStd > EPS)
                 {
                     Eigen::Vector3d & comRelativePositionBody =
@@ -1174,10 +1170,10 @@ namespace jiminy
 
                 /* Add bias to body mass.
                    It cannot be less than min(original mass, 1g) for numerical stability. */
-                const float64_t massBiasStd = mdlOptions_->dynamics.massBodiesBiasStd;
+                const double massBiasStd = mdlOptions_->dynamics.massBodiesBiasStd;
                 if (massBiasStd > EPS)
                 {
-                    float64_t & massBody = pncModel_.inertias[jointIdx].mass();
+                    double & massBody = pncModel_.inertias[jointIdx].mass();
                     massBody = std::max(massBody * (1.0 + randNormal(0.0, massBiasStd)),
                                         std::min(massBody, 1.0e-3));
                 }
@@ -1189,7 +1185,7 @@ namespace jiminy
                    small rotation is applied to the principal axes based on a randomly generated
                    rotation axis. Finally, the biased inertia matrix is obtained doing
                    `A @ diag(M) @ A.T`. If no bias, the original inertia matrix is recovered. */
-                const float64_t inertiaBiasStd = mdlOptions_->dynamics.inertiaBodiesBiasStd;
+                const double inertiaBiasStd = mdlOptions_->dynamics.inertiaBodiesBiasStd;
                 if (inertiaBiasStd > EPS)
                 {
                     pinocchio::Symmetric3 & inertiaBody = pncModel_.inertias[jointIdx].inertia();
@@ -1208,7 +1204,7 @@ namespace jiminy
                 }
 
                 // Add bias to relative body position (rotation excluded !)
-                const float64_t relativeBodyPosBiasStd =
+                const double relativeBodyPosBiasStd =
                     mdlOptions_->dynamics.relativePositionBodiesBiasStd;
                 if (relativeBodyPosBiasStd > EPS)
                 {
@@ -1613,17 +1609,17 @@ namespace jiminy
 
     hresult_t Model::setOptions(GenericConfig modelOptions)
     {
-        bool_t internalBuffersMustBeUpdated = false;
-        bool_t areModelsInvalid = false;
-        bool_t isCollisionDataInvalid = false;
+        bool internalBuffersMustBeUpdated = false;
+        bool areModelsInvalid = false;
+        bool isCollisionDataInvalid = false;
         if (isInitialized_)
         {
             /* Check that the following user parameters has the right dimension, then update the
                required internal buffers to reflect changes, if any. */
             GenericConfig & jointOptionsHolder =
                 boost::get<GenericConfig>(modelOptions.at("joints"));
-            bool_t positionLimitFromUrdf =
-                boost::get<bool_t>(jointOptionsHolder.at("positionLimitFromUrdf"));
+            bool positionLimitFromUrdf =
+                boost::get<bool>(jointOptionsHolder.at("positionLimitFromUrdf"));
             if (!positionLimitFromUrdf)
             {
                 Eigen::VectorXd & jointsPositionLimitMin =
@@ -1659,8 +1655,8 @@ namespace jiminy
                     internalBuffersMustBeUpdated = true;
                 }
             }
-            bool_t velocityLimitFromUrdf =
-                boost::get<bool_t>(jointOptionsHolder.at("velocityLimitFromUrdf"));
+            bool velocityLimitFromUrdf =
+                boost::get<bool>(jointOptionsHolder.at("velocityLimitFromUrdf"));
             if (!velocityLimitFromUrdf)
             {
                 Eigen::VectorXd & jointsVelocityLimit =
@@ -1721,10 +1717,10 @@ namespace jiminy
             }
 
             // Check if the position or velocity limits have changed, and refresh proxies if so
-            bool_t enablePositionLimit =
-                boost::get<bool_t>(jointOptionsHolder.at("enablePositionLimit"));
-            bool_t enableVelocityLimit =
-                boost::get<bool_t>(jointOptionsHolder.at("enableVelocityLimit"));
+            bool enablePositionLimit =
+                boost::get<bool>(jointOptionsHolder.at("enablePositionLimit"));
+            bool enableVelocityLimit =
+                boost::get<bool>(jointOptionsHolder.at("enableVelocityLimit"));
             if (enablePositionLimit != mdlOptions_->joints.enablePositionLimit)
             {
                 internalBuffersMustBeUpdated = true;
@@ -1745,8 +1741,8 @@ namespace jiminy
             }
 
             // Check if the flexible model and its proxies must be regenerated
-            bool_t enableFlexibleModel =
-                boost::get<bool_t>(dynOptionsHolder.at("enableFlexibleModel"));
+            bool enableFlexibleModel =
+                boost::get<bool>(dynOptionsHolder.at("enableFlexibleModel"));
             if (mdlOptions_ &&
                 (flexibilityConfig.size() != mdlOptions_->dynamics.flexibilityConfig.size() ||
                  !std::equal(flexibilityConfig.begin(),
@@ -1782,7 +1778,7 @@ namespace jiminy
                                                               "centerOfMassPositionBodiesBiasStd",
                                                               "relativePositionBodiesBiasStd"}})
         {
-            const float64_t value = boost::get<float64_t>(dynOptionsHolder.at(field));
+            const double value = boost::get<double>(dynOptionsHolder.at(field));
             if (0.9 < value || value < 0.0)
             {
                 PRINT_ERROR(
@@ -1821,7 +1817,7 @@ namespace jiminy
         return mdlOptionsHolder_;
     }
 
-    bool_t Model::getIsInitialized() const
+    bool Model::getIsInitialized() const
     {
         return isInitialized_;
     }
@@ -1846,7 +1842,7 @@ namespace jiminy
         return meshPackageDirs_;
     }
 
-    bool_t Model::getHasFreeflyer() const
+    bool Model::getHasFreeflyer() const
     {
         return hasFreeflyer_;
     }
@@ -2119,9 +2115,9 @@ namespace jiminy
     }
 
     /// \brief Returns true if at least one constraint is active on the robot.
-    bool_t Model::hasConstraints() const
+    bool Model::hasConstraints() const
     {
-        bool_t hasConstraintsEnabled = false;
+        bool hasConstraintsEnabled = false;
         const_cast<constraintsHolder_t &>(constraintsHolder_)
             .foreach(
                 [&hasConstraintsEnabled](

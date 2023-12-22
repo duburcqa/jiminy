@@ -1,4 +1,3 @@
-#include "jiminy/core/exceptions.h"
 #include "jiminy/core/robot/model.h"
 
 #include "jiminy/core/constraints/abstract_constraint.h"
@@ -58,12 +57,12 @@ namespace jiminy
         isEnabled_ = false;
     }
 
-    bool_t AbstractConstraintBase::getIsEnabled() const
+    bool AbstractConstraintBase::getIsEnabled() const
     {
         return isEnabled_;
     }
 
-    hresult_t AbstractConstraintBase::setBaumgartePositionGain(float64_t kp)
+    hresult_t AbstractConstraintBase::setBaumgartePositionGain(double kp)
     {
         if (kp < 0.0)
         {
@@ -74,12 +73,12 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    float64_t AbstractConstraintBase::getBaumgartePositionGain() const
+    double AbstractConstraintBase::getBaumgartePositionGain() const
     {
         return kp_;
     }
 
-    hresult_t AbstractConstraintBase::setBaumgarteVelocityGain(float64_t kd)
+    hresult_t AbstractConstraintBase::setBaumgarteVelocityGain(double kd)
     {
         if (kd < 0.0)
         {
@@ -90,12 +89,12 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    float64_t AbstractConstraintBase::getBaumgarteVelocityGain() const
+    double AbstractConstraintBase::getBaumgarteVelocityGain() const
     {
         return kd_;
     }
 
-    hresult_t AbstractConstraintBase::setBaumgarteFreq(float64_t freq)
+    hresult_t AbstractConstraintBase::setBaumgarteFreq(double freq)
     {
         if (freq < 0.0)
         {
@@ -104,16 +103,16 @@ namespace jiminy
         }
 
         // Critically damped position/velocity gains
-        const float64_t omega = 2.0 * M_PI * freq;
+        const double omega = 2.0 * M_PI * freq;
         kp_ = omega * omega;
         kd_ = 2.0 * omega;
 
         return hresult_t::SUCCESS;
     }
 
-    float64_t AbstractConstraintBase::getBaumgarteFreq() const
+    double AbstractConstraintBase::getBaumgarteFreq() const
     {
-        float64_t zeta = kd_ / 2.0;
+        double zeta = kd_ / 2.0;
         if (zeta < std::sqrt(kp_))
         {
             zeta = std::max(zeta, std::sqrt(kp_ - std::pow(zeta, 2)));

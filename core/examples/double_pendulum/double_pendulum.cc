@@ -17,7 +17,7 @@
 
 using namespace jiminy;
 
-void computeCommand(float64_t /* t */,
+void computeCommand(double /* t */,
                     const Eigen::VectorXd & /* q */,
                     const Eigen::VectorXd & /* v */,
                     const SensorsDataMap & /* sensorsData */,
@@ -26,7 +26,7 @@ void computeCommand(float64_t /* t */,
     // No controller: energy should be preserved
 }
 
-void internalDynamics(float64_t /* t */,
+void internalDynamics(double /* t */,
                       const Eigen::VectorXd & /* q */,
                       const Eigen::VectorXd & /* v */,
                       const SensorsDataMap & /* sensorsData */,
@@ -34,13 +34,12 @@ void internalDynamics(float64_t /* t */,
 {
 }
 
-bool_t callback(
-    float64_t /* t */, const Eigen::VectorXd & /* q */, const Eigen::VectorXd & /* v */)
+bool callback(double /* t */, const Eigen::VectorXd & /* q */, const Eigen::VectorXd & /* v */)
 {
     return true;
 }
 
-int main(int /* argc */, char_t * /* argv */[])
+int main(int /* argc */, char * /* argv */[])
 {
     // =====================================================================
     // ==================== Extract the user paramaters ====================
@@ -68,8 +67,8 @@ int main(int /* argc */, char_t * /* argv */[])
     auto robot = std::make_shared<Robot>();
     GenericConfig modelOptions = robot->getModelOptions();
     GenericConfig & jointsOptions = boost::get<GenericConfig>(modelOptions.at("joints"));
-    boost::get<bool_t>(jointsOptions.at("positionLimitFromUrdf")) = true;
-    boost::get<bool_t>(jointsOptions.at("velocityLimitFromUrdf")) = true;
+    boost::get<bool>(jointsOptions.at("positionLimitFromUrdf")) = true;
+    boost::get<bool>(jointsOptions.at("velocityLimitFromUrdf")) = true;
     robot->setModelOptions(modelOptions);
     robot->initialize(urdfPath.string(), false, {dataPath.string()});
     for (const std::string & jointName : motorJointNames)
@@ -89,35 +88,35 @@ int main(int /* argc */, char_t * /* argv */[])
     auto engine = std::make_shared<Engine>();
     GenericConfig simuOptions = engine->getOptions();
     GenericConfig & telemetryOptions = boost::get<GenericConfig>(simuOptions.at("telemetry"));
-    boost::get<bool_t>(telemetryOptions.at("isPersistent")) = true;
-    boost::get<bool_t>(telemetryOptions.at("enableConfiguration")) = true;
-    boost::get<bool_t>(telemetryOptions.at("enableVelocity")) = true;
-    boost::get<bool_t>(telemetryOptions.at("enableAcceleration")) = true;
-    boost::get<bool_t>(telemetryOptions.at("enableForceExternal")) = false;
-    boost::get<bool_t>(telemetryOptions.at("enableCommand")) = true;
-    boost::get<bool_t>(telemetryOptions.at("enableMotorEffort")) = true;
-    boost::get<bool_t>(telemetryOptions.at("enableEnergy")) = true;
+    boost::get<bool>(telemetryOptions.at("isPersistent")) = true;
+    boost::get<bool>(telemetryOptions.at("enableConfiguration")) = true;
+    boost::get<bool>(telemetryOptions.at("enableVelocity")) = true;
+    boost::get<bool>(telemetryOptions.at("enableAcceleration")) = true;
+    boost::get<bool>(telemetryOptions.at("enableForceExternal")) = false;
+    boost::get<bool>(telemetryOptions.at("enableCommand")) = true;
+    boost::get<bool>(telemetryOptions.at("enableMotorEffort")) = true;
+    boost::get<bool>(telemetryOptions.at("enableEnergy")) = true;
     GenericConfig & worldOptions = boost::get<GenericConfig>(simuOptions.at("world"));
     boost::get<Eigen::VectorXd>(worldOptions.at("gravity"))[2] = -9.81;
     GenericConfig & stepperOptions = boost::get<GenericConfig>(simuOptions.at("stepper"));
     boost::get<std::string>(stepperOptions.at("odeSolver")) = std::string("runge_kutta_dopri5");
-    boost::get<float64_t>(stepperOptions.at("tolRel")) = 1.0e-5;
-    boost::get<float64_t>(stepperOptions.at("tolAbs")) = 1.0e-4;
-    boost::get<float64_t>(stepperOptions.at("dtMax")) = 3.0e-3;
-    boost::get<float64_t>(stepperOptions.at("dtRestoreThresholdRel")) = 0.2;
+    boost::get<double>(stepperOptions.at("tolRel")) = 1.0e-5;
+    boost::get<double>(stepperOptions.at("tolAbs")) = 1.0e-4;
+    boost::get<double>(stepperOptions.at("dtMax")) = 3.0e-3;
+    boost::get<double>(stepperOptions.at("dtRestoreThresholdRel")) = 0.2;
     boost::get<uint32_t>(stepperOptions.at("iterMax")) = 100000U;  // -1 to disable
-    boost::get<float64_t>(stepperOptions.at("timeout")) = -1;      // -1 to disable
-    boost::get<float64_t>(stepperOptions.at("sensorsUpdatePeriod")) = 1.0e-3;
-    boost::get<float64_t>(stepperOptions.at("controllerUpdatePeriod")) = 1.0e-3;
-    boost::get<bool_t>(stepperOptions.at("logInternalStepperSteps")) = false;
+    boost::get<double>(stepperOptions.at("timeout")) = -1;         // -1 to disable
+    boost::get<double>(stepperOptions.at("sensorsUpdatePeriod")) = 1.0e-3;
+    boost::get<double>(stepperOptions.at("controllerUpdatePeriod")) = 1.0e-3;
+    boost::get<bool>(stepperOptions.at("logInternalStepperSteps")) = false;
     boost::get<uint32_t>(stepperOptions.at("randomSeed")) = 0U;  // `time(nullptr)` for random seed
     GenericConfig & contactsOptions = boost::get<GenericConfig>(simuOptions.at("contacts"));
     boost::get<std::string>(contactsOptions.at("model")) = std::string("spring_damper");
-    boost::get<float64_t>(contactsOptions.at("stiffness")) = 1.0e6;
-    boost::get<float64_t>(contactsOptions.at("damping")) = 2000.0;
-    boost::get<float64_t>(contactsOptions.at("friction")) = 5.0;
-    boost::get<float64_t>(contactsOptions.at("transitionEps")) = 0.001;
-    boost::get<float64_t>(contactsOptions.at("transitionVelocity")) = 0.01;
+    boost::get<double>(contactsOptions.at("stiffness")) = 1.0e6;
+    boost::get<double>(contactsOptions.at("damping")) = 2000.0;
+    boost::get<double>(contactsOptions.at("friction")) = 5.0;
+    boost::get<double>(contactsOptions.at("transitionEps")) = 0.001;
+    boost::get<double>(contactsOptions.at("transitionVelocity")) = 0.01;
     engine->setOptions(simuOptions);
     engine->initialize(robot, controller, callback);
 
@@ -131,7 +130,7 @@ int main(int /* argc */, char_t * /* argv */[])
     Eigen::VectorXd q0 = Eigen::VectorXd::Zero(2);
     q0[1] = 0.1;
     Eigen::VectorXd v0 = Eigen::VectorXd::Zero(2);
-    const float64_t tf = 3.0;
+    const double tf = 3.0;
 
     // Run simulation
     timer.tic();

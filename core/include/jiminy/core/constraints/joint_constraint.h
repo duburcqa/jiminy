@@ -30,8 +30,8 @@ namespace jiminy
         void setReferenceConfiguration(const Eigen::VectorXd & configurationRef);
         const Eigen::VectorXd & getReferenceConfiguration() const;
 
-        void setRotationDir(bool_t isReversed);
-        bool_t getRotationDir();
+        void setRotationDir(bool isReversed);
+        bool getRotationDir();
 
         virtual hresult_t reset(const Eigen::VectorXd & q,
                                 const Eigen::VectorXd & v) override final;
@@ -47,7 +47,7 @@ namespace jiminy
         /// \brief Reference position of the joint to enforce.
         Eigen::VectorXd configurationRef_;
         /// \brief Whether to reverse the sign of the constraint.
-        bool_t isReversed_;
+        bool isReversed_;
     };
 }
 

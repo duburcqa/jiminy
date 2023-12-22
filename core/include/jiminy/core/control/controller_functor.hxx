@@ -1,6 +1,5 @@
 #include <cassert>
 
-#include "jiminy/core/exceptions.h"
 #include "jiminy/core/robot/robot.h"
 
 
@@ -23,10 +22,8 @@ namespace jiminy
     }
 
     template<typename F1, typename F2>
-    hresult_t ControllerFunctor<F1, F2>::computeCommand(float64_t t,
-                                                        const Eigen::VectorXd & q,
-                                                        const Eigen::VectorXd & v,
-                                                        Eigen::VectorXd & command)
+    hresult_t ControllerFunctor<F1, F2>::computeCommand(
+        double t, const Eigen::VectorXd & q, const Eigen::VectorXd & v, Eigen::VectorXd & command)
     {
         if (!getIsInitialized())
         {
@@ -40,10 +37,8 @@ namespace jiminy
     }
 
     template<typename F1, typename F2>
-    hresult_t ControllerFunctor<F1, F2>::internalDynamics(float64_t t,
-                                                          const Eigen::VectorXd & q,
-                                                          const Eigen::VectorXd & v,
-                                                          Eigen::VectorXd & uCustom)
+    hresult_t ControllerFunctor<F1, F2>::internalDynamics(
+        double t, const Eigen::VectorXd & q, const Eigen::VectorXd & v, Eigen::VectorXd & uCustom)
     {
         if (!getIsInitialized())
         {

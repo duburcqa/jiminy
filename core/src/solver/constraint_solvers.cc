@@ -6,22 +6,21 @@
 #include "jiminy/core/constraints/abstract_constraint.h"
 #include "jiminy/core/utilities/random.h"
 #include "jiminy/core/utilities/helpers.h"
-#include "jiminy/core/constants.h"
 
 #include "jiminy/core/solver/constraint_solvers.h"
 
 
 namespace jiminy
 {
-    inline constexpr float64_t PGS_MIN_REGULARIZER{1.0e-11};
+    inline constexpr double PGS_MIN_REGULARIZER{1.0e-11};
 
     PGSSolver::PGSSolver(const pinocchio::Model * model,
                          pinocchio::Data * data,
                          constraintsHolder_t * constraintsHolder,
-                         float64_t friction,
-                         float64_t torsion,
-                         float64_t tolAbs,
-                         float64_t tolRel,
+                         double friction,
+                         double torsion,
+                         double tolAbs,
+                         double tolRel,
                          uint32_t maxIter) :
     model_(model),
     data_(data),
@@ -148,9 +147,9 @@ namespace jiminy
                 const std::uint_fast8_t & fSize = block.fSize;
                 const Eigen::Index o = constraintData.startIdx;
                 const Eigen::Index i0 = o + fIdx[0];
-                const float64_t hi = block.hi;
-                const float64_t lo = block.lo;
-                float64_t & e = x[i0];
+                const double hi = block.hi;
+                const double lo = block.lo;
+                double & e = x[i0];
 
                 // Bypass zero-ed coefficients
                 if (block.isZero)
@@ -165,13 +164,13 @@ namespace jiminy
                 }
 
                 // Update several coefficients at once with the same step
-                float64_t A_max = A(i0, i0);
+                double A_max = A(i0, i0);
                 y_[i0] = b[i0] - A.col(i0).dot(x);
                 for (std::uint_fast8_t j = 1; j < fSize - 1; ++j)
                 {
                     const Eigen::Index k = o + fIdx[j];
                     y_[k] = b[k] - A.col(k).dot(x);
-                    const float64_t A_kk = A(k, k);
+                    const double A_kk = A(k, k);
                     if (A_kk > A_max)
                     {
                         A_max = A_kk;
@@ -192,7 +191,7 @@ namespace jiminy
                 }
                 else
                 {
-                    const float64_t thr = hi * xConst[fIdx[fSize - 1]];
+                    const double thr = hi * xConst[fIdx[fSize - 1]];
                     if (fSize == 2)
                     {
                         // Specialization for speedup and numerical stability
@@ -201,15 +200,15 @@ namespace jiminy
                     else
                     {
                         // Generic case
-                        float64_t squaredNorm = e * e;
+                        double squaredNorm = e * e;
                         for (std::uint_fast8_t j = 1; j < fSize - 1; ++j)
                         {
-                            const float64_t f = xConst[fIdx[j]];
+                            const double f = xConst[fIdx[j]];
                             squaredNorm += f * f;
                         }
                         if (squaredNorm > thr * thr)
                         {
-                            const float64_t scale = thr / std::sqrt(squaredNorm);
+                            const double scale = thr / std::sqrt(squaredNorm);
                             e *= scale;
                             for (std::uint_fast8_t j = 1; j < fSize - 1; ++j)
                             {
@@ -222,9 +221,9 @@ namespace jiminy
         }
     }
 
-    bool_t PGSSolver::ProjectedGaussSeidelSolver(const Eigen::MatrixXd & A,
-                                                 const Eigen::VectorXd::SegmentReturnType & b,
-                                                 Eigen::VectorXd::SegmentReturnType & x)
+    bool PGSSolver::ProjectedGaussSeidelSolver(const Eigen::MatrixXd & A,
+                                               const Eigen::VectorXd::SegmentReturnType & b,
+                                               Eigen::VectorXd::SegmentReturnType & x)
     {
         /* For some reason, it is impossible to get a better accuracy than 1e-5 for the absolute
            tolerance, even if unconstrained. It seems to be related to compounding of errors, maybe
@@ -245,7 +244,7 @@ namespace jiminy
             ProjectedGaussSeidelIter(A, b, x);
 
             // Check if terminate conditions are satisfied
-            const float64_t tol = tolAbs_ + tolRel_ * y_.cwiseAbs().maxCoeff();
+            const double tol = tolAbs_ + tolRel_ * y_.cwiseAbs().maxCoeff();
             if (((y_ - yPrev_).array().abs() < tol).all())
             {
                 return true;
@@ -256,8 +255,8 @@ namespace jiminy
         return false;
     }
 
-    bool_t PGSSolver::SolveBoxedForwardDynamics(
-        float64_t dampingInv, bool_t isStateUpToDate, bool_t ignoreBounds)
+    bool PGSSolver::SolveBoxedForwardDynamics(
+        double dampingInv, bool isStateUpToDate, bool ignoreBounds)
     {
         // Update constraints start indices, jacobian, drift and multipliers
         Eigen::Index constraintRows = 0U;
@@ -287,7 +286,7 @@ namespace jiminy
         auto b = b_.head(constraintRows);
 
         // Check if problem is bounded
-        bool_t isUnbounded =
+        bool isUnbounded =
             std::all_of(constraintsData_.cbegin(),
                         constraintsData_.cend(),
                         [](const ConstraintData & constraintData)
@@ -331,7 +330,7 @@ namespace jiminy
         b.noalias() -= J * data_->torque_residual;
 
         // Compute resulting forces solving forward dynamics
-        bool_t isSuccess = false;
+        bool isSuccess = false;
         if (ignoreBounds || isUnbounded)
         {
             /* There is no inequality constraint, so the problem can be

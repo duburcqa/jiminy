@@ -57,9 +57,9 @@ namespace jiminy
     }
 
     template<typename DerivedType>
-    auto clamp(const Eigen::MatrixBase<DerivedType> & data, float64_t minThr, float64_t maxThr)
+    auto clamp(const Eigen::MatrixBase<DerivedType> & data, double minThr, double maxThr)
     {
-        return data.unaryExpr([&minThr, &maxThr](float64_t x) -> float64_t
+        return data.unaryExpr([&minThr, &maxThr](double x) -> double
                               { return std::clamp(x, minThr, maxThr); });
     }
 
@@ -71,25 +71,25 @@ namespace jiminy
         return data.array().max(minThr).min(maxThr);
     }
 
-    inline float64_t minClipped()
+    inline double minClipped()
     {
         return INF;
     }
 
-    inline float64_t minClipped(float64_t val)
+    inline double minClipped(double val)
     {
         if (val > EPS)
         {
-            return std::forward<float64_t>(val);
+            return std::forward<double>(val);
         }
         return INF;
     }
 
     template<typename... Args>
-    float64_t minClipped(float64_t val1, float64_t val2, Args... vs)
+    double minClipped(double val1, double val2, Args... vs)
     {
-        const bool_t isValid1 = val1 > EPS;
-        const bool_t isValid2 = val2 > EPS;
+        const bool isValid1 = val1 > EPS;
+        const bool isValid2 = val2 > EPS;
         if (isValid1 && isValid2)
         {
             return minClipped(std::min(val1, val2), std::forward<Args>(vs)...);
@@ -106,14 +106,14 @@ namespace jiminy
     }
 
     template<typename... Args>
-    std::tuple<bool_t, float64_t> isGcdIncluded(Args... values)
+    std::tuple<bool, double> isGcdIncluded(Args... values)
     {
-        const float64_t minValue = minClipped(std::forward<Args>(values)...);
+        const double minValue = minClipped(std::forward<Args>(values)...);
         if (!std::isfinite(minValue))
         {
             return {true, INF};
         }
-        auto lambda = [&minValue](float64_t value)
+        auto lambda = [&minValue](double value)
         {
             if (value < EPS)
             {
@@ -126,16 +126,16 @@ namespace jiminy
     }
 
     template<typename InputIt, typename UnaryFunction>
-    std::tuple<bool_t, float64_t> isGcdIncluded(InputIt first, InputIt last, UnaryFunction f)
+    std::tuple<bool, double> isGcdIncluded(InputIt first, InputIt last, UnaryFunction f)
     {
-        const float64_t minValue = std::transform_reduce(first, last, INF, minClipped<>, f);
+        const double minValue = std::transform_reduce(first, last, INF, minClipped<>, f);
         if (!std::isfinite(minValue))
         {
             return {true, INF};
         }
         auto lambda = [&minValue, &f](const auto & elem)
         {
-            const float64_t value = f(elem);
+            const double value = f(elem);
             if (value < EPS)
             {
                 return true;
@@ -146,7 +146,7 @@ namespace jiminy
     }
 
     template<typename InputIt, typename UnaryFunction, typename... Args>
-    std::tuple<bool_t, float64_t>
+    std::tuple<bool, double>
     isGcdIncluded(InputIt first, InputIt last, UnaryFunction f, Args... values)
     {
         const auto [isIncluded1, value1] = isGcdIncluded(std::forward<Args>(values)...);
@@ -180,7 +180,7 @@ namespace jiminy
     // ******************** Std::vector helpers *********************
 
     template<typename T, typename A>
-    bool_t checkDuplicates(const std::vector<T, A> & vect)
+    bool checkDuplicates(const std::vector<T, A> & vect)
     {
         for (auto it = vect.begin(); it != vect.end(); ++it)
         {
@@ -193,7 +193,7 @@ namespace jiminy
     }
 
     template<typename T1, typename A1, typename T2, typename A2>
-    bool_t checkIntersection(const std::vector<T1, A1> & vect1, const std::vector<T2, A2> & vect2)
+    bool checkIntersection(const std::vector<T1, A1> & vect1, const std::vector<T2, A2> & vect2)
     {
         auto vect2It = std::find_if(vect2.begin(),
                                     vect2.end(),
@@ -207,7 +207,7 @@ namespace jiminy
     }
 
     template<typename T1, typename A1, typename T2, typename A2>
-    bool_t checkInclusion(const std::vector<T1, A1> & vect1, const std::vector<T2, A2> & vect2)
+    bool checkInclusion(const std::vector<T1, A1> & vect1, const std::vector<T2, A2> & vect2)
     {
         for (const auto & elem2 : vect2)
         {

@@ -28,7 +28,7 @@ namespace jiminy
         /// \param[in] sphereRadius Radius of the sphere (in m).
         /// \param[in] groundNormal Normal to the ground in the world as a unit vector.
         SphereConstraint(const std::string & frameName,
-                         float64_t sphereRadius,
+                         double sphereRadius,
                          const Eigen::Vector3d & groundNormal = Eigen::Vector3d::UnitZ());
         virtual ~SphereConstraint() = default;
 
@@ -50,7 +50,7 @@ namespace jiminy
         /// \brief Corresponding frame index.
         pinocchio::FrameIndex frameIdx_;
         /// \brief Sphere radius.
-        float64_t radius_;
+        double radius_;
         /// \brief Ground normal, world frame.
         Eigen::Vector3d normal_;
         /// \brief Skew of ground normal, in world frame, scaled by radius.

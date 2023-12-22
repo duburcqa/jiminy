@@ -29,10 +29,10 @@ namespace jiminy
 
         ~MutexLocal();
 
-        bool_t isLocked() const;
+        bool isLocked() const;
 
     private:
-        std::shared_ptr<bool_t> isLocked_;
+        std::shared_ptr<bool> isLocked_;
     };
 
     class JIMINY_DLLAPI LockGuardLocal
@@ -47,7 +47,7 @@ namespace jiminy
         ~LockGuardLocal();
 
     private:
-        std::shared_ptr<bool_t> mutexFlag_;
+        std::shared_ptr<bool> mutexFlag_;
     };
 
     // ************************ Timer *******************************
@@ -64,7 +64,7 @@ namespace jiminy
     public:
         std::chrono::time_point<Time> t0;
         std::chrono::time_point<Time> tf;
-        float64_t dt;
+        double dt;
     };
 
     // ****************************** Generic template utilities ******************************* //
@@ -96,7 +96,7 @@ namespace jiminy
 
     // ******************* Telemetry utilities **********************
 
-    bool_t endsWith(const std::string & text, const std::string & ending);
+    bool endsWith(const std::string & text, const std::string & ending);
 
     std::string addCircumfix(std::string fieldname,  // Make a copy
                              const std::string_view & prefix = {},
@@ -132,28 +132,28 @@ namespace jiminy
                                           const Eigen::MatrixBase<DerivedType2> & maxThr);
 
     template<typename... Args>
-    float64_t minClipped(float64_t val1, float64_t val2, Args... vs);
+    double minClipped(double val1, double val2, Args... vs);
 
     template<typename... Args>
-    std::tuple<bool_t, float64_t> isGcdIncluded(Args... values);
+    std::tuple<bool, double> isGcdIncluded(Args... values);
 
     template<typename InputIt, typename UnaryFunction>
-    std::tuple<bool_t, float64_t> isGcdIncluded(InputIt first, InputIt last, UnaryFunction f);
+    std::tuple<bool, double> isGcdIncluded(InputIt first, InputIt last, UnaryFunction f);
 
     template<typename InputIt, typename UnaryFunction, typename... Args>
-    std::tuple<bool_t, float64_t>
+    std::tuple<bool, double>
     isGcdIncluded(InputIt first, InputIt last, UnaryFunction f, Args... values);
 
     // ********************* Std::vector helpers **********************
 
     template<typename T, typename A>
-    bool_t checkDuplicates(const std::vector<T, A> & vect);
+    bool checkDuplicates(const std::vector<T, A> & vect);
 
     template<typename T1, typename A1, typename T2, typename A2>
-    bool_t checkIntersection(const std::vector<T1, A1> & vect1, const std::vector<T2, A2> & vect2);
+    bool checkIntersection(const std::vector<T1, A1> & vect1, const std::vector<T2, A2> & vect2);
 
     template<typename T1, typename A1, typename T2, typename A2>
-    bool_t checkInclusion(const std::vector<T1, A1> & vect1, const std::vector<T2, A2> & vect2);
+    bool checkInclusion(const std::vector<T1, A1> & vect1, const std::vector<T2, A2> & vect2);
 
     template<typename T1, typename A1, typename T2, typename A2>
     void eraseVector(std::vector<T1, A1> & vect1, const std::vector<T2, A2> & vect2);

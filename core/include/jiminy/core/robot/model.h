@@ -45,8 +45,8 @@ namespace jiminy
         std::pair<constraintsMap_t *, constraintsMap_t::iterator> find(
             const std::string & key, constraintsHolderType_t holderType);
 
-        bool_t exist(const std::string & key) const;
-        bool_t exist(const std::string & key, constraintsHolderType_t holderType) const;
+        bool exist(const std::string & key) const;
+        bool exist(const std::string & key, constraintsHolderType_t holderType) const;
 
         std::shared_ptr<AbstractConstraintBase> get(const std::string & key);
         std::shared_ptr<AbstractConstraintBase> get(const std::string & key,
@@ -173,23 +173,23 @@ namespace jiminy
 
         struct jointOptions_t
         {
-            const bool_t enablePositionLimit;
-            const bool_t positionLimitFromUrdf;
+            const bool enablePositionLimit;
+            const bool positionLimitFromUrdf;
             /// \brief Min position limit of all the rigid joints, ie without freeflyer and
             ///        flexibility joints if any.
             const Eigen::VectorXd positionLimitMin;
             const Eigen::VectorXd positionLimitMax;
-            const bool_t enableVelocityLimit;
-            const bool_t velocityLimitFromUrdf;
+            const bool enableVelocityLimit;
+            const bool velocityLimitFromUrdf;
             const Eigen::VectorXd velocityLimit;
 
             jointOptions_t(const GenericConfig & options) :
-            enablePositionLimit{boost::get<bool_t>(options.at("enablePositionLimit"))},
-            positionLimitFromUrdf{boost::get<bool_t>(options.at("positionLimitFromUrdf"))},
+            enablePositionLimit{boost::get<bool>(options.at("enablePositionLimit"))},
+            positionLimitFromUrdf{boost::get<bool>(options.at("positionLimitFromUrdf"))},
             positionLimitMin{boost::get<Eigen::VectorXd>(options.at("positionLimitMin"))},
             positionLimitMax{boost::get<Eigen::VectorXd>(options.at("positionLimitMax"))},
-            enableVelocityLimit{boost::get<bool_t>(options.at("enableVelocityLimit"))},
-            velocityLimitFromUrdf{boost::get<bool_t>(options.at("velocityLimitFromUrdf"))},
+            enableVelocityLimit{boost::get<bool>(options.at("enableVelocityLimit"))},
+            velocityLimitFromUrdf{boost::get<bool>(options.at("velocityLimitFromUrdf"))},
             velocityLimit{boost::get<Eigen::VectorXd>(options.at("velocityLimit"))}
             {
             }
@@ -197,21 +197,21 @@ namespace jiminy
 
         struct dynamicsOptions_t
         {
-            const float64_t inertiaBodiesBiasStd;
-            const float64_t massBodiesBiasStd;
-            const float64_t centerOfMassPositionBodiesBiasStd;
-            const float64_t relativePositionBodiesBiasStd;
-            const bool_t enableFlexibleModel;
+            const double inertiaBodiesBiasStd;
+            const double massBodiesBiasStd;
+            const double centerOfMassPositionBodiesBiasStd;
+            const double relativePositionBodiesBiasStd;
+            const bool enableFlexibleModel;
             const FlexibilityConfig flexibilityConfig;
 
             dynamicsOptions_t(const GenericConfig & options) :
-            inertiaBodiesBiasStd{boost::get<float64_t>(options.at("inertiaBodiesBiasStd"))},
-            massBodiesBiasStd{boost::get<float64_t>(options.at("massBodiesBiasStd"))},
+            inertiaBodiesBiasStd{boost::get<double>(options.at("inertiaBodiesBiasStd"))},
+            massBodiesBiasStd{boost::get<double>(options.at("massBodiesBiasStd"))},
             centerOfMassPositionBodiesBiasStd{
-                boost::get<float64_t>(options.at("centerOfMassPositionBodiesBiasStd"))},
+                boost::get<double>(options.at("centerOfMassPositionBodiesBiasStd"))},
             relativePositionBodiesBiasStd{
-                boost::get<float64_t>(options.at("relativePositionBodiesBiasStd"))},
-            enableFlexibleModel{boost::get<bool_t>(options.at("enableFlexibleModel"))},
+                boost::get<double>(options.at("relativePositionBodiesBiasStd"))},
+            enableFlexibleModel{boost::get<bool>(options.at("enableFlexibleModel"))},
             flexibilityConfig{boost::get<FlexibilityConfig>(options.at("flexibilityConfig"))}
             {
             }
@@ -252,9 +252,9 @@ namespace jiminy
                              const pinocchio::GeometryModel & collisionModel,
                              const pinocchio::GeometryModel & visualModel);
         hresult_t initialize(const std::string & urdfPath,
-                             bool_t hasFreeflyer = true,
+                             bool hasFreeflyer = true,
                              const std::vector<std::string> & meshPackageDirs = {},
-                             bool_t loadVisualMeshes = false);
+                             bool loadVisualMeshes = false);
 
         /// \brief Add a frame in the kinematic tree, attached to the frame of an existing body.
         ///
@@ -266,7 +266,7 @@ namespace jiminy
                            const pinocchio::SE3 & framePlacement);
         hresult_t removeFrame(const std::string & frameName);
         hresult_t addCollisionBodies(const std::vector<std::string> & bodyNames,
-                                     bool_t ignoreMeshes = false);
+                                     bool ignoreMeshes = false);
         hresult_t removeCollisionBodies(
             std::vector<std::string> frameNames = {});  // Copy on purpose
         hresult_t addContactPoints(const std::vector<std::string> & frameNames);
@@ -298,7 +298,7 @@ namespace jiminy
         // Copy on purpose
         constraintsHolder_t getConstraints();
 
-        bool_t existConstraint(const std::string & constraintName) const;
+        bool existConstraint(const std::string & constraintName) const;
 
         hresult_t resetConstraints(const Eigen::VectorXd & q, const Eigen::VectorXd & v);
 
@@ -313,7 +313,7 @@ namespace jiminy
         void computeConstraints(const Eigen::VectorXd & q, const Eigen::VectorXd & v);
 
         /// \brief Returns true if at least one constraint is active on the robot.
-        bool_t hasConstraints() const;
+        bool hasConstraints() const;
 
         // Copy on purpose
         hresult_t setOptions(GenericConfig modelOptions);
@@ -323,12 +323,12 @@ namespace jiminy
         ///         of it.
         virtual void reset();
 
-        bool_t getIsInitialized() const;
+        bool getIsInitialized() const;
         const std::string & getName() const;
         const std::string & getUrdfPath() const;
         const std::string & getUrdfAsString() const;
         const std::vector<std::string> & getMeshPackageDirs() const;
-        bool_t getHasFreeflyer() const;
+        bool getHasFreeflyer() const;
         // Getters without 'get' prefix for consistency with pinocchio C++ API
         int32_t nq() const;
         int32_t nv() const;
@@ -406,11 +406,11 @@ namespace jiminy
         ForceVector contactForces_;
 
     protected:
-        bool_t isInitialized_;
+        bool isInitialized_;
         std::string urdfPath_;
         std::string urdfData_;
         std::vector<std::string> meshPackageDirs_;
-        bool_t hasFreeflyer_;
+        bool hasFreeflyer_;
         GenericConfig mdlOptionsHolder_;
 
         /// \brief Name of the collision bodies of the robot.

@@ -1,6 +1,5 @@
 #include "pinocchio/algorithm/frames.hpp"  // `pinocchio::getFrameVelocity`, `pinocchio::getFrameAcceleration`
 
-#include "jiminy/core/exceptions.h"
 #include "jiminy/core/robot/model.h"
 #include "jiminy/core/utilities/pinocchio.h"
 
@@ -12,9 +11,8 @@ namespace jiminy
     template<>
     const std::string AbstractConstraintTpl<SphereConstraint>::type_("SphereConstraint");
 
-    SphereConstraint::SphereConstraint(const std::string & frameName,
-                                       float64_t sphereRadius,
-                                       const Eigen::Vector3d & groundNormal) :
+    SphereConstraint::SphereConstraint(
+        const std::string & frameName, double sphereRadius, const Eigen::Vector3d & groundNormal) :
     AbstractConstraintTpl(),
     frameName_(frameName),
     frameIdx_(0),
@@ -111,7 +109,7 @@ namespace jiminy
         // Compute position error
         const pinocchio::SE3 & framePose = model->pncData_.oMf[frameIdx_];
         auto positionRel = framePose.translation() - transformRef_.translation();
-        const float64_t deltaPosition = positionRel.dot(normal_);
+        const double deltaPosition = positionRel.dot(normal_);
 
         // Compute velocity error
         const pinocchio::Motion frameVelocity = getFrameVelocity(

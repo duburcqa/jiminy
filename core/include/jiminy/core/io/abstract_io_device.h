@@ -79,17 +79,17 @@ namespace jiminy
         openMode_t supportedModes() const;
 
         /// \brief Whether the device is writable.
-        bool_t isWritable() const;
+        bool isWritable() const;
 
         /// \brief Whether the device is readable.
-        bool_t isReadable() const;
+        bool isReadable() const;
 
         /// \brief Whether the device is opened.
-        bool_t isOpen() const;
+        bool isOpen() const;
 
         /// \brief Whether the device is sequential (i.e socket), false if the device support
         ///        random-access (i.e regular file).
-        virtual bool_t isSequential() const;
+        virtual bool isSequential() const;
 
         /// \brief The size of the device.
         ///
@@ -175,10 +175,10 @@ namespace jiminy
         /// \brief Set the device blocking fashion.
         ///
         /// \return The latest generated error.
-        virtual hresult_t setBlockingMode(bool_t shouldBlock);
+        virtual hresult_t setBlockingMode(bool shouldBlock);
 
         /// \brief Set the device backend (reset the old one if any).
-        bool_t isBackendValid();
+        bool isBackendValid();
 
         /// \brief Set the device backend (reset the old one if any).
         virtual void setBackend(std::unique_ptr<AbstractIODevice> io);

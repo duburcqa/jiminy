@@ -25,7 +25,7 @@ namespace jiminy
         /// applied.
         FrameConstraint(
             const std::string & frameName,
-            const std::array<bool_t, 6> & maskDoFs = {{true, true, true, true, true, true}});
+            const std::array<bool, 6> & maskDoFs = {{true, true, true, true, true, true}});
         virtual ~FrameConstraint() = default;
 
         const std::string & getFrameName() const;

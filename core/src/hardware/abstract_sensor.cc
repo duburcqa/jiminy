@@ -1,4 +1,3 @@
-#include "jiminy/core/exceptions.h"
 #include "jiminy/core/robot/robot.h"
 #include "jiminy/core/utilities/random.h"
 
@@ -97,12 +96,12 @@ namespace jiminy
         return sensorOptionsHolder_;
     }
 
-    bool_t AbstractSensorBase::getIsInitialized() const
+    bool AbstractSensorBase::getIsInitialized() const
     {
         return isInitialized_;
     }
 
-    bool_t AbstractSensorBase::getIsTelemetryConfigured() const
+    bool AbstractSensorBase::getIsTelemetryConfigured() const
     {
         return isTelemetryConfigured_;
     }

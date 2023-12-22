@@ -97,7 +97,7 @@ namespace jiminy::python
         static std::shared_ptr<FrameConstraint> frameConstraintFactory(
             const std::string & frameName, const bp::object & maskDoFsPy)
         {
-            std::array<bool_t, 6> maskDoFs;
+            std::array<bool, 6> maskDoFs;
             if (maskDoFsPy.is_none())
             {
                 maskDoFs = {{true, true, true, true, true, true}};
@@ -110,7 +110,7 @@ namespace jiminy::python
                 assert(bp::len(maskDoFsListPy) == 6 && "'maskDoFsPy' must have length 6.");
                 for (uint32_t i = 0; i < 6; ++i)
                 {
-                    bp::extract<bool_t> boolPyExtract(maskDoFsListPy[i]);
+                    bp::extract<bool> boolPyExtract(maskDoFsListPy[i]);
                     assert(boolPyExtract.check() && "'maskDoFsPy' elements must be bool.");
                     maskDoFs[i] = boolPyExtract();
                 }
@@ -118,7 +118,7 @@ namespace jiminy::python
             return std::make_shared<FrameConstraint>(frameName, maskDoFs);
         }
 
-        static void setIsEnable(AbstractConstraintBase & self, bool_t value)
+        static void setIsEnable(AbstractConstraintBase & self, bool value)
         {
             if (value)
             {
@@ -216,7 +216,7 @@ namespace jiminy::python
             bp::class_<SphereConstraint, bp::bases<AbstractConstraintBase>,
                        std::shared_ptr<SphereConstraint>,
                        boost::noncopyable>("SphereConstraint",
-                       bp::init<const std::string &, float64_t>(
+                       bp::init<const std::string &, double>(
                        (bp::arg("self"), "frame_name", "radius")))
                 .def_readonly("type", &SphereConstraint::type_)
                 .ADD_PROPERTY_GET_WITH_POLICY("frame_name",
@@ -233,7 +233,7 @@ namespace jiminy::python
             bp::class_<WheelConstraint, bp::bases<AbstractConstraintBase>,
                        std::shared_ptr<WheelConstraint>,
                        boost::noncopyable>("WheelConstraint",
-                       bp::init<const std::string &, float64_t, const Eigen::Vector3d &, const Eigen::Vector3d &>(
+                       bp::init<const std::string &, double, const Eigen::Vector3d &, const Eigen::Vector3d &>(
                        (bp::arg("self"), "frame_name", "radius", "ground_normal", "wheel_axis")))
                 .def_readonly("type", &WheelConstraint::type_)
                 .ADD_PROPERTY_GET_WITH_POLICY("frame_name",

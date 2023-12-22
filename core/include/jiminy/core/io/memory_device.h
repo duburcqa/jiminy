@@ -24,7 +24,7 @@ namespace jiminy
 
         int64_t size() override { return static_cast<int64_t>(buffer_.size()); }
 
-        bool_t isSequential() const override { return false; }
+        bool isSequential() const override { return false; }
 
         int64_t pos() override { return currentPos_; }
 
@@ -35,7 +35,7 @@ namespace jiminy
         int64_t readData(void * data, int64_t dataSize) override;
         int64_t writeData(const void * data, int64_t dataSize) override;
 
-        hresult_t setBlockingMode(bool_t) override;
+        hresult_t setBlockingMode(bool) override;
 
         hresult_t resize(int64_t size) override;
 

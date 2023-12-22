@@ -3,7 +3,6 @@
 #include <fcntl.h>
 
 #include "jiminy/core/fwd.h"
-#include "jiminy/core/exceptions.h"
 #include "jiminy/core/io/file_device.h"
 
 #ifndef _WIN32

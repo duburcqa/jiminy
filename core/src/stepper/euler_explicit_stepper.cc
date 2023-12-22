@@ -9,8 +9,8 @@ namespace jiminy
     {
     }
 
-    bool_t EulerExplicitStepper::tryStepImpl(
-        state_t & state, stateDerivative_t & stateDerivative, float64_t t, float64_t & dt)
+    bool EulerExplicitStepper::tryStepImpl(
+        state_t & state, stateDerivative_t & stateDerivative, double t, double & dt)
     {
         // Simple explicit Euler: x(t + dt) = x(t) + dt dx(t)
         state.sumInPlace(stateDerivative, dt);
