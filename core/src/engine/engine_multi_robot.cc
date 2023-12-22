@@ -55,6 +55,9 @@
 
 namespace jiminy
 {
+    inline constexpr uint32_t INIT_ITERATIONS{4U};
+    inline constexpr uint32_t PGS_MAX_ITERATIONS{100U};
+
     EngineMultiRobot::EngineMultiRobot() :
     engineOptions_(nullptr),
     systems_(),
@@ -62,7 +65,7 @@ namespace jiminy
     isSimulationRunning_(false),
     engineOptionsHolder_(),
     timer_(std::make_unique<Timer>()),
-    contactModel_(contactModel_t::NONE),
+    contactModel_(contactModel_t::UNSUPPORTED),
     telemetrySender_(),
     telemetryData_(nullptr),
     telemetryRecorder_(nullptr),
@@ -195,15 +198,15 @@ namespace jiminy
         }
 
         // Create and initialize a controller doing nothing
-        auto bypassFunctor = [](float64_t /* t */,
-                                const Eigen::VectorXd & /* q */,
-                                const Eigen::VectorXd & /* v */,
-                                const SensorsDataMap & /* sensorsData */,
-                                Eigen::VectorXd & /* out */) {
+        auto noopFunctor = +[](float64_t /* t */,
+                               const Eigen::VectorXd & /* q */,
+                               const Eigen::VectorXd & /* v */,
+                               const SensorsDataMap & /* sensorsData */,
+                               Eigen::VectorXd & /* out */) {
         };
         auto controller =
-            std::make_shared<ControllerFunctor<decltype(bypassFunctor), decltype(bypassFunctor)>>(
-                bypassFunctor, bypassFunctor);
+            std::make_shared<ControllerFunctor<decltype(noopFunctor), decltype(noopFunctor)>>(
+                noopFunctor, noopFunctor);
         controller->initialize(robot);
 
         return addSystem(systemName, robot, controller, std::move(callbackFct));
@@ -418,8 +421,8 @@ namespace jiminy
         {
             // Allocate memory
             float64_t angle{0.0};
-            Eigen::Matrix3d rot12, rotJLog12, rotJExp12, rotRef12, omega;
-            Eigen::Vector3d rotLog12, pos12, posLocal12, fLin, fAng;
+            Eigen::Matrix3d rot12{}, rotJLog12{}, rotJExp12{}, rotRef12{}, omega{};
+            Eigen::Vector3d rotLog12{}, pos12{}, posLocal12{}, fLin{}, fAng{};
 
             auto forceFct = [=](float64_t /*t*/,
                                 const Eigen::VectorXd & /*q_1*/,
@@ -440,16 +443,16 @@ namespace jiminy
                 }
 
                 // Get the frames positions and velocities in world
-                const pinocchio::SE3 & oMf1 = system1->robot->pncData_.oMf[frameIdx1];
-                const pinocchio::SE3 & oMf2 = system2->robot->pncData_.oMf[frameIdx2];
-                const pinocchio::Motion oVf1 = getFrameVelocity(system1->robot->pncModel_,
-                                                                system1->robot->pncData_,
-                                                                frameIdx1,
-                                                                pinocchio::LOCAL_WORLD_ALIGNED);
-                const pinocchio::Motion oVf2 = getFrameVelocity(system2->robot->pncModel_,
-                                                                system2->robot->pncData_,
-                                                                frameIdx2,
-                                                                pinocchio::LOCAL_WORLD_ALIGNED);
+                const pinocchio::SE3 & oMf1{system1->robot->pncData_.oMf[frameIdx1]};
+                const pinocchio::SE3 & oMf2{system2->robot->pncData_.oMf[frameIdx2]};
+                const pinocchio::Motion oVf1{getFrameVelocity(system1->robot->pncModel_,
+                                                              system1->robot->pncData_,
+                                                              frameIdx1,
+                                                              pinocchio::LOCAL_WORLD_ALIGNED)};
+                const pinocchio::Motion oVf2{getFrameVelocity(system2->robot->pncModel_,
+                                                              system2->robot->pncData_,
+                                                              frameIdx2,
+                                                              pinocchio::LOCAL_WORLD_ALIGNED)};
 
                 // Compute intermediary quantities
                 rot12.noalias() = oMf1.rotation().transpose() * oMf2.rotation();
@@ -469,14 +472,14 @@ namespace jiminy
 
                 /* Compute the relative velocity. The application point is the "linear"
                    interpolation between the frames placement with alpha ratio. */
-                const pinocchio::Motion oVf12 = oVf2 - oVf1;
-                pinocchio::Motion velLocal12(
+                const pinocchio::Motion oVf12{oVf2 - oVf1};
+                pinocchio::Motion velLocal12{
                     rotRef12.transpose() *
                         (oVf12.linear() + pos12.cross(oVf2.angular() - alpha * oVf12.angular())),
-                    rotRef12.transpose() * oVf12.angular());
+                    rotRef12.transpose() * oVf12.angular()};
 
                 // Compute the coupling force acting on frame 2
-                pinocchio::Force f;
+                pinocchio::Force f{};
                 f.linear() = damping.head<3>().array() * velLocal12.linear().array();
                 f.angular() = (1.0 - alpha) * f.linear().cross(posLocal12);
                 f.angular().array() += damping.tail<3>().array() * velLocal12.angular().array();
@@ -573,20 +576,20 @@ namespace jiminy
                 }
 
                 // Get the frames positions and velocities in world
-                const pinocchio::SE3 & oMf1 = system1->robot->pncData_.oMf[frameIdx1];
-                const pinocchio::SE3 & oMf2 = system2->robot->pncData_.oMf[frameIdx2];
-                const pinocchio::Motion oVf1 = getFrameVelocity(system1->robot->pncModel_,
-                                                                system1->robot->pncData_,
-                                                                frameIdx1,
-                                                                pinocchio::LOCAL_WORLD_ALIGNED);
-                const pinocchio::Motion oVf2 = getFrameVelocity(system2->robot->pncModel_,
-                                                                system2->robot->pncData_,
-                                                                frameIdx2,
-                                                                pinocchio::LOCAL_WORLD_ALIGNED);
+                const pinocchio::SE3 & oMf1{system1->robot->pncData_.oMf[frameIdx1]};
+                const pinocchio::SE3 & oMf2{system2->robot->pncData_.oMf[frameIdx2]};
+                const pinocchio::Motion oVf1{getFrameVelocity(system1->robot->pncModel_,
+                                                              system1->robot->pncData_,
+                                                              frameIdx1,
+                                                              pinocchio::LOCAL_WORLD_ALIGNED)};
+                const pinocchio::Motion oVf2{getFrameVelocity(system2->robot->pncModel_,
+                                                              system2->robot->pncData_,
+                                                              frameIdx2,
+                                                              pinocchio::LOCAL_WORLD_ALIGNED)};
 
                 // Compute the linear force coupling them
-                Eigen::Vector3d dir12 = oMf2.translation() - oMf1.translation();
-                const float64_t length = dir12.norm();
+                Eigen::Vector3d dir12{oMf2.translation() - oMf1.translation()};
+                const float64_t length{dir12.norm()};
                 auto vel12 = oVf2.linear() - oVf1.linear();
                 if (length > EPS)
                 {
@@ -595,13 +598,9 @@ namespace jiminy
                     return {(stiffness * (length - restLength) + damping * vel12Proj) * dir12,
                             Eigen::Vector3d::Zero()};
                 }
-                else
-                {
-                    /* The direction between frames is ill-defined, so applying
-                       force in the direction of the velocity instead. */
-                    return {damping * vel12, Eigen::Vector3d::Zero()};
-                }
-                return pinocchio::Force::Zero();
+                /* The direction between frames is ill-defined, so applying force in the direction
+                   of the linear velocity instead. */
+                return {damping * vel12, Eigen::Vector3d::Zero()};
             };
 
             returnCode =
@@ -755,35 +754,35 @@ namespace jiminy
                 systemDataIt->logFieldnamesPosition =
                     addCircumfix(systemIt->robot->getLogFieldnamesPosition(),
                                  systemIt->name,
-                                 "",
+                                 {},
                                  TELEMETRY_FIELDNAME_DELIMITER);
                 systemDataIt->logFieldnamesVelocity =
                     addCircumfix(systemIt->robot->getLogFieldnamesVelocity(),
                                  systemIt->name,
-                                 "",
+                                 {},
                                  TELEMETRY_FIELDNAME_DELIMITER);
                 systemDataIt->logFieldnamesAcceleration =
                     addCircumfix(systemIt->robot->getLogFieldnamesAcceleration(),
                                  systemIt->name,
-                                 "",
+                                 {},
                                  TELEMETRY_FIELDNAME_DELIMITER);
                 systemDataIt->logFieldnamesForceExternal =
                     addCircumfix(systemIt->robot->getLogFieldnamesForceExternal(),
                                  systemIt->name,
-                                 "",
+                                 {},
                                  TELEMETRY_FIELDNAME_DELIMITER);
                 systemDataIt->logFieldnamesCommand =
                     addCircumfix(systemIt->robot->getCommandFieldnames(),
                                  systemIt->name,
-                                 "",
+                                 {},
                                  TELEMETRY_FIELDNAME_DELIMITER);
                 systemDataIt->logFieldnamesMotorEffort =
                     addCircumfix(systemIt->robot->getMotorEffortFieldnames(),
                                  systemIt->name,
-                                 "",
+                                 {},
                                  TELEMETRY_FIELDNAME_DELIMITER);
                 systemDataIt->logFieldnameEnergy =
-                    addCircumfix("energy", systemIt->name, "", TELEMETRY_FIELDNAME_DELIMITER);
+                    addCircumfix("energy", systemIt->name, {}, TELEMETRY_FIELDNAME_DELIMITER);
 
                 // Register variables to the telemetry senders
                 if (returnCode == hresult_t::SUCCESS)
@@ -1213,9 +1212,9 @@ namespace jiminy
 
         for (auto & system : systems_)
         {
-            for (const auto & sensorGroup : system.robot->getSensors())
+            for (const auto & sensorsGroupItem : system.robot->getSensors())
             {
-                for (const auto & sensor : sensorGroup.second)
+                for (const auto & sensor : sensorsGroupItem.second)
                 {
                     if (!sensor->getIsInitialized())
                     {
@@ -1507,7 +1506,7 @@ namespace jiminy
                                                     engineOptions_->stepper.tolRel,
                                                     PGS_MAX_ITERATIONS);
                     break;
-                case constraintSolver_t::NONE:
+                case constraintSolver_t::UNSUPPORTED:
                 default:
                     break;
                 }
@@ -1627,19 +1626,19 @@ namespace jiminy
             {
                 // Backup URDF file
                 const std::string telemetryUrdfFile =
-                    addCircumfix("urdf_file", system.name, "", TELEMETRY_FIELDNAME_DELIMITER);
+                    addCircumfix("urdf_file", system.name, {}, TELEMETRY_FIELDNAME_DELIMITER);
                 const std::string & urdfFileString = system.robot->getUrdfAsString();
                 telemetrySender_.registerConstant(telemetryUrdfFile, urdfFileString);
 
                 // Backup 'has_freeflyer' option
                 const std::string telemetrHasFreeflyer =
-                    addCircumfix("has_freeflyer", system.name, "", TELEMETRY_FIELDNAME_DELIMITER);
+                    addCircumfix("has_freeflyer", system.name, {}, TELEMETRY_FIELDNAME_DELIMITER);
                 telemetrySender_.registerConstant(telemetrHasFreeflyer,
                                                   toString(system.robot->getHasFreeflyer()));
 
                 // Backup mesh package lookup directories
                 const std::string telemetryMeshPackageDirs = addCircumfix(
-                    "mesh_package_dirs", system.name, "", TELEMETRY_FIELDNAME_DELIMITER);
+                    "mesh_package_dirs", system.name, {}, TELEMETRY_FIELDNAME_DELIMITER);
                 std::string meshPackageDirsString;
                 std::stringstream meshPackageDirsStream;
                 const std::vector<std::string> & meshPackageDirs =
@@ -1657,7 +1656,7 @@ namespace jiminy
 
                 // Backup the true and theoretical Pinocchio::Model
                 std::string key = addCircumfix(
-                    "pinocchio_model", system.name, "", TELEMETRY_FIELDNAME_DELIMITER);
+                    "pinocchio_model", system.name, {}, TELEMETRY_FIELDNAME_DELIMITER);
                 std::string value = saveToBinary(system.robot->pncModel_);
                 telemetrySender_.registerConstant(key, value);
 
@@ -1670,18 +1669,18 @@ namespace jiminy
                     try
                     {
                         key = addCircumfix(
-                            "collision_model", system.name, "", TELEMETRY_FIELDNAME_DELIMITER);
+                            "collision_model", system.name, {}, TELEMETRY_FIELDNAME_DELIMITER);
                         value = saveToBinary(system.robot->collisionModel_);
                         telemetrySender_.registerConstant(key, value);
 
                         key = addCircumfix(
-                            "visual_model", system.name, "", TELEMETRY_FIELDNAME_DELIMITER);
+                            "visual_model", system.name, {}, TELEMETRY_FIELDNAME_DELIMITER);
                         value = saveToBinary(system.robot->visualModel_);
                         telemetrySender_.registerConstant(key, value);
                     }
                     catch (const std::exception & e)
                     {
-                        std::string msg = "Failed to log the collision and/or visual model.";
+                        std::string msg{"Failed to log the collision and/or visual model."};
                         if (urdfFileString.empty())
                         {
                             msg += " It will be impossible to replay log files because no URDF "
@@ -1698,7 +1697,7 @@ namespace jiminy
             for (const auto & system : systems_)
             {
                 const std::string telemetryRobotOptions =
-                    addCircumfix("system", system.name, "", TELEMETRY_FIELDNAME_DELIMITER);
+                    addCircumfix("system", system.name, {}, TELEMETRY_FIELDNAME_DELIMITER);
                 GenericConfig systemOptions;
                 systemOptions["robot"] = system.robot->getOptions();
                 systemOptions["controller"] = system.controller->getOptions();
@@ -4264,7 +4263,7 @@ namespace jiminy
             static_cast<void *>(&logData));
 
         // Extract the times
-        const H5::DataSet globalTimeDataSet = file->openDataSet(GLOBAL_TIME);
+        const H5::DataSet globalTimeDataSet = file->openDataSet(std::string{GLOBAL_TIME});
         const H5::DataSpace timeSpace = globalTimeDataSet.getSpace();
         const hssize_t numData = timeSpace.getSimpleExtentNpoints();
         logData.times.resize(numData);
@@ -4309,7 +4308,7 @@ namespace jiminy
         Eigen::Matrix<int64_t, Eigen::Dynamic, 1> intVector(numData);
         Eigen::Matrix<float64_t, Eigen::Dynamic, 1> floatVector(numData);
         logData.variableNames.reserve(1 + numInt + numFloat);
-        logData.variableNames.push_back(GLOBAL_TIME);
+        logData.variableNames.emplace_back(GLOBAL_TIME);
 
         // Read all variables while preserving ordering
         using opDataT = std::tuple<LogData &,
@@ -4401,8 +4400,8 @@ namespace jiminy
         // Add GLOBAL_TIME vector
         const hsize_t timeDims[1] = {hsize_t(logData->times.size())};
         const H5::DataSpace globalTimeSpace = H5::DataSpace(1, timeDims);
-        const H5::DataSet globalTimeDataSet =
-            file->createDataSet(GLOBAL_TIME, H5::PredType::NATIVE_INT64, globalTimeSpace);
+        const H5::DataSet globalTimeDataSet = file->createDataSet(
+            std::string{GLOBAL_TIME}, H5::PredType::NATIVE_INT64, globalTimeSpace);
         globalTimeDataSet.write(logData->times.data(), H5::PredType::NATIVE_INT64);
 
         // Add "unit" attribute to GLOBAL_TIME vector
@@ -4462,7 +4461,7 @@ namespace jiminy
             plist.setDeflate(4);
 
             // Create time dataset using symbolic link
-            fieldGroup.link(H5L_TYPE_HARD, "/" + GLOBAL_TIME, "time");
+            fieldGroup.link(H5L_TYPE_HARD, toString("/", GLOBAL_TIME), "time");
 
             // Create variable dataset
             H5::DataSpace valueSpace = H5::DataSpace(1, timeDims);
@@ -4490,7 +4489,7 @@ namespace jiminy
             plist.setDeflate(4);
 
             // Create time dataset using symbolic link
-            fieldGroup.link(H5L_TYPE_HARD, "/" + GLOBAL_TIME, "time");
+            fieldGroup.link(H5L_TYPE_HARD, toString("/", GLOBAL_TIME), "time");
 
             // Create variable dataset
             H5::DataSpace valueSpace = H5::DataSpace(1, timeDims);

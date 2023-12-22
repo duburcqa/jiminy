@@ -1,30 +1,34 @@
 #ifndef JIMINY_TELEMETRY_SENDER_HXX
 #define JIMINY_TELEMETRY_SENDER_HXX
 
-#include "jiminy/core/telemetry/telemetry_data.h"
 #include "jiminy/core/constants.h"
+#include "jiminy/core/exceptions.h"
+#include "jiminy/core/utilities/helpers.h"
+#include "jiminy/core/telemetry/telemetry_data.h"
 
 
 namespace jiminy
 {
-    template<typename T>
-    hresult_t TelemetrySender::registerVariable(const std::string & fieldname, const T * value)
+    template<typename Scalar>
+    std::enable_if_t<std::is_arithmetic_v<Scalar>, hresult_t>
+    TelemetrySender::registerVariable(const std::string & name, const Scalar * value)
     {
-        T * positionInBuffer = nullptr;
-        const std::string fullFieldName = objectName_ + TELEMETRY_FIELDNAME_DELIMITER + fieldname;
+        Scalar * positionInBuffer = nullptr;
+        const std::string fullName =
+            addCircumfix(name, objectName_, {}, TELEMETRY_FIELDNAME_DELIMITER);
 
-        hresult_t returnCode = telemetryData_->registerVariable(fullFieldName, positionInBuffer);
+        hresult_t returnCode = telemetryData_->registerVariable(fullName, positionInBuffer);
         if (returnCode == hresult_t::SUCCESS)
         {
-            bufferPosition_.emplace_back(telemetry_data_pair_t<T>{value, positionInBuffer});
+            bufferPosition_.emplace_back(telemetry_data_pair_t<Scalar>{value, positionInBuffer});
             *positionInBuffer = *value;
         }
 
         return returnCode;
     }
 
-    template<typename Derived>
-    hresult_t TelemetrySender::registerVariable(const std::vector<std::string> & fieldnames,
+    template<typename KeyType, typename Derived>
+    hresult_t TelemetrySender::registerVariable(const std::vector<KeyType> & fieldnames,
                                                 const Eigen::MatrixBase<Derived> & values)
     {
         hresult_t returnCode = hresult_t::SUCCESS;

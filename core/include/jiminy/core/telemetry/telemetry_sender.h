@@ -13,7 +13,7 @@ namespace jiminy
 {
     class TelemetryData;
 
-    const std::string DEFAULT_TELEMETRY_NAMESPACE("Uninitialized Object");
+    inline constexpr std::string_view DEFAULT_TELEMETRY_NAMESPACE{"Uninitialized Object"};
 
     /// \brief Class to inherit for sending telemetry data.
     class JIMINY_DLLAPI TelemetrySender
@@ -40,7 +40,7 @@ namespace jiminy
         /// \param[in] telemetryDataInstance Shared pointer to the telemetry instance.
         /// \param[in] objectName Name of the object.
         void configureObject(std::shared_ptr<TelemetryData> telemetryDataInstance,
-                             const std::string & objectName);
+                             const std::string_view & objectName);
 
         /// \brief Register a new variable to the telemetry.
         ///
@@ -48,20 +48,21 @@ namespace jiminy
         ///          user is responsible for  managing its lifetime and updating it in-place. The
         ///          telemetry sender will fetch its value when calling 'updateValues'.
         ///
-        /// \param[in] fieldname Name of the field to record in the telemetry.
+        /// \param[in] name Name of the field to record in the telemetry.
         /// \param[in] value Pointer to the newly recorded field.
-        template<typename T>
-        hresult_t registerVariable(const std::string & fieldname, const T * value);
+        template<typename Scalar>
+        std::enable_if_t<std::is_arithmetic_v<Scalar>, hresult_t>
+        registerVariable(const std::string & name, const Scalar * value);
 
-        template<typename Derived>
-        hresult_t registerVariable(const std::vector<std::string> & fieldnames,
+        template<typename KeyType, typename Derived>
+        hresult_t registerVariable(const std::vector<KeyType> & fieldnames,
                                    const Eigen::MatrixBase<Derived> & values);
 
         /// \brief Add an invariant header entry in the log file.
         ///
-        /// \param[in] invariantName Name of the invariant.
+        /// \param[in] name Name of the invariant.
         /// \param[in] value Value of the invariant.
-        hresult_t registerConstant(const std::string & invariantName, const std::string & value);
+        hresult_t registerConstant(const std::string & name, const std::string & value);
 
         /// \brief Update all registered variables in the telemetry buffer.
         void updateValues();

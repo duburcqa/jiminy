@@ -13,6 +13,10 @@
 
 namespace jiminy
 {
+    inline constexpr std::string_view JOINT_PREFIX_BASE{"current"};
+    inline constexpr std::string_view FREE_FLYER_NAME{"Freeflyer"};
+    inline constexpr std::string_view FLEXIBLE_JOINT_SUFFIX{"Flexibility"};
+
     class AbstractConstraintBase;
     class FrameConstraint;
     class JointConstraint;
@@ -124,11 +128,11 @@ namespace jiminy
             GenericConfig config;
             config["enablePositionLimit"] = true;
             config["positionLimitFromUrdf"] = true;
-            config["positionLimitMin"] = Eigen::VectorXd();
-            config["positionLimitMax"] = Eigen::VectorXd();
+            config["positionLimitMin"] = Eigen::VectorXd{};
+            config["positionLimitMax"] = Eigen::VectorXd{};
             config["enableVelocityLimit"] = true;
             config["velocityLimitFromUrdf"] = true;
-            config["velocityLimit"] = Eigen::VectorXd();
+            config["velocityLimit"] = Eigen::VectorXd{};
 
             return config;
         };
@@ -142,7 +146,7 @@ namespace jiminy
             config["centerOfMassPositionBodiesBiasStd"] = 0.0;
             config["relativePositionBodiesBiasStd"] = 0.0;
             config["enableFlexibleModel"] = true;
-            config["flexibilityConfig"] = FlexibilityConfig();
+            config["flexibilityConfig"] = FlexibilityConfig{};
 
             return config;
         };
@@ -180,13 +184,13 @@ namespace jiminy
             const Eigen::VectorXd velocityLimit;
 
             jointOptions_t(const GenericConfig & options) :
-            enablePositionLimit(boost::get<bool_t>(options.at("enablePositionLimit"))),
-            positionLimitFromUrdf(boost::get<bool_t>(options.at("positionLimitFromUrdf"))),
-            positionLimitMin(boost::get<Eigen::VectorXd>(options.at("positionLimitMin"))),
-            positionLimitMax(boost::get<Eigen::VectorXd>(options.at("positionLimitMax"))),
-            enableVelocityLimit(boost::get<bool_t>(options.at("enableVelocityLimit"))),
-            velocityLimitFromUrdf(boost::get<bool_t>(options.at("velocityLimitFromUrdf"))),
-            velocityLimit(boost::get<Eigen::VectorXd>(options.at("velocityLimit")))
+            enablePositionLimit{boost::get<bool_t>(options.at("enablePositionLimit"))},
+            positionLimitFromUrdf{boost::get<bool_t>(options.at("positionLimitFromUrdf"))},
+            positionLimitMin{boost::get<Eigen::VectorXd>(options.at("positionLimitMin"))},
+            positionLimitMax{boost::get<Eigen::VectorXd>(options.at("positionLimitMax"))},
+            enableVelocityLimit{boost::get<bool_t>(options.at("enableVelocityLimit"))},
+            velocityLimitFromUrdf{boost::get<bool_t>(options.at("velocityLimitFromUrdf"))},
+            velocityLimit{boost::get<Eigen::VectorXd>(options.at("velocityLimit"))}
             {
             }
         };
@@ -201,14 +205,14 @@ namespace jiminy
             const FlexibilityConfig flexibilityConfig;
 
             dynamicsOptions_t(const GenericConfig & options) :
-            inertiaBodiesBiasStd(boost::get<float64_t>(options.at("inertiaBodiesBiasStd"))),
-            massBodiesBiasStd(boost::get<float64_t>(options.at("massBodiesBiasStd"))),
-            centerOfMassPositionBodiesBiasStd(
-                boost::get<float64_t>(options.at("centerOfMassPositionBodiesBiasStd"))),
-            relativePositionBodiesBiasStd(
-                boost::get<float64_t>(options.at("relativePositionBodiesBiasStd"))),
-            enableFlexibleModel(boost::get<bool_t>(options.at("enableFlexibleModel"))),
-            flexibilityConfig(boost::get<FlexibilityConfig>(options.at("flexibilityConfig")))
+            inertiaBodiesBiasStd{boost::get<float64_t>(options.at("inertiaBodiesBiasStd"))},
+            massBodiesBiasStd{boost::get<float64_t>(options.at("massBodiesBiasStd"))},
+            centerOfMassPositionBodiesBiasStd{
+                boost::get<float64_t>(options.at("centerOfMassPositionBodiesBiasStd"))},
+            relativePositionBodiesBiasStd{
+                boost::get<float64_t>(options.at("relativePositionBodiesBiasStd"))},
+            enableFlexibleModel{boost::get<bool_t>(options.at("enableFlexibleModel"))},
+            flexibilityConfig{boost::get<FlexibilityConfig>(options.at("flexibilityConfig"))}
             {
             }
         };
@@ -218,7 +222,7 @@ namespace jiminy
             const uint32_t maxContactPointsPerBody;
 
             collisionOptions_t(const GenericConfig & options) :
-            maxContactPointsPerBody(boost::get<uint32_t>(options.at("maxContactPointsPerBody")))
+            maxContactPointsPerBody{boost::get<uint32_t>(options.at("maxContactPointsPerBody"))}
             {
             }
         };
@@ -230,9 +234,9 @@ namespace jiminy
             const collisionOptions_t collisions;
 
             modelOptions_t(const GenericConfig & options) :
-            dynamics(boost::get<GenericConfig>(options.at("dynamics"))),
-            joints(boost::get<GenericConfig>(options.at("joints"))),
-            collisions(boost::get<GenericConfig>(options.at("collisions")))
+            dynamics{boost::get<GenericConfig>(options.at("dynamics"))},
+            joints{boost::get<GenericConfig>(options.at("joints"))},
+            collisions{boost::get<GenericConfig>(options.at("collisions"))}
             {
             }
         };

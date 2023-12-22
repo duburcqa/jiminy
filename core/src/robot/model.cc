@@ -362,7 +362,7 @@ namespace jiminy
         {
             urdfPath_ = urdfPath;
             std::ifstream urdfFileStream(urdfPath_);
-            urdfData_ = std::string((std::istreambuf_iterator<char_t>(urdfFileStream)),
+            urdfData_ = std::string(std::istreambuf_iterator<char_t>(urdfFileStream),
                                     std::istreambuf_iterator<char_t>());
             meshPackageDirs_ = meshPackageDirs;
         }
@@ -1302,97 +1302,65 @@ namespace jiminy
             /* Generate the fieldnames associated with the configuration vector, velocity,
                acceleration and external force vectors. */
             logFieldnamesPosition_.clear();
-            logFieldnamesPosition_.resize(static_cast<std::size_t>(nq_));
+            logFieldnamesPosition_.reserve(static_cast<std::size_t>(nq_));
             logFieldnamesVelocity_.clear();
-            logFieldnamesVelocity_.resize(static_cast<std::size_t>(nv_));
+            logFieldnamesVelocity_.reserve(static_cast<std::size_t>(nv_));
             logFieldnamesAcceleration_.clear();
-            logFieldnamesAcceleration_.resize(static_cast<std::size_t>(nv_));
+            logFieldnamesAcceleration_.reserve(static_cast<std::size_t>(nv_));
             logFieldnamesForceExternal_.clear();
-            logFieldnamesForceExternal_.resize(6U * (pncModel_.njoints - 1));
+            logFieldnamesForceExternal_.reserve(6U * (pncModel_.njoints - 1));
             for (std::size_t i = 1; i < pncModel_.joints.size(); ++i)
             {
                 // Get joint name without "Joint" suffix, if any
-                std::string jointShortName = removeSuffix(pncModel_.names[i], "Joint");
-
-                // Get joint postion and velocity starting indices
-                const int32_t idx_q = pncModel_.joints[i].idx_q();
-                const int32_t idx_v = pncModel_.joints[i].idx_v();
+                std::string jointShortName{removeSuffix(pncModel_.names[i], "Joint")};
 
                 // Get joint prefix depending on its type
-                JointModelType jointType;
-                std::string jointPrefix;
-                if (returnCode == hresult_t::SUCCESS)
+                const JointModelType jointType{getJointType(pncModel_.joints[i])};
+                std::string jointPrefix{JOINT_PREFIX_BASE};
+                if (jointType == JointModelType::FREE)
                 {
-                    returnCode = getJointTypeFromIdx(pncModel_, i, jointType);
-                }
-                if (returnCode == hresult_t::SUCCESS)
-                {
-                    if (jointType == JointModelType::FREE)
-                    {
-                        // Discard the joint name for FREE joint type since it is unique if any
-                        jointPrefix = FREE_FLYER_PREFIX_BASE_NAME;
-                        jointShortName = "";
-                    }
-                    else
-                    {
-                        jointPrefix = JOINT_PREFIX_BASE;
-                    }
+                    jointPrefix += FREE_FLYER_NAME;
+                    jointShortName = "";
                 }
 
-                // Get joint position and velocity suffices depending on its type
-                std::vector<std::string> jointTypePositionSuffixes;
-                std::vector<std::string> jointTypeVelocitySuffixes;
+                // Get joint position suffices depending on its type
+                std::vector<std::string_view> jointTypePositionSuffixes{};
+                std::vector<std::string_view> jointTypeVelocitySuffixes{};
                 if (returnCode == hresult_t::SUCCESS)
                 {
                     returnCode =
                         getJointTypePositionSuffixes(jointType, jointTypePositionSuffixes);
                 }
-                if (returnCode == hresult_t::SUCCESS)
-                {
-                    returnCode =
-                        getJointTypeVelocitySuffixes(jointType, jointTypeVelocitySuffixes);
-                }
 
                 if (returnCode == hresult_t::SUCCESS)
                 {
-                    // Define complete position fieldnames and backup them
-                    std::vector<std::string> jointPositionFieldnames;
-                    for (const std::string & suffix : jointTypePositionSuffixes)
-                    {
-                        jointPositionFieldnames.emplace_back(  //
-                            jointPrefix + "Position" + jointShortName + suffix);
-                    }
-                    std::copy(jointPositionFieldnames.begin(),
-                              jointPositionFieldnames.end(),
-                              logFieldnamesPosition_.begin() + idx_q);
+                    // Get joint velocity suffices depending on its type
+                    getJointTypeVelocitySuffixes(
+                        jointType, jointTypeVelocitySuffixes);  // Cannot fail at this point
 
-                    // Define complete velocity and acceleration fieldnames and backup them
-                    std::vector<std::string> jointVelocityFieldnames;
-                    std::vector<std::string> jointAccelerationFieldnames;
-                    for (const std::string & suffix : jointTypeVelocitySuffixes)
+                    // Define complete position fieldnames
+                    for (const std::string_view & suffix : jointTypePositionSuffixes)
                     {
-                        jointVelocityFieldnames.emplace_back(  //
-                            jointPrefix + "Velocity" + jointShortName + suffix);
-                        jointAccelerationFieldnames.emplace_back(  //
-                            jointPrefix + "Acceleration" + jointShortName + suffix);
+                        logFieldnamesPosition_.emplace_back(
+                            toString(jointPrefix, "Position", jointShortName, suffix));
                     }
-                    std::copy(jointVelocityFieldnames.begin(),
-                              jointVelocityFieldnames.end(),
-                              logFieldnamesVelocity_.begin() + idx_v);
-                    std::copy(jointAccelerationFieldnames.begin(),
-                              jointAccelerationFieldnames.end(),
-                              logFieldnamesAcceleration_.begin() + idx_v);
+
+                    // Define complete velocity and acceleration fieldnames
+                    for (const std::string_view & suffix : jointTypeVelocitySuffixes)
+                    {
+                        logFieldnamesVelocity_.emplace_back(
+                            toString(jointPrefix, "Velocity", jointShortName, suffix));
+                        logFieldnamesAcceleration_.emplace_back(
+                            toString(jointPrefix, "Acceleration", jointShortName, suffix));
+                    }
 
                     // Define complete external force fieldnames and backup them
                     std::vector<std::string> jointForceExternalFieldnames;
                     for (const std::string & suffix : ForceSensor::fieldnames_)
                     {
-                        jointForceExternalFieldnames.emplace_back(  //
-                            jointPrefix + "ForceExternal" + jointShortName + suffix);
+                        logFieldnamesForceExternal_.emplace_back(
+                            toString(jointPrefix, "ForceExternal", jointShortName, suffix));
                     }
-                    std::copy(jointForceExternalFieldnames.begin(),
-                              jointForceExternalFieldnames.end(),
-                              logFieldnamesForceExternal_.begin() + 6U * (i - 1));
                 }
             }
         }
@@ -1427,29 +1395,29 @@ namespace jiminy
 
             /* Overwrite the position bounds for some specific joint type, mainly due to quaternion
                normalization and cos/sin representation. */
-            for (int32_t i = 0; i < pncModel_.njoints; ++i)
+            for (const auto & joint : pncModel_.joints)
             {
-                JointModelType jointType(JointModelType::UNSUPPORTED);
-                getJointTypeFromIdx(pncModel_, i, jointType);
-
-                if (jointType == JointModelType::SPHERICAL)
+                uint32_t positionIdx, positionNq;
+                switch (getJointType(joint))
                 {
-                    uint32_t positionIdx = pncModel_.joints[i].idx_q();
-                    positionLimitMin_.segment<4>(positionIdx).setConstant(-1.0 - EPS);
-                    positionLimitMax_.segment<4>(positionIdx).setConstant(+1.0 + EPS);
+                case JointModelType::ROTARY_UNBOUNDED:
+                case JointModelType::SPHERICAL:
+                    positionIdx = joint.idx_q();
+                    positionNq = joint.nq();
+                    break;
+                case JointModelType::FREE:
+                    positionIdx = joint.idx_q() + 3;
+                    positionNq = 4;
+                case JointModelType::UNSUPPORTED:
+                case JointModelType::LINEAR:
+                case JointModelType::ROTARY:
+                case JointModelType::PLANAR:
+                case JointModelType::TRANSLATION:
+                default:
+                    continue;
                 }
-                if (jointType == JointModelType::FREE)
-                {
-                    uint32_t positionIdx = pncModel_.joints[i].idx_q();
-                    positionLimitMin_.segment<4>(positionIdx + 3).setConstant(-1.0 - EPS);
-                    positionLimitMax_.segment<4>(positionIdx + 3).setConstant(+1.0 + EPS);
-                }
-                if (jointType == JointModelType::ROTARY_UNBOUNDED)
-                {
-                    uint32_t positionIdx = pncModel_.joints[i].idx_q();
-                    positionLimitMin_.segment<2>(positionIdx).setConstant(-1.0 - EPS);
-                    positionLimitMax_.segment<2>(positionIdx).setConstant(+1.0 + EPS);
-                }
+                positionLimitMin_.segment(positionIdx, positionNq).setConstant(-1.0 - EPS);
+                positionLimitMax_.segment(positionIdx, positionNq).setConstant(+1.0 + EPS);
             }
 
             // Get the joint velocity limits from the URDF or the user options

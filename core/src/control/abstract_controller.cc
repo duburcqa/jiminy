@@ -57,8 +57,8 @@ namespace jiminy
         try
         {
             float64_t t = 0.0;
-            Eigen::VectorXd const q = pinocchio::neutral(robot->pncModel_);
-            Eigen::VectorXd const v = Eigen::VectorXd::Zero(robot->nv());
+            const Eigen::VectorXd q = pinocchio::neutral(robot->pncModel_);
+            const Eigen::VectorXd v = Eigen::VectorXd::Zero(robot->nv());
             Eigen::VectorXd command = Eigen::VectorXd(robot->getMotorsNames().size());
             Eigen::VectorXd uCustom = Eigen::VectorXd(robot->nv());
             hresult_t returnCode = computeCommand(t, q, v, command);
@@ -140,17 +140,18 @@ namespace jiminy
         {
             if (telemetryData)
             {
-                std::string objectName = CONTROLLER_TELEMETRY_NAMESPACE;
+                std::string objectName{CONTROLLER_TELEMETRY_NAMESPACE};
                 if (!objectPrefixName.empty())
                 {
-                    objectName = objectPrefixName + TELEMETRY_FIELDNAME_DELIMITER + objectName;
+                    objectName = addCircumfix(
+                        objectName, objectPrefixName, {}, TELEMETRY_FIELDNAME_DELIMITER);
                 }
                 telemetrySender_.configureObject(telemetryData, objectName);
                 for (const auto & [name, valuePtr] : registeredVariables_)
                 {
                     if (returnCode == hresult_t::SUCCESS)
                     {
-                        // TODO Remove explicit `name` capture when moving to C++20
+                        // FIXME: Remove explicit `name` capture when moving to C++20
                         std::visit([&, &name = name](auto && arg)
                                    { telemetrySender_.registerVariable(name, arg); },
                                    valuePtr);
@@ -178,13 +179,13 @@ namespace jiminy
         return returnCode;
     }
 
-    template<typename T>
+    template<typename Scalar>
     hresult_t registerVariableImpl(
         static_map_t<std::string, std::variant<const float64_t *, const int64_t *>> &
             registeredVariables,
         bool_t isTelemetryConfigured,
         const std::vector<std::string> & fieldnames,
-        const Eigen::Ref<Eigen::Matrix<T, -1, 1>, 0, Eigen::InnerStride<>> & values)
+        const Eigen::Ref<Eigen::Matrix<Scalar, -1, 1>, 0, Eigen::InnerStride<>> & values)
     {
         if (isTelemetryConfigured)
         {

@@ -13,6 +13,8 @@
 
 namespace jiminy
 {
+    inline constexpr int64_t TELEMETRY_MIN_BUFFER_SIZE{256U * 1024U};  // 256Ko
+
     TelemetryRecorder::~TelemetryRecorder()
     {
         if (!flows_.empty())
@@ -35,7 +37,8 @@ namespace jiminy
         std::ostringstream timeUnitStr;
         int precision = -static_cast<int>(std::ceil(std::log10(STEPPER_MIN_TIMESTEP)));
         timeUnitStr << std::scientific << std::setprecision(precision) << timeUnit;
-        telemetryData->registerConstant(TIME_UNIT, timeUnitStr.str());
+        // FIXME: remove explicit conversion to `std::string` when moving to C++20
+        telemetryData->registerConstant(std::string{TIME_UNIT}, timeUnitStr.str());
 
         std::vector<char_t> header;
         if (returnCode == hresult_t::SUCCESS)

@@ -99,13 +99,13 @@ namespace jiminy
     bool_t endsWith(const std::string & text, const std::string & ending);
 
     std::string addCircumfix(std::string fieldname,  // Make a copy
-                             const std::string & prefix = {},
-                             const std::string & suffix = {},
-                             const std::string & delimiter = {});
+                             const std::string_view & prefix = {},
+                             const std::string_view & suffix = {},
+                             const std::string_view & delimiter = {});
     std::vector<std::string> addCircumfix(const std::vector<std::string> & fieldnamesIn,
-                                          const std::string & prefix = {},
-                                          const std::string & suffix = {},
-                                          const std::string & delimiter = {});
+                                          const std::string_view & prefix = {},
+                                          const std::string_view & suffix = {},
+                                          const std::string_view & delimiter = {});
 
     std::string removeSuffix(std::string fieldname,  // Make a copy
                              const std::string & suffix);
@@ -149,23 +149,23 @@ namespace jiminy
     template<typename T, typename A>
     bool_t checkDuplicates(const std::vector<T, A> & vect);
 
-    template<typename T, typename A>
-    bool_t checkIntersection(const std::vector<T, A> & vect1, const std::vector<T, A> & vect2);
+    template<typename T1, typename A1, typename T2, typename A2>
+    bool_t checkIntersection(const std::vector<T1, A1> & vect1, const std::vector<T2, A2> & vect2);
 
-    template<typename T, typename A>
-    bool_t checkInclusion(const std::vector<T, A> & vect1, const std::vector<T, A> & vect2);
+    template<typename T1, typename A1, typename T2, typename A2>
+    bool_t checkInclusion(const std::vector<T1, A1> & vect1, const std::vector<T2, A2> & vect2);
 
-    template<typename T, typename A>
-    void eraseVector(std::vector<T, A> & vect1, const std::vector<T, A> & vect2);
+    template<typename T1, typename A1, typename T2, typename A2>
+    void eraseVector(std::vector<T1, A1> & vect1, const std::vector<T2, A2> & vect2);
 
     // *********************** Miscellaneous **************************
 
     template<typename Derived>
-    void swapMatrixBlocks(const Eigen::MatrixBase<Derived> & matrixIn,
-                          Eigen::Index firstBlockStart,
-                          Eigen::Index firstBlockLength,
-                          Eigen::Index secondBlockStart,
-                          Eigen::Index secondBlockLength);
+    void swapMatrixRows(const Eigen::MatrixBase<Derived> & matrixIn,
+                        Eigen::Index firstBlockStart,
+                        Eigen::Index firstBlockLength,
+                        Eigen::Index secondBlockStart,
+                        Eigen::Index secondBlockLength);
 }
 
 #include "jiminy/core/utilities/helpers.hxx"

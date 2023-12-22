@@ -23,8 +23,7 @@ namespace jiminy
         isRegisteringAvailable_ = true;
     }
 
-    hresult_t TelemetryData::registerConstant(const std::string & variableNameIn,
-                                              const std::string & constantValueIn)
+    hresult_t TelemetryData::registerConstant(const std::string & name, const std::string & value)
     {
         // Check if registration is possible
         if (!isRegisteringAvailable_)
@@ -34,11 +33,11 @@ namespace jiminy
         }
 
         // Check if already in memory
-        auto variableIt = std::find_if(
-            constantsRegistry_.begin(),
-            constantsRegistry_.end(),
-            [&variableNameIn](const std::pair<std::string, std::string> & element) -> bool_t
-            { return element.first == variableNameIn; });
+        auto variableIt =
+            std::find_if(constantsRegistry_.begin(),
+                         constantsRegistry_.end(),
+                         [&name](const std::pair<std::string, std::string> & element) -> bool_t
+                         { return element.first == name; });
         if (variableIt != constantsRegistry_.end())
         {
             PRINT_ERROR("Entry already exists.");
@@ -46,12 +45,33 @@ namespace jiminy
         }
 
         // Register new constant
-        constantsRegistry_.emplace_back(variableNameIn, constantValueIn);
+        constantsRegistry_.emplace_back(name, value);
         return hresult_t::SUCCESS;
     }
 
     void TelemetryData::formatHeader(std::vector<char_t> & header)
     {
+        // Define helper to easily insert new lines in header
+        auto insertLineInHeader = [&header](auto &&... args) -> void
+        {
+            std::ostringstream sstr;
+            auto format = [&header](const auto & var)
+            {
+                if constexpr (std::is_same_v<decltype(var), std::string_view> ||
+                              std::is_same_v<decltype(var), std::string>)
+                {
+                    header.insert(header.end(), var.cbegin(), var.cend());
+                }
+                else
+                {
+                    const std::string str = toString(var);
+                    std::move(str.cbegin(), str.cend(), std::back_inserter(header));
+                }
+            };
+            (format(args), ...);
+            header.push_back('\0');
+        };
+
         // Lock registering
         isRegisteringAvailable_ = false;
 
@@ -66,61 +86,42 @@ namespace jiminy
         header[3] = ((TELEMETRY_VERSION & 0xff000000) >> 24);
 
         // Record constants
-        header.insert(
-            header.end(), START_CONSTANTS.data(), START_CONSTANTS.data() + START_CONSTANTS.size());
-        header.push_back('\0');
-        for (const std::pair<std::string, std::string> & keyValue : constantsRegistry_)
+        insertLineInHeader(START_CONSTANTS);
+        for (const auto & [name, value] : constantsRegistry_)
         {
-            for (auto strPtr : std::array<const std::string *, 4>{
-                     {&START_LINE_TOKEN,
-                      &keyValue.first,
-                      &TELEMETRY_CONSTANT_DELIMITER,
-                      &keyValue.second}
-            })
-            {
-                header.insert(header.end(), strPtr->begin(), strPtr->end());
-            }
-            header.push_back('\0');
+            insertLineInHeader(START_LINE_TOKEN, name, TELEMETRY_CONSTANT_DELIMITER, value);
         }
 
-        // Record entries numbers
-        std::string entriesNumbers;
-        entriesNumbers += START_LINE_TOKEN + NUM_INTS;
-        entriesNumbers +=
-            std::to_string(integersRegistry_.size() + 1);  // +1 because we add Global.Time
-        entriesNumbers += '\0';
-        entriesNumbers += START_LINE_TOKEN + NUM_FLOATS;
-        entriesNumbers += std::to_string(floatsRegistry_.size());
-        entriesNumbers += '\0';
-        header.insert(
-            header.end(), entriesNumbers.data(), entriesNumbers.data() + entriesNumbers.size());
+        // Record number of integer variables (+1 because we add Global.Time)
+        insertLineInHeader(START_LINE_TOKEN,
+                           NUM_INTS,
+                           TELEMETRY_CONSTANT_DELIMITER,
+                           integersRegistry_.size() + 1);
+
+        // Record number of floating-point variables
+        insertLineInHeader(
+            START_LINE_TOKEN, NUM_FLOATS, TELEMETRY_CONSTANT_DELIMITER, floatsRegistry_.size());
 
         // Insert column token
-        header.insert(
-            header.end(), START_COLUMNS.data(), START_COLUMNS.data() + START_COLUMNS.size());
-        header.push_back('\0');
+        insertLineInHeader(START_COLUMNS);
 
         // Record Global.Time - integers, floats
-        header.insert(header.end(), GLOBAL_TIME.data(), GLOBAL_TIME.data() + GLOBAL_TIME.size());
-        header.push_back('\0');
+        insertLineInHeader(GLOBAL_TIME);
 
         // Record integers
         for (const std::pair<std::string, int64_t> & keyValue : integersRegistry_)
         {
-            header.insert(header.end(), keyValue.first.begin(), keyValue.first.end());
-            header.push_back('\0');
+            insertLineInHeader(keyValue.first);
         }
 
         // Record floats
         for (const std::pair<std::string, float64_t> & keyValue : floatsRegistry_)
         {
-            header.insert(header.end(), keyValue.first.begin(), keyValue.first.end());
-            header.push_back('\0');
+            insertLineInHeader(keyValue.first);
         }
 
         // Start data section
-        header.insert(header.end(), START_DATA.data(), START_DATA.data() + START_DATA.size());
-        header.push_back('\0');
+        insertLineInHeader(START_DATA);
     }
 
     template<>

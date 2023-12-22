@@ -192,8 +192,8 @@ namespace jiminy
         return false;
     }
 
-    template<typename T, typename A>
-    bool_t checkIntersection(const std::vector<T, A> & vect1, const std::vector<T, A> & vect2)
+    template<typename T1, typename A1, typename T2, typename A2>
+    bool_t checkIntersection(const std::vector<T1, A1> & vect1, const std::vector<T2, A2> & vect2)
     {
         auto vect2It = std::find_if(vect2.begin(),
                                     vect2.end(),
@@ -206,8 +206,8 @@ namespace jiminy
         return (vect2It != vect2.end());
     }
 
-    template<typename T, typename A>
-    bool_t checkInclusion(const std::vector<T, A> & vect1, const std::vector<T, A> & vect2)
+    template<typename T1, typename A1, typename T2, typename A2>
+    bool_t checkInclusion(const std::vector<T1, A1> & vect1, const std::vector<T2, A2> & vect2)
     {
         for (const auto & elem2 : vect2)
         {
@@ -220,8 +220,8 @@ namespace jiminy
         return true;
     }
 
-    template<typename T, typename A>
-    void eraseVector(std::vector<T, A> & vect1, const std::vector<T, A> & vect2)
+    template<typename T1, typename A1, typename T2, typename A2>
+    void eraseVector(std::vector<T1, A1> & vect1, const std::vector<T2, A2> & vect2)
     {
         vect1.erase(std::remove_if(vect1.begin(),
                                    vect1.end(),
@@ -237,8 +237,8 @@ namespace jiminy
 
     /// \brief Swap two non-overlapping row-blocks of data in a matrix.
     ///
-    /// \details Given two blocks of arbitrary sizes b1, b2 in a matrix B = (... b1 ... b2 ...),
-    ///          this function re-assigns B to (... b2 ... b1 ...).
+    /// \details Let b1, b2 be two row-blocks of arbitrary sizes of a matrix B s.t.
+    ///          B = (... b1 ... b2 ...).T. This function re-assigns B to (... b2 ... b1 ...).T.
     ///
     /// \pre firstBlockStart + firstBlockLength <= secondBlockStart
     ///
@@ -248,11 +248,11 @@ namespace jiminy
     /// \param[in] secondBlockStart Start index of the second block.
     /// \param[in] secondBlockLength Length of the second block.
     template<typename Derived>
-    void swapMatrixBlocks(const Eigen::MatrixBase<Derived> & matrixIn,
-                          Eigen::Index firstBlockStart,
-                          Eigen::Index firstBlockLength,
-                          Eigen::Index secondBlockStart,
-                          Eigen::Index secondBlockLength)
+    void swapMatrixRows(const Eigen::MatrixBase<Derived> & matrixIn,
+                        Eigen::Index firstBlockStart,
+                        Eigen::Index firstBlockLength,
+                        Eigen::Index secondBlockStart,
+                        Eigen::Index secondBlockLength)
     {
         // Get plain matrix type and cast away constness
         using Matrix = typename Eigen::MatrixBase<Derived>::PlainObject;

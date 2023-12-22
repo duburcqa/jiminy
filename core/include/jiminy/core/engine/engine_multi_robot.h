@@ -12,18 +12,18 @@
 
 namespace jiminy
 {
-    const std::string ENGINE_TELEMETRY_NAMESPACE("HighLevelController");
+    inline constexpr std::string_view ENGINE_TELEMETRY_NAMESPACE{"HighLevelController"};
 
     enum class JIMINY_DLLAPI contactModel_t : uint8_t
     {
-        NONE = 0,
+        UNSUPPORTED = 0,
         SPRING_DAMPER = 1,
         CONSTRAINT = 2
     };
 
     enum class JIMINY_DLLAPI constraintSolver_t : uint8_t
     {
-        NONE = 0,
+        UNSUPPORTED = 0,
         PGS = 1  // Projected Gauss-Seidel
     };
 
@@ -90,7 +90,7 @@ namespace jiminy
         GenericConfig getDefaultConstraintOptions()
         {
             GenericConfig config;
-            config["solver"] = std::string("PGS");  // ["PGS",]
+            config["solver"] = std::string{"PGS"};  // ["PGS",]
             /// \brief Relative inverse damping wrt diagonal of J.Minv.J.t.
             ///
             /// \details 0.0 enforces the minimum absolute regularizer.
@@ -103,7 +103,7 @@ namespace jiminy
         GenericConfig getDefaultContactOptions()
         {
             GenericConfig config;
-            config["model"] = std::string("constraint");  // ["spring_damper", "constraint"]
+            config["model"] = std::string{"constraint"};  // ["spring_damper", "constraint"]
             config["stiffness"] = 1.0e6;
             config["damping"] = 2.0e3;
             config["friction"] = 1.0;
@@ -142,7 +142,7 @@ namespace jiminy
             config["verbose"] = false;
             config["randomSeed"] = 0U;
             /// \details Must be either "runge_kutta_dopri5", "runge_kutta_4" or "euler_explicit".
-            config["odeSolver"] = std::string("runge_kutta_dopri5");
+            config["odeSolver"] = std::string{"runge_kutta_dopri5"};
             config["tolAbs"] = 1.0e-5;
             config["tolRel"] = 1.0e-4;
             config["dtMax"] = SIMULATION_MAX_TIMESTEP;
@@ -191,9 +191,9 @@ namespace jiminy
             const uint32_t successiveSolveFailedMax;
 
             constraintOptions_t(const GenericConfig & options) :
-            solver(boost::get<std::string>(options.at("solver"))),
-            regularization(boost::get<float64_t>(options.at("regularization"))),
-            successiveSolveFailedMax(boost::get<uint32_t>(options.at("successiveSolveFailedMax")))
+            solver{boost::get<std::string>(options.at("solver"))},
+            regularization{boost::get<float64_t>(options.at("regularization"))},
+            successiveSolveFailedMax{boost::get<uint32_t>(options.at("successiveSolveFailedMax"))}
             {
             }
         };
@@ -210,14 +210,14 @@ namespace jiminy
             const float64_t stabilizationFreq;
 
             contactOptions_t(const GenericConfig & options) :
-            model(boost::get<std::string>(options.at("model"))),
-            stiffness(boost::get<float64_t>(options.at("stiffness"))),
-            damping(boost::get<float64_t>(options.at("damping"))),
-            friction(boost::get<float64_t>(options.at("friction"))),
-            torsion(boost::get<float64_t>(options.at("torsion"))),
-            transitionEps(boost::get<float64_t>(options.at("transitionEps"))),
-            transitionVelocity(boost::get<float64_t>(options.at("transitionVelocity"))),
-            stabilizationFreq(boost::get<float64_t>(options.at("stabilizationFreq")))
+            model{boost::get<std::string>(options.at("model"))},
+            stiffness{boost::get<float64_t>(options.at("stiffness"))},
+            damping{boost::get<float64_t>(options.at("damping"))},
+            friction{boost::get<float64_t>(options.at("friction"))},
+            torsion{boost::get<float64_t>(options.at("torsion"))},
+            transitionEps{boost::get<float64_t>(options.at("transitionEps"))},
+            transitionVelocity{boost::get<float64_t>(options.at("transitionVelocity"))},
+            stabilizationFreq{boost::get<float64_t>(options.at("stabilizationFreq"))}
             {
             }
         };
@@ -228,8 +228,8 @@ namespace jiminy
             const float64_t boundDamping;
 
             jointOptions_t(const GenericConfig & options) :
-            boundStiffness(boost::get<float64_t>(options.at("boundStiffness"))),
-            boundDamping(boost::get<float64_t>(options.at("boundDamping")))
+            boundStiffness{boost::get<float64_t>(options.at("boundStiffness"))},
+            boundDamping{boost::get<float64_t>(options.at("boundDamping"))}
             {
             }
         };
@@ -240,8 +240,8 @@ namespace jiminy
             const HeightmapFunctor groundProfile;
 
             worldOptions_t(const GenericConfig & options) :
-            gravity(boost::get<Eigen::VectorXd>(options.at("gravity"))),
-            groundProfile(boost::get<HeightmapFunctor>(options.at("groundProfile")))
+            gravity{boost::get<Eigen::VectorXd>(options.at("gravity"))},
+            groundProfile{boost::get<HeightmapFunctor>(options.at("groundProfile"))}
             {
             }
         };
@@ -263,19 +263,19 @@ namespace jiminy
             const bool_t logInternalStepperSteps;
 
             stepperOptions_t(const GenericConfig & options) :
-            verbose(boost::get<bool_t>(options.at("verbose"))),
-            randomSeed(boost::get<uint32_t>(options.at("randomSeed"))),
-            odeSolver(boost::get<std::string>(options.at("odeSolver"))),
-            tolAbs(boost::get<float64_t>(options.at("tolAbs"))),
-            tolRel(boost::get<float64_t>(options.at("tolRel"))),
-            dtMax(boost::get<float64_t>(options.at("dtMax"))),
-            dtRestoreThresholdRel(boost::get<float64_t>(options.at("dtRestoreThresholdRel"))),
-            successiveIterFailedMax(boost::get<uint32_t>(options.at("successiveIterFailedMax"))),
-            iterMax(boost::get<uint32_t>(options.at("iterMax"))),
-            timeout(boost::get<float64_t>(options.at("timeout"))),
-            sensorsUpdatePeriod(boost::get<float64_t>(options.at("sensorsUpdatePeriod"))),
-            controllerUpdatePeriod(boost::get<float64_t>(options.at("controllerUpdatePeriod"))),
-            logInternalStepperSteps(boost::get<bool_t>(options.at("logInternalStepperSteps")))
+            verbose{boost::get<bool_t>(options.at("verbose"))},
+            randomSeed{boost::get<uint32_t>(options.at("randomSeed"))},
+            odeSolver{boost::get<std::string>(options.at("odeSolver"))},
+            tolAbs{boost::get<float64_t>(options.at("tolAbs"))},
+            tolRel{boost::get<float64_t>(options.at("tolRel"))},
+            dtMax{boost::get<float64_t>(options.at("dtMax"))},
+            dtRestoreThresholdRel{boost::get<float64_t>(options.at("dtRestoreThresholdRel"))},
+            successiveIterFailedMax{boost::get<uint32_t>(options.at("successiveIterFailedMax"))},
+            iterMax{boost::get<uint32_t>(options.at("iterMax"))},
+            timeout{boost::get<float64_t>(options.at("timeout"))},
+            sensorsUpdatePeriod{boost::get<float64_t>(options.at("sensorsUpdatePeriod"))},
+            controllerUpdatePeriod{boost::get<float64_t>(options.at("controllerUpdatePeriod"))},
+            logInternalStepperSteps{boost::get<bool_t>(options.at("logInternalStepperSteps"))}
             {
             }
         };
@@ -292,14 +292,14 @@ namespace jiminy
             const bool_t enableEnergy;
 
             telemetryOptions_t(const GenericConfig & options) :
-            isPersistent(boost::get<bool_t>(options.at("isPersistent"))),
-            enableConfiguration(boost::get<bool_t>(options.at("enableConfiguration"))),
-            enableVelocity(boost::get<bool_t>(options.at("enableVelocity"))),
-            enableAcceleration(boost::get<bool_t>(options.at("enableAcceleration"))),
-            enableForceExternal(boost::get<bool_t>(options.at("enableForceExternal"))),
-            enableCommand(boost::get<bool_t>(options.at("enableCommand"))),
-            enableMotorEffort(boost::get<bool_t>(options.at("enableMotorEffort"))),
-            enableEnergy(boost::get<bool_t>(options.at("enableEnergy")))
+            isPersistent{boost::get<bool_t>(options.at("isPersistent"))},
+            enableConfiguration{boost::get<bool_t>(options.at("enableConfiguration"))},
+            enableVelocity{boost::get<bool_t>(options.at("enableVelocity"))},
+            enableAcceleration{boost::get<bool_t>(options.at("enableAcceleration"))},
+            enableForceExternal{boost::get<bool_t>(options.at("enableForceExternal"))},
+            enableCommand{boost::get<bool_t>(options.at("enableCommand"))},
+            enableMotorEffort{boost::get<bool_t>(options.at("enableMotorEffort"))},
+            enableEnergy{boost::get<bool_t>(options.at("enableEnergy"))}
             {
             }
         };
@@ -314,12 +314,12 @@ namespace jiminy
             const contactOptions_t contacts;
 
             engineOptions_t(const GenericConfig & options) :
-            telemetry(boost::get<GenericConfig>(options.at("telemetry"))),
-            stepper(boost::get<GenericConfig>(options.at("stepper"))),
-            world(boost::get<GenericConfig>(options.at("world"))),
-            joints(boost::get<GenericConfig>(options.at("joints"))),
-            constraints(boost::get<GenericConfig>(options.at("constraints"))),
-            contacts(boost::get<GenericConfig>(options.at("contacts")))
+            telemetry{boost::get<GenericConfig>(options.at("telemetry"))},
+            stepper{boost::get<GenericConfig>(options.at("stepper"))},
+            world{boost::get<GenericConfig>(options.at("world"))},
+            joints{boost::get<GenericConfig>(options.at("joints"))},
+            constraints{boost::get<GenericConfig>(options.at("constraints"))},
+            contacts{boost::get<GenericConfig>(options.at("contacts"))}
             {
             }
         };
