@@ -15,10 +15,10 @@ namespace jiminy
     // Based on Ziggurat generator by Marsaglia and Tsang (JSS, 2000):
     // https://people.sc.fsu.edu/~jburkardt/cpp_src/ziggurat/ziggurat.html
 
-    std::mt19937 generator_;
+    std::mt19937 generator_{};
     std::uniform_real_distribution<float> distUniform_(0.0, 1.0);
-    bool isInitialized_ = false;
-    uint32_t seed_ = 0U;
+    bool isInitialized_{false};
+    uint32_t seed_{0U};
 
     uint32_t kn[128];
     float fn[128];
@@ -315,13 +315,12 @@ namespace jiminy
 
     PeriodicGaussianProcess::PeriodicGaussianProcess(
         double wavelength, double period, double scale) :
-    wavelength_(wavelength),
-    period_(period),
-    scale_(scale),
-    dt_(0.02 * wavelength_),
-    numTimes_(static_cast<int32_t>(std::ceil(period_ / dt_))),
-    isInitialized_(false),
-    values_(numTimes_),
+    wavelength_{wavelength},
+    period_{period},
+    scale_{scale},
+    dt_{0.02 * wavelength_},
+    numTimes_{static_cast<int32_t>(std::ceil(period_ / dt_))},
+    values_{numTimes_},
     covSqrtRoot_(numTimes_, numTimes_)
     {
     }

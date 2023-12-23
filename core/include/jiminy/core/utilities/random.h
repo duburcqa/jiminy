@@ -59,7 +59,7 @@ namespace jiminy
         const double dt_;
         const int32_t numTimes_;
 
-        bool isInitialized_;
+        bool isInitialized_{false};
         Eigen::VectorXd values_;
         Eigen::MatrixXd covSqrtRoot_;
     };

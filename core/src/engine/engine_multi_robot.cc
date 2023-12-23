@@ -56,27 +56,7 @@ namespace jiminy
     inline constexpr uint32_t INIT_ITERATIONS{4U};
     inline constexpr uint32_t PGS_MAX_ITERATIONS{100U};
 
-    EngineMultiRobot::EngineMultiRobot() :
-    engineOptions_(nullptr),
-    systems_(),
-    isTelemetryConfigured_(false),
-    isSimulationRunning_(false),
-    engineOptionsHolder_(),
-    timer_(std::make_unique<Timer>()),
-    contactModel_(contactModel_t::UNSUPPORTED),
-    telemetrySender_(),
-    telemetryData_(nullptr),
-    telemetryRecorder_(nullptr),
-    stepper_(),
-    stepperUpdatePeriod_(INF),
-    stepperState_(),
-    systemsDataHolder_(),
-    forcesCoupling_(),
-    contactForcesPrev_(),
-    fPrev_(),
-    aPrev_(),
-    energy_(),
-    logData_(nullptr)
+    EngineMultiRobot::EngineMultiRobot()
     {
         // Initialize the configuration options to the default.
         setOptions(getDefaultEngineOptions());

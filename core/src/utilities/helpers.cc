@@ -15,11 +15,6 @@ namespace jiminy
 {
     // *************** Local Mutex/Lock mechanism ******************
 
-    MutexLocal::MutexLocal() :
-    isLocked_(new bool{false})
-    {
-    }
-
     MutexLocal::~MutexLocal()
     {
         *isLocked_ = false;
@@ -31,7 +26,7 @@ namespace jiminy
     }
 
     LockGuardLocal::LockGuardLocal(MutexLocal & mutexLocal) :
-    mutexFlag_(mutexLocal.isLocked_)
+    mutexFlag_{mutexLocal.isLocked_}
     {
         *mutexFlag_ = true;
     }
@@ -43,10 +38,7 @@ namespace jiminy
 
     // ************************* Timer **************************
 
-    Timer::Timer() :
-    t0(),
-    tf(),
-    dt(0.0)
+    Timer::Timer()
     {
         tic();
     }

@@ -24,7 +24,7 @@ namespace jiminy
         DISABLE_COPY(MutexLocal)
 
     public:
-        MutexLocal();
+        MutexLocal() = default;
         MutexLocal(MutexLocal && other) = default;
 
         ~MutexLocal();
@@ -32,7 +32,7 @@ namespace jiminy
         bool isLocked() const;
 
     private:
-        std::shared_ptr<bool> isLocked_;
+        std::shared_ptr<bool> isLocked_{std::make_shared<bool>()};
     };
 
     class JIMINY_DLLAPI LockGuardLocal
@@ -62,9 +62,9 @@ namespace jiminy
         void toc();
 
     public:
-        std::chrono::time_point<Time> t0;
-        std::chrono::time_point<Time> tf;
-        double dt;
+        std::chrono::time_point<Time> t0{};
+        std::chrono::time_point<Time> tf{};
+        double dt{0.0};
     };
 
     // ****************************** Generic template utilities ******************************* //
