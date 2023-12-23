@@ -9,7 +9,7 @@ namespace jiminy
                                                          const Eigen::MatrixXd & RungeKuttaMatrix,
                                                          const Eigen::VectorXd & bWeights,
                                                          const Eigen::VectorXd & cNodes,
-                                                         bool_t isFSAL) :
+                                                         bool isFSAL) :
     AbstractStepper(f, robots),
     A_(RungeKuttaMatrix),
     b_(bWeights),
@@ -26,8 +26,8 @@ namespace jiminy
         assert(b_.size() == b_.rows());
     }
 
-    bool_t AbstractRungeKuttaStepper::tryStepImpl(
-        state_t & state, stateDerivative_t & stateDerivative, float64_t t, float64_t & dt)
+    bool AbstractRungeKuttaStepper::tryStepImpl(
+        state_t & state, stateDerivative_t & stateDerivative, double t, double & dt)
     {
         // First ki is simply the provided stateDerivative
         ki_[0] = stateDerivative;
@@ -56,7 +56,7 @@ namespace jiminy
         state.sum(stateIncrement_, candidateSolution_);
 
         // Evaluate the solution's error for step adjustment
-        const bool_t hasSucceeded = adjustStep(state, candidateSolution_, dt);
+        const bool hasSucceeded = adjustStep(state, candidateSolution_, dt);
 
         // Update state and compute derivative if success
         if (hasSucceeded)
@@ -75,8 +75,8 @@ namespace jiminy
         return hasSucceeded;
     }
 
-    bool_t AbstractRungeKuttaStepper::adjustStep(
-        const state_t & /* initialState */, const state_t & /* solution */, float64_t & dt)
+    bool AbstractRungeKuttaStepper::adjustStep(
+        const state_t & /* initialState */, const state_t & /* solution */, double & dt)
     {
         // Fixed-step by default, which never fails
         dt = INF;

@@ -4,8 +4,6 @@
 #include <string>
 #include <vector>
 
-#include "jiminy/core/exceptions.h"  // `jiminy::toString`
-
 
 namespace jiminy
 {

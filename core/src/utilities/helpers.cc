@@ -7,8 +7,6 @@
 #    include <stdio.h>
 #endif
 
-#include "jiminy/core/constants.h"
-#include "jiminy/core/exceptions.h"
 #include "jiminy/core/telemetry/telemetry_recorder.h"  // `LogData`
 #include "jiminy/core/utilities/helpers.h"
 
@@ -18,7 +16,7 @@ namespace jiminy
     // *************** Local Mutex/Lock mechanism ******************
 
     MutexLocal::MutexLocal() :
-    isLocked_(new bool_t{false})
+    isLocked_(new bool{false})
     {
     }
 
@@ -27,7 +25,7 @@ namespace jiminy
         *isLocked_ = false;
     }
 
-    bool_t MutexLocal::isLocked() const
+    bool MutexLocal::isLocked() const
     {
         return *isLocked_;
     }
@@ -62,7 +60,7 @@ namespace jiminy
     void Timer::toc()
     {
         tf = Time::now();
-        std::chrono::duration<float64_t> timeDiff = tf - t0;
+        std::chrono::duration<double> timeDiff = tf - t0;
         dt = timeDiff.count();
     }
 
@@ -83,7 +81,7 @@ namespace jiminy
 
     // ******************* Telemetry utilities **********************
 
-    bool_t endsWith(const std::string & text, const std::string & ending)
+    bool endsWith(const std::string & text, const std::string & ending)
     {
         if (text.length() >= ending.length())
         {
@@ -152,7 +150,7 @@ namespace jiminy
     {
         if (fieldname == GLOBAL_TIME)
         {
-            return logData.times.cast<float64_t>() * logData.timeUnit;
+            return logData.times.cast<double>() * logData.timeUnit;
         }
         const auto & firstFieldnameIt = logData.variableNames.begin() + 1;  // Skip GLOBAL_TIME
         auto fieldnameIt = std::find(firstFieldnameIt, logData.variableNames.end(), fieldname);
@@ -165,7 +163,7 @@ namespace jiminy
         const Eigen::Index numInt = logData.integerValues.rows();
         if (varIdx < numInt)
         {
-            return logData.integerValues.row(varIdx).cast<float64_t>();
+            return logData.integerValues.row(varIdx).cast<double>();
         }
         return logData.floatValues.row(varIdx - numInt);
     }

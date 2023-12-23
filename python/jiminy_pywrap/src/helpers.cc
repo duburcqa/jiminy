@@ -41,11 +41,11 @@ namespace jiminy::python
         return jointPositionFirstIdx;
     }
 
-    bool_t isPositionValid(const pinocchio::Model & model, const Eigen::VectorXd & position)
+    bool isPositionValid(const pinocchio::Model & model, const Eigen::VectorXd & position)
     {
-        bool_t isValid;
+        bool isValid;
         ::jiminy::isPositionValid(
-            model, position, isValid, Eigen::NumTraits<float64_t>::dummy_precision());
+            model, position, isValid, Eigen::NumTraits<double>::dummy_precision());
         return isValid;
     }
 
@@ -63,8 +63,8 @@ namespace jiminy::python
                                                const std::string & filename,
                                                const int & typePy,
                                                const bp::list & packageDirsPy,
-                                               bool_t loadMeshes,
-                                               bool_t makeMeshesConvex)
+                                               bool loadMeshes,
+                                               bool makeMeshesConvex)
     {
         /* Note that enum bindings interoperability is buggy, so that `pin.GeometryType` is not
            properly converted from Python to C++ automatically in some cases. */
@@ -77,10 +77,10 @@ namespace jiminy::python
     }
 
     bp::tuple buildModelsFromUrdf(const std::string & urdfPath,
-                                  bool_t hasFreeflyer,
+                                  bool hasFreeflyer,
                                   const bp::list & packageDirsPy,
-                                  bool_t buildVisualModel,
-                                  bool_t loadVisualMeshes)
+                                  bool buildVisualModel,
+                                  bool loadVisualMeshes)
     {
         /* Note that enum bindings interoperability is buggy, so that `pin.GeometryType` is not
            properly converted from Python to C++ automatically in some cases. */
@@ -109,7 +109,7 @@ namespace jiminy::python
     }
 
     np::ndarray solveJMinvJtv(
-        pinocchio::Data & data, const np::ndarray & vPy, bool_t updateDecomposition)
+        pinocchio::Data & data, const np::ndarray & vPy, bool updateDecomposition)
     {
         const int32_t nDims = vPy.get_nd();
         assert(nDims < 3 && "The number of dimensions of 'v' cannot exceed 2.");
@@ -157,14 +157,14 @@ namespace jiminy::python
                 (dstPyFlags & (NPY_ARRAY_C_CONTIGUOUS | NPY_ARRAY_F_CONTIGUOUS)))
             {
                 // Convert src scalar data to raw bytes with dst dtype, casting if necessary
-                bool_t isSuccess = false;
-                float64_t srcPyScalar;
+                bool isSuccess = false;
+                double srcPyScalar;
                 if (PyArray_Check(srcPy))
                 {
                     PyArrayObject * srcPyArray = reinterpret_cast<PyArrayObject *>(srcPy);
                     if (PyArray_EquivArrTypes(dstPyArray, srcPyArray))
                     {
-                        srcPyScalar = *reinterpret_cast<float64_t *>(PyArray_DATA(srcPyArray));
+                        srcPyScalar = *reinterpret_cast<double *>(PyArray_DATA(srcPyArray));
                         isSuccess = true;
                     }
                     else
@@ -200,7 +200,7 @@ namespace jiminy::python
                         else
                         {
                             auto srcPyBuiltin = std::make_unique<long>(PyLong_AsLong(srcPy));
-                            srcPyScalar = *reinterpret_cast<float64_t *>(srcPyBuiltin.get());
+                            srcPyScalar = *reinterpret_cast<double *>(srcPyBuiltin.get());
                         }
                         if (srcToDstCastFunc != NULL)
                         {
@@ -214,8 +214,8 @@ namespace jiminy::python
                 // Copy scalar bytes to destination if available
                 if (isSuccess)
                 {
-                    Eigen::Map<Eigen::Matrix<float64_t, Eigen::Dynamic, 1>> dst(
-                        reinterpret_cast<float64_t *>(dstPyData), PyArray_SIZE(dstPyArray));
+                    Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, 1>> dst(
+                        reinterpret_cast<double *>(dstPyData), PyArray_SIZE(dstPyArray));
                     dst.setConstant(srcPyScalar);
                     return;
                 }
@@ -266,18 +266,14 @@ namespace jiminy::python
             using EigenMapType = Eigen::Map<Eigen::MatrixXd>;
             if (dstPyFlags & NPY_ARRAY_C_CONTIGUOUS)
             {
-                EigenMapType dst(
-                    reinterpret_cast<float64_t *>(dstPyData), dstShape[1], dstShape[0]);
-                EigenMapType src(
-                    reinterpret_cast<float64_t *>(srcPyData), dstShape[0], dstShape[1]);
+                EigenMapType dst(reinterpret_cast<double *>(dstPyData), dstShape[1], dstShape[0]);
+                EigenMapType src(reinterpret_cast<double *>(srcPyData), dstShape[0], dstShape[1]);
                 dst = src.transpose();
             }
             else
             {
-                EigenMapType dst(
-                    reinterpret_cast<float64_t *>(dstPyData), dstShape[0], dstShape[1]);
-                EigenMapType src(
-                    reinterpret_cast<float64_t *>(srcPyData), dstShape[1], dstShape[0]);
+                EigenMapType dst(reinterpret_cast<double *>(dstPyData), dstShape[0], dstShape[1]);
+                EigenMapType src(reinterpret_cast<double *>(srcPyData), dstShape[1], dstShape[0]);
                 dst = src.transpose();
             }
         }
@@ -351,31 +347,31 @@ namespace jiminy::python
 
         bp::def("aba",
                 &pinocchio_overload::aba<
-                    float64_t, 0, pinocchio::JointCollectionDefaultTpl, Eigen::VectorXd, Eigen::VectorXd, Eigen::VectorXd, pinocchio::Force>,
+                    double, 0, pinocchio::JointCollectionDefaultTpl, Eigen::VectorXd, Eigen::VectorXd, Eigen::VectorXd, pinocchio::Force>,
                 (bp::arg("pinocchio_model"), "pinocchio_data", "q", "v", "u", "fext"),
                 "Compute ABA with external forces, store the result in Data::ddq and return it.",
                 bp::return_value_policy<result_converter<false>>());
         bp::def("rnea",
                 &pinocchio_overload::rnea<
-                    float64_t, 0, pinocchio::JointCollectionDefaultTpl, Eigen::VectorXd, Eigen::VectorXd, Eigen::VectorXd>,
+                    double, 0, pinocchio::JointCollectionDefaultTpl, Eigen::VectorXd, Eigen::VectorXd, Eigen::VectorXd>,
                 (bp::arg("pinocchio_model"), "pinocchio_data", "q", "v", "a"),
                 "Compute the RNEA without external forces, store the result in Data and return it.",
                 bp::return_value_policy<result_converter<false>>());
         bp::def("rnea",
                 &pinocchio_overload::rnea<
-                    float64_t, 0, pinocchio::JointCollectionDefaultTpl, Eigen::VectorXd, Eigen::VectorXd, Eigen::VectorXd, pinocchio::Force>,
+                    double, 0, pinocchio::JointCollectionDefaultTpl, Eigen::VectorXd, Eigen::VectorXd, Eigen::VectorXd, pinocchio::Force>,
                 (bp::arg("pinocchio_model"), "pinocchio_data", "q", "v", "a", "fext"),
                 "Compute the RNEA with external forces, store the result in Data and return it.",
                 bp::return_value_policy<result_converter<false>>());
         bp::def("crba",
                 &pinocchio_overload::crba<
-                    float64_t, 0, pinocchio::JointCollectionDefaultTpl, Eigen::VectorXd>,
+                    double, 0, pinocchio::JointCollectionDefaultTpl, Eigen::VectorXd>,
                 (bp::arg("pinocchio_model"), "pinocchio_data", "q"),
                 "Computes CRBA, store the result in Data and return it.",
                 bp::return_value_policy<result_converter<false>>());
         bp::def("computeKineticEnergy",
                 &pinocchio_overload::computeKineticEnergy<
-                    float64_t, 0, pinocchio::JointCollectionDefaultTpl, Eigen::VectorXd, Eigen::VectorXd>,
+                    double, 0, pinocchio::JointCollectionDefaultTpl, Eigen::VectorXd, Eigen::VectorXd>,
                 (bp::arg("pinocchio_model"), "pinocchio_data", "q", "v"),
                 "Computes the forward kinematics and the kinematic energy of the model for the "
                 "given joint configuration and velocity given as input. "

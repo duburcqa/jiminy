@@ -5,7 +5,6 @@
 #include <functional>
 
 #include "jiminy/core/fwd.h"
-#include "jiminy/core/constants.h"
 #include "jiminy/core/telemetry/telemetry_sender.h"
 #include "jiminy/core/engine/system.h"
 
@@ -51,7 +50,7 @@ namespace jiminy
     struct JIMINY_DLLAPI StepperState
     {
     public:
-        void reset(float64_t dtInit,
+        void reset(double dtInit,
                    const std::vector<Eigen::VectorXd> & qSplitInit,
                    const std::vector<Eigen::VectorXd> & vSplitInit,
                    const std::vector<Eigen::VectorXd> & aSplitInit)
@@ -72,13 +71,13 @@ namespace jiminy
     public:
         uint32_t iter;
         uint32_t iterFailed;
-        float64_t t;
-        float64_t tPrev;
+        double t;
+        double tPrev;
         /// \brief Internal buffer used for Kahan algorithm storing the residual sum of errors.
-        float64_t tError;
-        float64_t dt;
-        float64_t dtLargest;
-        float64_t dtLargestPrev;
+        double tError;
+        double dt;
+        double dtLargest;
+        double dtLargestPrev;
         std::vector<Eigen::VectorXd> qSplit;
         std::vector<Eigen::VectorXd> vSplit;
         std::vector<Eigen::VectorXd> aSplit;
@@ -129,7 +128,7 @@ namespace jiminy
             GenericConfig config;
             config["gravity"] = (Eigen::VectorXd(6) << 0.0, 0.0, -9.81, 0.0, 0.0, 0.0).finished();
             config["groundProfile"] = HeightmapFunctor(
-                [](const Eigen::Vector3d & /* pos */) -> std::pair<float64_t, Eigen::Vector3d> {
+                [](const Eigen::Vector3d & /* pos */) -> std::pair<double, Eigen::Vector3d> {
                     return {0.0, Eigen::Vector3d::UnitZ()};
                 });
 
@@ -187,12 +186,12 @@ namespace jiminy
         struct constraintOptions_t
         {
             const std::string solver;
-            const float64_t regularization;
+            const double regularization;
             const uint32_t successiveSolveFailedMax;
 
             constraintOptions_t(const GenericConfig & options) :
             solver{boost::get<std::string>(options.at("solver"))},
-            regularization{boost::get<float64_t>(options.at("regularization"))},
+            regularization{boost::get<double>(options.at("regularization"))},
             successiveSolveFailedMax{boost::get<uint32_t>(options.at("successiveSolveFailedMax"))}
             {
             }
@@ -201,35 +200,35 @@ namespace jiminy
         struct contactOptions_t
         {
             const std::string model;
-            const float64_t stiffness;
-            const float64_t damping;
-            const float64_t friction;
-            const float64_t torsion;
-            const float64_t transitionEps;
-            const float64_t transitionVelocity;
-            const float64_t stabilizationFreq;
+            const double stiffness;
+            const double damping;
+            const double friction;
+            const double torsion;
+            const double transitionEps;
+            const double transitionVelocity;
+            const double stabilizationFreq;
 
             contactOptions_t(const GenericConfig & options) :
             model{boost::get<std::string>(options.at("model"))},
-            stiffness{boost::get<float64_t>(options.at("stiffness"))},
-            damping{boost::get<float64_t>(options.at("damping"))},
-            friction{boost::get<float64_t>(options.at("friction"))},
-            torsion{boost::get<float64_t>(options.at("torsion"))},
-            transitionEps{boost::get<float64_t>(options.at("transitionEps"))},
-            transitionVelocity{boost::get<float64_t>(options.at("transitionVelocity"))},
-            stabilizationFreq{boost::get<float64_t>(options.at("stabilizationFreq"))}
+            stiffness{boost::get<double>(options.at("stiffness"))},
+            damping{boost::get<double>(options.at("damping"))},
+            friction{boost::get<double>(options.at("friction"))},
+            torsion{boost::get<double>(options.at("torsion"))},
+            transitionEps{boost::get<double>(options.at("transitionEps"))},
+            transitionVelocity{boost::get<double>(options.at("transitionVelocity"))},
+            stabilizationFreq{boost::get<double>(options.at("stabilizationFreq"))}
             {
             }
         };
 
         struct jointOptions_t
         {
-            const float64_t boundStiffness;
-            const float64_t boundDamping;
+            const double boundStiffness;
+            const double boundDamping;
 
             jointOptions_t(const GenericConfig & options) :
-            boundStiffness{boost::get<float64_t>(options.at("boundStiffness"))},
-            boundDamping{boost::get<float64_t>(options.at("boundDamping"))}
+            boundStiffness{boost::get<double>(options.at("boundStiffness"))},
+            boundDamping{boost::get<double>(options.at("boundDamping"))}
             {
             }
         };
@@ -248,58 +247,58 @@ namespace jiminy
 
         struct stepperOptions_t
         {
-            const bool_t verbose;
+            const bool verbose;
             const uint32_t randomSeed;
             const std::string odeSolver;
-            const float64_t tolAbs;
-            const float64_t tolRel;
-            const float64_t dtMax;
-            const float64_t dtRestoreThresholdRel;
+            const double tolAbs;
+            const double tolRel;
+            const double dtMax;
+            const double dtRestoreThresholdRel;
             const uint32_t successiveIterFailedMax;
             const uint32_t iterMax;
-            const float64_t timeout;
-            const float64_t sensorsUpdatePeriod;
-            const float64_t controllerUpdatePeriod;
-            const bool_t logInternalStepperSteps;
+            const double timeout;
+            const double sensorsUpdatePeriod;
+            const double controllerUpdatePeriod;
+            const bool logInternalStepperSteps;
 
             stepperOptions_t(const GenericConfig & options) :
-            verbose{boost::get<bool_t>(options.at("verbose"))},
+            verbose{boost::get<bool>(options.at("verbose"))},
             randomSeed{boost::get<uint32_t>(options.at("randomSeed"))},
             odeSolver{boost::get<std::string>(options.at("odeSolver"))},
-            tolAbs{boost::get<float64_t>(options.at("tolAbs"))},
-            tolRel{boost::get<float64_t>(options.at("tolRel"))},
-            dtMax{boost::get<float64_t>(options.at("dtMax"))},
-            dtRestoreThresholdRel{boost::get<float64_t>(options.at("dtRestoreThresholdRel"))},
+            tolAbs{boost::get<double>(options.at("tolAbs"))},
+            tolRel{boost::get<double>(options.at("tolRel"))},
+            dtMax{boost::get<double>(options.at("dtMax"))},
+            dtRestoreThresholdRel{boost::get<double>(options.at("dtRestoreThresholdRel"))},
             successiveIterFailedMax{boost::get<uint32_t>(options.at("successiveIterFailedMax"))},
             iterMax{boost::get<uint32_t>(options.at("iterMax"))},
-            timeout{boost::get<float64_t>(options.at("timeout"))},
-            sensorsUpdatePeriod{boost::get<float64_t>(options.at("sensorsUpdatePeriod"))},
-            controllerUpdatePeriod{boost::get<float64_t>(options.at("controllerUpdatePeriod"))},
-            logInternalStepperSteps{boost::get<bool_t>(options.at("logInternalStepperSteps"))}
+            timeout{boost::get<double>(options.at("timeout"))},
+            sensorsUpdatePeriod{boost::get<double>(options.at("sensorsUpdatePeriod"))},
+            controllerUpdatePeriod{boost::get<double>(options.at("controllerUpdatePeriod"))},
+            logInternalStepperSteps{boost::get<bool>(options.at("logInternalStepperSteps"))}
             {
             }
         };
 
         struct telemetryOptions_t
         {
-            const bool_t isPersistent;
-            const bool_t enableConfiguration;
-            const bool_t enableVelocity;
-            const bool_t enableAcceleration;
-            const bool_t enableForceExternal;
-            const bool_t enableCommand;
-            const bool_t enableMotorEffort;
-            const bool_t enableEnergy;
+            const bool isPersistent;
+            const bool enableConfiguration;
+            const bool enableVelocity;
+            const bool enableAcceleration;
+            const bool enableForceExternal;
+            const bool enableCommand;
+            const bool enableMotorEffort;
+            const bool enableEnergy;
 
             telemetryOptions_t(const GenericConfig & options) :
-            isPersistent{boost::get<bool_t>(options.at("isPersistent"))},
-            enableConfiguration{boost::get<bool_t>(options.at("enableConfiguration"))},
-            enableVelocity{boost::get<bool_t>(options.at("enableVelocity"))},
-            enableAcceleration{boost::get<bool_t>(options.at("enableAcceleration"))},
-            enableForceExternal{boost::get<bool_t>(options.at("enableForceExternal"))},
-            enableCommand{boost::get<bool_t>(options.at("enableCommand"))},
-            enableMotorEffort{boost::get<bool_t>(options.at("enableMotorEffort"))},
-            enableEnergy{boost::get<bool_t>(options.at("enableEnergy"))}
+            isPersistent{boost::get<bool>(options.at("isPersistent"))},
+            enableConfiguration{boost::get<bool>(options.at("enableConfiguration"))},
+            enableVelocity{boost::get<bool>(options.at("enableVelocity"))},
+            enableAcceleration{boost::get<bool>(options.at("enableAcceleration"))},
+            enableForceExternal{boost::get<bool>(options.at("enableForceExternal"))},
+            enableCommand{boost::get<bool>(options.at("enableCommand"))},
+            enableMotorEffort{boost::get<bool>(options.at("enableMotorEffort"))},
+            enableEnergy{boost::get<bool>(options.at("enableEnergy"))}
             {
             }
         };
@@ -365,15 +364,15 @@ namespace jiminy
                                                                const std::string & systemName2,
                                                                const std::string & frameName1,
                                                                const std::string & frameName2,
-                                                               float64_t stiffness,
-                                                               float64_t damping,
-                                                               float64_t restLength = 0.0);
+                                                               double stiffness,
+                                                               double damping,
+                                                               double restLength = 0.0);
         hresult_t registerViscoelasticDirectionalForceCoupling(const std::string & systemName,
                                                                const std::string & frameName1,
                                                                const std::string & frameName2,
-                                                               float64_t stiffness,
-                                                               float64_t damping,
-                                                               float64_t restLength = 0.0);
+                                                               double stiffness,
+                                                               double damping,
+                                                               double restLength = 0.0);
 
         /// \brief 6-DoFs spring-damper coupling force modelling a flexible bushing.
         ///
@@ -390,13 +389,13 @@ namespace jiminy
                                                     const std::string & frameName2,
                                                     const Vector6d & stiffness,
                                                     const Vector6d & damping,
-                                                    float64_t alpha = 0.5);
+                                                    double alpha = 0.5);
         hresult_t registerViscoelasticForceCoupling(const std::string & systemName,
                                                     const std::string & frameName1,
                                                     const std::string & frameName2,
                                                     const Vector6d & stiffness,
                                                     const Vector6d & damping,
-                                                    float64_t alpha = 0.5);
+                                                    double alpha = 0.5);
         hresult_t removeForcesCoupling(const std::string & systemName1,
                                        const std::string & systemName2);
         hresult_t removeForcesCoupling(const std::string & systemName);
@@ -414,7 +413,7 @@ namespace jiminy
         ///
         /// \param[in] resetRandomNumbers Whether to reset the random number generators.
         /// \param[in] removeAllForce Whether to remove registered external forces.
-        void reset(bool_t resetRandomNumbers = false, bool_t removeAllForce = false);
+        void reset(bool resetRandomNumbers = false, bool removeAllForce = false);
 
         /// \brief Reset the engine and compute initial state.
         ///
@@ -440,7 +439,7 @@ namespace jiminy
         ///
         /// \param[in] stepSize Duration for which to integrate ; set to negative value to use
         /// default update value.
-        hresult_t step(float64_t stepSize = -1);
+        hresult_t step(double stepSize = -1);
 
         /// \brief Stop the simulation.
         ///
@@ -457,7 +456,7 @@ namespace jiminy
         /// \param[in] aInit Initial acceleration of every system, i.e. at t=0.0.
         ///                  Optional: Zero by default.
         hresult_t simulate(
-            float64_t tEnd,
+            double tEnd,
             const std::map<std::string, Eigen::VectorXd> & qInit,
             const std::map<std::string, Eigen::VectorXd> & vInit,
             const std::optional<std::map<std::string, Eigen::VectorXd>> & aInit = std::nullopt);
@@ -467,8 +466,8 @@ namespace jiminy
         /// \warning The force must be given in the world frame.
         hresult_t registerForceImpulse(const std::string & systemName,
                                        const std::string & frameName,
-                                       float64_t t,
-                                       float64_t dt,
+                                       double t,
+                                       double dt,
                                        const pinocchio::Force & F);
         /// \brief Apply an external force profile on a frame.
         ///
@@ -477,7 +476,7 @@ namespace jiminy
         hresult_t registerForceProfile(const std::string & systemName,
                                        const std::string & frameName,
                                        const ForceProfileFunctor & forceFct,
-                                       float64_t updatePeriod = 0.0);
+                                       double updatePeriod = 0.0);
 
         hresult_t removeForcesImpulse(const std::string & systemName);
         hresult_t removeForcesProfile(const std::string & systemName);
@@ -491,33 +490,33 @@ namespace jiminy
 
         GenericConfig getOptions() const;
         hresult_t setOptions(const GenericConfig & engineOptions);
-        bool_t getIsTelemetryConfigured() const;
+        bool getIsTelemetryConfigured() const;
         std::vector<std::string> getSystemsNames() const;
         hresult_t getSystemIdx(const std::string & systemName, int32_t & systemIdx) const;
         hresult_t getSystem(const std::string & systemName, systemHolder_t *& system);
         hresult_t getSystemState(const std::string & systemName,
                                  const systemState_t *& systemState) const;
         const StepperState & getStepperState() const;
-        const bool_t & getIsSimulationRunning() const;  // return const reference on purpose
-        static float64_t getMaxSimulationDuration();
-        static float64_t getTelemetryTimeUnit();
+        const bool & getIsSimulationRunning() const;  // return const reference on purpose
+        static double getMaxSimulationDuration();
+        static double getTelemetryTimeUnit();
 
         static void computeForwardKinematics(systemHolder_t & system,
                                              const Eigen::VectorXd & q,
                                              const Eigen::VectorXd & v,
                                              const Eigen::VectorXd & a);
-        hresult_t computeSystemsDynamics(float64_t t,
+        hresult_t computeSystemsDynamics(double t,
                                          const std::vector<Eigen::VectorXd> & qSplit,
                                          const std::vector<Eigen::VectorXd> & vSplit,
                                          std::vector<Eigen::VectorXd> & aSplit,
-                                         bool_t isStateUpToDate = false);
+                                         bool isStateUpToDate = false);
 
     protected:
         hresult_t configureTelemetry();
         void updateTelemetry();
 
         void syncStepperStateWithSystems();
-        void syncSystemsStateWithStepper(bool_t isStateUpToDate = false);
+        void syncSystemsStateWithStepper(bool isStateUpToDate = false);
 
 
         /// \brief Compute the force resulting from ground contact on a given body.
@@ -546,37 +545,37 @@ namespace jiminy
 
         /// \brief Compute the ground reaction force for a given normal direction and depth.
         pinocchio::Force computeContactDynamics(const Eigen::Vector3d & nGround,
-                                                float64_t depth,
+                                                double depth,
                                                 const Eigen::Vector3d & vContactInWorld) const;
 
         void computeCommand(systemHolder_t & system,
-                            float64_t t,
+                            double t,
                             const Eigen::VectorXd & q,
                             const Eigen::VectorXd & v,
                             Eigen::VectorXd & command);
         void computeInternalDynamics(const systemHolder_t & system,
                                      systemDataHolder_t & systemData,
-                                     float64_t t,
+                                     double t,
                                      const Eigen::VectorXd & q,
                                      const Eigen::VectorXd & v,
                                      Eigen::VectorXd & uInternal) const;
         void computeCollisionForces(const systemHolder_t & system,
                                     systemDataHolder_t & systemData,
                                     ForceVector & fext,
-                                    bool_t isStateUpToDate = false) const;
+                                    bool isStateUpToDate = false) const;
         void computeExternalForces(const systemHolder_t & system,
                                    systemDataHolder_t & systemData,
-                                   float64_t t,
+                                   double t,
                                    const Eigen::VectorXd & q,
                                    const Eigen::VectorXd & v,
                                    ForceVector & fext);
-        void computeForcesCoupling(float64_t t,
+        void computeForcesCoupling(double t,
                                    const std::vector<Eigen::VectorXd> & qSplit,
                                    const std::vector<Eigen::VectorXd> & vSplit);
-        void computeAllTerms(float64_t t,
+        void computeAllTerms(double t,
                              const std::vector<Eigen::VectorXd> & qSplit,
                              const std::vector<Eigen::VectorXd> & vSplit,
-                             bool_t isStateUpToDate = false);
+                             bool isStateUpToDate = false);
 
         /// \brief Compute system acceleration from current system state.
         ///
@@ -597,8 +596,8 @@ namespace jiminy
                                                     const Eigen::VectorXd & v,
                                                     const Eigen::VectorXd & u,
                                                     ForceVector & fext,
-                                                    bool_t isStateUpToDate = false,
-                                                    bool_t ignoreBounds = false);
+                                                    bool isStateUpToDate = false,
+                                                    bool ignoreBounds = false);
 
     public:
         hresult_t getLog(std::shared_ptr<const LogData> & logData);
@@ -620,7 +619,7 @@ namespace jiminy
                       pinocchio::DataTpl<Scalar, Options, JointCollectionTpl> & data,
                       const Eigen::MatrixBase<ConfigVectorType> & q,
                       const Eigen::MatrixBase<TangentVectorType> & v,
-                      bool_t update_kinematics);
+                      bool update_kinematics);
         template<typename Scalar,
                  int Options,
                  template<typename, int>
@@ -659,8 +658,8 @@ namespace jiminy
         std::vector<systemHolder_t> systems_;
 
     protected:
-        bool_t isTelemetryConfigured_;
-        bool_t isSimulationRunning_;
+        bool isTelemetryConfigured_;
+        bool isSimulationRunning_;
         GenericConfig engineOptionsHolder_;
 
     private:
@@ -670,14 +669,14 @@ namespace jiminy
         std::shared_ptr<TelemetryData> telemetryData_;
         std::unique_ptr<TelemetryRecorder> telemetryRecorder_;
         std::unique_ptr<AbstractStepper> stepper_;
-        float64_t stepperUpdatePeriod_;
+        double stepperUpdatePeriod_;
         StepperState stepperState_;
         vector_aligned_t<systemDataHolder_t> systemsDataHolder_;
         ForceCouplingRegister forcesCoupling_;
         vector_aligned_t<ForceVector> contactForcesPrev_;
         vector_aligned_t<ForceVector> fPrev_;
         vector_aligned_t<MotionVector> aPrev_;
-        std::vector<float64_t> energy_;
+        std::vector<double> energy_;
         std::shared_ptr<LogData> logData_;
     };
 }

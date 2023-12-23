@@ -1,5 +1,4 @@
 #include "jiminy/core/traits.h"
-#include "jiminy/core/exceptions.h"
 #include "jiminy/core/robot/robot.h"
 
 #include "jiminy/core/constraints/joint_constraint.h"
@@ -39,7 +38,7 @@ namespace jiminy
         return configurationRef_;
     }
 
-    void JointConstraint::setRotationDir(bool_t isReversed)
+    void JointConstraint::setRotationDir(bool isReversed)
     {
         // Update the Jacobian
         if (isReversed_ != isReversed)
@@ -51,7 +50,7 @@ namespace jiminy
         isReversed_ = isReversed;
     }
 
-    bool_t JointConstraint::getRotationDir()
+    bool JointConstraint::getRotationDir()
     {
         return isReversed_;
     }

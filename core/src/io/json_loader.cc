@@ -31,7 +31,7 @@ namespace jiminy
             std::string errs;
             Json::CharReaderBuilder rbuilder;
             std::unique_ptr<Json::CharReader> reader(rbuilder.newCharReader());
-            const bool_t isParsingOk = reader->parse(
+            const bool isParsingOk = reader->parse(
                 (payload_.data()), payload_.data() + payload_.size(), rootJson_.get(), &errs);
             if (!isParsingOk)
             {

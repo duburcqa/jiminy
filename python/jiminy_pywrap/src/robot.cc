@@ -172,7 +172,7 @@ namespace jiminy::python
         }
 
         static hresult_t addCollisionBodies(
-            Model & self, const bp::list & linkNamesPy, bool_t ignoreMeshes)
+            Model & self, const bp::list & linkNamesPy, bool ignoreMeshes)
         {
             auto linkNames = convertFromPython<std::vector<std::string>>(linkNamesPy);
             return self.addCollisionBodies(linkNames, ignoreMeshes);
@@ -276,7 +276,7 @@ namespace jiminy::python
             return vRigid;
         }
 
-        static bool_t isFlexibleModelEnabled(Model & self)
+        static bool isFlexibleModelEnabled(Model & self)
         {
             return self.mdlOptions_->dynamics.enableFlexibleModel;
         }
@@ -389,9 +389,9 @@ namespace jiminy::python
 
         static hresult_t initialize(Robot             & self,
                                     const std::string & urdfPath,
-                                    bool_t const & hasFreeflyer,
+                                    bool const & hasFreeflyer,
                                     bp::list const & meshPackageDirsPy,
-                                    bool_t const & loadVisualMeshes)
+                                    bool const & loadVisualMeshes)
         {
             auto meshPackageDirs = convertFromPython<std::vector<std::string>>(meshPackageDirsPy);
             return self.initialize(urdfPath, hasFreeflyer, meshPackageDirs, loadVisualMeshes);

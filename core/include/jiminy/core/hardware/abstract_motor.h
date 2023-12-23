@@ -55,20 +55,20 @@ namespace jiminy
         struct abstractMotorOptions_t
         {
             /// \brief Mechanical reduction ratio of transmission (joint/motor), usually >= 1.0.
-            const float64_t mechanicalReduction;
-            const bool_t enableCommandLimit;
-            const bool_t commandLimitFromUrdf;
-            const float64_t commandLimit;
-            const bool_t enableArmature;
-            const float64_t armature;
+            const double mechanicalReduction;
+            const bool enableCommandLimit;
+            const bool commandLimitFromUrdf;
+            const double commandLimit;
+            const bool enableArmature;
+            const double armature;
 
             abstractMotorOptions_t(const GenericConfig & options) :
-            mechanicalReduction(boost::get<float64_t>(options.at("mechanicalReduction"))),
-            enableCommandLimit(boost::get<bool_t>(options.at("enableCommandLimit"))),
-            commandLimitFromUrdf(boost::get<bool_t>(options.at("commandLimitFromUrdf"))),
-            commandLimit(boost::get<float64_t>(options.at("commandLimit"))),
-            enableArmature(boost::get<bool_t>(options.at("enableArmature"))),
-            armature(boost::get<float64_t>(options.at("armature")))
+            mechanicalReduction(boost::get<double>(options.at("mechanicalReduction"))),
+            enableCommandLimit(boost::get<bool>(options.at("enableCommandLimit"))),
+            commandLimitFromUrdf(boost::get<bool>(options.at("commandLimitFromUrdf"))),
+            commandLimit(boost::get<double>(options.at("commandLimit"))),
+            enableArmature(boost::get<bool>(options.at("enableArmature"))),
+            armature(boost::get<double>(options.at("armature")))
             {
             }
         };
@@ -100,7 +100,7 @@ namespace jiminy
         GenericConfig getOptions() const;
 
         /// \brief Actual effort of the motor at the current time.
-        float64_t get() const;
+        double get() const;
 
         /// \brief Actual effort of all the motors at the current time.
         const Eigen::VectorXd & getAll() const;
@@ -116,7 +116,7 @@ namespace jiminy
         hresult_t setOptionsAll(const GenericConfig & motorOptions);
 
         /// \brief Whether the motor has been initialized.
-        bool_t getIsInitialized() const;
+        bool getIsInitialized() const;
 
         /// \brief Name of the motor.
         const std::string & getName() const;
@@ -140,10 +140,10 @@ namespace jiminy
         int32_t getJointVelocityIdx() const;
 
         /// \brief Maximum effort of the motor.
-        float64_t getCommandLimit() const;
+        double getCommandLimit() const;
 
         /// \brief Rotor inertia of the motor.
-        float64_t getArmature() const;
+        double getArmature() const;
 
         /// \brief Request the motor to update its actual effort based of the input data.
         ///
@@ -155,11 +155,11 @@ namespace jiminy
         /// \param[in] v Current velocity of the motor.
         /// \param[in] a Current acceleration of the motor.
         /// \param[in] command Current command effort of the motor.
-        virtual hresult_t computeEffort(float64_t t,
+        virtual hresult_t computeEffort(double t,
                                         const Eigen::VectorBlock<const Eigen::VectorXd> & q,
-                                        float64_t v,
-                                        float64_t a,
-                                        float64_t command) = 0; /* copy on purpose */
+                                        double v,
+                                        double a,
+                                        double command) = 0; /* copy on purpose */
 
         /// \brief Request every motors to update their actual effort based of the input data.
         ///
@@ -176,7 +176,7 @@ namespace jiminy
         /// \param[in] command Current command effort vector of the robot.
         ///
         /// \return Return code to determine whether the execution of the method was successful.
-        hresult_t computeEffortAll(float64_t t,
+        hresult_t computeEffortAll(double t,
                                    const Eigen::VectorXd & q,
                                    const Eigen::VectorXd & v,
                                    const Eigen::VectorXd & a,
@@ -184,7 +184,7 @@ namespace jiminy
 
     protected:
         /// \brief Reference to the last data buffer corresponding to the true effort of the motor.
-        float64_t & data();
+        double & data();
 
     private:
         /// \brief Attach the sensor to a robot
@@ -205,9 +205,9 @@ namespace jiminy
         /// \brief Dictionary with the parameters of the motor.
         GenericConfig motorOptionsHolder_;
         /// \brief Flag to determine whether the controller has been initialized or not.
-        bool_t isInitialized_;
+        bool isInitialized_;
         /// \brief Flag to determine whether the motor is attached to a robot.
-        bool_t isAttached_;
+        bool isAttached_;
         /// \brief Robot for which the command and internal dynamics.
         std::weak_ptr<const Robot> robot_;
         /// \brief Notify the robot that the configuration of the sensors have changed.
@@ -221,8 +221,8 @@ namespace jiminy
         JointModelType jointType_;
         int32_t jointPositionIdx_;
         int32_t jointVelocityIdx_;
-        float64_t commandLimit_;
-        float64_t armature_;
+        double commandLimit_;
+        double armature_;
 
     private:
         /// \brief Shared data between every motors associated with the robot.

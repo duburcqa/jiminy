@@ -34,7 +34,7 @@ namespace jiminy
     protected:
         /// \brief Hold the parsed document.
         std::unique_ptr<Json::Value> rootJson_;
-        std::vector<char_t> payload_;
+        std::vector<char> payload_;
         std::shared_ptr<AbstractIODevice> device_;
     };
 }

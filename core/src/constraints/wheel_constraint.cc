@@ -1,6 +1,5 @@
 #include "pinocchio/algorithm/frames.hpp"  // `pinocchio::getFrameVelocity`, `pinocchio::getFrameAcceleration`
 
-#include "jiminy/core/exceptions.h"
 #include "jiminy/core/robot/model.h"
 #include "jiminy/core/utilities/pinocchio.h"
 
@@ -13,7 +12,7 @@ namespace jiminy
     const std::string AbstractConstraintTpl<WheelConstraint>::type_("WheelConstraint");
 
     WheelConstraint::WheelConstraint(const std::string & frameName,
-                                     float64_t wheelRadius,
+                                     double wheelRadius,
                                      const Eigen::Vector3d & groundNormal,
                                      const Eigen::Vector3d & wheelAxis) :
     AbstractConstraintTpl(),
@@ -101,13 +100,13 @@ namespace jiminy
         const pinocchio::SE3 & framePose = model->pncData_.oMf[frameIdx_];
         const Eigen::Vector3d axis = framePose.rotation() * axis_;
         const Eigen::Vector3d x = axis.cross(normal_).cross(axis);
-        const float64_t xNorm = x.norm();
+        const double xNorm = x.norm();
         const Eigen::Vector3d y = x / xNorm;
         pinocchio::alphaSkew(radius_, y, skewRadius_);
 
         // Compute position error
         auto positionRel = framePose.translation() - transformRef_.translation();
-        const float64_t deltaPosition = (positionRel + radius_ * (normal_ - y)).dot(normal_);
+        const double deltaPosition = (positionRel + radius_ * (normal_ - y)).dot(normal_);
 
         // Compute frame jacobian in local frame
         getFrameJacobian(model->pncModel_,

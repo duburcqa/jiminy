@@ -1,14 +1,17 @@
 #ifndef JIMINY_FORWARD_H
 #define JIMINY_FORWARD_H
 
+#include <string_view>    // `std::string_view`
 #include <cstdint>        // `int32_t`, `int64_t`, `uint32_t`, `uint64_t`, ...
 #include <functional>     // `std::function`
 #include <limits>         // `std::numeric_limits`
 #include <map>            // `std::map`
 #include <string>         // `std::string`
+#include <sstream>        // `std::ostringstream`
 #include <unordered_map>  // `std::unordered_map`
 #include <utility>        // `std::pair`
 #include <vector>         // `std::vector`
+#include <stdexcept>      // `std::runtime_error`, `std::logic_error`
 
 #include "pinocchio/fwd.hpp"            // To avoid having to include it everywhere
 #include "pinocchio/multibody/fwd.hpp"  // `pinocchio::JointIndex`, `pinocchio::FrameIndex`, ...
@@ -17,44 +20,18 @@
 #include "pinocchio/spatial/force.hpp"             // `pinocchio::Force`
 #include "pinocchio/spatial/motion.hpp"            // `pinocchio::Motion`
 
-#include <Eigen/Core>       // `Eigen::Matrix`, `Eigen::Dynamic`
-#include <Eigen/StdVector>  // `Eigen::aligned_allocator`
-
+#include <Eigen/Core>  // `Eigen::Matrix`, `Eigen::Dynamic`, `Eigen::IOFormat`, `Eigen::FullPrecision`
+#include <Eigen/StdVector>    // `Eigen::aligned_allocator`
 #include <boost/variant.hpp>  // `boost::make_recursive_variant`
+
+#include "jiminy/core/constants.h"
+#include "jiminy/core/macros.h"
+#include "jiminy/core/traits.h"
 
 
 namespace jiminy
 {
-    // **************************************** Macros ***************************************** //
-
-#define DISABLE_COPY(className)                  \
-    className(const className & other) = delete; \
-    className & operator=(const className & other) = delete;
-
-#if defined _WIN32 || defined __CYGWIN__
-// On Microsoft Windows, use dllimport and dllexport to tag symbols
-#    define JIMINY_DLLIMPORT __declspec(dllimport)
-#    define JIMINY_DLLEXPORT __declspec(dllexport)
-#else
-// On Linux, for GCC >= 4, tag symbols using GCC extension
-#    define JIMINY_DLLIMPORT __attribute__((visibility("default")))
-#    define JIMINY_DLLEXPORT __attribute__((visibility("default")))
-#endif
-
-// Define DLLAPI to import or export depending on whether one is building or using the library
-#ifdef EXPORT_SYMBOLS
-#    define JIMINY_DLLAPI JIMINY_DLLEXPORT
-#else
-#    define JIMINY_DLLAPI JIMINY_DLLIMPORT
-#endif
-
-    // ********************************** General definitions ********************************** //
-
-    // "Standard" types
-    using bool_t = bool;
-    using char_t = char;
-    using float32_t = float;
-    using float64_t = double;
+    // ********************************** General declarations ********************************* //
 
     template<typename K, typename M>
     using static_map_t = std::vector<std::pair<K, M>>;
@@ -68,7 +45,7 @@ namespace jiminy
     template<typename Scalar>
     using Matrix3X = Eigen::Matrix<Scalar, 3, Eigen::Dynamic>;
 
-    using Matrix6Xd = Eigen::Matrix<float64_t, 6, Eigen::Dynamic>;
+    using Matrix6Xd = Eigen::Matrix<double, 6, Eigen::Dynamic>;
 
 #define EIGEN_MAKE_FIXED_TYPEDEFS(Size) \
     template<typename Scalar>           \
@@ -81,7 +58,7 @@ namespace jiminy
 
 #undef EIGEN_MAKE_FIXED_TYPEDEFS
 
-    using Vector6d = Vector6<float64_t>;
+    using Vector6d = Vector6<double>;
 
     template<typename K, typename M>
     using static_map_aligned_t =
@@ -113,14 +90,28 @@ namespace jiminy
         FREE = 7
     };
 
-    // ******************************* Constant of the universe ******************************** //
+    // ****************************** Jiminy-specific declarations ***************************** //
 
-    // Define some aliases for convenience
-    inline constexpr float64_t INF = std::numeric_limits<float64_t>::infinity();
-    inline constexpr float64_t EPS = std::numeric_limits<float64_t>::epsilon();
-    inline constexpr float64_t qNAN = std::numeric_limits<float64_t>::quiet_NaN();
+    // Exceptions
+    class jiminy_exception : public std::exception
+    {
+    public:
+        using std::exception::exception;
+    };
 
-    // ****************************** Jiminy-specific definitions ****************************** //
+    class not_initialized : public jiminy_exception, public std::logic_error
+    {
+    public:
+        using std::logic_error::logic_error;
+        using std::logic_error::logic_error::what;
+    };
+
+    class initialization_failed : public jiminy_exception, public std::runtime_error
+    {
+    public:
+        using std::runtime_error::runtime_error;
+        using std::runtime_error::runtime_error::what;
+    };
 
     // Error codes
     enum class hresult_t : int32_t
@@ -133,14 +124,14 @@ namespace jiminy
 
     // Ground profile functors
     using HeightmapFunctor =
-        std::function<std::pair<float64_t /*height*/, Eigen::Vector3d /*normal*/>(
+        std::function<std::pair<double /*height*/, Eigen::Vector3d /*normal*/>(
             const Eigen::Vector3d & /*pos*/)>;
 
     // Flexible joints
     struct FlexibleJointData
     {
         // FIXME: Replace by default spaceship operator `<=>` when moving to C++20.
-        inline bool_t operator==(const FlexibleJointData & other) const noexcept
+        inline bool operator==(const FlexibleJointData & other) const noexcept
         {
             return (this->frameName == other.frameName && this->stiffness == other.stiffness &&
                     this->damping == other.damping && this->inertia == other.inertia);
@@ -157,10 +148,10 @@ namespace jiminy
     using GenericConfig =
         std::unordered_map<std::string,
                            boost::make_recursive_variant<
-                               bool_t,
+                               bool,
                                uint32_t,
                                int32_t,
-                               float64_t,
+                               double,
                                std::string,
                                Eigen::VectorXd,
                                Eigen::MatrixXd,
@@ -173,6 +164,25 @@ namespace jiminy
 
     struct SensorDataTypeMap;
     using SensorsDataMap = std::unordered_map<std::string, SensorDataTypeMap>;
-}  // namespace jiminy
+
+    // Generic utilities used everywhere
+    template<typename... Args>
+    std::string toString(Args &&... args)
+    {
+        std::ostringstream sstr;
+        auto format = [](auto && var)
+        {
+            if constexpr (is_eigen_v<decltype(var)>)
+            {
+                static const Eigen::IOFormat k_heavy_fmt(
+                    Eigen::FullPrecision, 0, ", ", ";\n", "[", "]", "[", "]");
+                return var.format(k_heavy_fmt);
+            }
+            return var;
+        };
+        ((sstr << format(std::forward<Args>(args))), ...);
+        return sstr.str();
+    }
+}
 
 #endif  // JIMINY_FORWARD_H

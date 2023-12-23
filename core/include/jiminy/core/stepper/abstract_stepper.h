@@ -8,7 +8,7 @@
 
 namespace jiminy
 {
-    using systemDynamics = std::function<void(float64_t /*t*/,
+    using systemDynamics = std::function<void(double /*t*/,
                                               const std::vector<Eigen::VectorXd> & /*qSplit*/,
                                               const std::vector<Eigen::VectorXd> & /*vSplit*/,
                                               std::vector<Eigen::VectorXd> & /*aSplit*/)>;
@@ -46,19 +46,19 @@ namespace jiminy
         ///                    unmodified.
         ///
         /// \return Whether integration was successful. If not, (q, v, a) are not updated.
-        bool_t tryStep(std::vector<Eigen::VectorXd> & q,
-                       std::vector<Eigen::VectorXd> & v,
-                       std::vector<Eigen::VectorXd> & a,
-                       float64_t & t,
-                       float64_t & dt);
+        bool tryStep(std::vector<Eigen::VectorXd> & q,
+                     std::vector<Eigen::VectorXd> & v,
+                     std::vector<Eigen::VectorXd> & a,
+                     double & t,
+                     double & dt);
 
     protected:
         /// \brief Internal tryStep method wrapping the arguments as state_t and stateDerivative_t.
-        virtual bool_t tryStepImpl(
-            state_t & state, stateDerivative_t & stateDerivative, float64_t t, float64_t & dt) = 0;
+        virtual bool tryStepImpl(
+            state_t & state, stateDerivative_t & stateDerivative, double t, double & dt) = 0;
 
         /// \brief Wrapper around the system dynamics: `stateDerivative = f(t, state)`.
-        const stateDerivative_t & f(float64_t t, const state_t & state);
+        const stateDerivative_t & f(double t, const state_t & state);
 
     private:
         /// \brief Dynamics to integrate.

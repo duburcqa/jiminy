@@ -1,4 +1,3 @@
-#include "jiminy/core/exceptions.h"
 #include "jiminy/core/io/abstract_io_device.h"
 #include "jiminy/core/io/memory_device.h"
 #include "jiminy/core/io/json_writer.h"
@@ -97,7 +96,7 @@ namespace jiminy
     }
 
     template<>
-    bool_t convertFromJson<bool_t>(const Json::Value & value)
+    bool convertFromJson<bool>(const Json::Value & value)
     {
         return value.asBool();
     }
@@ -115,7 +114,7 @@ namespace jiminy
     }
 
     template<>
-    float64_t convertFromJson<float64_t>(const Json::Value & value)
+    double convertFromJson<double>(const Json::Value & value)
     {
         return value.asDouble();
     }
@@ -129,7 +128,7 @@ namespace jiminy
             vec.resize(value.size());
             for (auto it = value.begin(); it != value.end(); ++it)
             {
-                vec[it.index()] = convertFromJson<float64_t>(*it);
+                vec[it.index()] = convertFromJson<double>(*it);
             }
         }
         return vec;
@@ -167,7 +166,7 @@ namespace jiminy
     HeightmapFunctor convertFromJson<HeightmapFunctor>(const Json::Value & /* value */)
     {
         return {HeightmapFunctor(
-            [](const Eigen::Vector3d & /* pos */) -> std::pair<float64_t, Eigen::Vector3d> {
+            [](const Eigen::Vector3d & /* pos */) -> std::pair<double, Eigen::Vector3d> {
                 return {0.0, Eigen::Vector3d::UnitZ()};
             })};
     }
@@ -225,11 +224,11 @@ namespace jiminy
             }
             else if (root->type() == Json::booleanValue)
             {
-                field = convertFromJson<bool_t>(*root);
+                field = convertFromJson<bool>(*root);
             }
             else if (root->type() == Json::realValue)
             {
-                field = convertFromJson<float64_t>(*root);
+                field = convertFromJson<double>(*root);
             }
             else if (root->isConvertibleTo(Json::uintValue))
             {

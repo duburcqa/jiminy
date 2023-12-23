@@ -2,17 +2,15 @@
 #ifndef JIMINY_TRAITS_H
 #define JIMINY_TRAITS_H
 
-#include <map>  // `std::map`
-#include <type_traits>  // `std::enable_if_t`, `std::decay_t`, `std::add_pointer_t`, `std::true_type`, `std::false_type`
+#include <map>            // `std::map`
 #include <unordered_map>  // `std::unordered_map`
-#include <utility>        // `std::declval`
-#include <vector>         // `std::vector`
-
-#include "jiminy/core/fwd.h"
-
-#include <Eigen/Core>  // `Eigen::Matrix`, `Eigen::Ref`, `Eigen::VectorBlock`, `Eigen::Block`
+#include <type_traits>  // `std::enable_if_t`, `std::decay_t`, `std::add_pointer_t`, `std::true_type`, `std::false_type`
+#include <utility>  // `std::declval`
+#include <vector>   // `std::vector`
 
 #include "pinocchio/multibody/joint/fwd.hpp"  // `pinocchio::JointModel ## type ## Tpl`, `pinocchio::JointData ## type ## Tpl`
+
+#include <Eigen/Core>  // `Eigen::Matrix`, `Eigen::Ref`, `Eigen::VectorBlock`, `Eigen::Block`
 
 
 // Note that multiple identical forward declarations are not an error, so no big deal if future
@@ -24,7 +22,7 @@ namespace pinocchio
 
     template<class JointData>
     struct JointDataMimic;
-}  // namespace pinocchio
+}
 
 namespace jiminy
 {
@@ -72,7 +70,7 @@ namespace jiminy
     };
 
     template<typename T>
-    inline constexpr bool_t is_vector_v = is_vector<std::decay_t<T>>::value;
+    inline constexpr bool is_vector_v = is_vector<std::decay_t<T>>::value;
 
     // **************************************** is_map ***************************************** //
 
@@ -101,7 +99,7 @@ namespace jiminy
     };
 
     template<typename T>
-    inline constexpr bool_t is_map_v = is_map<T>::value;
+    inline constexpr bool is_map_v = is_map<T>::value;
 
     // ************************************ is_eigen_vector ************************************ //
 
@@ -147,7 +145,7 @@ namespace jiminy
     };
 
     template<typename T>
-    inline constexpr bool_t is_eigen_vector_v = is_eigen_vector<T>::value;
+    inline constexpr bool is_eigen_vector_v = is_eigen_vector<T>::value;
 
     // ************************************* is_eigen_ref ************************************** //
 
@@ -211,7 +209,7 @@ namespace jiminy
     };
 
     template<typename T>
-    inline constexpr bool_t is_eigen_ref_v = is_eigen_ref<T>::value;
+    inline constexpr bool is_eigen_ref_v = is_eigen_ref<T>::value;
 
     // *************************************** is_eigen **************************************** //
 
@@ -220,7 +218,7 @@ namespace jiminy
         template<typename T, int RowsAtCompileTime, int ColsAtCompileTime>
         std::true_type test(const Eigen::Matrix<T, RowsAtCompileTime, ColsAtCompileTime> *);
         template<typename T>
-        std::enable_if_t<is_eigen_ref_v<T>, std::true_type> test(T const *);
+        std::enable_if_t<is_eigen_ref_v<T>, std::true_type> test(const T *);
         std::false_type test(...);
 
         template<typename T>
@@ -241,7 +239,7 @@ namespace jiminy
     };
 
     template<typename T>
-    inline constexpr bool_t is_eigen_v = is_eigen<T>::value;
+    inline constexpr bool is_eigen_v = is_eigen<T>::value;
 
     // ********************************** is_pinocchio_joint_ ********************************** //
 
@@ -270,7 +268,7 @@ namespace jiminy
     };                                                                                   \
                                                                                          \
     template<typename T>                                                                 \
-    inline constexpr bool_t is_pinocchio_joint_##name##_v = is_pinocchio_joint_##name<T>::value;
+    inline constexpr bool is_pinocchio_joint_##name##_v = is_pinocchio_joint_##name<T>::value;
 
 #define IS_PINOCCHIO_JOINT_DETAILS(type, name)                                          \
     namespace details::is_pinocchio_joint_##name                                        \
@@ -342,6 +340,6 @@ namespace jiminy
 
 #undef IS_PINOCCHIO_JOINT_DETAILS
 #undef IS_PINOCCHIO_JOINT_ENABLE_IF
-}  // namespace jiminy
+}
 
 #endif  // JIMINY_TRAITS_H

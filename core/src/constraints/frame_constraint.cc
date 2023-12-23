@@ -1,6 +1,5 @@
 #include "pinocchio/algorithm/frames.hpp"  // `pinocchio::getFrameVelocity`, `pinocchio::getFrameAcceleration`
 
-#include "jiminy/core/exceptions.h"
 #include "jiminy/core/robot/model.h"
 #include "jiminy/core/utilities/pinocchio.h"
 
@@ -10,7 +9,7 @@
 namespace jiminy
 {
     template<int N>
-    std::vector<uint32_t> maskToVector(const std::array<bool_t, N> & mask)
+    std::vector<uint32_t> maskToVector(const std::array<bool, N> & mask)
     {
         std::vector<uint32_t> vec;
         vec.reserve(N);
@@ -28,7 +27,7 @@ namespace jiminy
     const std::string AbstractConstraintTpl<FrameConstraint>::type_("FrameConstraint");
 
     FrameConstraint::FrameConstraint(const std::string & frameName,
-                                     const std::array<bool_t, 6> & maskDoFs) :
+                                     const std::array<bool, 6> & maskDoFs) :
     AbstractConstraintTpl(),
     frameName_(frameName),
     frameIdx_(0),

@@ -7,7 +7,6 @@
 
 #include "jiminy/core/fwd.h"
 #include "jiminy/core/traits.h"
-#include "jiminy/core/exceptions.h"
 #include "jiminy/core/hardware/abstract_sensor.h"
 
 #include <boost/mpl/vector.hpp>
@@ -21,15 +20,18 @@
 
 namespace boost::python::converter
 {
-#define EXPECTED_PYTYPE_FOR_ARG_IS_ARRAY(type)                             \
-    template<>                                                             \
-    struct expected_pytype_for_arg<type>                                   \
-    {                                                                      \
-        static const PyTypeObject * get_pytype() { return &PyArray_Type; } \
+#define EXPECTED_PYTYPE_FOR_ARG_IS_ARRAY(type)   \
+    template<>                                   \
+    struct expected_pytype_for_arg<type>         \
+    {                                            \
+        static const PyTypeObject * get_pytype() \
+        {                                        \
+            return &PyArray_Type;                \
+        }                                        \
     };
 
     EXPECTED_PYTYPE_FOR_ARG_IS_ARRAY(numpy::ndarray)
-    EXPECTED_PYTYPE_FOR_ARG_IS_ARRAY(numpy::ndarray const)
+    EXPECTED_PYTYPE_FOR_ARG_IS_ARRAY(const numpy::ndarray)
     EXPECTED_PYTYPE_FOR_ARG_IS_ARRAY(numpy::ndarray &)
     EXPECTED_PYTYPE_FOR_ARG_IS_ARRAY(const numpy::ndarray &)
 }
@@ -56,7 +58,7 @@ namespace jiminy::python
             bp::throw_error_already_set();
         bp::scope().attr(name) = bp::handle<>(bp::borrowed(pythonExceptionTypeObj));
 
-        bp::register_exception_translator<E>([ptr = pythonExceptionTypeObj](E const & e)
+        bp::register_exception_translator<E>([ptr = pythonExceptionTypeObj](const E & e)
                                              { PyErr_SetString(ptr, e.what()); });
 
         return pythonExceptionTypeObj;
@@ -329,17 +331,17 @@ namespace jiminy::python
         return NPY_OBJECT;
     }
     template<>
-    inline int getPyType<bool_t>()
+    inline int getPyType<bool>()
     {
         return NPY_BOOL;
     }
     template<>
-    inline int getPyType<float32_t>()
+    inline int getPyType<float>()
     {
         return NPY_FLOAT32;
     }
     template<>
-    inline int getPyType<float64_t>()
+    inline int getPyType<double>()
     {
         return NPY_FLOAT64;
     }
@@ -588,8 +590,7 @@ namespace jiminy::python
 
     /// \brief Generic converter from Numpy array to Eigen Matrix by reference.
     inline std::optional<std::variant<
-        Eigen::
-            Map<Eigen::Matrix<float64_t, -1, -1>, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>>,
+        Eigen::Map<Eigen::Matrix<double, -1, -1>, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>>,
         Eigen::
             Map<Eigen::Matrix<int64_t, -1, -1>, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>>>>
     getEigenReference(PyObject * dataPy)
@@ -608,7 +609,7 @@ namespace jiminy::python
         // Check array dtype
         if (PyArray_EquivTypenums(PyArray_TYPE(dataPyArray), NPY_FLOAT64) == NPY_TRUE)
         {
-            return {getEigenReferenceImpl<float64_t>(dataPyArray)};
+            return {getEigenReferenceImpl<double>(dataPyArray)};
         }
         if (PyArray_EquivTypenums(PyArray_TYPE(dataPyArray), NPY_INT64) == NPY_TRUE)
         {
@@ -805,7 +806,7 @@ namespace jiminy::python
         Eigen::VectorXd x(len(listPy));
         for (bp::ssize_t i = 0; i < len(listPy); ++i)
         {
-            x[i] = bp::extract<float64_t>(listPy[i]);
+            x[i] = bp::extract<double>(listPy[i]);
         }
 
         return x;
@@ -872,7 +873,7 @@ namespace jiminy::python
             }
 
             // Try dealing with unsigned/signed inconsistency in last resort
-            if constexpr (std::is_integral_v<T> && !std::is_same_v<bool_t, T>)
+            if constexpr (std::is_integral_v<T> && !std::is_same_v<bool, T>)
             {
                 try
                 {

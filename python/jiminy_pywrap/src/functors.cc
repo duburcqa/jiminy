@@ -50,8 +50,8 @@ namespace jiminy::python
 
         static bp::tuple eval(HeightmapFunctor & self, const Eigen::Vector3d & posFrame)
         {
-            const std::pair<float64_t, Eigen::Vector3d> ground = self(posFrame);
-            return bp::make_tuple(std::get<float64_t>(ground), std::get<Eigen::Vector3d>(ground));
+            const std::pair<double, Eigen::Vector3d> ground = self(posFrame);
+            return bp::make_tuple(std::get<double>(ground), std::get<Eigen::Vector3d>(ground));
         }
 
         static bp::object getPyFun(HeightmapFunctor & self)

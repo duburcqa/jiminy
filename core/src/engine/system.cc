@@ -1,7 +1,6 @@
 #include "pinocchio/spatial/force.hpp"                  // `pinocchio::Force`
 #include "pinocchio/algorithm/joint-configuration.hpp"  // `pinocchio::neutral`
 
-#include "jiminy/core/exceptions.h"
 #include "jiminy/core/robot/robot.h"
 #include "jiminy/core/solver/constraint_solvers.h"
 #include "jiminy/core/constraints/abstract_constraint.h"
@@ -18,7 +17,7 @@ namespace jiminy
 
     ForceProfile::ForceProfile(const std::string & frameNameIn,
                                pinocchio::FrameIndex frameIdxIn,
-                               float64_t updatePeriodIn,
+                               double updatePeriodIn,
                                const ForceProfileFunctor & forceFctIn) :
     frameName(frameNameIn),
     frameIdx(frameIdxIn),
@@ -34,8 +33,8 @@ namespace jiminy
 
     ForceImpulse::ForceImpulse(const std::string & frameNameIn,
                                pinocchio::FrameIndex frameIdxIn,
-                               float64_t tIn,
-                               float64_t dtIn,
+                               double tIn,
+                               double dtIn,
                                const pinocchio::Force & FIn) :
     frameName(frameNameIn),
     frameIdx(frameIdxIn),
@@ -89,9 +88,9 @@ namespace jiminy
     systemHolder_t("",
                    nullptr,
                    nullptr,
-                   [](float64_t /* t */,
+                   [](double /* t */,
                       const Eigen::VectorXd & /* q */,
-                      const Eigen::VectorXd & /* v */) -> bool_t { return false; })
+                      const Eigen::VectorXd & /* v */) -> bool { return false; })
     {
     }
 
@@ -135,7 +134,7 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    bool_t systemState_t::getIsInitialized() const
+    bool systemState_t::getIsInitialized() const
     {
         return isInitialized_;
     }

@@ -20,7 +20,7 @@ namespace jiminy
 
     // External force functors
     using ForceProfileFunctor = std::function<pinocchio::Force(
-        float64_t /*t*/, const Eigen::VectorXd & /*q*/, const Eigen::VectorXd & /*v*/)>;
+        double /*t*/, const Eigen::VectorXd & /*q*/, const Eigen::VectorXd & /*v*/)>;
 
     struct JIMINY_DLLAPI ForceProfile
     {
@@ -28,13 +28,13 @@ namespace jiminy
         ForceProfile() = default;
         ForceProfile(const std::string & frameNameIn,
                      pinocchio::FrameIndex frameIdxIn,
-                     float64_t updatePeriodIn,
+                     double updatePeriodIn,
                      const ForceProfileFunctor & forceFctIn);
 
     public:
         std::string frameName;
         pinocchio::FrameIndex frameIdx;
-        float64_t updatePeriod;
+        double updatePeriod;
         pinocchio::Force forcePrev;
         ForceProfileFunctor forceFct;
     };
@@ -45,19 +45,19 @@ namespace jiminy
         ForceImpulse() = default;
         ForceImpulse(const std::string & frameNameIn,
                      pinocchio::FrameIndex frameIdxIn,
-                     float64_t tIn,
-                     float64_t dtIn,
+                     double tIn,
+                     double dtIn,
                      const pinocchio::Force & FIn);
 
     public:
         std::string frameName;
         pinocchio::FrameIndex frameIdx;
-        float64_t t;
-        float64_t dt;
+        double t;
+        double dt;
         pinocchio::Force F;
     };
 
-    using ForceCouplingFunctor = std::function<pinocchio::Force(float64_t /*t*/,
+    using ForceCouplingFunctor = std::function<pinocchio::Force(double /*t*/,
                                                                 const Eigen::VectorXd & /*q_1*/,
                                                                 const Eigen::VectorXd & /*v_1*/,
                                                                 const Eigen::VectorXd & /*q_2*/,
@@ -93,8 +93,8 @@ namespace jiminy
     using ForceImpulseRegister = std::vector<ForceImpulse>;
 
     // Early termination callback functor
-    using CallbackFunctor = std::function<bool_t(
-        float64_t /*t*/, const Eigen::VectorXd & /*q*/, const Eigen::VectorXd & /*v*/)>;
+    using CallbackFunctor = std::function<bool(
+        double /*t*/, const Eigen::VectorXd & /*q*/, const Eigen::VectorXd & /*v*/)>;
 
     struct JIMINY_DLLAPI systemHolder_t
     {
@@ -124,7 +124,7 @@ namespace jiminy
         systemState_t();
 
         hresult_t initialize(const Robot & robot);
-        bool_t getIsInitialized() const;
+        bool getIsInitialized() const;
 
         void clear();
 
@@ -140,7 +140,7 @@ namespace jiminy
         ForceVector fExternal;
 
     private:
-        bool_t isInitialized_;
+        bool isInitialized_;
     };
 
     struct JIMINY_DLLAPI systemDataHolder_t
@@ -164,14 +164,14 @@ namespace jiminy
         ForceProfileRegister forcesProfile;
         ForceImpulseRegister forcesImpulse;
         /// \brief Ordered list without repetitions of all the start/end times of the forces.
-        std::set<float64_t> forcesImpulseBreaks;
+        std::set<double> forcesImpulseBreaks;
         /// \brief Time of the next breakpoint associated with the impulse forces.
-        std::set<float64_t>::const_iterator forcesImpulseBreakNextIt;
+        std::set<double>::const_iterator forcesImpulseBreakNextIt;
         /// \brief Set of flags tracking whether each force is active.
         ///
         /// \details This flag is used to handle t-, t+ properly. Without it, it is impossible to
         ///          determine at time t if the force is active or not.
-        std::vector<bool_t> forcesImpulseActive;
+        std::vector<bool> forcesImpulseActive;
 
         uint32_t successiveSolveFailed;
         std::unique_ptr<AbstractConstraintSolver> constraintSolver;

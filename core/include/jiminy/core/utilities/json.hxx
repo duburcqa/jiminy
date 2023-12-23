@@ -111,7 +111,7 @@ namespace jiminy
     std::string convertFromJson<std::string>(const Json::Value & value);
 
     template<>
-    bool_t convertFromJson<bool_t>(const Json::Value & value);
+    bool convertFromJson<bool>(const Json::Value & value);
 
     template<>
     int32_t convertFromJson<int32_t>(const Json::Value & value);
@@ -120,7 +120,7 @@ namespace jiminy
     uint32_t convertFromJson<uint32_t>(const Json::Value & value);
 
     template<>
-    float64_t convertFromJson<float64_t>(const Json::Value & value);
+    double convertFromJson<double>(const Json::Value & value);
 
     template<>
     Eigen::VectorXd convertFromJson<Eigen::VectorXd>(const Json::Value & value);

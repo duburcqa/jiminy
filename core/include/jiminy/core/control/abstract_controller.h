@@ -37,10 +37,10 @@ namespace jiminy
         struct controllerOptions_t
         {
             /// \brief Flag used to enable the telemetry of the controller.
-            const bool_t telemetryEnable;
+            const bool telemetryEnable;
 
             controllerOptions_t(const GenericConfig & options) :
-            telemetryEnable(boost::get<bool_t>(options.at("telemetryEnable")))
+            telemetryEnable(boost::get<bool>(options.at("telemetryEnable")))
             {
             }
         };
@@ -84,7 +84,7 @@ namespace jiminy
         /// \return Return code to determine whether the execution of the method was successful.
         hresult_t registerVariable(
             const std::vector<std::string> & fieldnames,
-            const Eigen::Ref<Eigen::Matrix<float64_t, -1, 1>, 0, Eigen::InnerStride<>> & values);
+            const Eigen::Ref<Eigen::Matrix<double, -1, 1>, 0, Eigen::InnerStride<>> & values);
         hresult_t registerVariable(
             const std::vector<std::string> & fieldnames,
             const Eigen::Ref<Eigen::Matrix<int64_t, -1, 1>, 0, Eigen::InnerStride<>> & values);
@@ -114,7 +114,7 @@ namespace jiminy
         /// \param[out] command Output effort vector.
         ///
         /// \return Return code to determine whether the execution of the method was successful.
-        virtual hresult_t computeCommand(float64_t t,
+        virtual hresult_t computeCommand(double t,
                                          const Eigen::VectorXd & q,
                                          const Eigen::VectorXd & v,
                                          Eigen::VectorXd & command) = 0;
@@ -128,7 +128,7 @@ namespace jiminy
         /// \param[in] uCustom Output effort vector.
         ///
         /// \return Return code to determine whether the execution of the method was successful.
-        virtual hresult_t internalDynamics(float64_t t,
+        virtual hresult_t internalDynamics(double t,
                                            const Eigen::VectorXd & q,
                                            const Eigen::VectorXd & v,
                                            Eigen::VectorXd & uCustom) = 0;
@@ -185,16 +185,16 @@ namespace jiminy
         ///
         /// \param[in] resetDynamicTelemetry Whether variables dynamically registered to the
         ///                                  telemetry must be removed. Optional: False by default.
-        virtual hresult_t reset(bool_t resetDynamicTelemetry = false);
+        virtual hresult_t reset(bool resetDynamicTelemetry = false);
 
         /// \brief Whether the controller has been initialized.
         ///
         /// \remark Note that a controller can be considered initialized even if its telemetry is
         ///         not properly configured. If not, it must be done before being ready to use.
-        bool_t getIsInitialized() const;
+        bool getIsInitialized() const;
 
         /// \brief Whether the telemetry of the controller has been initialized.
-        bool_t getIsTelemetryConfigured() const;
+        bool getIsTelemetryConfigured() const;
 
     public:
         /// \brief Structure with the parameters of the controller.
@@ -205,9 +205,9 @@ namespace jiminy
 
     protected:
         /// \brief Flag to determine whether the controller has been initialized or not.
-        bool_t isInitialized_;
+        bool isInitialized_;
         /// \brief Flag to determine whether the telemetry of the controller has been initialized.
-        bool_t isTelemetryConfigured_;
+        bool isTelemetryConfigured_;
         /// \brief Dictionary with the parameters of the controller.
         GenericConfig ctrlOptionsHolder_;
         /// \brief Telemetry sender used to register and update telemetry variables.
@@ -215,7 +215,7 @@ namespace jiminy
 
     private:
         /// \brief Vector of dynamically registered telemetry variables.
-        static_map_t<std::string, std::variant<const float64_t *, const int64_t *>>
+        static_map_t<std::string, std::variant<const double *, const int64_t *>>
             registeredVariables_;
         /// \brief Vector of dynamically registered telemetry constants.
         static_map_t<std::string, std::string> registeredConstants_;

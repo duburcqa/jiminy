@@ -19,7 +19,7 @@
 using namespace jiminy;
 
 
-void computeCommand(float64_t t,
+void computeCommand(double t,
                     const Eigen::VectorXd & q,
                     const Eigen::VectorXd & v,
                     const SensorsDataMap & sensorsData,
@@ -28,7 +28,7 @@ void computeCommand(float64_t t,
     // No controller: energy should be preserved
 }
 
-void internalDynamics(float64_t t,
+void internalDynamics(double t,
                       const Eigen::VectorXd & q,
                       const Eigen::VectorXd & v,
                       const SensorsDataMap & sensorsData,
@@ -36,12 +36,12 @@ void internalDynamics(float64_t t,
 {
 }
 
-bool_t callback(float64_t t, const Eigen::VectorXd & q, const Eigen::VectorXd & v)
+bool callback(double t, const Eigen::VectorXd & q, const Eigen::VectorXd & v)
 {
     return true;
 }
 
-int main(int argc, char_t * argv[])
+int main(int argc, char * argv[])
 {
     // =====================================================================
     // ==================== Extract the user paramaters ====================
@@ -66,8 +66,8 @@ int main(int argc, char_t * argv[])
     auto robot = std::make_shared<Robot>();
     GenericConfig modelOptions = robot->getModelOptions();
     GenericConfig & jointsOptions = boost::get<GenericConfig>(modelOptions.at("joints"));
-    boost::get<bool_t>(jointsOptions.at("positionLimitFromUrdf")) = true;
-    boost::get<bool_t>(jointsOptions.at("velocityLimitFromUrdf")) = true;
+    boost::get<bool>(jointsOptions.at("positionLimitFromUrdf")) = true;
+    boost::get<bool>(jointsOptions.at("velocityLimitFromUrdf")) = true;
     robot->setModelOptions(modelOptions);
     robot->initialize(urdfPath.string(), false, {});
     for (const std::string & jointName : motorJointNames)
@@ -97,7 +97,7 @@ int main(int argc, char_t * argv[])
     Eigen::VectorXd q0 = Eigen::VectorXd::Zero(2);
     q0[1] = 0.1;
     Eigen::VectorXd v0 = Eigen::VectorXd::Zero(2);
-    const float64_t tf = 3.0;
+    const double tf = 3.0;
 
     // Run simulation
     timer.tic();

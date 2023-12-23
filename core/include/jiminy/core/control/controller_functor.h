@@ -23,7 +23,7 @@ namespace jiminy
 
     public:
         /// \remark A valid 'callable' is a function pointer, functor or lambda with signature:
-        ///             void(float64_t t,
+        ///             void(double t,
         ///                  const Eigen::VectorXd & q,
         ///                  const Eigen::VectorXd & v,
         ///                  const SensorsDataMap & sensorsData,
@@ -48,7 +48,7 @@ namespace jiminy
         /// \param[out] command Output effort vector
         ///
         /// \return Return code to determine whether the execution of the method was successful.
-        virtual hresult_t computeCommand(float64_t t,
+        virtual hresult_t computeCommand(double t,
                                          const Eigen::VectorXd & q,
                                          const Eigen::VectorXd & v,
                                          Eigen::VectorXd & command) override;
@@ -62,7 +62,7 @@ namespace jiminy
         /// \param[in] command Output effort vector.
         ///
         /// \return Return code to determine whether the execution of the method was successful.
-        virtual hresult_t internalDynamics(float64_t t,
+        virtual hresult_t internalDynamics(double t,
                                            const Eigen::VectorXd & q,
                                            const Eigen::VectorXd & v,
                                            Eigen::VectorXd & uCustom) override;

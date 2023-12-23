@@ -50,7 +50,7 @@ namespace jiminy
     hresult_t getJointsPositionIdx(const pinocchio::Model & model,
                                    const std::vector<std::string> & jointsNames,
                                    std::vector<int32_t> & jointsPositionIdx,
-                                   bool_t firstJointIdxOnly = false);
+                                   bool firstJointIdxOnly = false);
 
     hresult_t getJointVelocityIdx(const pinocchio::Model & model,
                                   const std::string & jointName,
@@ -61,12 +61,12 @@ namespace jiminy
     hresult_t getJointsVelocityIdx(const pinocchio::Model & model,
                                    const std::vector<std::string> & jointsNames,
                                    std::vector<int32_t> & jointsVelocityIdx,
-                                   bool_t firstJointIdxOnly = false);
+                                   bool firstJointIdxOnly = false);
 
     hresult_t JIMINY_DLLAPI isPositionValid(const pinocchio::Model & model,
                                             const Eigen::VectorXd & position,
-                                            bool_t & isValid,
-                                            float64_t tol);
+                                            bool & isValid,
+                                            double tol);
 
     hresult_t insertFlexibilityBeforeJointInModel(pinocchio::Model & modelInOut,
                                                   const std::string & childJointNameIn,
@@ -100,17 +100,17 @@ namespace jiminy
                                 const pinocchio::GeometryType & type,
                                 pinocchio::GeometryModel & geomModel,
                                 const std::vector<std::string> & packageDirs,
-                                bool_t loadMeshes = true,
-                                bool_t makeConvexMeshes = false);
+                                bool loadMeshes = true,
+                                bool makeConvexMeshes = false);
 
     hresult_t JIMINY_DLLAPI buildModelsFromUrdf(
         const std::string & urdfPath,
-        bool_t hasFreeflyer,
+        bool hasFreeflyer,
         const std::vector<std::string> & meshPackageDirs,
         pinocchio::Model & pncModel,
         pinocchio::GeometryModel & collisionModel,
         std::optional<std::reference_wrapper<pinocchio::GeometryModel>> visualModel = std::nullopt,
-        bool_t loadVisualMeshes = false);
+        bool loadVisualMeshes = false);
 }
 
 #endif  // JIMINY_PINOCCHIO_H
