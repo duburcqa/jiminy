@@ -46,7 +46,7 @@ namespace jiminy
         hresult_t start(const Eigen::VectorXd & qInit,
                         const Eigen::VectorXd & vInit,
                         const std::optional<Eigen::VectorXd> & aInit = std::nullopt,
-                        bool_t isStateTheoretical = false);
+                        bool isStateTheoretical = false);
 
         /// \brief Run a simulation of duration tEnd, starting at xInit.
         ///
@@ -56,17 +56,17 @@ namespace jiminy
         /// \param[in] aInit Initial acceleration, i.e. state at t=0.
         /// \param[in] isStateTheoretical Specify if the initial state is associated with the
         ///                               current or theoretical model.
-        hresult_t simulate(float64_t tEnd,
+        hresult_t simulate(double tEnd,
                            const Eigen::VectorXd & qInit,
                            const Eigen::VectorXd & vInit,
                            const std::optional<Eigen::VectorXd> & aInit = std::nullopt,
-                           bool_t isStateTheoretical = false);
+                           bool isStateTheoretical = false);
 
         hresult_t registerForceImpulse(
-            const std::string & frameName, float64_t t, float64_t dt, const pinocchio::Force & F);
+            const std::string & frameName, double t, double dt, const pinocchio::Force & F);
         hresult_t registerForceProfile(const std::string & frameName,
                                        const ForceProfileFunctor & forceFct,
-                                       float64_t updatePeriod = 0.0);
+                                       double updatePeriod = 0.0);
 
         // Redefined to leverage C++ name hiding of overloaded base methods in derived class
         hresult_t removeForcesImpulse();
@@ -82,18 +82,18 @@ namespace jiminy
                                                     const std::string & frameName2,
                                                     const Vector6d & stiffness,
                                                     const Vector6d & damping,
-                                                    float64_t alpha = 0.5);
+                                                    double alpha = 0.5);
         hresult_t registerViscoelasticDirectionalForceCoupling(const std::string & frameName1,
                                                                const std::string & frameName2,
-                                                               float64_t stiffness,
-                                                               float64_t damping,
-                                                               float64_t restLength = 0.0);
+                                                               double stiffness,
+                                                               double damping,
+                                                               double restLength = 0.0);
 
         hresult_t removeForcesCoupling();
 
         hresult_t removeAllForces();
 
-        bool_t getIsInitialized() const;
+        bool getIsInitialized() const;
         hresult_t getSystem(systemHolder_t *& system);
         hresult_t getRobot(std::shared_ptr<Robot> & robot);
         hresult_t getController(std::shared_ptr<AbstractController> & controller);
@@ -105,7 +105,7 @@ namespace jiminy
                                  CallbackFunctor callbackFct);
 
     protected:
-        bool_t isInitialized_;
+        bool isInitialized_;
         Robot * robot_;
         AbstractController * controller_;
     };

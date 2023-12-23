@@ -1,4 +1,3 @@
-#include "jiminy/core/exceptions.h"
 
 #include "jiminy/core/io/memory_device.h"
 
@@ -95,7 +94,7 @@ namespace jiminy
         return toWrite;
     }
 
-    hresult_t MemoryDevice::setBlockingMode(bool_t)
+    hresult_t MemoryDevice::setBlockingMode(bool)
     {
         // Since this is a memory device, it can't block when doing its job,
         // thus we don't care about blocking mode and answer 'OK no problem'.

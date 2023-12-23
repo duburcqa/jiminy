@@ -38,7 +38,7 @@ namespace jiminy
 
         /// \brief Register a new variable in for telemetry.
         ///
-        /// \warning The only supported types are int64_t and float64_t.
+        /// \warning The only supported types are int64_t and double.
         ///
         /// \param[in] name Name of the variable to register.
         /// \param[out] positionInBuffer Pointer on the allocated buffer holding the variable.
@@ -60,7 +60,7 @@ namespace jiminy
         /// \warning Calling this method will disable further registrations.
         ///
         /// \param[out] header Header to populate.
-        void formatHeader(std::vector<char_t> & header);
+        void formatHeader(std::vector<char> & header);
 
         template<typename T>
         std::deque<std::pair<std::string, T>> * getRegistry();
@@ -73,9 +73,9 @@ namespace jiminy
         /// \brief Memory to handle integers.
         std::deque<std::pair<std::string, int64_t>> integersRegistry_;
         /// \brief Memory to handle floats.
-        std::deque<std::pair<std::string, float64_t>> floatsRegistry_;
+        std::deque<std::pair<std::string, double>> floatsRegistry_;
         /// \brief Whether registering is available.
-        bool_t isRegisteringAvailable_;
+        bool isRegisteringAvailable_;
     };
 }
 

@@ -13,11 +13,11 @@ namespace jiminy
     {
         int32_t version;
         static_map_t<std::string, std::string> constants;
-        float64_t timeUnit;
+        double timeUnit;
         VectorX<int64_t> times;
         std::vector<std::string> variableNames;
         MatrixX<int64_t> integerValues;
-        MatrixX<float64_t> floatValues;
+        MatrixX<double> floatValues;
     };
 
     class TelemetryData;
@@ -36,21 +36,21 @@ namespace jiminy
         ///
         /// \param[in] telemetryData Data to log.
         /// \param[in] timeUnit Unit with which the time will be logged.
-        hresult_t initialize(TelemetryData * telemetryData, float64_t timeUnit);
+        hresult_t initialize(TelemetryData * telemetryData, double timeUnit);
 
-        bool_t getIsInitialized();
+        bool getIsInitialized();
 
         /// \brief Maximum time that can be logged with the current precision.
-        float64_t getMaximumLogTime() const;
+        double getMaximumLogTime() const;
 
         /// \brief Maximum time that can be logged with the given precision.
-        static float64_t getMaximumLogTime(float64_t timeUnit);
+        static double getMaximumLogTime(double timeUnit);
 
         /// \brief Reset the recorder.
         void reset();
 
         /// \brief Create a new line in the record with the current telemetry data.
-        hresult_t flushDataSnapshot(float64_t timestamp);
+        hresult_t flushDataSnapshot(double timestamp);
 
         hresult_t getLog(LogData & logData);
         static hresult_t readLog(const std::string & filename, LogData & logData);
@@ -66,7 +66,7 @@ namespace jiminy
     private:
         std::deque<MemoryDevice> flows_;
 
-        bool_t isInitialized_;
+        bool isInitialized_;
 
         int64_t recordedBytesLimits_;
         int64_t recordedBytesDataLine_;
@@ -80,12 +80,12 @@ namespace jiminy
         /// \brief Size in bytes of the integer data section.
         int64_t integerSectionSize_;
         /// \brief Pointer to the float registry.
-        const std::deque<std::pair<std::string, float64_t>> * floatsRegistry_;
+        const std::deque<std::pair<std::string, double>> * floatsRegistry_;
         /// \brief Size in bytes of the float data section.
         int64_t floatSectionSize_;
 
         /// \brief Precision to use when logging the time.
-        float64_t timeUnitInv_;
+        double timeUnitInv_;
     };
 }
 

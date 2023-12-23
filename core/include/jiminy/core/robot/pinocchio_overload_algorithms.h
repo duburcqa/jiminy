@@ -30,7 +30,6 @@
 
 #include "jiminy/core/fwd.h"
 #include "jiminy/core/traits.h"
-#include "jiminy/core/exceptions.h"
 #include "jiminy/core/engine/engine_multi_robot.h"
 
 
@@ -47,7 +46,7 @@ namespace jiminy::pinocchio_overload
                          pinocchio::DataTpl<Scalar, Options, JointCollectionTpl> & data,
                          const Eigen::MatrixBase<ConfigVectorType> & q,
                          const Eigen::MatrixBase<TangentVectorType> & v,
-                         bool_t update_kinematics = true)
+                         bool update_kinematics = true)
     {
         if (update_kinematics)
         {
@@ -530,7 +529,7 @@ namespace jiminy::pinocchio_overload
     hresult_t computeJMinvJt(const pinocchio::Model & model,
                              pinocchio::Data & data,
                              const Eigen::MatrixBase<JacobianType> & J,
-                             bool_t updateDecomposition = true)
+                             bool updateDecomposition = true)
     {
         // Compute the Cholesky decomposition of mass matrix M if requested
         if (updateDecomposition)
@@ -549,7 +548,7 @@ namespace jiminy::pinocchio_overload
            - Use row-major for sDUiJt and U to enable vectorization
            - Implement custom cholesky::Uiv to compute all columns at once (faster SIMD)
            - TODO: Leverage sparsity of J when multiplying by sqrt(D)^-1 */
-        using Matrix = Eigen::Matrix<float64_t, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
+        using Matrix = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
         Matrix sDUiJt = J.transpose();
         Matrix U = data.U;
         for (int k = model.nv - 2; k >= 0; --k)
@@ -576,7 +575,7 @@ namespace jiminy::pinocchio_overload
     template<typename RhsType>
     inline auto solveJMinvJtv(pinocchio::Data & data,
                               const Eigen::MatrixBase<RhsType> & v,
-                              bool_t updateDecomposition = true)
+                              bool updateDecomposition = true)
     {
         // Compute Cholesky decomposition of JMinvJt
         if (updateDecomposition)

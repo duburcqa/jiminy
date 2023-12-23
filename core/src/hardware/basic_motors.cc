@@ -1,6 +1,5 @@
 #include <algorithm>
 
-#include "jiminy/core/exceptions.h"
 #include "jiminy/core/utilities/helpers.h"
 
 #include "jiminy/core/hardware/basic_motors.h"
@@ -45,27 +44,27 @@ namespace jiminy
         if (returnCode == hresult_t::SUCCESS)
         {
             // Make sure the user-defined position limit has the right dimension
-            if (boost::get<float64_t>(motorOptions.at("frictionViscousPositive")) > 0.0)
+            if (boost::get<double>(motorOptions.at("frictionViscousPositive")) > 0.0)
             {
                 PRINT_ERROR("'frictionViscousPositive' must be negative.");
                 returnCode = hresult_t::ERROR_BAD_INPUT;
             }
-            if (boost::get<float64_t>(motorOptions.at("frictionViscousNegative")) > 0.0)
+            if (boost::get<double>(motorOptions.at("frictionViscousNegative")) > 0.0)
             {
                 PRINT_ERROR("'frictionViscousNegative' must be negative.");
                 returnCode = hresult_t::ERROR_BAD_INPUT;
             }
-            if (boost::get<float64_t>(motorOptions.at("frictionDryPositive")) > 0.0)
+            if (boost::get<double>(motorOptions.at("frictionDryPositive")) > 0.0)
             {
                 PRINT_ERROR("'frictionDryPositive' must be negative.");
                 returnCode = hresult_t::ERROR_BAD_INPUT;
             }
-            if (boost::get<float64_t>(motorOptions.at("frictionDryNegative")) > 0.0)
+            if (boost::get<double>(motorOptions.at("frictionDryNegative")) > 0.0)
             {
                 PRINT_ERROR("'frictionDryNegative' must be negative.");
                 returnCode = hresult_t::ERROR_BAD_INPUT;
             }
-            if (boost::get<float64_t>(motorOptions.at("frictionDrySlope")) < 0.0)
+            if (boost::get<double>(motorOptions.at("frictionDrySlope")) < 0.0)
             {
                 PRINT_ERROR("'frictionDrySlope' must be positive.");
                 returnCode = hresult_t::ERROR_BAD_INPUT;
@@ -80,11 +79,11 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t SimpleMotor::computeEffort(float64_t /* t */,
+    hresult_t SimpleMotor::computeEffort(double /* t */,
                                          const Eigen::VectorBlock<const Eigen::VectorXd> & /* q */,
-                                         float64_t v,
-                                         float64_t /* a */,
-                                         float64_t command)
+                                         double v,
+                                         double /* a */,
+                                         double command)
     {
         if (!isInitialized_)
         {

@@ -32,13 +32,13 @@ namespace jiminy
         // These parameters are coming from boost's stepper implementation.
 
         /// \brief Stepper order, used to scale the error.
-        const float64_t STEPPER_ORDER = 5.0;
+        inline constexpr double STEPPER_ORDER = 5.0;
         /// \brief Safety factor when updating the error, should be less than 1.
-        const float64_t SAFETY = 0.8;
+        inline constexpr double SAFETY = 0.8;
         /// \brief Miminum allowed relative step decrease.
-        const float64_t MIN_FACTOR = 0.2;
+        inline constexpr double MIN_FACTOR = 0.2;
         /// \brief Maximum allowed relative step increase.
-        const float64_t MAX_FACTOR = 5.0;
+        inline constexpr double MAX_FACTOR = 5.0;
     }
 
     /// \brief Implements the Dormand-Prince Runge-Kutta algorithm.
@@ -51,8 +51,8 @@ namespace jiminy
         /// \param[in] tolAbs Absolute tolerance used to assess step success and timestep update.
         RungeKuttaDOPRIStepper(const systemDynamics & f,
                                const std::vector<const Robot *> & robots,
-                               float64_t tolRel,
-                               float64_t tolAbs);
+                               double tolRel,
+                               double tolAbs);
 
     protected:
         /// \brief Determine if step has succeeded or failed, and adjust dt.
@@ -63,8 +63,8 @@ namespace jiminy
         /// \param[in, out] dt Timestep to be scaled.
         ///
         /// \return True on step success, false otherwise. dt is updated in place.
-        virtual bool_t adjustStep(
-            const state_t & initialState, const state_t & solution, float64_t & dt) override final;
+        virtual bool adjustStep(
+            const state_t & initialState, const state_t & solution, double & dt) override final;
 
     private:
         /// \brief Run error computation algorithm to return normalized error.
@@ -74,17 +74,16 @@ namespace jiminy
         /// \param[in] solution Current solution computed by the main Runge-Kutta step.
         ///
         /// \returns Normalized error, >1 indicates step failure.
-        float64_t computeError(
-            const state_t & initialState, const state_t & solution, float64_t dt);
+        double computeError(const state_t & initialState, const state_t & solution, double dt);
 
         /// \brief Scale timestep based on normalized error value.
-        bool_t adjustStepImpl(float64_t error, float64_t & dt);
+        bool adjustStepImpl(double error, double & dt);
 
     private:
         /// \brief Relative tolerance.
-        float64_t tolRel_;
+        double tolRel_;
         /// \brief Absolute tolerance.
-        float64_t tolAbs_;
+        double tolAbs_;
         /// \brief Internal buffer for error scale using during relative error computation.
         stateDerivative_t scale_;
         /// \brief Internal buffer for alternative solution during error computation.

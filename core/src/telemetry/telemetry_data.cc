@@ -1,5 +1,3 @@
-#include "jiminy/core/constants.h"
-#include "jiminy/core/exceptions.h"
 
 #include "jiminy/core/telemetry/telemetry_data.h"
 
@@ -36,7 +34,7 @@ namespace jiminy
         auto variableIt =
             std::find_if(constantsRegistry_.begin(),
                          constantsRegistry_.end(),
-                         [&name](const std::pair<std::string, std::string> & element) -> bool_t
+                         [&name](const std::pair<std::string, std::string> & element) -> bool
                          { return element.first == name; });
         if (variableIt != constantsRegistry_.end())
         {
@@ -49,7 +47,7 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    void TelemetryData::formatHeader(std::vector<char_t> & header)
+    void TelemetryData::formatHeader(std::vector<char> & header)
     {
         // Define helper to easily insert new lines in header
         auto insertLineInHeader = [&header](auto &&... args) -> void
@@ -115,7 +113,7 @@ namespace jiminy
         }
 
         // Record floats
-        for (const std::pair<std::string, float64_t> & keyValue : floatsRegistry_)
+        for (const std::pair<std::string, double> & keyValue : floatsRegistry_)
         {
             insertLineInHeader(keyValue.first);
         }
@@ -131,7 +129,7 @@ namespace jiminy
     }
 
     template<>
-    std::deque<std::pair<std::string, float64_t>> * TelemetryData::getRegistry<float64_t>()
+    std::deque<std::pair<std::string, double>> * TelemetryData::getRegistry<double>()
     {
         return &floatsRegistry_;
     }

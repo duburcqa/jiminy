@@ -32,7 +32,7 @@ namespace jiminy::python
 
     template<typename T>
     using TimeStateFct =
-        typename std::function<T(float64_t, const Eigen::VectorXd &, const Eigen::VectorXd &)>;
+        typename std::function<T(double, const Eigen::VectorXd &, const Eigen::VectorXd &)>;
 
 #define TIME_STATE_FCT_EXPOSE(Name, Type)                                                     \
     bp::class_<TimeStateFct<Type>, boost::noncopyable>("TimeStateFunctor" #Name, bp::no_init) \
@@ -111,7 +111,7 @@ namespace jiminy::python
         REGISTER_CONVERTER(GenericConfig, true);
 
         // Expose functors
-        TIME_STATE_FCT_EXPOSE(Bool, bool_t)
+        TIME_STATE_FCT_EXPOSE(Bool, bool)
         TIME_STATE_FCT_EXPOSE(PinocchioForce, pinocchio::Force)
         exposeHeightmapFunctor();
 

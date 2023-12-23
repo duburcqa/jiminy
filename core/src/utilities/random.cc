@@ -1,15 +1,14 @@
 #include <numeric>
 
 #include "jiminy/core/traits.h"
-#include "jiminy/core/exceptions.h"
 
 #include "jiminy/core/utilities/random.h"
 
 
 namespace jiminy
 {
-    static const float64_t PERLIN_NOISE_PERSISTENCE = 1.50;
-    static const float64_t PERLIN_NOISE_LACUNARITY = 1.15;
+    static inline constexpr double PERLIN_NOISE_PERSISTENCE{1.50};
+    static inline constexpr double PERLIN_NOISE_LACUNARITY{1.15};
 
     // ***************** Random number generator_ *****************
 
@@ -17,61 +16,61 @@ namespace jiminy
     // https://people.sc.fsu.edu/~jburkardt/cpp_src/ziggurat/ziggurat.html
 
     std::mt19937 generator_;
-    std::uniform_real_distribution<float32_t> distUniform_(0.0, 1.0);
-    bool_t isInitialized_ = false;
+    std::uniform_real_distribution<float> distUniform_(0.0, 1.0);
+    bool isInitialized_ = false;
     uint32_t seed_ = 0U;
 
     uint32_t kn[128];
-    float32_t fn[128];
-    float32_t wn[128];
+    float fn[128];
+    float wn[128];
 
     void r4_nor_setup()
     {
-        const float64_t m1 = 2147483648.0;
-        const float64_t vn = 9.91256303526217e-03;
-        float64_t dn = 3.442619855899;
-        float64_t tn = dn;
+        const double m1 = 2147483648.0;
+        const double vn = 9.91256303526217e-03;
+        double dn = 3.442619855899;
+        double tn = dn;
 
-        float64_t q = vn / exp(-0.5 * dn * dn);
+        double q = vn / exp(-0.5 * dn * dn);
 
         kn[0] = static_cast<uint32_t>((dn / q) * m1);
         kn[1] = 0;
 
-        wn[0] = static_cast<float32_t>(q / m1);
-        wn[127] = static_cast<float32_t>(dn / m1);
+        wn[0] = static_cast<float>(q / m1);
+        wn[127] = static_cast<float>(dn / m1);
 
         fn[0] = 1.0f;
-        fn[127] = static_cast<float32_t>(exp(-0.5 * dn * dn));
+        fn[127] = static_cast<float>(exp(-0.5 * dn * dn));
 
         for (uint8_t i = 126; 1 <= i; i--)
         {
             dn = sqrt(-2.0 * log(vn / dn + exp(-0.5 * dn * dn)));
             kn[i + 1] = static_cast<uint32_t>((dn / tn) * m1);
             tn = dn;
-            fn[i] = static_cast<float32_t>(exp(-0.5 * dn * dn));
-            wn[i] = static_cast<float32_t>(dn / m1);
+            fn[i] = static_cast<float>(exp(-0.5 * dn * dn));
+            wn[i] = static_cast<float>(dn / m1);
         }
     }
 
-    float32_t r4_uni()
+    float r4_uni()
     {
         return distUniform_(generator_);
     }
 
-    float32_t r4_nor()
+    float r4_nor()
     {
-        const float32_t r = 3.442620f;
+        const float r = 3.442620f;
         int32_t hz;
         uint32_t iz;
-        float32_t x;
-        float32_t y;
+        float x;
+        float y;
 
         hz = static_cast<int32_t>(generator_());
         iz = (static_cast<uint32_t>(hz) & 127U);
 
         if (fabs(hz) < kn[iz])
         {
-            return static_cast<float32_t>(hz) * wn[iz];
+            return static_cast<float>(hz) * wn[iz];
         }
         else
         {
@@ -99,7 +98,7 @@ namespace jiminy
                     }
                 }
 
-                x = static_cast<float32_t>(hz) * wn[iz];
+                x = static_cast<float>(hz) * wn[iz];
 
                 if (fn[iz] + r4_uni() * (fn[iz - 1] - fn[iz]) < exp(-0.5f * x * x))
                 {
@@ -111,7 +110,7 @@ namespace jiminy
 
                 if (fabs(hz) < kn[iz])
                 {
-                    return static_cast<float32_t>(hz) * wn[iz];
+                    return static_cast<float>(hz) * wn[iz];
                 }
             }
         }
@@ -140,36 +139,33 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    float64_t randUniform(float64_t lo, float64_t hi)
+    double randUniform(double lo, double hi)
     {
         assert(isInitialized_ && "Random number genetors not initialized. "
                                  "Please call `resetRandomGenerators` at least once.");
         return lo + r4_uni() * (hi - lo);
     }
 
-    float64_t randNormal(float64_t mean, float64_t std)
+    double randNormal(double mean, double std)
     {
         assert(isInitialized_ && "Random number genetors not initialized. "
                                  "Please call `resetRandomGenerators` at least once.");
         return mean + r4_nor() * std;
     }
 
-    Eigen::VectorXd randVectorNormal(uint32_t size, float64_t mean, float64_t std)
+    Eigen::VectorXd randVectorNormal(uint32_t size, double mean, double std)
     {
         if (std > 0.0)
         {
             return Eigen::VectorXd::NullaryExpr(
                 size,
-                [&mean, &std](const Eigen::VectorXd::Index &) -> float64_t
+                [&mean, &std](const Eigen::VectorXd::Index &) -> double
                 { return randNormal(mean, std); });
         }
-        else
-        {
-            return Eigen::VectorXd::Constant(size, mean);
-        }
+        return Eigen::VectorXd::Constant(size, mean);
     }
 
-    Eigen::VectorXd randVectorNormal(uint32_t size, float64_t std)
+    Eigen::VectorXd randVectorNormal(uint32_t size, double std)
     {
         return randVectorNormal(size, 0.0, std);
     }
@@ -178,14 +174,14 @@ namespace jiminy
     {
         return Eigen::VectorXd::NullaryExpr(
             std.size(),
-            [&mean, &std](const Eigen::VectorXd::Index & i) -> float64_t
+            [&mean, &std](const Eigen::VectorXd::Index & i) -> double
             { return randNormal(mean[i], std[i]); });
     }
 
     Eigen::VectorXd randVectorNormal(const Eigen::VectorXd & std)
     {
         return Eigen::VectorXd::NullaryExpr(std.size(),
-                                            [&std](const Eigen::VectorXd::Index & i) -> float64_t
+                                            [&std](const Eigen::VectorXd::Index & i) -> double
                                             { return randNormal(0, std[i]); });
     }
 
@@ -271,7 +267,7 @@ namespace jiminy
     ///
     /// \details In practice, it is advisable to combine this algorithm with Tikhonov
     ///          regularization of relative magnitude 1e-9 to avoid numerical instabilities because
-    ///          of float64_t machine precision.
+    ///          of double machine precision.
     ///
     /// \see Michael Stewart, Cholesky factorization of semi-definite Toeplitz matrices. Linear
     ///      Algebra and its Applications, Volume 254, pages 497-525, 1997.
@@ -306,7 +302,7 @@ namespace jiminy
         Eigen::Matrix<Scalar, 2, 2> H = Eigen::Matrix<Scalar, 2, 2>::Ones();
         for (Eigen::Index i = 1; i < n; ++i)
         {
-            const float64_t rho = -g(1, i) / g(0, i);
+            const double rho = -g(1, i) / g(0, i);
             // H << 1.0, rho,
             //      rho, 1.0;
             Eigen::Map<Eigen::Matrix<Scalar, 4, 1>>(H.data()).template segment<2>(1).fill(rho);
@@ -318,7 +314,7 @@ namespace jiminy
     }
 
     PeriodicGaussianProcess::PeriodicGaussianProcess(
-        float64_t wavelength, float64_t period, float64_t scale) :
+        double wavelength, double period, double scale) :
     wavelength_(wavelength),
     period_(period),
     scale_(scale),
@@ -340,13 +336,13 @@ namespace jiminy
 
         // Sample normal vector
         const Eigen::VectorXd normalVec =
-            Eigen::VectorXd::NullaryExpr(numTimes_, [](float64_t) { return randNormal(); });
+            Eigen::VectorXd::NullaryExpr(numTimes_, [](double) { return randNormal(); });
 
         // Compute discrete periodic gaussian process values
         values_.noalias() = covSqrtRoot_.triangularView<Eigen::Lower>() * normalVec;
     }
 
-    float64_t PeriodicGaussianProcess::operator()(const float & t)
+    double PeriodicGaussianProcess::operator()(const float & t)
     {
         // Reset the process if not initialized
         if (!isInitialized_)
@@ -355,7 +351,7 @@ namespace jiminy
         }
 
         // Wrap requested time in gaussian process period
-        float64_t tWrap = std::fmod(t, period_);
+        double tWrap = std::fmod(t, period_);
         if (tWrap < 0)
         {
             tWrap += period_;
@@ -366,21 +362,21 @@ namespace jiminy
         const int32_t tRightIdx = (tLeftIdx + 1) % numTimes_;
 
         // Perform First order interpolation
-        const float64_t ratio = tWrap / dt_ - tLeftIdx;
+        const double ratio = tWrap / dt_ - tLeftIdx;
         return scale_ * (values_[tLeftIdx] + ratio * (values_[tRightIdx] - values_[tLeftIdx]));
     }
 
-    float64_t PeriodicGaussianProcess::getWavelength() const
+    double PeriodicGaussianProcess::getWavelength() const
     {
         return wavelength_;
     }
 
-    float64_t PeriodicGaussianProcess::getPeriod() const
+    double PeriodicGaussianProcess::getPeriod() const
     {
         return period_;
     }
 
-    float64_t PeriodicGaussianProcess::getDt() const
+    double PeriodicGaussianProcess::getDt() const
     {
         return dt_;
     }
@@ -398,7 +394,7 @@ namespace jiminy
         // Compute covariance matrix
         Eigen::MatrixXd cov(numTimes_, numTimes_);
         cov = distMat.array().abs().unaryExpr(
-            [period = period_, wavelength = wavelength_](float64_t dist)
+            [period = period_, wavelength = wavelength_](double dist)
             { return std::exp(-2.0 * std::pow(std::sin(M_PI / period * dist) / wavelength, 2)); });
 
         /* Perform Square-Root-Free Cholesky decomposition (LDLT).
@@ -415,7 +411,7 @@ namespace jiminy
     }
 
     PeriodicFourierProcess::PeriodicFourierProcess(
-        float64_t wavelength, float64_t period, float64_t scale) :
+        double wavelength, double period, double scale) :
     wavelength_(wavelength),
     period_(period),
     scale_(scale),
@@ -439,16 +435,16 @@ namespace jiminy
 
         // Sample normal vectors
         Eigen::VectorXd normalVec1 =
-            Eigen::VectorXd::NullaryExpr(numHarmonics_, [](float64_t) { return randNormal(); });
+            Eigen::VectorXd::NullaryExpr(numHarmonics_, [](double) { return randNormal(); });
         Eigen::VectorXd normalVec2 =
-            Eigen::VectorXd::NullaryExpr(numHarmonics_, [](float64_t) { return randNormal(); });
+            Eigen::VectorXd::NullaryExpr(numHarmonics_, [](double) { return randNormal(); });
 
         // Compute discrete periodic gaussian process values
         values_ = M_SQRT2 / std::sqrt(2 * numHarmonics_ + 1) *
                   (cosMat_ * normalVec1 + sinMat_ * normalVec2);
     }
 
-    float64_t PeriodicFourierProcess::operator()(const float & t)
+    double PeriodicFourierProcess::operator()(const float & t)
     {
         // Reset the process if not initialized
         if (!isInitialized_)
@@ -457,7 +453,7 @@ namespace jiminy
         }
 
         // Wrap requested time in guassian process period
-        float64_t tWrap = std::fmod(t, period_);
+        double tWrap = std::fmod(t, period_);
         if (tWrap < 0)
         {
             tWrap += period_;
@@ -468,16 +464,16 @@ namespace jiminy
         const int32_t tRightIdx = (tLeftIdx + 1) % numTimes_;
 
         // Perform First order interpolation
-        const float64_t ratio = tWrap / dt_ - tLeftIdx;
+        const double ratio = tWrap / dt_ - tLeftIdx;
         return scale_ * (values_[tLeftIdx] + ratio * (values_[tRightIdx] - values_[tLeftIdx]));
     }
 
-    float64_t PeriodicFourierProcess::getWavelength() const
+    double PeriodicFourierProcess::getWavelength() const
     {
         return wavelength_;
     }
 
-    float64_t PeriodicFourierProcess::getPeriod() const
+    double PeriodicFourierProcess::getPeriod() const
     {
         return period_;
     }
@@ -487,7 +483,7 @@ namespace jiminy
         return numHarmonics_;
     }
 
-    float64_t PeriodicFourierProcess::getDt() const
+    double PeriodicFourierProcess::getDt() const
     {
         return dt_;
     }
@@ -499,9 +495,9 @@ namespace jiminy
         {
             for (int32_t rowIdx = 0; rowIdx < numTimes_; ++rowIdx)
             {
-                const float64_t freq = colIdx / period_;
-                const float64_t t = dt_ * rowIdx;
-                const float64_t phase = 2 * M_PI * freq * t;
+                const double freq = colIdx / period_;
+                const double t = dt_ * rowIdx;
+                const double phase = 2 * M_PI * freq * t;
                 cosMat_(rowIdx, colIdx) = std::cos(phase);
                 sinMat_(rowIdx, colIdx) = std::sin(phase);
             }
@@ -511,7 +507,7 @@ namespace jiminy
         isInitialized_ = true;
     }
 
-    AbstractPerlinNoiseOctave::AbstractPerlinNoiseOctave(float64_t wavelength, float64_t scale) :
+    AbstractPerlinNoiseOctave::AbstractPerlinNoiseOctave(double wavelength, double scale) :
     wavelength_(wavelength),
     scale_(scale),
     shift_(0.0)
@@ -524,38 +520,38 @@ namespace jiminy
         shift_ = randUniform();
     }
 
-    float64_t AbstractPerlinNoiseOctave::operator()(float64_t t) const
+    double AbstractPerlinNoiseOctave::operator()(double t) const
     {
         // Get current phase
-        const float64_t phase = t / wavelength_ + shift_;
+        const double phase = t / wavelength_ + shift_;
 
         // Compute closest right and left knots
         const int32_t phaseIdxLeft = static_cast<int32_t>(phase);
         const int32_t phaseIdxRight = phaseIdxLeft + 1;
 
         // Compute smoothed ratio of current phase wrt to the closest knots
-        const float64_t dtLeft = phase - phaseIdxLeft;
-        const float64_t dtRight = dtLeft - 1.0;
-        const float64_t ratio = fade(dtLeft);
+        const double dtLeft = phase - phaseIdxLeft;
+        const double dtRight = dtLeft - 1.0;
+        const double ratio = fade(dtLeft);
 
         /* Compute gradients at knots, and perform linear interpolation between them to get value
            at current phase.*/
-        const float64_t yLeft = grad(phaseIdxLeft, dtLeft);
-        const float64_t yRight = grad(phaseIdxRight, dtRight);
+        const double yLeft = grad(phaseIdxLeft, dtLeft);
+        const double yRight = grad(phaseIdxRight, dtRight);
         return scale_ * lerp(ratio, yLeft, yRight);
     }
 
-    float64_t AbstractPerlinNoiseOctave::getWavelength() const
+    double AbstractPerlinNoiseOctave::getWavelength() const
     {
         return wavelength_;
     }
 
-    float64_t AbstractPerlinNoiseOctave::getScale() const
+    double AbstractPerlinNoiseOctave::getScale() const
     {
         return scale_;
     }
 
-    float64_t AbstractPerlinNoiseOctave::fade(float64_t delta) const
+    double AbstractPerlinNoiseOctave::fade(double delta) const
     {
         /* Improved Smoothstep function by Ken Perlin (aka Smootherstep).
            It has zero 1st and 2nd-order derivatives at dt = 0.0, and 1.0:
@@ -563,13 +559,12 @@ namespace jiminy
         return std::pow(delta, 3) * (delta * (delta * 6.0 - 15.0) + 10.0);
     }
 
-    float64_t AbstractPerlinNoiseOctave::lerp(
-        float64_t ratio, float64_t yLeft, float64_t yRight) const
+    double AbstractPerlinNoiseOctave::lerp(double ratio, double yLeft, double yRight) const
     {
         return yLeft + ratio * (yRight - yLeft);
     }
 
-    RandomPerlinNoiseOctave::RandomPerlinNoiseOctave(float64_t wavelength, float64_t scale) :
+    RandomPerlinNoiseOctave::RandomPerlinNoiseOctave(double wavelength, double scale) :
     AbstractPerlinNoiseOctave(wavelength, scale),
     seed_(0)
     {
@@ -584,24 +579,24 @@ namespace jiminy
         seed_ = static_cast<uint32_t>(generator_());
     }
 
-    float64_t RandomPerlinNoiseOctave::grad(int32_t knot, float64_t delta) const
+    double RandomPerlinNoiseOctave::grad(int32_t knot, double delta) const
     {
         // Get hash of knot
         const uint32_t hash = MurmurHash3(&knot, sizeof(int32_t), seed_);
 
         // Convert to double in [0.0, 1.0)
-        const float64_t s = static_cast<float64_t>(hash) /
-                            static_cast<float64_t>(std::numeric_limits<uint32_t>::max());
+        const double s =
+            static_cast<double>(hash) / static_cast<double>(std::numeric_limits<uint32_t>::max());
 
         // Compute rescaled gradient between [-1.0, 1.0)
-        const float64_t grad = 2.0 * s - 1.0;
+        const double grad = 2.0 * s - 1.0;
 
         // Return scalar product between distance and gradient
         return 2.0 * grad * delta;
     }
 
     PeriodicPerlinNoiseOctave::PeriodicPerlinNoiseOctave(
-        float64_t wavelength, float64_t period, float64_t scale) :
+        double wavelength, double period, double scale) :
     AbstractPerlinNoiseOctave(wavelength, scale),
     period_(period),
     perm_(256)
@@ -622,23 +617,23 @@ namespace jiminy
         std::shuffle(perm_.begin(), perm_.end(), generator_);
     }
 
-    float64_t PeriodicPerlinNoiseOctave::grad(int32_t knot, float64_t delta) const
+    double PeriodicPerlinNoiseOctave::grad(int32_t knot, double delta) const
     {
         // Wrap knot is period interval
         knot %= static_cast<uint32_t>(period_ / wavelength_);
 
         // Convert to double in [0.0, 1.0)
-        const float64_t s = perm_[knot] / 256.0;
+        const double s = perm_[knot] / 256.0;
 
         // Compute rescaled gradient between [-1.0, 1.0)
-        const float64_t grad = 2.0 * s - 1.0;
+        const double grad = 2.0 * s - 1.0;
 
         // Return scalar product between distance and gradient
         return 2.0 * grad * delta;
     }
 
     AbstractPerlinProcess::AbstractPerlinProcess(
-        float64_t wavelength, float64_t scale, uint32_t numOctaves) :
+        double wavelength, double scale, uint32_t numOctaves) :
     wavelength_(wavelength),
     numOctaves_(numOctaves),
     scale_(scale),
@@ -663,7 +658,7 @@ namespace jiminy
         }
 
         // Compute scaling factor to get values in range [-1.0, 1.0]
-        float64_t amplitudeSquared = 0.0;
+        double amplitudeSquared = 0.0;
         for (const auto & octave : octaves_)
         {
             amplitudeSquared += std::pow(octave->getScale(), 2);
@@ -671,7 +666,7 @@ namespace jiminy
         amplitude_ = scale_ * std::sqrt(amplitudeSquared);
     }
 
-    float64_t AbstractPerlinProcess::operator()(const float & t)
+    double AbstractPerlinProcess::operator()(const float & t)
     {
         // Reset the process if not initialized
         if (!isInitialized_)
@@ -680,7 +675,7 @@ namespace jiminy
         }
 
         // Compute sum of octaves' values
-        float64_t value = 0.0;
+        double value = 0.0;
         for (const auto & octave : octaves_)
         {
             value += (*octave)(t);
@@ -690,7 +685,7 @@ namespace jiminy
         return value / amplitude_;
     }
 
-    float64_t AbstractPerlinProcess::getWavelength() const
+    double AbstractPerlinProcess::getWavelength() const
     {
         return wavelength_;
     }
@@ -700,13 +695,13 @@ namespace jiminy
         return numOctaves_;
     }
 
-    float64_t AbstractPerlinProcess::getScale() const
+    double AbstractPerlinProcess::getScale() const
     {
         return scale_;
     }
 
     RandomPerlinProcess::RandomPerlinProcess(
-        float64_t wavelength, float64_t scale, uint32_t numOctaves) :
+        double wavelength, double scale, uint32_t numOctaves) :
     AbstractPerlinProcess(wavelength, scale, numOctaves)
     {
     }
@@ -716,8 +711,8 @@ namespace jiminy
         // Add desired perlin noise octaves
         octaves_.clear();
         octaves_.reserve(numOctaves_);
-        float64_t octaveWavelength = wavelength_;
-        float64_t octaveScale = 1.0;
+        double octaveWavelength = wavelength_;
+        double octaveScale = 1.0;
         for (uint32_t i = 0; i < numOctaves_; ++i)
         {
             octaves_.emplace_back(
@@ -731,7 +726,7 @@ namespace jiminy
     }
 
     PeriodicPerlinProcess::PeriodicPerlinProcess(
-        float64_t wavelength, float64_t period, float64_t scale, uint32_t numOctaves) :
+        double wavelength, double period, double scale, uint32_t numOctaves) :
     AbstractPerlinProcess(wavelength, scale, numOctaves),
     period_(period)
     {
@@ -744,8 +739,8 @@ namespace jiminy
         // Add desired perlin noise octaves
         octaves_.clear();
         octaves_.reserve(numOctaves_);
-        float64_t octaveWavelength = wavelength_;
-        float64_t octaveScale = 1.0;
+        double octaveWavelength = wavelength_;
+        double octaveScale = 1.0;
         for (uint32_t i = 0; i < numOctaves_; ++i)
         {
             // Make sure the octave wavelength is divisor of the period
@@ -769,58 +764,55 @@ namespace jiminy
         isInitialized_ = true;
     }
 
-    float64_t PeriodicPerlinProcess::getPeriod() const
+    double PeriodicPerlinProcess::getPeriod() const
     {
         return period_;
     }
 
     template<typename VectorLike>
-    std::enable_if_t<is_eigen_vector_v<VectorLike>, float64_t>
-    randomDouble(const Eigen::MatrixBase<VectorLike> & key,
-                 int64_t sparsity,
-                 float64_t scale,
-                 uint32_t seed)
+    std::enable_if_t<is_eigen_vector_v<VectorLike>, double> randomDouble(
+        const Eigen::MatrixBase<VectorLike> & key, int64_t sparsity, double scale, uint32_t seed)
     {
         const int32_t keyLen = static_cast<int32_t>(sizeof(typename VectorLike::Scalar)) *
                                static_cast<int32_t>(key.size());
         const uint32_t hash = MurmurHash3(key.derived().data(), keyLen, seed);
         if (hash % sparsity == 0)
         {
-            float64_t encoding(hash);
+            double encoding(hash);
             encoding /= std::numeric_limits<uint32_t>::max();
             return scale * encoding;
         }
         return 0.0;
     }
 
-    std::pair<float64_t, float64_t> tile2dInterp1d(Eigen::Matrix<int32_t, 2, 1> & posIdx,
-                                                   const Eigen::Vector2d & posRel,
-                                                   uint32_t dim,
-                                                   const Eigen::Vector2d & size,
-                                                   int64_t sparsity,
-                                                   float64_t heightMax,
-                                                   const Eigen::Vector2d & interpThreshold,
-                                                   uint32_t seed)
+    std::pair<double, double> tile2dInterp1d(Eigen::Matrix<int32_t, 2, 1> & posIdx,
+                                             const Eigen::Vector2d & posRel,
+                                             uint32_t dim,
+                                             const Eigen::Vector2d & size,
+                                             int64_t sparsity,
+                                             double heightMax,
+                                             const Eigen::Vector2d & interpThreshold,
+                                             uint32_t seed)
     {
-        const float64_t z = randomDouble(posIdx, sparsity, heightMax, seed);
-        float64_t height, dheight;
+        const double z = randomDouble(posIdx, sparsity, heightMax, seed);
+        double height, dheight;
         if (posRel[dim] < interpThreshold[dim])
         {
             posIdx[dim] -= 1;
-            const float64_t z_m = randomDouble(posIdx, sparsity, heightMax, seed);
+            const double z_m = randomDouble(posIdx, sparsity, heightMax, seed);
             posIdx[dim] += 1;
 
-            const float64_t ratio = (1.0 - posRel[dim] / interpThreshold[dim]) / 2.0;
+            const double ratio = (1.0 - posRel[dim] / interpThreshold[dim]) / 2.0;
             height = z + (z_m - z) * ratio;
             dheight = (z - z_m) / (2.0 * size[dim] * interpThreshold[dim]);
         }
         else if (1.0 - posRel[dim] < interpThreshold[dim])
         {
             posIdx[dim] += 1;
-            const float64_t z_p = randomDouble(posIdx, sparsity, heightMax, seed);
+            const double z_p = randomDouble(posIdx, sparsity, heightMax, seed);
             posIdx[dim] -= 1;
 
-            const float64_t ratio = (1.0 + (posRel[dim] - 1.0) / interpThreshold[dim]) / 2.0;
+            const double ratio = (1.0 + (posRel[dim] - 1.0) / interpThreshold[dim]) / 2.0;
             height = z + (z_p - z) * ratio;
             dheight = (z_p - z) / (2.0 * size[dim] * interpThreshold[dim]);
         }
@@ -834,10 +826,10 @@ namespace jiminy
     }
 
     HeightmapFunctor randomTileGround(const Eigen::Vector2d & size,
-                                      float64_t heightMax,
+                                      double heightMax,
                                       const Eigen::Vector2d & interpDelta,
                                       uint32_t sparsity,
-                                      float64_t orientation,
+                                      double orientation,
                                       uint32_t seed)
     {
         if ((0.01 <= interpDelta.array()).all() &&
@@ -850,44 +842,44 @@ namespace jiminy
         interpThreshold.array() /= size.array();
 
         const Eigen::Vector2d offset = Eigen::Vector2d::NullaryExpr(
-            [&size, &seed](const Eigen::VectorXd::Index & i) -> float64_t
+            [&size, &seed](const Eigen::VectorXd::Index & i) -> double
             {
                 Eigen::Matrix<Eigen::VectorXd::Index, 1, 1> key;
                 key[0] = i;
                 return randomDouble(key, 1, size[i], seed);
             });
 
-        Eigen::Rotation2D<float64_t> rotationMat(orientation);
+        Eigen::Rotation2D<double> rotationMat(orientation);
 
         return
             [size, heightMax, interpDelta, rotationMat, sparsity, interpThreshold, offset, seed](
-                const Eigen::Vector3d & pos3) -> std::pair<float64_t, Eigen::Vector3d>
+                const Eigen::Vector3d & pos3) -> std::pair<double, Eigen::Vector3d>
         {
             // Compute the tile index and relative coordinate
             Eigen::Vector2d pos = rotationMat * (pos3.head<2>() + offset);
             Eigen::Vector2d posRel = pos.array() / size.array();
             Eigen::Matrix<int32_t, 2, 1> posIdx = posRel.array().floor().cast<int32_t>();
-            posRel -= posIdx.cast<float64_t>();
+            posRel -= posIdx.cast<double>();
 
             // Interpolate height based on nearby tiles if necessary
-            float64_t height;
+            double height;
             Eigen::Vector3d normal;
-            Eigen::Matrix<bool_t, 2, 1> isEdge = (posRel.array() < interpThreshold.array()) ||
-                                                 (1.0 - posRel.array() < interpThreshold.array());
+            Eigen::Matrix<bool, 2, 1> isEdge = (posRel.array() < interpThreshold.array()) ||
+                                               (1.0 - posRel.array() < interpThreshold.array());
             if (isEdge[0] && !isEdge[1])
             {
-                float64_t dheight_x;
+                double dheight_x;
                 std::tie(height, dheight_x) = tile2dInterp1d(
                     posIdx, posRel, 0, size, sparsity, heightMax, interpThreshold, seed);
-                const float64_t normInv = std::sqrt(dheight_x * dheight_x + 1.0);
+                const double normInv = std::sqrt(dheight_x * dheight_x + 1.0);
                 normal << -dheight_x * normInv, 0.0, normInv;
             }
             else if (!isEdge[0] && isEdge[1])
             {
-                float64_t dheight_y;
+                double dheight_y;
                 std::tie(height, dheight_y) = tile2dInterp1d(
                     posIdx, posRel, 1, size, sparsity, heightMax, interpThreshold, seed);
-                const float64_t normInv = std::sqrt(dheight_y * dheight_y + 1.0);
+                const double normInv = std::sqrt(dheight_y * dheight_y + 1.0);
                 normal << 0.0, -dheight_y * normInv, normInv;
             }
             else if (isEdge[0] && isEdge[1])
@@ -900,10 +892,10 @@ namespace jiminy
                     const auto [height_m, dheight_x_m] = tile2dInterp1d(
                         posIdx, posRel, 0, size, sparsity, heightMax, interpThreshold, seed);
 
-                    const float64_t ratio = (1.0 - posRel[1] / interpThreshold[1]) / 2.0;
+                    const double ratio = (1.0 - posRel[1] / interpThreshold[1]) / 2.0;
                     height = height_0 + (height_m - height_0) * ratio;
-                    const float64_t dheight_x = dheight_x_0 + (dheight_x_m - dheight_x_0) * ratio;
-                    const float64_t dheight_y =
+                    const double dheight_x = dheight_x_0 + (dheight_x_m - dheight_x_0) * ratio;
+                    const double dheight_y =
                         (height_0 - height_m) / (2.0 * size[1] * interpThreshold[1]);
                     normal << -dheight_x, -dheight_y, 1.0;
                     normal.normalize();
@@ -914,10 +906,10 @@ namespace jiminy
                     const auto [height_p, dheight_x_p] = tile2dInterp1d(
                         posIdx, posRel, 0, size, sparsity, heightMax, interpThreshold, seed);
 
-                    const float64_t ratio = (1.0 + (posRel[1] - 1.0) / interpThreshold[1]) / 2.0;
+                    const double ratio = (1.0 + (posRel[1] - 1.0) / interpThreshold[1]) / 2.0;
                     height = height_0 + (height_p - height_0) * ratio;
-                    const float64_t dheight_x = dheight_x_0 + (dheight_x_p - dheight_x_0) * ratio;
-                    const float64_t dheight_y =
+                    const double dheight_x = dheight_x_0 + (dheight_x_p - dheight_x_0) * ratio;
+                    const double dheight_y =
                         (height_p - height_0) / (2.0 * size[1] * interpThreshold[1]);
                     normal << -dheight_x, -dheight_y, 1.0;
                     normal.normalize();
@@ -939,9 +931,9 @@ namespace jiminy
         {
             return heightmaps[0];
         }
-        return [heightmaps](const Eigen::Vector3d & pos3) -> std::pair<float64_t, Eigen::Vector3d>
+        return [heightmaps](const Eigen::Vector3d & pos3) -> std::pair<double, Eigen::Vector3d>
         {
-            float64_t height = 0.0;
+            double height = 0.0;
             Eigen::Vector3d normal = Eigen::Vector3d::Zero();
             for (const HeightmapFunctor & heightmap : heightmaps)
             {
@@ -960,11 +952,11 @@ namespace jiminy
         {
             return heightmaps[0];
         }
-        return [heightmaps](const Eigen::Vector3d & pos3) -> std::pair<float64_t, Eigen::Vector3d>
+        return [heightmaps](const Eigen::Vector3d & pos3) -> std::pair<double, Eigen::Vector3d>
         {
-            float64_t heightmax = -INF;
+            double heightmax = -INF;
             Eigen::Vector3d normal;  // It will be initialized to `normal_i`
-            bool_t isDirty = false;
+            bool isDirty = false;
             for (const HeightmapFunctor & heightmap : heightmaps)
             {
                 const auto [height, normal_i] = heightmap(pos3);
@@ -989,7 +981,7 @@ namespace jiminy
     }
 
     Eigen::MatrixXd discretizeHeightmap(
-        const HeightmapFunctor & heightmap, float64_t gridSize, float64_t gridUnit)
+        const HeightmapFunctor & heightmap, double gridSize, double gridUnit)
     {
         // Allocate empty discrete grid
         uint32_t gridDim = static_cast<int32_t>(std::ceil(gridSize / gridUnit)) + 1U;
@@ -1007,7 +999,7 @@ namespace jiminy
         for (uint32_t i = 0; i < heightGrid.rows(); ++i)
         {
             auto result = heightmap(heightGrid.block<1, 3>(i, 0));
-            heightGrid(i, 2) = std::get<float64_t>(result);
+            heightGrid(i, 2) = std::get<double>(result);
             heightGrid.block<1, 3>(i, 3) = std::get<Eigen::Vector3d>(result);
         }
 

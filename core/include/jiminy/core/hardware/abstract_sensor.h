@@ -117,7 +117,7 @@ namespace jiminy
     struct SensorSharedDataHolder_t
     {
         /// \brief Circular buffer of the stored timesteps.
-        boost::circular_buffer<float64_t> time_;
+        boost::circular_buffer<double> time_;
         /// \brief Circular buffer of past sensor real data.
         boost::circular_buffer<Eigen::MatrixXd> data_;
         /// \brief Buffer of current sensor measurement data.
@@ -127,7 +127,7 @@ namespace jiminy
         /// \brief Number of sensors of that type.
         std::size_t num_;
         /// \brief Maximum delay over all the sensors.
-        float64_t delayMax_;
+        double delayMax_;
     };
 
     /// \brief Generic interface for any sensor.
@@ -169,9 +169,9 @@ namespace jiminy
             /// \brief Bias of the sensor.
             const Eigen::VectorXd bias;
             /// \brief Delay of the sensor.
-            const float64_t delay;
+            const double delay;
             /// \brief Jitter of the sensor.
-            const float64_t jitter;
+            const double jitter;
             /// \brief Order of the interpolation used to compute delayed sensor data.
             ///
             /// \details [0: Zero-order holder, 1: Linear interpolation].
@@ -180,8 +180,8 @@ namespace jiminy
             abstractSensorOptions_t(const GenericConfig & options) :
             noiseStd(boost::get<Eigen::VectorXd>(options.at("noiseStd"))),
             bias(boost::get<Eigen::VectorXd>(options.at("bias"))),
-            delay(boost::get<float64_t>(options.at("delay"))),
-            jitter(boost::get<float64_t>(options.at("jitter"))),
+            delay(boost::get<double>(options.at("delay"))),
+            jitter(boost::get<double>(options.at("jitter"))),
             delayInterpolationOrder(boost::get<uint32_t>(options.at("delayInterpolationOrder")))
             {
             }
@@ -273,13 +273,13 @@ namespace jiminy
         ///
         /// \remark Note that a sensor can be considered initialized even if its telemetry is not
         ///         properly configured. If not, it must be done before being ready to use.
-        bool_t getIsInitialized() const;
+        bool getIsInitialized() const;
 
         /// \brief Whether the sensor has been attached to a robot.
-        bool_t getIsAttached() const;
+        bool getIsAttached() const;
 
         /// \brief Whether the telemetry of the controller has been initialized.
-        bool_t getIsTelemetryConfigured() const;
+        bool getIsTelemetryConfigured() const;
 
         /// \brief Name of the sensor.
         const std::string & getName() const;
@@ -314,7 +314,7 @@ namespace jiminy
         /// \param[in] fExternal Current external forces applied on the robot.
         ///
         /// \return Return code to determine whether the execution of the method was successful.
-        virtual hresult_t setAll(float64_t t,
+        virtual hresult_t setAll(double t,
                                  const Eigen::VectorXd & q,
                                  const Eigen::VectorXd & v,
                                  const Eigen::VectorXd & a,
@@ -334,7 +334,7 @@ namespace jiminy
         /// \param[in] fExternal Current external forces applied on the robot.
         ///
         /// \return Return code to determine whether the execution of the method was successful.
-        virtual hresult_t set(float64_t t,
+        virtual hresult_t set(double t,
                               const Eigen::VectorXd & q,
                               const Eigen::VectorXd & v,
                               const Eigen::VectorXd & a,
@@ -387,11 +387,11 @@ namespace jiminy
         /// \brief Dictionary with the parameters of the sensor.
         GenericConfig sensorOptionsHolder_;
         /// \brief Flag to determine whether the sensor has been initialized.
-        bool_t isInitialized_;
+        bool isInitialized_;
         /// \brief Flag to determine whether the sensor is attached to a robot.
-        bool_t isAttached_;
+        bool isAttached_;
         /// \brief Flag to determine whether the telemetry of the sensor has been initialized.
-        bool_t isTelemetryConfigured_;
+        bool isTelemetryConfigured_;
         /// \brief Robot for which the command and internal dynamics Name of the sensor.
         std::weak_ptr<const Robot> robot_;
         /// \brief Name of the sensor.
@@ -427,7 +427,7 @@ namespace jiminy
         virtual Eigen::Ref<const Eigen::VectorXd> get() const override final;
 
     protected:
-        virtual hresult_t setAll(float64_t t,
+        virtual hresult_t setAll(double t,
                                  const Eigen::VectorXd & q,
                                  const Eigen::VectorXd & v,
                                  const Eigen::VectorXd & a,
@@ -449,7 +449,7 @@ namespace jiminy
            sensors together, even if they are associated to complete separated robots. */
         static const std::string type_;
         static const std::vector<std::string> fieldnames_;
-        static const bool_t areFieldnamesGrouped_;
+        static const bool areFieldnamesGrouped_;
 
     protected:
         std::size_t sensorIdx_;

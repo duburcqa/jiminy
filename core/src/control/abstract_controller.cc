@@ -1,7 +1,5 @@
 #include "pinocchio/algorithm/joint-configuration.hpp"  // pinocchio::neutral
 
-#include "jiminy/core/constants.h"
-#include "jiminy/core/exceptions.h"
 #include "jiminy/core/robot/robot.h"
 
 #include "jiminy/core/control/abstract_controller.h"
@@ -56,7 +54,7 @@ namespace jiminy
 
         try
         {
-            float64_t t = 0.0;
+            double t = 0.0;
             const Eigen::VectorXd q = pinocchio::neutral(robot->pncModel_);
             const Eigen::VectorXd v = Eigen::VectorXd::Zero(robot->nv());
             Eigen::VectorXd command = Eigen::VectorXd(robot->getMotorsNames().size());
@@ -93,7 +91,7 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    hresult_t AbstractController::reset(bool_t resetDynamicTelemetry)
+    hresult_t AbstractController::reset(bool resetDynamicTelemetry)
     {
         if (!isInitialized_)
         {
@@ -181,9 +179,9 @@ namespace jiminy
 
     template<typename Scalar>
     hresult_t registerVariableImpl(
-        static_map_t<std::string, std::variant<const float64_t *, const int64_t *>> &
+        static_map_t<std::string, std::variant<const double *, const int64_t *>> &
             registeredVariables,
-        bool_t isTelemetryConfigured,
+        bool isTelemetryConfigured,
         const std::vector<std::string> & fieldnames,
         const Eigen::Ref<Eigen::Matrix<Scalar, -1, 1>, 0, Eigen::InnerStride<>> & values)
     {
@@ -214,9 +212,9 @@ namespace jiminy
 
     hresult_t AbstractController::registerVariable(
         const std::vector<std::string> & fieldnames,
-        const Eigen::Ref<Eigen::Matrix<float64_t, -1, 1>, 0, Eigen::InnerStride<>> & values)
+        const Eigen::Ref<Eigen::Matrix<double, -1, 1>, 0, Eigen::InnerStride<>> & values)
     {
-        return registerVariableImpl<float64_t>(
+        return registerVariableImpl<double>(
             registeredVariables_, isTelemetryConfigured_, fieldnames, values);
     }
 
@@ -254,12 +252,12 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    bool_t AbstractController::getIsInitialized() const
+    bool AbstractController::getIsInitialized() const
     {
         return isInitialized_;
     }
 
-    bool_t AbstractController::getIsTelemetryConfigured() const
+    bool AbstractController::getIsTelemetryConfigured() const
     {
         return isTelemetryConfigured_;
     }

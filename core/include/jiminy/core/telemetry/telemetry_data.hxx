@@ -3,8 +3,6 @@
 
 #include <string>
 
-#include "jiminy/core/exceptions.h"
-
 
 namespace jiminy
 {
@@ -17,7 +15,7 @@ namespace jiminy
         // Check if already in memory
         auto variableIt = std::find_if(registry->begin(),
                                        registry->end(),
-                                       [&name](const std::pair<std::string, T> & element) -> bool_t
+                                       [&name](const std::pair<std::string, T> & element) -> bool
                                        { return element.first == name; });
         if (variableIt != registry->end())
         {

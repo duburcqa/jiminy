@@ -33,15 +33,15 @@ namespace jiminy
 
         void enable();
         void disable();
-        bool_t getIsEnabled() const;
+        bool getIsEnabled() const;
 
-        hresult_t setBaumgartePositionGain(float64_t kp);
-        float64_t getBaumgartePositionGain() const;
-        hresult_t setBaumgarteVelocityGain(float64_t kd);
-        float64_t getBaumgarteVelocityGain() const;
-        hresult_t setBaumgarteFreq(float64_t freq);
+        hresult_t setBaumgartePositionGain(double kp);
+        double getBaumgartePositionGain() const;
+        hresult_t setBaumgarteVelocityGain(double kd);
+        double getBaumgarteVelocityGain() const;
+        hresult_t setBaumgarteFreq(double freq);
         /// \brief Natural frequency of critically damping position/velocity error correction.
-        float64_t getBaumgarteFreq() const;
+        double getBaumgarteFreq() const;
 
         /// \brief Compute the jacobian and drift of the constraint.
         ///
@@ -83,15 +83,15 @@ namespace jiminy
         /// \brief Model on which the constraint operates.
         std::weak_ptr<const Model> model_;
         /// \brief Flag to indicate whether the constraint has been attached to a model.
-        bool_t isAttached_;
+        bool isAttached_;
         /// \brief Flag to indicate whether the constraint is enabled.
         ///
         /// \remarks Handling of this flag is done at Robot level.
-        bool_t isEnabled_;
+        bool isEnabled_;
         /// \brief Position-related baumgarte stabilization gain.
-        float64_t kp_;
+        double kp_;
         /// \brief Velocity-related baumgarte stabilization gain.
-        float64_t kd_;
+        double kd_;
         /// \brief Jacobian of the constraint.
         Eigen::MatrixXd jacobian_;
         /// \brief Drift of the constraint.

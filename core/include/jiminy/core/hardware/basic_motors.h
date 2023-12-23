@@ -32,38 +32,38 @@ namespace jiminy
             /// \brief Flag to enable the joint friction.
             ///
             /// \pre Must be negative.
-            const bool_t enableFriction;
+            const bool enableFriction;
             /// \brief Viscous coefficient of the joint friction for positive velocity.
             ///
             /// \pre Must be negative.
-            const float64_t frictionViscousPositive;
+            const double frictionViscousPositive;
             /// \brief Viscous coefficient of the joint friction for negative velocity.
             ///
             /// \pre Must be negative.
-            const float64_t frictionViscousNegative;
+            const double frictionViscousNegative;
             /// \brief Dry coefficient of the joint friction for positive velocity, which
             ///        corresponds to the positive dry friction at saturation.
             ///
             /// \pre Must be negative.
-            const float64_t frictionDryPositive;
+            const double frictionDryPositive;
             /// \brief Dry coefficient of the joint friction for negative velocity, which
             ///        corresponds to the negative dry friction at saturation.
             ///
             /// \pre Must be negative.
-            const float64_t frictionDryNegative;
+            const double frictionDryNegative;
             /// \brief Slope of the Tanh of the joint velocity that saturates the dry friction.
             ///
             /// \pre Must be negative.
-            const float64_t frictionDrySlope;
+            const double frictionDrySlope;
 
             motorOptions_t(const GenericConfig & options) :
             abstractMotorOptions_t(options),
-            enableFriction(boost::get<bool_t>(options.at("enableFriction"))),
-            frictionViscousPositive(boost::get<float64_t>(options.at("frictionViscousPositive"))),
-            frictionViscousNegative(boost::get<float64_t>(options.at("frictionViscousNegative"))),
-            frictionDryPositive(boost::get<float64_t>(options.at("frictionDryPositive"))),
-            frictionDryNegative(boost::get<float64_t>(options.at("frictionDryNegative"))),
-            frictionDrySlope(boost::get<float64_t>(options.at("frictionDrySlope")))
+            enableFriction(boost::get<bool>(options.at("enableFriction"))),
+            frictionViscousPositive(boost::get<double>(options.at("frictionViscousPositive"))),
+            frictionViscousNegative(boost::get<double>(options.at("frictionViscousNegative"))),
+            frictionDryPositive(boost::get<double>(options.at("frictionDryPositive"))),
+            frictionDryNegative(boost::get<double>(options.at("frictionDryNegative"))),
+            frictionDrySlope(boost::get<double>(options.at("frictionDrySlope")))
             {
             }
         };
@@ -80,11 +80,11 @@ namespace jiminy
         virtual hresult_t setOptions(const GenericConfig & motorOptions) final override;
 
     private:
-        virtual hresult_t computeEffort(float64_t t,
+        virtual hresult_t computeEffort(double t,
                                         const Eigen::VectorBlock<const Eigen::VectorXd> & q,
-                                        float64_t v,
-                                        float64_t a,
-                                        float64_t command) final override;
+                                        double v,
+                                        double a,
+                                        double command) final override;
 
     private:
         std::unique_ptr<const motorOptions_t> motorOptions_;

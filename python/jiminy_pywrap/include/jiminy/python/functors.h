@@ -158,13 +158,13 @@ namespace jiminy::python
 
     template<typename T>
     using TimeStateFctPyWrapper = FctPyWrapper<T /* OutputType */,
-                                               float64_t /* t */,
+                                               double /* t */,
                                                Eigen::VectorXd /* q */,
                                                Eigen::VectorXd /* v */>;
 
     template<typename T>
     using TimeBistateFctPyWrapper = FctPyWrapper<T /* OutputType */,
-                                                 float64_t /* t */,
+                                                 double /* t */,
                                                  Eigen::VectorXd /* q1 */,
                                                  Eigen::VectorXd /* v1 */,
                                                  Eigen::VectorXd /* q2 */,
@@ -190,12 +190,12 @@ namespace jiminy::python
     };
 
     using ControllerFctWrapper = FctInOutPyWrapper<Eigen::VectorXd /* OutputType */,
-                                                   float64_t /* t */,
+                                                   double /* t */,
                                                    Eigen::VectorXd /* q */,
                                                    Eigen::VectorXd /* v */,
                                                    SensorsDataMap /* sensorsData*/>;
 
-    using ControllerFct = std::function<void(float64_t /* t */,
+    using ControllerFct = std::function<void(double /* t */,
                                              const Eigen::VectorXd & /* q */,
                                              const Eigen::VectorXd & /* v */,
                                              const SensorsDataMap & /* sensorsData */,
@@ -220,14 +220,14 @@ namespace jiminy::python
         HeightmapFunctorPyWrapper(const bp::object & objPy, heightmapType_t objType) :
         heightmapType_(objType),
         handlePyPtr_(objPy),
-        out1Ptr_(new float64_t),
+        out1Ptr_(new double),
         out2Ptr_(new Eigen::Vector3d),
         out1PyPtr_(),
         out2PyPtr_()
         {
             if (heightmapType_ == heightmapType_t::CONSTANT)
             {
-                *out1Ptr_ = bp::extract<float64_t>(handlePyPtr_);
+                *out1Ptr_ = bp::extract<double>(handlePyPtr_);
                 *out2Ptr_ = Eigen::Vector3d::UnitZ();
             }
             else if (heightmapType_ == heightmapType_t::STAIRS)
@@ -246,7 +246,7 @@ namespace jiminy::python
         HeightmapFunctorPyWrapper(const HeightmapFunctorPyWrapper & other) :
         heightmapType_(other.heightmapType_),
         handlePyPtr_(other.handlePyPtr_),
-        out1Ptr_(new float64_t),
+        out1Ptr_(new double),
         out2Ptr_(new Eigen::Vector3d),
         out1PyPtr_(),
         out2PyPtr_()
@@ -303,7 +303,7 @@ namespace jiminy::python
             return *this;
         }
 
-        std::pair<float64_t, Eigen::Vector3d> operator()(const Eigen::Vector3d & posFrame)
+        std::pair<double, Eigen::Vector3d> operator()(const Eigen::Vector3d & posFrame)
         {
             if (heightmapType_ == heightmapType_t::STAIRS)
             {
@@ -335,7 +335,7 @@ namespace jiminy::python
         bp::object handlePyPtr_;
 
     private:
-        float64_t * out1Ptr_;
+        double * out1Ptr_;
         Eigen::Vector3d * out2Ptr_;
         PyObject * out1PyPtr_;
         PyObject * out2PyPtr_;

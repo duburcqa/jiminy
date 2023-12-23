@@ -6,7 +6,6 @@
 #include "pinocchio/spatial/motion.hpp"  // `pinocchio::Motion`
 #include "pinocchio/algorithm/frames.hpp"  // `pinocchio::getFrameVelocity`, `pinocchio::getFrameAcceleration`
 
-#include "jiminy/core/exceptions.h"
 #include "jiminy/core/robot/robot.h"
 #include "jiminy/core/hardware/abstract_motor.h"
 #include "jiminy/core/utilities/pinocchio.h"
@@ -71,7 +70,7 @@ namespace jiminy
     const std::vector<std::string> AbstractSensorTpl<ImuSensor>::fieldnames_{
         "Gyrox", "Gyroy", "Gyroz", "Accelx", "Accely", "Accelz"};
     template<>
-    const bool_t AbstractSensorTpl<ImuSensor>::areFieldnamesGrouped_{false};
+    const bool AbstractSensorTpl<ImuSensor>::areFieldnamesGrouped_{false};
 
     ImuSensor::ImuSensor(const std::string & name) :
     AbstractSensorTpl(name),
@@ -167,7 +166,7 @@ namespace jiminy
         return frameIdx_;
     }
 
-    hresult_t ImuSensor::set(float64_t /* t */,
+    hresult_t ImuSensor::set(double /* t */,
                              const Eigen::VectorXd & /* q */,
                              const Eigen::VectorXd & /* v */,
                              const Eigen::VectorXd & /* a */,
@@ -223,7 +222,7 @@ namespace jiminy
     template<>
     const std::vector<std::string> AbstractSensorTpl<ContactSensor>::fieldnames_{"FX", "FY", "FZ"};
     template<>
-    const bool_t AbstractSensorTpl<ContactSensor>::areFieldnamesGrouped_{false};
+    const bool AbstractSensorTpl<ContactSensor>::areFieldnamesGrouped_{false};
 
     ContactSensor::ContactSensor(const std::string & name) :
     AbstractSensorTpl(name),
@@ -286,7 +285,7 @@ namespace jiminy
         return frameIdx_;
     }
 
-    hresult_t ContactSensor::set(float64_t /* t */,
+    hresult_t ContactSensor::set(double /* t */,
                                  const Eigen::VectorXd & /* q */,
                                  const Eigen::VectorXd & /* v */,
                                  const Eigen::VectorXd & /* a */,
@@ -310,7 +309,7 @@ namespace jiminy
     const std::vector<std::string> AbstractSensorTpl<ForceSensor>::fieldnames_{
         "FX", "FY", "FZ", "MX", "MY", "MZ"};
     template<>
-    const bool_t AbstractSensorTpl<ForceSensor>::areFieldnamesGrouped_{false};
+    const bool AbstractSensorTpl<ForceSensor>::areFieldnamesGrouped_{false};
 
     ForceSensor::ForceSensor(const std::string & name) :
     AbstractSensorTpl(name),
@@ -373,7 +372,7 @@ namespace jiminy
         return parentJointIdx_;
     }
 
-    hresult_t ForceSensor::set(float64_t /* t */,
+    hresult_t ForceSensor::set(double /* t */,
                                const Eigen::VectorXd & /* q */,
                                const Eigen::VectorXd & /* v */,
                                const Eigen::VectorXd & /* a */,
@@ -403,7 +402,7 @@ namespace jiminy
     template<>
     const std::vector<std::string> AbstractSensorTpl<EncoderSensor>::fieldnames_{"Q", "V"};
     template<>
-    const bool_t AbstractSensorTpl<EncoderSensor>::areFieldnamesGrouped_{true};
+    const bool AbstractSensorTpl<EncoderSensor>::areFieldnamesGrouped_{true};
 
     EncoderSensor::EncoderSensor(const std::string & name) :
     AbstractSensorTpl(name),
@@ -478,7 +477,7 @@ namespace jiminy
         return jointType_;
     }
 
-    hresult_t EncoderSensor::set(float64_t /* t */,
+    hresult_t EncoderSensor::set(double /* t */,
                                  const Eigen::VectorXd & q,
                                  const Eigen::VectorXd & v,
                                  const Eigen::VectorXd & /* a */,
@@ -492,8 +491,8 @@ namespace jiminy
         const int32_t jointVelocityIdx = joint.idx_v();
         if (jointType_ == JointModelType::ROTARY_UNBOUNDED)
         {
-            const float64_t cosTheta = q[jointPositionIdx];
-            const float64_t sinTheta = q[jointPositionIdx + 1];
+            const double cosTheta = q[jointPositionIdx];
+            const double sinTheta = q[jointPositionIdx + 1];
             data()[0] = std::atan2(sinTheta, cosTheta);
         }
         else
@@ -512,7 +511,7 @@ namespace jiminy
     template<>
     const std::vector<std::string> AbstractSensorTpl<EffortSensor>::fieldnames_{"U"};
     template<>
-    const bool_t AbstractSensorTpl<EffortSensor>::areFieldnamesGrouped_{true};
+    const bool AbstractSensorTpl<EffortSensor>::areFieldnamesGrouped_{true};
 
     EffortSensor::EffortSensor(const std::string & name) :
     AbstractSensorTpl(name),
@@ -568,7 +567,7 @@ namespace jiminy
         return motorIdx_;
     }
 
-    hresult_t EffortSensor::set(float64_t /* t */,
+    hresult_t EffortSensor::set(double /* t */,
                                 const Eigen::VectorXd & /* q */,
                                 const Eigen::VectorXd & /* v */,
                                 const Eigen::VectorXd & /* a */,

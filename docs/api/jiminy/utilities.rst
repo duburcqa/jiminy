@@ -38,7 +38,7 @@ Random number generation
 .. doxygenfunction:: jiminy::randNormal
    :project: jiminy
 
-.. doxygenfunction:: jiminy::randVectorNormal(uint32_t const &size, float64_t const &mean, float64_t const &std)
+.. doxygenfunction:: jiminy::randVectorNormal(uint32_t const &size, double const &mean, double const &std)
    :project: jiminy
 
 
@@ -99,5 +99,5 @@ Pinocchio
 Math
 ----
 
-.. doxygenfunction:: jiminy::clamp(Eigen::MatrixBase<DerivedType> const &data, float64_t const &minThr = -INF, float64_t const &maxThr = +INF)
+.. doxygenfunction:: jiminy::clamp(Eigen::MatrixBase<DerivedType> const &data, double const &minThr = -INF, double const &maxThr = +INF)
    :project: jiminy

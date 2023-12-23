@@ -113,7 +113,7 @@ namespace jiminy::python
             }
         }
 
-        static bool_t contains(SensorsDataMap & self, const bp::tuple & sensorInfo)
+        static bool contains(SensorsDataMap & self, const bp::tuple & sensorInfo)
         {
             const std::string sensorType = bp::extract<std::string>(sensorInfo[0]);
             const std::string sensorName = bp::extract<std::string>(sensorInfo[1]);
@@ -275,7 +275,7 @@ namespace jiminy::python
             for (std::size_t i = 0; i < fieldnames.size(); ++i)
             {
                 const std::string & field = fieldnames[i];
-                const float64_t value = sensorDataValue[i];
+                const double value = sensorDataValue[i];
                 if (i > 0)
                 {
                     s << ", ";

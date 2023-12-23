@@ -1,4 +1,3 @@
-#include "jiminy/core/exceptions.h"
 #include "jiminy/core/robot/robot.h"
 #include "jiminy/core/utilities/pinocchio.h"
 
@@ -156,28 +155,27 @@ namespace jiminy
     hresult_t AbstractMotorBase::setOptions(const GenericConfig & motorOptions)
     {
         // Check if the internal buffers must be updated
-        bool_t internalBuffersMustBeUpdated = false;
+        bool internalBuffersMustBeUpdated = false;
         if (isInitialized_)
         {
             // Check if armature has changed
-            const bool_t enableArmature = boost::get<bool_t>(motorOptions.at("enableArmature"));
+            const bool enableArmature = boost::get<bool>(motorOptions.at("enableArmature"));
             internalBuffersMustBeUpdated |= (baseMotorOptions_->enableArmature != enableArmature);
             if (enableArmature)
             {
-                const float64_t armature = boost::get<float64_t>(motorOptions.at("armature"));
+                const double armature = boost::get<double>(motorOptions.at("armature"));
                 internalBuffersMustBeUpdated |=  //
                     std::abs(armature - baseMotorOptions_->armature) > EPS;
             }
 
             // Check if command limit has changed
-            const bool_t commandLimitFromUrdf =
-                boost::get<bool_t>(motorOptions.at("commandLimitFromUrdf"));
+            const bool commandLimitFromUrdf =
+                boost::get<bool>(motorOptions.at("commandLimitFromUrdf"));
             internalBuffersMustBeUpdated |=
                 (baseMotorOptions_->commandLimitFromUrdf != commandLimitFromUrdf);
             if (!commandLimitFromUrdf)
             {
-                const float64_t commandLimit =
-                    boost::get<float64_t>(motorOptions.at("commandLimit"));
+                const double commandLimit = boost::get<double>(motorOptions.at("commandLimit"));
                 internalBuffersMustBeUpdated |=
                     std::abs(commandLimit - baseMotorOptions_->commandLimit) > EPS;
             }
@@ -302,9 +300,9 @@ namespace jiminy
         return returnCode;
     }
 
-    float64_t AbstractMotorBase::get() const
+    double AbstractMotorBase::get() const
     {
-        static float64_t dataEmpty;
+        static double dataEmpty;
         if (isAttached_)
         {
             return sharedHolder_->data_[motorIdx_];
@@ -312,7 +310,7 @@ namespace jiminy
         return dataEmpty;
     }
 
-    float64_t & AbstractMotorBase::data()
+    double & AbstractMotorBase::data()
     {
         return sharedHolder_->data_[motorIdx_];
     }
@@ -344,7 +342,7 @@ namespace jiminy
         return returnCode;
     }
 
-    bool_t AbstractMotorBase::getIsInitialized() const
+    bool AbstractMotorBase::getIsInitialized() const
     {
         return isInitialized_;
     }
@@ -384,17 +382,17 @@ namespace jiminy
         return jointVelocityIdx_;
     }
 
-    float64_t AbstractMotorBase::getCommandLimit() const
+    double AbstractMotorBase::getCommandLimit() const
     {
         return commandLimit_;
     }
 
-    float64_t AbstractMotorBase::getArmature() const
+    double AbstractMotorBase::getArmature() const
     {
         return armature_;
     }
 
-    hresult_t AbstractMotorBase::computeEffortAll(float64_t t,
+    hresult_t AbstractMotorBase::computeEffortAll(double t,
                                                   const Eigen::VectorXd & q,
                                                   const Eigen::VectorXd & v,
                                                   const Eigen::VectorXd & a,

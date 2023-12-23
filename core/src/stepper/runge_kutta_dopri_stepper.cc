@@ -4,8 +4,8 @@ namespace jiminy
 {
     RungeKuttaDOPRIStepper::RungeKuttaDOPRIStepper(const systemDynamics & f,
                                                    const std::vector<const Robot *> & robots,
-                                                   float64_t tolRel,
-                                                   float64_t tolAbs) :
+                                                   double tolRel,
+                                                   double tolAbs) :
     AbstractRungeKuttaStepper(f, robots, DOPRI::A, DOPRI::b, DOPRI::c, true),
     tolRel_(tolRel),
     tolAbs_(tolAbs),
@@ -15,15 +15,15 @@ namespace jiminy
     {
     }
 
-    bool_t RungeKuttaDOPRIStepper::adjustStep(
-        const state_t & initialState, const state_t & solution, float64_t & dt)
+    bool RungeKuttaDOPRIStepper::adjustStep(
+        const state_t & initialState, const state_t & solution, double & dt)
     {
-        const float64_t error = computeError(initialState, solution, dt);
+        const double error = computeError(initialState, solution, dt);
         return adjustStepImpl(error, dt);
     }
 
-    float64_t RungeKuttaDOPRIStepper::computeError(
-        const state_t & initialState, const state_t & solution, float64_t dt)
+    double RungeKuttaDOPRIStepper::computeError(
+        const state_t & initialState, const state_t & solution, double dt)
     {
         // Compute alternative solution
         stateIncrement_.setZero();
@@ -37,8 +37,8 @@ namespace jiminy
         solution.difference(otherSolution_, error_);
 
         // Compute absolute and relative element-wise maximum error
-        float64_t errorAbsNorm = INF;
-        float64_t errorRelNorm = INF;
+        double errorAbsNorm = INF;
+        double errorRelNorm = INF;
         if (tolAbs_ > EPS)
         {
             errorAbsNorm = error_.normInf() / tolAbs_;
@@ -55,7 +55,7 @@ namespace jiminy
         return std::min(errorAbsNorm, errorRelNorm);
     }
 
-    bool_t RungeKuttaDOPRIStepper::adjustStepImpl(float64_t error, float64_t & dt)
+    bool RungeKuttaDOPRIStepper::adjustStepImpl(double error, double & dt)
     {
         // Make sure the error is defined, otherwise rely on a simple heuristic
         if (std::isnan(error))
@@ -71,7 +71,7 @@ namespace jiminy
             if (error < std::pow(DOPRI::SAFETY, DOPRI::STEPPER_ORDER))
             {
                 // Prevent numeric rounding error when close to zero
-                const float64_t newError = std::max(
+                const double newError = std::max(
                     error, std::pow(DOPRI::MAX_FACTOR / DOPRI::SAFETY, -DOPRI::STEPPER_ORDER));
                 dt *= DOPRI::SAFETY * std::pow(newError, -1.0 / DOPRI::STEPPER_ORDER);
             }

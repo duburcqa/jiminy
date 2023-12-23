@@ -16,11 +16,11 @@
 
 using namespace jiminy;
 
-const float64_t TOLERANCE = 1e-9;
+inline constexpr double TOLERANCE = 1e-9;
 
 
 /// \brief Controller sending zero torque to the motors.
-void controllerZeroTorque(float64_t /* t */,
+void controllerZeroTorque(double /* t */,
                           const Eigen::VectorXd & /* q */,
                           const Eigen::VectorXd & /* v */,
                           const SensorsDataMap & /* sensorData */,
@@ -29,7 +29,7 @@ void controllerZeroTorque(float64_t /* t */,
 }
 
 /// \brief Internal dynamics of the system (friction, ...)
-void internalDynamics(float64_t /* t */,
+void internalDynamics(double /* t */,
                       const Eigen::VectorXd & /* q */,
                       const Eigen::VectorXd & /* v */,
                       const SensorsDataMap & /* sensorData */,
@@ -37,8 +37,7 @@ void internalDynamics(float64_t /* t */,
 {
 }
 
-bool_t callback(
-    float64_t /* t */, const Eigen::VectorXd & /* q */, const Eigen::VectorXd & /* v */)
+bool callback(double /* t */, const Eigen::VectorXd & /* q */, const Eigen::VectorXd & /* v */)
 {
     return true;
 }
@@ -67,8 +66,8 @@ TEST(EngineSanity, EnergyConservation)
     // Disable velocity and position limits
     GenericConfig modelOptions = robot->getModelOptions();
     GenericConfig & jointsOptions = boost::get<GenericConfig>(modelOptions.at("joints"));
-    boost::get<bool_t>(jointsOptions.at("enablePositionLimit")) = false;
-    boost::get<bool_t>(jointsOptions.at("enableVelocityLimit")) = false;
+    boost::get<bool>(jointsOptions.at("enablePositionLimit")) = false;
+    boost::get<bool>(jointsOptions.at("enableVelocityLimit")) = false;
     robot->setModelOptions(modelOptions);
 
     // Disable torque limits
@@ -76,7 +75,7 @@ TEST(EngineSanity, EnergyConservation)
     for (auto & options : motorsOptions)
     {
         GenericConfig & motorOptions = boost::get<GenericConfig>(options.second);
-        boost::get<bool_t>(motorOptions.at("enableCommandLimit")) = false;
+        boost::get<bool>(motorOptions.at("enableCommandLimit")) = false;
     }
     robot->setMotorsOptions(motorsOptions);
 
@@ -93,8 +92,8 @@ TEST(EngineSanity, EnergyConservation)
     GenericConfig simuOptions = engine->getDefaultEngineOptions();
     {
         GenericConfig & stepperOptions = boost::get<GenericConfig>(simuOptions.at("stepper"));
-        boost::get<float64_t>(stepperOptions.at("tolAbs")) = TOLERANCE * 1.0e-2;
-        boost::get<float64_t>(stepperOptions.at("tolRel")) = TOLERANCE * 1.0e-2;
+        boost::get<double>(stepperOptions.at("tolAbs")) = TOLERANCE * 1.0e-2;
+        boost::get<double>(stepperOptions.at("tolRel")) = TOLERANCE * 1.0e-2;
     }
     engine->setOptions(simuOptions);
 
@@ -102,7 +101,7 @@ TEST(EngineSanity, EnergyConservation)
     Eigen::VectorXd q0 = Eigen::VectorXd::Zero(2);
     q0(0) = 1.0;
     Eigen::VectorXd v0 = Eigen::VectorXd::Zero(2);
-    float64_t tf = 10.0;
+    double tf = 10.0;
 
     // Run simulation
     engine->reset();
@@ -121,15 +120,15 @@ TEST(EngineSanity, EnergyConservation)
     ASSERT_GT(energyCont.size(), 0);
 
     // Check that energy is constant
-    const float64_t deltaEnergyCont = energyCont.maxCoeff() - energyCont.minCoeff();
+    const double deltaEnergyCont = energyCont.maxCoeff() - energyCont.minCoeff();
     ASSERT_NEAR(0.0, deltaEnergyCont, TOLERANCE);
 
     // Configure engine: Default accuracy + Discrete-time simulation
     simuOptions = engine->getDefaultEngineOptions();
     {
         GenericConfig & stepperOptions = boost::get<GenericConfig>(simuOptions.at("stepper"));
-        boost::get<float64_t>(stepperOptions.at("sensorsUpdatePeriod")) = 1.0e-3;
-        boost::get<float64_t>(stepperOptions.at("controllerUpdatePeriod")) = 1.0e-3;
+        boost::get<double>(stepperOptions.at("sensorsUpdatePeriod")) = 1.0e-3;
+        boost::get<double>(stepperOptions.at("controllerUpdatePeriod")) = 1.0e-3;
     }
     engine->setOptions(simuOptions);
 
@@ -149,6 +148,6 @@ TEST(EngineSanity, EnergyConservation)
     ASSERT_GT(energyDisc.size(), 0);
 
     // Check that energy is constant
-    const float64_t deltaEnergyDisc = energyDisc.maxCoeff() - energyDisc.minCoeff();
+    const double deltaEnergyDisc = energyDisc.maxCoeff() - energyDisc.minCoeff();
     ASSERT_NEAR(0.0, deltaEnergyDisc, TOLERANCE);
 }

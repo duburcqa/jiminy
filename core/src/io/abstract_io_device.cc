@@ -1,4 +1,3 @@
-#include "jiminy/core/exceptions.h"
 
 #include "jiminy/core/io/abstract_io_device.h"
 
@@ -102,22 +101,22 @@ namespace jiminy
         return supportedModes_;
     }
 
-    bool_t AbstractIODevice::isWritable() const
+    bool AbstractIODevice::isWritable() const
     {
         return (modes_ & openMode_t::WRITE_ONLY) || (modes_ & openMode_t::READ_WRITE);
     }
 
-    bool_t AbstractIODevice::isReadable() const
+    bool AbstractIODevice::isReadable() const
     {
         return (modes_ & openMode_t::READ_ONLY) || (modes_ & openMode_t::READ_WRITE);
     }
 
-    bool_t AbstractIODevice::isOpen() const
+    bool AbstractIODevice::isOpen() const
     {
         return (modes_ != openMode_t::NOT_OPEN);
     }
 
-    bool_t AbstractIODevice::isSequential() const
+    bool AbstractIODevice::isSequential() const
     {
         return false;
     }
@@ -196,14 +195,14 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    hresult_t AbstractIODevice::setBlockingMode(bool_t /* shouldBlock */)
+    hresult_t AbstractIODevice::setBlockingMode(bool /* shouldBlock */)
     {
         lastError_ = hresult_t::ERROR_GENERIC;
         PRINT_ERROR("This methid is not available.");
         return lastError_;
     }
 
-    bool_t AbstractIODevice::isBackendValid()
+    bool AbstractIODevice::isBackendValid()
     {
         return (io_.get() != nullptr);
     }
@@ -229,11 +228,11 @@ namespace jiminy
         return read(bufferPos, toRead);
     }
 
-    // Specific implementation - std::vector<char_t>
+    // Specific implementation - std::vector<char>
     template<>
-    hresult_t AbstractIODevice::read<std::vector<char_t>>(std::vector<char_t> & v)
+    hresult_t AbstractIODevice::read<std::vector<char>>(std::vector<char> & v)
     {
-        int64_t toRead = static_cast<int64_t>(v.size() * sizeof(char_t));
+        int64_t toRead = static_cast<int64_t>(v.size() * sizeof(char));
         uint8_t * bufferPos = reinterpret_cast<uint8_t *>(v.data());
         return read(bufferPos, toRead);
     }
@@ -256,11 +255,11 @@ namespace jiminy
         return write(bufferPos, toWrite);
     }
 
-    // Specific implementation - std::vector<char_t>
+    // Specific implementation - std::vector<char>
     template<>
-    hresult_t AbstractIODevice::write<std::vector<char_t>>(const std::vector<char_t> & v)
+    hresult_t AbstractIODevice::write<std::vector<char>>(const std::vector<char> & v)
     {
-        int64_t toWrite = static_cast<int64_t>(v.size() * sizeof(char_t));
+        int64_t toWrite = static_cast<int64_t>(v.size() * sizeof(char));
         const uint8_t * bufferPos = reinterpret_cast<const uint8_t *>(v.data());
         return write(bufferPos, toWrite);
     }

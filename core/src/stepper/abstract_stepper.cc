@@ -13,21 +13,21 @@ namespace jiminy
     {
     }
 
-    bool_t AbstractStepper::tryStep(std::vector<Eigen::VectorXd> & qSplit,
-                                    std::vector<Eigen::VectorXd> & vSplit,
-                                    std::vector<Eigen::VectorXd> & aSplit,
-                                    float64_t & t,
-                                    float64_t & dt)
+    bool AbstractStepper::tryStep(std::vector<Eigen::VectorXd> & qSplit,
+                                  std::vector<Eigen::VectorXd> & vSplit,
+                                  std::vector<Eigen::VectorXd> & aSplit,
+                                  double & t,
+                                  double & dt)
     {
         // Update buffers
-        float64_t t_next = t + dt;
+        double t_next = t + dt;
         state_.q = qSplit;
         state_.v = vSplit;
         stateDerivative_.v = vSplit;
         stateDerivative_.a = aSplit;
 
         // Try doing a single step
-        bool_t result = tryStepImpl(state_, stateDerivative_, t, dt);
+        bool result = tryStepImpl(state_, stateDerivative_, t, dt);
 
         // Make sure everything went fine
         if (result)
@@ -53,7 +53,7 @@ namespace jiminy
         return result;
     }
 
-    const stateDerivative_t & AbstractStepper::f(float64_t t, const state_t & state)
+    const stateDerivative_t & AbstractStepper::f(double t, const state_t & state)
     {
         f_(t, state.q, state.v, fOutput_.a);
         fOutput_.v = state.v;

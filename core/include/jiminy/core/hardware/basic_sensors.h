@@ -27,7 +27,7 @@ namespace jiminy
         pinocchio::FrameIndex getFrameIdx() const;
 
     private:
-        virtual hresult_t set(float64_t t,
+        virtual hresult_t set(double t,
                               const Eigen::VectorXd & q,
                               const Eigen::VectorXd & v,
                               const Eigen::VectorXd & a,
@@ -47,7 +47,7 @@ namespace jiminy
     template<>
     const std::vector<std::string> AbstractSensorTpl<ImuSensor>::fieldnames_;
     template<>
-    const bool_t AbstractSensorTpl<ImuSensor>::areFieldnamesGrouped_;
+    const bool AbstractSensorTpl<ImuSensor>::areFieldnamesGrouped_;
 
     class JIMINY_DLLAPI ContactSensor : public AbstractSensorTpl<ContactSensor>
     {
@@ -65,7 +65,7 @@ namespace jiminy
         pinocchio::FrameIndex getFrameIdx() const;
 
     private:
-        virtual hresult_t set(float64_t t,
+        virtual hresult_t set(double t,
                               const Eigen::VectorXd & q,
                               const Eigen::VectorXd & v,
                               const Eigen::VectorXd & a,
@@ -82,7 +82,7 @@ namespace jiminy
     template<>
     const std::vector<std::string> AbstractSensorTpl<ContactSensor>::fieldnames_;
     template<>
-    const bool_t AbstractSensorTpl<ContactSensor>::areFieldnamesGrouped_;
+    const bool AbstractSensorTpl<ContactSensor>::areFieldnamesGrouped_;
 
     class JIMINY_DLLAPI ForceSensor : public AbstractSensorTpl<ForceSensor>
     {
@@ -101,7 +101,7 @@ namespace jiminy
         pinocchio::JointIndex getJointIdx() const;
 
     private:
-        virtual hresult_t set(float64_t t,
+        virtual hresult_t set(double t,
                               const Eigen::VectorXd & q,
                               const Eigen::VectorXd & v,
                               const Eigen::VectorXd & a,
@@ -120,7 +120,7 @@ namespace jiminy
     template<>
     const std::vector<std::string> AbstractSensorTpl<ForceSensor>::fieldnames_;
     template<>
-    const bool_t AbstractSensorTpl<ForceSensor>::areFieldnamesGrouped_;
+    const bool AbstractSensorTpl<ForceSensor>::areFieldnamesGrouped_;
 
     class JIMINY_DLLAPI EncoderSensor : public AbstractSensorTpl<EncoderSensor>
     {
@@ -139,7 +139,7 @@ namespace jiminy
         JointModelType getJointType() const;
 
     private:
-        virtual hresult_t set(float64_t t,
+        virtual hresult_t set(double t,
                               const Eigen::VectorXd & q,
                               const Eigen::VectorXd & v,
                               const Eigen::VectorXd & a,
@@ -157,7 +157,7 @@ namespace jiminy
     template<>
     const std::vector<std::string> AbstractSensorTpl<EncoderSensor>::fieldnames_;
     template<>
-    const bool_t AbstractSensorTpl<EncoderSensor>::areFieldnamesGrouped_;
+    const bool AbstractSensorTpl<EncoderSensor>::areFieldnamesGrouped_;
 
     class JIMINY_DLLAPI EffortSensor : public AbstractSensorTpl<EffortSensor>
     {
@@ -175,7 +175,7 @@ namespace jiminy
         std::size_t getMotorIdx() const;
 
     private:
-        virtual hresult_t set(float64_t t,
+        virtual hresult_t set(double t,
                               const Eigen::VectorXd & q,
                               const Eigen::VectorXd & v,
                               const Eigen::VectorXd & a,
@@ -192,7 +192,7 @@ namespace jiminy
     template<>
     const std::vector<std::string> AbstractSensorTpl<EffortSensor>::fieldnames_;
     template<>
-    const bool_t AbstractSensorTpl<EffortSensor>::areFieldnamesGrouped_;
+    const bool AbstractSensorTpl<EffortSensor>::areFieldnamesGrouped_;
 }
 
 #endif  // end of JIMINY_BASIC_SENSORS_H

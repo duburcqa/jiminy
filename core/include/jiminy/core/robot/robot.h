@@ -39,9 +39,9 @@ namespace jiminy
                              const pinocchio::GeometryModel & collisionModel,
                              const pinocchio::GeometryModel & visualModel);
         hresult_t initialize(const std::string & urdfPath,
-                             bool_t hasFreeflyer = true,
+                             bool hasFreeflyer = true,
                              const std::vector<std::string> & meshPackageDirs = {},
-                             bool_t loadVisualMeshes = false);
+                             bool loadVisualMeshes = false);
 
         hresult_t attachMotor(std::shared_ptr<AbstractMotorBase> motor);
         hresult_t getMotor(const std::string & motorName,
@@ -62,14 +62,14 @@ namespace jiminy
         hresult_t detachSensor(const std::string & sensorType, const std::string & sensorName);
         hresult_t detachSensors(const std::string & sensorType = {});
 
-        void computeMotorsEfforts(float64_t t,
+        void computeMotorsEfforts(double t,
                                   const Eigen::VectorXd & q,
                                   const Eigen::VectorXd & v,
                                   const Eigen::VectorXd & a,
                                   const Eigen::VectorXd & command);
         const Eigen::VectorXd & getMotorsEfforts() const;
-        float64_t getMotorEffort(const std::string & motorName) const;
-        void setSensorsData(float64_t t,
+        double getMotorEffort(const std::string & motorName) const;
+        void setSensorsData(double t,
                             const Eigen::VectorXd & q,
                             const Eigen::VectorXd & v,
                             const Eigen::VectorXd & a,
@@ -114,7 +114,7 @@ namespace jiminy
         virtual hresult_t configureTelemetry(std::shared_ptr<TelemetryData> telemetryData,
                                              const std::string & objectPrefixName = {});
         void updateTelemetry();
-        bool_t getIsTelemetryConfigured() const;
+        bool getIsTelemetryConfigured() const;
 
         const std::vector<std::string> & getMotorsNames() const;
         std::vector<pinocchio::JointIndex> getMotorsModelIdx() const;
@@ -132,7 +132,7 @@ namespace jiminy
         uint64_t nmotors() const;
 
         hresult_t getLock(std::unique_ptr<LockGuardLocal> & lock);
-        bool_t getIsLocked() const;
+        bool getIsLocked() const;
 
     protected:
         hresult_t refreshMotorsProxies();
@@ -140,11 +140,11 @@ namespace jiminy
         virtual hresult_t refreshProxies() override;
 
     protected:
-        bool_t isTelemetryConfigured_;
+        bool isTelemetryConfigured_;
         std::shared_ptr<TelemetryData> telemetryData_;
         motorsHolder_t motorsHolder_;
         sensorsGroupHolder_t sensorsGroupHolder_;
-        std::unordered_map<std::string, bool_t> sensorTelemetryOptions_;
+        std::unordered_map<std::string, bool> sensorTelemetryOptions_;
         /// \brief Name of the motors.
         std::vector<std::string> motorsNames_;
         /// \brief Name of the sensors.

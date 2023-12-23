@@ -1,7 +1,6 @@
 #include <fstream>
 #include <exception>
 
-#include "jiminy/core/exceptions.h"
 #include "jiminy/core/io/file_device.h"
 #include "jiminy/core/hardware/abstract_motor.h"
 #include "jiminy/core/hardware/abstract_sensor.h"
@@ -40,9 +39,9 @@ namespace jiminy
     }
 
     hresult_t Robot::initialize(const std::string & urdfPath,
-                                bool_t hasFreeflyer,
+                                bool hasFreeflyer,
                                 const std::vector<std::string> & meshPackageDirs,
-                                bool_t loadVisualMeshes)
+                                bool loadVisualMeshes)
     {
         // Detach all the motors and sensors
         detachSensors();
@@ -1112,7 +1111,7 @@ namespace jiminy
                 PRINT_ERROR("Missing field.");
                 return hresult_t::ERROR_GENERIC;
             }
-            sensorGroupTelemetryOption = boost::get<bool_t>(sensorTelemetryOptionIt->second);
+            sensorGroupTelemetryOption = boost::get<bool>(sensorTelemetryOptionIt->second);
         }
 
         return hresult_t::SUCCESS;
@@ -1151,12 +1150,12 @@ namespace jiminy
         return returnCode;
     }
 
-    bool_t Robot::getIsTelemetryConfigured() const
+    bool Robot::getIsTelemetryConfigured() const
     {
         return isTelemetryConfigured_;
     }
 
-    void Robot::computeMotorsEfforts(float64_t t,
+    void Robot::computeMotorsEfforts(double t,
                                      const Eigen::VectorXd & q,
                                      const Eigen::VectorXd & v,
                                      const Eigen::VectorXd & a,
@@ -1180,9 +1179,9 @@ namespace jiminy
         return motorsEffortsEmpty;
     }
 
-    float64_t Robot::getMotorEffort(const std::string & motorName) const
+    double Robot::getMotorEffort(const std::string & motorName) const
     {
-        static const float64_t motorEffortEmpty = -1;
+        static const double motorEffortEmpty = -1;
 
         auto motorIt = std::find_if(motorsHolder_.begin(),
                                     motorsHolder_.end(),
@@ -1196,7 +1195,7 @@ namespace jiminy
         return motorEffortEmpty;
     }
 
-    void Robot::setSensorsData(float64_t t,
+    void Robot::setSensorsData(double t,
                                const Eigen::VectorXd & q,
                                const Eigen::VectorXd & v,
                                const Eigen::VectorXd & a,
@@ -1282,7 +1281,7 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    bool_t Robot::getIsLocked() const
+    bool Robot::getIsLocked() const
     {
         return mutexLocal_->isLocked();
     }

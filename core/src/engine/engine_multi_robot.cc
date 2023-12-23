@@ -25,9 +25,7 @@
 #include "H5Cpp.h"
 #include "json/json.h"
 
-#include "jiminy/core/constants.h"
 #include "jiminy/core/traits.h"
-#include "jiminy/core/exceptions.h"
 #include "jiminy/core/utilities/helpers.h"
 #include "jiminy/core/utilities/pinocchio.h"
 #include "jiminy/core/utilities/random.h"
@@ -198,7 +196,7 @@ namespace jiminy
         }
 
         // Create and initialize a controller doing nothing
-        auto noopFunctor = +[](float64_t /* t */,
+        auto noopFunctor = +[](double /* t */,
                                const Eigen::VectorXd & /* q */,
                                const Eigen::VectorXd & /* v */,
                                const SensorsDataMap & /* sensorsData */,
@@ -388,7 +386,7 @@ namespace jiminy
                                                                   const std::string & frameName2,
                                                                   const Vector6d & stiffness,
                                                                   const Vector6d & damping,
-                                                                  float64_t alpha)
+                                                                  double alpha)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -420,11 +418,11 @@ namespace jiminy
         if (returnCode == hresult_t::SUCCESS)
         {
             // Allocate memory
-            float64_t angle{0.0};
+            double angle{0.0};
             Eigen::Matrix3d rot12{}, rotJLog12{}, rotJExp12{}, rotRef12{}, omega{};
             Eigen::Vector3d rotLog12{}, pos12{}, posLocal12{}, fLin{}, fAng{};
 
-            auto forceFct = [=](float64_t /*t*/,
+            auto forceFct = [=](double /*t*/,
                                 const Eigen::VectorXd & /*q_1*/,
                                 const Eigen::VectorXd & /*v_1*/,
                                 const Eigen::VectorXd & /*q_2*/,
@@ -508,7 +506,7 @@ namespace jiminy
                                                                   const std::string & frameName2,
                                                                   const Vector6d & stiffness,
                                                                   const Vector6d & damping,
-                                                                  float64_t alpha)
+                                                                  double alpha)
     {
         return registerViscoelasticForceCoupling(
             systemName, systemName, frameName1, frameName2, stiffness, damping, alpha);
@@ -519,9 +517,9 @@ namespace jiminy
         const std::string & systemName2,
         const std::string & frameName1,
         const std::string & frameName2,
-        float64_t stiffness,
-        float64_t damping,
-        float64_t restLength)
+        double stiffness,
+        double damping,
+        double restLength)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -557,7 +555,7 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            auto forceFct = [=](float64_t /*t*/,
+            auto forceFct = [=](double /*t*/,
                                 const Eigen::VectorXd & /*q_1*/,
                                 const Eigen::VectorXd & /*v_1*/,
                                 const Eigen::VectorXd & /*q_2*/,
@@ -589,7 +587,7 @@ namespace jiminy
 
                 // Compute the linear force coupling them
                 Eigen::Vector3d dir12{oMf2.translation() - oMf1.translation()};
-                const float64_t length{dir12.norm()};
+                const double length{dir12.norm()};
                 auto vel12 = oVf2.linear() - oVf1.linear();
                 if (length > EPS)
                 {
@@ -614,9 +612,9 @@ namespace jiminy
         const std::string & systemName,
         const std::string & frameName1,
         const std::string & frameName2,
-        float64_t stiffness,
-        float64_t damping,
-        float64_t restLength)
+        double stiffness,
+        double damping,
+        double restLength)
     {
         return registerViscoelasticDirectionalForceCoupling(
             systemName, systemName, frameName1, frameName2, stiffness, damping, restLength);
@@ -893,7 +891,7 @@ namespace jiminy
         telemetryRecorder_->flushDataSnapshot(stepperState_.t);
     }
 
-    void EngineMultiRobot::reset(bool_t resetRandomNumbers, bool_t removeAllForce)
+    void EngineMultiRobot::reset(bool resetRandomNumbers, bool removeAllForce)
     {
         // Make sure the simulation is properly stopped
         if (isSimulationRunning_)
@@ -1119,11 +1117,11 @@ namespace jiminy
             }
 
             // Make sure the initial state is normalized
-            bool_t isValid;
+            bool isValid;
             isPositionValid(system.robot->pncModel_,
                             q,
                             isValid,
-                            std::numeric_limits<float32_t>::epsilon());  // Cannot throw exception
+                            std::numeric_limits<float>::epsilon());  // Cannot throw exception
             if (!isValid)
             {
                 PRINT_ERROR("The initial configuration is not consistent with the types of "
@@ -1261,7 +1259,7 @@ namespace jiminy
         }
 
         // Initialize the ode solver
-        auto systemOde = [this](float64_t t,
+        auto systemOde = [this](double t,
                                 const std::vector<Eigen::VectorXd> & q,
                                 const std::vector<Eigen::VectorXd> & v,
                                 std::vector<Eigen::VectorXd> & a) -> void
@@ -1293,7 +1291,7 @@ namespace jiminy
         }
 
         // Initialize the stepper state
-        const float64_t t = 0.0;
+        const double t = 0.0;
         stepperState_.reset(SIMULATION_MIN_TIMESTEP, qSplit, vSplit, aSplit);
 
         // Initialize previous joints forces and accelerations
@@ -1440,7 +1438,7 @@ namespace jiminy
             {
                 // Make sure that the contact forces are bounded for spring-damper model.
                 // TODO: Rather use something like `10 * m * g` instead of a fix threshold.
-                float64_t forceMax = 0.0;
+                double forceMax = 0.0;
                 for (std::size_t i = 0; i < contactFramesIdx.size(); ++i)
                 {
                     auto & constraint = systemDataIt->constraintsHolder.contactFrames[i].second;
@@ -1529,7 +1527,7 @@ namespace jiminy
 
             /* Solve algebraic coupling between accelerations, sensors and controllers, by
                iterating several times until it (hopefully) converges. */
-            bool_t isFirstIter = true;
+            bool isFirstIter = true;
             for (uint32_t i = 0; i < INIT_ITERATIONS; ++i)
             {
                 systemIt = systems_.begin();
@@ -1721,7 +1719,7 @@ namespace jiminy
     }
 
     hresult_t EngineMultiRobot::simulate(
-        float64_t tEnd,
+        double tEnd,
         const std::map<std::string, Eigen::VectorXd> & qInit,
         const std::map<std::string, Eigen::VectorXd> & vInit,
         const std::optional<std::map<std::string, Eigen::VectorXd>> & aInit)
@@ -1773,7 +1771,7 @@ namespace jiminy
             }
 
             // Stop the simulation if any of the callbacks return false
-            bool_t isCallbackFalse = false;
+            bool isCallbackFalse = false;
             auto systemIt = systems_.begin();
             auto systemDataIt = systemsDataHolder_.begin();
             for (; systemIt != systems_.end(); ++systemIt, ++systemDataIt)
@@ -1807,7 +1805,7 @@ namespace jiminy
             }
 
             // Perform a single integration step up to `tEnd`, stopping at `stepperUpdatePeriod_`
-            float64_t stepSize;
+            double stepSize;
             if (std::isfinite(stepperUpdatePeriod_))
             {
                 stepSize = min(stepperUpdatePeriod_, tEnd - stepperState_.t);
@@ -1825,7 +1823,7 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t EngineMultiRobot::step(float64_t stepSize)
+    hresult_t EngineMultiRobot::step(double stepSize)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -1865,15 +1863,14 @@ namespace jiminy
            it uses the user-defined parameter dtMax. */
         if (stepSize < EPS)
         {
-            const float64_t controllerUpdatePeriod =
-                engineOptions_->stepper.controllerUpdatePeriod;
+            const double controllerUpdatePeriod = engineOptions_->stepper.controllerUpdatePeriod;
             if (controllerUpdatePeriod > EPS)
             {
                 stepSize = controllerUpdatePeriod;
             }
             else
             {
-                const float64_t sensorsUpdatePeriod = engineOptions_->stepper.sensorsUpdatePeriod;
+                const double sensorsUpdatePeriod = engineOptions_->stepper.sensorsUpdatePeriod;
                 if (sensorsUpdatePeriod > EPS)
                 {
                     stepSize = sensorsUpdatePeriod;
@@ -1899,14 +1896,14 @@ namespace jiminy
         /* Avoid compounding of error using Kahan algorithm. It consists in keeping track of the
            cumulative rounding error to add it back to the sum when it gets larger than the
            numerical precision, thus avoiding it to grows unbounded. */
-        const float64_t stepSizeCorrected = stepSize - stepperState_.tError;
-        const float64_t tEnd = stepperState_.t + stepSizeCorrected;
+        const double stepSizeCorrected = stepSize - stepperState_.tError;
+        const double tEnd = stepperState_.t + stepSizeCorrected;
         stepperState_.tError = (tEnd - stepperState_.t) - stepSizeCorrected;
 
         // Get references to some internal stepper buffers
-        float64_t & t = stepperState_.t;
-        float64_t & dt = stepperState_.dt;
-        float64_t & dtLargest = stepperState_.dtLargest;
+        double & t = stepperState_.t;
+        double & dt = stepperState_.dt;
+        double & dtLargest = stepperState_.dtLargest;
         std::vector<Eigen::VectorXd> & qSplit = stepperState_.qSplit;
         std::vector<Eigen::VectorXd> & vSplit = stepperState_.vSplit;
         std::vector<Eigen::VectorXd> & aSplit = stepperState_.aSplit;
@@ -1914,13 +1911,13 @@ namespace jiminy
         // Monitor iteration failure
         uint32_t successiveIterFailed = 0;
         std::vector<uint32_t> successiveSolveFailedAll(systems_.size(), 0U);
-        bool_t isNan = false;
+        bool isNan = false;
 
         /* Flag monitoring if the current time step depends of a breakpoint or the integration
            tolerance. It will be used by the restoration mechanism, if dt gets very small to reach
            a breakpoint, in order to avoid having to perform several steps to stabilize again the
            estimation of the optimal time step. */
-        bool_t isBreakpointReached = false;
+        bool isBreakpointReached = false;
 
         /* Flag monitoring if the dynamics has changed because of impulse forces or the command
            (only in the case of discrete control).
@@ -1937,7 +1934,7 @@ namespace jiminy
 
            TODO: Maybe dt should be reschedule because the dynamics has changed and thereby the
                  previously estimated dt is very meaningful anymore. */
-        bool_t hasDynamicsChanged = false;
+        bool hasDynamicsChanged = false;
 
         // Start the timer used for timeout handling
         timer_->tic();
@@ -1946,10 +1943,10 @@ namespace jiminy
         while ((tEnd - t >= STEPPER_MIN_TIMESTEP) && (returnCode == hresult_t::SUCCESS))
         {
             // Initialize next breakpoint time to the one recommended by the stepper
-            float64_t tNext = t;
+            double tNext = t;
 
             // Update the active set and get the next breakpoint of impulse forces
-            float64_t tForceImpulseNext = INF;
+            double tForceImpulseNext = INF;
             for (auto & systemData : systemsDataHolder_)
             {
                 /* Update the active set: activate an impulse force as soon as the current time
@@ -1963,8 +1960,8 @@ namespace jiminy
                 for (; forcesImpulseIt != systemData.forcesImpulse.end();
                      ++forcesImpulseActiveIt, ++forcesImpulseIt)
                 {
-                    float64_t tForceImpulse = forcesImpulseIt->t;
-                    float64_t dtForceImpulse = forcesImpulseIt->dt;
+                    double tForceImpulse = forcesImpulseIt->t;
+                    double dtForceImpulse = forcesImpulseIt->dt;
 
                     if (t > tForceImpulse - STEPPER_MIN_TIMESTEP)
                     {
@@ -2007,8 +2004,8 @@ namespace jiminy
                     {
                         if (forceProfile.updatePeriod > EPS)
                         {
-                            float64_t forceUpdatePeriod = forceProfile.updatePeriod;
-                            float64_t dtNextForceUpdatePeriod =
+                            double forceUpdatePeriod = forceProfile.updatePeriod;
+                            double dtNextForceUpdatePeriod =
                                 forceUpdatePeriod - std::fmod(t, forceUpdatePeriod);
                             if (dtNextForceUpdatePeriod < SIMULATION_MIN_TIMESTEP ||
                                 forceUpdatePeriod - dtNextForceUpdatePeriod < STEPPER_MIN_TIMESTEP)
@@ -2027,8 +2024,8 @@ namespace jiminy
             if (std::isfinite(stepperUpdatePeriod_) &&
                 engineOptions_->stepper.controllerUpdatePeriod > EPS)
             {
-                float64_t controllerUpdatePeriod = engineOptions_->stepper.controllerUpdatePeriod;
-                float64_t dtNextControllerUpdatePeriod =
+                double controllerUpdatePeriod = engineOptions_->stepper.controllerUpdatePeriod;
+                double dtNextControllerUpdatePeriod =
                     controllerUpdatePeriod - std::fmod(t, controllerUpdatePeriod);
                 if (dtNextControllerUpdatePeriod < SIMULATION_MIN_TIMESTEP ||
                     controllerUpdatePeriod - dtNextControllerUpdatePeriod < STEPPER_MIN_TIMESTEP)
@@ -2057,10 +2054,10 @@ namespace jiminy
             if (!std::isfinite(stepperUpdatePeriod_) ||
                 !engineOptions_->stepper.logInternalStepperSteps)
             {
-                bool_t mustUpdateTelemetry = !std::isfinite(stepperUpdatePeriod_);
+                bool mustUpdateTelemetry = !std::isfinite(stepperUpdatePeriod_);
                 if (!mustUpdateTelemetry)
                 {
-                    float64_t dtNextStepperUpdatePeriod =
+                    double dtNextStepperUpdatePeriod =
                         stepperUpdatePeriod_ - std::fmod(t, stepperUpdatePeriod_);
                     mustUpdateTelemetry =
                         (dtNextStepperUpdatePeriod < SIMULATION_MIN_TIMESTEP ||
@@ -2087,8 +2084,8 @@ namespace jiminy
                    - tEnd has been reached
                    - an external impulse force must be activated/deactivated
                    - the sensor measurements or the controller command must be updated. */
-                float64_t dtNextGlobal;  // dt to apply for the next stepper step
-                const float64_t dtNextUpdatePeriod =
+                double dtNextGlobal;  // dt to apply for the next stepper step
+                const double dtNextUpdatePeriod =
                     stepperUpdatePeriod_ - std::fmod(t, stepperUpdatePeriod_);
                 if (dtNextUpdatePeriod < SIMULATION_MIN_TIMESTEP)
                 {
@@ -2160,7 +2157,7 @@ namespace jiminy
                        dynamics, that require sub-microsecond precision. */
                     if (dt > SIMULATION_MIN_TIMESTEP)
                     {
-                        const float64_t dtResidual = std::fmod(dt, SIMULATION_MIN_TIMESTEP);
+                        const double dtResidual = std::fmod(dt, SIMULATION_MIN_TIMESTEP);
                         if (dtResidual > STEPPER_MIN_TIMESTEP &&
                             dtResidual < SIMULATION_MIN_TIMESTEP - STEPPER_MIN_TIMESTEP &&
                             dt - dtResidual > STEPPER_MIN_TIMESTEP)
@@ -2217,7 +2214,7 @@ namespace jiminy
                     dtLargest = dt;
 
                     // Try doing one integration step
-                    bool_t isStepSuccessful =
+                    bool isStepSuccessful =
                         stepper_->tryStep(qSplit, vSplit, aSplit, t, dtLargest);
 
                     /* Check if the integrator failed miserably even if successfully.
@@ -2258,7 +2255,7 @@ namespace jiminy
                                  one for the current (successful) step.
                                - the next estimated largest step size is significantly smaller than
                                  the estimated largest step size for the previous step. */
-                            float64_t dtRestoreThresholdAbs =
+                            double dtRestoreThresholdAbs =
                                 stepperState_.dtLargestPrev *
                                 engineOptions_->stepper.dtRestoreThresholdRel;
                             if (dt < dtLargest && dtLargest < dtRestoreThresholdAbs)
@@ -2312,7 +2309,7 @@ namespace jiminy
                 isBreakpointReached = (dtLargest > dt);
 
                 // Compute the next step using adaptive step method
-                bool_t isStepSuccessful = false;
+                bool isStepSuccessful = false;
                 while (!isStepSuccessful)
                 {
                     // Set the timestep to be tried by the stepper
@@ -2373,7 +2370,7 @@ namespace jiminy
                         // Restore the step size if necessary
                         if (isBreakpointReached)
                         {
-                            float64_t dtRestoreThresholdAbs =
+                            double dtRestoreThresholdAbs =
                                 stepperState_.dtLargestPrev *
                                 engineOptions_->stepper.dtRestoreThresholdRel;
                             if (dt < dtLargest && dtLargest < dtRestoreThresholdAbs)
@@ -2449,10 +2446,10 @@ namespace jiminy
             // Update sensors data if necessary, namely if time-continuous or breakpoint
             if (returnCode == hresult_t::SUCCESS)
             {
-                const float64_t sensorsUpdatePeriod = engineOptions_->stepper.sensorsUpdatePeriod;
-                const float64_t dtNextSensorsUpdatePeriod =
+                const double sensorsUpdatePeriod = engineOptions_->stepper.sensorsUpdatePeriod;
+                const double dtNextSensorsUpdatePeriod =
                     sensorsUpdatePeriod - std::fmod(t, sensorsUpdatePeriod);
-                bool_t mustUpdateSensors = sensorsUpdatePeriod < EPS;
+                bool mustUpdateSensors = sensorsUpdatePeriod < EPS;
                 if (!mustUpdateSensors)
                 {
                     mustUpdateSensors = dtNextSensorsUpdatePeriod < SIMULATION_MIN_TIMESTEP ||
@@ -2520,8 +2517,8 @@ namespace jiminy
 
     hresult_t EngineMultiRobot::registerForceImpulse(const std::string & systemName,
                                                      const std::string & frameName,
-                                                     float64_t t,
-                                                     float64_t dt,
+                                                     double t,
+                                                     double dt,
                                                      const pinocchio::Force & F)
     {
         // Make sure that the forces do NOT overlap while taking into account dt.
@@ -2578,7 +2575,7 @@ namespace jiminy
     }
 
     template<typename... Args>
-    std::tuple<bool_t, float64_t>
+    std::tuple<bool, double>
     isGcdIncluded(const vector_aligned_t<systemDataHolder_t> & systemsDataHolder, Args... values)
     {
         if (systemsDataHolder.empty())
@@ -2586,7 +2583,7 @@ namespace jiminy
             return isGcdIncluded(std::forward<Args>(values)...);
         }
 
-        float64_t minValue = INF;
+        double minValue = INF;
         auto lambda = [&minValue, &values...](const systemDataHolder_t & systemData)
         {
             auto [isIncluded, value] = isGcdIncluded(
@@ -2603,7 +2600,7 @@ namespace jiminy
     hresult_t EngineMultiRobot::registerForceProfile(const std::string & systemName,
                                                      const std::string & frameName,
                                                      const ForceProfileFunctor & forceFct,
-                                                     float64_t updatePeriod)
+                                                     double updatePeriod)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -2828,7 +2825,7 @@ namespace jiminy
 
         // Make sure the dtMax is not out of range
         GenericConfig stepperOptions = boost::get<GenericConfig>(engineOptions.at("stepper"));
-        const float64_t dtMax = boost::get<float64_t>(stepperOptions.at("dtMax"));
+        const double dtMax = boost::get<double>(stepperOptions.at("dtMax"));
         if (SIMULATION_MAX_TIMESTEP + EPS < dtMax || dtMax < SIMULATION_MIN_TIMESTEP)
         {
             PRINT_ERROR("'dtMax' option is out of range.");
@@ -2853,10 +2850,10 @@ namespace jiminy
         }
 
         // Make sure the controller and sensor update periods are valid
-        const float64_t sensorsUpdatePeriod =
-            boost::get<float64_t>(stepperOptions.at("sensorsUpdatePeriod"));
-        const float64_t controllerUpdatePeriod =
-            boost::get<float64_t>(stepperOptions.at("controllerUpdatePeriod"));
+        const double sensorsUpdatePeriod =
+            boost::get<double>(stepperOptions.at("sensorsUpdatePeriod"));
+        const double controllerUpdatePeriod =
+            boost::get<double>(stepperOptions.at("controllerUpdatePeriod"));
         auto [isIncluded, minUpdatePeriod] =
             isGcdIncluded(systemsDataHolder_, controllerUpdatePeriod, sensorsUpdatePeriod);
         if ((EPS < sensorsUpdatePeriod && sensorsUpdatePeriod < SIMULATION_MIN_TIMESTEP) ||
@@ -2886,7 +2883,7 @@ namespace jiminy
             PRINT_ERROR("The requested constraint solver is not available.");
             return hresult_t::ERROR_BAD_INPUT;
         }
-        float64_t regularization = boost::get<float64_t>(constraintsOptions.at("regularization"));
+        double regularization = boost::get<double>(constraintsOptions.at("regularization"));
         if (regularization < 0.0)
         {
             PRINT_ERROR("The constraints option 'regularization' must be positive.");
@@ -2902,22 +2899,19 @@ namespace jiminy
             PRINT_ERROR("The requested contact model is not available.");
             return hresult_t::ERROR_BAD_INPUT;
         }
-        float64_t contactsTransitionEps =
-            boost::get<float64_t>(contactsOptions.at("transitionEps"));
+        double contactsTransitionEps = boost::get<double>(contactsOptions.at("transitionEps"));
         if (contactsTransitionEps < 0.0)
         {
             PRINT_ERROR("The contacts option 'transitionEps' must be positive.");
             return hresult_t::ERROR_BAD_INPUT;
         }
-        float64_t transitionVelocity =
-            boost::get<float64_t>(contactsOptions.at("transitionVelocity"));
+        double transitionVelocity = boost::get<double>(contactsOptions.at("transitionVelocity"));
         if (transitionVelocity < EPS)
         {
             PRINT_ERROR("The contacts option 'transitionVelocity' must be strictly positive.");
             return hresult_t::ERROR_BAD_INPUT;
         }
-        float64_t stabilizationFreq =
-            boost::get<float64_t>(contactsOptions.at("stabilizationFreq"));
+        double stabilizationFreq = boost::get<double>(contactsOptions.at("stabilizationFreq"));
         if (stabilizationFreq < 0.0)
         {
             PRINT_ERROR("The contacts option 'stabilizationFreq' must be positive.");
@@ -3036,17 +3030,17 @@ namespace jiminy
         return stepperState_;
     }
 
-    const bool_t & EngineMultiRobot::getIsSimulationRunning() const
+    const bool & EngineMultiRobot::getIsSimulationRunning() const
     {
         return isSimulationRunning_;
     }
 
-    float64_t EngineMultiRobot::getMaxSimulationDuration()
+    double EngineMultiRobot::getMaxSimulationDuration()
     {
         return TelemetryRecorder::getMaximumLogTime(getTelemetryTimeUnit());
     }
 
-    float64_t EngineMultiRobot::getTelemetryTimeUnit()
+    double EngineMultiRobot::getTelemetryTimeUnit()
     {
         return STEPPER_MIN_TIMESTEP;
     }
@@ -3070,7 +3064,7 @@ namespace jiminy
         }
     }
 
-    void EngineMultiRobot::syncSystemsStateWithStepper(bool_t isStateUpToDate)
+    void EngineMultiRobot::syncSystemsStateWithStepper(bool isStateUpToDate)
     {
         if (isStateUpToDate)
         {
@@ -3195,7 +3189,7 @@ namespace jiminy
                between two shape objects, for instance convex geometry and box primitive. */
             const auto & contact = collisionResult.getContact(i);
             Eigen::Vector3d nGround = contact.normal.normalized();  // Ground normal in world frame
-            float64_t depth = contact.penetration_depth;  // Penetration depth (signed, negative)
+            double depth = contact.penetration_depth;  // Penetration depth (signed, negative)
             pinocchio::SE3 posContactInWorld = pinocchio::SE3::Identity();
             // TODO double check that it may be between both interfaces
             posContactInWorld.translation() = contact.pos;  //  Point inside the ground
@@ -3278,12 +3272,12 @@ namespace jiminy
         // Compute the ground normal and penetration depth at the contact point
         const Eigen::Vector3d & posFrame = transformFrameInWorld.translation();
         auto ground = engineOptions_->world.groundProfile(posFrame);
-        const float64_t zGround = std::get<float64_t>(ground);
+        const double zGround = std::get<double>(ground);
         Eigen::Vector3d & nGround = std::get<Eigen::Vector3d>(ground);
         nGround.normalize();  // Make sure the ground normal is normalized
 
         // First-order projection (exact assuming no curvature)
-        const float64_t depth = (posFrame[2] - zGround) * nGround[2];
+        const double depth = (posFrame[2] - zGround) * nGround[2];
 
         // Only compute the ground reaction force if the penetration depth is negative
         if (depth < 0.0)
@@ -3340,7 +3334,7 @@ namespace jiminy
 
     pinocchio::Force EngineMultiRobot::computeContactDynamics(
         const Eigen::Vector3d & nGround,
-        float64_t depth,
+        double depth,
         const Eigen::Vector3d & vContactInWorld) const
     {
         // Initialize the contact force
@@ -3352,25 +3346,25 @@ namespace jiminy
             const contactOptions_t & contactOptions_ = engineOptions_->contacts;
 
             // Compute the penetration speed
-            const float64_t vDepth = vContactInWorld.dot(nGround);
+            const double vDepth = vContactInWorld.dot(nGround);
 
             // Compute normal force
-            const float64_t fextNormal = -std::min(
+            const double fextNormal = -std::min(
                 contactOptions_.stiffness * depth + contactOptions_.damping * vDepth, 0.0);
             fextInWorld.noalias() = fextNormal * nGround;
 
             // Compute friction forces
             const Eigen::Vector3d vTangential = vContactInWorld - vDepth * nGround;
-            const float64_t vRatio =
+            const double vRatio =
                 std::min(vTangential.norm() / contactOptions_.transitionVelocity, 1.0);
-            const float64_t fextTangential = contactOptions_.friction * vRatio * fextNormal;
+            const double fextTangential = contactOptions_.friction * vRatio * fextNormal;
             fextInWorld.noalias() -= fextTangential * vTangential;
 
             // Add blending factor
             if (contactOptions_.transitionEps > EPS)
             {
-                const float64_t blendingFactor = -depth / contactOptions_.transitionEps;
-                const float64_t blendingLaw = std::tanh(2.0 * blendingFactor);
+                const double blendingFactor = -depth / contactOptions_.transitionEps;
+                const double blendingLaw = std::tanh(2.0 * blendingFactor);
                 fextInWorld *= blendingLaw;
             }
         }
@@ -3383,7 +3377,7 @@ namespace jiminy
     }
 
     void EngineMultiRobot::computeCommand(systemHolder_t & system,
-                                          float64_t t,
+                                          double t,
                                           const Eigen::VectorXd & q,
                                           const Eigen::VectorXd & v,
                                           Eigen::VectorXd & command)
@@ -3399,11 +3393,11 @@ namespace jiminy
     static std::enable_if_t<
         is_pinocchio_joint_revolute_v<JointModel<Scalar, Options, axis>> ||
             is_pinocchio_joint_revolute_unbounded_v<JointModel<Scalar, Options, axis>>,
-        float64_t>
+        double>
     getSubtreeInertiaProj(const JointModel<Scalar, Options, axis> & /* model */,
                           const pinocchio::Inertia & Isubtree)
     {
-        float64_t inertiaProj = Isubtree.inertia()(axis, axis);
+        double inertiaProj = Isubtree.inertia()(axis, axis);
         for (Eigen::Index i = 0; i < 3; ++i)
         {
             if (i != axis)
@@ -3417,7 +3411,7 @@ namespace jiminy
     template<typename JointModel>
     static std::enable_if_t<is_pinocchio_joint_revolute_unaligned_v<JointModel> ||
                                 is_pinocchio_joint_revolute_unbounded_unaligned_v<JointModel>,
-                            float64_t>
+                            double>
     getSubtreeInertiaProj(const JointModel & model, const pinocchio::Inertia & Isubtree)
     {
         return model.axis.dot(Isubtree.inertia() * model.axis) +
@@ -3427,7 +3421,7 @@ namespace jiminy
     template<typename JointModel>
     static std::enable_if_t<is_pinocchio_joint_prismatic_v<JointModel> ||
                                 is_pinocchio_joint_prismatic_unaligned_v<JointModel>,
-                            float64_t>
+                            double>
     getSubtreeInertiaProj(const JointModel & /* model */, const pinocchio::Inertia & Isubtree)
     {
         return Isubtree.mass();
@@ -3469,28 +3463,28 @@ namespace jiminy
             const pinocchio::JointIndex jointIdx = joint.id();
             const uint32_t positionIdx = joint.idx_q();
             const uint32_t velocityIdx = joint.idx_v();
-            const float64_t qJoint = q[positionIdx];
-            const float64_t qJointMin = positionLimitMin[positionIdx];
-            const float64_t qJointMax = positionLimitMax[positionIdx];
-            const float64_t vJoint = v[velocityIdx];
-            const float64_t Ia = getSubtreeInertiaProj(joint.derived(), pncData.Ycrb[jointIdx]);
-            const float64_t stiffness = engineOptions->joints.boundStiffness;
-            const float64_t damping = engineOptions->joints.boundDamping;
-            const float64_t transitionEps = engineOptions->contacts.transitionEps;
+            const double qJoint = q[positionIdx];
+            const double qJointMin = positionLimitMin[positionIdx];
+            const double qJointMax = positionLimitMax[positionIdx];
+            const double vJoint = v[velocityIdx];
+            const double Ia = getSubtreeInertiaProj(joint.derived(), pncData.Ycrb[jointIdx]);
+            const double stiffness = engineOptions->joints.boundStiffness;
+            const double damping = engineOptions->joints.boundDamping;
+            const double transitionEps = engineOptions->contacts.transitionEps;
 
             // Check if out-of-bounds
             if (contactModel == contactModel_t::SPRING_DAMPER)
             {
                 // Compute the acceleration to apply to move out of the bound
-                float64_t accelJoint = 0.0;
+                double accelJoint = 0.0;
                 if (qJoint > qJointMax)
                 {
-                    const float64_t qJointError = qJoint - qJointMax;
+                    const double qJointError = qJoint - qJointMax;
                     accelJoint = -std::max(stiffness * qJointError + damping * vJoint, 0.0);
                 }
                 else if (qJoint < qJointMin)
                 {
-                    const float64_t qJointError = qJoint - qJointMin;
+                    const double qJointError = qJoint - qJointMin;
                     accelJoint = -std::min(stiffness * qJointError + damping * vJoint, 0.0);
                 }
 
@@ -3505,7 +3499,7 @@ namespace jiminy
                     constraint->enable();
                     auto & jointConstraint = static_cast<JointConstraint &>(*constraint.get());
                     jointConstraint.setReferenceConfiguration(
-                        Eigen::Matrix<float64_t, 1, 1>(std::clamp(qJoint, qJointMin, qJointMax)));
+                        Eigen::Matrix<double, 1, 1>(std::clamp(qJoint, qJointMin, qJointMax)));
                     jointConstraint.setRotationDir(qJointMax < qJoint);
                 }
                 else if (qJointMin + transitionEps < qJoint && qJoint < qJointMax - transitionEps)
@@ -3597,17 +3591,17 @@ namespace jiminy
             // Define some proxies for convenience
             const pinocchio::JointIndex jointIdx = joint.id();
             const uint32_t velocityIdx = joint.idx_v();
-            const float64_t vJoint = v[velocityIdx];
-            const float64_t vJointMin = -velocityLimitMax[velocityIdx];
-            const float64_t vJointMax = velocityLimitMax[velocityIdx];
-            const float64_t Ia = getSubtreeInertiaProj(joint.derived(), pncData.Ycrb[jointIdx]);
-            const float64_t damping = engineOptions->joints.boundDamping;
+            const double vJoint = v[velocityIdx];
+            const double vJointMin = -velocityLimitMax[velocityIdx];
+            const double vJointMax = velocityLimitMax[velocityIdx];
+            const double Ia = getSubtreeInertiaProj(joint.derived(), pncData.Ycrb[jointIdx]);
+            const double damping = engineOptions->joints.boundDamping;
 
             // Check if out-of-bounds
             if (contactModel == contactModel_t::SPRING_DAMPER)
             {
                 // Compute joint velocity error
-                float64_t vJointError = 0.0;
+                double vJointError = 0.0;
                 if (vJoint > vJointMax)
                 {
                     vJointError = vJoint - vJointMax;
@@ -3622,7 +3616,7 @@ namespace jiminy
                 }
 
                 // Generate acceleration in the opposite direction if out-of-bounds
-                const float64_t accelJoint = -2.0 * damping * vJointError;
+                const double accelJoint = -2.0 * damping * vJointError;
 
                 // Apply the resulting force
                 u[velocityIdx] += Ia * accelJoint;
@@ -3652,7 +3646,7 @@ namespace jiminy
 
     void EngineMultiRobot::computeInternalDynamics(const systemHolder_t & system,
                                                    systemDataHolder_t & systemData,
-                                                   float64_t /* t */,
+                                                   double /* t */,
                                                    const Eigen::VectorXd & q,
                                                    const Eigen::VectorXd & v,
                                                    Eigen::VectorXd & uInternal) const
@@ -3699,7 +3693,7 @@ namespace jiminy
         }
 
         // Compute the flexibilities (only support JointModelType::SPHERICAL so far)
-        float64_t angle;
+        double angle;
         Eigen::Matrix3d rotJlog3;
         const Robot::dynamicsOptions_t & mdlDynOptions = system.robot->mdlOptions_->dynamics;
         const std::vector<pinocchio::JointIndex> & flexibilityIdx =
@@ -3727,7 +3721,7 @@ namespace jiminy
     void EngineMultiRobot::computeCollisionForces(const systemHolder_t & system,
                                                   systemDataHolder_t & systemData,
                                                   ForceVector & fext,
-                                                  bool_t isStateUpToDate) const
+                                                  bool isStateUpToDate) const
     {
         // Compute the forces at contact points
         const std::vector<pinocchio::FrameIndex> & contactFramesIdx =
@@ -3784,7 +3778,7 @@ namespace jiminy
 
     void EngineMultiRobot::computeExternalForces(const systemHolder_t & system,
                                                  systemDataHolder_t & systemData,
-                                                 float64_t t,
+                                                 double t,
                                                  const Eigen::VectorXd & q,
                                                  const Eigen::VectorXd & v,
                                                  ForceVector & fext)
@@ -3824,7 +3818,7 @@ namespace jiminy
         }
     }
 
-    void EngineMultiRobot::computeForcesCoupling(float64_t t,
+    void EngineMultiRobot::computeForcesCoupling(double t,
                                                  const std::vector<Eigen::VectorXd> & qSplit,
                                                  const std::vector<Eigen::VectorXd> & vSplit)
     {
@@ -3865,10 +3859,10 @@ namespace jiminy
         }
     }
 
-    void EngineMultiRobot::computeAllTerms(float64_t t,
+    void EngineMultiRobot::computeAllTerms(double t,
                                            const std::vector<Eigen::VectorXd> & qSplit,
                                            const std::vector<Eigen::VectorXd> & vSplit,
-                                           bool_t isStateUpToDate)
+                                           bool isStateUpToDate)
     {
         // Reinitialize the external forces and internal efforts
         for (auto & systemData : systemsDataHolder_)
@@ -3913,11 +3907,11 @@ namespace jiminy
         }
     }
 
-    hresult_t EngineMultiRobot::computeSystemsDynamics(float64_t t,
+    hresult_t EngineMultiRobot::computeSystemsDynamics(double t,
                                                        const std::vector<Eigen::VectorXd> & qSplit,
                                                        const std::vector<Eigen::VectorXd> & vSplit,
                                                        std::vector<Eigen::VectorXd> & aSplit,
-                                                       bool_t isStateUpToDate)
+                                                       bool isStateUpToDate)
     {
         /* Note that the position of the free flyer is in world frame, whereas the velocities and
            accelerations are relative to the parent body frame. */
@@ -4042,8 +4036,8 @@ namespace jiminy
                                                                   const Eigen::VectorXd & v,
                                                                   const Eigen::VectorXd & u,
                                                                   ForceVector & fext,
-                                                                  bool_t isStateUpToDate,
-                                                                  bool_t ignoreBounds)
+                                                                  bool isStateUpToDate,
+                                                                  bool ignoreBounds)
     {
         const pinocchio::Model & model = system.robot->pncModel_;
         pinocchio::Data & data = system.robot->pncData_;
@@ -4078,7 +4072,7 @@ namespace jiminy
             }
 
             // Call forward dynamics
-            bool_t isSucess = systemData.constraintSolver->SolveBoxedForwardDynamics(
+            bool isSucess = systemData.constraintSolver->SolveBoxedForwardDynamics(
                 engineOptions_->constraints.regularization, isStateUpToDate, ignoreBounds);
 
             /* Monitor number of successive constraint solving failure. Exception raising is
@@ -4306,14 +4300,14 @@ namespace jiminy
         logData.integerValues.resize(numInt, numData);
         logData.floatValues.resize(numFloat, numData);
         Eigen::Matrix<int64_t, Eigen::Dynamic, 1> intVector(numData);
-        Eigen::Matrix<float64_t, Eigen::Dynamic, 1> floatVector(numData);
+        Eigen::Matrix<double, Eigen::Dynamic, 1> floatVector(numData);
         logData.variableNames.reserve(1 + numInt + numFloat);
         logData.variableNames.emplace_back(GLOBAL_TIME);
 
         // Read all variables while preserving ordering
         using opDataT = std::tuple<LogData &,
                                    Eigen::Matrix<int64_t, Eigen::Dynamic, 1> &,
-                                   Eigen::Matrix<float64_t, Eigen::Dynamic, 1> &>;
+                                   Eigen::Matrix<double, Eigen::Dynamic, 1> &>;
         opDataT opData{logData, intVector, floatVector};
         H5Literate(
             variablesGroup.getId(),
@@ -4429,7 +4423,7 @@ namespace jiminy
 
         // Temporary contiguous storage for variables
         Eigen::Matrix<int64_t, Eigen::Dynamic, 1> intVector;
-        Eigen::Matrix<float64_t, Eigen::Dynamic, 1> floatVector;
+        Eigen::Matrix<double, Eigen::Dynamic, 1> floatVector;
 
         // Get the number of integer and float variables
         const Eigen::Index numInt = logData->integerValues.rows();

@@ -17,10 +17,10 @@ namespace jiminy
 
     protected:
         /// \brief Internal tryStep method wrapping the arguments as state_t and stateDerivative_t.
-        bool_t tryStepImpl(state_t & state,
-                           stateDerivative_t & stateDerivative,
-                           float64_t t,
-                           float64_t & dt) final override;
+        bool tryStepImpl(state_t & state,
+                         stateDerivative_t & stateDerivative,
+                         double t,
+                         double & dt) final override;
     };
 }
 

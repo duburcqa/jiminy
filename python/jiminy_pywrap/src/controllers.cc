@@ -1,4 +1,3 @@
-#include "jiminy/core/exceptions.h"
 #include "jiminy/core/hardware/abstract_sensor.h"
 #include "jiminy/core/control/abstract_controller.h"
 #include "jiminy/core/control/controller_functor.h"
@@ -27,7 +26,7 @@ namespace jiminy::python
         public bp::wrapper<AbstractControllerImpl>
     {
     public:
-        hresult_t reset(bool_t resetDynamicTelemetry)
+        hresult_t reset(bool resetDynamicTelemetry)
         {
             bp::override func = this->get_override("reset");
             if (func)
@@ -38,12 +37,12 @@ namespace jiminy::python
             return AbstractController::reset(resetDynamicTelemetry);
         }
 
-        hresult_t default_reset(bool_t resetDynamicTelemetry)
+        hresult_t default_reset(bool resetDynamicTelemetry)
         {
             return this->AbstractController::reset(resetDynamicTelemetry);
         }
 
-        hresult_t computeCommand(float64_t t,
+        hresult_t computeCommand(double t,
                                  const Eigen::VectorXd & q,
                                  const Eigen::VectorXd & v,
                                  Eigen::VectorXd & command)
@@ -59,7 +58,7 @@ namespace jiminy::python
             return hresult_t::SUCCESS;
         }
 
-        hresult_t internalDynamics(float64_t t,
+        hresult_t internalDynamics(double t,
                                    const Eigen::VectorXd & q,
                                    const Eigen::VectorXd & v,
                                    Eigen::VectorXd & uCustom)
@@ -129,7 +128,7 @@ namespace jiminy::python
                 {
                     if (PyArray_TYPE(dataPyArray) == NPY_FLOAT64)
                     {
-                        auto data = static_cast<float64_t *>(PyArray_DATA(dataPyArray));
+                        auto data = static_cast<double *>(PyArray_DATA(dataPyArray));
                         return self.registerVariable(fieldname, *data);
                     }
                     if (PyArray_TYPE(dataPyArray) == NPY_INT64)
@@ -192,8 +191,8 @@ namespace jiminy::python
                     convertFromPython<std::vector<std::vector<std::string>>>(fieldnamesPy);
 
                 // Check fieldnames and array have same shape
-                bool_t are_fieldnames_valid = static_cast<std::size_t>(data.rows()) ==
-                                              fieldnames.size();
+                bool are_fieldnames_valid = static_cast<std::size_t>(data.rows()) ==
+                                            fieldnames.size();
                 for (const std::vector<std::string> & subfieldnames : fieldnames)
                 {
                     if (static_cast<std::size_t>(data.cols()) != subfieldnames.size())
@@ -323,7 +322,7 @@ namespace jiminy::python
     class CtrlFunctorWrapper : public CtrlFunctorImpl, public bp::wrapper<CtrlFunctorImpl>
     {
     public:
-        hresult_t reset(bool_t resetDynamicTelemetry)
+        hresult_t reset(bool resetDynamicTelemetry)
         {
             bp::override func = this->get_override("reset");
             if (func)
@@ -334,7 +333,7 @@ namespace jiminy::python
             return CtrlFunctor::reset(resetDynamicTelemetry);
         }
 
-        hresult_t default_reset(bool_t resetDynamicTelemetry)
+        hresult_t default_reset(bool resetDynamicTelemetry)
         {
             return this->CtrlFunctor::reset(resetDynamicTelemetry);
         }
@@ -367,7 +366,7 @@ namespace jiminy::python
             }
             else
             {
-                commandFct = [](float64_t /* t */,
+                commandFct = [](double /* t */,
                                 const Eigen::VectorXd & /* q */,
                                 const Eigen::VectorXd & /* v */,
                                 const SensorsDataMap & /* sensorsData */,
@@ -381,7 +380,7 @@ namespace jiminy::python
             }
             else
             {
-                internalDynamicsFct = [](float64_t /* t */,
+                internalDynamicsFct = [](double /* t */,
                                          const Eigen::VectorXd & /* q */,
                                          const Eigen::VectorXd & /* v */,
                                          const SensorsDataMap & /* sensorsData */,

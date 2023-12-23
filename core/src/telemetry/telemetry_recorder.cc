@@ -3,8 +3,6 @@
 #include <iomanip>
 #include <fstream>
 
-#include "jiminy/core/constants.h"
-#include "jiminy/core/exceptions.h"
 #include "jiminy/core/io/file_device.h"
 #include "jiminy/core/telemetry/telemetry_data.h"
 
@@ -23,7 +21,7 @@ namespace jiminy
         }
     }
 
-    hresult_t TelemetryRecorder::initialize(TelemetryData * telemetryData, float64_t timeUnit)
+    hresult_t TelemetryRecorder::initialize(TelemetryData * telemetryData, double timeUnit)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -40,7 +38,7 @@ namespace jiminy
         // FIXME: remove explicit conversion to `std::string` when moving to C++20
         telemetryData->registerConstant(std::string{TIME_UNIT}, timeUnitStr.str());
 
-        std::vector<char_t> header;
+        std::vector<char> header;
         if (returnCode == hresult_t::SUCCESS)
         {
             // Clear the MemoryDevice buffer
@@ -49,8 +47,8 @@ namespace jiminy
             // Get telemetry data infos
             integersRegistry_ = telemetryData->getRegistry<int64_t>();
             integerSectionSize_ = sizeof(int64_t) * integersRegistry_->size();
-            floatsRegistry_ = telemetryData->getRegistry<float64_t>();
-            floatSectionSize_ = sizeof(float64_t) * floatsRegistry_->size();
+            floatsRegistry_ = telemetryData->getRegistry<double>();
+            floatSectionSize_ = sizeof(double) * floatsRegistry_->size();
             recordedBytesDataLine_ =
                 integerSectionSize_ + floatSectionSize_ +
                 static_cast<int64_t>(START_LINE_TOKEN.size() +
@@ -79,17 +77,17 @@ namespace jiminy
         return returnCode;
     }
 
-    float64_t TelemetryRecorder::getMaximumLogTime(float64_t timeUnit)
+    double TelemetryRecorder::getMaximumLogTime(double timeUnit)
     {
-        return static_cast<float64_t>(std::numeric_limits<int64_t>::max()) * timeUnit;
+        return static_cast<double>(std::numeric_limits<int64_t>::max()) * timeUnit;
     }
 
-    float64_t TelemetryRecorder::getMaximumLogTime() const
+    double TelemetryRecorder::getMaximumLogTime() const
     {
         return getMaximumLogTime(1.0 / timeUnitInv_);
     }
 
-    bool_t TelemetryRecorder::getIsInitialized()
+    bool TelemetryRecorder::getIsInitialized()
     {
         return isInitialized_;
     }
@@ -136,7 +134,7 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t TelemetryRecorder::flushDataSnapshot(float64_t timestamp)
+    hresult_t TelemetryRecorder::flushDataSnapshot(double timestamp)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -160,7 +158,7 @@ namespace jiminy
             }
 
             // Write data, floats last
-            for (const std::pair<std::string, float64_t> & keyValue : *floatsRegistry_)
+            for (const std::pair<std::string, double> & keyValue : *floatsRegistry_)
             {
                 flows_.back().write(keyValue.second);
             }
@@ -214,8 +212,7 @@ namespace jiminy
         // Set data structure
         const Eigen::Index numInt =
             static_cast<Eigen::Index>(integerSectionSize / sizeof(int64_t));
-        const Eigen::Index numFloat =
-            static_cast<Eigen::Index>(floatSectionSize / sizeof(float64_t));
+        const Eigen::Index numFloat = static_cast<Eigen::Index>(floatSectionSize / sizeof(double));
         logData.integerValues.resize(numInt, 0);
         logData.floatValues.resize(numFloat, 0);
 
@@ -223,7 +220,7 @@ namespace jiminy
         Eigen::Index timeIdx = 0;
         if (!flows.empty())
         {
-            bool_t isReadingHeaderDone = false;
+            bool isReadingHeaderDone = false;
             for (auto & flow : flows)
             {
                 // Save the cursor position and move it to the beginning
@@ -245,12 +242,12 @@ namespace jiminy
                     logData.version = version;
 
                     // Read the rest of the header
-                    std::vector<char_t> headerCharBuffer;
+                    std::vector<char> headerCharBuffer;
                     headerCharBuffer.resize(static_cast<std::size_t>(headerSize - flow->pos()));
                     flow->read(headerCharBuffer);
 
                     // Parse constants
-                    bool_t isLastConstant = false;
+                    bool isLastConstant = false;
                     auto posHeaderIt = headerCharBuffer.begin();
                     posHeaderIt +=
                         START_CONSTANTS.size() + 1 + START_LINE_TOKEN.size();  // Skip tokens
@@ -292,7 +289,7 @@ namespace jiminy
                     }
 
                     // Parse variable names
-                    const char_t * pHeader = &(*posHeaderIt);
+                    const char * pHeader = &(*posHeaderIt);
                     std::size_t posHeader = 0;
                     while (true)
                     {
@@ -310,7 +307,7 @@ namespace jiminy
                 }
 
                 // Look for timeUnit constant - if not found, use default time unit
-                float64_t timeUnit = STEPPER_MIN_TIMESTEP;
+                double timeUnit = STEPPER_MIN_TIMESTEP;
                 for (const auto & [key, value] : logData.constants)
                 {
                     if (key == TIME_UNIT)
@@ -333,7 +330,7 @@ namespace jiminy
                 logData.floatValues.conservativeResize(Eigen::NoChange, numData);
 
                 // Read all available data lines: [token, time, integers, floats]
-                char_t startLineTokenBuffer;
+                char startLineTokenBuffer;
                 while (flow->bytesAvailable() > 0)
                 {
                     /* Check if actual data are still available.
@@ -433,7 +430,7 @@ namespace jiminy
 
             // Deduce the parameters required to parse the whole binary log file
             integerSectionSize = (NumIntEntries - 1) * sizeof(int64_t);  // Remove Global.Time
-            floatSectionSize = NumFloatEntries * sizeof(float64_t);
+            floatSectionSize = NumFloatEntries * sizeof(double);
             headerSize = static_cast<int64_t>(file.tellg());  // Last '\0' is included
 
             // Close the file
