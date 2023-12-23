@@ -10,7 +10,8 @@ namespace jiminy
 {
     // ************ Random number generator utilities ***************
 
-    void JIMINY_DLLAPI resetRandomGenerators(const std::optional<uint32_t> & seed = std::nullopt);
+    void JIMINY_DLLAPI resetRandomGenerators(
+        const std::optional<uint32_t> & seed = std::nullopt) noexcept;
 
     hresult_t JIMINY_DLLAPI getRandomSeed(uint32_t & seed);
 
@@ -37,7 +38,7 @@ namespace jiminy
         DISABLE_COPY(PeriodicGaussianProcess)
 
     public:
-        PeriodicGaussianProcess(double wavelength, double period, double scale = 1.0);
+        PeriodicGaussianProcess(double wavelength, double period, double scale = 1.0) noexcept;
 
         ~PeriodicGaussianProcess() = default;
 

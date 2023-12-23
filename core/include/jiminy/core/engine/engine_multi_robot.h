@@ -327,7 +327,7 @@ namespace jiminy
         DISABLE_COPY(EngineMultiRobot)
 
     public:
-        EngineMultiRobot();
+        explicit EngineMultiRobot();
         virtual ~EngineMultiRobot();
 
         hresult_t addSystem(const std::string & systemName,

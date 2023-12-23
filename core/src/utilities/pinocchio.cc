@@ -147,7 +147,7 @@ namespace jiminy
         }
     };
 
-    JointModelType getJointType(const pinocchio::JointModel & jointModel)
+    JointModelType getJointType(const pinocchio::JointModel & jointModel) noexcept
     {
         JointModelType jointTypeOut{JointModelType::UNSUPPORTED};
         getJointTypeAlgo::run(jointModel, typename getJointTypeAlgo::ArgsType(jointTypeOut));

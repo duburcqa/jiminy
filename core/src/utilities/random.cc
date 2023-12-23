@@ -24,7 +24,7 @@ namespace jiminy
     float fn[128];
     float wn[128];
 
-    void r4_nor_setup()
+    void r4_nor_setup() noexcept
     {
         const double m1 = 2147483648.0;
         const double vn = 9.91256303526217e-03;
@@ -116,7 +116,7 @@ namespace jiminy
         }
     }
 
-    void resetRandomGenerators(const std::optional<uint32_t> & seed)
+    void resetRandomGenerators(const std::optional<uint32_t> & seed) noexcept
     {
         uint32_t newSeed = seed.value_or(seed_);
         srand(newSeed);  // Eigen relies on srand for generating random numbers
@@ -195,12 +195,12 @@ namespace jiminy
     // domain. The author hereby disclaims copyright to this source code:
     // https://github.com/aappleby/smhasher/blob/master/src/MurmurHash3.cpp
 
-    inline uint32_t rotl32(uint32_t x, int8_t r)
+    inline uint32_t rotl32(uint32_t x, int8_t r) noexcept
     {
         return (x << r) | (x >> (32 - r));
     }
 
-    uint32_t MurmurHash3(const void * key, int32_t len, uint32_t seed)
+    uint32_t MurmurHash3(const void * key, int32_t len, uint32_t seed) noexcept
     {
         // Define some internal constants
         const uint32_t c1 = 0xcc9e2d51;
@@ -314,7 +314,7 @@ namespace jiminy
     }
 
     PeriodicGaussianProcess::PeriodicGaussianProcess(
-        double wavelength, double period, double scale) :
+        double wavelength, double period, double scale) noexcept :
     wavelength_{wavelength},
     period_{period},
     scale_{scale},

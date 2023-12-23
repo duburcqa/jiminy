@@ -20,12 +20,12 @@ namespace jiminy
         *isLocked_ = false;
     }
 
-    bool MutexLocal::isLocked() const
+    bool MutexLocal::isLocked() const noexcept
     {
         return *isLocked_;
     }
 
-    LockGuardLocal::LockGuardLocal(MutexLocal & mutexLocal) :
+    LockGuardLocal::LockGuardLocal(MutexLocal & mutexLocal) noexcept :
     mutexFlag_{mutexLocal.isLocked_}
     {
         *mutexFlag_ = true;
@@ -38,18 +38,18 @@ namespace jiminy
 
     // ************************* Timer **************************
 
-    Timer::Timer()
+    Timer::Timer() noexcept
     {
         tic();
     }
 
-    void Timer::tic()
+    void Timer::tic() noexcept
     {
         t0 = Time::now();
         dt = 0.0;
     }
 
-    void Timer::toc()
+    void Timer::toc() noexcept
     {
         tf = Time::now();
         std::chrono::duration<double> timeDiff = tf - t0;

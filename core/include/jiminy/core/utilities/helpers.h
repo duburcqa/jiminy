@@ -29,7 +29,7 @@ namespace jiminy
 
         ~MutexLocal();
 
-        bool isLocked() const;
+        bool isLocked() const noexcept;
 
     private:
         std::shared_ptr<bool> isLocked_{std::make_shared<bool>()};
@@ -41,7 +41,7 @@ namespace jiminy
         DISABLE_COPY(LockGuardLocal)
 
     public:
-        LockGuardLocal(MutexLocal & mutexLocal);
+        LockGuardLocal(MutexLocal & mutexLocal) noexcept;
         LockGuardLocal(LockGuardLocal && other) = default;
 
         ~LockGuardLocal();
@@ -57,9 +57,9 @@ namespace jiminy
         using Time = std::chrono::high_resolution_clock;
 
     public:
-        Timer();
-        void tic();
-        void toc();
+        explicit Timer() noexcept;
+        void tic() noexcept;
+        void toc() noexcept;
 
     public:
         std::chrono::time_point<Time> t0{};

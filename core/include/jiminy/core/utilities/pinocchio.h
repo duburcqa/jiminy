@@ -10,7 +10,7 @@
 
 namespace jiminy
 {
-    JointModelType getJointType(const pinocchio::JointModel & jointModel);
+    JointModelType getJointType(const pinocchio::JointModel & jointModel) noexcept;
 
     hresult_t getJointTypeFromIdx(
         const pinocchio::Model & model, pinocchio::JointIndex idIn, JointModelType & jointTypeOut);
