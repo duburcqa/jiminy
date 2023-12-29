@@ -49,10 +49,10 @@ namespace jiminy
         /// \param[in] robots Robots whose dynamics the stepper will work on.
         /// \param[in] tolRel Relative tolerance used to assess step success and timestep update.
         /// \param[in] tolAbs Absolute tolerance used to assess step success and timestep update.
-        RungeKuttaDOPRIStepper(const systemDynamics & f,
-                               const std::vector<const Robot *> & robots,
-                               double tolRel,
-                               double tolAbs);
+        explicit RungeKuttaDOPRIStepper(const systemDynamics & f,
+                                        const std::vector<const Robot *> & robots,
+                                        double tolRel,
+                                        double tolAbs) noexcept;
 
     protected:
         /// \brief Determine if step has succeeded or failed, and adjust dt.

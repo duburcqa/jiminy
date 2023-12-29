@@ -15,12 +15,12 @@ namespace jiminy
     public:
         /// \param[in] f Dynamics function, with signature `a = f(t, q, v)`.
         /// \param[in] robots Robots whose dynamics the stepper will work on.
-        AbstractRungeKuttaStepper(const systemDynamics & f,
-                                  const std::vector<const Robot *> & robots,
-                                  const Eigen::MatrixXd & RungeKuttaMatrix,
-                                  const Eigen::VectorXd & bWeights,
-                                  const Eigen::VectorXd & cNodes,
-                                  bool isFSAL);
+        explicit AbstractRungeKuttaStepper(const systemDynamics & f,
+                                           const std::vector<const Robot *> & robots,
+                                           const Eigen::MatrixXd & RungeKuttaMatrix,
+                                           const Eigen::VectorXd & bWeights,
+                                           const Eigen::VectorXd & cNodes,
+                                           bool isFSAL) noexcept;
         virtual ~AbstractRungeKuttaStepper() = default;
 
     protected:

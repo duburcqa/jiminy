@@ -8,21 +8,6 @@
 
 namespace jiminy
 {
-    /// \brief Version of the telemetry format.
-    inline constexpr int32_t TELEMETRY_VERSION{1};
-    /// \brief Number of integers in the data section.
-    inline constexpr std::string_view NUM_INTS{"NumIntEntries"};
-    /// \brief Number of floats in the data section.
-    inline constexpr std::string_view NUM_FLOATS{"NumFloatEntries"};
-    /// \brief Marker of the beginning the constants section.
-    inline constexpr std::string_view START_CONSTANTS{"StartConstants"};
-    /// \brief Marker of the beginning the columns section.
-    inline constexpr std::string_view START_COLUMNS{"StartColumns"};
-    /// \brief Marker of the beginning of a line of data.
-    inline constexpr std::string_view START_LINE_TOKEN{"StartLine"};
-    /// \brief Marker of the beginning of the data section.
-    inline constexpr std::string_view START_DATA{"StartData"};
-
     /// \brief This class manages the data structures of the telemetry.
     class JIMINY_DLLAPI TelemetryData
     {
@@ -30,11 +15,10 @@ namespace jiminy
         DISABLE_COPY(TelemetryData)
 
     public:
-        TelemetryData();
-        ~TelemetryData() = default;
+        explicit TelemetryData() = default;
 
         /// \brief Reset the telemetry before starting to use the telemetry.
-        void reset();
+        void reset() noexcept;
 
         /// \brief Register a new variable in for telemetry.
         ///
@@ -69,13 +53,13 @@ namespace jiminy
         // Must use dequeue to preserve pointer addresses after resize
 
         /// \brief Memory to handle constants.
-        std::deque<std::pair<std::string, std::string>> constantsRegistry_;
+        std::deque<std::pair<std::string, std::string>> constantsRegistry_{};
         /// \brief Memory to handle integers.
-        std::deque<std::pair<std::string, int64_t>> integersRegistry_;
+        std::deque<std::pair<std::string, int64_t>> integersRegistry_{};
         /// \brief Memory to handle floats.
-        std::deque<std::pair<std::string, double>> floatsRegistry_;
+        std::deque<std::pair<std::string, double>> floatsRegistry_{};
         /// \brief Whether registering is available.
-        bool isRegisteringAvailable_;
+        bool isRegisteringAvailable_{true};
     };
 }
 

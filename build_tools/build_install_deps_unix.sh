@@ -32,6 +32,8 @@ if [ -z ${CMAKE_CXX_COMPILER} ]; then
 fi
 
 ### Set common CMAKE_C/CXX_FLAGS
+#   '_LIBCPP_ENABLE_CXX17_REMOVED_UNARY_BINARY_FUNCTION' flag is required to compile `boost::container_hash::hash`
+#   with C++17 enabled from "old" releases of Boost.
 CMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -D_LIBCPP_ENABLE_CXX17_REMOVED_UNARY_BINARY_FUNCTION -Wno-deprecated-declarations"
 if [ "${BUILD_TYPE}" == "Release" ]; then
   CMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -DNDEBUG -O3"
@@ -79,7 +81,7 @@ unset Boost_ROOT
 #   - Boost.Python == 1.75 fixes support of PyPy
 #   - Boost.Python == 1.76 fixes error handling at import
 #   - Boost >= 1.75 is required to compile ouf-of-the-box on MacOS for intel and Apple Silicon
-#   - Boost < 1.77 causes compilation failure with gcc-12.
+#   - Boost < 1.77 causes compilation failure with gcc-12 if not patched
 #   - Boost >= 1.77 affects the memory layout to improve alignment, breaking retro-compatibility
 if [ ! -d "${RootDir}/boost" ]; then
   git clone --depth 1 https://github.com/boostorg/boost.git "${RootDir}/boost"

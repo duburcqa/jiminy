@@ -2,6 +2,7 @@
 #define JIMINY_ROBOT_H
 
 #include "jiminy/core/fwd.h"
+#include "jiminy/core/hardware/fwd.h"
 #include "jiminy/core/utilities/helpers.h"
 #include "jiminy/core/robot/model.h"
 
@@ -29,7 +30,7 @@ namespace jiminy
         DISABLE_COPY(Robot)
 
     public:
-        Robot();
+        explicit Robot() noexcept;
         virtual ~Robot();
 
         auto shared_from_this() { return shared_from(this); }
@@ -81,7 +82,7 @@ namespace jiminy
                                                         const std::string & sensorName) const;
 
         hresult_t setOptions(const GenericConfig & robotOptions);
-        GenericConfig getOptions() const;
+        GenericConfig getOptions() const noexcept;
         hresult_t setMotorOptions(const std::string & motorName,
                                   const GenericConfig & motorOptions);
         hresult_t setMotorsOptions(const GenericConfig & motorsOptions);
@@ -118,8 +119,8 @@ namespace jiminy
 
         const std::vector<std::string> & getMotorsNames() const;
         std::vector<pinocchio::JointIndex> getMotorsModelIdx() const;
-        std::vector<std::vector<int32_t>> getMotorsPositionIdx() const;
-        std::vector<int32_t> getMotorsVelocityIdx() const;
+        std::vector<std::vector<Eigen::Index>> getMotorsPositionIdx() const;
+        std::vector<Eigen::Index> getMotorsVelocityIdx() const;
         const std::unordered_map<std::string, std::vector<std::string>> & getSensorsNames() const;
         const std::vector<std::string> & getSensorsNames(const std::string & sensorType) const;
 
@@ -140,26 +141,26 @@ namespace jiminy
         virtual hresult_t refreshProxies() override;
 
     protected:
-        bool isTelemetryConfigured_;
-        std::shared_ptr<TelemetryData> telemetryData_;
-        motorsHolder_t motorsHolder_;
-        sensorsGroupHolder_t sensorsGroupHolder_;
-        std::unordered_map<std::string, bool> sensorTelemetryOptions_;
+        bool isTelemetryConfigured_{false};
+        std::shared_ptr<TelemetryData> telemetryData_{nullptr};
+        motorsHolder_t motorsHolder_{};
+        sensorsGroupHolder_t sensorsGroupHolder_{};
+        std::unordered_map<std::string, bool> sensorTelemetryOptions_{};
         /// \brief Name of the motors.
-        std::vector<std::string> motorsNames_;
+        std::vector<std::string> motorsNames_{};
         /// \brief Name of the sensors.
-        std::unordered_map<std::string, std::vector<std::string>> sensorsNames_;
+        std::unordered_map<std::string, std::vector<std::string>> sensorsNames_{};
         /// \brief Fieldnames of the command.
-        std::vector<std::string> logFieldnamesCommand_;
+        std::vector<std::string> logFieldnamesCommand_{};
         /// \brief Fieldnames of the motors effort.
-        std::vector<std::string> logFieldnamesMotorEffort_;
+        std::vector<std::string> logFieldnamesMotorEffort_{};
         /// \brief The number of motors.
-        uint64_t nmotors_;
+        uint64_t nmotors_{0U};
 
     private:
-        std::unique_ptr<MutexLocal> mutexLocal_;
+        std::unique_ptr<MutexLocal> mutexLocal_{std::make_unique<MutexLocal>()};
         std::shared_ptr<MotorSharedDataHolder_t> motorsSharedHolder_;
-        sensorsSharedHolder_t sensorsSharedHolder_;
+        sensorsSharedHolder_t sensorsSharedHolder_{};
     };
 }
 

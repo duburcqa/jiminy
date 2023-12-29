@@ -7,7 +7,7 @@
 #    include <stdio.h>
 #endif
 
-#include "jiminy/core/telemetry/telemetry_recorder.h"  // `LogData`
+#include "jiminy/core/telemetry/fwd.h"  // `LogData`
 #include "jiminy/core/utilities/helpers.h"
 
 

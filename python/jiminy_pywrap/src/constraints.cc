@@ -160,7 +160,7 @@ namespace jiminy::python
                                               &JointConstraint::getJointName,
                                               bp::return_value_policy<bp::return_by_value>())
                 .ADD_PROPERTY_GET_WITH_POLICY("joint_idx",
-                                              &JointConstraint::getJointIdx,
+                                              &JointConstraint::getJointModelIdx,
                                               bp::return_value_policy<bp::return_by_value>())
                 .ADD_PROPERTY_GET_SET_WITH_POLICY("reference_configuration",
                                                   &JointConstraint::getReferenceConfiguration,

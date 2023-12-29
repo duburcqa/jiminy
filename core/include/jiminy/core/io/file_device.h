@@ -13,17 +13,14 @@ namespace jiminy
     class JIMINY_DLLAPI FileDevice : public AbstractIODevice
     {
     public:
-        FileDevice(const std::string & filename);
+        explicit FileDevice(const std::string & filename) noexcept;
         virtual ~FileDevice();
 
-        int64_t size() override;
-        hresult_t resize(int64_t sizeIn) override;
-        hresult_t seek(int64_t pos) override;
-        int64_t pos() override;
-        int64_t bytesAvailable() override;
-
-        int64_t readData(void * data, int64_t dataSize) override;
-        int64_t writeData(const void * data, int64_t dataSize) override;
+        std::size_t size() override;
+        hresult_t seek(std::ptrdiff_t pos) override;
+        std::ptrdiff_t pos() override;
+        hresult_t resize(std::size_t size) override;
+        std::size_t bytesAvailable() override;
 
         const std::string & name() const;
 
@@ -31,9 +28,13 @@ namespace jiminy
         hresult_t doOpen(openMode_t mode) override;
         hresult_t doClose() override;
 
+        std::ptrdiff_t readData(void * data, std::size_t dataSize) override;
+        std::ptrdiff_t writeData(const void * data, std::size_t dataSize) override;
+
+    protected:
         std::string filename_;
         /// \brief File descriptor.
-        int32_t fileDescriptor_;
+        int32_t fileDescriptor_{-1};
     };
 }
 

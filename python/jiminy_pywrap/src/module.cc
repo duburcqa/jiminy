@@ -5,7 +5,6 @@
 #include "pinocchio/spatial/force.hpp"  // `Pinocchio::Force`
 
 #include "jiminy/core/utilities/random.h"
-#include "jiminy/core/traits.h"
 
 /* Eigenpy must be imported first, since it sets pre-processor definitions used by Boost Python
    to configure Python C API. */

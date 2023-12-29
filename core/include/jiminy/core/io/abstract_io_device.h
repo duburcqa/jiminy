@@ -34,10 +34,12 @@ namespace jiminy
         NEW_ONLY = 0x040,
         /// \brief Do not create the device if it does not exists.
         EXISTING_ONLY = 0x080,
+#ifndef _WIN32
         /// \brief Open the device in non blocking mode.
         NON_BLOCKING = 0x100,
         /// \brief Open the device in sync mode (ensure that write are finished at return).
         SYNC = 0x200,
+#endif
     };
 
     // Facility operators to avoid cast.
@@ -52,7 +54,8 @@ namespace jiminy
     class JIMINY_DLLAPI AbstractIODevice
     {
     public:
-        AbstractIODevice();
+        explicit AbstractIODevice(openMode_t supportedModes) noexcept;
+        explicit AbstractIODevice(AbstractIODevice &&) = default;
         virtual ~AbstractIODevice() = default;
 
         /// \brief Open the device.
@@ -95,24 +98,24 @@ namespace jiminy
         ///
         /// \details For random-access devices, this function returns the size of the device.
         ///          For sequential devices, bytesAvailable() is returned.
-        virtual int64_t size();
+        virtual std::size_t size();
 
         /// \brief Move the current position cursor to pos if possible.
         ///
         /// \param pos Desired new position of the cursor.
         ///
         /// \return hresult_t::SUCCESS if successful, another hresult_t value otherwise.
-        virtual hresult_t seek(int64_t pos);
+        virtual hresult_t seek(std::ptrdiff_t pos);
 
         /// \brief The current cursor position (0 if there is not concept of position cursor).
-        virtual int64_t pos();
+        virtual std::ptrdiff_t pos();
 
         /// \brief Resize the device to provided size.
-        virtual hresult_t resize(int64_t size);
+        virtual hresult_t resize(std::size_t size);
 
         /// \brief Returns the number of bytes that are available for reading. Commonly used with
         ///        sequential device.
-        virtual int64_t bytesAvailable();
+        virtual std::size_t bytesAvailable();
 
         /// \brief Write data in the device.
         ///
@@ -123,23 +126,17 @@ namespace jiminy
         ///
         /// \return hresult_t::SUCCESS if successful, another hresult_t value otherwise.
         template<typename T>
-        hresult_t write(const T & valueIn);
+        std::enable_if_t<!is_contiguous_container_v<T> && std::is_trivially_copyable_v<T>,
+                         hresult_t>
+        write(const T & value);
 
-        /// \brief Write data in the device.
-        ///
-        /// \param data Buffer of data to write.
-        /// \param dataSize Number of bytes to write.
-        ///
-        /// \return hresult_t::SUCCESS if successful, another hresult_t value otherwise.
-        virtual hresult_t write(const void * data, int64_t dataSize);
+        template<typename T>
+        std::enable_if_t<is_contiguous_container_v<T>, hresult_t> write(const T & value);
 
-        /// \brief Write data in the device.
-        ///
-        /// \param data Buffer of data to write.
-        /// \param dataSize Number of bytes to write.
-        ///
-        /// \return the number of bytes written, -1 in case of error.
-        virtual int64_t writeData(const void * data, int64_t dataSize) = 0;
+        template<typename T>
+        std::enable_if_t<!is_contiguous_container_v<T> && !std::is_trivially_copyable_v<T>,
+                         hresult_t>
+        write(const T & value) = delete;
 
         /// \brief Read data in the device.
         ///
@@ -150,7 +147,43 @@ namespace jiminy
         ///
         /// \return hresult_t::SUCCESS if successful, another hresult_t value otherwise.
         template<typename T>
-        hresult_t read(T & valueIn);
+        std::enable_if_t<!is_contiguous_container_v<remove_cvref_t<T>> &&
+                             std::is_trivially_copyable_v<remove_cvref_t<T>>,
+                         hresult_t>
+        read(T && value);
+
+        template<typename T>
+        std::enable_if_t<is_contiguous_container_v<remove_cvref_t<T>>, hresult_t> read(T && value);
+
+        template<typename T>
+        std::enable_if_t<!is_contiguous_container_v<remove_cvref_t<T>> &&
+                             !std::is_trivially_copyable_v<remove_cvref_t<T>>,
+                         hresult_t>
+        read(T && value) = delete;
+
+        /// \brief Retrieve the latest error. Useful for calls that do not return an error code
+        ///        directly.
+        hresult_t getLastError() const;
+
+    protected:
+        virtual hresult_t doOpen(openMode_t mode) = 0;
+        virtual hresult_t doClose() = 0;
+
+        /// \brief Write data in the device.
+        ///
+        /// \param data Buffer of data to write.
+        /// \param dataSize Number of bytes to write.
+        ///
+        /// \return the number of bytes written, -1 in case of error.
+        virtual std::ptrdiff_t writeData(const void * data, std::size_t dataSize) = 0;
+
+        /// \brief Write data in the device.
+        ///
+        /// \param data Buffer of data to write.
+        /// \param dataSize Number of bytes to write.
+        ///
+        /// \return hresult_t::SUCCESS if successful, another hresult_t value otherwise.
+        virtual hresult_t write(const void * data, std::size_t dataSize);
 
         /// \brief Read data from the device.
         ///
@@ -158,7 +191,7 @@ namespace jiminy
         /// \param dataSize Number of bytes to read.
         ///
         /// \return hresult_t::SUCCESS if successful, another hresult_t value otherwise.
-        virtual hresult_t read(void * data, int64_t dataSize);
+        virtual hresult_t read(void * data, std::size_t dataSize);
 
         /// \brief Read data in the device.
         ///
@@ -166,38 +199,15 @@ namespace jiminy
         /// \param dataSize Number of bytes to read.
         ///
         /// \return the number of bytes read, -1 in case of error.
-        virtual int64_t readData(void * data, int64_t dataSize) = 0;
-
-        /// \brief Retrieve the latest error. Useful for calls that do not return an error code
-        ///        directly.
-        hresult_t getLastError() const;
-
-        /// \brief Set the device blocking fashion.
-        ///
-        /// \return The latest generated error.
-        virtual hresult_t setBlockingMode(bool shouldBlock);
-
-        /// \brief Set the device backend (reset the old one if any).
-        bool isBackendValid();
-
-        /// \brief Set the device backend (reset the old one if any).
-        virtual void setBackend(std::unique_ptr<AbstractIODevice> io);
-
-        /// \brief Reset the device backend.
-        virtual void removeBackend();
+        virtual std::ptrdiff_t readData(void * data, std::size_t dataSize) = 0;
 
     protected:
-        virtual hresult_t doOpen(openMode_t mode) = 0;
-        virtual hresult_t doClose() = 0;
-
-        /// \brief Current opening mode.
-        openMode_t modes_;
         /// \brief Supported modes of the device.
-        openMode_t supportedModes_;
+        const openMode_t supportedModes_;
+        /// \brief Current opening mode.
+        openMode_t modes_{openMode_t::NOT_OPEN};
         /// \brief Latest generated error.
-        hresult_t lastError_;
-        /// \brief Backend to use if any.
-        std::unique_ptr<AbstractIODevice> io_;
+        hresult_t lastError_{hresult_t::SUCCESS};
     };
 }
 

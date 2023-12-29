@@ -6,12 +6,13 @@
 #include <functional>
 
 #include "jiminy/core/fwd.h"
-#include "jiminy/core/traits.h"
+#include "jiminy/core/telemetry/fwd.h"
 #include "jiminy/core/hardware/abstract_sensor.h"
 
 #include <boost/mpl/vector.hpp>
 
 #include "pinocchio/bindings/python/fwd.hpp"
+
 #include <boost/python/numpy.hpp>
 #include <boost/python/signature.hpp>
 #include <boost/python/object/function_doc_signature.hpp>
@@ -622,11 +623,10 @@ namespace jiminy::python
         }
     }
 
-    /// Convert most C++ objects into Python objects by value.
-
+    /// Convert most C++ objects into Python objects by value
     template<typename T>
-    std::enable_if_t<!is_vector_v<T> && !is_eigen_v<T> && !std::is_arithmetic_v<T> &&
-                         !std::is_integral_v<T>,
+    std::enable_if_t<!is_vector_v<T> && !is_array_v<T> && !is_eigen_v<T> &&
+                         !std::is_arithmetic_v<T>,
                      bp::object>
     convertToPython(const T & data, const bool & copy = true)
     {
@@ -639,8 +639,8 @@ namespace jiminy::python
     }
 
     template<typename T>
-    std::enable_if_t<std::is_arithmetic_v<T> || std::is_integral_v<T>, bp::object>
-    convertToPython(T & data, const bool & copy = true)
+    std::enable_if_t<std::is_arithmetic_v<T>, bp::object> convertToPython(T & data,
+                                                                          const bool & copy = true)
     {
         if (copy)
         {
@@ -663,8 +663,8 @@ namespace jiminy::python
     }
 
     template<typename T>
-    std::enable_if_t<is_vector_v<T>, bp::object> convertToPython(T & data,
-                                                                 const bool & copy = true)
+    std::enable_if_t<is_vector_v<T> || is_array_v<T>, bp::object>
+    convertToPython(T & data, const bool & copy = true)
     {
         bp::list dataPy;
         for (auto & val : data)
@@ -674,32 +674,25 @@ namespace jiminy::python
         return std::move(dataPy);
     }
 
-    template<typename T>
-    std::enable_if_t<is_vector_v<T>, bp::object> convertToPython(const T & data,
-                                                                 const bool & copy = true)
-    {
-        bp::list dataPy;
-        for (const auto & val : data)
-        {
-            dataPy.append(convertToPython(val, copy));
-        }
-        return std::move(dataPy);
-    }
-
     template<>
-    inline bp::object convertToPython(const std::string & data, const bool & copy)
+    inline bp::object convertToPython(const std::string_view & data, const bool & copy)
     {
         if (copy)
         {
             return bp::object(data);
         }
-        return bp::object(bp::handle<>(PyUnicode_FromStringAndSize(data.c_str(), data.size())));
+        return bp::object(bp::handle<>(PyUnicode_FromStringAndSize(data.data(), data.size())));
     }
 
     template<>
     inline bp::object convertToPython<FlexibleJointData>(
-        const FlexibleJointData & flexibleJointData, const bool & /* copy */)
+        const FlexibleJointData & flexibleJointData, const bool & copy)
     {
+        if (!copy)
+        {
+            throw std::runtime_error(
+                "Passing 'FlexibleJointData' object to python by reference is not supported.");
+        }
         bp::dict flexibilityJointDataPy;
         flexibilityJointDataPy["frameName"] = flexibleJointData.frameName;
         flexibilityJointDataPy["stiffness"] = flexibleJointData.stiffness;
@@ -721,7 +714,7 @@ namespace jiminy::python
     {
     public:
         AppendBoostVariantToPython(const bool & copy) :
-        copy_(copy)
+        copy_{copy}
         {
         }
 
@@ -736,8 +729,7 @@ namespace jiminy::python
     };
 
     template<>
-    inline bp::object convertToPython<GenericConfig>(const GenericConfig & config,
-                                                     const bool & copy)
+    inline bp::object convertToPython<GenericConfig>(GenericConfig & config, const bool & copy)
     {
         bp::dict configPyDict;
         AppendBoostVariantToPython visitor(copy);
@@ -758,7 +750,7 @@ namespace jiminy::python
 
         static const PyTypeObject * get_pytype()
         {
-            if constexpr (is_vector_v<T>)
+            if constexpr (is_vector_v<T> || is_array_v<T>)
             {
                 return &PyList_Type;
             }
@@ -781,7 +773,7 @@ namespace jiminy::python
         {
             struct type
             {
-                typedef typename std::remove_reference_t<T> value_type;
+                typedef remove_cvref_t<T> value_type;
 
                 PyObject * operator()(T x) const
                 {
@@ -835,7 +827,7 @@ namespace jiminy::python
     // Convert most Python objects in C++ objects by value.
 
     template<typename T>
-    std::enable_if_t<!is_vector_v<T> && !is_map_v<T> && !is_eigen_v<T> &&
+    std::enable_if_t<!is_vector_v<T> && !is_array_v<T> && !is_map_v<T> && !is_eigen_v<T> &&
                          !std::is_same_v<T, SensorsDataMap>,
                      T>
     convertFromPython(const bp::object & dataPy)
@@ -949,7 +941,7 @@ namespace jiminy::python
         for (bp::ssize_t i = 0; i < bp::len(listPy); ++i)
         {
             const bp::object itemPy = listPy[i];
-            vec.push_back(std::move(convertFromPython<typename T::value_type>(itemPy)));
+            vec.push_back(convertFromPython<typename T::value_type>(itemPy));
         }
         return vec;
     }

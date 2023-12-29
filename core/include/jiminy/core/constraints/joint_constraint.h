@@ -21,17 +21,17 @@ namespace jiminy
 
     public:
         /// \param[in] jointName Name of the joint.
-        JointConstraint(const std::string & jointName);
+        explicit JointConstraint(const std::string & jointName) noexcept;
         virtual ~JointConstraint() = default;
 
-        const std::string & getJointName() const;
-        pinocchio::JointIndex getJointIdx() const;
+        const std::string & getJointName() const noexcept;
+        pinocchio::JointIndex getJointModelIdx() const noexcept;
 
-        void setReferenceConfiguration(const Eigen::VectorXd & configurationRef);
-        const Eigen::VectorXd & getReferenceConfiguration() const;
+        void setReferenceConfiguration(const Eigen::VectorXd & configurationRef) noexcept;
+        const Eigen::VectorXd & getReferenceConfiguration() const noexcept;
 
-        void setRotationDir(bool isReversed);
-        bool getRotationDir();
+        void setRotationDir(bool isReversed) noexcept;
+        bool getRotationDir() noexcept;
 
         virtual hresult_t reset(const Eigen::VectorXd & q,
                                 const Eigen::VectorXd & v) override final;
@@ -43,11 +43,11 @@ namespace jiminy
         /// \brief Name of the joint on which the constraint operates.
         std::string jointName_;
         /// \brief Corresponding joint index.
-        pinocchio::JointIndex jointIdx_;
+        pinocchio::JointIndex jointModelIdx_{0};
         /// \brief Reference position of the joint to enforce.
-        Eigen::VectorXd configurationRef_;
+        Eigen::VectorXd configurationRef_{};
         /// \brief Whether to reverse the sign of the constraint.
-        bool isReversed_;
+        bool isReversed_{false};
     };
 }
 

@@ -1,5 +1,4 @@
-#include "jiminy/core/traits.h"
-#include "jiminy/core/robot/robot.h"
+#include "jiminy/core/robot/model.h"
 
 #include "jiminy/core/constraints/joint_constraint.h"
 
@@ -7,38 +6,36 @@
 namespace jiminy
 {
     template<>
-    const std::string AbstractConstraintTpl<JointConstraint>::type_("JointConstraint");
+    const std::string AbstractConstraintTpl<JointConstraint>::type_{"JointConstraint"};
 
-    JointConstraint::JointConstraint(const std::string & jointName) :
+    JointConstraint::JointConstraint(const std::string & jointName) noexcept :
     AbstractConstraintTpl(),
-    jointName_(jointName),
-    jointIdx_(0),
-    configurationRef_(),
-    isReversed_(false)
+    jointName_{jointName}
     {
     }
 
-    const std::string & JointConstraint::getJointName() const
+    const std::string & JointConstraint::getJointName() const noexcept
     {
         return jointName_;
     }
 
-    pinocchio::JointIndex JointConstraint::getJointIdx() const
+    pinocchio::JointIndex JointConstraint::getJointModelIdx() const noexcept
     {
-        return jointIdx_;
+        return jointModelIdx_;
     }
 
-    void JointConstraint::setReferenceConfiguration(const Eigen::VectorXd & configurationRef)
+    void JointConstraint::setReferenceConfiguration(
+        const Eigen::VectorXd & configurationRef) noexcept
     {
         configurationRef_ = configurationRef;
     }
 
-    const Eigen::VectorXd & JointConstraint::getReferenceConfiguration() const
+    const Eigen::VectorXd & JointConstraint::getReferenceConfiguration() const noexcept
     {
         return configurationRef_;
     }
 
-    void JointConstraint::setRotationDir(bool isReversed)
+    void JointConstraint::setRotationDir(bool isReversed) noexcept
     {
         // Update the Jacobian
         if (isReversed_ != isReversed)
@@ -50,7 +47,7 @@ namespace jiminy
         isReversed_ = isReversed;
     }
 
-    bool JointConstraint::getRotationDir()
+    bool JointConstraint::getRotationDir() noexcept
     {
         return isReversed_;
     }
@@ -70,8 +67,8 @@ namespace jiminy
         // Get joint index
         if (returnCode == hresult_t::SUCCESS)
         {
-            jointIdx_ = model->pncModel_.getJointId(jointName_);
-            if (jointIdx_ == static_cast<uint32_t>(model->pncModel_.njoints))
+            jointModelIdx_ = model->pncModel_.getJointId(jointName_);
+            if (jointModelIdx_ == static_cast<pinocchio::JointIndex>(model->pncModel_.njoints))
             {
                 PRINT_ERROR("No joint with name '", jointName_, "' in model.");
                 returnCode = hresult_t::ERROR_GENERIC;
@@ -81,7 +78,7 @@ namespace jiminy
         if (returnCode == hresult_t::SUCCESS)
         {
             // Get the joint model
-            const pinocchio::JointModel & jointModel = model->pncModel_.joints[jointIdx_];
+            const pinocchio::JointModel & jointModel = model->pncModel_.joints[jointModelIdx_];
 
             // Initialize constraint jacobian, drift and multipliers
             jacobian_.setZero(jointModel.nv(), model->pncModel_.nv);
@@ -169,7 +166,7 @@ namespace jiminy
         auto model = model_.lock();
 
         // Get the joint model
-        const pinocchio::JointModel & jointModel = model->pncModel_.joints[jointIdx_];
+        const pinocchio::JointModel & jointModel = model->pncModel_.joints[jointModelIdx_];
 
         // Add Baumgarte stabilization drift
         const Eigen::VectorXd deltaPosition =

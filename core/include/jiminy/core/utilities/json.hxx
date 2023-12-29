@@ -1,6 +1,6 @@
 #include "json/json.h"
 
-#include "jiminy/core/traits.h"
+#include "jiminy/core/fwd.h"
 #include "jiminy/core/io/json_writer.h"
 
 
@@ -99,7 +99,7 @@ namespace jiminy
     template<>
     Json::Value convertToJson<GenericConfig>(const GenericConfig & value);
 
-    // ************* Convertion from JSON utilities *****************
+    // ************* Conversion from JSON utilities *****************
 
     template<typename T>
     std::enable_if_t<!is_vector_v<T>, T> convertFromJson(const Json::Value & /* value */)

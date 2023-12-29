@@ -24,7 +24,7 @@ namespace jiminy
         DISABLE_COPY(MutexLocal)
 
     public:
-        MutexLocal() = default;
+        explicit MutexLocal() = default;
         MutexLocal(MutexLocal && other) = default;
 
         ~MutexLocal();
@@ -32,7 +32,7 @@ namespace jiminy
         bool isLocked() const noexcept;
 
     private:
-        std::shared_ptr<bool> isLocked_{std::make_shared<bool>()};
+        std::shared_ptr<bool> isLocked_{std::make_shared<bool>(false)};
     };
 
     class JIMINY_DLLAPI LockGuardLocal
@@ -41,7 +41,7 @@ namespace jiminy
         DISABLE_COPY(LockGuardLocal)
 
     public:
-        LockGuardLocal(MutexLocal & mutexLocal) noexcept;
+        explicit LockGuardLocal(MutexLocal & mutexLocal) noexcept;
         LockGuardLocal(LockGuardLocal && other) = default;
 
         ~LockGuardLocal();
@@ -58,6 +58,7 @@ namespace jiminy
 
     public:
         explicit Timer() noexcept;
+
         void tic() noexcept;
         void toc() noexcept;
 
@@ -122,9 +123,6 @@ namespace jiminy
                                                  const std::string & fieldname);
 
     // ********************** Math utilities *************************
-
-    template<typename T0, typename T1, typename... Ts>
-    typename std::common_type_t<T0, T1, Ts...> min(T0 && val1, T1 && val2, Ts &&... vs);
 
     template<typename DerivedType1, typename DerivedType2, typename DerivedType3>
     Eigen::MatrixBase<DerivedType1> clamp(const Eigen::MatrixBase<DerivedType1> & data,

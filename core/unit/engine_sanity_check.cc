@@ -7,6 +7,8 @@
 #define EIGEN_RUNTIME_NO_MALLOC
 
 #include "jiminy/core/fwd.h"
+#include "jiminy/core/telemetry/fwd.h"
+#include "jiminy/core/hardware/fwd.h"
 #include "jiminy/core/utilities/helpers.h"
 #include "jiminy/core/hardware/abstract_sensor.h"
 #include "jiminy/core/hardware/basic_motors.h"

@@ -1,7 +1,5 @@
 #include "pinocchio/spatial/force.hpp"  // `Pinocchio::Force`
 
-#include "jiminy/core/traits.h"
-
 #include "jiminy/python/functors.h"
 
 

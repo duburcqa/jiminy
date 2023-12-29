@@ -5,7 +5,6 @@
 #include "pinocchio/spatial/force.hpp"       // `pinocchio::Force`
 #include "pinocchio/spatial/inertia.hpp"     // `pinocchio::Inertia`
 #include "pinocchio/multibody/model.hpp"     // `pinocchio::Model`
-#include "pinocchio/multibody/fcl.hpp"       // `pinocchio::GeometryType`
 #include "pinocchio/multibody/geometry.hpp"  // `pinocchio::GeometryModel`
 #include "pinocchio/multibody/data.hpp"      // `pinocchio::Data`
 #include "pinocchio/multibody/visitor.hpp"   // `pinocchio::fusion::JointUnaryVisitorBase`
@@ -15,8 +14,7 @@
 #include "hpp/fcl/mesh_loader/loader.h"
 #include "hpp/fcl/BVH/BVH_model.h"
 
-#include "jiminy/core/traits.h"
-#include "jiminy/core/telemetry/telemetry_recorder.h"  // `LogData`
+#include "jiminy/core/telemetry/fwd.h"  // `LogData`
 #include "jiminy/core/utilities/helpers.h"
 #include "jiminy/core/utilities/pinocchio.h"
 
@@ -26,15 +24,15 @@ namespace jiminy
     hresult_t getJointNameFromPositionIdx(
         const pinocchio::Model & model, int32_t idx, std::string & jointNameOut)
     {
-        // Iterate over all joints.
+        // Iterate over all joints
         for (pinocchio::JointIndex i = 0; i < static_cast<pinocchio::JointIndex>(model.njoints);
              ++i)
         {
-            // Get joint starting and ending index in position vector.
+            // Get joint starting and ending index in position vector
             const int32_t startIdx = model.joints[i].idx_q();
             const int32_t endIdx = startIdx + model.joints[i].nq();
 
-            // If idx is between start and end, we found the joint we were looking for.
+            // If idx is between start and end, we found the joint we were looking for
             if (startIdx <= idx && idx < endIdx)
             {
                 jointNameOut = model.names[i];
@@ -49,11 +47,11 @@ namespace jiminy
     hresult_t getJointNameFromVelocityIdx(
         const pinocchio::Model & model, int32_t idx, std::string & jointNameOut)
     {
-        // Iterate over all joints.
+        // Iterate over all joints
         for (pinocchio::JointIndex i = 0; i < static_cast<pinocchio::JointIndex>(model.njoints);
              ++i)
         {
-            // Get joint starting and ending index in velocity vector.
+            // Get joint starting and ending index in velocity vector
             const int32_t startIdx = model.joints[i].idx_v();
             const int32_t endIdx = startIdx + model.joints[i].nv();
 
@@ -280,7 +278,7 @@ namespace jiminy
 
     hresult_t getJointPositionIdx(const pinocchio::Model & model,
                                   const std::string & jointName,
-                                  std::vector<int32_t> & jointPositionIdx)
+                                  std::vector<Eigen::Index> & jointPositionIdx)
     {
         // It returns all the indices if the joint has multiple degrees of freedom
 
@@ -291,8 +289,8 @@ namespace jiminy
         }
 
         const pinocchio::JointIndex jointModelIdx = model.getJointId(jointName);
-        const int32_t jointPositionFirstIdx = model.joints[jointModelIdx].idx_q();
-        const int32_t jointNq = model.joints[jointModelIdx].nq();
+        const Eigen::Index jointPositionFirstIdx = model.joints[jointModelIdx].idx_q();
+        const Eigen::Index jointNq = model.joints[jointModelIdx].nq();
         jointPositionIdx.resize(static_cast<std::size_t>(jointNq));
         std::iota(jointPositionIdx.begin(), jointPositionIdx.end(), jointPositionFirstIdx);
 
@@ -301,7 +299,7 @@ namespace jiminy
 
     hresult_t getJointPositionIdx(const pinocchio::Model & model,
                                   const std::string & jointName,
-                                  int32_t & jointPositionFirstIdx)
+                                  Eigen::Index & jointPositionFirstIdx)
     {
         // It returns the first index even if the joint has multiple degrees of freedom
 
@@ -319,7 +317,7 @@ namespace jiminy
 
     hresult_t getJointsPositionIdx(const pinocchio::Model & model,
                                    const std::vector<std::string> & jointsNames,
-                                   std::vector<int32_t> & jointsPositionIdx,
+                                   std::vector<Eigen::Index> & jointsPositionIdx,
                                    bool firstJointIdxOnly)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
@@ -327,7 +325,7 @@ namespace jiminy
         jointsPositionIdx.clear();
         if (!firstJointIdxOnly)
         {
-            std::vector<int32_t> jointPositionIdx;
+            std::vector<Eigen::Index> jointPositionIdx;
             for (const std::string & jointName : jointsNames)
             {
                 if (returnCode == hresult_t::SUCCESS)
@@ -343,7 +341,7 @@ namespace jiminy
         }
         else
         {
-            int32_t jointPositionIdx;
+            Eigen::Index jointPositionIdx;
             for (const std::string & jointName : jointsNames)
             {
                 if (returnCode == hresult_t::SUCCESS)
@@ -402,7 +400,7 @@ namespace jiminy
 
     hresult_t getJointVelocityIdx(const pinocchio::Model & model,
                                   const std::string & jointName,
-                                  std::vector<int32_t> & jointVelocityIdx)
+                                  std::vector<Eigen::Index> & jointVelocityIdx)
     {
         // It returns all the indices if the joint has multiple degrees of freedom
 
@@ -413,8 +411,8 @@ namespace jiminy
         }
 
         const pinocchio::JointIndex jointModelIdx = model.getJointId(jointName);
-        const int32_t jointVelocityFirstIdx = model.joints[jointModelIdx].idx_v();
-        const int32_t jointNv = model.joints[jointModelIdx].nv();
+        const Eigen::Index jointVelocityFirstIdx = model.joints[jointModelIdx].idx_v();
+        const Eigen::Index jointNv = model.joints[jointModelIdx].nv();
         jointVelocityIdx.resize(static_cast<std::size_t>(jointNv));
         std::iota(jointVelocityIdx.begin(), jointVelocityIdx.end(), jointVelocityFirstIdx);
 
@@ -423,7 +421,7 @@ namespace jiminy
 
     hresult_t getJointVelocityIdx(const pinocchio::Model & model,
                                   const std::string & jointName,
-                                  int32_t & jointVelocityFirstIdx)
+                                  Eigen::Index & jointVelocityFirstIdx)
     {
         // It returns the first index even if the joint has multiple degrees of freedom
 
@@ -441,7 +439,7 @@ namespace jiminy
 
     hresult_t getJointsVelocityIdx(const pinocchio::Model & model,
                                    const std::vector<std::string> & jointsNames,
-                                   std::vector<int32_t> & jointsVelocityIdx,
+                                   std::vector<Eigen::Index> & jointsVelocityIdx,
                                    bool firstJointIdxOnly)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
@@ -449,7 +447,7 @@ namespace jiminy
         jointsVelocityIdx.clear();
         if (!firstJointIdxOnly)
         {
-            std::vector<int32_t> jointVelocityIdx;
+            std::vector<Eigen::Index> jointVelocityIdx;
             for (const std::string & jointName : jointsNames)
             {
                 if (returnCode == hresult_t::SUCCESS)
@@ -465,7 +463,7 @@ namespace jiminy
         }
         else
         {
-            int32_t jointVelocityIdx;
+            Eigen::Index jointVelocityIdx;
             for (const std::string & jointName : jointsNames)
             {
                 if (returnCode == hresult_t::SUCCESS)

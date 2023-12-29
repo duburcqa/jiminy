@@ -1,9 +1,9 @@
 #ifndef JIMINY_PINOCCHIO_H
 #define JIMINY_PINOCCHIO_H
 
-#include <chrono>
 #include <optional>
-#include <type_traits>
+
+#include "pinocchio/multibody/fcl.hpp"  // `pinocchio::GeometryType`
 
 #include "jiminy/core/fwd.h"
 
@@ -12,14 +12,17 @@ namespace jiminy
 {
     JointModelType getJointType(const pinocchio::JointModel & jointModel) noexcept;
 
-    hresult_t getJointTypeFromIdx(
-        const pinocchio::Model & model, pinocchio::JointIndex idIn, JointModelType & jointTypeOut);
+    hresult_t getJointTypeFromIdx(const pinocchio::Model & model,
+                                  pinocchio::JointIndex jointModelIdx,
+                                  JointModelType & jointTypeOut);
 
-    hresult_t getJointNameFromPositionIdx(
-        const pinocchio::Model & model, pinocchio::JointIndex idIn, std::string & jointNameOut);
+    hresult_t getJointNameFromPositionIdx(const pinocchio::Model & model,
+                                          pinocchio::JointIndex jointModelIdx,
+                                          std::string & jointNameOut);
 
-    hresult_t getJointNameFromVelocityIdx(
-        const pinocchio::Model & model, pinocchio::JointIndex idIn, std::string & jointNameOut);
+    hresult_t getJointNameFromVelocityIdx(const pinocchio::Model & model,
+                                          pinocchio::JointIndex jointModelIdx,
+                                          std::string & jointNameOut);
 
     hresult_t getJointTypePositionSuffixes(JointModelType jointTypeIn,
                                            std::vector<std::string_view> & jointTypeSuffixesOut);
@@ -43,24 +46,24 @@ namespace jiminy
 
     hresult_t getJointPositionIdx(const pinocchio::Model & model,
                                   const std::string & jointName,
-                                  std::vector<int32_t> & jointPositionIdx);
+                                  std::vector<Eigen::Index> & jointPositionIdx);
     hresult_t getJointPositionIdx(const pinocchio::Model & model,
                                   const std::string & jointName,
-                                  int32_t & jointPositionFirstIdx);
+                                  Eigen::Index & jointPositionFirstIdx);
     hresult_t getJointsPositionIdx(const pinocchio::Model & model,
                                    const std::vector<std::string> & jointsNames,
-                                   std::vector<int32_t> & jointsPositionIdx,
+                                   std::vector<Eigen::Index> & jointsPositionIdx,
                                    bool firstJointIdxOnly = false);
 
     hresult_t getJointVelocityIdx(const pinocchio::Model & model,
                                   const std::string & jointName,
-                                  std::vector<int32_t> & jointVelocityIdx);
+                                  std::vector<Eigen::Index> & jointVelocityIdx);
     hresult_t getJointVelocityIdx(const pinocchio::Model & model,
                                   const std::string & jointName,
-                                  int32_t & jointVelocityFirstIdx);
+                                  Eigen::Index & jointVelocityFirstIdx);
     hresult_t getJointsVelocityIdx(const pinocchio::Model & model,
                                    const std::vector<std::string> & jointsNames,
-                                   std::vector<int32_t> & jointsVelocityIdx,
+                                   std::vector<Eigen::Index> & jointsVelocityIdx,
                                    bool firstJointIdxOnly = false);
 
     hresult_t JIMINY_DLLAPI isPositionValid(const pinocchio::Model & model,

@@ -29,7 +29,6 @@
 #include "pinocchio/algorithm/cholesky.hpp"  // `pinocchio::cholesky::`
 
 #include "jiminy/core/fwd.h"
-#include "jiminy/core/traits.h"
 #include "jiminy/core/engine/engine_multi_robot.h"
 
 
@@ -456,7 +455,7 @@ namespace jiminy::pinocchio_overload
                                            ConfigVectorType,
                                            TangentVectorType1>
             Pass1;
-        for (int32_t i = 1; i < model.njoints; ++i)
+        for (int i = 1; i < model.njoints; ++i)
         {
             Pass1::run(model.joints[i],
                        data.joints[i],
@@ -465,13 +464,13 @@ namespace jiminy::pinocchio_overload
         }
 
         typedef AbaBackwardStep<Scalar, Options, JointCollectionTpl> Pass2;
-        for (int32_t i = model.njoints - 1; i > 0; --i)
+        for (int i = model.njoints - 1; i > 0; --i)
         {
             Pass2::run(model.joints[i], data.joints[i], typename Pass2::ArgsType(model, data));
         }
 
         typedef pinocchio::AbaForwardStep2<Scalar, Options, JointCollectionTpl> Pass3;
-        for (int32_t i = 1; i < model.njoints; ++i)
+        for (int i = 1; i < model.njoints; ++i)
         {
             Pass3::run(model.joints[i], data.joints[i], typename Pass3::ArgsType(model, data));
         }

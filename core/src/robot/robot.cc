@@ -1,33 +1,21 @@
 #include <fstream>
 #include <exception>
 
-#include "jiminy/core/io/file_device.h"
-#include "jiminy/core/hardware/abstract_motor.h"
-#include "jiminy/core/hardware/abstract_sensor.h"
 #include "jiminy/core/utilities/helpers.h"
 #include "jiminy/core/utilities/pinocchio.h"
 #include "jiminy/core/utilities/json.h"
+#include "jiminy/core/io/file_device.h"
+#include "jiminy/core/hardware/abstract_motor.h"
+#include "jiminy/core/hardware/abstract_sensor.h"
 
 #include "jiminy/core/robot/robot.h"
 
 
 namespace jiminy
 {
-    Robot::Robot() :
-    Model(),
-    isTelemetryConfigured_(false),
-    telemetryData_(nullptr),
-    motorsHolder_(),
-    sensorsGroupHolder_(),
-    sensorTelemetryOptions_(),
-    motorsNames_(),
-    sensorsNames_(),
-    logFieldnamesCommand_(),
-    logFieldnamesMotorEffort_(),
-    nmotors_(0U),
-    mutexLocal_(std::make_unique<MutexLocal>()),
-    motorsSharedHolder_(std::make_shared<MotorSharedDataHolder_t>()),
-    sensorsSharedHolder_()
+
+    Robot::Robot() noexcept :
+    motorsSharedHolder_{std::make_shared<MotorSharedDataHolder_t>()}
     {
     }
 
@@ -185,7 +173,7 @@ namespace jiminy
                 }
 
                 // Update rotor inertia and effort limit of pinocchio model
-                int32_t jointVelocityOrigIdx;
+                Eigen::Index jointVelocityOrigIdx;
                 ::jiminy::getJointVelocityIdx(
                     robot->pncModelOrig_, motorIn.getJointName(), jointVelocityOrigIdx);
                 robot->pncModel_.rotorInertia[motorIn.getJointVelocityIdx()] =
@@ -240,7 +228,7 @@ namespace jiminy
 
         // Reset effortLimit and rotorInertia
         const std::shared_ptr<AbstractMotorBase> & motor = *motorIt;
-        int32_t jointVelocityOrigIdx;
+        Eigen::Index jointVelocityOrigIdx;
         ::jiminy::getJointVelocityIdx(pncModelOrig_, motor->getJointName(), jointVelocityOrigIdx);
         pncModel_.rotorInertia[motor->getJointVelocityIdx()] =
             pncModelOrig_.rotorInertia[jointVelocityOrigIdx];
@@ -774,7 +762,7 @@ namespace jiminy
         return returnCode;
     }
 
-    GenericConfig Robot::getOptions() const
+    GenericConfig Robot::getOptions() const noexcept
     {
         GenericConfig robotOptions;
         robotOptions["model"] = getModelOptions();
@@ -1303,16 +1291,16 @@ namespace jiminy
         return motorsModelIdx;
     }
 
-    std::vector<std::vector<int32_t>> Robot::getMotorsPositionIdx() const
+    std::vector<std::vector<Eigen::Index>> Robot::getMotorsPositionIdx() const
     {
-        std::vector<std::vector<int32_t>> motorsPositionIdx;
+        std::vector<std::vector<Eigen::Index>> motorsPositionIdx;
         motorsPositionIdx.reserve(nmotors_);
         std::transform(motorsHolder_.begin(),
                        motorsHolder_.end(),
                        std::back_inserter(motorsPositionIdx),
-                       [](const auto & elem) -> std::vector<int32_t>
+                       [](const auto & elem) -> std::vector<Eigen::Index>
                        {
-                           int32_t const & jointPositionIdx = elem->getJointPositionIdx();
+                           Eigen::Index const & jointPositionIdx = elem->getJointPositionIdx();
                            if (elem->getJointType() == JointModelType::ROTARY_UNBOUNDED)
                            {
                                return {jointPositionIdx, jointPositionIdx + 1};
@@ -1325,14 +1313,15 @@ namespace jiminy
         return motorsPositionIdx;
     }
 
-    std::vector<int32_t> Robot::getMotorsVelocityIdx() const
+    std::vector<Eigen::Index> Robot::getMotorsVelocityIdx() const
     {
-        std::vector<int32_t> motorsVelocityIdx;
+        std::vector<Eigen::Index> motorsVelocityIdx;
         motorsVelocityIdx.reserve(nmotors_);
         std::transform(motorsHolder_.begin(),
                        motorsHolder_.end(),
                        std::back_inserter(motorsVelocityIdx),
-                       [](const auto & elem) -> int32_t { return elem->getJointVelocityIdx(); });
+                       [](const auto & elem) -> Eigen::Index
+                       { return elem->getJointVelocityIdx(); });
         return motorsVelocityIdx;
     }
 

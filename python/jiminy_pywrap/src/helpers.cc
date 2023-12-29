@@ -27,16 +27,16 @@ namespace jiminy::python
         return seed;
     }
 
-    JointModelType getJointTypeFromIdx(const pinocchio::Model & model, int32_t idIn)
+    JointModelType getJointTypeFromIdx(const pinocchio::Model & model, std::size_t jointIdx)
     {
         JointModelType jointType = JointModelType::UNSUPPORTED;
-        ::jiminy::getJointTypeFromIdx(model, idIn, jointType);
+        ::jiminy::getJointTypeFromIdx(model, jointIdx, jointType);
         return jointType;
     }
 
-    int32_t getJointPositionIdx(const pinocchio::Model & model, const std::string & name)
+    Eigen::Index getJointPositionIdx(const pinocchio::Model & model, const std::string & name)
     {
-        int32_t jointPositionFirstIdx = model.nq;
+        Eigen::Index jointPositionFirstIdx = model.nq;
         ::jiminy::getJointPositionIdx(model, name, jointPositionFirstIdx);
         return jointPositionFirstIdx;
     }

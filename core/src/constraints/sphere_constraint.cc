@@ -9,37 +9,34 @@
 namespace jiminy
 {
     template<>
-    const std::string AbstractConstraintTpl<SphereConstraint>::type_("SphereConstraint");
+    const std::string AbstractConstraintTpl<SphereConstraint>::type_{"SphereConstraint"};
 
-    SphereConstraint::SphereConstraint(
-        const std::string & frameName, double sphereRadius, const Eigen::Vector3d & groundNormal) :
+    SphereConstraint::SphereConstraint(const std::string & frameName,
+                                       double sphereRadius,
+                                       const Eigen::Vector3d & groundNormal) noexcept :
     AbstractConstraintTpl(),
-    frameName_(frameName),
-    frameIdx_(0),
-    radius_(sphereRadius),
-    normal_(groundNormal.normalized()),
-    skewRadius_(pinocchio::alphaSkew(radius_, normal_)),
-    transformRef_(),
-    frameJacobian_()
+    frameName_{frameName},
+    radius_{sphereRadius},
+    normal_{groundNormal.normalized()}
     {
     }
 
-    const std::string & SphereConstraint::getFrameName() const
+    const std::string & SphereConstraint::getFrameName() const noexcept
     {
         return frameName_;
     }
 
-    pinocchio::FrameIndex SphereConstraint::getFrameIdx() const
+    pinocchio::FrameIndex SphereConstraint::getFrameIdx() const noexcept
     {
         return frameIdx_;
     }
 
-    void SphereConstraint::setReferenceTransform(const pinocchio::SE3 & transformRef)
+    void SphereConstraint::setReferenceTransform(const pinocchio::SE3 & transformRef) noexcept
     {
         transformRef_ = transformRef;
     }
 
-    const pinocchio::SE3 & SphereConstraint::getReferenceTransform() const
+    const pinocchio::SE3 & SphereConstraint::getReferenceTransform() const noexcept
     {
         return transformRef_;
     }

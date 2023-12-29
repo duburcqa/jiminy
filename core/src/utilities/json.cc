@@ -31,9 +31,8 @@ namespace jiminy
     class AppendBoostVariantToJson : public boost::static_visitor<>
     {
     public:
-        explicit AppendBoostVariantToJson(Json::Value & root) :
-        root_(root),
-        field_()
+        explicit AppendBoostVariantToJson(Json::Value & root) noexcept :
+        root_{root}
         {
         }
 
@@ -47,7 +46,7 @@ namespace jiminy
 
     public:
         Json::Value & root_;
-        std::string field_;
+        std::string field_{};
     };
 
     template<>
@@ -122,7 +121,7 @@ namespace jiminy
     template<>
     Eigen::VectorXd convertFromJson<Eigen::VectorXd>(const Json::Value & value)
     {
-        Eigen::VectorXd vec;
+        Eigen::VectorXd vec{};
         if (value.size() > 0)
         {
             vec.resize(value.size());
@@ -137,7 +136,7 @@ namespace jiminy
     template<>
     Eigen::MatrixXd convertFromJson<Eigen::MatrixXd>(const Json::Value & value)
     {
-        Eigen::MatrixXd mat;
+        Eigen::MatrixXd mat{};
         if (value.size() > 0)
         {
             auto it = value.begin();
@@ -174,7 +173,7 @@ namespace jiminy
     template<>
     GenericConfig convertFromJson<GenericConfig>(const Json::Value & value)
     {
-        GenericConfig config;
+        GenericConfig config{};
         for (auto root = value.begin(); root != value.end(); ++root)
         {
             GenericConfig::mapped_type field;

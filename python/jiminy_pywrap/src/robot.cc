@@ -1,3 +1,5 @@
+#include "jiminy/core/telemetry/fwd.h"
+#include "jiminy/core/hardware/fwd.h"
 #include "jiminy/core/hardware/abstract_sensor.h"
 #include "jiminy/core/hardware/abstract_motor.h"
 #include "jiminy/core/constraints/abstract_constraint.h"

@@ -35,14 +35,6 @@ namespace jiminy
     // ========================== AbstractSensorTpl ===============================
 
     template<typename T>
-    AbstractSensorTpl<T>::AbstractSensorTpl(const std::string & name) :
-    AbstractSensorBase(name),
-    sensorIdx_(0),
-    sharedHolder_(nullptr)
-    {
-    }
-
-    template<typename T>
     AbstractSensorTpl<T>::~AbstractSensorTpl()
     {
         // Detach the sensor before deleting it if necessary
@@ -256,7 +248,7 @@ namespace jiminy
     }
 
     template<typename T>
-    uint64_t AbstractSensorTpl<T>::getSize() const
+    std::size_t AbstractSensorTpl<T>::getSize() const
     {
         return fieldnames_.size();
     }

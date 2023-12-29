@@ -1,5 +1,6 @@
 #include "pinocchio/algorithm/joint-configuration.hpp"  // pinocchio::neutral
 
+#include "jiminy/core/telemetry/telemetry_sender.h"
 #include "jiminy/core/robot/robot.h"
 
 #include "jiminy/core/control/abstract_controller.h"
@@ -7,20 +8,14 @@
 
 namespace jiminy
 {
-    AbstractController::AbstractController() :
-    baseControllerOptions_(nullptr),
-    robot_(),
-    sensorsData_(),
-    isInitialized_(false),
-    isTelemetryConfigured_(false),
-    ctrlOptionsHolder_(),
-    telemetrySender_(),
-    registeredVariables_(),
-    registeredConstants_()
+    AbstractController::AbstractController() noexcept :
+    telemetrySender_{std::make_unique<TelemetrySender>()}
     {
         // Clarify that the base implementation is called
         AbstractController::setOptions(getDefaultControllerOptions());
     }
+
+    AbstractController::~AbstractController() = default;
 
     hresult_t AbstractController::initialize(std::weak_ptr<const Robot> robotIn)
     {
@@ -144,14 +139,14 @@ namespace jiminy
                     objectName = addCircumfix(
                         objectName, objectPrefixName, {}, TELEMETRY_FIELDNAME_DELIMITER);
                 }
-                telemetrySender_.configureObject(telemetryData, objectName);
+                telemetrySender_->configureObject(telemetryData, objectName);
                 for (const auto & [name, valuePtr] : registeredVariables_)
                 {
                     if (returnCode == hresult_t::SUCCESS)
                     {
                         // FIXME: Remove explicit `name` capture when moving to C++20
                         std::visit([&, &name = name](auto && arg)
-                                   { telemetrySender_.registerVariable(name, arg); },
+                                   { telemetrySender_->registerVariable(name, arg); },
                                    valuePtr);
                     }
                 }
@@ -159,7 +154,7 @@ namespace jiminy
                 {
                     if (returnCode == hresult_t::SUCCESS)
                     {
-                        returnCode = telemetrySender_.registerConstant(name, value);
+                        returnCode = telemetrySender_->registerConstant(name, value);
                     }
                 }
                 if (returnCode == hresult_t::SUCCESS)
@@ -236,11 +231,11 @@ namespace jiminy
     {
         if (isTelemetryConfigured_)
         {
-            telemetrySender_.updateValues();
+            telemetrySender_->updateValues();
         }
     }
 
-    GenericConfig AbstractController::getOptions() const
+    GenericConfig AbstractController::getOptions() const noexcept
     {
         return ctrlOptionsHolder_;
     }

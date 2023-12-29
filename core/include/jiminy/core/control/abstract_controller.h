@@ -4,7 +4,7 @@
 #include <variant>
 
 #include "jiminy/core/fwd.h"
-#include "jiminy/core/telemetry/telemetry_sender.h"
+#include "jiminy/core/hardware/fwd.h"
 #include "jiminy/core/hardware/abstract_sensor.h"
 
 
@@ -13,6 +13,7 @@ namespace jiminy
     /// \brief Namespace of the telemetry object.
     inline constexpr std::string_view CONTROLLER_TELEMETRY_NAMESPACE{"HighLevelController"};
 
+    class TelemetrySender;
     class TelemetryData;
     class Robot;
     class Engine;
@@ -49,8 +50,8 @@ namespace jiminy
         DISABLE_COPY(AbstractController)
 
     public:
-        AbstractController();
-        virtual ~AbstractController() = default;
+        explicit AbstractController() noexcept;
+        virtual ~AbstractController();
 
         /// \brief Set the parameters of the controller.
         ///
@@ -134,7 +135,7 @@ namespace jiminy
                                            Eigen::VectorXd & uCustom) = 0;
 
         /// \brief Dictionary with the parameters of the controller.
-        GenericConfig getOptions() const;
+        GenericConfig getOptions() const noexcept;
 
         /// \brief Set the configuration options of the controller.
         ///
@@ -198,27 +199,27 @@ namespace jiminy
 
     public:
         /// \brief Structure with the parameters of the controller.
-        std::unique_ptr<const controllerOptions_t> baseControllerOptions_;
+        std::unique_ptr<const controllerOptions_t> baseControllerOptions_{nullptr};
         /// \brief Robot for which to compute the command and internal dynamics must be computed.
-        std::weak_ptr<const Robot> robot_;
-        SensorsDataMap sensorsData_;
+        std::weak_ptr<const Robot> robot_{};
+        SensorsDataMap sensorsData_{};
 
     protected:
         /// \brief Flag to determine whether the controller has been initialized or not.
-        bool isInitialized_;
+        bool isInitialized_{false};
         /// \brief Flag to determine whether the telemetry of the controller has been initialized.
-        bool isTelemetryConfigured_;
+        bool isTelemetryConfigured_{false};
         /// \brief Dictionary with the parameters of the controller.
-        GenericConfig ctrlOptionsHolder_;
+        GenericConfig ctrlOptionsHolder_{};
         /// \brief Telemetry sender used to register and update telemetry variables.
-        TelemetrySender telemetrySender_;
+        std::unique_ptr<TelemetrySender> telemetrySender_;
 
     private:
         /// \brief Vector of dynamically registered telemetry variables.
         static_map_t<std::string, std::variant<const double *, const int64_t *>>
-            registeredVariables_;
+            registeredVariables_{};
         /// \brief Vector of dynamically registered telemetry constants.
-        static_map_t<std::string, std::string> registeredConstants_;
+        static_map_t<std::string, std::string> registeredConstants_{};
     };
 }
 

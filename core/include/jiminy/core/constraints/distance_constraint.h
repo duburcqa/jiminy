@@ -20,15 +20,15 @@ namespace jiminy
         auto shared_from_this() { return shared_from(this); }
 
     public:
-        DistanceConstraint(const std::string & firstFrameName,
-                           const std::string & secondFrameName);
+        explicit DistanceConstraint(const std::string & firstFrameName,
+                                    const std::string & secondFrameName) noexcept;
         virtual ~DistanceConstraint() = default;
 
-        const std::vector<std::string> & getFramesNames() const;
-        const std::vector<pinocchio::FrameIndex> & getFramesIdx() const;
+        const std::array<std::string, 2> & getFramesNames() const noexcept;
+        const std::array<pinocchio::FrameIndex, 2> & getFramesIdx() const noexcept;
 
         hresult_t setReferenceDistance(double distanceRef);
-        double getReferenceDistance() const;
+        double getReferenceDistance() const noexcept;
 
         virtual hresult_t reset(const Eigen::VectorXd & q,
                                 const Eigen::VectorXd & v) override final;
@@ -38,15 +38,13 @@ namespace jiminy
 
     private:
         /// \brief Names of the frames on which the constraint operates.
-        std::vector<std::string> framesNames_;
+        std::array<std::string, 2> frameNames_;
         /// \brief Corresponding frames indices.
-        std::vector<pinocchio::FrameIndex> framesIdx_;
+        std::array<pinocchio::FrameIndex, 2> frameIndices_{{0, 0}};
         /// \brief Reference Distance between the frames
-        double distanceRef_;
-        /// \brief Stores first frame jacobian in world.
-        Matrix6Xd firstFrameJacobian_;
-        /// \brief Stores second frame jacobian in world.
-        Matrix6Xd secondFrameJacobian_;
+        double distanceRef_{0.0};
+        /// \brief Stores frame jacobians in world.
+        std::array<Matrix6Xd, 2> frameJacobians_{};
     };
 }
 

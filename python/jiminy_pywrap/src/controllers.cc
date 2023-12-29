@@ -1,3 +1,4 @@
+#include "jiminy/core/telemetry/fwd.h"
 #include "jiminy/core/hardware/abstract_sensor.h"
 #include "jiminy/core/control/abstract_controller.h"
 #include "jiminy/core/control/controller_functor.h"
