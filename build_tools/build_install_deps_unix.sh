@@ -10,14 +10,14 @@ if [ -z ${BUILD_TYPE} ]; then
 fi
 
 ### Set the macos sdk version min if undefined
-if [ -z ${MACOSX_DEPLOYMENT_TARGET} ]; then
-  MACOSX_DEPLOYMENT_TARGET="10.15"
-  echo "MACOSX_DEPLOYMENT_TARGET is unset. Defaulting to '${MACOSX_DEPLOYMENT_TARGET}'."
+if [ -z ${OSX_DEPLOYMENT_TARGET} ]; then
+  OSX_DEPLOYMENT_TARGET="10.15"
+  echo "OSX_DEPLOYMENT_TARGET is unset. Defaulting to '${OSX_DEPLOYMENT_TARGET}'."
 fi
 
 ### Set the build architecture if undefined
 if [ -z ${OSX_ARCHITECTURES} ]; then
-  OSX_ARCHITECTURES="x86_64"
+  OSX_ARCHITECTURES="arm64"
   echo "OSX_ARCHITECTURES is unset. Defaulting to '${OSX_ARCHITECTURES}'."
 fi
 
@@ -45,8 +45,8 @@ fi
 echo "CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}"
 
 ### Get the fullpath of Jiminy project
-ScriptDir="$(cd "$(dirname "$0")" >/dev/null 2>&1 && pwd)"
-RootDir="$(dirname $ScriptDir)"
+ScriptDir="$(cd "$(dirname -- $0)" >/dev/null 2>&1 && pwd)"
+RootDir="$(dirname -- ${ScriptDir})"
 
 ### Set the fullpath of the install directory, then creates it
 InstallDir="${RootDir}/install"
@@ -208,6 +208,9 @@ git apply --reject --whitespace=fix "${RootDir}/build_tools/patch_deps_unix/pino
 #   * Set the cmake cache variable CMAKE_PREFIX_PATH
 #   * Set the environment variable Boost_DIR
 
+# Must add toolset to search path for boost build system to find it
+PATH="${PATH}:$(dirname -- ${CMAKE_C_COMPILER})"
+
 ### Build and install the build tool b2 (build-ception !)
 cd "${RootDir}/boost"
 ./bootstrap.sh --prefix="${InstallDir}" --with-python="${PYTHON_EXECUTABLE}"
@@ -236,7 +239,7 @@ else
 fi
 CMAKE_CXX_FLAGS_B2="-fPIC -std=c++11"
 if [ "${OSTYPE//[0-9.]/}" == "darwin" ]; then
-  CMAKE_CXX_FLAGS_B2="${CMAKE_CXX_FLAGS_B2} -mmacosx-version-min=${MACOSX_DEPLOYMENT_TARGET}"
+  CMAKE_CXX_FLAGS_B2="${CMAKE_CXX_FLAGS_B2} -mmacosx-version-min=${OSX_DEPLOYMENT_TARGET}"
 fi
 if grep -q ";" <<< "${OSX_ARCHITECTURES}" ; then
   CMAKE_CXX_FLAGS_B2="${CMAKE_CXX_FLAGS_B2} $(echo "-arch ${OSX_ARCHITECTURES}" | sed "s/;/ -arch /g")"
@@ -251,7 +254,7 @@ mkdir -p "${RootDir}/boost/build"
      architecture= address-model=64 $DebugOptionsB2 \
      threading=single link=static runtime-link=static \
      cxxflags="${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_B2}" \
-     linkflags="${CMAKE_CXX_FLAGS_B2}" \
+     linkflags="${CMAKE_CXX_FLAGS_B2}" toolset="$(basename -- ${CMAKE_C_COMPILER})" \
      variant="$BuildTypeB2" install -q -d0 -j2
 
 ./b2 --prefix="${InstallDir}" --build-dir="${RootDir}/boost/build" \
@@ -260,7 +263,7 @@ mkdir -p "${RootDir}/boost/build"
      architecture= address-model=64 $DebugOptionsB2 \
      threading=single link=shared runtime-link=shared \
      cxxflags="${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_B2}" \
-     linkflags="${CMAKE_CXX_FLAGS_B2}" \
+     linkflags="${CMAKE_CXX_FLAGS_B2}" toolset="$(basename -- ${CMAKE_C_COMPILER})" \
      variant="$BuildTypeB2" install -q -d0 -j2
 
 #################################### Build and install eigen3 ##########################################
@@ -279,7 +282,7 @@ cd "${RootDir}/eigenpy/build"
 cmake "${RootDir}/eigenpy" -Wno-dev -DCMAKE_CXX_STANDARD=17 \
       -DCMAKE_C_COMPILER="${CMAKE_C_COMPILER}" -DCMAKE_CXX_COMPILER="${CMAKE_CXX_COMPILER}" \
       -DCMAKE_INSTALL_PREFIX="${InstallDir}" -DCMAKE_PREFIX_PATH="${InstallDir}" \
-      -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET}" \
+      -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${OSX_DEPLOYMENT_TARGET}" \
       -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
       -DBUILD_SHARED_LIBS=ON -DBUILD_STATIC_LIBS=OFF \
       -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" -DPYTHON_STANDARD_LAYOUT=ON \
@@ -297,12 +300,11 @@ cd "${RootDir}/tinyxml/build"
 cmake "${RootDir}/tinyxml" -Wno-dev -DCMAKE_CXX_STANDARD=17 \
       -DCMAKE_C_COMPILER="${CMAKE_C_COMPILER}" -DCMAKE_CXX_COMPILER="${CMAKE_CXX_COMPILER}" \
       -DCMAKE_INSTALL_PREFIX="${InstallDir}" \
-      -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET}" \
+      -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${OSX_DEPLOYMENT_TARGET}" \
       -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
       -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON \
       -DCMAKE_CXX_FLAGS_RELEASE_INIT="" -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -DTIXML_USE_STL" \
       -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
-
 make install -j2
 
 ############################## Build and install console_bridge ########################################
@@ -312,7 +314,7 @@ cd "${RootDir}/console_bridge/build"
 cmake "${RootDir}/console_bridge" -Wno-dev -DCMAKE_CXX_STANDARD=17 \
       -DCMAKE_C_COMPILER="${CMAKE_C_COMPILER}" -DCMAKE_CXX_COMPILER="${CMAKE_CXX_COMPILER}" \
       -DCMAKE_INSTALL_PREFIX="${InstallDir}" \
-      -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET}" \
+      -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${OSX_DEPLOYMENT_TARGET}" \
       -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
       -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON \
       -DCMAKE_CXX_FLAGS_RELEASE_INIT="" -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
@@ -332,7 +334,7 @@ cd "${RootDir}/urdfdom/build"
 cmake "${RootDir}/urdfdom" -Wno-dev -DCMAKE_CXX_STANDARD=17 \
       -DCMAKE_C_COMPILER="${CMAKE_C_COMPILER}" -DCMAKE_CXX_COMPILER="${CMAKE_CXX_COMPILER}" \
       -DCMAKE_INSTALL_PREFIX="${InstallDir}" -DCMAKE_PREFIX_PATH="${InstallDir}" \
-      -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET}" \
+      -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${OSX_DEPLOYMENT_TARGET}" \
       -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
       -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON -DBUILD_TESTING=OFF \
       -DCMAKE_CXX_FLAGS_RELEASE_INIT="" -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
@@ -345,7 +347,7 @@ cd "${RootDir}/cppad/build"
 cmake "${RootDir}/cppad" -Wno-dev -DCMAKE_CXX_STANDARD=17 \
       -DCMAKE_C_COMPILER="${CMAKE_C_COMPILER}" -DCMAKE_CXX_COMPILER="${CMAKE_CXX_COMPILER}" \
       -DCMAKE_INSTALL_PREFIX="${InstallDir}" \
-      -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET}" \
+      -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${OSX_DEPLOYMENT_TARGET}" \
       -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
       -DCMAKE_CXX_FLAGS_RELEASE_INIT="" -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2
@@ -358,7 +360,7 @@ cd "${RootDir}/cppadcodegen/build"
 cmake "${RootDir}/cppadcodegen" -Wno-dev -DCMAKE_CXX_STANDARD=17 \
       -DCMAKE_C_COMPILER="${CMAKE_C_COMPILER}" -DCMAKE_CXX_COMPILER="${CMAKE_CXX_COMPILER}" \
       -DCMAKE_INSTALL_PREFIX="${InstallDir}" \
-      -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET}" \
+      -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${OSX_DEPLOYMENT_TARGET}" \
       -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
       -DGOOGLETEST_GIT=ON \
       -DCMAKE_CXX_FLAGS_RELEASE_INIT="" -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
@@ -373,14 +375,14 @@ cd "${RootDir}/assimp/build"
 cmake "${RootDir}/assimp" -Wno-dev -DCMAKE_CXX_STANDARD=17 \
       -DCMAKE_C_COMPILER="${CMAKE_C_COMPILER}" -DCMAKE_CXX_COMPILER="${CMAKE_CXX_COMPILER}" \
       -DCMAKE_INSTALL_PREFIX="${InstallDir}" \
-      -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET}" \
+      -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${OSX_DEPLOYMENT_TARGET}" \
       -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
       -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON \
       -DASSIMP_BUILD_ASSIMP_TOOLS=OFF -DASSIMP_BUILD_ZLIB=ON -DASSIMP_BUILD_TESTS=OFF \
       -DASSIMP_BUILD_SAMPLES=OFF -DBUILD_DOCS=OFF -DBUILD_TESTING=OFF \
       -DCMAKE_C_FLAGS="${CMAKE_CXX_FLAGS} -DHAVE_HIDDEN" -DCMAKE_CXX_FLAGS_RELEASE_INIT="" \
       -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -Wno-strict-overflow -Wno-tautological-compare -Wno-array-compare $(
-      ) -Wno-alloc-size-larger-than -Wno-unknown-warning-option -Wno-unknown-warning" \
+      ) -Wno-alloc-size-larger-than -Wno-unknown-warning-option -Wno-unknown-warning -Wno-error=array-bounds" \
       -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2
 
@@ -391,7 +393,7 @@ cd "${RootDir}/hpp-fcl/third-parties/qhull/build"
 cmake "${RootDir}/hpp-fcl/third-parties/qhull" -Wno-dev -DCMAKE_CXX_STANDARD=17 \
       -DCMAKE_C_COMPILER="${CMAKE_C_COMPILER}" -DCMAKE_CXX_COMPILER="${CMAKE_CXX_COMPILER}" \
       -DCMAKE_INSTALL_PREFIX="${InstallDir}" \
-      -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET}" \
+      -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${OSX_DEPLOYMENT_TARGET}" \
       -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
       -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON \
       -DCMAKE_C_FLAGS="${CMAKE_CXX_FLAGS}" -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -Wno-conversion" \
@@ -403,7 +405,7 @@ cd "${RootDir}/hpp-fcl/build"
 cmake "${RootDir}/hpp-fcl" -Wno-dev -DCMAKE_CXX_STANDARD=17 \
       -DCMAKE_C_COMPILER="${CMAKE_C_COMPILER}" -DCMAKE_CXX_COMPILER="${CMAKE_CXX_COMPILER}" \
       -DCMAKE_INSTALL_PREFIX="${InstallDir}" -DCMAKE_PREFIX_PATH="${InstallDir}" \
-      -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET}" \
+      -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${OSX_DEPLOYMENT_TARGET}" \
       -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
       -DBUILD_SHARED_LIBS=ON -DBUILD_STATIC_LIBS=OFF \
       -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" -DPYTHON_STANDARD_LAYOUT=ON \
@@ -425,7 +427,7 @@ cd "${RootDir}/pinocchio/build"
 cmake "${RootDir}/pinocchio" -Wno-dev -DCMAKE_CXX_STANDARD=17 \
       -DCMAKE_C_COMPILER="${CMAKE_C_COMPILER}" -DCMAKE_CXX_COMPILER="${CMAKE_CXX_COMPILER}" \
       -DCMAKE_INSTALL_PREFIX="${InstallDir}" -DCMAKE_PREFIX_PATH="${InstallDir}" \
-      -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET}" \
+      -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${OSX_DEPLOYMENT_TARGET}" \
       -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
       -DBUILD_SHARED_LIBS=ON -DBUILD_STATIC_LIBS=OFF \
       -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" -DPYTHON_STANDARD_LAYOUT=ON \

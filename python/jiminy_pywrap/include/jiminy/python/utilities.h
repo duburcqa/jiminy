@@ -693,6 +693,7 @@ namespace jiminy::python
         flexibilityJointDataPy["stiffness"] = flexibleJointData.stiffness;
         flexibilityJointDataPy["damping"] = flexibleJointData.damping;
         flexibilityJointDataPy["inertia"] = flexibleJointData.inertia;
+        // FIXME: Remove explicit and redundant move when moving to C++20
         return std::move(flexibilityJointDataPy);
     }
 
@@ -715,6 +716,7 @@ namespace jiminy::python
         {
             dataPy.append(convertToPython(val, copy));
         }
+        // FIXME: Remove explicit and redundant move when moving to C++20
         return std::move(dataPy);
     }
 
@@ -750,7 +752,8 @@ namespace jiminy::python
         {
             configPyDict[key] = boost::apply_visitor(visitor, value);
         }
-        return configPyDict;
+        // FIXME: Remove explicit and redundant move when moving to C++20
+        return std::move(configPyDict);
     }
 
     template<typename T, bool copy = true>
