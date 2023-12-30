@@ -625,10 +625,15 @@ namespace jiminy::python
 
     /// Convert most C++ objects into Python objects by value
     template<typename T>
-    std::enable_if_t<!is_vector_v<T> && !is_array_v<T> && !is_eigen_v<T> &&
-                         !std::is_arithmetic_v<T>,
-                     bp::object>
-    convertToPython(const T & data, const bool & copy = true)
+    std::enable_if_t<
+        !is_vector_v<T> && !is_array_v<T> && !is_eigen_v<T> &&
+            !std::is_arithmetic_v<std::decay_t<T>> &&
+            !std::is_same_v<std::decay_t<T>, GenericConfig> &&
+            !std::is_same_v<std::decay_t<T>, std::pair<const std::string, SensorDataTypeMap>> &&
+            !std::is_same_v<std::decay_t<T>, std::string_view> &&
+            !std::is_same_v<std::decay_t<T>, FlexibleJointData>,
+        bp::object>
+    convertToPython(T && data, const bool & copy = true)
     {
         if (copy)
         {
@@ -639,8 +644,8 @@ namespace jiminy::python
     }
 
     template<typename T>
-    std::enable_if_t<std::is_arithmetic_v<T>, bp::object> convertToPython(T & data,
-                                                                          const bool & copy = true)
+    std::enable_if_t<std::is_arithmetic_v<std::decay_t<T>>, bp::object>
+    convertToPython(T && data, const bool & copy = true)
     {
         if (copy)
         {
@@ -650,7 +655,8 @@ namespace jiminy::python
     }
 
     template<typename T>
-    std::enable_if_t<is_eigen_v<T>, bp::object> convertToPython(T & data, const bool & copy = true)
+    std::enable_if_t<is_eigen_v<T>, bp::object> convertToPython(T && data,
+                                                                const bool & copy = true)
     {
         PyObject * vecPyPtr = getNumpyReference(data);
         if (copy)
@@ -663,19 +669,8 @@ namespace jiminy::python
     }
 
     template<typename T>
-    std::enable_if_t<is_vector_v<T> || is_array_v<T>, bp::object>
-    convertToPython(T & data, const bool & copy = true)
-    {
-        bp::list dataPy;
-        for (auto & val : data)
-        {
-            dataPy.append(convertToPython(val, copy));
-        }
-        return std::move(dataPy);
-    }
-
-    template<>
-    inline bp::object convertToPython(const std::string_view & data, const bool & copy)
+    std::enable_if_t<std::is_same_v<std::decay_t<T>, std::string_view>, bp::object>
+    convertToPython(T && data, const bool & copy = true)
     {
         if (copy)
         {
@@ -684,9 +679,9 @@ namespace jiminy::python
         return bp::object(bp::handle<>(PyUnicode_FromStringAndSize(data.data(), data.size())));
     }
 
-    template<>
-    inline bp::object convertToPython<FlexibleJointData>(
-        const FlexibleJointData & flexibleJointData, const bool & copy)
+    template<typename T>
+    std::enable_if_t<std::is_same_v<std::decay_t<T>, FlexibleJointData>, bp::object>
+    convertToPython(T && flexibleJointData, const bool & copy)
     {
         if (!copy)
         {
@@ -701,52 +696,67 @@ namespace jiminy::python
         return std::move(flexibilityJointDataPy);
     }
 
-    template<>
-    inline bp::object convertToPython<std::pair<const std::string, SensorDataTypeMap>>(
-        const std::pair<const std::string, SensorDataTypeMap> & sensorDataTypeItem,
-        const bool & copy)
+    template<typename T>
+    std::enable_if_t<
+        std::is_same_v<std::decay_t<T>, std::pair<const std::string, SensorDataTypeMap>>,
+        bp::object>
+    convertToPython(T && sensorDataTypeItem, const bool & copy)
     {
-        const auto & [sensorGroupName, sensorDataType] = sensorDataTypeItem;
+        auto & [sensorGroupName, sensorDataType] = sensorDataTypeItem;
         return bp::make_tuple(sensorGroupName, convertToPython(sensorDataType.getAll(), copy));
     }
+
+    template<typename T>
+    std::enable_if_t<is_vector_v<T> || is_array_v<T>, bp::object>
+    convertToPython(T && data, const bool & copy = true)
+    {
+        bp::list dataPy;
+        for (auto & val : data)
+        {
+            dataPy.append(convertToPython(val, copy));
+        }
+        return std::move(dataPy);
+    }
+
+    template<typename T>
+    std::enable_if_t<std::is_same_v<std::decay_t<T>, GenericConfig>, bp::object>
+    convertToPython(T && config, const bool & copy = true);
 
     class AppendBoostVariantToPython : public boost::static_visitor<bp::object>
     {
     public:
-        AppendBoostVariantToPython(const bool & copy) :
+        AppendBoostVariantToPython(bool copy) :
         copy_{copy}
         {
         }
 
         template<typename T>
-        auto operator()(const T & value) const
+        bp::object operator()(T && value) const
         {
-            return convertToPython(value, copy_);
+            return convertToPython<T>(value, copy_);
         }
 
     public:
-        bool copy_;
+        const bool copy_;
     };
 
-    template<>
-    inline bp::object convertToPython<GenericConfig>(GenericConfig & config, const bool & copy)
+    template<typename T>
+    std::enable_if_t<std::is_same_v<std::decay_t<T>, GenericConfig>, bp::object>
+    convertToPython(T && config, const bool & copy)
     {
         bp::dict configPyDict;
         AppendBoostVariantToPython visitor(copy);
-        for (const auto & [key, value] : config)
+        for (auto & [key, value] : config)
         {
             configPyDict[key] = boost::apply_visitor(visitor, value);
         }
-        return std::move(configPyDict);
+        return configPyDict;
     }
 
     template<typename T, bool copy = true>
     struct converterToPython
     {
-        static PyObject * convert(const T & data)
-        {
-            return bp::incref(convertToPython<T>(data, copy).ptr());
-        }
+        static PyObject * convert(T data) { return bp::incref(convertToPython(data, copy).ptr()); }
 
         static const PyTypeObject * get_pytype()
         {
@@ -754,8 +764,8 @@ namespace jiminy::python
             {
                 return &PyList_Type;
             }
-            else if constexpr (std::is_same_v<T, GenericConfig> ||
-                               std::is_same_v<T, FlexibleJointData>)
+            else if constexpr (std::is_same_v<std::decay_t<T>, GenericConfig> ||
+                               std::is_same_v<std::decay_t<T>, FlexibleJointData>)
             {
                 return &PyDict_Type;
             }
@@ -773,16 +783,14 @@ namespace jiminy::python
         {
             struct type
             {
-                typedef remove_cvref_t<T> value_type;
-
-                PyObject * operator()(T x) const
+                PyObject * operator()(T && x) const
                 {
-                    return bp::incref(convertToPython<value_type>(x, copy).ptr());
+                    return bp::incref(convertToPython(std::forward<T>(x), copy).ptr());
                 }
 
                 const PyTypeObject * get_pytype() const
                 {
-                    return converterToPython<value_type, copy>::get_pytype();
+                    return converterToPython<T, copy>::get_pytype();
                 }
             };
         };
@@ -935,15 +943,38 @@ namespace jiminy::python
     template<typename T>
     std::enable_if_t<is_vector_v<T>, T> convertFromPython(const bp::object & dataPy)
     {
-        T vec;
         const bp::list listPy = bp::extract<bp::list>(dataPy);
+        T vec;
         vec.reserve(bp::len(listPy));
         for (bp::ssize_t i = 0; i < bp::len(listPy); ++i)
         {
-            const bp::object itemPy = listPy[i];
-            vec.push_back(convertFromPython<typename T::value_type>(itemPy));
+            vec.push_back(convertFromPython<typename T::value_type>(listPy[i]));
         }
         return vec;
+    }
+
+    namespace details
+    {
+        template<typename T, size_t... Is, typename F>
+        std::array<T, sizeof...(Is)> BuildArrayFromCallable(std::index_sequence<Is...>, F fun)
+        {
+            return {fun(Is)...};
+        }
+    }
+
+    template<typename T>
+    std::enable_if_t<is_array_v<T>, T> convertFromPython(const bp::object & dataPy)
+    {
+        constexpr std::size_t N = std::tuple_size_v<T>;
+        const bp::list listPy = bp::extract<bp::list>(dataPy);
+        if (bp::len(listPy) != N)
+        {
+            throw std::runtime_error("Consistent number of elements");
+        }
+        return details::BuildArrayFromCallable<typename T::value_type>(
+            std::make_index_sequence<N>{},
+            [&listPy](std::size_t i)
+            { return convertFromPython<typename T::value_type>(listPy[i]); });
     }
 
     template<typename T>

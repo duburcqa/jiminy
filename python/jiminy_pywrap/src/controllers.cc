@@ -99,7 +99,8 @@ namespace jiminy::python
                 .def("register_constants", &PyAbstractControllerVisitor::registerConstant,
                                            (bp::arg("self"), "fieldnames", "values"))
                 .def("remove_entries", &AbstractController::removeEntries)
-                .def("set_options", &PyAbstractControllerVisitor::setOptions)
+                .def("set_options", &PyAbstractControllerVisitor::setOptions,
+                                    (bp::arg("self"), "options"))
                 .def("get_options", &AbstractController::getOptions)
                 .ADD_PROPERTY_GET("robot", &PyAbstractControllerVisitor::getRobot)
                 .DEF_READONLY("sensors_data", &AbstractController::sensorsData_)

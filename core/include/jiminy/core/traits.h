@@ -113,7 +113,7 @@ namespace jiminy
     };
 
     template<typename T>
-    inline constexpr bool is_vector_v = is_vector<T>::value;
+    inline constexpr bool is_vector_v = is_vector<std::decay_t<T>>::value;
 
     // **************************************** is_array *************************************** //
 
@@ -128,7 +128,7 @@ namespace jiminy
     };
 
     template<typename T>
-    inline constexpr bool is_array_v = is_array<T>::value;
+    inline constexpr bool is_array_v = is_array<std::decay_t<T>>::value;
 
     // **************************************** is_map ***************************************** //
 
@@ -267,11 +267,11 @@ namespace jiminy
     };
 
     template<typename T>
-    inline constexpr bool is_eigen_ref_v = is_eigen_ref<T>::value;
+    inline constexpr bool is_eigen_ref_v = is_eigen_ref<std::decay_t<T>>::value;
 
     // *************************************** is_eigen **************************************** //
 
-    namespace details::is_eigen
+    namespace details::is_eigen_plain
     {
         template<typename T, int RowsAtCompileTime, int ColsAtCompileTime>
         std::true_type test(const Eigen::Matrix<T, RowsAtCompileTime, ColsAtCompileTime> *);
@@ -283,21 +283,24 @@ namespace jiminy
         struct Test : public decltype(test(std::declval<std::add_pointer_t<T>>()))
         {
         };
-    }  // namespace details::is_eigen
+    }
 
     template<typename T, typename Enable = void>
-    struct is_eigen : public std::false_type
+    struct is_eigen_plain : public std::false_type
     {
     };
 
     template<typename T>
-    struct is_eigen<T, typename std::enable_if_t<details::is_eigen::Test<T>::value>> :
+    struct is_eigen_plain<T, typename std::enable_if_t<details::is_eigen_plain::Test<T>::value>> :
     std::true_type
     {
     };
 
     template<typename T>
-    inline constexpr bool is_eigen_v = is_eigen<T>::value;
+    inline constexpr bool is_eigen_plain_v = is_eigen_plain<std::decay_t<T>>::value;
+
+    template<class T>
+    inline constexpr bool is_eigen_v = std::disjunction<is_eigen_plain<T>, is_eigen_ref<T>>::value;
 
     // ********************************** is_pinocchio_joint_ ********************************** //
 
