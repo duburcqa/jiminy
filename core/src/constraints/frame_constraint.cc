@@ -13,7 +13,7 @@ namespace jiminy
     {
         std::vector<uint32_t> vec;
         vec.reserve(N);
-        for (uint32_t i = 0; i < N; ++i)
+        for (uint8_t i = 0; i < N; ++i)
         {
             if (mask[i])
             {
@@ -24,56 +24,42 @@ namespace jiminy
     }
 
     template<>
-    const std::string AbstractConstraintTpl<FrameConstraint>::type_("FrameConstraint");
+    const std::string AbstractConstraintTpl<FrameConstraint>::type_{"FrameConstraint"};
 
     FrameConstraint::FrameConstraint(const std::string & frameName,
-                                     const std::array<bool, 6> & maskDoFs) :
+                                     const std::array<bool, 6> & maskDoFs) noexcept :
     AbstractConstraintTpl(),
-    frameName_(frameName),
-    frameIdx_(0),
-    dofsFixed_(maskToVector<6>(maskDoFs)),
-    transformRef_(),
-    normal_(),
-    rotationLocal_(Eigen::Matrix3d::Identity()),
-    frameJacobian_(),
-    frameDrift_()
+    frameName_{frameName},
+    dofsFixed_{maskToVector<6>(maskDoFs)}
     {
-        dofsFixed_.clear();
-        for (uint32_t i = 0; i < 6; ++i)
-        {
-            if (maskDoFs[i])
-            {
-                dofsFixed_.push_back(i);
-            }
-        }
     }
 
-    const std::string & FrameConstraint::getFrameName() const
+    const std::string & FrameConstraint::getFrameName() const noexcept
     {
         return frameName_;
     }
 
-    pinocchio::FrameIndex FrameConstraint::getFrameIdx() const
+    pinocchio::FrameIndex FrameConstraint::getFrameIdx() const noexcept
     {
         return frameIdx_;
     }
 
-    const std::vector<uint32_t> & FrameConstraint::getDofsFixed() const
+    const std::vector<uint32_t> & FrameConstraint::getDofsFixed() const noexcept
     {
         return dofsFixed_;
     }
 
-    void FrameConstraint::setReferenceTransform(const pinocchio::SE3 & transformRef)
+    void FrameConstraint::setReferenceTransform(const pinocchio::SE3 & transformRef) noexcept
     {
         transformRef_ = transformRef;
     }
 
-    const pinocchio::SE3 & FrameConstraint::getReferenceTransform() const
+    const pinocchio::SE3 & FrameConstraint::getReferenceTransform() const noexcept
     {
         return transformRef_;
     }
 
-    void FrameConstraint::setNormal(const Eigen::Vector3d & normal)
+    void FrameConstraint::setNormal(const Eigen::Vector3d & normal) noexcept
     {
         normal_ = normal;
         rotationLocal_.col(2) = normal_;
@@ -81,7 +67,7 @@ namespace jiminy
         rotationLocal_.col(0) = rotationLocal_.col(1).cross(rotationLocal_.col(2));
     }
 
-    const Eigen::Matrix3d & FrameConstraint::getLocalFrame() const
+    const Eigen::Matrix3d & FrameConstraint::getLocalFrame() const noexcept
     {
         return rotationLocal_;
     }

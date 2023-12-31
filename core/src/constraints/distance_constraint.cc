@@ -9,27 +9,23 @@
 namespace jiminy
 {
     template<>
-    const std::string AbstractConstraintTpl<DistanceConstraint>::type_("DistanceConstraint");
+    const std::string AbstractConstraintTpl<DistanceConstraint>::type_{"DistanceConstraint"};
 
     DistanceConstraint::DistanceConstraint(const std::string & firstFrameName,
-                                           const std::string & secondFrameName) :
+                                           const std::string & secondFrameName) noexcept :
     AbstractConstraintTpl(),
-    framesNames_{firstFrameName, secondFrameName},
-    framesIdx_(),
-    distanceRef_(0.0),
-    firstFrameJacobian_(),
-    secondFrameJacobian_()
+    frameNames_{{firstFrameName, secondFrameName}}
     {
     }
 
-    const std::vector<std::string> & DistanceConstraint::getFramesNames() const
+    const std::array<std::string, 2> & DistanceConstraint::getFramesNames() const noexcept
     {
-        return framesNames_;
+        return frameNames_;
     }
 
-    const std::vector<pinocchio::FrameIndex> & DistanceConstraint::getFramesIdx() const
+    const std::array<pinocchio::FrameIndex, 2> & DistanceConstraint::getFramesIdx() const noexcept
     {
-        return framesIdx_;
+        return frameIndices_;
     }
 
     hresult_t DistanceConstraint::setReferenceDistance(double distanceRef)
@@ -44,7 +40,7 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    double DistanceConstraint::getReferenceDistance() const
+    double DistanceConstraint::getReferenceDistance() const noexcept
     {
         return distanceRef_;
     }
@@ -63,26 +59,22 @@ namespace jiminy
         }
 
         // Get frames indices
-        framesIdx_.clear();
-        framesIdx_.reserve(framesNames_.size());
-        for (const std::string & frameName : framesNames_)
+        for (uint8_t i = 0; i < 2; ++i)
         {
-            pinocchio::FrameIndex frameIdx = 0;
             if (returnCode == hresult_t::SUCCESS)
             {
-                returnCode = ::jiminy::getFrameIdx(model->pncModel_, frameName, frameIdx);
-            }
-            if (returnCode == hresult_t::SUCCESS)
-            {
-                framesIdx_.emplace_back(frameIdx);
+                returnCode =
+                    ::jiminy::getFrameIdx(model->pncModel_, frameNames_[i], frameIndices_[i]);
             }
         }
 
         if (returnCode == hresult_t::SUCCESS)
         {
             // Initialize frames jacobians buffers
-            firstFrameJacobian_.setZero(6, model->pncModel_.nv);
-            secondFrameJacobian_.setZero(6, model->pncModel_.nv);
+            for (Matrix6Xd & frameJacobian : frameJacobians_)
+            {
+                frameJacobian.setZero(6, model->pncModel_.nv);
+            }
 
             // Initialize jacobian, drift and multipliers
             jacobian_.setZero(1, model->pncModel_.nv);
@@ -91,8 +83,8 @@ namespace jiminy
 
             // Compute the current distance and use it as reference
             const Eigen::Vector3d deltaPosition =
-                model->pncData_.oMf[framesIdx_[0]].translation() -
-                model->pncData_.oMf[framesIdx_[1]].translation();
+                model->pncData_.oMf[frameIndices_[0]].translation() -
+                model->pncData_.oMf[frameIndices_[1]].translation();
             distanceRef_ = deltaPosition.norm();
         }
 
@@ -112,40 +104,43 @@ namespace jiminy
         auto model = model_.lock();
 
         // Compute direction between frames
-        const Eigen::Vector3d deltaPosition = model->pncData_.oMf[framesIdx_[0]].translation() -
-                                              model->pncData_.oMf[framesIdx_[1]].translation();
+        const Eigen::Vector3d deltaPosition = model->pncData_.oMf[frameIndices_[0]].translation() -
+                                              model->pncData_.oMf[frameIndices_[1]].translation();
         const double deltaPositionNorm = deltaPosition.norm();
         const Eigen::Vector3d direction = deltaPosition / deltaPositionNorm;
 
         // Compute relative velocity between frames
-        const pinocchio::Motion velocity0 = getFrameVelocity(
-            model->pncModel_, model->pncData_, framesIdx_[0], pinocchio::LOCAL_WORLD_ALIGNED);
-        const pinocchio::Motion velocity1 = getFrameVelocity(
-            model->pncModel_, model->pncData_, framesIdx_[1], pinocchio::LOCAL_WORLD_ALIGNED);
-        Eigen::Vector3d deltaVelocity = velocity0.linear() - velocity1.linear();
+        std::array<pinocchio::Motion, 2> frameVelocities{};
+        frameVelocities[0] = getFrameVelocity(
+            model->pncModel_, model->pncData_, frameIndices_[0], pinocchio::LOCAL_WORLD_ALIGNED);
+        frameVelocities[1] = getFrameVelocity(
+            model->pncModel_, model->pncData_, frameIndices_[1], pinocchio::LOCAL_WORLD_ALIGNED);
+        Eigen::Vector3d deltaVelocity = frameVelocities[0].linear() - frameVelocities[1].linear();
 
         // Get jacobian in local frame: J_1 - J_2
-        getFrameJacobian(model->pncModel_,
-                         model->pncData_,
-                         framesIdx_[0],
-                         pinocchio::LOCAL_WORLD_ALIGNED,
-                         firstFrameJacobian_);
-        getFrameJacobian(model->pncModel_,
-                         model->pncData_,
-                         framesIdx_[1],
-                         pinocchio::LOCAL_WORLD_ALIGNED,
-                         secondFrameJacobian_);
+        for (uint8_t i = 0; i < 2; ++i)
+        {
+            getFrameJacobian(model->pncModel_,
+                             model->pncData_,
+                             frameIndices_[i],
+                             pinocchio::LOCAL_WORLD_ALIGNED,
+                             frameJacobians_[i]);
+        }
         jacobian_.noalias() =
-            direction.transpose() * (firstFrameJacobian_ - secondFrameJacobian_).topRows<3>();
+            direction.transpose() * (frameJacobians_[0] - frameJacobians_[1]).topRows<3>();
 
         // Get drift in local frame
-        pinocchio::Motion accel0 = getFrameAcceleration(
-            model->pncModel_, model->pncData_, framesIdx_[0], pinocchio::LOCAL_WORLD_ALIGNED);
-        accel0.linear() += velocity0.angular().cross(velocity0.linear());
-        pinocchio::Motion accel1 = getFrameAcceleration(
-            model->pncModel_, model->pncData_, framesIdx_[1], pinocchio::LOCAL_WORLD_ALIGNED);
-        accel1.linear() += velocity1.angular().cross(velocity1.linear());
-        drift_[0] = direction.dot(accel0.linear() - accel1.linear());
+        std::array<pinocchio::Motion, 2> frameAccelerations{};
+        for (uint8_t i = 0; i < 2; ++i)
+        {
+            frameAccelerations[i] = getFrameAcceleration(model->pncModel_,
+                                                         model->pncData_,
+                                                         frameIndices_[i],
+                                                         pinocchio::LOCAL_WORLD_ALIGNED);
+            frameAccelerations[i].linear() +=
+                frameVelocities[i].angular().cross(frameVelocities[i].linear());
+        }
+        drift_[0] = direction.dot(frameAccelerations[0].linear() - frameAccelerations[1].linear());
 
         /* dDir.T * (dp_A - dp_B) =
                [(dp_A - dp_B) ** 2 - (dir.T * (dp_A - dp_B)) ** 2] / norm(p_A - p_B) */

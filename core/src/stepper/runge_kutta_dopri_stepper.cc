@@ -5,10 +5,10 @@ namespace jiminy
     RungeKuttaDOPRIStepper::RungeKuttaDOPRIStepper(const systemDynamics & f,
                                                    const std::vector<const Robot *> & robots,
                                                    double tolRel,
-                                                   double tolAbs) :
+                                                   double tolAbs) noexcept :
     AbstractRungeKuttaStepper(f, robots, DOPRI::A, DOPRI::b, DOPRI::c, true),
-    tolRel_(tolRel),
-    tolAbs_(tolAbs),
+    tolRel_{tolRel},
+    tolAbs_{tolAbs},
     scale_(robots),
     otherSolution_(robots),
     error_(robots)

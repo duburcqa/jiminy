@@ -4,39 +4,36 @@
 
 namespace jiminy
 {
-    MemoryDevice::MemoryDevice(uint64_t size) :
-    buffer_(static_cast<std::size_t>(size)),
-    currentPos_(0)
+    MemoryDevice::MemoryDevice(std::size_t sizeIn) noexcept :
+    AbstractIODevice(
+#ifndef _WIN32
+        openMode_t::NON_BLOCKING |
+#endif
+        openMode_t::READ_ONLY | openMode_t::WRITE_ONLY | openMode_t::READ_WRITE |
+        openMode_t::APPEND),
+    buffer_(sizeIn),
+    currentPos_{0}
     {
-        supportedModes_ = openMode_t::READ_ONLY | openMode_t::WRITE_ONLY | openMode_t::READ_WRITE |
-                          openMode_t::NON_BLOCKING | openMode_t::APPEND;
     }
-
-
-    MemoryDevice::MemoryDevice(const MemoryDevice & other) :
-    buffer_(other.buffer_),
-    currentPos_(other.currentPos_)
-    {
-        supportedModes_ = other.supportedModes_;
-        modes_ = other.modes_;
-    }
-
 
     MemoryDevice::MemoryDevice(MemoryDevice && other) :
+    AbstractIODevice(std::move(static_cast<AbstractIODevice &&>(other))),
     buffer_(std::move(other.buffer_)),
-    currentPos_(other.currentPos_)
+    currentPos_{other.currentPos_}
     {
-        supportedModes_ = other.supportedModes_;
-        modes_ = other.modes_;
         other.close();
     }
 
-    MemoryDevice::MemoryDevice(std::vector<uint8_t> && initBuffer) :
+    MemoryDevice::MemoryDevice(std::vector<uint8_t> && initBuffer) noexcept :
+    AbstractIODevice(
+#ifndef _WIN32
+        openMode_t::NON_BLOCKING |
+#endif
+        openMode_t::READ_ONLY | openMode_t::WRITE_ONLY | openMode_t::READ_WRITE |
+        openMode_t::APPEND),
     buffer_(std::move(initBuffer)),
-    currentPos_(0)
+    currentPos_{0}
     {
-        supportedModes_ = openMode_t::READ_ONLY | openMode_t::WRITE_ONLY | openMode_t::READ_WRITE |
-                          openMode_t::NON_BLOCKING | openMode_t::APPEND;
     }
 
     MemoryDevice::~MemoryDevice()
@@ -44,61 +41,34 @@ namespace jiminy
         close();
     }
 
-    MemoryDevice & MemoryDevice::operator=(const MemoryDevice & other)
+    hresult_t MemoryDevice::seek(std::ptrdiff_t pos)
     {
-        buffer_ = other.buffer_;
-        currentPos_ = other.currentPos_;
-        modes_ = other.modes_;
-
-        return *this;
-    }
-
-    MemoryDevice & MemoryDevice::operator=(MemoryDevice && other)
-    {
-        buffer_ = std::move(other.buffer_);
-        currentPos_ = other.currentPos_;
-        modes_ = other.modes_;
-        other.close();
-
-        return *this;
-    }
-
-    hresult_t MemoryDevice::seek(int64_t pos)
-    {
-        if ((pos < 0) || pos > size())
+        if ((pos < 0) || static_cast<std::size_t>(pos) > size())
         {
             lastError_ = hresult_t::ERROR_GENERIC;
             PRINT_ERROR("The requested position '", pos, "' is out of scope.");
             return lastError_;
         }
-
         currentPos_ = pos;
         return hresult_t::SUCCESS;
     }
 
-    int64_t MemoryDevice::readData(void * data, int64_t dataSize)
+    std::ptrdiff_t MemoryDevice::readData(void * data, std::size_t dataSize)
     {
         // Read no more than available bytes
-        int64_t toRead = std::min(dataSize, bytesAvailable());
-        std::memcpy(data, buffer_.data() + currentPos_, static_cast<std::size_t>(toRead));
+        std::size_t toRead = std::min(dataSize, bytesAvailable());
+        std::memcpy(data, buffer_.data() + currentPos_, toRead);
         currentPos_ += toRead;
         return toRead;
     }
 
-    int64_t MemoryDevice::writeData(const void * data, int64_t dataSize)
+    std::ptrdiff_t MemoryDevice::writeData(const void * data, std::size_t dataSize)
     {
         // Write no more than available bytes
-        int64_t toWrite = std::min(dataSize, bytesAvailable());
-        std::memcpy(buffer_.data() + currentPos_, data, static_cast<std::size_t>(toWrite));
+        std::size_t toWrite = std::min(dataSize, bytesAvailable());
+        std::memcpy(buffer_.data() + currentPos_, data, toWrite);
         currentPos_ += toWrite;
         return toWrite;
-    }
-
-    hresult_t MemoryDevice::setBlockingMode(bool)
-    {
-        // Since this is a memory device, it can't block when doing its job,
-        // thus we don't care about blocking mode and answer 'OK no problem'.
-        return hresult_t::SUCCESS;
     }
 
     hresult_t MemoryDevice::doOpen(openMode_t modes)
@@ -116,9 +86,9 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    hresult_t MemoryDevice::resize(int64_t size)
+    hresult_t MemoryDevice::resize(std::size_t size)
     {
-        buffer_.resize(static_cast<std::size_t>(size));
+        buffer_.resize(size);
         return hresult_t::SUCCESS;
     }
 }

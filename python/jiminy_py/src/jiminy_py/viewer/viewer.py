@@ -10,7 +10,6 @@ import time
 import math
 import shutil
 import base64
-import atexit
 import logging
 import pathlib
 import tempfile
@@ -306,19 +305,17 @@ def _is_async(fun: Callable[..., Any]) -> Callable[..., Any]:
 class _ProcessWrapper:
     """Wrap `multiprocessing.process.BaseProcess`, `subprocess.Popen`, and
     `psutil.Process` in the same object to provide the same user interface.
-
-    It also makes sure that the process is properly terminated at Python exits,
-    and without zombies left behind.
     """
     def __init__(self,
                  proc: Union[
                      multiprocessing.process.BaseProcess, subprocess.Popen,
-                     Panda3dApp, Process],
-                 kill_at_exit: bool = False):
+                     Panda3dApp, Process]):
         self._proc = proc
-        # Make sure the process is killed at Python exit
-        if kill_at_exit:
-            atexit.register(self.kill)
+
+    def __del__(self) -> None:
+        """Automatically kill process at garbage collection.
+        """
+        self.kill()
 
     def is_parent(self) -> bool:
         """ TODO: Write documentation.
@@ -657,10 +654,7 @@ class Viewer:
             force_update_visual=True, force_update_collision=True, wait=True)
 
     def __del__(self) -> None:
-        """Destructor.
-
-        .. note::
-            It automatically close the viewer before being garbage collected.
+        """Automatically close the viewer at garbage collection.
         """
         self.close()
 
@@ -1108,7 +1102,6 @@ class Viewer:
                         pass
                 Viewer._backend_proc.wait(0.2)
                 Viewer._backend_proc.kill()
-            atexit.unregister(Viewer.close)
             Viewer.backend = None
             Viewer._backend_obj = None
             Viewer._backend_proc = None
@@ -1164,8 +1157,7 @@ class Viewer:
 
     @staticmethod
     @_with_lock
-    def connect_backend(backend: Optional[str] = None,
-                        close_at_exit: bool = True) -> None:
+    def connect_backend(backend: Optional[str] = None) -> None:
         """Get the running process of backend client.
 
         This method can be used to open a new process if necessary.
@@ -1174,8 +1166,6 @@ class Viewer:
                         'panda3d', 'panda3d-qt', 'meshcat'.
                         Optional: The default is hardware and environment
                         dependent. See `viewer.default_backend` for details.
-        :param close_at_exit: Terminate backend server at Python exit.
-                              Optional: True by default
 
         :returns: Pointer to the running backend Client and its PID.
         """
@@ -1211,14 +1201,14 @@ class Viewer:
                 if backend == 'panda3d-qt':
                     from .panda3d.panda3d_widget import Panda3dQWidget
                     client = Panda3dQWidget()
-                    proc = _ProcessWrapper(client, close_at_exit)
+                    proc = _ProcessWrapper(client)
                 elif backend == 'panda3d-sync':
                     client = Panda3dApp()
-                    proc = _ProcessWrapper(client, close_at_exit)
+                    proc = _ProcessWrapper(client)
                 else:
                     client = Panda3dViewer(window_type='onscreen',
                                            window_title=Viewer.window_name)
-                    proc = _ProcessWrapper(client._app, close_at_exit)
+                    proc = _ProcessWrapper(client._app)
             except RuntimeError as e:
                 raise RuntimeError(
                     "Something went wrong. Impossible to instantiate viewer "
@@ -1294,7 +1284,7 @@ class Viewer:
                 server_proc = Process(conn.pid)
             else:
                 server_proc = client.server_proc
-            proc = _ProcessWrapper(server_proc, close_at_exit)
+            proc = _ProcessWrapper(server_proc)
 
         # Make sure the backend process is alive
         assert proc.is_alive(), (
@@ -1304,10 +1294,6 @@ class Viewer:
         Viewer.backend = backend
         Viewer._backend_obj = client
         Viewer._backend_proc = proc
-
-        # Make sure to close cleanly the viewer at exit
-        if close_at_exit:
-            atexit.register(Viewer.close)
 
     @staticmethod
     @_with_lock

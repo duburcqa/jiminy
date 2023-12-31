@@ -2,7 +2,6 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-#include "jiminy/core/fwd.h"
 #include "jiminy/core/io/file_device.h"
 
 #ifndef _WIN32
@@ -36,16 +35,16 @@
 
 namespace jiminy
 {
-    FileDevice::FileDevice(const std::string & filename) :
-    filename_(filename),
-    fileDescriptor_(-1)
-    {
-        supportedModes_ = openMode_t::READ_ONLY | openMode_t::WRITE_ONLY | openMode_t::READ_WRITE |
-                          openMode_t::NON_BLOCKING | openMode_t::TRUNCATE | openMode_t::NEW_ONLY |
-                          openMode_t::EXISTING_ONLY | openMode_t::APPEND | openMode_t::SYNC;
+    FileDevice::FileDevice(const std::string & filename) noexcept :
+    AbstractIODevice(
 #ifndef _WIN32
-        supportedModes_ |= openMode_t::NON_BLOCKING | openMode_t::SYNC;
+        openMode_t::NON_BLOCKING | openMode_t::SYNC |
 #endif
+        openMode_t::READ_ONLY | openMode_t::WRITE_ONLY | openMode_t::READ_WRITE |
+        openMode_t::TRUNCATE | openMode_t::NEW_ONLY | openMode_t::EXISTING_ONLY |
+        openMode_t::APPEND),
+    filename_{filename}
+    {
     }
 
     FileDevice::~FileDevice()
@@ -62,51 +61,51 @@ namespace jiminy
 
     hresult_t FileDevice::doOpen(openMode_t mode)
     {
-        int32_t posixFLags = 0;
+        int32_t openFlags = 0;
         if (mode & openMode_t::READ_ONLY)
         {
-            posixFLags |= O_RDONLY;
+            openFlags |= O_RDONLY;
         }
         if (mode & openMode_t::WRITE_ONLY)
         {
-            posixFLags |= O_WRONLY;
-            posixFLags |= O_CREAT;
+            openFlags |= O_WRONLY;
+            openFlags |= O_CREAT;
         }
         if (mode & openMode_t::READ_WRITE)
         {
-            posixFLags |= O_RDWR;
+            openFlags |= O_RDWR;
         }
         if (mode & openMode_t::TRUNCATE)
         {
-            posixFLags |= O_TRUNC;
+            openFlags |= O_TRUNC;
         }
         if (mode & openMode_t::NEW_ONLY)
         {
-            posixFLags |= O_EXCL;
+            openFlags |= O_EXCL;
         }
         if (mode & openMode_t::EXISTING_ONLY)
         {
-            posixFLags &= ~O_CREAT;
+            openFlags &= ~O_CREAT;
         }
         if (mode & openMode_t::APPEND)
         {
-            posixFLags |= O_APPEND;
+            openFlags |= O_APPEND;
         }
 #ifndef _WIN32
         if (mode & openMode_t::NON_BLOCKING)
         {
-            posixFLags |= O_NONBLOCK;
+            openFlags |= O_NONBLOCK;
         }
         if (mode & openMode_t::SYNC)
         {
-            posixFLags |= O_SYNC;
+            openFlags |= O_SYNC;
         }
 #endif
 #ifdef _WIN32
-        posixFLags |= _O_BINARY;
+        openFlags |= _O_BINARY;
 #endif
 
-        const int32_t rc = ::open(filename_.c_str(), posixFLags, S_IRUSR | S_IWUSR);
+        const int32_t rc = ::open(filename_.c_str(), openFlags, S_IRUSR | S_IWUSR);
         if (rc < 0)
         {
             lastError_ = hresult_t::ERROR_GENERIC;
@@ -135,7 +134,7 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    hresult_t FileDevice::seek(int64_t pos)
+    hresult_t FileDevice::seek(std::ptrdiff_t pos)
     {
         const ssize_t rc = ::lseek(fileDescriptor_, pos, SEEK_SET);
         if (rc < 0)
@@ -148,7 +147,7 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    int64_t FileDevice::pos()
+    std::ptrdiff_t FileDevice::pos()
     {
         const ssize_t pos_cur = ::lseek(fileDescriptor_, 0, SEEK_CUR);
         if (pos_cur < 0)
@@ -160,7 +159,7 @@ namespace jiminy
         return pos_cur;
     }
 
-    int64_t FileDevice::size()
+    std::size_t FileDevice::size()
     {
         struct stat st;
         int32_t rc = ::fstat(fileDescriptor_, &st);
@@ -172,30 +171,30 @@ namespace jiminy
         return st.st_size;
     }
 
-    int64_t FileDevice::bytesAvailable()
+    std::size_t FileDevice::bytesAvailable()
     {
         if (!isReadable())
         {
             return 0;
         }
-        return size() - pos();
+        return size() - static_cast<std::size_t>(pos());
     }
 
-    int64_t FileDevice::readData(void * data, int64_t dataSize)
+    std::ptrdiff_t FileDevice::readData(void * data, std::size_t dataSize)
     {
-        const ssize_t readBytes = ::read(fileDescriptor_, data, static_cast<size_t>(dataSize));
+        const ssize_t readBytes = ::read(fileDescriptor_, data, dataSize);
         if (readBytes < 0)
         {
             lastError_ = hresult_t::ERROR_GENERIC;
             PRINT_ERROR(
                 "The file is not open, or data buffer is outside accessible address space.");
         }
-        return readBytes;
+        return static_cast<std::ptrdiff_t>(readBytes);
     }
 
-    int64_t FileDevice::writeData(const void * data, int64_t dataSize)
+    std::ptrdiff_t FileDevice::writeData(const void * data, std::size_t dataSize)
     {
-        const ssize_t writtenBytes = ::write(fileDescriptor_, data, static_cast<size_t>(dataSize));
+        const ssize_t writtenBytes = ::write(fileDescriptor_, data, dataSize);
         if (writtenBytes < 0)
         {
             lastError_ = hresult_t::ERROR_GENERIC;
@@ -210,9 +209,9 @@ namespace jiminy
         return filename_;
     }
 
-    hresult_t FileDevice::resize(int64_t sizeIn)
+    hresult_t FileDevice::resize(std::size_t size)
     {
-        const int32_t rc = ::ftruncate(fileDescriptor_, sizeIn);
+        const int rc = ::ftruncate(fileDescriptor_, size);
         if (rc < 0)
         {
             lastError_ = hresult_t::ERROR_GENERIC;

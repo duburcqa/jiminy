@@ -7,9 +7,10 @@
 #include <filesystem>
 
 #include "jiminy/core/fwd.h"
+#include "jiminy/core/hardware/fwd.h"
+#include "jiminy/core/telemetry/fwd.h"
 #include "jiminy/core/utilities/helpers.h"
 #include "jiminy/core/io/file_device.h"
-#include "jiminy/core/telemetry/telemetry_recorder.h"
 #include "jiminy/core/hardware/abstract_sensor.h"
 #include "jiminy/core/hardware/basic_motors.h"
 #include "jiminy/core/control/controller_functor.h"

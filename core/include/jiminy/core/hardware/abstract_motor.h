@@ -2,7 +2,7 @@
 ///
 /// \details Any motor must inherit from this base class and implement its virtual methods.
 ///
-/// \remark Each motor added to a Jiminy Robot is downcasted as an instance of AbstractMotorBase
+/// \remark Each motor added to a Jiminy Robot is down-casted as an instance of AbstractMotorBase
 ///         and polymorphism is used to call the actual implementations.
 
 #ifndef JIMINY_ABSTRACT_MOTOR_H
@@ -77,9 +77,8 @@ namespace jiminy
         DISABLE_COPY(AbstractMotorBase)
 
     public:
-        /// \param[in] robot Robot.
         /// \param[in] name Name of the motor.
-        AbstractMotorBase(const std::string & name);
+        explicit AbstractMotorBase(const std::string & name) noexcept;
         virtual ~AbstractMotorBase();
 
         /// \brief Refresh the proxies.
@@ -97,7 +96,7 @@ namespace jiminy
         virtual hresult_t resetAll();
 
         /// \brief Configuration options of the motor.
-        GenericConfig getOptions() const;
+        GenericConfig getOptions() const noexcept;
 
         /// \brief Actual effort of the motor at the current time.
         double get() const;
@@ -134,10 +133,10 @@ namespace jiminy
         JointModelType getJointType() const;
 
         /// \brief Index of the joint associated with the motor in configuration vector.
-        int32_t getJointPositionIdx() const;
+        Eigen::Index getJointPositionIdx() const;
 
         /// \brief Index of the joint associated with the motor in the velocity vector.
-        int32_t getJointVelocityIdx() const;
+        Eigen::Index getJointVelocityIdx() const;
 
         /// \brief Maximum effort of the motor.
         double getCommandLimit() const;
@@ -199,34 +198,34 @@ namespace jiminy
 
     public:
         /// \brief Structure with the parameters of the motor.
-        std::unique_ptr<const abstractMotorOptions_t> baseMotorOptions_;
+        std::unique_ptr<const abstractMotorOptions_t> baseMotorOptions_{nullptr};
 
     protected:
         /// \brief Dictionary with the parameters of the motor.
-        GenericConfig motorOptionsHolder_;
+        GenericConfig motorOptionsHolder_{};
         /// \brief Flag to determine whether the controller has been initialized or not.
-        bool isInitialized_;
+        bool isInitialized_{false};
         /// \brief Flag to determine whether the motor is attached to a robot.
-        bool isAttached_;
+        bool isAttached_{false};
         /// \brief Robot for which the command and internal dynamics.
-        std::weak_ptr<const Robot> robot_;
+        std::weak_ptr<const Robot> robot_{};
         /// \brief Notify the robot that the configuration of the sensors have changed.
-        std::function<hresult_t(AbstractMotorBase &)> notifyRobot_;
+        std::function<hresult_t(AbstractMotorBase &)> notifyRobot_{};
         /// \brief Name of the motor.
         std::string name_;
         /// \brief Index of the motor in the measurement buffer.
-        std::size_t motorIdx_;
-        std::string jointName_;
-        pinocchio::JointIndex jointModelIdx_;
-        JointModelType jointType_;
-        int32_t jointPositionIdx_;
-        int32_t jointVelocityIdx_;
-        double commandLimit_;
-        double armature_;
+        std::size_t motorIdx_{0};
+        std::string jointName_{};
+        pinocchio::JointIndex jointModelIdx_{0};
+        JointModelType jointType_{JointModelType::UNSUPPORTED};
+        Eigen::Index jointPositionIdx_{0};
+        Eigen::Index jointVelocityIdx_{0};
+        double commandLimit_{0.0};
+        double armature_{0.0};
 
     private:
         /// \brief Shared data between every motors associated with the robot.
-        MotorSharedDataHolder_t * sharedHolder_;
+        MotorSharedDataHolder_t * sharedHolder_{nullptr};
     };
 }
 

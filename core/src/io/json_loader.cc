@@ -6,10 +6,8 @@
 
 namespace jiminy
 {
-    JsonLoader::JsonLoader(std::shared_ptr<AbstractIODevice> device) :
-    rootJson_(std::make_unique<Json::Value>()),
-    payload_(),
-    device_(device)
+    JsonLoader::JsonLoader(const std::shared_ptr<AbstractIODevice> & device) noexcept :
+    device_{device}
     {
     }
 
@@ -22,8 +20,8 @@ namespace jiminy
         if (returnCode == hresult_t::SUCCESS)
         {
             auto size = device_->bytesAvailable();
-            payload_.resize(static_cast<std::size_t>(size));
-            returnCode = device_->read(payload_.data(), size);
+            payload_.resize(size);
+            returnCode = device_->read(payload_);
         }
 
         if (returnCode == hresult_t::SUCCESS)

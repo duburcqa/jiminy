@@ -11,9 +11,7 @@ namespace jiminy
     class JIMINY_DLLAPI EulerExplicitStepper : public AbstractStepper
     {
     public:
-        /// \param[in] f Dynamics function, with signature `a = f(t, q, v)`.
-        /// \param[in] robots Robots whose dynamics the stepper will work on.
-        EulerExplicitStepper(const systemDynamics & f, const std::vector<const Robot *> & robots);
+        using AbstractStepper::AbstractStepper;
 
     protected:
         /// \brief Internal tryStep method wrapping the arguments as state_t and stateDerivative_t.

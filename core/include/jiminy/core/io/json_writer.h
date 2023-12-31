@@ -16,14 +16,10 @@ namespace jiminy
     class JIMINY_DLLAPI JsonWriter
     {
     public:
-        JsonWriter(std::shared_ptr<AbstractIODevice> device);
-        ~JsonWriter() = default;
+        explicit JsonWriter(const std::shared_ptr<AbstractIODevice> & device) noexcept;
 
         /// \brief Dump current content to device.
         hresult_t dump(const Json::Value & input);
-
-        /// \brief In case the constructor can't init the backend use set to init.
-        void setBackend(std::shared_ptr<AbstractIODevice> device);
 
     private:
         std::shared_ptr<AbstractIODevice> device_;

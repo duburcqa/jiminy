@@ -72,14 +72,6 @@ namespace jiminy
     template<>
     const bool AbstractSensorTpl<ImuSensor>::areFieldnamesGrouped_{false};
 
-    ImuSensor::ImuSensor(const std::string & name) :
-    AbstractSensorTpl(name),
-    frameName_(),
-    frameIdx_(0),
-    sensorRotationBiasInv_(Eigen::Matrix3d::Identity())
-    {
-    }
-
     hresult_t ImuSensor::initialize(const std::string & frameName)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
@@ -224,13 +216,6 @@ namespace jiminy
     template<>
     const bool AbstractSensorTpl<ContactSensor>::areFieldnamesGrouped_{false};
 
-    ContactSensor::ContactSensor(const std::string & name) :
-    AbstractSensorTpl(name),
-    frameName_(),
-    frameIdx_(0)
-    {
-    }
-
     hresult_t ContactSensor::initialize(const std::string & frameName)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
@@ -311,15 +296,6 @@ namespace jiminy
     template<>
     const bool AbstractSensorTpl<ForceSensor>::areFieldnamesGrouped_{false};
 
-    ForceSensor::ForceSensor(const std::string & name) :
-    AbstractSensorTpl(name),
-    frameName_(),
-    frameIdx_(0),
-    parentJointIdx_(0),
-    f_()
-    {
-    }
-
     hresult_t ForceSensor::initialize(const std::string & frameName)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
@@ -351,7 +327,7 @@ namespace jiminy
         if (returnCode == hresult_t::SUCCESS)
         {
             // 'parent' returns the parent joint
-            parentJointIdx_ = robot->pncModel_.frames[frameIdx_].parent;
+            parentJointModelIdx_ = robot->pncModel_.frames[frameIdx_].parent;
         }
 
         return returnCode;
@@ -367,9 +343,9 @@ namespace jiminy
         return frameIdx_;
     }
 
-    pinocchio::JointIndex ForceSensor::getJointIdx() const
+    pinocchio::JointIndex ForceSensor::getJointModelIdx() const
     {
-        return parentJointIdx_;
+        return parentJointModelIdx_;
     }
 
     hresult_t ForceSensor::set(double /* t */,
@@ -384,7 +360,7 @@ namespace jiminy
         GET_ROBOT_IF_INITIALIZED()
 
         // Get the sum of external forces applied on parent joint
-        const pinocchio::JointIndex i = parentJointIdx_;
+        const pinocchio::JointIndex i = parentJointModelIdx_;
         const pinocchio::Force & fJoint = fExternal[i];
 
         // Transform the force from joint frame to sensor frame
@@ -403,14 +379,6 @@ namespace jiminy
     const std::vector<std::string> AbstractSensorTpl<EncoderSensor>::fieldnames_{"Q", "V"};
     template<>
     const bool AbstractSensorTpl<EncoderSensor>::areFieldnamesGrouped_{true};
-
-    EncoderSensor::EncoderSensor(const std::string & name) :
-    AbstractSensorTpl(name),
-    jointName_(),
-    jointIdx_(0),
-    jointType_(JointModelType::UNSUPPORTED)
-    {
-    }
 
     hresult_t EncoderSensor::initialize(const std::string & jointName)
     {
@@ -446,8 +414,8 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            jointIdx_ = robot->pncModel_.getJointId(jointName_);
-            getJointTypeFromIdx(robot->pncModel_, jointIdx_, jointType_);
+            jointModelIdx_ = robot->pncModel_.getJointId(jointName_);
+            getJointTypeFromIdx(robot->pncModel_, jointModelIdx_, jointType_);
 
             // Motors are only supported for linear and rotary joints
             if (jointType_ != JointModelType::LINEAR && jointType_ != JointModelType::ROTARY &&
@@ -467,9 +435,9 @@ namespace jiminy
         return jointName_;
     }
 
-    pinocchio::JointIndex EncoderSensor::getJointIdx() const
+    pinocchio::JointIndex EncoderSensor::getJointModelIdx() const
     {
-        return jointIdx_;
+        return jointModelIdx_;
     }
 
     JointModelType EncoderSensor::getJointType() const
@@ -486,9 +454,9 @@ namespace jiminy
     {
         GET_ROBOT_IF_INITIALIZED()
 
-        const auto & joint = robot->pncModel_.joints[jointIdx_];
-        const int32_t jointPositionIdx = joint.idx_q();
-        const int32_t jointVelocityIdx = joint.idx_v();
+        const auto & joint = robot->pncModel_.joints[jointModelIdx_];
+        const Eigen::Index jointPositionIdx = joint.idx_q();
+        const Eigen::Index jointVelocityIdx = joint.idx_v();
         if (jointType_ == JointModelType::ROTARY_UNBOUNDED)
         {
             const double cosTheta = q[jointPositionIdx];
@@ -512,13 +480,6 @@ namespace jiminy
     const std::vector<std::string> AbstractSensorTpl<EffortSensor>::fieldnames_{"U"};
     template<>
     const bool AbstractSensorTpl<EffortSensor>::areFieldnamesGrouped_{true};
-
-    EffortSensor::EffortSensor(const std::string & name) :
-    AbstractSensorTpl(name),
-    motorName_(),
-    motorIdx_(-1)
-    {
-    }
 
     hresult_t EffortSensor::initialize(const std::string & motorName)
     {

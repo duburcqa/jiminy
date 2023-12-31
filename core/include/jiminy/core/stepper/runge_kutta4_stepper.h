@@ -30,7 +30,8 @@ namespace jiminy
     public:
         /// \param[in] f Dynamics function, with signature `a = f(t, q, v)`.
         /// \param[in] robots Robots whose dynamics the stepper will work on.
-        RungeKutta4Stepper(const systemDynamics & f, const std::vector<const Robot *> & robots);
+        RungeKutta4Stepper(const systemDynamics & f,
+                           const std::vector<const Robot *> & robots) noexcept;
     };
 }
 

@@ -1,19 +1,11 @@
 
+#include "jiminy/core/telemetry/fwd.h"
 #include "jiminy/core/telemetry/telemetry_data.h"
 
 
 namespace jiminy
 {
-    TelemetryData::TelemetryData() :
-    constantsRegistry_(),
-    integersRegistry_(),
-    floatsRegistry_(),
-    isRegisteringAvailable_(false)
-    {
-        reset();
-    }
-
-    void TelemetryData::reset()
+    void TelemetryData::reset() noexcept
     {
         constantsRegistry_.clear();
         integersRegistry_.clear();

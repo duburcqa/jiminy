@@ -29,11 +29,8 @@ namespace jiminy
         return static_cast<openMode_t>(~static_cast<int32_t>(mode));
     }
 
-    AbstractIODevice::AbstractIODevice() :
-    modes_(openMode_t::NOT_OPEN),
-    supportedModes_(openMode_t::NOT_OPEN),
-    lastError_(hresult_t::SUCCESS),
-    io_(nullptr)
+    AbstractIODevice::AbstractIODevice(openMode_t supportedModes) noexcept :
+    supportedModes_(supportedModes)
     {
     }
 
@@ -51,7 +48,10 @@ namespace jiminy
         {
             if ((modes & supportedModes_) != modes)
             {
-                PRINT_ERROR("At least of the modes ", modes, " is not supported.");
+                std::cout << "supportedModes_: " << supportedModes_ << " | modes: " << modes
+                          << std::endl;
+                throw std::runtime_error("ERROR");
+                PRINT_ERROR("At least one of the selected modes is not supported.");
                 returnCode = lastError_ = hresult_t::ERROR_GENERIC;
             }
         }
@@ -121,31 +121,31 @@ namespace jiminy
         return false;
     }
 
-    int64_t AbstractIODevice::size()
+    std::size_t AbstractIODevice::size()
     {
         return bytesAvailable();
     }
 
-    hresult_t AbstractIODevice::resize(int64_t /* size */)
+    hresult_t AbstractIODevice::resize(std::size_t /* size */)
     {
         lastError_ = hresult_t::ERROR_GENERIC;
         PRINT_ERROR("This method is not available.");
         return lastError_;
     }
 
-    hresult_t AbstractIODevice::seek(int64_t /* pos */)
+    hresult_t AbstractIODevice::seek(std::ptrdiff_t /* pos */)
     {
         lastError_ = hresult_t::ERROR_GENERIC;
         PRINT_ERROR("This method is not available.");
         return lastError_;
     }
 
-    int64_t AbstractIODevice::pos()
+    std::ptrdiff_t AbstractIODevice::pos()
     {
-        return 0;
+        return -1;
     }
 
-    int64_t AbstractIODevice::bytesAvailable()
+    std::size_t AbstractIODevice::bytesAvailable()
     {
         return 0;
     }
@@ -155,14 +155,14 @@ namespace jiminy
         return lastError_;
     }
 
-    hresult_t AbstractIODevice::write(const void * data, int64_t dataSize)
+    hresult_t AbstractIODevice::write(const void * data, std::size_t dataSize)
     {
-        int64_t toWrite = dataSize;
+        std::size_t toWrite = dataSize;
         const uint8_t * bufferPos = static_cast<const uint8_t *>(data);
 
         while (toWrite > 0)
         {
-            int64_t writtenBytes = writeData(bufferPos + (dataSize - toWrite), toWrite);
+            std::ptrdiff_t writtenBytes = writeData(bufferPos + (dataSize - toWrite), toWrite);
             if (writtenBytes <= 0)
             {
                 lastError_ = hresult_t::ERROR_GENERIC;
@@ -175,14 +175,14 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    hresult_t AbstractIODevice::read(void * data, int64_t dataSize)
+    hresult_t AbstractIODevice::read(void * data, std::size_t dataSize)
     {
-        int64_t toRead = dataSize;
+        std::size_t toRead = dataSize;
         uint8_t * bufferPos = static_cast<uint8_t *>(data);
 
         while (toRead > 0)
         {
-            int64_t readBytes = readData(bufferPos + (dataSize - toRead), toRead);
+            std::ptrdiff_t readBytes = readData(bufferPos + (dataSize - toRead), toRead);
             if (readBytes <= 0)
             {
                 lastError_ = hresult_t::ERROR_GENERIC;
@@ -193,83 +193,5 @@ namespace jiminy
         }
 
         return hresult_t::SUCCESS;
-    }
-
-    hresult_t AbstractIODevice::setBlockingMode(bool /* shouldBlock */)
-    {
-        lastError_ = hresult_t::ERROR_GENERIC;
-        PRINT_ERROR("This methid is not available.");
-        return lastError_;
-    }
-
-    bool AbstractIODevice::isBackendValid()
-    {
-        return (io_.get() != nullptr);
-    }
-
-    void AbstractIODevice::setBackend(std::unique_ptr<AbstractIODevice> io)
-    {
-        io_ = std::move(io);
-        supportedModes_ = io_->supportedModes();
-    }
-
-    void AbstractIODevice::removeBackend()
-    {
-        io_.reset();
-        supportedModes_ = openMode_t::NOT_OPEN;
-    }
-
-    // Specific implementation - std::vector<uint8_t>
-    template<>
-    hresult_t AbstractIODevice::read<std::vector<uint8_t>>(std::vector<uint8_t> & v)
-    {
-        int64_t toRead = static_cast<int64_t>(v.size() * sizeof(uint8_t));
-        uint8_t * bufferPos = reinterpret_cast<uint8_t *>(v.data());
-        return read(bufferPos, toRead);
-    }
-
-    // Specific implementation - std::vector<char>
-    template<>
-    hresult_t AbstractIODevice::read<std::vector<char>>(std::vector<char> & v)
-    {
-        int64_t toRead = static_cast<int64_t>(v.size() * sizeof(char));
-        uint8_t * bufferPos = reinterpret_cast<uint8_t *>(v.data());
-        return read(bufferPos, toRead);
-    }
-
-    // Specific implementation - std::string
-    template<>
-    hresult_t AbstractIODevice::write<std::string_view>(const std::string_view & str)
-    {
-        int64_t toWrite = static_cast<int64_t>(str.size());
-        const uint8_t * bufferPos = reinterpret_cast<const uint8_t *>(str.data());
-        return write(bufferPos, toWrite);
-    }
-
-    // Specific implementation - std::vector<uint8_t>
-    template<>
-    hresult_t AbstractIODevice::write<std::vector<uint8_t>>(const std::vector<uint8_t> & v)
-    {
-        int64_t toWrite = static_cast<int64_t>(v.size() * sizeof(uint8_t));
-        const uint8_t * bufferPos = reinterpret_cast<const uint8_t *>(v.data());
-        return write(bufferPos, toWrite);
-    }
-
-    // Specific implementation - std::vector<char>
-    template<>
-    hresult_t AbstractIODevice::write<std::vector<char>>(const std::vector<char> & v)
-    {
-        int64_t toWrite = static_cast<int64_t>(v.size() * sizeof(char));
-        const uint8_t * bufferPos = reinterpret_cast<const uint8_t *>(v.data());
-        return write(bufferPos, toWrite);
-    }
-
-    // Specific implementation - std::vector<uint64_t>
-    template<>
-    hresult_t AbstractIODevice::write<std::vector<uint64_t>>(const std::vector<uint64_t> & v)
-    {
-        int64_t toWrite = static_cast<int64_t>(v.size() * sizeof(uint64_t));
-        const uint8_t * bufferPos = reinterpret_cast<const uint8_t *>(&v[0]);
-        return write(bufferPos, toWrite);
     }
 }

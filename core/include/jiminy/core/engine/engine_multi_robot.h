@@ -5,7 +5,6 @@
 #include <functional>
 
 #include "jiminy/core/fwd.h"
-#include "jiminy/core/telemetry/telemetry_sender.h"
 #include "jiminy/core/engine/system.h"
 
 
@@ -43,6 +42,7 @@ namespace jiminy
     class AbstractStepper;
     class TelemetryData;
     class TelemetryRecorder;
+    class TelemetrySender;
     struct LogData;
 
     using ForceCouplingRegister = std::vector<ForceCoupling>;
@@ -69,18 +69,18 @@ namespace jiminy
         }
 
     public:
-        uint32_t iter;
-        uint32_t iterFailed;
-        double t;
-        double tPrev;
+        uint32_t iter{0U};
+        uint32_t iterFailed{0U};
+        double t{0.0};
+        double tPrev{0.0};
         /// \brief Internal buffer used for Kahan algorithm storing the residual sum of errors.
-        double tError;
-        double dt;
-        double dtLargest;
-        double dtLargestPrev;
-        std::vector<Eigen::VectorXd> qSplit;
-        std::vector<Eigen::VectorXd> vSplit;
-        std::vector<Eigen::VectorXd> aSplit;
+        double tError{0.0};
+        double dt{0.0};
+        double dtLargest{0.0};
+        double dtLargestPrev{0.0};
+        std::vector<Eigen::VectorXd> qSplit{};
+        std::vector<Eigen::VectorXd> vSplit{};
+        std::vector<Eigen::VectorXd> aSplit{};
     };
 
     class JIMINY_DLLAPI EngineMultiRobot
@@ -327,8 +327,8 @@ namespace jiminy
         DISABLE_COPY(EngineMultiRobot)
 
     public:
-        EngineMultiRobot();
-        virtual ~EngineMultiRobot();
+        explicit EngineMultiRobot() noexcept;
+        ~EngineMultiRobot();
 
         hresult_t addSystem(const std::string & systemName,
                             std::shared_ptr<Robot> robot,
@@ -488,11 +488,11 @@ namespace jiminy
         hresult_t getForcesProfile(const std::string & systemName,
                                    const ForceProfileRegister *& forcesProfilePtr) const;
 
-        GenericConfig getOptions() const;
+        GenericConfig getOptions() const noexcept;
         hresult_t setOptions(const GenericConfig & engineOptions);
         bool getIsTelemetryConfigured() const;
         std::vector<std::string> getSystemsNames() const;
-        hresult_t getSystemIdx(const std::string & systemName, int32_t & systemIdx) const;
+        hresult_t getSystemIdx(const std::string & systemName, std::ptrdiff_t & systemIdx) const;
         hresult_t getSystem(const std::string & systemName, systemHolder_t *& system);
         hresult_t getSystemState(const std::string & systemName,
                                  const systemState_t *& systemState) const;
@@ -654,30 +654,30 @@ namespace jiminy
                 const vector_aligned_t<ForceDerived> & fext);
 
     public:
-        std::unique_ptr<const engineOptions_t> engineOptions_;
-        std::vector<systemHolder_t> systems_;
+        std::unique_ptr<const engineOptions_t> engineOptions_{nullptr};
+        std::vector<systemHolder_t> systems_{};
 
     protected:
-        bool isTelemetryConfigured_;
-        bool isSimulationRunning_;
-        GenericConfig engineOptionsHolder_;
+        bool isTelemetryConfigured_{false};
+        bool isSimulationRunning_{false};
+        GenericConfig engineOptionsHolder_{};
 
     private:
-        std::unique_ptr<Timer> timer_;
-        contactModel_t contactModel_;
-        TelemetrySender telemetrySender_;
+        std::unique_ptr<Timer> timer_{std::make_unique<Timer>()};
+        contactModel_t contactModel_{contactModel_t::UNSUPPORTED};
+        std::unique_ptr<TelemetrySender> telemetrySender_;
         std::shared_ptr<TelemetryData> telemetryData_;
         std::unique_ptr<TelemetryRecorder> telemetryRecorder_;
-        std::unique_ptr<AbstractStepper> stepper_;
-        double stepperUpdatePeriod_;
-        StepperState stepperState_;
-        vector_aligned_t<systemDataHolder_t> systemsDataHolder_;
-        ForceCouplingRegister forcesCoupling_;
-        vector_aligned_t<ForceVector> contactForcesPrev_;
-        vector_aligned_t<ForceVector> fPrev_;
-        vector_aligned_t<MotionVector> aPrev_;
-        std::vector<double> energy_;
-        std::shared_ptr<LogData> logData_;
+        std::unique_ptr<AbstractStepper> stepper_{nullptr};
+        double stepperUpdatePeriod_{INF};
+        StepperState stepperState_{};
+        vector_aligned_t<systemDataHolder_t> systemsDataHolder_{};
+        ForceCouplingRegister forcesCoupling_{};
+        vector_aligned_t<ForceVector> contactForcesPrev_{};
+        vector_aligned_t<ForceVector> fPrev_{};
+        vector_aligned_t<MotionVector> aPrev_{};
+        std::vector<double> energy_{};
+        std::shared_ptr<LogData> logData_{nullptr};
     };
 }
 

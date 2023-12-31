@@ -7,7 +7,7 @@
 #    include <stdio.h>
 #endif
 
-#include "jiminy/core/telemetry/telemetry_recorder.h"  // `LogData`
+#include "jiminy/core/telemetry/fwd.h"  // `LogData`
 #include "jiminy/core/utilities/helpers.h"
 
 
@@ -15,23 +15,18 @@ namespace jiminy
 {
     // *************** Local Mutex/Lock mechanism ******************
 
-    MutexLocal::MutexLocal() :
-    isLocked_(new bool{false})
-    {
-    }
-
     MutexLocal::~MutexLocal()
     {
         *isLocked_ = false;
     }
 
-    bool MutexLocal::isLocked() const
+    bool MutexLocal::isLocked() const noexcept
     {
         return *isLocked_;
     }
 
-    LockGuardLocal::LockGuardLocal(MutexLocal & mutexLocal) :
-    mutexFlag_(mutexLocal.isLocked_)
+    LockGuardLocal::LockGuardLocal(MutexLocal & mutexLocal) noexcept :
+    mutexFlag_{mutexLocal.isLocked_}
     {
         *mutexFlag_ = true;
     }
@@ -43,21 +38,18 @@ namespace jiminy
 
     // ************************* Timer **************************
 
-    Timer::Timer() :
-    t0(),
-    tf(),
-    dt(0.0)
+    Timer::Timer() noexcept
     {
         tic();
     }
 
-    void Timer::tic()
+    void Timer::tic() noexcept
     {
         t0 = Time::now();
         dt = 0.0;
     }
 
-    void Timer::toc()
+    void Timer::toc() noexcept
     {
         tf = Time::now();
         std::chrono::duration<double> timeDiff = tf - t0;

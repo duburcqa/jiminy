@@ -11,11 +11,11 @@ namespace jiminy
 
     struct ConstraintBlock
     {
-        double lo;
-        double hi;
-        bool isZero;
-        Eigen::Index fIdx[3];
-        std::uint_fast8_t fSize;
+        double lo{0.0};
+        double hi{0.0};
+        bool isZero{false};
+        Eigen::Index fIdx[3]{-1, -1, -1};
+        std::uint_fast8_t fSize{0};
     };
 
     struct ConstraintData
@@ -24,22 +24,21 @@ namespace jiminy
         DISABLE_COPY(ConstraintData)
 
     public:
-        ConstraintData() = default;
+        explicit ConstraintData() = default;
         ConstraintData(ConstraintData && constraintData) = default;
 
     public:
-        AbstractConstraintBase * constraint;
-        Eigen::Index startIdx;
-        bool isInactive;
-        Eigen::Index dim;
-        ConstraintBlock blocks[3];
-        std::uint_fast8_t nBlocks;
+        AbstractConstraintBase * constraint{nullptr};
+        Eigen::Index startIdx{-1};
+        bool isInactive{false};
+        Eigen::Index dim{-1};
+        ConstraintBlock blocks[3]{};
+        std::uint_fast8_t nBlocks{0};
     };
 
     class JIMINY_DLLAPI AbstractConstraintSolver
     {
     public:
-        AbstractConstraintSolver() = default;
         virtual ~AbstractConstraintSolver() = default;
 
         /// \brief Compute the solution of the Nonlinear Complementary Problem:
@@ -60,14 +59,14 @@ namespace jiminy
         DISABLE_COPY(PGSSolver)
 
     public:
-        PGSSolver(const pinocchio::Model * model,
-                  pinocchio::Data * data,
-                  constraintsHolder_t * constraintsHolder,
-                  double friction,
-                  double torsion,
-                  double tolAbs,
-                  double tolRel,
-                  uint32_t maxIter);
+        explicit PGSSolver(const pinocchio::Model * model,
+                           pinocchio::Data * data,
+                           constraintsHolder_t * constraintsHolder,
+                           double friction,
+                           double torsion,
+                           double tolAbs,
+                           double tolRel,
+                           uint32_t maxIter) noexcept;
         virtual ~PGSSolver() = default;
 
         virtual bool SolveBoxedForwardDynamics(double dampingInv,
@@ -91,18 +90,18 @@ namespace jiminy
         double tolRel_;
 
         /// \brief Matrix holding the jacobian of the constraints.
-        Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> J_;
+        Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> J_{};
         /// \brief Vector holding the drift of the constraints.
-        Eigen::VectorXd gamma_;
+        Eigen::VectorXd gamma_{};
         /// \brief Vector holding the multipliers of the constraints.
-        Eigen::VectorXd lambda_;
-        std::vector<ConstraintData> constraintsData_;
+        Eigen::VectorXd lambda_{};
+        std::vector<ConstraintData> constraintsData_{};
 
-        Eigen::VectorXd b_;
-        Eigen::VectorXd y_;
-        Eigen::VectorXd yPrev_;
+        Eigen::VectorXd b_{};
+        Eigen::VectorXd y_{};
+        Eigen::VectorXd yPrev_{};
 
-        bool isLcpFullyUpToDate_;
+        bool isLcpFullyUpToDate_{false};
     };
 }
 

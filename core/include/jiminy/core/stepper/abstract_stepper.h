@@ -27,7 +27,8 @@ namespace jiminy
     public:
         /// \param[in] f Dynamics function, with signature `a = f(t, q, v)`.
         /// \param[in] robots Robots whose dynamics the stepper will work on.
-        AbstractStepper(const systemDynamics & f, const std::vector<const Robot *> & robots);
+        explicit AbstractStepper(const systemDynamics & f,
+                                 const std::vector<const Robot *> & robots) noexcept;
         virtual ~AbstractStepper() = default;
 
         /// \brief Attempt to integrate the system from time t to time t + dt.

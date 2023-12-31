@@ -15,8 +15,8 @@ namespace jiminy
         DISABLE_COPY(Engine)
 
     public:
-        Engine() = default;
-        virtual ~Engine() = default;
+        explicit Engine() = default;
+        ~Engine() = default;
 
         hresult_t initialize(std::shared_ptr<Robot> robot,
                              std::shared_ptr<AbstractController> controller,

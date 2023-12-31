@@ -22,7 +22,7 @@ namespace jiminy
         DISABLE_COPY(AbstractConstraintBase)
 
     public:
-        AbstractConstraintBase() = default;
+        explicit AbstractConstraintBase() = default;
         virtual ~AbstractConstraintBase();
 
         /// \brief Refresh the internal buffers and proxies.
@@ -77,25 +77,25 @@ namespace jiminy
 
     public:
         /// \brief Lambda multipliers.
-        Eigen::VectorXd lambda_;
+        Eigen::VectorXd lambda_{};
 
     protected:
         /// \brief Model on which the constraint operates.
-        std::weak_ptr<const Model> model_;
+        std::weak_ptr<const Model> model_{};
         /// \brief Flag to indicate whether the constraint has been attached to a model.
-        bool isAttached_;
+        bool isAttached_{false};
         /// \brief Flag to indicate whether the constraint is enabled.
         ///
         /// \remarks Handling of this flag is done at Robot level.
-        bool isEnabled_;
+        bool isEnabled_{false};
         /// \brief Position-related baumgarte stabilization gain.
-        double kp_;
+        double kp_{0.0};
         /// \brief Velocity-related baumgarte stabilization gain.
-        double kd_;
+        double kd_{0.0};
         /// \brief Jacobian of the constraint.
-        Eigen::MatrixXd jacobian_;
+        Eigen::MatrixXd jacobian_{};
         /// \brief Drift of the constraint.
-        Eigen::VectorXd drift_;
+        Eigen::VectorXd drift_{};
     };
 
     template<class T>

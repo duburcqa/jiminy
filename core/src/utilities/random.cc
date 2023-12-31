@@ -1,7 +1,5 @@
 #include <numeric>
 
-#include "jiminy/core/traits.h"
-
 #include "jiminy/core/utilities/random.h"
 
 
@@ -15,16 +13,16 @@ namespace jiminy
     // Based on Ziggurat generator by Marsaglia and Tsang (JSS, 2000):
     // https://people.sc.fsu.edu/~jburkardt/cpp_src/ziggurat/ziggurat.html
 
-    std::mt19937 generator_;
+    std::mt19937 generator_{};
     std::uniform_real_distribution<float> distUniform_(0.0, 1.0);
-    bool isInitialized_ = false;
-    uint32_t seed_ = 0U;
+    bool isInitialized_{false};
+    uint32_t seed_{0U};
 
     uint32_t kn[128];
     float fn[128];
     float wn[128];
 
-    void r4_nor_setup()
+    void r4_nor_setup() noexcept
     {
         const double m1 = 2147483648.0;
         const double vn = 9.91256303526217e-03;
@@ -116,7 +114,7 @@ namespace jiminy
         }
     }
 
-    void resetRandomGenerators(const std::optional<uint32_t> & seed)
+    void resetRandomGenerators(const std::optional<uint32_t> & seed) noexcept
     {
         uint32_t newSeed = seed.value_or(seed_);
         srand(newSeed);  // Eigen relies on srand for generating random numbers
@@ -158,9 +156,7 @@ namespace jiminy
         if (std > 0.0)
         {
             return Eigen::VectorXd::NullaryExpr(
-                size,
-                [&mean, &std](const Eigen::VectorXd::Index &) -> double
-                { return randNormal(mean, std); });
+                size, [mean, std](Eigen::Index) -> double { return randNormal(mean, std); });
         }
         return Eigen::VectorXd::Constant(size, mean);
     }
@@ -172,17 +168,15 @@ namespace jiminy
 
     Eigen::VectorXd randVectorNormal(const Eigen::VectorXd & mean, const Eigen::VectorXd & std)
     {
-        return Eigen::VectorXd::NullaryExpr(
-            std.size(),
-            [&mean, &std](const Eigen::VectorXd::Index & i) -> double
-            { return randNormal(mean[i], std[i]); });
+        return Eigen::VectorXd::NullaryExpr(std.size(),
+                                            [&mean, &std](Eigen::Index i) -> double
+                                            { return randNormal(mean[i], std[i]); });
     }
 
     Eigen::VectorXd randVectorNormal(const Eigen::VectorXd & std)
     {
-        return Eigen::VectorXd::NullaryExpr(std.size(),
-                                            [&std](const Eigen::VectorXd::Index & i) -> double
-                                            { return randNormal(0, std[i]); });
+        return Eigen::VectorXd::NullaryExpr(
+            std.size(), [&std](Eigen::Index i) -> double { return randNormal(0, std[i]); });
     }
 
     void shuffleIndices(std::vector<uint32_t> & vector)
@@ -195,12 +189,12 @@ namespace jiminy
     // domain. The author hereby disclaims copyright to this source code:
     // https://github.com/aappleby/smhasher/blob/master/src/MurmurHash3.cpp
 
-    inline uint32_t rotl32(uint32_t x, int8_t r)
+    inline uint32_t rotl32(uint32_t x, int8_t r) noexcept
     {
         return (x << r) | (x >> (32 - r));
     }
 
-    uint32_t MurmurHash3(const void * key, int32_t len, uint32_t seed)
+    uint32_t MurmurHash3(const void * key, int32_t len, uint32_t seed) noexcept
     {
         // Define some internal constants
         const uint32_t c1 = 0xcc9e2d51;
@@ -263,80 +257,19 @@ namespace jiminy
 
     //-----------------------------------------------------------------------------
 
-    /// \brief Lower Cholesky factor of a Toeplitz positive semi-definite matrix.
-    ///
-    /// \details In practice, it is advisable to combine this algorithm with Tikhonov
-    ///          regularization of relative magnitude 1e-9 to avoid numerical instabilities because
-    ///          of double machine precision.
-    ///
-    /// \see Michael Stewart, Cholesky factorization of semi-definite Toeplitz matrices. Linear
-    ///      Algebra and its Applications, Volume 254, pages 497-525, 1997.
-    ///
-    /// \see https://people.sc.fsu.edu/~jburkardt/cpp_src/toeplitz_cholesky/toeplitz_cholesky.html
-    ///
-    /// \param[in] a Toeplitz matrix to decompose.
-    /// \param[out] l Lower Cholesky factor.
-    template<typename DerivedType1, typename DerivedType2>
-    void toeplitzCholeskyLower(const Eigen::MatrixBase<DerivedType1> & a,
-                               Eigen::MatrixBase<DerivedType2> & l)
-    {
-        using Scalar = typename DerivedType1::Scalar;
-
-        // Initialize lower Cholesky factor. Resizing is enough, no need to initialize it.
-        const Eigen::Index n = a.rows();
-        l.resize(n, n);
-
-        /* Compute compressed representation of the matrix.
-           It coincides with the Schur generator for Toepliz matrices.
-           TODO: Investigate if row-major is more efficient than column-major storage order.
-           TODO: Avoid 'eval' by reversing columns and thereby shifting data to the right. */
-        Eigen::Matrix<Scalar, 2, Eigen::Dynamic> g(2, n);
-        g.row(0) = a.row(0);
-        g.row(1).tail(n - 1) = a.col(0).tail(n - 1);
-        g(1, 0) = 0.0;
-
-        // Run progressive Schur algorithm, adapted to Toepliz matrices
-        l.col(0) = g.row(0);
-        g.row(0).tail(n - 1) = g.row(0).head(n - 1).eval();
-        g(0, 0) = 0.0;
-        Eigen::Matrix<Scalar, 2, 2> H = Eigen::Matrix<Scalar, 2, 2>::Ones();
-        for (Eigen::Index i = 1; i < n; ++i)
-        {
-            const double rho = -g(1, i) / g(0, i);
-            // H << 1.0, rho,
-            //      rho, 1.0;
-            Eigen::Map<Eigen::Matrix<Scalar, 4, 1>>(H.data()).template segment<2>(1).fill(rho);
-            g.rightCols(n - i + 1) = H * g.rightCols(n - i + 1) / std::sqrt(1.0 - rho * rho);
-            l.col(i).tail(n - i + 1) = g.row(0).tail(n - i + 1);
-            g.row(0).tail(n - i) = g.row(0).segment(i - 1, n - i).eval();
-            g(0, i - 1) = 0.0;
-        }
-    }
-
     PeriodicGaussianProcess::PeriodicGaussianProcess(
-        double wavelength, double period, double scale) :
-    wavelength_(wavelength),
-    period_(period),
-    scale_(scale),
-    dt_(0.02 * wavelength_),
-    numTimes_(static_cast<int32_t>(std::ceil(period_ / dt_))),
-    isInitialized_(false),
-    values_(numTimes_),
-    covSqrtRoot_(numTimes_, numTimes_)
+        double wavelength, double period, double scale) noexcept :
+    wavelength_{wavelength},
+    period_{period},
+    scale_{scale}
     {
     }
 
     void PeriodicGaussianProcess::reset()
     {
-        // Initialize the process if not already done
-        if (!isInitialized_)
-        {
-            initialize();
-        }
-
         // Sample normal vector
         const Eigen::VectorXd normalVec =
-            Eigen::VectorXd::NullaryExpr(numTimes_, [](double) { return randNormal(); });
+            Eigen::VectorXd::NullaryExpr(numTimes_, [](Eigen::Index) { return randNormal(); });
 
         // Compute discrete periodic gaussian process values
         values_.noalias() = covSqrtRoot_.triangularView<Eigen::Lower>() * normalVec;
@@ -344,12 +277,6 @@ namespace jiminy
 
     double PeriodicGaussianProcess::operator()(const float & t)
     {
-        // Reset the process if not initialized
-        if (!isInitialized_)
-        {
-            reset();
-        }
-
         // Wrap requested time in gaussian process period
         double tWrap = std::fmod(t, period_);
         if (tWrap < 0)
@@ -381,63 +308,21 @@ namespace jiminy
         return dt_;
     }
 
-    void PeriodicGaussianProcess::initialize()
-    {
-        // Compute distance matrix
-        Eigen::MatrixXd distMat(numTimes_, numTimes_);
-        for (int32_t i = 0; i < numTimes_; ++i)
-        {
-            distMat.diagonal(i).setConstant(dt_ * i);
-        }
-        distMat.triangularView<Eigen::StrictlyLower>() = distMat.transpose();
-
-        // Compute covariance matrix
-        Eigen::MatrixXd cov(numTimes_, numTimes_);
-        cov = distMat.array().abs().unaryExpr(
-            [period = period_, wavelength = wavelength_](double dist)
-            { return std::exp(-2.0 * std::pow(std::sin(M_PI / period * dist) / wavelength, 2)); });
-
-        /* Perform Square-Root-Free Cholesky decomposition (LDLT).
-           All decompositions are equivalent as the covariance matrix is symmetric, namely Eigen
-           Value, Singular Value, Square-Root-Free Cholesky and Schur decompositions. Cholesky
-           is by far the most efficient one (https://math.stackexchange.com/q/22825/375496).
-           Moreover, the covariance is positive semi-definite toepliz matrix, so computational
-           complexity can be reduced even further using optimized Cholesky algorithm. */
-        toeplitzCholeskyLower(cov + 1.0e-9 * Eigen::MatrixXd::Identity(numTimes_, numTimes_),
-                              covSqrtRoot_);
-
-        // At this point, it is fully initialized
-        isInitialized_ = true;
-    }
-
     PeriodicFourierProcess::PeriodicFourierProcess(
-        double wavelength, double period, double scale) :
-    wavelength_(wavelength),
-    period_(period),
-    scale_(scale),
-    dt_(0.02 * wavelength_),
-    numTimes_(static_cast<int32_t>(std::ceil(period_ / dt_))),
-    numHarmonics_(static_cast<int32_t>(std::ceil(period_ / wavelength_))),
-    isInitialized_(false),
-    values_(numTimes_),
-    cosMat_(numTimes_, numHarmonics_),
-    sinMat_(numTimes_, numHarmonics_)
+        double wavelength, double period, double scale) noexcept :
+    wavelength_{wavelength},
+    period_{period},
+    scale_{scale}
     {
     }
 
     void PeriodicFourierProcess::reset()
     {
-        // Initialize the process if not already done
-        if (!isInitialized_)
-        {
-            initialize();
-        }
-
         // Sample normal vectors
         Eigen::VectorXd normalVec1 =
-            Eigen::VectorXd::NullaryExpr(numHarmonics_, [](double) { return randNormal(); });
+            Eigen::VectorXd::NullaryExpr(numHarmonics_, [](Eigen::Index) { return randNormal(); });
         Eigen::VectorXd normalVec2 =
-            Eigen::VectorXd::NullaryExpr(numHarmonics_, [](double) { return randNormal(); });
+            Eigen::VectorXd::NullaryExpr(numHarmonics_, [](Eigen::Index) { return randNormal(); });
 
         // Compute discrete periodic gaussian process values
         values_ = M_SQRT2 / std::sqrt(2 * numHarmonics_ + 1) *
@@ -446,12 +331,6 @@ namespace jiminy
 
     double PeriodicFourierProcess::operator()(const float & t)
     {
-        // Reset the process if not initialized
-        if (!isInitialized_)
-        {
-            reset();
-        }
-
         // Wrap requested time in guassian process period
         double tWrap = std::fmod(t, period_);
         if (tWrap < 0)
@@ -488,29 +367,10 @@ namespace jiminy
         return dt_;
     }
 
-    void PeriodicFourierProcess::initialize()
-    {
-        // Compute exponential base at given time
-        for (int32_t colIdx = 0; colIdx < numHarmonics_; ++colIdx)
-        {
-            for (int32_t rowIdx = 0; rowIdx < numTimes_; ++rowIdx)
-            {
-                const double freq = colIdx / period_;
-                const double t = dt_ * rowIdx;
-                const double phase = 2 * M_PI * freq * t;
-                cosMat_(rowIdx, colIdx) = std::cos(phase);
-                sinMat_(rowIdx, colIdx) = std::sin(phase);
-            }
-        }
-
-        // At this point, it is fully initialized
-        isInitialized_ = true;
-    }
-
-    AbstractPerlinNoiseOctave::AbstractPerlinNoiseOctave(double wavelength, double scale) :
-    wavelength_(wavelength),
-    scale_(scale),
-    shift_(0.0)
+    AbstractPerlinNoiseOctave::AbstractPerlinNoiseOctave(double wavelength, double scale) noexcept
+    :
+    wavelength_{wavelength},
+    scale_{scale}
     {
     }
 
@@ -564,12 +424,6 @@ namespace jiminy
         return yLeft + ratio * (yRight - yLeft);
     }
 
-    RandomPerlinNoiseOctave::RandomPerlinNoiseOctave(double wavelength, double scale) :
-    AbstractPerlinNoiseOctave(wavelength, scale),
-    seed_(0)
-    {
-    }
-
     void RandomPerlinNoiseOctave::reset()
     {
         // Call base implementation
@@ -598,8 +452,7 @@ namespace jiminy
     PeriodicPerlinNoiseOctave::PeriodicPerlinNoiseOctave(
         double wavelength, double period, double scale) :
     AbstractPerlinNoiseOctave(wavelength, scale),
-    period_(period),
-    perm_(256)
+    period_{period}
     {
         // Make sure the wavelength is multiple of the period
         assert(std::abs(period_ - period) < 1e-6);
@@ -633,24 +486,15 @@ namespace jiminy
     }
 
     AbstractPerlinProcess::AbstractPerlinProcess(
-        double wavelength, double scale, uint32_t numOctaves) :
-    wavelength_(wavelength),
-    numOctaves_(numOctaves),
-    scale_(scale),
-    isInitialized_(false),
-    octaves_(),
-    amplitude_(0.0)
+        double scale, std::vector<std::unique_ptr<AbstractPerlinNoiseOctave>> && octaves) noexcept
+    :
+    scale_{scale},
+    octaves_(std::move(octaves))
     {
     }
 
     void AbstractPerlinProcess::reset()
     {
-        // Initialize the process if not already done
-        if (!isInitialized_)
-        {
-            initialize();
-        }
-
         // Reset every octave successively
         for (auto & octave : octaves_)
         {
@@ -668,12 +512,6 @@ namespace jiminy
 
     double AbstractPerlinProcess::operator()(const float & t)
     {
-        // Reset the process if not initialized
-        if (!isInitialized_)
-        {
-            reset();
-        }
-
         // Compute sum of octaves' values
         double value = 0.0;
         for (const auto & octave : octaves_)
@@ -685,86 +523,74 @@ namespace jiminy
         return value / amplitude_;
     }
 
-    double AbstractPerlinProcess::getWavelength() const
+    double AbstractPerlinProcess::getWavelength() const noexcept
     {
-        return wavelength_;
+        return std::transform_reduce(
+            octaves_.cbegin(),
+            octaves_.cend(),
+            INF,
+            std::less<double>(),
+            [](const std::unique_ptr<AbstractPerlinNoiseOctave> & octave) -> double
+            { return octave->getWavelength(); });
     }
 
-    uint32_t AbstractPerlinProcess::getNumOctaves() const
+    std::size_t AbstractPerlinProcess::getNumOctaves() const noexcept
     {
-        return numOctaves_;
+        return octaves_.size();
     }
 
-    double AbstractPerlinProcess::getScale() const
+    double AbstractPerlinProcess::getScale() const noexcept
     {
         return scale_;
     }
 
-    RandomPerlinProcess::RandomPerlinProcess(
-        double wavelength, double scale, uint32_t numOctaves) :
-    AbstractPerlinProcess(wavelength, scale, numOctaves)
+    std::vector<std::unique_ptr<AbstractPerlinNoiseOctave>> buildPerlinNoiseOctaves(
+        double wavelength,
+        std::size_t numOctaves,
+        std::function<std::unique_ptr<AbstractPerlinNoiseOctave>(double, double)> factory)
     {
+        std::vector<std::unique_ptr<AbstractPerlinNoiseOctave>> octaves_;
+        octaves_.reserve(numOctaves);
+        double scale = 1.0;
+        for (std::size_t i = 0; i < numOctaves; ++i)
+        {
+            octaves_.push_back(factory(wavelength, scale));
+            wavelength *= PERLIN_NOISE_LACUNARITY;
+            scale *= PERLIN_NOISE_PERSISTENCE;
+        }
+        return octaves_;
     }
 
-    void RandomPerlinProcess::initialize()
+    RandomPerlinProcess::RandomPerlinProcess(
+        double wavelength, double scale, std::size_t numOctaves) :
+    AbstractPerlinProcess(
+        scale,
+        buildPerlinNoiseOctaves(
+            wavelength,
+            numOctaves,
+            [](double wavelengthIn, double scaleIn) -> std::unique_ptr<AbstractPerlinNoiseOctave>
+            { return std::make_unique<RandomPerlinNoiseOctave>(wavelengthIn, scaleIn); }))
     {
-        // Add desired perlin noise octaves
-        octaves_.clear();
-        octaves_.reserve(numOctaves_);
-        double octaveWavelength = wavelength_;
-        double octaveScale = 1.0;
-        for (uint32_t i = 0; i < numOctaves_; ++i)
-        {
-            octaves_.emplace_back(
-                std::make_unique<RandomPerlinNoiseOctave>(octaveWavelength, octaveScale));
-            octaveScale *= PERLIN_NOISE_PERSISTENCE;
-            octaveWavelength *= PERLIN_NOISE_LACUNARITY;
-        }
-
-        // At this point, it is fully initialized
-        isInitialized_ = true;
     }
 
     PeriodicPerlinProcess::PeriodicPerlinProcess(
-        double wavelength, double period, double scale, uint32_t numOctaves) :
-    AbstractPerlinProcess(wavelength, scale, numOctaves),
-    period_(period)
+        double wavelength, double period, double scale, std::size_t numOctaves) :
+    AbstractPerlinProcess(
+        scale,
+        buildPerlinNoiseOctaves(
+            wavelength,
+            numOctaves,
+            [period](double wavelengthIn,
+                     double scaleIn) -> std::unique_ptr<AbstractPerlinNoiseOctave> {
+                return std::make_unique<PeriodicPerlinNoiseOctave>(wavelengthIn, period, scaleIn);
+            })),
+    period_{period}
     {
         // Make sure the period is larger than the wavelength
         assert(period_ >= wavelength && "Period must be larger than wavelength.");
     }
 
-    void PeriodicPerlinProcess::initialize()
-    {
-        // Add desired perlin noise octaves
-        octaves_.clear();
-        octaves_.reserve(numOctaves_);
-        double octaveWavelength = wavelength_;
-        double octaveScale = 1.0;
-        for (uint32_t i = 0; i < numOctaves_; ++i)
-        {
-            // Make sure the octave wavelength is divisor of the period
-            if (octaveWavelength > period_)
-            {
-                // Do not add more octoves if current wavelength is larger than the period
-                break;
-            }
-            octaveWavelength = period_ / std::floor(period_ / octaveWavelength);
-
-            // Instantiate and add octave
-            octaves_.emplace_back(std::make_unique<PeriodicPerlinNoiseOctave>(
-                octaveWavelength, period_, octaveScale));
-
-            // Update scale and wavelength for next octave
-            octaveScale *= PERLIN_NOISE_PERSISTENCE;
-            octaveWavelength *= PERLIN_NOISE_LACUNARITY;
-        }
-
-        // At this point, it is fully initialized
-        isInitialized_ = true;
-    }
-
-    double PeriodicPerlinProcess::getPeriod() const
+    double PeriodicPerlinProcess::getPeriod() const noexcept
     {
         return period_;
     }
@@ -785,7 +611,7 @@ namespace jiminy
         return 0.0;
     }
 
-    std::pair<double, double> tile2dInterp1d(Eigen::Matrix<int32_t, 2, 1> & posIdx,
+    std::pair<double, double> tile2dInterp1d(Eigen::Vector2i & posIdx,
                                              const Eigen::Vector2d & posRel,
                                              uint32_t dim,
                                              const Eigen::Vector2d & size,
@@ -842,9 +668,9 @@ namespace jiminy
         interpThreshold.array() /= size.array();
 
         const Eigen::Vector2d offset = Eigen::Vector2d::NullaryExpr(
-            [&size, &seed](const Eigen::VectorXd::Index & i) -> double
+            [&size, seed](Eigen::Index i) -> double
             {
-                Eigen::Matrix<Eigen::VectorXd::Index, 1, 1> key;
+                Eigen::Matrix<Eigen::Index, 1, 1> key;
                 key[0] = i;
                 return randomDouble(key, 1, size[i], seed);
             });
@@ -858,7 +684,7 @@ namespace jiminy
             // Compute the tile index and relative coordinate
             Eigen::Vector2d pos = rotationMat * (pos3.head<2>() + offset);
             Eigen::Vector2d posRel = pos.array() / size.array();
-            Eigen::Matrix<int32_t, 2, 1> posIdx = posRel.array().floor().cast<int32_t>();
+            Eigen::Vector2i posIdx = posRel.array().floor().cast<int32_t>();
             posRel -= posIdx.cast<double>();
 
             // Interpolate height based on nearby tiles if necessary

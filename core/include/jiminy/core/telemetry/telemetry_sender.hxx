@@ -9,17 +9,18 @@ namespace jiminy
 {
     template<typename Scalar>
     std::enable_if_t<std::is_arithmetic_v<Scalar>, hresult_t>
-    TelemetrySender::registerVariable(const std::string & name, const Scalar * value)
+    TelemetrySender::registerVariable(const std::string & name, const Scalar * valuePtr)
     {
         Scalar * positionInBuffer = nullptr;
         const std::string fullName =
             addCircumfix(name, objectName_, {}, TELEMETRY_FIELDNAME_DELIMITER);
-
         hresult_t returnCode = telemetryData_->registerVariable(fullName, positionInBuffer);
+
         if (returnCode == hresult_t::SUCCESS)
         {
-            bufferPosition_.emplace_back(telemetry_data_pair_t<Scalar>{value, positionInBuffer});
-            *positionInBuffer = *value;
+            *positionInBuffer = *valuePtr;
+            bufferPosition_.emplace_back(
+                telemetry_data_pair_t<Scalar>{valuePtr, positionInBuffer});
         }
 
         return returnCode;

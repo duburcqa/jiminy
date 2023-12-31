@@ -8,8 +8,8 @@
 
 namespace jiminy
 {
-    JsonWriter::JsonWriter(std::shared_ptr<AbstractIODevice> device) :
-    device_(std::move(device))
+    JsonWriter::JsonWriter(const std::shared_ptr<AbstractIODevice> & device) noexcept :
+    device_{device}
     {
     }
 

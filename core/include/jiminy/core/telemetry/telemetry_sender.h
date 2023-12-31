@@ -13,8 +13,6 @@ namespace jiminy
 {
     class TelemetryData;
 
-    inline constexpr std::string_view DEFAULT_TELEMETRY_NAMESPACE{"Uninitialized Object"};
-
     /// \brief Class to inherit for sending telemetry data.
     class JIMINY_DLLAPI TelemetrySender
     {
@@ -28,9 +26,8 @@ namespace jiminy
         template<typename... T>
         using telemetry_data_registry_t = std::vector<std::variant<telemetry_data_pair_t<T>...>>;
 
-        explicit TelemetrySender();
+        explicit TelemetrySender() = default;
         explicit TelemetrySender(TelemetrySender &&) = default;
-        ~TelemetrySender() = default;
 
         /// \brief Configure the object.
         ///
@@ -52,7 +49,7 @@ namespace jiminy
         /// \param[in] value Pointer to the newly recorded field.
         template<typename Scalar>
         std::enable_if_t<std::is_arithmetic_v<Scalar>, hresult_t>
-        registerVariable(const std::string & name, const Scalar * value);
+        registerVariable(const std::string & name, const Scalar * valuePtr);
 
         template<typename KeyType, typename Derived>
         hresult_t registerVariable(const std::vector<KeyType> & fieldnames,
@@ -75,13 +72,13 @@ namespace jiminy
 
     protected:
         /// \brief Name of the logged object.
-        std::string objectName_;
+        std::string objectName_{"Uninitialized Object"};
 
     private:
-        std::shared_ptr<TelemetryData> telemetryData_;
+        std::shared_ptr<TelemetryData> telemetryData_{nullptr};
         /// \brief Associate each variable pointer provided by the user to their reserved position
         ///        in the contiguous storage of telemetry data.
-        telemetry_data_registry_t<double, int64_t> bufferPosition_;
+        telemetry_data_registry_t<double, int64_t> bufferPosition_{};
     };
 }
 

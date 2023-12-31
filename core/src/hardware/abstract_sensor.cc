@@ -1,24 +1,21 @@
-#include "jiminy/core/robot/robot.h"
 #include "jiminy/core/utilities/random.h"
+#include "jiminy/core/telemetry/telemetry_sender.h"
+#include "jiminy/core/robot/robot.h"
 
 #include "jiminy/core/hardware/abstract_sensor.h"
 
 
 namespace jiminy
 {
-    AbstractSensorBase::AbstractSensorBase(const std::string & name) :
-    baseSensorOptions_(nullptr),
-    sensorOptionsHolder_(),
-    isInitialized_(false),
-    isAttached_(false),
-    isTelemetryConfigured_(false),
-    robot_(),
-    name_(name),
-    telemetrySender_()
+    AbstractSensorBase::AbstractSensorBase(const std::string & name) noexcept :
+    name_{name},
+    telemetrySender_{std::make_unique<TelemetrySender>()}
     {
         // Initialize the options
         setOptions(getDefaultSensorOptions());
     }
+
+    AbstractSensorBase::~AbstractSensorBase() = default;
 
     hresult_t AbstractSensorBase::configureTelemetry(std::shared_ptr<TelemetryData> telemetryData,
                                                      const std::string & objectPrefixName)
@@ -43,8 +40,8 @@ namespace jiminy
                         objectName = addCircumfix(
                             objectName, objectPrefixName, {}, TELEMETRY_FIELDNAME_DELIMITER);
                     }
-                    telemetrySender_.configureObject(telemetryData, objectName);
-                    returnCode = telemetrySender_.registerVariable(getFieldnames(), get());
+                    telemetrySender_->configureObject(telemetryData, objectName);
+                    returnCode = telemetrySender_->registerVariable(getFieldnames(), get());
                     if (returnCode == hresult_t::SUCCESS)
                     {
                         isTelemetryConfigured_ = true;
@@ -65,7 +62,7 @@ namespace jiminy
     {
         if (isTelemetryConfigured_)
         {
-            telemetrySender_.updateValues();
+            telemetrySender_->updateValues();
         }
     }
 
@@ -91,7 +88,7 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    GenericConfig AbstractSensorBase::getOptions() const
+    GenericConfig AbstractSensorBase::getOptions() const noexcept
     {
         return sensorOptionsHolder_;
     }
