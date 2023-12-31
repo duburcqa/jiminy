@@ -3,12 +3,6 @@
 
 namespace jiminy
 {
-    EulerExplicitStepper::EulerExplicitStepper(const systemDynamics & f,
-                                               const std::vector<const Robot *> & robots) :
-    AbstractStepper(f, robots)
-    {
-    }
-
     bool EulerExplicitStepper::tryStepImpl(
         state_t & state, stateDerivative_t & stateDerivative, double t, double & dt)
     {

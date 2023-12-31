@@ -1,14 +1,12 @@
+#include "jiminy/core/utilities/helpers.h"
+#include "jiminy/core/utilities/json.h"
 #include "jiminy/core/io/serialization.h"
+#include "jiminy/core/io/abstract_io_device.h"
+#include "jiminy/core/io/memory_device.h"
 #include "jiminy/core/control/abstract_controller.h"
 #include "jiminy/core/robot/robot.h"
 #include "jiminy/core/engine/engine.h"
 #include "jiminy/core/engine/engine_multi_robot.h"
-#include "jiminy/core/telemetry/telemetry_data.h"
-#include "jiminy/core/telemetry/telemetry_recorder.h"
-#include "jiminy/core/utilities/json.h"
-#include "jiminy/core/utilities/helpers.h"
-
-#include <boost/optional.hpp>
 
 #include "pinocchio/bindings/python/fwd.hpp"
 #include <boost/python/raw_function.hpp>

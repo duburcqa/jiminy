@@ -9,17 +9,7 @@
 
 namespace jiminy
 {
-    struct JIMINY_DLLAPI LogData
-    {
-        int32_t version;
-        static_map_t<std::string, std::string> constants;
-        double timeUnit;
-        VectorX<int64_t> times;
-        std::vector<std::string> variableNames;
-        MatrixX<int64_t> integerValues;
-        MatrixX<double> floatValues;
-    };
-
+    struct LogData;
     class TelemetryData;
 
     /// \class This class is responsible of writing recorded data to devices.
@@ -29,7 +19,7 @@ namespace jiminy
         DISABLE_COPY(TelemetryRecorder)
 
     public:
-        TelemetryRecorder() = default;
+        explicit TelemetryRecorder() = default;
         ~TelemetryRecorder();
 
         /// \brief Initialize the recorder.
@@ -64,28 +54,28 @@ namespace jiminy
         hresult_t createNewChunk();
 
     private:
-        std::deque<MemoryDevice> flows_;
+        std::deque<MemoryDevice> flows_{};
 
-        bool isInitialized_;
+        bool isInitialized_{false};
 
-        int64_t recordedBytesLimits_;
-        int64_t recordedBytesDataLine_;
+        std::size_t recordedBytesLimits_{0};
+        std::size_t recordedBytesDataLine_{0};
         /// \brief Bytes recorded in the file.
-        int64_t recordedBytes_;
+        std::size_t recordedBytes_{0};
         /// \brief Size in byte of the header.
-        int64_t headerSize_;
+        std::size_t headerSize_{0};
 
         /// \brief Pointer to the integer registry.
-        const std::deque<std::pair<std::string, int64_t>> * integersRegistry_;
+        const std::deque<std::pair<std::string, int64_t>> * integersRegistry_{nullptr};
         /// \brief Size in bytes of the integer data section.
-        int64_t integerSectionSize_;
+        int64_t integerSectionSize_{-1};
         /// \brief Pointer to the float registry.
-        const std::deque<std::pair<std::string, double>> * floatsRegistry_;
+        const std::deque<std::pair<std::string, double>> * floatsRegistry_{nullptr};
         /// \brief Size in bytes of the float data section.
-        int64_t floatSectionSize_;
+        int64_t floatSectionSize_{-1};
 
         /// \brief Precision to use when logging the time.
-        double timeUnitInv_;
+        double timeUnitInv_{NAN};
     };
 }
 

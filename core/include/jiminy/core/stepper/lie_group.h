@@ -11,7 +11,6 @@
 #include "pinocchio/algorithm/joint-configuration.hpp"  // `pinocchio::integrate`, `pinocchio::difference`
 
 #include "jiminy/core/fwd.h"
-#include "jiminy/core/traits.h"
 #include "jiminy/core/robot/robot.h"
 
 
@@ -1034,11 +1033,26 @@ namespace Eigen
         {                                                                                      \
         }                                                                                      \
                                                                                                \
-        const Robot * const & robot() const { return robot_; }                                 \
-        Eigen::Ref<Eigen::VectorXd> & VAR1() { return EIGEN_CAT(VAR1, Ref_); }                 \
-        const Eigen::Ref<Eigen::VectorXd> & VAR1() const { return EIGEN_CAT(VAR1, Ref_); }     \
-        Eigen::Ref<Eigen::VectorXd> & VAR2() { return EIGEN_CAT(VAR2, Ref_); }                 \
-        const Eigen::Ref<Eigen::VectorXd> & VAR2() const { return EIGEN_CAT(VAR2, Ref_); }     \
+        const Robot * const & robot() const                                                    \
+        {                                                                                      \
+            return robot_;                                                                     \
+        }                                                                                      \
+        Eigen::Ref<Eigen::VectorXd> & VAR1()                                                   \
+        {                                                                                      \
+            return EIGEN_CAT(VAR1, Ref_);                                                      \
+        }                                                                                      \
+        const Eigen::Ref<Eigen::VectorXd> & VAR1() const                                       \
+        {                                                                                      \
+            return EIGEN_CAT(VAR1, Ref_);                                                      \
+        }                                                                                      \
+        Eigen::Ref<Eigen::VectorXd> & VAR2()                                                   \
+        {                                                                                      \
+            return EIGEN_CAT(VAR2, Ref_);                                                      \
+        }                                                                                      \
+        const Eigen::Ref<Eigen::VectorXd> & VAR2() const                                       \
+        {                                                                                      \
+            return EIGEN_CAT(VAR2, Ref_);                                                      \
+        }                                                                                      \
                                                                                                \
     protected:                                                                                 \
         const Robot * robot_;                                                                  \

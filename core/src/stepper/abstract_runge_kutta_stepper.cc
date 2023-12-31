@@ -9,26 +9,27 @@ namespace jiminy
                                                          const Eigen::MatrixXd & RungeKuttaMatrix,
                                                          const Eigen::VectorXd & bWeights,
                                                          const Eigen::VectorXd & cNodes,
-                                                         bool isFSAL) :
+                                                         bool isFSAL) noexcept :
     AbstractStepper(f, robots),
-    A_(RungeKuttaMatrix),
-    b_(bWeights),
-    c_(cNodes),
-    isFSAL_(isFSAL),
+    A_{RungeKuttaMatrix},
+    b_{bWeights},
+    c_{cNodes},
+    isFSAL_{isFSAL},
     ki_(cNodes.size(), stateDerivative_t(robots)),
     stateIncrement_(robots),
     stateBuffer_(robots),
     candidateSolution_(robots)
-
     {
-        assert(A_.rows() == A_.cols());
-        assert(c_.size() == A_.rows());
-        assert(b_.size() == b_.rows());
     }
 
     bool AbstractRungeKuttaStepper::tryStepImpl(
         state_t & state, stateDerivative_t & stateDerivative, double t, double & dt)
     {
+        // Make sure that the provided matrices are consistent with each other
+        assert(A_.rows() == A_.cols());
+        assert(c_.size() == A_.rows());
+        assert(b_.size() == b_.rows());
+
         // First ki is simply the provided stateDerivative
         ki_[0] = stateDerivative;
 

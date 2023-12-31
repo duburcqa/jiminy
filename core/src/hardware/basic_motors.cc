@@ -7,9 +7,8 @@
 
 namespace jiminy
 {
-    SimpleMotor::SimpleMotor(const std::string & name) :
-    AbstractMotorBase(name),
-    motorOptions_(nullptr)
+    SimpleMotor::SimpleMotor(const std::string & name) noexcept :
+    AbstractMotorBase(name)
     {
         /* AbstractMotorBase constructor calls the base implementations of the virtual methods
            since the derived class is not available at this point. Thus it must be called

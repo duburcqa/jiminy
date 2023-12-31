@@ -40,7 +40,7 @@
 
 namespace jiminy
 {
-    void constraintsHolder_t::clear()
+    void constraintsHolder_t::clear() noexcept
     {
         boundJoints.clear();
         contactFrames.clear();
@@ -60,7 +60,7 @@ namespace jiminy
         const std::string & key, constraintsHolderType_t holderType)
     {
         // Pointers are NOT initialized to nullptr by default
-        constraintsMap_t * constraintsMapPtr = nullptr;
+        constraintsMap_t * constraintsMapPtr{nullptr};
         constraintsMap_t::iterator constraintIt;
         if (holderType == constraintsHolderType_t::COLLISION_BODIES)
         {
@@ -172,49 +172,7 @@ namespace jiminy
         return constraintsMapPtr->end();
     }
 
-    Model::Model() :
-    pncModelOrig_(),
-    pncModel_(),
-    collisionModelOrig_(),
-    collisionModel_(),
-    visualModelOrig_(),
-    visualModel_(),
-    pncDataOrig_(),
-    pncData_(),
-    collisionData_(),
-    visualData_(),
-    mdlOptions_(nullptr),
-    contactForces_(),
-    isInitialized_(false),
-    urdfPath_(),
-    urdfData_(),
-    meshPackageDirs_(),
-    hasFreeflyer_(false),
-    mdlOptionsHolder_(),
-    collisionBodiesNames_(),
-    contactFramesNames_(),
-    collisionBodiesIdx_(),
-    collisionPairsIdx_(),
-    contactFramesIdx_(),
-    rigidJointsNames_(),
-    rigidJointsModelIdx_(),
-    rigidJointsPositionIdx_(),
-    rigidJointsVelocityIdx_(),
-    flexibleJointsNames_(),
-    flexibleJointsModelIdx_(),
-    constraintsHolder_(),
-    positionLimitMin_(),
-    positionLimitMax_(),
-    velocityLimit_(),
-    logFieldnamesPosition_(),
-    logFieldnamesVelocity_(),
-    logFieldnamesAcceleration_(),
-    logFieldnamesForceExternal_(),
-    pncModelFlexibleOrig_(),
-    jointsAcceleration_(),
-    nq_(0),
-    nv_(0),
-    nx_(0)
+    Model::Model() noexcept
     {
         setOptions(getDefaultModelOptions());
     }
@@ -414,13 +372,14 @@ namespace jiminy
         {
             // Add the frame to the the original rigid model
             {
-                pinocchio::JointIndex parentJointId = pncModelOrig_.frames[parentFrameId].parent;
+                pinocchio::JointIndex parentJointModelId =
+                    pncModelOrig_.frames[parentFrameId].parent;
                 const pinocchio::SE3 & parentFramePlacement =
                     pncModelOrig_.frames[parentFrameId].placement;
                 const pinocchio::SE3 jointFramePlacement =
                     parentFramePlacement.act(framePlacement);
                 const pinocchio::Frame frame(
-                    frameName, parentJointId, parentFrameId, jointFramePlacement, frameType);
+                    frameName, parentJointModelId, parentFrameId, jointFramePlacement, frameType);
                 pncModelOrig_.addFrame(frame);
                 pncDataOrig_ = pinocchio::Data(pncModelOrig_);
             }
@@ -430,14 +389,14 @@ namespace jiminy
                 getFrameIdx(pncModelFlexibleOrig_,
                             parentBodyName,
                             parentFrameId);  // Cannot fail at this point
-                pinocchio::JointIndex parentJointId =
+                pinocchio::JointIndex parentJointModelId =
                     pncModelFlexibleOrig_.frames[parentFrameId].parent;
                 const pinocchio::SE3 & parentFramePlacement =
                     pncModelFlexibleOrig_.frames[parentFrameId].placement;
                 const pinocchio::SE3 jointFramePlacement =
                     parentFramePlacement.act(framePlacement);
                 const pinocchio::Frame frame(
-                    frameName, parentJointId, parentFrameId, jointFramePlacement, frameType);
+                    frameName, parentJointModelId, parentFrameId, jointFramePlacement, frameType);
                 pncModelFlexibleOrig_.addFrame(frame);
             }
 
@@ -508,8 +467,8 @@ namespace jiminy
                 getFrameIdx(pncModelFlexibleOrig_,
                             frameName,
                             frameIdx);  // Cannot fail at this point
-                pncModelFlexibleOrig_.frames.erase(std::next(pncModelFlexibleOrig_.frames.begin(),
-                                                             static_cast<uint32_t>(frameIdx)));
+                pncModelFlexibleOrig_.frames.erase(
+                    std::next(pncModelFlexibleOrig_.frames.begin(), frameIdx));
                 pncModelFlexibleOrig_.nframes--;
             }
 
@@ -1372,7 +1331,7 @@ namespace jiminy
             {
                 if (mdlOptions_->joints.positionLimitFromUrdf)
                 {
-                    for (int32_t & positionIdx : rigidJointsPositionIdx_)
+                    for (Eigen::Index positionIdx : rigidJointsPositionIdx_)
                     {
                         positionLimitMin_[positionIdx] = pncModel_.lowerPositionLimit[positionIdx];
                         positionLimitMax_[positionIdx] = pncModel_.upperPositionLimit[positionIdx];
@@ -1382,7 +1341,7 @@ namespace jiminy
                 {
                     for (std::size_t i = 0; i < rigidJointsPositionIdx_.size(); ++i)
                     {
-                        uint32_t positionIdx = rigidJointsPositionIdx_[i];
+                        Eigen::Index positionIdx = rigidJointsPositionIdx_[i];
                         positionLimitMin_[positionIdx] = mdlOptions_->joints.positionLimitMin[i];
                         positionLimitMax_[positionIdx] = mdlOptions_->joints.positionLimitMax[i];
                     }
@@ -1393,7 +1352,7 @@ namespace jiminy
                normalization and cos/sin representation. */
             for (const auto & joint : pncModel_.joints)
             {
-                uint32_t positionIdx, positionNq;
+                Eigen::Index positionIdx, positionNq;
                 switch (getJointType(joint))
                 {
                 case JointModelType::ROTARY_UNBOUNDED:
@@ -1422,7 +1381,7 @@ namespace jiminy
             {
                 if (mdlOptions_->joints.velocityLimitFromUrdf)
                 {
-                    for (int32_t & velocityIdx : rigidJointsVelocityIdx_)
+                    for (Eigen::Index & velocityIdx : rigidJointsVelocityIdx_)
                     {
                         velocityLimit_[velocityIdx] = pncModel_.velocityLimit[velocityIdx];
                     }
@@ -1431,7 +1390,7 @@ namespace jiminy
                 {
                     for (std::size_t i = 0; i < rigidJointsVelocityIdx_.size(); ++i)
                     {
-                        uint32_t velocityIdx = rigidJointsVelocityIdx_[i];
+                        Eigen::Index velocityIdx = rigidJointsVelocityIdx_[i];
                         velocityLimit_[velocityIdx] = mdlOptions_->joints.velocityLimit[i];
                     }
                 }
@@ -1489,16 +1448,17 @@ namespace jiminy
                                     frameOrig.name,
                                     frameIdx);  // Cannot fail at this point
                         const pinocchio::Frame & frame = pncModel_.frames[frameIdx];
-                        const pinocchio::JointIndex newParentIdx = frame.parent;
-                        const pinocchio::JointIndex oldParentIdx =
+                        const pinocchio::JointIndex newParentModelIdx = frame.parent;
+                        const pinocchio::JointIndex oldParentModelIdx =
                             pncModel_.getJointId(parentJointName);
                         geom.parentFrame = frameIdx;
-                        geom.parentJoint = newParentIdx;
+                        geom.parentJoint = newParentModelIdx;
 
                         /* Compute the relative displacement between the new and old joint
                            placement wrt their common parent joint. */
                         pinocchio::SE3 geomPlacementRef = pinocchio::SE3::Identity();
-                        for (pinocchio::JointIndex i = newParentIdx; i > oldParentIdx && i > 0;
+                        for (pinocchio::JointIndex i = newParentModelIdx;
+                             i > std::max(oldParentModelIdx, pinocchio::JointIndex{0});
                              i = pncModel_.parents[i])
                         {
                             geomPlacementRef = pncModel_.jointPlacements[i] * geomPlacementRef;
@@ -1812,7 +1772,7 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    GenericConfig Model::getOptions() const
+    GenericConfig Model::getOptions() const noexcept
     {
         return mdlOptionsHolder_;
     }
@@ -1851,7 +1811,7 @@ namespace jiminy
                                                        Eigen::VectorXd & qFlex) const
     {
         // Define some proxies
-        uint32_t nqRigid = pncModelOrig_.nq;
+        int nqRigid = pncModelOrig_.nq;
 
         // Check the size of the input state
         if (qRigid.size() != nqRigid)
@@ -1864,8 +1824,8 @@ namespace jiminy
         qFlex = pinocchio::neutral(pncModelFlexibleOrig_);
 
         // Compute the flexible state based on the rigid state
-        int32_t idxRigid = 0;
-        int32_t idxFlex = 0;
+        int idxRigid = 0;
+        int idxFlex = 0;
         for (; idxRigid < pncModelOrig_.njoints; ++idxFlex)
         {
             const std::string & jointRigidName = pncModelOrig_.names[idxRigid];
@@ -2078,12 +2038,12 @@ namespace jiminy
         return rigidJointsModelIdx_;
     }
 
-    const std::vector<int32_t> & Model::getRigidJointsPositionIdx() const
+    const std::vector<Eigen::Index> & Model::getRigidJointsPositionIdx() const
     {
         return rigidJointsPositionIdx_;
     }
 
-    const std::vector<int32_t> & Model::getRigidJointsVelocityIdx() const
+    const std::vector<Eigen::Index> & Model::getRigidJointsVelocityIdx() const
     {
         return rigidJointsVelocityIdx_;
     }
@@ -2132,17 +2092,17 @@ namespace jiminy
         return hasConstraintsEnabled;
     }
 
-    int32_t Model::nq() const
+    Eigen::Index Model::nq() const
     {
         return nq_;
     }
 
-    int32_t Model::nv() const
+    Eigen::Index Model::nv() const
     {
         return nv_;
     }
 
-    int32_t Model::nx() const
+    Eigen::Index Model::nx() const
     {
         return nx_;
     }

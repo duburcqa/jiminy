@@ -21,20 +21,12 @@ namespace jiminy
                          double torsion,
                          double tolAbs,
                          double tolRel,
-                         uint32_t maxIter) :
-    model_(model),
-    data_(data),
-    maxIter_(maxIter),
-    tolAbs_(tolAbs),
-    tolRel_(tolRel),
-    J_(),
-    gamma_(),
-    lambda_(),
-    constraintsData_(),
-    b_(),
-    y_(),
-    yPrev_(),
-    isLcpFullyUpToDate_(false)
+                         uint32_t maxIter) noexcept :
+    model_{model},
+    data_{data},
+    maxIter_{maxIter},
+    tolAbs_{tolAbs},
+    tolRel_{tolRel}
     {
         Eigen::Index constraintsRowsMax = 0U;
         constraintsHolder->foreach(

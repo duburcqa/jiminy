@@ -18,12 +18,11 @@ namespace jiminy
     ForceProfile::ForceProfile(const std::string & frameNameIn,
                                pinocchio::FrameIndex frameIdxIn,
                                double updatePeriodIn,
-                               const ForceProfileFunctor & forceFctIn) :
-    frameName(frameNameIn),
-    frameIdx(frameIdxIn),
-    updatePeriod(updatePeriodIn),
-    forcePrev(pinocchio::Force::Zero()),
-    forceFct(forceFctIn)
+                               const ForceProfileFunctor & forceFctIn) noexcept :
+    frameName{frameNameIn},
+    frameIdx{frameIdxIn},
+    updatePeriod{updatePeriodIn},
+    forceFct{forceFctIn}
     {
     }
 
@@ -35,12 +34,12 @@ namespace jiminy
                                pinocchio::FrameIndex frameIdxIn,
                                double tIn,
                                double dtIn,
-                               const pinocchio::Force & FIn) :
-    frameName(frameNameIn),
-    frameIdx(frameIdxIn),
-    t(tIn),
-    dt(dtIn),
-    F(FIn)
+                               const pinocchio::Force & FIn) noexcept :
+    frameName{frameNameIn},
+    frameIdx{frameIdxIn},
+    t{tIn},
+    dt{dtIn},
+    F{FIn}
     {
     }
 
@@ -49,68 +48,29 @@ namespace jiminy
     // ====================================================
 
     ForceCoupling::ForceCoupling(const std::string & systemName1In,
-                                 int32_t systemIdx1In,
+                                 std::ptrdiff_t systemIdx1In,
                                  const std::string & systemName2In,
-                                 int32_t systemIdx2In,
+                                 std::ptrdiff_t systemIdx2In,
                                  const std::string & frameName1In,
                                  pinocchio::FrameIndex frameIdx1In,
                                  const std::string & frameName2In,
                                  pinocchio::FrameIndex frameIdx2In,
-                                 const ForceCouplingFunctor & forceFctIn) :
-    systemName1(systemName1In),
-    systemIdx1(systemIdx1In),
-    systemName2(systemName2In),
-    systemIdx2(systemIdx2In),
-    frameName1(frameName1In),
-    frameIdx1(frameIdx1In),
-    frameName2(frameName2In),
-    frameIdx2(frameIdx2In),
-    forceFct(forceFctIn)
-    {
-    }
-
-    // ====================================================
-    // ================== systemHolder_t ==================
-    // ====================================================
-
-    systemHolder_t::systemHolder_t(const std::string & systemNameIn,
-                                   std::shared_ptr<Robot> robotIn,
-                                   std::shared_ptr<AbstractController> controllerIn,
-                                   CallbackFunctor callbackFctIn) :
-    name(systemNameIn),
-    robot(robotIn),
-    controller(controllerIn),
-    callbackFct(std::move(callbackFctIn))
-    {
-    }
-
-    systemHolder_t::systemHolder_t() :
-    systemHolder_t("",
-                   nullptr,
-                   nullptr,
-                   [](double /* t */,
-                      const Eigen::VectorXd & /* q */,
-                      const Eigen::VectorXd & /* v */) -> bool { return false; })
+                                 const ForceCouplingFunctor & forceFctIn) noexcept :
+    systemName1{systemName1In},
+    systemIdx1{systemIdx1In},
+    systemName2{systemName2In},
+    systemIdx2{systemIdx2In},
+    frameName1{frameName1In},
+    frameIdx1{frameIdx1In},
+    frameName2{frameName2In},
+    frameIdx2{frameIdx2In},
+    forceFct{forceFctIn}
     {
     }
 
     // ===============================================
     // ================ systemState_t ================
     // ===============================================
-
-    systemState_t::systemState_t() :
-    q(),
-    v(),
-    a(),
-    command(),
-    u(),
-    uMotor(),
-    uInternal(),
-    uCustom(),
-    fExternal(),
-    isInitialized_(false)
-    {
-    }
 
     hresult_t systemState_t::initialize(const Robot & robot)
     {
@@ -120,15 +80,18 @@ namespace jiminy
             return hresult_t::ERROR_INIT_FAILED;
         }
 
+        Eigen::Index nv = robot.nv();
+        std::size_t nMotors = robot.nmotors();
+        std::size_t nJoints = robot.pncModel_.njoints;
         q = pinocchio::neutral(robot.pncModel_);
-        v.setZero(robot.nv());
-        a.setZero(robot.nv());
-        command.setZero(robot.getMotorsNames().size());
-        u.setZero(robot.nv());
-        uMotor.setZero(robot.getMotorsNames().size());
-        uInternal.setZero(robot.nv());
-        uCustom.setZero(robot.nv());
-        fExternal = ForceVector(robot.pncModel_.joints.size(), pinocchio::Force::Zero());
+        v.setZero(nv);
+        a.setZero(nv);
+        command.setZero(nMotors);
+        u.setZero(nv);
+        uMotor.setZero(nMotors);
+        uInternal.setZero(nv);
+        uCustom.setZero(nv);
+        fExternal = ForceVector(nJoints, pinocchio::Force::Zero());
         isInitialized_ = true;
 
         return hresult_t::SUCCESS;

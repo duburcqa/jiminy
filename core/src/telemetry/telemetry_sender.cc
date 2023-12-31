@@ -3,13 +3,6 @@
 
 namespace jiminy
 {
-    TelemetrySender::TelemetrySender() :
-    objectName_(DEFAULT_TELEMETRY_NAMESPACE),
-    telemetryData_(nullptr),
-    bufferPosition_()
-    {
-    }
-
     void TelemetrySender::configureObject(std::shared_ptr<TelemetryData> telemetryDataInstance,
                                           const std::string_view & objectName)
     {

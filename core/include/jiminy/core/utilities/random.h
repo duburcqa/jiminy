@@ -10,7 +10,8 @@ namespace jiminy
 {
     // ************ Random number generator utilities ***************
 
-    void JIMINY_DLLAPI resetRandomGenerators(const std::optional<uint32_t> & seed = std::nullopt);
+    void JIMINY_DLLAPI resetRandomGenerators(
+        const std::optional<uint32_t> & seed = std::nullopt) noexcept;
 
     hresult_t JIMINY_DLLAPI getRandomSeed(uint32_t & seed);
 
@@ -31,15 +32,65 @@ namespace jiminy
 
     // ************ Continuous 1D Perlin processes ***************
 
+    namespace details
+    {
+        /// \brief Lower Cholesky factor of a Toeplitz positive semi-definite matrix having 1.0 on
+        /// its
+        ///        main diagonal.
+        ///
+        /// \details In practice, it is advisable to combine this algorithm with Tikhonov
+        ///          regularization of relative magnitude 1e-9 to avoid numerical instabilities
+        ///          because of double machine precision.
+        ///
+        /// \see Michael Stewart, Cholesky factorization of semi-definite Toeplitz matrices. Linear
+        ///      Algebra and its Applications, Volume 254, pages 497-525, 1997.
+        ///
+        /// \see
+        /// https://people.sc.fsu.edu/~jburkardt/cpp_src/toeplitz_cholesky/toeplitz_cholesky.html
+        ///
+        /// \param[in] a First row of the matrix to decompose.
+        template<typename DerivedType>
+        MatrixX<typename DerivedType::Scalar>
+        standardToeplitzCholeskyLower(const Eigen::MatrixBase<DerivedType> & coeffs)
+        {
+            using Scalar = typename DerivedType::Scalar;
+
+            // Initialize lower Cholesky factor
+            const Eigen::Index n = coeffs.size();
+            MatrixX<Scalar> l{n, n};
+
+            /* Compute compressed representation of the matrix.
+               It coincides with the Schur generator for Toepliz matrices. */
+            Eigen::Matrix<Scalar, 2, Eigen::Dynamic> g{2, n};
+            g.rowwise() = coeffs.transpose();
+
+            // Run progressive Schur algorithm, adapted to Toepliz matrices
+            l.col(0) = g.row(0);
+            g.row(0).tail(n - 1) = g.row(0).head(n - 1).eval();
+            Eigen::Matrix<Scalar, 2, 2> H{Eigen::Matrix<Scalar, 2, 2>::Ones()};
+            for (Eigen::Index i = 1; i < n; ++i)
+            {
+                const double rho = -g(1, i) / g(0, i);
+                // H << 1.0, rho,
+                //      rho, 1.0;
+                Eigen::Map<Eigen::Vector4d>(H.data()).template segment<2>(1).fill(rho);
+                g.rightCols(n - i) = H * g.rightCols(n - i) / std::sqrt((1.0 - rho) * (1.0 + rho));
+                l.col(i).tail(n - i) = g.row(0).tail(n - i);
+                g.row(0).tail(n - i - 1) = g.row(0).segment(i, n - i - 1).eval();
+            }
+
+            return l;
+        }
+    }
+
     class JIMINY_DLLAPI PeriodicGaussianProcess
     {
     public:
         DISABLE_COPY(PeriodicGaussianProcess)
 
     public:
-        PeriodicGaussianProcess(double wavelength, double period, double scale = 1.0);
-
-        ~PeriodicGaussianProcess() = default;
+        explicit PeriodicGaussianProcess(
+            double wavelength, double period, double scale = 1.0) noexcept;
 
         void reset();
 
@@ -49,23 +100,34 @@ namespace jiminy
         double getPeriod() const;
         double getDt() const;
 
-    protected:
-        void initialize();
-
     private:
         const double wavelength_;
         const double period_;
         const double scale_;
-        const double dt_;
-        const int32_t numTimes_;
+        const double dt_{0.02 * wavelength_};
+        const int numTimes_{static_cast<int>(std::ceil(period_ / dt_))};
 
-        bool isInitialized_;
-        Eigen::VectorXd values_;
-        Eigen::MatrixXd covSqrtRoot_;
+        Eigen::VectorXd values_{numTimes_};
+        /// \brief Cholesky decomposition (LLT) of the covariance matrix.
+        ///
+        /// \details All decompositions are equivalent as the covariance matrix is symmetric,
+        ///          namely eigen-values, singular-values, Cholesky and Schur decompositions.
+        ///          Yet, Cholesky is by far the most efficient one.
+        ///          See: https://math.stackexchange.com/q/22825/375496
+        ///          Moreover, the covariance is a positive semi-definite Toepliz matrix, which
+        ///          means that the computational complexity can be reduced even further using an
+        ///          specialized Cholesky decomposition algorithm. */
+        Eigen::MatrixXd covSqrtRoot_{
+            details::standardToeplitzCholeskyLower(Eigen::VectorXd::NullaryExpr(
+                numTimes_,
+                [numTimes = numTimes_, wavelength = wavelength_](double i) {
+                    return std::exp(-2.0 *
+                                    std::pow(std::sin(M_PI / numTimes * i) / wavelength, 2));
+                }))};
     };
 
 
-    /// \see Based on "Smooth random functions, random ODEs, and Gaussianprocesses":
+    /// \see Based on "Smooth random functions, random ODEs, and Gaussian processes":
     ///      https://hal.inria.fr/hal-01944992/file/random_revision2.pdf */
     class JIMINY_DLLAPI PeriodicFourierProcess
     {
@@ -73,9 +135,8 @@ namespace jiminy
         DISABLE_COPY(PeriodicFourierProcess)
 
     public:
-        PeriodicFourierProcess(double wavelength, double period, double scale = 1.0);
-
-        ~PeriodicFourierProcess() = default;
+        explicit PeriodicFourierProcess(
+            double wavelength, double period, double scale = 1.0) noexcept;
 
         void reset();
 
@@ -83,30 +144,34 @@ namespace jiminy
 
         double getWavelength() const;
         double getPeriod() const;
-        int32_t getNumHarmonics() const;
+        int getNumHarmonics() const;
         double getDt() const;
-
-    protected:
-        void initialize();
 
     private:
         const double wavelength_;
         const double period_;
         const double scale_;
-        const double dt_;
-        const int32_t numTimes_;
-        const int32_t numHarmonics_;
+        const double dt_{0.02 * wavelength_};
+        const int numTimes_{static_cast<int>(std::ceil(period_ / dt_))};
+        const int numHarmonics_{static_cast<int>(std::ceil(period_ / wavelength_))};
 
-        bool isInitialized_;
-        Eigen::VectorXd values_;
-        Eigen::MatrixXd cosMat_;
-        Eigen::MatrixXd sinMat_;
+        Eigen::VectorXd values_{numTimes_};
+        const Eigen::MatrixXd cosMat_{
+            Eigen::MatrixXd::NullaryExpr(numTimes_,
+                                         numHarmonics_,
+                                         [numTimes = numTimes_](double i, double j)
+                                         { return std::cos(2 * M_PI / numTimes * i * j); })};
+        const Eigen::MatrixXd sinMat_{
+            Eigen::MatrixXd::NullaryExpr(numTimes_,
+                                         numHarmonics_,
+                                         [numTimes = numTimes_](double i, double j)
+                                         { return std::cos(2 * M_PI / numTimes * i * j); })};
     };
 
     class JIMINY_DLLAPI AbstractPerlinNoiseOctave
     {
     public:
-        AbstractPerlinNoiseOctave(double wavelength, double scale);
+        explicit AbstractPerlinNoiseOctave(double wavelength, double scale) noexcept;
         virtual ~AbstractPerlinNoiseOctave() = default;
 
         virtual void reset();
@@ -128,14 +193,13 @@ namespace jiminy
         const double wavelength_;
         const double scale_;
 
-        double shift_;
+        double shift_{0.0};
     };
 
     class JIMINY_DLLAPI RandomPerlinNoiseOctave : public AbstractPerlinNoiseOctave
     {
     public:
-        RandomPerlinNoiseOctave(double wavelength, double scale);
-
+        using AbstractPerlinNoiseOctave::AbstractPerlinNoiseOctave;
         virtual ~RandomPerlinNoiseOctave() = default;
 
         virtual void reset() override final;
@@ -144,14 +208,13 @@ namespace jiminy
         virtual double grad(int32_t knot, double delta) const override final;
 
     private:
-        uint32_t seed_;
+        uint32_t seed_{0};
     };
 
     class JIMINY_DLLAPI PeriodicPerlinNoiseOctave : public AbstractPerlinNoiseOctave
     {
     public:
-        PeriodicPerlinNoiseOctave(double wavelength, double period, double scale);
-
+        explicit PeriodicPerlinNoiseOctave(double wavelength, double period, double scale);
         virtual ~PeriodicPerlinNoiseOctave() = default;
 
         virtual void reset() override final;
@@ -162,7 +225,7 @@ namespace jiminy
     private:
         const double period_;
 
-        std::vector<uint8_t> perm_;
+        std::array<uint8_t, 256> perm_{};
     };
 
     /// \brief  Sum of Perlin noise octaves.
@@ -191,55 +254,42 @@ namespace jiminy
         DISABLE_COPY(AbstractPerlinProcess)
 
     public:
-        AbstractPerlinProcess(double wavelength, double scale = 1.0, uint32_t numOctaves = 8U);
-        virtual ~AbstractPerlinProcess() = default;
-
         void reset();
 
         double operator()(const float & t);
 
-        double getWavelength() const;
-        uint32_t getNumOctaves() const;
-        double getScale() const;
+        double getWavelength() const noexcept;
+        std::size_t getNumOctaves() const noexcept;
+        double getScale() const noexcept;
 
     protected:
-        virtual void initialize() = 0;
+        explicit AbstractPerlinProcess(
+            double scale,
+            std::vector<std::unique_ptr<AbstractPerlinNoiseOctave>> && octaves) noexcept;
 
     protected:
-        const double wavelength_;
-        const uint32_t numOctaves_;
         const double scale_;
 
-        bool isInitialized_;
         std::vector<std::unique_ptr<AbstractPerlinNoiseOctave>> octaves_;
-        double amplitude_;
+        double amplitude_{0.0};
 
-        double grad_;
+        double grad_{0.0};
     };
 
     class JIMINY_DLLAPI RandomPerlinProcess : public AbstractPerlinProcess
     {
     public:
-        RandomPerlinProcess(double wavelength, double scale = 1.0, uint32_t numOctaves = 6U);
-
-        virtual ~RandomPerlinProcess() = default;
-
-    protected:
-        virtual void initialize() override final;
+        explicit RandomPerlinProcess(
+            double wavelength, double scale = 1.0, std::size_t numOctaves = 6U);
     };
 
     class PeriodicPerlinProcess : public AbstractPerlinProcess
     {
     public:
-        PeriodicPerlinProcess(
-            double wavelength, double period, double scale = 1.0, uint32_t numOctaves = 6U);
+        explicit PeriodicPerlinProcess(
+            double wavelength, double period, double scale = 1.0, std::size_t numOctaves = 6U);
 
-        virtual ~PeriodicPerlinProcess() = default;
-
-        double getPeriod() const;
-
-    protected:
-        virtual void initialize() override final;
+        double getPeriod() const noexcept;
 
     private:
         const double period_;

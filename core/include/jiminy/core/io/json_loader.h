@@ -20,8 +20,7 @@ namespace jiminy
     class JIMINY_DLLAPI JsonLoader
     {
     public:
-        explicit JsonLoader(std::shared_ptr<AbstractIODevice> device);
-        ~JsonLoader() = default;
+        explicit JsonLoader(const std::shared_ptr<AbstractIODevice> & device) noexcept;
 
         /// \brief Load json data from device and parse it to root json.
         hresult_t load();
@@ -33,8 +32,8 @@ namespace jiminy
 
     protected:
         /// \brief Hold the parsed document.
-        std::unique_ptr<Json::Value> rootJson_;
-        std::vector<char> payload_;
+        std::unique_ptr<Json::Value> rootJson_{std::make_unique<Json::Value>()};
+        std::vector<char> payload_{};
         std::shared_ptr<AbstractIODevice> device_;
     };
 }

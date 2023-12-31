@@ -40,7 +40,7 @@ namespace jiminy
     struct JIMINY_DLLAPI constraintsHolder_t
     {
     public:
-        void clear();
+        void clear() noexcept;
 
         std::pair<constraintsMap_t *, constraintsMap_t::iterator> find(
             const std::string & key, constraintsHolderType_t holderType);
@@ -111,13 +111,13 @@ namespace jiminy
 
     public:
         /// \brief Store internal constraints related to joint bounds.
-        constraintsMap_t boundJoints;
+        constraintsMap_t boundJoints{};
         /// \brief Store internal constraints related to contact frames.
-        constraintsMap_t contactFrames;
+        constraintsMap_t contactFrames{};
         /// \brief Store internal constraints related to collision bounds.
-        std::vector<constraintsMap_t> collisionBodies;
+        std::vector<constraintsMap_t> collisionBodies{};
         /// \brief Store internal constraints registered by user.
-        constraintsMap_t registered;
+        constraintsMap_t registered{};
     };
 
     class JIMINY_DLLAPI Model : public std::enable_shared_from_this<Model>
@@ -245,7 +245,7 @@ namespace jiminy
         DISABLE_COPY(Model)
 
     public:
-        Model();
+        explicit Model() noexcept;
         virtual ~Model() = default;
 
         hresult_t initialize(const pinocchio::Model & pncModel,
@@ -317,7 +317,7 @@ namespace jiminy
 
         // Copy on purpose
         hresult_t setOptions(GenericConfig modelOptions);
-        GenericConfig getOptions() const;
+        GenericConfig getOptions() const noexcept;
 
         /// \remark This method are not intended to be called manually. The Engine is taking care
         ///         of it.
@@ -330,9 +330,9 @@ namespace jiminy
         const std::vector<std::string> & getMeshPackageDirs() const;
         bool getHasFreeflyer() const;
         // Getters without 'get' prefix for consistency with pinocchio C++ API
-        int32_t nq() const;
-        int32_t nv() const;
-        int32_t nx() const;
+        Eigen::Index nq() const;
+        Eigen::Index nv() const;
+        Eigen::Index nx() const;
 
         const std::vector<std::string> & getCollisionBodiesNames() const;
         const std::vector<std::string> & getContactFramesNames() const;
@@ -341,8 +341,8 @@ namespace jiminy
         const std::vector<pinocchio::FrameIndex> & getContactFramesIdx() const;
         const std::vector<std::string> & getRigidJointsNames() const;
         const std::vector<pinocchio::JointIndex> & getRigidJointsModelIdx() const;
-        const std::vector<int32_t> & getRigidJointsPositionIdx() const;
-        const std::vector<int32_t> & getRigidJointsVelocityIdx() const;
+        const std::vector<Eigen::Index> & getRigidJointsPositionIdx() const;
+        const std::vector<Eigen::Index> & getRigidJointsVelocityIdx() const;
         const std::vector<std::string> & getFlexibleJointsNames() const;
         const std::vector<pinocchio::JointIndex> & getFlexibleJointsModelIdx() const;
 
@@ -391,84 +391,84 @@ namespace jiminy
         virtual hresult_t refreshProxies();
 
     public:
-        pinocchio::Model pncModelOrig_;
-        pinocchio::Model pncModel_;
-        pinocchio::GeometryModel collisionModelOrig_;
-        pinocchio::GeometryModel collisionModel_;
-        pinocchio::GeometryModel visualModelOrig_;
-        pinocchio::GeometryModel visualModel_;
-        pinocchio::Data pncDataOrig_;
-        mutable pinocchio::Data pncData_;
-        mutable pinocchio::GeometryData collisionData_;
-        mutable pinocchio::GeometryData visualData_;
-        std::unique_ptr<const modelOptions_t> mdlOptions_;
+        pinocchio::Model pncModelOrig_{};
+        pinocchio::Model pncModel_{};
+        pinocchio::GeometryModel collisionModelOrig_{};
+        pinocchio::GeometryModel collisionModel_{};
+        pinocchio::GeometryModel visualModelOrig_{};
+        pinocchio::GeometryModel visualModel_{};
+        pinocchio::Data pncDataOrig_{};
+        mutable pinocchio::Data pncData_{};
+        mutable pinocchio::GeometryData collisionData_{};
+        mutable pinocchio::GeometryData visualData_{};
+        std::unique_ptr<const modelOptions_t> mdlOptions_{nullptr};
         /// \brief Buffer storing the contact forces.
-        ForceVector contactForces_;
+        ForceVector contactForces_{};
 
     protected:
-        bool isInitialized_;
-        std::string urdfPath_;
-        std::string urdfData_;
-        std::vector<std::string> meshPackageDirs_;
-        bool hasFreeflyer_;
-        GenericConfig mdlOptionsHolder_;
+        bool isInitialized_{false};
+        std::string urdfPath_{};
+        std::string urdfData_{};
+        std::vector<std::string> meshPackageDirs_{};
+        bool hasFreeflyer_{false};
+        GenericConfig mdlOptionsHolder_{};
 
         /// \brief Name of the collision bodies of the robot.
-        std::vector<std::string> collisionBodiesNames_;
+        std::vector<std::string> collisionBodiesNames_{};
         /// \brief Name of the contact frames of the robot.
-        std::vector<std::string> contactFramesNames_;
+        std::vector<std::string> contactFramesNames_{};
         /// \brief Indices of the collision bodies in the frame list of the robot.
-        std::vector<pinocchio::FrameIndex> collisionBodiesIdx_;
+        std::vector<pinocchio::FrameIndex> collisionBodiesIdx_{};
         /// \brief Indices of the collision pairs associated with each collision body.
-        std::vector<std::vector<pinocchio::PairIndex>> collisionPairsIdx_;
+        std::vector<std::vector<pinocchio::PairIndex>> collisionPairsIdx_{};
         /// \brief Indices of the contact frames in the frame list of the robot.
-        std::vector<pinocchio::FrameIndex> contactFramesIdx_;
+        std::vector<pinocchio::FrameIndex> contactFramesIdx_{};
         /// \brief Name of the actual joints of the robot, not taking into account the freeflyer.
-        std::vector<std::string> rigidJointsNames_;
+        std::vector<std::string> rigidJointsNames_{};
         /// \brief Index of the actual joints in the pinocchio robot.
-        std::vector<pinocchio::JointIndex> rigidJointsModelIdx_;
+        std::vector<pinocchio::JointIndex> rigidJointsModelIdx_{};
         /// \brief All the indices of the actual joints in the configuration vector of the robot
         ///        (ie including all the degrees of freedom).
-        std::vector<int32_t> rigidJointsPositionIdx_;
+        std::vector<Eigen::Index> rigidJointsPositionIdx_{};
         /// \brief All the indices of the actual joints in the velocity vector of the robot (ie
         ///        including all the degrees of freedom).
-        std::vector<int32_t> rigidJointsVelocityIdx_;
+        std::vector<Eigen::Index> rigidJointsVelocityIdx_{};
         /// \brief Name of the flexibility joints of the robot regardless of whether the
         ///        flexibilities are enabled.
-        std::vector<std::string> flexibleJointsNames_;
+        std::vector<std::string> flexibleJointsNames_{};
         /// \brief Index of the flexibility joints in the pinocchio robot regardless of whether the
         ///        flexibilities are enabled.
-        std::vector<pinocchio::JointIndex> flexibleJointsModelIdx_;
+        std::vector<pinocchio::JointIndex> flexibleJointsModelIdx_{};
 
-        constraintsHolder_t constraintsHolder_;  ///< Store constraints
+        constraintsHolder_t constraintsHolder_{};  ///< Store constraints
 
         /// \brief Upper position limit of the whole configuration vector (INF for non-physical
         ///        joints, ie flexibility joints and freeflyer, if any).
-        Eigen::VectorXd positionLimitMin_;
+        Eigen::VectorXd positionLimitMin_{};
         /// \brief Lower position limit of the whole configuration vector.
-        Eigen::VectorXd positionLimitMax_;
+        Eigen::VectorXd positionLimitMax_{};
         /// \brief Maximum absolute velocity of the whole velocity vector.
-        Eigen::VectorXd velocityLimit_;
+        Eigen::VectorXd velocityLimit_{};
 
         /// \brief Fieldnames of the elements in the configuration vector of the model.
-        std::vector<std::string> logFieldnamesPosition_;
+        std::vector<std::string> logFieldnamesPosition_{};
         /// \brief Fieldnames of the elements in the velocity vector of the model.
-        std::vector<std::string> logFieldnamesVelocity_;
+        std::vector<std::string> logFieldnamesVelocity_{};
         /// \brief Fieldnames of the elements in the acceleration vector of the model.
-        std::vector<std::string> logFieldnamesAcceleration_;
+        std::vector<std::string> logFieldnamesAcceleration_{};
         /// \brief Concatenated fieldnames of the external force applied at each joint of the
         ///        model, 'universe' excluded.
-        std::vector<std::string> logFieldnamesForceExternal_;
+        std::vector<std::string> logFieldnamesForceExternal_{};
 
     private:
-        pinocchio::Model pncModelFlexibleOrig_;
+        pinocchio::Model pncModelFlexibleOrig_{};
         /// \brief Vector of joints acceleration corresponding to a copy of data.a - temporary
         ///        buffer for computing constraints.
-        MotionVector jointsAcceleration_;
+        MotionVector jointsAcceleration_{};
 
-        int32_t nq_;
-        int32_t nv_;
-        int32_t nx_;
+        Eigen::Index nq_{0};
+        Eigen::Index nv_{0};
+        Eigen::Index nx_{0};
     };
 }
 

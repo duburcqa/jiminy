@@ -3,6 +3,7 @@
 #include <iomanip>
 #include <fstream>
 
+#include "jiminy/core/telemetry/fwd.h"
 #include "jiminy/core/io/file_device.h"
 #include "jiminy/core/telemetry/telemetry_data.h"
 
@@ -11,7 +12,7 @@
 
 namespace jiminy
 {
-    inline constexpr int64_t TELEMETRY_MIN_BUFFER_SIZE{256U * 1024U};  // 256Ko
+    inline constexpr std::size_t TELEMETRY_MIN_BUFFER_SIZE{256U * 1024U};  // 256Ko
 
     TelemetryRecorder::~TelemetryRecorder()
     {
@@ -49,14 +50,13 @@ namespace jiminy
             integerSectionSize_ = sizeof(int64_t) * integersRegistry_->size();
             floatsRegistry_ = telemetryData->getRegistry<double>();
             floatSectionSize_ = sizeof(double) * floatsRegistry_->size();
-            recordedBytesDataLine_ =
-                integerSectionSize_ + floatSectionSize_ +
-                static_cast<int64_t>(START_LINE_TOKEN.size() +
-                                     sizeof(int64_t));  // int64_t for Global.Time
+            recordedBytesDataLine_ = integerSectionSize_ + floatSectionSize_ +
+                                     START_LINE_TOKEN.size() +
+                                     sizeof(int64_t);  // int64_t for Global.Time
 
             // Get the header
             telemetryData->formatHeader(header);
-            headerSize_ = static_cast<int64_t>(header.size());
+            headerSize_ = header.size();
 
             // Create a new MemoryDevice and open it
             returnCode = createNewChunk();
@@ -108,7 +108,8 @@ namespace jiminy
         hresult_t returnCode = hresult_t::SUCCESS;
 
         // Close the current MemoryDevice, if any and if it was opened
-        if (!flows_.empty())
+        const bool hasHeader = !flows_.empty();
+        if (hasHeader)
         {
             flows_.back().close();
         }
@@ -117,12 +118,14 @@ namespace jiminy
            The size of the first chunk is chosen to be large enough to contain the whole header,
            including constants. This does not really affect the performances since it is written
            only once per simulation. The optimized buffer size is used for the log data. */
-        int64_t isHeaderThere = flows_.empty();
-        int64_t maxBufferSize = std::max(TELEMETRY_MIN_BUFFER_SIZE, isHeaderThere * headerSize_);
-        int64_t maxRecordedDataLines =
-            (maxBufferSize - isHeaderThere * headerSize_) / recordedBytesDataLine_;
-        recordedBytesLimits_ =
-            isHeaderThere * headerSize_ + maxRecordedDataLines * recordedBytesDataLine_;
+        std::size_t headerSize = 0;
+        if (!hasHeader)
+        {
+            headerSize = headerSize_;
+        }
+        std::size_t maxBufferSize = std::max(TELEMETRY_MIN_BUFFER_SIZE, headerSize);
+        std::size_t maxRecordedDataLines = (maxBufferSize - headerSize) / recordedBytesDataLine_;
+        recordedBytesLimits_ = headerSize + maxRecordedDataLines * recordedBytesDataLine_;
         flows_.emplace_back(recordedBytesLimits_);
         returnCode = flows_.back().open(openMode_t::READ_WRITE);
 
@@ -178,7 +181,7 @@ namespace jiminy
         {
             for (auto & flow : flows_)
             {
-                const int64_t pos_old = flow.pos();
+                const std::ptrdiff_t pos_old = flow.pos();
                 flow.seek(0);
 
                 std::vector<uint8_t> bufferChunk;
@@ -232,7 +235,7 @@ namespace jiminy
                 {
                     // Read version flag and check if valid
                     int32_t version;
-                    flow->readData(&version, sizeof(int32_t));
+                    flow->read(version);
                     if (version != TELEMETRY_VERSION)
                     {
                         PRINT_ERROR(
@@ -335,7 +338,7 @@ namespace jiminy
                 {
                     /* Check if actual data are still available.
                        It is necessary because a pre-allocated memory may not be full. */
-                    flow->readData(&startLineTokenBuffer, 1);
+                    flow->read(startLineTokenBuffer);
                     if (startLineTokenBuffer != START_LINE_TOKEN[0])
                     {
                         break;
@@ -343,9 +346,9 @@ namespace jiminy
                     flow->seek(flow->pos() + startLineTokenSize - 1);
 
                     // Read data line
-                    flow->readData(&logData.times[timeIdx], sizeof(int64_t));
-                    flow->readData(logData.integerValues.col(timeIdx).data(), integerSectionSize);
-                    flow->readData(logData.floatValues.col(timeIdx).data(), floatSectionSize);
+                    flow->read(logData.times[timeIdx]);
+                    flow->read(logData.integerValues.col(timeIdx));
+                    flow->read(logData.floatValues.col(timeIdx));
 
                     // Increment timestamp counter
                     ++timeIdx;

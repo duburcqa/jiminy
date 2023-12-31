@@ -1,4 +1,4 @@
-#include "jiminy/core/traits.h"
+#include "jiminy/core/telemetry/fwd.h"
 #include "jiminy/core/hardware/abstract_sensor.h"
 #include "jiminy/core/hardware/basic_sensors.h"
 
@@ -363,7 +363,7 @@ namespace jiminy::python
                                               &ForceSensor::getFrameIdx,
                                               bp::return_value_policy<bp::return_by_value>())
                 .ADD_PROPERTY_GET_WITH_POLICY("joint_idx",
-                                              &ForceSensor::getJointIdx,
+                                              &ForceSensor::getJointModelIdx,
                                               bp::return_value_policy<bp::return_by_value>())
                 ;
             // clang-format on
@@ -381,7 +381,7 @@ namespace jiminy::python
                                               &EncoderSensor::getJointName,
                                               bp::return_value_policy<bp::return_by_value>())
                 .ADD_PROPERTY_GET_WITH_POLICY("joint_idx",
-                                              &EncoderSensor::getJointIdx,
+                                              &EncoderSensor::getJointModelIdx,
                                               bp::return_value_policy<bp::return_by_value>())
                 .ADD_PROPERTY_GET_WITH_POLICY("joint_type",
                                               &EncoderSensor::getJointType,

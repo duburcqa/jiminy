@@ -31,14 +31,14 @@ namespace jiminy
         WheelConstraint(const std::string & frameName,
                         double wheelRadius,
                         const Eigen::Vector3d & groundNormal,
-                        const Eigen::Vector3d & wheelAxis);
+                        const Eigen::Vector3d & wheelAxis) noexcept;
         virtual ~WheelConstraint() = default;
 
-        const std::string & getFrameName() const;
-        pinocchio::FrameIndex getFrameIdx() const;
+        const std::string & getFrameName() const noexcept;
+        pinocchio::FrameIndex getFrameIdx() const noexcept;
 
-        void setReferenceTransform(const pinocchio::SE3 & transformRef);
-        const pinocchio::SE3 & getReferenceTransform() const;
+        void setReferenceTransform(const pinocchio::SE3 & transformRef) noexcept;
+        const pinocchio::SE3 & getReferenceTransform() const noexcept;
 
         virtual hresult_t reset(const Eigen::VectorXd & /* q */,
                                 const Eigen::VectorXd & /* v */) override final;
@@ -50,7 +50,7 @@ namespace jiminy
         /// \brief Name of the frame on which the constraint operates.
         std::string frameName_;
         /// \brief Corresponding frame index.
-        pinocchio::FrameIndex frameIdx_;
+        pinocchio::FrameIndex frameIdx_{0};
         /// \brief Wheel radius.
         double radius_;
         /// \brief Ground normal, world frame.
@@ -58,13 +58,13 @@ namespace jiminy
         /// \brief Wheel axis, local frame.
         Eigen::Vector3d axis_;
         /// \brief Skew matrix of wheel axis, in world frame, scaled by radius.
-        Eigen::Matrix3d skewRadius_;
+        Eigen::Matrix3d skewRadius_{};
         /// \brief Derivative of skew matrix of wheel axis, in world frame, scaled by radius.
-        Eigen::Matrix3d dskewRadius_;
+        Eigen::Matrix3d dskewRadius_{};
         /// \brief Reference pose of the frame to enforce.
-        pinocchio::SE3 transformRef_;
+        pinocchio::SE3 transformRef_{};
         /// \brief Stores full frame jacobian in world.
-        Matrix6Xd frameJacobian_;
+        Matrix6Xd frameJacobian_{};
     };
 }
 

@@ -26,6 +26,49 @@ namespace pinocchio
 
 namespace jiminy
 {
+    // ******************************** is_contiguous_container ******************************** //
+
+    namespace details
+    {
+        template<class...>
+        struct voider
+        {
+            using type = void;
+        };
+
+        template<class... Ts>
+        using void_t = typename voider<Ts...>::type;
+
+        template<template<class...> class, class, class...>
+        struct canApplyImply : std::false_type
+        {
+        };
+
+        template<template<class...> class Z, class... Ts>
+        struct canApplyImply<Z, void_t<Z<Ts...>>, Ts...> : std::true_type
+        {
+        };
+
+        template<template<class...> class Z, class... Ts>
+        using canApply = canApplyImply<Z, void, Ts...>;
+
+        template<class T>
+        using sizeFunType = decltype(std::declval<T>().size());
+
+        template<class T>
+        using hasSize = canApply<sizeFunType, T>;
+
+        template<class T, class I = std::size_t>
+        using rawIndexFunType = decltype(std::declval<T>().data()[std::declval<I>()]);
+
+        template<class T, class I = std::size_t>
+        using isContiguousIndexable = canApply<rawIndexFunType, T, I>;
+    }
+
+    template<class T, class I = std::size_t>
+    inline constexpr bool is_contiguous_container_v =
+        std::conjunction<details::hasSize<T>, details::isContiguousIndexable<T, I>>::value;
+
     // ************************************* remove_cvref ************************************** //
 
     // TODO: Remove it when moving to C++20 as it has been added to the standard library
@@ -71,6 +114,21 @@ namespace jiminy
 
     template<typename T>
     inline constexpr bool is_vector_v = is_vector<std::decay_t<T>>::value;
+
+    // **************************************** is_array *************************************** //
+
+    template<typename T>
+    struct is_array : std::false_type
+    {
+    };
+
+    template<typename T, int I>
+    struct is_array<std::array<T, I>> : std::true_type
+    {
+    };
+
+    template<typename T>
+    inline constexpr bool is_array_v = is_array<std::decay_t<T>>::value;
 
     // **************************************** is_map ***************************************** //
 
@@ -209,11 +267,11 @@ namespace jiminy
     };
 
     template<typename T>
-    inline constexpr bool is_eigen_ref_v = is_eigen_ref<T>::value;
+    inline constexpr bool is_eigen_ref_v = is_eigen_ref<std::decay_t<T>>::value;
 
     // *************************************** is_eigen **************************************** //
 
-    namespace details::is_eigen
+    namespace details::is_eigen_plain
     {
         template<typename T, int RowsAtCompileTime, int ColsAtCompileTime>
         std::true_type test(const Eigen::Matrix<T, RowsAtCompileTime, ColsAtCompileTime> *);
@@ -225,21 +283,24 @@ namespace jiminy
         struct Test : public decltype(test(std::declval<std::add_pointer_t<T>>()))
         {
         };
-    }  // namespace details::is_eigen
+    }
 
     template<typename T, typename Enable = void>
-    struct is_eigen : public std::false_type
+    struct is_eigen_plain : public std::false_type
     {
     };
 
     template<typename T>
-    struct is_eigen<T, typename std::enable_if_t<details::is_eigen::Test<T>::value>> :
+    struct is_eigen_plain<T, typename std::enable_if_t<details::is_eigen_plain::Test<T>::value>> :
     std::true_type
     {
     };
 
     template<typename T>
-    inline constexpr bool is_eigen_v = is_eigen<T>::value;
+    inline constexpr bool is_eigen_plain_v = is_eigen_plain<std::decay_t<T>>::value;
+
+    template<class T>
+    inline constexpr bool is_eigen_v = std::disjunction<is_eigen_plain<T>, is_eigen_ref<T>>::value;
 
     // ********************************** is_pinocchio_joint_ ********************************** //
 

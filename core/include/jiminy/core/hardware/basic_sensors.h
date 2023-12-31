@@ -13,7 +13,7 @@ namespace jiminy
     class JIMINY_DLLAPI ImuSensor : public AbstractSensorTpl<ImuSensor>
     {
     public:
-        ImuSensor(const std::string & name);
+        using AbstractSensorTpl<ImuSensor>::AbstractSensorTpl;
         virtual ~ImuSensor() = default;
 
         auto shared_from_this() { return shared_from(this); }
@@ -36,10 +36,10 @@ namespace jiminy
         virtual void measureData() final override;
 
     private:
-        std::string frameName_;
-        pinocchio::FrameIndex frameIdx_;
+        std::string frameName_{};
+        pinocchio::FrameIndex frameIdx_{0};
         /// \brief Sensor inverse rotation bias.
-        Eigen::Matrix3d sensorRotationBiasInv_;
+        Eigen::Matrix3d sensorRotationBiasInv_{Eigen::Matrix3d::Identity()};
     };
 
     template<>
@@ -52,7 +52,7 @@ namespace jiminy
     class JIMINY_DLLAPI ContactSensor : public AbstractSensorTpl<ContactSensor>
     {
     public:
-        ContactSensor(const std::string & name);
+        using AbstractSensorTpl<ContactSensor>::AbstractSensorTpl;
         virtual ~ContactSensor() = default;
 
         auto shared_from_this() { return shared_from(this); }
@@ -73,8 +73,8 @@ namespace jiminy
                               const ForceVector & fExternal) final override;
 
     private:
-        std::string frameName_;
-        pinocchio::FrameIndex frameIdx_;
+        std::string frameName_{};
+        pinocchio::FrameIndex frameIdx_{0};
     };
 
     template<>
@@ -87,7 +87,7 @@ namespace jiminy
     class JIMINY_DLLAPI ForceSensor : public AbstractSensorTpl<ForceSensor>
     {
     public:
-        ForceSensor(const std::string & name);
+        using AbstractSensorTpl<ForceSensor>::AbstractSensorTpl;
         virtual ~ForceSensor() = default;
 
         auto shared_from_this() { return shared_from(this); }
@@ -98,7 +98,7 @@ namespace jiminy
 
         const std::string & getFrameName() const;
         pinocchio::FrameIndex getFrameIdx() const;
-        pinocchio::JointIndex getJointIdx() const;
+        pinocchio::JointIndex getJointModelIdx() const;
 
     private:
         virtual hresult_t set(double t,
@@ -109,10 +109,10 @@ namespace jiminy
                               const ForceVector & fExternal) final override;
 
     private:
-        std::string frameName_;
-        pinocchio::FrameIndex frameIdx_;
-        pinocchio::JointIndex parentJointIdx_;
-        pinocchio::Force f_;
+        std::string frameName_{};
+        pinocchio::FrameIndex frameIdx_{0};
+        pinocchio::JointIndex parentJointModelIdx_{0};
+        pinocchio::Force f_{};
     };
 
     template<>
@@ -125,7 +125,7 @@ namespace jiminy
     class JIMINY_DLLAPI EncoderSensor : public AbstractSensorTpl<EncoderSensor>
     {
     public:
-        EncoderSensor(const std::string & name);
+        using AbstractSensorTpl<EncoderSensor>::AbstractSensorTpl;
         virtual ~EncoderSensor() = default;
 
         auto shared_from_this() { return shared_from(this); }
@@ -135,7 +135,7 @@ namespace jiminy
         virtual hresult_t refreshProxies() final override;
 
         const std::string & getJointName() const;
-        pinocchio::JointIndex getJointIdx() const;
+        pinocchio::JointIndex getJointModelIdx() const;
         JointModelType getJointType() const;
 
     private:
@@ -147,9 +147,9 @@ namespace jiminy
                               const ForceVector & fExternal) final override;
 
     private:
-        std::string jointName_;
-        pinocchio::JointIndex jointIdx_;
-        JointModelType jointType_;
+        std::string jointName_{};
+        pinocchio::JointIndex jointModelIdx_{0};
+        JointModelType jointType_{JointModelType::UNSUPPORTED};
     };
 
     template<>
@@ -162,7 +162,7 @@ namespace jiminy
     class JIMINY_DLLAPI EffortSensor : public AbstractSensorTpl<EffortSensor>
     {
     public:
-        EffortSensor(const std::string & name);
+        using AbstractSensorTpl<EffortSensor>::AbstractSensorTpl;
         virtual ~EffortSensor() = default;
 
         auto shared_from_this() { return shared_from(this); }
@@ -183,8 +183,8 @@ namespace jiminy
                               const ForceVector & fExternal) final override;
 
     private:
-        std::string motorName_;
-        std::size_t motorIdx_;
+        std::string motorName_{};
+        std::size_t motorIdx_{0};
     };
 
     template<>

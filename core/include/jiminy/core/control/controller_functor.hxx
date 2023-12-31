@@ -6,15 +6,17 @@
 namespace jiminy
 {
     template<typename F1, typename F2>
-    ControllerFunctor<F1, F2>::ControllerFunctor(F1 & commandFct, F2 & internalDynamicsFct) :
+    ControllerFunctor<F1, F2>::ControllerFunctor(F1 & commandFct,
+                                                 F2 & internalDynamicsFct) noexcept :
     AbstractController(),
-    commandFct_(commandFct),
-    internalDynamicsFct_(internalDynamicsFct)
+    commandFct_{commandFct},
+    internalDynamicsFct_{internalDynamicsFct}
     {
     }
 
     template<typename F1, typename F2>
-    ControllerFunctor<F1, F2>::ControllerFunctor(F1 && commandFct, F2 && internalDynamicsFct) :
+    ControllerFunctor<F1, F2>::ControllerFunctor(F1 && commandFct,
+                                                 F2 && internalDynamicsFct) noexcept :
     AbstractController(),
     commandFct_(std::move(commandFct)),
     internalDynamicsFct_(std::move(internalDynamicsFct))

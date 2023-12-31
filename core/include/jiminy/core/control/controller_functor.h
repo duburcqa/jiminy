@@ -32,8 +32,8 @@ namespace jiminy
         ///
         /// \param[in] commandFct 'Callable' computing the command.
         /// \param[in] internalDynamicsFct 'Callable' computing the internal dynamics.
-        ControllerFunctor(F1 & commandFct, F2 & internalDynamicsFct);
-        ControllerFunctor(F1 && commandFct, F2 && internalDynamicsFct);
+        explicit ControllerFunctor(F1 & commandFct, F2 & internalDynamicsFct) noexcept;
+        explicit ControllerFunctor(F1 && commandFct, F2 && internalDynamicsFct) noexcept;
 
         virtual ~ControllerFunctor() = default;
 

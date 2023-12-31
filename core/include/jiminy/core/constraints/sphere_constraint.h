@@ -29,14 +29,14 @@ namespace jiminy
         /// \param[in] groundNormal Normal to the ground in the world as a unit vector.
         SphereConstraint(const std::string & frameName,
                          double sphereRadius,
-                         const Eigen::Vector3d & groundNormal = Eigen::Vector3d::UnitZ());
+                         const Eigen::Vector3d & groundNormal = Eigen::Vector3d::UnitZ()) noexcept;
         virtual ~SphereConstraint() = default;
 
-        const std::string & getFrameName() const;
-        pinocchio::FrameIndex getFrameIdx() const;
+        const std::string & getFrameName() const noexcept;
+        pinocchio::FrameIndex getFrameIdx() const noexcept;
 
-        void setReferenceTransform(const pinocchio::SE3 & transformRef);
-        const pinocchio::SE3 & getReferenceTransform() const;
+        void setReferenceTransform(const pinocchio::SE3 & transformRef) noexcept;
+        const pinocchio::SE3 & getReferenceTransform() const noexcept;
 
         virtual hresult_t reset(const Eigen::VectorXd & /* q */,
                                 const Eigen::VectorXd & /* v */) override final;
@@ -48,17 +48,17 @@ namespace jiminy
         /// \brief Name of the frame on which the constraint operates.
         std::string frameName_;
         /// \brief Corresponding frame index.
-        pinocchio::FrameIndex frameIdx_;
+        pinocchio::FrameIndex frameIdx_{0};
         /// \brief Sphere radius.
         double radius_;
         /// \brief Ground normal, world frame.
         Eigen::Vector3d normal_;
         /// \brief Skew of ground normal, in world frame, scaled by radius.
-        Eigen::Matrix3d skewRadius_;
+        Eigen::Matrix3d skewRadius_{pinocchio::alphaSkew(radius_, normal_)};
         /// \brief Reference pose of the frame to enforce.
-        pinocchio::SE3 transformRef_;
+        pinocchio::SE3 transformRef_{};
         /// \brief Stores full frame jacobian in world.
-        Matrix6Xd frameJacobian_;
+        Matrix6Xd frameJacobian_{};
     };
 }
 

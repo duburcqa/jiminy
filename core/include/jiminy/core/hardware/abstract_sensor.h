@@ -3,7 +3,6 @@
 
 #include "jiminy/core/fwd.h"
 #include "jiminy/core/utilities/helpers.h"
-#include "jiminy/core/telemetry/telemetry_sender.h"
 
 #include <boost/circular_buffer.hpp>
 #include <boost/functional/hash.hpp>
@@ -18,93 +17,9 @@
 namespace jiminy
 {
     class TelemetryData;
+    class TelemetrySender;
     class Robot;
     class AbstractSensorBase;
-
-    // Sensor data holder
-    namespace details
-    {
-        struct SensorDataItem
-        {
-            std::string name;
-            std::size_t idx;
-            Eigen::Ref<const Eigen::VectorXd> value;
-        };
-    }
-
-    struct JIMINY_DLLAPI IndexByIndex
-    {
-    };
-    struct JIMINY_DLLAPI IndexByName
-    {
-    };
-
-    struct SensorDataTypeMap :
-    public boost::multi_index::multi_index_container<
-        details::SensorDataItem,
-        boost::multi_index::indexed_by<
-            boost::multi_index::ordered_unique<
-                boost::multi_index::tag<IndexByIndex>,
-                boost::multi_index::
-                    member<details::SensorDataItem, std::size_t, &details::SensorDataItem::idx>,
-                std::less<std::size_t>  // Ordering by ascending order
-                >,
-            boost::multi_index::hashed_unique<
-                boost::multi_index::tag<IndexByName>,
-                boost::multi_index::
-                    member<details::SensorDataItem, std::string, &details::SensorDataItem::name>>,
-            boost::multi_index::sequenced<>>>
-    {
-    public:
-        explicit SensorDataTypeMap(const Eigen::MatrixXd * sharedDataPtr = nullptr) :
-        multi_index_container(),
-        sharedDataPtr_(sharedDataPtr)
-        {
-        }
-
-        /// @brief Returning data associated with all sensors at once.
-        ///
-        /// @warning It is up to the sure to make sure that the data are up-to-date.
-        inline const Eigen::MatrixXd & getAll() const
-        {
-            if (sharedDataPtr_)
-            {
-                assert((size() == static_cast<std::size_t>(sharedDataPtr_->cols())) &&
-                       "Shared data inconsistent with sensors.");
-                return *sharedDataPtr_;
-            }
-            else
-            {
-                // Get sensors data size
-                Eigen::Index dataSize = 0;
-                if (size() > 0)
-                {
-                    dataSize = this->cbegin()->value.size();
-                }
-
-                // Resize internal buffer if needed
-                data_.resize(Eigen::NoChange, dataSize);
-
-                // Set internal buffer by copying sensor data sequentially
-                for (const auto & sensor : *this)
-                {
-                    assert(sensor.value.size() == dataSize &&
-                           "Cannot get all data at once for heterogeneous sensors.");
-                    data_.row(sensor.idx) = sensor.value;
-                }
-
-                return data_;
-            }
-        }
-
-    private:
-        const Eigen::MatrixXd * const sharedDataPtr_;
-        /* Internal buffer if no shared memory available.
-           It is useful if the sensors data is not contiguous in the first place,
-           which is likely to be the case when allocated from Python, or when
-           re-generating sensor data from log files. */
-        mutable Eigen::MatrixXd data_{};
-    };
 
     /// \brief Structure holding the data for every sensors of a given type.
     ///
@@ -192,8 +107,8 @@ namespace jiminy
 
     public:
         /// \param[in] name Name of the sensor
-        AbstractSensorBase(const std::string & name);
-        virtual ~AbstractSensorBase() = default;
+        explicit AbstractSensorBase(const std::string & name) noexcept;
+        virtual ~AbstractSensorBase();
 
         /// \brief Reset the internal state of the sensors.
         ///
@@ -252,7 +167,7 @@ namespace jiminy
         virtual hresult_t setOptionsAll(const GenericConfig & sensorOptions) = 0;
 
         /// \brief Configuration options of the sensor.
-        GenericConfig getOptions() const;
+        GenericConfig getOptions() const noexcept;
 
         template<typename DerivedType>
         hresult_t set(const Eigen::MatrixBase<DerivedType> & value);
@@ -291,7 +206,7 @@ namespace jiminy
         virtual const std::string & getType() const = 0;
 
         /// \brief It is the size of the sensor's data vector.
-        virtual uint64_t getSize() const = 0;
+        virtual std::size_t getSize() const = 0;
 
         /// \brief Name of each element of the data measured by the sensor.
         virtual const std::vector<std::string> & getFieldnames() const = 0;
@@ -381,25 +296,25 @@ namespace jiminy
 
     public:
         /// \brief Structure with the parameters of the sensor
-        std::unique_ptr<const abstractSensorOptions_t> baseSensorOptions_;
+        std::unique_ptr<const abstractSensorOptions_t> baseSensorOptions_{nullptr};
 
     protected:
         /// \brief Dictionary with the parameters of the sensor.
-        GenericConfig sensorOptionsHolder_;
+        GenericConfig sensorOptionsHolder_{};
         /// \brief Flag to determine whether the sensor has been initialized.
-        bool isInitialized_;
+        bool isInitialized_{false};
         /// \brief Flag to determine whether the sensor is attached to a robot.
-        bool isAttached_;
+        bool isAttached_{false};
         /// \brief Flag to determine whether the telemetry of the sensor has been initialized.
-        bool isTelemetryConfigured_;
+        bool isTelemetryConfigured_{false};
         /// \brief Robot for which the command and internal dynamics Name of the sensor.
-        std::weak_ptr<const Robot> robot_;
+        std::weak_ptr<const Robot> robot_{};
         /// \brief Name of the sensor.
         std::string name_;
 
     private:
         /// \brief Telemetry sender of the sensor used to register and update telemetry variables.
-        TelemetrySender telemetrySender_;
+        std::unique_ptr<TelemetrySender> telemetrySender_;
     };
 
     template<typename T>
@@ -409,7 +324,7 @@ namespace jiminy
         DISABLE_COPY(AbstractSensorTpl)
 
     public:
-        AbstractSensorTpl(const std::string & name);
+        using AbstractSensorBase::AbstractSensorBase;
         virtual ~AbstractSensorTpl();
 
         auto shared_from_this() { return shared_from(this); }
@@ -422,7 +337,7 @@ namespace jiminy
         virtual std::size_t getIdx() const override final;
         virtual const std::string & getType() const override final;
         virtual const std::vector<std::string> & getFieldnames() const final;
-        virtual uint64_t getSize() const override final;
+        virtual std::size_t getSize() const override final;
 
         virtual Eigen::Ref<const Eigen::VectorXd> get() const override final;
 
@@ -452,10 +367,10 @@ namespace jiminy
         static const bool areFieldnamesGrouped_;
 
     protected:
-        std::size_t sensorIdx_;
+        std::size_t sensorIdx_{0};
 
     private:
-        SensorSharedDataHolder_t * sharedHolder_;
+        SensorSharedDataHolder_t * sharedHolder_{nullptr};
     };
 }
 

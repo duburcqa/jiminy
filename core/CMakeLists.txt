@@ -114,7 +114,7 @@ target_include_directories(${PROJECT_NAME}-object PUBLIC
 )
 
 # Configure jsoncpp and hdf5 dependencies.
-# Note that defining only BUILD_INTERFACE will prevent the header files to be exported,
+# Note that defining only BUILD_INTERFACE will prevent the header files from being exported,
 # thus not making them available by a side-project depending on Jiminy. However, since
 # jsoncpp is installed on the system as an external project, those side-projects must
 # simply call find_package(jsoncpp) and it will be included automatically.
@@ -124,7 +124,7 @@ target_include_directories(${PROJECT_NAME}-object SYSTEM PUBLIC
     $<BUILD_INTERFACE:${INSTALL_DIR}/include>
 )
 
-# Linking with other libraries (in such a way to avoid any warnings compiling them)
+# Linking with other libraries (as a way to avoid any warnings compiling them)
 target_link_libraries_system(${PROJECT_NAME}-object pinocchio::pinocchio hpp-fcl::hpp-fcl Eigen3::Eigen)
 if(NOT "${urdfdom_LIBRARIES}" MATCHES ".*tinyxml.*")
     list(APPEND urdfdom_LIBRARIES "tinyxml")
@@ -133,7 +133,7 @@ target_link_libraries(${PROJECT_NAME}-object ${urdfdom_LIBRARIES})
 target_link_libraries(${PROJECT_NAME}-object jsoncpp::jsoncpp hdf5::hdf5_cpp hdf5::hdf5 hdf5::zlib)  # Beware the order is critical !
 if(WIN32)
     # Adding this dependency on Windows is necessary since HDF5 >= 1.14.3.
-    # Hopefully this broken transitive dependency when build static libary
+    # Hopefully this broken transitive dependency when building static libary
     # will be fixed. See: https://github.com/HDFGroup/hdf5/issues/3663
     target_link_libraries(${PROJECT_NAME}-object shlwapi)
 endif()
@@ -143,7 +143,7 @@ if(UNIX AND NOT APPLE)
     target_link_libraries(${PROJECT_NAME}-object ${CMAKE_DL_LIBS} -lrt)
 endif()
 
-# Create both static and shared libraries from intermediary object
+# Create both static and shared libraries from the intermediary object
 add_library(${PROJECT_NAME} STATIC $<TARGET_OBJECTS:${PROJECT_NAME}-object>)
 target_link_libraries(${PROJECT_NAME} ${PROJECT_NAME}-object)
 add_library(${LIBRARY_NAME} SHARED $<TARGET_OBJECTS:${PROJECT_NAME}-object>)
@@ -171,7 +171,7 @@ if(BUILD_EXAMPLES)
     add_subdirectory(examples)
 endif()
 
-# Specialize jiminy core configuration file and install it
+# Specialize Jiminy core configuration file and install it
 set(JIMINY_CONFIG_IN "${CMAKE_SOURCE_DIR}/build_tools/cmake/jiminyConfig.cmake.in")
 set(JIMINY_CONFIG_OUT "${CMAKE_BINARY_DIR}/cmake/jiminyConfig.cmake")
 configure_file(${JIMINY_CONFIG_IN} ${JIMINY_CONFIG_OUT} @ONLY)

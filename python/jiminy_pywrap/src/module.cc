@@ -5,7 +5,6 @@
 #include "pinocchio/spatial/force.hpp"  // `Pinocchio::Force`
 
 #include "jiminy/core/utilities/random.h"
-#include "jiminy/core/traits.h"
 
 /* Eigenpy must be imported first, since it sets pre-processor definitions used by Boost Python
    to configure Python C API. */
@@ -41,14 +40,14 @@ namespace jiminy::python
              bp::return_value_policy<bp::return_by_value>(),                                  \
              (bp::arg("self"), "t", "q", "v"));
 
-#define REGISTER_CONVERTER(Type, Copy)                                                  \
-    {                                                                                   \
-        bp::type_info info = bp::type_id<Type>();                                       \
-        const bp::converter::registration * reg = bp::converter::registry::query(info); \
-        if (reg == nullptr || *reg->m_to_python == nullptr)                             \
-        {                                                                               \
-            bp::to_python_converter<Type, converterToPython<Type, Copy>, true>();       \
-        }                                                                               \
+#define REGISTER_TO_PYTHON_BY_VALUE_CONVERTER(Type)                                       \
+    {                                                                                     \
+        bp::type_info info = bp::type_id<Type>();                                         \
+        const bp::converter::registration * reg = bp::converter::registry::query(info);   \
+        if (reg == nullptr || *reg->m_to_python == nullptr)                               \
+        {                                                                                 \
+            bp::to_python_converter<Type, converterToPython<const Type &, true>, true>(); \
+        }                                                                                 \
     }
 
     BOOST_PYTHON_MODULE(PYTHON_LIBRARY_NAME)
@@ -103,12 +102,13 @@ namespace jiminy::python
 
         /* Enable some automatic C++ to Python converters.
            By default, conversion is by-value unless specified explicitly via a call policy. */
-        REGISTER_CONVERTER(std::vector<std::vector<int32_t>>, true);
-        REGISTER_CONVERTER(std::vector<uint32_t>, true);
-        REGISTER_CONVERTER(std::vector<int32_t>, true);
-        REGISTER_CONVERTER(std::vector<Eigen::VectorXd>, true);
-        REGISTER_CONVERTER(std::vector<Eigen::MatrixXd>, true);
-        REGISTER_CONVERTER(GenericConfig, true);
+        REGISTER_TO_PYTHON_BY_VALUE_CONVERTER(std::vector<pinocchio::Index>);
+        REGISTER_TO_PYTHON_BY_VALUE_CONVERTER(std::vector<std::vector<pinocchio::Index>>);
+        REGISTER_TO_PYTHON_BY_VALUE_CONVERTER(std::vector<Eigen::Index>);
+        REGISTER_TO_PYTHON_BY_VALUE_CONVERTER(std::vector<std::vector<Eigen::Index>>);
+        REGISTER_TO_PYTHON_BY_VALUE_CONVERTER(std::vector<Eigen::VectorXd>);
+        REGISTER_TO_PYTHON_BY_VALUE_CONVERTER(std::vector<Eigen::MatrixXd>);
+        REGISTER_TO_PYTHON_BY_VALUE_CONVERTER(GenericConfig);
 
         // Expose functors
         TIME_STATE_FCT_EXPOSE(Bool, bool)

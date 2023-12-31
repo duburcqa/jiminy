@@ -137,10 +137,10 @@ namespace jiminy
                     this->damping == other.damping && this->inertia == other.inertia);
         };
 
-        std::string frameName;
-        Eigen::Vector3d stiffness;
-        Eigen::Vector3d damping;
-        Eigen::Vector3d inertia;
+        std::string frameName{};
+        Eigen::Vector3d stiffness{};
+        Eigen::Vector3d damping{};
+        Eigen::Vector3d inertia{};
     };
 
     using FlexibilityConfig = std::vector<FlexibleJointData>;
@@ -161,9 +161,6 @@ namespace jiminy
                                std::vector<Eigen::MatrixXd>,
                                FlexibilityConfig,
                                std::unordered_map<std::string, boost::recursive_variant_>>::type>;
-
-    struct SensorDataTypeMap;
-    using SensorsDataMap = std::unordered_map<std::string, SensorDataTypeMap>;
 
     // Generic utilities used everywhere
     template<typename... Args>

@@ -2,7 +2,7 @@
 #define FUNCTORS_WRAPPERS_PYTHON_H
 
 #include "jiminy/core/fwd.h"
-#include "jiminy/core/traits.h"
+#include "jiminy/core/telemetry/fwd.h"
 #include "jiminy/core/hardware/abstract_sensor.h"
 
 #include "pinocchio/bindings/python/fwd.hpp"
@@ -85,10 +85,10 @@ namespace jiminy::python
 
     public:
         FctPyWrapper(const bp::object & objPy) :
-        funcPyPtr_(objPy),
+        funcPyPtr_{objPy},
         outPtr_(createInternalBuffer<OutputArg>()),
         outData_(setDataInternalBuffer(outPtr_)),
-        outPyPtr_(nullptr)
+        outPyPtr_{nullptr}
         {
             outPyPtr_ = getNumpyReference(outData_);
         }
@@ -98,7 +98,7 @@ namespace jiminy::python
         funcPyPtr_(other.funcPyPtr_),
         outPtr_(createInternalBuffer<OutputArg>()),
         outData_(setDataInternalBuffer(outPtr_)),
-        outPyPtr_(nullptr)
+        outPyPtr_{nullptr}
         {
             *outPtr_ = *(other.outPtr_);
             outPyPtr_ = getNumpyReference(outData_);
@@ -107,9 +107,9 @@ namespace jiminy::python
         // Move constructor, takes a rvalue reference &&
         FctPyWrapper(FctPyWrapper && other) :
         funcPyPtr_(other.funcPyPtr_),
-        outPtr_(nullptr),
+        outPtr_{nullptr},
         outData_(other.outData_),
-        outPyPtr_(nullptr)
+        outPyPtr_{nullptr}
         {
             // Steal the resource from "other"
             outPtr_ = other.outPtr_;
@@ -177,7 +177,7 @@ namespace jiminy::python
     {
     public:
         FctInOutPyWrapper(const bp::object & objPy) :
-        funcPyPtr_(objPy)
+        funcPyPtr_{objPy}
         {
         }
         void operator()(const InputArgs &... argsIn, Eigen::VectorXd & argOut)
@@ -218,12 +218,12 @@ namespace jiminy::python
 
     public:
         HeightmapFunctorPyWrapper(const bp::object & objPy, heightmapType_t objType) :
-        heightmapType_(objType),
-        handlePyPtr_(objPy),
+        heightmapType_{objType},
+        handlePyPtr_{objPy},
         out1Ptr_(new double),
         out2Ptr_(new Eigen::Vector3d),
-        out1PyPtr_(),
-        out2PyPtr_()
+        out1PyPtr_{},
+        out2PyPtr_{}
         {
             if (heightmapType_ == heightmapType_t::CONSTANT)
             {
@@ -248,8 +248,8 @@ namespace jiminy::python
         handlePyPtr_(other.handlePyPtr_),
         out1Ptr_(new double),
         out2Ptr_(new Eigen::Vector3d),
-        out1PyPtr_(),
-        out2PyPtr_()
+        out1PyPtr_{},
+        out2PyPtr_{}
         {
             *out1Ptr_ = *(other.out1Ptr_);
             *out2Ptr_ = *(other.out2Ptr_);
@@ -261,10 +261,10 @@ namespace jiminy::python
         HeightmapFunctorPyWrapper(HeightmapFunctorPyWrapper && other) :
         heightmapType_(other.heightmapType_),
         handlePyPtr_(other.handlePyPtr_),
-        out1Ptr_(nullptr),
-        out2Ptr_(nullptr),
-        out1PyPtr_(nullptr),
-        out2PyPtr_(nullptr)
+        out1Ptr_{nullptr},
+        out2Ptr_{nullptr},
+        out1PyPtr_{nullptr},
+        out2PyPtr_{nullptr}
         {
             // Steal the resource from "other"
             out1Ptr_ = other.out1Ptr_;

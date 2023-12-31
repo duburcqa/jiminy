@@ -7,40 +7,45 @@
 
 namespace jiminy
 {
-    // Generic implementation - POD types
+    // POD types
     template<typename T>
-    hresult_t AbstractIODevice::write(const T & valueIn)
+    std::enable_if_t<!is_contiguous_container_v<T> && std::is_trivially_copyable_v<T>, hresult_t>
+    AbstractIODevice::write(const T & value)
     {
-        return write(reinterpret_cast<const uint8_t * const>(&valueIn), sizeof(T));
+        std::size_t toWrite = sizeof(T);
+        const void * const bufferPos = static_cast<const void *>(&value);
+        return write(bufferPos, toWrite);
     }
 
     template<typename T>
-    hresult_t AbstractIODevice::read(T & valueIn)
+    std::enable_if_t<!is_contiguous_container_v<remove_cvref_t<T>> &&
+                         std::is_trivially_copyable_v<remove_cvref_t<T>>,
+                     hresult_t>
+    AbstractIODevice::read(T && value)
     {
-        int64_t toRead = sizeof(T);
-        uint8_t * bufferPos = reinterpret_cast<uint8_t *>(&valueIn);
+        std::size_t toRead = sizeof(T);
+        void * const bufferPos = static_cast<void *>(&value);
         return read(bufferPos, toRead);
     }
 
-    //--------------------------------- Specific implementations --------------------------------//
+    // Contiguous container
+    template<typename T>
+    std::enable_if_t<is_contiguous_container_v<T>, hresult_t>
+    AbstractIODevice::write(const T & value)
+    {
+        const std::size_t toWrite = value.size() * sizeof(typename T::value_type);
+        const void * const bufferPos = static_cast<const void *>(value.data());
+        return write(bufferPos, toWrite);
+    }
 
-    // read
-    template<>
-    hresult_t AbstractIODevice::read<std::vector<uint8_t>>(std::vector<uint8_t> & v);
-    template<>
-    hresult_t AbstractIODevice::read<std::vector<char>>(std::vector<char> & v);
-    template<>
-    hresult_t AbstractIODevice::read<std::string>(std::string & str) = delete;
-
-    // write
-    template<>
-    hresult_t AbstractIODevice::write<std::string_view>(const std::string_view & str);
-    template<>
-    hresult_t AbstractIODevice::write<std::vector<uint8_t>>(const std::vector<uint8_t> & v);
-    template<>
-    hresult_t AbstractIODevice::write<std::vector<char>>(const std::vector<char> & v);
-    template<>
-    hresult_t AbstractIODevice::write<std::vector<uint64_t>>(const std::vector<uint64_t> & v);
+    template<typename T>
+    std::enable_if_t<is_contiguous_container_v<remove_cvref_t<T>>, hresult_t>
+    AbstractIODevice::read(T && value)
+    {
+        const std::size_t toRead = value.size() * sizeof(typename remove_cvref_t<T>::value_type);
+        void * const bufferPos = static_cast<void *>(value.data());
+        return read(bufferPos, toRead);
+    }
 }
 
 #endif  // JIMINY_ABSTRACT_IO_DEVICE_HXX

@@ -6,23 +6,8 @@
 
 namespace jiminy
 {
-    AbstractMotorBase::AbstractMotorBase(const std::string & name) :
-    baseMotorOptions_(nullptr),
-    motorOptionsHolder_(),
-    isInitialized_(false),
-    isAttached_(false),
-    robot_(),
-    notifyRobot_(),
-    name_(name),
-    motorIdx_(0),
-    jointName_(),
-    jointModelIdx_(0),
-    jointType_(JointModelType::UNSUPPORTED),
-    jointPositionIdx_(-1),
-    jointVelocityIdx_(-1),
-    commandLimit_(0.0),
-    armature_(0.0),
-    sharedHolder_(nullptr)
+    AbstractMotorBase::AbstractMotorBase(const std::string & name) noexcept :
+    name_{name}
     {
         // Initialize the options
         setOptions(getDefaultMotorOptions());
@@ -197,7 +182,7 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    GenericConfig AbstractMotorBase::getOptions() const
+    GenericConfig AbstractMotorBase::getOptions() const noexcept
     {
         return motorOptionsHolder_;
     }
@@ -269,7 +254,7 @@ namespace jiminy
             // Get the motor effort limits from the URDF or the user options.
             if (baseMotorOptions_->commandLimitFromUrdf)
             {
-                int32_t jointVelocityOrigIdx;
+                Eigen::Index jointVelocityOrigIdx;
                 ::jiminy::getJointVelocityIdx(
                     robot->pncModelOrig_, jointName_, jointVelocityOrigIdx);
                 commandLimit_ = robot->pncModelOrig_.effortLimit[jointVelocityOrigIdx] /
@@ -372,12 +357,12 @@ namespace jiminy
         return jointType_;
     }
 
-    int32_t AbstractMotorBase::getJointPositionIdx() const
+    Eigen::Index AbstractMotorBase::getJointPositionIdx() const
     {
         return jointPositionIdx_;
     }
 
-    int32_t AbstractMotorBase::getJointVelocityIdx() const
+    Eigen::Index AbstractMotorBase::getJointVelocityIdx() const
     {
         return jointVelocityIdx_;
     }

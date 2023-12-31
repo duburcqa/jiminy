@@ -25,13 +25,15 @@
 #include "H5Cpp.h"
 #include "json/json.h"
 
-#include "jiminy/core/traits.h"
+#include "jiminy/core/telemetry/fwd.h"
+#include "jiminy/core/hardware/fwd.h"
 #include "jiminy/core/utilities/helpers.h"
 #include "jiminy/core/utilities/pinocchio.h"
 #include "jiminy/core/utilities/random.h"
 #include "jiminy/core/utilities/json.h"
 #include "jiminy/core/io/file_device.h"
 #include "jiminy/core/io/serialization.h"
+#include "jiminy/core/telemetry/telemetry_sender.h"
 #include "jiminy/core/telemetry/telemetry_data.h"
 #include "jiminy/core/telemetry/telemetry_recorder.h"
 #include "jiminy/core/constraints/abstract_constraint.h"
@@ -56,37 +58,13 @@ namespace jiminy
     inline constexpr uint32_t INIT_ITERATIONS{4U};
     inline constexpr uint32_t PGS_MAX_ITERATIONS{100U};
 
-    EngineMultiRobot::EngineMultiRobot() :
-    engineOptions_(nullptr),
-    systems_(),
-    isTelemetryConfigured_(false),
-    isSimulationRunning_(false),
-    engineOptionsHolder_(),
-    timer_(std::make_unique<Timer>()),
-    contactModel_(contactModel_t::UNSUPPORTED),
-    telemetrySender_(),
-    telemetryData_(nullptr),
-    telemetryRecorder_(nullptr),
-    stepper_(),
-    stepperUpdatePeriod_(INF),
-    stepperState_(),
-    systemsDataHolder_(),
-    forcesCoupling_(),
-    contactForcesPrev_(),
-    fPrev_(),
-    aPrev_(),
-    energy_(),
-    logData_(nullptr)
+    EngineMultiRobot::EngineMultiRobot() noexcept :
+    telemetrySender_{std::make_unique<TelemetrySender>()},
+    telemetryData_{std::make_shared<TelemetryData>()},
+    telemetryRecorder_{std::make_unique<TelemetryRecorder>()}
     {
         // Initialize the configuration options to the default.
         setOptions(getDefaultEngineOptions());
-
-        // Initialize the global telemetry data holder
-        telemetryData_ = std::make_shared<TelemetryData>();
-        telemetryData_->reset();
-
-        // Initialize the global telemetry recorder
-        telemetryRecorder_ = std::make_unique<TelemetryRecorder>();
     }
 
     // Cannot be default in the header since some types are incomplete at this point
@@ -142,7 +120,9 @@ namespace jiminy
         }
 
         // TODO: Check that the callback function is working as expected
-        systems_.emplace_back(systemName, robot, controller, std::move(callbackFct));
+        // FIXME: remove constructor call to `std::string` when moving to C++20
+        systems_.emplace_back(
+            systemHolder_t{systemName, robot, controller, std::move(callbackFct)});
         systemsDataHolder_.resize(systems_.size());
 
         return hresult_t::SUCCESS;
@@ -231,7 +211,7 @@ namespace jiminy
         if (returnCode == hresult_t::SUCCESS)
         {
             // Get the system index
-            int32_t systemIdx;
+            std::ptrdiff_t systemIdx;
             getSystemIdx(systemName, systemIdx);  // Cannot fail at this point
 
             // Update the systems' indices for the remaining coupling forces
@@ -330,13 +310,13 @@ namespace jiminy
         }
 
         // Get system and frame indices
-        int32_t systemIdx1;
+        std::ptrdiff_t systemIdx1;
         if (returnCode == hresult_t::SUCCESS)
         {
             returnCode = getSystemIdx(systemName1, systemIdx1);
         }
 
-        int32_t systemIdx2;
+        std::ptrdiff_t systemIdx2;
         if (returnCode == hresult_t::SUCCESS)
         {
             returnCode = getSystemIdx(systemName2, systemIdx2);
@@ -741,7 +721,7 @@ namespace jiminy
         if (!isTelemetryConfigured_)
         {
             // Initialize the engine-specific telemetry sender
-            telemetrySender_.configureObject(telemetryData_, ENGINE_TELEMETRY_NAMESPACE);
+            telemetrySender_->configureObject(telemetryData_, ENGINE_TELEMETRY_NAMESPACE);
 
             auto systemIt = systems_.begin();
             auto systemDataIt = systemsDataHolder_.begin();
@@ -787,7 +767,7 @@ namespace jiminy
                 {
                     if (engineOptions_->telemetry.enableConfiguration)
                     {
-                        returnCode = telemetrySender_.registerVariable(
+                        returnCode = telemetrySender_->registerVariable(
                             systemDataIt->logFieldnamesPosition, systemDataIt->state.q);
                     }
                 }
@@ -795,7 +775,7 @@ namespace jiminy
                 {
                     if (engineOptions_->telemetry.enableVelocity)
                     {
-                        returnCode = telemetrySender_.registerVariable(
+                        returnCode = telemetrySender_->registerVariable(
                             systemDataIt->logFieldnamesVelocity, systemDataIt->state.v);
                     }
                 }
@@ -803,7 +783,7 @@ namespace jiminy
                 {
                     if (engineOptions_->telemetry.enableAcceleration)
                     {
-                        returnCode = telemetrySender_.registerVariable(
+                        returnCode = telemetrySender_->registerVariable(
                             systemDataIt->logFieldnamesAcceleration, systemDataIt->state.a);
                     }
                 }
@@ -814,7 +794,7 @@ namespace jiminy
                         const auto & fext = systemDataIt->state.fExternal[i].toVector();
                         for (uint8_t j = 0; j < 6U; ++j)
                         {
-                            returnCode = telemetrySender_.registerVariable(
+                            returnCode = telemetrySender_->registerVariable(
                                 systemDataIt->logFieldnamesForceExternal[(i - 1) * 6U + j],
                                 &fext[j]);
                         }
@@ -824,7 +804,7 @@ namespace jiminy
                 {
                     if (engineOptions_->telemetry.enableCommand)
                     {
-                        returnCode = telemetrySender_.registerVariable(
+                        returnCode = telemetrySender_->registerVariable(
                             systemDataIt->logFieldnamesCommand, systemDataIt->state.command);
                     }
                 }
@@ -832,7 +812,7 @@ namespace jiminy
                 {
                     if (engineOptions_->telemetry.enableMotorEffort)
                     {
-                        returnCode = telemetrySender_.registerVariable(
+                        returnCode = telemetrySender_->registerVariable(
                             systemDataIt->logFieldnamesMotorEffort, systemDataIt->state.uMotor);
                     }
                 }
@@ -840,7 +820,7 @@ namespace jiminy
                 {
                     if (engineOptions_->telemetry.enableEnergy)
                     {
-                        returnCode = telemetrySender_.registerVariable(
+                        returnCode = telemetrySender_->registerVariable(
                             systemDataIt->logFieldnameEnergy, &(*energyIt));
                     }
                 }
@@ -885,7 +865,7 @@ namespace jiminy
         }
 
         // Update engine-specific telemetry variables
-        telemetrySender_.updateValues();
+        telemetrySender_->updateValues();
 
         // Flush the telemetry internal state
         telemetryRecorder_->flushDataSnapshot(stepperState_.t);
@@ -964,17 +944,18 @@ namespace jiminy
            that it is varying slowly enough to consider it constant during one integration step. */
         if (!system.robot->hasConstraints())
         {
-            for (int32_t i = 1; i < model.njoints; ++i)
+            for (int i = 1; i < model.njoints; ++i)
             {
                 data.Ycrb[i] = model.inertias[i];
             }
-            for (int32_t i = model.njoints - 1; i > 0; --i)
+            for (int i = model.njoints - 1; i > 0; --i)
             {
-                const pinocchio::JointIndex jointIdx = model.joints[i].id();
-                const pinocchio::JointIndex parentIdx = model.parents[jointIdx];
-                if (parentIdx > 0)
+                const pinocchio::JointIndex jointModelIdx = model.joints[i].id();
+                const pinocchio::JointIndex parentJointModelIdx = model.parents[jointModelIdx];
+                if (parentJointModelIdx > 0)
                 {
-                    data.Ycrb[parentIdx] += data.liMi[jointIdx].act(data.Ycrb[jointIdx]);
+                    data.Ycrb[parentJointModelIdx] +=
+                        data.liMi[jointModelIdx].act(data.Ycrb[jointModelIdx]);
                 }
             }
         }
@@ -988,21 +969,21 @@ namespace jiminy
         // Compute the spatial momenta and the sum of external forces acting on each body
         data.h[0].setZero();
         data.f[0].setZero();
-        for (int32_t i = 1; i < model.njoints; ++i)
+        for (int i = 1; i < model.njoints; ++i)
         {
             data.h[i] = model.inertias[i] * data.v[i];
             data.f[i] = model.inertias[i] * data.a[i] + data.v[i].cross(data.h[i]);
         }
-        for (int32_t i = model.njoints - 1; i > 0; --i)
+        for (int i = model.njoints - 1; i > 0; --i)
         {
-            const pinocchio::JointIndex parentIdx = model.parents[i];
-            data.h[parentIdx] += data.liMi[i].act(data.h[i]);
-            data.f[parentIdx] += data.liMi[i].act(data.f[i]);
+            const pinocchio::JointIndex parentJointModelIdx = model.parents[i];
+            data.h[parentJointModelIdx] += data.liMi[i].act(data.h[i]);
+            data.f[parentJointModelIdx] += data.liMi[i].act(data.f[i]);
         }
 
         /* Now that `data.Ycrb` and `data.h` are available, one can get directly the position and
            velocity of the center of mass of each subtrees. */
-        for (int32_t i = 0; i < model.njoints; ++i)
+        for (int i = 0; i < model.njoints; ++i)
         {
             data.com[i] = data.Ycrb[i].lever();
             data.vcom[i].noalias() = data.h[i].linear() / data.mass[i];
@@ -1038,7 +1019,7 @@ namespace jiminy
             contactForces[i] = system.robot->contactForces_[i];
         }
 
-        for (int32_t i = 0; i < system.robot->pncModel_.njoints; ++i)
+        for (int i = 0; i < system.robot->pncModel_.njoints; ++i)
         {
             f[i] = system.robot->pncData_.f[i];
             a[i] = system.robot->pncData_.a[i];
@@ -1583,7 +1564,7 @@ namespace jiminy
                     for (const auto & motor : systemIt->robot->getMotors())
                     {
                         const std::size_t motorIdx = motor->getIdx();
-                        const int32_t motorVelocityIdx = motor->getJointVelocityIdx();
+                        const Eigen::Index motorVelocityIdx = motor->getJointVelocityIdx();
                         u[motorVelocityIdx] += uMotor[motorIdx];
                     }
                 }
@@ -1626,13 +1607,13 @@ namespace jiminy
                 const std::string telemetryUrdfFile =
                     addCircumfix("urdf_file", system.name, {}, TELEMETRY_FIELDNAME_DELIMITER);
                 const std::string & urdfFileString = system.robot->getUrdfAsString();
-                telemetrySender_.registerConstant(telemetryUrdfFile, urdfFileString);
+                telemetrySender_->registerConstant(telemetryUrdfFile, urdfFileString);
 
                 // Backup 'has_freeflyer' option
                 const std::string telemetrHasFreeflyer =
                     addCircumfix("has_freeflyer", system.name, {}, TELEMETRY_FIELDNAME_DELIMITER);
-                telemetrySender_.registerConstant(telemetrHasFreeflyer,
-                                                  toString(system.robot->getHasFreeflyer()));
+                telemetrySender_->registerConstant(telemetrHasFreeflyer,
+                                                   toString(system.robot->getHasFreeflyer()));
 
                 // Backup mesh package lookup directories
                 const std::string telemetryMeshPackageDirs = addCircumfix(
@@ -1650,13 +1631,14 @@ namespace jiminy
                     meshPackageDirsString = meshPackageDirsStream.str();
                     meshPackageDirsString.pop_back();
                 }
-                telemetrySender_.registerConstant(telemetryMeshPackageDirs, meshPackageDirsString);
+                telemetrySender_->registerConstant(telemetryMeshPackageDirs,
+                                                   meshPackageDirsString);
 
                 // Backup the true and theoretical Pinocchio::Model
                 std::string key = addCircumfix(
                     "pinocchio_model", system.name, {}, TELEMETRY_FIELDNAME_DELIMITER);
                 std::string value = saveToBinary(system.robot->pncModel_);
-                telemetrySender_.registerConstant(key, value);
+                telemetrySender_->registerConstant(key, value);
 
                 /* Backup the Pinocchio GeometryModel for collisions and visuals.
                    It may fail because of missing serialization methods for convex, or because it
@@ -1669,12 +1651,12 @@ namespace jiminy
                         key = addCircumfix(
                             "collision_model", system.name, {}, TELEMETRY_FIELDNAME_DELIMITER);
                         value = saveToBinary(system.robot->collisionModel_);
-                        telemetrySender_.registerConstant(key, value);
+                        telemetrySender_->registerConstant(key, value);
 
                         key = addCircumfix(
                             "visual_model", system.name, {}, TELEMETRY_FIELDNAME_DELIMITER);
                         value = saveToBinary(system.robot->visualModel_);
-                        telemetrySender_.registerConstant(key, value);
+                        telemetrySender_->registerConstant(key, value);
                     }
                     catch (const std::exception & e)
                     {
@@ -1706,7 +1688,7 @@ namespace jiminy
             Json::StreamWriterBuilder jsonWriter;
             jsonWriter["indentation"] = "";
             const std::string allOptionsString = Json::writeString(jsonWriter, allOptionsJson);
-            telemetrySender_.registerConstant("options", allOptionsString);
+            telemetrySender_->registerConstant("options", allOptionsString);
 
             // Write the header: this locks the registration of new variables
             telemetryRecorder_->initialize(telemetryData_.get(), getTelemetryTimeUnit());
@@ -1808,11 +1790,11 @@ namespace jiminy
             double stepSize;
             if (std::isfinite(stepperUpdatePeriod_))
             {
-                stepSize = min(stepperUpdatePeriod_, tEnd - stepperState_.t);
+                stepSize = std::min(stepperUpdatePeriod_, tEnd - stepperState_.t);
             }
             else
             {
-                stepSize = min(engineOptions_->stepper.dtMax, tEnd - stepperState_.t);
+                stepSize = std::min(engineOptions_->stepper.dtMax, tEnd - stepperState_.t);
             }
             returnCode = step(stepSize);  // Automatic dt adjustment
         }
@@ -1989,7 +1971,7 @@ namespace jiminy
                 // Get the next breakpoint time if any
                 if (tBreakNextIt != systemData.forcesImpulseBreaks.end())
                 {
-                    tForceImpulseNext = min(tForceImpulseNext, *tBreakNextIt);
+                    tForceImpulseNext = std::min(tForceImpulseNext, *tBreakNextIt);
                 }
             }
 
@@ -2095,11 +2077,11 @@ namespace jiminy
                        Note that in this case, the sensors have already been updated in advance
                        during the previous loop. */
                     dtNextGlobal =
-                        min(dtNextUpdatePeriod + stepperUpdatePeriod_, tForceImpulseNext - t);
+                        std::min(dtNextUpdatePeriod + stepperUpdatePeriod_, tForceImpulseNext - t);
                 }
                 else
                 {
-                    dtNextGlobal = min(dtNextUpdatePeriod, tForceImpulseNext - t);
+                    dtNextGlobal = std::min(dtNextUpdatePeriod, tForceImpulseNext - t);
                 }
 
                 /* Check if the next dt to about equal to the time difference between the current
@@ -2134,7 +2116,7 @@ namespace jiminy
                     }
 
                     // Adjust stepsize to end up exactly at the next breakpoint
-                    dt = min(dt, tNext - t);
+                    dt = std::min(dt, tNext - t);
                     if (dtLargest > SIMULATION_MIN_TIMESTEP)
                     {
                         if (tNext - (t + dt) < SIMULATION_MIN_TIMESTEP)
@@ -2295,14 +2277,14 @@ namespace jiminy
                     }
 
                     // Initialize the next dt
-                    dt = min(dtLargest, engineOptions_->stepper.dtMax);
+                    dt = std::min(dtLargest, engineOptions_->stepper.dtMax);
                 }
             }
             else
             {
                 /* Make sure it ends exactly at the tEnd, never exceeds dtMax, and stop to apply
                    impulse forces. */
-                dt = min(dt, tEnd - t, tForceImpulseNext - t);
+                dt = std::min({dt, tEnd - t, tForceImpulseNext - t});
 
                 /* A breakpoint has been reached, because dt has been decreased wrt the largest
                    possible dt within integration tol. */
@@ -2404,7 +2386,7 @@ namespace jiminy
                     }
 
                     // Initialize the next dt
-                    dt = min(dtLargest, engineOptions_->stepper.dtMax);
+                    dt = std::min(dtLargest, engineOptions_->stepper.dtMax);
                 }
             }
 
@@ -2549,7 +2531,7 @@ namespace jiminy
             returnCode = hresult_t::ERROR_GENERIC;
         }
 
-        int32_t systemIdx;
+        std::ptrdiff_t systemIdx;
         if (returnCode == hresult_t::SUCCESS)
         {
             returnCode = getSystemIdx(systemName, systemIdx);
@@ -2610,7 +2592,7 @@ namespace jiminy
             returnCode = hresult_t::ERROR_GENERIC;
         }
 
-        int32_t systemIdx;
+        std::ptrdiff_t systemIdx;
         if (returnCode == hresult_t::SUCCESS)
         {
             returnCode = getSystemIdx(systemName, systemIdx);
@@ -2683,7 +2665,7 @@ namespace jiminy
             returnCode = hresult_t::ERROR_GENERIC;
         }
 
-        int32_t systemIdx;
+        std::ptrdiff_t systemIdx;
         if (returnCode == hresult_t::SUCCESS)
         {
             returnCode = getSystemIdx(systemName, systemIdx);
@@ -2728,7 +2710,7 @@ namespace jiminy
             return hresult_t::ERROR_GENERIC;
         }
 
-        int32_t systemIdx;
+        std::ptrdiff_t systemIdx;
         if (returnCode == hresult_t::SUCCESS)
         {
             returnCode = getSystemIdx(systemName, systemIdx);
@@ -2777,7 +2759,7 @@ namespace jiminy
 
         forcesImpulsePtr = &forcesImpuseDummy;
 
-        int32_t systemIdx;
+        std::ptrdiff_t systemIdx;
         returnCode = getSystemIdx(systemName, systemIdx);
 
         if (returnCode == hresult_t::SUCCESS)
@@ -2798,7 +2780,7 @@ namespace jiminy
 
         forcesProfilePtr = &forcesRegisterDummy;
 
-        int32_t systemIdx;
+        std::ptrdiff_t systemIdx;
         returnCode = getSystemIdx(systemName, systemIdx);
 
         if (returnCode == hresult_t::SUCCESS)
@@ -2810,7 +2792,7 @@ namespace jiminy
         return returnCode;
     }
 
-    GenericConfig EngineMultiRobot::getOptions() const
+    GenericConfig EngineMultiRobot::getOptions() const noexcept
     {
         return engineOptionsHolder_;
     }
@@ -2962,7 +2944,7 @@ namespace jiminy
     }
 
     hresult_t EngineMultiRobot::getSystemIdx(const std::string & systemName,
-                                             int32_t & systemIdx) const
+                                             std::ptrdiff_t & systemIdx) const
     {
         auto systemIt = std::find_if(systems_.begin(),
                                      systems_.end(),
@@ -2974,7 +2956,7 @@ namespace jiminy
             return hresult_t::ERROR_BAD_INPUT;
         }
 
-        systemIdx = static_cast<int32_t>(std::distance(systems_.begin(), systemIt));
+        systemIdx = std::distance(systems_.begin(), systemIt);
 
         return hresult_t::SUCCESS;
     }
@@ -3013,7 +2995,7 @@ namespace jiminy
 
         hresult_t returnCode = hresult_t::SUCCESS;
 
-        int32_t systemIdx;
+        std::ptrdiff_t systemIdx;
         returnCode = getSystemIdx(systemName, systemIdx);
         if (returnCode == hresult_t::SUCCESS)
         {
@@ -3111,16 +3093,16 @@ namespace jiminy
         pinocchio::forwardKinematics(model, data, q, v, a);
 
         // Update frame placements (avoiding redundant computations)
-        for (int32_t i = 1; i < model.nframes; ++i)
+        for (int jointModelIdx = 1; jointModelIdx < model.nframes; ++jointModelIdx)
         {
-            const pinocchio::Frame & frame = model.frames[i];
-            pinocchio::JointIndex parent = frame.parent;
+            const pinocchio::Frame & frame = model.frames[jointModelIdx];
+            pinocchio::JointIndex parentJointModelIdx = frame.parent;
             switch (frame.type)
             {
             case pinocchio::FrameType::JOINT:
                 /* If the frame is associated with an actual joint, no need to compute anything
                    new, since the frame transform is supposed to be identity. */
-                data.oMf[i] = data.oMi[parent];
+                data.oMf[jointModelIdx] = data.oMi[parentJointModelIdx];
                 break;
             case pinocchio::FrameType::BODY:
                 if (model.frames[frame.previousFrame].type == pinocchio::FrameType::FIXED_JOINT)
@@ -3129,13 +3111,13 @@ namespace jiminy
                        itself, so no need to compute them twice. Here we are doing the assumption
                        that the previous frame transform has already been updated since it is
                        closer to root in kinematic tree. */
-                    data.oMf[i] = data.oMf[frame.previousFrame];
+                    data.oMf[jointModelIdx] = data.oMf[frame.previousFrame];
                 }
                 else
                 {
                     /* BODYs connected via JOINT(s) have the identity transform, so copying parent
                        joint transform should be fine. */
-                    data.oMf[i] = data.oMi[parent];
+                    data.oMf[jointModelIdx] = data.oMi[parentJointModelIdx];
                 }
                 break;
             case pinocchio::FrameType::FIXED_JOINT:
@@ -3143,7 +3125,7 @@ namespace jiminy
             case pinocchio::FrameType::OP_FRAME:
             default:
                 // Nothing special, doing the actual computation
-                data.oMf[i] = data.oMi[parent] * frame.placement;
+                data.oMf[jointModelIdx] = data.oMi[parentJointModelIdx] * frame.placement;
             }
         }
 
@@ -3166,7 +3148,7 @@ namespace jiminy
         // Get the frame and joint indices
         const pinocchio::GeomIndex & geometryIdx =
             system.robot->collisionModel_.collisionPairs[collisionPairIdx].first;
-        pinocchio::JointIndex parentJointIdx =
+        pinocchio::JointIndex parentJointModelIdx =
             system.robot->collisionModel_.geometryObjects[geometryIdx].parentJoint;
 
         // Extract collision and distance results
@@ -3182,12 +3164,12 @@ namespace jiminy
             constraint->disable();
         }
 
-        for (uint32_t i = 0; i < collisionResult.numContacts(); ++i)
+        for (std::size_t contactIdx = 0; contactIdx < collisionResult.numContacts(); ++contactIdx)
         {
             /* Extract the contact information.
                Note that there is always a single contact point while computing the collision
                between two shape objects, for instance convex geometry and box primitive. */
-            const auto & contact = collisionResult.getContact(i);
+            const auto & contact = collisionResult.getContact(contactIdx);
             Eigen::Vector3d nGround = contact.normal.normalized();  // Ground normal in world frame
             double depth = contact.penetration_depth;  // Penetration depth (signed, negative)
             pinocchio::SE3 posContactInWorld = pinocchio::SE3::Identity();
@@ -3216,9 +3198,9 @@ namespace jiminy
             {
                 // Compute the linear velocity of the contact point in world frame
                 const pinocchio::Motion & motionJointLocal =
-                    system.robot->pncData_.v[parentJointIdx];
+                    system.robot->pncData_.v[parentJointModelIdx];
                 const pinocchio::SE3 & transformJointFrameInWorld =
-                    system.robot->pncData_.oMi[parentJointIdx];
+                    system.robot->pncData_.oMi[parentJointModelIdx];
                 const pinocchio::SE3 transformJointFrameInContact =
                     posContactInWorld.actInv(transformJointFrameInWorld);
                 const Eigen::Vector3d vContactInWorld =
@@ -3460,14 +3442,14 @@ namespace jiminy
              Eigen::VectorXd & u)
         {
             // Define some proxies for convenience
-            const pinocchio::JointIndex jointIdx = joint.id();
-            const uint32_t positionIdx = joint.idx_q();
-            const uint32_t velocityIdx = joint.idx_v();
+            const pinocchio::JointIndex jointModelIdx = joint.id();
+            const Eigen::Index positionIdx = joint.idx_q();
+            const Eigen::Index velocityIdx = joint.idx_v();
             const double qJoint = q[positionIdx];
             const double qJointMin = positionLimitMin[positionIdx];
             const double qJointMax = positionLimitMax[positionIdx];
             const double vJoint = v[velocityIdx];
-            const double Ia = getSubtreeInertiaProj(joint.derived(), pncData.Ycrb[jointIdx]);
+            const double Ia = getSubtreeInertiaProj(joint.derived(), pncData.Ycrb[jointModelIdx]);
             const double stiffness = engineOptions->joints.boundStiffness;
             const double damping = engineOptions->joints.boundDamping;
             const double transitionEps = engineOptions->contacts.transitionEps;
@@ -3589,12 +3571,12 @@ namespace jiminy
              Eigen::VectorXd & u)
         {
             // Define some proxies for convenience
-            const pinocchio::JointIndex jointIdx = joint.id();
-            const uint32_t velocityIdx = joint.idx_v();
+            const pinocchio::JointIndex jointModelIdx = joint.id();
+            const Eigen::Index velocityIdx = joint.idx_v();
             const double vJoint = v[velocityIdx];
             const double vJointMin = -velocityLimitMax[velocityIdx];
             const double vJointMax = velocityLimitMax[velocityIdx];
-            const double Ia = getSubtreeInertiaProj(joint.derived(), pncData.Ycrb[jointIdx]);
+            const double Ia = getSubtreeInertiaProj(joint.derived(), pncData.Ycrb[jointModelIdx]);
             const double damping = engineOptions->joints.boundDamping;
 
             // Check if out-of-bounds
@@ -3660,13 +3642,13 @@ namespace jiminy
         {
             const Eigen::VectorXd & positionLimitMin = system.robot->getPositionLimitMin();
             const Eigen::VectorXd & positionLimitMax = system.robot->getPositionLimitMax();
-            const std::vector<pinocchio::JointIndex> & rigidJointsIdx =
+            const std::vector<pinocchio::JointIndex> & rigidJointModelIndices =
                 system.robot->getRigidJointsModelIdx();
-            for (std::size_t i = 0; i < rigidJointsIdx.size(); ++i)
+            for (std::size_t i = 0; i < rigidJointModelIndices.size(); ++i)
             {
                 auto & constraint = systemData.constraintsHolder.boundJoints[i].second;
                 computePositionLimitsForcesAlgo::run(
-                    pncModel.joints[rigidJointsIdx[i]],
+                    pncModel.joints[rigidJointModelIndices[i]],
                     typename computePositionLimitsForcesAlgo::ArgsType(pncData,
                                                                        q,
                                                                        v,
@@ -3683,10 +3665,10 @@ namespace jiminy
         if (system.robot->mdlOptions_->joints.enableVelocityLimit)
         {
             const Eigen::VectorXd & velocityLimitMax = system.robot->getVelocityLimit();
-            for (pinocchio::JointIndex rigidIdx : system.robot->getRigidJointsModelIdx())
+            for (pinocchio::JointIndex rigidJointModelIdx : system.robot->getRigidJointsModelIdx())
             {
                 computeVelocityLimitsForcesAlgo::run(
-                    pncModel.joints[rigidIdx],
+                    pncModel.joints[rigidJointModelIdx],
                     typename computeVelocityLimitsForcesAlgo::ArgsType(
                         pncData, v, velocityLimitMax, engineOptions_, contactModel_, uInternal));
             }
@@ -3696,13 +3678,13 @@ namespace jiminy
         double angle;
         Eigen::Matrix3d rotJlog3;
         const Robot::dynamicsOptions_t & mdlDynOptions = system.robot->mdlOptions_->dynamics;
-        const std::vector<pinocchio::JointIndex> & flexibilityIdx =
+        const std::vector<pinocchio::JointIndex> & flexibilityJointModelIndices =
             system.robot->getFlexibleJointsModelIdx();
-        for (std::size_t i = 0; i < flexibilityIdx.size(); ++i)
+        for (std::size_t i = 0; i < flexibilityJointModelIndices.size(); ++i)
         {
-            const pinocchio::JointIndex jointIdx = flexibilityIdx[i];
-            const uint32_t positionIdx = pncModel.joints[jointIdx].idx_q();
-            const uint32_t velocityIdx = pncModel.joints[jointIdx].idx_v();
+            const pinocchio::JointIndex jointModelIdx = flexibilityJointModelIndices[i];
+            const Eigen::Index positionIdx = pncModel.joints[jointModelIdx].idx_q();
+            const Eigen::Index velocityIdx = pncModel.joints[jointModelIdx].idx_v();
             const Eigen::Vector3d & stiffness = mdlDynOptions.flexibilityConfig[i].stiffness;
             const Eigen::Vector3d & damping = mdlDynOptions.flexibilityConfig[i].damping;
 
@@ -3738,9 +3720,9 @@ namespace jiminy
             }
 
             // Apply the force at the origin of the parent joint frame, in local joint frame
-            const pinocchio::JointIndex parentJointIdx =
+            const pinocchio::JointIndex parentJointModelIdx =
                 system.robot->pncModel_.frames[frameIdx].parent;
-            fext[parentJointIdx] += fextLocal;
+            fext[parentJointModelIdx] += fextLocal;
 
             // Convert contact force from global frame to local frame to store it in contactForces_
             const pinocchio::SE3 & transformContactInJoint =
@@ -3758,7 +3740,7 @@ namespace jiminy
             /* Compute force at the given collision body.
                It returns the force applied at the origin of parent joint frame in global frame. */
             const pinocchio::FrameIndex frameIdx = collisionBodiesIdx[i];
-            const pinocchio::JointIndex parentJointIdx =
+            const pinocchio::JointIndex parentJointModelIdx =
                 system.robot->pncModel_.frames[frameIdx].parent;
             for (std::size_t j = 0; j < collisionPairsIdx[i].size(); ++j)
             {
@@ -3771,7 +3753,7 @@ namespace jiminy
                 }
 
                 // Apply the force at the origin of the parent joint frame, in local joint frame
-                fext[parentJointIdx] += fextLocal;
+                fext[parentJointModelIdx] += fextLocal;
             }
         }
     }
@@ -3794,11 +3776,11 @@ namespace jiminy
             if (*forcesImpulseActiveIt)
             {
                 const pinocchio::FrameIndex frameIdx = forcesImpulseIt->frameIdx;
-                const pinocchio::JointIndex parentJointIdx =
+                const pinocchio::JointIndex parentJointModelIdx =
                     system.robot->pncModel_.frames[frameIdx].parent;
                 const pinocchio::Force & F = forcesImpulseIt->F;
 
-                fext[parentJointIdx] += convertForceGlobalFrameToJoint(
+                fext[parentJointModelIdx] += convertForceGlobalFrameToJoint(
                     system.robot->pncModel_, system.robot->pncData_, frameIdx, F);
             }
         }
@@ -3807,13 +3789,13 @@ namespace jiminy
         for (auto & forceProfile : systemData.forcesProfile)
         {
             const pinocchio::FrameIndex frameIdx = forceProfile.frameIdx;
-            const pinocchio::JointIndex parentJointIdx =
+            const pinocchio::JointIndex parentJointModelIdx =
                 system.robot->pncModel_.frames[frameIdx].parent;
             if (forceProfile.updatePeriod < EPS)
             {
                 forceProfile.forcePrev = forceProfile.forceFct(t, q, v);
             }
-            fext[parentJointIdx] += convertForceGlobalFrameToJoint(
+            fext[parentJointModelIdx] += convertForceGlobalFrameToJoint(
                 system.robot->pncModel_, system.robot->pncData_, frameIdx, forceProfile.forcePrev);
         }
     }
@@ -3825,7 +3807,7 @@ namespace jiminy
         for (auto & forceCoupling : forcesCoupling_)
         {
             // Extract info about the first system involved
-            const int32_t systemIdx1 = forceCoupling.systemIdx1;
+            const std::ptrdiff_t systemIdx1 = forceCoupling.systemIdx1;
             const systemHolder_t & system1 = systems_[systemIdx1];
             const Eigen::VectorXd & q1 = qSplit[systemIdx1];
             const Eigen::VectorXd & v1 = vSplit[systemIdx1];
@@ -3833,7 +3815,7 @@ namespace jiminy
             ForceVector & fext1 = systemsDataHolder_[systemIdx1].state.fExternal;
 
             // Extract info about the second system involved
-            const int32_t systemIdx2 = forceCoupling.systemIdx2;
+            const std::ptrdiff_t systemIdx2 = forceCoupling.systemIdx2;
             const systemHolder_t & system2 = systems_[systemIdx2];
             const Eigen::VectorXd & q2 = qSplit[systemIdx2];
             const Eigen::VectorXd & v2 = vSplit[systemIdx2];
@@ -3842,19 +3824,19 @@ namespace jiminy
 
             // Compute the coupling force
             pinocchio::Force force = forceCoupling.forceFct(t, q1, v1, q2, v2);
-            const pinocchio::JointIndex parentJointIdx1 =
+            const pinocchio::JointIndex parentJointModelIdx1 =
                 system1.robot->pncModel_.frames[frameIdx1].parent;
-            fext1[parentJointIdx1] += convertForceGlobalFrameToJoint(
+            fext1[parentJointModelIdx1] += convertForceGlobalFrameToJoint(
                 system1.robot->pncModel_, system1.robot->pncData_, frameIdx1, force);
 
             // Move force from frame1 to frame2 to apply it to the second system
             force.toVector() *= -1;
-            const pinocchio::JointIndex parentJointIdx2 =
+            const pinocchio::JointIndex parentJointModelIdx2 =
                 system2.robot->pncModel_.frames[frameIdx2].parent;
             const Eigen::Vector3d offset = system2.robot->pncData_.oMf[frameIdx2].translation() -
                                            system1.robot->pncData_.oMf[frameIdx1].translation();
             force.angular() -= offset.cross(force.linear());
-            fext2[parentJointIdx2] += convertForceGlobalFrameToJoint(
+            fext2[parentJointModelIdx2] += convertForceGlobalFrameToJoint(
                 system2.robot->pncModel_, system2.robot->pncData_, frameIdx2, force);
         }
     }
@@ -4018,7 +4000,7 @@ namespace jiminy
             for (const auto & motor : systemIt->robot->getMotors())
             {
                 const std::size_t motorIdx = motor->getIdx();
-                const int32_t motorVelocityIdx = motor->getJointVelocityIdx();
+                const Eigen::Index motorVelocityIdx = motor->getJointVelocityIdx();
                 u[motorVelocityIdx] += uMotor[motorIdx];
             }
 
@@ -4055,7 +4037,7 @@ namespace jiminy
 
             // Project external forces from cartesian space to joint space.
             data.u = u;
-            for (int32_t i = 1; i < model.njoints; ++i)
+            for (int i = 1; i < model.njoints; ++i)
             {
                 /* Skip computation if force is zero for efficiency. It should be the case most
                    often. */
@@ -4107,7 +4089,7 @@ namespace jiminy
                     Eigen::VectorXd & uJoint = constraint->lambda_;
                     const auto & jointConstraint =
                         static_cast<JointConstraint const &>(*constraint.get());
-                    const auto & jointModel = joints[jointConstraint.getJointIdx()];
+                    const auto & jointModel = joints[jointConstraint.getJointModelIdx()];
                     jointModel.jointVelocitySelector(uInternal) += uJoint;
                     jointModel.jointVelocitySelector(u) += uJoint;
                 });

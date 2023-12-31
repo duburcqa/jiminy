@@ -58,18 +58,18 @@ namespace jiminy
 
             motorOptions_t(const GenericConfig & options) :
             abstractMotorOptions_t(options),
-            enableFriction(boost::get<bool>(options.at("enableFriction"))),
-            frictionViscousPositive(boost::get<double>(options.at("frictionViscousPositive"))),
-            frictionViscousNegative(boost::get<double>(options.at("frictionViscousNegative"))),
-            frictionDryPositive(boost::get<double>(options.at("frictionDryPositive"))),
-            frictionDryNegative(boost::get<double>(options.at("frictionDryNegative"))),
-            frictionDrySlope(boost::get<double>(options.at("frictionDrySlope")))
+            enableFriction{boost::get<bool>(options.at("enableFriction"))},
+            frictionViscousPositive{boost::get<double>(options.at("frictionViscousPositive"))},
+            frictionViscousNegative{boost::get<double>(options.at("frictionViscousNegative"))},
+            frictionDryPositive{boost::get<double>(options.at("frictionDryPositive"))},
+            frictionDryNegative{boost::get<double>(options.at("frictionDryNegative"))},
+            frictionDrySlope{boost::get<double>(options.at("frictionDrySlope"))}
             {
             }
         };
 
     public:
-        SimpleMotor(const std::string & name);
+        explicit SimpleMotor(const std::string & name) noexcept;
         virtual ~SimpleMotor() = default;
 
         auto shared_from_this() { return shared_from(this); }
@@ -87,7 +87,7 @@ namespace jiminy
                                         double command) final override;
 
     private:
-        std::unique_ptr<const motorOptions_t> motorOptions_;
+        std::unique_ptr<const motorOptions_t> motorOptions_{nullptr};
     };
 }
 

@@ -55,7 +55,7 @@ else()
                    -Wno-unknown-warning -Wno-undefined-var-template \
                    -Wno-long-long -Wno-error=maybe-uninitialized \
                    -Wno-error=uninitialized -Wno-error=deprecated \
-                   -Wno-error=array-bounds")
+                   -Wno-error=array-bounds -Wno-error=redundant-move")
 endif()
 
 # Shared libraries need PIC

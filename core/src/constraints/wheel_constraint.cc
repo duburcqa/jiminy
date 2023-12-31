@@ -14,36 +14,31 @@ namespace jiminy
     WheelConstraint::WheelConstraint(const std::string & frameName,
                                      double wheelRadius,
                                      const Eigen::Vector3d & groundNormal,
-                                     const Eigen::Vector3d & wheelAxis) :
+                                     const Eigen::Vector3d & wheelAxis) noexcept :
     AbstractConstraintTpl(),
-    frameName_(frameName),
-    frameIdx_(0),
-    radius_(wheelRadius),
-    normal_(groundNormal.normalized()),
-    axis_(wheelAxis.normalized()),
-    skewRadius_(),
-    dskewRadius_(),
-    transformRef_(),
-    frameJacobian_()
+    frameName_{frameName},
+    radius_{wheelRadius},
+    normal_{groundNormal.normalized()},
+    axis_{wheelAxis.normalized()}
     {
     }
 
-    const std::string & WheelConstraint::getFrameName() const
+    const std::string & WheelConstraint::getFrameName() const noexcept
     {
         return frameName_;
     }
 
-    pinocchio::FrameIndex WheelConstraint::getFrameIdx() const
+    pinocchio::FrameIndex WheelConstraint::getFrameIdx() const noexcept
     {
         return frameIdx_;
     }
 
-    void WheelConstraint::setReferenceTransform(const pinocchio::SE3 & transformRef)
+    void WheelConstraint::setReferenceTransform(const pinocchio::SE3 & transformRef) noexcept
     {
         transformRef_ = transformRef;
     }
 
-    const pinocchio::SE3 & WheelConstraint::getReferenceTransform() const
+    const pinocchio::SE3 & WheelConstraint::getReferenceTransform() const noexcept
     {
         return transformRef_;
     }
