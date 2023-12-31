@@ -5,7 +5,6 @@ import os
 import sys
 import urllib
 import base64
-import atexit
 import asyncio
 import logging
 import pathlib
@@ -340,9 +339,6 @@ class MeshcatWrapper:
             assert comm_url is not None
 
             self.comm_manager = CommManager(comm_url)
-
-        # Make sure the server is properly closed
-        atexit.register(self.close)
 
     def __del__(self) -> None:
         self.close()
