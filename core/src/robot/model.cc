@@ -1217,7 +1217,7 @@ namespace jiminy
             const auto & jdata = pncData_.joints[i];
             const pinocchio::JointIndex jointModelIdx = jmodel.id();
             const pinocchio::JointIndex parentJointModelIdx = pncModel_.parents[jointModelIdx];
-            pncData_.a[jointModelIdx] = jdata.c() + (pncData_.v[jointModelIdx] ^ jdata.v());
+            pncData_.a[jointModelIdx] = jdata.c() + pncData_.v[jointModelIdx].cross(jdata.v());
             if (parentJointModelIdx > 0)
             {
                 pncData_.a[i] += pncData_.liMi[i].actInv(pncData_.a[parentJointModelIdx]);

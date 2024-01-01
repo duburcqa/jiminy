@@ -6,6 +6,7 @@ odeSolver = "euler_explicit"
 sensorsUpdatePeriod = 0.005
 controllerUpdatePeriod = 0.005
 logInternalStepperSteps = false
+computeExtraTerms = true
 randomSeed = 0
 
 # ============== Contact dynamics ===============

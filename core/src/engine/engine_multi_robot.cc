@@ -927,7 +927,8 @@ namespace jiminy
     ///
     /// Copyright (c) 2014-2020, CNRS
     /// Copyright (c) 2018-2020, INRIA
-    void computeExtraTerms(systemHolder_t & system, const systemDataHolder_t & systemData)
+    void computeExtraTerms(
+        systemHolder_t & system, const systemDataHolder_t & systemData, ForceVector & fExt)
     {
         const pinocchio::Model & model = system.robot->pncModel_;
         pinocchio::Data & data = system.robot->pncData_;
@@ -965,8 +966,10 @@ namespace jiminy
            - 1st step: computing the accelerations based on ForwardKinematic algorithm
            - 2nd step: computing the forces based on RNEA algorithm */
 
-        // Compute the spatial momenta and the sum of external forces acting on each body
+        /* Compute the true joint acceleration and the one due to the lone gravity field, then
+           the spatial momenta and the total internal and external forces acting on each body. */
         data.h[0].setZero();
+        fExt[0].setZero();
         data.f[0].setZero();
         data.a[0].setZero();
         data.a_gf[0] = -model.gravity;
@@ -976,16 +979,20 @@ namespace jiminy
             const auto & jdata = data.joints[i];
             const pinocchio::JointIndex jointModelIdx = jmodel.id();
             const pinocchio::JointIndex parentJointModelIdx = model.parents[jointModelIdx];
-            data.a[jointModelIdx] = jdata.c() + (data.v[jointModelIdx] ^ jdata.v());
+
+            data.a[jointModelIdx] = jdata.c() + data.v[jointModelIdx].cross(jdata.v());
             data.a[jointModelIdx] += jdata.S() * jmodel.jointVelocitySelector(systemData.state.a);
             data.a_gf[jointModelIdx] = data.a[jointModelIdx];
             data.a[jointModelIdx] += data.liMi[jointModelIdx].actInv(data.a[parentJointModelIdx]);
             data.a_gf[jointModelIdx] +=
                 data.liMi[jointModelIdx].actInv(data.a_gf[parentJointModelIdx]);
+
             model.inertias[jointModelIdx].__mult__(data.v[jointModelIdx], data.h[jointModelIdx]);
-            model.inertias[jointModelIdx].__mult__(data.a_gf[jointModelIdx],
-                                                   data.f[jointModelIdx]);
-            data.f[jointModelIdx] += data.v[jointModelIdx].cross(data.h[jointModelIdx]);
+
+            model.inertias[jointModelIdx].__mult__(data.a[jointModelIdx], fExt[jointModelIdx]);
+            data.f[jointModelIdx] = data.v[jointModelIdx].cross(data.h[jointModelIdx]);
+            fExt[jointModelIdx] += data.f[jointModelIdx];
+            data.f[jointModelIdx] += model.inertias[jointModelIdx] * data.a_gf[jointModelIdx];
             data.f[jointModelIdx] -= systemData.state.fExternal[jointModelIdx];
         }
         for (int i = model.njoints - 1; i > 0; --i)
@@ -993,15 +1000,16 @@ namespace jiminy
             const auto & jmodel = model.joints[i];
             const pinocchio::JointIndex jointModelIdx = jmodel.id();
             const pinocchio::JointIndex parentJointModelIdx = model.parents[jointModelIdx];
+
+            fExt[parentJointModelIdx] += data.liMi[jointModelIdx].act(fExt[jointModelIdx]);
+            data.h[parentJointModelIdx] += data.liMi[jointModelIdx].act(data.h[jointModelIdx]);
             if (parentJointModelIdx > 0)
             {
-                data.h[parentJointModelIdx] += data.liMi[jointModelIdx].act(data.h[jointModelIdx]);
                 data.f[parentJointModelIdx] += data.liMi[jointModelIdx].act(data.f[jointModelIdx]);
             }
         }
 
-        /* Now that `data.Ycrb` and `data.h` are available, one can get directly the position and
-           velocity of the center of mass of each subtrees. */
+        // Compute the position and velocity of the center of mass of each subtree
         for (int i = 0; i < model.njoints; ++i)
         {
             data.com[i] = data.Ycrb[i].lever();
@@ -1013,18 +1021,20 @@ namespace jiminy
         // Compute centroidal dynamics and its derivative
         data.hg = data.h[0];
         data.hg.angular() += data.hg.linear().cross(data.com[0]);
-        data.dhg = data.f[0];
+        data.dhg = fExt[0];
         data.dhg.angular() += data.dhg.linear().cross(data.com[0]);
     }
 
     void computeAllExtraTerms(std::vector<systemHolder_t> & systems,
-                              const vector_aligned_t<systemDataHolder_t> & systemsDataHolder)
+                              const vector_aligned_t<systemDataHolder_t> & systemsDataHolder,
+                              vector_aligned_t<ForceVector> & f)
     {
         auto systemIt = systems.begin();
         auto systemDataIt = systemsDataHolder.begin();
-        for (; systemIt != systems.end(); ++systemIt, ++systemDataIt)
+        auto fIt = f.begin();
+        for (; systemIt != systems.end(); ++systemIt, ++systemDataIt, ++fIt)
         {
-            computeExtraTerms(*systemIt, *systemDataIt);
+            computeExtraTerms(*systemIt, *systemDataIt, *fIt);
         }
     }
 
@@ -1603,8 +1613,11 @@ namespace jiminy
                 systemIt->robot->setSensorsData(t, q, v, a, uMotor, fext);
             }
 
-            // Compute joints accelerations and forces
-            computeAllExtraTerms(systems_, systemsDataHolder_);
+            // Compute all external terms including joints accelerations and forces if requested
+            if (engineOptions_->stepper.computeExtraTerms)
+            {
+                computeAllExtraTerms(systems_, systemsDataHolder_, fPrev_);
+            }
             syncAllAccelerationsAndForces(systems_, contactForcesPrev_, fPrev_, aPrev_);
 
             // Synchronize the global stepper state with the individual system states
@@ -2233,10 +2246,13 @@ namespace jiminy
                         // Reset successive iteration failure counter
                         successiveIterFailed = 0;
 
-                        /* Compute the actual joint acceleration and forces.
-                           Note that it is possible to call this method because pinocchio::Data is
-                           guaranteed to be up-to-date at this point. */
-                        computeAllExtraTerms(systems_, systemsDataHolder_);
+                        /* Compute all external terms including joints accelerations and forces.
+                           Note that it is possible to call this method because `pinocchio::Data`
+                           is guaranteed to be up-to-date at this point. */
+                        if (engineOptions_->stepper.computeExtraTerms)
+                        {
+                            computeAllExtraTerms(systems_, systemsDataHolder_, fPrev_);
+                        }
 
                         // Synchronize the individual system states
                         syncAllAccelerationsAndForces(
@@ -2357,8 +2373,11 @@ namespace jiminy
                         // Reset successive iteration failure counter
                         successiveIterFailed = 0;
 
-                        // Compute the actual joint acceleration and forces
-                        computeAllExtraTerms(systems_, systemsDataHolder_);
+                        // Compute all external terms including joints accelerations and forces
+                        if (engineOptions_->stepper.computeExtraTerms)
+                        {
+                            computeAllExtraTerms(systems_, systemsDataHolder_, fPrev_);
+                        }
 
                         // Synchronize the individual system states
                         syncAllAccelerationsAndForces(
