@@ -920,6 +920,23 @@ namespace jiminy
         isTelemetryConfigured_ = false;
     }
 
+    struct ForwardKinematicsAccelerationStep :
+    public pinocchio::fusion::JointUnaryVisitorBase<ForwardKinematicsAccelerationStep>
+    {
+        typedef boost::fusion::vector<pinocchio::Data &, const Eigen::VectorXd &> ArgsType;
+
+        template<typename JointModel>
+        static void algo(const pinocchio::JointModelBase<JointModel> & jmodel,
+                         pinocchio::JointDataBase<typename JointModel::JointDataDerived> & jdata,
+                         pinocchio::Data & data,
+                         const Eigen::VectorXd & a)
+        {
+            pinocchio::JointIndex i = jmodel.id();
+            data.a[i] = jdata.c() + data.v[i].cross(jdata.v());
+            data.a[i] += jdata.S() * jmodel.jointVelocitySelector(a);
+        }
+    };
+
     /// \details This method is optimized to avoid redundant computations.
     ///
     /// \see See `pinocchio::computeAllTerms` for reference:
@@ -976,12 +993,13 @@ namespace jiminy
         for (int i = 1; i < model.njoints; ++i)
         {
             const auto & jmodel = model.joints[i];
-            const auto & jdata = data.joints[i];
             const pinocchio::JointIndex jointModelIdx = jmodel.id();
             const pinocchio::JointIndex parentJointModelIdx = model.parents[jointModelIdx];
 
-            data.a[jointModelIdx] = jdata.c() + data.v[jointModelIdx].cross(jdata.v());
-            data.a[jointModelIdx] += jdata.S() * jmodel.jointVelocitySelector(systemData.state.a);
+            ForwardKinematicsAccelerationStep::run(
+                jmodel,
+                data.joints[i],
+                typename ForwardKinematicsAccelerationStep::ArgsType(data, systemData.state.a));
             data.a_gf[jointModelIdx] = data.a[jointModelIdx];
             data.a[jointModelIdx] += data.liMi[jointModelIdx].actInv(data.a[parentJointModelIdx]);
             data.a_gf[jointModelIdx] +=
@@ -1618,6 +1636,8 @@ namespace jiminy
             {
                 computeAllExtraTerms(systems_, systemsDataHolder_, fPrev_);
             }
+
+            // Backend the updated joint accelerations and forces
             syncAllAccelerationsAndForces(systems_, contactForcesPrev_, fPrev_, aPrev_);
 
             // Synchronize the global stepper state with the individual system states
@@ -2246,6 +2266,9 @@ namespace jiminy
                         // Reset successive iteration failure counter
                         successiveIterFailed = 0;
 
+                        // Synchronize the position, velocity and acceleration of all systems
+                        syncSystemsStateWithStepper();
+
                         /* Compute all external terms including joints accelerations and forces.
                            Note that it is possible to call this method because `pinocchio::Data`
                            is guaranteed to be up-to-date at this point. */
@@ -2254,10 +2277,9 @@ namespace jiminy
                             computeAllExtraTerms(systems_, systemsDataHolder_, fPrev_);
                         }
 
-                        // Synchronize the individual system states
+                        // Backend the updated joint accelerations and forces
                         syncAllAccelerationsAndForces(
                             systems_, contactForcesPrev_, fPrev_, aPrev_);
-                        syncSystemsStateWithStepper();
 
                         // Increment the iteration counter only for successful steps
                         ++stepperState_.iter;
@@ -2373,16 +2395,18 @@ namespace jiminy
                         // Reset successive iteration failure counter
                         successiveIterFailed = 0;
 
+                        // Synchronize the position, velocity and acceleration of all systems
+                        syncSystemsStateWithStepper();
+
                         // Compute all external terms including joints accelerations and forces
                         if (engineOptions_->stepper.computeExtraTerms)
                         {
                             computeAllExtraTerms(systems_, systemsDataHolder_, fPrev_);
                         }
 
-                        // Synchronize the individual system states
+                        // Backend the updated joint accelerations and forces
                         syncAllAccelerationsAndForces(
                             systems_, contactForcesPrev_, fPrev_, aPrev_);
-                        syncSystemsStateWithStepper();
 
                         // Increment the iteration counter
                         ++stepperState_.iter;
