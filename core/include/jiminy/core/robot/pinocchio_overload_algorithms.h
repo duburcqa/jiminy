@@ -478,52 +478,6 @@ namespace jiminy::pinocchio_overload
         return data.ddq;
     }
 
-    template<typename TangentVectorType>
-    struct ForwardKinematicsAccelerationStep :
-    public pinocchio::fusion::JointUnaryVisitorBase<
-        ForwardKinematicsAccelerationStep<TangentVectorType>>
-    {
-        typedef boost::fusion::vector<const pinocchio::Model &,
-                                      pinocchio::Data &,
-                                      const Eigen::MatrixBase<TangentVectorType> &>
-            ArgsType;
-
-        template<typename JointModel>
-        static void algo(const pinocchio::JointModelBase<JointModel> & jmodel,
-                         pinocchio::JointDataBase<typename JointModel::JointDataDerived> & jdata,
-                         const pinocchio::Model & model,
-                         pinocchio::Data & data,
-                         const Eigen::MatrixBase<TangentVectorType> & a)
-        {
-            pinocchio::JointIndex i = jmodel.id();
-            pinocchio::JointIndex parent = model.parents[i];
-            data.a[i] =
-                jdata.S() * jmodel.jointVelocitySelector(a) + jdata.c() + (data.v[i] ^ jdata.v());
-            if (parent > 0)
-            {
-                data.a[i] += data.liMi[i].actInv(data.a[parent]);
-            }
-        }
-    };
-
-    /// \brief Compute only joints spatial accelerations, assuming positions and velocities
-    ///        are already up-to-date.
-    ///
-    /// \warning This method does not update the internal buffer `data.ddq`. This buffer is only
-    ///          updated by `aba` and `forwardDynamics` algorithms.
-    template<typename TangentVectorType>
-    inline void forwardKinematicsAcceleration(const pinocchio::Model & model,
-                                              pinocchio::Data & data,
-                                              const Eigen::MatrixBase<TangentVectorType> & a)
-    {
-        typedef ForwardKinematicsAccelerationStep<TangentVectorType> Pass;
-        data.a[0].setZero();
-        for (int32_t i = 1; i < model.njoints; ++i)
-        {
-            Pass::run(model.joints[i], data.joints[i], typename Pass::ArgsType(model, data, a));
-        }
-    }
-
     template<typename JacobianType>
     hresult_t computeJMinvJt(const pinocchio::Model & model,
                              pinocchio::Data & data,
