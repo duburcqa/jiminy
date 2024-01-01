@@ -30,8 +30,7 @@ jobs:
       TORCH_VERSION: "2.0.1"
       CMAKE_C_COMPILER: "/usr/bin/clang"
       CMAKE_CXX_COMPILER: "/usr/bin/clang++"
-      CMAKE_CXX_FLAGS: |
-        "-DEIGEN_MPL2_ONLY -D_LIBCPP_ENABLE_CXX17_REMOVED_UNARY_BINARY_FUNCTION -Wno-deprecated-declarations"
+      CMAKE_CXX_FLAGS: "-DEIGEN_MPL2_ONLY -D_LIBCPP_ENABLE_CXX17_REMOVED_UNARY_BINARY_FUNCTION -Wno-deprecated-declarations"
       OSX_DEPLOYMENT_TARGET: "11.0"
       OSX_ARCHITECTURES: "x86_64;arm64"
       WHEEL_ARCH: "universal2"

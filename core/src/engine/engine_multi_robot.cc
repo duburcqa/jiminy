@@ -1632,10 +1632,7 @@ namespace jiminy
             }
 
             // Compute all external terms including joints accelerations and forces if requested
-            if (engineOptions_->stepper.computeExtraTerms)
-            {
-                computeAllExtraTerms(systems_, systemsDataHolder_, fPrev_);
-            }
+            computeAllExtraTerms(systems_, systemsDataHolder_, fPrev_);
 
             // Backend the updated joint accelerations and forces
             syncAllAccelerationsAndForces(systems_, contactForcesPrev_, fPrev_, aPrev_);
@@ -2272,10 +2269,7 @@ namespace jiminy
                         /* Compute all external terms including joints accelerations and forces.
                            Note that it is possible to call this method because `pinocchio::Data`
                            is guaranteed to be up-to-date at this point. */
-                        if (engineOptions_->stepper.computeExtraTerms)
-                        {
-                            computeAllExtraTerms(systems_, systemsDataHolder_, fPrev_);
-                        }
+                        computeAllExtraTerms(systems_, systemsDataHolder_, fPrev_);
 
                         // Backend the updated joint accelerations and forces
                         syncAllAccelerationsAndForces(
@@ -2399,10 +2393,7 @@ namespace jiminy
                         syncSystemsStateWithStepper();
 
                         // Compute all external terms including joints accelerations and forces
-                        if (engineOptions_->stepper.computeExtraTerms)
-                        {
-                            computeAllExtraTerms(systems_, systemsDataHolder_, fPrev_);
-                        }
+                        computeAllExtraTerms(systems_, systemsDataHolder_, fPrev_);
 
                         // Backend the updated joint accelerations and forces
                         syncAllAccelerationsAndForces(

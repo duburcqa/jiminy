@@ -152,7 +152,6 @@ namespace jiminy
             config["sensorsUpdatePeriod"] = 0.0;
             config["controllerUpdatePeriod"] = 0.0;
             config["logInternalStepperSteps"] = false;
-            config["computeExtraTerms"] = true;
 
             return config;
         };
@@ -261,7 +260,6 @@ namespace jiminy
             const double sensorsUpdatePeriod;
             const double controllerUpdatePeriod;
             const bool logInternalStepperSteps;
-            const bool computeExtraTerms;
 
             stepperOptions_t(const GenericConfig & options) :
             verbose{boost::get<bool>(options.at("verbose"))},
@@ -276,8 +274,7 @@ namespace jiminy
             timeout{boost::get<double>(options.at("timeout"))},
             sensorsUpdatePeriod{boost::get<double>(options.at("sensorsUpdatePeriod"))},
             controllerUpdatePeriod{boost::get<double>(options.at("controllerUpdatePeriod"))},
-            logInternalStepperSteps{boost::get<bool>(options.at("logInternalStepperSteps"))},
-            computeExtraTerms{boost::get<bool>(options.at("computeExtraTerms"))}
+            logInternalStepperSteps{boost::get<bool>(options.at("logInternalStepperSteps"))}
             {
             }
         };

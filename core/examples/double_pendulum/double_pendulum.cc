@@ -110,7 +110,6 @@ int main(int /* argc */, char * /* argv */[])
     boost::get<double>(stepperOptions.at("sensorsUpdatePeriod")) = 1.0e-3;
     boost::get<double>(stepperOptions.at("controllerUpdatePeriod")) = 1.0e-3;
     boost::get<bool>(stepperOptions.at("logInternalStepperSteps")) = false;
-    boost::get<bool>(stepperOptions.at("computeExtraTerms")) = true;
     boost::get<uint32_t>(stepperOptions.at("randomSeed")) = 0U;  // `time(nullptr)` for random seed
     GenericConfig & contactsOptions = boost::get<GenericConfig>(simuOptions.at("contacts"));
     boost::get<std::string>(contactsOptions.at("model")) = std::string("spring_damper");
