@@ -490,6 +490,11 @@ class Simulator:
         # Instantiate the robot and viewer client if necessary.
         # A new dedicated scene and window will be created.
         if not self.is_viewer_available:
+            # Make sure that the current viewer is properly closed if any
+            if self.viewer is not None:
+                self.viewer.close()
+                self.viewer = None
+
             # Create new viewer instance
             self.viewer = Viewer(
                 self.robot,
