@@ -519,6 +519,11 @@ class Viewer:
             Optional: Root joint for robot with freeflyer by default.
         :param kwargs: Unused extra keyword arguments to enable forwarding.
         """
+        # Define some attribute to avoid raising exception at exit
+        self.robot_name = "_".join((
+            "undefined", next(tempfile._get_candidate_names())))
+        self.__is_open = False
+
         # Make sure the robot is properly initialized
         assert robot.is_initialized, (
             "Robot not initialized. Impossible to instantiate a viewer.")
@@ -758,7 +763,7 @@ class Viewer:
                             remove_if_exists=True,
                             auto_refresh=False,
                             radius=0.004,
-                            length=1.0,
+                            length=-1.0,
                             anchor_bottom=True)
 
             self.display_center_of_mass(self._display_com)
@@ -1119,8 +1124,8 @@ class Viewer:
             # Check if the backend process has changed or the viewer instance
             # has already been closed, which may happened if it has been closed
             # manually in the meantime. If so, there is nothing left to do.
-            if (Viewer._backend_proc is not self._backend_proc or
-                    not self.__is_open):
+            if (not self.__is_open or
+                    Viewer._backend_proc is not self._backend_proc):
                 return
 
             # Assert(s) for type checker
