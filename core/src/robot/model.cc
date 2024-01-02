@@ -1210,8 +1210,19 @@ namespace jiminy
            Note that it will alter the actual joints spatial accelerations, so it is necessary to
            do a backup first to restore it later on. */
         jointsAcceleration_.swap(pncData_.a);
-        pinocchio_overload::forwardKinematicsAcceleration(
-            pncModel_, pncData_, Eigen::VectorXd::Zero(pncModel_.nv));
+        pncData_.a[0].setZero();
+        for (int i = 1; i < pncModel_.njoints; ++i)
+        {
+            const auto & jmodel = pncModel_.joints[i];
+            const auto & jdata = pncData_.joints[i];
+            const pinocchio::JointIndex jointModelIdx = jmodel.id();
+            const pinocchio::JointIndex parentJointModelIdx = pncModel_.parents[jointModelIdx];
+            pncData_.a[jointModelIdx] = jdata.c() + pncData_.v[jointModelIdx].cross(jdata.v());
+            if (parentJointModelIdx > 0)
+            {
+                pncData_.a[i] += pncData_.liMi[i].actInv(pncData_.a[parentJointModelIdx]);
+            }
+        }
 
         // Compute sequentially the jacobian and drift of each enabled constraint
         constraintsHolder_.foreach(

@@ -920,6 +920,23 @@ namespace jiminy
         isTelemetryConfigured_ = false;
     }
 
+    struct ForwardKinematicsAccelerationStep :
+    public pinocchio::fusion::JointUnaryVisitorBase<ForwardKinematicsAccelerationStep>
+    {
+        typedef boost::fusion::vector<pinocchio::Data &, const Eigen::VectorXd &> ArgsType;
+
+        template<typename JointModel>
+        static void algo(const pinocchio::JointModelBase<JointModel> & jmodel,
+                         pinocchio::JointDataBase<typename JointModel::JointDataDerived> & jdata,
+                         pinocchio::Data & data,
+                         const Eigen::VectorXd & a)
+        {
+            pinocchio::JointIndex i = jmodel.id();
+            data.a[i] = jdata.c() + data.v[i].cross(jdata.v());
+            data.a[i] += jdata.S() * jmodel.jointVelocitySelector(a);
+        }
+    };
+
     /// \details This method is optimized to avoid redundant computations.
     ///
     /// \see See `pinocchio::computeAllTerms` for reference:
@@ -927,7 +944,8 @@ namespace jiminy
     ///
     /// Copyright (c) 2014-2020, CNRS
     /// Copyright (c) 2018-2020, INRIA
-    void computeExtraTerms(systemHolder_t & system, const systemDataHolder_t & systemData)
+    void computeExtraTerms(
+        systemHolder_t & system, const systemDataHolder_t & systemData, ForceVector & fExt)
     {
         const pinocchio::Model & model = system.robot->pncModel_;
         pinocchio::Data & data = system.robot->pncData_;
@@ -964,25 +982,52 @@ namespace jiminy
            accelerations, joint forces and body forces, so it must be done separately:
            - 1st step: computing the accelerations based on ForwardKinematic algorithm
            - 2nd step: computing the forces based on RNEA algorithm */
-        pinocchio_overload::forwardKinematicsAcceleration(model, data, data.ddq);
 
-        // Compute the spatial momenta and the sum of external forces acting on each body
+        /* Compute the true joint acceleration and the one due to the lone gravity field, then
+           the spatial momenta and the total internal and external forces acting on each body. */
         data.h[0].setZero();
+        fExt[0].setZero();
         data.f[0].setZero();
+        data.a[0].setZero();
+        data.a_gf[0] = -model.gravity;
         for (int i = 1; i < model.njoints; ++i)
         {
-            data.h[i] = model.inertias[i] * data.v[i];
-            data.f[i] = model.inertias[i] * data.a[i] + data.v[i].cross(data.h[i]);
+            const auto & jmodel = model.joints[i];
+            const pinocchio::JointIndex jointModelIdx = jmodel.id();
+            const pinocchio::JointIndex parentJointModelIdx = model.parents[jointModelIdx];
+
+            ForwardKinematicsAccelerationStep::run(
+                jmodel,
+                data.joints[i],
+                typename ForwardKinematicsAccelerationStep::ArgsType(data, systemData.state.a));
+            data.a_gf[jointModelIdx] = data.a[jointModelIdx];
+            data.a[jointModelIdx] += data.liMi[jointModelIdx].actInv(data.a[parentJointModelIdx]);
+            data.a_gf[jointModelIdx] +=
+                data.liMi[jointModelIdx].actInv(data.a_gf[parentJointModelIdx]);
+
+            model.inertias[jointModelIdx].__mult__(data.v[jointModelIdx], data.h[jointModelIdx]);
+
+            model.inertias[jointModelIdx].__mult__(data.a[jointModelIdx], fExt[jointModelIdx]);
+            data.f[jointModelIdx] = data.v[jointModelIdx].cross(data.h[jointModelIdx]);
+            fExt[jointModelIdx] += data.f[jointModelIdx];
+            data.f[jointModelIdx] += model.inertias[jointModelIdx] * data.a_gf[jointModelIdx];
+            data.f[jointModelIdx] -= systemData.state.fExternal[jointModelIdx];
         }
         for (int i = model.njoints - 1; i > 0; --i)
         {
-            const pinocchio::JointIndex parentJointModelIdx = model.parents[i];
-            data.h[parentJointModelIdx] += data.liMi[i].act(data.h[i]);
-            data.f[parentJointModelIdx] += data.liMi[i].act(data.f[i]);
+            const auto & jmodel = model.joints[i];
+            const pinocchio::JointIndex jointModelIdx = jmodel.id();
+            const pinocchio::JointIndex parentJointModelIdx = model.parents[jointModelIdx];
+
+            fExt[parentJointModelIdx] += data.liMi[jointModelIdx].act(fExt[jointModelIdx]);
+            data.h[parentJointModelIdx] += data.liMi[jointModelIdx].act(data.h[jointModelIdx]);
+            if (parentJointModelIdx > 0)
+            {
+                data.f[parentJointModelIdx] += data.liMi[jointModelIdx].act(data.f[jointModelIdx]);
+            }
         }
 
-        /* Now that `data.Ycrb` and `data.h` are available, one can get directly the position and
-           velocity of the center of mass of each subtrees. */
+        // Compute the position and velocity of the center of mass of each subtree
         for (int i = 0; i < model.njoints; ++i)
         {
             data.com[i] = data.Ycrb[i].lever();
@@ -994,18 +1039,20 @@ namespace jiminy
         // Compute centroidal dynamics and its derivative
         data.hg = data.h[0];
         data.hg.angular() += data.hg.linear().cross(data.com[0]);
-        data.dhg = data.f[0];
+        data.dhg = fExt[0];
         data.dhg.angular() += data.dhg.linear().cross(data.com[0]);
     }
 
     void computeAllExtraTerms(std::vector<systemHolder_t> & systems,
-                              const vector_aligned_t<systemDataHolder_t> & systemsDataHolder)
+                              const vector_aligned_t<systemDataHolder_t> & systemsDataHolder,
+                              vector_aligned_t<ForceVector> & f)
     {
         auto systemIt = systems.begin();
         auto systemDataIt = systemsDataHolder.begin();
-        for (; systemIt != systems.end(); ++systemIt, ++systemDataIt)
+        auto fIt = f.begin();
+        for (; systemIt != systems.end(); ++systemIt, ++systemDataIt, ++fIt)
         {
-            computeExtraTerms(*systemIt, *systemDataIt);
+            computeExtraTerms(*systemIt, *systemDataIt, *fIt);
         }
     }
 
@@ -1584,8 +1631,10 @@ namespace jiminy
                 systemIt->robot->setSensorsData(t, q, v, a, uMotor, fext);
             }
 
-            // Compute joints accelerations and forces
-            computeAllExtraTerms(systems_, systemsDataHolder_);
+            // Compute all external terms including joints accelerations and forces if requested
+            computeAllExtraTerms(systems_, systemsDataHolder_, fPrev_);
+
+            // Backend the updated joint accelerations and forces
             syncAllAccelerationsAndForces(systems_, contactForcesPrev_, fPrev_, aPrev_);
 
             // Synchronize the global stepper state with the individual system states
@@ -2214,15 +2263,17 @@ namespace jiminy
                         // Reset successive iteration failure counter
                         successiveIterFailed = 0;
 
-                        /* Compute the actual joint acceleration and forces.
-                           Note that it is possible to call this method because pinocchio::Data is
-                           guaranteed to be up-to-date at this point. */
-                        computeAllExtraTerms(systems_, systemsDataHolder_);
+                        // Synchronize the position, velocity and acceleration of all systems
+                        syncSystemsStateWithStepper();
 
-                        // Synchronize the individual system states
+                        /* Compute all external terms including joints accelerations and forces.
+                           Note that it is possible to call this method because `pinocchio::Data`
+                           is guaranteed to be up-to-date at this point. */
+                        computeAllExtraTerms(systems_, systemsDataHolder_, fPrev_);
+
+                        // Backend the updated joint accelerations and forces
                         syncAllAccelerationsAndForces(
                             systems_, contactForcesPrev_, fPrev_, aPrev_);
-                        syncSystemsStateWithStepper();
 
                         // Increment the iteration counter only for successful steps
                         ++stepperState_.iter;
@@ -2338,13 +2389,15 @@ namespace jiminy
                         // Reset successive iteration failure counter
                         successiveIterFailed = 0;
 
-                        // Compute the actual joint acceleration and forces
-                        computeAllExtraTerms(systems_, systemsDataHolder_);
+                        // Synchronize the position, velocity and acceleration of all systems
+                        syncSystemsStateWithStepper();
 
-                        // Synchronize the individual system states
+                        // Compute all external terms including joints accelerations and forces
+                        computeAllExtraTerms(systems_, systemsDataHolder_, fPrev_);
+
+                        // Backend the updated joint accelerations and forces
                         syncAllAccelerationsAndForces(
                             systems_, contactForcesPrev_, fPrev_, aPrev_);
-                        syncSystemsStateWithStepper();
 
                         // Increment the iteration counter
                         ++stepperState_.iter;
@@ -3093,16 +3146,16 @@ namespace jiminy
         pinocchio::forwardKinematics(model, data, q, v, a);
 
         // Update frame placements (avoiding redundant computations)
-        for (int jointModelIdx = 1; jointModelIdx < model.nframes; ++jointModelIdx)
+        for (int frameIdx = 1; frameIdx < model.nframes; ++frameIdx)
         {
-            const pinocchio::Frame & frame = model.frames[jointModelIdx];
+            const pinocchio::Frame & frame = model.frames[frameIdx];
             pinocchio::JointIndex parentJointModelIdx = frame.parent;
             switch (frame.type)
             {
             case pinocchio::FrameType::JOINT:
                 /* If the frame is associated with an actual joint, no need to compute anything
                    new, since the frame transform is supposed to be identity. */
-                data.oMf[jointModelIdx] = data.oMi[parentJointModelIdx];
+                data.oMf[frameIdx] = data.oMi[parentJointModelIdx];
                 break;
             case pinocchio::FrameType::BODY:
                 if (model.frames[frame.previousFrame].type == pinocchio::FrameType::FIXED_JOINT)
@@ -3111,13 +3164,13 @@ namespace jiminy
                        itself, so no need to compute them twice. Here we are doing the assumption
                        that the previous frame transform has already been updated since it is
                        closer to root in kinematic tree. */
-                    data.oMf[jointModelIdx] = data.oMf[frame.previousFrame];
+                    data.oMf[frameIdx] = data.oMf[frame.previousFrame];
                 }
                 else
                 {
                     /* BODYs connected via JOINT(s) have the identity transform, so copying parent
                        joint transform should be fine. */
-                    data.oMf[jointModelIdx] = data.oMi[parentJointModelIdx];
+                    data.oMf[frameIdx] = data.oMi[parentJointModelIdx];
                 }
                 break;
             case pinocchio::FrameType::FIXED_JOINT:
@@ -3125,7 +3178,7 @@ namespace jiminy
             case pinocchio::FrameType::OP_FRAME:
             default:
                 // Nothing special, doing the actual computation
-                data.oMf[jointModelIdx] = data.oMi[parentJointModelIdx] * frame.placement;
+                data.oMf[frameIdx] = data.oMi[parentJointModelIdx] * frame.placement;
             }
         }
 

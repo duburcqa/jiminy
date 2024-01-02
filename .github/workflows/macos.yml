@@ -12,7 +12,7 @@ jobs:
     name: >-
       (${{ matrix.PYTHON_VERSION }}) (${{ matrix.BUILD_TYPE }})
       Build and run the unit tests. Then generate and publish the wheels on PyPi.
-    runs-on: macos-11
+    runs-on: macos-13
 
     strategy:
       matrix:
@@ -30,8 +30,8 @@ jobs:
       TORCH_VERSION: "2.0.1"
       CMAKE_C_COMPILER: "/usr/bin/clang"
       CMAKE_CXX_COMPILER: "/usr/bin/clang++"
-      CMAKE_CXX_FLAGS: "-DEIGEN_MPL2_ONLY -Wno-deprecated-declarations"
-      OSX_DEPLOYMENT_TARGET: "10.15"
+      CMAKE_CXX_FLAGS: "-DEIGEN_MPL2_ONLY -D_LIBCPP_ENABLE_CXX17_REMOVED_UNARY_BINARY_FUNCTION -Wno-deprecated-declarations"
+      OSX_DEPLOYMENT_TARGET: "11.0"
       OSX_ARCHITECTURES: "x86_64;arm64"
       WHEEL_ARCH: "universal2"
 
@@ -108,8 +108,8 @@ jobs:
 
     - name: Generate and install Python Pip wheels
       run: |
-        export LD_LIBRARY_PATH="${InstallDir}/lib/:/usr/local/lib"
-        export DYLD_FALLBACK_LIBRARY_PATH="$LD_LIBRARY_PATH"
+        export LD_LIBRARY_PATH="${InstallDir}/lib:${DYLD_LIBRARY_PATH}"
+        export DYLD_FALLBACK_LIBRARY_PATH="${LD_LIBRARY_PATH}"
 
         # Generate stubs
         stubgen -p jiminy_py -o ${RootDir}/build/pypi/jiminy_py/src
@@ -139,7 +139,8 @@ jobs:
 
     - name: Build extension module
       run: |
-        export LD_LIBRARY_PATH="${InstallDir}/lib/:/usr/local/lib"
+        export DYLD_FALLBACK_LIBRARY_PATH="${InstallDir}/lib"
+
         "${InstallDir}/bin/jiminy_double_pendulum"
 
         mkdir -p "${RootDir}/core/examples/external_project/build"
@@ -156,6 +157,8 @@ jobs:
 
     - name: Run unit tests for jiminy
       run: |
+        export DYLD_FALLBACK_LIBRARY_PATH="${InstallDir}/lib"
+
         cd "${RootDir}/build/core/unit"
         ctest --output-on-failure
 
