@@ -258,11 +258,11 @@ namespace jiminy
         matrix.middleRows(firstBlockStart, secondBlockLength) = secondBlock;
 
         // Shift middle block
-        auto middleBlock = firstMiddleBlock.topRows(middleBlockLength);
+        auto middleBlock = firstMiddleBlock.bottomRows(middleBlockLength);
         matrix.middleRows(firstBlockStart + secondBlockLength, middleBlockLength) = middleBlock;
 
         // Re-assign second block to first block
-        auto firstBlock = firstMiddleBlock.bottomRows(firstBlockLength);
+        auto firstBlock = firstMiddleBlock.topRows(firstBlockLength);
         const Eigen::Index secondBlockEnd = secondBlockStart + secondBlockLength;  // Excluded
         matrix.middleRows(secondBlockEnd - firstBlockLength, firstBlockLength) = firstBlock;
     }
