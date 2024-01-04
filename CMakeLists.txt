@@ -1,8 +1,8 @@
 # Minimum version required
 cmake_minimum_required(VERSION 3.12.4)
 
-# Set the build version
-set(BUILD_VERSION 1.7.18)
+# Set the build version (specify a tweak version to indicated post-release if needed)
+set(BUILD_VERSION 1.7.18.1)
 
 # Set compatibility
 set(COMPATIBILITY_VERSION SameMinorVersion)
@@ -15,7 +15,6 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE INTERNAL "")
 string(REPLACE "." ";" _VERSION "${BUILD_VERSION}")
 list(GET _VERSION 0 BUILD_VERSION_MAJOR)
 list(GET _VERSION 1 BUILD_VERSION_MINOR)
-list(GET _VERSION 2 BUILD_VERSION_PATCH)
 
 # Add definition of Jiminy version for C++ headers
 add_definitions("-DJIMINY_VERSION=\"${BUILD_VERSION}\"")
