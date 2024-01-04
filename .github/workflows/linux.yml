@@ -114,11 +114,9 @@ jobs:
 
     - name: Run unit tests for jiminy
       run: |
-        cd "$RootDir/build/core/unit"
-        ctest --output-on-failure
+        ctest --output-on-failure --test-dir "${RootDir}/build/core/unit"
 
-        cd "$RootDir/python/jiminy_py/unit_py"
-        "${PYTHON_EXECUTABLE}" -m unittest discover -v
+        "${PYTHON_EXECUTABLE}" -m unittest discover -s "$RootDir/python/jiminy_py/unit_py" -v
 
     - name: Run unit tests for gym_jiminy
       if: matrix.BUILD_TYPE == 'Release'
@@ -131,8 +129,7 @@ jobs:
         # because they require a different version of `gymnasium`.
         "${PYTHON_EXECUTABLE}" -m pip install "stable_baselines3>=2.0"
 
-        cd "$RootDir/python/gym_jiminy/unit_py"
-        "${PYTHON_EXECUTABLE}" -m unittest discover -v
+        "${PYTHON_EXECUTABLE}" -m unittest discover -s "$RootDir/python/gym_jiminy/unit_py" -v
 
     - name: Python static type checker
       if: matrix.PYTHON_VERSION == '3.8' && matrix.BUILD_TYPE == 'Release'
