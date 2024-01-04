@@ -17,9 +17,19 @@ function(buildPythonWheel)
         # Copy Python packages files in `build\pypi` after performing variable substitution
         get_filename_component(TARGET_NAME ${TARGET_PATH} NAME_WE)
         get_filename_component(TARGET_DIR ${TARGET_PATH} DIRECTORY)
-        install(CODE "cmake_policy(SET CMP0053 NEW)
+        install(CODE "# Included scripts do automatic cmake_policy() PUSH and POP.
                       cmake_policy(SET CMP0011 NEW)
-                      set(PROJECT_VERSION ${BUILD_VERSION})
+                      # Change expansion of @VAR@ reference syntax for configure_file()
+                      cmake_policy(SET CMP0053 NEW)
+                      # Allow evaluation of generator expression in install code/scripts
+                      if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.14.7)
+                          cmake_policy(SET CMP0087 NEW)
+                      endif()
+
+                      # Release tweak version digit if any by Python-style post-release pattern
+                      string(REGEX REPLACE \"^([0-9]+\.[0-9]+\.[0-9]+\.)([0-9]+)\$\" \"\\\\1post\\\\2\"
+                             PROJECT_VERSION ${BUILD_VERSION})
+
                       set(SOURCE_DIR ${CMAKE_SOURCE_DIR})
                       file(GLOB_RECURSE src_file_list FOLLOW_SYMLINKS
                           LIST_DIRECTORIES false
