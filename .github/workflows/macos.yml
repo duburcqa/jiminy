@@ -159,8 +159,7 @@ jobs:
       run: |
         export DYLD_FALLBACK_LIBRARY_PATH="${InstallDir}/lib"
 
-        cd "${RootDir}/build/core/unit"
-        ctest --output-on-failure
+        ctest --output-on-failure --test-dir "${RootDir}/build/core/unit"
 
         cd "${RootDir}/python/jiminy_py/unit_py"
         "${PYTHON_EXECUTABLE}" -m unittest discover -v
@@ -178,14 +177,12 @@ jobs:
       run: |
         export LD_LIBRARY_PATH="${InstallDir}/lib/:/usr/local/lib"
 
-        # FIXME: segfault when enabling viewer for Panda3D 1.10.12
         cd "${RootDir}/python/gym_jiminy/examples/reinforcement_learning/rllib"
-        JIMINY_VIEWER_DISABLE= "${PYTHON_EXECUTABLE}" acrobot_ppo.py
+        "${PYTHON_EXECUTABLE}" acrobot_ppo.py
 
         "${PYTHON_EXECUTABLE}" -m pip install "stable_baselines3>=2.0"
 
-        cd "${RootDir}/python/gym_jiminy/unit_py"
-        "${PYTHON_EXECUTABLE}" -m unittest discover -v
+        "${PYTHON_EXECUTABLE}" -m unittest discover -s "${RootDir}/python/gym_jiminy/unit_py" -v
 
 #########################################################################################
 

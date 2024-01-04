@@ -179,11 +179,9 @@ jobs:
       run: |
         $RootDir = "${env:GITHUB_WORKSPACE}/workspace" -replace '\\', '/'
 
-        Set-Location -Path "$RootDir/build/core/unit"
-        ctest --output-on-failure
+        ctest --output-on-failure --test-dir "${RootDir}/build/core/unit"
 
-        Set-Location -Path "$RootDir/python/jiminy_py/unit_py"
-        python -m unittest discover -v
+        python -m unittest discover -s "${RootDir}/python/jiminy_py/unit_py" -v
 
     - name: Run unit tests for gym_jiminy
       if: matrix.BUILD_TYPE != 'Release'
@@ -199,13 +197,11 @@ jobs:
         $RootDir = "${env:GITHUB_WORKSPACE}/workspace" -replace '\\', '/'
 
         Set-Location -Path "$RootDir/python/gym_jiminy/examples/reinforcement_learning/rllib"
-        $JIMINY_VIEWER_DEFAULT_BACKEND = "panda3d-sync"
         python acrobot_ppo.py
 
         python -m pip install "stable_baselines3>=2.0"
 
-        Set-Location -Path "$RootDir/python/gym_jiminy/unit_py"
-        python -m unittest discover -v
+        python -m unittest discover -s "$RootDir/python/gym_jiminy/unit_py" -v
 
 #########################################################################################
 

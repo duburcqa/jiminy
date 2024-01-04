@@ -195,8 +195,7 @@ jobs:
         "$InstallDir/bin/pip_double_pendulum"
     - name: Run unit tests on user environment
       run: |
-        cd "${GITHUB_WORKSPACE}/python/jiminy_py/unit_py"
-        "${PYTHON_EXECUTABLE}" -m unittest discover -v
+        "${PYTHON_EXECUTABLE}" -m unittest discover -s "${GITHUB_WORKSPACE}/python/jiminy_py/unit_py" -v
 
     #####################################################################################
 
