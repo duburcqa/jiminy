@@ -1056,12 +1056,14 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
             # Call render before replay in order to take into account custom
             # backend viewer instantiation options, eg the initial camera pose,
             # and to update the ground profile.
-            self.simulator.render(update_ground_profile=True, **kwargs)
+            self.simulator.render(
+                update_ground_profile=True,
+                return_rgb_array="record_video_path" in kwargs.keys(),
+                **kwargs)
 
             viewer_kwargs: Dict[str, Any] = {
                 'verbose': False,
                 'enable_travelling': self.robot.has_freeflyer,
-                'camera_pose': None,
                 **kwargs}
             self.simulator.replay(**viewer_kwargs)
 
