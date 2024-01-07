@@ -782,13 +782,18 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         return super().getSize(win)
 
     def getMousePos(self) -> Tuple[float, float]:
-        """Get current mouse position.
+        """Get current mouse position if available.
 
         .. note::
             Can be overloaded to allow for emulated mouse click.
         """
-        md = self.win.getPointer(0)
-        return md.getX(), md.getY()
+
+        # Get mouse position if possible:
+        try:
+            md = self.win.getPointer(0)
+            return md.getX(), md.getY()
+        except AttributeError:
+            return (float("nan"),) * 2
 
     def handle_key(self, key: str, value: bool) -> None:
         """Input controller handler.
@@ -1630,6 +1635,12 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self.camera.set_pos(*pos)
         self.camera.set_quat(LQuaternion(quat[-1], *quat[:-1]))
         self.camera_lookat = np.array(lookat)
+        self.move_orbital_camera_task()
+
+    def get_camera_lookat(self) -> np.ndarray:
+        """Get the location of the point toward which the camera is looking at.
+        """
+        return self.camera_lookat
 
     def set_camera_lookat(self,
                           pos: Tuple3FType) -> None:
