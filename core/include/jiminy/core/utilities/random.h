@@ -165,7 +165,7 @@ namespace jiminy
             Eigen::MatrixXd::NullaryExpr(numTimes_,
                                          numHarmonics_,
                                          [numTimes = numTimes_](double i, double j)
-                                         { return std::cos(2 * M_PI / numTimes * i * j); })};
+                                         { return std::sin(2 * M_PI / numTimes * i * j); })};
     };
 
     class JIMINY_DLLAPI AbstractPerlinNoiseOctave
