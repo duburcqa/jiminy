@@ -451,12 +451,13 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         # Note that shadow resolution larger than 1024 significantly affects
         # the frame rate on Intel GPU chipsets: going from 1024 to 2048 makes
         # it drop from 60FPS to 30FPS.
-        if self.win.gsg.driver_vendor.startswith('NVIDIA'):
+        driver_vendor = self.win.gsg.driver_vendor.lower()
+        if any(driver_vendor.startswith(name) for name in ('nvidia', 'apple')):
             self._shadow_size = 4096
         else:
             self._shadow_size = 1024
 
-        # Enable antialiasing
+        # Enable anti-aliasing
         self.render.set_antialias(AntialiasAttrib.MMultisample)
 
         # Configure lighting and shadows
@@ -464,7 +465,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self._lights_mask = [True, True]
 
         # Create physics-based shader and adapt lighting accordingly.
-        # It slows down the rendering by about 30% on discrete NVIDIA GPU.=
+        # It slows down the rendering by about 30% on discrete NVIDIA GPU.
         shader_options = {'ENABLE_SHADOWS': True}
         pbr_shader = simplepbr.shaderutils.make_shader(
             'pbr', 'simplepbr.vert', 'simplepbr.frag', shader_options)
