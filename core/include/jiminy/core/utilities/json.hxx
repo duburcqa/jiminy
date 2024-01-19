@@ -26,7 +26,7 @@ namespace jiminy
     }
 
     template<typename T>
-    Json::Value convertToJson(const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> & value)
+    Json::Value convertToJson(const MatrixX<T> & value)
     {
         Json::Value mat(Json::arrayValue);
         if (value.rows() > 0)

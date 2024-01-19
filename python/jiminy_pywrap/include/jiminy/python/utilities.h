@@ -19,24 +19,25 @@
 #include <boost/python/suite/indexing/vector_indexing_suite.hpp>
 
 
-namespace boost::python::converter
-{
-#define EXPECTED_PYTYPE_FOR_ARG_IS_ARRAY(type)   \
-    template<>                                   \
-    struct expected_pytype_for_arg<type>         \
-    {                                            \
-        static const PyTypeObject * get_pytype() \
-        {                                        \
-            return &PyArray_Type;                \
-        }                                        \
-    };
+#define EXPECTED_PYTYPE_FOR_ARG_IS_ARRAY(type)       \
+    namespace boost::python::converter               \
+    {                                                \
+        template<>                                   \
+        struct expected_pytype_for_arg<type>         \
+        {                                            \
+            static const PyTypeObject * get_pytype() \
+            {                                        \
+                return &PyArray_Type;                \
+            }                                        \
+        };                                           \
+    }
 
-    EXPECTED_PYTYPE_FOR_ARG_IS_ARRAY(numpy::ndarray)
-    EXPECTED_PYTYPE_FOR_ARG_IS_ARRAY(const numpy::ndarray)
-    EXPECTED_PYTYPE_FOR_ARG_IS_ARRAY(numpy::ndarray &)
-    EXPECTED_PYTYPE_FOR_ARG_IS_ARRAY(const numpy::ndarray &)
-}
+EXPECTED_PYTYPE_FOR_ARG_IS_ARRAY(numpy::ndarray)
+EXPECTED_PYTYPE_FOR_ARG_IS_ARRAY(const numpy::ndarray)
+EXPECTED_PYTYPE_FOR_ARG_IS_ARRAY(numpy::ndarray &)
+EXPECTED_PYTYPE_FOR_ARG_IS_ARRAY(const numpy::ndarray &)
 
+#undef EXPECTED_PYTYPE_FOR_ARG_IS_ARRAY
 
 namespace jiminy::python
 {
@@ -537,8 +538,7 @@ namespace jiminy::python
     }
 
     template<typename T>
-    std::optional<
-        Eigen::Map<Eigen::Matrix<T, -1, -1>, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>>>
+    std::optional<Eigen::Map<MatrixX<T>, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>>>
     getEigenReferenceImpl(PyArrayObject * dataPyArray)
     {
         // Check array dtype
@@ -591,9 +591,8 @@ namespace jiminy::python
 
     /// \brief Generic converter from Numpy array to Eigen Matrix by reference.
     inline std::optional<std::variant<
-        Eigen::Map<Eigen::Matrix<double, -1, -1>, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>>,
-        Eigen::
-            Map<Eigen::Matrix<int64_t, -1, -1>, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>>>>
+        Eigen::Map<MatrixX<double>, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>>,
+        Eigen::Map<MatrixX<int64_t>, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>>>>
     getEigenReference(PyObject * dataPy)
     {
         // Check if raw Python object pointer is actually a numpy array
@@ -804,41 +803,42 @@ namespace jiminy::python
     // ****************************************************************************
 
     /// \brief Convert a 1D python list into an Eigen vector by value.
-    inline Eigen::VectorXd listPyToEigenVector(const bp::list & listPy)
+    template<typename Scalar>
+    inline VectorX<Scalar> listPyToEigenVector(const bp::list & listPy)
     {
-        Eigen::VectorXd x(len(listPy));
+        VectorX<Scalar> x(len(listPy));
         for (bp::ssize_t i = 0; i < len(listPy); ++i)
         {
-            x[i] = bp::extract<double>(listPy[i]);
+            x[i] = bp::extract<Scalar>(listPy[i]);
         }
-
         return x;
     }
 
     /// \brief Convert a 2D python list into an Eigen matrix.
-    inline Eigen::MatrixXd listPyToEigenMatrix(const bp::list & listPy)
+    template<typename Scalar>
+    inline MatrixX<Scalar> listPyToEigenMatrix(const bp::list & listPy)
     {
         const bp::ssize_t nRows = len(listPy);
-        assert(nRows > 0 && "empty list");
-
+        if (nRows == 0)
+        {
+            return {};
+        }
         const bp::ssize_t nCols = len(bp::extract<bp::list>(listPy[0]));
-        assert(nCols > 0 && "empty row");
 
-        Eigen::MatrixXd M(nRows, nCols);
+        MatrixX<Scalar> M(nRows, nCols);
         for (bp::ssize_t i = 0; i < nRows; ++i)
         {
-            bp::list row = bp::extract<bp::list>(listPy[i]);  // Beware elements are not copied.
-            assert(len(row) == nCols && "wrong number of columns");
-            M.row(i) = listPyToEigenVector(row);
+            bp::list row = bp::extract<bp::list>(listPy[i]);
+            assert(len(row) == nCols && "Inconsistent number of columns");
+            M.row(i) = listPyToEigenVector<Scalar>(row);
         }
-
         return M;
     }
 
     // Convert most Python objects in C++ objects by value.
 
     template<typename T>
-    std::enable_if_t<!is_vector_v<T> && !is_array_v<T> && !is_map_v<T> && !is_eigen_object_v<T> &&
+    std::enable_if_t<!is_vector_v<T> && !is_array_v<T> && !is_map_v<T> && !is_eigen_any_v<T> &&
                          !std::is_same_v<T, SensorsDataMap>,
                      T>
     convertFromPython(const bp::object & dataPy)
@@ -899,7 +899,7 @@ namespace jiminy::python
     }
 
     template<typename T>
-    std::enable_if_t<is_eigen_object_v<T>, T> convertFromPython(const bp::object & dataPy)
+    std::enable_if_t<is_eigen_any_v<T>, T> convertFromPython(const bp::object & dataPy)
     {
         using Scalar = typename T::Scalar;
 
@@ -911,23 +911,20 @@ namespace jiminy::python
                 throw std::runtime_error(
                     "Scalar type of eigen object does not match dtype of numpy object.");
             }
-            Scalar * dataPtr = reinterpret_cast<Scalar *>(dataNumpy.get_data());
-            const Py_intptr_t * dataShape = dataNumpy.get_shape();
-            if (is_eigen_vector_v<T>)
-            {
-                return Eigen::Map<Eigen::Matrix<Scalar, Eigen::Dynamic, 1>>(dataPtr, dataShape[0]);
-            }
-            return Eigen::Map<Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>>(
-                dataPtr, dataShape[0], dataShape[1]);
+            return getEigenReferenceImpl<Scalar>(reinterpret_cast<PyArrayObject *>(dataPy.ptr()))
+                .value();
         }
         catch (const bp::error_already_set &)
         {
             PyErr_Clear();
-            if (is_eigen_vector_v<T>)
+            if constexpr (is_eigen_vector_v<T>)
             {
-                return listPyToEigenVector(bp::extract<bp::list>(dataPy));
+                return listPyToEigenVector<Scalar>(bp::extract<bp::list>(dataPy));
             }
-            return listPyToEigenMatrix(bp::extract<bp::list>(dataPy));
+            else
+            {
+                return listPyToEigenMatrix<Scalar>(bp::extract<bp::list>(dataPy));
+            }
         }
     }
 

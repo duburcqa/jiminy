@@ -609,8 +609,8 @@ namespace jiminy::python
             bp::dict variables, constants;
 
             // Temporary contiguous storage for variables
-            Eigen::Matrix<int64_t, Eigen::Dynamic, 1> intVector;
-            Eigen::Matrix<double, Eigen::Dynamic, 1> floatVector;
+            VectorX<int64_t> intVector;
+            VectorX<double> floatVector;
 
             // Get the number of integer and float variables
             const Eigen::Index numInt = logData.integerValues.rows();

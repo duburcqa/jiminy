@@ -188,10 +188,9 @@ namespace jiminy
         std::conditional_t<
             (sizeof...(StackedArgs) > 0),
             std::tuple<StackedArgs...>,
-            std::tuple<std::conditional_t<
-                std::is_arithmetic_v<std::decay_t<DerivedArgs>>,
-                Eigen::Matrix<std::decay_t<DerivedArgs>, Eigen::Dynamic, Eigen::Dynamic>,
-                DerivedArgs>...>>
+            std::tuple<std::conditional_t<std::is_arithmetic_v<std::decay_t<DerivedArgs>>,
+                                          MatrixX<std::decay_t<DerivedArgs>>,
+                                          DerivedArgs>...>>
             args_;
     };
 }

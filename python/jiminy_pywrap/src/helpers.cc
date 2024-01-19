@@ -103,6 +103,7 @@ namespace jiminy::python
     np::ndarray solveJMinvJtv(
         pinocchio::Data & data, const np::ndarray & vPy, bool updateDecomposition)
     {
+        bp::object objPy;
         const int32_t nDims = vPy.get_nd();
         assert(nDims < 3 && "The number of dimensions of 'v' cannot exceed 2.");
         if (nDims == 1)
@@ -110,15 +111,16 @@ namespace jiminy::python
             const Eigen::VectorXd v = convertFromPython<Eigen::VectorXd>(vPy);
             const Eigen::VectorXd x =
                 pinocchio_overload::solveJMinvJtv<Eigen::VectorXd>(data, v, updateDecomposition);
-            return bp::extract<np::ndarray>(convertToPython(x, true));
+            objPy = convertToPython(x, true);
         }
         else
         {
             const Eigen::MatrixXd v = convertFromPython<Eigen::MatrixXd>(vPy);
             const Eigen::MatrixXd x =
                 pinocchio_overload::solveJMinvJtv<Eigen::MatrixXd>(data, v, updateDecomposition);
-            return bp::extract<np::ndarray>(convertToPython(x, true));
+            objPy = convertToPython(x, true);
         }
+        return bp::extract<np::ndarray>(objPy);
     }
 
     void arrayCopyTo(PyObject * dstPy, PyObject * srcPy)
@@ -206,8 +208,8 @@ namespace jiminy::python
                 // Copy scalar bytes to destination if available
                 if (isSuccess)
                 {
-                    Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, 1>> dst(
-                        reinterpret_cast<double *>(dstPyData), PyArray_SIZE(dstPyArray));
+                    Eigen::Map<VectorX<double>> dst(reinterpret_cast<double *>(dstPyData),
+                                                    PyArray_SIZE(dstPyArray));
                     dst.setConstant(srcPyScalar);
                     return;
                 }

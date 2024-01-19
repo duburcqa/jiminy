@@ -85,10 +85,12 @@ namespace jiminy
         /// \return Return code to determine whether the execution of the method was successful.
         hresult_t registerVariable(
             const std::vector<std::string> & fieldnames,
-            const Eigen::Ref<Eigen::Matrix<double, -1, 1>, 0, Eigen::InnerStride<>> & values);
+            const Eigen::Ref<VectorX<double>, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>> &
+                values);
         hresult_t registerVariable(
             const std::vector<std::string> & fieldnames,
-            const Eigen::Ref<Eigen::Matrix<int64_t, -1, 1>, 0, Eigen::InnerStride<>> & values);
+            const Eigen::Ref<VectorX<int64_t>, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>> &
+                values);
 
         /// \brief Register a constant float64 to the telemetry.
         ///

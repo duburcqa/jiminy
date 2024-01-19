@@ -158,12 +158,11 @@ namespace jiminy::python
             }
         }
 
-        template<typename T>
+        template<typename Scalar>
         static hresult_t registerVariableArrayImpl(
             AbstractController & self,
             const bp::list & fieldnamesPy,
-            Eigen::Map<Eigen::Matrix<T, -1, -1>, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>> &
-                data)
+            Eigen::Map<MatrixX<Scalar>, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>> & data)
         {
             hresult_t returnCode = hresult_t::SUCCESS;
 

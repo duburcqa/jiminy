@@ -4332,15 +4332,13 @@ namespace jiminy
         // Pre-allocate memory
         logData.integerValues.resize(numInt, numData);
         logData.floatValues.resize(numFloat, numData);
-        Eigen::Matrix<int64_t, Eigen::Dynamic, 1> intVector(numData);
-        Eigen::Matrix<double, Eigen::Dynamic, 1> floatVector(numData);
+        VectorX<int64_t> intVector(numData);
+        VectorX<double> floatVector(numData);
         logData.variableNames.reserve(1 + numInt + numFloat);
         logData.variableNames.emplace_back(GLOBAL_TIME);
 
         // Read all variables while preserving ordering
-        using opDataT = std::tuple<LogData &,
-                                   Eigen::Matrix<int64_t, Eigen::Dynamic, 1> &,
-                                   Eigen::Matrix<double, Eigen::Dynamic, 1> &>;
+        using opDataT = std::tuple<LogData &, VectorX<int64_t> &, VectorX<double> &>;
         opDataT opData{logData, intVector, floatVector};
         H5Literate(
             variablesGroup.getId(),
@@ -4455,8 +4453,8 @@ namespace jiminy
         }
 
         // Temporary contiguous storage for variables
-        Eigen::Matrix<int64_t, Eigen::Dynamic, 1> intVector;
-        Eigen::Matrix<double, Eigen::Dynamic, 1> floatVector;
+        VectorX<int64_t> intVector;
+        VectorX<double> floatVector;
 
         // Get the number of integer and float variables
         const Eigen::Index numInt = logData->integerValues.rows();
