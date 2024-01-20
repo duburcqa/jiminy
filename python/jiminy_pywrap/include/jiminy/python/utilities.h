@@ -518,7 +518,7 @@ namespace jiminy::python
 
     /// \brief Generic converter from Eigen Matrix to Numpy array by reference.
     template<typename T>
-    std::enable_if_t<!is_eigen_v<T>, PyObject *> getNumpyReference(T & value)
+    std::enable_if_t<!is_eigen_object_v<T>, PyObject *> getNumpyReference(T & value)
     {
         return getNumpyReferenceFromScalar(value);
     }
@@ -530,7 +530,7 @@ namespace jiminy::python
     }
 
     template<typename T>
-    std::enable_if_t<is_eigen_v<T> && !is_eigen_vector_v<T>, PyObject *>
+    std::enable_if_t<is_eigen_object_v<T> && !is_eigen_vector_v<T>, PyObject *>
     getNumpyReference(T & value)
     {
         return getNumpyReferenceFromEigenMatrix(value);
@@ -626,7 +626,7 @@ namespace jiminy::python
     /// Convert most C++ objects into Python objects by value
     template<typename T>
     std::enable_if_t<
-        !is_vector_v<T> && !is_array_v<T> && !is_eigen_v<T> &&
+        !is_vector_v<T> && !is_array_v<T> && !is_eigen_object_v<T> &&
             !std::is_arithmetic_v<std::decay_t<T>> &&
             !std::is_same_v<std::decay_t<T>, GenericConfig> &&
             !std::is_same_v<std::decay_t<T>, std::pair<const std::string, SensorDataTypeMap>> &&
@@ -655,8 +655,8 @@ namespace jiminy::python
     }
 
     template<typename T>
-    std::enable_if_t<is_eigen_v<T>, bp::object> convertToPython(T && data,
-                                                                const bool & copy = true)
+    std::enable_if_t<is_eigen_object_v<T>, bp::object> convertToPython(T && data,
+                                                                       const bool & copy = true)
     {
         PyObject * vecPyPtr = getNumpyReference(data);
         if (copy)
@@ -838,7 +838,7 @@ namespace jiminy::python
     // Convert most Python objects in C++ objects by value.
 
     template<typename T>
-    std::enable_if_t<!is_vector_v<T> && !is_array_v<T> && !is_map_v<T> && !is_eigen_v<T> &&
+    std::enable_if_t<!is_vector_v<T> && !is_array_v<T> && !is_map_v<T> && !is_eigen_object_v<T> &&
                          !std::is_same_v<T, SensorsDataMap>,
                      T>
     convertFromPython(const bp::object & dataPy)
@@ -899,7 +899,7 @@ namespace jiminy::python
     }
 
     template<typename T>
-    std::enable_if_t<is_eigen_v<T>, T> convertFromPython(const bp::object & dataPy)
+    std::enable_if_t<is_eigen_object_v<T>, T> convertFromPython(const bp::object & dataPy)
     {
         using Scalar = typename T::Scalar;
 
@@ -956,7 +956,7 @@ namespace jiminy::python
         return vec;
     }
 
-    namespace details
+    namespace internal
     {
         template<typename T, size_t... Is, typename F>
         std::array<T, sizeof...(Is)> BuildArrayFromCallable(std::index_sequence<Is...>, F fun)
@@ -974,7 +974,7 @@ namespace jiminy::python
         {
             throw std::runtime_error("Consistent number of elements");
         }
-        return details::BuildArrayFromCallable<typename T::value_type>(
+        return internal::BuildArrayFromCallable<typename T::value_type>(
             std::make_index_sequence<N>{},
             [&listPy](std::size_t i)
             { return convertFromPython<typename T::value_type>(listPy[i]); });

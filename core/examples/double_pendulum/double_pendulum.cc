@@ -60,8 +60,6 @@ int main(int /* argc */, char * /* argv */[])
     // Instantiate timer
     Timer timer;
 
-    timer.tic();
-
     // Instantiate and configuration the robot
     std::vector<std::string> motorJointNames{"SecondPendulumJoint"};
 
@@ -120,8 +118,7 @@ int main(int /* argc */, char * /* argv */[])
     boost::get<double>(contactsOptions.at("transitionVelocity")) = 0.01;
     engine->setOptions(simuOptions);
     engine->initialize(robot, controller, callback);
-
-    timer.toc();
+    std::cout << "Initialization: " << timer.toc<std::milli>() << "ms" << std::endl;
 
     // =====================================================================
     // ======================= Run the simulation ==========================
@@ -136,8 +133,7 @@ int main(int /* argc */, char * /* argv */[])
     // Run simulation
     timer.tic();
     engine->simulate(tf, q0, v0);
-    timer.toc();
-    std::cout << "Simulation time: " << (timer.dt * 1.0e3) << "ms" << std::endl;
+    std::cout << "Simulation: " << timer.toc<std::milli>() << "ms" << std::endl;
 
     // Write the log file
     std::vector<std::string> fieldnames;
@@ -147,12 +143,10 @@ int main(int /* argc */, char * /* argv */[])
     std::cout << engine->getStepperState().iter << " internal integration steps" << std::endl;
     timer.tic();
     engine->writeLog((outputDirPath / "log.data").string(), "binary");
-    timer.toc();
-    std::cout << "Write log binary: " << (timer.dt * 1.0e3) << "ms" << std::endl;
+    std::cout << "Write log binary: " << timer.toc<std::milli>() << "ms" << std::endl;
     timer.tic();
     engine->writeLog((outputDirPath / "log.hdf5").string(), "hdf5");
-    timer.toc();
-    std::cout << "Write log HDF5: " << (timer.dt * 1.0e3) << "ms" << std::endl;
+    std::cout << "Write log HDF5: " << timer.toc<std::milli>() << "ms" << std::endl;
 
     return 0;
 }

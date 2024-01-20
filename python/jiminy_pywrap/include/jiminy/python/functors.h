@@ -54,13 +54,13 @@ namespace jiminy::python
     }
 
     template<typename T>
-    std::enable_if_t<is_eigen_v<T>, bp::handle<>> FctPyWrapperArgToPython(T & arg)
+    std::enable_if_t<is_eigen_object_v<T>, bp::handle<>> FctPyWrapperArgToPython(T & arg)
     {
         return bp::handle<>(getNumpyReference(arg));
     }
 
     template<typename T>
-    std::enable_if_t<is_eigen_v<T>, bp::handle<>> FctPyWrapperArgToPython(const T & arg)
+    std::enable_if_t<is_eigen_object_v<T>, bp::handle<>> FctPyWrapperArgToPython(const T & arg)
     {
         return bp::handle<>(getNumpyReference(arg));
     }
@@ -212,133 +212,33 @@ namespace jiminy::python
 
     struct HeightmapFunctorPyWrapper
     {
-    public:
-        // Disable copy-assignment
-        HeightmapFunctorPyWrapper & operator=(const HeightmapFunctorPyWrapper & other) = delete;
-
-    public:
         HeightmapFunctorPyWrapper(const bp::object & objPy, heightmapType_t objType) :
         heightmapType_{objType},
-        handlePyPtr_{objPy},
-        out1Ptr_(new double),
-        out2Ptr_(new Eigen::Vector3d),
-        out1PyPtr_{},
-        out2PyPtr_{}
+        handlePyPtr_{objPy}
         {
-            if (heightmapType_ == heightmapType_t::CONSTANT)
+        }
+
+        void operator()(
+            const Eigen::Vector2d & posFrame, double & height, Eigen::Vector3d & normal)
+        {
+            switch (heightmapType_)
             {
-                *out1Ptr_ = bp::extract<double>(handlePyPtr_);
-                *out2Ptr_ = Eigen::Vector3d::UnitZ();
-            }
-            else if (heightmapType_ == heightmapType_t::STAIRS)
-            {
-                out1PyPtr_ = getNumpyReference(*out1Ptr_);
-                *out2Ptr_ = Eigen::Vector3d::UnitZ();
-            }
-            else if (heightmapType_ == heightmapType_t::GENERIC)
-            {
-                out1PyPtr_ = getNumpyReference(*out1Ptr_);
-                out2PyPtr_ = getNumpyReference(*out2Ptr_);
+            case heightmapType_t::CONSTANT:
+                height = bp::extract<double>(handlePyPtr_);
+                normal = Eigen::Vector3d::UnitZ();
+                break;
+            case heightmapType_t::STAIRS:
+                handlePyPtr_(posFrame, convertToPython(height, false));
+                normal = Eigen::Vector3d::UnitZ();
+                break;
+            case heightmapType_t::GENERIC:
+                handlePyPtr_(
+                    posFrame, convertToPython(height, false), convertToPython(normal, false));
             }
         }
 
-        // Copy constructor, same as the normal constructor
-        HeightmapFunctorPyWrapper(const HeightmapFunctorPyWrapper & other) :
-        heightmapType_(other.heightmapType_),
-        handlePyPtr_(other.handlePyPtr_),
-        out1Ptr_(new double),
-        out2Ptr_(new Eigen::Vector3d),
-        out1PyPtr_{},
-        out2PyPtr_{}
-        {
-            *out1Ptr_ = *(other.out1Ptr_);
-            *out2Ptr_ = *(other.out2Ptr_);
-            out1PyPtr_ = getNumpyReference(*out1Ptr_);
-            out2PyPtr_ = getNumpyReference(*out2Ptr_);
-        }
-
-        // Move constructor, takes a rvalue reference &&
-        HeightmapFunctorPyWrapper(HeightmapFunctorPyWrapper && other) :
-        heightmapType_(other.heightmapType_),
-        handlePyPtr_(other.handlePyPtr_),
-        out1Ptr_{nullptr},
-        out2Ptr_{nullptr},
-        out1PyPtr_{nullptr},
-        out2PyPtr_{nullptr}
-        {
-            // Steal the resource from "other"
-            out1Ptr_ = other.out1Ptr_;
-            out2Ptr_ = other.out2Ptr_;
-            out1PyPtr_ = other.out1PyPtr_;
-            out2PyPtr_ = other.out2PyPtr_;
-
-            /* "other" will soon be destroyed and its destructor will do nothing because we null
-               out its resource here. */
-            other.out1Ptr_ = nullptr;
-            other.out2Ptr_ = nullptr;
-            other.out1PyPtr_ = nullptr;
-            other.out2PyPtr_ = nullptr;
-        }
-
-        // Destructor
-        ~HeightmapFunctorPyWrapper()
-        {
-            Py_XDECREF(out1PyPtr_);
-            Py_XDECREF(out2PyPtr_);
-            delete out1Ptr_;
-            delete out2Ptr_;
-        }
-
-        // Move assignment, takes a rvalue reference &&
-        HeightmapFunctorPyWrapper & operator=(HeightmapFunctorPyWrapper && other)
-        {
-            /* "other" is soon going to be destroyed, so we let it destroy our current resource
-               instead and we take "other"'s current resource via swapping. */
-            std::swap(heightmapType_, other.heightmapType_);
-            std::swap(handlePyPtr_, other.handlePyPtr_);
-            std::swap(out1Ptr_, other.out1Ptr_);
-            std::swap(out2Ptr_, other.out2Ptr_);
-            std::swap(out1PyPtr_, other.out1PyPtr_);
-            std::swap(out2PyPtr_, other.out2PyPtr_);
-            return *this;
-        }
-
-        std::pair<double, Eigen::Vector3d> operator()(const Eigen::Vector3d & posFrame)
-        {
-            if (heightmapType_ == heightmapType_t::STAIRS)
-            {
-                *out1Ptr_ = qNAN;
-                bp::handle<> out1Py(bp::borrowed(out1PyPtr_));
-                handlePyPtr_(posFrame[0], posFrame[1], out1Py);
-            }
-            else if (heightmapType_ == heightmapType_t::GENERIC)
-            {
-                *out1Ptr_ = qNAN;
-                out2Ptr_->setConstant(qNAN);
-                bp::handle<> out1Py(bp::borrowed(out1PyPtr_));
-                bp::handle<> out2Py(bp::borrowed(out2PyPtr_));
-                handlePyPtr_(posFrame[0], posFrame[1], out1Py, out2Py);
-            }
-            if (std::isnan(*out1Ptr_))
-            {
-                throw std::runtime_error("Heightmap height output not set.");
-            }
-            if ((out2Ptr_->array() != out2Ptr_->array()).any())
-            {
-                throw std::runtime_error("Heightmap normal output not set.");
-            }
-            return {*out1Ptr_, *out2Ptr_};
-        }
-
-    public:
         heightmapType_t heightmapType_;
         bp::object handlePyPtr_;
-
-    private:
-        double * out1Ptr_;
-        Eigen::Vector3d * out2Ptr_;
-        PyObject * out1PyPtr_;
-        PyObject * out2PyPtr_;
     };
 
     // **************************** HeightmapFunctorVisitor *****************************

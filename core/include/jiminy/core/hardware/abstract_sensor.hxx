@@ -153,7 +153,7 @@ namespace jiminy
     }
 
     template<typename T>
-    hresult_t AbstractSensorTpl<T>::resetAll()
+    hresult_t AbstractSensorTpl<T>::resetAll(uint32_t seed)
     {
         // Make sure all the sensors are attached to a robot
         for (AbstractSensorBase * sensor : sharedHolder_->sensors_)
@@ -194,14 +194,26 @@ namespace jiminy
                                                        return std::max(delay, value);
                                                    });
 
-        // Update sensor scope information
-        for (AbstractSensorBase * sensor : sharedHolder_->sensors_)
+        // Generate high-entropy seed sequence from the provided initial seed
+        std::seed_seq seq{seed};
+        std::vector<std::uint32_t> seeds(sharedHolder_->num_);
+        seq.generate(seeds.begin(), seeds.end());
+
+        // Reset sensor-specific state
+        std::vector<AbstractSensorBase *>::iterator sensorIt = sharedHolder_->sensors_.begin();
+        std::vector<std::uint32_t>::const_iterator seedIt = seeds.cbegin();
+        for (; sensorIt != sharedHolder_->sensors_.end(); ++sensorIt, ++seedIt)
         {
+            AbstractSensorBase & sensor = *(*sensorIt);
+
+            // Reset the internal random number generator
+            sensor.generator_.seed(*seedIt);
+
             // Refresh proxies that are robot-dependent
-            sensor->refreshProxies();
+            sensor.refreshProxies();
 
             // Reset the telemetry state
-            sensor->isTelemetryConfigured_ = false;
+            sensor.isTelemetryConfigured_ = false;
         }
 
         return hresult_t::SUCCESS;
@@ -294,11 +306,12 @@ namespace jiminy
     template<typename T>
     hresult_t AbstractSensorTpl<T>::interpolateData()
     {
-        assert(sharedHolder_->time_.size() > 0 && "Do data to interpolate.");
+        assert(sharedHolder_->time_.size() > 0 && "No data to interpolate.");
 
         // Sample the delay uniformly
-        const double delay =
-            baseSensorOptions_->delay + randUniform(0.0, baseSensorOptions_->jitter);
+        const double delay = uniform(generator_,
+                                     static_cast<float>(baseSensorOptions_->delay),
+                                     static_cast<float>(baseSensorOptions_->jitter));
 
         // Add STEPPER_MIN_TIMESTEP to timeDesired to avoid float comparison issues
         const double timeDesired = sharedHolder_->time_.back() - delay + STEPPER_MIN_TIMESTEP;

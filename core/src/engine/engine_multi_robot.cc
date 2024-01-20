@@ -27,9 +27,7 @@
 
 #include "jiminy/core/telemetry/fwd.h"
 #include "jiminy/core/hardware/fwd.h"
-#include "jiminy/core/utilities/helpers.h"
 #include "jiminy/core/utilities/pinocchio.h"
-#include "jiminy/core/utilities/random.h"
 #include "jiminy/core/utilities/json.h"
 #include "jiminy/core/io/file_device.h"
 #include "jiminy/core/io/serialization.h"
@@ -59,6 +57,7 @@ namespace jiminy
     inline constexpr uint32_t PGS_MAX_ITERATIONS{100U};
 
     EngineMultiRobot::EngineMultiRobot() noexcept :
+    generator_{std::seed_seq{std::random_device{}()}},
     telemetrySender_{std::make_unique<TelemetrySender>()},
     telemetryData_{std::make_shared<TelemetryData>()},
     telemetryRecorder_{std::make_unique<TelemetryRecorder>()}
@@ -900,13 +899,13 @@ namespace jiminy
         // Reset the random number generators
         if (resetRandomNumbers)
         {
-            resetRandomGenerators(engineOptions_->stepper.randomSeed);
+            generator_.seed(std::seed_seq{engineOptions_->stepper.randomSeed});
         }
 
         // Reset the internal state of the robot and controller
         for (auto & system : systems_)
         {
-            system.robot->reset();
+            system.robot->reset(generator_);
             system.controller->reset();
         }
 
@@ -1968,7 +1967,7 @@ namespace jiminy
         bool hasDynamicsChanged = false;
 
         // Start the timer used for timeout handling
-        timer_->tic();
+        timer_.tic();
 
         // Perform the integration. Do not simulate extremely small time steps.
         while ((tEnd - t >= STEPPER_MIN_TIMESTEP) && (returnCode == hresult_t::SUCCESS))
@@ -2204,9 +2203,8 @@ namespace jiminy
                     }
 
                     // Break the loop in case of timeout. The error code will be set later.
-                    timer_->toc();
                     if (EPS < engineOptions_->stepper.timeout &&
-                        engineOptions_->stepper.timeout < timer_->dt)
+                        engineOptions_->stepper.timeout < timer_.toc())
                     {
                         break;
                     }
@@ -2470,9 +2468,8 @@ namespace jiminy
                             "integrate physics further in time. Aborting integration.");
                 returnCode = hresult_t::ERROR_GENERIC;
             }
-            timer_->toc();
             if (EPS < engineOptions_->stepper.timeout &&
-                engineOptions_->stepper.timeout < timer_->dt)
+                engineOptions_->stepper.timeout < timer_.toc())
             {
                 PRINT_ERROR("Step computation timeout. Aborting integration.");
                 returnCode = hresult_t::ERROR_GENERIC;
@@ -2610,26 +2607,27 @@ namespace jiminy
     }
 
     template<typename... Args>
-    std::tuple<bool, double>
-    isGcdIncluded(const vector_aligned_t<systemDataHolder_t> & systemsDataHolder, Args... values)
+    std::tuple<bool, const double &> isGcdIncluded(
+        const vector_aligned_t<systemDataHolder_t> & systemsDataHolder, const Args &... values)
     {
         if (systemsDataHolder.empty())
         {
-            return isGcdIncluded(std::forward<Args>(values)...);
+            return isGcdIncluded(values...);
         }
 
-        double minValue = INF;
-        auto lambda = [&minValue, &values...](const systemDataHolder_t & systemData)
+        const double * minValuePtr = &INF;
+        auto lambda = [&minValuePtr, &values...](const systemDataHolder_t & systemData)
         {
             auto [isIncluded, value] = isGcdIncluded(
-                systemData.forcesProfile.begin(),
-                systemData.forcesProfile.end(),
+                systemData.forcesProfile.cbegin(),
+                systemData.forcesProfile.cend(),
                 [](ForceProfile const & force) { return force.updatePeriod; },
-                std::forward<Args>(values)...);
-            minValue = minClipped(minValue, value);
+                values...);
+            minValuePtr = &minClipped(*minValuePtr, value);
             return isIncluded;
         };
-        return {std::all_of(systemsDataHolder.begin(), systemsDataHolder.end(), lambda), minValue};
+        return {std::all_of(systemsDataHolder.begin(), systemsDataHolder.end(), lambda),
+                *minValuePtr};
     }
 
     hresult_t EngineMultiRobot::registerForceProfile(const std::string & systemName,
@@ -2967,7 +2965,7 @@ namespace jiminy
         const uint32_t randomSeed = boost::get<uint32_t>(stepperOptions.at("randomSeed"));
         if (!engineOptions_ || randomSeed != engineOptions_->stepper.randomSeed)
         {
-            resetRandomGenerators(randomSeed);
+            generator_.seed(std::seed_seq{randomSeed});
         }
 
         // Update the internal options
@@ -3305,14 +3303,14 @@ namespace jiminy
         const pinocchio::SE3 & transformFrameInWorld = data.oMf[frameIdx];
 
         // Compute the ground normal and penetration depth at the contact point
+        double heightGround;
+        Eigen::Vector3d normalGround;
         const Eigen::Vector3d & posFrame = transformFrameInWorld.translation();
-        auto ground = engineOptions_->world.groundProfile(posFrame);
-        const double zGround = std::get<double>(ground);
-        Eigen::Vector3d & nGround = std::get<Eigen::Vector3d>(ground);
-        nGround.normalize();  // Make sure the ground normal is normalized
+        engineOptions_->world.groundProfile(posFrame.head<2>(), heightGround, normalGround);
+        normalGround.normalize();  // Make sure the ground normal is normalized
 
         // First-order projection (exact assuming no curvature)
-        const double depth = (posFrame[2] - zGround) * nGround[2];
+        const double depth = (posFrame[2] - heightGround) * normalGround[2];
 
         // Only compute the ground reaction force if the penetration depth is negative
         if (depth < 0.0)
@@ -3328,11 +3326,11 @@ namespace jiminy
 
                 // Compute the ground reaction force in world frame (local world aligned)
                 const pinocchio::Force fextAtContactInGlobal =
-                    computeContactDynamics(nGround, depth, vContactInWorld);
+                    computeContactDynamics(normalGround, depth, vContactInWorld);
 
                 // Deduce the ground reaction force in joint frame
                 fextLocal =
-                    convertForceGlobalFrameToJoint(model, data, frameIdx, fextAtContactInGlobal);
+                    convertForceFixedFrameToJoint(model, data, frameIdx, fextAtContactInGlobal);
             }
             else
             {
@@ -3362,13 +3360,13 @@ namespace jiminy
         {
             auto & frameConstraint = static_cast<FrameConstraint &>(*constraint.get());
             frameConstraint.setReferenceTransform(
-                {transformFrameInWorld.rotation(), posFrame - depth * nGround});
-            frameConstraint.setNormal(nGround);
+                {transformFrameInWorld.rotation(), posFrame - depth * normalGround});
+            frameConstraint.setNormal(normalGround);
         }
     }
 
     pinocchio::Force EngineMultiRobot::computeContactDynamics(
-        const Eigen::Vector3d & nGround,
+        const Eigen::Vector3d & normalGround,
         double depth,
         const Eigen::Vector3d & vContactInWorld) const
     {
@@ -3381,15 +3379,15 @@ namespace jiminy
             const contactOptions_t & contactOptions_ = engineOptions_->contacts;
 
             // Compute the penetration speed
-            const double vDepth = vContactInWorld.dot(nGround);
+            const double vDepth = vContactInWorld.dot(normalGround);
 
             // Compute normal force
             const double fextNormal = -std::min(
                 contactOptions_.stiffness * depth + contactOptions_.damping * vDepth, 0.0);
-            fextInWorld.noalias() = fextNormal * nGround;
+            fextInWorld.noalias() = fextNormal * normalGround;
 
             // Compute friction forces
-            const Eigen::Vector3d vTangential = vContactInWorld - vDepth * nGround;
+            const Eigen::Vector3d vTangential = vContactInWorld - vDepth * normalGround;
             const double vRatio =
                 std::min(vTangential.norm() / contactOptions_.transitionVelocity, 1.0);
             const double fextTangential = contactOptions_.friction * vRatio * fextNormal;

@@ -19,14 +19,6 @@ namespace jiminy::python
 {
     namespace bp = boost::python;
 
-    uint32_t getRandomSeed()
-    {
-        uint32_t seed;
-        // Cannot fail since random number generators are initialized at shared lib import
-        ::jiminy::getRandomSeed(seed);
-        return seed;
-    }
-
     JointModelType getJointTypeFromIdx(const pinocchio::Model & model, std::size_t jointIdx)
     {
         JointModelType jointType = JointModelType::UNSUPPORTED;
@@ -317,8 +309,6 @@ namespace jiminy::python
     void exposeHelpers()
     {
         // clang-format off
-        bp::def("get_random_seed", bp::make_function(&getRandomSeed,
-                                   bp::return_value_policy<bp::return_by_value>()));
         bp::def("build_geom_from_urdf", &buildGeomFromUrdf,
                                         (bp::arg("pinocchio_model"), "urdf_filename", "geom_type",
                                          bp::arg("mesh_package_dirs") = bp::list(),

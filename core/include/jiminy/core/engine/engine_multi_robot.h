@@ -5,6 +5,8 @@
 #include <functional>
 
 #include "jiminy/core/fwd.h"
+#include "jiminy/core/utilities/helpers.h"  // `Timer`
+#include "jiminy/core/utilities/random.h"   // `PCG32`
 #include "jiminy/core/engine/system.h"
 
 
@@ -35,7 +37,6 @@ namespace jiminy
 
     const std::set<std::string> STEPPERS{"euler_explicit", "runge_kutta_4", "runge_kutta_dopri5"};
 
-    class Timer;
     class Robot;
     class AbstractConstraintBase;
     class AbstractController;
@@ -128,8 +129,12 @@ namespace jiminy
             GenericConfig config;
             config["gravity"] = (Eigen::VectorXd(6) << 0.0, 0.0, -9.81, 0.0, 0.0, 0.0).finished();
             config["groundProfile"] = HeightmapFunctor(
-                [](const Eigen::Vector3d & /* pos */) -> std::pair<double, Eigen::Vector3d> {
-                    return {0.0, Eigen::Vector3d::UnitZ()};
+                [](const Eigen::Vector2d & /* xy */,
+                   double & height,
+                   Eigen::Vector3d & normal) -> void
+                {
+                    height = 0.0;
+                    normal = Eigen::Vector3d::UnitZ();
                 });
 
             return config;
@@ -661,9 +666,10 @@ namespace jiminy
         bool isTelemetryConfigured_{false};
         bool isSimulationRunning_{false};
         GenericConfig engineOptionsHolder_{};
+        PCG32 generator_;
 
     private:
-        std::unique_ptr<Timer> timer_{std::make_unique<Timer>()};
+        Timer timer_{};
         contactModel_t contactModel_{contactModel_t::UNSUPPORTED};
         std::unique_ptr<TelemetrySender> telemetrySender_;
         std::shared_ptr<TelemetryData> telemetryData_;

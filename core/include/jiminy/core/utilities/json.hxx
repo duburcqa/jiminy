@@ -55,14 +55,14 @@ namespace jiminy
     Json::Value convertToJson<HeightmapFunctor>(const HeightmapFunctor & value);
 
     template<typename T, typename A>
-    constexpr std::enable_if_t<!is_eigen_v<T>, const char *>
+    constexpr std::enable_if_t<!is_eigen_any_v<T>, const char *>
     getJsonVectorType(const std::vector<T, A> & /* value */)
     {
         return "unknown";
     }
 
     template<typename T, typename A>
-    constexpr std::enable_if_t<is_eigen_v<T>, const char *>
+    constexpr std::enable_if_t<is_eigen_any_v<T>, const char *>
     getJsonVectorType(const std::vector<T, A> & /* value */)
     {
         return "list(array)";

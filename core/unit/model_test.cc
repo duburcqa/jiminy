@@ -60,7 +60,6 @@ TEST_P(ModelTestFixture, CreateFlexible)
     GenericConfig & dynamicsOptions = boost::get<GenericConfig>(options.at("dynamics"));
     boost::get<FlexibilityConfig>(dynamicsOptions.at("flexibilityConfig")) = flexConfig;
     model->setOptions(options);
-    model->reset();
 
     ASSERT_TRUE(model->getFlexibleConfigurationFromRigid(q, qflex) == hresult_t::SUCCESS);
     ASSERT_EQ(qflex.size(),

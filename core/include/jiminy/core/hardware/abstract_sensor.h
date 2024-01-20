@@ -2,7 +2,7 @@
 #define JIMINY_ABSTRACT_SENSOR_H
 
 #include "jiminy/core/fwd.h"
-#include "jiminy/core/utilities/helpers.h"
+#include "jiminy/core/utilities/random.h"  // `PCG32`
 
 #include <boost/circular_buffer.hpp>
 #include <boost/functional/hash.hpp>
@@ -117,7 +117,7 @@ namespace jiminy
         ///
         /// \remark This method is not intended to be called manually. The Robot to which the
         ///         sensor is added is taking care of it when its own `reset` method is called.
-        virtual hresult_t resetAll() = 0;
+        virtual hresult_t resetAll(uint32_t seed) = 0;
 
         /// \brief Refresh the proxies.
         ///
@@ -309,6 +309,8 @@ namespace jiminy
         bool isTelemetryConfigured_{false};
         /// \brief Robot for which the command and internal dynamics Name of the sensor.
         std::weak_ptr<const Robot> robot_{};
+        /// \brief Random number generator used internally for sampling measurement noise.
+        PCG32 generator_;
         /// \brief Name of the sensor.
         std::string name_;
 
@@ -330,7 +332,7 @@ namespace jiminy
         auto shared_from_this() { return shared_from(this); }
         auto shared_from_this() const { return shared_from(this); }
 
-        virtual hresult_t resetAll() override;
+        hresult_t resetAll(uint32_t seed) override final;
         void updateTelemetryAll() override final;
 
         virtual hresult_t setOptionsAll(const GenericConfig & sensorOptions) override final;

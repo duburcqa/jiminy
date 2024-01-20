@@ -111,7 +111,7 @@ namespace jiminy
 
         /// \remarks Those methods are not intended to be called manually. The Engine is taking
         ///          care of it.
-        virtual void reset() override;
+        virtual void reset(const uniform_random_bit_generator_ref<uint32_t> & g) override;
         virtual hresult_t configureTelemetry(std::shared_ptr<TelemetryData> telemetryData,
                                              const std::string & objectPrefixName = {});
         void updateTelemetry();

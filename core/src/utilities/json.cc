@@ -164,10 +164,12 @@ namespace jiminy
     template<>
     HeightmapFunctor convertFromJson<HeightmapFunctor>(const Json::Value & /* value */)
     {
-        return {HeightmapFunctor(
-            [](const Eigen::Vector3d & /* pos */) -> std::pair<double, Eigen::Vector3d> {
-                return {0.0, Eigen::Vector3d::UnitZ()};
-            })};
+        return {
+            [](const Eigen::Vector2d & /* xy */, double & height, Eigen::Vector3d & normal) -> void
+            {
+                height = 0.0;
+                normal = Eigen::Vector3d::UnitZ();
+            }};
     }
 
     template<>
