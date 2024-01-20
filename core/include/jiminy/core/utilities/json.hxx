@@ -102,10 +102,8 @@ namespace jiminy
     // ************* Conversion from JSON utilities *****************
 
     template<typename T>
-    std::enable_if_t<!is_vector_v<T>, T> convertFromJson(const Json::Value & /* value */)
-    {
-        T::undefined_template_specialization_for_this_type;
-    }
+    std::enable_if_t<!is_vector_v<T> && !is_eigen_vector_v<T>, T>
+    convertFromJson(const Json::Value & /* value */) = delete;
 
     template<>
     std::string convertFromJson<std::string>(const Json::Value & value);
@@ -122,8 +120,20 @@ namespace jiminy
     template<>
     double convertFromJson<double>(const Json::Value & value);
 
-    template<>
-    Eigen::VectorXd convertFromJson<Eigen::VectorXd>(const Json::Value & value);
+    template<typename T>
+    std::enable_if_t<is_eigen_vector_v<T>, T> convertFromJson(const Json::Value & value)
+    {
+        T vec{};
+        if (value.size() > 0)
+        {
+            vec.resize(value.size());
+            for (auto it = value.begin(); it != value.end(); ++it)
+            {
+                vec[it.index()] = convertFromJson<typename T::Scalar>(*it);
+            }
+        }
+        return vec;
+    }
 
     template<>
     Eigen::MatrixXd convertFromJson<Eigen::MatrixXd>(const Json::Value & value);

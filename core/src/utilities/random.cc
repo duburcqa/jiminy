@@ -275,11 +275,11 @@ namespace jiminy
         }
 
         // Compute closest left and right indices
-        const int32_t tLeftIdx = static_cast<int32_t>(std::floor(tWrap / dt_));
-        const int32_t tRightIdx = (tLeftIdx + 1) % num_times_;
+        const Eigen::Index tLeftIdx = static_cast<Eigen::Index>(std::floor(tWrap / dt_));
+        const Eigen::Index tRightIdx = (tLeftIdx + 1) % num_times_;
 
         // Perform First order interpolation
-        const double ratio = tWrap / dt_ - tLeftIdx;
+        const double ratio = tWrap / dt_ - static_cast<double>(tLeftIdx);
         return values_[tLeftIdx] + ratio * (values_[tRightIdx] - values_[tLeftIdx]);
     }
 
@@ -325,11 +325,11 @@ namespace jiminy
         }
 
         // Compute closest left and right indices
-        const int32_t tLeftIdx = static_cast<int32_t>(std::floor(tWrap / dt_));
-        const int32_t tRightIdx = (tLeftIdx + 1) % num_times_;
+        const Eigen::Index tLeftIdx = static_cast<Eigen::Index>(std::floor(tWrap / dt_));
+        const Eigen::Index tRightIdx = (tLeftIdx + 1) % num_times_;
 
         // Perform First order interpolation
-        const double ratio = tWrap / dt_ - tLeftIdx;
+        const double ratio = tWrap / dt_ - static_cast<double>(tLeftIdx);
         return values_[tLeftIdx] + ratio * (values_[tRightIdx] - values_[tLeftIdx]);
     }
 

@@ -144,7 +144,7 @@ namespace jiminy
         {
             GenericConfig config;
             config["verbose"] = false;
-            config["randomSeed"] = 0U;
+            config["randomSeedSeq"] = VectorX<uint32_t>::Zero(1).eval();
             /// \details Must be either "runge_kutta_dopri5", "runge_kutta_4" or "euler_explicit".
             config["odeSolver"] = std::string{"runge_kutta_dopri5"};
             config["tolAbs"] = 1.0e-5;
@@ -253,7 +253,7 @@ namespace jiminy
         struct stepperOptions_t
         {
             const bool verbose;
-            const uint32_t randomSeed;
+            const VectorX<uint32_t> randomSeedSeq;
             const std::string odeSolver;
             const double tolAbs;
             const double tolRel;
@@ -268,7 +268,7 @@ namespace jiminy
 
             stepperOptions_t(const GenericConfig & options) :
             verbose{boost::get<bool>(options.at("verbose"))},
-            randomSeed{boost::get<uint32_t>(options.at("randomSeed"))},
+            randomSeedSeq{boost::get<VectorX<uint32_t>>(options.at("randomSeedSeq"))},
             odeSolver{boost::get<std::string>(options.at("odeSolver"))},
             tolAbs{boost::get<double>(options.at("tolAbs"))},
             tolRel{boost::get<double>(options.at("tolRel"))},

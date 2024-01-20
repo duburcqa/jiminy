@@ -210,7 +210,7 @@ namespace jiminy
         if (returnCode == hresult_t::SUCCESS)
         {
             // Get the system index
-            std::ptrdiff_t systemIdx;
+            std::ptrdiff_t systemIdx{};
             getSystemIdx(systemName, systemIdx);  // Cannot fail at this point
 
             // Update the systems' indices for the remaining coupling forces
@@ -899,7 +899,8 @@ namespace jiminy
         // Reset the random number generators
         if (resetRandomNumbers)
         {
-            generator_.seed(std::seed_seq{engineOptions_->stepper.randomSeed});
+            VectorX<uint32_t> seedSeq = engineOptions_->stepper.randomSeedSeq;
+            generator_.seed(std::seed_seq(seedSeq.data(), seedSeq.data() + seedSeq.size()));
         }
 
         // Reset the internal state of the robot and controller
@@ -1620,7 +1621,7 @@ namespace jiminy
                 isFirstIter = false;
             }
 
-            // Update sensor data one last time to take into account the actual acceleration
+            // Update sensor data one last time to take into account the actual motor effort
             systemIt = systems_.begin();
             systemDataIt = systemsDataHolder_.begin();
             for (; systemIt != systems_.end(); ++systemIt, ++systemDataIt)
@@ -2962,10 +2963,12 @@ namespace jiminy
 
         /* Reset random number generators if setOptions is called for the first time, or if the
            desired random seed has changed. */
-        const uint32_t randomSeed = boost::get<uint32_t>(stepperOptions.at("randomSeed"));
-        if (!engineOptions_ || randomSeed != engineOptions_->stepper.randomSeed)
+        const VectorX<uint32_t> & seedSeq =
+            boost::get<VectorX<uint32_t>>(stepperOptions.at("randomSeedSeq"));
+        if (!engineOptions_ || seedSeq.size() != engineOptions_->stepper.randomSeedSeq.size() ||
+            (seedSeq.array() != engineOptions_->stepper.randomSeedSeq.array()).any())
         {
-            generator_.seed(std::seed_seq{randomSeed});
+            generator_.seed(std::seed_seq(seedSeq.data(), seedSeq.data() + seedSeq.size()));
         }
 
         // Update the internal options

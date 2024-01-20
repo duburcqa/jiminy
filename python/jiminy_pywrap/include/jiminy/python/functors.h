@@ -232,6 +232,7 @@ namespace jiminy::python
                 normal = Eigen::Vector3d::UnitZ();
                 break;
             case heightmapType_t::GENERIC:
+            default:
                 handlePyPtr_(
                     posFrame, convertToPython(height, false), convertToPython(normal, false));
             }

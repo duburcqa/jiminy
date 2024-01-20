@@ -199,7 +199,7 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
             self._registered_variables, 0)
 
         # Internal buffers for physics computations
-        self._seed: List[np.uint32] = []
+        self._seed: int = 0
         self.np_random = np.random.Generator(
             np.random.SFC64(np.random.SeedSequence()))
         self.log_path: Optional[str] = None
@@ -529,7 +529,7 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
         self.action_space = spaces.Box(
             low=-action_scale, high=action_scale, dtype=np.float64)
 
-    def _initialize_seed(self, seed: Optional[int] = None) -> List[np.uint32]:
+    def _initialize_seed(self, seed: Optional[int] = None):
         """Specify the seed of the environment.
 
         .. note::
@@ -545,20 +545,23 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
 
         :returns: Updated seed of the environment
         """
-        # Generate a sequence of 3 bytes uint32 seeds
-        self._seed = list(np.random.SeedSequence(seed).generate_state(3))
+        # Backup the original seed to allow for resetting the RNG
+        self._seed = seed
+
+        # Generate distinct sequences of 3 bytes uint32 seeds for the engine
+        # and environment.
+        engine_seed = np.random.SeedSequence(seed).generate_state(3)
+        np_seed = np.random.SeedSequence(engine_seed).generate_state(3)
 
         # Re-initialize the low-level bit generator based on the provided seed
-        self.np_random.bit_generator.state = np.random.SFC64(self._seed).state
+        self.np_random.bit_generator.state = np.random.SFC64(np_seed).state
 
         # Reset the seed of the action and observation spaces
-        self.observation_space.seed(seed)
-        self.action_space.seed(seed)
+        self.observation_space.seed(self._seed)
+        self.action_space.seed(self._seed)
 
         # Reset the seed of Jiminy Engine
-        self.simulator.seed(self._seed[0])
-
-        return self._seed
+        self.simulator.seed(engine_seed)
 
     def register_variable(self,
                           name: str,

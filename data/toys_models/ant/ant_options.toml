@@ -6,7 +6,7 @@ odeSolver = "runge_kutta_4"
 sensorsUpdatePeriod = 0.01
 controllerUpdatePeriod = 0.01
 logInternalStepperSteps = false
-randomSeed = 0
+randomSeedSeq = [0,]
 
 # ============== Contact dynamics ===============
 

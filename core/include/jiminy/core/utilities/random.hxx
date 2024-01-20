@@ -28,12 +28,12 @@ namespace jiminy
             auto buffer_it = buffer.cbegin();
             for (uint64_t & dest : result)
             {
-                uint64_t value{0ULL};
+                uint64_t value{0UL};
                 uint32_t shift{0U};
                 for (std::size_t j = 0; j < kScale; ++j)
                 {
                     value |= static_cast<uint64_t>(*(buffer_it++)) << shift;
-                    shift += kSrcBits;
+                    shift += static_cast<uint32_t>(kSrcBits);
                 }
                 dest = value;
             }
@@ -175,7 +175,7 @@ namespace jiminy
                 const double rho = -g(1, i) / g(0, i);
                 // H << 1.0, rho,
                 //      rho, 1.0;
-                Eigen::Map<Eigen::Vector4d>(H.data()).template segment<2>(1).fill(rho);
+                Eigen::Vector4d::Map(H.data()).template segment<2>(1).fill(rho);
                 g.rightCols(n - i) = H * g.rightCols(n - i) / std::sqrt((1.0 - rho) * (1.0 + rho));
                 l.col(i).tail(n - i) = g.row(0).tail(n - i);
                 g.row(0).tail(n - i - 1) = g.row(0).segment(i, n - i - 1).eval();

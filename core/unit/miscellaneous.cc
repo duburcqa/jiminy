@@ -61,7 +61,10 @@ TEST(Miscellaneous, swapMatrixRows)
 
 TEST(Miscellaneous, MatrixRandom)
 {
-    std::mt19937 gen32{0};
+    using generator_t =
+        std::independent_bits_engine<std::mt19937, std::numeric_limits<uint32_t>::digits, uint32_t>;
+
+    generator_t gen32{0};
     uniform_random_bit_generator_ref<uint32_t> gen32_ref = gen32;
 
     float mean = 5.0;
@@ -74,8 +77,9 @@ TEST(Miscellaneous, MatrixRandom)
 
     {
         gen32.seed(0);
-        scalar_random_op<float(std::mt19937 &, float, float)> op{
-            [](auto & g, float mean, float stddev) -> float { return normal(g, mean, stddev); },
+        scalar_random_op<float(generator_t &, float, float)> op{
+            [](auto & g, float _mean, float _stddev) -> float
+            { return normal(g, _mean, _stddev); },
             gen32,
             mean_vec,
             stddev_vec};
@@ -110,7 +114,7 @@ TEST(Miscellaneous, MatrixRandom)
     }
     {
         gen32.seed(0);
-        auto mat_expr = normal(gen32_ref, mean, stddev_vec);
+        auto mat_expr = normal(gen32_ref, mean, stddev_vec.transpose());
         ASSERT_FLOAT_EQ(mat_expr(0, 0), value1);
         ASSERT_FLOAT_EQ(mat_expr(1, 0), value2);
         ASSERT_THAT(mat_expr(0, 0), testing::Not(testing::FloatEq(value1)));

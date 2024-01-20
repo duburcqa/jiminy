@@ -72,10 +72,25 @@ namespace jiminy::python
         Py##class##Visitor::expose();      \
     }
 
+    template<typename T>
+    struct get_signature_impl;
+
     template<typename R, typename... Args>
-    boost::mpl::vector<R, Args...> functionToMLP(std::function<R(Args...)> /* func */)
+    struct get_signature_impl<std::function<R(Args...)>>
     {
-        return {};
+        static constexpr const boost::mpl::vector<R, Args...> value{};
+    };
+
+    template<typename T>
+    constexpr auto getSignature(T && fun)
+    {
+        return get_signature_impl<decltype(std::function{fun})>::value;
+    }
+
+    template<class F, class CallPolicies, class Keywords>
+    bp::object makeFunction(F f, const CallPolicies & policies, const Keywords & keywords)
+    {
+        return bp::make_function(f, policies, keywords, getSignature(f));
     }
 
     namespace detail
@@ -625,7 +640,7 @@ namespace jiminy::python
     /// Convert most C++ objects into Python objects by value
     template<typename T>
     std::enable_if_t<
-        !is_vector_v<T> && !is_array_v<T> && !is_eigen_object_v<T> &&
+        !is_vector_v<T> && !is_array_v<T> && !is_eigen_any_v<T> &&
             !std::is_arithmetic_v<std::decay_t<T>> &&
             !std::is_same_v<std::decay_t<T>, GenericConfig> &&
             !std::is_same_v<std::decay_t<T>, std::pair<const std::string, SensorDataTypeMap>> &&
@@ -654,17 +669,25 @@ namespace jiminy::python
     }
 
     template<typename T>
-    std::enable_if_t<is_eigen_object_v<T>, bp::object> convertToPython(T && data,
-                                                                       const bool & copy = true)
+    std::enable_if_t<is_eigen_any_v<T>, bp::object> convertToPython(T && data,
+                                                                    const bool & copy = true)
     {
-        PyObject * vecPyPtr = getNumpyReference(data);
-        if (copy)
+        if constexpr (!is_eigen_object_v<T>)
         {
-            PyObject * copyVecPyPtr = PyArray_FROM_OF(vecPyPtr, NPY_ARRAY_ENSURECOPY);
-            bp::decref(vecPyPtr);
-            vecPyPtr = copyVecPyPtr;
+            assert(copy && "Impossible to convert Eigen expression to python without copy.");
+            return convertToPython(data.eval(), true);
         }
-        return bp::object(bp::handle<>(vecPyPtr));
+        else
+        {
+            PyObject * matPyPtr = getNumpyReference(data);
+            if (copy)
+            {
+                PyObject * copyMatPyPtr = PyArray_FROM_OF(matPyPtr, NPY_ARRAY_ENSURECOPY);
+                bp::decref(matPyPtr);
+                matPyPtr = copyMatPyPtr;
+            }
+            return bp::object(bp::handle<>(matPyPtr));
+        }
     }
 
     template<typename T>
@@ -940,16 +963,33 @@ namespace jiminy::python
         return flexData;
     }
 
+
     template<typename T>
     std::enable_if_t<is_vector_v<T>, T> convertFromPython(const bp::object & dataPy)
     {
-        const bp::list listPy = bp::extract<bp::list>(dataPy);
         T vec;
-        vec.reserve(bp::len(listPy));
-        for (bp::ssize_t i = 0; i < bp::len(listPy); ++i)
+
+        auto converter = [&vec](auto seqPy)
         {
-            vec.push_back(convertFromPython<typename T::value_type>(listPy[i]));
+            vec.reserve(bp::len(seqPy));
+            for (bp::ssize_t i = 0; i < bp::len(seqPy); ++i)
+            {
+                vec.push_back(convertFromPython<typename T::value_type>(seqPy[i]));
+            }
+        };
+
+        bp::extract<bp::list> dataPyListExtract{dataPy};
+        if (dataPyListExtract.check())
+        {
+            bp::list listPy = dataPyListExtract();
+            converter(listPy);
         }
+        else
+        {
+            bp::tuple tuplePy = bp::extract<bp::tuple>(dataPy);
+            converter(tuplePy);
+        }
+
         return vec;
     }
 

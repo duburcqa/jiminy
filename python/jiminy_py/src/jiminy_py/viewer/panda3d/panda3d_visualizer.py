@@ -1976,57 +1976,80 @@ class Panda3dViewer:
 
 
 def convertBVHCollisionGeometryToPrimitive(
-        geom: Union[hppfcl.Convex, hppfcl.BVHModelBase]) -> Geom:
+        geom: Union[hppfcl.Convex, hppfcl.BVHModelBase]) -> Optional[Geom]:
     """Convert a triangle-based collision geometry associated to a primitive
     geometry for rendering it with Panda3D.
 
     :param geom: CollisionGeometry to convert.
     """
     # Extract vertices and faces from geometry
-    if isinstance(geom, hppfcl.Convex):
-        vertices = geom.points()
-        num_faces, get_faces = geom.num_polygons, geom.polygons
+    if isinstance(geom, hppfcl.HeightFieldOBBRSS):
+        x_grid, y_grid = geom.getXGrid(), geom.getYGrid()
+        x_dim, y_dim = len(x_grid), len(y_grid)
+        vertices = np.stack((
+            np.tile(x_grid, y_dim),
+            np.repeat(y_grid, x_dim),
+            geom.getHeights().flat
+        ), axis=1, dtype=np.float32)
+
+        num_faces = 2 * (x_dim - 1) * (y_dim - 1)
+        faces = np.empty((num_faces, 3), dtype=np.uint32)
+        tri_index = 0
+        for i in range(x_dim - 1):
+            for j in range(y_dim - 1):
+                k = j * x_dim + i
+                faces[tri_index:(tri_index + 2)].flat[:] = (
+                    k, k + x_dim + 1, k + 1,
+                    k, k + x_dim, k + x_dim + 1)
+                tri_index += 2
     else:
-        vertices = geom.vertices()
-        num_faces, get_faces = geom.num_tris, geom.tri_indices
-    faces = np.empty((num_faces, 3), dtype=np.int32)
-    for i in range(num_faces):
-        tri = get_faces(i)
-        for j in range(3):
-            faces[i, j] = tri[j]
+        if isinstance(geom, hppfcl.Convex):
+            vertices = geom.points()
+            num_faces, get_faces = geom.num_polygons, geom.polygons
+        elif isinstance(geom, hppfcl.BVHModelBase):
+            vertices = geom.vertices().astype(np.float32)
+            num_faces, get_faces = geom.num_tris, geom.tri_indices
+        else:
+            raise RuntimeError(f"CollisionGeometry '{geom}' is not supported.")
+
+        faces = np.empty((num_faces, 3), dtype=np.uint32)
+        for i in range(num_faces):
+            tri = get_faces(i)
+            for j in range(3):
+                faces[i, j] = tri[j]
+
+    # Define normal to vertices as the average normal of adjacent triangles
+    fnormals = np.cross(vertices[faces[:, 2]] - vertices[faces[:, 1]],
+                        vertices[faces[:, 0]] - vertices[faces[:, 1]])
+    fnormals /= np.linalg.norm(fnormals, axis=0)
+    normals = np.zeros((len(vertices), 3), dtype=np.float32)
+    for i in range(3):
+        normals[faces[:, i]] += fnormals
+    normals /= np.linalg.norm(normals, axis=0)
 
     # Return immediately if there is nothing to load
     if num_faces == 0:
-        return
+        return None
 
-    # Create primitive triangle geometry.
-    # Note that the redundant vertices are added for efficiency
-    # because avoiding duplication requires expensive search.
-    vformat = GeomVertexFormat.get_v3n3()
+    # Create primitive triangle geometry
+    vformat = GeomVertexFormat()
+    vformat.addArray(GeomVertexArrayFormat(
+        "vertex", 3, Geom.NT_float32, Geom.C_point))
+    vformat.addArray(GeomVertexArrayFormat(
+        "normal", 3, Geom.NT_float32, Geom.C_normal))
+    vformat = GeomVertexFormat.registerFormat(vformat)
     vdata = GeomVertexData('vdata', vformat, Geom.UHStatic)
-    vdata.unclean_set_num_rows(3 * len(faces))
-    vwriter = GeomVertexWriter(vdata, 'vertex')
-    nwriter = GeomVertexWriter(vdata, "normal")
-    normals = np.empty((len(faces), 3))
-    for i, face in enumerate(faces):
-        pts = vertices[face]
-        v1, v2 = pts[1] - pts[0], pts[2] - pts[1]
-        normals[i] = np.cross(v1, v2)
-        for pt in pts:
-            vwriter.add_data3(*pt)
-    normals /= np.linalg.norm(normals, axis=0)
-    for normal in normals:
-        for i in range(3):
-            nwriter.add_data3(*normal)
+    vdata.modify_array_handle(0).copy_data_from(vertices)
+    vdata.modify_array_handle(1).copy_data_from(normals)
     prim = GeomTriangles(Geom.UHStatic)
-    prim.reserve_num_vertices(len(faces))
-    faces.flat[:] = np.arange(faces.size)
-    for face in faces:
-        prim.addVertices(*face)
-    obj = Geom(vdata)
-    obj.addPrimitive(prim)
+    prim.set_index_type(GeomEnums.NTUint32)
+    prim.modify_vertices(-1).modify_handle().copy_data_from(faces)
 
-    return obj
+    # Create geometry object
+    geom = Geom(vdata)
+    geom.add_primitive(prim)
+
+    return geom
 
 
 class Panda3dVisualizer(BaseVisualizer):

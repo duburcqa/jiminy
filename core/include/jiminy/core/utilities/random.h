@@ -93,9 +93,10 @@ namespace jiminy
     public:
         using result_type = ResultType;
 
-        template<typename F,
-                 typename = std::enable_if_t<std::bool_constant<
-                     std::decay_t<F>::min() == min_ && std::decay_t<F>::max() == max_>::value>>
+        template<typename F
+                 //  ,typename = std::enable_if_t<std::bool_constant<
+                 //      std::decay_t<F>::min() == min_ && std::decay_t<F>::max() == max_>::value>
+                 >
         constexpr uniform_random_bit_generator_ref(F && f) noexcept :
         function_ref<result_type()>(f)
         {
@@ -126,22 +127,23 @@ namespace jiminy
     class scalar_random_op<R(DerivedArgs...), StackedArgs...>
     {
     public:
+        // FIXME: Add 'noexcept' specifier once Eigen>=3.4.0 is enforced as strict requirement
         constexpr scalar_random_op(
-            const scalar_random_op<R(DerivedArgs...), StackedArgs...> & rhs) noexcept = default;
+            const scalar_random_op<R(DerivedArgs...), StackedArgs...> & rhs) = default;
 
         template<typename... StackedArgsIn>
-        constexpr scalar_random_op(R (*f)(DerivedArgs...), StackedArgsIn &&... args) noexcept :
+        constexpr scalar_random_op(R (*f)(DerivedArgs...), StackedArgsIn &&... args) :
         fun_(f),
         args_(std::forward<StackedArgsIn>(args)...)
         {
         }
 
         constexpr scalar_random_op<R(DerivedArgs...), StackedArgs...> & operator=(
-            const scalar_random_op<R(DerivedArgs...), StackedArgs...> & rhs) noexcept = default;
+            const scalar_random_op<R(DerivedArgs...), StackedArgs...> & rhs) = default;
 
         template<typename F,
                  typename = std::enable_if_t<!std::is_same_v<std::decay_t<F>, scalar_random_op>>>
-        scalar_random_op<R(DerivedArgs...), StackedArgs...> & operator=(F && f) noexcept = delete;
+        scalar_random_op<R(DerivedArgs...), StackedArgs...> & operator=(F && f) = delete;
 
         R operator()(Eigen::Index i, Eigen::Index j = 0) const
         {

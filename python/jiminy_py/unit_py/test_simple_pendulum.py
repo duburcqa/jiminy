@@ -201,9 +201,7 @@ class SimulateSimplePendulum(unittest.TestCase):
         x_rk_python = integrate_dynamics(time, x0, dynamics)
 
         # Compute sensor acceleration, i.e. acceleration in polar coordinates
-        theta = x_rk_python[:, 0]
-        dtheta = x_rk_python[:, 1]
-        dtheta = x_rk_python[:, 1]
+        theta, dtheta = x_rk_python[:, 0], x_rk_python[:, 1]
 
         # Acceleration: to resolve algebraic loop (current acceleration is
         # function of input which itself is function of sensor signal, sensor
@@ -222,9 +220,9 @@ class SimulateSimplePendulum(unittest.TestCase):
         # Compare sensor signal, ignoring first iterations that correspond to
         # system initialization
         self.assertTrue(np.allclose(
-            expected_gyro[2:, :], gyro_jiminy[2:, :], atol=TOLERANCE))
+            expected_gyro, gyro_jiminy, atol=TOLERANCE))
         self.assertTrue(np.allclose(
-            expected_accel[2:, :], accel_jiminy[2:, :], atol=TOLERANCE))
+            expected_accel, accel_jiminy, atol=TOLERANCE))
 
     def test_sensor_delay(self):
         """Test sensor delay for an IMU sensor on a simple pendulum.

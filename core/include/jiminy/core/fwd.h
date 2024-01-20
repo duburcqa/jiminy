@@ -45,9 +45,6 @@ namespace jiminy
     template<typename Scalar>
     using MatrixX = Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>;
 
-    template<typename Scalar>
-    using Matrix3X = Eigen::Matrix<Scalar, 3, Eigen::Dynamic>;
-
     using Matrix6Xd = Eigen::Matrix<double, 6, Eigen::Dynamic>;
 
 #define EIGEN_MAKE_FIXED_TYPEDEFS(Size) \
@@ -225,6 +222,7 @@ namespace jiminy
                                int32_t,
                                double,
                                std::string,
+                               VectorX<uint32_t>,
                                Eigen::VectorXd,
                                Eigen::MatrixXd,
                                HeightmapFunctor,

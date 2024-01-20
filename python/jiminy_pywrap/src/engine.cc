@@ -24,20 +24,18 @@ namespace jiminy::python
 
     static bp::object forceProfileWrapper(const ForceProfile & self)
     {
-        bp::object func = bp::make_function(self.forceFct,
-                                            bp::return_value_policy<bp::return_by_value>(),
-                                            (bp::arg("t"), "q", "v"),
-                                            functionToMLP(self.forceFct));
+        bp::object func = makeFunction(self.forceFct,
+                                       bp::return_value_policy<bp::return_by_value>(),
+                                       (bp::arg("t"), "q", "v"));
         setFunctionWrapperModule<ForceProfile>(func);
         return func;
     }
 
     static bp::object forceCouplingWrapper(const ForceCoupling & self)
     {
-        bp::object func = bp::make_function(self.forceFct,
-                                            bp::return_value_policy<bp::return_by_value>(),
-                                            (bp::arg("t"), "q_1", "v_1", "q_2", "v_2"),
-                                            functionToMLP(self.forceFct));
+        bp::object func = makeFunction(self.forceFct,
+                                       bp::return_value_policy<bp::return_by_value>(),
+                                       (bp::arg("t"), "q_1", "v_1", "q_2", "v_2"));
         setFunctionWrapperModule<ForceCoupling>(func);
         return func;
     }

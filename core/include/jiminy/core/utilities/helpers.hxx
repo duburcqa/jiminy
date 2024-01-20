@@ -110,6 +110,8 @@ namespace jiminy
         return {(... && lambda(values)), minValue};
     }
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
     template<typename InputIt, typename UnaryFunction>
     std::enable_if_t<std::is_invocable_r_v<const double &,
                                            UnaryFunction,
@@ -117,7 +119,7 @@ namespace jiminy
                      std::tuple<bool, const double &>>
     isGcdIncluded(InputIt first, InputIt last, const UnaryFunction & func)
     {
-        const double minValue = std::transform_reduce(first, last, INF, minClipped<>, func);
+        const double & minValue = std::transform_reduce(first, last, INF, minClipped<>, func);
         if (!std::isfinite(minValue))
         {
             return {true, INF};
@@ -168,6 +170,7 @@ namespace jiminy
             return {std::fmod(value1, value2) < EPS, value2};
         }
     }
+#pragma GCC diagnostic pop
 
     // ********************************** Std::vector helpers ********************************** //
 

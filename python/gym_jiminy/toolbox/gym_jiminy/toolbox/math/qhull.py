@@ -5,7 +5,7 @@ from typing import Optional
 import numpy as np
 import numba as nb
 from numba.np.extensions import cross2d
-from scipy.spatial.qhull import _qhull
+from scipy.spatial import _qhull
 
 from .generic import squared_norm_2
 

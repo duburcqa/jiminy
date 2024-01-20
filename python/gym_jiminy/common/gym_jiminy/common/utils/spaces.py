@@ -88,9 +88,10 @@ def _array_contains(value: np.ndarray,
         tol_nd = np.full_like(value, tol_abs)
         if low is not None and high is not None and tol_rel > 0.0:
             tol_nd = np.maximum((high - low) * tol_rel, tol_nd)
-        if low is not None and (low - tol_nd > value).all():
+        # Reversed bound check because 'all' is always true for empty arrays
+        if low is not None and not (low - tol_nd <= value).all():
             return False
-        if high is not None and (value > high + tol_nd).all():
+        if high is not None and not (value <= high + tol_nd).all():
             return False
         return True
     tol_0d = tol_abs

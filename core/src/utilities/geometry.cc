@@ -1,5 +1,6 @@
 #include "hpp/fcl/BVH/BVH_model.h"  // `hpp::fcl::CollisionGeometry`, `hpp::fcl::BVHModel`, `hpp::fcl::OBBRSS`
 #include "hpp/fcl/shape/geometric_shapes.h"  // `hpp::fcl::Halfspace`
+#include "hpp/fcl/hfield.h"                  // `hpp::fcl::HeightField`
 #include "jiminy/core/utilities/geometry.h"
 
 
@@ -106,7 +107,7 @@ namespace jiminy
 
         struct Triangle
         {
-            Vector3<std::size_t> v;
+            std::array<std::size_t, 3> v;
             std::array<double, 4> err;
             Eigen::Vector3d n;
             bool is_deleted;
@@ -128,6 +129,8 @@ namespace jiminy
             std::size_t t_vertex;
         };
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
         /// @brief Fast mesh simplification utility.
         ///
         /// @details The original algorithm has been developed by Michael Garland and Paul
@@ -141,20 +144,22 @@ namespace jiminy
         class MeshSimplifier
         {
         public:
-            MeshSimplifier(const Matrix3X<double> & verts, const Matrix3X<Eigen::Index> & tris)
+            MeshSimplifier(const hpp::fcl::Matrixx3f & verts, const hpp::fcl::Matrixx3i & tris)
             {
-                vertices.reserve(verts.cols());
-                for (Eigen::Index i = 0; i < verts.cols(); ++i)
+                vertices.reserve(verts.rows());
+                for (Eigen::Index i = 0; i < verts.rows(); ++i)
                 {
-                    Vertex v{};
-                    v.p = verts.col(i);
+                    // FIXME: Use designated initializer when moving to c++20
+                    Vertex v;
+                    v.p = verts.row(i);
                     vertices.push_back(std::move(v));
                 }
                 triangles.reserve(tris.cols());
-                for (Eigen::Index i = 0; i < tris.cols(); ++i)
+                for (Eigen::Index i = 0; i < tris.rows(); ++i)
                 {
-                    Triangle t{};
-                    t.v = tris.col(i).cast<std::size_t>();
+                    // FIXME: Use designated initializer when moving to c++20
+                    Triangle t;
+                    Vector3<std::size_t>::Map(t.v.data()) = tris.row(i).cast<std::size_t>();
                     triangles.push_back(std::move(t));
                 }
             }
@@ -583,6 +588,7 @@ namespace jiminy
             std::vector<Ref> refs{};
         };
     }
+#pragma GCC diagnostic pop
 
     hpp::fcl::CollisionGeometryPtr_t discretizeHeightmap(const HeightmapFunctor & heightmap,
                                                          double x_min,
@@ -595,41 +601,57 @@ namespace jiminy
     {
         // Allocate vertices on a regular grid
         const Eigen::Index x_dim =
-            static_cast<Eigen::Index>(std::ceil((x_max - x_min) / x_unit)) + 1;
+            static_cast<Eigen::Index>(std::round((x_max - x_min) / x_unit)) + 1;
         const Eigen::Index y_dim =
-            static_cast<Eigen::Index>(std::ceil((y_max - y_min) / y_unit)) + 1;
-        Matrix3X<double> vertices(3, x_dim * y_dim);
+            static_cast<Eigen::Index>(std::round((y_max - y_min) / y_unit)) + 1;
+        hpp::fcl::Matrixx3f vertices(x_dim * y_dim, 3);
 
-        // Fill x and y query coordinates over the grid
-        Eigen::Map<Eigen::MatrixXd>(vertices.row(0).data(), x_dim, y_dim).rowwise() =
-            Eigen::VectorXd::LinSpaced(x_dim, x_min, x_max).transpose().eval();
-        Eigen::Map<Eigen::MatrixXd>(vertices.row(1).data(), x_dim, y_dim).colwise() =
-            Eigen::VectorXd::LinSpaced(y_dim, y_min, y_max).eval();
+        /* Fill x and y query coordinates over the grid.
+           Taking advantage of row-major storage order by default. */
+        Eigen::MatrixXd::Map(vertices.col(0).data(), x_dim, y_dim).colwise() =
+            Eigen::VectorXd::LinSpaced(x_dim, x_min, x_max);
+        Eigen::MatrixXd::Map(vertices.col(1).data(), x_dim, y_dim).rowwise() =
+            Eigen::VectorXd::LinSpaced(y_dim, y_min, y_max).transpose();
 
         // Evaluate z coordinate over the grid
-        for (Eigen::Index i = 0; i < vertices.cols(); ++i)
+        for (Eigen::Index i = 0; i < vertices.rows(); ++i)
         {
-            auto vertex = vertices.col(i);
+            auto vertex = vertices.row(i);
             Eigen::Vector3d normal;
             heightmap(vertex.head<2>(), vertex[2], normal);
         }
 
         // Check if the heightmap is flat
-        if (((vertices.row(2).array() - vertices(2, 0)).abs() < EPS).all())
+        if (((vertices.col(2).array() - vertices(0, 2)).abs() < EPS).all())
         {
-            return hpp::fcl::CollisionGeometryPtr_t(
-                new hpp::fcl::Halfspace(Eigen::Vector3d::UnitZ(), vertices(2, 0)));
+            hpp::fcl::CollisionGeometryPtr_t mesh_ptr(
+                new hpp::fcl::Halfspace(Eigen::Vector3d::UnitZ(), vertices(0, 2)));
+            mesh_ptr->computeLocalAABB();
+            return mesh_ptr;
+        }
+
+        // Return heightfield if no simplification requested and grid is centered
+        if (abs(x_min + x_max) < 1e-6 && abs(y_min + y_max) < 1e-6 && !must_simplify)
+        {
+            auto heights = Eigen::MatrixXd::Map(vertices.col(2).data(), x_dim, y_dim);
+            hpp::fcl::CollisionGeometryPtr_t mesh_ptr(new hpp::fcl::HeightField<hpp::fcl::OBBRSS>(
+                x_max - x_min,
+                y_max - y_min,
+                heights.transpose().colwise().reverse(),
+                vertices.col(2).minCoeff()));
+            mesh_ptr->computeLocalAABB();
+            return mesh_ptr;
         }
 
         // Compute the face indices
-        Matrix3X<Eigen::Index> triangles(3, 2 * (x_dim - 1) * (y_dim - 1));
+        hpp::fcl::Matrixx3i triangles(2 * (x_dim - 1) * (y_dim - 1), 3);
         Eigen::Index tri_index = 0;
         for (Eigen::Index i = 0; i < x_dim - 1; ++i)
         {
             for (Eigen::Index j = 0; j < y_dim - 1; ++j)
             {
                 const Eigen::Index k = j * x_dim + i;
-                triangles.middleCols<2>(tri_index) << k, k + 1, k + x_dim, k + 1, k + 1 + x_dim,
+                triangles.middleRows<2>(tri_index) << k, k + 1, k + x_dim, k + 1, k + 1 + x_dim,
                     k + x_dim;
                 tri_index += 2;
             }
@@ -640,25 +662,25 @@ namespace jiminy
         {
             // The border must be preserved to avoid changing the boundary of the surface
             internal::MeshSimplifier mesh_simplifier(vertices, triangles);
-            mesh_simplifier.simplify(4, 4, 21, 3.0e-9, 3, true, true);
-            vertices.resize(Eigen::NoChange, mesh_simplifier.vertices.size());
-            for (Eigen::Index i = 0; i < vertices.cols(); ++i)
+            mesh_simplifier.simplify(4, 4, 21, 3.0e-9, 3, true, false);
+            vertices.resize(mesh_simplifier.vertices.size(), Eigen::NoChange);
+            for (Eigen::Index i = 0; i < vertices.rows(); ++i)
             {
-                vertices.col(i) = mesh_simplifier.vertices[i].p;
+                vertices.row(i) = mesh_simplifier.vertices[i].p;
             }
-            triangles.resize(Eigen::NoChange, mesh_simplifier.triangles.size());
-            for (Eigen::Index i = 0; i < triangles.cols(); ++i)
+            triangles.resize(mesh_simplifier.triangles.size(), Eigen::NoChange);
+            for (Eigen::Index i = 0; i < triangles.rows(); ++i)
             {
-                triangles.col(i) = mesh_simplifier.triangles[i].v.cast<Eigen::Index>();
+                triangles.row(i) = Vector3<std::size_t>::Map(mesh_simplifier.triangles[i].v.data())
+                                       .cast<Eigen::Index>();
             }
         }
 
-        /* Wrap the vertices and triangles in a geometry object.
-           Do not use `addVertices` and `addTriangles`to avoid extra copy. */
+        // Wrap the vertices and triangles in a geometry object
         hpp::fcl::BVHModelPtr_t mesh_ptr(new hpp::fcl::BVHModel<hpp::fcl::OBBRSS>);
         mesh_ptr->beginModel();
-        mesh_ptr->addVertices(vertices.transpose());    // Beware it performs a copy
-        mesh_ptr->addTriangles(triangles.transpose());  // Beware it performs a copy
+        mesh_ptr->addVertices(vertices);
+        mesh_ptr->addTriangles(triangles);
         mesh_ptr->endModel();
         mesh_ptr->computeLocalAABB();
         return mesh_ptr;

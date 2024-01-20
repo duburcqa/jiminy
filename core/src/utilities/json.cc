@@ -119,21 +119,6 @@ namespace jiminy
     }
 
     template<>
-    Eigen::VectorXd convertFromJson<Eigen::VectorXd>(const Json::Value & value)
-    {
-        Eigen::VectorXd vec{};
-        if (value.size() > 0)
-        {
-            vec.resize(value.size());
-            for (auto it = value.begin(); it != value.end(); ++it)
-            {
-                vec[it.index()] = convertFromJson<double>(*it);
-            }
-        }
-        return vec;
-    }
-
-    template<>
     Eigen::MatrixXd convertFromJson<Eigen::MatrixXd>(const Json::Value & value)
     {
         Eigen::MatrixXd mat{};
@@ -250,6 +235,10 @@ namespace jiminy
                     if (it->type() == Json::realValue)
                     {
                         field = convertFromJson<Eigen::VectorXd>(*root);
+                    }
+                    else if (it->isConvertibleTo(Json::uintValue))
+                    {
+                        field = convertFromJson<VectorX<uint32_t>>(*root);
                     }
                     else if (it->type() == Json::arrayValue)
                     {

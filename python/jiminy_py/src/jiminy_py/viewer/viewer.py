@@ -1823,7 +1823,7 @@ class Viewer:
         # Discretize heightmap
         mesh = discretize_heightmap(
             ground_profile, *x_range, grid_unit[0], *y_range, grid_unit[1],
-            must_simplify=simplify_meshes or True)
+            must_simplify=simplify_meshes)
 
         # Early return if flat ground
         if isinstance(mesh, hppfcl.Halfspace):
