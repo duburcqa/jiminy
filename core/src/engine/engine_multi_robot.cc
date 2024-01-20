@@ -3330,7 +3330,7 @@ namespace jiminy
 
                 // Deduce the ground reaction force in joint frame
                 fextLocal =
-                    convertForceFixedFrameToJoint(model, data, frameIdx, fextAtContactInGlobal);
+                    convertForceGlobalFrameToJoint(model, data, frameIdx, fextAtContactInGlobal);
             }
             else
             {

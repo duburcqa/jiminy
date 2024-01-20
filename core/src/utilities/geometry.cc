@@ -594,8 +594,10 @@ namespace jiminy
                                                          bool must_simplify)
     {
         // Allocate vertices on a regular grid
-        const uint32_t x_dim = static_cast<uint32_t>(std::ceil((x_max - x_min) / x_unit)) + 1U;
-        const uint32_t y_dim = static_cast<uint32_t>(std::ceil((y_max - y_min) / y_unit)) + 1U;
+        const Eigen::Index x_dim =
+            static_cast<Eigen::Index>(std::ceil((x_max - x_min) / x_unit)) + 1;
+        const Eigen::Index y_dim =
+            static_cast<Eigen::Index>(std::ceil((y_max - y_min) / y_unit)) + 1;
         Matrix3X<double> vertices(3, x_dim * y_dim);
 
         // Fill x and y query coordinates over the grid
@@ -607,8 +609,9 @@ namespace jiminy
         // Evaluate z coordinate over the grid
         for (Eigen::Index i = 0; i < vertices.cols(); ++i)
         {
+            auto vertex = vertices.col(i);
             Eigen::Vector3d normal;
-            heightmap(vertices.block<2, 1>(0, i), vertices(2, i), normal);
+            heightmap(vertex.head<2>(), vertex[2], normal);
         }
 
         // Check if the heightmap is flat
@@ -638,24 +641,26 @@ namespace jiminy
             // The border must be preserved to avoid changing the boundary of the surface
             internal::MeshSimplifier mesh_simplifier(vertices, triangles);
             mesh_simplifier.simplify(4, 4, 21, 3.0e-9, 3, true, true);
-            vertices.resize(mesh_simplifier.vertices.size(), Eigen::NoChange);
+            vertices.resize(Eigen::NoChange, mesh_simplifier.vertices.size());
             for (Eigen::Index i = 0; i < vertices.cols(); ++i)
             {
                 vertices.col(i) = mesh_simplifier.vertices[i].p;
             }
-            triangles.resize(mesh_simplifier.triangles.size(), Eigen::NoChange);
+            triangles.resize(Eigen::NoChange, mesh_simplifier.triangles.size());
             for (Eigen::Index i = 0; i < triangles.cols(); ++i)
             {
                 triangles.col(i) = mesh_simplifier.triangles[i].v.cast<Eigen::Index>();
             }
         }
 
-        // Wrap the vertices and triangles in a geometry object
+        /* Wrap the vertices and triangles in a geometry object.
+           Do not use `addVertices` and `addTriangles`to avoid extra copy. */
         hpp::fcl::BVHModelPtr_t mesh_ptr(new hpp::fcl::BVHModel<hpp::fcl::OBBRSS>);
         mesh_ptr->beginModel();
-        mesh_ptr->addVertices(vertices);
-        mesh_ptr->addTriangles(triangles);
+        mesh_ptr->addVertices(vertices.transpose());    // Beware it performs a copy
+        mesh_ptr->addTriangles(triangles.transpose());  // Beware it performs a copy
         mesh_ptr->endModel();
+        mesh_ptr->computeLocalAABB();
         return mesh_ptr;
     }
 

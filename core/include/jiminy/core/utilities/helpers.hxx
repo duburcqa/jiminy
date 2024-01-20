@@ -142,7 +142,7 @@ namespace jiminy
     isGcdIncluded(InputIt first, InputIt last, const UnaryFunction & func, const Args &... values)
     {
         const auto [isIncluded1, value1] = isGcdIncluded(values...);
-        const auto [isIncluded2, value2] = isGcdIncluded(first, last, f);
+        const auto [isIncluded2, value2] = isGcdIncluded(first, last, func);
         if (!isIncluded1 || !isIncluded2)
         {
             return {false, INF};
@@ -207,7 +207,7 @@ namespace jiminy
         const auto vec1End = vec1.cend();
         for (const auto & elem2 : vec2)
         {
-            const auto vec1It = std::find(vec1.cbegin(), vec1_end, elem2);
+            const auto vec1It = std::find(vec1.cbegin(), vec1End, elem2);
             if (vec1It == vec1End)
             {
                 return false;

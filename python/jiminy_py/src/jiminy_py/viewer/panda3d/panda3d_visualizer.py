@@ -363,44 +363,6 @@ def make_torus(minor_radius: float = 0.2, num_segments: int = 16) -> Geom:
     return geom
 
 
-def make_heightmap(heightmap: np.ndarray) -> Geom:
-    """Create a unit squared height map.
-
-    :param heightmap: Elevation map along x-and y-axes as a as a 2D `nd.array`
-                      of shape [N_X * N_Y, 6], where N_X, N_Y are the number
-                      of vertices on x and y axes respectively, while the last
-                      dimension corresponds to the position (x, y, z) and
-                      normal (n_x, n_y, nz) of the vertex in space.
-    """
-    # Deduce the number of vertices
-    num_vertices, _ = heightmap.shape
-    x_dim, y_dim = (int(math.sqrt(num_vertices)),) * 2
-
-    # Allocation vertex
-    vformat = GeomVertexFormat.get_v3n3()
-    vdata = GeomVertexData('vdata', vformat, Geom.UH_static)
-    vdata.unclean_set_num_rows(num_vertices)
-
-    # Set vertex data
-    vdata_view = memoryview(vdata.modify_array(0)).cast("B")
-    vdata_view[:] = array.array("f", heightmap.reshape((-1,))).tobytes()
-
-    # Make triangles
-    prim = GeomTriangles(Geom.UHStatic)
-    prim.reserve_num_vertices(2 * (x_dim - 1) * (y_dim - 1))
-    for i in range(x_dim - 1):
-        for j in range(y_dim - 1):
-            k = i * x_dim + j
-            prim.addVertices(k, k + 1, k + x_dim)
-            prim.addVertices(k + 1, k + 1 + x_dim, k + x_dim)
-
-    # Create geometry object
-    geom = Geom(vdata)
-    geom.add_primitive(prim)
-
-    return geom
-
-
 class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
     """A Panda3D based application.
     """
@@ -961,12 +923,12 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         return node
 
     def _make_floor(self,
-                    heightmap: Optional[np.ndarray] = None,
+                    geom: Optional[Geom] = None,
                     show_meshes: bool = False) -> NodePath:
         model = GeomNode('floor')
         node = self.render.attach_new_node(model)
 
-        if heightmap is None:
+        if geom is None:
             for xi in range(-10, 10):
                 for yi in range(-10, 10):
                     tile = GeomNode(f"tile-{xi}.{yi}")
@@ -978,7 +940,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                     else:
                         tile_path.set_color((0.14, 0.14, 0.21, 1.0))
         else:
-            model.add_geom(make_heightmap(heightmap))
+            model.add_geom(geom)
             node.set_color((0.75, 0.75, 0.85, 1.0))
             if show_meshes:
                 render_attrib = node.get_state().get_attrib_def(
@@ -1018,24 +980,20 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
             self._floor.hide()
 
     def update_floor(self,
-                     heightmap: Optional[np.ndarray] = None,
+                     geom: Optional[Geom] = None,
                      show_meshes: bool = False) -> NodePath:
         """Update the floor.
 
-        :param heightmap: Height map of the ground, as a 2D nd.array of shape
-                          [N_X * N_Y, 6], where N_X, N_Y are the number of
-                          vertices on x and y axes respectively, while the
-                          last dimension corresponds to the position (x, y, z)
-                          and normal (n_x, n_y, nz) of the vertex in space. It
-                          renders a flat tile ground if not specified.
-                          Optional: None by default.
+        :param geom: Ground profile as a generic geometry object. If None, then
+                     a flat tile ground is rendered.
+                     Optional: None by default.
         """
         # Check if floor is currently hidden
         is_hidden = self._floor.isHidden()
 
         # Remove existing floor and create a new one
         self._floor.remove_node()
-        self._floor = self._make_floor(heightmap, show_meshes)
+        self._floor = self._make_floor(geom, show_meshes)
 
         # Hide the floor if is was previously hidden
         if is_hidden:
@@ -2017,6 +1975,60 @@ class Panda3dViewer:
         return chain(super().__dir__(), dir(self._app))
 
 
+def convertBVHCollisionGeometryToPrimitive(
+        geom: Union[hppfcl.Convex, hppfcl.BVHModelBase]) -> Geom:
+    """Convert a triangle-based collision geometry associated to a primitive
+    geometry for rendering it with Panda3D.
+
+    :param geom: CollisionGeometry to convert.
+    """
+    # Extract vertices and faces from geometry
+    if isinstance(geom, hppfcl.Convex):
+        vertices = geom.points()
+        num_faces, get_faces = geom.num_polygons, geom.polygons
+    else:
+        vertices = geom.vertices()
+        num_faces, get_faces = geom.num_tris, geom.tri_indices
+    faces = np.empty((num_faces, 3), dtype=np.int32)
+    for i in range(num_faces):
+        tri = get_faces(i)
+        for j in range(3):
+            faces[i, j] = tri[j]
+
+    # Return immediately if there is nothing to load
+    if num_faces == 0:
+        return
+
+    # Create primitive triangle geometry.
+    # Note that the redundant vertices are added for efficiency
+    # because avoiding duplication requires expensive search.
+    vformat = GeomVertexFormat.get_v3n3()
+    vdata = GeomVertexData('vdata', vformat, Geom.UHStatic)
+    vdata.unclean_set_num_rows(3 * len(faces))
+    vwriter = GeomVertexWriter(vdata, 'vertex')
+    nwriter = GeomVertexWriter(vdata, "normal")
+    normals = np.empty((len(faces), 3))
+    for i, face in enumerate(faces):
+        pts = vertices[face]
+        v1, v2 = pts[1] - pts[0], pts[2] - pts[1]
+        normals[i] = np.cross(v1, v2)
+        for pt in pts:
+            vwriter.add_data3(*pt)
+    normals /= np.linalg.norm(normals, axis=0)
+    for normal in normals:
+        for i in range(3):
+            nwriter.add_data3(*normal)
+    prim = GeomTriangles(Geom.UHStatic)
+    prim.reserve_num_vertices(len(faces))
+    faces.flat[:] = np.arange(faces.size)
+    for face in faces:
+        prim.addVertices(*face)
+    obj = Geom(vdata)
+    obj.addPrimitive(prim)
+
+    return obj
+
+
 class Panda3dVisualizer(BaseVisualizer):
     """A Pinocchio display using panda3d engine.
 
@@ -2111,49 +2123,8 @@ class Panda3dVisualizer(BaseVisualizer):
             elif isinstance(geom, hppfcl.Sphere):
                 self.viewer.append_sphere(*node_name, geom.radius)
             elif isinstance(geom, (hppfcl.Convex, hppfcl.BVHModelBase)):
-                # Extract vertices and faces from geometry
-                if isinstance(geom, hppfcl.Convex):
-                    vertices = geom.points()
-                    num_faces, get_faces = geom.num_polygons, geom.polygons
-                else:
-                    vertices = geom.vertices()
-                    num_faces, get_faces = geom.num_tris, geom.tri_indices
-                faces = np.empty((num_faces, 3), dtype=np.int32)
-                for i in range(num_faces):
-                    tri = get_faces(i)
-                    for j in range(3):
-                        faces[i, j] = tri[j]
-
-                # Return immediately if there is nothing to load
-                if num_faces == 0:
-                    return
-
-                # Create primitive triangle geometry.
-                # Note that the redundant vertices are added for efficiency
-                # because avoiding duplication requires expensive search.
-                vformat = GeomVertexFormat.get_v3n3()
-                vdata = GeomVertexData('vdata', vformat, Geom.UHStatic)
-                vdata.unclean_set_num_rows(3 * len(faces))
-                vwriter = GeomVertexWriter(vdata, 'vertex')
-                nwriter = GeomVertexWriter(vdata, "normal")
-                normals = np.empty((len(faces), 3))
-                for i, face in enumerate(faces):
-                    pts = vertices[face]
-                    v1, v2 = pts[1] - pts[0], pts[2] - pts[1]
-                    normals[i] = np.cross(v1, v2)
-                    for pt in pts:
-                        vwriter.add_data3(*pt)
-                normals /= np.linalg.norm(normals, axis=0)
-                for normal in normals:
-                    for i in range(3):
-                        nwriter.add_data3(*normal)
-                prim = GeomTriangles(Geom.UHStatic)
-                prim.reserve_num_vertices(len(faces))
-                faces.flat[:] = np.arange(faces.size)
-                for face in faces:
-                    prim.addVertices(*face)
-                obj = Geom(vdata)
-                obj.addPrimitive(prim)
+                # Create primitive triangle geometry
+                obj = convertBVHCollisionGeometryToPrimitive(geom)
 
                 # Add the primitive geometry to the scene
                 geom_node = GeomNode(geometry_object.name)
