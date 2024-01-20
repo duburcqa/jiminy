@@ -255,11 +255,11 @@ class SimulateSimplePendulum(unittest.TestCase):
         imu_jiminy_shifted_0 = interp1d(
             time, imu_jiminy, kind='zero',
             bounds_error=False, fill_value=imu_jiminy[0], axis=0
-        )(time - 1.0e-2)
+        )(time + 1e-10 - 1.0e-2)
         imu_jiminy_shifted_1 = interp1d(
             time, imu_jiminy,
             kind='linear', bounds_error=False, fill_value=imu_jiminy[0], axis=0
-        )(time - 1.0e-2)
+        )(time - 5.0e-3)
 
         # Configure the IMU
         imu_options = self.imu_sensor.get_options()
@@ -275,7 +275,7 @@ class SimulateSimplePendulum(unittest.TestCase):
         # Configure the IMU
         imu_options = self.imu_sensor.get_options()
         imu_options['delayInterpolationOrder'] = 1
-        imu_options['delay'] = 1.0e-2
+        imu_options['delay'] = 5.0e-3
         self.imu_sensor.set_options(imu_options)
 
         # Run simulation
@@ -284,10 +284,8 @@ class SimulateSimplePendulum(unittest.TestCase):
                 engine, tf, x0, split=False)
 
         # Compare sensor signals
-        self.assertLessEqual(
-            np.mean(imu_jiminy_delayed_0 - imu_jiminy_shifted_0), 1.0e-5)
-        self.assertTrue(np.allclose(
-            imu_jiminy_delayed_1, imu_jiminy_shifted_1, atol=TOLERANCE))
+        np.testing.assert_allclose(imu_jiminy_delayed_0, imu_jiminy_shifted_0)
+        np.testing.assert_allclose(imu_jiminy_delayed_1, imu_jiminy_shifted_1)
 
     def test_sensor_noise_bias(self):
         """Test sensor noise and bias for an IMU sensor on a simple pendulum
