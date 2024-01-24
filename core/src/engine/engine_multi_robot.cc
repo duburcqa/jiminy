@@ -1591,6 +1591,9 @@ namespace jiminy
                         return hresult_t::ERROR_GENERIC;
                     }
 
+                    // Compute all external terms including joints accelerations and forces
+                    computeAllExtraTerms(systems_, systemsDataHolder_, fPrev_);
+
                     // Compute the sensor data with the updated effort and acceleration
                     systemIt->robot->setSensorsData(t, q, v, a, uMotor, fext);
 
@@ -1629,9 +1632,6 @@ namespace jiminy
                 const ForceVector & fext = systemDataIt->state.fExternal;
                 systemIt->robot->setSensorsData(t, q, v, a, uMotor, fext);
             }
-
-            // Compute all external terms including joints accelerations and forces if requested
-            computeAllExtraTerms(systems_, systemsDataHolder_, fPrev_);
 
             // Backend the updated joint accelerations and forces
             syncAllAccelerationsAndForces(systems_, contactForcesPrev_, fPrev_, aPrev_);
