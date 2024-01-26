@@ -199,9 +199,7 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
             self._registered_variables, 0)
 
         # Internal buffers for physics computations
-        self._seed: int = 0
-        self.np_random = np.random.Generator(
-            np.random.SFC64(np.random.SeedSequence()))
+        self.np_random = np.random.Generator(np.random.SFC64())
         self.log_path: Optional[str] = None
 
         # Whether evaluation mode is active
@@ -545,9 +543,6 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
 
         :returns: Updated seed of the environment
         """
-        # Backup the original seed to allow for resetting the RNG
-        self._seed = seed
-
         # Generate distinct sequences of 3 bytes uint32 seeds for the engine
         # and environment.
         engine_seed = np.random.SeedSequence(seed).generate_state(3)
@@ -557,8 +552,8 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
         self.np_random.bit_generator.state = np.random.SFC64(np_seed).state
 
         # Reset the seed of the action and observation spaces
-        self.observation_space.seed(self._seed)
-        self.action_space.seed(self._seed)
+        self.observation_space.seed(seed)
+        self.action_space.seed(seed)
 
         # Reset the seed of Jiminy Engine
         self.simulator.seed(engine_seed)

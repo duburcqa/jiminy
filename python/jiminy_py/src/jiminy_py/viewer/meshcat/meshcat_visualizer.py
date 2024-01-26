@@ -12,6 +12,7 @@ import numpy as np
 
 import meshcat
 import meshcat.path
+import meshcat.commands
 from meshcat.geometry import (
     ReferenceSceneElement, Geometry, TriangularMeshGeometry)
 
@@ -19,6 +20,8 @@ import hppfcl
 import pinocchio as pin
 from pinocchio.utils import npToTuple
 from pinocchio.visualize import BaseVisualizer
+
+from ..geometry import extractVerticesAndFacesFromGeometry
 
 
 MsgType = Dict[str, Union[str, bytes, bool, float, 'MsgType']]
@@ -170,6 +173,36 @@ class DaeMeshGeometryWithTexture(ReferenceSceneElement):
         return data
 
 
+def updateFloor(viewer: meshcat.Visualizer,
+                geom: Optional[hppfcl.CollisionGeometry] = None) -> None:
+    """Display a custom collision geometry as ground profile or a flat tile
+    ground floor in a given viewer instance.
+
+    :param viewer: Meshcat viewer instance.
+    :param geom: Ground profile as a collision geometry object, as provided by
+                 `jiminy.discretize_heightmap`. It renders a flat tile ground
+                 if not specified.
+                 Optional: None by default.
+    """
+    # Disable the existing custom ground if any and show original flat ground
+    if geom is None:
+        viewer["Ground"].delete()
+        viewer.window.send(meshcat.commands.SetProperty(
+            "visible", True, meshcat.path.Path(("Grid",))))
+        return
+
+    # Convert provided geometry in Meshcat-specific triangle-based geometry
+    vertices, faces = extractVerticesAndFacesFromGeometry(geom)
+    obj = TriangularMeshGeometry(vertices, faces)
+    material = meshcat.geometry.MeshLambertMaterial()
+    material.color = (255 << 16) + (255 << 8) + 255
+
+    # Disable newly created custom ground profile and hide original flat ground
+    viewer["Ground"].set_object(obj, material)
+    viewer.window.send(meshcat.commands.SetProperty(
+        "visible", False, meshcat.path.Path(("Grid",))))
+
+
 class MeshcatVisualizer(BaseVisualizer):
     """A Pinocchio display using Meshcat.
 
@@ -239,29 +272,19 @@ class MeshcatVisualizer(BaseVisualizer):
             obj = meshcat.geometry.Sphere(geom.radius)
         elif isinstance(geom, hppfcl.Cone):
             obj = Cone(2. * geom.halfLength, geom.radius)
-        elif isinstance(geom, (hppfcl.Convex, hppfcl.BVHModelBase)):
-            # Extract vertices and faces from geometry
-            if isinstance(geom, hppfcl.Convex):
-                vertices = geom.points()
-                num_faces, get_faces = geom.num_polygons, geom.polygons
-            else:
-                vertices = geom.vertices()
-                num_faces, get_faces = geom.num_tris, geom.tri_indices
-            faces = np.empty((num_faces, 3), dtype=np.int32)
-            for i in range(num_faces):
-                tri = get_faces(i)
-                for j in range(3):
-                    faces[i, j] = tri[j]
-
-            # Create primitive triangle geometry
-            obj = TriangularMeshGeometry(vertices, faces)
-            geometry_object.meshScale = np.ones(3)  # It is already at scale !
         else:
-            warnings.warn(
-                f"Unsupported geometry type for {geometry_object.name} "
-                f"({type(geom)})",
-                category=UserWarning, stacklevel=2)
-            obj = None
+            try:
+                # Try extract raw vertices and faces from geometry
+                vertices, faces = extractVerticesAndFacesFromGeometry(geom)
+            except ValueError:
+                warnings.warn(
+                    f"Unsupported geometry type for {geometry_object.name} "
+                    f"({type(geom)})",
+                    category=UserWarning, stacklevel=2)
+                return None
+            else:
+                obj = TriangularMeshGeometry(vertices, faces)
+                geometry_object.meshScale = np.ones(3)  # Already at scale !
 
         return obj
 
@@ -327,8 +350,8 @@ class MeshcatVisualizer(BaseVisualizer):
             mesh_color = geometry_object.meshColor
         else:
             mesh_color = color
-        material.color = (int(mesh_color[0] * 255) * 256 ** 2 +
-                          int(mesh_color[1] * 255) * 256 +
+        material.color = ((int(mesh_color[0] * 255) << 16) +
+                          (int(mesh_color[1] * 255) << 8) +
                           int(mesh_color[2] * 255))
 
         # Add transparency, if needed.

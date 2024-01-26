@@ -46,6 +46,7 @@ from ..core import (  # pylint: disable=no-name-in-module
 from ..robot import _DuplicateFilter
 from ..dynamics import State
 from .meshcat.utilities import interactive_mode
+from .meshcat.meshcat_visualizer import updateFloor as meshcatUpdateFloor
 from .panda3d.panda3d_visualizer import (
     Tuple3FType, Tuple4FType, ShapeType, Panda3dApp, Panda3dViewer,
     Panda3dVisualizer, convertBVHCollisionGeometryToPrimitive)
@@ -1792,9 +1793,6 @@ class Viewer:
         """Display a custom ground profile as a height map or the original tile
         ground floor.
 
-        .. note::
-            This method is only supported by Panda3d for now.
-
         :param ground_profile: `jiminy_py.core.HeightmapFunctor` associated
                                with the ground profile. It renders a flat tile
                                ground if not specified.
@@ -1810,32 +1808,33 @@ class Viewer:
         assert Viewer.backend is not None
         assert Viewer._backend_obj is not None
 
-        # Return early if this method is not supported by the current backend
-        if not Viewer.backend.startswith('panda3d'):
-            LOGGER.warning("This method is only supported by Panda3d.")
-            return
-
         # Restore tile ground if heightmap is not specified
         if ground_profile is None:
-            Viewer._backend_obj.gui.update_floor()
+            if Viewer.backend.startswith('panda3d'):
+                Viewer._backend_obj.gui.update_floor()
+            else:
+                meshcatUpdateFloor(Viewer._backend_obj.gui)
             return
 
         # Discretize heightmap
-        mesh = discretize_heightmap(
+        geom = discretize_heightmap(
             ground_profile, *x_range, grid_unit[0], *y_range, grid_unit[1],
             must_simplify=simplify_meshes)
 
         # Early return if flat ground
-        if isinstance(mesh, hppfcl.Halfspace):
-            if abs(mesh.d) > 1e-6:
+        if isinstance(geom, hppfcl.Halfspace):
+            if abs(geom.d) > 1e-6:
                 raise RuntimeError(
                     "Rendering flat ground with non-zero height not supported")
-            Viewer._backend_obj.gui.update_floor()
+            Viewer.update_floor(None)
             return
 
         # Render ground geometry
-        geom = convertBVHCollisionGeometryToPrimitive(mesh)
-        Viewer._backend_obj.gui.update_floor(geom, show_meshes)
+        if Viewer.backend.startswith('panda3d'):
+            obj = convertBVHCollisionGeometryToPrimitive(geom)
+            Viewer._backend_obj.gui.update_floor(obj, show_meshes)
+        else:
+            meshcatUpdateFloor(Viewer._backend_obj.gui, geom)
 
     @staticmethod
     @_with_lock

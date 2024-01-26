@@ -535,7 +535,7 @@ class Simulator:
 
         # Enable the ground profile is requested and available
         assert self.viewer is not None and self.viewer.backend is not None
-        if self.viewer.backend.startswith('panda3d') and update_ground_profile:
+        if update_ground_profile:
             engine_options = self.engine.get_options()
             ground_profile = engine_options["world"]["groundProfile"]
             Viewer.update_floor(ground_profile, show_meshes=False)

@@ -53,6 +53,8 @@ import pinocchio as pin
 from pinocchio.utils import npToTuple
 from pinocchio.visualize import BaseVisualizer
 
+from ..geometry import extractVerticesAndFacesFromGeometry
+
 
 WINDOW_SIZE_DEFAULT = (600, 600)
 CAMERA_POS_DEFAULT = [(4.0, -4.0, 1.5), (0, 0, 0.5)]
@@ -1975,48 +1977,19 @@ class Panda3dViewer:
         return chain(super().__dir__(), dir(self._app))
 
 
-def convertBVHCollisionGeometryToPrimitive(
-        geom: Union[hppfcl.Convex, hppfcl.BVHModelBase]) -> Optional[Geom]:
+def convertBVHCollisionGeometryToPrimitive(geom: hppfcl.CollisionGeometry
+                                           ) -> Optional[Geom]:
     """Convert a triangle-based collision geometry associated to a primitive
     geometry for rendering it with Panda3D.
 
-    :param geom: CollisionGeometry to convert.
+    :param geom: Collision geometry to convert.
     """
     # Extract vertices and faces from geometry
-    if isinstance(geom, hppfcl.HeightFieldOBBRSS):
-        x_grid, y_grid = geom.getXGrid(), geom.getYGrid()
-        x_dim, y_dim = len(x_grid), len(y_grid)
-        vertices = np.stack((
-            np.tile(x_grid, y_dim),
-            np.repeat(y_grid, x_dim),
-            geom.getHeights().flat
-        ), axis=1, dtype=np.float32)
+    vertices, faces = extractVerticesAndFacesFromGeometry(geom)
 
-        num_faces = 2 * (x_dim - 1) * (y_dim - 1)
-        faces = np.empty((num_faces, 3), dtype=np.uint32)
-        tri_index = 0
-        for i in range(x_dim - 1):
-            for j in range(y_dim - 1):
-                k = j * x_dim + i
-                faces[tri_index:(tri_index + 2)].flat[:] = (
-                    k, k + x_dim + 1, k + 1,
-                    k, k + x_dim, k + x_dim + 1)
-                tri_index += 2
-    else:
-        if isinstance(geom, hppfcl.Convex):
-            vertices = geom.points()
-            num_faces, get_faces = geom.num_polygons, geom.polygons
-        elif isinstance(geom, hppfcl.BVHModelBase):
-            vertices = geom.vertices().astype(np.float32)
-            num_faces, get_faces = geom.num_tris, geom.tri_indices
-        else:
-            raise RuntimeError(f"CollisionGeometry '{geom}' is not supported.")
-
-        faces = np.empty((num_faces, 3), dtype=np.uint32)
-        for i in range(num_faces):
-            tri = get_faces(i)
-            for j in range(3):
-                faces[i, j] = tri[j]
+    # Return immediately if there is nothing to load
+    if len(faces) == 0:
+        return None
 
     # Define normal to vertices as the average normal of adjacent triangles
     fnormals = np.cross(vertices[faces[:, 2]] - vertices[faces[:, 1]],
@@ -2026,10 +1999,6 @@ def convertBVHCollisionGeometryToPrimitive(
     for i in range(3):
         normals[faces[:, i]] += fnormals
     normals /= np.linalg.norm(normals, axis=0)
-
-    # Return immediately if there is nothing to load
-    if num_faces == 0:
-        return None
 
     # Create primitive triangle geometry
     vformat = GeomVertexFormat()
@@ -2120,7 +2089,6 @@ class Panda3dVisualizer(BaseVisualizer):
 
         # Try to load mesh from path first, to take advantage of very effective
         # Panda3d model caching procedure.
-        is_success = True
         if os.path.exists(mesh_path):
             # append a mesh
             mesh_path = _sanitize_path(geometry_object.meshPath)
@@ -2145,25 +2113,23 @@ class Panda3dVisualizer(BaseVisualizer):
                 self.viewer.append_box(*node_name, 2.0 * geom.halfSide)
             elif isinstance(geom, hppfcl.Sphere):
                 self.viewer.append_sphere(*node_name, geom.radius)
-            elif isinstance(geom, (hppfcl.Convex, hppfcl.BVHModelBase)):
-                # Create primitive triangle geometry
-                obj = convertBVHCollisionGeometryToPrimitive(geom)
-
-                # Add the primitive geometry to the scene
-                geom_node = GeomNode(geometry_object.name)
-                geom_node.add_geom(obj)
-                node = NodePath(geom_node)
-                node.set_two_sided(True)
-                self.viewer.append_node(*node_name, node)
             else:
-                is_success = False
-
-        # Early return if impossible to load the geometry for some reason
-        if not is_success:
-            warnings.warn(
-                f"Unsupported geometry type for {geometry_object.name} "
-                f"({type(geom)})", category=UserWarning, stacklevel=2)
-            return
+                try:
+                    # Create primitive triangle geometry
+                    obj = convertBVHCollisionGeometryToPrimitive(geom)
+                except ValueError:
+                    warnings.warn(
+                        "Unsupported geometry type for "
+                        f"{geometry_object.name} ({type(geom)})",
+                        category=UserWarning, stacklevel=2)
+                    return
+                else:
+                    # Add the primitive geometry to the scene
+                    geom_node = GeomNode(geometry_object.name)
+                    geom_node.add_geom(obj)
+                    node = NodePath(geom_node)
+                    node.set_two_sided(True)
+                    self.viewer.append_node(*node_name, node)
 
         # Set material
         self.viewer.set_material(*node_name, color, texture_path)
