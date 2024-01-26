@@ -153,7 +153,7 @@ setup(
             # Check PEP8 conformance of Python native code
             "flake8",
             # Python linter
-            "pylint>=2.16.0",
+            "pylint>=3.0",
             # Python static type checker
             "mypy>=1.5.0",
             # Dependency for documentation generation

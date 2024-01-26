@@ -21,7 +21,7 @@ import pinocchio as pin
 from pinocchio.utils import npToTuple
 from pinocchio.visualize import BaseVisualizer
 
-from ..geometry import extractVerticesAndFacesFromGeometry
+from ..geometry import extract_vertices_and_faces_from_geometry
 
 
 MsgType = Dict[str, Union[str, bytes, bool, float, 'MsgType']]
@@ -173,8 +173,8 @@ class DaeMeshGeometryWithTexture(ReferenceSceneElement):
         return data
 
 
-def updateFloor(viewer: meshcat.Visualizer,
-                geom: Optional[hppfcl.CollisionGeometry] = None) -> None:
+def update_floor(viewer: meshcat.Visualizer,
+                 geom: Optional[hppfcl.CollisionGeometry] = None) -> None:
     """Display a custom collision geometry as ground profile or a flat tile
     ground floor in a given viewer instance.
 
@@ -192,7 +192,7 @@ def updateFloor(viewer: meshcat.Visualizer,
         return
 
     # Convert provided geometry in Meshcat-specific triangle-based geometry
-    vertices, faces = extractVerticesAndFacesFromGeometry(geom)
+    vertices, faces = extract_vertices_and_faces_from_geometry(geom)
     obj = TriangularMeshGeometry(vertices, faces)
     material = meshcat.geometry.MeshLambertMaterial()
     material.color = (255 << 16) + (255 << 8) + 255
@@ -210,7 +210,7 @@ class MeshcatVisualizer(BaseVisualizer):
     Copyright (c) 2014-2020, CNRS
     Copyright (c) 2018-2020, INRIA
     """  # noqa: E501  # pylint: disable=line-too-long
-    def initViewer(self,  # pylint: disable=invalid-name,arguments-differ
+    def initViewer(self,  # pylint: disable=arguments-differ
                    viewer: meshcat.Visualizer = None,
                    loadModel: bool = False,
                    mustOpen: bool = False,
@@ -237,7 +237,7 @@ class MeshcatVisualizer(BaseVisualizer):
         if loadModel:
             self.loadViewerModel(root_node_name=self.model.name)
 
-    def getViewerNodeName(self,  # pylint: disable=invalid-name
+    def getViewerNodeName(self,
                           geometry_object: pin.GeometryObject,
                           geometry_type: pin.GeometryType) -> str:
         """Return the name of the geometry object inside the viewer.
@@ -273,18 +273,20 @@ class MeshcatVisualizer(BaseVisualizer):
         elif isinstance(geom, hppfcl.Cone):
             obj = Cone(2. * geom.halfLength, geom.radius)
         else:
+            # Try extract raw vertices and faces from geometry
             try:
-                # Try extract raw vertices and faces from geometry
-                vertices, faces = extractVerticesAndFacesFromGeometry(geom)
+                vertices, faces = (
+                    extract_vertices_and_faces_from_geometry(geom))
             except ValueError:
                 warnings.warn(
                     f"Unsupported geometry type for {geometry_object.name} "
                     f"({type(geom)})",
                     category=UserWarning, stacklevel=2)
                 return None
-            else:
-                obj = TriangularMeshGeometry(vertices, faces)
-                geometry_object.meshScale = np.ones(3)  # Already at scale !
+
+            # Create Meshcat-specific triangle-based geometry
+            obj = TriangularMeshGeometry(vertices, faces)
+            geometry_object.meshScale = np.ones(3)  # Already at scale !
 
         return obj
 
@@ -401,8 +403,8 @@ class MeshcatVisualizer(BaseVisualizer):
     def display(self,  # pylint: disable=signature-differs
                 q: np.ndarray) -> None:
         """Display the robot at configuration q in the viewer by placing all
-        the bodies."""
-        # pylint: disable=invalid-name
+        the bodies.
+        """
         pin.forwardKinematics(self.model, self.data, q)
 
         if self.display_visuals:

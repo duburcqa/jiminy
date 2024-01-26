@@ -13,13 +13,13 @@ except ImportError as e:
 from torch import nn
 
 
-coefs_deriv = torch.tensor([[1, 1, 1, 1],  # pylint: disable=not-callable
+coefs_deriv = torch.tensor([[1, 1, 1, 1],
                             [0, 1, 2, 3],
                             [0, 0, 2, 6],
                             [0, 0, 0, 6],
                             [0, 0, 0, 0]],
                            dtype=torch.float32)
-A = torch.tensor([[1, -3,  3, -1],  # pylint: disable=not-callable
+A = torch.tensor([[1, -3,  3, -1],
                   [0,  3, -6,  3],
                   [0,  0,  3, -3],
                   [0,  0,  0,  1]],

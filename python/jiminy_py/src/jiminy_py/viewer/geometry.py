@@ -7,8 +7,8 @@ import numpy as np
 import hppfcl
 
 
-def extractVerticesAndFacesFromGeometry(geom: hppfcl.CollisionGeometry
-                                        ) -> Tuple[np.ndarray, np.ndarray]:
+def extract_vertices_and_faces_from_geometry(
+        geom: hppfcl.CollisionGeometry) -> Tuple[np.ndarray, np.ndarray]:
     """Extract vertices and faces from a triangle-based collision geometry
 
     :param geom: Collision geometry from which to extract data.

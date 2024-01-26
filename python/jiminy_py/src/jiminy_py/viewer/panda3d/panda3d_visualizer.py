@@ -53,7 +53,7 @@ import pinocchio as pin
 from pinocchio.utils import npToTuple
 from pinocchio.visualize import BaseVisualizer
 
-from ..geometry import extractVerticesAndFacesFromGeometry
+from ..geometry import extract_vertices_and_faces_from_geometry
 
 
 WINDOW_SIZE_DEFAULT = (600, 600)
@@ -136,7 +136,7 @@ def make_gradient_skybox(sky_color: Tuple4FType,
                    Optional: 0.0 by default.
     :param subdiv: Number of sub-division for the complete gradient.
                    Optional: 2 by default.
-    """  # noqa: E501  # pylint: disable=line-too-long
+    """  # noqa: E501
     # Check validity of arguments
     assert subdiv > 1, "Number of sub-division must be strictly larger than 1."
     assert 0.0 <= span <= 1.0, "Offset must be in [0.0, 1.0]."
@@ -1977,15 +1977,15 @@ class Panda3dViewer:
         return chain(super().__dir__(), dir(self._app))
 
 
-def convertBVHCollisionGeometryToPrimitive(geom: hppfcl.CollisionGeometry
-                                           ) -> Optional[Geom]:
+def convert_bvh_collision_geometry_to_primitive(geom: hppfcl.CollisionGeometry
+                                                ) -> Optional[Geom]:
     """Convert a triangle-based collision geometry associated to a primitive
     geometry for rendering it with Panda3D.
 
     :param geom: Collision geometry to convert.
     """
     # Extract vertices and faces from geometry
-    vertices, faces = extractVerticesAndFacesFromGeometry(geom)
+    vertices, faces = extract_vertices_and_faces_from_geometry(geom)
 
     # Return immediately if there is nothing to load
     if len(faces) == 0:
@@ -2028,7 +2028,7 @@ class Panda3dVisualizer(BaseVisualizer):
     Copyright (c) 2014-2020, CNRS
     Copyright (c) 2018-2020, INRIA
     """  # noqa: E501  # pylint: disable=line-too-long
-    def initViewer(self,  # pylint: disable=arguments-differ,unused-argument
+    def initViewer(self,  # pylint: disable=arguments-differ
                    viewer: Optional[Union[Panda3dViewer, Panda3dApp]] = None,
                    loadModel: bool = False,
                    **kwargs: Any) -> None:
@@ -2114,22 +2114,22 @@ class Panda3dVisualizer(BaseVisualizer):
             elif isinstance(geom, hppfcl.Sphere):
                 self.viewer.append_sphere(*node_name, geom.radius)
             else:
+                # Create primitive triangle geometry
                 try:
-                    # Create primitive triangle geometry
-                    obj = convertBVHCollisionGeometryToPrimitive(geom)
+                    obj = convert_bvh_collision_geometry_to_primitive(geom)
                 except ValueError:
                     warnings.warn(
                         "Unsupported geometry type for "
                         f"{geometry_object.name} ({type(geom)})",
                         category=UserWarning, stacklevel=2)
                     return
-                else:
-                    # Add the primitive geometry to the scene
-                    geom_node = GeomNode(geometry_object.name)
-                    geom_node.add_geom(obj)
-                    node = NodePath(geom_node)
-                    node.set_two_sided(True)
-                    self.viewer.append_node(*node_name, node)
+
+                # Add the primitive geometry to the scene
+                geom_node = GeomNode(geometry_object.name)
+                geom_node.add_geom(obj)
+                node = NodePath(geom_node)
+                node.set_two_sided(True)
+                self.viewer.append_node(*node_name, node)
 
         # Set material
         self.viewer.set_material(*node_name, color, texture_path)

@@ -46,10 +46,9 @@ from ..core import (  # pylint: disable=no-name-in-module
 from ..robot import _DuplicateFilter
 from ..dynamics import State
 from .meshcat.utilities import interactive_mode
-from .meshcat.meshcat_visualizer import updateFloor as meshcatUpdateFloor
 from .panda3d.panda3d_visualizer import (
     Tuple3FType, Tuple4FType, ShapeType, Panda3dApp, Panda3dViewer,
-    Panda3dVisualizer, convertBVHCollisionGeometryToPrimitive)
+    Panda3dVisualizer, convert_bvh_collision_geometry_to_primitive)
 
 
 REPLAY_FRAMERATE = 30
@@ -277,7 +276,7 @@ def _must_be_open(fun: Callable[..., Any]) -> Callable[..., Any]:
             raise RuntimeError(
                 "No backend available. Please start one before calling "
                 f"'{fun.__name__}'.")
-        return fun(*args, **kwargs)  # pylint: disable=not-callable
+        return fun(*args, **kwargs)
     return fun_safe
 
 
@@ -289,7 +288,7 @@ def _with_lock(fun: Callable[..., Any]) -> Callable[..., Any]:
             self = args[0]
         self = kwargs.get('self', self)
         with self._lock:
-            return fun(*args, **kwargs)  # pylint: disable=not-callable
+            return fun(*args, **kwargs)
     return fun_safe
 
 
@@ -1804,37 +1803,37 @@ class Viewer:
         :param show_meshes: Whether to highlight the meshes.
                             Optional: disabled by default.
         """
+        # pylint: disable=import-outside-toplevel
+
         # Assert(s) for type checker
         assert Viewer.backend is not None
         assert Viewer._backend_obj is not None
 
-        # Restore tile ground if heightmap is not specified
+        # Discretize ground profile if provided
+        geom = None
         if ground_profile is None:
-            if Viewer.backend.startswith('panda3d'):
-                Viewer._backend_obj.gui.update_floor()
-            else:
-                meshcatUpdateFloor(Viewer._backend_obj.gui)
-            return
+            geom = discretize_heightmap(
+                ground_profile, *x_range, grid_unit[0], *y_range, grid_unit[1],
+                must_simplify=simplify_meshes)
 
-        # Discretize heightmap
-        geom = discretize_heightmap(
-            ground_profile, *x_range, grid_unit[0], *y_range, grid_unit[1],
-            must_simplify=simplify_meshes)
-
-        # Early return if flat ground
+        # Render original flat tile ground if possible.
+        # TODO: Improve this check using LocalAABB box geometry instead.
         if isinstance(geom, hppfcl.Halfspace):
             if abs(geom.d) > 1e-6:
                 raise RuntimeError(
                     "Rendering flat ground with non-zero height not supported")
-            Viewer.update_floor(None)
-            return
+            geom = None
 
         # Render ground geometry
         if Viewer.backend.startswith('panda3d'):
-            obj = convertBVHCollisionGeometryToPrimitive(geom)
+            obj = None
+            if geom is not None:
+                obj = convert_bvh_collision_geometry_to_primitive(geom)
             Viewer._backend_obj.gui.update_floor(obj, show_meshes)
         else:
-            meshcatUpdateFloor(Viewer._backend_obj.gui, geom)
+            from .meshcat.meshcat_visualizer import (
+                update_floor as meshcat_update_floor)
+            meshcat_update_floor(Viewer._backend_obj.gui, geom)
 
     @staticmethod
     @_with_lock

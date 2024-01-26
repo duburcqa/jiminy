@@ -527,7 +527,7 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
         self.action_space = spaces.Box(
             low=-action_scale, high=action_scale, dtype=np.float64)
 
-    def _initialize_seed(self, seed: Optional[int] = None):
+    def _initialize_seed(self, seed: Optional[int] = None) -> None:
         """Specify the seed of the environment.
 
         .. note::
@@ -1484,8 +1484,6 @@ class BaseJiminyEnv(JiminyEnvInterface[ObsT, ActT],
 
         :param action: High-level target to achieve by means of the command.
         """
-        # pylint: disable=unused-argument
-
         # Check if the action is out-of-bounds, in debug mode only
         if self.debug and not self._contains_action():
             LOGGER.warning("The action is out-of-bounds.")

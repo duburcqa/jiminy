@@ -125,11 +125,13 @@ namespace jiminy
     // ************************************* Math utilities ************************************ //
 
     template<typename... Args>
-    const double &
+    std::enable_if_t<std::conjunction_v<std::is_same<Args, double>...>, const double &>
     minClipped(const double & value1, const double & value2, const Args &... values);
 
     template<typename... Args>
-    std::tuple<bool, const double &> isGcdIncluded(const Args &... values);
+    std::enable_if_t<std::conjunction_v<std::is_same<Args, double>...>,
+                     std::tuple<bool, const double &>>
+    isGcdIncluded(const Args &... values);
 
     template<typename InputIt, typename UnaryFunction>
     std::enable_if_t<std::is_invocable_r_v<const double &,
@@ -141,7 +143,8 @@ namespace jiminy
     template<typename InputIt, typename UnaryFunction, typename... Args>
     std::enable_if_t<std::is_invocable_r_v<const double &,
                                            UnaryFunction,
-                                           typename std::iterator_traits<InputIt>::reference>,
+                                           typename std::iterator_traits<InputIt>::reference> &&
+                     std::conjunction_v<std::is_same<Args, double>...>,
                      std::tuple<bool, const double &>>
     isGcdIncluded(InputIt first, InputIt last, const UnaryFunction & func, const Args &... values);
 

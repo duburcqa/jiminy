@@ -71,7 +71,8 @@ namespace jiminy
     }
 
     template<typename... Args>
-    const double & minClipped(const double & value1, const double & value2, const Args &... values)
+    std::enable_if_t<std::conjunction_v<std::is_same<Args, double>...>, const double &>
+    minClipped(const double & value1, const double & value2, const Args &... values)
     {
         const bool isValid1 = value1 > EPS;
         const bool isValid2 = value2 > EPS;
@@ -91,27 +92,32 @@ namespace jiminy
     }
 
     template<typename... Args>
-    std::tuple<bool, const double &> isGcdIncluded(const Args &... values)
+    std::enable_if_t<std::conjunction_v<std::is_same<Args, double>...>,
+                     std::tuple<bool, const double &>>
+    isGcdIncluded(const Args &... values)
     {
         const double & minValue = minClipped(values...);
         if (!std::isfinite(minValue))
         {
             return {true, INF};
         }
-        auto lambda = [&minValue](double value)
-        {
-            if (value < EPS)
+        /* FIXME: In some cases, order of evaluation is not always respected with MSVC, although
+           they pretend it has been fixed but it. As a result, 'isIncluded' must be explicitly
+           computed first. For reference, see:
+           https://devblogs.microsoft.com/cppblog/compiler-improvements-in-vs-2015-update-2/#order-of-initializer-list
+        */
+        bool isIncluded = (
+            [&minValue](double value)
             {
-                return true;
-            }
-            return std::fmod(value, minValue) < EPS;
-        };
-        // Taking advantage of C++17 "fold expression"
-        return {(... && lambda(values)), minValue};
+                if (value < EPS)
+                {
+                    return true;
+                }
+                return std::fmod(value, minValue) < EPS;
+            }(values) && ...);
+        return {isIncluded, minValue};
     }
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
     template<typename InputIt, typename UnaryFunction>
     std::enable_if_t<std::is_invocable_r_v<const double &,
                                            UnaryFunction,
@@ -133,18 +139,21 @@ namespace jiminy
             }
             return std::fmod(value, minValue) < EPS;
         };
-        return {std::all_of(first, last, lambda), minValue};
+        // FIXME: Order of evaluation is not always respected with MSVC.
+        bool isIncluded = std::all_of(first, last, lambda);
+        return {isIncluded, minValue};
     }
 
     template<typename InputIt, typename UnaryFunction, typename... Args>
     std::enable_if_t<std::is_invocable_r_v<const double &,
                                            UnaryFunction,
-                                           typename std::iterator_traits<InputIt>::reference>,
+                                           typename std::iterator_traits<InputIt>::reference> &&
+                     std::conjunction_v<std::is_same<Args, double>...>,
                      std::tuple<bool, const double &>>
     isGcdIncluded(InputIt first, InputIt last, const UnaryFunction & func, const Args &... values)
     {
-        const auto [isIncluded1, value1] = isGcdIncluded(values...);
-        const auto [isIncluded2, value2] = isGcdIncluded(first, last, func);
+        auto && [isIncluded1, value1] = isGcdIncluded(values...);
+        auto && [isIncluded2, value2] = isGcdIncluded(first, last, func);
         if (!isIncluded1 || !isIncluded2)
         {
             return {false, INF};
@@ -170,7 +179,6 @@ namespace jiminy
             return {std::fmod(value1, value2) < EPS, value2};
         }
     }
-#pragma GCC diagnostic pop
 
     // ********************************** Std::vector helpers ********************************** //
 

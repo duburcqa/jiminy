@@ -2619,16 +2619,17 @@ namespace jiminy
         const double * minValuePtr = &INF;
         auto lambda = [&minValuePtr, &values...](const systemDataHolder_t & systemData)
         {
-            auto [isIncluded, value] = isGcdIncluded(
+            auto && [isIncluded, value] = isGcdIncluded(
                 systemData.forcesProfile.cbegin(),
                 systemData.forcesProfile.cend(),
-                [](ForceProfile const & force) { return force.updatePeriod; },
+                [](ForceProfile const & force) -> const double & { return force.updatePeriod; },
                 values...);
-            minValuePtr = &minClipped(*minValuePtr, value);
+            minValuePtr = &(minClipped(*minValuePtr, value));
             return isIncluded;
         };
-        return {std::all_of(systemsDataHolder.begin(), systemsDataHolder.end(), lambda),
-                *minValuePtr};
+        // FIXME: Order of evaluation is not always respected with MSVC.
+        bool isIncluded = std::all_of(systemsDataHolder.begin(), systemsDataHolder.end(), lambda);
+        return {isIncluded, *minValuePtr};
     }
 
     hresult_t EngineMultiRobot::registerForceProfile(const std::string & systemName,
@@ -4315,7 +4316,7 @@ namespace jiminy
             [](hid_t group, const char * name, const H5L_info_t * /* oinfo */, void * op_data)
                 -> herr_t
             {
-                auto [_numInt, _numFloat] =
+                auto & [_numInt, _numFloat] =
                     *static_cast<std::pair<int64_t &, int64_t &> *>(op_data);
                 H5::Group fieldGroup = H5::Group(group).openGroup(name);
                 const H5::DataSet valueDataset = fieldGroup.openDataSet("value");
@@ -4351,7 +4352,7 @@ namespace jiminy
             [](hid_t group, const char * name, const H5L_info_t * /* oinfo */, void * op_data)
                 -> herr_t
             {
-                auto [_logData, _intVector, _floatVector] = *static_cast<opDataT *>(op_data);
+                auto & [_logData, _intVector, _floatVector] = *static_cast<opDataT *>(op_data);
                 const Eigen::Index varIdx = _logData.variableNames.size() - 1;
                 const int64_t _numInt = _logData.integerValues.rows();
                 H5::Group fieldGroup = H5::Group(group).openGroup(name);
