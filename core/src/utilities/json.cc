@@ -119,21 +119,6 @@ namespace jiminy
     }
 
     template<>
-    Eigen::VectorXd convertFromJson<Eigen::VectorXd>(const Json::Value & value)
-    {
-        Eigen::VectorXd vec{};
-        if (value.size() > 0)
-        {
-            vec.resize(value.size());
-            for (auto it = value.begin(); it != value.end(); ++it)
-            {
-                vec[it.index()] = convertFromJson<double>(*it);
-            }
-        }
-        return vec;
-    }
-
-    template<>
     Eigen::MatrixXd convertFromJson<Eigen::MatrixXd>(const Json::Value & value)
     {
         Eigen::MatrixXd mat{};
@@ -164,10 +149,12 @@ namespace jiminy
     template<>
     HeightmapFunctor convertFromJson<HeightmapFunctor>(const Json::Value & /* value */)
     {
-        return {HeightmapFunctor(
-            [](const Eigen::Vector3d & /* pos */) -> std::pair<double, Eigen::Vector3d> {
-                return {0.0, Eigen::Vector3d::UnitZ()};
-            })};
+        return {
+            [](const Eigen::Vector2d & /* xy */, double & height, Eigen::Vector3d & normal) -> void
+            {
+                height = 0.0;
+                normal = Eigen::Vector3d::UnitZ();
+            }};
     }
 
     template<>
@@ -248,6 +235,10 @@ namespace jiminy
                     if (it->type() == Json::realValue)
                     {
                         field = convertFromJson<Eigen::VectorXd>(*root);
+                    }
+                    else if (it->isConvertibleTo(Json::uintValue))
+                    {
+                        field = convertFromJson<VectorX<uint32_t>>(*root);
                     }
                     else if (it->type() == Json::arrayValue)
                     {

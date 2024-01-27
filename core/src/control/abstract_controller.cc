@@ -178,7 +178,8 @@ namespace jiminy
             registeredVariables,
         bool isTelemetryConfigured,
         const std::vector<std::string> & fieldnames,
-        const Eigen::Ref<Eigen::Matrix<Scalar, -1, 1>, 0, Eigen::InnerStride<>> & values)
+        const Eigen::Ref<VectorX<Scalar>, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>> &
+            values)
     {
         if (isTelemetryConfigured)
         {
@@ -207,7 +208,8 @@ namespace jiminy
 
     hresult_t AbstractController::registerVariable(
         const std::vector<std::string> & fieldnames,
-        const Eigen::Ref<Eigen::Matrix<double, -1, 1>, 0, Eigen::InnerStride<>> & values)
+        const Eigen::Ref<VectorX<double>, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>> &
+            values)
     {
         return registerVariableImpl<double>(
             registeredVariables_, isTelemetryConfigured_, fieldnames, values);
@@ -215,7 +217,8 @@ namespace jiminy
 
     hresult_t AbstractController::registerVariable(
         const std::vector<std::string> & fieldnames,
-        const Eigen::Ref<Eigen::Matrix<int64_t, -1, 1>, 0, Eigen::InnerStride<>> & values)
+        const Eigen::Ref<VectorX<int64_t>, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>> &
+            values)
     {
         return registerVariableImpl<int64_t>(
             registeredVariables_, isTelemetryConfigured_, fieldnames, values);

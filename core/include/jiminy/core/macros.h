@@ -37,18 +37,18 @@
 
 // ******************************* Error and warnings utilities ******************************** //
 
-namespace details
+namespace jiminy::internal
 {
     template<size_t FL, size_t PFL>
-    const char * extractMethodName(const char (&function)[FL], const char (&prettyFunction)[PFL])
+    const char * extractFunctionName(const char (&func)[FL], const char (&pretty_func)[PFL])
     {
         using reverse_ptr = std::reverse_iterator<const char *>;
         thread_local static char result[PFL];
         const char * locFuncName =
-            std::search(prettyFunction, prettyFunction + PFL - 1, function, function + FL - 1);
+            std::search(pretty_func, pretty_func + PFL - 1, func, func + FL - 1);
         const char * locClassName =
-            std::find(reverse_ptr(locFuncName), reverse_ptr(prettyFunction), ' ').base();
-        const char * endFuncName = std::find(locFuncName, prettyFunction + PFL - 1, '(');
+            std::find(reverse_ptr(locFuncName), reverse_ptr(pretty_func), ' ').base();
+        const char * endFuncName = std::find(locFuncName, pretty_func + PFL - 1, '(');
         std::copy(locClassName, endFuncName, result);
         return result;
     }
@@ -63,17 +63,17 @@ namespace details
    https://solarianprogrammer.com/2019/04/08/c-programming-ansi-escape-codes-windows-macos-linux-terminals/
 */
 
-#define PRINT_ERROR(...)                                                        \
-    std::cerr << "In " FILE_LINE ": In "                                        \
-              << ::details::extractMethodName(__func__, BOOST_CURRENT_FUNCTION) \
+#define PRINT_ERROR(...)                                                                 \
+    std::cerr << "In " FILE_LINE ": In "                                                 \
+              << jiminy::internal::extractFunctionName(__func__, BOOST_CURRENT_FUNCTION) \
               << ":\n\x1b[1;31merror:\x1b[0m " << toString(__VA_ARGS__) << std::endl
 
 #ifdef NDEBUG
 #    define PRINT_WARNING(...)
 #else
-#    define PRINT_WARNING(...)                                                      \
-        std::cerr << "In " FILE_LINE ": In "                                        \
-                  << ::details::extractMethodName(__func__, BOOST_CURRENT_FUNCTION) \
+#    define PRINT_WARNING(...)                                                               \
+        std::cerr << "In " FILE_LINE ": In "                                                 \
+                  << jiminy::internal::extractFunctionName(__func__, BOOST_CURRENT_FUNCTION) \
                   << ":\n\x1b[1;93mwarning:\x1b[0m " << toString(__VA_ARGS__) << std::endl
 #endif
 

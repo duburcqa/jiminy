@@ -33,6 +33,7 @@ try:
 except ImportError:
     Process = type(None)  # type: ignore[assignment,misc]
 
+import hppfcl
 import pinocchio as pin
 from pinocchio import SE3, SE3ToXYZQUAT
 from pinocchio.rpy import (  # pylint: disable=import-error
@@ -47,7 +48,7 @@ from ..dynamics import State
 from .meshcat.utilities import interactive_mode
 from .panda3d.panda3d_visualizer import (
     Tuple3FType, Tuple4FType, ShapeType, Panda3dApp, Panda3dViewer,
-    Panda3dVisualizer)
+    Panda3dVisualizer, convert_bvh_collision_geometry_to_primitive)
 
 
 REPLAY_FRAMERATE = 30
@@ -275,7 +276,7 @@ def _must_be_open(fun: Callable[..., Any]) -> Callable[..., Any]:
             raise RuntimeError(
                 "No backend available. Please start one before calling "
                 f"'{fun.__name__}'.")
-        return fun(*args, **kwargs)  # pylint: disable=not-callable
+        return fun(*args, **kwargs)
     return fun_safe
 
 
@@ -287,7 +288,7 @@ def _with_lock(fun: Callable[..., Any]) -> Callable[..., Any]:
             self = args[0]
         self = kwargs.get('self', self)
         with self._lock:
-            return fun(*args, **kwargs)  # pylint: disable=not-callable
+            return fun(*args, **kwargs)
     return fun_safe
 
 
@@ -1783,14 +1784,13 @@ class Viewer:
     @_with_lock
     @_must_be_open
     def update_floor(ground_profile: Optional[jiminy.HeightmapFunctor] = None,
-                     grid_size: float = 20.0,
-                     grid_unit: float = 0.04,
+                     x_range: Tuple[float, float] = (-10.0, 10.0),
+                     y_range: Tuple[float, float] = (-10.0, 10.0),
+                     grid_unit:  Tuple[float, float] = (0.04, 0.04),
+                     simplify_meshes: bool = False,
                      show_meshes: bool = False) -> None:
         """Display a custom ground profile as a height map or the original tile
         ground floor.
-
-        .. note::
-            This method is only supported by Panda3d for now.
 
         :param ground_profile: `jiminy_py.core.HeightmapFunctor` associated
                                with the ground profile. It renders a flat tile
@@ -1803,30 +1803,37 @@ class Viewer:
         :param show_meshes: Whether to highlight the meshes.
                             Optional: disabled by default.
         """
+        # pylint: disable=import-outside-toplevel
+
         # Assert(s) for type checker
         assert Viewer.backend is not None
         assert Viewer._backend_obj is not None
 
-        # Return early if this method is not supported by the current backend
-        if not Viewer.backend.startswith('panda3d'):
-            LOGGER.warning("This method is only supported by Panda3d.")
-            return
-
-        # Restore tile ground if heightmap is not specified
+        # Discretize ground profile if provided
+        geom = None
         if ground_profile is None:
-            Viewer._backend_obj.gui.update_floor()
-            return
+            geom = discretize_heightmap(
+                ground_profile, *x_range, grid_unit[0], *y_range, grid_unit[1],
+                must_simplify=simplify_meshes)
 
-        # Discretize heightmap
-        grid = discretize_heightmap(ground_profile, grid_size, grid_unit)
+        # Render original flat tile ground if possible.
+        # TODO: Improve this check using LocalAABB box geometry instead.
+        if isinstance(geom, hppfcl.Halfspace):
+            if abs(geom.d) > 1e-6:
+                raise RuntimeError(
+                    "Rendering flat ground with non-zero height not supported")
+            geom = None
 
-        # Make sure it is not flat ground
-        if np.unique(grid[:, 2:], axis=0).shape[0] == 1 and \
-                np.allclose(grid[0, 2:], [0.0, 0.0, 0.0, 1.0], atol=1e-3):
-            Viewer._backend_obj.gui.update_floor()
-            return
-
-        Viewer._backend_obj.gui.update_floor(grid, show_meshes)
+        # Render ground geometry
+        if Viewer.backend.startswith('panda3d'):
+            obj = None
+            if geom is not None:
+                obj = convert_bvh_collision_geometry_to_primitive(geom)
+            Viewer._backend_obj.gui.update_floor(obj, show_meshes)
+        else:
+            from .meshcat.meshcat_visualizer import (
+                update_floor as meshcat_update_floor)
+            meshcat_update_floor(Viewer._backend_obj.gui, geom)
 
     @staticmethod
     @_with_lock

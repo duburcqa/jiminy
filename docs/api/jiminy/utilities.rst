@@ -25,22 +25,49 @@ Conversion from/to JSON
 .. doxygenfunction:: jiminy::convertFromJson(Json::Value const &value)
    :project: jiminy
 
+Geometry
+--------
+
+.. doxygenfunction:: jiminy::sumHeightmaps
+   :project: jiminy
+
+.. doxygenfunction:: jiminy::mergeHeightmaps
+   :project: jiminy
+
+.. doxygenfunction:: jiminy::discretizeHeightmap
+   :project: jiminy
 
 Random number generation
 ------------------------
 
-.. doxygenfunction:: jiminy::resetRandomGenerators
+.. doxygenfunction:: jiminy::PCG32
+   :project: jiminy
+   :members:
+
+.. doxygenfunction:: jiminy::uniform
    :project: jiminy
 
-.. doxygenfunction:: jiminy::randUniform
+.. doxygenfunction:: jiminy::normal
    :project: jiminy
 
-.. doxygenfunction:: jiminy::randNormal
+.. doxygenfunction:: jiminy::PeriodicGaussianProcess
    :project: jiminy
+   :members:
 
-.. doxygenfunction:: jiminy::randVectorNormal(uint32_t const &size, double const &mean, double const &std)
+.. doxygenfunction:: jiminy::PeriodicFourierProcess
    :project: jiminy
+   :members:
 
+.. doxygenfunction:: jiminy::RandomPerlinProcess
+   :project: jiminy
+   :members:
+
+.. doxygenfunction:: jiminy::PeriodicPerlinProcess
+   :project: jiminy
+   :members:
+
+.. doxygenfunction:: jiminy::tiles
+   :project: jiminy
 
 Telemetry
 ---------

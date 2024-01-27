@@ -294,28 +294,23 @@ class Simulator:
         """
         out[()] = True
 
-    def seed(self, seed: np.uint32) -> None:
+    def seed(self, seed: Union[np.uint32, np.ndarray]) -> None:
         """Set the seed of the simulation and reset the simulation.
 
         .. warning::
             It also resets the low-level jiminy Engine. Therefore one must call
             the `reset` method manually afterward.
 
-        :param seed: Desired seed (Unsigned integer 32 bits).
+        :param seed: Desired seed as a sequence of unsigned integers 32 bits.
         """
-        assert isinstance(seed, np.uint32), "'seed' must have type np.uint32."
+        assert seed.dtype == np.uint32, "'seed' must have dtype np.uint32."
 
         # Make sure no simulation is running before setting the seed
         self.engine.stop()
 
-        # Force to reset the seed of the low-level engine
-        jiminy.reset_random_generator(seed)
-
-        # Set the seed in engine options to keep track of the seed and log it
-        # automatically in the telemetry as constant.
+        # Set the seed in engine options
         engine_options = self.engine.get_options()
-        engine_options["stepper"]["randomSeed"] = \
-            np.array(seed, dtype=np.dtype('uint32'))
+        engine_options["stepper"]["randomSeedSeq"] = np.asarray(seed)
         self.engine.set_options(engine_options)
 
         # It is expected by OpenAI Gym API to reset env after setting the seed
@@ -540,7 +535,7 @@ class Simulator:
 
         # Enable the ground profile is requested and available
         assert self.viewer is not None and self.viewer.backend is not None
-        if self.viewer.backend.startswith('panda3d') and update_ground_profile:
+        if update_ground_profile:
             engine_options = self.engine.get_options()
             ground_profile = engine_options["world"]["groundProfile"]
             Viewer.update_floor(ground_profile, show_meshes=False)

@@ -53,10 +53,10 @@ namespace jiminy
         return Model::initialize(pncModel, collisionModel, visualModel);
     }
 
-    void Robot::reset()
+    void Robot::reset(const uniform_random_bit_generator_ref<uint32_t> & g)
     {
         // Reset the model
-        Model::reset();
+        Model::reset(g);
 
         // Reset the motors
         if (!motorsHolder_.empty())
@@ -69,7 +69,7 @@ namespace jiminy
         {
             if (!sensorsGroupItem.second.empty())
             {
-                (*sensorsGroupItem.second.begin())->resetAll();
+                (*sensorsGroupItem.second.begin())->resetAll(g());
             }
         }
 

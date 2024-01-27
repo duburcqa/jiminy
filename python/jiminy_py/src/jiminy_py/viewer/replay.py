@@ -1,7 +1,6 @@
 # mypy: disable-error-code="attr-defined, name-defined"
 """ TODO: Write documentation.
 """
-# pylint: disable=no-member
 import os
 import time
 import ctypes
@@ -144,7 +143,7 @@ def _with_lock(fun: Callable[..., Any]) -> Callable[..., Any]:
     @wraps(fun)
     def fun_safe(*args: Any, **kwargs: Any) -> Any:
         with viewer_lock:
-            return fun(*args, **kwargs)  # pylint: disable=not-callable
+            return fun(*args, **kwargs)
     return fun_safe
 
 
@@ -307,7 +306,6 @@ def play_trajectories(
 
     :returns: List of viewers used to play the trajectories.
     """
-    # pylint: disable=used-before-assignment
     # Make sure sequence arguments are list or tuple
     if isinstance(trajs_data, dict):
         trajs_data = [trajs_data]

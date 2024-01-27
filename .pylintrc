@@ -74,7 +74,9 @@ disable =
     cyclic-import
 
 # Enable the message, report, category or checker with the given id(s)
-enable = c-extension-no-member
+enable =
+    c-extension-no-member,
+    useless-suppression
 
 [tool.pylint.miscellaneous]
 # List of note tags to take in consideration, separated by a comma.

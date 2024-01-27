@@ -201,9 +201,7 @@ class SimulateSimplePendulum(unittest.TestCase):
         x_rk_python = integrate_dynamics(time, x0, dynamics)
 
         # Compute sensor acceleration, i.e. acceleration in polar coordinates
-        theta = x_rk_python[:, 0]
-        dtheta = x_rk_python[:, 1]
-        dtheta = x_rk_python[:, 1]
+        theta, dtheta = x_rk_python[:, 0], x_rk_python[:, 1]
 
         # Acceleration: to resolve algebraic loop (current acceleration is
         # function of input which itself is function of sensor signal, sensor
@@ -222,9 +220,9 @@ class SimulateSimplePendulum(unittest.TestCase):
         # Compare sensor signal, ignoring first iterations that correspond to
         # system initialization
         self.assertTrue(np.allclose(
-            expected_gyro[2:, :], gyro_jiminy[2:, :], atol=TOLERANCE))
+            expected_gyro, gyro_jiminy, atol=TOLERANCE))
         self.assertTrue(np.allclose(
-            expected_accel[2:, :], accel_jiminy[2:, :], atol=TOLERANCE))
+            expected_accel, accel_jiminy, atol=TOLERANCE))
 
     def test_sensor_delay(self):
         """Test sensor delay for an IMU sensor on a simple pendulum.
@@ -255,11 +253,11 @@ class SimulateSimplePendulum(unittest.TestCase):
         imu_jiminy_shifted_0 = interp1d(
             time, imu_jiminy, kind='zero',
             bounds_error=False, fill_value=imu_jiminy[0], axis=0
-        )(time - 1.0e-2)
+        )(time + 1e-10 - 1.0e-2)
         imu_jiminy_shifted_1 = interp1d(
             time, imu_jiminy,
             kind='linear', bounds_error=False, fill_value=imu_jiminy[0], axis=0
-        )(time - 1.0e-2)
+        )(time - 5.0e-3)
 
         # Configure the IMU
         imu_options = self.imu_sensor.get_options()
@@ -275,7 +273,7 @@ class SimulateSimplePendulum(unittest.TestCase):
         # Configure the IMU
         imu_options = self.imu_sensor.get_options()
         imu_options['delayInterpolationOrder'] = 1
-        imu_options['delay'] = 1.0e-2
+        imu_options['delay'] = 5.0e-3
         self.imu_sensor.set_options(imu_options)
 
         # Run simulation
@@ -284,10 +282,8 @@ class SimulateSimplePendulum(unittest.TestCase):
                 engine, tf, x0, split=False)
 
         # Compare sensor signals
-        self.assertLessEqual(
-            np.mean(imu_jiminy_delayed_0 - imu_jiminy_shifted_0), 1.0e-5)
-        self.assertTrue(np.allclose(
-            imu_jiminy_delayed_1, imu_jiminy_shifted_1, atol=TOLERANCE))
+        np.testing.assert_allclose(imu_jiminy_delayed_0, imu_jiminy_shifted_0)
+        np.testing.assert_allclose(imu_jiminy_delayed_1, imu_jiminy_shifted_1)
 
     def test_sensor_noise_bias(self):
         """Test sensor noise and bias for an IMU sensor on a simple pendulum

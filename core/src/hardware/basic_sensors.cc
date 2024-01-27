@@ -189,8 +189,8 @@ namespace jiminy
         // Add measurement white noise
         if (baseSensorOptions_->noiseStd.size())
         {
-            // Accel + gyroscope: simply apply additive noise
-            get() += randVectorNormal(baseSensorOptions_->noiseStd);
+            get() += normal(generator_, 0.0F, baseSensorOptions_->noiseStd.cast<float>())
+                         .cast<double>();
         }
 
         // Add measurement bias

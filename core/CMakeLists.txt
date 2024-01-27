@@ -31,6 +31,7 @@ set(SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/src/utilities/helpers.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/utilities/pinocchio.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/utilities/json.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/utilities/geometry.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/utilities/random.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/io/abstract_io_device.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/io/memory_device.cc"

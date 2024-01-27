@@ -52,9 +52,6 @@ namespace jiminy::python
 
     BOOST_PYTHON_MODULE(PYTHON_LIBRARY_NAME)
     {
-        // Initialize Jiminy random number generator
-        resetRandomGenerators(0U);
-
         /* Initialized boost::python::numpy.
            It is required to handle boost::python::numpy::ndarray object directly.
 

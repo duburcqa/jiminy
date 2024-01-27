@@ -153,7 +153,7 @@ namespace jiminy
     }
 
     template<typename T>
-    hresult_t AbstractSensorTpl<T>::resetAll()
+    hresult_t AbstractSensorTpl<T>::resetAll(uint32_t seed)
     {
         // Make sure all the sensors are attached to a robot
         for (AbstractSensorBase * sensor : sharedHolder_->sensors_)
@@ -194,14 +194,26 @@ namespace jiminy
                                                        return std::max(delay, value);
                                                    });
 
-        // Update sensor scope information
-        for (AbstractSensorBase * sensor : sharedHolder_->sensors_)
+        // Generate high-entropy seed sequence from the provided initial seed
+        std::seed_seq seq{seed};
+        std::vector<std::uint32_t> seeds(sharedHolder_->num_);
+        seq.generate(seeds.begin(), seeds.end());
+
+        // Reset sensor-specific state
+        std::vector<AbstractSensorBase *>::iterator sensorIt = sharedHolder_->sensors_.begin();
+        std::vector<std::uint32_t>::const_iterator seedIt = seeds.cbegin();
+        for (; sensorIt != sharedHolder_->sensors_.end(); ++sensorIt, ++seedIt)
         {
+            AbstractSensorBase & sensor = *(*sensorIt);
+
+            // Reset the internal random number generator
+            sensor.generator_.seed(*seedIt);
+
             // Refresh proxies that are robot-dependent
-            sensor->refreshProxies();
+            sensor.refreshProxies();
 
             // Reset the telemetry state
-            sensor->isTelemetryConfigured_ = false;
+            sensor.isTelemetryConfigured_ = false;
         }
 
         return hresult_t::SUCCESS;
@@ -294,14 +306,25 @@ namespace jiminy
     template<typename T>
     hresult_t AbstractSensorTpl<T>::interpolateData()
     {
-        assert(sharedHolder_->time_.size() > 0 && "Do data to interpolate.");
+        assert(sharedHolder_->time_.size() > 0 && "No data to interpolate.");
 
         // Sample the delay uniformly
         const double delay =
-            baseSensorOptions_->delay + randUniform(0.0, baseSensorOptions_->jitter);
+            baseSensorOptions_->delay +
+            uniform(generator_, 0.0F, static_cast<float>(baseSensorOptions_->jitter));
 
-        // Add STEPPER_MIN_TIMESTEP to timeDesired to avoid float comparison issues
-        const double timeDesired = sharedHolder_->time_.back() - delay + STEPPER_MIN_TIMESTEP;
+        // Get time at which to fetch sensor data
+        double timeDesired = sharedHolder_->time_.back() - delay;
+
+        // Floating-point comparison is every sensitive to rounding errors. This is an issue when
+        // the sensor delay exactly matches the sensor update period and Zero-Order Hold (ZOH)
+        // interpolation is being used, as it would translate in a seemingly noisy sensor signal.
+        // To prevent it, the desired time is slightly shifted before calling bisect. This promotes
+        // picking an index that is always on the same side by introducing bias in the comparison.
+        if (baseSensorOptions_->delayInterpolationOrder == 0)
+        {
+            timeDesired += STEPPER_MIN_TIMESTEP;
+        }
 
         /* Determine the position of the closest right element.
            Bisection method can be used since times are sorted. */
@@ -361,13 +384,13 @@ namespace jiminy
             }
             else if (baseSensorOptions_->delayInterpolationOrder == 1)
             {
-                // FIXME: the linear interpolation is not valid for quaternion
-                const double dt =
-                    sharedHolder_->time_[idxLeft + 1] - sharedHolder_->time_[idxLeft];
-                const double ratioNext = (sharedHolder_->time_[idxLeft + 1] - timeDesired) / dt;
-                const double ratioPrev = (timeDesired - sharedHolder_->time_[idxLeft]) / dt;
-                get() = ratioPrev * sharedHolder_->data_[idxLeft + 1].col(sensorIdx_) +
-                        ratioNext * sharedHolder_->data_[idxLeft].col(sensorIdx_);
+                // FIXME: Linear interpolation is not valid on Lie algebra
+                const double ratio =
+                    (timeDesired - sharedHolder_->time_[idxLeft]) /
+                    (sharedHolder_->time_[idxLeft + 1] - sharedHolder_->time_[idxLeft]);
+                auto dataNext = sharedHolder_->data_[idxLeft + 1].col(sensorIdx_);
+                auto dataPrev = sharedHolder_->data_[idxLeft].col(sensorIdx_);
+                get() = dataPrev + ratio * (dataNext - dataPrev);
             }
             else
             {
@@ -484,7 +507,7 @@ namespace jiminy
                    always provide the last true value instead of some initialized memory. The
                    previous value is used for the quaternion of IMU sensors to choice the right
                    value that ensures its continuity over time amond to two possible choices. */
-                sharedHolder_->time_.push_back(-1);
+                sharedHolder_->time_.push_back(INF);
                 sharedHolder_->data_.push_back(sharedHolder_->data_.back());
             }
         }

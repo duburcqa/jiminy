@@ -6,7 +6,7 @@ odeSolver = "euler_explicit"
 sensorsUpdatePeriod = 0.005
 controllerUpdatePeriod = 0.005
 logInternalStepperSteps = false
-randomSeed = 0
+randomSeedSeq = [0,]
 
 # ============== Ground dynamics ===============
 

@@ -14,7 +14,7 @@
 namespace jiminy
 {
     // Sensor data holder
-    namespace details
+    namespace internal
     {
         struct SensorDataItem
         {
@@ -33,18 +33,18 @@ namespace jiminy
 
     struct SensorDataTypeMap :
     public boost::multi_index::multi_index_container<
-        details::SensorDataItem,
+        internal::SensorDataItem,
         boost::multi_index::indexed_by<
             boost::multi_index::ordered_unique<
                 boost::multi_index::tag<IndexByIndex>,
                 boost::multi_index::
-                    member<details::SensorDataItem, std::size_t, &details::SensorDataItem::idx>,
+                    member<internal::SensorDataItem, std::size_t, &internal::SensorDataItem::idx>,
                 std::less<std::size_t>  // Ordering by ascending order
                 >,
             boost::multi_index::hashed_unique<
                 boost::multi_index::tag<IndexByName>,
                 boost::multi_index::
-                    member<details::SensorDataItem, std::string, &details::SensorDataItem::name>>,
+                    member<internal::SensorDataItem, std::string, &internal::SensorDataItem::name>>,
             boost::multi_index::sequenced<>>>
     {
     public:

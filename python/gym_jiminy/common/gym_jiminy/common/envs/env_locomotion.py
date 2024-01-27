@@ -314,7 +314,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
 
             # Schedule a single periodic force profile applied on PelvisLink
             for func in self._f_xy_profile:
-                func.reset()
+                func.reset(self.np_random)
             self.simulator.register_force_profile(
                 frame_name, self._force_external_profile)
 

@@ -28,7 +28,7 @@ namespace jiminy
 {
     // ******************************** is_contiguous_container ******************************** //
 
-    namespace details
+    namespace internal
     {
         template<class...>
         struct voider
@@ -67,7 +67,7 @@ namespace jiminy
 
     template<class T, class I = std::size_t>
     inline constexpr bool is_contiguous_container_v =
-        std::conjunction<details::hasSize<T>, details::isContiguousIndexable<T, I>>::value;
+        std::conjunction<internal::hasSize<T>, internal::isContiguousIndexable<T, I>>::value;
 
     // ************************************* remove_cvref ************************************** //
 
@@ -83,7 +83,7 @@ namespace jiminy
 
     // ********************************* is_base_of_template_v ********************************* //
 
-    namespace details
+    namespace internal
     {
         /// @sa For reference, see:
         /// https://stackoverflow.com/a/34672753/4820605
@@ -95,10 +95,10 @@ namespace jiminy
             static constexpr std::false_type test(...);
             using value = decltype(test(std::declval<Derived *>()));
         };
-    }  // namespace details
+    }
 
     template<template<typename...> class Base, typename Derived>
-    using is_base_of_template_v = typename details::IsBaseOfTemplateImpl<Base, Derived>::value;
+    using is_base_of_template_v = typename internal::IsBaseOfTemplateImpl<Base, Derived>::value;
 
     // *************************************** is_vector *************************************** //
 
@@ -132,7 +132,7 @@ namespace jiminy
 
     // **************************************** is_map ***************************************** //
 
-    namespace details::is_map
+    namespace internal::is_map
     {
         template<typename K, typename T, typename C, typename A>
         std::true_type test(const std::map<K, T, C, A> *);
@@ -144,7 +144,7 @@ namespace jiminy
         struct Test : public decltype(test(std::declval<std::add_pointer_t<T>>()))
         {
         };
-    }  // namespace details::is_map
+    }
 
     template<typename T, typename Enable = void>
     struct is_map : std::false_type
@@ -152,7 +152,7 @@ namespace jiminy
     };
 
     template<typename T>
-    struct is_map<T, typename std::enable_if_t<details::is_map::Test<T>::value>> : std::true_type
+    struct is_map<T, typename std::enable_if_t<internal::is_map::Test<T>::value>> : std::true_type
     {
     };
 
@@ -161,7 +161,7 @@ namespace jiminy
 
     // ************************************ is_eigen_vector ************************************ //
 
-    namespace details::is_eigen_vector
+    namespace internal::is_eigen_vector
     {
         template<typename T, int RowsAtCompileTime>
         std::true_type test(const Eigen::Matrix<T, RowsAtCompileTime, 1> *);
@@ -189,7 +189,7 @@ namespace jiminy
         struct Test : public decltype(test(std::declval<std::add_pointer_t<T>>()))
         {
         };
-    }  // namespace details::is_eigen_vector
+    }
 
     template<typename T, typename Enable = void>
     struct is_eigen_vector : std::false_type
@@ -197,7 +197,8 @@ namespace jiminy
     };
 
     template<typename T>
-    struct is_eigen_vector<T, typename std::enable_if_t<details::is_eigen_vector::Test<T>::value>> :
+    struct is_eigen_vector<T,
+                           typename std::enable_if_t<internal::is_eigen_vector::Test<T>::value>> :
     std::true_type
     {
     };
@@ -207,7 +208,7 @@ namespace jiminy
 
     // ************************************* is_eigen_ref ************************************** //
 
-    namespace details::is_eigen_ref
+    namespace internal::is_eigen_ref
     {
         template<typename T, int RowsAtCompileTime, int ColsAtCompileTime>
         std::true_type
@@ -253,7 +254,7 @@ namespace jiminy
         struct Test : public decltype(test(std::declval<std::add_pointer_t<T>>()))
         {
         };
-    }  // namespace details::is_eigen_ref
+    }
 
     template<typename T, typename Enable = void>
     struct is_eigen_ref : std::false_type
@@ -261,7 +262,7 @@ namespace jiminy
     };
 
     template<typename T>
-    struct is_eigen_ref<T, typename std::enable_if_t<details::is_eigen_ref::Test<T>::value>> :
+    struct is_eigen_ref<T, typename std::enable_if_t<internal::is_eigen_ref::Test<T>::value>> :
     std::true_type
     {
     };
@@ -271,7 +272,7 @@ namespace jiminy
 
     // *************************************** is_eigen **************************************** //
 
-    namespace details::is_eigen_plain
+    namespace internal::is_eigen_plain
     {
         template<typename T, int RowsAtCompileTime, int ColsAtCompileTime>
         std::true_type test(const Eigen::Matrix<T, RowsAtCompileTime, ColsAtCompileTime> *);
@@ -291,7 +292,7 @@ namespace jiminy
     };
 
     template<typename T>
-    struct is_eigen_plain<T, typename std::enable_if_t<details::is_eigen_plain::Test<T>::value>> :
+    struct is_eigen_plain<T, typename std::enable_if_t<internal::is_eigen_plain::Test<T>::value>> :
     std::true_type
     {
     };
@@ -300,39 +301,44 @@ namespace jiminy
     inline constexpr bool is_eigen_plain_v = is_eigen_plain<std::decay_t<T>>::value;
 
     template<class T>
-    inline constexpr bool is_eigen_v = std::disjunction<is_eigen_plain<T>, is_eigen_ref<T>>::value;
+    inline constexpr bool is_eigen_object_v =
+        std::disjunction<is_eigen_plain<T>, is_eigen_ref<T>>::value;
+
+    template<typename Derived>
+    inline constexpr bool is_eigen_any_v =
+        std::is_base_of_v<Eigen::MatrixBase<std::decay_t<Derived>>, std::decay_t<Derived>>;
 
     // ********************************** is_pinocchio_joint_ ********************************** //
 
-#define IS_PINOCCHIO_JOINT_ENABLE_IF(type, name)                                         \
-    IS_PINOCCHIO_JOINT_DETAILS(type, name)                                               \
-                                                                                         \
-    namespace details::is_pinocchio_joint_##name                                         \
-    {                                                                                    \
-        template<typename T>                                                             \
-        struct Test : public decltype(test(std::declval<std::add_pointer_t<T>>()))       \
-        {                                                                                \
-        };                                                                               \
-    }                                                                                    \
-                                                                                         \
-    template<typename T, typename Enable = void>                                         \
-    struct is_pinocchio_joint_##name : public std::false_type                            \
-    {                                                                                    \
-    };                                                                                   \
-                                                                                         \
-    template<typename T>                                                                 \
-    struct is_pinocchio_joint_##name<                                                    \
-        T,                                                                               \
-        typename std::enable_if_t<details::is_pinocchio_joint_##name::Test<T>::value>> : \
-    std::true_type                                                                       \
-    {                                                                                    \
-    };                                                                                   \
-                                                                                         \
-    template<typename T>                                                                 \
+#define IS_PINOCCHIO_JOINT_ENABLE_IF(type, name)                                          \
+    IS_PINOCCHIO_JOINT_DETAILS(type, name)                                                \
+                                                                                          \
+    namespace internal::is_pinocchio_joint_##name                                         \
+    {                                                                                     \
+        template<typename T>                                                              \
+        struct Test : public decltype(test(std::declval<std::add_pointer_t<T>>()))        \
+        {                                                                                 \
+        };                                                                                \
+    }                                                                                     \
+                                                                                          \
+    template<typename T, typename Enable = void>                                          \
+    struct is_pinocchio_joint_##name : public std::false_type                             \
+    {                                                                                     \
+    };                                                                                    \
+                                                                                          \
+    template<typename T>                                                                  \
+    struct is_pinocchio_joint_##name<                                                     \
+        T,                                                                                \
+        typename std::enable_if_t<internal::is_pinocchio_joint_##name::Test<T>::value>> : \
+    std::true_type                                                                        \
+    {                                                                                     \
+    };                                                                                    \
+                                                                                          \
+    template<typename T>                                                                  \
     inline constexpr bool is_pinocchio_joint_##name##_v = is_pinocchio_joint_##name<T>::value;
 
 #define IS_PINOCCHIO_JOINT_DETAILS(type, name)                                          \
-    namespace details::is_pinocchio_joint_##name                                        \
+    namespace internal::is_pinocchio_joint_##name                                       \
     {                                                                                   \
         template<typename Scalar, int Options>                                          \
         std::true_type test(const pinocchio::JointModel##type##Tpl<Scalar, Options> *); \
@@ -352,7 +358,7 @@ namespace jiminy
 
 #undef IS_PINOCCHIO_JOINT_DETAILS
 #define IS_PINOCCHIO_JOINT_DETAILS(type, name)                                                \
-    namespace details::is_pinocchio_joint_##name                                              \
+    namespace internal::is_pinocchio_joint_##name                                             \
     {                                                                                         \
         template<typename Scalar, int Options, int axis>                                      \
         std::true_type test(const pinocchio::JointModel##type##Tpl<Scalar, Options, axis> *); \
@@ -367,7 +373,7 @@ namespace jiminy
 
 #undef IS_PINOCCHIO_JOINT_DETAILS
 #define IS_PINOCCHIO_JOINT_DETAILS(type, name)                       \
-    namespace details::is_pinocchio_joint_##name                     \
+    namespace internal::is_pinocchio_joint_##name                    \
     {                                                                \
         template<typename T>                                         \
         std::true_type test(const pinocchio::JointModel##type<T> *); \
@@ -380,7 +386,7 @@ namespace jiminy
 
 #undef IS_PINOCCHIO_JOINT_DETAILS
 #define IS_PINOCCHIO_JOINT_DETAILS(type, name)                                              \
-    namespace details::is_pinocchio_joint_##name                                            \
+    namespace internal::is_pinocchio_joint_##name                                           \
     {                                                                                       \
         template<typename Scalar,                                                           \
                  int Options,                                                               \

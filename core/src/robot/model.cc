@@ -32,7 +32,6 @@
 #include "jiminy/core/constraints/sphere_constraint.h"
 #include "jiminy/core/constraints/frame_constraint.h"
 #include "jiminy/core/utilities/pinocchio.h"
-#include "jiminy/core/utilities/random.h"
 #include "jiminy/core/utilities/helpers.h"
 
 #include "jiminy/core/robot/model.h"
@@ -261,7 +260,7 @@ namespace jiminy
         {
             // Assume the model is fully initialized at this point
             isInitialized_ = true;
-            returnCode = generateModelBiased();
+            returnCode = generateModelBiased(std::random_device{});
         }
 
         /* Add joint constraints.
@@ -326,7 +325,7 @@ namespace jiminy
         return returnCode;
     }
 
-    void Model::reset()
+    void Model::reset(const uniform_random_bit_generator_ref<uint32_t> & g)
     {
         /* Do NOT reset the constraints, since it will be handled by the engine.
            It is necessary, since the current model state is required to initialize the
@@ -340,7 +339,7 @@ namespace jiminy
             generateModelFlexible();
 
             // Update the biases added to the dynamics properties of the model
-            generateModelBiased();
+            generateModelBiased(g);
         }
     }
 
@@ -410,7 +409,7 @@ namespace jiminy
             /* One must re-generate the model after adding a frame.
                Note that, since the added frame being the "last" of the model, the proxies are
                still up-to-date and therefore it is unecessary to call 'reset'. */
-            generateModelBiased();
+            generateModelBiased(std::random_device{});
 
             // Restore the current rotor inertias and effort limits
             pncModel_.rotorInertia.swap(rotorInertia);
@@ -476,7 +475,7 @@ namespace jiminy
             pncDataOrig_ = pinocchio::Data(pncModelOrig_);
 
             // One must reset the model after removing a frame
-            reset();
+            reset(std::random_device{});
         }
 
         return returnCode;
@@ -1087,7 +1086,7 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t Model::generateModelBiased()
+    hresult_t Model::generateModelBiased(const uniform_random_bit_generator_ref<uint32_t> & g)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -1118,22 +1117,24 @@ namespace jiminy
                 const pinocchio::JointIndex jointIdx = pncModel_.getJointId(jointName);
 
                 // Add bias to com position
-                const double comBiasStd = mdlOptions_->dynamics.centerOfMassPositionBodiesBiasStd;
+                const float comBiasStd =
+                    static_cast<float>(mdlOptions_->dynamics.centerOfMassPositionBodiesBiasStd);
                 if (comBiasStd > EPS)
                 {
                     Eigen::Vector3d & comRelativePositionBody =
                         pncModel_.inertias[jointIdx].lever();
                     comRelativePositionBody.array() *=
-                        1.0 + randVectorNormal(3U, comBiasStd).array();
+                        normal(3, 1, g, 1.0F, comBiasStd).array().cast<double>();
                 }
 
                 /* Add bias to body mass.
                    It cannot be less than min(original mass, 1g) for numerical stability. */
-                const double massBiasStd = mdlOptions_->dynamics.massBodiesBiasStd;
+                const float massBiasStd =
+                    static_cast<float>(mdlOptions_->dynamics.massBodiesBiasStd);
                 if (massBiasStd > EPS)
                 {
                     double & massBody = pncModel_.inertias[jointIdx].mass();
-                    massBody = std::max(massBody * (1.0 + randNormal(0.0, massBiasStd)),
+                    massBody = std::max(massBody * normal(g, 1.0F, massBiasStd),
                                         std::min(massBody, 1.0e-3));
                 }
 
@@ -1144,18 +1145,20 @@ namespace jiminy
                    small rotation is applied to the principal axes based on a randomly generated
                    rotation axis. Finally, the biased inertia matrix is obtained doing
                    `A @ diag(M) @ A.T`. If no bias, the original inertia matrix is recovered. */
-                const double inertiaBiasStd = mdlOptions_->dynamics.inertiaBodiesBiasStd;
+                const float inertiaBiasStd =
+                    static_cast<float>(mdlOptions_->dynamics.inertiaBodiesBiasStd);
                 if (inertiaBiasStd > EPS)
                 {
                     pinocchio::Symmetric3 & inertiaBody = pncModel_.inertias[jointIdx].inertia();
                     Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> solver(inertiaBody.matrix());
                     Eigen::Vector3d inertiaBodyMoments = solver.eigenvalues();
                     Eigen::Matrix3d inertiaBodyAxes = solver.eigenvectors();
-                    const Eigen::Vector3d randAxis = randVectorNormal(3U, inertiaBiasStd);
+                    const Eigen::Vector3d randAxis =
+                        normal(3, 1, g, 0.0F, inertiaBiasStd).cast<double>();
                     inertiaBodyAxes =
                         inertiaBodyAxes * Eigen::Quaterniond(pinocchio::exp3(randAxis));
                     inertiaBodyMoments.array() *=
-                        1.0 + randVectorNormal(3U, inertiaBiasStd).array();
+                        normal(3, 1, g, 1.0F, inertiaBiasStd).array().cast<double>();
                     inertiaBody =
                         pinocchio::Symmetric3((inertiaBodyAxes * inertiaBodyMoments.asDiagonal() *
                                                inertiaBodyAxes.transpose())
@@ -1163,14 +1166,14 @@ namespace jiminy
                 }
 
                 // Add bias to relative body position (rotation excluded !)
-                const double relativeBodyPosBiasStd =
-                    mdlOptions_->dynamics.relativePositionBodiesBiasStd;
+                const float relativeBodyPosBiasStd =
+                    static_cast<float>(mdlOptions_->dynamics.relativePositionBodiesBiasStd);
                 if (relativeBodyPosBiasStd > EPS)
                 {
                     Eigen::Vector3d & relativePositionBody =
                         pncModel_.jointPlacements[jointIdx].translation();
                     relativePositionBody.array() *=
-                        1.0 + randVectorNormal(3U, relativeBodyPosBiasStd).array();
+                        normal(3, 1, g, 1.0F, relativeBodyPosBiasStd).array().cast<double>();
                 }
             }
 
@@ -1767,7 +1770,7 @@ namespace jiminy
         if (areModelsInvalid)
         {
             // Trigger models regeneration
-            reset();
+            reset(std::random_device{});
         }
         else if (internalBuffersMustBeUpdated)
         {

@@ -124,7 +124,27 @@ namespace jiminy
         // Assuming the model still exists.
         auto model = model_.lock();
 
-        // Get jacobian in local frame
+        /* Get jacobian in local frame:
+
+           In general, for the angular part we have:
+               p_c = log3(R_f),
+               v_c = J_log3 * v_f = J_log3 * J_f * dq,
+               a_c = d(J_log3)/dt * v_f + J_log3 * a_f
+                   = d(J_log3)/dt * v_f + J_log3 * a_f^0 + (J_log3 * J_f) * ddq
+                     where a_f^0 = d(J_f)/dt * dq
+           It means:
+               jac = J_log3 * J_f ,
+               drift = d(J_log3)/dt * v_f + J_log3 * a_f^0
+           Yet, we have the identity:
+               d(log3)/dt = J_log3 * v_f = v_f
+           It follows:
+               d(J_log3)/dt * v_f = 0,
+               J_log3 * a_f^0 = a_f^0
+           Hence, it yields:
+               jac = J_f,
+               drift = a_f^0
+
+           For reference, see: https://github.com/duburcqa/jiminy/pull/603 */
         const pinocchio::SE3 & framePose = model->pncData_.oMf[frameIdx_];
         const pinocchio::SE3 transformLocal(rotationLocal_, framePose.translation());
         const pinocchio::Frame & frame = model->pncModel_.frames[frameIdx_];

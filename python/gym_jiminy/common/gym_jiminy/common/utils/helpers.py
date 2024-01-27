@@ -112,7 +112,6 @@ def register_variables(controller: jiminy.AbstractController,
 
     :returns: Whether the registration has been successful.
     """
-    # pylint: disable=cell-var-from-loop
     for fieldname, value in zip(
             tree.flatten_up_to(data, fieldnames),
             tree.flatten(data)):

@@ -7,7 +7,7 @@ from collections.abc import Mapping, MutableMapping, Sequence, MutableSequence
 from typing import (
     Any, Dict, Optional, Union, Sequence as SequenceT, Mapping as MappingT,
     Iterable as IterableT, Tuple, Literal, SupportsFloat, TypeVar, Type,
-    Callable, no_type_check, cast)
+    Callable, Protocol, no_type_check, cast)
 
 import numba as nb
 import numpy as np
@@ -35,6 +35,15 @@ DataNestedT = TypeVar('DataNestedT', bound=DataNested)
 
 ArrayOrScalar = Union[np.ndarray, SupportsFloat]
 ArrayOrScalarT = TypeVar('ArrayOrScalarT', bound=ArrayOrScalar)
+
+
+class RandomDistribution(Protocol):
+    """Protocol to be satisfied when passing generic statistical distribution
+    callable to `sample` method.
+    """
+    def __call__(self, rg: np.random.Generator, *args: Any, **kwargs: Any
+                 ) -> ArrayOrScalar:
+        ...
 
 
 @no_type_check
@@ -88,9 +97,10 @@ def _array_contains(value: np.ndarray,
         tol_nd = np.full_like(value, tol_abs)
         if low is not None and high is not None and tol_rel > 0.0:
             tol_nd = np.maximum((high - low) * tol_rel, tol_nd)
-        if low is not None and (low - tol_nd > value).all():
+        # Reversed bound check because 'all' is always true for empty arrays
+        if low is not None and not (low - tol_nd <= value).all():
             return False
-        if high is not None and (value > high + tol_nd).all():
+        if high is not None and not (value <= high + tol_nd).all():
             return False
         return True
     tol_0d = tol_abs
@@ -140,7 +150,7 @@ def get_bounds(space: gym.Space
 
 def sample(low: Union[float, np.ndarray] = -1.0,
            high: Union[float, np.ndarray] = 1.0,
-           dist: str = 'uniform',
+           dist: Union[str, RandomDistribution] = 'uniform',
            scale: Union[float, np.ndarray] = 1.0,
            enable_log_scale: bool = False,
            shape: Optional[SequenceT[int]] = None,
@@ -160,8 +170,15 @@ def sample(low: Union[float, np.ndarray] = -1.0,
     :param high: Upper value for bounded distribution, positive-side standard
                  deviation otherwise.
                  Optional: 1.0 by default.
-    :param dist: Name of the statistical distribution from which to draw
-                 samples. It must be a member function for `np.random`.
+    :param dist: The statistical from which to draw samples, either provided as
+                 a pre-defined string or a callable. For strings, then it must
+                 be a member function of `np.random.Generator` (only 'uniform'
+                 and 'normal' are supported for now). For callables, it must
+                 corresponds to a standardized distribution and satisfying
+                 `gym_jiminy.common.utils.RandomDistribution` protocol. This is
+                 especially useful for specifying custom parameters of complex
+                 distributions such as Beta. Using `functools.partial` is
+                 recommended, eg `partial(np.random.Generator.Beta, a=1, b=8)`.
                  Optional: 'uniform' by default.
     :param scale: Shrink the standard deviation of the distribution around the
                   mean by this factor.
@@ -173,12 +190,7 @@ def sample(low: Union[float, np.ndarray] = -1.0,
     :param rg: Custom random number generator from which to draw samples.
                Optional: Default to `np.random`.
     """
-    # Make sure the distribution is supported
-    if dist not in ('uniform', 'normal'):
-        raise NotImplementedError(
-            f"'{dist}' distribution type is not supported for now.")
-
-    # Extract mean and deviation from min/max
+    # Compute mean and deviation from low and high arguments
     mean = 0.5 * (low + high)
     dev = 0.5 * scale * (high - low)
 
@@ -193,25 +205,33 @@ def sample(low: Union[float, np.ndarray] = -1.0,
                 np.broadcast(np.empty(shape, dtype=[]), dev)
             except ValueError as e:
                 raise ValueError(
-                    f"'shape' {shape} must be broadcastable with 'low', "
+                    f"'shape' {shape} must be broadcast-able with 'low', "
                     f"'high' and 'scale' {dev.shape} if specified.") from e
 
-    # Sample from normalized distribution.
-    # Note that some distributions are not normalized by default.
-    distrib_fn = getattr(rg or GLOBAL_RNG, dist)
-    if dist == 'uniform':
-        value = distrib_fn(low=-1.0, high=1.0, size=shape)
+    # Define "standardized" distribution callable if only its name was provided
+    if isinstance(dist, str):
+        if dist not in ('uniform', 'normal'):
+            raise NotImplementedError(
+                f"'{dist}' distribution type is not supported for now.")
+        dist_fn = getattr(np.random.Generator, dist)
+        if dist == 'uniform':
+            # The uniform distribution is NOT standardized by default
+            dist_fn = partial(dist_fn, low=-1.0, high=1.0)
     else:
-        value = distrib_fn(size=shape)
+        dist_fn = dist
 
-    # Set mean and deviation
+    # Generate samples from distribution.
+    # Make sure that the result is always returned as np.ndarray.
+    value = np.asarray(dist_fn(rg or GLOBAL_RNG, size=shape))
+
+    # Apply mean and standard deviation transformation
     value = mean + dev * value
 
-    # Revert log scale if appropriate
+    # Revert log scale if requested
     if enable_log_scale:
         value = 10 ** value
 
-    return np.asarray(value)
+    return value
 
 
 def is_bounded(space_nested: gym.Space) -> bool:
