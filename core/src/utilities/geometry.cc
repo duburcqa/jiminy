@@ -591,27 +591,27 @@ namespace jiminy
 #pragma GCC diagnostic pop
 
     hpp::fcl::CollisionGeometryPtr_t discretizeHeightmap(const HeightmapFunctor & heightmap,
-                                                         double x_min,
-                                                         double x_max,
-                                                         double x_unit,
-                                                         double y_min,
-                                                         double y_max,
-                                                         double y_unit,
-                                                         bool must_simplify)
+                                                         double xMin,
+                                                         double xMax,
+                                                         double xUnit,
+                                                         double yMin,
+                                                         double yMax,
+                                                         double yUnit,
+                                                         bool mustSimplify)
     {
         // Allocate vertices on a regular grid
         const Eigen::Index x_dim =
-            static_cast<Eigen::Index>(std::round((x_max - x_min) / x_unit)) + 1;
+            static_cast<Eigen::Index>(std::round((xMax - xMin) / xUnit)) + 1;
         const Eigen::Index y_dim =
-            static_cast<Eigen::Index>(std::round((y_max - y_min) / y_unit)) + 1;
+            static_cast<Eigen::Index>(std::round((yMax - yMin) / yUnit)) + 1;
         hpp::fcl::Matrixx3f vertices(x_dim * y_dim, 3);
 
         /* Fill x and y query coordinates over the grid.
            Taking advantage of row-major storage order by default. */
         Eigen::MatrixXd::Map(vertices.col(0).data(), x_dim, y_dim).colwise() =
-            Eigen::VectorXd::LinSpaced(x_dim, x_min, x_max);
+            Eigen::VectorXd::LinSpaced(x_dim, xMin, xMax);
         Eigen::MatrixXd::Map(vertices.col(1).data(), x_dim, y_dim).rowwise() =
-            Eigen::VectorXd::LinSpaced(y_dim, y_min, y_max).transpose();
+            Eigen::VectorXd::LinSpaced(y_dim, yMin, yMax).transpose();
 
         // Evaluate z coordinate over the grid
         for (Eigen::Index i = 0; i < vertices.rows(); ++i)
@@ -631,12 +631,12 @@ namespace jiminy
         }
 
         // Return heightfield if no simplification requested and grid is centered
-        if (abs(x_min + x_max) < 1e-6 && abs(y_min + y_max) < 1e-6 && !must_simplify)
+        if (abs(xMin + xMax) < 1e-6 && abs(yMin + yMax) < 1e-6 && !mustSimplify)
         {
             auto heights = Eigen::MatrixXd::Map(vertices.col(2).data(), x_dim, y_dim);
             hpp::fcl::CollisionGeometryPtr_t mesh_ptr(new hpp::fcl::HeightField<hpp::fcl::OBBRSS>(
-                x_max - x_min,
-                y_max - y_min,
+                xMax - xMin,
+                yMax - yMin,
                 heights.transpose().colwise().reverse(),
                 vertices.col(2).minCoeff()));
             mesh_ptr->computeLocalAABB();
@@ -658,7 +658,7 @@ namespace jiminy
         }
 
         // Simplify the mesh if requested
-        if (must_simplify)
+        if (mustSimplify)
         {
             // The border must be preserved to avoid changing the boundary of the surface
             internal::MeshSimplifier mesh_simplifier(vertices, triangles);

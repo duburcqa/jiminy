@@ -179,11 +179,12 @@ namespace jiminy
                                const Eigen::VectorXd & /* q */,
                                const Eigen::VectorXd & /* v */,
                                const SensorsDataMap & /* sensorsData */,
-                               Eigen::VectorXd & /* out */) {
+                               Eigen::VectorXd & /* out */)
+        {
+            // Empty on purpose
         };
-        auto controller =
-            std::make_shared<ControllerFunctor<decltype(noopFunctor), decltype(noopFunctor)>>(
-                noopFunctor, noopFunctor);
+        using NoopController = ControllerFunctor<decltype(noopFunctor), decltype(noopFunctor)>;
+        auto controller = std::make_shared<NoopController>(noopFunctor, noopFunctor);
         controller->initialize(robot);
 
         return addSystem(systemName, robot, controller, std::move(callbackFct));
@@ -1145,11 +1146,8 @@ namespace jiminy
             }
 
             // Make sure the initial state is normalized
-            bool isValid;
-            isPositionValid(system.robot->pncModel_,
-                            q,
-                            isValid,
-                            std::numeric_limits<float>::epsilon());  // Cannot throw exception
+            const bool isValid =
+                isPositionValid(system.robot->pncModel_, q, std::numeric_limits<float>::epsilon());
             if (!isValid)
             {
                 PRINT_ERROR("The initial configuration is not consistent with the types of "

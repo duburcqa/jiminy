@@ -102,16 +102,18 @@ namespace jiminy::python
     template<typename WrappedClassT>
     void setFunctionWrapperModule(bp::object & func)
     {
-        /* Register it to the class to fix Ipython attribute lookup, which is looking for
+        /* Register it to the class to fix IPython attribute lookup, which is looking for
           '__module__' attribute, and enable Python/C++ signatures in docstring.
 
            The intended way to do so is to call `add_to_namespace` function. However, the previous
-           registration must be deleted first to avoid being detected as an overload and
-           accumulating docstrings. To avoid such hassle, a hack is used instead by overwriting the
-           internal attribute of the function directly. Beware it relies on `const_cast` to getter
-           returning by reference, which may break in the future. Moreover, a hack is used to get
-           the docstring, which consists in adding the expected tags as function doc. It works for
-           now but it is not really reliable and may break in the future too. */
+           registration must be deleted first to avoid being detected as an overload and aggregate
+           the docstring. To avoid such hassle, some low-level attributes of the function are
+           directly overwritten. For that, one must cast away constness of getters returning by
+           const reference, which is clearly a hack and may break in the future. Moreover, another
+           hack is used to add the Python and C++ signatures to the function documentation without
+           having to generate them manually. It simply consists in adding some special tags on top
+           of the docstring, which works for now but it is not robust and may break in the future
+           as this is an undocumented feature. */
         const bp::converter::registration * r =
             bp::converter::registry::query(typeid(WrappedClassT));
         assert((std::string("Class ") + typeid(WrappedClassT).name() +

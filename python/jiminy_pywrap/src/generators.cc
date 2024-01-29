@@ -224,10 +224,10 @@ namespace jiminy::python
                           bp::default_call_policies(),
                           (bp::arg("self"), "generator")))
             .ADD_PROPERTY_GET_WITH_POLICY("wavelength",
-                                          &PeriodicGaussianProcess::wavelength,
+                                          &PeriodicGaussianProcess::getWavelength,
                                           bp::return_value_policy<bp::return_by_value>())
             .ADD_PROPERTY_GET_WITH_POLICY("period",
-                                          &PeriodicGaussianProcess::period,
+                                          &PeriodicGaussianProcess::getPeriod,
                                           bp::return_value_policy<bp::return_by_value>());
 
         bp::class_<PeriodicFourierProcess,
@@ -242,10 +242,10 @@ namespace jiminy::python
                           bp::default_call_policies(),
                           (bp::arg("self"), "generator")))
             .ADD_PROPERTY_GET_WITH_POLICY("wavelength",
-                                          &PeriodicFourierProcess::wavelength,
+                                          &PeriodicFourierProcess::getWavelength,
                                           bp::return_value_policy<bp::return_by_value>())
             .ADD_PROPERTY_GET_WITH_POLICY("period",
-                                          &PeriodicFourierProcess::period,
+                                          &PeriodicFourierProcess::getPeriod,
                                           bp::return_value_policy<bp::return_by_value>());
 
         bp::class_<AbstractPerlinProcess,
@@ -258,10 +258,10 @@ namespace jiminy::python
                           bp::default_call_policies(),
                           (bp::arg("self"), "generator")))
             .ADD_PROPERTY_GET_WITH_POLICY("wavelength",
-                                          &AbstractPerlinProcess::wavelength,
+                                          &AbstractPerlinProcess::getWavelength,
                                           bp::return_value_policy<bp::return_by_value>())
             .ADD_PROPERTY_GET_WITH_POLICY("num_octaves",
-                                          &AbstractPerlinProcess::num_octaves,
+                                          &AbstractPerlinProcess::getNumOctaves,
                                           bp::return_value_policy<bp::return_by_value>());
 
         bp::class_<RandomPerlinProcess, bp::bases<AbstractPerlinProcess>,
@@ -276,7 +276,7 @@ namespace jiminy::python
                    bp::init<double, double, uint32_t>(
                    (bp::arg("self"), "wavelength", "period", bp::arg("num_octaves") = 6U)))
             .ADD_PROPERTY_GET_WITH_POLICY("period",
-                                          &PeriodicPerlinProcess::period,
+                                          &PeriodicPerlinProcess::getPeriod,
                                           bp::return_value_policy<bp::return_by_value>());
 
         bp::def("random_tile_ground", &tiles,

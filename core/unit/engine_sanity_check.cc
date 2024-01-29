@@ -22,11 +22,11 @@ inline constexpr double TOLERANCE = 1e-9;
 
 
 /// \brief Controller sending zero torque to the motors.
-void controllerZeroTorque(double /* t */,
-                          const Eigen::VectorXd & /* q */,
-                          const Eigen::VectorXd & /* v */,
-                          const SensorsDataMap & /* sensorData */,
-                          Eigen::VectorXd & /* command */)
+void computeCommand(double /* t */,
+                    const Eigen::VectorXd & /* q */,
+                    const Eigen::VectorXd & /* v */,
+                    const SensorsDataMap & /* sensorData */,
+                    Eigen::VectorXd & /* command */)
 {
 }
 
@@ -81,9 +81,8 @@ TEST(EngineSanity, EnergyConservation)
     }
     robot->setMotorsOptions(motorsOptions);
 
-    auto controller = std::make_shared<
-        ControllerFunctor<decltype(controllerZeroTorque), decltype(internalDynamics)>>(
-        controllerZeroTorque, internalDynamics);
+    using Controller = ControllerFunctor<decltype(computeCommand), decltype(internalDynamics)>;
+    auto controller = std::make_shared<Controller>(computeCommand, internalDynamics);
     controller->initialize(robot);
 
     // Create engine

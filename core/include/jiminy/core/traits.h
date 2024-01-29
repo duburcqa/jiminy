@@ -69,13 +69,25 @@ namespace jiminy
     inline constexpr bool is_contiguous_container_v =
         std::conjunction<internal::hasSize<T>, internal::isContiguousIndexable<T, I>>::value;
 
+    // ************************************** select_last ************************************** //
+
+    template<typename... Ts>
+    struct select_last
+    {
+        // FIXME: Replace `std::enable_if<true, T>` by `std::type_identity<T>` when moving to C++20
+        using type = typename decltype((std::enable_if<true, Ts>{}, ...))::type;
+    };
+
+    template<typename... Ts>
+    using select_last_t = typename select_last<Ts...>::type;
+
     // ************************************* remove_cvref ************************************** //
 
     // TODO: Remove it when moving to C++20 as it has been added to the standard library
     template<class T>
     struct remove_cvref
     {
-        typedef std::remove_cv_t<std::remove_reference_t<T>> type;
+        using type = std::remove_cv_t<std::remove_reference_t<T>>;
     };
 
     template<typename T>

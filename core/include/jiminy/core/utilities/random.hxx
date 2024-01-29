@@ -13,7 +13,7 @@ namespace jiminy
     namespace internal
     {
         template<std::size_t I = 0UL, typename SeedSeq>
-        inline uint64_t generateState(SeedSeq && seed_seq) noexcept
+        inline uint64_t generateState(SeedSeq && seedSeq) noexcept
         {
             constexpr std::size_t kN = I + 1UL;
             constexpr std::size_t kDestSize = sizeof(uint64_t);
@@ -24,15 +24,15 @@ namespace jiminy
 
             std::array<uint64_t, kN> result;
             std::array<uint32_t, kFromElems> buffer;
-            seed_seq.generate(buffer.begin(), buffer.end());
-            auto buffer_it = buffer.cbegin();
+            seedSeq.generate(buffer.begin(), buffer.end());
+            auto bufferIt = buffer.cbegin();
             for (uint64_t & dest : result)
             {
                 uint64_t value{0UL};
                 uint32_t shift{0U};
                 for (std::size_t j = 0; j < kScale; ++j)
                 {
-                    value |= static_cast<uint64_t>(*(buffer_it++)) << shift;
+                    value |= static_cast<uint64_t>(*(bufferIt++)) << shift;
                     shift += static_cast<uint32_t>(kSrcBits);
                 }
                 dest = value;
@@ -42,15 +42,15 @@ namespace jiminy
     }
 
     template<typename SeedSeq, typename, typename>
-    PCG32::PCG32(SeedSeq && seed_seq) noexcept :
-    PCG32(internal::generateState(seed_seq))
+    PCG32::PCG32(SeedSeq && seedSeq) noexcept :
+    PCG32(internal::generateState(seedSeq))
     {
     }
 
     template<typename SeedSeq>
-    void PCG32::seed(SeedSeq && seed_seq) noexcept
+    void PCG32::seed(SeedSeq && seedSeq) noexcept
     {
-        new (this) PCG32(std::forward<SeedSeq>(seed_seq));
+        new (this) PCG32(std::forward<SeedSeq>(seedSeq));
     }
 
     // ****************************** Random number distributions ****************************** //

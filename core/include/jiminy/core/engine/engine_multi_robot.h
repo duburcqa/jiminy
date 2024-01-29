@@ -46,8 +46,6 @@ namespace jiminy
     class TelemetrySender;
     struct LogData;
 
-    using ForceCouplingRegister = std::vector<ForceCoupling>;
-
     struct JIMINY_DLLAPI StepperState
     {
     public:

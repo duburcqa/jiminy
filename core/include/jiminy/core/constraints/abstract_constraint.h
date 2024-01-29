@@ -45,8 +45,8 @@ namespace jiminy
 
         /// \brief Compute the jacobian and drift of the constraint.
         ///
-        /// \note To avoid duplicate kinematic computation, it assumes that `computeJointJacobians`
-        ///       and `framesForwardKinematics` has already been called on `model->pncModel_`.
+        /// \note To avoid redundant computations, it assumes that `computeJointJacobians` and
+        ///       `framesForwardKinematics` has already been called on `model->pinocchioModel_`.
         ///
         /// \param[in] q Current joint position.
         /// \param[in] v Current joint velocity.

@@ -4,6 +4,7 @@
 #include "jiminy/core/fwd.h"
 #include "jiminy/core/telemetry/fwd.h"
 #include "jiminy/core/hardware/abstract_sensor.h"
+#include "jiminy/core/control/controller_functor.h"
 
 #include "pinocchio/bindings/python/fwd.hpp"
 
@@ -170,36 +171,37 @@ namespace jiminy::python
                                                  Eigen::VectorXd /* q2 */,
                                                  Eigen::VectorXd /* v2 */>;
 
-    // **************************** FctInOutPyWrapper *******************************
+    // **************************** FunInOutPyWrapper *******************************
 
-    template<typename OutputArg, typename... InputArgs>
-    struct FctInOutPyWrapper
+    template<typename Signature, typename = void>
+    struct FunInOutPyWrapper;
+
+    template<typename... Args>
+    struct FunInOutPyWrapper<
+        void(Args...),
+        std::enable_if_t<
+            std::is_same_v<select_last_t<Args...>, std::decay_t<select_last_t<Args...>> &>>>
     {
     public:
-        FctInOutPyWrapper(const bp::object & objPy) :
-        funcPyPtr_{objPy}
+        FunInOutPyWrapper(const bp::object & funPy) :
+        funPy_{funPy}
         {
         }
-        void operator()(const InputArgs &... argsIn, Eigen::VectorXd & argOut)
+
+        void operator()(Args... args)
         {
-            funcPyPtr_(FctPyWrapperArgToPython(argsIn)..., FctPyWrapperArgToPython(argOut));
+            if (!isNone_)
+            {
+                funPy_(FctPyWrapperArgToPython(args)...);
+            }
         }
 
     private:
-        bp::object funcPyPtr_;
+        bp::object funPy_;
+        const bool isNone_{funPy_.is_none()};
     };
 
-    using ControllerFctWrapper = FctInOutPyWrapper<Eigen::VectorXd /* OutputType */,
-                                                   double /* t */,
-                                                   Eigen::VectorXd /* q */,
-                                                   Eigen::VectorXd /* v */,
-                                                   SensorsDataMap /* sensorsData*/>;
-
-    using ControllerFct = std::function<void(double /* t */,
-                                             const Eigen::VectorXd & /* q */,
-                                             const Eigen::VectorXd & /* v */,
-                                             const SensorsDataMap & /* sensorsData */,
-                                             Eigen::VectorXd & /* command */)>;
+    using ControllerFunPyWrapper = FunInOutPyWrapper<ControllerFunctorSignature>;
 
     // ************************** HeightmapFunctorPyWrapper ******************************
 

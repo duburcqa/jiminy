@@ -24,6 +24,7 @@ namespace jiminy
     struct JIMINY_DLLAPI ForceProfile
     {
     public:
+        // FIXME: Designated aggregate initialization without constructors when moving to C++20
         explicit ForceProfile() = default;
         explicit ForceProfile(const std::string & frameNameIn,
                               pinocchio::FrameIndex frameIdxIn,
@@ -41,6 +42,7 @@ namespace jiminy
     struct JIMINY_DLLAPI ForceImpulse
     {
     public:
+        // FIXME: Designated aggregate initialization without constructors when moving to C++20
         explicit ForceImpulse() = default;
         explicit ForceImpulse(const std::string & frameNameIn,
                               pinocchio::FrameIndex frameIdxIn,
@@ -66,6 +68,7 @@ namespace jiminy
     struct ForceCoupling
     {
     public:
+        // FIXME: Designated aggregate initialization without constructors when moving to C++20
         explicit ForceCoupling() = default;
         explicit ForceCoupling(const std::string & systemName1In,
                                std::ptrdiff_t systemIdx1In,
@@ -91,6 +94,7 @@ namespace jiminy
 
     using ForceProfileRegister = std::vector<ForceProfile>;
     using ForceImpulseRegister = std::vector<ForceImpulse>;
+    using ForceCouplingRegister = std::vector<ForceCoupling>;
 
     // Early termination callback functor
     using CallbackFunctor = std::function<bool(

@@ -66,10 +66,14 @@ namespace jiminy
                                    std::vector<Eigen::Index> & jointsVelocityIdx,
                                    bool firstJointIdxOnly = false);
 
-    hresult_t JIMINY_DLLAPI isPositionValid(const pinocchio::Model & model,
-                                            const Eigen::VectorXd & position,
-                                            bool & isValid,
-                                            double tol);
+    bool JIMINY_DLLAPI isPositionValid(
+        const pinocchio::Model & model,
+        const Eigen::VectorXd & q,
+        double tolAbs = Eigen::NumTraits<double>::dummy_precision());
+
+    void swapJoints(pinocchio::Model & model,
+                    pinocchio::JointIndex jointIndex1,
+                    pinocchio::JointIndex jointIndex2);
 
     hresult_t insertFlexibilityBeforeJointInModel(pinocchio::Model & modelInOut,
                                                   const std::string & childJointNameIn,
@@ -84,8 +88,7 @@ namespace jiminy
                                         const Eigen::VectorXd & timesOut,
                                         Eigen::MatrixXd & positionsOut);
 
-    /// \brief Convert a force expressed in the global frame of a specific frame to its parent
-    ///        joint frame.
+    /// \brief Translate a force expressed at the given fixed frame to its parent joint frame.
     ///
     /// \param[in] model Pinocchio model.
     /// \param[in] data Pinocchio data.
@@ -95,8 +98,8 @@ namespace jiminy
     /// \return Force in the parent joint local frame.
     pinocchio::Force convertForceGlobalFrameToJoint(const pinocchio::Model & model,
                                                     const pinocchio::Data & data,
-                                                    pinocchio::FrameIndex frameIdx,
-                                                    const pinocchio::Force & fextInGlobal);
+                                                    pinocchio::FrameIndex frameIndex,
+                                                    const pinocchio::Force & aFf);
 
     hresult_t buildGeomFromUrdf(const pinocchio::Model & model,
                                 const std::string & filename,
