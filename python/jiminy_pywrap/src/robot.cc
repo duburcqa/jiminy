@@ -87,6 +87,8 @@ namespace jiminy::python
                 .DEF_READONLY("pinocchio_data", &Model::pncData_)
                 .DEF_READONLY("collision_data", &Model::collisionData_)
 
+                .DEF_READONLY("contact_forces", &Model::contactForces_)
+
                 .ADD_PROPERTY_GET_WITH_POLICY("is_initialized",
                                               &Model::getIsInitialized,
                                               bp::return_value_policy<bp::return_by_value>())
