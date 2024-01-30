@@ -13,8 +13,14 @@
 
 namespace jiminy
 {
-    // Sensor data holder
-    namespace details
+    struct JIMINY_DLLAPI IndexByIndex
+    {
+    };
+    struct JIMINY_DLLAPI IndexByName
+    {
+    };
+
+    namespace internal
     {
         struct SensorDataItem
         {
@@ -24,27 +30,24 @@ namespace jiminy
         };
     }
 
-    struct JIMINY_DLLAPI IndexByIndex
-    {
-    };
-    struct JIMINY_DLLAPI IndexByName
-    {
-    };
-
+    /// \brief Lightweight non-owning read-only accessor to the measurements of multiple sensors.
+    ///
+    /// \details One can either retrieve the measurement of each individual sensor, or all at once
+    ///          stacked in contiguous Eigen Matrix.
     struct SensorDataTypeMap :
     public boost::multi_index::multi_index_container<
-        details::SensorDataItem,
+        internal::SensorDataItem,
         boost::multi_index::indexed_by<
             boost::multi_index::ordered_unique<
                 boost::multi_index::tag<IndexByIndex>,
                 boost::multi_index::
-                    member<details::SensorDataItem, std::size_t, &details::SensorDataItem::idx>,
+                    member<internal::SensorDataItem, std::size_t, &internal::SensorDataItem::idx>,
                 std::less<std::size_t>  // Ordering by ascending order
                 >,
             boost::multi_index::hashed_unique<
                 boost::multi_index::tag<IndexByName>,
                 boost::multi_index::
-                    member<details::SensorDataItem, std::string, &details::SensorDataItem::name>>,
+                    member<internal::SensorDataItem, std::string, &internal::SensorDataItem::name>>,
             boost::multi_index::sequenced<>>>
     {
     public:
@@ -54,9 +57,9 @@ namespace jiminy
         {
         }
 
-        /// @brief Returning data associated with all sensors at once.
+        /// \brief Returning data associated with all sensors at once.
         ///
-        /// @warning It is up to the sure to make sure that the data are up-to-date.
+        /// \warning It is up to the sure to make sure that the data are up-to-date.
         inline const Eigen::MatrixXd & getAll() const
         {
             if (sharedDataPtr_)
@@ -91,10 +94,11 @@ namespace jiminy
 
     private:
         const Eigen::MatrixXd * const sharedDataPtr_;
-        /* Internal buffer if no shared memory available.
-           It is useful if the sensors data is not contiguous in the first place,
-           which is likely to be the case when allocated from Python, or when
-           re-generating sensor data from log files. */
+        /// \brief Internal buffer used in absence of shared buffer.
+        ///
+        /// \details Especially useful if sensors data are not stored in a contiguous buffer
+        //           in the first place, which is likely to be the case when allocated from
+        ///          Python, or when emulating sensor data from log files.
         mutable Eigen::MatrixXd data_{};
     };
 

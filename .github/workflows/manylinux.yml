@@ -13,7 +13,7 @@ jobs:
 
     strategy:
       matrix:
-        PYTHON_VERSION: ['cp38', 'cp39', 'cp310', 'cp311']
+        PYTHON_VERSION: ['cp38', 'cp39', 'cp310', 'cp311', 'cp312']
 
     runs-on: ubuntu-20.04
     container: 'quay.io/pypa/manylinux_2_28_x86_64:latest'
@@ -54,7 +54,7 @@ jobs:
         echo "InstallDir=${GITHUB_WORKSPACE}/install" >> $GITHUB_ENV
 
         "${PYTHON_EXECUTABLE}" -m pip install setuptools wheel "pip>=20.3"
-        "${PYTHON_EXECUTABLE}" -m pip install "numpy>=1.21,<2.0" "numba>=0.54.0"
+        "${PYTHON_EXECUTABLE}" -m pip install "numpy>=1.21,<2.0"
         "${PYTHON_EXECUTABLE}" -m pip install twine cmake
     - name: Build project dependencies
       run: |
@@ -75,8 +75,8 @@ jobs:
               -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" \
               -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
               -DBoost_USE_STATIC_LIBS=ON -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
-              -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON \
-              -DBUILD_PYTHON_INTERFACE=ON -DINSTALL_GYM_JIMINY=ON \
+              -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON \
+              -DINSTALL_GYM_JIMINY=${{ (matrix.PYTHON_VERSION == 'cp312' && 'OFF') || 'ON' }} \
               -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
         make -j2
 
@@ -195,8 +195,7 @@ jobs:
         "$InstallDir/bin/pip_double_pendulum"
     - name: Run unit tests on user environment
       run: |
-        cd "${GITHUB_WORKSPACE}/python/jiminy_py/unit_py"
-        "${PYTHON_EXECUTABLE}" -m unittest discover -v
+        "${PYTHON_EXECUTABLE}" -m unittest discover -s "${GITHUB_WORKSPACE}/python/jiminy_py/unit_py" -v
 
     #####################################################################################
 

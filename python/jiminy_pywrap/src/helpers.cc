@@ -19,14 +19,6 @@ namespace jiminy::python
 {
     namespace bp = boost::python;
 
-    uint32_t getRandomSeed()
-    {
-        uint32_t seed;
-        // Cannot fail since random number generators are initialized at shared lib import
-        ::jiminy::getRandomSeed(seed);
-        return seed;
-    }
-
     JointModelType getJointTypeFromIdx(const pinocchio::Model & model, std::size_t jointIdx)
     {
         JointModelType jointType = JointModelType::UNSUPPORTED;
@@ -39,14 +31,6 @@ namespace jiminy::python
         Eigen::Index jointPositionFirstIdx = model.nq;
         ::jiminy::getJointPositionIdx(model, name, jointPositionFirstIdx);
         return jointPositionFirstIdx;
-    }
-
-    bool isPositionValid(const pinocchio::Model & model, const Eigen::VectorXd & position)
-    {
-        bool isValid;
-        ::jiminy::isPositionValid(
-            model, position, isValid, Eigen::NumTraits<double>::dummy_precision());
-        return isValid;
     }
 
     Eigen::MatrixXd interpolate(const pinocchio::Model & modelIn,
@@ -111,6 +95,7 @@ namespace jiminy::python
     np::ndarray solveJMinvJtv(
         pinocchio::Data & data, const np::ndarray & vPy, bool updateDecomposition)
     {
+        bp::object objPy;
         const int32_t nDims = vPy.get_nd();
         assert(nDims < 3 && "The number of dimensions of 'v' cannot exceed 2.");
         if (nDims == 1)
@@ -118,15 +103,16 @@ namespace jiminy::python
             const Eigen::VectorXd v = convertFromPython<Eigen::VectorXd>(vPy);
             const Eigen::VectorXd x =
                 pinocchio_overload::solveJMinvJtv<Eigen::VectorXd>(data, v, updateDecomposition);
-            return bp::extract<np::ndarray>(convertToPython(x, true));
+            objPy = convertToPython(x, true);
         }
         else
         {
             const Eigen::MatrixXd v = convertFromPython<Eigen::MatrixXd>(vPy);
             const Eigen::MatrixXd x =
                 pinocchio_overload::solveJMinvJtv<Eigen::MatrixXd>(data, v, updateDecomposition);
-            return bp::extract<np::ndarray>(convertToPython(x, true));
+            objPy = convertToPython(x, true);
         }
+        return bp::extract<np::ndarray>(objPy);
     }
 
     void arrayCopyTo(PyObject * dstPy, PyObject * srcPy)
@@ -214,8 +200,8 @@ namespace jiminy::python
                 // Copy scalar bytes to destination if available
                 if (isSuccess)
                 {
-                    Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, 1>> dst(
-                        reinterpret_cast<double *>(dstPyData), PyArray_SIZE(dstPyArray));
+                    Eigen::Map<VectorX<double>> dst(reinterpret_cast<double *>(dstPyData),
+                                                    PyArray_SIZE(dstPyArray));
                     dst.setConstant(srcPyScalar);
                     return;
                 }
@@ -317,8 +303,6 @@ namespace jiminy::python
     void exposeHelpers()
     {
         // clang-format off
-        bp::def("get_random_seed", bp::make_function(&getRandomSeed,
-                                   bp::return_value_policy<bp::return_by_value>()));
         bp::def("build_geom_from_urdf", &buildGeomFromUrdf,
                                         (bp::arg("pinocchio_model"), "urdf_filename", "geom_type",
                                          bp::arg("mesh_package_dirs") = bp::list(),
@@ -336,7 +320,7 @@ namespace jiminy::python
         bp::def("get_joint_position_idx", &getJointPositionIdx,
                                           (bp::arg("pinocchio_model"), "joint_name"));
         bp::def("is_position_valid", &isPositionValid,
-                                     (bp::arg("pinocchio_model"), "position"));
+                                     (bp::arg("pinocchio_model"), "position", bp::arg("tol_abs") = std::numeric_limits<float>::epsilon()));
 
         bp::def("array_copyto", &arrayCopyTo, (bp::arg("dst"), "src"));
 

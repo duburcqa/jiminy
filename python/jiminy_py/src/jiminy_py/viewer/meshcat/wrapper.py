@@ -203,7 +203,6 @@ class CommManager:
             asyncio.set_event_loop(loop)
             self.__ioloop = tornado.ioloop.IOLoop()
 
-            # pylint: disable=abstract-class-instantiated
             # Start comm socket
             context = zmq.Context()
             self.__comm_socket = context.socket(zmq.XREQ)

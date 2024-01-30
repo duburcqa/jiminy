@@ -33,6 +33,7 @@ try:
 except ImportError:
     Process = type(None)  # type: ignore[assignment,misc]
 
+import hppfcl
 import pinocchio as pin
 from pinocchio import SE3, SE3ToXYZQUAT
 from pinocchio.rpy import (  # pylint: disable=import-error
@@ -47,7 +48,7 @@ from ..dynamics import State
 from .meshcat.utilities import interactive_mode
 from .panda3d.panda3d_visualizer import (
     Tuple3FType, Tuple4FType, ShapeType, Panda3dApp, Panda3dViewer,
-    Panda3dVisualizer)
+    Panda3dVisualizer, convert_bvh_collision_geometry_to_primitive)
 
 
 REPLAY_FRAMERATE = 30
@@ -275,7 +276,7 @@ def _must_be_open(fun: Callable[..., Any]) -> Callable[..., Any]:
             raise RuntimeError(
                 "No backend available. Please start one before calling "
                 f"'{fun.__name__}'.")
-        return fun(*args, **kwargs)  # pylint: disable=not-callable
+        return fun(*args, **kwargs)
     return fun_safe
 
 
@@ -287,7 +288,7 @@ def _with_lock(fun: Callable[..., Any]) -> Callable[..., Any]:
             self = args[0]
         self = kwargs.get('self', self)
         with self._lock:
-            return fun(*args, **kwargs)  # pylint: disable=not-callable
+            return fun(*args, **kwargs)
     return fun_safe
 
 
@@ -1481,11 +1482,11 @@ class Viewer:
             [0.0, 0.0, 0.0] moves the camera at the center of scene, looking
             downward.
 
-        :param position: Position [X, Y, Z] as a list or 1D array. None to not
-                         update it.
+        :param position: Position [X, Y, Z] as a list or 1D array. If `None`,
+                         when it will be kept as is.
                          Optional: None by default.
         :param rotation: Rotation [Roll, Pitch, Yaw] as a list or 1D np.array.
-                         None to note update it.
+                         If `None`, when it will be kept as is.
                          Optional: None by default.
         :param relative:
             .. raw:: html
@@ -1588,10 +1589,10 @@ class Viewer:
         .. note::
             It preserve the relative camera pose wrt the lookup position.
 
-        :param position: Position [X, Y, Z] as a list or 1D array, frame index
-        :param relative: Set the lookat position relative to robot frame if
-                         specified, in absolute otherwise. Both frame name and
-                         index in model are supported.
+        :param position: Position [X, Y, Z] as a list or 1D array
+        :param relative: If specified, set the lookat position relative to
+                         provided position, in absolute world otherwise. Both
+                         frame name and index in model are supported.
         :param wait: Whether to wait for rendering to finish.
         """
         # Assert(s) for type checker
@@ -1658,9 +1659,9 @@ class Viewer:
         """Attach the camera to a given robot frame.
 
         Only the position of the frame is taken into account. A custom relative
-        pose of the camera wrt to the frame can be further specified. If so,
-        then the relative camera pose wrt the frame is locked, otherwise the
-        camera is only constrained to look at the frame.
+        orientation of the camera wrt to the frame can be further specified. If
+        so, then the relative camera pose wrt the frame is locked, otherwise
+        the camera is only constrained to look at the frame.
 
         :param relative: Name or index of the frame of the robot to follow with
                          the camera.
@@ -1701,27 +1702,26 @@ class Viewer:
             raise NotImplementedError(
                 "Not locking camera pose is only supported by Panda3d.")
 
-        # Handling of default camera pose
-        camera_xyzrpy: Optional[
-            Tuple[Optional[Tuple3FType], Optional[Tuple3FType]]] = None
-        if lock_relative_pose:
-            camera_xyzrpy = (None, None)
-
-        # Set default relative camera pose if position/orientation undefined
+        # Set default relative camera pose if pose is partially defined
         if lock_relative_pose or position is not None or rotation is not None:
             if position is None:
                 position = DEFAULT_CAMERA_XYZRPY_REL[0]
             if rotation is None:
                 rotation = DEFAULT_CAMERA_XYZRPY_REL[1]
-            camera_xyzrpy = (position, rotation)
 
         # Set camera pose if relative pose is not locked but provided
-        if not lock_relative_pose and camera_xyzrpy is not None:
-            self.set_camera_transform(*camera_xyzrpy, relative)
-            camera_xyzrpy = None
+        if not lock_relative_pose:
+            if position is not None or rotation is not None:
+                self.set_camera_transform(position, rotation, relative)
+            if isinstance(relative, str):
+                relative = self._client.model.getFrameId(relative)
+            position = (
+                self._gui.get_camera_lookat() -
+                self._client.data.oMf[relative].translation)
+            rotation = None
 
         Viewer._camera_travelling = {
-            'viewer': self, 'frame': relative, 'pose': camera_xyzrpy}
+            'viewer': self, 'frame': relative, 'pose': (position, rotation)}
 
     @staticmethod
     def detach_camera() -> None:
@@ -1784,14 +1784,13 @@ class Viewer:
     @_with_lock
     @_must_be_open
     def update_floor(ground_profile: Optional[jiminy.HeightmapFunctor] = None,
-                     grid_size: float = 20.0,
-                     grid_unit: float = 0.04,
+                     x_range: Tuple[float, float] = (-10.0, 10.0),
+                     y_range: Tuple[float, float] = (-10.0, 10.0),
+                     grid_unit:  Tuple[float, float] = (0.04, 0.04),
+                     simplify_meshes: bool = False,
                      show_meshes: bool = False) -> None:
         """Display a custom ground profile as a height map or the original tile
         ground floor.
-
-        .. note::
-            This method is only supported by Panda3d for now.
 
         :param ground_profile: `jiminy_py.core.HeightmapFunctor` associated
                                with the ground profile. It renders a flat tile
@@ -1804,30 +1803,37 @@ class Viewer:
         :param show_meshes: Whether to highlight the meshes.
                             Optional: disabled by default.
         """
+        # pylint: disable=import-outside-toplevel
+
         # Assert(s) for type checker
         assert Viewer.backend is not None
         assert Viewer._backend_obj is not None
 
-        # Return early if this method is not supported by the current backend
-        if not Viewer.backend.startswith('panda3d'):
-            LOGGER.warning("This method is only supported by Panda3d.")
-            return
-
-        # Restore tile ground if heightmap is not specified
+        # Discretize ground profile if provided
+        geom = None
         if ground_profile is None:
-            Viewer._backend_obj.gui.update_floor()
-            return
+            geom = discretize_heightmap(
+                ground_profile, *x_range, grid_unit[0], *y_range, grid_unit[1],
+                must_simplify=simplify_meshes)
 
-        # Discretize heightmap
-        grid = discretize_heightmap(ground_profile, grid_size, grid_unit)
+        # Render original flat tile ground if possible.
+        # TODO: Improve this check using LocalAABB box geometry instead.
+        if isinstance(geom, hppfcl.Halfspace):
+            if abs(geom.d) > 1e-6:
+                raise RuntimeError(
+                    "Rendering flat ground with non-zero height not supported")
+            geom = None
 
-        # Make sure it is not flat ground
-        if np.unique(grid[:, 2:], axis=0).shape[0] == 1 and \
-                np.allclose(grid[0, 2:], [0.0, 0.0, 0.0, 1.0], atol=1e-3):
-            Viewer._backend_obj.gui.update_floor()
-            return
-
-        Viewer._backend_obj.gui.update_floor(grid, show_meshes)
+        # Render ground geometry
+        if Viewer.backend.startswith('panda3d'):
+            obj = None
+            if geom is not None:
+                obj = convert_bvh_collision_geometry_to_primitive(geom)
+            Viewer._backend_obj.gui.update_floor(obj, show_meshes)
+        else:
+            from .meshcat.meshcat_visualizer import (
+                update_floor as meshcat_update_floor)
+            meshcat_update_floor(Viewer._backend_obj.gui, geom)
 
     @staticmethod
     @_with_lock
@@ -2359,13 +2365,13 @@ class Viewer:
         # Update the camera placement if necessary
         if Viewer._camera_travelling is not None:
             if Viewer._camera_travelling['viewer'] is self:
-                if Viewer._camera_travelling['pose'] is not None:
+                position, rotation = Viewer._camera_travelling['pose']
+                frame = Viewer._camera_travelling['frame']
+                if rotation is not None:
                     self.set_camera_transform(
-                        *Viewer._camera_travelling['pose'],
-                        relative=Viewer._camera_travelling['frame'])
+                        position, rotation, relative=frame)
                 else:
-                    frame = Viewer._camera_travelling['frame']
-                    self.set_camera_lookat(np.zeros(3), frame)
+                    self.set_camera_lookat(position, relative=frame)
 
         if Viewer._camera_motion is not None:
             self.set_camera_transform(*Viewer._camera_xyzrpy)

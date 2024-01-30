@@ -8,78 +8,131 @@ namespace jiminy
     static inline constexpr double PERLIN_NOISE_PERSISTENCE{1.50};
     static inline constexpr double PERLIN_NOISE_LACUNARITY{1.15};
 
-    // ***************** Random number generator_ *****************
+    // ***************************** Uniform random bit generators ***************************** //
 
-    // Based on Ziggurat generator by Marsaglia and Tsang (JSS, 2000):
-    // https://people.sc.fsu.edu/~jburkardt/cpp_src/ziggurat/ziggurat.html
-
-    std::mt19937 generator_{};
-    std::uniform_real_distribution<float> distUniform_(0.0, 1.0);
-    bool isInitialized_{false};
-    uint32_t seed_{0U};
-
-    uint32_t kn[128];
-    float fn[128];
-    float wn[128];
-
-    void r4_nor_setup() noexcept
+    PCG32::PCG32(uint64_t state) noexcept :
+    state_{state | 3ULL}
     {
-        const double m1 = 2147483648.0;
-        const double vn = 9.91256303526217e-03;
-        double dn = 3.442619855899;
-        double tn = dn;
-
-        double q = vn / exp(-0.5 * dn * dn);
-
-        kn[0] = static_cast<uint32_t>((dn / q) * m1);
-        kn[1] = 0;
-
-        wn[0] = static_cast<float>(q / m1);
-        wn[127] = static_cast<float>(dn / m1);
-
-        fn[0] = 1.0f;
-        fn[127] = static_cast<float>(exp(-0.5 * dn * dn));
-
-        for (uint8_t i = 126; 1 <= i; i--)
-        {
-            dn = sqrt(-2.0 * log(vn / dn + exp(-0.5 * dn * dn)));
-            kn[i + 1] = static_cast<uint32_t>((dn / tn) * m1);
-            tn = dn;
-            fn[i] = static_cast<float>(exp(-0.5 * dn * dn));
-            wn[i] = static_cast<float>(dn / m1);
-        }
     }
 
-    float r4_uni()
+    uint32_t PCG32::operator()() noexcept
     {
-        return distUniform_(generator_);
+        constexpr uint8_t bits = static_cast<uint8_t>(std::numeric_limits<uint64_t>::digits);
+        constexpr uint8_t uint32Bits = static_cast<uint8_t>(std::numeric_limits<uint32_t>::digits);
+        constexpr uint8_t spareBits = bits - uint32Bits;
+        constexpr uint8_t opBits = spareBits - 5 >= 64 ? 5 :
+                                   spareBits - 4 >= 32 ? 4 :
+                                   spareBits - 3 >= 16 ? 3 :
+                                   spareBits - 2 >= 4  ? 2 :
+                                   spareBits - 1 >= 1  ? 1 :
+                                                         0;
+        constexpr uint8_t mask = (1 << opBits) - 1;
+        constexpr uint8_t maxRandShift = mask;
+        constexpr uint8_t topSpare = opBits;
+        constexpr uint8_t bottomSpare = spareBits - topSpare;
+        constexpr uint8_t xShift = topSpare + (uint32Bits + maxRandShift) / 2;
+
+        state_ *= 6364136223846793005ULL;
+        uint64_t state = state_;
+        uint8_t rshift = opBits ? static_cast<uint8_t>(state >> (bits - opBits)) & mask : 0U;
+        state ^= state >> xShift;
+        return static_cast<uint32_t>(state >> (bottomSpare - maxRandShift + rshift));
     }
 
-    float r4_nor()
+    // ****************************** Random number distributions ****************************** //
+
+    float uniform(const uniform_random_bit_generator_ref<uint32_t> & g)
     {
-        const float r = 3.442620f;
-        int32_t hz;
-        uint32_t iz;
-        float x;
-        float y;
+        return std::generate_canonical<float, std::numeric_limits<float>::digits>(g);
+    }
 
-        hz = static_cast<int32_t>(generator_());
-        iz = (static_cast<uint32_t>(hz) & 127U);
+    float uniform(const uniform_random_bit_generator_ref<uint32_t> & g, float lo, float hi)
+    {
+        return std::uniform_real_distribution<float>(lo, hi)(g);
+    }
 
-        if (fabs(hz) < kn[iz])
+    namespace internal::ziggurat
+    {
+        /// \details "Advanced" cmath functions are required by the standard to be constexpr
+        ///          starting from C++26 instead of C++23 as initially expected (see P1383R2).
+        ///          Generic compile-time computation supported by all compilers is not possible
+        ///          without it, and must be postponed to import-time, which is still much better
+        ///          than run-time.
+        ///
+        ///  \sa For reference, see:
+        ///      https://stackoverflow.com/a/34465458/4820605
+        ///      https://stackoverflow.com/q/36497632/4820605
+        struct ZigguratNormalData
         {
-            return static_cast<float>(hz) * wn[iz];
-        }
-        else
+            ZigguratNormalData()
+            {
+                constexpr double m1 = 2147483648.0;
+                constexpr double vn = 9.91256303526217e-03;
+                double dn = 3.442619855899;
+                double tn = dn;
+
+                const double q = vn / std::exp(-0.5 * dn * dn);
+
+                kn[0] = static_cast<uint32_t>((dn / q) * m1);
+                kn[1] = 0;
+
+                wn[0] = static_cast<float>(q / m1);
+                wn[127] = static_cast<float>(dn / m1);
+
+                fn[0] = 1.0F;
+                fn[127] = static_cast<float>(std::exp(-0.5 * dn * dn));
+
+                for (uint8_t i = 126; 1 <= i; i--)
+                {
+                    dn = std::sqrt(-2.0 * std::log(vn / dn + std::exp(-0.5 * dn * dn)));
+                    kn[i + 1] = static_cast<uint32_t>((dn / tn) * m1);
+                    tn = dn;
+                    fn[i] = static_cast<float>(std::exp(-0.5 * dn * dn));
+                    wn[i] = static_cast<float>(dn / m1);
+                }
+            }
+
+            std::array<uint32_t, 128> kn{};
+            std::array<float, 128> fn{};
+            std::array<float, 128> wn{};
+        };
+
+        static const ZigguratNormalData ZIGGURAT_NORMAL_DATA{};
+        static const std::array<uint32_t, 128> kn = ZIGGURAT_NORMAL_DATA.kn;
+        static const std::array<float, 128> fn = ZIGGURAT_NORMAL_DATA.fn;
+        static const std::array<float, 128> wn = ZIGGURAT_NORMAL_DATA.wn;
+    }
+
+    namespace internal
+    {
+
+        float normal(const uniform_random_bit_generator_ref<uint32_t> & g)
         {
+            using namespace internal::ziggurat;
+
+            constexpr float r = 3.442620F;
+
+            int32_t hz;
+            uint32_t iz;
+            float x;
+            float y;
+
+            hz = static_cast<int32_t>(g());
+            iz = (static_cast<uint32_t>(hz) & 127UL);
+
+            if (std::fabs(hz) < kn[iz])
+            {
+                return static_cast<float>(hz) * wn[iz];
+            }
+
             while (true)
             {
                 if (iz == 0)
                 {
                     while (true)
                     {
-                        x = -0.2904764f * log(r4_uni());
-                        y = -log(r4_uni());
+                        x = -0.2904764F * std::log(uniform(g));
+                        y = -std::log(uniform(g));
                         if (x * x <= y + y)
                         {
                             break;
@@ -90,23 +143,20 @@ namespace jiminy
                     {
                         return -r - x;
                     }
-                    else
-                    {
-                        return +r + x;
-                    }
+                    return r + x;
                 }
 
                 x = static_cast<float>(hz) * wn[iz];
 
-                if (fn[iz] + r4_uni() * (fn[iz - 1] - fn[iz]) < exp(-0.5f * x * x))
+                if (fn[iz] + uniform(g) * (fn[iz - 1] - fn[iz]) < std::exp(-0.5F * x * x))
                 {
                     return x;
                 }
 
-                hz = static_cast<int32_t>(generator_());
+                hz = static_cast<int32_t>(g());
                 iz = (hz & 127);
 
-                if (fabs(hz) < kn[iz])
+                if (std::fabs(hz) < kn[iz])
                 {
                     return static_cast<float>(hz) * wn[iz];
                 }
@@ -114,103 +164,42 @@ namespace jiminy
         }
     }
 
-    void resetRandomGenerators(const std::optional<uint32_t> & seed) noexcept
+    float normal(const uniform_random_bit_generator_ref<uint32_t> & g, float mean, float stddev)
     {
-        uint32_t newSeed = seed.value_or(seed_);
-        srand(newSeed);  // Eigen relies on srand for generating random numbers
-        generator_.seed(newSeed);
-        r4_nor_setup();
-        seed_ = newSeed;
-        isInitialized_ = true;
+        return internal::normal(g) * stddev + mean;
     }
 
-    hresult_t getRandomSeed(uint32_t & seed)
-    {
-        if (!isInitialized_)
-        {
-            PRINT_ERROR("Random number generator not initialized.");
-            return hresult_t::ERROR_GENERIC;
-        }
+    // **************************** Non-cryptographic hash function **************************** //
 
-        seed = seed_;
-
-        return hresult_t::SUCCESS;
-    }
-
-    double randUniform(double lo, double hi)
-    {
-        assert(isInitialized_ && "Random number genetors not initialized. "
-                                 "Please call `resetRandomGenerators` at least once.");
-        return lo + r4_uni() * (hi - lo);
-    }
-
-    double randNormal(double mean, double std)
-    {
-        assert(isInitialized_ && "Random number genetors not initialized. "
-                                 "Please call `resetRandomGenerators` at least once.");
-        return mean + r4_nor() * std;
-    }
-
-    Eigen::VectorXd randVectorNormal(uint32_t size, double mean, double std)
-    {
-        if (std > 0.0)
-        {
-            return Eigen::VectorXd::NullaryExpr(
-                size, [mean, std](Eigen::Index) -> double { return randNormal(mean, std); });
-        }
-        return Eigen::VectorXd::Constant(size, mean);
-    }
-
-    Eigen::VectorXd randVectorNormal(uint32_t size, double std)
-    {
-        return randVectorNormal(size, 0.0, std);
-    }
-
-    Eigen::VectorXd randVectorNormal(const Eigen::VectorXd & mean, const Eigen::VectorXd & std)
-    {
-        return Eigen::VectorXd::NullaryExpr(std.size(),
-                                            [&mean, &std](Eigen::Index i) -> double
-                                            { return randNormal(mean[i], std[i]); });
-    }
-
-    Eigen::VectorXd randVectorNormal(const Eigen::VectorXd & std)
-    {
-        return Eigen::VectorXd::NullaryExpr(
-            std.size(), [&std](Eigen::Index i) -> double { return randNormal(0, std[i]); });
-    }
-
-    void shuffleIndices(std::vector<uint32_t> & vector)
-    {
-        std::shuffle(vector.begin(), vector.end(), generator_);
-    }
-
-    //-----------------------------------------------------------------------------
-    // MurmurHash3 was written by Austin Appleby, and is placed in the public
-    // domain. The author hereby disclaims copyright to this source code:
-    // https://github.com/aappleby/smhasher/blob/master/src/MurmurHash3.cpp
-
-    inline uint32_t rotl32(uint32_t x, int8_t r) noexcept
+    static uint32_t rotl32(uint32_t x, int8_t r) noexcept
     {
         return (x << r) | (x >> (32 - r));
     }
 
-    uint32_t MurmurHash3(const void * key, int32_t len, uint32_t seed) noexcept
+    /// @brief MurmurHash3 is a non-cryptographic hash function initially designed
+    ///        for hash-based lookup.
+    ///
+    /// @sa It was written by Austin Appleby, and is placed in the public domain.
+    ///     The author hereby disclaims copyright to this source code:
+    ///     https://github.com/aappleby/smhasher/blob/master/src/MurmurHash3.cpp
+    static uint32_t MurmurHash3(const void * key, int32_t len, uint32_t seed) noexcept
     {
         // Define some internal constants
-        const uint32_t c1 = 0xcc9e2d51;
-        const uint32_t c2 = 0x1b873593;
-        const uint32_t c3 = 0xe6546b64;
+        constexpr uint32_t c1 = 0xcc9e2d51;
+        constexpr uint32_t c2 = 0x1b873593;
+        constexpr uint32_t c3 = 0xe6546b64;
 
         // Initialize has to seed value
         uint32_t h1 = seed;
 
         // Extract bytes from key
-        const uint8_t * data = reinterpret_cast<const uint8_t *>(key);
-        const int32_t nblocks = len / 4;  // len in bytes, so 32-bits blocks
+        const auto * data = static_cast<const uint8_t *>(key);
+        const int32_t numBlocks = len / 4;  // len in bytes, so 32-bits blocks
 
         // Body
-        const uint32_t * blocks = reinterpret_cast<const uint32_t *>(data + nblocks * 4);
-        for (int32_t i = -nblocks; i; ++i)
+        const auto * blocks =
+            reinterpret_cast<const uint32_t *>(data + static_cast<std::ptrdiff_t>(numBlocks * 4));
+        for (int32_t i = -numBlocks; i; ++i)
         {
             uint32_t k1 = blocks[i];
             k1 *= c1;
@@ -222,7 +211,8 @@ namespace jiminy
         }
 
         // Tail
-        const uint8_t * tail = reinterpret_cast<const uint8_t *>(data + nblocks * 4);
+        const auto * tail =
+            reinterpret_cast<const uint8_t *>(data + static_cast<std::ptrdiff_t>(numBlocks * 4));
         uint32_t k1 = 0U;
         switch (len & 3)
         {
@@ -255,27 +245,26 @@ namespace jiminy
         return h1;
     }
 
-    //-----------------------------------------------------------------------------
+    // **************************** Continuous 1D Gaussian processes *************************** //
 
-    PeriodicGaussianProcess::PeriodicGaussianProcess(
-        double wavelength, double period, double scale) noexcept :
+    PeriodicGaussianProcess::PeriodicGaussianProcess(double wavelength, double period) noexcept :
     wavelength_{wavelength},
-    period_{period},
-    scale_{scale}
+    period_{period}
     {
+        reset(std::random_device{});
     }
 
-    void PeriodicGaussianProcess::reset()
+    void PeriodicGaussianProcess::reset(
+        const uniform_random_bit_generator_ref<uint32_t> & g) noexcept
     {
         // Sample normal vector
-        const Eigen::VectorXd normalVec =
-            Eigen::VectorXd::NullaryExpr(numTimes_, [](Eigen::Index) { return randNormal(); });
+        auto normalVec = normal(numTimes_, 1, g);
 
         // Compute discrete periodic gaussian process values
-        values_.noalias() = covSqrtRoot_.triangularView<Eigen::Lower>() * normalVec;
+        values_.noalias() = covSqrtRoot_.triangularView<Eigen::Lower>() * normalVec.cast<double>();
     }
 
-    double PeriodicGaussianProcess::operator()(const float & t)
+    double PeriodicGaussianProcess::operator()(float t)
     {
         // Wrap requested time in gaussian process period
         double tWrap = std::fmod(t, period_);
@@ -285,51 +274,47 @@ namespace jiminy
         }
 
         // Compute closest left and right indices
-        const int32_t tLeftIdx = static_cast<int32_t>(std::floor(tWrap / dt_));
-        const int32_t tRightIdx = (tLeftIdx + 1) % numTimes_;
+        const Eigen::Index tLeftIdx = static_cast<Eigen::Index>(std::floor(tWrap / dt_));
+        const Eigen::Index tRightIdx = (tLeftIdx + 1) % numTimes_;
 
         // Perform First order interpolation
-        const double ratio = tWrap / dt_ - tLeftIdx;
-        return scale_ * (values_[tLeftIdx] + ratio * (values_[tRightIdx] - values_[tLeftIdx]));
+        const double ratio = tWrap / dt_ - static_cast<double>(tLeftIdx);
+        return values_[tLeftIdx] + ratio * (values_[tRightIdx] - values_[tLeftIdx]);
     }
 
-    double PeriodicGaussianProcess::getWavelength() const
+    double PeriodicGaussianProcess::getWavelength() const noexcept
     {
         return wavelength_;
     }
 
-    double PeriodicGaussianProcess::getPeriod() const
+    double PeriodicGaussianProcess::getPeriod() const noexcept
     {
         return period_;
     }
 
-    double PeriodicGaussianProcess::getDt() const
-    {
-        return dt_;
-    }
+    // **************************** Continuous 1D Fourier processes **************************** //
 
-    PeriodicFourierProcess::PeriodicFourierProcess(
-        double wavelength, double period, double scale) noexcept :
+    PeriodicFourierProcess::PeriodicFourierProcess(double wavelength, double period) noexcept :
     wavelength_{wavelength},
-    period_{period},
-    scale_{scale}
+    period_{period}
     {
+        reset(std::random_device{});
     }
 
-    void PeriodicFourierProcess::reset()
+    void PeriodicFourierProcess::reset(
+        const uniform_random_bit_generator_ref<uint32_t> & g) noexcept
     {
         // Sample normal vectors
-        Eigen::VectorXd normalVec1 =
-            Eigen::VectorXd::NullaryExpr(numHarmonics_, [](Eigen::Index) { return randNormal(); });
-        Eigen::VectorXd normalVec2 =
-            Eigen::VectorXd::NullaryExpr(numHarmonics_, [](Eigen::Index) { return randNormal(); });
+        auto normalVec1 = normal(numHarmonics_, 1, g);
+        auto normalVec2 = normal(numHarmonics_, 1, g);
 
         // Compute discrete periodic gaussian process values
-        values_ = M_SQRT2 / std::sqrt(2 * numHarmonics_ + 1) *
-                  (cosMat_ * normalVec1 + sinMat_ * normalVec2);
+        const double scale = M_SQRT2 / std::sqrt(2 * numHarmonics_ + 1);
+        values_ = scale * cosMat_ * normalVec1.cast<double>();
+        values_.noalias() += scale * sinMat_ * normalVec2.cast<double>();
     }
 
-    double PeriodicFourierProcess::operator()(const float & t)
+    double PeriodicFourierProcess::operator()(float t)
     {
         // Wrap requested time in guassian process period
         double tWrap = std::fmod(t, period_);
@@ -339,45 +324,38 @@ namespace jiminy
         }
 
         // Compute closest left and right indices
-        const int32_t tLeftIdx = static_cast<int32_t>(std::floor(tWrap / dt_));
-        const int32_t tRightIdx = (tLeftIdx + 1) % numTimes_;
+        const Eigen::Index tLeftIdx = static_cast<Eigen::Index>(std::floor(tWrap / dt_));
+        const Eigen::Index tRightIdx = (tLeftIdx + 1) % numTimes_;
 
         // Perform First order interpolation
-        const double ratio = tWrap / dt_ - tLeftIdx;
-        return scale_ * (values_[tLeftIdx] + ratio * (values_[tRightIdx] - values_[tLeftIdx]));
+        const double ratio = tWrap / dt_ - static_cast<double>(tLeftIdx);
+        return values_[tLeftIdx] + ratio * (values_[tRightIdx] - values_[tLeftIdx]);
     }
 
-    double PeriodicFourierProcess::getWavelength() const
+    double PeriodicFourierProcess::getWavelength() const noexcept
     {
         return wavelength_;
     }
 
-    double PeriodicFourierProcess::getPeriod() const
+    double PeriodicFourierProcess::getPeriod() const noexcept
     {
         return period_;
     }
 
-    int32_t PeriodicFourierProcess::getNumHarmonics() const
+    // ***************************** Continuous 1D Perlin processes **************************** //
+
+    AbstractPerlinNoiseOctave::AbstractPerlinNoiseOctave(double wavelength) :
+    wavelength_{wavelength}
     {
-        return numHarmonics_;
+        assert(wavelength_ > 0 && "wavelength must be strictly larger than 0.0.");
+        shift_ = uniform(std::random_device{});
     }
 
-    double PeriodicFourierProcess::getDt() const
-    {
-        return dt_;
-    }
-
-    AbstractPerlinNoiseOctave::AbstractPerlinNoiseOctave(double wavelength, double scale) noexcept
-    :
-    wavelength_{wavelength},
-    scale_{scale}
-    {
-    }
-
-    void AbstractPerlinNoiseOctave::reset()
+    void AbstractPerlinNoiseOctave::reset(
+        const uniform_random_bit_generator_ref<uint32_t> & g) noexcept
     {
         // Sample random phase shift
-        shift_ = randUniform();
+        shift_ = uniform(g);
     }
 
     double AbstractPerlinNoiseOctave::operator()(double t) const
@@ -398,20 +376,15 @@ namespace jiminy
            at current phase.*/
         const double yLeft = grad(phaseIdxLeft, dtLeft);
         const double yRight = grad(phaseIdxRight, dtRight);
-        return scale_ * lerp(ratio, yLeft, yRight);
+        return lerp(ratio, yLeft, yRight);
     }
 
-    double AbstractPerlinNoiseOctave::getWavelength() const
+    double AbstractPerlinNoiseOctave::getWavelength() const noexcept
     {
         return wavelength_;
     }
 
-    double AbstractPerlinNoiseOctave::getScale() const
-    {
-        return scale_;
-    }
-
-    double AbstractPerlinNoiseOctave::fade(double delta) const
+    double AbstractPerlinNoiseOctave::fade(double delta) noexcept
     {
         /* Improved Smoothstep function by Ken Perlin (aka Smootherstep).
            It has zero 1st and 2nd-order derivatives at dt = 0.0, and 1.0:
@@ -419,21 +392,28 @@ namespace jiminy
         return std::pow(delta, 3) * (delta * (delta * 6.0 - 15.0) + 10.0);
     }
 
-    double AbstractPerlinNoiseOctave::lerp(double ratio, double yLeft, double yRight) const
+    double AbstractPerlinNoiseOctave::lerp(double ratio, double yLeft, double yRight) noexcept
     {
         return yLeft + ratio * (yRight - yLeft);
     }
 
-    void RandomPerlinNoiseOctave::reset()
+    RandomPerlinNoiseOctave::RandomPerlinNoiseOctave(double wavelength) :
+    AbstractPerlinNoiseOctave(wavelength)
     {
-        // Call base implementation
-        AbstractPerlinNoiseOctave::reset();
-
-        // Sample new random seed for MurmurHash
-        seed_ = static_cast<uint32_t>(generator_());
+        seed_ = std::random_device{}();
     }
 
-    double RandomPerlinNoiseOctave::grad(int32_t knot, double delta) const
+    void RandomPerlinNoiseOctave::reset(
+        const uniform_random_bit_generator_ref<uint32_t> & g) noexcept
+    {
+        // Call base implementation
+        AbstractPerlinNoiseOctave::reset(g);
+
+        // Sample new random seed for MurmurHash
+        seed_ = g();
+    }
+
+    double RandomPerlinNoiseOctave::grad(int32_t knot, double delta) const noexcept
     {
         // Get hash of knot
         const uint32_t hash = MurmurHash3(&knot, sizeof(int32_t), seed_);
@@ -449,28 +429,42 @@ namespace jiminy
         return 2.0 * grad * delta;
     }
 
-    PeriodicPerlinNoiseOctave::PeriodicPerlinNoiseOctave(
-        double wavelength, double period, double scale) :
-    AbstractPerlinNoiseOctave(wavelength, scale),
+    namespace internal
+    {
+        template<typename Generator, typename T>
+        void randomizePermutationVector(Generator && g, T & vec)
+        {
+            // Re-Initialize the permutation vector with values from 0 to size
+            std::iota(vec.begin(), vec.end(), 0);
+
+            // Shuffle the permutation vector
+            std::shuffle(vec.begin(), vec.end(), g);
+        }
+    }
+
+    PeriodicPerlinNoiseOctave::PeriodicPerlinNoiseOctave(double wavelength, double period) :
+    AbstractPerlinNoiseOctave(wavelength),
     period_{period}
     {
         // Make sure the wavelength is multiple of the period
-        assert(std::abs(period_ - period) < 1e-6);
+        assert(std::abs(std::round(period / wavelength) * wavelength - period) < 1e-6 &&
+               "wavelength must be multiple of period.");
+
+        // Initialize the permutation vector with values from 0 to 255 and shuffle it
+        internal::randomizePermutationVector(std::random_device{}, perm_);
     }
 
-    void PeriodicPerlinNoiseOctave::reset()
+    void PeriodicPerlinNoiseOctave::reset(
+        const uniform_random_bit_generator_ref<uint32_t> & g) noexcept
     {
         // Call base implementation
-        AbstractPerlinNoiseOctave::reset();
+        AbstractPerlinNoiseOctave::reset(g);
 
-        // Initialize the permutation vector with values from 0 to 255
-        std::iota(perm_.begin(), perm_.end(), 0);
-
-        // Shuffle the permutation vector
-        std::shuffle(perm_.begin(), perm_.end(), generator_);
+        // Re-Initialize the permutation vector with values from 0 to 255
+        internal::randomizePermutationVector(g, perm_);
     }
 
-    double PeriodicPerlinNoiseOctave::grad(int32_t knot, double delta) const
+    double PeriodicPerlinNoiseOctave::grad(int32_t knot, double delta) const noexcept
     {
         // Wrap knot is period interval
         knot %= static_cast<uint32_t>(period_ / wavelength_);
@@ -486,104 +480,92 @@ namespace jiminy
     }
 
     AbstractPerlinProcess::AbstractPerlinProcess(
-        double scale, std::vector<std::unique_ptr<AbstractPerlinNoiseOctave>> && octaves) noexcept
-    :
-    scale_{scale},
-    octaves_(std::move(octaves))
+        std::vector<OctaveScalePair> && octaveScalePairs) noexcept :
+    octaveScalePairs_(std::move(octaveScalePairs))
     {
-    }
-
-    void AbstractPerlinProcess::reset()
-    {
-        // Reset every octave successively
-        for (auto & octave : octaves_)
-        {
-            octave->reset();
-        }
-
-        // Compute scaling factor to get values in range [-1.0, 1.0]
+        // Compute the scaling factor to keep values within range [-1.0, 1.0]
         double amplitudeSquared = 0.0;
-        for (const auto & octave : octaves_)
+        for (const OctaveScalePair & octaveScale : octaveScalePairs_)
         {
-            amplitudeSquared += std::pow(octave->getScale(), 2);
+            const double scale = std::get<1>(octaveScale);
+            amplitudeSquared += std::pow(scale, 2);
         }
-        amplitude_ = scale_ * std::sqrt(amplitudeSquared);
+        amplitude_ = std::sqrt(amplitudeSquared);
     }
 
-    double AbstractPerlinProcess::operator()(const float & t)
+    void AbstractPerlinProcess::reset(
+        const uniform_random_bit_generator_ref<uint32_t> & g) noexcept
+    {
+        // Reset octaves
+        for (OctaveScalePair & octaveScale : octaveScalePairs_)
+        {
+            std::unique_ptr<AbstractPerlinNoiseOctave> & octave = std::get<0>(octaveScale);
+            octave->reset(g);
+        }
+    }
+
+    double AbstractPerlinProcess::operator()(float t)
     {
         // Compute sum of octaves' values
         double value = 0.0;
-        for (const auto & octave : octaves_)
+        for (const auto & [octave, scale] : octaveScalePairs_)
         {
-            value += (*octave)(t);
+            value += scale * (*octave)(t);
         }
 
-        // Return scaled value by total amplitude
+        // Scale sum by maximum amplitude
         return value / amplitude_;
     }
 
     double AbstractPerlinProcess::getWavelength() const noexcept
     {
-        return std::transform_reduce(
-            octaves_.cbegin(),
-            octaves_.cend(),
-            INF,
-            std::less<double>(),
-            [](const std::unique_ptr<AbstractPerlinNoiseOctave> & octave) -> double
-            { return octave->getWavelength(); });
+        double wavelength = INF;
+        for (const OctaveScalePair & octaveScale : octaveScalePairs_)
+        {
+            const std::unique_ptr<AbstractPerlinNoiseOctave> & octave = std::get<0>(octaveScale);
+            wavelength = std::min(wavelength, octave->getWavelength());
+        }
+        return wavelength;
     }
 
     std::size_t AbstractPerlinProcess::getNumOctaves() const noexcept
     {
-        return octaves_.size();
+        return octaveScalePairs_.size();
     }
 
-    double AbstractPerlinProcess::getScale() const noexcept
-    {
-        return scale_;
-    }
-
-    std::vector<std::unique_ptr<AbstractPerlinNoiseOctave>> buildPerlinNoiseOctaves(
+    std::vector<AbstractPerlinProcess::OctaveScalePair> buildPerlinNoiseOctaves(
         double wavelength,
         std::size_t numOctaves,
-        std::function<std::unique_ptr<AbstractPerlinNoiseOctave>(double, double)> factory)
+        std::function<std::unique_ptr<AbstractPerlinNoiseOctave>(double)> factory)
     {
-        std::vector<std::unique_ptr<AbstractPerlinNoiseOctave>> octaves_;
-        octaves_.reserve(numOctaves);
+        std::vector<AbstractPerlinProcess::OctaveScalePair> octaveScalePairs;
+        octaveScalePairs.reserve(numOctaves);
         double scale = 1.0;
         for (std::size_t i = 0; i < numOctaves; ++i)
         {
-            octaves_.push_back(factory(wavelength, scale));
+            octaveScalePairs.emplace_back(factory(wavelength), scale);
             wavelength *= PERLIN_NOISE_LACUNARITY;
             scale *= PERLIN_NOISE_PERSISTENCE;
         }
-        return octaves_;
+        return octaveScalePairs;
     }
 
-    RandomPerlinProcess::RandomPerlinProcess(
-        double wavelength, double scale, std::size_t numOctaves) :
-    AbstractPerlinProcess(
-        scale,
-        buildPerlinNoiseOctaves(
-            wavelength,
-            numOctaves,
-            [](double wavelengthIn, double scaleIn) -> std::unique_ptr<AbstractPerlinNoiseOctave>
-            { return std::make_unique<RandomPerlinNoiseOctave>(wavelengthIn, scaleIn); }))
+    RandomPerlinProcess::RandomPerlinProcess(double wavelength, std::size_t numOctaves) :
+    AbstractPerlinProcess(buildPerlinNoiseOctaves(
+        wavelength,
+        numOctaves,
+        [](double wavelengthIn) -> std::unique_ptr<AbstractPerlinNoiseOctave>
+        { return std::make_unique<RandomPerlinNoiseOctave>(wavelengthIn); }))
     {
     }
 
     PeriodicPerlinProcess::PeriodicPerlinProcess(
-        double wavelength, double period, double scale, std::size_t numOctaves) :
-    AbstractPerlinProcess(
-        scale,
-        buildPerlinNoiseOctaves(
-            wavelength,
-            numOctaves,
-            [period](double wavelengthIn,
-                     double scaleIn) -> std::unique_ptr<AbstractPerlinNoiseOctave> {
-                return std::make_unique<PeriodicPerlinNoiseOctave>(wavelengthIn, period, scaleIn);
-            })),
+        double wavelength, double period, std::size_t numOctaves) :
+    AbstractPerlinProcess(buildPerlinNoiseOctaves(
+        wavelength,
+        numOctaves,
+        [period](double wavelengthIn) -> std::unique_ptr<AbstractPerlinNoiseOctave>
+        { return std::make_unique<PeriodicPerlinNoiseOctave>(wavelengthIn, period); })),
     period_{period}
     {
         // Make sure the period is larger than the wavelength
@@ -595,52 +577,61 @@ namespace jiminy
         return period_;
     }
 
-    template<typename VectorLike>
-    std::enable_if_t<is_eigen_vector_v<VectorLike>, double> randomDouble(
-        const Eigen::MatrixBase<VectorLike> & key, int64_t sparsity, double scale, uint32_t seed)
+    // ******************************* Random terrain generators ******************************* //
+
+    template<typename Scalar>
+    static float uniformSparseFromStateImpl(
+        const MatrixX<Scalar> & state, int64_t sparsity, uint32_t seed) noexcept
     {
-        const int32_t keyLen = static_cast<int32_t>(sizeof(typename VectorLike::Scalar)) *
-                               static_cast<int32_t>(key.size());
-        const uint32_t hash = MurmurHash3(key.derived().data(), keyLen, seed);
+        const auto numBytes = static_cast<int32_t>(sizeof(Scalar) * state.size());
+        const uint32_t hash = MurmurHash3(state.data(), numBytes, seed);
         if (hash % sparsity == 0)
         {
-            double encoding(hash);
-            encoding /= std::numeric_limits<uint32_t>::max();
-            return scale * encoding;
+            return static_cast<float>(hash) /
+                   static_cast<float>(std::numeric_limits<uint32_t>::max());
         }
-        return 0.0;
+        return 0.0F;
     }
 
-    std::pair<double, double> tile2dInterp1d(Eigen::Vector2i & posIdx,
+    template<typename Derived>
+    static float uniformSparseFromState(
+        const Eigen::MatrixBase<Derived> & state, int64_t sparsity, uint32_t seed) noexcept
+    {
+        return uniformSparseFromStateImpl<typename Derived::Scalar>(
+            state.derived(), sparsity, seed);
+    }
+
+    std::pair<double, double> tile2dInterp1d(Eigen::Vector2i & posIndices,
                                              const Eigen::Vector2d & posRel,
                                              uint32_t dim,
                                              const Eigen::Vector2d & size,
                                              int64_t sparsity,
                                              double heightMax,
-                                             const Eigen::Vector2d & interpThreshold,
+                                             const Eigen::Vector2d & interpThr,
                                              uint32_t seed)
     {
-        const double z = randomDouble(posIdx, sparsity, heightMax, seed);
         double height, dheight;
-        if (posRel[dim] < interpThreshold[dim])
-        {
-            posIdx[dim] -= 1;
-            const double z_m = randomDouble(posIdx, sparsity, heightMax, seed);
-            posIdx[dim] += 1;
 
-            const double ratio = (1.0 - posRel[dim] / interpThreshold[dim]) / 2.0;
+        const double z = heightMax * uniformSparseFromState(posIndices, sparsity, seed);
+        if (posRel[dim] < interpThr[dim])
+        {
+            posIndices[dim] -= 1;
+            const double z_m = heightMax * uniformSparseFromState(posIndices, sparsity, seed);
+            posIndices[dim] += 1;
+
+            const double ratio = (1.0 - posRel[dim] / interpThr[dim]) / 2.0;
             height = z + (z_m - z) * ratio;
-            dheight = (z - z_m) / (2.0 * size[dim] * interpThreshold[dim]);
+            dheight = (z - z_m) / (2.0 * size[dim] * interpThr[dim]);
         }
-        else if (1.0 - posRel[dim] < interpThreshold[dim])
+        else if (1.0 - posRel[dim] < interpThr[dim])
         {
-            posIdx[dim] += 1;
-            const double z_p = randomDouble(posIdx, sparsity, heightMax, seed);
-            posIdx[dim] -= 1;
+            posIndices[dim] += 1;
+            const double z_p = heightMax * uniformSparseFromState(posIndices, sparsity, seed);
+            posIndices[dim] -= 1;
 
-            const double ratio = (1.0 + (posRel[dim] - 1.0) / interpThreshold[dim]) / 2.0;
+            const double ratio = (1.0 + (posRel[dim] - 1.0) / interpThr[dim]) / 2.0;
             height = z + (z_p - z) * ratio;
-            dheight = (z_p - z) / (2.0 * size[dim] * interpThreshold[dim]);
+            dheight = (z_p - z) / (2.0 * size[dim] * interpThr[dim]);
         }
         else
         {
@@ -651,12 +642,12 @@ namespace jiminy
         return {height, dheight};
     }
 
-    HeightmapFunctor randomTileGround(const Eigen::Vector2d & size,
-                                      double heightMax,
-                                      const Eigen::Vector2d & interpDelta,
-                                      uint32_t sparsity,
-                                      double orientation,
-                                      uint32_t seed)
+    HeightmapFunctor tiles(const Eigen::Vector2d & size,
+                           double heightMax,
+                           const Eigen::Vector2d & interpDelta,
+                           uint32_t sparsity,
+                           double orientation,
+                           uint32_t seed)
     {
         if ((0.01 <= interpDelta.array()).all() &&
             (interpDelta.array() <= size.array() / 2.0).all())
@@ -664,171 +655,82 @@ namespace jiminy
             PRINT_WARNING("'interpDelta' must be in range [0.01, 'size'/2.0].");
         }
 
-        Eigen::Vector2d interpThreshold = interpDelta.cwiseMax(0.01).cwiseMin(size / 2.0);
-        interpThreshold.array() /= size.array();
+        Eigen::Vector2d interpThr = interpDelta.cwiseMax(0.01).cwiseMin(size / 2.0);
+        interpThr.array() /= size.array();
 
         const Eigen::Vector2d offset = Eigen::Vector2d::NullaryExpr(
-            [&size, seed](Eigen::Index i) -> double
-            {
-                Eigen::Matrix<Eigen::Index, 1, 1> key;
-                key[0] = i;
-                return randomDouble(key, 1, size[i], seed);
+            [&size, seed](Eigen::Index i) -> double {
+                return size[i] *
+                       uniformSparseFromState(Vector1<Eigen::Index>::Constant(i), 1, seed);
             });
 
-        Eigen::Rotation2D<double> rotationMat(orientation);
+        const Eigen::Rotation2D<double> rot_mat(orientation);
 
-        return
-            [size, heightMax, interpDelta, rotationMat, sparsity, interpThreshold, offset, seed](
-                const Eigen::Vector3d & pos3) -> std::pair<double, Eigen::Vector3d>
+        return [size, heightMax, interpDelta, rot_mat, sparsity, interpThr, offset, seed](
+                   const Eigen::Vector2d & pos, double & height, Eigen::Vector3d & normal) -> void
         {
             // Compute the tile index and relative coordinate
-            Eigen::Vector2d pos = rotationMat * (pos3.head<2>() + offset);
-            Eigen::Vector2d posRel = pos.array() / size.array();
-            Eigen::Vector2i posIdx = posRel.array().floor().cast<int32_t>();
-            posRel -= posIdx.cast<double>();
+            Eigen::Vector2d posRel = (rot_mat * (pos + offset)).array() / size.array();
+            Vector2<int32_t> posIndices = posRel.array().floor().cast<int32_t>();
+            posRel -= posIndices.cast<double>();
 
             // Interpolate height based on nearby tiles if necessary
-            double height;
-            Eigen::Vector3d normal;
-            Eigen::Matrix<bool, 2, 1> isEdge = (posRel.array() < interpThreshold.array()) ||
-                                               (1.0 - posRel.array() < interpThreshold.array());
-            if (isEdge[0] && !isEdge[1])
+            Vector2<bool> is_edge = (posRel.array() < interpThr.array()) ||
+                                    (1.0 - posRel.array() < interpThr.array());
+            if (is_edge[0] && !is_edge[1])
             {
                 double dheight_x;
                 std::tie(height, dheight_x) = tile2dInterp1d(
-                    posIdx, posRel, 0, size, sparsity, heightMax, interpThreshold, seed);
-                const double normInv = std::sqrt(dheight_x * dheight_x + 1.0);
-                normal << -dheight_x * normInv, 0.0, normInv;
+                    posIndices, posRel, 0, size, sparsity, heightMax, interpThr, seed);
+                double const norm_inv = 1.0 / std::sqrt(dheight_x * dheight_x + 1.0);
+                normal << -dheight_x * norm_inv, 0.0, norm_inv;
             }
-            else if (!isEdge[0] && isEdge[1])
+            else if (!is_edge[0] && is_edge[1])
             {
                 double dheight_y;
                 std::tie(height, dheight_y) = tile2dInterp1d(
-                    posIdx, posRel, 1, size, sparsity, heightMax, interpThreshold, seed);
-                const double normInv = std::sqrt(dheight_y * dheight_y + 1.0);
-                normal << 0.0, -dheight_y * normInv, normInv;
+                    posIndices, posRel, 1, size, sparsity, heightMax, interpThr, seed);
+                double const norm_inv = 1.0 / std::sqrt(dheight_y * dheight_y + 1.0);
+                normal << 0.0, -dheight_y * norm_inv, norm_inv;
             }
-            else if (isEdge[0] && isEdge[1])
+            else if (is_edge[0] && is_edge[1])
             {
-                const auto [height_0, dheight_x_0] = tile2dInterp1d(
-                    posIdx, posRel, 0, size, sparsity, heightMax, interpThreshold, seed);
-                if (posRel[1] < interpThreshold[1])
+                auto const [height_0, dheight_x_0] = tile2dInterp1d(
+                    posIndices, posRel, 0, size, sparsity, heightMax, interpThr, seed);
+                if (posRel[1] < interpThr[1])
                 {
-                    posIdx[1] -= 1;
-                    const auto [height_m, dheight_x_m] = tile2dInterp1d(
-                        posIdx, posRel, 0, size, sparsity, heightMax, interpThreshold, seed);
+                    posIndices[1] -= 1;
+                    auto const [height_m, dheight_x_m] = tile2dInterp1d(
+                        posIndices, posRel, 0, size, sparsity, heightMax, interpThr, seed);
 
-                    const double ratio = (1.0 - posRel[1] / interpThreshold[1]) / 2.0;
+                    double const ratio = (1.0 - posRel[1] / interpThr[1]) / 2.0;
                     height = height_0 + (height_m - height_0) * ratio;
-                    const double dheight_x = dheight_x_0 + (dheight_x_m - dheight_x_0) * ratio;
-                    const double dheight_y =
-                        (height_0 - height_m) / (2.0 * size[1] * interpThreshold[1]);
+                    double const dheight_x = dheight_x_0 + (dheight_x_m - dheight_x_0) * ratio;
+                    double const dheight_y =
+                        (height_0 - height_m) / (2.0 * size[1] * interpThr[1]);
                     normal << -dheight_x, -dheight_y, 1.0;
                     normal.normalize();
                 }
                 else
                 {
-                    posIdx[1] += 1;
-                    const auto [height_p, dheight_x_p] = tile2dInterp1d(
-                        posIdx, posRel, 0, size, sparsity, heightMax, interpThreshold, seed);
+                    posIndices[1] += 1;
+                    auto const [height_p, dheight_x_p] = tile2dInterp1d(
+                        posIndices, posRel, 0, size, sparsity, heightMax, interpThr, seed);
 
-                    const double ratio = (1.0 + (posRel[1] - 1.0) / interpThreshold[1]) / 2.0;
+                    double const ratio = (1.0 + (posRel[1] - 1.0) / interpThr[1]) / 2.0;
                     height = height_0 + (height_p - height_0) * ratio;
-                    const double dheight_x = dheight_x_0 + (dheight_x_p - dheight_x_0) * ratio;
-                    const double dheight_y =
-                        (height_p - height_0) / (2.0 * size[1] * interpThreshold[1]);
+                    double const dheight_x = dheight_x_0 + (dheight_x_p - dheight_x_0) * ratio;
+                    double const dheight_y =
+                        (height_p - height_0) / (2.0 * size[1] * interpThr[1]);
                     normal << -dheight_x, -dheight_y, 1.0;
                     normal.normalize();
                 }
             }
             else
             {
-                height = randomDouble(posIdx, sparsity, heightMax, seed);
+                height = heightMax * uniformSparseFromState(posIndices, sparsity, seed);
                 normal = Eigen::Vector3d::UnitZ();
             }
-
-            return std::make_pair(height, std::move(normal));
         };
-    }
-
-    HeightmapFunctor sumHeightmap(const std::vector<HeightmapFunctor> & heightmaps)
-    {
-        if (heightmaps.size() == 1)
-        {
-            return heightmaps[0];
-        }
-        return [heightmaps](const Eigen::Vector3d & pos3) -> std::pair<double, Eigen::Vector3d>
-        {
-            double height = 0.0;
-            Eigen::Vector3d normal = Eigen::Vector3d::Zero();
-            for (const HeightmapFunctor & heightmap : heightmaps)
-            {
-                const auto [height_i, normal_i] = heightmap(pos3);
-                height += height_i;
-                normal += normal_i;
-            }
-            normal.normalize();
-            return std::make_pair(height, std::move(normal));
-        };
-    }
-
-    HeightmapFunctor mergeHeightmap(const std::vector<HeightmapFunctor> & heightmaps)
-    {
-        if (heightmaps.size() == 1)
-        {
-            return heightmaps[0];
-        }
-        return [heightmaps](const Eigen::Vector3d & pos3) -> std::pair<double, Eigen::Vector3d>
-        {
-            double heightmax = -INF;
-            Eigen::Vector3d normal;  // It will be initialized to `normal_i`
-            bool isDirty = false;
-            for (const HeightmapFunctor & heightmap : heightmaps)
-            {
-                const auto [height, normal_i] = heightmap(pos3);
-                if (std::abs(height - heightmax) < EPS)
-                {
-                    normal += normal_i;
-                    isDirty = true;
-                }
-                else if (height > heightmax)
-                {
-                    heightmax = height;
-                    normal = normal_i;
-                    isDirty = false;
-                }
-            }
-            if (isDirty)
-            {
-                normal.normalize();
-            }
-            return std::make_pair(heightmax, std::move(normal));
-        };
-    }
-
-    Eigen::MatrixXd discretizeHeightmap(
-        const HeightmapFunctor & heightmap, double gridSize, double gridUnit)
-    {
-        // Allocate empty discrete grid
-        uint32_t gridDim = static_cast<int32_t>(std::ceil(gridSize / gridUnit)) + 1U;
-        Eigen::MatrixXd heightGrid(gridDim * gridDim, 6);
-
-        // Fill x and y discrete grid coordinates
-        const Eigen::VectorXd values =
-            (Eigen::VectorXd::LinSpaced(gridDim, 0, gridDim - 1) * gridUnit).array() -
-            (gridDim - 1) * (gridUnit / 2.0);
-        Eigen::Map<Eigen::MatrixXd>(heightGrid.col(0).data(), gridDim, gridDim).colwise() = values;
-        Eigen::Map<Eigen::MatrixXd>(heightGrid.col(1).data(), gridDim, gridDim).rowwise() =
-            values.transpose();
-
-        // Fill discrete grid
-        for (uint32_t i = 0; i < heightGrid.rows(); ++i)
-        {
-            auto result = heightmap(heightGrid.block<1, 3>(i, 0));
-            heightGrid(i, 2) = std::get<double>(result);
-            heightGrid.block<1, 3>(i, 3) = std::get<Eigen::Vector3d>(result);
-        }
-
-        return heightGrid;
     }
 }

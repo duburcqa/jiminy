@@ -73,8 +73,6 @@ class BasePipelineWrapper(
         """
         :param kwargs: Extra keyword arguments for multiple inheritance.
         """
-        # pylint: disable=unused-argument
-
         # Initialize some proxies for fast lookup
         self.simulator = env.simulator
         self.robot = env.robot

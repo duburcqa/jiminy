@@ -13,7 +13,7 @@
 
 namespace jiminy
 {
-    // *************** Local Mutex/Lock mechanism ******************
+    // ******************************* Local Mutex/Lock mechanism ****************************** //
 
     MutexLocal::~MutexLocal()
     {
@@ -36,7 +36,7 @@ namespace jiminy
         *mutexFlag_ = false;
     }
 
-    // ************************* Timer **************************
+    // ***************************************** Timer ***************************************** //
 
     Timer::Timer() noexcept
     {
@@ -45,39 +45,34 @@ namespace jiminy
 
     void Timer::tic() noexcept
     {
-        t0 = Time::now();
-        dt = 0.0;
+        t0_ = clock::now();
     }
 
-    void Timer::toc() noexcept
+    // **************************** IO file and Directory utilities **************************** //
+
+    std::string getUserDirectory()
     {
-        tf = Time::now();
-        std::chrono::duration<double> timeDiff = tf - t0;
-        dt = timeDiff.count();
-    }
-
-    // ************ IO file and Directory utilities **************
-
 #ifndef _WIN32
-    std::string getUserDirectory()
-    {
         struct passwd * pw = getpwuid(getuid());
-        return pw->pw_dir;
-    }
-#else
-    std::string getUserDirectory()
-    {
-        return {getenv("USERPROFILE")};
-    }
-#endif
-
-    // ******************* Telemetry utilities **********************
-
-    bool endsWith(const std::string & text, const std::string & ending)
-    {
-        if (text.length() >= ending.length())
+        if (pw)
         {
-            return text.compare(text.length() - ending.length(), ending.length(), ending) == 0;
+            return {pw->pw_dir};
+        }
+        return {};
+#else
+        return {getenv("USERPROFILE")};
+#endif
+    }
+
+    // ********************************** Telemetry utilities ********************************** //
+
+    bool endsWith(const std::string & str, const std::string & substr)
+    {
+        const size_t strSize = str.length();
+        const size_t substrSize = substr.length();
+        if (strSize >= substrSize)
+        {
+            return str.compare(strSize - substrSize, substrSize, substr) == 0;
         }
         return false;
     }

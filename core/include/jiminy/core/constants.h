@@ -2,7 +2,7 @@
 #define JIMINY_CONSTANTS_H
 
 #include <string_view>  // `std::string_view`
-
+#include <limits>       // `std::numeric_limits`
 
 namespace jiminy
 {

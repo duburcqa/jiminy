@@ -16,7 +16,7 @@ jobs:
 
     strategy:
       matrix:
-        PYTHON_VERSION: ['3.8', '3.9', '3.10', '3.11']
+        PYTHON_VERSION: ['3.8', '3.9', '3.10', '3.11', '3.12']
         BUILD_TYPE: ['Release']
         include:
           - PYTHON_VERSION: '3.8'
@@ -27,7 +27,6 @@ jobs:
         shell: bash -ieo pipefail {0}
 
     env:
-      TORCH_VERSION: "2.0.1+cpu"
       CMAKE_CXX_FLAGS: "-march=x86-64-v3 -mtune=generic"
 
     #####################################################################################
@@ -68,13 +67,16 @@ jobs:
         sudo apt install -y gdb gnupg curl wget build-essential cmake doxygen graphviz texlive-latex-base
 
         "${PYTHON_EXECUTABLE}" -m pip install setuptools wheel "pip>=20.3"
-        "${PYTHON_EXECUTABLE}" -m pip install "numpy>=1.21,<2.0" "numba>=0.54.0"
+        "${PYTHON_EXECUTABLE}" -m pip install "numpy>=1.21,<2.0"
 
         git config --global advice.detachedHead false
-    - name: Build project dependencies
+    - name: Build jiminy dependencies
       run: |
         BUILD_TYPE="${{ matrix.BUILD_TYPE }}" ./build_tools/build_install_deps_unix.sh
-        "${PYTHON_EXECUTABLE}" -m pip install "torch==${TORCH_VERSION}" -f https://download.pytorch.org/whl/torch
+    - name: Install pre-compiled binaries for additional gym-jiminy dependencies
+      if: matrix.PYTHON_VERSION != '3.12'
+      run: |
+        "${PYTHON_EXECUTABLE}" -m pip install "torch" -f https://download.pytorch.org/whl/torch
         "${PYTHON_EXECUTABLE}" -m pip install "gymnasium>=0.26,<0.29" "importlib-metadata>=3.3.0"
 
     #####################################################################################
@@ -89,7 +91,8 @@ jobs:
               -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" \
               -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE -DBoost_USE_STATIC_LIBS=ON \
               -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
-              -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON -DINSTALL_GYM_JIMINY=ON \
+              -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON \
+              -DINSTALL_GYM_JIMINY=${{ (matrix.PYTHON_VERSION == '3.12' && 'OFF') || 'ON' }} \
               -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}" -DCMAKE_BUILD_TYPE="${{ matrix.BUILD_TYPE }}"
         make install -j2
 
@@ -114,14 +117,12 @@ jobs:
 
     - name: Run unit tests for jiminy
       run: |
-        cd "$RootDir/build/core/unit"
-        ctest --output-on-failure
+        ctest --output-on-failure --test-dir "${RootDir}/build/core/unit"
 
-        cd "$RootDir/python/jiminy_py/unit_py"
-        "${PYTHON_EXECUTABLE}" -m unittest discover -v
+        "${PYTHON_EXECUTABLE}" -m unittest discover -s "$RootDir/python/jiminy_py/unit_py" -v
 
     - name: Run unit tests for gym_jiminy
-      if: matrix.BUILD_TYPE == 'Release'
+      if: matrix.BUILD_TYPE == 'Release' && matrix.PYTHON_VERSION != '3.12'
       run: |
         cd "$RootDir/python/gym_jiminy/examples/reinforcement_learning/rllib"
         gdb -batch -ex "run" -ex "bt" --args "${PYTHON_EXECUTABLE}" acrobot_ppo.py 2>&1 | \
@@ -131,8 +132,7 @@ jobs:
         # because they require a different version of `gymnasium`.
         "${PYTHON_EXECUTABLE}" -m pip install "stable_baselines3>=2.0"
 
-        cd "$RootDir/python/gym_jiminy/unit_py"
-        "${PYTHON_EXECUTABLE}" -m unittest discover -v
+        "${PYTHON_EXECUTABLE}" -m unittest discover -s "$RootDir/python/gym_jiminy/unit_py" -v
 
     - name: Python static type checker
       if: matrix.PYTHON_VERSION == '3.8' && matrix.BUILD_TYPE == 'Release'

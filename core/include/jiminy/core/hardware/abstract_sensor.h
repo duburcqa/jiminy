@@ -2,7 +2,7 @@
 #define JIMINY_ABSTRACT_SENSOR_H
 
 #include "jiminy/core/fwd.h"
-#include "jiminy/core/utilities/helpers.h"
+#include "jiminy/core/utilities/random.h"  // `PCG32`
 
 #include <boost/circular_buffer.hpp>
 #include <boost/functional/hash.hpp>
@@ -21,25 +21,25 @@ namespace jiminy
     class Robot;
     class AbstractSensorBase;
 
-    /// \brief Structure holding the data for every sensors of a given type.
+    /// \brief Structure gathering data shared amongst all sensors of a given type.
     ///
-    /// \details Every sensors of a given type must have the same 'behavior', e.g. the same delay
+    /// \details All sensors of a given type must have the same 'behavior', e.g. the same delay
     ///          interpolation order and output type. However, their physical properties may
-    ///          differ, such as the delay, the noise level or the bias. This enable us to optimize
-    ///          the efficiency of data storage by gathering the state of every sensor of the given
-    ///          type in Eigen Vectors by simply adding an extra dimension corresponding to the
-    ///          sensor ID.
+    ///          differ, such as the delay, the noise level or the bias. This enables to optimize
+    ///          their memory layout by stacking their respective state in Eigen Matrices. This
+    ///          way, performing the same operation on all sensors of the given type would be much
+    ///          faster thanks to memory locality and vectorized computing via SIMD instructions.
     struct SensorSharedDataHolder_t
     {
         /// \brief Circular buffer of the stored timesteps.
         boost::circular_buffer<double> time_;
         /// \brief Circular buffer of past sensor real data.
         boost::circular_buffer<Eigen::MatrixXd> data_;
-        /// \brief Buffer of current sensor measurement data.
+        /// \brief Current sensor measurements.
         Eigen::MatrixXd dataMeasured_;
         /// \brief Vector of pointers to the sensors.
         std::vector<AbstractSensorBase *> sensors_;
-        /// \brief Number of sensors of that type.
+        /// \brief Number of sensors currently sharing this buffer.
         std::size_t num_;
         /// \brief Maximum delay over all the sensors.
         double delayMax_;
@@ -117,7 +117,7 @@ namespace jiminy
         ///
         /// \remark This method is not intended to be called manually. The Robot to which the
         ///         sensor is added is taking care of it when its own `reset` method is called.
-        virtual hresult_t resetAll() = 0;
+        virtual hresult_t resetAll(uint32_t seed) = 0;
 
         /// \brief Refresh the proxies.
         ///
@@ -309,6 +309,8 @@ namespace jiminy
         bool isTelemetryConfigured_{false};
         /// \brief Robot for which the command and internal dynamics Name of the sensor.
         std::weak_ptr<const Robot> robot_{};
+        /// \brief Random number generator used internally for sampling measurement noise.
+        PCG32 generator_;
         /// \brief Name of the sensor.
         std::string name_;
 
@@ -330,7 +332,7 @@ namespace jiminy
         auto shared_from_this() { return shared_from(this); }
         auto shared_from_this() const { return shared_from(this); }
 
-        virtual hresult_t resetAll() override;
+        hresult_t resetAll(uint32_t seed) override final;
         void updateTelemetryAll() override final;
 
         virtual hresult_t setOptionsAll(const GenericConfig & sensorOptions) override final;

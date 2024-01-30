@@ -60,8 +60,6 @@ int main(int /* argc */, char * /* argv */[])
     // Instantiate timer
     Timer timer;
 
-    timer.tic();
-
     // Instantiate and configuration the robot
     std::vector<std::string> motorJointNames{"SecondPendulumJoint"};
 
@@ -80,9 +78,7 @@ int main(int /* argc */, char * /* argv */[])
     }
 
     // Instantiate and configuration the controller
-    auto controller =
-        std::make_shared<ControllerFunctor<decltype(computeCommand), decltype(internalDynamics)>>(
-            computeCommand, internalDynamics);
+    auto controller = std::make_shared<ControllerFunctor<>>(computeCommand, internalDynamics);
     controller->initialize(robot);
 
     // Instantiate and configuration the engine
@@ -110,7 +106,8 @@ int main(int /* argc */, char * /* argv */[])
     boost::get<double>(stepperOptions.at("sensorsUpdatePeriod")) = 1.0e-3;
     boost::get<double>(stepperOptions.at("controllerUpdatePeriod")) = 1.0e-3;
     boost::get<bool>(stepperOptions.at("logInternalStepperSteps")) = false;
-    boost::get<uint32_t>(stepperOptions.at("randomSeed")) = 0U;  // `time(nullptr)` for random seed
+    boost::get<VectorX<uint32_t>>(stepperOptions.at("randomSeedSeq")) =
+        VectorX<uint32_t>::Zero(1);  // `time(nullptr)` for random seed
     GenericConfig & contactsOptions = boost::get<GenericConfig>(simuOptions.at("contacts"));
     boost::get<std::string>(contactsOptions.at("model")) = std::string("spring_damper");
     boost::get<double>(contactsOptions.at("stiffness")) = 1.0e6;
@@ -120,8 +117,7 @@ int main(int /* argc */, char * /* argv */[])
     boost::get<double>(contactsOptions.at("transitionVelocity")) = 0.01;
     engine->setOptions(simuOptions);
     engine->initialize(robot, controller, callback);
-
-    timer.toc();
+    std::cout << "Initialization: " << timer.toc<std::milli>() << "ms" << std::endl;
 
     // =====================================================================
     // ======================= Run the simulation ==========================
@@ -136,8 +132,7 @@ int main(int /* argc */, char * /* argv */[])
     // Run simulation
     timer.tic();
     engine->simulate(tf, q0, v0);
-    timer.toc();
-    std::cout << "Simulation time: " << (timer.dt * 1.0e3) << "ms" << std::endl;
+    std::cout << "Simulation: " << timer.toc<std::milli>() << "ms" << std::endl;
 
     // Write the log file
     std::vector<std::string> fieldnames;
@@ -147,12 +142,10 @@ int main(int /* argc */, char * /* argv */[])
     std::cout << engine->getStepperState().iter << " internal integration steps" << std::endl;
     timer.tic();
     engine->writeLog((outputDirPath / "log.data").string(), "binary");
-    timer.toc();
-    std::cout << "Write log binary: " << (timer.dt * 1.0e3) << "ms" << std::endl;
+    std::cout << "Write log binary: " << timer.toc<std::milli>() << "ms" << std::endl;
     timer.tic();
     engine->writeLog((outputDirPath / "log.hdf5").string(), "hdf5");
-    timer.toc();
-    std::cout << "Write log HDF5: " << (timer.dt * 1.0e3) << "ms" << std::endl;
+    std::cout << "Write log HDF5: " << timer.toc<std::milli>() << "ms" << std::endl;
 
     return 0;
 }

@@ -1,8 +1,6 @@
 #ifndef JIMINY_TELEMETRY_RECORDER_H
 #define JIMINY_TELEMETRY_RECORDER_H
 
-#include <deque>
-
 #include "jiminy/core/fwd.h"
 #include "jiminy/core/io/memory_device.h"
 
@@ -66,11 +64,11 @@ namespace jiminy
         std::size_t headerSize_{0};
 
         /// \brief Pointer to the integer registry.
-        const std::deque<std::pair<std::string, int64_t>> * integersRegistry_{nullptr};
+        const static_map_t<std::string, int64_t, false> * integersRegistry_{nullptr};
         /// \brief Size in bytes of the integer data section.
         int64_t integerSectionSize_{-1};
         /// \brief Pointer to the float registry.
-        const std::deque<std::pair<std::string, double>> * floatsRegistry_{nullptr};
+        const static_map_t<std::string, double, false> * floatsRegistry_{nullptr};
         /// \brief Size in bytes of the float data section.
         int64_t floatSectionSize_{-1};
 

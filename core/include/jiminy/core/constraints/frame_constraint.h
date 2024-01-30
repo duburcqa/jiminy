@@ -63,6 +63,6 @@ namespace jiminy
         /// \brief Stores full frame drift in reference frame.
         pinocchio::Motion frameDrift_{};
     };
-}  // namespace jiminy
+}
 
 #endif  // end of JIMINY_ABSTRACT_MOTOR_H

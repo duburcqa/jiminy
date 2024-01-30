@@ -10,7 +10,7 @@ namespace jiminy
     hresult_t TelemetryData::registerVariable(const std::string & name, T *& positionInBuffer)
     {
         // Get the right registry
-        std::deque<std::pair<std::string, T>> * registry = getRegistry<T>();
+        static_map_t<std::string, T, false> * registry = getRegistry<T>();
 
         // Check if already in memory
         auto variableIt = std::find_if(registry->begin(),

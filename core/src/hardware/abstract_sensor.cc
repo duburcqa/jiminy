@@ -1,4 +1,3 @@
-#include "jiminy/core/utilities/random.h"
 #include "jiminy/core/telemetry/telemetry_sender.h"
 #include "jiminy/core/robot/robot.h"
 
@@ -8,6 +7,7 @@
 namespace jiminy
 {
     AbstractSensorBase::AbstractSensorBase(const std::string & name) noexcept :
+    generator_{std::seed_seq{std::random_device{}()}},
     name_{name},
     telemetrySender_{std::make_unique<TelemetrySender>()}
     {
@@ -71,7 +71,8 @@ namespace jiminy
         // Add white noise
         if (baseSensorOptions_->noiseStd.size())
         {
-            get() += randVectorNormal(baseSensorOptions_->noiseStd);
+            get() += normal(generator_, 0.0F, baseSensorOptions_->noiseStd.cast<float>())
+                         .cast<double>();
         }
 
         // Add bias

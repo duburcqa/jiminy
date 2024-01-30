@@ -480,171 +480,118 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t isPositionValid(const pinocchio::Model & model,
-                              const Eigen::VectorXd & position,
-                              bool & isValid,
-                              double tol)
+    bool isPositionValid(const pinocchio::Model & model, const Eigen::VectorXd & q, double tolAbs)
     {
-        if (model.nq != position.size())
+        if (model.nq != q.size())
         {
-            isValid = false;
-            PRINT_ERROR("Size of configuration vector inconsistent with model.");
-            return hresult_t::ERROR_BAD_INPUT;
+            return false;
         }
-
-        isValid = pinocchio::isNormalized(model, position, tol);
-
-        return hresult_t::SUCCESS;
+        return pinocchio::isNormalized(model, q, tolAbs);
     }
 
-    void switchJoints(pinocchio::Model & modelInOut,
-                      pinocchio::JointIndex firstJointIdx,
-                      pinocchio::JointIndex secondJointIdx)
+    void swapJoints(pinocchio::Model & model,
+                    pinocchio::JointIndex jointIndex1,
+                    pinocchio::JointIndex jointIndex2)
     {
-        assert(firstJointIdx < secondJointIdx &&
-               "'firstJointIdx' must be smaller than 'secondJointIdx'.");
-
-        // Only perform swap if firstJointIdx is less that secondJointId
-        if (firstJointIdx < secondJointIdx)
+        // Early return if nothing to do
+        if (jointIndex1 == jointIndex2)
         {
-            // Update parents for other joints
-            for (pinocchio::JointIndex & parent : modelInOut.parents)
-            {
-                if (firstJointIdx == parent)
-                {
-                    parent = secondJointIdx;
-                }
-                else if (secondJointIdx == parent)
-                {
-                    parent = firstJointIdx;
-                }
-            }
+            return;
+        }
 
-            // Update frame parents
-            for (pinocchio::Frame & frame : modelInOut.frames)
-            {
-                if (firstJointIdx == frame.parent)
-                {
-                    frame.parent = secondJointIdx;
-                }
-                else if (secondJointIdx == frame.parent)
-                {
-                    frame.parent = firstJointIdx;
-                }
-            }
+        // Enforce that the second joint index always comes after the first one
+        if (jointIndex1 > jointIndex2)
+        {
+            return swapJoints(model, jointIndex2, jointIndex1);
+        }
 
-            // Update values in subtrees
-            for (std::vector<pinocchio::Index> & subtree : modelInOut.subtrees)
+        // Swap references to the joint indices themself
+        do_for(
+            [jointIndex1, jointIndex2](auto && args)
             {
-                for (pinocchio::Index & index : subtree)
+                auto && [vec, member] = args;
+                // FIXME: Remove explicit `name` capture when moving to C++20
+                auto swapIndicesFun = [jointIndex1, jointIndex2, &member_ = member](auto && subvec)
                 {
-                    if (firstJointIdx == index)
+                    for (auto & elem : subvec)
                     {
-                        index = secondJointIdx;
-                    }
-                    else if (secondJointIdx == index)
-                    {
-                        index = firstJointIdx;
-                    }
-                }
-            }
+                        pinocchio::JointIndex * jointIndex;
+                        if constexpr (std::is_null_pointer_v<std::decay_t<decltype(member_)>>)
+                        {
+                            jointIndex = &elem;
+                        }
+                        else
+                        {
+                            jointIndex = &(elem.*member_);
+                        }
 
-            // Update values in supports
-            for (std::vector<pinocchio::Index> & supports : modelInOut.supports)
-            {
-                for (pinocchio::Index & index : supports)
+                        if (*jointIndex == jointIndex1)
+                        {
+                            *jointIndex = jointIndex2;
+                        }
+                        else if (*jointIndex == jointIndex2)
+                        {
+                            *jointIndex = jointIndex1;
+                        }
+                    }
+                };
+
+                if constexpr (is_vector_v<typename std::decay_t<decltype(vec)>::value_type>)
                 {
-                    if (firstJointIdx == index)
-                    {
-                        index = secondJointIdx;
-                    }
-                    else if (secondJointIdx == index)
-                    {
-                        index = firstJointIdx;
-                    }
+                    std::for_each(vec.begin(), vec.end(), swapIndicesFun);
                 }
-            }
+                else
+                {
+                    swapIndicesFun(vec);
+                }
+            },
+            std::forward_as_tuple(model.parents, nullptr),
+            std::forward_as_tuple(model.frames, &pinocchio::Frame::parent),
+            std::forward_as_tuple(model.subtrees, nullptr),
+            std::forward_as_tuple(model.supports, nullptr));
 
-            /* Update vectors based on joint index: effortLimit, velocityLimit, lowerPositionLimit
-               and upperPositionLimit. */
-            swapMatrixRows(modelInOut.effortLimit,
-                           modelInOut.joints[firstJointIdx].idx_v(),
-                           modelInOut.joints[firstJointIdx].nv(),
-                           modelInOut.joints[secondJointIdx].idx_v(),
-                           modelInOut.joints[secondJointIdx].nv());
-            swapMatrixRows(modelInOut.velocityLimit,
-                           modelInOut.joints[firstJointIdx].idx_v(),
-                           modelInOut.joints[firstJointIdx].nv(),
-                           modelInOut.joints[secondJointIdx].idx_v(),
-                           modelInOut.joints[secondJointIdx].nv());
-            swapMatrixRows(modelInOut.lowerPositionLimit,
-                           modelInOut.joints[firstJointIdx].idx_q(),
-                           modelInOut.joints[firstJointIdx].nq(),
-                           modelInOut.joints[secondJointIdx].idx_q(),
-                           modelInOut.joints[secondJointIdx].nq());
-            swapMatrixRows(modelInOut.upperPositionLimit,
-                           modelInOut.joints[firstJointIdx].idx_q(),
-                           modelInOut.joints[firstJointIdx].nq(),
-                           modelInOut.joints[secondJointIdx].idx_q(),
-                           modelInOut.joints[secondJointIdx].nq());
-            swapMatrixRows(modelInOut.rotorInertia,
-                           modelInOut.joints[firstJointIdx].idx_v(),
-                           modelInOut.joints[firstJointIdx].nv(),
-                           modelInOut.joints[secondJointIdx].idx_v(),
-                           modelInOut.joints[secondJointIdx].nv());
-            swapMatrixRows(modelInOut.friction,
-                           modelInOut.joints[firstJointIdx].idx_v(),
-                           modelInOut.joints[firstJointIdx].nv(),
-                           modelInOut.joints[secondJointIdx].idx_v(),
-                           modelInOut.joints[secondJointIdx].nv());
-            swapMatrixRows(modelInOut.damping,
-                           modelInOut.joints[firstJointIdx].idx_v(),
-                           modelInOut.joints[firstJointIdx].nv(),
-                           modelInOut.joints[secondJointIdx].idx_v(),
-                           modelInOut.joints[secondJointIdx].nv());
-
-            /* Switch elements in joint-indexed vectors:
-               parents, names, subtrees, joints, jointPlacements, inertias. */
-            const pinocchio::JointIndex tempParent = modelInOut.parents[firstJointIdx];
-            modelInOut.parents[firstJointIdx] = modelInOut.parents[secondJointIdx];
-            modelInOut.parents[secondJointIdx] = tempParent;
-
-            const std::string tempName = modelInOut.names[firstJointIdx];
-            modelInOut.names[firstJointIdx] = modelInOut.names[secondJointIdx];
-            // std::swap is NOT used to preserve memory alignment
-            modelInOut.names[secondJointIdx] = tempName;
-
-            const std::vector<pinocchio::Index> tempSubtree = modelInOut.subtrees[firstJointIdx];
-            modelInOut.subtrees[firstJointIdx] = modelInOut.subtrees[secondJointIdx];
-            modelInOut.subtrees[secondJointIdx] = tempSubtree;
-
-            const pinocchio::JointModel jointTemp = modelInOut.joints[firstJointIdx];
-            modelInOut.joints[firstJointIdx] = modelInOut.joints[secondJointIdx];
-            modelInOut.joints[secondJointIdx] = jointTemp;
-
-            const pinocchio::SE3 tempPlacement = modelInOut.jointPlacements[firstJointIdx];
-            modelInOut.jointPlacements[firstJointIdx] = modelInOut.jointPlacements[secondJointIdx];
-            modelInOut.jointPlacements[secondJointIdx] = tempPlacement;
-
-            const pinocchio::Inertia tempInertia = modelInOut.inertias[firstJointIdx];
-            modelInOut.inertias[firstJointIdx] = modelInOut.inertias[secondJointIdx];
-            modelInOut.inertias[secondJointIdx] = tempInertia;
-
-            /* Recompute all position and velocity indexes, as we may have switched joints that
-               did not have the same size. It skips 'universe' since it is not an actual joint. */
-            int32_t incrementalNq = 0;
-            int32_t incrementalNv = 0;
-            for (std::size_t i = 1; i < modelInOut.joints.size(); ++i)
+        // Swap blocks of Eigen::Vector objects storing joint properties
+        do_for(
+            [jointIndex1, jointIndex2](
+                std::tuple<Eigen::VectorXd &, const std::vector<int> &, const std::vector<int> &>
+                    args)
             {
-                pinocchio::JointModel & jmodel = modelInOut.joints[i];
-                jmodel.setIndexes(i, incrementalNq, incrementalNv);
-                incrementalNq += jmodel.nq();
-                incrementalNv += jmodel.nv();
-                modelInOut.nqs[i] = jmodel.nq();
-                modelInOut.idx_qs[i] = jmodel.idx_q();
-                modelInOut.nvs[i] = jmodel.nv();
-                modelInOut.idx_vs[i] = jmodel.idx_v();
-            }
+                auto & [vec, jointPositionFirstIndices, jointPositionSizes] = args;
+                swapMatrixRows(vec,
+                               jointPositionFirstIndices[jointIndex1],
+                               jointPositionSizes[jointIndex1],
+                               jointPositionFirstIndices[jointIndex2],
+                               jointPositionSizes[jointIndex2]);
+            },
+            std::forward_as_tuple(model.lowerPositionLimit, model.idx_qs, model.nqs),
+            std::forward_as_tuple(model.upperPositionLimit, model.idx_qs, model.nqs),
+            std::forward_as_tuple(model.effortLimit, model.idx_vs, model.nvs),
+            std::forward_as_tuple(model.velocityLimit, model.idx_vs, model.nvs),
+            std::forward_as_tuple(model.rotorInertia, model.idx_vs, model.nvs),
+            std::forward_as_tuple(model.friction, model.idx_vs, model.nvs));
+
+        // Swap elements in joint-indexed vectors
+        std::swap(model.parents[jointIndex1], model.parents[jointIndex2]);
+        std::swap(model.names[jointIndex1], model.names[jointIndex2]);
+        std::swap(model.subtrees[jointIndex1], model.subtrees[jointIndex2]);
+        std::swap(model.joints[jointIndex1], model.joints[jointIndex2]);
+        std::swap(model.jointPlacements[jointIndex1], model.jointPlacements[jointIndex2]);
+        std::swap(model.inertias[jointIndex1], model.inertias[jointIndex2]);
+
+        /* Recompute all position and velocity indexes, as we may have switched joints that
+           did not have the same size. It skips 'universe' since it is not an actual joint. */
+        int idx_q = 0;
+        int idx_v = 0;
+        for (std::size_t i = 1; i < model.joints.size(); ++i)
+        {
+            pinocchio::JointModel & jmodel = model.joints[i];
+            jmodel.setIndexes(i, idx_q, idx_v);
+            idx_q += jmodel.nq();
+            idx_v += jmodel.nv();
+            model.nqs[i] = jmodel.nq();
+            model.idx_qs[i] = jmodel.idx_q();
+            model.nvs[i] = jmodel.nv();
+            model.idx_vs[i] = jmodel.idx_v();
         }
     }
 
@@ -700,7 +647,7 @@ namespace jiminy
            at the end. We put the joint back in order by doing successive permutations. */
         for (pinocchio::JointIndex i = childJointIdx; i < newJointIdx; ++i)
         {
-            switchJoints(modelInOut, i, newJointIdx);
+            swapJoints(modelInOut, i, newJointIdx);
         }
 
         return hresult_t::SUCCESS;
@@ -852,7 +799,7 @@ namespace jiminy
            We move it back this at the correct place by doing successive permutations. */
         for (pinocchio::JointIndex i = childMinJointIdx; i < newJointIdx; ++i)
         {
-            switchJoints(modelInOut, i, newJointIdx);
+            swapJoints(modelInOut, i, newJointIdx);
         }
 
         return hresult_t::SUCCESS;
@@ -924,16 +871,18 @@ namespace jiminy
     pinocchio::Force convertForceGlobalFrameToJoint(const pinocchio::Model & model,
                                                     const pinocchio::Data & data,
                                                     pinocchio::FrameIndex frameIdx,
-                                                    const pinocchio::Force & fextInGlobal)
+                                                    const pinocchio::Force & aFf)
     {
-        // Compute transform from global frame to local joint frame.
-        // Translation: joint_p_frame.
-        // Rotation: joint_R_world
-        pinocchio::SE3 joint_M_global(
-            data.oMi[model.frames[frameIdx].parent].rotation().transpose(),
-            model.frames[frameIdx].placement.translation());
+        /* Compute transform from local world aligned to local joint frame.
+           Translation: joint_p_frame, Rotation: joint_R_world */
+        auto liRw = data.oMi[model.frames[frameIdx].parent].rotation().transpose();
+        auto liPf = model.frames[frameIdx].placement.translation();
 
-        return joint_M_global.act(fextInGlobal);
+        pinocchio::Force liFf{};
+        liFf.linear().noalias() = liRw * aFf.linear();
+        liFf.angular().noalias() = liRw * aFf.angular();
+        liFf.angular() += liPf.cross(liFf.linear());
+        return liFf;
     }
 
     class DummyMeshLoader : public hpp::fcl::MeshLoader

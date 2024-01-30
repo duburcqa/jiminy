@@ -21,13 +21,10 @@ namespace jiminy::python
             {
                 return obj;
             }
-            else
+            np::dtype dt(bp::detail::borrowed_reference(obj->ob_type));
+            if (equivalent(dt, np::dtype::get_builtin<T>()))
             {
-                np::dtype dt(bp::detail::borrowed_reference(obj->ob_type));
-                if (equivalent(dt, np::dtype::get_builtin<T>()))
-                {
-                    return obj;
-                }
+                return obj;
             }
             return 0;
         }
@@ -107,10 +104,12 @@ namespace jiminy::python
     void exposeCompatibility()
     {
         /* Add some automatic C++ to Python converters for numpy array of scalars, which is
-           different from a 0-dimensional numpy array. */
+           different from a 0-dimensional numpy array. See:
+           https://github.com/boostorg/python/blob/master/src/numpy/dtype.cpp */
         arrayScalarFromPython<bool>::declare();
         arrayScalarFromPython<npy_uint8>::declare();
         arrayScalarFromPython<npy_uint32>::declare();
+        arrayScalarFromPython<uint64_t>::declare();
 #ifdef _MSC_VER
         arrayScalarFromPython<boost::uint32_t>::declare();
 #endif

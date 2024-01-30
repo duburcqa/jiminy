@@ -155,8 +155,6 @@ class ControllerInterface(ABC, Generic[ActT, BaseActT]):
 
         :returns: Aggregated reward for the current step.
         """
-        # pylint: disable=unused-argument
-
         raise NotImplementedError
 
 

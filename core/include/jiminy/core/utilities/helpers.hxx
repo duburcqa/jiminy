@@ -1,24 +1,36 @@
+#ifndef JIMINY_HELPERS_HXX
+#define JIMINY_HELPERS_HXX
+
 #include <algorithm>
 #include <numeric>
 
 
 namespace jiminy
 {
+    // ***************************************** Timer ***************************************** //
+
+    template<typename Period>
+    double Timer::toc() const noexcept
+    {
+        const typename clock::duration dt_{clock::now() - t0_};
+        return std::chrono::duration_cast<std::chrono::duration<double, Period>>(dt_).count();
+    }
+
     // ****************************** Generic template utilities ******************************* //
 
     template<class F, class... Args>
     std::enable_if_t<!(... && !std::is_same_v<std::invoke_result_t<F, Args>, void>)>
-    do_for(F f, Args &&... args)
+    do_for(F func, Args &&... args)
     {
-        (f(std::forward<Args>(args)), ...);
+        (func(std::forward<Args>(args)), ...);
     }
 
     template<class F, class... Args>
     std::enable_if_t<(... && !std::is_same_v<std::invoke_result_t<F, Args>, void>),
                      std::tuple<std::invoke_result_t<F, Args>...>>
-    do_for(F f, Args &&... args)
+    do_for(F func, Args &&... args)
     {
-        return std::tuple{f(std::forward<Args>(args))...};
+        return std::tuple{func(std::forward<Args>(args))...};
     }
 
     // ******************************** enable_shared_from_this ******************************** //
@@ -42,108 +54,111 @@ namespace jiminy
         return std::static_pointer_cast<T>(shared_from_base(derived));
     }
 
-    // *************************** Math *****************************
+    // ************************************* Math utilities ************************************ //
 
-    template<typename DerivedType>
-    auto clamp(const Eigen::MatrixBase<DerivedType> & data, double minThr, double maxThr)
-    {
-        return data.unaryExpr([&minThr, &maxThr](double x) -> double
-                              { return std::clamp(x, minThr, maxThr); });
-    }
-
-    template<typename DerivedType1, typename DerivedType2, typename DerivedType3>
-    Eigen::MatrixBase<DerivedType1> clamp(const Eigen::MatrixBase<DerivedType1> & data,
-                                          const Eigen::MatrixBase<DerivedType2> & minThr,
-                                          const Eigen::MatrixBase<DerivedType2> & maxThr)
-    {
-        return data.array().max(minThr).min(maxThr);
-    }
-
-    inline double minClipped()
+    inline const double & minClipped()
     {
         return INF;
     }
 
-    inline double minClipped(double val)
+    inline const double & minClipped(const double & val)
     {
         if (val > EPS)
         {
-            return std::forward<double>(val);
+            return val;
         }
         return INF;
     }
 
     template<typename... Args>
-    double minClipped(double val1, double val2, Args... vs)
+    std::enable_if_t<std::conjunction_v<std::is_same<Args, double>...>, const double &>
+    minClipped(const double & value1, const double & value2, const Args &... values)
     {
-        const bool isValid1 = val1 > EPS;
-        const bool isValid2 = val2 > EPS;
+        const bool isValid1 = value1 > EPS;
+        const bool isValid2 = value2 > EPS;
         if (isValid1 && isValid2)
         {
-            return minClipped(std::min(val1, val2), std::forward<Args>(vs)...);
+            return minClipped(std::min(value1, value2), values...);
         }
         else if (isValid2)
         {
-            return minClipped(val2, std::forward<Args>(vs)...);
+            return minClipped(value2, values...);
         }
         else if (isValid1)
         {
-            return minClipped(val1, std::forward<Args>(vs)...);
+            return minClipped(value1, values...);
         }
-        return minClipped(std::forward<Args>(vs)...);
+        return minClipped(values...);
     }
 
     template<typename... Args>
-    std::tuple<bool, double> isGcdIncluded(Args... values)
+    std::enable_if_t<std::conjunction_v<std::is_same<Args, double>...>,
+                     std::tuple<bool, const double &>>
+    isGcdIncluded(const Args &... values)
     {
-        const double minValue = minClipped(std::forward<Args>(values)...);
+        const double & minValue = minClipped(values...);
         if (!std::isfinite(minValue))
         {
             return {true, INF};
         }
-        auto lambda = [&minValue](double value)
-        {
-            if (value < EPS)
+        /* FIXME: In some cases, order of evaluation is not always respected with MSVC, although
+           they pretend it has been fixed but it. As a result, 'isIncluded' must be explicitly
+           computed first. For reference, see:
+           https://devblogs.microsoft.com/cppblog/compiler-improvements-in-vs-2015-update-2/#order-of-initializer-list
+        */
+        bool isIncluded = (
+            [&minValue](double value)
             {
-                return true;
-            }
-            return std::fmod(value, minValue) < EPS;
-        };
-        // Taking advantage of C++17 "fold expression"
-        return {(... && lambda(values)), minValue};
+                if (value < EPS)
+                {
+                    return true;
+                }
+                return std::fmod(value, minValue) < EPS;
+            }(values) && ...);
+        return {isIncluded, minValue};
     }
 
     template<typename InputIt, typename UnaryFunction>
-    std::tuple<bool, double> isGcdIncluded(InputIt first, InputIt last, UnaryFunction f)
+    std::enable_if_t<std::is_invocable_r_v<const double &,
+                                           UnaryFunction,
+                                           typename std::iterator_traits<InputIt>::reference>,
+                     std::tuple<bool, const double &>>
+    isGcdIncluded(InputIt first, InputIt last, const UnaryFunction & func)
     {
-        const double minValue = std::transform_reduce(first, last, INF, minClipped<>, f);
+        const double & minValue = std::transform_reduce(first, last, INF, minClipped<>, func);
         if (!std::isfinite(minValue))
         {
             return {true, INF};
         }
-        auto lambda = [&minValue, &f](const auto & elem)
+        auto lambda = [minValue, &func](const auto & elem)
         {
-            const double value = f(elem);
+            const double value = func(elem);
             if (value < EPS)
             {
                 return true;
             }
             return std::fmod(value, minValue) < EPS;
         };
-        return {std::all_of(first, last, lambda), minValue};
+        // FIXME: Order of evaluation is not always respected with MSVC.
+        bool isIncluded = std::all_of(first, last, lambda);
+        return {isIncluded, minValue};
     }
 
     template<typename InputIt, typename UnaryFunction, typename... Args>
-    std::tuple<bool, double>
-    isGcdIncluded(InputIt first, InputIt last, UnaryFunction f, Args... values)
+    std::enable_if_t<std::is_invocable_r_v<const double &,
+                                           UnaryFunction,
+                                           typename std::iterator_traits<InputIt>::reference> &&
+                         std::conjunction_v<std::is_same<Args, double>...>,
+                     std::tuple<bool, const double &>>
+    isGcdIncluded(InputIt first, InputIt last, const UnaryFunction & func, const Args &... values)
     {
-        const auto [isIncluded1, value1] = isGcdIncluded(std::forward<Args>(values)...);
-        const auto [isIncluded2, value2] = isGcdIncluded(first, last, f);
+        auto && [isIncluded1, value1] = isGcdIncluded(values...);
+        auto && [isIncluded2, value2] = isGcdIncluded(first, last, func);
         if (!isIncluded1 || !isIncluded2)
         {
             return {false, INF};
         }
-        if (value1 < value2)  // inf < inf : false
+        if (value1 < value2)  // inf < inf := false
         {
             if (!std::isfinite(value2))
             {
@@ -165,14 +180,15 @@ namespace jiminy
         }
     }
 
-    // ******************** Std::vector helpers *********************
+    // ********************************** Std::vector helpers ********************************** //
 
-    template<typename T, typename A>
-    bool checkDuplicates(const std::vector<T, A> & vect)
+    template<typename T>
+    std::enable_if_t<is_vector_v<T>, bool> checkDuplicates(const T & vec)
     {
-        for (auto it = vect.begin(); it != vect.end(); ++it)
+        const auto vecEnd = vec.cend();
+        for (auto vecIt = vec.cbegin(); vecIt != vecEnd; ++vecIt)
         {
-            if (std::find(it + 1, vect.end(), *it) != vect.end())
+            if (std::find(std::next(vecIt), vecEnd, *vecIt) != vecEnd)
             {
                 return true;
             }
@@ -180,27 +196,30 @@ namespace jiminy
         return false;
     }
 
-    template<typename T1, typename A1, typename T2, typename A2>
-    bool checkIntersection(const std::vector<T1, A1> & vect1, const std::vector<T2, A2> & vect2)
+    template<typename T1, typename T2>
+    std::enable_if_t<is_vector_v<T1> && is_vector_v<T2>, bool> checkIntersection(const T1 & vec1,
+                                                                                 const T2 & vec2)
     {
-        auto vect2It = std::find_if(vect2.begin(),
-                                    vect2.end(),
-                                    [&vect1](const auto & elem2)
-                                    {
-                                        auto vect1It =
-                                            std::find(vect1.begin(), vect1.end(), elem2);
-                                        return (vect1It != vect1.end());
-                                    });
-        return (vect2It != vect2.end());
+        const auto vec2It =
+            std::find_if(vec2.cbegin(),
+                         vec2.cend(),
+                         [vec1Begin = vec1.cbegin(), vec1End = vec1.cend()](const auto & elem2)
+                         {
+                             auto vec1It = std::find(vec1Begin, vec1End, elem2);
+                             return (vec1It != vec1End);
+                         });
+        return (vec2It != vec2.cend());
     }
 
-    template<typename T1, typename A1, typename T2, typename A2>
-    bool checkInclusion(const std::vector<T1, A1> & vect1, const std::vector<T2, A2> & vect2)
+    template<typename T1, typename T2>
+    std::enable_if_t<is_vector_v<T1> && is_vector_v<T2>, bool> checkInclusion(const T1 & vec1,
+                                                                              const T2 & vec2)
     {
-        for (const auto & elem2 : vect2)
+        const auto vec1End = vec1.cend();
+        for (const auto & elem2 : vec2)
         {
-            auto vect1It = std::find(vect1.begin(), vect1.end(), elem2);
-            if (vect1It == vect1.end())
+            const auto vec1It = std::find(vec1.cbegin(), vec1End, elem2);
+            if (vec1It == vec1End)
             {
                 return false;
             }
@@ -208,62 +227,86 @@ namespace jiminy
         return true;
     }
 
-    template<typename T1, typename A1, typename T2, typename A2>
-    void eraseVector(std::vector<T1, A1> & vect1, const std::vector<T2, A2> & vect2)
+    template<typename T1, typename T2>
+    std::enable_if_t<is_vector_v<T1> && is_vector_v<T2>, void> eraseVector(T1 & vec1,
+                                                                           const T2 & vec2)
     {
-        vect1.erase(std::remove_if(vect1.begin(),
-                                   vect1.end(),
-                                   [&vect2](const auto & elem1)
-                                   {
-                                       auto vect2It = std::find(vect2.begin(), vect2.end(), elem1);
-                                       return (vect2It != vect2.end());
-                                   }),
-                    vect1.end());
+        vec1.erase(
+            std::remove_if(vec1.begin(),
+                           vec1.end(),
+                           [vec2Begin = vec2.cbegin(), vec2End = vec2.cend()](const auto & elem1)
+                           {
+                               auto vec2It = std::find(vec2Begin, vec2End, elem1);
+                               return (vec2It != vec2End);
+                           }),
+            vec1.end());
     }
 
-    // *********************** Miscellaneous **************************
+    // ************************************* Miscellaneous ************************************* //
 
-    /// \brief Swap two non-overlapping row-blocks of data in a matrix.
-    ///
-    /// \details Let b1, b2 be two row-blocks of arbitrary sizes of a matrix B s.t.
-    ///          B = (... b1 ... b2 ...).T. This function re-assigns B to (... b2 ... b1 ...).T.
-    ///
-    /// \pre firstBlockStart + firstBlockLength <= secondBlockStart
-    ///
-    /// \param[in, out] matrix Matrix to modify.
-    /// \param[in] firstBlockStart Start index of the first block.
-    /// \param[in] firstBlockLength Length of the first block.
-    /// \param[in] secondBlockStart Start index of the second block.
-    /// \param[in] secondBlockLength Length of the second block.
     template<typename Derived>
-    void swapMatrixRows(const Eigen::MatrixBase<Derived> & matrixIn,
+    void swapMatrixRows(const Eigen::MatrixBase<Derived> & mat,
                         Eigen::Index firstBlockStart,
-                        Eigen::Index firstBlockLength,
+                        Eigen::Index firstBlockSize,
                         Eigen::Index secondBlockStart,
-                        Eigen::Index secondBlockLength)
+                        Eigen::Index secondBlockSize)
     {
+        /* Aliasing is NOT an issue when shifting up the rows of a matrix, regardless its storage
+           order. As a result, it is only necessary to backup the first block plus the overlapping
+           part of the middle block if any. Then, assign the first block to the second, reconstruct
+           the middle block while accounting for a potential overlap, and finally assign the second
+           block to the backup of the first one. */
+
+        // Make sure that the first block is actually before the second one
+        if (firstBlockStart > secondBlockStart)
+        {
+            return swapMatrixRows(
+                mat, secondBlockStart, secondBlockSize, firstBlockStart, firstBlockSize);
+        }
+
         // Get plain matrix type and cast away constness
         using Matrix = typename Eigen::MatrixBase<Derived>::PlainObject;
-        Eigen::MatrixBase<Derived> & matrix = const_cast<Eigen::MatrixBase<Derived> &>(matrixIn);
+        Derived & derived = const_cast<Derived &>(mat.derived());
 
-        // Extract first plus middle block by copy
-        const Eigen::Index middleBlockStart = firstBlockStart + firstBlockLength;
-        const Eigen::Index middleBlockLength = secondBlockStart - middleBlockStart;
-        assert(middleBlockLength >= 0 && "First and second blocks must not overlap");
-        const Eigen::Index firstMiddleBlockLength = firstBlockLength + middleBlockLength;
-        const Matrix firstMiddleBlock = matrix.middleRows(firstBlockStart, firstMiddleBlockLength);
+        // Backup the first block plus the overlapping part of the middle block if any
+        const Eigen::Index middleBlockStart = firstBlockStart + firstBlockSize;
+        const Eigen::Index middleBlockSize = secondBlockStart - middleBlockStart;
+        assert(middleBlockSize >= 0 && "The blocks must be disjoint");
+        const Eigen::Index overlapBlockSize =
+            std::max(std::min(firstBlockSize + middleBlockSize, secondBlockSize), firstBlockSize);
+        const Matrix overlapBlock = derived.middleRows(firstBlockStart, overlapBlockSize);
 
-        // Re-assign first block to second block
-        auto secondBlock = matrix.middleRows(secondBlockStart, secondBlockLength);
-        matrix.middleRows(firstBlockStart, secondBlockLength) = secondBlock;
+        // Re-assign the first block to the second one without copy in all cases
+        auto secondBlock = derived.middleRows(secondBlockStart, secondBlockSize);
+        derived.middleRows(firstBlockStart, secondBlockSize) = secondBlock;
 
-        // Shift middle block
-        auto middleBlock = firstMiddleBlock.bottomRows(middleBlockLength);
-        matrix.middleRows(firstBlockStart + secondBlockLength, middleBlockLength) = middleBlock;
+        // Shift the disjoint part of the middle block if any
+        const Eigen::Index newMiddleBlockStart = firstBlockStart + secondBlockSize;
+        const Eigen::Index middleOverlapBlockSize =
+            std::max(overlapBlockSize - firstBlockSize, Eigen::Index{0});
+        const Eigen::Index middleDisjointBlockSize = middleBlockSize - middleOverlapBlockSize;
+        if (middleDisjointBlockSize > 0)
+        {
+            const Eigen::Index middleBlockEnd = middleBlockStart + middleBlockSize;
+            const Eigen::Index newMiddleBlockEnd = newMiddleBlockStart + middleBlockSize;
+            auto middleDisjointBlock = derived.middleRows(middleBlockEnd - middleDisjointBlockSize,
+                                                          middleDisjointBlockSize);
+            derived.middleRows(newMiddleBlockEnd - middleDisjointBlockSize,
+                               middleDisjointBlockSize) = middleDisjointBlock;
+        }
 
-        // Re-assign second block to first block
-        auto firstBlock = firstMiddleBlock.topRows(firstBlockLength);
-        const Eigen::Index secondBlockEnd = secondBlockStart + secondBlockLength;  // Excluded
-        matrix.middleRows(secondBlockEnd - firstBlockLength, firstBlockLength) = firstBlock;
+        // Shift the overlapping part of the middle block if any
+        if (middleOverlapBlockSize > 0)
+        {
+            auto middleOverlapBlock = overlapBlock.bottomRows(middleOverlapBlockSize);
+            derived.middleRows(newMiddleBlockStart, middleOverlapBlockSize) = middleOverlapBlock;
+        }
+
+        // Re-assign the second block to the first one
+        const Eigen::Index secondBlockEnd = secondBlockStart + secondBlockSize;
+        auto firstBlock = overlapBlock.topRows(firstBlockSize);
+        derived.middleRows(secondBlockEnd - firstBlockSize, firstBlockSize) = firstBlock;
     }
 }
+
+#endif  // JIMINY_HELPERS_HXX

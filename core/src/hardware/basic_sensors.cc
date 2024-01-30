@@ -189,8 +189,8 @@ namespace jiminy
         // Add measurement white noise
         if (baseSensorOptions_->noiseStd.size())
         {
-            // Accel + gyroscope: simply apply additive noise
-            get() += randVectorNormal(baseSensorOptions_->noiseStd);
+            get() += normal(generator_, 0.0F, baseSensorOptions_->noiseStd.cast<float>())
+                         .cast<double>();
         }
 
         // Add measurement bias
@@ -257,6 +257,15 @@ namespace jiminy
             returnCode = ::jiminy::getFrameIdx(robot->pncModel_, frameName_, frameIdx_);
         }
 
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            const std::vector<pinocchio::FrameIndex> & contactFramesIdx =
+                robot->getContactFramesIdx();
+            auto contactFrameIdxIt =
+                std::find(contactFramesIdx.begin(), contactFramesIdx.end(), frameIdx_);
+            contactForceIdx_ = std::distance(contactFramesIdx.begin(), contactFrameIdxIt);
+        }
+
         return returnCode;
     }
 
@@ -279,9 +288,7 @@ namespace jiminy
     {
         GET_ROBOT_IF_INITIALIZED()
 
-        const std::vector<pinocchio::FrameIndex> & contactFramesIdx = robot->getContactFramesIdx();
-        auto it = std::find(contactFramesIdx.begin(), contactFramesIdx.end(), frameIdx_);
-        data() = robot->contactForces_[std::distance(contactFramesIdx.begin(), it)].linear();
+        data() = robot->contactForces_[contactForceIdx_].linear();
 
         return hresult_t::SUCCESS;
     }
@@ -330,6 +337,26 @@ namespace jiminy
             parentJointModelIdx_ = robot->pncModel_.frames[frameIdx_].parent;
         }
 
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            contactForcesIdxAndPlacement_.clear();
+            const pinocchio::Frame & frameRef = robot->pncModel_.frames[frameIdx_];
+            const std::vector<pinocchio::FrameIndex> & contactFramesIdx =
+                robot->getContactFramesIdx();
+            for (uint32_t contactIdx = 0; contactIdx < contactFramesIdx.size(); ++contactIdx)
+            {
+                pinocchio::FrameIndex contactFrameIdx = contactFramesIdx[contactIdx];
+                const pinocchio::Frame & contactFrame = robot->pncModel_.frames[contactFrameIdx];
+                if (parentJointModelIdx_ == contactFrame.parent)
+                {
+                    const pinocchio::SE3 contactPlacementRel =
+                        frameRef.placement.actInv(contactFrame.placement);
+                    contactForcesIdxAndPlacement_.emplace_back(contactIdx,
+                                                               std::move(contactPlacementRel));
+                }
+            }
+        }
+
         return returnCode;
     }
 
@@ -353,20 +380,20 @@ namespace jiminy
                                const Eigen::VectorXd & /* v */,
                                const Eigen::VectorXd & /* a */,
                                const Eigen::VectorXd & /* uMotor */,
-                               const ForceVector & fExternal)
+                               const ForceVector & /* fExternal */)
     {
         // Returns the force applied on parent body in frame
 
         GET_ROBOT_IF_INITIALIZED()
 
-        // Get the sum of external forces applied on parent joint
-        const pinocchio::JointIndex i = parentJointModelIdx_;
-        const pinocchio::Force & fJoint = fExternal[i];
-
-        // Transform the force from joint frame to sensor frame
-        const pinocchio::SE3 & framePlacement = robot->pncModel_.frames[frameIdx_].placement;
-        f_ = framePlacement.actInv(fJoint);
-        data() = f_.toVector();
+        // Compute the sum of all contact forces applied on parent joint
+        data().setZero();
+        for (const auto & [contactForceIndex, contactPlacement] : contactForcesIdxAndPlacement_)
+        {
+            // Must transform the force from contact frame to sensor frame
+            f_ = contactPlacement.act(robot->contactForces_[contactForceIndex]);
+            data() += f_.toVector();
+        }
 
         return hresult_t::SUCCESS;
     }

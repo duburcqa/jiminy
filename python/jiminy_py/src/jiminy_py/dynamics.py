@@ -423,7 +423,8 @@ def compute_transform_contact(
         contact_ground_transform = []
         ground_pos = np.zeros(3)
         for frame_transform in contact_frames_transform:
-            ground_pos[2], normal = ground_profile(frame_transform.translation)
+            ground_pos[2], normal = ground_profile(
+                frame_transform.translation[:2])
             ground_rot = pin.Quaternion.FromTwoVectors(
                 np.array([0.0, 0.0, 1.0]), normal).matrix()
             contact_ground_transform.append(pin.SE3(ground_rot, ground_pos))
@@ -611,7 +612,7 @@ def compute_freeflyer_state_from_fixed_body(
         if ground_profile is not None:
             ground_translation = np.zeros(3)
             ground_translation[2], normal = ground_profile(
-                ff_M_fixed_body.translation)
+                ff_M_fixed_body.translation[:2])
             ground_rotation = pin.Quaternion.FromTwoVectors(
                 np.array([0.0, 0.0, 1.0]), normal).matrix()
             w_M_ground = pin.SE3(ground_rotation, ground_translation)

@@ -158,12 +158,11 @@ namespace jiminy::python
             }
         }
 
-        template<typename T>
+        template<typename Scalar>
         static hresult_t registerVariableArrayImpl(
             AbstractController & self,
             const bp::list & fieldnamesPy,
-            Eigen::Map<Eigen::Matrix<T, -1, -1>, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>> &
-                data)
+            Eigen::Map<MatrixX<Scalar>, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>> & data)
         {
             hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -310,12 +309,7 @@ namespace jiminy::python
 
     // ***************************** PyControllerFunctorVisitor ***********************************
 
-    /* Take advantage of type erasure of std::function to support both lambda functions and python
-      handle wrapper depending whether or not 'compute_command' and 'internal_dynamics' has been
-      specified. It is likely to cause a small overhead because the compiler will probably not be
-      able to inline ControllerFctWrapper, as it would have been the case otherwise, but it is the
-      price to pay for versatility. */
-    using CtrlFunctor = ControllerFunctor<ControllerFct, ControllerFct>;
+    using CtrlFunctor = ControllerFunctor<ControllerFunPyWrapper, ControllerFunPyWrapper>;
 
     class CtrlFunctorImpl : public CtrlFunctor
     {
@@ -361,36 +355,8 @@ namespace jiminy::python
         static std::shared_ptr<CtrlFunctor> factory(bp::object & commandPy,
                                                     bp::object & internalDynamicsPy)
         {
-            ControllerFct commandFct;
-            if (!commandPy.is_none())
-            {
-                commandFct = ControllerFctWrapper(commandPy);
-            }
-            else
-            {
-                commandFct = [](double /* t */,
-                                const Eigen::VectorXd & /* q */,
-                                const Eigen::VectorXd & /* v */,
-                                const SensorsDataMap & /* sensorsData */,
-                                Eigen::VectorXd & /* command */) {
-                };
-            }
-            ControllerFct internalDynamicsFct;
-            if (!internalDynamicsPy.is_none())
-            {
-                internalDynamicsFct = ControllerFctWrapper(internalDynamicsPy);
-            }
-            else
-            {
-                internalDynamicsFct = [](double /* t */,
-                                         const Eigen::VectorXd & /* q */,
-                                         const Eigen::VectorXd & /* v */,
-                                         const SensorsDataMap & /* sensorsData */,
-                                         Eigen::VectorXd & /* command */) {
-                };
-            }
-            return std::make_shared<CtrlFunctor>(std::move(commandFct),
-                                                 std::move(internalDynamicsFct));
+            return std::make_shared<CtrlFunctor>(ControllerFunPyWrapper(commandPy),
+                                                 ControllerFunPyWrapper(internalDynamicsPy));
         }
 
         static void expose()

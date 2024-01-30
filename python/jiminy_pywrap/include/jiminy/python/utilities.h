@@ -19,24 +19,25 @@
 #include <boost/python/suite/indexing/vector_indexing_suite.hpp>
 
 
-namespace boost::python::converter
-{
-#define EXPECTED_PYTYPE_FOR_ARG_IS_ARRAY(type)   \
-    template<>                                   \
-    struct expected_pytype_for_arg<type>         \
-    {                                            \
-        static const PyTypeObject * get_pytype() \
-        {                                        \
-            return &PyArray_Type;                \
-        }                                        \
-    };
+#define EXPECTED_PYTYPE_FOR_ARG_IS_ARRAY(type)       \
+    namespace boost::python::converter               \
+    {                                                \
+        template<>                                   \
+        struct expected_pytype_for_arg<type>         \
+        {                                            \
+            static const PyTypeObject * get_pytype() \
+            {                                        \
+                return &PyArray_Type;                \
+            }                                        \
+        };                                           \
+    }
 
-    EXPECTED_PYTYPE_FOR_ARG_IS_ARRAY(numpy::ndarray)
-    EXPECTED_PYTYPE_FOR_ARG_IS_ARRAY(const numpy::ndarray)
-    EXPECTED_PYTYPE_FOR_ARG_IS_ARRAY(numpy::ndarray &)
-    EXPECTED_PYTYPE_FOR_ARG_IS_ARRAY(const numpy::ndarray &)
-}
+EXPECTED_PYTYPE_FOR_ARG_IS_ARRAY(numpy::ndarray)
+EXPECTED_PYTYPE_FOR_ARG_IS_ARRAY(const numpy::ndarray)
+EXPECTED_PYTYPE_FOR_ARG_IS_ARRAY(numpy::ndarray &)
+EXPECTED_PYTYPE_FOR_ARG_IS_ARRAY(const numpy::ndarray &)
 
+#undef EXPECTED_PYTYPE_FOR_ARG_IS_ARRAY
 
 namespace jiminy::python
 {
@@ -71,10 +72,25 @@ namespace jiminy::python
         Py##class##Visitor::expose();      \
     }
 
+    template<typename T>
+    struct get_signature_impl;
+
     template<typename R, typename... Args>
-    boost::mpl::vector<R, Args...> functionToMLP(std::function<R(Args...)> /* func */)
+    struct get_signature_impl<std::function<R(Args...)>>
     {
-        return {};
+        static constexpr const boost::mpl::vector<R, Args...> value{};
+    };
+
+    template<typename T>
+    constexpr auto getSignature(T && fun)
+    {
+        return get_signature_impl<decltype(std::function{fun})>::value;
+    }
+
+    template<class F, class CallPolicies, class Keywords>
+    bp::object makeFunction(F f, const CallPolicies & policies, const Keywords & keywords)
+    {
+        return bp::make_function(f, policies, keywords, getSignature(f));
     }
 
     namespace detail
@@ -86,16 +102,18 @@ namespace jiminy::python
     template<typename WrappedClassT>
     void setFunctionWrapperModule(bp::object & func)
     {
-        /* Register it to the class to fix Ipython attribute lookup, which is looking for
+        /* Register it to the class to fix IPython attribute lookup, which is looking for
           '__module__' attribute, and enable Python/C++ signatures in docstring.
 
            The intended way to do so is to call `add_to_namespace` function. However, the previous
-           registration must be deleted first to avoid being detected as an overload and
-           accumulating docstrings. To avoid such hassle, a hack is used instead by overwriting the
-           internal attribute of the function directly. Beware it relies on `const_cast` to getter
-           returning by reference, which may break in the future. Moreover, a hack is used to get
-           the docstring, which consists in adding the expected tags as function doc. It works for
-           now but it is not really reliable and may break in the future too. */
+           registration must be deleted first to avoid being detected as an overload and aggregate
+           the docstring. To avoid such hassle, some low-level attributes of the function are
+           directly overwritten. For that, one must cast away constness of getters returning by
+           const reference, which is clearly a hack and may break in the future. Moreover, another
+           hack is used to add the Python and C++ signatures to the function documentation without
+           having to generate them manually. It simply consists in adding some special tags on top
+           of the docstring, which works for now but it is not robust and may break in the future
+           as this is an undocumented feature. */
         const bp::converter::registration * r =
             bp::converter::registry::query(typeid(WrappedClassT));
         assert((std::string("Class ") + typeid(WrappedClassT).name() +
@@ -518,7 +536,7 @@ namespace jiminy::python
 
     /// \brief Generic converter from Eigen Matrix to Numpy array by reference.
     template<typename T>
-    std::enable_if_t<!is_eigen_v<T>, PyObject *> getNumpyReference(T & value)
+    std::enable_if_t<!is_eigen_object_v<T>, PyObject *> getNumpyReference(T & value)
     {
         return getNumpyReferenceFromScalar(value);
     }
@@ -530,15 +548,14 @@ namespace jiminy::python
     }
 
     template<typename T>
-    std::enable_if_t<is_eigen_v<T> && !is_eigen_vector_v<T>, PyObject *>
+    std::enable_if_t<is_eigen_object_v<T> && !is_eigen_vector_v<T>, PyObject *>
     getNumpyReference(T & value)
     {
         return getNumpyReferenceFromEigenMatrix(value);
     }
 
     template<typename T>
-    std::optional<
-        Eigen::Map<Eigen::Matrix<T, -1, -1>, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>>>
+    std::optional<Eigen::Map<MatrixX<T>, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>>>
     getEigenReferenceImpl(PyArrayObject * dataPyArray)
     {
         // Check array dtype
@@ -591,9 +608,8 @@ namespace jiminy::python
 
     /// \brief Generic converter from Numpy array to Eigen Matrix by reference.
     inline std::optional<std::variant<
-        Eigen::Map<Eigen::Matrix<double, -1, -1>, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>>,
-        Eigen::
-            Map<Eigen::Matrix<int64_t, -1, -1>, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>>>>
+        Eigen::Map<MatrixX<double>, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>>,
+        Eigen::Map<MatrixX<int64_t>, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>>>>
     getEigenReference(PyObject * dataPy)
     {
         // Check if raw Python object pointer is actually a numpy array
@@ -626,7 +642,7 @@ namespace jiminy::python
     /// Convert most C++ objects into Python objects by value
     template<typename T>
     std::enable_if_t<
-        !is_vector_v<T> && !is_array_v<T> && !is_eigen_v<T> &&
+        !is_vector_v<T> && !is_array_v<T> && !is_eigen_any_v<T> &&
             !std::is_arithmetic_v<std::decay_t<T>> &&
             !std::is_same_v<std::decay_t<T>, GenericConfig> &&
             !std::is_same_v<std::decay_t<T>, std::pair<const std::string, SensorDataTypeMap>> &&
@@ -655,17 +671,25 @@ namespace jiminy::python
     }
 
     template<typename T>
-    std::enable_if_t<is_eigen_v<T>, bp::object> convertToPython(T && data,
-                                                                const bool & copy = true)
+    std::enable_if_t<is_eigen_any_v<T>, bp::object> convertToPython(T && data,
+                                                                    const bool & copy = true)
     {
-        PyObject * vecPyPtr = getNumpyReference(data);
-        if (copy)
+        if constexpr (!is_eigen_object_v<T>)
         {
-            PyObject * copyVecPyPtr = PyArray_FROM_OF(vecPyPtr, NPY_ARRAY_ENSURECOPY);
-            bp::decref(vecPyPtr);
-            vecPyPtr = copyVecPyPtr;
+            assert(copy && "Impossible to convert Eigen expression to python without copy.");
+            return convertToPython(data.eval(), true);
         }
-        return bp::object(bp::handle<>(vecPyPtr));
+        else
+        {
+            PyObject * matPyPtr = getNumpyReference(data);
+            if (copy)
+            {
+                PyObject * copyMatPyPtr = PyArray_FROM_OF(matPyPtr, NPY_ARRAY_ENSURECOPY);
+                bp::decref(matPyPtr);
+                matPyPtr = copyMatPyPtr;
+            }
+            return bp::object(bp::handle<>(matPyPtr));
+        }
     }
 
     template<typename T>
@@ -804,41 +828,42 @@ namespace jiminy::python
     // ****************************************************************************
 
     /// \brief Convert a 1D python list into an Eigen vector by value.
-    inline Eigen::VectorXd listPyToEigenVector(const bp::list & listPy)
+    template<typename Scalar>
+    inline VectorX<Scalar> listPyToEigenVector(const bp::list & listPy)
     {
-        Eigen::VectorXd x(len(listPy));
+        VectorX<Scalar> x(len(listPy));
         for (bp::ssize_t i = 0; i < len(listPy); ++i)
         {
-            x[i] = bp::extract<double>(listPy[i]);
+            x[i] = bp::extract<Scalar>(listPy[i]);
         }
-
         return x;
     }
 
     /// \brief Convert a 2D python list into an Eigen matrix.
-    inline Eigen::MatrixXd listPyToEigenMatrix(const bp::list & listPy)
+    template<typename Scalar>
+    inline MatrixX<Scalar> listPyToEigenMatrix(const bp::list & listPy)
     {
         const bp::ssize_t nRows = len(listPy);
-        assert(nRows > 0 && "empty list");
-
+        if (nRows == 0)
+        {
+            return {};
+        }
         const bp::ssize_t nCols = len(bp::extract<bp::list>(listPy[0]));
-        assert(nCols > 0 && "empty row");
 
-        Eigen::MatrixXd M(nRows, nCols);
+        MatrixX<Scalar> M(nRows, nCols);
         for (bp::ssize_t i = 0; i < nRows; ++i)
         {
-            bp::list row = bp::extract<bp::list>(listPy[i]);  // Beware elements are not copied.
-            assert(len(row) == nCols && "wrong number of columns");
-            M.row(i) = listPyToEigenVector(row);
+            bp::list row = bp::extract<bp::list>(listPy[i]);
+            assert(len(row) == nCols && "Inconsistent number of columns");
+            M.row(i) = listPyToEigenVector<Scalar>(row);
         }
-
         return M;
     }
 
     // Convert most Python objects in C++ objects by value.
 
     template<typename T>
-    std::enable_if_t<!is_vector_v<T> && !is_array_v<T> && !is_map_v<T> && !is_eigen_v<T> &&
+    std::enable_if_t<!is_vector_v<T> && !is_array_v<T> && !is_map_v<T> && !is_eigen_any_v<T> &&
                          !std::is_same_v<T, SensorsDataMap>,
                      T>
     convertFromPython(const bp::object & dataPy)
@@ -899,7 +924,7 @@ namespace jiminy::python
     }
 
     template<typename T>
-    std::enable_if_t<is_eigen_v<T>, T> convertFromPython(const bp::object & dataPy)
+    std::enable_if_t<is_eigen_any_v<T>, T> convertFromPython(const bp::object & dataPy)
     {
         using Scalar = typename T::Scalar;
 
@@ -911,23 +936,20 @@ namespace jiminy::python
                 throw std::runtime_error(
                     "Scalar type of eigen object does not match dtype of numpy object.");
             }
-            Scalar * dataPtr = reinterpret_cast<Scalar *>(dataNumpy.get_data());
-            const Py_intptr_t * dataShape = dataNumpy.get_shape();
-            if (is_eigen_vector_v<T>)
-            {
-                return Eigen::Map<Eigen::Matrix<Scalar, Eigen::Dynamic, 1>>(dataPtr, dataShape[0]);
-            }
-            return Eigen::Map<Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>>(
-                dataPtr, dataShape[0], dataShape[1]);
+            return getEigenReferenceImpl<Scalar>(reinterpret_cast<PyArrayObject *>(dataPy.ptr()))
+                .value();
         }
         catch (const bp::error_already_set &)
         {
             PyErr_Clear();
-            if (is_eigen_vector_v<T>)
+            if constexpr (is_eigen_vector_v<T>)
             {
-                return listPyToEigenVector(bp::extract<bp::list>(dataPy));
+                return listPyToEigenVector<Scalar>(bp::extract<bp::list>(dataPy));
             }
-            return listPyToEigenMatrix(bp::extract<bp::list>(dataPy));
+            else
+            {
+                return listPyToEigenMatrix<Scalar>(bp::extract<bp::list>(dataPy));
+            }
         }
     }
 
@@ -943,20 +965,37 @@ namespace jiminy::python
         return flexData;
     }
 
+
     template<typename T>
     std::enable_if_t<is_vector_v<T>, T> convertFromPython(const bp::object & dataPy)
     {
-        const bp::list listPy = bp::extract<bp::list>(dataPy);
         T vec;
-        vec.reserve(bp::len(listPy));
-        for (bp::ssize_t i = 0; i < bp::len(listPy); ++i)
+
+        auto converter = [&vec](auto seqPy)
         {
-            vec.push_back(convertFromPython<typename T::value_type>(listPy[i]));
+            vec.reserve(bp::len(seqPy));
+            for (bp::ssize_t i = 0; i < bp::len(seqPy); ++i)
+            {
+                vec.push_back(convertFromPython<typename T::value_type>(seqPy[i]));
+            }
+        };
+
+        bp::extract<bp::list> dataPyListExtract{dataPy};
+        if (dataPyListExtract.check())
+        {
+            bp::list listPy = dataPyListExtract();
+            converter(listPy);
         }
+        else
+        {
+            bp::tuple tuplePy = bp::extract<bp::tuple>(dataPy);
+            converter(tuplePy);
+        }
+
         return vec;
     }
 
-    namespace details
+    namespace internal
     {
         template<typename T, size_t... Is, typename F>
         std::array<T, sizeof...(Is)> BuildArrayFromCallable(std::index_sequence<Is...>, F fun)
@@ -974,7 +1013,7 @@ namespace jiminy::python
         {
             throw std::runtime_error("Consistent number of elements");
         }
-        return details::BuildArrayFromCallable<typename T::value_type>(
+        return internal::BuildArrayFromCallable<typename T::value_type>(
             std::make_index_sequence<N>{},
             [&listPy](std::size_t i)
             { return convertFromPython<typename T::value_type>(listPy[i]); });

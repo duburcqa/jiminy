@@ -1,8 +1,6 @@
 #ifndef JIMINY_TELEMETRY_DATA_H
 #define JIMINY_TELEMETRY_DATA_H
 
-#include <deque>
-
 #include "jiminy/core/fwd.h"
 
 
@@ -47,17 +45,17 @@ namespace jiminy
         void formatHeader(std::vector<char> & header);
 
         template<typename T>
-        std::deque<std::pair<std::string, T>> * getRegistry();
+        static_map_t<std::string, T, false> * getRegistry();
 
     private:
         // Must use dequeue to preserve pointer addresses after resize
 
         /// \brief Memory to handle constants.
-        std::deque<std::pair<std::string, std::string>> constantsRegistry_{};
+        static_map_t<std::string, std::string, false> constantsRegistry_{};
         /// \brief Memory to handle integers.
-        std::deque<std::pair<std::string, int64_t>> integersRegistry_{};
+        static_map_t<std::string, int64_t, false> integersRegistry_{};
         /// \brief Memory to handle floats.
-        std::deque<std::pair<std::string, double>> floatsRegistry_{};
+        static_map_t<std::string, double, false> floatsRegistry_{};
         /// \brief Whether registering is available.
         bool isRegisteringAvailable_{true};
     };

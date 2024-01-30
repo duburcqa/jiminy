@@ -54,7 +54,7 @@ setup(
     author_email="alexis.duburcq@gmail.com",
     maintainer="Alexis Duburcq",
     license="MIT",
-    python_requires=">=3.8,<3.12",
+    python_requires=">=3.8,<3.13",
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Science/Research",
@@ -64,7 +64,8 @@ setup(
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
-        "Programming Language :: Python :: 3.11"
+        "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12"
     ],
     keywords="robotics physics simulator",
     distclass=BinaryDistribution,
@@ -103,7 +104,7 @@ setup(
         # Panda3d is NOT supported by PyPy even if built from source.
         # - 1.10.12 fixes numerous bugs
         # - 1.10.13 crashes when generating wheels on MacOS
-        "panda3d>=1.10.12",
+        "panda3d>=1.10.14",
         # Photo-realistic shader for Panda3d to improve rendering of meshes.
         # - 0.11.X is not backward compatible.
         "panda3d-simplepbr==0.11.2",
@@ -152,7 +153,7 @@ setup(
             # Check PEP8 conformance of Python native code
             "flake8",
             # Python linter
-            "pylint>=2.16.0",
+            "pylint>=3.0",
             # Python static type checker
             "mypy>=1.5.0",
             # Dependency for documentation generation

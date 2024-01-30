@@ -8,7 +8,7 @@
 #include "pinocchio/multibody/frame.hpp"  // `pinocchio::FrameType` (C-style enum cannot be forward declared)
 
 #include "jiminy/core/fwd.h"
-#include "jiminy/core/utilities/helpers.h"
+#include "jiminy/core/utilities/random.h"  // `uniform_random_bit_generator_ref`
 
 
 namespace jiminy
@@ -66,7 +66,8 @@ namespace jiminy
                 {
                     for (auto & constraintItem : constraintsMap)
                     {
-                        std::forward<Function>(lambda)(constraintItem.second, holderType);
+                        std::invoke(
+                            std::forward<Function>(lambda), constraintItem.second, holderType);
                     }
                 }
             }
@@ -88,7 +89,7 @@ namespace jiminy
                 }
                 for (auto & constraintItem : *constraintsMapPtr)
                 {
-                    std::forward<Function>(lambda)(constraintItem.second, holderType);
+                    std::invoke(std::forward<Function>(lambda), constraintItem.second, holderType);
                 }
             }
         }
@@ -110,13 +111,13 @@ namespace jiminy
         }
 
     public:
-        /// \brief Store internal constraints related to joint bounds.
+        /// \brief Constraints registered by the engine to handle joint bounds.
         constraintsMap_t boundJoints{};
-        /// \brief Store internal constraints related to contact frames.
+        /// \brief Constraints registered by the engine to handle contact frames.
         constraintsMap_t contactFrames{};
-        /// \brief Store internal constraints related to collision bounds.
+        /// \brief Constraints registered by the engine to handle collision bounds.
         std::vector<constraintsMap_t> collisionBodies{};
-        /// \brief Store internal constraints registered by user.
+        /// \brief Constraints explicitly registered by user.
         constraintsMap_t registered{};
     };
 
@@ -321,7 +322,7 @@ namespace jiminy
 
         /// \remark This method are not intended to be called manually. The Engine is taking care
         ///         of it.
-        virtual void reset();
+        virtual void reset(const uniform_random_bit_generator_ref<uint32_t> & g);
 
         bool getIsInitialized() const;
         const std::string & getName() const;
@@ -366,7 +367,7 @@ namespace jiminy
 
     protected:
         hresult_t generateModelFlexible();
-        hresult_t generateModelBiased();
+        hresult_t generateModelBiased(const uniform_random_bit_generator_ref<uint32_t> & g);
 
         hresult_t addFrame(const std::string & frameName,
                            const std::string & parentBodyName,
@@ -440,7 +441,8 @@ namespace jiminy
         ///        flexibilities are enabled.
         std::vector<pinocchio::JointIndex> flexibleJointsModelIdx_{};
 
-        constraintsHolder_t constraintsHolder_{};  ///< Store constraints
+        /// \brief Store constraints.
+        constraintsHolder_t constraintsHolder_{};
 
         /// \brief Upper position limit of the whole configuration vector (INF for non-physical
         ///        joints, ie flexibility joints and freeflyer, if any).

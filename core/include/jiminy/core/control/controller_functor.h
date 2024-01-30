@@ -15,7 +15,14 @@ namespace jiminy
     template<typename F>
     using callable_t = std::conditional_t<std::is_function_v<F>, std::add_pointer_t<F>, F>;
 
-    template<typename F1, typename F2>
+    using ControllerFunctorSignature = void(double /* t */,
+                                            const Eigen::VectorXd & /* q */,
+                                            const Eigen::VectorXd & /* v */,
+                                            const SensorsDataMap & /* sensorMeasurements */,
+                                            Eigen::VectorXd & /* command */);
+
+    template<typename F1 = std::add_pointer_t<ControllerFunctorSignature>,
+             typename F2 = std::add_pointer_t<ControllerFunctorSignature>>
     class ControllerFunctor : public AbstractController
     {
     public:

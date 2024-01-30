@@ -77,14 +77,14 @@ namespace jiminy
 
         hresult_t initialize(const std::string & jointName);
 
-        virtual hresult_t setOptions(const GenericConfig & motorOptions) final override;
+        hresult_t setOptions(const GenericConfig & motorOptions) override;
 
     private:
-        virtual hresult_t computeEffort(double t,
-                                        const Eigen::VectorBlock<const Eigen::VectorXd> & q,
-                                        double v,
-                                        double a,
-                                        double command) final override;
+        hresult_t computeEffort(double t,
+                                const Eigen::VectorBlock<const Eigen::VectorXd> & q,
+                                double v,
+                                double a,
+                                double command) override;
 
     private:
         std::unique_ptr<const motorOptions_t> motorOptions_{nullptr};

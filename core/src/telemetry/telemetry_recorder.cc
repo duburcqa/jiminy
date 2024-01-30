@@ -12,7 +12,7 @@
 
 namespace jiminy
 {
-    inline constexpr std::size_t TELEMETRY_MIN_BUFFER_SIZE{256U * 1024U};  // 256Ko
+    inline constexpr std::size_t TELEMETRY_MIN_BUFFER_SIZE{256UL * 1024UL};  // 256Ko
 
     TelemetryRecorder::~TelemetryRecorder()
     {
@@ -181,15 +181,15 @@ namespace jiminy
         {
             for (auto & flow : flows_)
             {
-                const std::ptrdiff_t pos_old = flow.pos();
+                const std::ptrdiff_t posOld = flow.pos();
                 flow.seek(0);
 
                 std::vector<uint8_t> bufferChunk;
-                bufferChunk.resize(static_cast<std::size_t>(pos_old));
+                bufferChunk.resize(static_cast<std::size_t>(posOld));
                 flow.read(bufferChunk);
                 myFile.write(bufferChunk);
 
-                flow.seek(pos_old);
+                flow.seek(posOld);
             }
 
             myFile.close();
@@ -227,7 +227,7 @@ namespace jiminy
             for (auto & flow : flows)
             {
                 // Save the cursor position and move it to the beginning
-                const int64_t pos_old = flow->pos();
+                const int64_t posOld = flow->pos();
                 flow->seek(0);
 
                 // Dealing with version flag, constants, and variable names
@@ -355,7 +355,7 @@ namespace jiminy
                 }
 
                 // Restore the cursor position
-                flow->seek(pos_old);
+                flow->seek(posOld);
             }
         }
 

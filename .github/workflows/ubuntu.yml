@@ -36,9 +36,6 @@ jobs:
         # Using bash with automatic sourcing `.bashrc` and fail-fast behavior enabled
         shell: bash -ieo pipefail {0}
 
-    env:
-      TORCH_VERSION: "2.0.1+cpu"
-
     #####################################################################################
 
     steps:
@@ -71,14 +68,13 @@ jobs:
         echo "InstallDir=${GITHUB_WORKSPACE}/install" >> $GITHUB_ENV
 
         echo "/home/runner/.local/bin" >> $GITHUB_PATH
-    - name: Install pre-compiled dependencies
+    - name: Install pre-compiled project dependencies
       run: |
         sudo env "PATH=$PATH" "${RootDir}/build_tools/easy_install_deps_ubuntu.sh"
         if [[ "${{ matrix.GENERATOR }}" == 'Ninja' ]] ; then
           sudo apt install ninja-build
         fi
-
-        "${PYTHON_EXECUTABLE}" -m pip install "torch==${TORCH_VERSION}" -f https://download.pytorch.org/whl/torch
+        "${PYTHON_EXECUTABLE}" -m pip install "torch" -f https://download.pytorch.org/whl/torch
         "${PYTHON_EXECUTABLE}" -m pip install "gymnasium>=0.26,<0.29" "importlib-metadata>=3.3.0"
 
     #####################################################################################
@@ -134,11 +130,9 @@ jobs:
 
     - name: Run unit tests for jiminy
       run: |
-        cd "${RootDir}/build/core/unit"
-        ctest --output-on-failure
+        ctest --output-on-failure --test-dir "${RootDir}/build/core/unit"
 
-        cd "${RootDir}/python/jiminy_py/unit_py"
-        "${PYTHON_EXECUTABLE}" -m unittest discover -v
+        "${PYTHON_EXECUTABLE}" -m unittest discover -s "${RootDir}/python/jiminy_py/unit_py" -v
 
     - name: Run unit tests for gym_jiminy
       if: matrix.BUILD_TYPE != 'Release'
@@ -154,8 +148,7 @@ jobs:
 
         "${PYTHON_EXECUTABLE}" -m pip install "stable_baselines3>=2.0"
 
-        cd "${RootDir}/python/gym_jiminy/unit_py"
-        "${PYTHON_EXECUTABLE}" -m unittest discover -v
+        "${PYTHON_EXECUTABLE}" -m unittest discover -s "${RootDir}/python/gym_jiminy/unit_py" -v
 
     #####################################################################################
 
