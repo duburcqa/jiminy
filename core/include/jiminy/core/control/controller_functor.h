@@ -21,7 +21,8 @@ namespace jiminy
                                             const SensorsDataMap & /* sensorMeasurements */,
                                             Eigen::VectorXd & /* command */);
 
-    template<typename F1, typename F2>
+    template<typename F1 = std::add_pointer_t<ControllerFunctorSignature>,
+             typename F2 = std::add_pointer_t<ControllerFunctorSignature>>
     class ControllerFunctor : public AbstractController
     {
     public:

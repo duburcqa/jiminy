@@ -183,8 +183,7 @@ namespace jiminy
         {
             // Empty on purpose
         };
-        using NoopController = ControllerFunctor<decltype(noopFunctor), decltype(noopFunctor)>;
-        auto controller = std::make_shared<NoopController>(noopFunctor, noopFunctor);
+        auto controller = std::make_shared<ControllerFunctor<>>(noopFunctor, noopFunctor);
         controller->initialize(robot);
 
         return addSystem(systemName, robot, controller, std::move(callbackFct));

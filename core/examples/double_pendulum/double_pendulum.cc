@@ -78,8 +78,7 @@ int main(int /* argc */, char * /* argv */[])
     }
 
     // Instantiate and configuration the controller
-    using Controller = ControllerFunctor<decltype(computeCommand), decltype(internalDynamics)>;
-    auto controller = std::make_shared<Controller>(computeCommand, internalDynamics);
+    auto controller = std::make_shared<ControllerFunctor<>>(computeCommand, internalDynamics);
     controller->initialize(robot);
 
     // Instantiate and configuration the engine
