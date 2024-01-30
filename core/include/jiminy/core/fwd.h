@@ -6,6 +6,7 @@
 #include <functional>     // `std::function`, `std::invoke`
 #include <limits>         // `std::numeric_limits`
 #include <map>            // `std::map`
+#include <deque>          // `std::deque`
 #include <string>         // `std::string`
 #include <sstream>        // `std::ostringstream`
 #include <unordered_map>  // `std::unordered_map`
@@ -36,8 +37,10 @@ namespace jiminy
 {
     // ********************************** General declarations ********************************* //
 
-    template<typename K, typename M>
-    using static_map_t = std::vector<std::pair<K, M>>;
+    // Standard types
+    template<typename K, typename M, bool aligned = true>
+    using static_map_t =
+        std::conditional_t<aligned, std::vector<std::pair<K, M>>, std::deque<std::pair<K, M>>>;
 
     // Eigen types
     template<typename Scalar>
@@ -75,14 +78,16 @@ namespace jiminy
     using MotionVector = vector_aligned_t<pinocchio::Motion>;
     using ForceVector = vector_aligned_t<pinocchio::Force>;
 
+    /// \brief Standard joint model types.
+    ///
+    /// \warning Cylindrical joints have not been standardized for now.
     enum class JointModelType : uint8_t
     {
-        /// @brief Cylindrical joints are not available so far
         UNSUPPORTED = 0,
         LINEAR = 1,
         ROTARY = 2,
-        /// @brief The configuration of unbounded rotary joints must be encoded as
-        ///        `[cos(theta), sin(theta)]` instead of `theta` to prevent overflow.
+        /// \warning The position of unbounded rotary joints is parameterized as
+        ///          `[cos(theta), sin(theta)]` instead of `theta` to prevent overflow.
         ROTARY_UNBOUNDED = 3,
         PLANAR = 4,
         TRANSLATION = 5,

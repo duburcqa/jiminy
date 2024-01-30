@@ -16,13 +16,13 @@ namespace jiminy
 
     hpp::fcl::CollisionGeometryPtr_t JIMINY_DLLAPI discretizeHeightmap(
         const HeightmapFunctor & heightmap,
-        double x_min,
-        double x_max,
-        double x_unit,
-        double y_min,
-        double y_max,
-        double y_unit,
-        bool must_simplify = false);
+        double xMin,
+        double xMax,
+        double xUnit,
+        double yMin,
+        double yMax,
+        double yUnit,
+        bool mustSimplify = false);
 }
 
 #endif  // JIMINY_GEOMETRY_H

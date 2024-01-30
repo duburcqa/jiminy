@@ -47,8 +47,10 @@ namespace jiminy
             std::ostringstream sstr;
             auto format = [&header](const auto & var)
             {
-                if constexpr (std::is_same_v<decltype(var), std::string_view> ||
-                              std::is_same_v<decltype(var), std::string>)
+                using T = std::decay_t<decltype(var)>;
+
+                if constexpr (std::is_same_v<T, std::string_view> ||
+                              std::is_same_v<T, std::string>)
                 {
                     header.insert(header.end(), var.cbegin(), var.cend());
                 }
@@ -58,7 +60,7 @@ namespace jiminy
                     std::move(str.cbegin(), str.cend(), std::back_inserter(header));
                 }
             };
-            (format(args), ...);
+            (format(std::forward<decltype(args)>(args)), ...);
             header.push_back('\0');
         };
 
@@ -115,13 +117,13 @@ namespace jiminy
     }
 
     template<>
-    std::deque<std::pair<std::string, int64_t>> * TelemetryData::getRegistry<int64_t>()
+    static_map_t<std::string, int64_t, false> * TelemetryData::getRegistry<int64_t>()
     {
         return &integersRegistry_;
     }
 
     template<>
-    std::deque<std::pair<std::string, double>> * TelemetryData::getRegistry<double>()
+    static_map_t<std::string, double, false> * TelemetryData::getRegistry<double>()
     {
         return &floatsRegistry_;
     }

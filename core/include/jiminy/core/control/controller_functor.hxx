@@ -12,6 +12,8 @@ namespace jiminy
     commandFct_{commandFct},
     internalDynamicsFct_{internalDynamicsFct}
     {
+        static_assert(std::is_constructible_v<std::function<ControllerFunctorSignature>, F1> &&
+                      std::is_constructible_v<std::function<ControllerFunctorSignature>, F2>);
     }
 
     template<typename F1, typename F2>

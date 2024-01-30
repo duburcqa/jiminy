@@ -194,12 +194,12 @@ namespace jiminy
 
         // Extract bytes from key
         const auto * data = static_cast<const uint8_t *>(key);
-        const int32_t num_blocks = len / 4;  // len in bytes, so 32-bits blocks
+        const int32_t numBlocks = len / 4;  // len in bytes, so 32-bits blocks
 
         // Body
         const auto * blocks =
-            reinterpret_cast<const uint32_t *>(data + static_cast<std::ptrdiff_t>(num_blocks * 4));
-        for (int32_t i = -num_blocks; i; ++i)
+            reinterpret_cast<const uint32_t *>(data + static_cast<std::ptrdiff_t>(numBlocks * 4));
+        for (int32_t i = -numBlocks; i; ++i)
         {
             uint32_t k1 = blocks[i];
             k1 *= c1;
@@ -212,7 +212,7 @@ namespace jiminy
 
         // Tail
         const auto * tail =
-            reinterpret_cast<const uint8_t *>(data + static_cast<std::ptrdiff_t>(num_blocks * 4));
+            reinterpret_cast<const uint8_t *>(data + static_cast<std::ptrdiff_t>(numBlocks * 4));
         uint32_t k1 = 0U;
         switch (len & 3)
         {
@@ -258,11 +258,10 @@ namespace jiminy
         const uniform_random_bit_generator_ref<uint32_t> & g) noexcept
     {
         // Sample normal vector
-        auto normalVec = normal(num_times_, 1, g);
+        auto normalVec = normal(numTimes_, 1, g);
 
         // Compute discrete periodic gaussian process values
-        values_.noalias() =
-            cov_sqrt_root_.triangularView<Eigen::Lower>() * normalVec.cast<double>();
+        values_.noalias() = covSqrtRoot_.triangularView<Eigen::Lower>() * normalVec.cast<double>();
     }
 
     double PeriodicGaussianProcess::operator()(float t)
@@ -276,19 +275,19 @@ namespace jiminy
 
         // Compute closest left and right indices
         const Eigen::Index tLeftIdx = static_cast<Eigen::Index>(std::floor(tWrap / dt_));
-        const Eigen::Index tRightIdx = (tLeftIdx + 1) % num_times_;
+        const Eigen::Index tRightIdx = (tLeftIdx + 1) % numTimes_;
 
         // Perform First order interpolation
         const double ratio = tWrap / dt_ - static_cast<double>(tLeftIdx);
         return values_[tLeftIdx] + ratio * (values_[tRightIdx] - values_[tLeftIdx]);
     }
 
-    double PeriodicGaussianProcess::wavelength() const noexcept
+    double PeriodicGaussianProcess::getWavelength() const noexcept
     {
         return wavelength_;
     }
 
-    double PeriodicGaussianProcess::period() const noexcept
+    double PeriodicGaussianProcess::getPeriod() const noexcept
     {
         return period_;
     }
@@ -306,13 +305,13 @@ namespace jiminy
         const uniform_random_bit_generator_ref<uint32_t> & g) noexcept
     {
         // Sample normal vectors
-        auto normalVec1 = normal(num_harmonics_, 1, g);
-        auto normalVec2 = normal(num_harmonics_, 1, g);
+        auto normalVec1 = normal(numHarmonics_, 1, g);
+        auto normalVec2 = normal(numHarmonics_, 1, g);
 
         // Compute discrete periodic gaussian process values
-        const double scale = M_SQRT2 / std::sqrt(2 * num_harmonics_ + 1);
-        values_ = scale * cos_mat_ * normalVec1.cast<double>();
-        values_.noalias() += scale * sin_mat_ * normalVec2.cast<double>();
+        const double scale = M_SQRT2 / std::sqrt(2 * numHarmonics_ + 1);
+        values_ = scale * cosMat_ * normalVec1.cast<double>();
+        values_.noalias() += scale * sinMat_ * normalVec2.cast<double>();
     }
 
     double PeriodicFourierProcess::operator()(float t)
@@ -326,19 +325,19 @@ namespace jiminy
 
         // Compute closest left and right indices
         const Eigen::Index tLeftIdx = static_cast<Eigen::Index>(std::floor(tWrap / dt_));
-        const Eigen::Index tRightIdx = (tLeftIdx + 1) % num_times_;
+        const Eigen::Index tRightIdx = (tLeftIdx + 1) % numTimes_;
 
         // Perform First order interpolation
         const double ratio = tWrap / dt_ - static_cast<double>(tLeftIdx);
         return values_[tLeftIdx] + ratio * (values_[tRightIdx] - values_[tLeftIdx]);
     }
 
-    double PeriodicFourierProcess::wavelength() const noexcept
+    double PeriodicFourierProcess::getWavelength() const noexcept
     {
         return wavelength_;
     }
 
-    double PeriodicFourierProcess::period() const noexcept
+    double PeriodicFourierProcess::getPeriod() const noexcept
     {
         return period_;
     }
@@ -380,7 +379,7 @@ namespace jiminy
         return lerp(ratio, yLeft, yRight);
     }
 
-    double AbstractPerlinNoiseOctave::wavelength() const noexcept
+    double AbstractPerlinNoiseOctave::getWavelength() const noexcept
     {
         return wavelength_;
     }
@@ -481,26 +480,26 @@ namespace jiminy
     }
 
     AbstractPerlinProcess::AbstractPerlinProcess(
-        std::vector<OctaveScalePair> && octave_scale_pairs) noexcept :
-    octave_scale_pairs_(std::move(octave_scale_pairs))
+        std::vector<OctaveScalePair> && octaveScalePairs) noexcept :
+    octaveScalePairs_(std::move(octaveScalePairs))
     {
         // Compute the scaling factor to keep values within range [-1.0, 1.0]
-        double amplitude_squared = 0.0;
-        for (const OctaveScalePair & octave_scale : octave_scale_pairs_)
+        double amplitudeSquared = 0.0;
+        for (const OctaveScalePair & octaveScale : octaveScalePairs_)
         {
-            const double scale = std::get<1>(octave_scale);
-            amplitude_squared += std::pow(scale, 2);
+            const double scale = std::get<1>(octaveScale);
+            amplitudeSquared += std::pow(scale, 2);
         }
-        amplitude_ = std::sqrt(amplitude_squared);
+        amplitude_ = std::sqrt(amplitudeSquared);
     }
 
     void AbstractPerlinProcess::reset(
         const uniform_random_bit_generator_ref<uint32_t> & g) noexcept
     {
         // Reset octaves
-        for (OctaveScalePair & octave_scale : octave_scale_pairs_)
+        for (OctaveScalePair & octaveScale : octaveScalePairs_)
         {
-            std::unique_ptr<AbstractPerlinNoiseOctave> & octave = std::get<0>(octave_scale);
+            std::unique_ptr<AbstractPerlinNoiseOctave> & octave = std::get<0>(octaveScale);
             octave->reset(g);
         }
     }
@@ -509,7 +508,7 @@ namespace jiminy
     {
         // Compute sum of octaves' values
         double value = 0.0;
-        for (const auto & [octave, scale] : octave_scale_pairs_)
+        for (const auto & [octave, scale] : octaveScalePairs_)
         {
             value += scale * (*octave)(t);
         }
@@ -518,53 +517,53 @@ namespace jiminy
         return value / amplitude_;
     }
 
-    double AbstractPerlinProcess::wavelength() const noexcept
+    double AbstractPerlinProcess::getWavelength() const noexcept
     {
         double wavelength = INF;
-        for (const OctaveScalePair & octave_scale : octave_scale_pairs_)
+        for (const OctaveScalePair & octaveScale : octaveScalePairs_)
         {
-            const std::unique_ptr<AbstractPerlinNoiseOctave> & octave = std::get<0>(octave_scale);
-            wavelength = std::min(wavelength, octave->wavelength());
+            const std::unique_ptr<AbstractPerlinNoiseOctave> & octave = std::get<0>(octaveScale);
+            wavelength = std::min(wavelength, octave->getWavelength());
         }
         return wavelength;
     }
 
-    std::size_t AbstractPerlinProcess::num_octaves() const noexcept
+    std::size_t AbstractPerlinProcess::getNumOctaves() const noexcept
     {
-        return octave_scale_pairs_.size();
+        return octaveScalePairs_.size();
     }
 
     std::vector<AbstractPerlinProcess::OctaveScalePair> buildPerlinNoiseOctaves(
         double wavelength,
-        std::size_t num_octaves,
+        std::size_t numOctaves,
         std::function<std::unique_ptr<AbstractPerlinNoiseOctave>(double)> factory)
     {
-        std::vector<AbstractPerlinProcess::OctaveScalePair> octave_scale_pairs;
-        octave_scale_pairs.reserve(num_octaves);
+        std::vector<AbstractPerlinProcess::OctaveScalePair> octaveScalePairs;
+        octaveScalePairs.reserve(numOctaves);
         double scale = 1.0;
-        for (std::size_t i = 0; i < num_octaves; ++i)
+        for (std::size_t i = 0; i < numOctaves; ++i)
         {
-            octave_scale_pairs.emplace_back(factory(wavelength), scale);
+            octaveScalePairs.emplace_back(factory(wavelength), scale);
             wavelength *= PERLIN_NOISE_LACUNARITY;
             scale *= PERLIN_NOISE_PERSISTENCE;
         }
-        return octave_scale_pairs;
+        return octaveScalePairs;
     }
 
-    RandomPerlinProcess::RandomPerlinProcess(double wavelength, std::size_t num_octaves) :
+    RandomPerlinProcess::RandomPerlinProcess(double wavelength, std::size_t numOctaves) :
     AbstractPerlinProcess(buildPerlinNoiseOctaves(
         wavelength,
-        num_octaves,
+        numOctaves,
         [](double wavelengthIn) -> std::unique_ptr<AbstractPerlinNoiseOctave>
         { return std::make_unique<RandomPerlinNoiseOctave>(wavelengthIn); }))
     {
     }
 
     PeriodicPerlinProcess::PeriodicPerlinProcess(
-        double wavelength, double period, std::size_t num_octaves) :
+        double wavelength, double period, std::size_t numOctaves) :
     AbstractPerlinProcess(buildPerlinNoiseOctaves(
         wavelength,
-        num_octaves,
+        numOctaves,
         [period](double wavelengthIn) -> std::unique_ptr<AbstractPerlinNoiseOctave>
         { return std::make_unique<PeriodicPerlinNoiseOctave>(wavelengthIn, period); })),
     period_{period}
@@ -573,7 +572,7 @@ namespace jiminy
         assert(period_ >= wavelength && "Period must be larger than wavelength.");
     }
 
-    double PeriodicPerlinProcess::period() const noexcept
+    double PeriodicPerlinProcess::getPeriod() const noexcept
     {
         return period_;
     }
@@ -584,8 +583,8 @@ namespace jiminy
     static float uniformSparseFromStateImpl(
         const MatrixX<Scalar> & state, int64_t sparsity, uint32_t seed) noexcept
     {
-        const auto num_bytes = static_cast<int32_t>(sizeof(Scalar) * state.size());
-        const uint32_t hash = MurmurHash3(state.data(), num_bytes, seed);
+        const auto numBytes = static_cast<int32_t>(sizeof(Scalar) * state.size());
+        const uint32_t hash = MurmurHash3(state.data(), numBytes, seed);
         if (hash % sparsity == 0)
         {
             return static_cast<float>(hash) /
@@ -602,37 +601,37 @@ namespace jiminy
             state.derived(), sparsity, seed);
     }
 
-    std::pair<double, double> tile2dInterp1d(Eigen::Vector2i & pos_indices,
-                                             const Eigen::Vector2d & pos_rel,
+    std::pair<double, double> tile2dInterp1d(Eigen::Vector2i & posIndices,
+                                             const Eigen::Vector2d & posRel,
                                              uint32_t dim,
                                              const Eigen::Vector2d & size,
                                              int64_t sparsity,
-                                             double height_max,
-                                             const Eigen::Vector2d & interp_thr,
+                                             double heightMax,
+                                             const Eigen::Vector2d & interpThr,
                                              uint32_t seed)
     {
         double height, dheight;
 
-        const double z = height_max * uniformSparseFromState(pos_indices, sparsity, seed);
-        if (pos_rel[dim] < interp_thr[dim])
+        const double z = heightMax * uniformSparseFromState(posIndices, sparsity, seed);
+        if (posRel[dim] < interpThr[dim])
         {
-            pos_indices[dim] -= 1;
-            const double z_m = height_max * uniformSparseFromState(pos_indices, sparsity, seed);
-            pos_indices[dim] += 1;
+            posIndices[dim] -= 1;
+            const double z_m = heightMax * uniformSparseFromState(posIndices, sparsity, seed);
+            posIndices[dim] += 1;
 
-            const double ratio = (1.0 - pos_rel[dim] / interp_thr[dim]) / 2.0;
+            const double ratio = (1.0 - posRel[dim] / interpThr[dim]) / 2.0;
             height = z + (z_m - z) * ratio;
-            dheight = (z - z_m) / (2.0 * size[dim] * interp_thr[dim]);
+            dheight = (z - z_m) / (2.0 * size[dim] * interpThr[dim]);
         }
-        else if (1.0 - pos_rel[dim] < interp_thr[dim])
+        else if (1.0 - posRel[dim] < interpThr[dim])
         {
-            pos_indices[dim] += 1;
-            const double z_p = height_max * uniformSparseFromState(pos_indices, sparsity, seed);
-            pos_indices[dim] -= 1;
+            posIndices[dim] += 1;
+            const double z_p = heightMax * uniformSparseFromState(posIndices, sparsity, seed);
+            posIndices[dim] -= 1;
 
-            const double ratio = (1.0 + (pos_rel[dim] - 1.0) / interp_thr[dim]) / 2.0;
+            const double ratio = (1.0 + (posRel[dim] - 1.0) / interpThr[dim]) / 2.0;
             height = z + (z_p - z) * ratio;
-            dheight = (z_p - z) / (2.0 * size[dim] * interp_thr[dim]);
+            dheight = (z_p - z) / (2.0 * size[dim] * interpThr[dim]);
         }
         else
         {
@@ -644,20 +643,20 @@ namespace jiminy
     }
 
     HeightmapFunctor tiles(const Eigen::Vector2d & size,
-                           double height_max,
-                           const Eigen::Vector2d & interp_delta,
+                           double heightMax,
+                           const Eigen::Vector2d & interpDelta,
                            uint32_t sparsity,
                            double orientation,
                            uint32_t seed)
     {
-        if ((0.01 <= interp_delta.array()).all() &&
-            (interp_delta.array() <= size.array() / 2.0).all())
+        if ((0.01 <= interpDelta.array()).all() &&
+            (interpDelta.array() <= size.array() / 2.0).all())
         {
-            PRINT_WARNING("'interp_delta' must be in range [0.01, 'size'/2.0].");
+            PRINT_WARNING("'interpDelta' must be in range [0.01, 'size'/2.0].");
         }
 
-        Eigen::Vector2d interp_thr = interp_delta.cwiseMax(0.01).cwiseMin(size / 2.0);
-        interp_thr.array() /= size.array();
+        Eigen::Vector2d interpThr = interpDelta.cwiseMax(0.01).cwiseMin(size / 2.0);
+        interpThr.array() /= size.array();
 
         const Eigen::Vector2d offset = Eigen::Vector2d::NullaryExpr(
             [&size, seed](Eigen::Index i) -> double {
@@ -667,22 +666,22 @@ namespace jiminy
 
         const Eigen::Rotation2D<double> rot_mat(orientation);
 
-        return [size, height_max, interp_delta, rot_mat, sparsity, interp_thr, offset, seed](
+        return [size, heightMax, interpDelta, rot_mat, sparsity, interpThr, offset, seed](
                    const Eigen::Vector2d & pos, double & height, Eigen::Vector3d & normal) -> void
         {
             // Compute the tile index and relative coordinate
-            Eigen::Vector2d pos_rel = (rot_mat * (pos + offset)).array() / size.array();
-            Vector2<int32_t> pos_indices = pos_rel.array().floor().cast<int32_t>();
-            pos_rel -= pos_indices.cast<double>();
+            Eigen::Vector2d posRel = (rot_mat * (pos + offset)).array() / size.array();
+            Vector2<int32_t> posIndices = posRel.array().floor().cast<int32_t>();
+            posRel -= posIndices.cast<double>();
 
             // Interpolate height based on nearby tiles if necessary
-            Vector2<bool> is_edge = (pos_rel.array() < interp_thr.array()) ||
-                                    (1.0 - pos_rel.array() < interp_thr.array());
+            Vector2<bool> is_edge = (posRel.array() < interpThr.array()) ||
+                                    (1.0 - posRel.array() < interpThr.array());
             if (is_edge[0] && !is_edge[1])
             {
                 double dheight_x;
                 std::tie(height, dheight_x) = tile2dInterp1d(
-                    pos_indices, pos_rel, 0, size, sparsity, height_max, interp_thr, seed);
+                    posIndices, posRel, 0, size, sparsity, heightMax, interpThr, seed);
                 double const norm_inv = 1.0 / std::sqrt(dheight_x * dheight_x + 1.0);
                 normal << -dheight_x * norm_inv, 0.0, norm_inv;
             }
@@ -690,46 +689,46 @@ namespace jiminy
             {
                 double dheight_y;
                 std::tie(height, dheight_y) = tile2dInterp1d(
-                    pos_indices, pos_rel, 1, size, sparsity, height_max, interp_thr, seed);
+                    posIndices, posRel, 1, size, sparsity, heightMax, interpThr, seed);
                 double const norm_inv = 1.0 / std::sqrt(dheight_y * dheight_y + 1.0);
                 normal << 0.0, -dheight_y * norm_inv, norm_inv;
             }
             else if (is_edge[0] && is_edge[1])
             {
                 auto const [height_0, dheight_x_0] = tile2dInterp1d(
-                    pos_indices, pos_rel, 0, size, sparsity, height_max, interp_thr, seed);
-                if (pos_rel[1] < interp_thr[1])
+                    posIndices, posRel, 0, size, sparsity, heightMax, interpThr, seed);
+                if (posRel[1] < interpThr[1])
                 {
-                    pos_indices[1] -= 1;
+                    posIndices[1] -= 1;
                     auto const [height_m, dheight_x_m] = tile2dInterp1d(
-                        pos_indices, pos_rel, 0, size, sparsity, height_max, interp_thr, seed);
+                        posIndices, posRel, 0, size, sparsity, heightMax, interpThr, seed);
 
-                    double const ratio = (1.0 - pos_rel[1] / interp_thr[1]) / 2.0;
+                    double const ratio = (1.0 - posRel[1] / interpThr[1]) / 2.0;
                     height = height_0 + (height_m - height_0) * ratio;
                     double const dheight_x = dheight_x_0 + (dheight_x_m - dheight_x_0) * ratio;
                     double const dheight_y =
-                        (height_0 - height_m) / (2.0 * size[1] * interp_thr[1]);
+                        (height_0 - height_m) / (2.0 * size[1] * interpThr[1]);
                     normal << -dheight_x, -dheight_y, 1.0;
                     normal.normalize();
                 }
                 else
                 {
-                    pos_indices[1] += 1;
+                    posIndices[1] += 1;
                     auto const [height_p, dheight_x_p] = tile2dInterp1d(
-                        pos_indices, pos_rel, 0, size, sparsity, height_max, interp_thr, seed);
+                        posIndices, posRel, 0, size, sparsity, heightMax, interpThr, seed);
 
-                    double const ratio = (1.0 + (pos_rel[1] - 1.0) / interp_thr[1]) / 2.0;
+                    double const ratio = (1.0 + (posRel[1] - 1.0) / interpThr[1]) / 2.0;
                     height = height_0 + (height_p - height_0) * ratio;
                     double const dheight_x = dheight_x_0 + (dheight_x_p - dheight_x_0) * ratio;
                     double const dheight_y =
-                        (height_p - height_0) / (2.0 * size[1] * interp_thr[1]);
+                        (height_p - height_0) / (2.0 * size[1] * interpThr[1]);
                     normal << -dheight_x, -dheight_y, 1.0;
                     normal.normalize();
                 }
             }
             else
             {
-                height = height_max * uniformSparseFromState(pos_indices, sparsity, seed);
+                height = heightMax * uniformSparseFromState(posIndices, sparsity, seed);
                 normal = Eigen::Vector3d::UnitZ();
             }
         };

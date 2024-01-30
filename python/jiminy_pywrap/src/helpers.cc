@@ -33,14 +33,6 @@ namespace jiminy::python
         return jointPositionFirstIdx;
     }
 
-    bool isPositionValid(const pinocchio::Model & model, const Eigen::VectorXd & position)
-    {
-        bool isValid;
-        ::jiminy::isPositionValid(
-            model, position, isValid, Eigen::NumTraits<double>::dummy_precision());
-        return isValid;
-    }
-
     Eigen::MatrixXd interpolate(const pinocchio::Model & modelIn,
                                 const Eigen::VectorXd & timesIn,
                                 const Eigen::MatrixXd & positionsIn,
@@ -328,7 +320,7 @@ namespace jiminy::python
         bp::def("get_joint_position_idx", &getJointPositionIdx,
                                           (bp::arg("pinocchio_model"), "joint_name"));
         bp::def("is_position_valid", &isPositionValid,
-                                     (bp::arg("pinocchio_model"), "position"));
+                                     (bp::arg("pinocchio_model"), "position", bp::arg("tol_abs") = std::numeric_limits<float>::epsilon()));
 
         bp::def("array_copyto", &arrayCopyTo, (bp::arg("dst"), "src"));
 

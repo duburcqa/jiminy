@@ -47,14 +47,14 @@ namespace jiminy
                  typename = std::enable_if_t<!std::is_same_v<remove_cvref_t<SeedSeq>, PCG32> &&
                                              !std::is_convertible_v<SeedSeq, uint64_t> &&
                                              std::is_unsigned_v<typename SeedSeq::result_type>>>
-        explicit PCG32(SeedSeq && seed_seq) noexcept;
+        explicit PCG32(SeedSeq && seedSeq) noexcept;
 
         explicit PCG32(PCG32 && other) = default;
         explicit PCG32(PCG32 & other) = default;
         PCG32 & operator=(const PCG32 & other) = default;
 
         template<typename SeedSeq>
-        void seed(SeedSeq && seed_seq) noexcept;
+        void seed(SeedSeq && seedSeq) noexcept;
 
         result_type operator()() noexcept;
 
@@ -329,15 +329,15 @@ namespace jiminy
 
         double operator()(float t);
 
-        double wavelength() const noexcept;
-        double period() const noexcept;
+        double getWavelength() const noexcept;
+        double getPeriod() const noexcept;
 
     private:
         const double wavelength_;
         const double period_;
 
         const double dt_{0.02 * wavelength_};
-        const Eigen::Index num_times_{static_cast<int>(std::ceil(period_ / dt_))};
+        const Eigen::Index numTimes_{static_cast<int>(std::ceil(period_ / dt_))};
 
         /// \brief Cholesky decomposition (LLT) of the covariance matrix.
         ///
@@ -347,14 +347,14 @@ namespace jiminy
         ///          positive semi-definite Toepliz matrix, which means that the computational
         ///          complexity can be reduced even further using an specialized Cholesky
         ///          decomposition algorithm. See: https://math.stackexchange.com/q/22825/375496
-        Eigen::MatrixXd cov_sqrt_root_{
+        Eigen::MatrixXd covSqrtRoot_{
             internal::standardToeplitzCholeskyLower(Eigen::VectorXd::NullaryExpr(
-                num_times_,
-                [numTimes = static_cast<double>(num_times_), wavelength = wavelength_](double i) {
+                numTimes_,
+                [numTimes = static_cast<double>(numTimes_), wavelength = wavelength_](double i) {
                     return std::exp(-2.0 *
                                     std::pow(std::sin(M_PI / numTimes * i) / wavelength, 2));
                 }))};
-        Eigen::VectorXd values_{num_times_};
+        Eigen::VectorXd values_{numTimes_};
     };
 
     // **************************** Continuous 1D Fourier processes **************************** //
@@ -373,29 +373,29 @@ namespace jiminy
 
         double operator()(float t);
 
-        double wavelength() const noexcept;
-        double period() const noexcept;
+        double getWavelength() const noexcept;
+        double getPeriod() const noexcept;
 
     private:
         const double wavelength_;
         const double period_;
 
         const double dt_{0.02 * wavelength_};
-        const Eigen::Index num_times_{static_cast<Eigen::Index>(std::ceil(period_ / dt_))};
-        const Eigen::Index num_harmonics_{
+        const Eigen::Index numTimes_{static_cast<Eigen::Index>(std::ceil(period_ / dt_))};
+        const Eigen::Index numHarmonics_{
             static_cast<Eigen::Index>(std::ceil(period_ / wavelength_))};
 
-        const Eigen::MatrixXd cos_mat_{Eigen::MatrixXd::NullaryExpr(
-            num_times_,
-            num_harmonics_,
-            [numTimes = static_cast<double>(num_times_)](double i, double j)
+        const Eigen::MatrixXd cosMat_{Eigen::MatrixXd::NullaryExpr(
+            numTimes_,
+            numHarmonics_,
+            [numTimes = static_cast<double>(numTimes_)](double i, double j)
             { return std::cos(2 * M_PI / numTimes * i * j); })};
-        const Eigen::MatrixXd sin_mat_{Eigen::MatrixXd::NullaryExpr(
-            num_times_,
-            num_harmonics_,
-            [numTimes = static_cast<double>(num_times_)](double i, double j)
+        const Eigen::MatrixXd sinMat_{Eigen::MatrixXd::NullaryExpr(
+            numTimes_,
+            numHarmonics_,
+            [numTimes = static_cast<double>(numTimes_)](double i, double j)
             { return std::sin(2 * M_PI / numTimes * i * j); })};
-        Eigen::VectorXd values_{num_times_};
+        Eigen::VectorXd values_{numTimes_};
     };
 
     // ***************************** Continuous 1D Perlin processes **************************** //
@@ -410,7 +410,7 @@ namespace jiminy
 
         double operator()(double t) const;
 
-        double wavelength() const noexcept;
+        double getWavelength() const noexcept;
 
     protected:
         virtual double grad(int32_t knot, double delta) const noexcept = 0;
@@ -422,7 +422,7 @@ namespace jiminy
         /// @sa For reference, see:
         ///     https://en.wikipedia.org/wiki/Smoothstep#Variations
         static double fade(double delta) noexcept;
-        static double lerp(double ratio, double y_left, double y_right) noexcept;
+        static double lerp(double ratio, double yLeft, double yRight) noexcept;
 
     protected:
         const double wavelength_;
@@ -453,7 +453,7 @@ namespace jiminy
 
         void reset(const uniform_random_bit_generator_ref<uint32_t> & g) noexcept override;
 
-        double period() const noexcept;
+        double getPeriod() const noexcept;
 
     protected:
         double grad(int32_t knot, double delta) const noexcept override;
@@ -497,15 +497,14 @@ namespace jiminy
 
         double operator()(float t);
 
-        double wavelength() const noexcept;
-        std::size_t num_octaves() const noexcept;
+        double getWavelength() const noexcept;
+        std::size_t getNumOctaves() const noexcept;
 
     protected:
-        explicit AbstractPerlinProcess(
-            std::vector<OctaveScalePair> && octave_scale_pairs) noexcept;
+        explicit AbstractPerlinProcess(std::vector<OctaveScalePair> && octaveScalePairs) noexcept;
 
     protected:
-        std::vector<OctaveScalePair> octave_scale_pairs_;
+        std::vector<OctaveScalePair> octaveScalePairs_;
 
     private:
         double amplitude_{0.0};
@@ -514,16 +513,16 @@ namespace jiminy
     class JIMINY_DLLAPI RandomPerlinProcess : public AbstractPerlinProcess
     {
     public:
-        explicit RandomPerlinProcess(double wavelength, std::size_t num_octaves = 6U);
+        explicit RandomPerlinProcess(double wavelength, std::size_t numOctaves = 6U);
     };
 
     class PeriodicPerlinProcess : public AbstractPerlinProcess
     {
     public:
         explicit PeriodicPerlinProcess(
-            double wavelength, double period, std::size_t num_octaves = 6U);
+            double wavelength, double period, std::size_t numOctaves = 6U);
 
-        double period() const noexcept;
+        double getPeriod() const noexcept;
 
     private:
         const double period_;
@@ -532,8 +531,8 @@ namespace jiminy
     // ******************************* Random terrain generators ******************************* //
 
     HeightmapFunctor JIMINY_DLLAPI tiles(const Eigen::Vector2d & size,
-                                         double height_max,
-                                         const Eigen::Vector2d & interp_delta,
+                                         double heightMax,
+                                         const Eigen::Vector2d & interpDelta,
                                          uint32_t sparsity,
                                          double orientation,
                                          uint32_t seed);

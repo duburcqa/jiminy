@@ -144,7 +144,7 @@ namespace jiminy
     std::enable_if_t<std::is_invocable_r_v<const double &,
                                            UnaryFunction,
                                            typename std::iterator_traits<InputIt>::reference> &&
-                     std::conjunction_v<std::is_same<Args, double>...>,
+                         std::conjunction_v<std::is_same<Args, double>...>,
                      std::tuple<bool, const double &>>
     isGcdIncluded(InputIt first, InputIt last, const UnaryFunction & func, const Args &... values);
 
@@ -167,12 +167,24 @@ namespace jiminy
 
     // ************************************* Miscellaneous ************************************* //
 
+    /// \brief Swap two disjoint row-blocks of data in a matrix.
+    ///
+    /// \details Let b1, b2 be two row-blocks of arbitrary sizes of a matrix B s.t.
+    ///          B = (... b1 ... b2 ...).T. This function re-assigns B to (... b2 ... b1 ...).T.
+    ///
+    /// \pre firstBlockStart + firstBlockSize <= secondBlockStart
+    ///
+    /// \param[in, out] matrix Matrix to modify.
+    /// \param[in] firstBlockStart Start index of the first block.
+    /// \param[in] firstBlockSize Length of the first block.
+    /// \param[in] secondBlockStart Start index of the second block.
+    /// \param[in] secondBlockSize Length of the second block.
     template<typename Derived>
     void swapMatrixRows(const Eigen::MatrixBase<Derived> & matrixIn,
                         Eigen::Index firstBlockStart,
-                        Eigen::Index firstBlockLength,
+                        Eigen::Index firstBlockSize,
                         Eigen::Index secondBlockStart,
-                        Eigen::Index secondBlockLength);
+                        Eigen::Index secondBlockSize);
 }
 
 #include "jiminy/core/utilities/helpers.hxx"

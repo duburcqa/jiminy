@@ -148,7 +148,7 @@ namespace jiminy
     std::enable_if_t<std::is_invocable_r_v<const double &,
                                            UnaryFunction,
                                            typename std::iterator_traits<InputIt>::reference> &&
-                     std::conjunction_v<std::is_same<Args, double>...>,
+                         std::conjunction_v<std::is_same<Args, double>...>,
                      std::tuple<bool, const double &>>
     isGcdIncluded(InputIt first, InputIt last, const UnaryFunction & func, const Args &... values)
     {
@@ -244,48 +244,68 @@ namespace jiminy
 
     // ************************************* Miscellaneous ************************************* //
 
-    /// \brief Swap two disjoint row-blocks of data in a matrix.
-    ///
-    /// \details Let b1, b2 be two row-blocks of arbitrary sizes of a matrix B s.t.
-    ///          B = (... b1 ... b2 ...).T. This function re-assigns B to (... b2 ... b1 ...).T.
-    ///
-    /// \pre firstBlockStart + firstBlockLength <= secondBlockStart
-    ///
-    /// \param[in, out] matrix Matrix to modify.
-    /// \param[in] firstBlockStart Start index of the first block.
-    /// \param[in] firstBlockLength Length of the first block.
-    /// \param[in] secondBlockStart Start index of the second block.
-    /// \param[in] secondBlockLength Length of the second block.
     template<typename Derived>
-    void swapMatrixRows(const Eigen::MatrixBase<Derived> & matrixIn,
+    void swapMatrixRows(const Eigen::MatrixBase<Derived> & mat,
                         Eigen::Index firstBlockStart,
-                        Eigen::Index firstBlockLength,
+                        Eigen::Index firstBlockSize,
                         Eigen::Index secondBlockStart,
-                        Eigen::Index secondBlockLength)
+                        Eigen::Index secondBlockSize)
     {
+        /* Aliasing is NOT an issue when shifting up the rows of a matrix, regardless its storage
+           order. As a result, it is only necessary to backup the first block plus the overlapping
+           part of the middle block if any. Then, assign the first block to the second, reconstruct
+           the middle block while accounting for a potential overlap, and finally assign the second
+           block to the backup of the first one. */
+
+        // Make sure that the first block is actually before the second one
+        if (firstBlockStart > secondBlockStart)
+        {
+            return swapMatrixRows(
+                mat, secondBlockStart, secondBlockSize, firstBlockStart, firstBlockSize);
+        }
+
         // Get plain matrix type and cast away constness
         using Matrix = typename Eigen::MatrixBase<Derived>::PlainObject;
-        Eigen::MatrixBase<Derived> & matrix = const_cast<Eigen::MatrixBase<Derived> &>(matrixIn);
+        Derived & derived = const_cast<Derived &>(mat.derived());
 
-        // Extract first plus middle block by copy
-        const Eigen::Index middleBlockStart = firstBlockStart + firstBlockLength;
-        const Eigen::Index middleBlockLength = secondBlockStart - middleBlockStart;
-        assert(middleBlockLength >= 0 && "First and second blocks must not overlap");
-        const Eigen::Index firstMiddleBlockLength = firstBlockLength + middleBlockLength;
-        const Matrix firstMiddleBlock = matrix.middleRows(firstBlockStart, firstMiddleBlockLength);
+        // Backup the first block plus the overlapping part of the middle block if any
+        const Eigen::Index middleBlockStart = firstBlockStart + firstBlockSize;
+        const Eigen::Index middleBlockSize = secondBlockStart - middleBlockStart;
+        assert(middleBlockSize >= 0 && "The blocks must be disjoint");
+        const Eigen::Index overlapBlockSize =
+            std::max(std::min(firstBlockSize + middleBlockSize, secondBlockSize), firstBlockSize);
+        const Matrix overlapBlock = derived.middleRows(firstBlockStart, overlapBlockSize);
 
-        // Re-assign first block to second block
-        auto secondBlock = matrix.middleRows(secondBlockStart, secondBlockLength);
-        matrix.middleRows(firstBlockStart, secondBlockLength) = secondBlock;
+        // Re-assign the first block to the second one without copy in all cases
+        auto secondBlock = derived.middleRows(secondBlockStart, secondBlockSize);
+        derived.middleRows(firstBlockStart, secondBlockSize) = secondBlock;
 
-        // Shift middle block
-        auto middleBlock = firstMiddleBlock.bottomRows(middleBlockLength);
-        matrix.middleRows(firstBlockStart + secondBlockLength, middleBlockLength) = middleBlock;
+        // Shift the disjoint part of the middle block if any
+        const Eigen::Index newMiddleBlockStart = firstBlockStart + secondBlockSize;
+        const Eigen::Index middleOverlapBlockSize =
+            std::max(overlapBlockSize - firstBlockSize, Eigen::Index{0});
+        const Eigen::Index middleDisjointBlockSize = middleBlockSize - middleOverlapBlockSize;
+        if (middleDisjointBlockSize > 0)
+        {
+            const Eigen::Index middleBlockEnd = middleBlockStart + middleBlockSize;
+            const Eigen::Index newMiddleBlockEnd = newMiddleBlockStart + middleBlockSize;
+            auto middleDisjointBlock = derived.middleRows(middleBlockEnd - middleDisjointBlockSize,
+                                                          middleDisjointBlockSize);
+            derived.middleRows(newMiddleBlockEnd - middleDisjointBlockSize,
+                               middleDisjointBlockSize) = middleDisjointBlock;
+        }
 
-        // Re-assign second block to first block
-        auto firstBlock = firstMiddleBlock.topRows(firstBlockLength);
-        const Eigen::Index secondBlockEnd = secondBlockStart + secondBlockLength;  // Excluded
-        matrix.middleRows(secondBlockEnd - firstBlockLength, firstBlockLength) = firstBlock;
+        // Shift the overlapping part of the middle block if any
+        if (middleOverlapBlockSize > 0)
+        {
+            auto middleOverlapBlock = overlapBlock.bottomRows(middleOverlapBlockSize);
+            derived.middleRows(newMiddleBlockStart, middleOverlapBlockSize) = middleOverlapBlock;
+        }
+
+        // Re-assign the second block to the first one
+        const Eigen::Index secondBlockEnd = secondBlockStart + secondBlockSize;
+        auto firstBlock = overlapBlock.topRows(firstBlockSize);
+        derived.middleRows(secondBlockEnd - firstBlockSize, firstBlockSize) = firstBlock;
     }
 }
 
