@@ -73,6 +73,7 @@ namespace jiminy
     private:
         std::string frameName_{};
         pinocchio::FrameIndex frameIdx_{0};
+        std::size_t contactForceIdx_{0};
     };
 
     template<>
@@ -109,6 +110,7 @@ namespace jiminy
         std::string frameName_{};
         pinocchio::FrameIndex frameIdx_{0};
         pinocchio::JointIndex parentJointModelIdx_{0};
+        static_map_t<std::size_t, pinocchio::SE3> contactForcesIdxAndPlacement_{};
         pinocchio::Force f_{};
     };
 
