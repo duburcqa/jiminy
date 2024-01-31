@@ -51,11 +51,11 @@ namespace jiminy
         // Must use dequeue to preserve pointer addresses after resize
 
         /// \brief Memory to handle constants.
-        static_map_t<std::string, std::string, false> constantsRegistry_{};
+        static_map_t<std::string, std::string, false> constantRegistry_{};
         /// \brief Memory to handle integers.
-        static_map_t<std::string, int64_t, false> integersRegistry_{};
+        static_map_t<std::string, int64_t, false> integerRegistry_{};
         /// \brief Memory to handle floats.
-        static_map_t<std::string, double, false> floatsRegistry_{};
+        static_map_t<std::string, double, false> floatRegistry_{};
         /// \brief Whether registering is available.
         bool isRegisteringAvailable_{true};
     };

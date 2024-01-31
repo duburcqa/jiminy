@@ -2,8 +2,8 @@
 # ============== Global ===============
 
 [Global]
-collisionBodiesNames = ['torso', 'foot_1', 'foot_2', 'foot_3', 'foot_4']
-contactFramesNames = []  #['tip_1', 'tip_2', 'tip_3', 'tip_4']
+collisionBodyNames = ['torso', 'foot_1', 'foot_2', 'foot_3', 'foot_4']
+contactFrameNames = []  #['tip_1', 'tip_2', 'tip_3', 'tip_4']
 
 # ============== Motors ===============
 

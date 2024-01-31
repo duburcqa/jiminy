@@ -31,7 +31,7 @@ from ..dynamics import TrajectoryDataType
 from ..log import (read_log,
                    build_robot_from_log,
                    extract_trajectory_from_log,
-                   update_sensors_data_from_log)
+                   update_sensor_measurements_from_log)
 from .viewer import (COLORS,
                      Tuple3FType,
                      Tuple4FType,
@@ -196,12 +196,12 @@ def play_trajectories(
     :param update_hooks: Callables associated with each robot that can be used
                          to update non-kinematic robot data, for instance to
                          emulate sensors data from log using the hook provided
-                         by `update_sensors_data_from_log` method. `None` to
-                         disable, otherwise it must have the signature:
+                         by `update_sensor_measurements_from_log` method.
+                         `None` to disable, otherwise it must have signature:
 
                          .. code-block:: python
 
-                             f(t:float, q: ndarray, v: ndarray) -> None
+                             f(t: float, q: ndarray, v: ndarray) -> None
 
                          Optional: None by default.
     :param time_interval: Replay only timesteps in this interval of time.
@@ -580,8 +580,8 @@ def play_trajectories(
                     model = robot.pinocchio_model
                 t_orig = np.array([s.t for s in data_orig])
                 pos_orig = np.stack([s.q for s in data_orig], axis=0)
-                position_evolutions.append(jiminy.interpolate(
-                    model, t_orig, pos_orig, time_global))
+                position_evolutions.append(jiminy.interpolate_positions(
+                    model, t_orig, pos_orig.T, time_global).T)
                 if data_orig[0].v is not None:
                     vel_orig = np.stack([
                         s.v  # type: ignore[misc]
@@ -804,9 +804,9 @@ def extract_replay_data_from_log(
 
     # Define `update_hook` to emulate sensor update
     if not robot.is_locked:
-        update_hook = update_sensors_data_from_log(log_data, robot)
+        update_hook = update_sensor_measurements_from_log(log_data, robot)
     else:
-        if robot.sensors_names:
+        if robot.sensor_names:
             LOGGER.warning(
                 "At least one of the robot is locked, which means that a "
                 "simulation using the robot is still running. It will be "

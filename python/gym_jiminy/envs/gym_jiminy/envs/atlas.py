@@ -95,20 +95,20 @@ STD_RATIO = {
 
 
 def _cleanup_contact_points(env: WalkerJiminyEnv) -> None:
-    contact_frames_idx = env.robot.contact_frames_idx
-    contact_frames_names = env.robot.contact_frames_names
-    num_contacts = int(len(env.robot.contact_frames_idx) // 2)
+    contact_frame_indices = env.robot.contact_frame_indices
+    contact_frame_names = env.robot.contact_frame_names
+    num_contacts = int(len(env.robot.contact_frame_indices) // 2)
     for contact_slice in (slice(num_contacts), slice(num_contacts, None)):
         contact_positions = np.stack([
-            env.robot.pinocchio_data.oMf[frame_idx].translation
-            for frame_idx in contact_frames_idx[contact_slice]], axis=0)
-        contact_bottom_idx = np.argsort(
+            env.robot.pinocchio_data.oMf[frame_index].translation
+            for frame_index in contact_frame_indices[contact_slice]], axis=0)
+        contact_bottom_index = np.argsort(
             contact_positions[:, 2])[:int(num_contacts//2)]
-        convex_hull = ConvexHull(contact_positions[contact_bottom_idx, :2])
+        convex_hull = ConvexHull(contact_positions[contact_bottom_index, :2])
         env.robot.remove_contact_points([
-            contact_frames_names[contact_slice][i]
+            contact_frame_names[contact_slice][i]
             for i in set(range(num_contacts)).difference(
-                contact_bottom_idx[convex_hull._vertex_indices])])
+                contact_bottom_index[convex_hull._vertex_indices])])
 
 
 class AtlasJiminyEnv(WalkerJiminyEnv):
@@ -146,22 +146,22 @@ class AtlasJiminyEnv(WalkerJiminyEnv):
         _cleanup_contact_points(self)
 
     def _neutral(self) -> np.ndarray:
-        def joint_position_idx(joint_name: str) -> int:
+        def joint_position_index(joint_name: str) -> int:
             """Helper to get the start index from a joint index.
             """
-            joint_idx = self.robot.pinocchio_model.getJointId(joint_name)
-            return self.robot.pinocchio_model.joints[joint_idx].idx_q
+            joint_index = self.robot.pinocchio_model.getJointId(joint_name)
+            return self.robot.pinocchio_model.joints[joint_index].idx_q
 
         qpos = neutral(self.robot.pinocchio_model)
-        qpos[joint_position_idx('back_bky')] = NEUTRAL_SAGITTAL_HIP_ANGLE
-        qpos[joint_position_idx('l_arm_elx')] = NEUTRAL_SAGITTAL_HIP_ANGLE
-        qpos[joint_position_idx('l_arm_shx')] = - np.pi / 2.0
-        qpos[joint_position_idx('l_arm_shz')] = np.pi / 4.0
-        qpos[joint_position_idx('l_arm_ely')] = np.pi / 4.0 + np.pi / 2.0
-        qpos[joint_position_idx('r_arm_elx')] = - NEUTRAL_SAGITTAL_HIP_ANGLE
-        qpos[joint_position_idx('r_arm_shx')] = np.pi / 2.0
-        qpos[joint_position_idx('r_arm_shz')] = - np.pi / 4.0
-        qpos[joint_position_idx('r_arm_ely')] = np.pi / 4.0 + np.pi / 2.0
+        qpos[joint_position_index('back_bky')] = NEUTRAL_SAGITTAL_HIP_ANGLE
+        qpos[joint_position_index('l_arm_elx')] = NEUTRAL_SAGITTAL_HIP_ANGLE
+        qpos[joint_position_index('l_arm_shx')] = - np.pi / 2.0
+        qpos[joint_position_index('l_arm_shz')] = np.pi / 4.0
+        qpos[joint_position_index('l_arm_ely')] = np.pi / 4.0 + np.pi / 2.0
+        qpos[joint_position_index('r_arm_elx')] = - NEUTRAL_SAGITTAL_HIP_ANGLE
+        qpos[joint_position_index('r_arm_shx')] = np.pi / 2.0
+        qpos[joint_position_index('r_arm_shz')] = - np.pi / 4.0
+        qpos[joint_position_index('r_arm_ely')] = np.pi / 4.0 + np.pi / 2.0
 
         return qpos
 
@@ -180,23 +180,23 @@ class AtlasReducedJiminyEnv(WalkerJiminyEnv):
                                    mesh_package_dirs=[data_dir])
 
         # Generate the reference configuration
-        def joint_position_idx(joint_name: str) -> int:
+        def joint_position_index(joint_name: str) -> int:
             """Helper to get the start index from a joint index.
             """
             nonlocal pinocchio_model
-            joint_idx = pinocchio_model.getJointId(joint_name)
-            return pinocchio_model.joints[joint_idx].idx_q
+            joint_index = pinocchio_model.getJointId(joint_name)
+            return pinocchio_model.joints[joint_index].idx_q
 
         qpos = neutral(pinocchio_model)
-        qpos[joint_position_idx('back_bky')] = NEUTRAL_SAGITTAL_HIP_ANGLE
-        qpos[joint_position_idx('l_arm_elx')] = NEUTRAL_SAGITTAL_HIP_ANGLE
-        qpos[joint_position_idx('l_arm_shx')] = - np.pi / 2.0
-        qpos[joint_position_idx('l_arm_shz')] = np.pi / 4.0
-        qpos[joint_position_idx('l_arm_ely')] = np.pi / 4.0 + np.pi / 2.0
-        qpos[joint_position_idx('r_arm_elx')] = - NEUTRAL_SAGITTAL_HIP_ANGLE
-        qpos[joint_position_idx('r_arm_shx')] = np.pi / 2.0
-        qpos[joint_position_idx('r_arm_shz')] = - np.pi / 4.0
-        qpos[joint_position_idx('r_arm_ely')] = np.pi / 4.0 + np.pi / 2.0
+        qpos[joint_position_index('back_bky')] = NEUTRAL_SAGITTAL_HIP_ANGLE
+        qpos[joint_position_index('l_arm_elx')] = NEUTRAL_SAGITTAL_HIP_ANGLE
+        qpos[joint_position_index('l_arm_shx')] = - np.pi / 2.0
+        qpos[joint_position_index('l_arm_shz')] = np.pi / 4.0
+        qpos[joint_position_index('l_arm_ely')] = np.pi / 4.0 + np.pi / 2.0
+        qpos[joint_position_index('r_arm_elx')] = - NEUTRAL_SAGITTAL_HIP_ANGLE
+        qpos[joint_position_index('r_arm_shx')] = np.pi / 2.0
+        qpos[joint_position_index('r_arm_shz')] = - np.pi / 4.0
+        qpos[joint_position_index('r_arm_ely')] = np.pi / 4.0 + np.pi / 2.0
 
         # Build the reduced models
         joint_locked_indices = [

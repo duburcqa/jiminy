@@ -4,7 +4,7 @@
 namespace jiminy
 {
     bool EulerExplicitStepper::tryStepImpl(
-        state_t & state, stateDerivative_t & stateDerivative, double t, double & dt)
+        State & state, StateDerivative & stateDerivative, double t, double & dt)
     {
         // Simple explicit Euler: x(t + dt) = x(t) + dt dx(t)
         state.sumInPlace(stateDerivative, dt);

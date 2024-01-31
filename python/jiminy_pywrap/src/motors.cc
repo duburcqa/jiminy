@@ -27,23 +27,23 @@ namespace jiminy::python
                 .ADD_PROPERTY_GET_WITH_POLICY("name",
                                               &AbstractMotorBase::getName,
                                               bp::return_value_policy<bp::return_by_value>())
-                .ADD_PROPERTY_GET_WITH_POLICY("idx",
-                                              &AbstractMotorBase::getIdx,
+                .ADD_PROPERTY_GET_WITH_POLICY("index",
+                                              &AbstractMotorBase::getIndex,
                                               bp::return_value_policy<bp::return_by_value>())
                 .ADD_PROPERTY_GET_WITH_POLICY("joint_name",
                                               &AbstractMotorBase::getJointName,
                                               bp::return_value_policy<bp::return_by_value>())
-                .ADD_PROPERTY_GET_WITH_POLICY("joint_idx",
-                                              &AbstractMotorBase::getJointModelIdx,
+                .ADD_PROPERTY_GET_WITH_POLICY("joint_index",
+                                              &AbstractMotorBase::getJointIndex,
                                               bp::return_value_policy<bp::return_by_value>())
                 .ADD_PROPERTY_GET_WITH_POLICY("joint_type",
                                               &AbstractMotorBase::getJointType,
                                               bp::return_value_policy<bp::return_by_value>())
-                .ADD_PROPERTY_GET_WITH_POLICY("joint_position_idx",
-                                              &AbstractMotorBase::getJointPositionIdx,
+                .ADD_PROPERTY_GET_WITH_POLICY("joint_position_index",
+                                              &AbstractMotorBase::getJointPositionIndex,
                                               bp::return_value_policy<bp::return_by_value>())
-                .ADD_PROPERTY_GET_WITH_POLICY("joint_velocity_idx",
-                                              &AbstractMotorBase::getJointVelocityIdx,
+                .ADD_PROPERTY_GET_WITH_POLICY("joint_velocity_index",
+                                              &AbstractMotorBase::getJointVelocityIndex,
                                               bp::return_value_policy<bp::return_by_value>())
                 .ADD_PROPERTY_GET_WITH_POLICY("command_limit",
                                               &AbstractMotorBase::getCommandLimit,

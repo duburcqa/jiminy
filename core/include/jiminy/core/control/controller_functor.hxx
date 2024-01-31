@@ -6,27 +6,27 @@
 namespace jiminy
 {
     template<typename F1, typename F2>
-    ControllerFunctor<F1, F2>::ControllerFunctor(F1 & commandFct,
-                                                 F2 & internalDynamicsFct) noexcept :
+    FunctionalController<F1, F2>::FunctionalController(F1 & commandFun,
+                                                       F2 & internalDynamicsFun) noexcept :
     AbstractController(),
-    commandFct_{commandFct},
-    internalDynamicsFct_{internalDynamicsFct}
+    commandFun_{commandFun},
+    internalDynamicsFun_{internalDynamicsFun}
     {
-        static_assert(std::is_constructible_v<std::function<ControllerFunctorSignature>, F1> &&
-                      std::is_constructible_v<std::function<ControllerFunctorSignature>, F2>);
+        static_assert(std::is_constructible_v<std::function<FunctionalControllerSignature>, F1> &&
+                      std::is_constructible_v<std::function<FunctionalControllerSignature>, F2>);
     }
 
     template<typename F1, typename F2>
-    ControllerFunctor<F1, F2>::ControllerFunctor(F1 && commandFct,
-                                                 F2 && internalDynamicsFct) noexcept :
+    FunctionalController<F1, F2>::FunctionalController(F1 && commandFun,
+                                                       F2 && internalDynamicsFun) noexcept :
     AbstractController(),
-    commandFct_(std::move(commandFct)),
-    internalDynamicsFct_(std::move(internalDynamicsFct))
+    commandFun_(std::move(commandFun)),
+    internalDynamicsFun_(std::move(internalDynamicsFun))
     {
     }
 
     template<typename F1, typename F2>
-    hresult_t ControllerFunctor<F1, F2>::computeCommand(
+    hresult_t FunctionalController<F1, F2>::computeCommand(
         double t, const Eigen::VectorXd & q, const Eigen::VectorXd & v, Eigen::VectorXd & command)
     {
         if (!getIsInitialized())
@@ -35,13 +35,13 @@ namespace jiminy
             return hresult_t::ERROR_INIT_FAILED;
         }
 
-        commandFct_(t, q, v, sensorsData_, command);
+        commandFun_(t, q, v, sensorMeasurements_, command);
 
         return hresult_t::SUCCESS;
     }
 
     template<typename F1, typename F2>
-    hresult_t ControllerFunctor<F1, F2>::internalDynamics(
+    hresult_t FunctionalController<F1, F2>::internalDynamics(
         double t, const Eigen::VectorXd & q, const Eigen::VectorXd & v, Eigen::VectorXd & uCustom)
     {
         if (!getIsInitialized())
@@ -51,7 +51,7 @@ namespace jiminy
         }
 
         // Sensor data are already up-to-date
-        internalDynamicsFct_(t, q, v, sensorsData_, uCustom);
+        internalDynamicsFun_(t, q, v, sensorMeasurements_, uCustom);
 
         return hresult_t::SUCCESS;
     }

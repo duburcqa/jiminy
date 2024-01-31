@@ -16,14 +16,14 @@ namespace jiminy
     }
 
     bool RungeKuttaDOPRIStepper::adjustStep(
-        const state_t & initialState, const state_t & solution, double & dt)
+        const State & initialState, const State & solution, double & dt)
     {
         const double error = computeError(initialState, solution, dt);
         return adjustStepImpl(error, dt);
     }
 
     double RungeKuttaDOPRIStepper::computeError(
-        const state_t & initialState, const state_t & solution, double dt)
+        const State & initialState, const State & solution, double dt)
     {
         // Compute alternative solution
         stateIncrement_.setZero();

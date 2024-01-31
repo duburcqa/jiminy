@@ -15,7 +15,7 @@ namespace jiminy
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
-        returnCode = device_->open(openMode_t::READ_ONLY);
+        returnCode = device_->open(OpenMode::READ_ONLY);
 
         if (returnCode == hresult_t::SUCCESS)
         {

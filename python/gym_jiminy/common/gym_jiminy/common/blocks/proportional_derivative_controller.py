@@ -14,7 +14,7 @@ from jiminy_py.core import (  # pylint: disable=no-name-in-module
     array_copyto,
     EncoderSensor as encoder)
 
-from ..bases import BaseObsT, JiminyEnvInterface, BaseControllerBlock
+from ..bases import BaseObsT, InterfaceJiminyEnv, BaseControllerBlock
 from ..utils import fill
 
 
@@ -194,13 +194,13 @@ def get_encoder_to_motor_map(robot: jiminy.Robot) -> Union[slice, List[int]]:
     # Define the mapping from motors to encoders
     encoder_to_motor = [-1 for _ in range(robot.nmotors)]
     encoders = [robot.get_sensor(encoder.type, sensor_name)
-                for sensor_name in robot.sensors_names[encoder.type]]
-    for i, motor_name in enumerate(robot.motors_names):
+                for sensor_name in robot.sensor_names[encoder.type]]
+    for i, motor_name in enumerate(robot.motor_names):
         motor = robot.get_motor(motor_name)
         for j, sensor in enumerate(encoders):
             assert isinstance(sensor, encoder)
-            if motor.joint_idx == sensor.joint_idx:
-                encoder_to_motor[sensor.idx] = i
+            if motor.joint_index == sensor.joint_index:
+                encoder_to_motor[sensor.index] = i
                 encoders.pop(j)
                 break
         else:
@@ -245,7 +245,7 @@ class PDController(
     """
     def __init__(self,
                  name: str,
-                 env: JiminyEnvInterface[BaseObsT, np.ndarray],
+                 env: InterfaceJiminyEnv[BaseObsT, np.ndarray],
                  *,
                  update_ratio: int = 1,
                  order: int,
@@ -300,25 +300,25 @@ class PDController(
         # the same the whole time. This induces that the motors effort limit
         # must not change unlike the mapping from full state to motors.
         self.motors_effort_limit = env.robot.command_limit[
-            env.robot.motors_velocity_idx]
+            env.robot.motor_velocity_indices]
 
         # Extract the motors target position and velocity bounds from the model
         motors_position_lower: List[float] = []
         motors_position_upper: List[float] = []
-        for motor_name in env.robot.motors_names:
+        for motor_name in env.robot.motor_names:
             motor = env.robot.get_motor(motor_name)
             joint_type = jiminy.get_joint_type(
-                env.robot.pinocchio_model, motor.joint_idx)
+                env.robot.pinocchio_model, motor.joint_index)
             if joint_type == jiminy.JointModelType.ROTARY_UNBOUNDED:
                 lower, upper = float("-inf"), float("inf")
             else:
-                motor_position_idx = motor.joint_position_idx
-                lower = env.robot.position_limit_lower[motor_position_idx]
-                upper = env.robot.position_limit_upper[motor_position_idx]
+                motor_position_index = motor.joint_position_index
+                lower = env.robot.position_limit_lower[motor_position_index]
+                upper = env.robot.position_limit_upper[motor_position_index]
             motors_position_lower.append(lower + target_position_margin)
             motors_position_upper.append(upper - target_position_margin)
         motors_velocity_limit = np.minimum(
-            env.robot.velocity_limit[env.robot.motors_velocity_idx],
+            env.robot.velocity_limit[env.robot.motor_velocity_indices],
             target_velocity_limit)
         command_state_lower = [
             np.array(motors_position_lower), -motors_velocity_limit]
@@ -341,7 +341,8 @@ class PDController(
         self._command_state_upper = np.stack(command_state_upper, axis=0)
 
         # Extract measured motor positions and velocities for fast access
-        self.q_measured, self.v_measured = env.sensors_data[encoder.type]
+        self.q_measured, self.v_measured = (
+            env.sensor_measurements[encoder.type])
 
         # Allocate memory for the command state
         self._command_state = np.zeros((order + 1, env.robot.nmotors))
@@ -384,9 +385,8 @@ class PDController(
                 "This block does not support time-continuous update.")
 
         # Refresh measured motor positions and velocities proxies
-        self.q_measured, self.v_measured = self.env.sensors_data[encoder.type]
-        self.q_measured, self.v_measured = self.env.sensors_data[
-            encoder.type][:, self.encoder_to_motor]
+        self.q_measured, self.v_measured = (
+            self.env.sensor_measurements[encoder.type])
 
         # Reset the command state
         fill(self._command_state, 0)
@@ -394,7 +394,7 @@ class PDController(
     @property
     def fieldnames(self) -> List[str]:
         return [f"target{N_ORDER_DERIVATIVE_NAMES[self.order]}{name}"
-                for name in self.env.robot.motors_names]
+                for name in self.env.robot.motor_names]
 
     def get_state(self) -> np.ndarray:
         return self._command_state[:-1]

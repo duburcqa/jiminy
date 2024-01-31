@@ -27,16 +27,16 @@ namespace jiminy
                                    spareBits - 1 >= 1  ? 1 :
                                                          0;
         constexpr uint8_t mask = (1 << opBits) - 1;
-        constexpr uint8_t maxRandShift = mask;
+        constexpr uint8_t randShiftMax = mask;
         constexpr uint8_t topSpare = opBits;
         constexpr uint8_t bottomSpare = spareBits - topSpare;
-        constexpr uint8_t xShift = topSpare + (uint32Bits + maxRandShift) / 2;
+        constexpr uint8_t xShift = topSpare + (uint32Bits + randShiftMax) / 2;
 
         state_ *= 6364136223846793005ULL;
         uint64_t state = state_;
         uint8_t rshift = opBits ? static_cast<uint8_t>(state >> (bits - opBits)) & mask : 0U;
         state ^= state >> xShift;
-        return static_cast<uint32_t>(state >> (bottomSpare - maxRandShift + rshift));
+        return static_cast<uint32_t>(state >> (bottomSpare - randShiftMax + rshift));
     }
 
     // ****************************** Random number distributions ****************************** //
@@ -274,12 +274,12 @@ namespace jiminy
         }
 
         // Compute closest left and right indices
-        const Eigen::Index tLeftIdx = static_cast<Eigen::Index>(std::floor(tWrap / dt_));
-        const Eigen::Index tRightIdx = (tLeftIdx + 1) % numTimes_;
+        const Eigen::Index tLeftIndex = static_cast<Eigen::Index>(std::floor(tWrap / dt_));
+        const Eigen::Index tRightIndex = (tLeftIndex + 1) % numTimes_;
 
         // Perform First order interpolation
-        const double ratio = tWrap / dt_ - static_cast<double>(tLeftIdx);
-        return values_[tLeftIdx] + ratio * (values_[tRightIdx] - values_[tLeftIdx]);
+        const double ratio = tWrap / dt_ - static_cast<double>(tLeftIndex);
+        return values_[tLeftIndex] + ratio * (values_[tRightIndex] - values_[tLeftIndex]);
     }
 
     double PeriodicGaussianProcess::getWavelength() const noexcept
@@ -324,12 +324,12 @@ namespace jiminy
         }
 
         // Compute closest left and right indices
-        const Eigen::Index tLeftIdx = static_cast<Eigen::Index>(std::floor(tWrap / dt_));
-        const Eigen::Index tRightIdx = (tLeftIdx + 1) % numTimes_;
+        const Eigen::Index tLeftIndex = static_cast<Eigen::Index>(std::floor(tWrap / dt_));
+        const Eigen::Index tRightIndex = (tLeftIndex + 1) % numTimes_;
 
         // Perform First order interpolation
-        const double ratio = tWrap / dt_ - static_cast<double>(tLeftIdx);
-        return values_[tLeftIdx] + ratio * (values_[tRightIdx] - values_[tLeftIdx]);
+        const double ratio = tWrap / dt_ - static_cast<double>(tLeftIndex);
+        return values_[tLeftIndex] + ratio * (values_[tRightIndex] - values_[tLeftIndex]);
     }
 
     double PeriodicFourierProcess::getWavelength() const noexcept
@@ -364,18 +364,18 @@ namespace jiminy
         const double phase = t / wavelength_ + shift_;
 
         // Compute closest right and left knots
-        const int32_t phaseIdxLeft = static_cast<int32_t>(phase);
-        const int32_t phaseIdxRight = phaseIdxLeft + 1;
+        const int32_t phaseIndexLeft = static_cast<int32_t>(phase);
+        const int32_t phaseIndexRight = phaseIndexLeft + 1;
 
         // Compute smoothed ratio of current phase wrt to the closest knots
-        const double dtLeft = phase - phaseIdxLeft;
+        const double dtLeft = phase - phaseIndexLeft;
         const double dtRight = dtLeft - 1.0;
         const double ratio = fade(dtLeft);
 
         /* Compute gradients at knots, and perform linear interpolation between them to get value
            at current phase.*/
-        const double yLeft = grad(phaseIdxLeft, dtLeft);
-        const double yRight = grad(phaseIdxRight, dtRight);
+        const double yLeft = grad(phaseIndexLeft, dtLeft);
+        const double yRight = grad(phaseIndexRight, dtRight);
         return lerp(ratio, yLeft, yRight);
     }
 
@@ -487,8 +487,8 @@ namespace jiminy
         double amplitudeSquared = 0.0;
         for (const OctaveScalePair & octaveScale : octaveScalePairs_)
         {
-            const double scale = std::get<1>(octaveScale);
-            amplitudeSquared += std::pow(scale, 2);
+            // FIXME: replaced `std::get<N>` by placeholder `_` when moving to C++26 (P2169R4)
+            amplitudeSquared += std::pow(std::get<1>(octaveScale), 2);
         }
         amplitude_ = std::sqrt(amplitudeSquared);
     }
@@ -499,8 +499,8 @@ namespace jiminy
         // Reset octaves
         for (OctaveScalePair & octaveScale : octaveScalePairs_)
         {
-            std::unique_ptr<AbstractPerlinNoiseOctave> & octave = std::get<0>(octaveScale);
-            octave->reset(g);
+            // FIXME: replaced `std::get<N>` by placeholder `_` when moving to C++26 (P2169R4)
+            std::get<0>(octaveScale)->reset(g);
         }
     }
 
@@ -522,8 +522,8 @@ namespace jiminy
         double wavelength = INF;
         for (const OctaveScalePair & octaveScale : octaveScalePairs_)
         {
-            const std::unique_ptr<AbstractPerlinNoiseOctave> & octave = std::get<0>(octaveScale);
-            wavelength = std::min(wavelength, octave->getWavelength());
+            // FIXME: replaced `std::get<N>` by placeholder `_` when moving to C++26 (P2169R4)
+            wavelength = std::min(wavelength, std::get<0>(octaveScale)->getWavelength());
         }
         return wavelength;
     }
@@ -642,12 +642,12 @@ namespace jiminy
         return {height, dheight};
     }
 
-    HeightmapFunctor tiles(const Eigen::Vector2d & size,
-                           double heightMax,
-                           const Eigen::Vector2d & interpDelta,
-                           uint32_t sparsity,
-                           double orientation,
-                           uint32_t seed)
+    HeightmapFunction tiles(const Eigen::Vector2d & size,
+                            double heightMax,
+                            const Eigen::Vector2d & interpDelta,
+                            uint32_t sparsity,
+                            double orientation,
+                            uint32_t seed)
     {
         if ((0.01 <= interpDelta.array()).all() &&
             (interpDelta.array() <= size.array() / 2.0).all())

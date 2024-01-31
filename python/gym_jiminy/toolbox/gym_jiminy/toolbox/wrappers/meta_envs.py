@@ -109,10 +109,10 @@ class TaskSchedulingWrapper(
                 task_nodes, task_branches_next = zip(*task_branch.items())
                 task_branch_proba = [
                     task_proba for task_proba, _ in task_branches_next]
-                task_branch_idx = int(np.where(
+                task_branch_index = int(np.where(
                     self.np_random.multinomial(1, task_branch_proba))[0])
-                task_path.append(task_nodes[task_branch_idx])
-                _, task_branch = task_branches_next[task_branch_idx]
+                task_path.append(task_nodes[task_branch_index])
+                _, task_branch = task_branches_next[task_branch_index]
             tasks.append(tuple(task_path))
         return tasks
 

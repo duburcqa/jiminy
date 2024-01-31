@@ -7,9 +7,9 @@ namespace jiminy
 {
     void TelemetryData::reset() noexcept
     {
-        constantsRegistry_.clear();
-        integersRegistry_.clear();
-        floatsRegistry_.clear();
+        constantRegistry_.clear();
+        integerRegistry_.clear();
+        floatRegistry_.clear();
         isRegisteringAvailable_ = true;
     }
 
@@ -24,18 +24,18 @@ namespace jiminy
 
         // Check if already in memory
         auto variableIt =
-            std::find_if(constantsRegistry_.begin(),
-                         constantsRegistry_.end(),
+            std::find_if(constantRegistry_.begin(),
+                         constantRegistry_.end(),
                          [&name](const std::pair<std::string, std::string> & element) -> bool
                          { return element.first == name; });
-        if (variableIt != constantsRegistry_.end())
+        if (variableIt != constantRegistry_.end())
         {
             PRINT_ERROR("Entry already exists.");
             return hresult_t::ERROR_GENERIC;
         }
 
         // Register new constant
-        constantsRegistry_.emplace_back(name, value);
+        constantRegistry_.emplace_back(name, value);
         return hresult_t::SUCCESS;
     }
 
@@ -79,20 +79,18 @@ namespace jiminy
 
         // Record constants
         insertLineInHeader(START_CONSTANTS);
-        for (const auto & [name, value] : constantsRegistry_)
+        for (const auto & [name, value] : constantRegistry_)
         {
             insertLineInHeader(START_LINE_TOKEN, name, TELEMETRY_CONSTANT_DELIMITER, value);
         }
 
         // Record number of integer variables (+1 because we add Global.Time)
-        insertLineInHeader(START_LINE_TOKEN,
-                           NUM_INTS,
-                           TELEMETRY_CONSTANT_DELIMITER,
-                           integersRegistry_.size() + 1);
+        insertLineInHeader(
+            START_LINE_TOKEN, NUM_INTS, TELEMETRY_CONSTANT_DELIMITER, integerRegistry_.size() + 1);
 
         // Record number of floating-point variables
         insertLineInHeader(
-            START_LINE_TOKEN, NUM_FLOATS, TELEMETRY_CONSTANT_DELIMITER, floatsRegistry_.size());
+            START_LINE_TOKEN, NUM_FLOATS, TELEMETRY_CONSTANT_DELIMITER, floatRegistry_.size());
 
         // Insert column token
         insertLineInHeader(START_COLUMNS);
@@ -101,13 +99,13 @@ namespace jiminy
         insertLineInHeader(GLOBAL_TIME);
 
         // Record integers
-        for (const std::pair<std::string, int64_t> & keyValue : integersRegistry_)
+        for (const std::pair<std::string, int64_t> & keyValue : integerRegistry_)
         {
             insertLineInHeader(keyValue.first);
         }
 
         // Record floats
-        for (const std::pair<std::string, double> & keyValue : floatsRegistry_)
+        for (const std::pair<std::string, double> & keyValue : floatRegistry_)
         {
             insertLineInHeader(keyValue.first);
         }
@@ -119,12 +117,12 @@ namespace jiminy
     template<>
     static_map_t<std::string, int64_t, false> * TelemetryData::getRegistry<int64_t>()
     {
-        return &integersRegistry_;
+        return &integerRegistry_;
     }
 
     template<>
     static_map_t<std::string, double, false> * TelemetryData::getRegistry<double>()
     {
-        return &floatsRegistry_;
+        return &floatRegistry_;
     }
 }

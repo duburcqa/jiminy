@@ -15,28 +15,28 @@ namespace jiminy::python
 {
     namespace bp = boost::python;
 
-    // ************************** FctPyWrapper ******************************
+    // ************************** FunPyWrapper ******************************
 
     template<typename T>
-    struct DataInternalBufferType
+    struct InternalStorageType
     {
         using type = typename std::add_lvalue_reference_t<T>;
     };
 
     template<>
-    struct DataInternalBufferType<pinocchio::Force>
+    struct InternalStorageType<pinocchio::Force>
     {
         using type = typename Eigen::Ref<Vector6d>;
     };
 
     template<typename T>
-    typename DataInternalBufferType<T>::type setDataInternalBuffer(T * arg)
+    typename InternalStorageType<T>::type setDataInternalBuffer(T * arg)
     {
         return *arg;
     }
 
     template<>
-    typename DataInternalBufferType<pinocchio::Force>::type
+    typename InternalStorageType<pinocchio::Force>::type
     setDataInternalBuffer<pinocchio::Force>(pinocchio::Force * arg);
 
     template<typename T>
@@ -49,67 +49,67 @@ namespace jiminy::python
     pinocchio::Force * createInternalBuffer<pinocchio::Force>();
 
     template<typename T>
-    std::enable_if_t<std::is_arithmetic_v<T>, T> FctPyWrapperArgToPython(const T & arg)
+    std::enable_if_t<std::is_arithmetic_v<T>, T> FunPyWrapperArgToPython(const T & arg)
     {
         return arg;
     }
 
     template<typename T>
-    std::enable_if_t<is_eigen_object_v<T>, bp::handle<>> FctPyWrapperArgToPython(T & arg)
+    std::enable_if_t<is_eigen_object_v<T>, bp::handle<>> FunPyWrapperArgToPython(T & arg)
     {
         return bp::handle<>(getNumpyReference(arg));
     }
 
     template<typename T>
-    std::enable_if_t<is_eigen_object_v<T>, bp::handle<>> FctPyWrapperArgToPython(const T & arg)
+    std::enable_if_t<is_eigen_object_v<T>, bp::handle<>> FunPyWrapperArgToPython(const T & arg)
     {
         return bp::handle<>(getNumpyReference(arg));
     }
 
     template<typename T>
-    std::enable_if_t<std::is_same_v<T, SensorsDataMap>,
-                     boost::reference_wrapper<const SensorsDataMap>>
-    FctPyWrapperArgToPython(const T & arg)
+    std::enable_if_t<std::is_same_v<T, SensorMeasurementTree>,
+                     boost::reference_wrapper<const SensorMeasurementTree>>
+    FunPyWrapperArgToPython(const T & arg)
     {
         return boost::ref(arg);
     }
 
     template<typename OutputArg, typename... InputArgs>
-    struct FctPyWrapper
+    struct FunPyWrapper
     {
     public:
-        using OutputBufferType = typename DataInternalBufferType<OutputArg>::type;
+        using OutputStorageType = typename InternalStorageType<OutputArg>::type;
 
     public:
         // Disable copy-assignment
-        FctPyWrapper & operator=(const FctPyWrapper & other) = delete;
+        FunPyWrapper & operator=(const FunPyWrapper & other) = delete;
 
     public:
-        FctPyWrapper(const bp::object & objPy) :
-        funcPyPtr_{objPy},
+        FunPyWrapper(const bp::object & funcPy) :
+        funcPy_{funcPy},
         outPtr_(createInternalBuffer<OutputArg>()),
-        outData_(setDataInternalBuffer(outPtr_)),
+        outBuffer_(setDataInternalBuffer(outPtr_)),
         outPyPtr_{nullptr}
         {
-            outPyPtr_ = getNumpyReference(outData_);
+            outPyPtr_ = getNumpyReference(outBuffer_);
         }
 
         // Copy constructor, same as the normal constructor
-        FctPyWrapper(const FctPyWrapper & other) :
-        funcPyPtr_(other.funcPyPtr_),
+        FunPyWrapper(const FunPyWrapper & other) :
+        funcPy_(other.funcPy_),
         outPtr_(createInternalBuffer<OutputArg>()),
-        outData_(setDataInternalBuffer(outPtr_)),
+        outBuffer_(setDataInternalBuffer(outPtr_)),
         outPyPtr_{nullptr}
         {
             *outPtr_ = *(other.outPtr_);
-            outPyPtr_ = getNumpyReference(outData_);
+            outPyPtr_ = getNumpyReference(outBuffer_);
         }
 
         // Move constructor, takes a rvalue reference &&
-        FctPyWrapper(FctPyWrapper && other) :
-        funcPyPtr_(other.funcPyPtr_),
+        FunPyWrapper(FunPyWrapper && other) :
+        funcPy_(other.funcPy_),
         outPtr_{nullptr},
-        outData_(other.outData_),
+        outBuffer_(other.outBuffer_),
         outPyPtr_{nullptr}
         {
             // Steal the resource from "other"
@@ -123,20 +123,20 @@ namespace jiminy::python
         }
 
         // Destructor
-        ~FctPyWrapper()
+        ~FunPyWrapper()
         {
             Py_XDECREF(outPyPtr_);
             delete outPtr_;
         }
 
         // Move assignment, takes a rvalue reference &&
-        FctPyWrapper & operator=(FctPyWrapper && other)
+        FunPyWrapper & operator=(FunPyWrapper && other)
         {
             /* "other" is soon going to be destroyed, so we let it destroy our current resource
                instead and we take "other"'s current resource via swapping. */
-            std::swap(funcPyPtr_, other.funcPyPtr_);
+            std::swap(funcPy_, other.funcPy_);
             std::swap(outPtr_, other.outPtr_);
-            std::swap(outData_, other.outData_);
+            std::swap(outBuffer_, other.outBuffer_);
             std::swap(outPyPtr_, other.outPyPtr_);
             return *this;
         }
@@ -146,25 +146,25 @@ namespace jiminy::python
             // Reset to 0 systematically
             PyArray_FILLWBYTE(reinterpret_cast<PyArrayObject *>(outPyPtr_), 0);
             bp::handle<> outPy(bp::borrowed(outPyPtr_));
-            funcPyPtr_(FctPyWrapperArgToPython(args)..., outPy);
+            funcPy_(FunPyWrapperArgToPython(args)..., outPy);
             return *outPtr_;
         }
 
     private:
-        bp::object funcPyPtr_;
+        bp::object funcPy_;
         OutputArg * outPtr_;
-        OutputBufferType outData_;
+        OutputStorageType outBuffer_;
         PyObject * outPyPtr_;
     };
 
     template<typename T>
-    using TimeStateFctPyWrapper = FctPyWrapper<T /* OutputType */,
+    using TimeStateFunPyWrapper = FunPyWrapper<T /* OutputType */,
                                                double /* t */,
                                                Eigen::VectorXd /* q */,
                                                Eigen::VectorXd /* v */>;
 
     template<typename T>
-    using TimeBistateFctPyWrapper = FctPyWrapper<T /* OutputType */,
+    using TimeBistateFunPyWrapper = FunPyWrapper<T /* OutputType */,
                                                  double /* t */,
                                                  Eigen::VectorXd /* q1 */,
                                                  Eigen::VectorXd /* v1 */,
@@ -183,8 +183,8 @@ namespace jiminy::python
             std::is_same_v<select_last_t<Args...>, std::decay_t<select_last_t<Args...>> &>>>
     {
     public:
-        FunInOutPyWrapper(const bp::object & funPy) :
-        funPy_{funPy}
+        FunInOutPyWrapper(const bp::object & funcPy) :
+        funcPy_{funcPy}
         {
         }
 
@@ -192,18 +192,18 @@ namespace jiminy::python
         {
             if (!isNone_)
             {
-                funPy_(FctPyWrapperArgToPython(args)...);
+                funcPy_(FunPyWrapperArgToPython(args)...);
             }
         }
 
     private:
-        bp::object funPy_;
-        const bool isNone_{funPy_.is_none()};
+        bp::object funcPy_;
+        const bool isNone_{funcPy_.is_none()};
     };
 
-    using ControllerFunPyWrapper = FunInOutPyWrapper<ControllerFunctorSignature>;
+    using ControllerFunPyWrapper = FunInOutPyWrapper<FunctionalControllerSignature>;
 
-    // ************************** HeightmapFunctorPyWrapper ******************************
+    // ************************** HeightmapFunPyWrapper ******************************
 
     enum class heightmapType_t : uint8_t
     {
@@ -212,11 +212,11 @@ namespace jiminy::python
         GENERIC = 0x03,
     };
 
-    struct HeightmapFunctorPyWrapper
+    struct HeightmapFunPyWrapper
     {
-        HeightmapFunctorPyWrapper(const bp::object & objPy, heightmapType_t objType) :
+        HeightmapFunPyWrapper(const bp::object & funcPy, heightmapType_t objType) :
         heightmapType_{objType},
-        handlePyPtr_{objPy}
+        handlePyPtr_{funcPy}
         {
         }
 
@@ -244,9 +244,9 @@ namespace jiminy::python
         bp::object handlePyPtr_;
     };
 
-    // **************************** HeightmapFunctorVisitor *****************************
+    // **************************** HeightmapFunVisitor *****************************
 
-    void exposeHeightmapFunctor();
+    void exposeHeightmapFunction();
 }
 
 #endif  // FUNCTORS_PYTHON_H

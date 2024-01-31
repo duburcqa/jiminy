@@ -795,9 +795,9 @@ class Viewer:
             self.display_capture_point(self._display_dcm)
 
             # Add contact frame markers
-            for frame_name, frame_idx in zip(
-                    robot.contact_frames_names, robot.contact_frames_idx):
-                frame_pose = self._client.data.oMf[frame_idx]
+            for frame_name, frame_index in zip(
+                    robot.contact_frame_names, robot.contact_frame_indices):
+                frame_pose = self._client.data.oMf[frame_index]
                 self.add_marker(name='_'.join(("ContactFrame", frame_name)),
                                 shape="sphere",
                                 color="yellow",
@@ -813,13 +813,13 @@ class Viewer:
                 f_z_rel = sensor_data[2] / CONTACT_FORCE_SCALE
                 return (1.0, 1.0, min(max(f_z_rel, -1.0), 1.0))
 
-            if contact.type in robot.sensors_names.keys():
-                for name in robot.sensors_names[contact.type]:
+            if contact.type in robot.sensor_names.keys():
+                for name in robot.sensor_names[contact.type]:
                     sensor = robot.get_sensor(contact.type, name)
-                    frame_idx, data = sensor.frame_idx, sensor.data
+                    frame_index, data = sensor.frame_index, sensor.data
                     self.add_marker(name='_'.join((contact.type, name)),
                                     shape="cylinder",
-                                    pose=self._client.data.oMf[frame_idx],
+                                    pose=self._client.data.oMf[frame_index],
                                     scale=partial(get_contact_scale, data),
                                     remove_if_exists=True,
                                     auto_refresh=False,
@@ -830,34 +830,35 @@ class Viewer:
             self.display_contact_forces(self._display_contact_forces)
 
             # Add external forces
-            def get_force_pose(joint_idx: int,
+            def get_force_pose(joint_index: int,
                                joint_position: np.ndarray,
                                joint_rotation: np.ndarray
                                ) -> FramePoseType:
-                f = self.f_external[joint_idx - 1].linear
+                f = self.f_external[joint_index - 1].linear
                 f_rotation_local = pin.Quaternion(np.array([0.0, 0.0, 1.0]), f)
                 f_rotation_world = (
                     pin.Quaternion(joint_rotation) * f_rotation_local)
                 return (joint_position, f_rotation_world.coeffs())
 
-            def get_force_scale(joint_idx: int) -> Tuple[float, float, float]:
-                f_ext: np.ndarray = self.f_external[joint_idx - 1].linear
+            def get_force_scale(joint_index: int
+                                ) -> Tuple[float, float, float]:
+                f_ext: np.ndarray = self.f_external[joint_index - 1].linear
                 f_ext_norm = cast(float, np.linalg.norm(f_ext, 2))
                 length = min(f_ext_norm / EXTERNAL_FORCE_SCALE, 1.0)
                 return (1.0, 1.0, length)
 
             for joint_name in self._client.model.names[1:]:
-                joint_idx = self._client.model.getJointId(joint_name)
-                joint_pose = self._client.data.oMi[joint_idx]
+                joint_index = self._client.model.getJointId(joint_name)
+                joint_pose = self._client.data.oMi[joint_index]
                 pose_fn = partial(get_force_pose,
-                                  joint_idx,
+                                  joint_index,
                                   joint_pose.translation,
                                   joint_pose.rotation)
                 self.add_marker(name=f"ForceExternal_{joint_name}",
                                 shape="arrow",
                                 color="red",
                                 pose=pose_fn,
-                                scale=partial(get_force_scale, joint_idx),
+                                scale=partial(get_force_scale, joint_index),
                                 remove_if_exists=True,
                                 auto_refresh=False,
                                 anchor_top=True,
@@ -1783,7 +1784,7 @@ class Viewer:
     @staticmethod
     @_with_lock
     @_must_be_open
-    def update_floor(ground_profile: Optional[jiminy.HeightmapFunctor] = None,
+    def update_floor(ground_profile: Optional[jiminy.HeightmapFunction] = None,
                      x_range: Tuple[float, float] = (-10.0, 10.0),
                      y_range: Tuple[float, float] = (-10.0, 10.0),
                      grid_unit:  Tuple[float, float] = (0.04, 0.04),
@@ -1792,7 +1793,7 @@ class Viewer:
         """Display a custom ground profile as a height map or the original tile
         ground floor.
 
-        :param ground_profile: `jiminy_py.core.HeightmapFunctor` associated
+        :param ground_profile: `jiminy_py.core.HeightmapFunction` associated
                                with the ground profile. It renders a flat tile
                                ground if not specified.
                                Optional: None by default.
@@ -2137,7 +2138,7 @@ class Viewer:
 
         .. note::
             The frames to display are specified by the attribute
-            `contact_frames_names` of the provided `robot`. Calling
+            `contact_frame_names` of the provided `robot`. Calling
             `Viewer.display` will update it automatically, while
             `Viewer.refresh` will not.
 

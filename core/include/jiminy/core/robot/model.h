@@ -21,9 +21,9 @@ namespace jiminy
     class FrameConstraint;
     class JointConstraint;
 
-    using constraintsMap_t = static_map_t<std::string, std::shared_ptr<AbstractConstraintBase>>;
+    using ConstraintMap = static_map_t<std::string, std::shared_ptr<AbstractConstraintBase>>;
 
-    enum class JIMINY_DLLAPI constraintsHolderType_t : uint8_t
+    enum class JIMINY_DLLAPI ConstraintNodeType : uint8_t
     {
         BOUNDS_JOINTS = 0,
         CONTACT_FRAMES = 1,
@@ -31,94 +31,93 @@ namespace jiminy
         USER = 3
     };
 
-    const std::array<constraintsHolderType_t, 4> constraintsHolderTypesAll{
-        {constraintsHolderType_t::BOUNDS_JOINTS,
-         constraintsHolderType_t::CONTACT_FRAMES,
-         constraintsHolderType_t::COLLISION_BODIES,
-         constraintsHolderType_t::USER}};
+    inline constexpr std::array constraintNodeTypesAll{ConstraintNodeType::BOUNDS_JOINTS,
+                                                       ConstraintNodeType::CONTACT_FRAMES,
+                                                       ConstraintNodeType::COLLISION_BODIES,
+                                                       ConstraintNodeType::USER};
 
-    struct JIMINY_DLLAPI constraintsHolder_t
+    struct JIMINY_DLLAPI ConstraintTree
     {
     public:
         void clear() noexcept;
 
-        std::pair<constraintsMap_t *, constraintsMap_t::iterator> find(
-            const std::string & key, constraintsHolderType_t holderType);
+        std::pair<ConstraintMap *, ConstraintMap::iterator> find(const std::string & key,
+                                                                 ConstraintNodeType node);
 
         bool exist(const std::string & key) const;
-        bool exist(const std::string & key, constraintsHolderType_t holderType) const;
+        bool exist(const std::string & key, ConstraintNodeType node) const;
 
         std::shared_ptr<AbstractConstraintBase> get(const std::string & key);
         std::shared_ptr<AbstractConstraintBase> get(const std::string & key,
-                                                    constraintsHolderType_t holderType);
+                                                    ConstraintNodeType node);
 
-        void insert(const constraintsMap_t & constraintsMap, constraintsHolderType_t holderType);
+        void insert(const ConstraintMap & constraintMap, ConstraintNodeType node);
 
-        constraintsMap_t::iterator erase(const std::string & key,
-                                         constraintsHolderType_t holderType);
+        ConstraintMap::iterator erase(const std::string & key, ConstraintNodeType node);
 
         template<typename Function>
-        void foreach(constraintsHolderType_t holderType, Function && lambda)
+        void foreach(ConstraintNodeType node, Function && func)
         {
-            if (holderType == constraintsHolderType_t::COLLISION_BODIES)
+            if (node == ConstraintNodeType::COLLISION_BODIES)
             {
-                for (auto & constraintsMap : collisionBodies)
+                for (auto & constraintMap : collisionBodies)
                 {
-                    for (auto & constraintItem : constraintsMap)
+                    for (auto & constraintItem : constraintMap)
                     {
-                        std::invoke(
-                            std::forward<Function>(lambda), constraintItem.second, holderType);
+                        std::invoke(std::forward<Function>(func), constraintItem.second, node);
                     }
                 }
             }
             else
             {
-                constraintsMap_t * constraintsMapPtr;
-                switch (holderType)
+                ConstraintMap * constraintMapPtr;
+                switch (node)
                 {
-                case constraintsHolderType_t::BOUNDS_JOINTS:
-                    constraintsMapPtr = &boundJoints;
+                case ConstraintNodeType::BOUNDS_JOINTS:
+                    constraintMapPtr = &boundJoints;
                     break;
-                case constraintsHolderType_t::CONTACT_FRAMES:
-                    constraintsMapPtr = &contactFrames;
+                case ConstraintNodeType::CONTACT_FRAMES:
+                    constraintMapPtr = &contactFrames;
                     break;
-                case constraintsHolderType_t::USER:
-                case constraintsHolderType_t::COLLISION_BODIES:
+                case ConstraintNodeType::USER:
+                    constraintMapPtr = &registry;
+                    break;
+                case ConstraintNodeType::COLLISION_BODIES:
                 default:
-                    constraintsMapPtr = &registered;
+                    constraintMapPtr = nullptr;
                 }
-                for (auto & constraintItem : *constraintsMapPtr)
+                for (auto & constraintItem : *constraintMapPtr)
                 {
-                    std::invoke(std::forward<Function>(lambda), constraintItem.second, holderType);
+                    std::invoke(std::forward<Function>(func), constraintItem.second, node);
                 }
             }
         }
 
         template<typename Function, std::size_t N>
-        void foreach(std::array<constraintsHolderType_t, N> constraintsHolderTypes,
-                     Function && lambda)
+        void foreach(const std::array<ConstraintNodeType, N> & constraintsHolderTypes,
+                     Function && func)
         {
-            for (constraintsHolderType_t holderType : constraintsHolderTypes)
+            for (ConstraintNodeType node : constraintsHolderTypes)
             {
-                foreach(holderType, std::forward<Function>(lambda));
+                foreach(node, std::forward<Function>(func));
             }
         }
 
         template<typename Function>
-        void foreach(Function && lambda)
+        void foreach(Function && func)
         {
-            foreach(constraintsHolderTypesAll, std::forward<Function>(lambda));
+            foreach(constraintNodeTypesAll, std::forward<Function>(func));
         }
 
     public:
         /// \brief Constraints registered by the engine to handle joint bounds.
-        constraintsMap_t boundJoints{};
+        ConstraintMap boundJoints{};
         /// \brief Constraints registered by the engine to handle contact frames.
-        constraintsMap_t contactFrames{};
+        ConstraintMap contactFrames{};
         /// \brief Constraints registered by the engine to handle collision bounds.
-        std::vector<constraintsMap_t> collisionBodies{};
+        std::vector<ConstraintMap> collisionBodies{};
         /// \brief Constraints explicitly registered by user.
-        constraintsMap_t registered{};
+        ConstraintMap registry{};
     };
 
     class JIMINY_DLLAPI Model : public std::enable_shared_from_this<Model>
@@ -157,7 +156,7 @@ namespace jiminy
             // Add extra options or update default values
             GenericConfig config;
             /// \brief Max number of contact points per collision pairs.
-            config["maxContactPointsPerBody"] = 5U;
+            config["contactPointsPerBodyMax"] = 5U;
 
             return config;
         };
@@ -172,7 +171,7 @@ namespace jiminy
             return config;
         };
 
-        struct jointOptions_t
+        struct JointOptions
         {
             const bool enablePositionLimit;
             const bool positionLimitFromUrdf;
@@ -184,7 +183,7 @@ namespace jiminy
             const bool velocityLimitFromUrdf;
             const Eigen::VectorXd velocityLimit;
 
-            jointOptions_t(const GenericConfig & options) :
+            JointOptions(const GenericConfig & options) :
             enablePositionLimit{boost::get<bool>(options.at("enablePositionLimit"))},
             positionLimitFromUrdf{boost::get<bool>(options.at("positionLimitFromUrdf"))},
             positionLimitMin{boost::get<Eigen::VectorXd>(options.at("positionLimitMin"))},
@@ -196,7 +195,7 @@ namespace jiminy
             }
         };
 
-        struct dynamicsOptions_t
+        struct DynamicsOptions
         {
             const double inertiaBodiesBiasStd;
             const double massBodiesBiasStd;
@@ -205,7 +204,7 @@ namespace jiminy
             const bool enableFlexibleModel;
             const FlexibilityConfig flexibilityConfig;
 
-            dynamicsOptions_t(const GenericConfig & options) :
+            DynamicsOptions(const GenericConfig & options) :
             inertiaBodiesBiasStd{boost::get<double>(options.at("inertiaBodiesBiasStd"))},
             massBodiesBiasStd{boost::get<double>(options.at("massBodiesBiasStd"))},
             centerOfMassPositionBodiesBiasStd{
@@ -218,23 +217,23 @@ namespace jiminy
             }
         };
 
-        struct collisionOptions_t
+        struct CollisionOptions
         {
-            const uint32_t maxContactPointsPerBody;
+            const uint32_t contactPointsPerBodyMax;
 
-            collisionOptions_t(const GenericConfig & options) :
-            maxContactPointsPerBody{boost::get<uint32_t>(options.at("maxContactPointsPerBody"))}
+            CollisionOptions(const GenericConfig & options) :
+            contactPointsPerBodyMax{boost::get<uint32_t>(options.at("contactPointsPerBodyMax"))}
             {
             }
         };
 
-        struct modelOptions_t
+        struct ModelOptions
         {
-            const dynamicsOptions_t dynamics;
-            const jointOptions_t joints;
-            const collisionOptions_t collisions;
+            const DynamicsOptions dynamics;
+            const JointOptions joints;
+            const CollisionOptions collisions;
 
-            modelOptions_t(const GenericConfig & options) :
+            ModelOptions(const GenericConfig & options) :
             dynamics{boost::get<GenericConfig>(options.at("dynamics"))},
             joints{boost::get<GenericConfig>(options.at("joints"))},
             collisions{boost::get<GenericConfig>(options.at("collisions"))}
@@ -249,7 +248,7 @@ namespace jiminy
         explicit Model() noexcept;
         virtual ~Model() = default;
 
-        hresult_t initialize(const pinocchio::Model & pncModel,
+        hresult_t initialize(const pinocchio::Model & pinocchioModel,
                              const pinocchio::GeometryModel & collisionModel,
                              const pinocchio::GeometryModel & visualModel);
         hresult_t initialize(const std::string & urdfPath,
@@ -297,9 +296,12 @@ namespace jiminy
                                 std::weak_ptr<const AbstractConstraintBase> & constraint) const;
 
         // Copy on purpose
-        constraintsHolder_t getConstraints();
+        ConstraintTree getConstraints();
 
         bool existConstraint(const std::string & constraintName) const;
+
+        /// \brief Returns true if at least one constraint is active on the robot.
+        bool hasConstraints() const;
 
         hresult_t resetConstraints(const Eigen::VectorXd & q, const Eigen::VectorXd & v);
 
@@ -312,9 +314,6 @@ namespace jiminy
         /// \param[in] q Joint position.
         /// \param[in] v Joint velocity.
         void computeConstraints(const Eigen::VectorXd & q, const Eigen::VectorXd & v);
-
-        /// \brief Returns true if at least one constraint is active on the robot.
-        bool hasConstraints() const;
 
         // Copy on purpose
         hresult_t setOptions(GenericConfig modelOptions);
@@ -335,31 +334,32 @@ namespace jiminy
         Eigen::Index nv() const;
         Eigen::Index nx() const;
 
-        const std::vector<std::string> & getCollisionBodiesNames() const;
-        const std::vector<std::string> & getContactFramesNames() const;
-        const std::vector<pinocchio::FrameIndex> & getCollisionBodiesIdx() const;
-        const std::vector<std::vector<pinocchio::PairIndex>> & getCollisionPairsIdx() const;
-        const std::vector<pinocchio::FrameIndex> & getContactFramesIdx() const;
-        const std::vector<std::string> & getRigidJointsNames() const;
-        const std::vector<pinocchio::JointIndex> & getRigidJointsModelIdx() const;
-        const std::vector<Eigen::Index> & getRigidJointsPositionIdx() const;
-        const std::vector<Eigen::Index> & getRigidJointsVelocityIdx() const;
-        const std::vector<std::string> & getFlexibleJointsNames() const;
-        const std::vector<pinocchio::JointIndex> & getFlexibleJointsModelIdx() const;
+        const std::vector<std::string> & getCollisionBodyNames() const;
+        const std::vector<std::string> & getContactFrameNames() const;
+        const std::vector<pinocchio::FrameIndex> & getCollisionBodyIndices() const;
+        const std::vector<std::vector<pinocchio::PairIndex>> & getCollisionPairIndices() const;
+        const std::vector<pinocchio::FrameIndex> & getContactFrameIndices() const;
+
+        const std::vector<std::string> & getRigidJointNames() const;
+        const std::vector<pinocchio::JointIndex> & getRigidJointIndices() const;
+        const std::vector<Eigen::Index> & getRigidJointPositionIndices() const;
+        const std::vector<Eigen::Index> & getRigidJointVelocityIndices() const;
+        const std::vector<std::string> & getFlexibleJointNames() const;
+        const std::vector<pinocchio::JointIndex> & getFlexibleJointIndices() const;
 
         const Eigen::VectorXd & getPositionLimitMin() const;
         const Eigen::VectorXd & getPositionLimitMax() const;
         const Eigen::VectorXd & getVelocityLimit() const;
 
-        const std::vector<std::string> & getLogFieldnamesPosition() const;
-        const std::vector<std::string> & getLogFieldnamesVelocity() const;
-        const std::vector<std::string> & getLogFieldnamesAcceleration() const;
-        const std::vector<std::string> & getLogFieldnamesForceExternal() const;
+        const std::vector<std::string> & getLogPositionFieldnames() const;
+        const std::vector<std::string> & getLogVelocityFieldnames() const;
+        const std::vector<std::string> & getLogAccelerationFieldnames() const;
+        const std::vector<std::string> & getLogForceExternalFieldnames() const;
 
-        hresult_t getFlexibleConfigurationFromRigid(const Eigen::VectorXd & qRigid,
-                                                    Eigen::VectorXd & qFlex) const;
-        hresult_t getRigidConfigurationFromFlexible(const Eigen::VectorXd & qFlex,
-                                                    Eigen::VectorXd & qRigid) const;
+        hresult_t getFlexiblePositionFromRigid(const Eigen::VectorXd & qRigid,
+                                               Eigen::VectorXd & qFlex) const;
+        hresult_t getRigidPositionFromFlexible(const Eigen::VectorXd & qFlex,
+                                               Eigen::VectorXd & qRigid) const;
         hresult_t getFlexibleVelocityFromRigid(const Eigen::VectorXd & vRigid,
                                                Eigen::VectorXd & vFlex) const;
         hresult_t getRigidVelocityFromFlexible(const Eigen::VectorXd & vFlex,
@@ -375,34 +375,32 @@ namespace jiminy
                            const pinocchio::FrameType & frameType);
         hresult_t removeFrames(const std::vector<std::string> & frameNames);
 
-        hresult_t addConstraints(const constraintsMap_t & constraintsMap,
-                                 constraintsHolderType_t holderType);
         hresult_t addConstraint(const std::string & constraintName,
                                 const std::shared_ptr<AbstractConstraintBase> & constraint,
-                                constraintsHolderType_t holderType);
-        hresult_t removeConstraint(const std::string & constraintName,
-                                   constraintsHolderType_t holderType);
+                                ConstraintNodeType node);
+        hresult_t addConstraints(const ConstraintMap & constraintMap, ConstraintNodeType node);
+        hresult_t removeConstraint(const std::string & constraintName, ConstraintNodeType node);
         hresult_t removeConstraints(const std::vector<std::string> & constraintsNames,
-                                    constraintsHolderType_t holderType);
+                                    ConstraintNodeType node);
 
         hresult_t refreshGeometryProxies();
-        hresult_t refreshContactsProxies();
+        hresult_t refreshContactProxies();
         /// \brief Refresh the proxies of the kinematics constraints.
-        hresult_t refreshConstraintsProxies();
+        hresult_t refreshConstraintProxies();
         virtual hresult_t refreshProxies();
 
     public:
-        pinocchio::Model pncModelOrig_{};
-        pinocchio::Model pncModel_{};
+        pinocchio::Model pinocchioModelOrig_{};
+        pinocchio::Model pinocchioModel_{};
         pinocchio::GeometryModel collisionModelOrig_{};
         pinocchio::GeometryModel collisionModel_{};
         pinocchio::GeometryModel visualModelOrig_{};
         pinocchio::GeometryModel visualModel_{};
-        pinocchio::Data pncDataOrig_{};
-        mutable pinocchio::Data pncData_{};
+        mutable pinocchio::Data pinocchioDataOrig_{};
+        mutable pinocchio::Data pinocchioData_{};
         mutable pinocchio::GeometryData collisionData_{};
         mutable pinocchio::GeometryData visualData_{};
-        std::unique_ptr<const modelOptions_t> mdlOptions_{nullptr};
+        std::unique_ptr<const ModelOptions> modelOptions_{nullptr};
         /// \brief Buffer storing the contact forces.
         ForceVector contactForces_{};
 
@@ -412,37 +410,37 @@ namespace jiminy
         std::string urdfData_{};
         std::vector<std::string> meshPackageDirs_{};
         bool hasFreeflyer_{false};
-        GenericConfig mdlOptionsHolder_{};
+        GenericConfig modelOptionsGeneric_{};
 
         /// \brief Name of the collision bodies of the robot.
-        std::vector<std::string> collisionBodiesNames_{};
+        std::vector<std::string> collisionBodyNames_{};
         /// \brief Name of the contact frames of the robot.
-        std::vector<std::string> contactFramesNames_{};
+        std::vector<std::string> contactFrameNames_{};
         /// \brief Indices of the collision bodies in the frame list of the robot.
-        std::vector<pinocchio::FrameIndex> collisionBodiesIdx_{};
+        std::vector<pinocchio::FrameIndex> collisionBodyIndices_{};
         /// \brief Indices of the collision pairs associated with each collision body.
-        std::vector<std::vector<pinocchio::PairIndex>> collisionPairsIdx_{};
+        std::vector<std::vector<pinocchio::PairIndex>> collisionPairIndices_{};
         /// \brief Indices of the contact frames in the frame list of the robot.
-        std::vector<pinocchio::FrameIndex> contactFramesIdx_{};
+        std::vector<pinocchio::FrameIndex> contactFrameIndices_{};
         /// \brief Name of the actual joints of the robot, not taking into account the freeflyer.
-        std::vector<std::string> rigidJointsNames_{};
+        std::vector<std::string> rigidJointNames_{};
         /// \brief Index of the actual joints in the pinocchio robot.
-        std::vector<pinocchio::JointIndex> rigidJointsModelIdx_{};
+        std::vector<pinocchio::JointIndex> rigidJointIndices_{};
         /// \brief All the indices of the actual joints in the configuration vector of the robot
         ///        (ie including all the degrees of freedom).
-        std::vector<Eigen::Index> rigidJointsPositionIdx_{};
+        std::vector<Eigen::Index> rigidJointPositionIndices_{};
         /// \brief All the indices of the actual joints in the velocity vector of the robot (ie
         ///        including all the degrees of freedom).
-        std::vector<Eigen::Index> rigidJointsVelocityIdx_{};
+        std::vector<Eigen::Index> rigidJointVelocityIndices_{};
         /// \brief Name of the flexibility joints of the robot regardless of whether the
         ///        flexibilities are enabled.
-        std::vector<std::string> flexibleJointsNames_{};
+        std::vector<std::string> flexibleJointNames_{};
         /// \brief Index of the flexibility joints in the pinocchio robot regardless of whether the
         ///        flexibilities are enabled.
-        std::vector<pinocchio::JointIndex> flexibleJointsModelIdx_{};
+        std::vector<pinocchio::JointIndex> flexibleJointIndices_{};
 
         /// \brief Store constraints.
-        constraintsHolder_t constraintsHolder_{};
+        ConstraintTree constraints_{};
 
         /// \brief Upper position limit of the whole configuration vector (INF for non-physical
         ///        joints, ie flexibility joints and freeflyer, if any).
@@ -453,20 +451,20 @@ namespace jiminy
         Eigen::VectorXd velocityLimit_{};
 
         /// \brief Fieldnames of the elements in the configuration vector of the model.
-        std::vector<std::string> logFieldnamesPosition_{};
+        std::vector<std::string> logPositionFieldnames_{};
         /// \brief Fieldnames of the elements in the velocity vector of the model.
-        std::vector<std::string> logFieldnamesVelocity_{};
+        std::vector<std::string> logVelocityFieldnames_{};
         /// \brief Fieldnames of the elements in the acceleration vector of the model.
-        std::vector<std::string> logFieldnamesAcceleration_{};
+        std::vector<std::string> logAccelerationFieldnames_{};
         /// \brief Concatenated fieldnames of the external force applied at each joint of the
         ///        model, 'universe' excluded.
-        std::vector<std::string> logFieldnamesForceExternal_{};
+        std::vector<std::string> logForceExternalFieldnames_{};
 
     private:
         pinocchio::Model pncModelFlexibleOrig_{};
         /// \brief Vector of joints acceleration corresponding to a copy of data.a - temporary
         ///        buffer for computing constraints.
-        MotionVector jointsAcceleration_{};
+        MotionVector jointSpatialAccelerations_{};
 
         Eigen::Index nq_{0};
         Eigen::Index nv_{0};

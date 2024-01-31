@@ -2,6 +2,8 @@
 ///
 /// \details The tests in this file verify that the behavior of a simulated system matches
 ///          real-world physics, and that no memory is allocated by Eigen during a simulation.
+#include <filesystem>
+
 #include <gtest/gtest.h>
 
 #define EIGEN_RUNTIME_NO_MALLOC
@@ -25,7 +27,7 @@ inline constexpr double TOLERANCE = 1e-9;
 void computeCommand(double /* t */,
                     const Eigen::VectorXd & /* q */,
                     const Eigen::VectorXd & /* v */,
-                    const SensorsDataMap & /* sensorData */,
+                    const SensorMeasurementTree & /* sensorData */,
                     Eigen::VectorXd & /* command */)
 {
 }
@@ -34,7 +36,7 @@ void computeCommand(double /* t */,
 void internalDynamics(double /* t */,
                       const Eigen::VectorXd & /* q */,
                       const Eigen::VectorXd & /* v */,
-                      const SensorsDataMap & /* sensorData */,
+                      const SensorMeasurementTree & /* sensorData */,
                       Eigen::VectorXd & /* uCustom */)
 {
 }
@@ -50,14 +52,13 @@ TEST(EngineSanity, EnergyConservation)
     // Verify that when sending zero torque to a system, its energy remains constant
 
     // Double pendulum model
-    const std::string dataDirPath(UNIT_TEST_DATA_DIR);
-    const auto urdfPath = dataDirPath + "/double_pendulum_rigid.urdf";
+    const std::filesystem::path dataDirPath(UNIT_TEST_DATA_DIR);
+    const auto urdfPath = dataDirPath / "double_pendulum_rigid.urdf";
 
-    // All joints actuated.
+    // All joints actuated
     std::vector<std::string> motorJointNames{"PendulumJoint", "SecondPendulumJoint"};
-
     auto robot = std::make_shared<Robot>();
-    robot->initialize(urdfPath, false);
+    robot->initialize(urdfPath.string(), false);
     for (const std::string & jointName : motorJointNames)
     {
         auto motor = std::make_shared<SimpleMotor>(jointName);
@@ -81,7 +82,7 @@ TEST(EngineSanity, EnergyConservation)
     }
     robot->setMotorsOptions(motorsOptions);
 
-    auto controller = std::make_shared<ControllerFunctor<>>(computeCommand, internalDynamics);
+    auto controller = std::make_shared<FunctionalController<>>(computeCommand, internalDynamics);
     controller->initialize(robot);
 
     // Create engine

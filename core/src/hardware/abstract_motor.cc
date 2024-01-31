@@ -25,7 +25,7 @@ namespace jiminy
     hresult_t AbstractMotorBase::attach(
         std::weak_ptr<const Robot> robot,
         std::function<hresult_t(AbstractMotorBase & /*motor*/)> notifyRobot,
-        MotorSharedDataHolder_t * sharedHolder)
+        MotorSharedStorage * sharedStorage)
     {
         // Make sure the motor is not already attached
         if (isAttached_)
@@ -45,18 +45,18 @@ namespace jiminy
         // Copy references to the robot and shared data
         robot_ = robot;
         notifyRobot_ = notifyRobot;
-        sharedHolder_ = sharedHolder;
+        sharedStorage_ = sharedStorage;
 
         // Get an index
-        motorIdx_ = sharedHolder_->num_;
+        motorIndex_ = sharedStorage_->num_;
 
         // Add a value for the motor to the shared data buffer
-        sharedHolder_->data_.conservativeResize(sharedHolder_->num_ + 1);
-        sharedHolder_->data_.tail<1>().setZero();
+        sharedStorage_->data_.conservativeResize(sharedStorage_->num_ + 1);
+        sharedStorage_->data_.tail<1>().setZero();
 
         // Add the motor to the shared memory
-        sharedHolder_->motors_.push_back(this);
-        ++sharedHolder_->num_;
+        sharedStorage_->motors_.push_back(this);
+        ++sharedStorage_->num_;
 
         // Update the flag
         isAttached_ = true;
@@ -75,32 +75,32 @@ namespace jiminy
         }
 
         // Remove associated col in the global data buffer
-        if (motorIdx_ < sharedHolder_->num_ - 1)
+        if (motorIndex_ < sharedStorage_->num_ - 1)
         {
             const Eigen::Index motorShift =
-                static_cast<Eigen::Index>(sharedHolder_->num_ - motorIdx_ - 1);
-            sharedHolder_->data_.segment(motorIdx_, motorShift) =
-                sharedHolder_->data_.tail(motorShift);
+                static_cast<Eigen::Index>(sharedStorage_->num_ - motorIndex_ - 1);
+            sharedStorage_->data_.segment(motorIndex_, motorShift) =
+                sharedStorage_->data_.tail(motorShift);
         }
-        sharedHolder_->data_.conservativeResize(sharedHolder_->num_ - 1);
+        sharedStorage_->data_.conservativeResize(sharedStorage_->num_ - 1);
 
         // Shift the motor ids
-        for (std::size_t i = motorIdx_ + 1; i < sharedHolder_->num_; ++i)
+        for (std::size_t i = motorIndex_ + 1; i < sharedStorage_->num_; ++i)
         {
-            --sharedHolder_->motors_[i]->motorIdx_;
+            --sharedStorage_->motors_[i]->motorIndex_;
         }
 
         // Remove the motor to the shared memory
-        sharedHolder_->motors_.erase(std::next(sharedHolder_->motors_.begin(), motorIdx_));
-        --sharedHolder_->num_;
+        sharedStorage_->motors_.erase(std::next(sharedStorage_->motors_.begin(), motorIndex_));
+        --sharedStorage_->num_;
 
         // Clear the references to the robot and shared data
         robot_.reset();
         notifyRobot_ = nullptr;
-        sharedHolder_ = nullptr;
+        sharedStorage_ = nullptr;
 
-        // Unset the Id
-        motorIdx_ = -1;
+        // Unset the motor index
+        motorIndex_ = -1;
 
         // Update the flag
         isAttached_ = false;
@@ -125,10 +125,10 @@ namespace jiminy
         }
 
         // Clear the shared data buffer
-        sharedHolder_->data_.setZero();
+        sharedStorage_->data_.setZero();
 
         // Update motor scope information
-        for (AbstractMotorBase * motor : sharedHolder_->motors_)
+        for (AbstractMotorBase * motor : sharedStorage_->motors_)
         {
             // Refresh proxies that are robot-dependent
             motor->refreshProxies();
@@ -167,8 +167,8 @@ namespace jiminy
         }
 
         // Update the motor's options
-        motorOptionsHolder_ = motorOptions;
-        baseMotorOptions_ = std::make_unique<const abstractMotorOptions_t>(motorOptionsHolder_);
+        motorOptionsGeneric_ = motorOptions;
+        baseMotorOptions_ = std::make_unique<const AbstractMotorOptions>(motorOptionsGeneric_);
 
         // Refresh the proxies if the robot is initialized if available
         if (auto robot = robot_.lock())
@@ -184,7 +184,7 @@ namespace jiminy
 
     GenericConfig AbstractMotorBase::getOptions() const noexcept
     {
-        return motorOptionsHolder_;
+        return motorOptionsGeneric_;
     }
 
     hresult_t AbstractMotorBase::refreshProxies()
@@ -227,12 +227,12 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            returnCode = ::jiminy::getJointModelIdx(robot->pncModel_, jointName_, jointModelIdx_);
+            returnCode = ::jiminy::getJointIndex(robot->pinocchioModel_, jointName_, jointIndex_);
         }
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            returnCode = getJointTypeFromIdx(robot->pncModel_, jointModelIdx_, jointType_);
+            returnCode = getJointTypeFromIndex(robot->pinocchioModel_, jointIndex_, jointType_);
         }
 
         if (returnCode == hresult_t::SUCCESS)
@@ -248,16 +248,16 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            ::jiminy::getJointPositionIdx(robot->pncModel_, jointName_, jointPositionIdx_);
-            ::jiminy::getJointVelocityIdx(robot->pncModel_, jointName_, jointVelocityIdx_);
+            getJointPositionFirstIndex(robot->pinocchioModel_, jointName_, jointPositionIndex_);
+            getJointVelocityFirstIndex(robot->pinocchioModel_, jointName_, jointVelocityIndex_);
 
             // Get the motor effort limits from the URDF or the user options.
             if (baseMotorOptions_->commandLimitFromUrdf)
             {
-                Eigen::Index jointVelocityOrigIdx;
-                ::jiminy::getJointVelocityIdx(
-                    robot->pncModelOrig_, jointName_, jointVelocityOrigIdx);
-                commandLimit_ = robot->pncModelOrig_.effortLimit[jointVelocityOrigIdx] /
+                Eigen::Index jointVelocityOrigIndex;
+                getJointVelocityFirstIndex(
+                    robot->pinocchioModelOrig_, jointName_, jointVelocityOrigIndex);
+                commandLimit_ = robot->pinocchioModelOrig_.effortLimit[jointVelocityOrigIndex] /
                                 baseMotorOptions_->mechanicalReduction;
             }
             else
@@ -290,19 +290,19 @@ namespace jiminy
         static double dataEmpty;
         if (isAttached_)
         {
-            return sharedHolder_->data_[motorIdx_];
+            return sharedStorage_->data_[motorIndex_];
         }
         return dataEmpty;
     }
 
     double & AbstractMotorBase::data()
     {
-        return sharedHolder_->data_[motorIdx_];
+        return sharedStorage_->data_[motorIndex_];
     }
 
     const Eigen::VectorXd & AbstractMotorBase::getAll() const
     {
-        return sharedHolder_->data_;
+        return sharedStorage_->data_;
     }
 
     hresult_t AbstractMotorBase::setOptionsAll(const GenericConfig & motorOptions)
@@ -316,7 +316,7 @@ namespace jiminy
             returnCode = hresult_t::ERROR_GENERIC;
         }
 
-        for (AbstractMotorBase * motor : sharedHolder_->motors_)
+        for (AbstractMotorBase * motor : sharedStorage_->motors_)
         {
             if (returnCode == hresult_t::SUCCESS)
             {
@@ -337,9 +337,9 @@ namespace jiminy
         return name_;
     }
 
-    std::size_t AbstractMotorBase::getIdx() const
+    std::size_t AbstractMotorBase::getIndex() const
     {
-        return motorIdx_;
+        return motorIndex_;
     }
 
     const std::string & AbstractMotorBase::getJointName() const
@@ -347,9 +347,9 @@ namespace jiminy
         return jointName_;
     }
 
-    pinocchio::JointIndex AbstractMotorBase::getJointModelIdx() const
+    pinocchio::JointIndex AbstractMotorBase::getJointIndex() const
     {
-        return jointModelIdx_;
+        return jointIndex_;
     }
 
     JointModelType AbstractMotorBase::getJointType() const
@@ -357,14 +357,14 @@ namespace jiminy
         return jointType_;
     }
 
-    Eigen::Index AbstractMotorBase::getJointPositionIdx() const
+    Eigen::Index AbstractMotorBase::getJointPositionIndex() const
     {
-        return jointPositionIdx_;
+        return jointPositionIndex_;
     }
 
-    Eigen::Index AbstractMotorBase::getJointVelocityIdx() const
+    Eigen::Index AbstractMotorBase::getJointVelocityIndex() const
     {
-        return jointVelocityIdx_;
+        return jointVelocityIndex_;
     }
 
     double AbstractMotorBase::getCommandLimit() const
@@ -393,7 +393,7 @@ namespace jiminy
         }
 
         // Compute the actual effort of every motor
-        for (AbstractMotorBase * motor : sharedHolder_->motors_)
+        for (AbstractMotorBase * motor : sharedStorage_->motors_)
         {
             if (returnCode == hresult_t::SUCCESS)
             {
@@ -408,10 +408,10 @@ namespace jiminy
                 }
                 returnCode =
                     motor->computeEffort(t,
-                                         q.segment(motor->getJointPositionIdx(), nq_motor),
-                                         v[motor->getJointVelocityIdx()],
-                                         a[motor->getJointVelocityIdx()],
-                                         command[motor->getIdx()]);
+                                         q.segment(motor->getJointPositionIndex(), nq_motor),
+                                         v[motor->getJointVelocityIndex()],
+                                         a[motor->getJointVelocityIndex()],
+                                         command[motor->getIndex()]);
             }
         }
 

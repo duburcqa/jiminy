@@ -7,14 +7,14 @@
 namespace jiminy
 {
     class AbstractConstraintBase;
-    struct constraintsHolder_t;
+    struct ConstraintTree;
 
     struct ConstraintBlock
     {
         double lo{0.0};
         double hi{0.0};
         bool isZero{false};
-        Eigen::Index fIdx[3]{-1, -1, -1};
+        Eigen::Index fIndex[3]{-1, -1, -1};
         std::uint_fast8_t fSize{0};
     };
 
@@ -29,7 +29,7 @@ namespace jiminy
 
     public:
         AbstractConstraintBase * constraint{nullptr};
-        Eigen::Index startIdx{-1};
+        Eigen::Index startIndex{-1};
         bool isInactive{false};
         Eigen::Index dim{-1};
         ConstraintBlock blocks[3]{};
@@ -61,12 +61,12 @@ namespace jiminy
     public:
         explicit PGSSolver(const pinocchio::Model * model,
                            pinocchio::Data * data,
-                           constraintsHolder_t * constraintsHolder,
+                           ConstraintTree * constraints,
                            double friction,
                            double torsion,
                            double tolAbs,
                            double tolRel,
-                           uint32_t maxIter) noexcept;
+                           uint32_t iterMax) noexcept;
         virtual ~PGSSolver() = default;
 
         virtual bool SolveBoxedForwardDynamics(double dampingInv,
@@ -85,7 +85,7 @@ namespace jiminy
         const pinocchio::Model * model_;
         pinocchio::Data * data_;
 
-        uint32_t maxIter_;
+        uint32_t iterMax_;
         double tolAbs_;
         double tolRel_;
 

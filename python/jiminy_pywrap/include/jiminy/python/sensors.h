@@ -6,7 +6,7 @@
 
 namespace jiminy::python
 {
-    void JIMINY_DLLAPI exposeSensorsDataMap();
+    void JIMINY_DLLAPI exposeSensorMeasurementTree();
     void JIMINY_DLLAPI exposeAbstractSensor();
     void JIMINY_DLLAPI exposeBasicSensors();
 }

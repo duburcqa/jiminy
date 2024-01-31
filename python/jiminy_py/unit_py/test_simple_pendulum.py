@@ -30,8 +30,8 @@ class SimulateSimplePendulum(unittest.TestCase):
     def setUp(self):
         # Load URDF, create model.
         self.urdf_name = "simple_pendulum.urdf"
-        self.motors_names = ["PendulumJoint"]
-        self.robot = load_urdf_default(self.urdf_name, self.motors_names)
+        self.motor_names = ["PendulumJoint"]
+        self.robot = load_urdf_default(self.urdf_name, self.motor_names)
 
         # Add IMU to the robot
         self.imu_sensor = jiminy.ImuSensor("PendulumLink")
@@ -102,7 +102,7 @@ class SimulateSimplePendulum(unittest.TestCase):
 
         # Dynamics: simulate a spring of stiffness k
         k_spring = 500.0
-        def spring_force(t, q, v, sensors_data, u_custom):
+        def spring_force(t, q, v, sensor_measurements, u_custom):
             u_custom[:] = - k_spring * q
 
         # Initialize the controller and setup the engine
@@ -395,9 +395,9 @@ class SimulateSimplePendulum(unittest.TestCase):
                        "F": (2.0 * (np.random.rand(6) - 0.5)) * 4.0e6},
                       {"t": 0.8, "dt": 2.0e-6,
                        "F": np.array([0.0, 0.0, 2.0e5, 0.0, 0.0, 0.0])}]
-        for f in F_register:
-            engine.register_force_impulse(
-                "PendulumLink", f["t"], f["dt"], f["F"])
+        for force in F_register:
+            engine.register_impulse_force(
+                "PendulumLink", force["t"], force["dt"], force["F"])
 
         # Configure the engine: No gravity + Continuous time simulation
         engine_options = engine.get_options()
@@ -496,7 +496,7 @@ class SimulateSimplePendulum(unittest.TestCase):
 
         # Create an engine: PD controller on motor and no internal dynamics
         k_control, nu_control = 100.0, 1.0
-        def ControllerPD(t, q, v, sensors_data, command):
+        def ControllerPD(t, q, v, sensor_measurements, command):
             command[:] = - k_control * q[4] - nu_control * v[3]
 
         engine = jiminy.Engine()
@@ -557,7 +557,7 @@ class SimulateSimplePendulum(unittest.TestCase):
         """
         # Create robot with freeflyer, set rotor inertia.
         robot = load_urdf_default(
-            self.urdf_name, self.motors_names, has_freeflyer=True)
+            self.urdf_name, self.motor_names, has_freeflyer=True)
 
         # Enable rotor inertia
         J = 0.1
@@ -572,7 +572,7 @@ class SimulateSimplePendulum(unittest.TestCase):
 
         # Create an engine: simulate a spring internal dynamics
         k_spring = 500
-        def spring_force(t, q, v, sensors_data, u_custom):
+        def spring_force(t, q, v, sensor_measurements, u_custom):
             u_custom[:] = - k_spring * q[-1]
 
         engine = jiminy.Engine()

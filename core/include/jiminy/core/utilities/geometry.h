@@ -3,19 +3,21 @@
 
 #include <vector>  // `std::vector`
 
-#include "jiminy/core/fwd.h"  // `HeightmapFunctor`
+#include "jiminy/core/fwd.h"  // `HeightmapFunction`
 
 #include "hpp/fcl/fwd.hh"  // `hpp::fcl::BVHModelPtr_t`
 
 
 namespace jiminy
 {
-    HeightmapFunctor JIMINY_DLLAPI sumHeightmaps(std::vector<HeightmapFunctor> heightmaps);
+    HeightmapFunction JIMINY_DLLAPI sumHeightmaps(
+        const std::vector<HeightmapFunction> & heightmaps);
 
-    HeightmapFunctor JIMINY_DLLAPI mergeHeightmaps(std::vector<HeightmapFunctor> heightmaps);
+    HeightmapFunction JIMINY_DLLAPI mergeHeightmaps(
+        const std::vector<HeightmapFunction> & heightmaps);
 
     hpp::fcl::CollisionGeometryPtr_t JIMINY_DLLAPI discretizeHeightmap(
-        const HeightmapFunctor & heightmap,
+        const HeightmapFunction & heightmap,
         double xMin,
         double xMax,
         double xUnit,

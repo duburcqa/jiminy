@@ -11,6 +11,11 @@ import jiminy_py.core as jiminy
 from pinocchio import neutral
 
 
+FunctionalControllerCallable = Callable[[
+    float, np.ndarray, np.ndarray, jiminy.SensorMeasurementTree, np.ndarray
+    ], None]
+
+
 def load_urdf_default(urdf_name: str,
                       motor_names: Sequence[str] = (),
                       has_freeflyer: bool = False) -> jiminy.Robot:
@@ -59,19 +64,16 @@ def load_urdf_default(urdf_name: str,
 def setup_controller_and_engine(
         engine: jiminy.EngineMultiRobot,
         robot: jiminy.Robot,
-        compute_command: Optional[Callable[
-            [float, np.ndarray, np.ndarray, jiminy.sensorsData, np.ndarray],
-            None]] = None,
-        internal_dynamics: Optional[Callable[
-            [float, np.ndarray, np.ndarray, jiminy.sensorsData, np.ndarray],
-            None]] = None) -> None:
+        compute_command: Optional[FunctionalControllerCallable] = None,
+        internal_dynamics: Optional[FunctionalControllerCallable] = None
+        ) -> None:
     """Setup an engine to integrate the dynamics of a given robot, for a
     specific user-defined control law and internal dynamics.
 
     The goal of this function is to ease the configuration of `jiminy.Engine`
     by doing the following operations:
       - Wrapping the control law and internal dynamics in a
-        jiminy.ControllerFunctor.
+        jiminy.FunctionalController.
       - Register the system robot/controller in the engine to
         integrate its dynamics.
 
@@ -83,12 +85,13 @@ def setup_controller_and_engine(
             Control law, which must be an function handle with the following
             signature:
 
-        | compute_command\(**t**: float,
-        |                  **q**: np.ndarray,
-        |                  **v**: np.ndarray,
-        |                  **sensors_data**: jiminy_py.core.sensorsData,
-        |                  **u_command**: np.ndarray
-        |                  \) -> None
+        | compute_command\(
+        |    **t**: float,
+        |    **q**: np.ndarray,
+        |    **v**: np.ndarray,
+        |    **sensor_measurements**: jiminy_py.core.SensorMeasurementTree,
+        |    **u_command**: np.ndarray
+        |    \) -> None
 
         Optional: zero command torques by default.
     :param internal_dynamics:
@@ -96,17 +99,18 @@ def setup_controller_and_engine(
 
             Internal dynamics function handle with signature:
 
-        | internal_dynamics\(**t**: float,
-        |                    **q**: np.ndarray,
-        |                    **v**: np.ndarray,
-        |                    **sensors_data**: jiminy_py.core.sensorsData,
-        |                    **u_custom**: np.ndarray
-        |                    \) -> None
+        | internal_dynamics\(
+        |    **t**: float,
+        |    **q**: np.ndarray,
+        |    **v**: np.ndarray,
+        |    **sensor_measurements**: jiminy_py.core.SensorMeasurementTree,
+        |    **u_command**: np.ndarray
+        |    \) -> None
 
         Optional: No internal dynamics by default.
     """
     # Instantiate the controller
-    controller = jiminy.ControllerFunctor(compute_command, internal_dynamics)
+    controller = jiminy.FunctionalController(compute_command, internal_dynamics)
     controller.initialize(robot)
 
     # Initialize the engine
@@ -208,10 +212,10 @@ def simulate_and_get_state_evolution(
     if isinstance(engine, jiminy.Engine):
         q_jiminy = np.stack([
             log_vars['.'.join(['HighLevelController', s])]
-            for s in engine.robot.log_fieldnames_position], axis=-1)
+            for s in engine.robot.log_position_fieldnames], axis=-1)
         v_jiminy = np.stack([
             log_vars['.'.join(['HighLevelController', s])]
-            for s in engine.robot.log_fieldnames_velocity], axis=-1)
+            for s in engine.robot.log_velocity_fieldnames], axis=-1)
         if split:
             return time, q_jiminy, v_jiminy
         else:
@@ -220,11 +224,11 @@ def simulate_and_get_state_evolution(
     else:
         q_jiminy = [np.stack([
             log_vars['.'.join(['HighLevelController', sys.name, s])]
-            for s in sys.robot.log_fieldnames_position
+            for s in sys.robot.log_position_fieldnames
         ], axis=-1) for sys in engine.systems]
         v_jiminy = [np.stack([
             log_vars['.'.join(['HighLevelController', sys.name, s])]
-            for s in sys.robot.log_fieldnames_velocity
+            for s in sys.robot.log_velocity_fieldnames
         ], axis=-1) for sys in engine.systems]
         if split:
             return time, q_jiminy, v_jiminy

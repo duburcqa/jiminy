@@ -94,7 +94,7 @@ class PipelineControl(unittest.TestCase):
         # Check that the whole-body robot velocity is close to zero at the end
         velocity_mes = np.stack([
             log_vars['.'.join(('HighLevelController', name))]
-            for name in self.env.robot.log_fieldnames_velocity], axis=-1)
+            for name in self.env.robot.log_velocity_fieldnames], axis=-1)
         self.assertTrue(np.all(
             np.abs(velocity_mes[time > time[-1] - 1.0]) < 1.0e-3))
 
@@ -131,11 +131,11 @@ class PipelineControl(unittest.TestCase):
         action = np.zeros((robot.nmotors,))
         for name, value in (
                 ('back_bkz', 0.4), ('back_bky', 0.08), ('back_bkx', 0.08)):
-            action[robot.get_motor(name).idx] = value
+            action[robot.get_motor(name).index] = value
 
         # Extract proxies for convenience
-        sensor = robot.get_sensor(imu.type, robot.sensors_names[imu.type][0])
-        imu_rot = robot.pinocchio_data.oMf[sensor.frame_idx].rotation
+        sensor = robot.get_sensor(imu.type, robot.sensor_names[imu.type][0])
+        imu_rot = robot.pinocchio_data.oMf[sensor.frame_index].rotation
 
         # Check that the estimate IMU orientation is accurate over the episode
         for i in range(200):
@@ -173,8 +173,8 @@ class PipelineControl(unittest.TestCase):
         # Make sure that the position targets are within bounds.
         # No such guarantee exists for higher-order derivatives.
         robot = env.robot
-        pos_min = robot.position_limit_lower[robot.motors_position_idx[-1]]
-        pos_max = robot.position_limit_upper[robot.motors_position_idx[-1]]
+        pos_min = robot.position_limit_lower[robot.motor_position_indices[-1]]
+        pos_max = robot.position_limit_upper[robot.motor_position_indices[-1]]
         self.assertTrue(np.all(np.logical_and(pos_min < pos, pos < pos_max)))
 
     def test_repeatability(self):

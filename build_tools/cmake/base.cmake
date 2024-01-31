@@ -35,11 +35,10 @@ if(MSVC)
     # system include of dependencies is not working properly so far.
     set(WARN_FULL "/W2 /wd4068 /wd4715 /wd4820 /wd4244 /wd4005 /wd4834 /wd5105 /wd4251 /WX")
 else()
-    set(WARN_FULL "-Wall -Wextra -pedantic \
-                   -pedantic-errors -Wcast-align -Wcast-qual \
-                   -Wfloat-equal -Wformat=2 -Wformat-nonliteral \
-                   -Wformat-security -Wformat-y2k -Wimport \
-                   -Winit-self -Winvalid-pch -Wlong-long \
+    set(WARN_FULL "-Wall -Wextra -pedantic -pedantic-errors \
+                   -Wformat=2 -Wformat-nonliteral -Wformat-security \
+                   -Wformat-y2k -Wcast-align -Wcast-qual -Wfloat-equal \
+                   -Wimport -Winit-self -Winvalid-pch -Wlong-long \
                    -Wmissing-field-initializers -Wmissing-noreturn \
                    -Wmissing-format-attribute -Wctor-dtor-privacy \
                    -Wpointer-arith -Wold-style-cast -Wpacked \
@@ -47,9 +46,9 @@ else()
                    -Wstack-protector -Wstrict-aliasing=2 \
                    -Wswitch-default -Wswitch-enum -Wunreachable-code \
                    -Wunused -Wundef -Wdisabled-optimization \
-                   -Wmissing-braces -Wtrigraphs -Wparentheses \
-                   -Wwrite-strings -Wsequence-point -Wdeprecated \
-                   -Wconversion -Wdelete-non-virtual-dtor \
+                   -Wtrigraphs -Wparentheses -Wwrite-strings \
+                   -Wsequence-point -Wdeprecated -Wconversion \
+                   -Wdelete-non-virtual-dtor -Wno-missing-braces \
                    -Wno-sign-conversion -Wno-non-virtual-dtor \
                    -Wno-unknown-pragmas -Wno-unknown-warning-option \
                    -Wno-unknown-warning -Wno-undefined-var-template \

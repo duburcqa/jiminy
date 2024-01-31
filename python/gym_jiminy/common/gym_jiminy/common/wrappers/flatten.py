@@ -10,7 +10,7 @@ import gymnasium as gym
 
 from ..bases import (ObsT,
                      ActT,
-                     JiminyEnvInterface,
+                     InterfaceJiminyEnv,
                      BaseTransformObservation,
                      BaseTransformAction)
 from ..utils import build_reduce, build_flatten
@@ -29,7 +29,7 @@ class FlattenObservation(BaseTransformObservation[FlattenedObsT, ObsT, ActT],
         All leaves of the observation space must have type `gym.spaces.Box`.
     """
     def __init__(self,
-                 env: JiminyEnvInterface[ObsT, ActT],
+                 env: InterfaceJiminyEnv[ObsT, ActT],
                  dtype: Optional[npt.DTypeLike] = None) -> None:
         """
         :param env: Environment to wrap.
@@ -89,7 +89,7 @@ class FlattenAction(BaseTransformAction[FlattenedActT, ObsT, ActT],
         All leaves of the action space must have type `gym.spaces.Box`.
     """
     def __init__(self,
-                 env: JiminyEnvInterface[ObsT, ActT],
+                 env: InterfaceJiminyEnv[ObsT, ActT],
                  dtype: Optional[npt.DTypeLike] = None) -> None:
         """
         :param env: Environment to wrap.

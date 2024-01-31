@@ -627,14 +627,14 @@ def plot_log(log_data: Dict[str, Any],
     # Get time and robot positions, velocities, and acceleration
     time = log_vars["Global.Time"]
     for fields_type in ["Position", "Velocity", "Acceleration"]:
-        fieldnames = getattr(
-            robot, "log_fieldnames_" + fields_type.lower())
+        fieldnames = getattr(robot, "_".join((
+            "log", fields_type.lower(), "fieldnames")))
         if not enable_flexiblity_data:
             # Filter out flexibility data
             fieldnames = list(filter(
                 lambda field: not any(
                     name in field
-                    for name in robot.flexible_joints_names),
+                    for name in robot.flexible_joint_names),
                 fieldnames))
         try:
             values = extract_variables_from_log(
@@ -649,9 +649,9 @@ def plot_log(log_data: Dict[str, Any],
     # Get motors efforts information
     try:
         motors_efforts = extract_variables_from_log(
-            log_vars, robot.log_fieldnames_motor_effort)
+            log_vars, robot.log_motor_effort_fieldnames)
         tabs_data['MotorEffort'] = OrderedDict(zip(
-            robot.motors_names, motors_efforts))
+            robot.motor_names, motors_efforts))
     except ValueError:
         # Variable has not been recorded and is missing in log file
         pass
@@ -659,8 +659,8 @@ def plot_log(log_data: Dict[str, Any],
     # Get command information
     try:
         command = extract_variables_from_log(
-            log_vars, robot.log_fieldnames_command)
-        tabs_data['Command'] = OrderedDict(zip(robot.motors_names, command))
+            log_vars, robot.log_command_fieldnames)
+        tabs_data['Command'] = OrderedDict(zip(robot.motor_names, command))
     except ValueError:
         # Variable has not been recorded and is missing in log file
         pass
@@ -668,8 +668,8 @@ def plot_log(log_data: Dict[str, Any],
     # Get sensors information
     for sensors_class, sensors_fields in SENSORS_FIELDS.items():
         sensors_type = sensors_class.type
-        sensors_names = robot.sensors_names.get(sensors_type, [])
-        if not sensors_names:
+        sensor_names = robot.sensor_names.get(sensors_type, [])
+        if not sensor_names:
             continue
         namespace = sensors_type if sensors_class.has_prefix else None
         if isinstance(sensors_fields, dict):
@@ -679,10 +679,10 @@ def plot_log(log_data: Dict[str, Any],
                     data_nested = [
                         extract_variables_from_log(log_vars, [
                             '.'.join((name, fields_prefix + field))
-                            for name in sensors_names], namespace)
+                            for name in sensor_names], namespace)
                         for field in fieldnames]
                     tabs_data[type_name] = OrderedDict(
-                        (field, OrderedDict(zip(sensors_names, data)))
+                        (field, OrderedDict(zip(sensor_names, data)))
                         for field, data in zip(fieldnames, data_nested))
                 except ValueError:
                     # Variable has not been recorded and is missing in log file
@@ -692,10 +692,10 @@ def plot_log(log_data: Dict[str, Any],
                 try:
                     type_name = ' '.join((sensors_type, field))
                     data = extract_variables_from_log(log_vars, [
-                        '.'.join((name, field)) for name in sensors_names
+                        '.'.join((name, field)) for name in sensor_names
                         ], namespace)
                     tabs_data[type_name] = OrderedDict(zip(
-                        sensors_names, data))
+                        sensor_names, data))
                 except ValueError:
                     # Variable has not been recorded and is missing in log file
                     pass

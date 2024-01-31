@@ -19,7 +19,7 @@ from ..bases import (DT_EPS,
                      ActT,
                      InfoType,
                      EngineObsType,
-                     JiminyEnvInterface,
+                     InterfaceJiminyEnv,
                      BasePipelineWrapper)
 
 
@@ -116,7 +116,7 @@ class PartialObservationStack(
                 low=low, high=high, dtype=space.dtype.type)
 
         # Bind observation of the environment for all keys but the stacked ones
-        if isinstance(self.env, JiminyEnvInterface):
+        if isinstance(self.env, InterfaceJiminyEnv):
             self.observation = copy(self.env.observation)
             for fields in self.leaf_fields_list:
                 assert isinstance(self.observation_space, gym.spaces.Dict)
@@ -147,7 +147,7 @@ class PartialObservationStack(
         """ TODO: Write documentation.
         """
         # Copy measurement if impossible to bind memory in the first place
-        if not isinstance(self.env, JiminyEnvInterface):
+        if not isinstance(self.env, InterfaceJiminyEnv):
             copyto(self.observation, measurement)
 
         # Backup the nested observation fields to stack.
@@ -188,7 +188,7 @@ class StackedJiminyEnv(
     """ TODO: Write documentation.
     """
     def __init__(self,
-                 env: JiminyEnvInterface[ObsT, ActT],
+                 env: InterfaceJiminyEnv[ObsT, ActT],
                  skip_frames_ratio: int = 0,
                  **kwargs: Any) -> None:
         """ TODO: Write documentation.

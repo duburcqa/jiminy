@@ -8,7 +8,7 @@ import gymnasium as gym
 
 from ..bases import (ObsT,
                      ActT,
-                     JiminyEnvInterface,
+                     InterfaceJiminyEnv,
                      BaseTransformObservation)
 
 
@@ -25,7 +25,7 @@ class FilterObservation(BaseTransformObservation[FilteredObsType, ObsT, ActT],
     environment with `FlattenObservation` as yet another layer.
     """
     def __init__(self,
-                 env: JiminyEnvInterface[ObsT, ActT],
+                 env: InterfaceJiminyEnv[ObsT, ActT],
                  nested_filter_keys: Sequence[Union[Sequence[str], str]]
                  ) -> None:
         # Make sure that the observation space derives from 'gym.spaces.Dict'

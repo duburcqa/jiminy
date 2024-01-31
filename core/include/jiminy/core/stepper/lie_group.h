@@ -432,7 +432,7 @@ namespace Eigen
 
         void setZero()
         {
-            pinocchio::neutral(robot()->pncModel_, derived().q());
+            pinocchio::neutral(robot()->pinocchioModel_, derived().q());
             derived().v().setZero();
         }
 
@@ -442,7 +442,7 @@ namespace Eigen
         {
             // 'Sum' q = q + v, remember q is part of a Lie group (dim(q) != dim(v))
             assert(robot() == velocity.robot() && robot() == out.robot());
-            pinocchio::integrate(robot()->pncModel_, q(), velocity.v(), out.q());
+            pinocchio::integrate(robot()->pinocchioModel_, q(), velocity.v(), out.q());
             out.v() = v() + velocity.a();
             return out;
         }
@@ -458,7 +458,7 @@ namespace Eigen
                                                      StateDerivativeBase<OutDerived> & out) const
         {
             assert(robot() == position.robot() && robot() == out.robot());
-            pinocchio::difference(robot()->pncModel_, q(), position.q(), out.v());
+            pinocchio::difference(robot()->pinocchioModel_, q(), position.q(), out.v());
             out.a() = v() - position.v();
             return out;
         }
@@ -789,17 +789,17 @@ namespace Eigen
             typedef typename VectorContainerBase<Derived>::RealScalar RealScalar;
             static inline RealScalar run(const VectorContainerBase<Derived> & container)
             {
-                RealScalar maxValue = 0.0;
+                RealScalar valueMax = 0.0;
                 for (const typename internal::traits<Derived>::ValueType & element :
                      container.vector())
                 {
                     RealScalar value = element.template lpNorm<Infinity>();
-                    if (value > maxValue)
+                    if (value > valueMax)
                     {
-                        maxValue = value;
+                        valueMax = value;
                     }
                 }
-                return maxValue;
+                return valueMax;
             }
         };
     }
@@ -1105,7 +1105,7 @@ namespace Eigen
         }                                                                                      \
                                                                                                \
         EIGEN_CAT(BASE, Vector)                                                                \
-        (EIGEN_CAT(BASE, Vector) const & other) :                                              \
+        (const EIGEN_CAT(BASE, Vector) & other) :                                              \
         VectorContainer<EIGEN_CAT(BASE, Shared)>(),                                            \
         VAR1(other.VAR1),                                                                      \
         VAR2(other.VAR2)                                                                       \
@@ -1201,7 +1201,7 @@ namespace Eigen
             return *this;                                                                      \
         }                                                                                      \
                                                                                                \
-        EIGEN_CAT(BASE, Vector) & operator=(EIGEN_CAT(BASE, Vector) const & other)             \
+        EIGEN_CAT(BASE, Vector) & operator=(const EIGEN_CAT(BASE, Vector) & other)             \
         {                                                                                      \
             const std::vector<ValueType> & vectorIn = other.vector();                          \
             assert(vectorIn.size() == vector_.size());                                         \
@@ -1333,8 +1333,8 @@ namespace Eigen
 
 namespace jiminy
 {
-    using state_t = Eigen::StateVector;
-    using stateDerivative_t = Eigen::StateDerivativeVector;
+    using State = Eigen::StateVector;
+    using StateDerivative = Eigen::StateDerivativeVector;
 }
 
 #endif  // JIMINY_LIE_GROUP_H

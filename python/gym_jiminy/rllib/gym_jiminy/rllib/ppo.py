@@ -178,9 +178,9 @@ def _compute_mirrored_value(value: torch.Tensor,
             field_shape = space.original_space[  # type: ignore[attr-defined]
                 field].shape
             field_size = reduce(operator.mul, field_shape)
-            slice_idx = slice(offset, offset + field_size)
+            field_slice = slice(offset, offset + field_size)
             slice_mirrored = _update_flattened_slice(
-                value[:, slice_idx], field_shape, slice_mirror_mat)
+                value[:, field_slice], field_shape, slice_mirror_mat)
             value_mirrored.append(slice_mirrored)
             offset += field_size
         return torch.cat(value_mirrored, dim=1)

@@ -6,7 +6,7 @@ controller
    :members:
    :undoc-members:
 
-.. doxygenclass:: jiminy::ControllerFunctor
+.. doxygenclass:: jiminy::FunctionalController
    :project: jiminy
    :members:
    :undoc-members:

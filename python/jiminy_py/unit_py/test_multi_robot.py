@@ -27,7 +27,7 @@ class SimulateMultiRobot(unittest.TestCase):
         """
         # Specify model
         urdf_name = "linear_single_mass.urdf"
-        motors_names = ["Joint"]
+        motor_names = ["Joint"]
 
         # Specify spring stiffness and damping for this simulation
         # First two parameters are the stiffness of each system,
@@ -35,16 +35,14 @@ class SimulateMultiRobot(unittest.TestCase):
         k = np.array([100, 20, 50])
         nu = np.array([0.1, 0.2, 0.2])
 
-        # Create controllers
-        class Controllers:
+        # Define controller
+        class Controller(jiminy.BaseController):
             def __init__(self, k, nu):
+                super().__init__()
                 self.k = k
                 self.nu = nu
 
-            def compute_command(self, t, q, v, sensors_data, command):
-                pass
-
-            def internal_dynamics(self, t, q, v, sensors_data, u_custom):
+            def internal_dynamics(self, t, q, v, u_custom):
                 u_custom[:] = - self.k * q - self.nu * v
 
         # Create two identical robots
@@ -60,13 +58,10 @@ class SimulateMultiRobot(unittest.TestCase):
         system_names = ['FirstSystem', 'SecondSystem']
         robots = []
         for i in range(2):
-            robots.append(load_urdf_default(urdf_name, motors_names))
+            robots.append(load_urdf_default(urdf_name, motor_names))
 
             # Create controller
-            controller = Controllers(k[i], nu[i])
-
-            controller = jiminy.ControllerFunctor(
-                controller.compute_command, controller.internal_dynamics)
+            controller = Controller(k[i], nu[i])
             controller.initialize(robots[i])
 
             # Add system to engine.
@@ -76,7 +71,7 @@ class SimulateMultiRobot(unittest.TestCase):
         def force(t, q1, v1, q2, v2, f):
             f[0] = k[2] * (q2[0] - q1[0]) + nu[2] * (v2[0] - v1[0])
 
-        engine.register_force_coupling(
+        engine.register_coupling_force(
             system_names[0], system_names[1], "Mass", "Mass", force)
 
         # Run simulation and extract some information from log data

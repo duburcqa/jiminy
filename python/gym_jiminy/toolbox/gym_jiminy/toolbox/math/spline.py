@@ -435,21 +435,21 @@ class Spline(nn.Module):
 
         # Extract the data for each datapoint
         if idx.ndim > 1:
-            t_idx = torch.stack([
+            t_index = torch.stack([
                 self.t[j, ..., i] for j, i in enumerate(idx)], dim=0)
-            dt_idx = torch.stack([
+            dt_index = torch.stack([
                 self.dt[j, ..., i] for j, i in enumerate(idx)], dim=0)
-            p_idx = torch.stack([
+            p_index = torch.stack([
                 self.p[j, ..., i] for j, i in enumerate(idx)], dim=0)
         else:
-            t_idx = self.t[..., idx]
-            dt_idx = self.dt[..., idx]
-            p_idx = self.p[..., idx]
+            t_index = self.t[..., idx]
+            dt_index = self.dt[..., idx]
+            p_index = self.p[..., idx]
 
         # Compute the interpolation for each order
-        ratio = (ts - t_idx) / dt_idx
+        ratio = (ts - t_index) / dt_index
         ys = torch.stack([
-            torch.sum(p_idx * self._h_poly(ratio, o), dim=-2) / dt_idx ** o
+            torch.sum(p_index * self._h_poly(ratio, o), dim=-2) / dt_index ** o
             for o in orders], dim=0)
         if self.p.ndim == 2:
             ys.squeeze_(1)

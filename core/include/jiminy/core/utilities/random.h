@@ -133,7 +133,7 @@ namespace jiminy
 
         template<typename... StackedArgsIn>
         constexpr scalar_random_op(R (*f)(DerivedArgs...), StackedArgsIn &&... args) :
-        fun_(f),
+        func_(f),
         args_(std::forward<StackedArgsIn>(args)...)
         {
         }
@@ -160,7 +160,7 @@ namespace jiminy
             // as it would be error-prone to cast-away constness, otherwise the user may expect the
             // original object to be modified while actually only the copy will be.
             // FIXME: Replacing `std::integral_constant` by template-lambda when moving to C++20
-            return fun_(
+            return func_(
                 [&](auto I) -> decltype(auto)
                 {
                     // Extract the right stacked argument
@@ -186,7 +186,7 @@ namespace jiminy
         }
 
     private:
-        R (*fun_)(DerivedArgs...);
+        R (*func_)(DerivedArgs...);
         std::conditional_t<
             (sizeof...(StackedArgs) > 0),
             std::tuple<StackedArgs...>,
@@ -530,12 +530,12 @@ namespace jiminy
 
     // ******************************* Random terrain generators ******************************* //
 
-    HeightmapFunctor JIMINY_DLLAPI tiles(const Eigen::Vector2d & size,
-                                         double heightMax,
-                                         const Eigen::Vector2d & interpDelta,
-                                         uint32_t sparsity,
-                                         double orientation,
-                                         uint32_t seed);
+    HeightmapFunction JIMINY_DLLAPI tiles(const Eigen::Vector2d & size,
+                                          double heightMax,
+                                          const Eigen::Vector2d & interpDelta,
+                                          uint32_t sparsity,
+                                          double orientation,
+                                          uint32_t seed);
 }
 
 #include "jiminy/core/utilities/random.hxx"

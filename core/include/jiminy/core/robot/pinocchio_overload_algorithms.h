@@ -135,23 +135,24 @@ namespace jiminy::pinocchio_overload
             typedef typename Data::Inertia Inertia;
             typedef typename Data::Force Force;
 
-            const JointIndex & i = jmodel.id();
-            const JointIndex & parent = model.parents[i];
-            typename Inertia::Matrix6 & Ia = data.Yaba[i];
+            const JointIndex & jointIndex = jmodel.id();
+            const JointIndex & parentJointIndex = model.parents[jointIndex];
+            typename Inertia::Matrix6 & Ia = data.Yaba[jointIndex];
 
-            jmodel.jointVelocitySelector(data.u) -= jdata.S().transpose() * data.f[i];
+            jmodel.jointVelocitySelector(data.u) -= jdata.S().transpose() * data.f[jointIndex];
 
             // jmodel.calc_aba(jdata.derived(), Ia, parent > 0);
             const auto Im = model.rotorInertia.segment(jmodel.idx_v(), jmodel.nv());
-            calc_aba(jmodel.derived(), jdata.derived(), Im, Ia, parent > 0);
+            calc_aba(jmodel.derived(), jdata.derived(), Im, Ia, parentJointIndex > 0);
 
-            if (parent > 0)
+            if (parentJointIndex > 0)
             {
-                Force & pa = data.f[i];
-                pa.toVector().noalias() += Ia * data.a_gf[i].toVector();
+                Force & pa = data.f[jointIndex];
+                pa.toVector().noalias() += Ia * data.a_gf[jointIndex].toVector();
                 pa.toVector().noalias() += jdata.UDinv() * jmodel.jointVelocitySelector(data.u);
-                data.Yaba[parent] += pinocchio::internal::SE3actOn<Scalar>::run(data.liMi[i], Ia);
-                data.f[parent] += data.liMi[i].act(pa);
+                data.Yaba[parentJointIndex] +=
+                    pinocchio::internal::SE3actOn<Scalar>::run(data.liMi[jointIndex], Ia);
+                data.f[parentJointIndex] += data.liMi[jointIndex].act(pa);
             }
         }
 

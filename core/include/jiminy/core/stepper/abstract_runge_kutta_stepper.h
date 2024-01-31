@@ -24,9 +24,10 @@ namespace jiminy
         virtual ~AbstractRungeKuttaStepper() = default;
 
     protected:
-        /// \brief Internal tryStep method wrapping the arguments as state_t and stateDerivative_t.
-        virtual bool tryStepImpl(state_t & state,
-                                 stateDerivative_t & stateDerivative,
+        /// \brief Internal tryStep method wrapping the arguments as State and
+        /// StateDerivative.
+        virtual bool tryStepImpl(State & state,
+                                 StateDerivative & stateDerivative,
                                  double t,
                                  double & dt) final override;
 
@@ -38,8 +39,7 @@ namespace jiminy
         /// \param[in, out] dt Timestep to be scaled.
         ///
         /// \return Whether the step is successful. The timestep dt is updated in place.
-        virtual bool adjustStep(
-            const state_t & initialState, const state_t & solution, double & dt);
+        virtual bool adjustStep(const State & initialState, const State & solution, double & dt);
 
     private:
         /// \brief Weight matrix.
@@ -53,13 +53,13 @@ namespace jiminy
 
     protected:
         /// \brief Derivatives at knots.
-        std::vector<stateDerivative_t> ki_;
+        std::vector<StateDerivative> ki_;
         /// \brief Intermediary computation of state increment.
-        stateDerivative_t stateIncrement_;
+        StateDerivative stateIncrement_;
         /// \brief Intermediary state during knots computations.
-        state_t stateBuffer_;
+        State stateBuffer_;
         /// \brief Candidate solution before knowing if the step is successful.
-        state_t candidateSolution_;
+        State candidateSolution_;
     };
 }
 

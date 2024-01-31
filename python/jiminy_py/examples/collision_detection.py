@@ -36,13 +36,13 @@ class CollisionChecker:
         self.geom_name_1 = geom_name_1
         self.geom_name_2 = geom_name_2
 
-        geom_idx_1, geom_idx_2 = map(
+        geom_index_1, geom_index_2 = map(
             geom_model.getGeometryId, (geom_name_1, geom_name_2))
         self.oMg1, self.oMg2 = (
-            geom_data.oMg[i] for i in (geom_idx_1, geom_idx_2))
+            geom_data.oMg[i] for i in (geom_index_1, geom_index_2))
         self.collide_functor = hppfcl.ComputeCollision(*(
             geom_model.geometryObjects[i].geometry
-            for i in (geom_idx_1, geom_idx_2)))
+            for i in (geom_index_1, geom_index_2)))
         self.req = hppfcl.CollisionRequest()
         self.req.enable_cached_gjk_guess = True
         self.req.distance_upper_bound = 1e-6
@@ -53,17 +53,19 @@ class CollisionChecker:
         return bool(self.collide_functor(
             self.oMg1, self.oMg2, self.req, self.res))
 
-check_collision = CollisionChecker(simulator.robot.collision_model,
-                                   simulator.robot.collision_data,
-                                   "MassBody_0",
-                                   "ground")
+if __name__ == '__main__':
+    check_collision = CollisionChecker(simulator.robot.collision_model,
+                                       simulator.robot.collision_data,
+                                       "MassBody_0",
+                                       "ground")
 
-# Run the simulation until collision detection
-while True:
-    simulator.step(1e-3)
-    if check_collision():
-        break
-simulator.stop()
+    # Run the simulation until collision detection
+    while True:
+        simulator.step(1e-3)
+        if check_collision():
+            break
+    simulator.stop()
 
-# Replay the simulation
-simulator.replay(enable_travelling=False, display_contact_frames=True)
+    # Replay the simulation
+    simulator.replay(enable_travelling=False, display_contact_frames=True)
+

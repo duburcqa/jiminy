@@ -22,7 +22,7 @@ namespace jiminy
     ///
     /// \details This structure enables to optimize the efficiency of data storage by gathering the
     ///          state of every motor.
-    struct MotorSharedDataHolder_t
+    struct MotorSharedStorage
     {
         /// \brief Buffer storing the current true motor efforts.
         Eigen::VectorXd data_;
@@ -52,7 +52,7 @@ namespace jiminy
             return config;
         };
 
-        struct abstractMotorOptions_t
+        struct AbstractMotorOptions
         {
             /// \brief Mechanical reduction ratio of transmission (joint/motor), usually >= 1.0.
             const double mechanicalReduction;
@@ -62,7 +62,7 @@ namespace jiminy
             const bool enableArmature;
             const double armature;
 
-            abstractMotorOptions_t(const GenericConfig & options) :
+            AbstractMotorOptions(const GenericConfig & options) :
             mechanicalReduction(boost::get<double>(options.at("mechanicalReduction"))),
             enableCommandLimit(boost::get<bool>(options.at("enableCommandLimit"))),
             commandLimitFromUrdf(boost::get<bool>(options.at("commandLimitFromUrdf"))),
@@ -121,22 +121,22 @@ namespace jiminy
         const std::string & getName() const;
 
         /// \brief Index of the motor.
-        std::size_t getIdx() const;
+        std::size_t getIndex() const;
 
         /// \brief Name of the joint associated with the motor.
         const std::string & getJointName() const;
 
         /// \brief Index of the joint associated with the motor in the kinematic tree.
-        pinocchio::JointIndex getJointModelIdx() const;
+        pinocchio::JointIndex getJointIndex() const;
 
         /// \brief Type of joint associated with the motor.
         JointModelType getJointType() const;
 
         /// \brief Index of the joint associated with the motor in configuration vector.
-        Eigen::Index getJointPositionIdx() const;
+        Eigen::Index getJointPositionIndex() const;
 
         /// \brief Index of the joint associated with the motor in the velocity vector.
-        Eigen::Index getJointVelocityIdx() const;
+        Eigen::Index getJointVelocityIndex() const;
 
         /// \brief Maximum effort of the motor.
         double getCommandLimit() const;
@@ -191,18 +191,18 @@ namespace jiminy
         /// \details This method must be called before initializing the sensor.
         hresult_t attach(std::weak_ptr<const Robot> robot,
                          std::function<hresult_t(AbstractMotorBase & /*motor*/)> notifyRobot,
-                         MotorSharedDataHolder_t * sharedHolder);
+                         MotorSharedStorage * sharedStorage);
 
         /// \brief Detach the sensor from the robot.
         hresult_t detach();
 
     public:
         /// \brief Structure with the parameters of the motor.
-        std::unique_ptr<const abstractMotorOptions_t> baseMotorOptions_{nullptr};
+        std::unique_ptr<const AbstractMotorOptions> baseMotorOptions_{nullptr};
 
     protected:
         /// \brief Dictionary with the parameters of the motor.
-        GenericConfig motorOptionsHolder_{};
+        GenericConfig motorOptionsGeneric_{};
         /// \brief Flag to determine whether the controller has been initialized or not.
         bool isInitialized_{false};
         /// \brief Flag to determine whether the motor is attached to a robot.
@@ -214,18 +214,18 @@ namespace jiminy
         /// \brief Name of the motor.
         std::string name_;
         /// \brief Index of the motor in the measurement buffer.
-        std::size_t motorIdx_{0};
+        std::size_t motorIndex_{0};
         std::string jointName_{};
-        pinocchio::JointIndex jointModelIdx_{0};
+        pinocchio::JointIndex jointIndex_{0};
         JointModelType jointType_{JointModelType::UNSUPPORTED};
-        Eigen::Index jointPositionIdx_{0};
-        Eigen::Index jointVelocityIdx_{0};
+        Eigen::Index jointPositionIndex_{0};
+        Eigen::Index jointVelocityIndex_{0};
         double commandLimit_{0.0};
         double armature_{0.0};
 
     private:
         /// \brief Shared data between every motors associated with the robot.
-        MotorSharedDataHolder_t * sharedHolder_{nullptr};
+        MotorSharedStorage * sharedStorage_{nullptr};
     };
 }
 

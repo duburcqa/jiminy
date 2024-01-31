@@ -4,37 +4,37 @@
 
 namespace jiminy
 {
-    openMode_t operator|(openMode_t modeA, openMode_t modeB)
+    OpenMode operator|(OpenMode modeA, OpenMode modeB)
     {
-        return static_cast<openMode_t>(static_cast<int32_t>(modeA) | static_cast<int32_t>(modeB));
+        return static_cast<OpenMode>(static_cast<int32_t>(modeA) | static_cast<int32_t>(modeB));
     }
 
-    openMode_t operator&(openMode_t modeA, openMode_t modeB)
+    OpenMode operator&(OpenMode modeA, OpenMode modeB)
     {
-        return static_cast<openMode_t>(static_cast<int32_t>(modeA) & static_cast<int32_t>(modeB));
+        return static_cast<OpenMode>(static_cast<int32_t>(modeA) & static_cast<int32_t>(modeB));
     }
 
-    openMode_t operator|=(openMode_t & modeA, openMode_t modeB)
+    OpenMode operator|=(OpenMode & modeA, OpenMode modeB)
     {
         return modeA = modeA | modeB;
     }
 
-    openMode_t operator&=(openMode_t & modeA, openMode_t modeB)
+    OpenMode operator&=(OpenMode & modeA, OpenMode modeB)
     {
         return modeA = modeA & modeB;
     }
 
-    openMode_t operator~(openMode_t mode)
+    OpenMode operator~(OpenMode mode)
     {
-        return static_cast<openMode_t>(~static_cast<int32_t>(mode));
+        return static_cast<OpenMode>(~static_cast<int32_t>(mode));
     }
 
-    AbstractIODevice::AbstractIODevice(openMode_t supportedModes) noexcept :
+    AbstractIODevice::AbstractIODevice(OpenMode supportedModes) noexcept :
     supportedModes_(supportedModes)
     {
     }
 
-    hresult_t AbstractIODevice::open(openMode_t modes)
+    hresult_t AbstractIODevice::open(OpenMode modes)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -91,29 +91,29 @@ namespace jiminy
         return returnCode;
     }
 
-    openMode_t AbstractIODevice::openModes() const
+    OpenMode AbstractIODevice::openModes() const
     {
         return modes_;
     }
 
-    openMode_t AbstractIODevice::supportedModes() const
+    OpenMode AbstractIODevice::supportedModes() const
     {
         return supportedModes_;
     }
 
     bool AbstractIODevice::isWritable() const
     {
-        return (modes_ & openMode_t::WRITE_ONLY) || (modes_ & openMode_t::READ_WRITE);
+        return (modes_ & OpenMode::WRITE_ONLY) || (modes_ & OpenMode::READ_WRITE);
     }
 
     bool AbstractIODevice::isReadable() const
     {
-        return (modes_ & openMode_t::READ_ONLY) || (modes_ & openMode_t::READ_WRITE);
+        return (modes_ & OpenMode::READ_ONLY) || (modes_ & OpenMode::READ_WRITE);
     }
 
     bool AbstractIODevice::isOpen() const
     {
-        return (modes_ != openMode_t::NOT_OPEN);
+        return (modes_ != OpenMode::NOT_OPEN);
     }
 
     bool AbstractIODevice::isSequential() const

@@ -196,8 +196,8 @@ def generate_default_hardware_description_file(
         Global=OrderedDict(
             sensorsUpdatePeriod=1.0/default_update_rate,
             controllerUpdatePeriod=1.0/default_update_rate,
-            collisionBodiesNames=[],
-            contactFramesNames=[]
+            collisionBodyNames=[],
+            contactFrameNames=[]
         ),
         Motor=defaultdict(OrderedDict),
         Sensor=defaultdict(OrderedDict)
@@ -242,7 +242,7 @@ def generate_default_hardware_description_file(
     gazebo_ground_stiffness: Optional[float] = None
     gazebo_ground_damping: Optional[float] = None
     gazebo_update_rate: Optional[float] = None
-    collision_bodies_names: Set[str] = set()
+    collision_body_names: Set[str] = set()
     gazebo_plugins_found = root.find('gazebo') is not None
     for gazebo_plugin_descr in root.iterfind('gazebo'):
         body_name = gazebo_plugin_descr.attrib['reference']
@@ -259,7 +259,7 @@ def generate_default_hardware_description_file(
             if 'imu' in sensor_type:
                 sensor_type = imu.type
             elif 'contact' in sensor_type:
-                collision_bodies_names.add(body_name)
+                collision_body_names.add(body_name)
                 sensor_type = force.type
             else:
                 LOGGER.warning(
@@ -299,13 +299,13 @@ def generate_default_hardware_description_file(
         # collision body.
         if gazebo_plugin_descr.find('kp') is not None:
             # Add a force sensor, if not already in the collision set
-            if body_name not in collision_bodies_names:
+            if body_name not in collision_body_names:
                 force_sensor_info = hardware_info['Sensor'][force.type]
                 force_sensor_info[f"{body_name}Contact"] = OrderedDict(
                     frame_name=body_name)
 
             # Add the related body to the collision set
-            collision_bodies_names.add(body_name)
+            collision_body_names.add(body_name)
 
             # Update the ground model
             kp_obj = gazebo_plugin_descr.find('kp')
@@ -351,11 +351,11 @@ def generate_default_hardware_description_file(
 
             # Add the related body to the collision set if possible
             if root.find(f"./link[@name='{link_leaf}']/collision") is not None:
-                collision_bodies_names.add(link_leaf)
+                collision_body_names.add(link_leaf)
 
     # Specify collision bodies and ground model in global config options
-    hardware_info['Global']['collisionBodiesNames'] = \
-        sorted(list(collision_bodies_names))
+    hardware_info['Global']['collisionBodyNames'] = sorted(
+        list(collision_body_names))
     if gazebo_ground_stiffness is not None:
         hardware_info['Global']['groundStiffness'] = gazebo_ground_stiffness
     if gazebo_ground_damping is not None:
@@ -565,8 +565,8 @@ def load_hardware_description_file(
             geometry_types.values(),
             geometry_specs.values()):
         for geometry_object in geom_model.geometryObjects:
-            frame_idx = geometry_object.parentFrame
-            frame_name = robot.pinocchio_model.frames[frame_idx].name
+            frame_index = geometry_object.parentFrame
+            frame_name = robot.pinocchio_model.frames[frame_index].name
             mesh_path = geometry_object.meshPath
             is_mesh = any(char in mesh_path for char in ('\\', '/', '.'))
             geom_type: GeometryObjectType = 'mesh' if is_mesh else 'primitive'
@@ -576,10 +576,9 @@ def load_hardware_description_file(
     # Checking the collision bodies, to make sure they are associated with
     # supported collision geometries. If not, fixing the issue after
     # throwing a warning.
-    collision_bodies_names = extra_info.pop(
-        'collisionBodiesNames', [])
-    contact_frames_names = extra_info.pop('contactFramesNames', [])
-    for body_name in collision_bodies_names.copy():
+    collision_body_names = extra_info.pop('collisionBodyNames', [])
+    contact_frame_names = extra_info.pop('contactFrameNames', [])
+    for body_name in collision_body_names.copy():
         # Filter out the different cases.
         # After this filter, we know that their is no collision geometry
         # associated with the body but their is a visual mesh, or there is
@@ -607,7 +606,7 @@ def load_hardware_description_file(
                 "No visual mesh nor collision geometry associated with "
                 "collision body '%s'. Fallback to adding a single contact "
                 "point at body frame.", body_name)
-            contact_frames_names.append(body_name)
+            contact_frame_names.append(body_name)
             continue
         else:
             LOGGER.warning(
@@ -645,13 +644,13 @@ def load_hardware_description_file(
                         np.eye(3), np.array([x, y, z]))
                     frame_transform = box_origin.act(vertex_pos_rel)
                     robot.add_frame(frame_name, body_name, frame_transform)
-                    contact_frames_names.append(frame_name)
+                    contact_frame_names.append(frame_name)
         elif body_name in geometry_types['collision']['primitive']:
             # Do nothing if the primitive is not a box. It should be fine.
             continue
 
         # Remove the body from the collision detection set
-        collision_bodies_names.remove(body_name)
+        collision_body_names.remove(body_name)
 
         # Early return if collision box primitives have been replaced
         if collision_boxes_size:
@@ -691,7 +690,7 @@ def load_hardware_description_file(
                     np.eye(3), mesh_scale * np.asarray(box.vertices[i]))
                 frame_transform = mesh_origin.act(frame_transform_rel)
                 robot.add_frame(frame_name, body_name, frame_transform)
-                contact_frames_names.append(frame_name)
+                contact_frame_names.append(frame_name)
 
     # Add the collision bodies and contact points.
     # Note that it must be done before adding the sensors because
@@ -705,8 +704,8 @@ def load_hardware_description_file(
     # interpreter for security reason. As a result, the set must be sorted
     # manually to ensure consistent results.
     robot.add_collision_bodies(
-        collision_bodies_names, ignore_meshes=avoid_instable_collisions)
-    robot.add_contact_points(sorted(list(set(contact_frames_names))))
+        collision_body_names, ignore_meshes=avoid_instable_collisions)
+    robot.add_contact_points(sorted(list(set(contact_frame_names))))
 
     # Add the motors to the robot
     for motor_type, motors_descr in motors_info.items():
@@ -757,7 +756,7 @@ def load_hardware_description_file(
                     continue
             elif sensor_type == effort.type:
                 motor_name = sensor_descr.pop('motor_name')
-                if motor_name not in robot.motors_names:
+                if motor_name not in robot.motor_names:
                     LOGGER.warning(
                         "'%s' is not a valid motor name.", motor_name)
                     continue

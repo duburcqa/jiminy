@@ -4,7 +4,7 @@ control design.
 It implements:
 
 * the concept of block thats can be connected to a `BaseJiminyEnv` environment
-  through multiple `JiminyEnvInterface` indirections
+  through multiple `InterfaceJiminyEnv` indirections
 * a base controller block, along with a concrete PD controller
 * a wrapper to combine a controller block and a `BaseJiminyEnv` environment,
   eventually already wrapped, so that it appears as a black-box environment.
@@ -33,7 +33,7 @@ from .generic_bases import (DT_EPS,
                             BaseActT,
                             InfoType,
                             EngineObsType,
-                            JiminyEnvInterface)
+                            InterfaceJiminyEnv)
 from .block_bases import BaseControllerBlock, BaseObserverBlock
 
 
@@ -45,7 +45,7 @@ TransformedActT = TypeVar('TransformedActT', bound=DataNested)
 
 
 class BasePipelineWrapper(
-        JiminyEnvInterface[ObsT, ActT],
+        InterfaceJiminyEnv[ObsT, ActT],
         Generic[ObsT, ActT, BaseObsT, BaseActT]):
     """Base class for wrapping a `BaseJiminyEnv` Gym environment so that it
     appears as a single, unified, environment. The environment may have been
@@ -65,10 +65,10 @@ class BasePipelineWrapper(
         It is recommended to add the controllers and observers into the
         policy itself if they have to be trainable.
     """
-    env: JiminyEnvInterface[BaseObsT, BaseActT]
+    env: InterfaceJiminyEnv[BaseObsT, BaseActT]
 
     def __init__(self,
-                 env: JiminyEnvInterface[BaseObsT, BaseActT],
+                 env: InterfaceJiminyEnv[BaseObsT, BaseActT],
                  **kwargs: Any) -> None:
         """
         :param kwargs: Extra keyword arguments for multiple inheritance.
@@ -78,7 +78,7 @@ class BasePipelineWrapper(
         self.robot = env.robot
         self.stepper_state = env.stepper_state
         self.system_state = env.system_state
-        self.sensors_data = env.sensors_data
+        self.sensor_measurements = env.sensor_measurements
         self.is_simulation_running = env.is_simulation_running
 
         # Backup the parent environment
@@ -129,7 +129,7 @@ class BasePipelineWrapper(
         self.env.np_random = value
 
     @property
-    def unwrapped(self) -> JiminyEnvInterface:
+    def unwrapped(self) -> InterfaceJiminyEnv:
         """Base environment of the pipeline.
         """
         return self.env.unwrapped
@@ -170,11 +170,11 @@ class BasePipelineWrapper(
         pipeline_wrapper_ref = ref(self)
 
         # Extra reset_hook from options if provided
-        derived_reset_hook: Optional[Callable[[], JiminyEnvInterface]] = (
+        derived_reset_hook: Optional[Callable[[], InterfaceJiminyEnv]] = (
             options or {}).get("reset_hook")
 
         # Define chained controller hook
-        def reset_hook() -> Optional[JiminyEnvInterface]:
+        def reset_hook() -> Optional[InterfaceJiminyEnv]:
             """Register the block to the higher-level block.
 
             This method is used internally to make sure that `_setup` method
@@ -192,7 +192,7 @@ class BasePipelineWrapper(
             # Forward the environment provided by the reset hook of higher-
             # level block if any, or use this wrapper otherwise.
             if derived_reset_hook is None:
-                env_derived: JiminyEnvInterface = pipeline_wrapper
+                env_derived: InterfaceJiminyEnv = pipeline_wrapper
             else:
                 assert callable(derived_reset_hook)
                 env_derived = derived_reset_hook() or pipeline_wrapper
@@ -268,7 +268,7 @@ class BasePipelineWrapper(
         # Refresh some proxies for fast lookup
         self.robot = self.env.robot
         self.system_state = self.env.system_state
-        self.sensors_data = self.env.sensors_data
+        self.sensor_measurements = self.env.sensor_measurements
 
         # Initialize specialized operator(s) for efficiency
         self._copyto_action = build_copyto(self.action)
@@ -336,7 +336,7 @@ class ObservedJiminyEnv(
         if it has to be trainable.
     """
     def __init__(self,
-                 env: JiminyEnvInterface[BaseObsT, ActT],
+                 env: InterfaceJiminyEnv[BaseObsT, ActT],
                  observer: BaseObserverBlock[
                      OtherObsT, OtherStateT, BaseObsT, ActT],
                  **kwargs: Any):
@@ -364,7 +364,7 @@ class ObservedJiminyEnv(
 
         # Make sure that there is no other block with the exact same name
         block_name = observer.name
-        env_unwrapped: JiminyEnvInterface = env
+        env_unwrapped: InterfaceJiminyEnv = env
         while isinstance(env_unwrapped, BasePipelineWrapper):
             if isinstance(env_unwrapped, ObservedJiminyEnv):
                 assert block_name != env_unwrapped.observer.name
@@ -534,7 +534,7 @@ class ControlledJiminyEnv(
         the controllers into the policy itself if it has to be trainable.
     """  # noqa: E501  # pylint: disable=line-too-long
     def __init__(self,
-                 env: JiminyEnvInterface[BaseObsT, BaseActT],
+                 env: InterfaceJiminyEnv[BaseObsT, BaseActT],
                  controller: BaseControllerBlock[
                      ActT, OtherStateT, BaseObsT, BaseActT],
                  augment_observation: bool = False,
@@ -583,7 +583,7 @@ class ControlledJiminyEnv(
 
         # Make sure that the pipeline does not have a block with the same name
         block_name = controller.name
-        env_unwrapped: JiminyEnvInterface = env
+        env_unwrapped: InterfaceJiminyEnv = env
         while isinstance(env_unwrapped, BasePipelineWrapper):
             if isinstance(env_unwrapped, ObservedJiminyEnv):
                 assert block_name != env_unwrapped.observer.name
@@ -754,7 +754,7 @@ class BaseTransformObservation(
         taken into account calling `evaluate` or `play_interactive` on the
         wrapped environment.
     """
-    def __init__(self, env: JiminyEnvInterface[ObsT, ActT]) -> None:
+    def __init__(self, env: InterfaceJiminyEnv[ObsT, ActT]) -> None:
         # Initialize base class
         super().__init__(env)
 
@@ -860,7 +860,7 @@ class BaseTransformAction(
         taken into account calling `evaluate` or `play_interactive` on the
         wrapped environment.
     """
-    def __init__(self, env: JiminyEnvInterface[ObsT, ActT]) -> None:
+    def __init__(self, env: InterfaceJiminyEnv[ObsT, ActT]) -> None:
         # Initialize base class
         super().__init__(env)
 

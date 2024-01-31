@@ -3,11 +3,11 @@
 
 namespace jiminy
 {
-    void TelemetrySender::configureObject(std::shared_ptr<TelemetryData> telemetryDataInstance,
-                                          const std::string_view & objectName)
+    void TelemetrySender::configure(std::shared_ptr<TelemetryData> telemetryData,
+                                    const std::string_view & name)
     {
-        objectName_ = objectName;
-        telemetryData_ = telemetryDataInstance;
+        objectName_ = name;
+        telemetryData_ = telemetryData;
         bufferPosition_.clear();
     }
 
@@ -28,12 +28,12 @@ namespace jiminy
         }
     }
 
-    uint32_t TelemetrySender::getLocalNumEntries() const
+    uint32_t TelemetrySender::getNumEntries() const
     {
         return static_cast<uint32_t>(bufferPosition_.size());
     }
 
-    const std::string & TelemetrySender::getObjectName() const
+    const std::string & TelemetrySender::getName() const
     {
         return objectName_;
     }

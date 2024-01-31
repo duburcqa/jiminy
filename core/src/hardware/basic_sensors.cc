@@ -129,7 +129,7 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            returnCode = ::jiminy::getFrameIdx(robot->pncModel_, frameName_, frameIdx_);
+            returnCode = ::jiminy::getFrameIndex(robot->pinocchioModel_, frameName_, frameIndex_);
         }
 
         if (returnCode == hresult_t::SUCCESS)
@@ -153,9 +153,9 @@ namespace jiminy
         return frameName_;
     }
 
-    pinocchio::FrameIndex ImuSensor::getFrameIdx() const
+    pinocchio::FrameIndex ImuSensor::getFrameIndex() const
     {
-        return frameIdx_;
+        return frameIndex_;
     }
 
     hresult_t ImuSensor::set(double /* t */,
@@ -169,17 +169,17 @@ namespace jiminy
 
         // Compute gyroscope signal
         const pinocchio::Motion velocity = pinocchio::getFrameVelocity(
-            robot->pncModel_, robot->pncData_, frameIdx_, pinocchio::LOCAL);
+            robot->pinocchioModel_, robot->pinocchioData_, frameIndex_, pinocchio::LOCAL);
         data().head<3>() = velocity.angular();
 
         // Compute accelerometer signal
         const pinocchio::Motion acceleration = pinocchio::getFrameClassicalAcceleration(
-            robot->pncModel_, robot->pncData_, frameIdx_, pinocchio::LOCAL);
+            robot->pinocchioModel_, robot->pinocchioData_, frameIndex_, pinocchio::LOCAL);
 
         // Accelerometer measures the classical (not spatial !) linear acceleration minus gravity
-        const Eigen::Matrix3d & rot = robot->pncData_.oMf[frameIdx_].rotation();
+        const Eigen::Matrix3d & rot = robot->pinocchioData_.oMf[frameIndex_].rotation();
         data().tail<3>() =
-            acceleration.linear() - rot.transpose() * robot->pncModel_.gravity.linear();
+            acceleration.linear() - rot.transpose() * robot->pinocchioModel_.gravity.linear();
 
         return hresult_t::SUCCESS;
     }
@@ -241,10 +241,10 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            const std::vector<std::string> & contactFramesNames = robot->getContactFramesNames();
+            const std::vector<std::string> & contactFrameNames = robot->getContactFrameNames();
             auto contactFrameNameIt =
-                std::find(contactFramesNames.begin(), contactFramesNames.end(), frameName_);
-            if (contactFrameNameIt == contactFramesNames.end())
+                std::find(contactFrameNames.begin(), contactFrameNames.end(), frameName_);
+            if (contactFrameNameIt == contactFrameNames.end())
             {
                 PRINT_ERROR("Sensor frame not associated with any contact point of the robot. "
                             "Impossible to refresh proxies.");
@@ -254,16 +254,16 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            returnCode = ::jiminy::getFrameIdx(robot->pncModel_, frameName_, frameIdx_);
+            returnCode = ::jiminy::getFrameIndex(robot->pinocchioModel_, frameName_, frameIndex_);
         }
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            const std::vector<pinocchio::FrameIndex> & contactFramesIdx =
-                robot->getContactFramesIdx();
-            auto contactFrameIdxIt =
-                std::find(contactFramesIdx.begin(), contactFramesIdx.end(), frameIdx_);
-            contactForceIdx_ = std::distance(contactFramesIdx.begin(), contactFrameIdxIt);
+            const std::vector<pinocchio::FrameIndex> & contactFrameIndices =
+                robot->getContactFrameIndices();
+            auto contactFrameIndexIt =
+                std::find(contactFrameIndices.begin(), contactFrameIndices.end(), frameIndex_);
+            contactIndex_ = std::distance(contactFrameIndices.begin(), contactFrameIndexIt);
         }
 
         return returnCode;
@@ -274,9 +274,9 @@ namespace jiminy
         return frameName_;
     }
 
-    pinocchio::FrameIndex ContactSensor::getFrameIdx() const
+    pinocchio::FrameIndex ContactSensor::getFrameIndex() const
     {
-        return frameIdx_;
+        return frameIndex_;
     }
 
     hresult_t ContactSensor::set(double /* t */,
@@ -288,7 +288,7 @@ namespace jiminy
     {
         GET_ROBOT_IF_INITIALIZED()
 
-        data() = robot->contactForces_[contactForceIdx_].linear();
+        data() = robot->contactForces_[contactIndex_].linear();
 
         return hresult_t::SUCCESS;
     }
@@ -328,31 +328,33 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            returnCode = ::jiminy::getFrameIdx(robot->pncModel_, frameName_, frameIdx_);
+            returnCode = ::jiminy::getFrameIndex(robot->pinocchioModel_, frameName_, frameIndex_);
         }
 
         if (returnCode == hresult_t::SUCCESS)
         {
             // 'parent' returns the parent joint
-            parentJointModelIdx_ = robot->pncModel_.frames[frameIdx_].parent;
+            parentJointIndex_ = robot->pinocchioModel_.frames[frameIndex_].parent;
         }
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            contactForcesIdxAndPlacement_.clear();
-            const pinocchio::Frame & frameRef = robot->pncModel_.frames[frameIdx_];
-            const std::vector<pinocchio::FrameIndex> & contactFramesIdx =
-                robot->getContactFramesIdx();
-            for (uint32_t contactIdx = 0; contactIdx < contactFramesIdx.size(); ++contactIdx)
+            contactIndexPlacementPairs_.clear();
+            const pinocchio::Frame & frameRef = robot->pinocchioModel_.frames[frameIndex_];
+            const std::vector<pinocchio::FrameIndex> & contactFrameIndices =
+                robot->getContactFrameIndices();
+            for (uint32_t contactIndex = 0; contactIndex < contactFrameIndices.size();
+                 ++contactIndex)
             {
-                pinocchio::FrameIndex contactFrameIdx = contactFramesIdx[contactIdx];
-                const pinocchio::Frame & contactFrame = robot->pncModel_.frames[contactFrameIdx];
-                if (parentJointModelIdx_ == contactFrame.parent)
+                pinocchio::FrameIndex contactFrameIndex = contactFrameIndices[contactIndex];
+                const pinocchio::Frame & contactFrame =
+                    robot->pinocchioModel_.frames[contactFrameIndex];
+                if (parentJointIndex_ == contactFrame.parent)
                 {
                     const pinocchio::SE3 contactPlacementRel =
                         frameRef.placement.actInv(contactFrame.placement);
-                    contactForcesIdxAndPlacement_.emplace_back(contactIdx,
-                                                               std::move(contactPlacementRel));
+                    contactIndexPlacementPairs_.emplace_back(contactIndex,
+                                                             std::move(contactPlacementRel));
                 }
             }
         }
@@ -365,14 +367,14 @@ namespace jiminy
         return frameName_;
     }
 
-    pinocchio::FrameIndex ForceSensor::getFrameIdx() const
+    pinocchio::FrameIndex ForceSensor::getFrameIndex() const
     {
-        return frameIdx_;
+        return frameIndex_;
     }
 
-    pinocchio::JointIndex ForceSensor::getJointModelIdx() const
+    pinocchio::JointIndex ForceSensor::getJointIndex() const
     {
-        return parentJointModelIdx_;
+        return parentJointIndex_;
     }
 
     hresult_t ForceSensor::set(double /* t */,
@@ -388,10 +390,10 @@ namespace jiminy
 
         // Compute the sum of all contact forces applied on parent joint
         data().setZero();
-        for (const auto & [contactForceIndex, contactPlacement] : contactForcesIdxAndPlacement_)
+        for (const auto & [contactIndex, contactPlacement] : contactIndexPlacementPairs_)
         {
             // Must transform the force from contact frame to sensor frame
-            f_ = contactPlacement.act(robot->contactForces_[contactForceIndex]);
+            f_ = contactPlacement.act(robot->contactForces_[contactIndex]);
             data() += f_.toVector();
         }
 
@@ -432,7 +434,7 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            if (!robot->pncModel_.existJointName(jointName_))
+            if (!robot->pinocchioModel_.existJointName(jointName_))
             {
                 PRINT_ERROR("Sensor attached to a joint that does not exist.");
                 returnCode = hresult_t::ERROR_INIT_FAILED;
@@ -441,8 +443,8 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            jointModelIdx_ = robot->pncModel_.getJointId(jointName_);
-            getJointTypeFromIdx(robot->pncModel_, jointModelIdx_, jointType_);
+            jointIndex_ = robot->pinocchioModel_.getJointId(jointName_);
+            getJointTypeFromIndex(robot->pinocchioModel_, jointIndex_, jointType_);
 
             // Motors are only supported for linear and rotary joints
             if (jointType_ != JointModelType::LINEAR && jointType_ != JointModelType::ROTARY &&
@@ -462,9 +464,9 @@ namespace jiminy
         return jointName_;
     }
 
-    pinocchio::JointIndex EncoderSensor::getJointModelIdx() const
+    pinocchio::JointIndex EncoderSensor::getJointIndex() const
     {
-        return jointModelIdx_;
+        return jointIndex_;
     }
 
     JointModelType EncoderSensor::getJointType() const
@@ -481,20 +483,20 @@ namespace jiminy
     {
         GET_ROBOT_IF_INITIALIZED()
 
-        const auto & joint = robot->pncModel_.joints[jointModelIdx_];
-        const Eigen::Index jointPositionIdx = joint.idx_q();
-        const Eigen::Index jointVelocityIdx = joint.idx_v();
+        const auto & joint = robot->pinocchioModel_.joints[jointIndex_];
+        const Eigen::Index jointPositionIndex = joint.idx_q();
+        const Eigen::Index jointVelocityIndex = joint.idx_v();
         if (jointType_ == JointModelType::ROTARY_UNBOUNDED)
         {
-            const double cosTheta = q[jointPositionIdx];
-            const double sinTheta = q[jointPositionIdx + 1];
+            const double cosTheta = q[jointPositionIndex];
+            const double sinTheta = q[jointPositionIndex + 1];
             data()[0] = std::atan2(sinTheta, cosTheta);
         }
         else
         {
-            data()[0] = q[jointPositionIdx];
+            data()[0] = q[jointPositionIndex];
         }
-        data()[1] = v[jointVelocityIdx];
+        data()[1] = v[jointVelocityIndex];
 
         return hresult_t::SUCCESS;
     }
@@ -539,7 +541,7 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            motorIdx_ = motor.lock()->getIdx();
+            motorIndex_ = motor.lock()->getIndex();
         }
 
         return returnCode;
@@ -550,9 +552,9 @@ namespace jiminy
         return motorName_;
     }
 
-    std::size_t EffortSensor::getMotorIdx() const
+    std::size_t EffortSensor::getMotorIndex() const
     {
-        return motorIdx_;
+        return motorIndex_;
     }
 
     hresult_t EffortSensor::set(double /* t */,
@@ -568,7 +570,7 @@ namespace jiminy
             return hresult_t::ERROR_INIT_FAILED;
         }
 
-        data()[0] = uMotor[motorIdx_];
+        data()[0] = uMotor[motorIndex_];
 
         return hresult_t::SUCCESS;
     }

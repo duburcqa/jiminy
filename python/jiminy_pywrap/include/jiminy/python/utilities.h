@@ -82,9 +82,9 @@ namespace jiminy::python
     };
 
     template<typename T>
-    constexpr auto getSignature(T && fun)
+    constexpr auto getSignature(T && func)
     {
-        return get_signature_impl<decltype(std::function{fun})>::value;
+        return get_signature_impl<decltype(std::function{func})>::value;
     }
 
     template<class F, class CallPolicies, class Keywords>
@@ -130,13 +130,13 @@ namespace jiminy::python
         // Add actual doc after those tags, if any
         funcPtr->doc(bp::str(detail::py_signature_tag) + bp::str(detail::cpp_signature_tag));
         // auto dict = bp::handle<>(bp::borrowed(nsPtr->tp_dict));
-        // bp::str funcName("force_func");
+        // bp::str funcName("func");
         // if (PyObject_GetItem(dict.get(), funcName.ptr()))
         // {
         //     PyObject_DelItem(dict.get(), funcName.ptr());
         // }
         // bp::object ns(bp::handle<>(bp::borrowed(nsPtr)));
-        // bp::objects::add_to_namespace(ns, "force_func", func);
+        // bp::objects::add_to_namespace(ns, "func", func);
     }
 
     inline const char * py_type_str(const bp::detail::signature_element & s)
@@ -641,14 +641,13 @@ namespace jiminy::python
 
     /// Convert most C++ objects into Python objects by value
     template<typename T>
-    std::enable_if_t<
-        !is_vector_v<T> && !is_array_v<T> && !is_eigen_any_v<T> &&
-            !std::is_arithmetic_v<std::decay_t<T>> &&
-            !std::is_same_v<std::decay_t<T>, GenericConfig> &&
-            !std::is_same_v<std::decay_t<T>, std::pair<const std::string, SensorDataTypeMap>> &&
-            !std::is_same_v<std::decay_t<T>, std::string_view> &&
-            !std::is_same_v<std::decay_t<T>, FlexibleJointData>,
-        bp::object>
+    std::enable_if_t<!is_vector_v<T> && !is_array_v<T> && !is_eigen_any_v<T> &&
+                         !std::is_arithmetic_v<std::decay_t<T>> &&
+                         !std::is_same_v<std::decay_t<T>, GenericConfig> &&
+                         !std::is_same_v<std::decay_t<T>, SensorMeasurementTree::value_type> &&
+                         !std::is_same_v<std::decay_t<T>, std::string_view> &&
+                         !std::is_same_v<std::decay_t<T>, FlexibleJointData>,
+                     bp::object>
     convertToPython(T && data, const bool & copy = true)
     {
         if (copy)
@@ -722,9 +721,7 @@ namespace jiminy::python
     }
 
     template<typename T>
-    std::enable_if_t<
-        std::is_same_v<std::decay_t<T>, std::pair<const std::string, SensorDataTypeMap>>,
-        bp::object>
+    std::enable_if_t<std::is_same_v<std::decay_t<T>, SensorMeasurementTree::value_type>, bp::object>
     convertToPython(T && sensorDataTypeItem, const bool & copy)
     {
         auto & [sensorGroupName, sensorDataType] = sensorDataTypeItem;
@@ -864,7 +861,7 @@ namespace jiminy::python
 
     template<typename T>
     std::enable_if_t<!is_vector_v<T> && !is_array_v<T> && !is_map_v<T> && !is_eigen_any_v<T> &&
-                         !std::is_same_v<T, SensorsDataMap>,
+                         !std::is_same_v<T, SensorMeasurementTree>,
                      T>
     convertFromPython(const bp::object & dataPy)
     {
@@ -998,9 +995,9 @@ namespace jiminy::python
     namespace internal
     {
         template<typename T, size_t... Is, typename F>
-        std::array<T, sizeof...(Is)> BuildArrayFromCallable(std::index_sequence<Is...>, F fun)
+        std::array<T, sizeof...(Is)> BuildArrayFromCallable(std::index_sequence<Is...>, F func)
         {
-            return {fun(Is)...};
+            return {func(Is)...};
         }
     }
 
@@ -1020,35 +1017,37 @@ namespace jiminy::python
     }
 
     template<typename T>
-    std::enable_if_t<std::is_same_v<T, SensorsDataMap>, T>
+    std::enable_if_t<std::is_same_v<T, SensorMeasurementTree>, T>
     convertFromPython(const bp::object & dataPy)
     {
-        SensorsDataMap data;
-        bp::dict sensorsGroupsPy = bp::extract<bp::dict>(dataPy);
-        bp::list sensorsGroupsNamesPy = sensorsGroupsPy.keys();
-        bp::list sensorsGroupsValuesPy = sensorsGroupsPy.values();
-        for (bp::ssize_t i = 0; i < bp::len(sensorsGroupsNamesPy); ++i)
+        SensorMeasurementTree sensorMeasurements;
+        bp::dict sensorMeasurementTreePy = bp::extract<bp::dict>(dataPy);
+        bp::list sensorTypesPy = sensorMeasurementTreePy.keys();
+        bp::list SensorMeasurementMapsPy = sensorMeasurementTreePy.values();
+        for (bp::ssize_t i = 0; i < bp::len(sensorTypesPy); ++i)
         {
-            SensorDataTypeMap sensorGroupData{};
-            std::string sensorGroupName = bp::extract<std::string>(sensorsGroupsNamesPy[i]);
-            bp::dict sensorsDataPy = bp::extract<bp::dict>(sensorsGroupsValuesPy[i]);
-            bp::list sensorsNamesPy = sensorsDataPy.keys();
-            bp::list sensorsValuesPy = sensorsDataPy.values();
-            for (bp::ssize_t j = 0; j < bp::len(sensorsNamesPy); ++j)
+            SensorMeasurementTree::mapped_type sensorMeasurementStack{};
+            std::string sensorType = bp::extract<std::string>(sensorTypesPy[i]);
+            bp::dict SensorMeasurementMapPy = bp::extract<bp::dict>(SensorMeasurementMapsPy[i]);
+            bp::list sensorNamesPy = SensorMeasurementMapPy.keys();
+            bp::list sensorMeasurementListPy = SensorMeasurementMapPy.values();
+            for (bp::ssize_t j = 0; j < bp::len(sensorNamesPy); ++j)
             {
-                std::string sensorName = bp::extract<std::string>(sensorsNamesPy[j]);
-                np::ndarray sensorDataNumpy = bp::extract<np::ndarray>(sensorsValuesPy[j]);
-                auto sensorData =
-                    convertFromPython<Eigen::Ref<const Eigen::VectorXd>>(sensorDataNumpy);
-                sensorGroupData.insert({sensorName, static_cast<std::size_t>(j), sensorData});
+                std::string sensorName = bp::extract<std::string>(sensorNamesPy[j]);
+                np::ndarray sensorMeasurementNumpy =
+                    bp::extract<np::ndarray>(sensorMeasurementListPy[j]);
+                auto sensorMeasurement =
+                    convertFromPython<Eigen::Ref<const Eigen::VectorXd>>(sensorMeasurementNumpy);
+                sensorMeasurementStack.insert(
+                    {sensorName, static_cast<size_t>(j), sensorMeasurement});
             }
-            data.emplace(sensorGroupName, std::move(sensorGroupData));
+            sensorMeasurements.emplace(sensorType, std::move(sensorMeasurementStack));
         }
-        return data;
+        return sensorMeasurements;
     }
 
     template<typename T>
-    std::enable_if_t<is_map_v<T> && !std::is_same_v<T, SensorsDataMap>, T>
+    std::enable_if_t<is_map_v<T> && !std::is_same_v<T, SensorMeasurementTree>, T>
     convertFromPython(const bp::object & dataPy)
     {
         using K = typename T::key_type;

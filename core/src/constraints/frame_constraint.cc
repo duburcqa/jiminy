@@ -39,9 +39,9 @@ namespace jiminy
         return frameName_;
     }
 
-    pinocchio::FrameIndex FrameConstraint::getFrameIdx() const noexcept
+    pinocchio::FrameIndex FrameConstraint::getFrameIndex() const noexcept
     {
-        return frameIdx_;
+        return frameIndex_;
     }
 
     const std::vector<uint32_t> & FrameConstraint::getDofsFixed() const noexcept
@@ -88,22 +88,22 @@ namespace jiminy
         // Get frame index
         if (returnCode == hresult_t::SUCCESS)
         {
-            returnCode = ::jiminy::getFrameIdx(model->pncModel_, frameName_, frameIdx_);
+            returnCode = ::jiminy::getFrameIndex(model->pinocchioModel_, frameName_, frameIndex_);
         }
 
         if (returnCode == hresult_t::SUCCESS)
         {
             // Initialize frames jacobians buffers
-            frameJacobian_.setZero(6, model->pncModel_.nv);
+            frameJacobian_.setZero(6, model->pinocchioModel_.nv);
 
             // Initialize constraint jacobian, drift and multipliers
             const Eigen::Index dim = static_cast<Eigen::Index>(dofsFixed_.size());
-            jacobian_.setZero(dim, model->pncModel_.nv);
+            jacobian_.setZero(dim, model->pinocchioModel_.nv);
             drift_.setZero(dim);
             lambda_.setZero(dim);
 
             // Get the current frame position and use it as reference
-            transformRef_ = model->pncData_.oMf[frameIdx_];
+            transformRef_ = model->pinocchioData_.oMf[frameIndex_];
 
             // Set local frame to world by default
             rotationLocal_.setIdentity();
@@ -145,15 +145,15 @@ namespace jiminy
                drift = a_f^0
 
            For reference, see: https://github.com/duburcqa/jiminy/pull/603 */
-        const pinocchio::SE3 & framePose = model->pncData_.oMf[frameIdx_];
+        const pinocchio::SE3 & framePose = model->pinocchioData_.oMf[frameIndex_];
         const pinocchio::SE3 transformLocal(rotationLocal_, framePose.translation());
-        const pinocchio::Frame & frame = model->pncModel_.frames[frameIdx_];
-        const pinocchio::JointModel & joint = model->pncModel_.joints[frame.parent];
+        const pinocchio::Frame & frame = model->pinocchioModel_.frames[frameIndex_];
+        const pinocchio::JointModel & joint = model->pinocchioModel_.joints[frame.parent];
         const int32_t colRef = joint.nv() + joint.idx_v() - 1;
         for (Eigen::DenseIndex j = colRef; j >= 0;
-             j = model->pncData_.parents_fromRow[static_cast<std::size_t>(j)])
+             j = model->pinocchioData_.parents_fromRow[static_cast<std::size_t>(j)])
         {
-            const pinocchio::MotionRef<Matrix6Xd::ColXpr> vIn(model->pncData_.J.col(j));
+            const pinocchio::MotionRef<Matrix6Xd::ColXpr> vIn(model->pinocchioData_.J.col(j));
             pinocchio::MotionRef<Matrix6Xd::ColXpr> vOut(frameJacobian_.col(j));
             vOut = transformLocal.actInv(vIn);
         }
@@ -164,13 +164,17 @@ namespace jiminy
             pinocchio::log3(framePose.rotation() * transformRef_.rotation().transpose());
 
         // Compute frame velocity in local frame
-        const pinocchio::Motion velocity = getFrameVelocity(
-            model->pncModel_, model->pncData_, frameIdx_, pinocchio::LOCAL_WORLD_ALIGNED);
+        const pinocchio::Motion velocity = getFrameVelocity(model->pinocchioModel_,
+                                                            model->pinocchioData_,
+                                                            frameIndex_,
+                                                            pinocchio::LOCAL_WORLD_ALIGNED);
 
         /* Get drift in world frame.
            We are actually looking for the classical acceleration here ! */
-        frameDrift_ = getFrameAcceleration(
-            model->pncModel_, model->pncData_, frameIdx_, pinocchio::LOCAL_WORLD_ALIGNED);
+        frameDrift_ = getFrameAcceleration(model->pinocchioModel_,
+                                           model->pinocchioData_,
+                                           frameIndex_,
+                                           pinocchio::LOCAL_WORLD_ALIGNED);
         frameDrift_.linear() += velocity.angular().cross(velocity.linear());
 
         // Add Baumgarte stabilization to drift in world frame

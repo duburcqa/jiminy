@@ -122,9 +122,9 @@ class AcrobotJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
             self.AVAIL_CTRL = (-command_limit, np.array(0.0), command_limit)
 
         # Internal parameters used for computing termination condition
-        self._tipIdx = robot.pinocchio_model.getFrameId("Tip")
+        self._tipIndex = robot.pinocchio_model.getFrameId("Tip")
         self._tipPosZMax = abs(
-            robot.pinocchio_data.oMf[self._tipIdx].translation[2])
+            robot.pinocchio_data.oMf[self._tipIndex].translation[2])
 
         # Configure the learning environment
         super().__init__(simulator,
@@ -207,7 +207,7 @@ class AcrobotJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         terminated, truncated = super().has_terminated()
 
         # Check if the agent has successfully solved the task
-        tip_transform = self.robot.pinocchio_data.oMf[self._tipIdx]
+        tip_transform = self.robot.pinocchio_data.oMf[self._tipIndex]
         tip_position_z = tip_transform.translation[2]
         if tip_position_z > HEIGHT_REL_DEFAULT_THRESHOLD * self._tipPosZMax:
             terminated = True

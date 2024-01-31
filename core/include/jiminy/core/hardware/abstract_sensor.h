@@ -29,14 +29,14 @@ namespace jiminy
     ///          their memory layout by stacking their respective state in Eigen Matrices. This
     ///          way, performing the same operation on all sensors of the given type would be much
     ///          faster thanks to memory locality and vectorized computing via SIMD instructions.
-    struct SensorSharedDataHolder_t
+    struct SensorSharedStorage
     {
         /// \brief Circular buffer of the stored timesteps.
-        boost::circular_buffer<double> time_;
+        boost::circular_buffer<double> times_;
         /// \brief Circular buffer of past sensor real data.
         boost::circular_buffer<Eigen::MatrixXd> data_;
         /// \brief Current sensor measurements.
-        Eigen::MatrixXd dataMeasured_;
+        Eigen::MatrixXd measurements_;
         /// \brief Vector of pointers to the sensors.
         std::vector<AbstractSensorBase *> sensors_;
         /// \brief Number of sensors currently sharing this buffer.
@@ -77,7 +77,7 @@ namespace jiminy
             return config;
         };
 
-        struct abstractSensorOptions_t
+        struct AbstractSensorOptions
         {
             /// \brief Standard deviation of the noise of the sensor.
             const Eigen::VectorXd noiseStd;
@@ -92,7 +92,7 @@ namespace jiminy
             /// \details [0: Zero-order holder, 1: Linear interpolation].
             const uint32_t delayInterpolationOrder;
 
-            abstractSensorOptions_t(const GenericConfig & options) :
+            AbstractSensorOptions(const GenericConfig & options) :
             noiseStd(boost::get<Eigen::VectorXd>(options.at("noiseStd"))),
             bias(boost::get<Eigen::VectorXd>(options.at("bias"))),
             delay(boost::get<double>(options.at("delay"))),
@@ -141,7 +141,7 @@ namespace jiminy
         ///
         /// \return Return code to determine whether the execution of the method was successful.
         virtual hresult_t configureTelemetry(std::shared_ptr<TelemetryData> telemetryData,
-                                             const std::string & objectPrefixName = {});
+                                             const std::string & prefix = {});
 
         /// \brief Update the internal buffers of the telemetry associated with variables monitored
         ///        by the sensor.
@@ -200,7 +200,7 @@ namespace jiminy
         const std::string & getName() const;
 
         /// \brief Index of the sensor of the global shared buffer.
-        virtual std::size_t getIdx() const = 0;
+        virtual std::size_t getIndex() const = 0;
 
         /// \brief Type of the sensor.
         virtual const std::string & getType() const = 0;
@@ -260,7 +260,7 @@ namespace jiminy
         ///
         /// \details This method must be called before initializing the sensor.
         virtual hresult_t attach(std::weak_ptr<const Robot> robot,
-                                 SensorSharedDataHolder_t * sharedHolder) = 0;
+                                 SensorSharedStorage * sharedStorage) = 0;
 
         /// \brief Detach the sensor from the robot.
         virtual hresult_t detach() = 0;
@@ -296,11 +296,11 @@ namespace jiminy
 
     public:
         /// \brief Structure with the parameters of the sensor
-        std::unique_ptr<const abstractSensorOptions_t> baseSensorOptions_{nullptr};
+        std::unique_ptr<const AbstractSensorOptions> baseSensorOptions_{nullptr};
 
     protected:
         /// \brief Dictionary with the parameters of the sensor.
-        GenericConfig sensorOptionsHolder_{};
+        GenericConfig sensorOptionsGeneric_{};
         /// \brief Flag to determine whether the sensor has been initialized.
         bool isInitialized_{false};
         /// \brief Flag to determine whether the sensor is attached to a robot.
@@ -336,7 +336,7 @@ namespace jiminy
         void updateTelemetryAll() override final;
 
         virtual hresult_t setOptionsAll(const GenericConfig & sensorOptions) override final;
-        virtual std::size_t getIdx() const override final;
+        virtual std::size_t getIndex() const override final;
         virtual const std::string & getType() const override final;
         virtual const std::vector<std::string> & getFieldnames() const final;
         virtual std::size_t getSize() const override final;
@@ -355,7 +355,7 @@ namespace jiminy
 
     private:
         virtual hresult_t attach(std::weak_ptr<const Robot> robot,
-                                 SensorSharedDataHolder_t * sharedHolder) override final;
+                                 SensorSharedStorage * sharedStorage) override final;
         virtual hresult_t detach() override final;
         virtual std::string getTelemetryName() const override final;
         virtual hresult_t interpolateData() override final;
@@ -369,10 +369,10 @@ namespace jiminy
         static const bool areFieldnamesGrouped_;
 
     protected:
-        std::size_t sensorIdx_{0};
+        std::size_t sensorIndex_{0};
 
     private:
-        SensorSharedDataHolder_t * sharedHolder_{nullptr};
+        SensorSharedStorage * sharedStorage_{nullptr};
     };
 }
 

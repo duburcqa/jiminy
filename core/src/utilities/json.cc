@@ -23,7 +23,7 @@ namespace jiminy
     }
 
     template<>
-    Json::Value convertToJson<HeightmapFunctor>(const HeightmapFunctor & /* value */)
+    Json::Value convertToJson<HeightmapFunction>(const HeightmapFunction & /* value */)
     {
         return {"unsupported"};
     }
@@ -147,7 +147,7 @@ namespace jiminy
     }
 
     template<>
-    HeightmapFunctor convertFromJson<HeightmapFunctor>(const Json::Value & /* value */)
+    HeightmapFunction convertFromJson<HeightmapFunction>(const Json::Value & /* value */)
     {
         return {
             [](const Eigen::Vector2d & /* xy */, double & height, Eigen::Vector3d & normal) -> void

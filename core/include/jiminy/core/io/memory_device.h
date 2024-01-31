@@ -25,7 +25,7 @@ namespace jiminy
         bool isSequential() const override { return false; }
 
     protected:
-        hresult_t doOpen(openMode_t modes) override;
+        hresult_t doOpen(OpenMode modes) override;
         hresult_t doClose() override;
 
         std::ptrdiff_t readData(void * data, std::size_t dataSize) override;
