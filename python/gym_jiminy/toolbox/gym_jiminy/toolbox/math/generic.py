@@ -65,19 +65,32 @@ def quat_to_rpy(quat: np.ndarray,
                 provided, a new array is freshly-allocated, which is slower.
     """
     assert quat.ndim >= 1
+
+    # Allocate memory for the output array
     if out is None:
         out_ = np.empty((3, *quat.shape[1:]))
     else:
         assert out.shape == (3, *quat.shape[1:])
         out_ = out
     roll, pitch, yaw = out_
+
+    # Compute some intermediary quantities
     q_xx, q_xy, q_xz, q_xw = quat[-4] * quat[-4:]
     q_yy, q_yz, q_yw = quat[-3] * quat[-3:]
     q_zz, q_zw = quat[-2] * quat[-2:]
+
+    # First-order normalization (by copy) to avoid numerical instabilities
+    q_ww = quat[-1] * quat[-1]
+    norm_inv = ((3.0 - (q_xx + q_yy + q_zz + q_ww)) / 2)
+    q_yw *= norm_inv
+    q_xz *= norm_inv
+
+    # Compute Roll, Pitch and Yaw separately
     roll[:] = np.arctan2(2 * (q_xw + q_yz), 1.0 - 2 * (q_xx + q_yy))
     pitch[:] = - np.pi / 2 + 2 * np.arctan2(
         np.sqrt(1.0 + 2 * (q_yw - q_xz)), np.sqrt(1.0 - 2 * (q_yw - q_xz)))
     yaw[:] = np.arctan2(2 * (q_zw + q_xy), 1.0 - 2 * (q_yy + q_zz))
+
     return out_
 
 
@@ -135,7 +148,7 @@ def matrix_to_quat(mat: np.ndarray,
     q_y[:] = mat[0, 2] - mat[2, 0]
     q_z[:] = mat[1, 0] - mat[0, 1]
     q_w[:] = 1.0 + mat[0, 0] + mat[1, 1] + mat[2, 2]
-    out_ /= np.sqrt(np.sum(out_ * out_, 0))
+    out_ /= np.sqrt(np.sum(np.square(out_), axis=0))
     return out_
 
 

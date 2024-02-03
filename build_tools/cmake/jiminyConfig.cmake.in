@@ -73,15 +73,15 @@ endif()
 if(NOT TARGET pinocchio::pinocchio)
     unset(pinocchio_FOUND CACHE)
 endif()
-find_package(pinocchio @pinocchio_VERSION@ EXACT REQUIRED NO_MODULE)
+find_package(pinocchio @pinocchio_FIND_VERSION@ EXACT REQUIRED NO_MODULE)
 if(NOT TARGET hpp-fcl::hpp-fcl)
     unset(hpp-fcl_FOUND CACHE)
 endif()
-find_package(hpp-fcl 2.2.0 REQUIRED NO_MODULE)
+find_package(hpp-fcl @hpp-fcl_FIND_VERSION@ REQUIRED NO_MODULE)
 if(NOT TARGET Eigen3::Eigen)
     unset(Eigen3_FOUND CACHE)
 endif()
-find_package(Eigen3 3.3.0 REQUIRED NO_MODULE)
+find_package(Eigen3 @Eigen3_FIND_VERSION@ REQUIRED NO_MODULE)
 
 # Make sure jiminy Python module is available
 execute_process(COMMAND "${Python_EXECUTABLE}" -c
@@ -97,7 +97,7 @@ endif()
 
 # Find jiminy libraries and headers.
 # Note that jiminy is compiled under C++17 using either old or new CXX11 ABI.
-# Make sure very project dependencies are compiled for the same CXX11 ABI
+# Make sure every project dependencies are compiled for the same CXX11 ABI
 # otherwise segfaults may occur. It should be fine for the standard library,
 # but not for precompiled boost libraries.
 # https://gcc.gnu.org/onlinedocs/libstdc++/manual/abi.html
@@ -168,4 +168,4 @@ if(WIN32)
 endif()
 
 # Display import is success
-message(STATUS "Found jiminy ('@BUILD_VERSION'): ${jiminy_INCLUDE_DIRS} (${jiminy_CORE_LIBRARY})")
+message(STATUS "Found jiminy ('@BUILD_VERSION@'): ${jiminy_INCLUDE_DIRS} (${jiminy_CORE_LIBRARY})")
