@@ -12,7 +12,7 @@ jobs:
     name: >-
       (${{ matrix.PYTHON_VERSION }}) (${{ matrix.BUILD_TYPE }})
       Build and run the unit tests. Then generate and publish the wheels on PyPi.
-    runs-on: macos-13
+    runs-on: macos-14
 
     strategy:
       matrix:

@@ -180,7 +180,7 @@ namespace jiminy
     /// \param[in] secondBlockStart Start index of the second block.
     /// \param[in] secondBlockSize Length of the second block.
     template<typename Derived>
-    void swapMatrixRows(const Eigen::MatrixBase<Derived> & matrixIn,
+    void swapMatrixRows(const Eigen::MatrixBase<Derived> & mat,
                         Eigen::Index firstBlockStart,
                         Eigen::Index firstBlockSize,
                         Eigen::Index secondBlockStart,

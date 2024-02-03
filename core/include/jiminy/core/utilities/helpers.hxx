@@ -285,14 +285,23 @@ namespace jiminy
         const Eigen::Index middleOverlapBlockSize =
             std::max(overlapBlockSize - firstBlockSize, Eigen::Index{0});
         const Eigen::Index middleDisjointBlockSize = middleBlockSize - middleOverlapBlockSize;
-        if (middleDisjointBlockSize > 0)
+        if (middleDisjointBlockSize > 0 && middleBlockStart != newMiddleBlockStart)
         {
             const Eigen::Index middleBlockEnd = middleBlockStart + middleBlockSize;
             const Eigen::Index newMiddleBlockEnd = newMiddleBlockStart + middleBlockSize;
             auto middleDisjointBlock = derived.middleRows(middleBlockEnd - middleDisjointBlockSize,
                                                           middleDisjointBlockSize);
-            derived.middleRows(newMiddleBlockEnd - middleDisjointBlockSize,
-                               middleDisjointBlockSize) = middleDisjointBlock;
+            auto newMiddleDisjointBlock = derived.middleRows(
+                newMiddleBlockEnd - middleDisjointBlockSize, middleDisjointBlockSize);
+            if (middleBlockEnd < newMiddleBlockStart || newMiddleBlockStart < middleBlockStart)
+            {
+                newMiddleDisjointBlock = middleDisjointBlock;
+            }
+            else
+            {
+                // Make a copy when shifting down overlapping blocks to avoid aliasing !
+                newMiddleDisjointBlock = middleDisjointBlock.eval();
+            }
         }
 
         // Shift the overlapping part of the middle block if any
