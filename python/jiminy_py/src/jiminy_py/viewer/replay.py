@@ -377,10 +377,12 @@ def play_trajectories(
     if viewers is None:
         # Handling of default display of CoM, DCM and contact forces
         if backend.startswith('panda3d'):
+            has_freeflyer = any(
+                traj['robot'].has_freeflyer for traj in trajs_data)
             if display_com is None:
-                display_com = True
+                display_com = has_freeflyer
             if display_dcm is None:
-                display_dcm = True
+                display_dcm = has_freeflyer
             if display_contacts is None:
                 display_contacts = all(fun is not None for fun in update_hooks)
 
