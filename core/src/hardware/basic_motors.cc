@@ -72,7 +72,7 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            motorOptions_ = std::make_unique<const motorOptions_t>(motorOptions);
+            motorOptions_ = std::make_unique<const SimpleMotorOptions>(motorOptions);
         }
 
         return returnCode;

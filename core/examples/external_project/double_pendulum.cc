@@ -23,7 +23,7 @@ using namespace jiminy;
 void computeCommand(double t,
                     const Eigen::VectorXd & q,
                     const Eigen::VectorXd & v,
-                    const SensorsDataMap & sensorsData,
+                    const SensorMeasurementTree & sensorMeasurements,
                     Eigen::VectorXd & command)
 {
     // No controller: energy should be preserved
@@ -32,7 +32,7 @@ void computeCommand(double t,
 void internalDynamics(double t,
                       const Eigen::VectorXd & q,
                       const Eigen::VectorXd & v,
-                      const SensorsDataMap & sensorsData,
+                      const SensorMeasurementTree & sensorMeasurements,
                       Eigen::VectorXd & uCustom)
 {
 }
@@ -77,7 +77,7 @@ int main(int argc, char * argv[])
     }
 
     // Instantiate the controller
-    auto controller = std::make_shared<ControllerFunctor<>>(computeCommand, internalDynamics);
+    auto controller = std::make_shared<FunctionalController<>>(computeCommand, internalDynamics);
     controller->initialize(robot);
 
     // Instantiate the engine

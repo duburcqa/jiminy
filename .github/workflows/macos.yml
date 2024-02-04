@@ -47,7 +47,6 @@ jobs:
       uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.PYTHON_VERSION }}
-        architecture: 'x64'
     - name: Setup minimal build environment
       run: |
         git config --global advice.detachedHead false

@@ -7,7 +7,7 @@
 namespace jiminy::python
 {
     void JIMINY_DLLAPI exposeAbstractController();
-    void JIMINY_DLLAPI exposeControllerFunctor();
+    void JIMINY_DLLAPI exposeFunctionalController();
 }
 
 #endif  // CONTROLLERS_PYTHON_H

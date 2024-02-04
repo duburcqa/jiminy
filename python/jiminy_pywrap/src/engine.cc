@@ -22,67 +22,66 @@ namespace jiminy::python
 
     // ************* Expose impulse, profile, and coupling force registers **************
 
-    static bp::object forceProfileWrapper(const ForceProfile & self)
+    static bp::object profileForceWrapper(const ProfileForce & self)
     {
-        bp::object func = makeFunction(self.forceFct,
-                                       bp::return_value_policy<bp::return_by_value>(),
-                                       (bp::arg("t"), "q", "v"));
-        setFunctionWrapperModule<ForceProfile>(func);
+        bp::object func = makeFunction(
+            self.func, bp::return_value_policy<bp::return_by_value>(), (bp::arg("t"), "q", "v"));
+        setFunctionWrapperModule<ProfileForce>(func);
         return func;
     }
 
-    static bp::object forceCouplingWrapper(const ForceCoupling & self)
+    static bp::object couplingForceWrapper(const CouplingForce & self)
     {
-        bp::object func = makeFunction(self.forceFct,
+        bp::object func = makeFunction(self.func,
                                        bp::return_value_policy<bp::return_by_value>(),
-                                       (bp::arg("t"), "q_1", "v_1", "q_2", "v_2"));
-        setFunctionWrapperModule<ForceCoupling>(func);
+                                       (bp::arg("t"), "q1", "v1", "q2", "v2"));
+        setFunctionWrapperModule<CouplingForce>(func);
         return func;
     }
 
     void exposeForces()
     {
         // clang-format off
-        bp::class_<ForceProfile,
-                   std::shared_ptr<ForceProfile>,
-                   boost::noncopyable>("ForceProfile", bp::no_init)
-            .DEF_READONLY("frame_name", &ForceProfile::frameName)
-            .DEF_READONLY("frame_idx", &ForceProfile::frameIdx)
-            .DEF_READONLY("update_period", &ForceProfile::updatePeriod)
-            .DEF_READONLY("force_prev", &ForceProfile::forcePrev)
-            .ADD_PROPERTY_GET("force_func", forceProfileWrapper);
+        bp::class_<ProfileForce,
+                   std::shared_ptr<ProfileForce>,
+                   boost::noncopyable>("ProfileForce", bp::no_init)
+            .DEF_READONLY("frame_name", &ProfileForce::frameName)
+            .DEF_READONLY("frame_index", &ProfileForce::frameIndex)
+            .DEF_READONLY("update_period", &ProfileForce::updatePeriod)
+            .DEF_READONLY("force", &ProfileForce::force)
+            .ADD_PROPERTY_GET("func", profileForceWrapper);
 
         /* Note that it will be impossible to slice the vector if `boost::noncopyable` is set for
            the stl container, or if the value type contained itself. In such a case, it raises a
            runtime error rather than a compile-time error. */
-        bp::class_<ForceProfileRegister>("ForceProfileVector", bp::no_init)
-            .def(vector_indexing_suite_no_contains<ForceProfileRegister>());
+        bp::class_<ProfileForceVector>("ProfileForceVector", bp::no_init)
+            .def(vector_indexing_suite_no_contains<ProfileForceVector>());
 
-        bp::class_<ForceImpulse,
-                   std::shared_ptr<ForceImpulse>,
-                   boost::noncopyable>("ForceImpulse", bp::no_init)
-            .DEF_READONLY("frame_name", &ForceImpulse::frameName)
-            .DEF_READONLY("frame_idx", &ForceImpulse::frameIdx)
-            .DEF_READONLY("t", &ForceImpulse::t)
-            .DEF_READONLY("dt", &ForceImpulse::dt)
-            .DEF_READONLY("F", &ForceImpulse::F);
+        bp::class_<ImpulseForce,
+                   std::shared_ptr<ImpulseForce>,
+                   boost::noncopyable>("ImpulseForce", bp::no_init)
+            .DEF_READONLY("frame_name", &ImpulseForce::frameName)
+            .DEF_READONLY("frame_index", &ImpulseForce::frameIndex)
+            .DEF_READONLY("t", &ImpulseForce::t)
+            .DEF_READONLY("dt", &ImpulseForce::dt)
+            .DEF_READONLY("force", &ImpulseForce::force);
 
-        bp::class_<ForceImpulseRegister,
-                   boost::noncopyable>("ForceImpulseVector", bp::no_init)
-            .def(vector_indexing_suite_no_contains<ForceImpulseRegister>());
+        bp::class_<ImpulseForceVector,
+                   boost::noncopyable>("ImpulseForceVector", bp::no_init)
+            .def(vector_indexing_suite_no_contains<ImpulseForceVector>());
 
-        bp::class_<ForceCoupling,
-                   std::shared_ptr<ForceCoupling>,
-                   boost::noncopyable>("ForceCoupling", bp::no_init)
-            .DEF_READONLY("system_name_1", &ForceCoupling::systemName1)
-            .DEF_READONLY("system_idx_1", &ForceCoupling::systemIdx1)
-            .DEF_READONLY("system_name_2", &ForceCoupling::systemName2)
-            .DEF_READONLY("system_idx_2", &ForceCoupling::systemIdx2)
-            .ADD_PROPERTY_GET("force_func", forceCouplingWrapper);
+        bp::class_<CouplingForce,
+                   std::shared_ptr<CouplingForce>,
+                   boost::noncopyable>("CouplingForce", bp::no_init)
+            .DEF_READONLY("system_name_1", &CouplingForce::systemName1)
+            .DEF_READONLY("system_index_1", &CouplingForce::systemIndex1)
+            .DEF_READONLY("system_name_2", &CouplingForce::systemName2)
+            .DEF_READONLY("system_index_2", &CouplingForce::systemIndex2)
+            .ADD_PROPERTY_GET("func", couplingForceWrapper);
 
-        bp::class_<ForceCouplingRegister,
-                   boost::noncopyable>("ForceCouplingVector", bp::no_init)
-            .def(vector_indexing_suite_no_contains<ForceCouplingRegister>());
+        bp::class_<CouplingForceVector,
+                   boost::noncopyable>("CouplingForceVector", bp::no_init)
+            .def(vector_indexing_suite_no_contains<CouplingForceVector>());
         // clang-format on
     }
 
@@ -174,21 +173,21 @@ namespace jiminy::python
         {
             // clang-format off
             cl
-                .DEF_READONLY("q", &systemState_t::q)
-                .DEF_READONLY("v", &systemState_t::v)
-                .DEF_READONLY("a", &systemState_t::a)
-                .DEF_READONLY("command", &systemState_t::command)
-                .DEF_READONLY("u", &systemState_t::u)
-                .DEF_READONLY("u_motor", &systemState_t::uMotor)
-                .DEF_READONLY("u_internal", &systemState_t::uInternal)
-                .DEF_READONLY("u_custom", &systemState_t::uCustom)
-                .DEF_READONLY("f_external", &systemState_t::fExternal)
+                .DEF_READONLY("q", &SystemState::q)
+                .DEF_READONLY("v", &SystemState::v)
+                .DEF_READONLY("a", &SystemState::a)
+                .DEF_READONLY("command", &SystemState::command)
+                .DEF_READONLY("u", &SystemState::u)
+                .DEF_READONLY("u_motor", &SystemState::uMotor)
+                .DEF_READONLY("u_internal", &SystemState::uInternal)
+                .DEF_READONLY("u_custom", &SystemState::uCustom)
+                .DEF_READONLY("f_external", &SystemState::fExternal)
                 .def("__repr__", &PySystemStateVisitor::repr)
                 ;
             // clang-format on
         }
 
-        static std::string repr(systemState_t & self)
+        static std::string repr(SystemState & self)
         {
             std::stringstream s;
             Eigen::IOFormat HeavyFmt(5, 1, ", ", "", "", "", "[", "]\n");
@@ -212,8 +211,8 @@ namespace jiminy::python
         static void expose()
         {
             // clang-format off
-            bp::class_<systemState_t,
-                       std::shared_ptr<systemState_t>,
+            bp::class_<SystemState,
+                       std::shared_ptr<SystemState>,
                        boost::noncopyable>("SystemState", bp::no_init)
                 .def(PySystemStateVisitor());
             // clang-format on
@@ -233,10 +232,10 @@ namespace jiminy::python
         {
             // clang-format off
             cl
-                .DEF_READONLY("name", &systemHolder_t::name)
-                .DEF_READONLY("robot", &systemHolder_t::robot)
-                .DEF_READONLY("controller", &systemHolder_t::controller)
-                .DEF_READONLY("callbackFct", &systemHolder_t::callbackFct)
+                .DEF_READONLY("name", &System::name)
+                .DEF_READONLY("robot", &System::robot)
+                .DEF_READONLY("controller", &System::controller)
+                .DEF_READONLY("callbackFct", &System::callback)
                 ;
             // clang-format on
         }
@@ -244,11 +243,11 @@ namespace jiminy::python
         static void expose()
         {
             // clang-format off
-            bp::class_<systemHolder_t>("system", bp::no_init)
+            bp::class_<System>("System", bp::no_init)
                 .def(PySystemVisitor());
 
-            bp::class_<std::vector<systemHolder_t>>("systemVector", bp::no_init)
-                .def(vector_indexing_suite_no_contains<std::vector<systemHolder_t>>());
+            bp::class_<std::vector<System>>("SystemVector", bp::no_init)
+                .def(vector_indexing_suite_no_contains<std::vector<System>>());
             // clang-format on
         }
     };
@@ -308,43 +307,43 @@ namespace jiminy::python
                 .staticmethod("read_log")
                 .def("write_log", &EngineMultiRobot::writeLog, (bp::arg("self"), "fullpath", "format"))
 
-                .def("register_force_impulse", &PyEngineMultiRobotVisitor::registerForceImpulse,
+                .def("register_impulse_force", &PyEngineMultiRobotVisitor::registerImpulseForce,
                                                (bp::arg("self"), "system_name",
-                                                "frame_name", "t", "dt", "F"))
-                .def("remove_forces_impulse",
+                                                "frame_name", "t", "dt", "force"))
+                .def("remove_impulse_forces",
                     static_cast<
                         hresult_t (EngineMultiRobot::*)(const std::string &)
-                    >(&EngineMultiRobot::removeForcesImpulse),
+                    >(&EngineMultiRobot::removeImpulseForces),
                     (bp::arg("self"), "system_name"))
-                .def("remove_forces_impulse",
+                .def("remove_impulse_forces",
                     static_cast<
                         hresult_t (EngineMultiRobot::*)(void)
-                    >(&EngineMultiRobot::removeForcesImpulse),
+                    >(&EngineMultiRobot::removeImpulseForces),
                     (bp::arg("self")))
-                .ADD_PROPERTY_GET("forces_impulse", &PyEngineMultiRobotVisitor::getForcesImpulse)
+                .ADD_PROPERTY_GET("impulse_forces", &PyEngineMultiRobotVisitor::getImpulseForces)
 
-                .def("register_force_profile", &PyEngineMultiRobotVisitor::registerForceProfile,
+                .def("register_profile_force", &PyEngineMultiRobotVisitor::registerProfileForce,
                                                (bp::arg("self"), "system_name",
                                                 "frame_name", "force_function",
                                                 bp::arg("update_period") = 0.0))
-                .def("remove_forces_profile",
+                .def("remove_profile_forces",
                     static_cast<
                         hresult_t (EngineMultiRobot::*)(const std::string &)
-                    >(&EngineMultiRobot::removeForcesProfile),
+                    >(&EngineMultiRobot::removeProfileForces),
                     (bp::arg("self"), "system_name"))
-                .def("remove_forces_profile",
+                .def("remove_profile_forces",
                     static_cast<
                         hresult_t (EngineMultiRobot::*)(void)
-                    >(&EngineMultiRobot::removeForcesProfile),
+                    >(&EngineMultiRobot::removeProfileForces),
                     (bp::arg("self")))
-                .ADD_PROPERTY_GET("forces_profile", &PyEngineMultiRobotVisitor::getForcesProfile)
+                .ADD_PROPERTY_GET("profile_forces", &PyEngineMultiRobotVisitor::getProfileForces)
 
-                .def("register_force_coupling", &PyEngineMultiRobotVisitor::registerForceCoupling,
+                .def("register_coupling_force", &PyEngineMultiRobotVisitor::registerCouplingForce,
                                                 (bp::arg("self"),
                                                  "system_name_1", "system_name_2",
                                                  "frame_name_1", "frame_name_2",
                                                  "force_function"))
-                .def("register_viscoelastic_force_coupling",
+                .def("register_viscoelastic_coupling_force",
                     static_cast<
                         hresult_t (EngineMultiRobot::*)(
                             const std::string &,
@@ -354,10 +353,10 @@ namespace jiminy::python
                             const Vector6d &,
                             const Vector6d &,
                             double)
-                    >(&EngineMultiRobot::registerViscoelasticForceCoupling),
+                    >(&EngineMultiRobot::registerViscoelasticCouplingForce),
                     (bp::arg("self"), "system_name_1", "system_name_2",
                      "frame_name_1", "frame_name_2", "stiffness", "damping", bp::arg("alpha") = 0.5))
-                .def("register_viscoelastic_force_coupling",
+                .def("register_viscoelastic_coupling_force",
                     static_cast<
                         hresult_t (EngineMultiRobot::*)(
                             const std::string &,
@@ -366,10 +365,10 @@ namespace jiminy::python
                             const Vector6d &,
                             const Vector6d &,
                             double)
-                    >(&EngineMultiRobot::registerViscoelasticForceCoupling),
+                    >(&EngineMultiRobot::registerViscoelasticCouplingForce),
                     (bp::arg("self"), "system_name", "frame_name_1", "frame_name_2",
                      "stiffness", "damping", bp::arg("alpha") = 0.5))
-                .def("register_viscoelastic_directional_force_coupling",
+                .def("register_viscoelastic_directional_coupling_force",
                     static_cast<
                         hresult_t (EngineMultiRobot::*)(
                             const std::string &,
@@ -379,10 +378,10 @@ namespace jiminy::python
                             double,
                             double,
                             double)
-                    >(&EngineMultiRobot::registerViscoelasticDirectionalForceCoupling),
+                    >(&EngineMultiRobot::registerViscoelasticDirectionalCouplingForce),
                     (bp::arg("self"), "system_name_1", "system_name_2", "frame_name_1", "frame_name_2",
                      "stiffness", "damping", bp::arg("rest_length") = 0.0))
-                .def("register_viscoelastic_directional_force_coupling",
+                .def("register_viscoelastic_directional_coupling_force",
                     static_cast<
                         hresult_t (EngineMultiRobot::*)(
                             const std::string &,
@@ -391,26 +390,26 @@ namespace jiminy::python
                             double,
                             double,
                             double)
-                    >(&EngineMultiRobot::registerViscoelasticDirectionalForceCoupling),
+                    >(&EngineMultiRobot::registerViscoelasticDirectionalCouplingForce),
                     (bp::arg("self"), "system_name", "frame_name_1", "frame_name_2",
                      "stiffness", "damping", bp::arg("rest_length") = 0.0))
-                .def("remove_forces_coupling",
+                .def("remove_coupling_forces",
                     static_cast<
                         hresult_t (EngineMultiRobot::*)(const std::string &, const std::string &)
-                    >(&EngineMultiRobot::removeForcesCoupling),
+                    >(&EngineMultiRobot::removeCouplingForces),
                     (bp::arg("self"), "system_name_1", "system_name_2"))
-                .def("remove_forces_coupling",
+                .def("remove_coupling_forces",
                     static_cast<
                         hresult_t (EngineMultiRobot::*)(const std::string &)
-                    >(&EngineMultiRobot::removeForcesCoupling),
+                    >(&EngineMultiRobot::removeCouplingForces),
                     (bp::arg("self"), "system_name"))
-                .def("remove_forces_coupling",
+                .def("remove_coupling_forces",
                     static_cast<
                         hresult_t (EngineMultiRobot::*)(void)
-                    >(&EngineMultiRobot::removeForcesCoupling),
+                    >(&EngineMultiRobot::removeCouplingForces),
                     (bp::arg("self")))
-                .ADD_PROPERTY_GET_WITH_POLICY("forces_coupling",
-                                              &EngineMultiRobot::getForcesCoupling,
+                .ADD_PROPERTY_GET_WITH_POLICY("coupling_forces",
+                                              &EngineMultiRobot::getCouplingForces,
                                               bp::return_value_policy<result_converter<false>>())
 
                 .def("remove_all_forces", &EngineMultiRobot::removeAllForces)
@@ -419,17 +418,17 @@ namespace jiminy::python
                 .def("get_options", &EngineMultiRobot::getOptions)
 
                 .DEF_READONLY("systems", &EngineMultiRobot::systems_)
-                .ADD_PROPERTY_GET_WITH_POLICY("systems_names",
-                                              &EngineMultiRobot::getSystemsNames,
+                .ADD_PROPERTY_GET_WITH_POLICY("system_names",
+                                              &EngineMultiRobot::getSystemNames,
                                               bp::return_value_policy<result_converter<true>>())
-                .ADD_PROPERTY_GET("systems_states", &PyEngineMultiRobotVisitor::getSystemState)
+                .ADD_PROPERTY_GET("system_states", &PyEngineMultiRobotVisitor::getSystemStates)
                 .ADD_PROPERTY_GET_WITH_POLICY("stepper_state",
                                               &EngineMultiRobot::getStepperState,
                                               bp::return_value_policy<result_converter<false>>())
                 .ADD_PROPERTY_GET_WITH_POLICY("is_simulation_running",
                                               &EngineMultiRobot::getIsSimulationRunning,
                                               bp::return_value_policy<result_converter<false>>())
-                .add_static_property("simulation_duration_max", &EngineMultiRobot::getMaxSimulationDuration)
+                .add_static_property("simulation_duration_max", &EngineMultiRobot::getSimulationDurationMax)
                 .add_static_property("telemetry_time_unit", &EngineMultiRobot::getTelemetryTimeUnit)
                 ;
             // clang-format on
@@ -441,85 +440,85 @@ namespace jiminy::python
                                    const bp::object & controllerPy,
                                    const bp::object & callbackPy)
         {
-            CallbackFunctor callbackFct;
+            AbortSimulationFunction callback;
             if (callbackPy.is_none())
             {
-                callbackFct = [](double /* t */,
-                                 const Eigen::VectorXd & /* q */,
-                                 const Eigen::VectorXd & /* v */) -> bool
+                callback = [](double /* t */,
+                              const Eigen::VectorXd & /* q */,
+                              const Eigen::VectorXd & /* v */) -> bool
                 {
                     return true;
                 };
             }
             else
             {
-                callbackFct = TimeStateFctPyWrapper<bool>(callbackPy);
+                callback = TimeStateFunPyWrapper<bool>(callbackPy);
             }
             if (!controllerPy.is_none())
             {
                 const std::shared_ptr<AbstractController> controller =
                     bp::extract<std::shared_ptr<AbstractController>>(controllerPy);
-                return self.addSystem(systemName, robot, controller, std::move(callbackFct));
+                return self.addSystem(systemName, robot, controller, callback);
             }
-            return self.addSystem(systemName, robot, std::move(callbackFct));
+            return self.addSystem(systemName, robot, callback);
         }
 
-        static systemHolder_t & getSystem(EngineMultiRobot & self, const std::string & systemName)
+        static System & getSystem(EngineMultiRobot & self, const std::string & systemName)
         {
-            systemHolder_t * system;
-            // It makes sure that system is always assigned to a well-defined systemHolder_t
+            System * system;
+            // It makes sure that system is always assigned to a well-defined System
             self.getSystem(systemName, system);
             return *system;
         }
 
-        static bp::dict getForcesImpulse(EngineMultiRobot & self)
+        static bp::dict getImpulseForces(EngineMultiRobot & self)
         {
-            bp::dict forceImpulsesPy;
-            for (const auto & systemName : self.getSystemsNames())
+            bp::dict impulseForcesPy;
+            for (const auto & systemName : self.getSystemNames())
             {
-                const ForceImpulseRegister * forcesImpulse;
-                self.getForcesImpulse(systemName, forcesImpulse);
-                forceImpulsesPy[systemName] = convertToPython(forcesImpulse, false);
+                const ImpulseForceVector * impulseForces;
+                self.getImpulseForces(systemName, impulseForces);
+                impulseForcesPy[systemName] = convertToPython(impulseForces, false);
             }
-            return forceImpulsesPy;
+            return impulseForcesPy;
         }
 
-        static bp::dict getForcesProfile(EngineMultiRobot & self)
+        static bp::dict getProfileForces(EngineMultiRobot & self)
         {
-            bp::dict forcesProfilesPy;
-            for (const auto & systemName : self.getSystemsNames())
+            bp::dict profileForcessPy;
+            for (const auto & systemName : self.getSystemNames())
             {
-                const ForceProfileRegister * forcesProfile;
-                self.getForcesProfile(systemName, forcesProfile);
-                forcesProfilesPy[systemName] = convertToPython(forcesProfile, false);
+                const ProfileForceVector * profileForces;
+                self.getProfileForces(systemName, profileForces);
+                profileForcessPy[systemName] = convertToPython(profileForces, false);
             }
-            return forcesProfilesPy;
+            return profileForcessPy;
         }
 
-        static bp::dict getSystemState(EngineMultiRobot & self)
+        static bp::list getSystemStates(EngineMultiRobot & self)
         {
-            bp::dict systemStates;
-            for (const std::string & systemName : self.getSystemsNames())
+            bp::list systemStates;
+            for (const std::string & systemName : self.getSystemNames())
             {
                 /* Cannot fail, but `getSystemState` is making sure that systemState is assigned to
                    a well-defined object anyway. */
-                const systemState_t * systemState;
+                const SystemState * systemState;
                 self.getSystemState(systemName, systemState);
-                systemStates[systemName] = convertToPython(systemState, false);
+                systemStates.append(convertToPython(systemState, false));
             }
             return systemStates;
         }
 
-        static hresult_t registerForceCoupling(EngineMultiRobot & self,
+        static hresult_t registerCouplingForce(EngineMultiRobot & self,
                                                const std::string & systemName1,
                                                const std::string & systemName2,
                                                const std::string & frameName1,
                                                const std::string & frameName2,
-                                               const bp::object & forcePy)
+                                               const bp::object & forceFuncPy)
         {
-            TimeBistateFctPyWrapper<pinocchio::Force> forceFct(forcePy);
-            return self.registerForceCoupling(
-                systemName1, systemName2, frameName1, frameName2, std::move(forceFct));
+            TimeBistateFunPyWrapper<pinocchio::Force> forceFunc(forceFuncPy);
+            return self.registerCouplingForce(
+                systemName1, systemName2, frameName1, frameName2, forceFunc);
         }
 
         static hresult_t start(EngineMultiRobot & self,
@@ -574,25 +573,25 @@ namespace jiminy::python
             return aSplit;
         }
 
-        static hresult_t registerForceImpulse(EngineMultiRobot & self,
+        static hresult_t registerImpulseForce(EngineMultiRobot & self,
                                               const std::string & systemName,
                                               const std::string & frameName,
                                               double t,
                                               double dt,
-                                              const Vector6d & F)
+                                              const Vector6d & force)
         {
-            return self.registerForceImpulse(systemName, frameName, t, dt, pinocchio::Force(F));
+            return self.registerImpulseForce(
+                systemName, frameName, t, dt, pinocchio::Force{force});
         }
 
-        static hresult_t registerForceProfile(EngineMultiRobot & self,
+        static hresult_t registerProfileForce(EngineMultiRobot & self,
                                               const std::string & systemName,
                                               const std::string & frameName,
-                                              const bp::object & forcePy,
+                                              const bp::object & forceFuncPy,
                                               double updatePeriod)
         {
-            TimeStateFctPyWrapper<pinocchio::Force> forceFct(forcePy);
-            return self.registerForceProfile(
-                systemName, frameName, std::move(forceFct), updatePeriod);
+            TimeStateFunPyWrapper<pinocchio::Force> forceFunc(forceFuncPy);
+            return self.registerProfileForce(systemName, frameName, forceFunc, updatePeriod);
         }
 
         static bp::dict formatLogData(const LogData & logData)
@@ -884,26 +883,26 @@ namespace jiminy::python
                      bp::arg("a_init") = bp::object(),
                      bp::arg("is_state_theoretical") = false))
 
-                .def("register_force_impulse", &PyEngineVisitor::registerForceImpulse,
-                                               (bp::arg("self"), "frame_name", "t", "dt", "F"))
-                .ADD_PROPERTY_GET_WITH_POLICY("forces_impulse",
+                .def("register_impulse_force", &PyEngineVisitor::registerImpulseForce,
+                                               (bp::arg("self"), "frame_name", "t", "dt", "force"))
+                .ADD_PROPERTY_GET_WITH_POLICY("impulse_forces",
                                               static_cast<
-                                                  const ForceImpulseRegister & (Engine::*)(void) const
-                                              >(&Engine::getForcesImpulse),
+                                                  const ImpulseForceVector & (Engine::*)(void) const
+                                              >(&Engine::getImpulseForces),
                                               bp::return_value_policy<result_converter<false>>())
 
-                .def("register_force_profile", &PyEngineVisitor::registerForceProfile,
+                .def("register_profile_force", &PyEngineVisitor::registerProfileForce,
                                                (bp::arg("self"), "frame_name", "force_function",
                                                 bp::arg("update_period") = 0.0))
-                .ADD_PROPERTY_GET_WITH_POLICY("forces_profile",
+                .ADD_PROPERTY_GET_WITH_POLICY("profile_forces",
                                               static_cast<
-                                                  const ForceProfileRegister & (Engine::*)(void) const
-                                              >(&Engine::getForcesProfile),
+                                                  const ProfileForceVector & (Engine::*)(void) const
+                                              >(&Engine::getProfileForces),
                                               bp::return_value_policy<result_converter<false>>())
 
-                .def("register_force_coupling", &PyEngineVisitor::registerForceCoupling,
+                .def("register_coupling_force", &PyEngineVisitor::registerCouplingForce,
                                                 (bp::arg("self"), "frame_name_1", "frame_name_2", "force_function"))
-                .def("register_viscoelastic_force_coupling",
+                .def("register_viscoelastic_coupling_force",
                     static_cast<
                         hresult_t (Engine::*)(
                             const std::string &,
@@ -911,9 +910,9 @@ namespace jiminy::python
                             const Vector6d &,
                             const Vector6d &,
                             double)
-                    >(&Engine::registerViscoelasticForceCoupling),
+                    >(&Engine::registerViscoelasticCouplingForce),
                     (bp::arg("self"), "frame_name_1", "frame_name_2", "stiffness", "damping", bp::arg("alpha") = 0.5))
-                .def("register_viscoelastic_directional_force_coupling",
+                .def("register_viscoelastic_directional_coupling_force",
                     static_cast<
                         hresult_t (Engine::*)(
                             const std::string &,
@@ -921,7 +920,7 @@ namespace jiminy::python
                             double,
                             double,
                             double)
-                    >(&Engine::registerViscoelasticDirectionalForceCoupling),
+                    >(&Engine::registerViscoelasticDirectionalCouplingForce),
                     (bp::arg("self"), "frame_name_1", "frame_name_2", "stiffness", "damping",
 		             bp::arg("rest_length") = 0.0))
 
@@ -957,56 +956,59 @@ namespace jiminy::python
         {
             if (callbackPy.is_none())
             {
-                CallbackFunctor callbackFct = [](double /* t */,
-                                                 const Eigen::VectorXd & /* q */,
-                                                 const Eigen::VectorXd & /* v */) -> bool
+                AbortSimulationFunction callback = [](double /* t */,
+                                                      const Eigen::VectorXd & /* q */,
+                                                      const Eigen::VectorXd & /* v */) -> bool
                 {
                     return true;
                 };
                 if (controller)
                 {
-                    return self.initialize(robot, controller, std::move(callbackFct));
+                    return self.initialize(robot, controller, callback);
                 }
-                return self.initialize(robot, std::move(callbackFct));
+                return self.initialize(robot, callback);
             }
             else
             {
-                TimeStateFctPyWrapper<bool> callbackFct(callbackPy);
+                TimeStateFunPyWrapper<bool> callback(callbackPy);
                 if (controller)
                 {
-                    return self.initialize(robot, controller, std::move(callbackFct));
+                    return self.initialize(robot, controller, callback);
                 }
-                return self.initialize(robot, std::move(callbackFct));
+                return self.initialize(robot, callback);
             }
         }
 
-        static hresult_t registerForceImpulse(
-            Engine & self, const std::string & frameName, double t, double dt, const Vector6d & F)
+        static hresult_t registerImpulseForce(Engine & self,
+                                              const std::string & frameName,
+                                              double t,
+                                              double dt,
+                                              const Vector6d & force)
         {
-            return self.registerForceImpulse(frameName, t, dt, pinocchio::Force(F));
+            return self.registerImpulseForce(frameName, t, dt, pinocchio::Force{force});
         }
 
-        static hresult_t registerForceProfile(Engine & self,
+        static hresult_t registerProfileForce(Engine & self,
                                               const std::string & frameName,
-                                              const bp::object & forcePy,
+                                              const bp::object & forceFuncPy,
                                               double updatePeriod)
         {
-            TimeStateFctPyWrapper<pinocchio::Force> forceFct(forcePy);
-            return self.registerForceProfile(frameName, std::move(forceFct), updatePeriod);
+            TimeStateFunPyWrapper<pinocchio::Force> forceFunc(forceFuncPy);
+            return self.registerProfileForce(frameName, forceFunc, updatePeriod);
         }
 
-        static hresult_t registerForceCoupling(Engine & self,
+        static hresult_t registerCouplingForce(Engine & self,
                                                const std::string & frameName1,
                                                const std::string & frameName2,
-                                               const bp::object & forcePy)
+                                               const bp::object & forceFuncPy)
         {
-            TimeStateFctPyWrapper<pinocchio::Force> forceFct(forcePy);
-            return self.registerForceCoupling(frameName1, frameName2, std::move(forceFct));
+            TimeStateFunPyWrapper<pinocchio::Force> forceFunc(forceFuncPy);
+            return self.registerCouplingForce(frameName1, frameName2, forceFunc);
         }
 
-        static systemHolder_t & getSystem(Engine & self)
+        static System & getSystem(Engine & self)
         {
-            systemHolder_t * system;
+            System * system;
             self.getSystem(system);
             return *system;
         }
@@ -1025,10 +1027,10 @@ namespace jiminy::python
             return controller;
         }
 
-        static const systemState_t & getSystemState(Engine & self)
+        static const SystemState & getSystemState(Engine & self)
         {
-            const systemState_t * systemState;
-            // It makes sure that systemState is always assigned to a well-defined systemState_t
+            const SystemState * systemState;
+            // It makes sure that systemState is always assigned to a well-defined SystemState
             self.getSystemState(systemState);
             return *systemState;
         }

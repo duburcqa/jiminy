@@ -8,7 +8,7 @@ namespace jiminy
 {
     hresult_t Engine::initializeImpl(std::shared_ptr<Robot> robot,
                                      std::shared_ptr<AbstractController> controller,
-                                     CallbackFunctor callbackFct)
+                                     const AbortSimulationFunction & callback)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -30,12 +30,11 @@ namespace jiminy
         // Add the system with empty name since it is irrelevant for a single robot engine
         if (controller)
         {
-            returnCode =
-                EngineMultiRobot::addSystem("", robot, controller, std::move(callbackFct));
+            returnCode = EngineMultiRobot::addSystem("", robot, controller, callback);
         }
         else
         {
-            returnCode = EngineMultiRobot::addSystem("", robot, std::move(callbackFct));
+            returnCode = EngineMultiRobot::addSystem("", robot, callback);
         }
 
         if (returnCode == hresult_t::SUCCESS)
@@ -53,14 +52,15 @@ namespace jiminy
 
     hresult_t Engine::initialize(std::shared_ptr<Robot> robot,
                                  std::shared_ptr<AbstractController> controller,
-                                 CallbackFunctor callbackFct)
+                                 const AbortSimulationFunction & callback)
     {
-        return initializeImpl(robot, controller, callbackFct);
+        return initializeImpl(robot, controller, callback);
     }
 
-    hresult_t Engine::initialize(std::shared_ptr<Robot> robot, CallbackFunctor callbackFct)
+    hresult_t Engine::initialize(std::shared_ptr<Robot> robot,
+                                 const AbortSimulationFunction & callback)
     {
-        return initializeImpl(robot, std::shared_ptr<AbstractController>(), callbackFct);
+        return initializeImpl(robot, std::shared_ptr<AbstractController>(), callback);
     }
 
     hresult_t Engine::setController(std::shared_ptr<AbstractController> controller)
@@ -98,10 +98,10 @@ namespace jiminy
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
-        if (isStateTheoretical && robot.mdlOptions_->dynamics.enableFlexibleModel)
+        if (isStateTheoretical && robot.modelOptions_->dynamics.enableFlexibleModel)
         {
             Eigen::VectorXd q0;
-            returnCode = robot.getFlexibleConfigurationFromRigid(qInit, q0);
+            returnCode = robot.getFlexiblePositionFromRigid(qInit, q0);
             qInitList.emplace("", std::move(q0));
         }
         else
@@ -111,7 +111,7 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            if (isStateTheoretical && robot.mdlOptions_->dynamics.enableFlexibleModel)
+            if (isStateTheoretical && robot.modelOptions_->dynamics.enableFlexibleModel)
             {
                 Eigen::VectorXd v0;
                 returnCode = robot.getFlexibleVelocityFromRigid(vInit, v0);
@@ -127,7 +127,7 @@ namespace jiminy
             if (aInit)
             {
                 aInitList.emplace();
-                if (isStateTheoretical && robot.mdlOptions_->dynamics.enableFlexibleModel)
+                if (isStateTheoretical && robot.modelOptions_->dynamics.enableFlexibleModel)
                 {
                     Eigen::VectorXd a0;
                     returnCode = robot.getFlexibleVelocityFromRigid(*aInit, a0);
@@ -204,81 +204,81 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t Engine::registerForceImpulse(
-        const std::string & frameName, double t, double dt, const pinocchio::Force & F)
+    hresult_t Engine::registerImpulseForce(
+        const std::string & frameName, double t, double dt, const pinocchio::Force & force)
     {
-        return EngineMultiRobot::registerForceImpulse("", frameName, t, dt, F);
+        return EngineMultiRobot::registerImpulseForce("", frameName, t, dt, force);
     }
 
-    hresult_t Engine::registerForceProfile(
-        const std::string & frameName, const ForceProfileFunctor & forceFct, double updatePeriod)
+    hresult_t Engine::registerProfileForce(
+        const std::string & frameName, const ProfileForceFunction & forceFunc, double updatePeriod)
     {
-        return EngineMultiRobot::registerForceProfile("", frameName, forceFct, updatePeriod);
+        return EngineMultiRobot::registerProfileForce("", frameName, forceFunc, updatePeriod);
     }
 
-    hresult_t Engine::removeForcesImpulse()
+    hresult_t Engine::removeImpulseForces()
     {
-        return EngineMultiRobot::removeForcesImpulse("");
+        return EngineMultiRobot::removeImpulseForces("");
     }
 
-    hresult_t Engine::removeForcesProfile()
+    hresult_t Engine::removeProfileForces()
     {
-        return EngineMultiRobot::removeForcesProfile("");
+        return EngineMultiRobot::removeProfileForces("");
     }
 
-    const ForceImpulseRegister & Engine::getForcesImpulse() const
+    const ImpulseForceVector & Engine::getImpulseForces() const
     {
-        const ForceImpulseRegister * forcesImpulse;
-        EngineMultiRobot::getForcesImpulse("", forcesImpulse);
-        return *forcesImpulse;
+        const ImpulseForceVector * impulseForces;
+        EngineMultiRobot::getImpulseForces("", impulseForces);
+        return *impulseForces;
     }
 
-    const ForceProfileRegister & Engine::getForcesProfile() const
+    const ProfileForceVector & Engine::getProfileForces() const
     {
-        const ForceProfileRegister * forcesProfile;
-        EngineMultiRobot::getForcesProfile("", forcesProfile);
-        return *forcesProfile;
+        const ProfileForceVector * profileForces;
+        EngineMultiRobot::getProfileForces("", profileForces);
+        return *profileForces;
     }
 
-    hresult_t Engine::registerForceCoupling(const std::string & frameName1,
+    hresult_t Engine::registerCouplingForce(const std::string & frameName1,
                                             const std::string & frameName2,
-                                            ForceProfileFunctor forceFct)
+                                            const ProfileForceFunction & forceFunc)
     {
-        auto forceCouplingFct = [forceFct](double t,
-                                           const Eigen::VectorXd & q1,
-                                           const Eigen::VectorXd & v1,
-                                           const Eigen::VectorXd & /* q2 */,
-                                           const Eigen::VectorXd & /* v2 */)
+        auto couplingForceFun = [forceFunc](double t,
+                                            const Eigen::VectorXd & q1,
+                                            const Eigen::VectorXd & v1,
+                                            const Eigen::VectorXd & /* q2 */,
+                                            const Eigen::VectorXd & /* v2 */)
         {
-            return forceFct(t, q1, v1);
+            return forceFunc(t, q1, v1);
         };
-        return EngineMultiRobot::registerForceCoupling(
-            "", "", frameName1, frameName2, forceCouplingFct);
+        return EngineMultiRobot::registerCouplingForce(
+            "", "", frameName1, frameName2, couplingForceFun);
     }
 
-    hresult_t Engine::registerViscoelasticForceCoupling(const std::string & frameName1,
+    hresult_t Engine::registerViscoelasticCouplingForce(const std::string & frameName1,
                                                         const std::string & frameName2,
                                                         const Vector6d & stiffness,
                                                         const Vector6d & damping,
                                                         double alpha)
     {
-        return EngineMultiRobot::registerViscoelasticForceCoupling(
+        return EngineMultiRobot::registerViscoelasticCouplingForce(
             "", "", frameName1, frameName2, stiffness, damping, alpha);
     }
 
-    hresult_t Engine::registerViscoelasticDirectionalForceCoupling(const std::string & frameName1,
+    hresult_t Engine::registerViscoelasticDirectionalCouplingForce(const std::string & frameName1,
                                                                    const std::string & frameName2,
                                                                    double stiffness,
                                                                    double damping,
                                                                    double restLength)
     {
-        return EngineMultiRobot::registerViscoelasticDirectionalForceCoupling(
+        return EngineMultiRobot::registerViscoelasticDirectionalCouplingForce(
             "", "", frameName1, frameName2, stiffness, damping, restLength);
     }
 
-    hresult_t Engine::removeForcesCoupling()
+    hresult_t Engine::removeCouplingForces()
     {
-        return EngineMultiRobot::removeForcesCoupling("");
+        return EngineMultiRobot::removeCouplingForces("");
     }
 
     bool Engine::getIsInitialized() const
@@ -286,9 +286,9 @@ namespace jiminy
         return isInitialized_;
     }
 
-    hresult_t Engine::getSystem(systemHolder_t *& system)
+    hresult_t Engine::getSystem(System *& system)
     {
-        static systemHolder_t systemEmpty;
+        static System systemEmpty;
 
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -310,7 +310,7 @@ namespace jiminy
 
     hresult_t Engine::getRobot(std::shared_ptr<Robot> & robot)
     {
-        systemHolder_t * system;
+        System * system;
 
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -322,7 +322,7 @@ namespace jiminy
 
     hresult_t Engine::getController(std::shared_ptr<AbstractController> & controller)
     {
-        systemHolder_t * system;
+        System * system;
 
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -332,9 +332,9 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t Engine::getSystemState(const systemState_t *& systemState) const
+    hresult_t Engine::getSystemState(const SystemState *& systemState) const
     {
-        static const systemState_t systemStateEmpty;
+        static const SystemState systemStateEmpty;
 
         hresult_t returnCode = hresult_t::SUCCESS;
 

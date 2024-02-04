@@ -1,6 +1,6 @@
 [Global]
-collisionBodiesNames = ["left_toe_roll", "right_toe_roll"]
-contactFramesNames = []
+collisionBodyNames = ["left_toe_roll", "right_toe_roll"]
+contactFrameNames = []
 
 # ================== Motors ==================
 

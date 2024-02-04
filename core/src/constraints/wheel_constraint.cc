@@ -28,9 +28,9 @@ namespace jiminy
         return frameName_;
     }
 
-    pinocchio::FrameIndex WheelConstraint::getFrameIdx() const noexcept
+    pinocchio::FrameIndex WheelConstraint::getFrameIndex() const noexcept
     {
-        return frameIdx_;
+        return frameIndex_;
     }
 
     void WheelConstraint::setReferenceTransform(const pinocchio::SE3 & transformRef) noexcept
@@ -59,21 +59,21 @@ namespace jiminy
         // Get frame index
         if (returnCode == hresult_t::SUCCESS)
         {
-            returnCode = ::jiminy::getFrameIdx(model->pncModel_, frameName_, frameIdx_);
+            returnCode = ::jiminy::getFrameIndex(model->pinocchioModel_, frameName_, frameIndex_);
         }
 
         if (returnCode == hresult_t::SUCCESS)
         {
             // Initialize frames jacobians buffers
-            frameJacobian_.setZero(6, model->pncModel_.nv);
+            frameJacobian_.setZero(6, model->pinocchioModel_.nv);
 
             // Initialize jacobian, drift and multipliers
-            jacobian_.setZero(3, model->pncModel_.nv);
+            jacobian_.setZero(3, model->pinocchioModel_.nv);
             drift_.setZero(3);
             lambda_.setZero(3);
 
             // Get the current frame position and use it as reference
-            transformRef_ = model->pncData_.oMf[frameIdx_];
+            transformRef_ = model->pinocchioData_.oMf[frameIndex_];
         }
 
         return returnCode;
@@ -92,7 +92,7 @@ namespace jiminy
         auto model = model_.lock();
 
         // Compute ground normal in local frame
-        const pinocchio::SE3 & framePose = model->pncData_.oMf[frameIdx_];
+        const pinocchio::SE3 & framePose = model->pinocchioData_.oMf[frameIndex_];
         const Eigen::Vector3d axis = framePose.rotation() * axis_;
         const Eigen::Vector3d x = axis.cross(normal_).cross(axis);
         const double xNorm = x.norm();
@@ -104,9 +104,9 @@ namespace jiminy
         const double deltaPosition = (positionRel + radius_ * (normal_ - y)).dot(normal_);
 
         // Compute frame jacobian in local frame
-        getFrameJacobian(model->pncModel_,
-                         model->pncData_,
-                         frameIdx_,
+        getFrameJacobian(model->pinocchioModel_,
+                         model->pinocchioData_,
+                         frameIndex_,
                          pinocchio::LOCAL_WORLD_ALIGNED,
                          frameJacobian_);
 
@@ -115,8 +115,10 @@ namespace jiminy
         jacobian_.noalias() += skewRadius_ * frameJacobian_.bottomRows(3);
 
         // Compute ground normal derivative
-        const pinocchio::Motion frameVelocity = getFrameVelocity(
-            model->pncModel_, model->pncData_, frameIdx_, pinocchio::LOCAL_WORLD_ALIGNED);
+        const pinocchio::Motion frameVelocity = getFrameVelocity(model->pinocchioModel_,
+                                                                 model->pinocchioData_,
+                                                                 frameIndex_,
+                                                                 pinocchio::LOCAL_WORLD_ALIGNED);
         const Eigen::Vector3d & omega = frameVelocity.angular();
 
         const Eigen::Vector3d daxis_ = omega.cross(axis);
@@ -129,8 +131,10 @@ namespace jiminy
         velocity.noalias() += skewRadius_ * omega;
 
         // Compute frame drift in local frame
-        pinocchio::Motion frameAcceleration = getFrameAcceleration(
-            model->pncModel_, model->pncData_, frameIdx_, pinocchio::LOCAL_WORLD_ALIGNED);
+        pinocchio::Motion frameAcceleration = getFrameAcceleration(model->pinocchioModel_,
+                                                                   model->pinocchioData_,
+                                                                   frameIndex_,
+                                                                   pinocchio::LOCAL_WORLD_ALIGNED);
         frameAcceleration.linear() += omega.cross(frameVelocity.linear());
 
         /* Compute total drift.

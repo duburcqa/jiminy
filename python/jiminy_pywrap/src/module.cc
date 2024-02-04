@@ -30,13 +30,13 @@ namespace jiminy::python
     namespace np = boost::python::numpy;
 
     template<typename T>
-    using TimeStateFct =
+    using TimeStateFun =
         typename std::function<T(double, const Eigen::VectorXd &, const Eigen::VectorXd &)>;
 
 #define TIME_STATE_FCT_EXPOSE(Name, Type)                                                     \
-    bp::class_<TimeStateFct<Type>, boost::noncopyable>("TimeStateFunctor" #Name, bp::no_init) \
+    bp::class_<TimeStateFun<Type>, boost::noncopyable>("TimeStateFunctor" #Name, bp::no_init) \
         .def("__call__",                                                                      \
-             &TimeStateFct<Type>::operator(),                                                 \
+             &TimeStateFun<Type>::operator(),                                                 \
              bp::return_value_policy<bp::return_by_value>(),                                  \
              (bp::arg("self"), "t", "q", "v"));
 
@@ -110,7 +110,7 @@ namespace jiminy::python
         // Expose functors
         TIME_STATE_FCT_EXPOSE(Bool, bool)
         TIME_STATE_FCT_EXPOSE(PinocchioForce, pinocchio::Force)
-        exposeHeightmapFunctor();
+        exposeHeightmapFunction();
 
         /* Expose compatibility layer, to support both new and old C++ ABI, and to restore
            automatic converters of numpy scalars without altering python docstring signature. */
@@ -121,9 +121,9 @@ namespace jiminy::python
         exposeGenerators();
 
         // Expose structs and classes
-        exposeSensorsDataMap();
+        exposeSensorMeasurementTree();
         exposeConstraint();
-        exposeConstraintsHolder();
+        exposeConstraintTree();
         exposeModel();
         exposeRobot();
         exposeAbstractMotor();
@@ -131,7 +131,7 @@ namespace jiminy::python
         exposeAbstractSensor();
         exposeBasicSensors();
         exposeAbstractController();
-        exposeControllerFunctor();
+        exposeFunctionalController();
         exposeForces();
         exposeStepperState();
         exposeSystemState();

@@ -46,13 +46,13 @@ namespace jiminy
             flows_.clear();
 
             // Get telemetry data infos
-            integersRegistry_ = telemetryData->getRegistry<int64_t>();
-            integerSectionSize_ = sizeof(int64_t) * integersRegistry_->size();
-            floatsRegistry_ = telemetryData->getRegistry<double>();
-            floatSectionSize_ = sizeof(double) * floatsRegistry_->size();
-            recordedBytesDataLine_ = integerSectionSize_ + floatSectionSize_ +
-                                     START_LINE_TOKEN.size() +
-                                     sizeof(int64_t);  // int64_t for Global.Time
+            integerRegistry_ = telemetryData->getRegistry<int64_t>();
+            integerSectionSize_ = sizeof(int64_t) * integerRegistry_->size();
+            floatRegistry_ = telemetryData->getRegistry<double>();
+            floatSectionSize_ = sizeof(double) * floatRegistry_->size();
+            recordedBytesPerLine_ = integerSectionSize_ + floatSectionSize_ +
+                                    START_LINE_TOKEN.size() +
+                                    sizeof(int64_t);  // int64_t for Global.Time
 
             // Get the header
             telemetryData->formatHeader(header);
@@ -77,14 +77,14 @@ namespace jiminy
         return returnCode;
     }
 
-    double TelemetryRecorder::getMaximumLogTime(double timeUnit)
+    double TelemetryRecorder::getLogDurationMax(double timeUnit)
     {
         return static_cast<double>(std::numeric_limits<int64_t>::max()) * timeUnit;
     }
 
-    double TelemetryRecorder::getMaximumLogTime() const
+    double TelemetryRecorder::getLogDurationMax() const
     {
-        return getMaximumLogTime(1.0 / timeUnitInv_);
+        return getLogDurationMax(1.0 / timeUnitInv_);
     }
 
     bool TelemetryRecorder::getIsInitialized()
@@ -123,11 +123,11 @@ namespace jiminy
         {
             headerSize = headerSize_;
         }
-        std::size_t maxBufferSize = std::max(TELEMETRY_MIN_BUFFER_SIZE, headerSize);
-        std::size_t maxRecordedDataLines = (maxBufferSize - headerSize) / recordedBytesDataLine_;
-        recordedBytesLimits_ = headerSize + maxRecordedDataLines * recordedBytesDataLine_;
-        flows_.emplace_back(recordedBytesLimits_);
-        returnCode = flows_.back().open(openMode_t::READ_WRITE);
+        std::size_t bufferSizeMax = std::max(TELEMETRY_MIN_BUFFER_SIZE, headerSize);
+        std::size_t recordedDataLinesMax = (bufferSizeMax - headerSize) / recordedBytesPerLine_;
+        recordedBytesLimit_ = headerSize + recordedDataLinesMax * recordedBytesPerLine_;
+        flows_.emplace_back(recordedBytesLimit_);
+        returnCode = flows_.back().open(OpenMode::READ_WRITE);
 
         if (returnCode == hresult_t::SUCCESS)
         {
@@ -137,11 +137,11 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t TelemetryRecorder::flushDataSnapshot(double timestamp)
+    hresult_t TelemetryRecorder::flushSnapshot(double time)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
-        if (recordedBytes_ == recordedBytesLimits_)
+        if (recordedBytes_ == recordedBytesLimit_)
         {
             returnCode = createNewChunk();
         }
@@ -152,22 +152,22 @@ namespace jiminy
             flows_.back().write(START_LINE_TOKEN);
 
             // Write time
-            flows_.back().write(static_cast<int64_t>(std::round(timestamp * timeUnitInv_)));
+            flows_.back().write(static_cast<int64_t>(std::round(time * timeUnitInv_)));
 
             // Write data, integers first
-            for (const std::pair<std::string, int64_t> & keyValue : *integersRegistry_)
+            for (const std::pair<std::string, int64_t> & keyValue : *integerRegistry_)
             {
                 flows_.back().write(keyValue.second);
             }
 
             // Write data, floats last
-            for (const std::pair<std::string, double> & keyValue : *floatsRegistry_)
+            for (const std::pair<std::string, double> & keyValue : *floatRegistry_)
             {
                 flows_.back().write(keyValue.second);
             }
 
             // Update internal counter
-            recordedBytes_ += recordedBytesDataLine_;
+            recordedBytes_ += recordedBytesPerLine_;
         }
 
         return returnCode;
@@ -176,7 +176,7 @@ namespace jiminy
     hresult_t TelemetryRecorder::writeLog(const std::string & filename)
     {
         FileDevice myFile(filename);
-        myFile.open(openMode_t::WRITE_ONLY | openMode_t::TRUNCATE);
+        myFile.open(OpenMode::WRITE_ONLY | OpenMode::TRUNCATE);
         if (myFile.isOpen())
         {
             for (auto & flow : flows_)
@@ -220,7 +220,7 @@ namespace jiminy
         logData.floatValues.resize(numFloat, 0);
 
         // Process the provided data
-        Eigen::Index timeIdx = 0;
+        Eigen::Index timeIndex = 0;
         if (!flows.empty())
         {
             bool isReadingHeaderDone = false;
@@ -327,7 +327,7 @@ namespace jiminy
                 const int64_t recordedBytesDataLine =
                     startLineTokenSize + sizeof(uint64_t) + integerSectionSize + floatSectionSize;
                 const Eigen::Index numData =
-                    timeIdx + flow->bytesAvailable() / recordedBytesDataLine;
+                    timeIndex + flow->bytesAvailable() / recordedBytesDataLine;
                 logData.times.conservativeResize(numData);
                 logData.integerValues.conservativeResize(Eigen::NoChange, numData);
                 logData.floatValues.conservativeResize(Eigen::NoChange, numData);
@@ -346,12 +346,12 @@ namespace jiminy
                     flow->seek(flow->pos() + startLineTokenSize - 1);
 
                     // Read data line
-                    flow->read(logData.times[timeIdx]);
-                    flow->read(logData.integerValues.col(timeIdx));
-                    flow->read(logData.floatValues.col(timeIdx));
+                    flow->read(logData.times[timeIndex]);
+                    flow->read(logData.integerValues.col(timeIndex));
+                    flow->read(logData.floatValues.col(timeIndex));
 
-                    // Increment timestamp counter
-                    ++timeIdx;
+                    // Increment time counter
+                    ++timeIndex;
                 }
 
                 // Restore the cursor position
@@ -360,9 +360,9 @@ namespace jiminy
         }
 
         // Remove uninitialized data if any. It occurs whenever the last memory buffer is not full.
-        logData.times.conservativeResize(timeIdx);
-        logData.integerValues.conservativeResize(Eigen::NoChange, timeIdx);
-        logData.floatValues.conservativeResize(Eigen::NoChange, timeIdx);
+        logData.times.conservativeResize(timeIndex);
+        logData.integerValues.conservativeResize(Eigen::NoChange, timeIndex);
+        logData.floatValues.conservativeResize(Eigen::NoChange, timeIndex);
 
         return hresult_t::SUCCESS;
     }
@@ -447,7 +447,7 @@ namespace jiminy
         }
 
         FileDevice device(filename);
-        device.open(openMode_t::READ_ONLY);
+        device.open(OpenMode::READ_ONLY);
         std::vector<AbstractIODevice *> flows;
         flows.push_back(&device);
         return parseLogDataRaw(flows, integerSectionSize, floatSectionSize, headerSize, logData);

@@ -50,14 +50,14 @@ namespace jiminy
         try
         {
             double t = 0.0;
-            const Eigen::VectorXd q = pinocchio::neutral(robot->pncModel_);
+            const Eigen::VectorXd q = pinocchio::neutral(robot->pinocchioModel_);
             const Eigen::VectorXd v = Eigen::VectorXd::Zero(robot->nv());
-            Eigen::VectorXd command = Eigen::VectorXd(robot->getMotorsNames().size());
+            Eigen::VectorXd command = Eigen::VectorXd(robot->getMotorNames().size());
             Eigen::VectorXd uCustom = Eigen::VectorXd(robot->nv());
             hresult_t returnCode = computeCommand(t, q, v, command);
             if (returnCode == hresult_t::SUCCESS)
             {
-                if (static_cast<std::size_t>(command.size()) != robot->getMotorsNames().size())
+                if (static_cast<std::size_t>(command.size()) != robot->getMotorNames().size())
                 {
                     PRINT_ERROR("'computeCommand' returns command with wrong size.");
                     return hresult_t::ERROR_BAD_INPUT;
@@ -76,9 +76,9 @@ namespace jiminy
         {
             isInitialized_ = false;
             robot_.reset();
-            sensorsData_.clear();
+            sensorMeasurements_.clear();
             PRINT_ERROR(
-                "Something is wrong, probably because of 'commandFct'.\nRaised from exception: ",
+                "Something is wrong, probably because of 'commandFun'.\nRaised from exception: ",
                 e.what());
             return hresult_t::ERROR_GENERIC;
         }
@@ -110,7 +110,7 @@ namespace jiminy
 
         /* Refresh the sensor data proxy.
            Note that it is necessary to do so since sensors may have been added or removed. */
-        sensorsData_ = robot->getSensorsData();
+        sensorMeasurements_ = robot->getSensorMeasurements();
 
         // Update the telemetry flag
         isTelemetryConfigured_ = false;
@@ -119,7 +119,7 @@ namespace jiminy
     }
 
     hresult_t AbstractController::configureTelemetry(std::shared_ptr<TelemetryData> telemetryData,
-                                                     const std::string & objectPrefixName)
+                                                     const std::string & prefix)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -131,41 +131,43 @@ namespace jiminy
 
         if (!isTelemetryConfigured_ && baseControllerOptions_->telemetryEnable)
         {
-            if (telemetryData)
-            {
-                std::string objectName{CONTROLLER_TELEMETRY_NAMESPACE};
-                if (!objectPrefixName.empty())
-                {
-                    objectName = addCircumfix(
-                        objectName, objectPrefixName, {}, TELEMETRY_FIELDNAME_DELIMITER);
-                }
-                telemetrySender_->configureObject(telemetryData, objectName);
-                for (const auto & [name, valuePtr] : registeredVariables_)
-                {
-                    if (returnCode == hresult_t::SUCCESS)
-                    {
-                        // FIXME: Remove explicit `name` capture when moving to C++20
-                        std::visit([&, &name = name](auto && arg)
-                                   { telemetrySender_->registerVariable(name, arg); },
-                                   valuePtr);
-                    }
-                }
-                for (const auto & [name, value] : registeredConstants_)
-                {
-                    if (returnCode == hresult_t::SUCCESS)
-                    {
-                        returnCode = telemetrySender_->registerConstant(name, value);
-                    }
-                }
-                if (returnCode == hresult_t::SUCCESS)
-                {
-                    isTelemetryConfigured_ = true;
-                }
-            }
-            else
+            if (!telemetryData)
             {
                 PRINT_ERROR("Telemetry not initialized. Impossible to log controller data.");
                 returnCode = hresult_t::ERROR_INIT_FAILED;
+            }
+
+            if (returnCode == hresult_t::SUCCESS)
+            {
+                std::string name{CONTROLLER_TELEMETRY_NAMESPACE};
+                if (!prefix.empty())
+                {
+                    name = addCircumfix(name, prefix, {}, TELEMETRY_FIELDNAME_DELIMITER);
+                }
+                telemetrySender_->configure(telemetryData, name);
+            }
+
+            for (const auto & [name, value] : constantRegistry_)
+            {
+                if (returnCode == hresult_t::SUCCESS)
+                {
+                    returnCode = telemetrySender_->registerConstant(name, value);
+                }
+            }
+            for (const auto & [name, valuePtr] : variableRegistry_)
+            {
+                if (returnCode == hresult_t::SUCCESS)
+                {
+                    // FIXME: Remove explicit `name` capture when moving to C++20
+                    std::visit([&, &name = name](auto && arg)
+                               { returnCode = telemetrySender_->registerVariable(name, arg); },
+                               valuePtr);
+                }
+            }
+
+            if (returnCode == hresult_t::SUCCESS)
+            {
+                isTelemetryConfigured_ = true;
             }
         }
 
@@ -212,7 +214,7 @@ namespace jiminy
             values)
     {
         return registerVariableImpl<double>(
-            registeredVariables_, isTelemetryConfigured_, fieldnames, values);
+            variableRegistry_, isTelemetryConfigured_, fieldnames, values);
     }
 
     hresult_t AbstractController::registerVariable(
@@ -221,13 +223,13 @@ namespace jiminy
             values)
     {
         return registerVariableImpl<int64_t>(
-            registeredVariables_, isTelemetryConfigured_, fieldnames, values);
+            variableRegistry_, isTelemetryConfigured_, fieldnames, values);
     }
 
     void AbstractController::removeEntries()
     {
-        registeredVariables_.clear();
-        registeredConstants_.clear();
+        variableRegistry_.clear();
+        constantRegistry_.clear();
     }
 
     void AbstractController::updateTelemetry()
@@ -240,13 +242,14 @@ namespace jiminy
 
     GenericConfig AbstractController::getOptions() const noexcept
     {
-        return ctrlOptionsHolder_;
+        return controllerOptionsGeneric_;
     }
 
-    hresult_t AbstractController::setOptions(const GenericConfig & ctrlOptions)
+    hresult_t AbstractController::setOptions(const GenericConfig & controllerOptions)
     {
-        ctrlOptionsHolder_ = ctrlOptions;
-        baseControllerOptions_ = std::make_unique<const controllerOptions_t>(ctrlOptionsHolder_);
+        controllerOptionsGeneric_ = controllerOptions;
+        baseControllerOptions_ =
+            std::make_unique<const ControllerOptions>(controllerOptionsGeneric_);
         return hresult_t::SUCCESS;
     }
 

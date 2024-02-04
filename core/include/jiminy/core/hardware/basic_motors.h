@@ -27,7 +27,7 @@ namespace jiminy
             return config;
         };
 
-        struct motorOptions_t : public abstractMotorOptions_t
+        struct SimpleMotorOptions : public AbstractMotorOptions
         {
             /// \brief Flag to enable the joint friction.
             ///
@@ -56,8 +56,8 @@ namespace jiminy
             /// \pre Must be negative.
             const double frictionDrySlope;
 
-            motorOptions_t(const GenericConfig & options) :
-            abstractMotorOptions_t(options),
+            SimpleMotorOptions(const GenericConfig & options) :
+            AbstractMotorOptions(options),
             enableFriction{boost::get<bool>(options.at("enableFriction"))},
             frictionViscousPositive{boost::get<double>(options.at("frictionViscousPositive"))},
             frictionViscousNegative{boost::get<double>(options.at("frictionViscousNegative"))},
@@ -87,7 +87,7 @@ namespace jiminy
                                 double command) override;
 
     private:
-        std::unique_ptr<const motorOptions_t> motorOptions_{nullptr};
+        std::unique_ptr<const SimpleMotorOptions> motorOptions_{nullptr};
     };
 }
 

@@ -7,10 +7,9 @@ namespace jiminy
     MemoryDevice::MemoryDevice(std::size_t sizeIn) noexcept :
     AbstractIODevice(
 #ifndef _WIN32
-        openMode_t::NON_BLOCKING |
+        OpenMode::NON_BLOCKING |
 #endif
-        openMode_t::READ_ONLY | openMode_t::WRITE_ONLY | openMode_t::READ_WRITE |
-        openMode_t::APPEND),
+        OpenMode::READ_ONLY | OpenMode::WRITE_ONLY | OpenMode::READ_WRITE | OpenMode::APPEND),
     buffer_(sizeIn),
     currentPos_{0}
     {
@@ -27,10 +26,9 @@ namespace jiminy
     MemoryDevice::MemoryDevice(std::vector<uint8_t> && initBuffer) noexcept :
     AbstractIODevice(
 #ifndef _WIN32
-        openMode_t::NON_BLOCKING |
+        OpenMode::NON_BLOCKING |
 #endif
-        openMode_t::READ_ONLY | openMode_t::WRITE_ONLY | openMode_t::READ_WRITE |
-        openMode_t::APPEND),
+        OpenMode::READ_ONLY | OpenMode::WRITE_ONLY | OpenMode::READ_WRITE | OpenMode::APPEND),
     buffer_(std::move(initBuffer)),
     currentPos_{0}
     {
@@ -71,9 +69,9 @@ namespace jiminy
         return toWrite;
     }
 
-    hresult_t MemoryDevice::doOpen(openMode_t modes)
+    hresult_t MemoryDevice::doOpen(OpenMode modes)
     {
-        if (!(modes & openMode_t::APPEND))
+        if (!(modes & OpenMode::APPEND))
         {
             currentPos_ = 0;
         }

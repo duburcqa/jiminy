@@ -34,10 +34,10 @@ namespace jiminy
         /// \remarks Should only be used when default constructor is called for delayed
         ///          configuration. Should be set before registering any entry.
         ///
-        /// \param[in] telemetryDataInstance Shared pointer to the telemetry instance.
-        /// \param[in] objectName Name of the object.
-        void configureObject(std::shared_ptr<TelemetryData> telemetryDataInstance,
-                             const std::string_view & objectName);
+        /// \param[in] telemetryData Shared pointer to the telemetry instance.
+        /// \param[in] name Name of the object.
+        void configure(std::shared_ptr<TelemetryData> telemetryData,
+                       const std::string_view & name);
 
         /// \brief Register a new variable to the telemetry.
         ///
@@ -65,10 +65,10 @@ namespace jiminy
         void updateValues();
 
         /// \brief The number of registered entries.
-        uint32_t getLocalNumEntries() const;
+        uint32_t getNumEntries() const;
 
         /// \brief The object name.
-        const std::string & getObjectName() const;
+        const std::string & getName() const;
 
     protected:
         /// \brief Name of the logged object.

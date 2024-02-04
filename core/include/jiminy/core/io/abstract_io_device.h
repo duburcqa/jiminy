@@ -12,7 +12,7 @@ namespace jiminy
     ///
     /// \remarks Plain enum is used instead of enum class because otherwise conversion to bool is
     ///          undefined.
-    enum openMode_t
+    enum OpenMode
     {
         /// \brief Device is not opened.
         NOT_OPEN = 0x000,
@@ -43,18 +43,18 @@ namespace jiminy
     };
 
     // Facility operators to avoid cast.
-    openMode_t operator|(openMode_t modeA, openMode_t modeB);
-    openMode_t operator&(openMode_t modeA, openMode_t modeB);
-    openMode_t operator|=(openMode_t & modeA, openMode_t modeB);
-    openMode_t operator&=(openMode_t & modeA, openMode_t modeB);
-    openMode_t operator~(openMode_t mode);
+    OpenMode operator|(OpenMode modeA, OpenMode modeB);
+    OpenMode operator&(OpenMode modeA, OpenMode modeB);
+    OpenMode operator|=(OpenMode & modeA, OpenMode modeB);
+    OpenMode operator&=(OpenMode & modeA, OpenMode modeB);
+    OpenMode operator~(OpenMode mode);
 
     /// \brief Base interface class to handle all possibles I/O that can act as a stream (file /
     ///        TCP socket / pipe and so on).
     class JIMINY_DLLAPI AbstractIODevice
     {
     public:
-        explicit AbstractIODevice(openMode_t supportedModes) noexcept;
+        explicit AbstractIODevice(OpenMode supportedModes) noexcept;
         explicit AbstractIODevice(AbstractIODevice &&) = default;
         virtual ~AbstractIODevice() = default;
 
@@ -63,7 +63,7 @@ namespace jiminy
         /// \param mode Mode to apply for opening the device.
         ///
         /// \return hresult_t::SUCCESS if successful, another hresult_t value otherwise.
-        hresult_t open(openMode_t mode);
+        hresult_t open(OpenMode mode);
 
         /// \brief Write data in the device.
         ///
@@ -76,10 +76,10 @@ namespace jiminy
         hresult_t close();
 
         /// \brief Current opening modes.
-        openMode_t openModes() const;
+        OpenMode openModes() const;
 
         /// \brief Supported opening modes.
-        openMode_t supportedModes() const;
+        OpenMode supportedModes() const;
 
         /// \brief Whether the device is writable.
         bool isWritable() const;
@@ -166,7 +166,7 @@ namespace jiminy
         hresult_t getLastError() const;
 
     protected:
-        virtual hresult_t doOpen(openMode_t mode) = 0;
+        virtual hresult_t doOpen(OpenMode mode) = 0;
         virtual hresult_t doClose() = 0;
 
         /// \brief Write data in the device.
@@ -203,9 +203,9 @@ namespace jiminy
 
     protected:
         /// \brief Supported modes of the device.
-        const openMode_t supportedModes_;
+        const OpenMode supportedModes_;
         /// \brief Current opening mode.
-        openMode_t modes_{openMode_t::NOT_OPEN};
+        OpenMode modes_{OpenMode::NOT_OPEN};
         /// \brief Latest generated error.
         hresult_t lastError_{hresult_t::SUCCESS};
     };

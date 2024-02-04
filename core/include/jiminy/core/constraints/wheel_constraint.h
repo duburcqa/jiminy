@@ -35,7 +35,7 @@ namespace jiminy
         virtual ~WheelConstraint() = default;
 
         const std::string & getFrameName() const noexcept;
-        pinocchio::FrameIndex getFrameIdx() const noexcept;
+        pinocchio::FrameIndex getFrameIndex() const noexcept;
 
         void setReferenceTransform(const pinocchio::SE3 & transformRef) noexcept;
         const pinocchio::SE3 & getReferenceTransform() const noexcept;
@@ -50,7 +50,7 @@ namespace jiminy
         /// \brief Name of the frame on which the constraint operates.
         std::string frameName_;
         /// \brief Corresponding frame index.
-        pinocchio::FrameIndex frameIdx_{0};
+        pinocchio::FrameIndex frameIndex_{0};
         /// \brief Wheel radius.
         double radius_;
         /// \brief Ground normal, world frame.

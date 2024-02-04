@@ -52,9 +52,9 @@ namespace jiminy::python
             if (func)
             {
                 func(t,
-                     FctPyWrapperArgToPython(q),
-                     FctPyWrapperArgToPython(v),
-                     FctPyWrapperArgToPython(command));
+                     FunPyWrapperArgToPython(q),
+                     FunPyWrapperArgToPython(v),
+                     FunPyWrapperArgToPython(command));
             }
             return hresult_t::SUCCESS;
         }
@@ -68,9 +68,9 @@ namespace jiminy::python
             if (func)
             {
                 func(t,
-                     FctPyWrapperArgToPython(q),
-                     FctPyWrapperArgToPython(v),
-                     FctPyWrapperArgToPython(uCustom));
+                     FunPyWrapperArgToPython(q),
+                     FunPyWrapperArgToPython(v),
+                     FunPyWrapperArgToPython(uCustom));
             }
             return hresult_t::SUCCESS;
         }
@@ -103,7 +103,7 @@ namespace jiminy::python
                                     (bp::arg("self"), "options"))
                 .def("get_options", &AbstractController::getOptions)
                 .ADD_PROPERTY_GET("robot", &PyAbstractControllerVisitor::getRobot)
-                .DEF_READONLY("sensors_data", &AbstractController::sensorsData_)
+                .DEF_READONLY("sensor_measurements", &AbstractController::sensorMeasurements_)
                 ;
             // clang-format on
         }
@@ -307,15 +307,18 @@ namespace jiminy::python
 
     BOOST_PYTHON_VISITOR_EXPOSE(AbstractController)
 
-    // ***************************** PyControllerFunctorVisitor ***********************************
+    // ***************************** PyFunctionalControllerVisitor ***************************** //
 
-    using CtrlFunctor = ControllerFunctor<ControllerFunPyWrapper, ControllerFunPyWrapper>;
+    using FunctionalControllerPyBase =
+        FunctionalController<ControllerFunPyWrapper, ControllerFunPyWrapper>;
 
-    class CtrlFunctorImpl : public CtrlFunctor
+    class FunctionalControllerPyInterface : public FunctionalControllerPyBase
     {
     };
 
-    class CtrlFunctorWrapper : public CtrlFunctorImpl, public bp::wrapper<CtrlFunctorImpl>
+    class FunctionalControllerPy :
+    public FunctionalControllerPyInterface,
+        public bp::wrapper<FunctionalControllerPyInterface>
     {
     public:
         hresult_t reset(bool resetDynamicTelemetry)
@@ -326,16 +329,16 @@ namespace jiminy::python
                 func(resetDynamicTelemetry);
                 return hresult_t::SUCCESS;
             }
-            return CtrlFunctor::reset(resetDynamicTelemetry);
+            return FunctionalControllerPyBase::reset(resetDynamicTelemetry);
         }
 
         hresult_t default_reset(bool resetDynamicTelemetry)
         {
-            return this->CtrlFunctor::reset(resetDynamicTelemetry);
+            return this->FunctionalControllerPyBase::reset(resetDynamicTelemetry);
         }
     };
 
-    struct PyControllerFunctorVisitor : public bp::def_visitor<PyControllerFunctorVisitor>
+    struct PyFunctionalControllerVisitor : public bp::def_visitor<PyFunctionalControllerVisitor>
     {
     public:
         /// \brief Expose C++ API through the visitor.
@@ -352,33 +355,33 @@ namespace jiminy::python
             // clang-format on
         }
 
-        static std::shared_ptr<CtrlFunctor> factory(bp::object & commandPy,
-                                                    bp::object & internalDynamicsPy)
+        static std::shared_ptr<FunctionalControllerPyBase> factory(bp::object & commandPy,
+                                                                   bp::object & internalDynamicsPy)
         {
-            return std::make_shared<CtrlFunctor>(ControllerFunPyWrapper(commandPy),
-                                                 ControllerFunPyWrapper(internalDynamicsPy));
+            return std::make_shared<FunctionalControllerPyBase>(
+                ControllerFunPyWrapper(commandPy), ControllerFunPyWrapper(internalDynamicsPy));
         }
 
         static void expose()
         {
             // clang-format off
-            bp::class_<CtrlFunctor, bp::bases<AbstractController>,
-                       std::shared_ptr<CtrlFunctor>,
-                       boost::noncopyable>("AbstractControllerFunctor", bp::no_init)
-                .def(PyControllerFunctorVisitor());
+            bp::class_<FunctionalControllerPyBase, bp::bases<AbstractController>,
+                       std::shared_ptr<FunctionalControllerPyBase>,
+                       boost::noncopyable>("AbstractFunctionalController", bp::no_init)
+                .def(PyFunctionalControllerVisitor());
 
-            bp::class_<CtrlFunctorWrapper, bp::bases<CtrlFunctor>,
-                       std::shared_ptr<CtrlFunctorWrapper>,
-                       boost::noncopyable>("ControllerFunctor", bp::no_init)
-                .def("__init__", bp::make_constructor(&PyControllerFunctorVisitor::factory,
+            bp::class_<FunctionalControllerPy, bp::bases<FunctionalControllerPyBase>,
+                       std::shared_ptr<FunctionalControllerPy>,
+                       boost::noncopyable>("FunctionalController", bp::no_init)
+                .def("__init__", bp::make_constructor(&PyFunctionalControllerVisitor::factory,
                                  bp::default_call_policies(),
                                 (bp::arg("compute_command") = bp::object(),
                                  bp::arg("internal_dynamics") = bp::object())))
-                .def("reset", &CtrlFunctor::reset, &CtrlFunctorWrapper::default_reset,
+                .def("reset", &FunctionalControllerPyBase::reset, &FunctionalControllerPy::default_reset,
                               (bp::arg("self"), bp::arg("reset_dynamic_telemetry") = false));
             // clang-format on
         }
     };
 
-    BOOST_PYTHON_VISITOR_EXPOSE(ControllerFunctor)
+    BOOST_PYTHON_VISITOR_EXPOSE(FunctionalController)
 }

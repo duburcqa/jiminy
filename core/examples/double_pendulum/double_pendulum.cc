@@ -21,7 +21,7 @@ using namespace jiminy;
 void computeCommand(double /* t */,
                     const Eigen::VectorXd & /* q */,
                     const Eigen::VectorXd & /* v */,
-                    const SensorsDataMap & /* sensorsData */,
+                    const SensorMeasurementTree & /* sensorMeasurements */,
                     Eigen::VectorXd & /* command */)
 {
     // No controller: energy should be preserved
@@ -30,7 +30,7 @@ void computeCommand(double /* t */,
 void internalDynamics(double /* t */,
                       const Eigen::VectorXd & /* q */,
                       const Eigen::VectorXd & /* v */,
-                      const SensorsDataMap & /* sensorsData */,
+                      const SensorMeasurementTree & /* sensorMeasurements */,
                       Eigen::VectorXd & /* uCustom */)
 {
 }
@@ -46,7 +46,10 @@ int main(int /* argc */, char * /* argv */[])
     // ==================== Extract the user paramaters ====================
     // =====================================================================
 
-    // Set URDF and log output.
+    /* Set URDF and log output.
+       Note that `std::filesystem::path` must be converted explicitly on Windows OS when passed to
+       functions expecting `std::string` as input argument. This is because it uses `wchar_t`
+       instead of `char_t` internally, which is only implicitly convertible to `std::wstring`. */
     const std::filesystem::path filePath(__FILE__);
     const auto jiminySrcPath = filePath.parent_path().parent_path().parent_path().parent_path();
     const auto dataPath = jiminySrcPath / "data/toys_models";
@@ -78,7 +81,7 @@ int main(int /* argc */, char * /* argv */[])
     }
 
     // Instantiate and configuration the controller
-    auto controller = std::make_shared<ControllerFunctor<>>(computeCommand, internalDynamics);
+    auto controller = std::make_shared<FunctionalController<>>(computeCommand, internalDynamics);
     controller->initialize(robot);
 
     // Instantiate and configuration the engine

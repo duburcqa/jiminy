@@ -12,9 +12,9 @@ namespace jiminy::python
 {
     namespace bp = boost::python;
 
-    // ******************************* SensorsDataMap ********************************
+    // ********************************* SensorMeasurementTree ********************************* //
 
-    struct PySensorsDataMapVisitor : public bp::def_visitor<PySensorsDataMapVisitor>
+    struct PySensorMeasurementTreeVisitor : public bp::def_visitor<PySensorMeasurementTreeVisitor>
     {
     public:
         /// \brief Expose C++ API through the visitor.
@@ -26,62 +26,64 @@ namespace jiminy::python
                 /* with_custodian_and_ward_postcall is used to tie the lifetime of the Python
                    object with the one of the C++ reference, so that the Python object does not
                    get deleted while the C++ object is not. */
-                .def("__init__", &PySensorsDataMapVisitor::factoryWrapper,
+                .def("__init__", &PySensorMeasurementTreeVisitor::factoryWrapper,
                                  bp::with_custodian_and_ward_postcall<1, 2>(),
-                                 (bp::arg("self"), "sensors_data_dict"))
-                .def("__len__", &PySensorsDataMapVisitor::len,
+                                 (bp::arg("self"), "sensor_measurements"))
+                .def("__len__", &PySensorMeasurementTreeVisitor::len,
                                 (bp::arg("self")))
-                .def("__getitem__", &PySensorsDataMapVisitor::getItem,
+                .def("__getitem__", &PySensorMeasurementTreeVisitor::getItem,
                                     bp::return_value_policy<result_converter<false>>(),
                                     (bp::arg("self"), "sensor_info"))
-                .def("__getitem__", &PySensorsDataMapVisitor::getItemSplit,
+                .def("__getitem__", &PySensorMeasurementTreeVisitor::getItemSplit,
                                     bp::return_value_policy<result_converter<false>>(),
                                     (bp::arg("self"), "sensor_type", "sensor_name"))
-                .def("__getitem__", &PySensorsDataMapVisitor::getSub,
+                .def("__getitem__", &PySensorMeasurementTreeVisitor::getSub,
                                     bp::return_value_policy<result_converter<false>>(),
                                     (bp::arg("self"), "sensor_type"))
                 /* Using '__iter__' is discouraged because it has very poor efficiency due to
                    the overhead of translating 'StopIteration' exception when reaching the end. */
                 .def("__iter__", bp::range<bp::return_value_policy<result_converter<false>>>(
                                  static_cast<
-                                     SensorsDataMap::iterator (SensorsDataMap::*)(void)
-                                 >(&SensorsDataMap::begin),
+                                     SensorMeasurementTree::iterator (SensorMeasurementTree::*)(void)
+                                 >(&SensorMeasurementTree::begin),
                                  static_cast<
-                                     SensorsDataMap::iterator (SensorsDataMap::*)(void)
-                                 >(&SensorsDataMap::end)))
-                .def("__contains__", &PySensorsDataMapVisitor::contains,
+                                     SensorMeasurementTree::iterator (SensorMeasurementTree::*)(void)
+                                 >(&SensorMeasurementTree::end)))
+                .def("__contains__", &PySensorMeasurementTreeVisitor::contains,
                                      (bp::arg("self"), "key"))
-                .def("__repr__", &PySensorsDataMapVisitor::repr)
-                .def("keys", &PySensorsDataMapVisitor::keys,
+                .def("__repr__", &PySensorMeasurementTreeVisitor::repr)
+                .def("keys", &PySensorMeasurementTreeVisitor::keys,
                              (bp::arg("self")))
-                .def("keys", &PySensorsDataMapVisitor::keysSensorType,
+                .def("keys", &PySensorMeasurementTreeVisitor::keysSensorType,
                              (bp::arg("self"), "sensor_type"))
-                .def("values", &PySensorsDataMapVisitor::values,
+                .def("values", &PySensorMeasurementTreeVisitor::values,
                                (bp::arg("self")))
-                .def("items", &PySensorsDataMapVisitor::items,
+                .def("items", &PySensorMeasurementTreeVisitor::items,
                               (bp::arg("self")))
                 ;
             // clang-format on
         }
 
-        static bp::ssize_t len(SensorsDataMap & self) { return self.size(); }
+        static bp::ssize_t len(SensorMeasurementTree & self) { return self.size(); }
 
-        static const Eigen::Ref<const Eigen::VectorXd> & getItem(SensorsDataMap & self,
+        static const Eigen::Ref<const Eigen::VectorXd> & getItem(SensorMeasurementTree & self,
                                                                  const bp::tuple & sensorInfo)
         {
             const std::string sensorType = bp::extract<std::string>(sensorInfo[0]);
             const std::string sensorName = bp::extract<std::string>(sensorInfo[1]);
-            return PySensorsDataMapVisitor::getItemSplit(self, sensorType, sensorName);
+            return PySensorMeasurementTreeVisitor::getItemSplit(self, sensorType, sensorName);
         }
 
         static const Eigen::Ref<const Eigen::VectorXd> & getItemSplit(
-            SensorsDataMap & self, const std::string & sensorType, const std::string & sensorName)
+            SensorMeasurementTree & self,
+            const std::string & sensorType,
+            const std::string & sensorName)
         {
             try
             {
-                auto & sensorsDataTypeByName = self.at(sensorType).get<IndexByName>();
-                auto sensorDataIt = sensorsDataTypeByName.find(sensorName);
-                if (sensorDataIt == sensorsDataTypeByName.end())
+                auto & SensorMeasurementTreeByName = self.at(sensorType).get<IndexByName>();
+                auto sensorDataIt = SensorMeasurementTreeByName.find(sensorName);
+                if (sensorDataIt == SensorMeasurementTreeByName.end())
                 {
                     throw std::runtime_error("");
                 }
@@ -97,7 +99,7 @@ namespace jiminy::python
             }
         }
 
-        static const Eigen::MatrixXd & getSub(SensorsDataMap & self,
+        static const Eigen::MatrixXd & getSub(SensorMeasurementTree & self,
                                               const std::string & sensorType)
         {
             try
@@ -113,16 +115,17 @@ namespace jiminy::python
             }
         }
 
-        static bool contains(SensorsDataMap & self, const bp::tuple & sensorInfo)
+        static bool contains(SensorMeasurementTree & self, const bp::tuple & sensorInfo)
         {
             const std::string sensorType = bp::extract<std::string>(sensorInfo[0]);
             const std::string sensorName = bp::extract<std::string>(sensorInfo[1]);
-            const auto & sensorsDataType = self.find(sensorType);
-            if (sensorsDataType != self.end())
+            const auto & SensorMeasurementTree = self.find(sensorType);
+            if (SensorMeasurementTree != self.end())
             {
-                auto & sensorsDataTypeByName = sensorsDataType->second.get<IndexByName>();
-                auto sensorDataIt = sensorsDataTypeByName.find(sensorName);
-                if (sensorDataIt != sensorsDataTypeByName.end())
+                auto & SensorMeasurementTreeByName =
+                    SensorMeasurementTree->second.get<IndexByName>();
+                auto sensorDataIt = SensorMeasurementTreeByName.find(sensorName);
+                if (sensorDataIt != SensorMeasurementTreeByName.end())
                 {
                     return true;
                 }
@@ -130,7 +133,7 @@ namespace jiminy::python
             return false;
         }
 
-        static bp::list keys(SensorsDataMap & self)
+        static bp::list keys(SensorMeasurementTree & self)
         {
             bp::list sensorsInfo;
             for (auto & sensorData : self)
@@ -140,7 +143,8 @@ namespace jiminy::python
             return sensorsInfo;
         }
 
-        static bp::list keysSensorType(SensorsDataMap & self, const std::string & sensorType)
+        static bp::list keysSensorType(SensorMeasurementTree & self,
+                                       const std::string & sensorType)
         {
             bp::list sensorsInfo;
             for (auto & sensorData : self.at(sensorType))
@@ -150,71 +154,71 @@ namespace jiminy::python
             return sensorsInfo;
         }
 
-        static bp::list values(SensorsDataMap & self)
+        static bp::list values(SensorMeasurementTree & self)
         {
             bp::list sensorsValue;
-            for (const auto & sensorsDataType : self)
+            for (const auto & SensorMeasurementTree : self)
             {
-                sensorsValue.append(convertToPython(sensorsDataType.second.getAll(), false));
+                sensorsValue.append(convertToPython(SensorMeasurementTree.second.getAll(), false));
             }
             return sensorsValue;
         }
 
-        static bp::list items(SensorsDataMap & self)
+        static bp::list items(SensorMeasurementTree & self)
         {
             bp::list sensorsDataPy;
-            for (const auto & sensorsDataType : self)
+            for (const auto & SensorMeasurementTree : self)
             {
-                sensorsDataPy.append(convertToPython(sensorsDataType, false));
+                sensorsDataPy.append(convertToPython(SensorMeasurementTree, false));
             }
             return sensorsDataPy;
         }
 
-        static std::string repr(SensorsDataMap & self)
+        static std::string repr(SensorMeasurementTree & self)
         {
             std::stringstream s;
             Eigen::IOFormat HeavyFmt(5, 1, ", ", "", "", "", "[", "]\n");
 
-            for (const auto & sensorsDataType : self)
+            for (const auto & SensorMeasurementTree : self)
             {
-                const std::string & sensorTypeName = sensorsDataType.first;
+                const std::string & sensorTypeName = SensorMeasurementTree.first;
                 s << sensorTypeName << ":\n";
-                for (const auto & sensorData : sensorsDataType.second)
+                for (const auto & sensorData : SensorMeasurementTree.second)
                 {
                     const std::string & sensorName = sensorData.name;
-                    std::size_t sensorIdx = sensorData.idx;
+                    std::size_t sensorIndex = sensorData.index;
                     const Eigen::Ref<const Eigen::VectorXd> & sensorDataValue = sensorData.value;
-                    s << "    (" << sensorIdx << ") " << sensorName << ": "
+                    s << "    (" << sensorIndex << ") " << sensorName << ": "
                       << sensorDataValue.transpose().format(HeavyFmt);
                 }
             }
             return s.str();
         }
 
-        static std::shared_ptr<SensorsDataMap> factory(bp::dict & sensorDataPy)
+        static std::shared_ptr<SensorMeasurementTree> factory(bp::dict & sensorDataPy)
         {
-            auto sensorData = convertFromPython<SensorsDataMap>(sensorDataPy);
-            return std::make_shared<SensorsDataMap>(std::move(sensorData));
+            auto sensorData = convertFromPython<SensorMeasurementTree>(sensorDataPy);
+            return std::make_shared<SensorMeasurementTree>(std::move(sensorData));
         }
 
         static void factoryWrapper(bp::object & self, bp::dict & sensorDataPy)
         {
-            auto constructor = bp::make_constructor(&PySensorsDataMapVisitor::factory);
+            auto constructor = bp::make_constructor(&PySensorMeasurementTreeVisitor::factory);
             constructor(self, sensorDataPy);
         }
 
         static void expose()
         {
             // clang-format off
-            bp::class_<SensorsDataMap,
-                       std::shared_ptr<SensorsDataMap>,
-                       boost::noncopyable>("sensorsData", bp::no_init)
-                .def(PySensorsDataMapVisitor());
+            bp::class_<SensorMeasurementTree,
+                       std::shared_ptr<SensorMeasurementTree>,
+                       boost::noncopyable>("SensorMeasurementTree", bp::no_init)
+                .def(PySensorMeasurementTreeVisitor());
             // clang-format on
         }
     };
 
-    BOOST_PYTHON_VISITOR_EXPOSE(SensorsDataMap)
+    BOOST_PYTHON_VISITOR_EXPOSE(SensorMeasurementTree)
 
     // ************************* PyAbstractSensorVisitor ******************************
 
@@ -241,8 +245,8 @@ namespace jiminy::python
                 .ADD_PROPERTY_GET_WITH_POLICY("name",
                                               &AbstractSensorBase::getName,
                                               bp::return_value_policy<bp::return_by_value>())
-                .ADD_PROPERTY_GET_WITH_POLICY("idx",
-                                              &AbstractSensorBase::getIdx,
+                .ADD_PROPERTY_GET_WITH_POLICY("index",
+                                              &AbstractSensorBase::getIndex,
                                               bp::return_value_policy<bp::return_by_value>())
                 .ADD_PROPERTY_GET_SET_WITH_POLICY("data",
                                                   static_cast<
@@ -267,7 +271,7 @@ namespace jiminy::python
             std::stringstream s;
             s << "type: " << self.getType() << "\n";
             s << "name: " << self.getName() << "\n";
-            s << "idx: " << self.getIdx() << "\n";
+            s << "index: " << self.getIndex() << "\n";
             s << "data:\n    ";
             const std::vector<std::string> & fieldnames = self.getFieldnames();
             const Eigen::Ref<const Eigen::VectorXd> & sensorDataValue =
@@ -341,8 +345,8 @@ namespace jiminy::python
                 .ADD_PROPERTY_GET_WITH_POLICY("frame_name",
                                               &DerivedSensor::getFrameName,
                                               bp::return_value_policy<bp::return_by_value>())
-                .ADD_PROPERTY_GET_WITH_POLICY("frame_idx",
-                                              &DerivedSensor::getFrameIdx,
+                .ADD_PROPERTY_GET_WITH_POLICY("frame_index",
+                                              &DerivedSensor::getFrameIndex,
                                               bp::return_value_policy<bp::return_by_value>())
                 ;
             // clang-format on
@@ -359,11 +363,11 @@ namespace jiminy::python
                 .ADD_PROPERTY_GET_WITH_POLICY("frame_name",
                                               &ForceSensor::getFrameName,
                                               bp::return_value_policy<bp::return_by_value>())
-                .ADD_PROPERTY_GET_WITH_POLICY("frame_idx",
-                                              &ForceSensor::getFrameIdx,
+                .ADD_PROPERTY_GET_WITH_POLICY("frame_index",
+                                              &ForceSensor::getFrameIndex,
                                               bp::return_value_policy<bp::return_by_value>())
-                .ADD_PROPERTY_GET_WITH_POLICY("joint_idx",
-                                              &ForceSensor::getJointModelIdx,
+                .ADD_PROPERTY_GET_WITH_POLICY("joint_index",
+                                              &ForceSensor::getJointIndex,
                                               bp::return_value_policy<bp::return_by_value>())
                 ;
             // clang-format on
@@ -380,8 +384,8 @@ namespace jiminy::python
                 .ADD_PROPERTY_GET_WITH_POLICY("joint_name",
                                               &EncoderSensor::getJointName,
                                               bp::return_value_policy<bp::return_by_value>())
-                .ADD_PROPERTY_GET_WITH_POLICY("joint_idx",
-                                              &EncoderSensor::getJointModelIdx,
+                .ADD_PROPERTY_GET_WITH_POLICY("joint_index",
+                                              &EncoderSensor::getJointIndex,
                                               bp::return_value_policy<bp::return_by_value>())
                 .ADD_PROPERTY_GET_WITH_POLICY("joint_type",
                                               &EncoderSensor::getJointType,
@@ -401,8 +405,8 @@ namespace jiminy::python
                 .ADD_PROPERTY_GET_WITH_POLICY("motor_name",
                                               &EffortSensor::getMotorName,
                                               bp::return_value_policy<bp::return_by_value>())
-                .ADD_PROPERTY_GET_WITH_POLICY("motor_idx",
-                                              &EffortSensor::getMotorIdx,
+                .ADD_PROPERTY_GET_WITH_POLICY("motor_index",
+                                              &EffortSensor::getMotorIndex,
                                               bp::return_value_policy<bp::return_by_value>())
                 ;
             // clang-format on

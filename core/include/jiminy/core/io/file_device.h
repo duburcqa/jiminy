@@ -25,7 +25,7 @@ namespace jiminy
         const std::string & name() const;
 
     protected:
-        hresult_t doOpen(openMode_t mode) override;
+        hresult_t doOpen(OpenMode mode) override;
         hresult_t doClose() override;
 
         std::ptrdiff_t readData(void * data, std::size_t dataSize) override;

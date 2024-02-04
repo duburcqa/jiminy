@@ -38,11 +38,10 @@ namespace jiminy
     FileDevice::FileDevice(const std::string & filename) noexcept :
     AbstractIODevice(
 #ifndef _WIN32
-        openMode_t::NON_BLOCKING | openMode_t::SYNC |
+        OpenMode::NON_BLOCKING | OpenMode::SYNC |
 #endif
-        openMode_t::READ_ONLY | openMode_t::WRITE_ONLY | openMode_t::READ_WRITE |
-        openMode_t::TRUNCATE | openMode_t::NEW_ONLY | openMode_t::EXISTING_ONLY |
-        openMode_t::APPEND),
+        OpenMode::READ_ONLY | OpenMode::WRITE_ONLY | OpenMode::READ_WRITE | OpenMode::TRUNCATE |
+        OpenMode::NEW_ONLY | OpenMode::EXISTING_ONLY | OpenMode::APPEND),
     filename_{filename}
     {
     }
@@ -59,44 +58,44 @@ namespace jiminy
 #endif
     }
 
-    hresult_t FileDevice::doOpen(openMode_t mode)
+    hresult_t FileDevice::doOpen(OpenMode mode)
     {
         int32_t openFlags = 0;
-        if (mode & openMode_t::READ_ONLY)
+        if (mode & OpenMode::READ_ONLY)
         {
             openFlags |= O_RDONLY;
         }
-        if (mode & openMode_t::WRITE_ONLY)
+        if (mode & OpenMode::WRITE_ONLY)
         {
             openFlags |= O_WRONLY;
             openFlags |= O_CREAT;
         }
-        if (mode & openMode_t::READ_WRITE)
+        if (mode & OpenMode::READ_WRITE)
         {
             openFlags |= O_RDWR;
         }
-        if (mode & openMode_t::TRUNCATE)
+        if (mode & OpenMode::TRUNCATE)
         {
             openFlags |= O_TRUNC;
         }
-        if (mode & openMode_t::NEW_ONLY)
+        if (mode & OpenMode::NEW_ONLY)
         {
             openFlags |= O_EXCL;
         }
-        if (mode & openMode_t::EXISTING_ONLY)
+        if (mode & OpenMode::EXISTING_ONLY)
         {
             openFlags &= ~O_CREAT;
         }
-        if (mode & openMode_t::APPEND)
+        if (mode & OpenMode::APPEND)
         {
             openFlags |= O_APPEND;
         }
 #ifndef _WIN32
-        if (mode & openMode_t::NON_BLOCKING)
+        if (mode & OpenMode::NON_BLOCKING)
         {
             openFlags |= O_NONBLOCK;
         }
-        if (mode & openMode_t::SYNC)
+        if (mode & OpenMode::SYNC)
         {
             openFlags |= O_SYNC;
         }

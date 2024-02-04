@@ -14,7 +14,7 @@ namespace jiminy
     DistanceConstraint::DistanceConstraint(const std::string & firstFrameName,
                                            const std::string & secondFrameName) noexcept :
     AbstractConstraintTpl(),
-    frameNames_{{firstFrameName, secondFrameName}}
+    frameNames_{firstFrameName, secondFrameName}
     {
     }
 
@@ -23,7 +23,8 @@ namespace jiminy
         return frameNames_;
     }
 
-    const std::array<pinocchio::FrameIndex, 2> & DistanceConstraint::getFramesIdx() const noexcept
+    const std::array<pinocchio::FrameIndex, 2> &
+    DistanceConstraint::getFrameIndices() const noexcept
     {
         return frameIndices_;
     }
@@ -63,8 +64,8 @@ namespace jiminy
         {
             if (returnCode == hresult_t::SUCCESS)
             {
-                returnCode =
-                    ::jiminy::getFrameIdx(model->pncModel_, frameNames_[i], frameIndices_[i]);
+                returnCode = ::jiminy::getFrameIndex(
+                    model->pinocchioModel_, frameNames_[i], frameIndices_[i]);
             }
         }
 
@@ -73,18 +74,18 @@ namespace jiminy
             // Initialize frames jacobians buffers
             for (Matrix6Xd & frameJacobian : frameJacobians_)
             {
-                frameJacobian.setZero(6, model->pncModel_.nv);
+                frameJacobian.setZero(6, model->pinocchioModel_.nv);
             }
 
             // Initialize jacobian, drift and multipliers
-            jacobian_.setZero(1, model->pncModel_.nv);
+            jacobian_.setZero(1, model->pinocchioModel_.nv);
             drift_.setZero(1);
             lambda_.setZero(1);
 
             // Compute the current distance and use it as reference
             const Eigen::Vector3d deltaPosition =
-                model->pncData_.oMf[frameIndices_[0]].translation() -
-                model->pncData_.oMf[frameIndices_[1]].translation();
+                model->pinocchioData_.oMf[frameIndices_[0]].translation() -
+                model->pinocchioData_.oMf[frameIndices_[1]].translation();
             distanceRef_ = deltaPosition.norm();
         }
 
@@ -104,24 +105,29 @@ namespace jiminy
         auto model = model_.lock();
 
         // Compute direction between frames
-        const Eigen::Vector3d deltaPosition = model->pncData_.oMf[frameIndices_[0]].translation() -
-                                              model->pncData_.oMf[frameIndices_[1]].translation();
+        const Eigen::Vector3d deltaPosition =
+            model->pinocchioData_.oMf[frameIndices_[0]].translation() -
+            model->pinocchioData_.oMf[frameIndices_[1]].translation();
         const double deltaPositionNorm = deltaPosition.norm();
         const Eigen::Vector3d direction = deltaPosition / deltaPositionNorm;
 
         // Compute relative velocity between frames
         std::array<pinocchio::Motion, 2> frameVelocities{};
-        frameVelocities[0] = getFrameVelocity(
-            model->pncModel_, model->pncData_, frameIndices_[0], pinocchio::LOCAL_WORLD_ALIGNED);
-        frameVelocities[1] = getFrameVelocity(
-            model->pncModel_, model->pncData_, frameIndices_[1], pinocchio::LOCAL_WORLD_ALIGNED);
+        frameVelocities[0] = getFrameVelocity(model->pinocchioModel_,
+                                              model->pinocchioData_,
+                                              frameIndices_[0],
+                                              pinocchio::LOCAL_WORLD_ALIGNED);
+        frameVelocities[1] = getFrameVelocity(model->pinocchioModel_,
+                                              model->pinocchioData_,
+                                              frameIndices_[1],
+                                              pinocchio::LOCAL_WORLD_ALIGNED);
         Eigen::Vector3d deltaVelocity = frameVelocities[0].linear() - frameVelocities[1].linear();
 
         // Get jacobian in local frame: J_1 - J_2
         for (uint8_t i = 0; i < 2; ++i)
         {
-            getFrameJacobian(model->pncModel_,
-                             model->pncData_,
+            getFrameJacobian(model->pinocchioModel_,
+                             model->pinocchioData_,
                              frameIndices_[i],
                              pinocchio::LOCAL_WORLD_ALIGNED,
                              frameJacobians_[i]);
@@ -133,8 +139,8 @@ namespace jiminy
         std::array<pinocchio::Motion, 2> frameAccelerations{};
         for (uint8_t i = 0; i < 2; ++i)
         {
-            frameAccelerations[i] = getFrameAcceleration(model->pncModel_,
-                                                         model->pncData_,
+            frameAccelerations[i] = getFrameAcceleration(model->pinocchioModel_,
+                                                         model->pinocchioData_,
                                                          frameIndices_[i],
                                                          pinocchio::LOCAL_WORLD_ALIGNED);
             frameAccelerations[i].linear() +=

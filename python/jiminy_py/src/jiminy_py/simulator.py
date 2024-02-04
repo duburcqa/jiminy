@@ -517,11 +517,11 @@ class Simulator:
                 # the joints having an external force registered to it.
                 if "display_f_external" not in viewer_kwargs:
                     force_frames = set(
-                        self.robot.pinocchio_model.frames[f_i.frame_idx].parent
-                        for f_i in self.engine.forces_profile)
+                        self.robot.pinocchio_model.frames[f.frame_index].parent
+                        for f in self.engine.profile_forces)
                     force_frames |= set(
-                        self.robot.pinocchio_model.frames[f_i.frame_idx].parent
-                        for f_i in self.engine.forces_impulse)
+                        self.robot.pinocchio_model.frames[f.frame_index].parent
+                        for f in self.engine.impulse_forces)
                     visibility = self.viewer._display_f_external
                     assert isinstance(visibility, list)
                     for i in force_frames:

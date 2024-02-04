@@ -18,7 +18,7 @@ namespace jiminy
     AbstractSensorBase::~AbstractSensorBase() = default;
 
     hresult_t AbstractSensorBase::configureTelemetry(std::shared_ptr<TelemetryData> telemetryData,
-                                                     const std::string & objectPrefixName)
+                                                     const std::string & prefix)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -34,13 +34,12 @@ namespace jiminy
             {
                 if (telemetryData)
                 {
-                    std::string objectName = getTelemetryName();
-                    if (!objectPrefixName.empty())
+                    std::string name = getTelemetryName();
+                    if (!prefix.empty())
                     {
-                        objectName = addCircumfix(
-                            objectName, objectPrefixName, {}, TELEMETRY_FIELDNAME_DELIMITER);
+                        name = addCircumfix(name, prefix, {}, TELEMETRY_FIELDNAME_DELIMITER);
                     }
-                    telemetrySender_->configureObject(telemetryData, objectName);
+                    telemetrySender_->configure(telemetryData, name);
                     returnCode = telemetrySender_->registerVariable(getFieldnames(), get());
                     if (returnCode == hresult_t::SUCCESS)
                     {
@@ -84,14 +83,14 @@ namespace jiminy
 
     hresult_t AbstractSensorBase::setOptions(const GenericConfig & sensorOptions)
     {
-        sensorOptionsHolder_ = sensorOptions;
-        baseSensorOptions_ = std::make_unique<const abstractSensorOptions_t>(sensorOptionsHolder_);
+        sensorOptionsGeneric_ = sensorOptions;
+        baseSensorOptions_ = std::make_unique<const AbstractSensorOptions>(sensorOptionsGeneric_);
         return hresult_t::SUCCESS;
     }
 
     GenericConfig AbstractSensorBase::getOptions() const noexcept
     {
-        return sensorOptionsHolder_;
+        return sensorOptionsGeneric_;
     }
 
     bool AbstractSensorBase::getIsInitialized() const

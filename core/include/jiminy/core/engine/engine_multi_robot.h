@@ -14,26 +14,26 @@ namespace jiminy
 {
     inline constexpr std::string_view ENGINE_TELEMETRY_NAMESPACE{"HighLevelController"};
 
-    enum class JIMINY_DLLAPI contactModel_t : uint8_t
+    enum class JIMINY_DLLAPI ContactModelType : uint8_t
     {
         UNSUPPORTED = 0,
         SPRING_DAMPER = 1,
         CONSTRAINT = 2
     };
 
-    enum class JIMINY_DLLAPI constraintSolver_t : uint8_t
+    enum class JIMINY_DLLAPI ConstraintSolverType : uint8_t
     {
         UNSUPPORTED = 0,
         PGS = 1  // Projected Gauss-Seidel
     };
 
-    const std::map<std::string, contactModel_t> CONTACT_MODELS_MAP{
-        {"spring_damper", contactModel_t::SPRING_DAMPER},
-        {"constraint", contactModel_t::CONSTRAINT},
+    const std::map<std::string, ContactModelType> CONTACT_MODELS_MAP{
+        {"spring_damper", ContactModelType::SPRING_DAMPER},
+        {"constraint", ContactModelType::CONSTRAINT},
     };
 
-    const std::map<std::string, constraintSolver_t> CONSTRAINT_SOLVERS_MAP{
-        {"PGS", constraintSolver_t::PGS}};
+    const std::map<std::string, ConstraintSolverType> CONSTRAINT_SOLVERS_MAP{
+        {"PGS", ConstraintSolverType::PGS}};
 
     const std::set<std::string> STEPPERS{"euler_explicit", "runge_kutta_4", "runge_kutta_dopri5"};
 
@@ -126,7 +126,7 @@ namespace jiminy
         {
             GenericConfig config;
             config["gravity"] = (Eigen::VectorXd(6) << 0.0, 0.0, -9.81, 0.0, 0.0, 0.0).finished();
-            config["groundProfile"] = HeightmapFunctor(
+            config["groundProfile"] = HeightmapFunction(
                 [](const Eigen::Vector2d & /* xy */,
                    double & height,
                    Eigen::Vector3d & normal) -> void
@@ -186,13 +186,13 @@ namespace jiminy
             return config;
         };
 
-        struct constraintOptions_t
+        struct ConstraintOptions
         {
             const std::string solver;
             const double regularization;
             const uint32_t successiveSolveFailedMax;
 
-            constraintOptions_t(const GenericConfig & options) :
+            ConstraintOptions(const GenericConfig & options) :
             solver{boost::get<std::string>(options.at("solver"))},
             regularization{boost::get<double>(options.at("regularization"))},
             successiveSolveFailedMax{boost::get<uint32_t>(options.at("successiveSolveFailedMax"))}
@@ -200,7 +200,7 @@ namespace jiminy
             }
         };
 
-        struct contactOptions_t
+        struct ContactOptions
         {
             const std::string model;
             const double stiffness;
@@ -211,7 +211,7 @@ namespace jiminy
             const double transitionVelocity;
             const double stabilizationFreq;
 
-            contactOptions_t(const GenericConfig & options) :
+            ContactOptions(const GenericConfig & options) :
             model{boost::get<std::string>(options.at("model"))},
             stiffness{boost::get<double>(options.at("stiffness"))},
             damping{boost::get<double>(options.at("damping"))},
@@ -224,31 +224,31 @@ namespace jiminy
             }
         };
 
-        struct jointOptions_t
+        struct JointOptions
         {
             const double boundStiffness;
             const double boundDamping;
 
-            jointOptions_t(const GenericConfig & options) :
+            JointOptions(const GenericConfig & options) :
             boundStiffness{boost::get<double>(options.at("boundStiffness"))},
             boundDamping{boost::get<double>(options.at("boundDamping"))}
             {
             }
         };
 
-        struct worldOptions_t
+        struct WorldOptions
         {
             const Eigen::VectorXd gravity;
-            const HeightmapFunctor groundProfile;
+            const HeightmapFunction groundProfile;
 
-            worldOptions_t(const GenericConfig & options) :
+            WorldOptions(const GenericConfig & options) :
             gravity{boost::get<Eigen::VectorXd>(options.at("gravity"))},
-            groundProfile{boost::get<HeightmapFunctor>(options.at("groundProfile"))}
+            groundProfile{boost::get<HeightmapFunction>(options.at("groundProfile"))}
             {
             }
         };
 
-        struct stepperOptions_t
+        struct StepperOptions
         {
             const bool verbose;
             const VectorX<uint32_t> randomSeedSeq;
@@ -264,7 +264,7 @@ namespace jiminy
             const double controllerUpdatePeriod;
             const bool logInternalStepperSteps;
 
-            stepperOptions_t(const GenericConfig & options) :
+            StepperOptions(const GenericConfig & options) :
             verbose{boost::get<bool>(options.at("verbose"))},
             randomSeedSeq{boost::get<VectorX<uint32_t>>(options.at("randomSeedSeq"))},
             odeSolver{boost::get<std::string>(options.at("odeSolver"))},
@@ -282,7 +282,7 @@ namespace jiminy
             }
         };
 
-        struct telemetryOptions_t
+        struct TelemetryOptions
         {
             const bool isPersistent;
             const bool enableConfiguration;
@@ -293,7 +293,7 @@ namespace jiminy
             const bool enableMotorEffort;
             const bool enableEnergy;
 
-            telemetryOptions_t(const GenericConfig & options) :
+            TelemetryOptions(const GenericConfig & options) :
             isPersistent{boost::get<bool>(options.at("isPersistent"))},
             enableConfiguration{boost::get<bool>(options.at("enableConfiguration"))},
             enableVelocity{boost::get<bool>(options.at("enableVelocity"))},
@@ -306,16 +306,16 @@ namespace jiminy
             }
         };
 
-        struct engineOptions_t
+        struct EngineOptions
         {
-            const telemetryOptions_t telemetry;
-            const stepperOptions_t stepper;
-            const worldOptions_t world;
-            const jointOptions_t joints;
-            const constraintOptions_t constraints;
-            const contactOptions_t contacts;
+            const TelemetryOptions telemetry;
+            const StepperOptions stepper;
+            const WorldOptions world;
+            const JointOptions joints;
+            const ConstraintOptions constraints;
+            const ContactOptions contacts;
 
-            engineOptions_t(const GenericConfig & options) :
+            EngineOptions(const GenericConfig & options) :
             telemetry{boost::get<GenericConfig>(options.at("telemetry"))},
             stepper{boost::get<GenericConfig>(options.at("stepper"))},
             world{boost::get<GenericConfig>(options.at("world"))},
@@ -336,10 +336,10 @@ namespace jiminy
         hresult_t addSystem(const std::string & systemName,
                             std::shared_ptr<Robot> robot,
                             std::shared_ptr<AbstractController> controller,
-                            CallbackFunctor callbackFct);
+                            const AbortSimulationFunction & callback);
         hresult_t addSystem(const std::string & systemName,
                             std::shared_ptr<Robot> robot,
-                            CallbackFunctor callbackFct);
+                            const AbortSimulationFunction & callback);
         hresult_t removeSystem(const std::string & systemName);
 
         hresult_t setController(const std::string & systemName,
@@ -347,30 +347,30 @@ namespace jiminy
 
         /// \brief Add a force linking both systems together.
         ///
-        /// \details This function registers a callback function forceFct that links both systems
-        ///          by a given force. This function must return the force that the second systems
-        ///          applies to the first system, in the global frame of the first frame, i.e.
-        ///          expressed at the origin of the first frame, in word coordinates.
+        /// \details This function registers a callback function that links both systems by a given
+        ///          force. This function must return the force that the second systems applies to
+        ///          the first system, in the global frame of the first frame, i.e. expressed at
+        ///          the origin of the first frame, in word coordinates.
         ///
         /// \param[in] systemName1 Name of the system receiving the force.
         /// \param[in] systemName2 Name of the system applying the force.
         /// \param[in] frameName1 Frame on the first system where the force is applied.
         /// \param[in] frameName2 Frame on the second system where the opposite force is applied.
-        /// \param[in] forceFct Callback function returning the force that systemName2 applies on
-        ///                     systemName1, in the global frame of frameName1.
-        hresult_t registerForceCoupling(const std::string & systemName1,
+        /// \param[in] forceFunc Callback function returning the force that systemName2 applies on
+        ///                      systemName1, in the global frame of frameName1.
+        hresult_t registerCouplingForce(const std::string & systemName1,
                                         const std::string & systemName2,
                                         const std::string & frameName1,
                                         const std::string & frameName2,
-                                        ForceCouplingFunctor forceFct);
-        hresult_t registerViscoelasticDirectionalForceCoupling(const std::string & systemName1,
+                                        const CouplingForceFunction & forceFunc);
+        hresult_t registerViscoelasticDirectionalCouplingForce(const std::string & systemName1,
                                                                const std::string & systemName2,
                                                                const std::string & frameName1,
                                                                const std::string & frameName2,
                                                                double stiffness,
                                                                double damping,
                                                                double restLength = 0.0);
-        hresult_t registerViscoelasticDirectionalForceCoupling(const std::string & systemName,
+        hresult_t registerViscoelasticDirectionalCouplingForce(const std::string & systemName,
                                                                const std::string & frameName1,
                                                                const std::string & frameName2,
                                                                double stiffness,
@@ -386,25 +386,25 @@ namespace jiminy
         ///
         /// \see See official drake documentation:
         ///      https://drake.mit.edu/doxygen_cxx/classdrake_1_1multibody_1_1_linear_bushing_roll_pitch_yaw.html
-        hresult_t registerViscoelasticForceCoupling(const std::string & systemName1,
+        hresult_t registerViscoelasticCouplingForce(const std::string & systemName1,
                                                     const std::string & systemName2,
                                                     const std::string & frameName1,
                                                     const std::string & frameName2,
                                                     const Vector6d & stiffness,
                                                     const Vector6d & damping,
                                                     double alpha = 0.5);
-        hresult_t registerViscoelasticForceCoupling(const std::string & systemName,
+        hresult_t registerViscoelasticCouplingForce(const std::string & systemName,
                                                     const std::string & frameName1,
                                                     const std::string & frameName2,
                                                     const Vector6d & stiffness,
                                                     const Vector6d & damping,
                                                     double alpha = 0.5);
-        hresult_t removeForcesCoupling(const std::string & systemName1,
+        hresult_t removeCouplingForces(const std::string & systemName1,
                                        const std::string & systemName2);
-        hresult_t removeForcesCoupling(const std::string & systemName);
-        hresult_t removeForcesCoupling();
+        hresult_t removeCouplingForces(const std::string & systemName);
+        hresult_t removeCouplingForces();
 
-        const ForceCouplingRegister & getForcesCoupling() const;
+        const CouplingForceVector & getCouplingForces() const;
 
         hresult_t removeAllForces();
 
@@ -467,44 +467,45 @@ namespace jiminy
         /// \brief Apply an impulse force on a frame for a given duration at the desired time.
         ///
         /// \warning The force must be given in the world frame.
-        hresult_t registerForceImpulse(const std::string & systemName,
+        hresult_t registerImpulseForce(const std::string & systemName,
                                        const std::string & frameName,
                                        double t,
                                        double dt,
-                                       const pinocchio::Force & F);
+                                       const pinocchio::Force & force);
         /// \brief Apply an external force profile on a frame.
         ///
         /// \details It can be either time-continuous or discrete. The force can be time- and
         ///          state-dependent, and must be given in the world frame.
-        hresult_t registerForceProfile(const std::string & systemName,
+        hresult_t registerProfileForce(const std::string & systemName,
                                        const std::string & frameName,
-                                       const ForceProfileFunctor & forceFct,
+                                       const ProfileForceFunction & forceFunc,
                                        double updatePeriod = 0.0);
 
-        hresult_t removeForcesImpulse(const std::string & systemName);
-        hresult_t removeForcesProfile(const std::string & systemName);
-        hresult_t removeForcesImpulse();
-        hresult_t removeForcesProfile();
+        hresult_t removeImpulseForces(const std::string & systemName);
+        hresult_t removeProfileForces(const std::string & systemName);
+        hresult_t removeImpulseForces();
+        hresult_t removeProfileForces();
 
-        hresult_t getForcesImpulse(const std::string & systemName,
-                                   const ForceImpulseRegister *& forcesImpulsePtr) const;
-        hresult_t getForcesProfile(const std::string & systemName,
-                                   const ForceProfileRegister *& forcesProfilePtr) const;
+        hresult_t getImpulseForces(const std::string & systemName,
+                                   const ImpulseForceVector *& impulseForcesPtr) const;
+        hresult_t getProfileForces(const std::string & systemName,
+                                   const ProfileForceVector *& profileForcesPtr) const;
 
         GenericConfig getOptions() const noexcept;
         hresult_t setOptions(const GenericConfig & engineOptions);
         bool getIsTelemetryConfigured() const;
-        std::vector<std::string> getSystemsNames() const;
-        hresult_t getSystemIdx(const std::string & systemName, std::ptrdiff_t & systemIdx) const;
-        hresult_t getSystem(const std::string & systemName, systemHolder_t *& system);
+        std::vector<std::string> getSystemNames() const;
+        hresult_t getSystemIndex(const std::string & systemName,
+                                 std::ptrdiff_t & systemIndex) const;
+        hresult_t getSystem(const std::string & systemName, System *& system);
         hresult_t getSystemState(const std::string & systemName,
-                                 const systemState_t *& systemState) const;
+                                 const SystemState *& systemState) const;
         const StepperState & getStepperState() const;
         const bool & getIsSimulationRunning() const;  // return const reference on purpose
-        static double getMaxSimulationDuration();
+        static double getSimulationDurationMax();
         static double getTelemetryTimeUnit();
 
-        static void computeForwardKinematics(systemHolder_t & system,
+        static void computeForwardKinematics(System & system,
                                              const Eigen::VectorXd & q,
                                              const Eigen::VectorXd & v,
                                              const Eigen::VectorXd & a);
@@ -525,24 +526,24 @@ namespace jiminy
         /// \brief Compute the force resulting from ground contact on a given body.
         ///
         /// \param[in] system System for which to perform computation.
-        /// \param[in] collisionPairIdx Index of the collision pair associated with the body.
+        /// \param[in] collisionPairIndex Index of the collision pair associated with the body.
         ///
         /// \returns Contact force, at parent joint, in the local frame.
         void computeContactDynamicsAtBody(
-            const systemHolder_t & system,
-            const pinocchio::PairIndex & collisionPairIdx,
+            const System & system,
+            const pinocchio::PairIndex & collisionPairIndex,
             std::shared_ptr<AbstractConstraintBase> & contactConstraint,
             pinocchio::Force & fextLocal) const;
 
         /// \brief Compute the force resulting from ground contact on a given frame.
         ///
         /// \param[in] system System for which to perform computation.
-        /// \param[in] frameIdx Index of the frame in contact.
+        /// \param[in] frameIndex Index of the frame in contact.
         ///
         /// \returns Contact force, at parent joint, in the local frame.
         void computeContactDynamicsAtFrame(
-            const systemHolder_t & system,
-            pinocchio::FrameIndex frameIdx,
+            const System & system,
+            pinocchio::FrameIndex frameIndex,
             std::shared_ptr<AbstractConstraintBase> & collisionConstraint,
             pinocchio::Force & fextLocal) const;
 
@@ -551,28 +552,28 @@ namespace jiminy
                                                 double depth,
                                                 const Eigen::Vector3d & vContactInWorld) const;
 
-        void computeCommand(systemHolder_t & system,
+        void computeCommand(System & system,
                             double t,
                             const Eigen::VectorXd & q,
                             const Eigen::VectorXd & v,
                             Eigen::VectorXd & command);
-        void computeInternalDynamics(const systemHolder_t & system,
-                                     systemDataHolder_t & systemData,
+        void computeInternalDynamics(const System & system,
+                                     SystemData & systemData,
                                      double t,
                                      const Eigen::VectorXd & q,
                                      const Eigen::VectorXd & v,
                                      Eigen::VectorXd & uInternal) const;
-        void computeCollisionForces(const systemHolder_t & system,
-                                    systemDataHolder_t & systemData,
+        void computeCollisionForces(const System & system,
+                                    SystemData & systemData,
                                     ForceVector & fext,
                                     bool isStateUpToDate = false) const;
-        void computeExternalForces(const systemHolder_t & system,
-                                   systemDataHolder_t & systemData,
+        void computeExternalForces(const System & system,
+                                   SystemData & systemData,
                                    double t,
                                    const Eigen::VectorXd & q,
                                    const Eigen::VectorXd & v,
                                    ForceVector & fext);
-        void computeForcesCoupling(double t,
+        void computeCouplingForces(double t,
                                    const std::vector<Eigen::VectorXd> & qSplit,
                                    const std::vector<Eigen::VectorXd> & vSplit);
         void computeAllTerms(double t,
@@ -593,8 +594,8 @@ namespace jiminy
         /// \param[in] fext External forces applied on the system.
         ///
         /// \return System acceleration.
-        const Eigen::VectorXd & computeAcceleration(systemHolder_t & system,
-                                                    systemDataHolder_t & systemData,
+        const Eigen::VectorXd & computeAcceleration(System & system,
+                                                    SystemData & systemData,
                                                     const Eigen::VectorXd & q,
                                                     const Eigen::VectorXd & v,
                                                     const Eigen::VectorXd & u,
@@ -657,26 +658,26 @@ namespace jiminy
                 const vector_aligned_t<ForceDerived> & fext);
 
     public:
-        std::unique_ptr<const engineOptions_t> engineOptions_{nullptr};
-        std::vector<systemHolder_t> systems_{};
+        std::unique_ptr<const EngineOptions> engineOptions_{nullptr};
+        std::vector<System> systems_{};
 
     protected:
         bool isTelemetryConfigured_{false};
         bool isSimulationRunning_{false};
-        GenericConfig engineOptionsHolder_{};
+        GenericConfig engineOptionsGeneric_{};
         PCG32 generator_;
 
     private:
         Timer timer_{};
-        contactModel_t contactModel_{contactModel_t::UNSUPPORTED};
+        ContactModelType contactModel_{ContactModelType::UNSUPPORTED};
         std::unique_ptr<TelemetrySender> telemetrySender_;
         std::shared_ptr<TelemetryData> telemetryData_;
         std::unique_ptr<TelemetryRecorder> telemetryRecorder_;
         std::unique_ptr<AbstractStepper> stepper_{nullptr};
         double stepperUpdatePeriod_{INF};
         StepperState stepperState_{};
-        vector_aligned_t<systemDataHolder_t> systemsDataHolder_{};
-        ForceCouplingRegister forcesCoupling_{};
+        vector_aligned_t<SystemData> systemDataVec_{};
+        CouplingForceVector couplingForces_{};
         vector_aligned_t<ForceVector> contactForcesPrev_{};
         vector_aligned_t<ForceVector> fPrev_{};
         vector_aligned_t<MotionVector> aPrev_{};

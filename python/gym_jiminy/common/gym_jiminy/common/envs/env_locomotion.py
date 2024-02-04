@@ -62,9 +62,9 @@ DEFAULT_STEP_DT = 0.04              # (s) Stepper update period
 DEFAULT_HLC_TO_LLC_RATIO = 1  # (NA)
 
 
-ForceImpulseType = Dict[str, Union[str, float, np.ndarray]]
-ForceProfileFunc = Callable[[float, np.ndarray, np.ndarray, np.ndarray], None]
-ForceProfileType = Dict[str, Union[str, ForceProfileFunc]]
+ImpulseForceType = Dict[str, Union[str, float, np.ndarray]]
+ProfileForceFunc = Callable[[float, np.ndarray, np.ndarray, np.ndarray], None]
+ProfileForceType = Dict[str, Union[str, ProfileForceFunc]]
 
 
 class WalkerJiminyEnv(BaseJiminyEnv):
@@ -220,9 +220,9 @@ class WalkerJiminyEnv(BaseJiminyEnv):
 
         # Update some internal buffers used for computing the reward
         motor_effort_limit = self.robot.pinocchio_model.effortLimit[
-            self.robot.motors_velocity_idx]
+            self.robot.motor_velocity_indices]
         motor_velocity_limit = self.robot.velocity_limit[
-            self.robot.motors_velocity_idx]
+            self.robot.motor_velocity_indices]
         self._power_consumption_max = sum(
             motor_effort_limit * motor_velocity_limit)
 
@@ -309,13 +309,13 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                 f_xy *= sample(
                     0.0, self.std_ratio['disturbance']*F_IMPULSE_SCALE,
                     rg=self.np_random)
-                self.simulator.register_force_impulse(
+                self.simulator.register_impulse_force(
                     frame_name, t, F_IMPULSE_DT, np.pad(f_xy, (0, 4)))
 
             # Schedule a single periodic force profile applied on PelvisLink
             for func in self._f_xy_profile:
                 func.reset(self.np_random)
-            self.simulator.register_force_profile(
+            self.simulator.register_profile_force(
                 frame_name, self._force_external_profile)
 
         # Set the options, finally
@@ -395,7 +395,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
             reward_dict['survival'] = 1.0
 
         if 'energy' in reward_mixture_keys:
-            v_mot = self.robot.sensors_data[encoder.type][1]
+            v_mot = self.robot.sensor_measurements[encoder.type][1]
             command = self.system_state.command
             power_consumption = np.sum(np.maximum(command * v_mot, 0.0))
             power_consumption_rel = \

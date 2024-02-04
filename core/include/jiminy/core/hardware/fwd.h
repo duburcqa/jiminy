@@ -22,10 +22,10 @@ namespace jiminy
 
     namespace internal
     {
-        struct SensorDataItem
+        struct SensorMeasurementItem
         {
             std::string name;
-            std::size_t idx;
+            std::size_t index;
             Eigen::Ref<const Eigen::VectorXd> value;
         };
     }
@@ -34,26 +34,29 @@ namespace jiminy
     ///
     /// \details One can either retrieve the measurement of each individual sensor, or all at once
     ///          stacked in contiguous Eigen Matrix.
-    struct SensorDataTypeMap :
+    struct SensorMeasurementStack :
     public boost::multi_index::multi_index_container<
-        internal::SensorDataItem,
+        internal::SensorMeasurementItem,
         boost::multi_index::indexed_by<
             boost::multi_index::ordered_unique<
                 boost::multi_index::tag<IndexByIndex>,
-                boost::multi_index::
-                    member<internal::SensorDataItem, std::size_t, &internal::SensorDataItem::idx>,
+                boost::multi_index::member<internal::SensorMeasurementItem,
+                                           std::size_t,
+                                           &internal::SensorMeasurementItem::index>,
                 std::less<std::size_t>  // Ordering by ascending order
                 >,
             boost::multi_index::hashed_unique<
                 boost::multi_index::tag<IndexByName>,
-                boost::multi_index::
-                    member<internal::SensorDataItem, std::string, &internal::SensorDataItem::name>>,
+                boost::multi_index::member<internal::SensorMeasurementItem,
+                                           std::string,
+                                           &internal::SensorMeasurementItem::name>>,
             boost::multi_index::sequenced<>>>
     {
     public:
-        explicit SensorDataTypeMap(const Eigen::MatrixXd * sharedDataPtr = nullptr) noexcept :
+        explicit SensorMeasurementStack(
+            const Eigen::MatrixXd * sharedMeasurementsPtr = nullptr) noexcept :
         multi_index_container(),
-        sharedDataPtr_{sharedDataPtr}
+        sharedMeasurementsPtr_{sharedMeasurementsPtr}
         {
         }
 
@@ -62,11 +65,11 @@ namespace jiminy
         /// \warning It is up to the sure to make sure that the data are up-to-date.
         inline const Eigen::MatrixXd & getAll() const
         {
-            if (sharedDataPtr_)
+            if (sharedMeasurementsPtr_)
             {
-                assert((size() == static_cast<std::size_t>(sharedDataPtr_->cols())) &&
-                       "Shared data inconsistent with sensors.");
-                return *sharedDataPtr_;
+                assert((size() == static_cast<std::size_t>(sharedMeasurementsPtr_->cols())) &&
+                       "Number of sensors inconsistent with shared measurements.");
+                return *sharedMeasurementsPtr_;
             }
             else
             {
@@ -85,7 +88,7 @@ namespace jiminy
                 {
                     assert(sensor.value.size() == dataSize &&
                            "Cannot get all data at once for heterogeneous sensors.");
-                    data_.row(sensor.idx) = sensor.value;
+                    data_.row(sensor.index) = sensor.value;
                 }
 
                 return data_;
@@ -93,7 +96,7 @@ namespace jiminy
         }
 
     private:
-        const Eigen::MatrixXd * const sharedDataPtr_;
+        const Eigen::MatrixXd * const sharedMeasurementsPtr_;
         /// \brief Internal buffer used in absence of shared buffer.
         ///
         /// \details Especially useful if sensors data are not stored in a contiguous buffer
@@ -102,7 +105,7 @@ namespace jiminy
         mutable Eigen::MatrixXd data_{};
     };
 
-    using SensorsDataMap = std::unordered_map<std::string, SensorDataTypeMap>;
+    using SensorMeasurementTree = std::unordered_map<std::string, SensorMeasurementStack>;
 }
 
 #endif  // JIMINY_FORWARD_SENSOR_H

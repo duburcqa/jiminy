@@ -35,12 +35,12 @@ namespace jiminy
         };
 
         /// \brief Structure with the configuration options shared between controllers.
-        struct controllerOptions_t
+        struct ControllerOptions
         {
             /// \brief Flag used to enable the telemetry of the controller.
             const bool telemetryEnable;
 
-            controllerOptions_t(const GenericConfig & options) :
+            ControllerOptions(const GenericConfig & options) :
             telemetryEnable(boost::get<bool>(options.at("telemetryEnable")))
             {
             }
@@ -143,10 +143,10 @@ namespace jiminy
         ///
         /// \details Note that one must reset Jiminy Engine for this to take effect.
         ///
-        /// \param[in] ctrlOptions Dictionary with the parameters of the controller.
+        /// \param[in] controllerOptions Dictionary with the parameters of the controller.
         ///
         /// \return Return code to determine whether the execution of the method was successful.
-        hresult_t setOptions(const GenericConfig & ctrlOptions);
+        hresult_t setOptions(const GenericConfig & controllerOptions);
 
         /// \brief Configure the telemetry of the controller.
         ///
@@ -163,7 +163,7 @@ namespace jiminy
         ///
         /// \return Return code to determine whether the execution of the method was successful.
         virtual hresult_t configureTelemetry(std::shared_ptr<TelemetryData> telemetryData,
-                                             const std::string & objectPrefixName = {});
+                                             const std::string & prefix = {});
 
         /// \brief Update the internal buffers of the telemetry associated with variables monitored
         ///        by the controller.
@@ -201,10 +201,10 @@ namespace jiminy
 
     public:
         /// \brief Structure with the parameters of the controller.
-        std::unique_ptr<const controllerOptions_t> baseControllerOptions_{nullptr};
+        std::unique_ptr<const ControllerOptions> baseControllerOptions_{nullptr};
         /// \brief Robot for which to compute the command and internal dynamics must be computed.
         std::weak_ptr<const Robot> robot_{};
-        SensorsDataMap sensorsData_{};
+        SensorMeasurementTree sensorMeasurements_{};
 
     protected:
         /// \brief Flag to determine whether the controller has been initialized or not.
@@ -212,16 +212,16 @@ namespace jiminy
         /// \brief Flag to determine whether the telemetry of the controller has been initialized.
         bool isTelemetryConfigured_{false};
         /// \brief Dictionary with the parameters of the controller.
-        GenericConfig ctrlOptionsHolder_{};
+        GenericConfig controllerOptionsGeneric_{};
         /// \brief Telemetry sender used to register and update telemetry variables.
         std::unique_ptr<TelemetrySender> telemetrySender_;
 
     private:
         /// \brief Vector of dynamically registered telemetry variables.
         static_map_t<std::string, std::variant<const double *, const int64_t *>>
-            registeredVariables_{};
+            variableRegistry_{};
         /// \brief Vector of dynamically registered telemetry constants.
-        static_map_t<std::string, std::string> registeredConstants_{};
+        static_map_t<std::string, std::string> constantRegistry_{};
     };
 }
 

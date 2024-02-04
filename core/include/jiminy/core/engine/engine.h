@@ -20,8 +20,9 @@ namespace jiminy
 
         hresult_t initialize(std::shared_ptr<Robot> robot,
                              std::shared_ptr<AbstractController> controller,
-                             CallbackFunctor callbackFct);
-        hresult_t initialize(std::shared_ptr<Robot> robot, CallbackFunctor callbackFct);
+                             const AbortSimulationFunction & callback);
+        hresult_t initialize(std::shared_ptr<Robot> robot,
+                             const AbortSimulationFunction & callback);
 
         hresult_t setController(std::shared_ptr<AbstractController> controller);
 
@@ -62,47 +63,47 @@ namespace jiminy
                            const std::optional<Eigen::VectorXd> & aInit = std::nullopt,
                            bool isStateTheoretical = false);
 
-        hresult_t registerForceImpulse(
-            const std::string & frameName, double t, double dt, const pinocchio::Force & F);
-        hresult_t registerForceProfile(const std::string & frameName,
-                                       const ForceProfileFunctor & forceFct,
+        hresult_t registerImpulseForce(
+            const std::string & frameName, double t, double dt, const pinocchio::Force & force);
+        hresult_t registerProfileForce(const std::string & frameName,
+                                       const ProfileForceFunction & forceFunc,
                                        double updatePeriod = 0.0);
 
         // Redefined to leverage C++ name hiding of overloaded base methods in derived class
-        hresult_t removeForcesImpulse();
-        hresult_t removeForcesProfile();
+        hresult_t removeImpulseForces();
+        hresult_t removeProfileForces();
 
-        const ForceImpulseRegister & getForcesImpulse() const;
-        const ForceProfileRegister & getForcesProfile() const;
+        const ImpulseForceVector & getImpulseForces() const;
+        const ProfileForceVector & getProfileForces() const;
 
-        hresult_t registerForceCoupling(const std::string & frameName1,
+        hresult_t registerCouplingForce(const std::string & frameName1,
                                         const std::string & frameName2,
-                                        ForceProfileFunctor forceFct);
-        hresult_t registerViscoelasticForceCoupling(const std::string & frameName1,
+                                        const ProfileForceFunction & forceFunc);
+        hresult_t registerViscoelasticCouplingForce(const std::string & frameName1,
                                                     const std::string & frameName2,
                                                     const Vector6d & stiffness,
                                                     const Vector6d & damping,
                                                     double alpha = 0.5);
-        hresult_t registerViscoelasticDirectionalForceCoupling(const std::string & frameName1,
+        hresult_t registerViscoelasticDirectionalCouplingForce(const std::string & frameName1,
                                                                const std::string & frameName2,
                                                                double stiffness,
                                                                double damping,
                                                                double restLength = 0.0);
 
-        hresult_t removeForcesCoupling();
+        hresult_t removeCouplingForces();
 
         hresult_t removeAllForces();
 
         bool getIsInitialized() const;
-        hresult_t getSystem(systemHolder_t *& system);
+        hresult_t getSystem(System *& system);
         hresult_t getRobot(std::shared_ptr<Robot> & robot);
         hresult_t getController(std::shared_ptr<AbstractController> & controller);
-        hresult_t getSystemState(const systemState_t *& systemState) const;
+        hresult_t getSystemState(const SystemState *& systemState) const;
 
     private:
         hresult_t initializeImpl(std::shared_ptr<Robot> robot,
                                  std::shared_ptr<AbstractController> controller,
-                                 CallbackFunctor callbackFct);
+                                 const AbortSimulationFunction & callback);
 
     protected:
         bool isInitialized_;

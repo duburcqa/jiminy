@@ -17,103 +17,107 @@ namespace jiminy
     class AbstractController;
     class LockGuardLocal;
 
-    // External force functors
-    using ForceProfileFunctor = std::function<pinocchio::Force(
+    // ******************************** External force functors ******************************** //
+
+    using ProfileForceFunction = std::function<pinocchio::Force(
         double /*t*/, const Eigen::VectorXd & /*q*/, const Eigen::VectorXd & /*v*/)>;
 
-    struct JIMINY_DLLAPI ForceProfile
+    struct JIMINY_DLLAPI ProfileForce
     {
     public:
         // FIXME: Designated aggregate initialization without constructors when moving to C++20
-        explicit ForceProfile() = default;
-        explicit ForceProfile(const std::string & frameNameIn,
-                              pinocchio::FrameIndex frameIdxIn,
+        explicit ProfileForce() = default;
+        explicit ProfileForce(const std::string & frameNameIn,
+                              pinocchio::FrameIndex frameIndexIn,
                               double updatePeriodIn,
-                              const ForceProfileFunctor & forceFctIn) noexcept;
+                              const ProfileForceFunction & forceFuncIn) noexcept;
 
     public:
         std::string frameName{};
-        pinocchio::FrameIndex frameIdx{0};
+        pinocchio::FrameIndex frameIndex{0};
         double updatePeriod{0.0};
-        pinocchio::Force forcePrev{pinocchio::Force::Zero()};
-        ForceProfileFunctor forceFct{};
+        pinocchio::Force force{pinocchio::Force::Zero()};
+        ProfileForceFunction func{};
     };
 
-    struct JIMINY_DLLAPI ForceImpulse
+    struct JIMINY_DLLAPI ImpulseForce
     {
     public:
         // FIXME: Designated aggregate initialization without constructors when moving to C++20
-        explicit ForceImpulse() = default;
-        explicit ForceImpulse(const std::string & frameNameIn,
-                              pinocchio::FrameIndex frameIdxIn,
+        explicit ImpulseForce() = default;
+        explicit ImpulseForce(const std::string & frameNameIn,
+                              pinocchio::FrameIndex frameIndexIn,
                               double tIn,
                               double dtIn,
-                              const pinocchio::Force & FIn) noexcept;
+                              const pinocchio::Force & forceIn) noexcept;
 
 
     public:
         std::string frameName{};
-        pinocchio::FrameIndex frameIdx{0};
+        pinocchio::FrameIndex frameIndex{0};
         double t{0.0};
         double dt{0.0};
-        pinocchio::Force F{};
+        pinocchio::Force force{};
     };
 
-    using ForceCouplingFunctor = std::function<pinocchio::Force(double /*t*/,
-                                                                const Eigen::VectorXd & /*q_1*/,
-                                                                const Eigen::VectorXd & /*v_1*/,
-                                                                const Eigen::VectorXd & /*q_2*/,
-                                                                const Eigen::VectorXd & /*v_2*/)>;
+    using CouplingForceFunction =
+        std::function<pinocchio::Force(double /* t */,
+                                       const Eigen::VectorXd & /* q1 */,
+                                       const Eigen::VectorXd & /* v1 */,
+                                       const Eigen::VectorXd & /* q2 */,
+                                       const Eigen::VectorXd & /* v2 */)>;
 
-    struct ForceCoupling
+    struct CouplingForce
     {
     public:
         // FIXME: Designated aggregate initialization without constructors when moving to C++20
-        explicit ForceCoupling() = default;
-        explicit ForceCoupling(const std::string & systemName1In,
-                               std::ptrdiff_t systemIdx1In,
+        explicit CouplingForce() = default;
+        explicit CouplingForce(const std::string & systemName1In,
+                               std::ptrdiff_t systemIndex1In,
                                const std::string & systemName2In,
-                               std::ptrdiff_t systemIdx2In,
+                               std::ptrdiff_t systemIndex2In,
                                const std::string & frameName1In,
-                               pinocchio::FrameIndex frameIdx1In,
+                               pinocchio::FrameIndex frameIndex1In,
                                const std::string & frameName2In,
-                               pinocchio::FrameIndex frameIdx2In,
-                               const ForceCouplingFunctor & forceFctIn) noexcept;
+                               pinocchio::FrameIndex frameIndex2In,
+                               const CouplingForceFunction & forceFunIn) noexcept;
 
     public:
         std::string systemName1{};
-        std::ptrdiff_t systemIdx1{-1};
+        std::ptrdiff_t systemIndex1{-1};
         std::string systemName2{};
-        std::ptrdiff_t systemIdx2{-1};
+        std::ptrdiff_t systemIndex2{-1};
         std::string frameName1{};
-        pinocchio::FrameIndex frameIdx1{0};
+        pinocchio::FrameIndex frameIndex1{0};
         std::string frameName2{};
-        pinocchio::FrameIndex frameIdx2{0};
-        ForceCouplingFunctor forceFct{};
+        pinocchio::FrameIndex frameIndex2{0};
+        CouplingForceFunction func{};
     };
 
-    using ForceProfileRegister = std::vector<ForceProfile>;
-    using ForceImpulseRegister = std::vector<ForceImpulse>;
-    using ForceCouplingRegister = std::vector<ForceCoupling>;
+    using ProfileForceVector = std::vector<ProfileForce>;
+    using ImpulseForceVector = std::vector<ImpulseForce>;
+    using CouplingForceVector = std::vector<CouplingForce>;
 
     // Early termination callback functor
-    using CallbackFunctor = std::function<bool(
+    using AbortSimulationFunction = std::function<bool(
         double /*t*/, const Eigen::VectorXd & /*q*/, const Eigen::VectorXd & /*v*/)>;
 
-    struct JIMINY_DLLAPI systemHolder_t
+    struct JIMINY_DLLAPI System
     {
         std::string name{};
         std::shared_ptr<Robot> robot{nullptr};
         std::shared_ptr<AbstractController> controller{nullptr};
-        CallbackFunctor callbackFct{+[](double /* t */,
-                                        const Eigen::VectorXd & /* q */,
-                                        const Eigen::VectorXd & /* v */) -> bool
-                                    {
-                                        return false;
-                                    }};
+        AbortSimulationFunction callback{[](double /* t */,
+                                            const Eigen::VectorXd & /* q */,
+                                            const Eigen::VectorXd & /* v */) -> bool
+                                         {
+                                             return false;
+                                         }};
     };
 
-    struct JIMINY_DLLAPI systemState_t
+    // ************************************** System state ************************************* //
+
+    struct JIMINY_DLLAPI SystemState
     {
     public:
         hresult_t initialize(const Robot & robot);
@@ -136,59 +140,59 @@ namespace jiminy
         bool isInitialized_{false};
     };
 
-    struct JIMINY_DLLAPI systemDataHolder_t
+    struct JIMINY_DLLAPI SystemData
     {
     public:
-        DISABLE_COPY(systemDataHolder_t)
+        DISABLE_COPY(SystemData)
 
         /* Must move all definitions in source files to avoid compilation failure due to incomplete
            destructor for objects managed by `unique_ptr` member variable with MSVC compiler.
            See: https://stackoverflow.com/a/9954553
                 https://developercommunity.visualstudio.com/t/unique-ptr-cant-delete-an-incomplete-type/1371585
         */
-        explicit systemDataHolder_t();
-        explicit systemDataHolder_t(systemDataHolder_t &&);
-        systemDataHolder_t & operator=(systemDataHolder_t &&);
-        ~systemDataHolder_t();
+        explicit SystemData();
+        explicit SystemData(SystemData &&);
+        SystemData & operator=(SystemData &&);
+        ~SystemData();
 
     public:
         std::unique_ptr<LockGuardLocal> robotLock{nullptr};
 
-        ForceProfileRegister forcesProfile{};
-        ForceImpulseRegister forcesImpulse{};
-        /// \brief Ordered list without repetitions of all the start/end times of the forces.
-        std::set<double> forcesImpulseBreaks{};
+        ProfileForceVector profileForces{};
+        ImpulseForceVector impulseForces{};
+        /// \brief Sorted list without repetitions of all the start/stop times of impulse forces.
+        std::set<double> impulseForceBreakpoints{};
         /// \brief Time of the next breakpoint associated with the impulse forces.
-        std::set<double>::const_iterator forcesImpulseBreakNextIt{};
+        std::set<double>::const_iterator impulseForceBreakpointNextIt{};
         /// \brief Set of flags tracking whether each force is active.
         ///
         /// \details This flag is used to handle t-, t+ properly. Without it, it is impossible to
         ///          determine at time t if the force is active or not.
-        std::vector<bool> forcesImpulseActive{};
+        std::vector<bool> isImpulseForceActiveVec{};
 
         uint32_t successiveSolveFailed{0};
         std::unique_ptr<AbstractConstraintSolver> constraintSolver{nullptr};
         /// \brief Store copy of constraints register for fast access.
-        constraintsHolder_t constraintsHolder{};
+        ConstraintTree constraints{};
         /// \brief Contact forces for each contact frames in local frame.
-        ForceVector contactFramesForces{};
+        ForceVector contactFrameForces{};
         /// \brief Contact forces for each geometries of each collision bodies in local frame.
         vector_aligned_t<ForceVector> collisionBodiesForces{};
         /// \brief Jacobian of the joints in local frame. Used for computing `data.u`.
-        std::vector<Matrix6Xd> jointsJacobians{};
+        std::vector<Matrix6Xd> jointJacobians{};
 
-        std::vector<std::string> logFieldnamesPosition{};
-        std::vector<std::string> logFieldnamesVelocity{};
-        std::vector<std::string> logFieldnamesAcceleration{};
-        std::vector<std::string> logFieldnamesForceExternal{};
-        std::vector<std::string> logFieldnamesCommand{};
-        std::vector<std::string> logFieldnamesMotorEffort{};
-        std::string logFieldnameEnergy{};
+        std::vector<std::string> logPositionFieldnames{};
+        std::vector<std::string> logVelocityFieldnames{};
+        std::vector<std::string> logAccelerationFieldnames{};
+        std::vector<std::string> logForceExternalFieldnames{};
+        std::vector<std::string> logCommandFieldnames{};
+        std::vector<std::string> logMotorEffortFieldnames{};
+        std::string logEnergyFieldname{};
 
         /// \brief Internal buffer with the state for the integration loop.
-        systemState_t state{};
+        SystemState state{};
         /// \brief Internal state for the integration loop at the end of the previous iteration.
-        systemState_t statePrev{};
+        SystemState statePrev{};
     };
 }
 

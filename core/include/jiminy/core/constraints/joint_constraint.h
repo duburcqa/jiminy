@@ -25,7 +25,7 @@ namespace jiminy
         virtual ~JointConstraint() = default;
 
         const std::string & getJointName() const noexcept;
-        pinocchio::JointIndex getJointModelIdx() const noexcept;
+        pinocchio::JointIndex getJointIndex() const noexcept;
 
         void setReferenceConfiguration(const Eigen::VectorXd & configurationRef) noexcept;
         const Eigen::VectorXd & getReferenceConfiguration() const noexcept;
@@ -43,7 +43,7 @@ namespace jiminy
         /// \brief Name of the joint on which the constraint operates.
         std::string jointName_;
         /// \brief Corresponding joint index.
-        pinocchio::JointIndex jointModelIdx_{0};
+        pinocchio::JointIndex jointIndex_{0};
         /// \brief Reference position of the joint to enforce.
         Eigen::VectorXd configurationRef_{};
         /// \brief Whether to reverse the sign of the constraint.

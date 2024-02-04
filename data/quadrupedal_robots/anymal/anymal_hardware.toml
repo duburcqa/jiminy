@@ -1,6 +1,6 @@
 [Global]
-collisionBodiesNames = []
-contactFramesNames = ["LF_FOOT", "LH_FOOT", "RF_FOOT", "RH_FOOT"]
+collisionBodyNames = []
+contactFrameNames = ["LF_FOOT", "LH_FOOT", "RF_FOOT", "RH_FOOT"]
 
 [Motor.SimpleMotor.LF_HAA]
 joint_name = "LF_HAA"
