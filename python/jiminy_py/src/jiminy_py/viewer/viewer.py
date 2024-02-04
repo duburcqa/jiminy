@@ -21,6 +21,7 @@ from urllib.request import urlopen
 from functools import wraps, partial
 from bisect import bisect_right
 from threading import RLock
+from multiprocessing import Process as ProcessMP
 from typing import (
     Optional, Union, Sequence, Tuple, Dict, Callable, Any, TypedDict, Type,
     Set, overload, cast)
@@ -304,13 +305,12 @@ def _is_async(fun: Callable[..., Any]) -> Callable[..., Any]:
 
 
 class _ProcessWrapper:
-    """Wrap `multiprocessing.process.BaseProcess`, `subprocess.Popen`, and
-    `psutil.Process` in the same object to provide the same user interface.
+    """Wrap `multiprocessing.Process`, `subprocess.Popen`, and `psutil.Process`
+    and `Panda3dApp` in the same object to provide unified API.
     """
     def __init__(self,
                  proc: Union[
-                     multiprocessing.process.BaseProcess, subprocess.Popen,
-                     Panda3dApp, Process]):
+                     ProcessMP, subprocess.Popen, Process, Panda3dApp]):
         self._proc = proc
 
     def __del__(self) -> None:
@@ -326,7 +326,7 @@ class _ProcessWrapper:
     def is_alive(self) -> bool:
         """ TODO: Write documentation.
         """
-        if isinstance(self._proc, multiprocessing.process.BaseProcess):
+        if isinstance(self._proc, ProcessMP):
             return self._proc.is_alive()
         if isinstance(self._proc, subprocess.Popen):
             return self._proc.poll() is None
@@ -343,7 +343,7 @@ class _ProcessWrapper:
     def wait(self, timeout: Optional[float] = None) -> None:
         """ TODO: Write documentation.
         """
-        if isinstance(self._proc, multiprocessing.process.BaseProcess):
+        if isinstance(self._proc, ProcessMP):
             self._proc.join(timeout)
         if isinstance(self._proc, (subprocess.Popen, Process)):
             self._proc.wait(timeout)  # type: ignore[arg-type]
@@ -1286,7 +1286,7 @@ class Viewer:
             # Create a meshcat server if needed and connect to it
             from .meshcat.wrapper import MeshcatWrapper
             client = MeshcatWrapper(zmq_url)
-            server_proc: Union[Process, multiprocessing.Process]
+            server_proc: Union[Process, ProcessMP]
             if client.server_proc is None:
                 server_proc = Process(conn.pid)
             else:
