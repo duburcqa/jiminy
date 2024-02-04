@@ -374,17 +374,23 @@ def play_trajectories(
             backend.startswith('panda3d') and interactive_mode() < 2)
 
     # Handling of default options if no viewer is available
-    if viewers is None:
+    if viewers is None and backend.startswith('panda3d'):
+        # Check whether at least one of the robots has a freeflyer
+        has_freeflyer = False
+        for traj in trajs_data:
+            robot = traj['robot']
+            assert robot is not None
+            if robot.has_freeflyer:
+                has_freeflyer = True
+                break
+
         # Handling of default display of CoM, DCM and contact forces
-        if backend.startswith('panda3d'):
-            has_freeflyer = any(
-                traj['robot'].has_freeflyer for traj in trajs_data)
-            if display_com is None:
-                display_com = has_freeflyer
-            if display_dcm is None:
-                display_dcm = has_freeflyer
-            if display_contacts is None:
-                display_contacts = all(fun is not None for fun in update_hooks)
+        if display_com is None:
+            display_com = has_freeflyer
+        if display_dcm is None:
+            display_dcm = has_freeflyer
+        if display_contacts is None:
+            display_contacts = all(fun is not None for fun in update_hooks)
 
     # Make sure it is possible to display contacts if requested
     if display_contacts:

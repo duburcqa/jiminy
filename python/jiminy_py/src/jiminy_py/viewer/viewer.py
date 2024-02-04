@@ -1812,7 +1812,7 @@ class Viewer:
 
         # Discretize ground profile if provided
         geom = None
-        if ground_profile is None:
+        if ground_profile is not None:
             geom = discretize_heightmap(
                 ground_profile, *x_range, grid_unit[0], *y_range, grid_unit[1],
                 must_simplify=simplify_meshes)
