@@ -3,6 +3,7 @@
 **/__pycache__
 venv/
 .vscode
+.DS_Store
 docs/html
 install
 build

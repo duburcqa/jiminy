@@ -140,13 +140,9 @@ def meshcat_recorder(meshcat_url: str,
                 headless=True,
                 handle_sigint=False,
                 args=[
+                    "--enable-gpu",
                     "--enable-webgl",
                     "--enable-unsafe-webgpu",
-                    "--enable-features=Vulkan,UseSkiaRenderer",
-                    "--use-vulkan=swiftshader",
-                    "--use-angle=vulkan",
-                    "--use-gl=egl",
-                    # "--use-gl=swiftshader",
                     "--disable-gpu-vsync",
                     "--ignore-gpu-blacklist"
                 ],
@@ -197,7 +193,7 @@ def meshcat_recorder(meshcat_url: str,
                 except Exception as e:
                     message_shm.value = str(e)
                     break
-    except (ConnectionError, Error):
+    except (multiprocessing.managers.RemoteError, ConnectionError, Error):
         pass
     if browser is not None:
         with open(os.devnull, 'w') as stderr, redirect_stderr(stderr):
