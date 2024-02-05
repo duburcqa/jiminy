@@ -239,8 +239,8 @@ class TabbedFigure:
             return
 
         # Backup navigation history if any
-        assert self.figure.canvas.toolbar is not None
         if not self.offscreen:
+            assert self.figure.canvas.toolbar is not None
             cur_stack = self.figure.canvas.toolbar._nav_stack
             for tab in self.tabs_data.values():
                 if self.sync_tabs or tab is self.tab_active:
@@ -264,6 +264,7 @@ class TabbedFigure:
 
         # # Restore navigation history and toolbar state if necessary
         if not self.offscreen:
+            assert self.figure.canvas.toolbar is not None
             cur_stack._elements = self.tab_active["nav_stack"]
             cur_stack._pos = self.tab_active["nav_pos"]
             self.figure.canvas.toolbar.set_history_buttons()

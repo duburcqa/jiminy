@@ -44,7 +44,7 @@ jobs:
     #####################################################################################
 
     - name: Configure Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.PYTHON_VERSION }}
     - name: Setup minimal build environment
@@ -132,9 +132,9 @@ jobs:
         "${PYTHON_EXECUTABLE}" -m pip install --force-reinstall --no-deps "${RootDir}/build/wheelhouse/"*.whl
     - name: Upload the wheel for Linux of jiminy_py
       if: matrix.BUILD_TYPE == 'Release'
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
-        name: wheelhouse
+        name: wheelhouse-${{ matrix.PYTHON_VERSION }}
         path: build/wheelhouse
 
     #####################################################################################
@@ -192,20 +192,21 @@ jobs:
 
   publish-pypi-macos:
     name: (MacOS CI) Publish on PyPi the wheel for OS X of jiminy_py
+    runs-on: ubuntu-22.04
+    permissions:
+      id-token: write
+
     needs: build-and-test-osx
-    runs-on: ubuntu-20.04
     if: github.repository == 'duburcqa/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
 
     steps:
     - name: Download the wheel previously generated
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
-        name: wheelhouse
+        pattern: wheelhouse-*
+        merge-multiple: true
         path: wheelhouse
     - name: Publish the wheel
-      uses: pypa/gh-action-pypi-publish@v1.8.10
+      uses: pypa/gh-action-pypi-publish@v1.8.11
       with:
-        user: __token__
-        password: ${{ secrets.PYPI_DEPLOY }}
         packages-dir: wheelhouse
-        verify-metadata: false
