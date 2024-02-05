@@ -1277,8 +1277,8 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
             self._watermark.set_tex_scale(TextureStage.getDefault(), 1.0, -1.0)
 
     def set_legend(self,
-                   items: Optional[Sequence[
-                       Tuple[str, Optional[Sequence[int]]]]] = None) -> None:
+                   items: Optional[Sequence[Tuple[str, Optional[
+                       Tuple[int, int, int, int]]]]] = None) -> None:
         """Add a matplotlib legend on bottom center on the window, as part of
         the 2D overlay. It will always appear on foreground.
 
@@ -1403,7 +1403,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         # Make sure plot submodule is available
         try:
             # pylint: disable=import-outside-toplevel
-            from matplotlib import font_manager
+            import matplotlib.font_manager
         except ImportError as e:
             raise ImportError(
                 "Method not available. Please install 'jiminy_py[plot]'."
@@ -1418,7 +1418,8 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
 
         if self._clock is None:
             # Get path of default matplotlib font
-            fontpath = _sanitize_path(font_manager.findfont(None))
+            fontpath = _sanitize_path(matplotlib.font_manager.findfont(
+                matplotlib.font_manager.FontProperties()))
 
             # Create clock on main window.
             self._clock = OnscreenText(

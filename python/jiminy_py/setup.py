@@ -98,8 +98,6 @@ setup(
         # Used internally by Robot to replace meshes by associated minimal
         # volume bounding box.
         "trimesh",
-        # Use to operate conveniently on nested log data.
-        "dm-tree>=0.1.7",
         # Standalone cross-platform mesh visualizer used as Viewer's backend.
         # Panda3d is NOT supported by PyPy even if built from source.
         # - 1.10.12 fixes numerous bugs

@@ -2,19 +2,23 @@
 """
 import math
 import logging
-from typing import Sequence, Union, ValuesView
+from typing import List, Sequence, Union, ValuesView
 
 import gymnasium as gym
-import tree
 import numpy as np
 import numba as nb
 
 import jiminy_py.core as jiminy
+from jiminy_py import tree
 
 from .spaces import FieldNested, DataNested, zeros
 
 
-logger = logging.getLogger(__name__)
+LOGGER = logging.getLogger(__name__)
+
+
+FieldNestedSequence = Sequence[Union['FieldNestedSequence', str]]
+FieldNestedList = List[Union[FieldNestedSequence, str]]
 
 
 @nb.jit(nopython=True, cache=True, inline='always')
@@ -49,7 +53,7 @@ def is_nan(value: np.ndarray) -> bool:
 
 
 def get_fieldnames(structure: Union[gym.Space[DataNested], DataNested],
-                   namespace: str = "") -> FieldNested:
+                   namespace: str = "") -> FieldNestedList:
     """Generate generic fieldnames for a given nested data structure, so that
     it can be used in conjunction with `register_variables`, to register any
     value from gym space to the telemetry conveniently.
@@ -63,7 +67,7 @@ def get_fieldnames(structure: Union[gym.Space[DataNested], DataNested],
     if isinstance(structure, gym.Space):
         structure = zeros(structure)
 
-    fieldnames = []
+    fieldnames: FieldNestedList = []
     fieldname_path: Sequence[Union[str, int]]
     for fieldname_path, data in tree.flatten_with_path(structure):
         fieldname_path = (namespace, *fieldname_path)
@@ -113,8 +117,7 @@ def register_variables(controller: jiminy.AbstractController,
     :returns: Whether the registration has been successful.
     """
     for fieldname, value in zip(
-            tree.flatten_up_to(data, fieldnames),
-            tree.flatten(data)):
+            tree.flatten_up_to(data, fieldnames), tree.flatten(data)):
         if any(np.issubsctype(value, type) for type in (np.float64, np.int64)):
             assert isinstance(fieldname, list), (
                 f"'fieldname' ({fieldname}) should be a list of strings.")
@@ -122,7 +125,7 @@ def register_variables(controller: jiminy.AbstractController,
             if hresult != jiminy.hresult_t.SUCCESS:
                 return False
         else:
-            logger.warning(
+            LOGGER.warning(
                 "Variables of dtype '%s' cannot be registered to the "
                 "telemetry. It must have dtype 'np.float64' or 'np.int64'.",
                 value.dtype)
