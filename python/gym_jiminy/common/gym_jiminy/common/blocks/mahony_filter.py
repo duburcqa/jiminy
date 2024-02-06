@@ -94,7 +94,7 @@ def mahony_filter(q: np.ndarray,
     bias_hat -= dt * ki * omega_mes
 
 
-@nb.jit(nopython=True, nogil=True, cache=False)
+@nb.jit(nopython=True, nogil=True, cache=True)
 def remove_twist(q: np.ndarray) -> None:
     """Remove the twist part of the Twist-after-Swing decomposition of given
     orientations in quaternion representation.
