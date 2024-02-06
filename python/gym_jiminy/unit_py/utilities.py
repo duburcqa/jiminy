@@ -1,9 +1,15 @@
+from typing import Union
+
+import gymnasium as gym
+
+from stable_baselines3.common.vec_env import VecEnv
 from stable_baselines3.common.base_class import BaseAlgorithm
 from stable_baselines3.common.callbacks import (
     EvalCallback, StopTrainingOnRewardThreshold as StopOnReward)
 
 
 def train(train_agent: BaseAlgorithm,
+          eval_env: Union[gym.Env, VecEnv],
           max_timesteps: int) -> str:
     """Train a model on a specific environment using a given agent.
 
@@ -14,14 +20,14 @@ def train(train_agent: BaseAlgorithm,
               episodes.
     """
     # Get testing environment spec
-    spec = train_agent.eval_env.envs[0].spec
+    spec = eval_env.envs[0].spec
 
     # Create callback to stop learning early if reward threshold is exceeded
     if spec.reward_threshold is not None:
         callback_reward = StopOnReward(
             reward_threshold=spec.reward_threshold)
         eval_callback = EvalCallback(
-            train_agent.eval_env, callback_on_new_best=callback_reward,
+            eval_env, callback_on_new_best=callback_reward,
             eval_freq=10000 // train_agent.n_envs, n_eval_episodes=10,
             verbose=False)
     else:

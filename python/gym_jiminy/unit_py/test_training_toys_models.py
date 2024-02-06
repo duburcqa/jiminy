@@ -15,7 +15,7 @@ from utilities import train
 
 
 SEED = 0
-N_THREADS = 8
+N_THREADS = 5
 
 
 class ToysModelsStableBaselinesPPO(unittest.TestCase):
@@ -75,7 +75,7 @@ class ToysModelsStableBaselinesPPO(unittest.TestCase):
         # Create a multiprocess environment
         train_env = make_vec_env(
             env_id=env_name,  env_kwargs=env_kwargs or {},
-            n_envs=int(N_THREADS//2), vec_env_cls=SubprocVecEnv, seed=SEED)
+            n_envs=max(0, N_THREADS - 1), vec_env_cls=SubprocVecEnv, seed=SEED)
         test_env = make_vec_env(
             env_id=env_name, env_kwargs=env_kwargs or {},
             n_envs=1, vec_env_cls=DummyVecEnv, seed=SEED)
@@ -85,10 +85,9 @@ class ToysModelsStableBaselinesPPO(unittest.TestCase):
         config.update(agent_kwargs or {})
         train_agent = PPO(
             'MlpPolicy', train_env, **config, device='cpu', verbose=False)
-        train_agent.eval_env = test_env
 
         # Run the learning process
-        return train(train_agent, max_timesteps=200000)
+        return train(train_agent, test_env, max_timesteps=200000)
 
     def test_acrobot_stable_baselines(self):
         """Solve acrobot for both continuous and discrete action spaces.
