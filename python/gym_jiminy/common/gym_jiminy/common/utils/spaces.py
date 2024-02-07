@@ -6,16 +6,16 @@ from collections import OrderedDict
 from collections.abc import Mapping, MutableMapping, Sequence, MutableSequence
 from typing import (
     Any, Dict, Optional, Union, Sequence as SequenceT, Mapping as MappingT,
-    Iterable as IterableT, Tuple, Literal, SupportsFloat, TypeVar, Type,
-    Callable, Protocol, no_type_check, cast)
+    Iterable, Tuple, Literal, SupportsFloat, TypeVar, Type, Callable, Protocol,
+    no_type_check, cast)
 
 import numba as nb
 import numpy as np
 from numpy import typing as npt
 
-import tree
 import gymnasium as gym
 
+from jiminy_py import tree
 from jiminy_py.core import array_copyto  # pylint: disable=no-name-in-module
 
 
@@ -27,7 +27,7 @@ ValueInT = TypeVar('ValueInT')
 ValueOutT = TypeVar('ValueOutT')
 
 StructNested = Union[MappingT[str, 'StructNested[ValueT]'],
-                     IterableT['StructNested[ValueT]'],
+                     Iterable['StructNested[ValueT]'],
                      ValueT]
 FieldNested = StructNested[str]
 DataNested = StructNested[np.ndarray]
@@ -111,24 +111,6 @@ def _array_contains(value: np.ndarray,
     if high is not None and (value.item() > high.item() + tol_0d):
         return False
     return True
-
-
-def _unflatten_as(structure: StructNested[Any],
-                  flat_sequence: SequenceT[DataNested]) -> DataNested:
-    """Unflatten a sequence into a given structure.
-
-    .. seealso::
-        This method is the same as 'tree.unflatten_as' without runtime checks.
-
-    :param structure: Arbitrarily nested structure.
-    :param flat_sequence: Sequence to unflatten.
-
-    :returns: 'flat_sequence' unflattened into 'structure'.
-    """
-    if not tree.is_nested(structure):
-        return flat_sequence[0]
-    _, packed = tree._packed_nest_with_indices(structure, flat_sequence, 0)
-    return tree._sequence_like(structure, packed)
 
 
 def get_bounds(space: gym.Space
@@ -234,18 +216,6 @@ def sample(low: Union[float, np.ndarray] = -1.0,
     return value
 
 
-def is_bounded(space_nested: gym.Space) -> bool:
-    """Check wether a `gym.Space` has finite bounds.
-
-    :param space: `gym.Space` on which to operate.
-    """
-    for space in tree.flatten(space_nested):
-        is_bounded_fn = getattr(space, "is_bounded", None)
-        if is_bounded_fn is not None and not is_bounded_fn():
-            return False
-    return True
-
-
 @no_type_check
 def zeros(space: gym.Space[DataNestedT],
           dtype: npt.DTypeLike = None,
@@ -256,9 +226,9 @@ def zeros(space: gym.Space[DataNestedT],
     :param dtype: Can be specified to overwrite original space dtype.
                   Optional: None by default
     """
-    # Note that it is not possible to take advantage of dm-tree because the
-    # output type for collections (OrderedDict or Tuple) is not the same as the
-    # input one (gym.Space). This feature request would be too specific.
+    # Note that it is not possible to take advantage of `jiminy_py.tree`
+    # because the output type for collections (OrderedDict or Tuple) is not the
+    # same as the input one (gym.Space).
     value = None
     if isinstance(space, gym.spaces.Dict):
         value = OrderedDict()
@@ -327,7 +297,7 @@ def copy(data: DataNestedT) -> DataNestedT:
 
     :param data: Hierarchical data structure to copy without allocation.
     """
-    return cast(DataNestedT, _unflatten_as(data, tree.flatten(data)))
+    return cast(DataNestedT, tree.unflatten_as(data, tree.flatten(data)))
 
 
 def clip(data: DataNested, space: gym.Space[DataNested]) -> DataNested:
@@ -394,7 +364,7 @@ def build_reduce(fn: Callable[..., ValueInT],
         transform and reduction will be applied recursively in keys order.
 
     .. warning::
-        It is assumed without check that all nested data structures are
+        It is assumed without checking that all nested data structures are
         consistent together and with the space if provided. It holds true both
         data known at generation-time or runtime. Yet, it is only required for
         data provided at runtime if any to include the original data structure,
@@ -411,14 +381,16 @@ def build_reduce(fn: Callable[..., ValueInT],
         itself raises an exception.
 
     :param fn: Transform applied to every leaves of the nested data structures
-               before performing the actual reduction. This function can do
-               some in-place or out-of-place operations without restriction.
-               `None` is not supported because it would be irrelevant. It is
-               way more efficient to flatten the pre-allocated nested data
-               structure once for all and perform reduction on this flattened
-               view using 'functools.reduce' method instead. Note that flatten
-               at runtime using 'tree.flatten' would still much faster than
-               a specialized nested reduction doing list concatenation.
+               before performing the actual reduction. This function can
+               perform in-place or out-of-place operations without restriction.
+               `None` is not supported because it would be irrelevant. Note
+               that if tracking the hierarchy during reduction is not
+               necessary, then it would be way more efficient to first flatten
+               the pre-allocated nested data structure once for all, and then
+               perform reduction on this flattened view using the standard
+               'functools.reduce' method. Still, flattening at runtime using
+               'flatten' would still much slower than a specialized nested
+               reduction.
     :param op: Optional reduction operator applied cumulatively on all leaves
                after transform. See 'functools.reduce' documentation for
                details. `None` to only apply transform on all leaves without
@@ -1229,7 +1201,8 @@ def build_normalize(space: gym.Space[DataNested],
 
 def build_flatten(data_nested: DataNested,
                   data_flat: Optional[DataNested] = None,
-                  *, is_reversed: bool = False) -> Callable[..., None]:
+                  *, is_reversed: Optional[bool] = None
+                  ) -> Callable[..., None]:
     """Generate a flattening or un-flattening method specialized for some
     pre-allocated nested data.
 
@@ -1243,15 +1216,18 @@ def build_flatten(data_nested: DataNested,
     :param data_flat: Flat array consistent with the nested data structure.
                       Optional iif `is_reversed` is `True`.
                       Optional: `None` by default.
-    :param is_reversed: True to update 'data_flat', 'data_nested' otherwise.
+    :param is_reversed: True to update 'data_flat' (flattening), 'data_nested'
+                        otherwise (un-flattening).
+                        Optional: True if 'data_flat' is specified, False
+                        otherwise.
     """
     # Make sure that the input arguments are valid
+    if is_reversed is None:
+        is_reversed = data_flat is None
     assert is_reversed or data_flat is not None
 
     # Flatten nested data while preserving leaves ordering
-    data_leaves = build_reduce(
-        lambda x: x, lambda x, y: x.append(y) or x, (data_nested,), None, 0,
-        initializer=list)()
+    data_leaves = tree.flatten(data_nested)
 
     # Compute slices to split destination in accordance with nested data.
     # It will be passed to `build_reduce` as an input dataset. It is kind of

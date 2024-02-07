@@ -5,10 +5,12 @@ import socket
 import pathlib
 import tempfile
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Union
 
+import gymnasium as gym
 from tensorboard.program import TensorBoard
 
+from stable_baselines3.common.vec_env import VecEnv
 from stable_baselines3.common.base_class import BaseAlgorithm
 from stable_baselines3.common.callbacks import (
     EvalCallback, StopTrainingOnRewardThreshold as StopOnReward)
@@ -57,6 +59,7 @@ def initialize(log_root_path: Optional[str] = None,
 
 
 def train(train_agent: BaseAlgorithm,
+          eval_env: Union[gym.Env, VecEnv],
           max_timesteps: int,
           verbose: bool = True) -> str:
     """Train a model on a specific environment using a given agent.
@@ -78,14 +81,14 @@ def train(train_agent: BaseAlgorithm,
               the trained neural network model.
     """
     # Get testing environment spec
-    spec = train_agent.eval_env.envs[0].spec
+    spec = eval_env.envs[0].spec
 
     # Create callback to stop learning early if reward threshold is exceeded
     if spec.reward_threshold is not None:
         callback_reward = StopOnReward(
             reward_threshold=spec.reward_threshold)
         eval_callback = EvalCallback(
-            train_agent.eval_env, callback_on_new_best=callback_reward,
+            eval_env, callback_on_new_best=callback_reward,
             eval_freq=5000, n_eval_episodes=100)
     else:
         eval_callback = None
@@ -111,6 +114,7 @@ def train(train_agent: BaseAlgorithm,
 
 
 def test(test_agent: BaseAlgorithm,
+         eval_env: Union[gym.Env, VecEnv],
          max_episodes: int = math.inf,
          max_duration: int = math.inf,
          verbose: bool = True) -> None:
@@ -134,25 +138,25 @@ def test(test_agent: BaseAlgorithm,
             "Either 'max_episodes' or 'max_duration' must be finite.")
 
     # Get environment timestep
-    step_dt = test_agent.eval_env.envs[0].step_dt
+    step_dt = eval_env.envs[0].step_dt
 
     try:
         t_init, t_cur = time.time(), time.time()
         num_episodes = 0
         while (num_episodes < max_episodes) and \
                 (t_cur - t_init < max_duration):
-            obs, _ = test_agent.eval_env.reset()
+            obs = eval_env.reset()
             cum_step, cum_reward = 0, 0.0
             done = False
             while not done:
                 # Update state
                 action = test_agent.predict(obs)
-                obs, reward, done, _ = test_agent.eval_env.step(action)
+                obs, reward, done, _ = eval_env.step(action)
                 cum_step += 1
                 cum_reward += reward[0]
 
                 # Render the current state in default viewer
-                test_agent.eval_env.render()
+                eval_env.render()
                 sleep(step_dt - (time.time() - t_cur))
                 t_cur = time.time()
 

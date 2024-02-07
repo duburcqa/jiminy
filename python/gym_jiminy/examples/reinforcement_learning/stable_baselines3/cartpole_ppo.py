@@ -65,16 +65,14 @@ test_env = DummyVecEnv([env_creator])
 # Create the learning agent according to the chosen algorithm
 train_agent = PPO(MlpPolicy, train_env, **agent_cfg,
     tensorboard_log=log_path, verbose=True)
-train_agent.eval_env = test_env
 
 # Run the learning process
-checkpoint_path = train(train_agent, max_timesteps=100000)
+checkpoint_path = train(train_agent, test_env, max_timesteps=100000)
 
 # ===================== Enjoy the trained agent ======================
 
 # Create testing agent
 test_agent = train_agent.load(checkpoint_path)
-test_agent.eval_env = test_env
 
 # Run the testing process
-test(test_agent, max_episodes=1)
+test(test_agent, test_env, max_episodes=1)

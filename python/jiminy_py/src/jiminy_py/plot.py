@@ -56,6 +56,7 @@ class _ButtonBlit(Button):
                 # It is necessary to flush events beforehand to make sure
                 # figure refresh cannot get interrupted by button blitting.
                 # Otherwise the figure would be blank.
+                assert self.ax.figure is not None
                 self.ax.figure.canvas.flush_events()
                 self.ax.draw_artist(self.ax)
                 self.ax.figure.canvas.blit(self.ax.bbox)
@@ -141,7 +142,9 @@ class TabbedFigure:
         self.bbox_inches: Bbox = Bbox([[0.0, 0.0], [1.0, 1.0]])
 
         # Set window title
-        self.figure.canvas.manager.set_window_title(window_title)
+        if not self.offscreen:
+            assert self.figure.canvas.manager is not None
+            self.figure.canvas.manager.set_window_title(window_title)
 
         # Customize figure subplot layout and reserve space for buttons
         # self.figure.get_layout_engine().set(w_pad=0.1, h_pad=0.1)
@@ -236,6 +239,7 @@ class TabbedFigure:
             return
 
         # Backup navigation history if any
+        assert self.figure.canvas.toolbar is not None
         if not self.offscreen:
             cur_stack = self.figure.canvas.toolbar._nav_stack
             for tab in self.tabs_data.values():
@@ -813,6 +817,7 @@ def plot_log_interactive() -> None:
     fig = plt.figure(layout="constrained")
 
     # Set window title
+    assert fig.canvas.manager is not None
     fig.canvas.manager.set_window_title(main_arguments.input)
 
     # Set window size

@@ -9,10 +9,10 @@ from typing import (
     Any, Callable, List, Dict, Optional, Sequence, Union, Literal, Type,
     overload)
 
-import tree
 import numpy as np
 
 from . import core as jiminy
+from . import tree
 from .core import (  # pylint: disable=no-name-in-module
     EncoderSensor as encoder,
     EffortSensor as effort,

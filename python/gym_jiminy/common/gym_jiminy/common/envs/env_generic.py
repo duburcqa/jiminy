@@ -15,12 +15,12 @@ from typing import (
     Union, SupportsFloat, Iterator,  Generic, Sequence, Mapping as MappingT,
     MutableMapping as MutableMappingT)
 
-import tree
 import numpy as np
 from gymnasium import spaces
 from gymnasium.core import RenderFrame
 
 import jiminy_py.core as jiminy
+from jiminy_py import tree
 from jiminy_py.core import (  # pylint: disable=no-name-in-module
     array_copyto,
     EncoderSensor as encoder,
