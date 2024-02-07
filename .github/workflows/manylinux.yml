@@ -125,15 +125,15 @@ jobs:
         "${PYTHON_EXECUTABLE}" "$RootDir/build_tools/wheel_repair_linux.py" repair \
             -w "$RootDir/build/wheelhouse" "$RootDir/build/pypi/dist/jiminy_py/"*.whl
     - name: Upload the wheel of Jiminy for Linux
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
-        name: wheelhouse
+        name: wheelhouse-jiminy-${{ matrix.PYTHON_VERSION }}
         path: build/wheelhouse
     - name: Upload the wheels of Gym Jiminy
       if: success() && matrix.PYTHON_VERSION == 'cp38'
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
-        name: wheelhouse
+        name: wheelhouse-gym_jiminy
         path: build/pypi/dist/gym_jiminy
 
     #####################################################################################
@@ -176,9 +176,10 @@ jobs:
     #####################################################################################
 
     - name: Download the wheels previously generated
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
-        name: wheelhouse
+        pattern: wheelhouse-*
+        merge-multiple: true
         path: wheelhouse
     - name: Install the best wheel among the previously generated
       run: |
@@ -210,21 +211,21 @@ jobs:
 
   publish-pypi-manylinux:
     name: Publish on PyPi the wheel for Linux of jiminy_py and gym_jiminy
+    runs-on: ubuntu-22.04
+    permissions:
+      id-token: write
 
     needs: test-user-linux
-    runs-on: ubuntu-20.04
     if: github.repository == 'duburcqa/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
 
     steps:
     - name: Download the wheels previously generated
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
-        name: wheelhouse
+        pattern: wheelhouse-*
+        merge-multiple: true
         path: wheelhouse
     - name: Publish the wheels on PyPi
-      uses: pypa/gh-action-pypi-publish@v1.8.10
+      uses: pypa/gh-action-pypi-publish@v1.8.11
       with:
-        user: __token__
-        password: ${{ secrets.PYPI_DEPLOY }}
         packages-dir: wheelhouse
-        verify-metadata: false

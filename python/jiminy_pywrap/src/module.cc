@@ -99,12 +99,6 @@ namespace jiminy::python
 
         /* Enable some automatic C++ to Python converters.
            By default, conversion is by-value unless specified explicitly via a call policy. */
-        REGISTER_TO_PYTHON_BY_VALUE_CONVERTER(std::vector<pinocchio::Index>);
-        REGISTER_TO_PYTHON_BY_VALUE_CONVERTER(std::vector<std::vector<pinocchio::Index>>);
-        REGISTER_TO_PYTHON_BY_VALUE_CONVERTER(std::vector<Eigen::Index>);
-        REGISTER_TO_PYTHON_BY_VALUE_CONVERTER(std::vector<std::vector<Eigen::Index>>);
-        REGISTER_TO_PYTHON_BY_VALUE_CONVERTER(std::vector<Eigen::VectorXd>);
-        REGISTER_TO_PYTHON_BY_VALUE_CONVERTER(std::vector<Eigen::MatrixXd>);
         REGISTER_TO_PYTHON_BY_VALUE_CONVERTER(GenericConfig);
 
         // Expose functors

@@ -367,14 +367,16 @@ namespace jiminy::python
                                               (bp::arg("self"), "telemetry_options"))
                 .def("get_telemetry_options", &Robot::getTelemetryOptions)
 
-                .ADD_PROPERTY_GET_WITH_POLICY("nmotors",
-                                              &Robot::nmotors,
-                                              bp::return_value_policy<bp::return_by_value>())
+                .ADD_PROPERTY_GET("nmotors", &Robot::nmotors)
                 .ADD_PROPERTY_GET_WITH_POLICY("motor_names",
                                               &Robot::getMotorNames,
                                               bp::return_value_policy<result_converter<true>>())
-                .ADD_PROPERTY_GET("motor_position_indices", &Robot::getMotorsPositionIndices)
-                .ADD_PROPERTY_GET("motor_velocity_indices", &Robot::getMotorVelocityIndices)
+                .ADD_PROPERTY_GET_WITH_POLICY("motor_position_indices",
+                                              &Robot::getMotorsPositionIndices,
+                                              bp::return_value_policy<result_converter<true>>())
+                .ADD_PROPERTY_GET_WITH_POLICY("motor_velocity_indices",
+                                              &Robot::getMotorVelocityIndices,
+                                              bp::return_value_policy<result_converter<true>>())
                 .ADD_PROPERTY_GET("sensor_names", &PyRobotVisitor::getSensorNames)
 
                 .ADD_PROPERTY_GET_WITH_POLICY("command_limit",
