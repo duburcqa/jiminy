@@ -12,16 +12,24 @@ jobs:
     name: >-
       (${{ matrix.PYTHON_VERSION }}) (${{ matrix.BUILD_TYPE }})
       Build and run the unit tests. Then generate and publish the wheels on PyPi.
-    # Github provides Apple Silicon runners (`macos-14`) but `setup-python` does not support ARM for now
-    runs-on: macos-13 #macos-14
 
     strategy:
       matrix:
-        PYTHON_VERSION: ['3.8', '3.9', '3.10', '3.11', '3.12']
+        OS: ['macos-14']  # 'macos-13': Intel (x86), 'macos-14': Apple Silicon (arm64)
+        PYTHON_VERSION: ['3.10', '3.11', '3.12']  # `setup-python` does not support Python<3.10 on Apple Silicon
         BUILD_TYPE: ['Release']
         include:
-          - PYTHON_VERSION: '3.11'
+          - OS: 'macos-13'
+            PYTHON_VERSION: '3.8'
+            BUILD_TYPE: 'Release'
+          - OS: 'macos-13'
+            PYTHON_VERSION: '3.9'
+            BUILD_TYPE: 'Release'
+          - OS: 'macos-14'
+            PYTHON_VERSION: '3.11'
             BUILD_TYPE: 'Debug'
+
+    runs-on: ${{ matrix.OS }}
 
     defaults:
       run:
