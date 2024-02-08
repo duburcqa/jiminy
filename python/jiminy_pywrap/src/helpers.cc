@@ -351,7 +351,7 @@ namespace jiminy::python
         bp::def("crba",
                 &pinocchio_overload::crba<
                     double, 0, pinocchio::JointCollectionDefaultTpl, Eigen::VectorXd>,
-                (bp::arg("pinocchio_model"), "pinocchio_data", "q"),
+                (bp::arg("pinocchio_model"), "pinocchio_data", "q", bp::arg("fast_math") = false),
                 "Computes CRBA, store the result in Data and return it.",
                 bp::return_value_policy<result_converter<false>>());
         bp::def("computeKineticEnergy",

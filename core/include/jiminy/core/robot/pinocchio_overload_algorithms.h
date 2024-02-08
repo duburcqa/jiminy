@@ -24,9 +24,10 @@
 #include "pinocchio/multibody/joint/fwd.hpp"  // `pinocchio::JointModelBase`, `pinocchio::JointDataBase`, ...
 #include "pinocchio/algorithm/aba.hpp"       // `pinocchio::aba`
 #include "pinocchio/algorithm/rnea.hpp"      // `pinocchio::rnea`
-#include "pinocchio/algorithm/crba.hpp"      // `pinocchio::crbaMinimal`
+#include "pinocchio/algorithm/crba.hpp"      // `pinocchio::crba`, `pinocchio::crbaMinimal`
 #include "pinocchio/algorithm/energy.hpp"    // `pinocchio::computeKineticEnergy`
 #include "pinocchio/algorithm/cholesky.hpp"  // `pinocchio::cholesky::`
+#include "pinocchio/algorithm/jacobian.hpp"  // `pinocchio::computeJointJacobians`
 
 #include "jiminy/core/fwd.h"
 #include "jiminy/core/engine/engine_multi_robot.h"
@@ -106,9 +107,22 @@ namespace jiminy::pinocchio_overload
     inline const typename pinocchio::DataTpl<Scalar, Options, JointCollectionTpl>::MatrixXs &
     crba(const pinocchio::ModelTpl<Scalar, Options, JointCollectionTpl> & model,
          pinocchio::DataTpl<Scalar, Options, JointCollectionTpl> & data,
-         const Eigen::MatrixBase<ConfigVectorType> & q)
+         const Eigen::MatrixBase<ConfigVectorType> & q,
+         bool fastMath = false)
     {
-        pinocchio::crbaMinimal(model, data, q);
+        /* `pinocchio::crbaMinimal` is faster than `crba` as it also compute the joint jacobians as
+           a by-product without having to call `pinocchio::computeJointJacobians` manually.
+           However, it is numerical instable compared to the classical and thoroughly-tested
+           `pinocchio::crba`, so its use must be avoided in practice. */
+        if (fastMath)
+        {
+            pinocchio::crbaMinimal(model, data, q);
+        }
+        else
+        {
+            pinocchio::crba(model, data, q);
+            pinocchio::computeJointJacobians(model, data);
+        }
         data.M.diagonal() += model.rotorInertia;
         return data.M;
     }
@@ -494,7 +508,7 @@ namespace jiminy::pinocchio_overload
         // Make sure the decomposition of the mass matrix is valid
         if ((data.Dinv.array() < 0.0).any())
         {
-            PRINT_ERROR("The inertia matrix is not strictly positive definite.");
+            PRINT_ERROR("The inertia matrix is not positive definite.");
             return hresult_t::ERROR_BAD_INPUT;
         }
 

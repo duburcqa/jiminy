@@ -17,7 +17,6 @@
 #include "pinocchio/algorithm/center-of-mass.hpp"       // `pinocchio::centerOfMass`
 #include "pinocchio/algorithm/joint-configuration.hpp"  // `pinocchio::neutral`
 #include "pinocchio/algorithm/kinematics.hpp"           // `pinocchio::forwardKinematics`
-#include "pinocchio/algorithm/jacobian.hpp"             // `pinocchio::computeJointJacobians`
 #include "pinocchio/algorithm/geometry.hpp"             // `pinocchio::updateGeometryPlacements`
 #include "pinocchio/algorithm/cholesky.hpp"             // `pinocchio::cholesky::`
 
@@ -1198,10 +1197,8 @@ namespace jiminy
             return;
         }
 
-        /* Compute inertia matrix, taking into account armature.
-           Note that `crbaMinimal` is faster than `crba` as it also compute the joint jacobians as
-           a by-product without having to call `computeJointJacobians` manually. */
-        pinocchio_overload::crba(pinocchioModel_, pinocchioData_, q);
+        // Compute inertia matrix (taking into account rotor armatures) along with joint jacobians
+        pinocchio_overload::crba(pinocchioModel_, pinocchioData_, q, false);
 
         /* Computing forward kinematics without acceleration to get the drift.
            Note that it will alter the actual joints spatial accelerations, so it is necessary to
