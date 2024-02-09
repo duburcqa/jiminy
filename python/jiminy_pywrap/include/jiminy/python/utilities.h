@@ -114,10 +114,9 @@ namespace jiminy::python
            having to generate them manually. It simply consists in adding some special tags on top
            of the docstring, which works for now but it is not robust and may break in the future
            as this is an undocumented feature. */
-        const bp::converter::registration * r =
-            bp::converter::registry::query(typeid(WrappedClassT));
-        assert((std::string("Class ") + typeid(WrappedClassT).name() +
-                    " not registered to Boost Python.",
+        auto wrapperTypeId = bp::type_id<WrappedClassT>();
+        const bp::converter::registration * r = bp::converter::registry::query(wrapperTypeId);
+        assert((std::string("Class ") + wrapperTypeId.name() + " not registered to Boost Python.",
                 r != nullptr));
         PyTypeObject * nsPtr = r->get_class_object();
         bp::object nsName(
