@@ -11,7 +11,7 @@ engine
    :members:
    :undoc-members:
 
-.. doxygenstruct:: jiminy::systemState_t
+.. doxygenstruct:: jiminy::SystemState
    :project: jiminy
    :members:
    :undoc-members:

@@ -78,13 +78,13 @@ Telemetry
 Pinocchio
 ---------
 
-.. doxygenfunction:: jiminy::getJointNameFromPositionIdx(pinocchio::Model const &model, int32_t const &idx, std::string &jointNameOut)
+.. doxygenfunction:: jiminy::getJointNameFromPositionIndex(pinocchio::Model const &model, int32_t const &index, std::string &jointName)
    :project: jiminy
 
-.. doxygenfunction:: jiminy::getJointNameFromVelocityIdx(pinocchio::Model const &model, int32_t const &idIn, std::string &jointNameOut)
+.. doxygenfunction:: jiminy::getJointNameFromVelocityIndex(pinocchio::Model const &model, int32_t const &index, std::string &jointName)
    :project: jiminy
 
-.. doxygenfunction:: jiminy::getJointTypeFromIdx
+.. doxygenfunction:: jiminy::getJointTypeFromIndex
    :project: jiminy
 
 .. doxygenfunction:: jiminy::getJointTypePositionSuffixes
@@ -93,38 +93,32 @@ Pinocchio
 .. doxygenfunction:: jiminy::getJointTypeVelocitySuffixes
    :project: jiminy
 
-.. doxygenfunction:: jiminy::getFrameIdx
+.. doxygenfunction:: jiminy::getFrameIndex
    :project: jiminy
 
-.. doxygenfunction:: jiminy::getFramesIdx
+.. doxygenfunction:: jiminy::getFrameIndices
    :project: jiminy
 
-.. doxygenfunction:: jiminy::getJointModelIdx
+.. doxygenfunction:: jiminy::getJointIndex
    :project: jiminy
 
-.. doxygenfunction:: jiminy::getJointsModelIdx
+.. doxygenfunction:: jiminy::getJointIndices
    :project: jiminy
 
-.. doxygenfunction:: jiminy::getJointPositionIdx(pinocchio::Model const &model, std::string const &jointName, std::vector<int32_t> &jointPositionIdx)
+.. doxygenfunction:: jiminy::getJointPositionIndex(pinocchio::Model const &model, std::string const &jointName, std::vector<int32_t> &jointPositionIdx)
    :project: jiminy
 
-.. doxygenfunction:: jiminy::getJointsPositionIdx
+.. doxygenfunction:: jiminy::getJointsPositionIndices
    :project: jiminy
 
-.. doxygenfunction:: jiminy::getJointVelocityIdx(pinocchio::Model const &model, std::string const &jointName, std::vector<int32_t> &jointVelocityIdx)
+.. doxygenfunction:: jiminy::getJointVelocityIndex(pinocchio::Model const &model, std::string const &jointName, std::vector<int32_t> &jointVelocityIdx)
    :project: jiminy
 
-.. doxygenfunction:: jiminy::getJointsVelocityIdx
+.. doxygenfunction:: jiminy::getJointVelocityIndices
    :project: jiminy
 
 .. doxygenfunction:: jiminy::isPositionValid
    :project: jiminy
 
 .. doxygenfunction:: jiminy::convertForceGlobalFrameToJoint
-   :project: jiminy
-
-Math
-----
-
-.. doxygenfunction:: jiminy::clamp(Eigen::MatrixBase<DerivedType> const &data, double const &minThr = -INF, double const &maxThr = +INF)
    :project: jiminy

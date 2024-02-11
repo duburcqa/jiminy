@@ -64,7 +64,7 @@ namespace jiminy
         ///
         /// \return True on step success, false otherwise. dt is updated in place.
         virtual bool adjustStep(
-            const state_t & initialState, const state_t & solution, double & dt) override final;
+            const State & initialState, const State & solution, double & dt) override final;
 
     private:
         /// \brief Run error computation algorithm to return normalized error.
@@ -74,7 +74,7 @@ namespace jiminy
         /// \param[in] solution Current solution computed by the main Runge-Kutta step.
         ///
         /// \returns Normalized error, >1 indicates step failure.
-        double computeError(const state_t & initialState, const state_t & solution, double dt);
+        double computeError(const State & initialState, const State & solution, double dt);
 
         /// \brief Scale timestep based on normalized error value.
         bool adjustStepImpl(double error, double & dt);
@@ -85,11 +85,11 @@ namespace jiminy
         /// \brief Absolute tolerance.
         double tolAbs_;
         /// \brief Internal buffer for error scale using during relative error computation.
-        stateDerivative_t scale_;
+        StateDerivative scale_;
         /// \brief Internal buffer for alternative solution during error computation.
-        state_t otherSolution_;
+        State otherSolution_;
         /// \brief Internal buffer for difference between solutions during error computation.
-        stateDerivative_t error_;
+        StateDerivative error_;
     };
 }
 

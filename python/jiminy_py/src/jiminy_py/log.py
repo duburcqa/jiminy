@@ -9,10 +9,10 @@ from typing import (
     Any, Callable, List, Dict, Optional, Sequence, Union, Literal, Type,
     overload)
 
-import tree
 import numpy as np
 
 from . import core as jiminy
+from . import tree
 from .core import (  # pylint: disable=no-name-in-module
     EncoderSensor as encoder,
     EffortSensor as effort,
@@ -249,13 +249,13 @@ def extract_trajectory_from_log(log_data: Dict[str, Any],
     # Extract the joint positions, velocities and external forces over time
     positions = np.stack([
         log_vars.get(".".join((ENGINE_NAMESPACE, field)), [])
-        for field in robot.log_fieldnames_position], axis=-1)
+        for field in robot.log_position_fieldnames], axis=-1)
     velocities = np.stack([
         log_vars.get(".".join((ENGINE_NAMESPACE, field)), [])
-        for field in robot.log_fieldnames_velocity], axis=-1)
+        for field in robot.log_velocity_fieldnames], axis=-1)
     forces = np.stack([
         log_vars.get(".".join((ENGINE_NAMESPACE, field)), [])
-        for field in robot.log_fieldnames_f_external], axis=-1)
+        for field in robot.log_f_external_fieldnames], axis=-1)
 
     # Determine which optional data are available
     has_positions = len(positions) > 0
@@ -281,7 +281,7 @@ def extract_trajectory_from_log(log_data: Dict[str, Any],
             "use_theoretical_model": False}
 
 
-def update_sensors_data_from_log(
+def update_sensor_measurements_from_log(
         log_data: Dict[str, Any],
         robot: jiminy.Model
         ) -> Callable[[float, np.ndarray, np.ndarray], None]:
@@ -304,9 +304,9 @@ def update_sensors_data_from_log(
 
     # Filter sensors whose data is available
     sensors_set, sensors_log = [], []
-    for sensor_type, sensors_names in robot.sensors_names.items():
+    for sensor_type, sensor_names in robot.sensor_names.items():
         sensor_fieldnames = getattr(jiminy, sensor_type).fieldnames
-        for name in sensors_names:
+        for name in sensor_names:
             sensor = robot.get_sensor(sensor_type, name)
             log_fieldnames = [
                 '.'.join((sensor.name, field)) for field in sensor_fieldnames]

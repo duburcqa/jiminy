@@ -15,7 +15,7 @@ namespace jiminy
     b_{bWeights},
     c_{cNodes},
     isFSAL_{isFSAL},
-    ki_(cNodes.size(), stateDerivative_t(robots)),
+    ki_(cNodes.size(), StateDerivative(robots)),
     stateIncrement_(robots),
     stateBuffer_(robots),
     candidateSolution_(robots)
@@ -23,7 +23,7 @@ namespace jiminy
     }
 
     bool AbstractRungeKuttaStepper::tryStepImpl(
-        state_t & state, stateDerivative_t & stateDerivative, double t, double & dt)
+        State & state, StateDerivative & stateDerivative, double t, double & dt)
     {
         // Make sure that the provided matrices are consistent with each other
         assert(A_.rows() == A_.cols());
@@ -77,7 +77,7 @@ namespace jiminy
     }
 
     bool AbstractRungeKuttaStepper::adjustStep(
-        const state_t & /* initialState */, const state_t & /* solution */, double & dt)
+        const State & /* initialState */, const State & /* solution */, double & dt)
     {
         // Fixed-step by default, which never fails
         dt = INF;

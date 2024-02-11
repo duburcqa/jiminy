@@ -27,52 +27,52 @@ namespace jiminy::python
         public bp::wrapper<AbstractControllerImpl>
     {
     public:
-        hresult_t reset(bool resetDynamicTelemetry)
+        void reset(bool resetDynamicTelemetry)
         {
             bp::override func = this->get_override("reset");
             if (func)
             {
                 func(resetDynamicTelemetry);
-                return hresult_t::SUCCESS;
             }
-            return AbstractController::reset(resetDynamicTelemetry);
+            else
+            {
+                AbstractController::reset(resetDynamicTelemetry);
+            }
         }
 
-        hresult_t default_reset(bool resetDynamicTelemetry)
+        void default_reset(bool resetDynamicTelemetry)
         {
             return this->AbstractController::reset(resetDynamicTelemetry);
         }
 
-        hresult_t computeCommand(double t,
-                                 const Eigen::VectorXd & q,
-                                 const Eigen::VectorXd & v,
-                                 Eigen::VectorXd & command)
+        void computeCommand(double t,
+                            const Eigen::VectorXd & q,
+                            const Eigen::VectorXd & v,
+                            Eigen::VectorXd & command)
         {
             bp::override func = this->get_override("compute_command");
             if (func)
             {
                 func(t,
-                     FctPyWrapperArgToPython(q),
-                     FctPyWrapperArgToPython(v),
-                     FctPyWrapperArgToPython(command));
+                     FunPyWrapperArgToPython(q),
+                     FunPyWrapperArgToPython(v),
+                     FunPyWrapperArgToPython(command));
             }
-            return hresult_t::SUCCESS;
         }
 
-        hresult_t internalDynamics(double t,
-                                   const Eigen::VectorXd & q,
-                                   const Eigen::VectorXd & v,
-                                   Eigen::VectorXd & uCustom)
+        void internalDynamics(double t,
+                              const Eigen::VectorXd & q,
+                              const Eigen::VectorXd & v,
+                              Eigen::VectorXd & uCustom)
         {
             bp::override func = this->get_override("internal_dynamics");
             if (func)
             {
                 func(t,
-                     FctPyWrapperArgToPython(q),
-                     FctPyWrapperArgToPython(v),
-                     FctPyWrapperArgToPython(uCustom));
+                     FunPyWrapperArgToPython(q),
+                     FunPyWrapperArgToPython(v),
+                     FunPyWrapperArgToPython(uCustom));
             }
-            return hresult_t::SUCCESS;
         }
     };
 
@@ -103,13 +103,12 @@ namespace jiminy::python
                                     (bp::arg("self"), "options"))
                 .def("get_options", &AbstractController::getOptions)
                 .ADD_PROPERTY_GET("robot", &PyAbstractControllerVisitor::getRobot)
-                .DEF_READONLY("sensors_data", &AbstractController::sensorsData_)
+                .DEF_READONLY("sensor_measurements", &AbstractController::sensorMeasurements_)
                 ;
             // clang-format on
         }
 
-        static hresult_t initialize(AbstractController & self,
-                                    const std::shared_ptr<Robot> & robot)
+        static void initialize(AbstractController & self, const std::shared_ptr<Robot> & robot)
         {
             /* Cannot use input shared pointer because its reference counter is corrupted for some
                reason, making it impossible to use it in conjunction with weak_ptr. The only known
@@ -118,54 +117,44 @@ namespace jiminy::python
             return self.initialize(robot->shared_from_this());
         }
 
-        static hresult_t registerVariable(
+        static void registerVariable(
             AbstractController & self, const std::string & fieldname, PyObject * dataPy)
         {
             // Note that const qualifier is not supported by PyArray_DATA
 
-            if (PyArray_Check(dataPy))
+            if (!PyArray_Check(dataPy))
             {
-                PyArrayObject * dataPyArray = reinterpret_cast<PyArrayObject *>(dataPy);
-                if (PyArray_SIZE(dataPyArray) <= 1U)
-                {
-                    if (PyArray_TYPE(dataPyArray) == NPY_FLOAT64)
-                    {
-                        auto data = static_cast<double *>(PyArray_DATA(dataPyArray));
-                        return self.registerVariable(fieldname, *data);
-                    }
-                    if (PyArray_TYPE(dataPyArray) == NPY_INT64)
-                    {
-                        auto data = static_cast<int64_t *>(PyArray_DATA(dataPyArray));
-                        return self.registerVariable(fieldname, *data);
-                    }
-                    else
-                    {
-                        PRINT_ERROR(
-                            "'value' input array must have dtype 'np.float64' or 'np.int64'.");
-                        return hresult_t::ERROR_BAD_INPUT;
-                    }
-                }
-                else
-                {
-                    PRINT_ERROR("'value' input array must have a single element.");
-                    return hresult_t::ERROR_BAD_INPUT;
-                }
+                THROW_ERROR(std::invalid_argument,
+                            "'value' input must have type 'numpy.ndarray'.");
             }
-            else
+
+            PyArrayObject * dataPyArray = reinterpret_cast<PyArrayObject *>(dataPy);
+            if (PyArray_SIZE(dataPyArray) > 1U)
             {
-                PRINT_ERROR("'value' input must have type 'numpy.ndarray'.");
-                return hresult_t::ERROR_BAD_INPUT;
+                THROW_ERROR(std::invalid_argument,
+                            "'value' input array must have a single element.");
             }
+
+            if (PyArray_TYPE(dataPyArray) == NPY_FLOAT64)
+            {
+                auto data = static_cast<double *>(PyArray_DATA(dataPyArray));
+                return self.registerVariable(fieldname, *data);
+            }
+            if (PyArray_TYPE(dataPyArray) == NPY_INT64)
+            {
+                auto data = static_cast<int64_t *>(PyArray_DATA(dataPyArray));
+                return self.registerVariable(fieldname, *data);
+            }
+            THROW_ERROR(not_implemented_error,
+                        "'value' input array must have dtype 'np.float64' or 'np.int64'.");
         }
 
         template<typename Scalar>
-        static hresult_t registerVariableArrayImpl(
+        static void registerVariableArrayImpl(
             AbstractController & self,
             const bp::list & fieldnamesPy,
             Eigen::Map<MatrixX<Scalar>, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>> & data)
         {
-            hresult_t returnCode = hresult_t::SUCCESS;
-
             // Check if fieldnames are stored in one or two dimensional list
             if (bp::len(fieldnamesPy) > 0 && bp::extract<std::string>(fieldnamesPy[0]).check())
             {
@@ -175,15 +164,12 @@ namespace jiminy::python
                 // Check fieldnames and array have same length
                 if (static_cast<std::size_t>(data.size()) != fieldnames.size())
                 {
-                    PRINT_ERROR("'values' input array must have same length than 'fieldnames'.");
-                    returnCode = hresult_t::ERROR_BAD_INPUT;
+                    THROW_ERROR(std::invalid_argument,
+                                "'values' input array must have same length than 'fieldnames'.");
                 }
 
                 // Register all variables at once
-                if (returnCode == hresult_t::SUCCESS)
-                {
-                    returnCode = self.registerVariable(fieldnames, data.col(0));
-                }
+                self.registerVariable(fieldnames, data.col(0));
             }
             else
             {
@@ -204,74 +190,55 @@ namespace jiminy::python
                 }
                 if (!are_fieldnames_valid)
                 {
-                    PRINT_ERROR("'fieldnames' must be nested list with same shape than 'value'.");
-                    returnCode = hresult_t::ERROR_BAD_INPUT;
+                    THROW_ERROR(std::invalid_argument,
+                                "'fieldnames' must be nested list with same shape than 'value'.");
                 }
 
                 // Register rows sequentially
                 for (Eigen::Index i = 0; i < data.rows(); ++i)
                 {
-                    if (returnCode == hresult_t::SUCCESS)
-                    {
-                        returnCode = self.registerVariable(fieldnames[i], data.row(i));
-                    }
+                    self.registerVariable(fieldnames[i], data.row(i));
                 }
             }
-
-            return returnCode;
         }
 
-        static hresult_t registerVariableArray(
+        static void registerVariableArray(
             AbstractController & self, const bp::list & fieldnamesPy, PyObject * dataPy)
         {
-            auto data = getEigenReference(dataPy);
-            if (!data)
-            {
-                return hresult_t::ERROR_BAD_INPUT;
-            }
             return std::visit([&](auto && arg)
                               { return registerVariableArrayImpl(self, fieldnamesPy, arg); },
-                              data.value());
+                              getEigenReference(dataPy));
         }
 
-        static hresult_t registerConstant(
+        static void registerConstant(
             AbstractController & self, const std::string & fieldname, PyObject * dataPy)
         {
             if (PyArray_Check(dataPy))
             {
-                auto data = getEigenReference(dataPy);
-                if (!data)
-                {
-                    return hresult_t::ERROR_BAD_INPUT;
-                }
                 return std::visit([&](auto && arg)
                                   { return self.registerConstant(fieldname, arg); },
-                                  data.value());
+                                  getEigenReference(dataPy));
             }
-            else if (PyFloat_Check(dataPy))
+            if (PyFloat_Check(dataPy))
             {
                 return self.registerConstant(fieldname, PyFloat_AsDouble(dataPy));
             }
-            else if (PyLong_Check(dataPy))
+            if (PyLong_Check(dataPy))
             {
                 return self.registerConstant(fieldname, PyLong_AsLong(dataPy));
             }
-            else if (PyBytes_Check(dataPy))
+            if (PyBytes_Check(dataPy))
             {
                 return self.registerConstant(fieldname, PyBytes_AsString(dataPy));
             }
-            else if (PyUnicode_Check(dataPy))
+            if (PyUnicode_Check(dataPy))
             {
                 return self.registerConstant(fieldname, PyUnicode_AsUTF8(dataPy));
             }
-            else
-            {
-                PRINT_ERROR("'value' type is unsupported.");
-                return hresult_t::ERROR_BAD_INPUT;
-            }
+            THROW_ERROR(not_implemented_error, "'value' type is unsupported.");
         }
 
-        static hresult_t setOptions(AbstractController & self, const bp::dict & configPy)
+        static void setOptions(AbstractController & self, const bp::dict & configPy)
         {
             GenericConfig config = self.getOptions();
             convertFromPython(configPy, config);
@@ -307,35 +274,40 @@ namespace jiminy::python
 
     BOOST_PYTHON_VISITOR_EXPOSE(AbstractController)
 
-    // ***************************** PyControllerFunctorVisitor ***********************************
+    // ***************************** PyFunctionalControllerVisitor ***************************** //
 
-    using CtrlFunctor = ControllerFunctor<ControllerFunPyWrapper, ControllerFunPyWrapper>;
+    using FunctionalControllerPyBase =
+        FunctionalController<ControllerFunPyWrapper, ControllerFunPyWrapper>;
 
-    class CtrlFunctorImpl : public CtrlFunctor
+    class FunctionalControllerPyInterface : public FunctionalControllerPyBase
     {
     };
 
-    class CtrlFunctorWrapper : public CtrlFunctorImpl, public bp::wrapper<CtrlFunctorImpl>
+    class FunctionalControllerPy :
+    public FunctionalControllerPyInterface,
+        public bp::wrapper<FunctionalControllerPyInterface>
     {
     public:
-        hresult_t reset(bool resetDynamicTelemetry)
+        void reset(bool resetDynamicTelemetry)
         {
             bp::override func = this->get_override("reset");
             if (func)
             {
                 func(resetDynamicTelemetry);
-                return hresult_t::SUCCESS;
             }
-            return CtrlFunctor::reset(resetDynamicTelemetry);
+            else
+            {
+                return FunctionalControllerPyBase::reset(resetDynamicTelemetry);
+            }
         }
 
-        hresult_t default_reset(bool resetDynamicTelemetry)
+        void default_reset(bool resetDynamicTelemetry)
         {
-            return this->CtrlFunctor::reset(resetDynamicTelemetry);
+            return this->FunctionalControllerPyBase::reset(resetDynamicTelemetry);
         }
     };
 
-    struct PyControllerFunctorVisitor : public bp::def_visitor<PyControllerFunctorVisitor>
+    struct PyFunctionalControllerVisitor : public bp::def_visitor<PyFunctionalControllerVisitor>
     {
     public:
         /// \brief Expose C++ API through the visitor.
@@ -352,33 +324,33 @@ namespace jiminy::python
             // clang-format on
         }
 
-        static std::shared_ptr<CtrlFunctor> factory(bp::object & commandPy,
-                                                    bp::object & internalDynamicsPy)
+        static std::shared_ptr<FunctionalControllerPyBase> factory(bp::object & commandPy,
+                                                                   bp::object & internalDynamicsPy)
         {
-            return std::make_shared<CtrlFunctor>(ControllerFunPyWrapper(commandPy),
-                                                 ControllerFunPyWrapper(internalDynamicsPy));
+            return std::make_shared<FunctionalControllerPyBase>(
+                ControllerFunPyWrapper(commandPy), ControllerFunPyWrapper(internalDynamicsPy));
         }
 
         static void expose()
         {
             // clang-format off
-            bp::class_<CtrlFunctor, bp::bases<AbstractController>,
-                       std::shared_ptr<CtrlFunctor>,
-                       boost::noncopyable>("AbstractControllerFunctor", bp::no_init)
-                .def(PyControllerFunctorVisitor());
+            bp::class_<FunctionalControllerPyBase, bp::bases<AbstractController>,
+                       std::shared_ptr<FunctionalControllerPyBase>,
+                       boost::noncopyable>("AbstractFunctionalController", bp::no_init)
+                .def(PyFunctionalControllerVisitor());
 
-            bp::class_<CtrlFunctorWrapper, bp::bases<CtrlFunctor>,
-                       std::shared_ptr<CtrlFunctorWrapper>,
-                       boost::noncopyable>("ControllerFunctor", bp::no_init)
-                .def("__init__", bp::make_constructor(&PyControllerFunctorVisitor::factory,
+            bp::class_<FunctionalControllerPy, bp::bases<FunctionalControllerPyBase>,
+                       std::shared_ptr<FunctionalControllerPy>,
+                       boost::noncopyable>("FunctionalController", bp::no_init)
+                .def("__init__", bp::make_constructor(&PyFunctionalControllerVisitor::factory,
                                  bp::default_call_policies(),
                                 (bp::arg("compute_command") = bp::object(),
                                  bp::arg("internal_dynamics") = bp::object())))
-                .def("reset", &CtrlFunctor::reset, &CtrlFunctorWrapper::default_reset,
+                .def("reset", &FunctionalControllerPyBase::reset, &FunctionalControllerPy::default_reset,
                               (bp::arg("self"), bp::arg("reset_dynamic_telemetry") = false));
             // clang-format on
         }
     };
 
-    BOOST_PYTHON_VISITOR_EXPOSE(ControllerFunctor)
+    BOOST_PYTHON_VISITOR_EXPOSE(FunctionalController)
 }

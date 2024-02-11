@@ -15,34 +15,35 @@ namespace jiminy
     template<typename F>
     using callable_t = std::conditional_t<std::is_function_v<F>, std::add_pointer_t<F>, F>;
 
-    using ControllerFunctorSignature = void(double /* t */,
-                                            const Eigen::VectorXd & /* q */,
-                                            const Eigen::VectorXd & /* v */,
-                                            const SensorsDataMap & /* sensorMeasurements */,
-                                            Eigen::VectorXd & /* command */);
+    using FunctionalControllerSignature = void(
+        double /* t */,
+        const Eigen::VectorXd & /* q */,
+        const Eigen::VectorXd & /* v */,
+        const SensorMeasurementTree & /* sensorMeasurements */,
+        Eigen::VectorXd & /* command */);
 
-    template<typename F1 = std::add_pointer_t<ControllerFunctorSignature>,
-             typename F2 = std::add_pointer_t<ControllerFunctorSignature>>
-    class ControllerFunctor : public AbstractController
+    template<typename F1 = std::add_pointer_t<FunctionalControllerSignature>,
+             typename F2 = std::add_pointer_t<FunctionalControllerSignature>>
+    class FunctionalController : public AbstractController
     {
     public:
-        DISABLE_COPY(ControllerFunctor)
+        DISABLE_COPY(FunctionalController)
 
     public:
         /// \remark A valid 'callable' is a function pointer, functor or lambda with signature:
         ///             void(double t,
         ///                  const Eigen::VectorXd & q,
         ///                  const Eigen::VectorXd & v,
-        ///                  const SensorsDataMap & sensorsData,
+        ///                  const SensorMeasurementTree & sensorMeasurements,
         ///                  Eigen::VectorXd & command)
         ///         where I is range(n), with n the number of different type of sensor.
         ///
-        /// \param[in] commandFct 'Callable' computing the command.
-        /// \param[in] internalDynamicsFct 'Callable' computing the internal dynamics.
-        explicit ControllerFunctor(F1 & commandFct, F2 & internalDynamicsFct) noexcept;
-        explicit ControllerFunctor(F1 && commandFct, F2 && internalDynamicsFct) noexcept;
+        /// \param[in] commandFun 'Callable' computing the command.
+        /// \param[in] internalDynamicsFun 'Callable' computing the internal dynamics.
+        explicit FunctionalController(F1 & commandFun, F2 & internalDynamicsFun) noexcept;
+        explicit FunctionalController(F1 && commandFun, F2 && internalDynamicsFun) noexcept;
 
-        virtual ~ControllerFunctor() = default;
+        virtual ~FunctionalController() = default;
 
         /// \brief Compute the command.
         ///
@@ -53,12 +54,10 @@ namespace jiminy
         /// \param[in] q Current configuration vector
         /// \param[in] v Current velocity vector
         /// \param[out] command Output effort vector
-        ///
-        /// \return Return code to determine whether the execution of the method was successful.
-        virtual hresult_t computeCommand(double t,
-                                         const Eigen::VectorXd & q,
-                                         const Eigen::VectorXd & v,
-                                         Eigen::VectorXd & command) override;
+        virtual void computeCommand(double t,
+                                    const Eigen::VectorXd & q,
+                                    const Eigen::VectorXd & v,
+                                    Eigen::VectorXd & command) override;
 
         /// \brief Emulate custom phenomenon that are part of the internal dynamics of the system
         ///        but not included in the physics engine.
@@ -67,18 +66,16 @@ namespace jiminy
         /// \param[in] q Current configuration vector.
         /// \param[in] v Current velocity vector.
         /// \param[in] command Output effort vector.
-        ///
-        /// \return Return code to determine whether the execution of the method was successful.
-        virtual hresult_t internalDynamics(double t,
-                                           const Eigen::VectorXd & q,
-                                           const Eigen::VectorXd & v,
-                                           Eigen::VectorXd & uCustom) override;
+        virtual void internalDynamics(double t,
+                                      const Eigen::VectorXd & q,
+                                      const Eigen::VectorXd & v,
+                                      Eigen::VectorXd & uCustom) override;
 
     private:
         /// \brief 'Callable' computing the command.
-        callable_t<F1> commandFct_;
+        callable_t<F1> commandFun_;
         /// \brief 'Callable' computing the internal dynamics.
-        callable_t<F2> internalDynamicsFct_;
+        callable_t<F2> internalDynamicsFun_;
     };
 }
 

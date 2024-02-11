@@ -54,12 +54,13 @@ namespace jiminy
                      double & dt);
 
     protected:
-        /// \brief Internal tryStep method wrapping the arguments as state_t and stateDerivative_t.
+        /// \brief Internal tryStep method wrapping the arguments as State and
+        /// StateDerivative.
         virtual bool tryStepImpl(
-            state_t & state, stateDerivative_t & stateDerivative, double t, double & dt) = 0;
+            State & state, StateDerivative & stateDerivative, double t, double & dt) = 0;
 
         /// \brief Wrapper around the system dynamics: `stateDerivative = f(t, state)`.
-        const stateDerivative_t & f(double t, const state_t & state);
+        const StateDerivative & f(double t, const State & state);
 
     private:
         /// \brief Dynamics to integrate.
@@ -67,11 +68,11 @@ namespace jiminy
         /// \brief Robots on which to perform integration.
         std::vector<const Robot *> robots_;
         /// \brief State derivative computation buffer.
-        state_t state_;
+        State state_;
         /// \brief State derivative computation buffer.
-        stateDerivative_t stateDerivative_;
+        StateDerivative stateDerivative_;
         /// \brief State derivative computation buffer.
-        stateDerivative_t fOutput_;
+        StateDerivative fOutput_;
     };
 }
 

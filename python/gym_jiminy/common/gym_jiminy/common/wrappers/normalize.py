@@ -9,7 +9,7 @@ import gymnasium as gym
 
 from ..bases import (ObsT,
                      ActT,
-                     JiminyEnvInterface,
+                     InterfaceJiminyEnv,
                      BaseTransformObservation,
                      BaseTransformAction)
 from ..utils import build_map, build_normalize
@@ -56,7 +56,7 @@ class NormalizeObservation(
     .. warning::
         All leaves of the observation space must have type `gym.spaces.Box`.
     """
-    def __init__(self, env: JiminyEnvInterface[ObsT, ActT]) -> None:
+    def __init__(self, env: InterfaceJiminyEnv[ObsT, ActT]) -> None:
         # Initialize base class
         super().__init__(env)
 
@@ -86,7 +86,7 @@ class NormalizeAction(BaseTransformAction[NormalizedActT, ObsT, ActT],
     .. warning::
         All leaves of the action space must have type `gym.spaces.Box`.
     """
-    def __init__(self, env: JiminyEnvInterface[ObsT, ActT]) -> None:
+    def __init__(self, env: InterfaceJiminyEnv[ObsT, ActT]) -> None:
         # Initialize base class
         super().__init__(env)
 

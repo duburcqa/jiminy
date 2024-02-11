@@ -11,15 +11,15 @@ namespace jiminy::python
 {
     namespace bp = boost::python;
 
-    HeightmapFunctor sumHeightmaps(const bp::list & heightmapsPy)
+    HeightmapFunction sumHeightmaps(const bp::object & heightmapsPy)
     {
-        auto heightmaps = convertFromPython<std::vector<HeightmapFunctor>>(heightmapsPy);
+        auto heightmaps = convertFromPython<std::vector<HeightmapFunction>>(heightmapsPy);
         return ::jiminy::sumHeightmaps(heightmaps);
     }
 
-    HeightmapFunctor mergeHeightmaps(const bp::list & heightmapsPy)
+    HeightmapFunction mergeHeightmaps(const bp::object & heightmapsPy)
     {
-        auto heightmaps = convertFromPython<std::vector<HeightmapFunctor>>(heightmapsPy);
+        auto heightmaps = convertFromPython<std::vector<HeightmapFunction>>(heightmapsPy);
         return ::jiminy::mergeHeightmaps(heightmaps);
     }
 
@@ -53,8 +53,8 @@ namespace jiminy::python
             {                                                                                     \
                 return convertFromPython<Eigen::Ref<const MatrixX<double>>>(array).cast<float>(); \
             }                                                                                     \
-            throw std::invalid_argument(                                                          \
-                "Matrix arguments must have dtype 'np.float32' or 'np.float64'.");                \
+            THROW_ERROR(std::invalid_argument,                                                    \
+                        "Matrix arguments must have dtype 'np.float32' or 'np.float64'.");        \
         };                                                                                        \
         return dist(generator, cast(arg1), cast(arg2)).cast<double>();                            \
     }                                                                                             \
@@ -83,7 +83,7 @@ namespace jiminy::python
         case 0:                                                                                   \
             break;                                                                                \
         default:                                                                                  \
-            throw std::invalid_argument("'size' must have at most 2 dimensions.");                \
+            THROW_ERROR(std::invalid_argument, "'size' must have at most 2 dimensions.");         \
         }                                                                                         \
         return convertToPython(dist(nrows, ncols, generator, arg1, arg2).cast<double>(), true);   \
     }
@@ -122,19 +122,19 @@ namespace jiminy::python
     class ConvertGeneratorToPythonAndInvoke<R(Generator, Args...), void>
     {
     public:
-        ConvertGeneratorToPythonAndInvoke(R (*fun)(Generator, Args...)) :
-        fun_{fun}
+        ConvertGeneratorToPythonAndInvoke(R (*func)(Generator, Args...)) :
+        func_{func}
         {
         }
 
         R operator()(bp::object generatorPy, Args... argsPy)
         {
             return convertGeneratorToPythonAndInvoke<R, R (*)(Generator, Args...), Args...>(
-                fun_, generatorPy, std::forward<Args>(argsPy)...);
+                func_, generatorPy, std::forward<Args>(argsPy)...);
         }
 
     private:
-        R (*fun_)(Generator, Args...);
+        R (*func_)(Generator, Args...);
     };
 
     template<typename R, typename... Args>

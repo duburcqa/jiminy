@@ -19,52 +19,27 @@ namespace jiminy::python
 {
     namespace bp = boost::python;
 
-    JointModelType getJointTypeFromIdx(const pinocchio::Model & model, std::size_t jointIdx)
-    {
-        JointModelType jointType = JointModelType::UNSUPPORTED;
-        ::jiminy::getJointTypeFromIdx(model, jointIdx, jointType);
-        return jointType;
-    }
-
-    Eigen::Index getJointPositionIdx(const pinocchio::Model & model, const std::string & name)
-    {
-        Eigen::Index jointPositionFirstIdx = model.nq;
-        ::jiminy::getJointPositionIdx(model, name, jointPositionFirstIdx);
-        return jointPositionFirstIdx;
-    }
-
-    Eigen::MatrixXd interpolate(const pinocchio::Model & modelIn,
-                                const Eigen::VectorXd & timesIn,
-                                const Eigen::MatrixXd & positionsIn,
-                                const Eigen::VectorXd & timesOut)
-    {
-        Eigen::MatrixXd positionOut;
-        ::jiminy::interpolate(modelIn, timesIn, positionsIn, timesOut, positionOut);
-        return positionOut;
-    }
-
-    pinocchio::GeometryModel buildGeomFromUrdf(const pinocchio::Model & model,
-                                               const std::string & filename,
-                                               const int & typePy,
-                                               const bp::list & packageDirsPy,
-                                               bool loadMeshes,
-                                               bool makeMeshesConvex)
+    pinocchio::GeometryModel buildGeometryModelFromUrdf(const pinocchio::Model & model,
+                                                        const std::string & filename,
+                                                        const int & typePy,
+                                                        const bp::object & packageDirsPy,
+                                                        bool loadMeshes,
+                                                        bool makeMeshesConvex)
     {
         /* Note that enum bindings interoperability is buggy, so that `pin.GeometryType` is not
            properly converted from Python to C++ automatically in some cases. */
         pinocchio::GeometryModel geometryModel;
         const auto type = static_cast<pinocchio::GeometryType>(typePy);
         auto packageDirs = convertFromPython<std::vector<std::string>>(packageDirsPy);
-        ::jiminy::buildGeomFromUrdf(
-            model, filename, type, geometryModel, packageDirs, loadMeshes, makeMeshesConvex);
-        return geometryModel;
+        return ::jiminy::buildGeometryModelFromUrdf(
+            model, filename, type, packageDirs, loadMeshes, makeMeshesConvex);
     }
 
-    bp::tuple buildModelsFromUrdf(const std::string & urdfPath,
-                                  bool hasFreeflyer,
-                                  const bp::list & packageDirsPy,
-                                  bool buildVisualModel,
-                                  bool loadVisualMeshes)
+    bp::tuple buildMultipleModelsFromUrdf(const std::string & urdfPath,
+                                          bool hasFreeflyer,
+                                          const bp::object & packageDirsPy,
+                                          bool buildVisualModel,
+                                          bool loadVisualMeshes)
     {
         /* Note that enum bindings interoperability is buggy, so that `pin.GeometryType` is not
            properly converted from Python to C++ automatically in some cases. */
@@ -78,13 +53,13 @@ namespace jiminy::python
             visualModelOptional = visualModel;
         }
         auto packageDirs = convertFromPython<std::vector<std::string>>(packageDirsPy);
-        ::jiminy::buildModelsFromUrdf(urdfPath,
-                                      hasFreeflyer,
-                                      packageDirs,
-                                      model,
-                                      collisionModel,
-                                      visualModelOptional,
-                                      loadVisualMeshes);
+        ::jiminy::buildMultipleModelsFromUrdf(urdfPath,
+                                              hasFreeflyer,
+                                              packageDirs,
+                                              model,
+                                              collisionModel,
+                                              visualModelOptional,
+                                              loadVisualMeshes);
         if (buildVisualModel)
         {
             return bp::make_tuple(model, collisionModel, visualModel);
@@ -120,13 +95,13 @@ namespace jiminy::python
         // Making sure that 'dst' is a valid array and is writable, raises an exception otherwise
         if (!PyArray_Check(dstPy))
         {
-            throw std::runtime_error("'dst' must have type 'np.ndarray'.");
+            THROW_ERROR(std::invalid_argument, "'dst' must have type 'np.ndarray'.");
         }
         PyArrayObject * dstPyArray = reinterpret_cast<PyArrayObject *>(dstPy);
         const int dstPyFlags = PyArray_FLAGS(dstPyArray);
         if (!(dstPyFlags & NPY_ARRAY_WRITEABLE))
         {
-            throw std::runtime_error("'dst' must be writable.");
+            THROW_ERROR(std::invalid_argument, "'dst' must be writable.");
         }
 
         // Dedicated path to fill with scalar
@@ -209,7 +184,7 @@ namespace jiminy::python
             // Too complicated to deal with it manually. Falling back to default routine.
             if (PyArray_FillWithScalar(dstPyArray, srcPy) < 0)
             {
-                throw std::runtime_error("Impossible to copy from 'src' to 'dst'.");
+                THROW_ERROR(std::runtime_error, "Impossible to copy from 'src' to 'dst'.");
             }
             return;
         }
@@ -227,7 +202,7 @@ namespace jiminy::python
         {
             if (PyArray_CopyInto(dstPyArray, srcPyArray) < 0)
             {
-                throw std::runtime_error("Impossible to copy from 'src' to 'dst'.");
+                THROW_ERROR(std::runtime_error, "Impossible to copy from 'src' to 'dst'.");
             }
             return;
         }
@@ -303,31 +278,36 @@ namespace jiminy::python
     void exposeHelpers()
     {
         // clang-format off
-        bp::def("build_geom_from_urdf", &buildGeomFromUrdf,
+        bp::def("build_geom_from_urdf", &buildGeometryModelFromUrdf,
                                         (bp::arg("pinocchio_model"), "urdf_filename", "geom_type",
                                          bp::arg("mesh_package_dirs") = bp::list(),
                                          bp::arg("load_meshes") = true,
                                          bp::arg("make_meshes_convex") = false));
 
-        bp::def("build_models_from_urdf", &buildModelsFromUrdf,
+        bp::def("build_models_from_urdf", &buildMultipleModelsFromUrdf,
                                           (bp::arg("urdf_path"), "has_freeflyer",
                                            bp::arg("mesh_package_dirs") = bp::list(),
                                            bp::arg("build_visual_model") = false,
                                            bp::arg("load_visual_meshes") = false));
 
-        bp::def("get_joint_type", &getJointTypeFromIdx,
-                                  (bp::arg("pinocchio_model"), "joint_idx"));
-        bp::def("get_joint_position_idx", &getJointPositionIdx,
+        bp::def("get_joint_type", &getJointTypeFromIndex,
+                                  (bp::arg("pinocchio_model"), "joint_index"));
+        bp::def("get_joint_indices", &getJointIndices,
+                                     (bp::arg("pinocchio_model"), "joint_names"));
+        bp::def("get_joint_position_first_index", &getJointPositionFirstIndex,
                                           (bp::arg("pinocchio_model"), "joint_name"));
         bp::def("is_position_valid", &isPositionValid,
                                      (bp::arg("pinocchio_model"), "position", bp::arg("tol_abs") = std::numeric_limits<float>::epsilon()));
 
+        bp::def("get_frame_indices", &getFrameIndices,
+                                     (bp::arg("pinocchio_model"), "frames_names"));
+
         bp::def("array_copyto", &arrayCopyTo, (bp::arg("dst"), "src"));
 
         // Do not use EigenPy To-Python converter because it considers matrices with 1 column as vectors
-        bp::def("interpolate", &interpolate,
-                               (bp::arg("pinocchio_model"), "times_in", "positions_in", "times_out"),
-                               bp::return_value_policy<result_converter<true>>());
+        bp::def("interpolate_positions", &interpolatePositions,
+                                         (bp::arg("pinocchio_model"), "times_in", "positions_in", "times_out"),
+                                         bp::return_value_policy<result_converter<true>>());
 
         bp::def("aba",
                 &pinocchio_overload::aba<
@@ -350,7 +330,7 @@ namespace jiminy::python
         bp::def("crba",
                 &pinocchio_overload::crba<
                     double, 0, pinocchio::JointCollectionDefaultTpl, Eigen::VectorXd>,
-                (bp::arg("pinocchio_model"), "pinocchio_data", "q"),
+                (bp::arg("pinocchio_model"), "pinocchio_data", "q", bp::arg("fast_math") = false),
                 "Computes CRBA, store the result in Data and return it.",
                 bp::return_value_policy<result_converter<false>>());
         bp::def("computeKineticEnergy",

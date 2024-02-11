@@ -1,8 +1,8 @@
 [Global]
 sensorsUpdatePeriod = 0.001
 controllerUpdatePeriod = 0.001
-collisionBodiesNames = [ "Foot",]
-contactFramesNames = []
+collisionBodyNames = [ "Foot",]
+contactFrameNames = []
 
 [Motor.SimpleMotor.PendulumJoint]
 joint_name = "PendulumJoint"

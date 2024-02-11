@@ -28,7 +28,7 @@ ActT = TypeVar('ActT', bound=DataNested)
 BaseObsT = TypeVar('BaseObsT', bound=DataNested)
 BaseActT = TypeVar('BaseActT', bound=DataNested)
 
-SensorsDataType = Dict[str, npt.NDArray[np.float64]]
+SensorMeasurementStackMap = Dict[str, npt.NDArray[np.float64]]
 InfoType = Dict[str, Any]
 
 
@@ -41,7 +41,7 @@ InfoType = Dict[str, Any]
 EngineObsType: TypeAlias = DataNested
 
 
-class ObserverInterface(ABC, Generic[ObsT, BaseObsT]):
+class InterfaceObserver(ABC, Generic[ObsT, BaseObsT]):
     """Observer interface for both observers and environments.
     """
     observe_dt: float = -1
@@ -84,7 +84,7 @@ class ObserverInterface(ABC, Generic[ObsT, BaseObsT]):
         """
 
 
-class ControllerInterface(ABC, Generic[ActT, BaseActT]):
+class InterfaceController(ABC, Generic[ActT, BaseActT]):
     """Controller interface for both controllers and environments.
     """
     control_dt: float = -1
@@ -158,14 +158,14 @@ class ControllerInterface(ABC, Generic[ActT, BaseActT]):
         raise NotImplementedError
 
 
-# Note that `JiminyEnvInterface` must inherit from `ObserverInterface`
-# before `ControllerInterface` to initialize the action space before the
+# Note that `InterfaceJiminyEnv` must inherit from `InterfaceObserver`
+# before `InterfaceController` to initialize the action space before the
 # observation space since the action itself may be part of the observation.
 # Similarly, `gym.Env` must be last to make sure all the other initialization
 # methods are called first.
-class JiminyEnvInterface(
-        ObserverInterface[ObsT, EngineObsType],
-        ControllerInterface[ActT, np.ndarray],
+class InterfaceJiminyEnv(
+        InterfaceObserver[ObsT, EngineObsType],
+        InterfaceController[ActT, np.ndarray],
         gym.Env[ObsT, ActT],
         Generic[ObsT, ActT]):
     """Observer plus controller interface for both generic pipeline blocks,
@@ -180,7 +180,7 @@ class JiminyEnvInterface(
     robot: jiminy.Robot
     stepper_state: jiminy.StepperState
     system_state: jiminy.SystemState
-    sensors_data: SensorsDataType
+    sensor_measurements: SensorMeasurementStackMap
     is_simulation_running: npt.NDArray[np.bool_]
 
     action: ActT
@@ -197,8 +197,8 @@ class JiminyEnvInterface(
             t=np.array(0.0),
             states=OrderedDict(
                 agent=OrderedDict(q=np.array([]), v=np.array([]))),
-            measurements=OrderedDict(self.robot.sensors_data))
-        self._sensors_types = tuple(self.robot.sensors_data.keys())
+            measurements=OrderedDict(self.robot.sensor_measurements))
+        self._sensors_types = tuple(self.robot.sensor_measurements.keys())
 
         # Call super to allow mixing interfaces through multiple inheritance
         super().__init__(*args, **kwargs)
@@ -229,7 +229,8 @@ class JiminyEnvInterface(
                          t: float,
                          q: np.ndarray,
                          v: np.ndarray,
-                         sensors_data: jiminy.sensorsData) -> None:
+                         sensor_measurements: jiminy.SensorMeasurementTree
+                         ) -> None:
         """Thin wrapper around user-specified `refresh_observation` method.
 
         .. warning::
@@ -241,7 +242,7 @@ class JiminyEnvInterface(
                   'use_theoretical_model' is enabled for the backend Python
                   `Simulator`.
         :param v: Current actual velocity vector.
-        :param sensors_data: Current sensor data.
+        :param sensor_measurements: Current sensor data.
         """
         # Refresh the observation if not already done
         if not self.__is_observation_refreshed:
@@ -250,9 +251,9 @@ class JiminyEnvInterface(
             measurement["states"]["agent"]["q"] = q
             measurement["states"]["agent"]["v"] = v
             measurement_sensors = measurement["measurements"]
-            sensors_data_it = iter(sensors_data.values())
+            sensor_measurements_it = iter(sensor_measurements.values())
             for sensor_type in self._sensors_types:
-                measurement_sensors[sensor_type] = next(sensors_data_it)
+                measurement_sensors[sensor_type] = next(sensor_measurements_it)
             self.refresh_observation(measurement)
 
         # Consider observation has been refreshed iif a simulation is running
@@ -262,7 +263,7 @@ class JiminyEnvInterface(
                            t: float,
                            q: np.ndarray,
                            v: np.ndarray,
-                           sensors_data: jiminy.sensorsData,
+                           sensor_measurements: jiminy.SensorMeasurementTree,
                            command: np.ndarray) -> None:
         """Thin wrapper around user-specified `refresh_observation` and
         `compute_command` methods.
@@ -270,7 +271,7 @@ class JiminyEnvInterface(
         .. warning::
             This method is not supposed to be called manually nor overloaded.
             It will be used by the base environment to instantiate a
-            `jiminy.ControllerFunctor` that will be responsible for refreshing
+            `jiminy.FunctionalController` responsible for both refreshing
             observations and compute commands of all the way through a given
             pipeline in the correct order of the blocks to finally sends
             command motor torques directly to the robot.
@@ -281,7 +282,7 @@ class JiminyEnvInterface(
                   'use_theoretical_model' is enabled for the backend Python
                   `Simulator`.
         :param v: Current actual velocity vector.
-        :param sensors_data: Current sensor data.
+        :param sensor_measurements: Current sensor measurements.
         :param command: Output argument corresponding to motors torques to
                         apply on the robot. It must be updated by reference
                         using `[:]` or `np.copyto`.
@@ -289,7 +290,7 @@ class JiminyEnvInterface(
         :returns: Motors torques to apply on the robot.
         """
         # Refresh the observation
-        self._observer_handle(t, q, v, sensors_data)
+        self._observer_handle(t, q, v, sensor_measurements)
 
         # No need to check for breakpoints of the controller because it already
         # matches the update period by design.
@@ -300,7 +301,7 @@ class JiminyEnvInterface(
         self.__is_observation_refreshed = False
 
     @property
-    def unwrapped(self) -> "JiminyEnvInterface":
+    def unwrapped(self) -> "InterfaceJiminyEnv":
         """Base environment of the pipeline.
         """
         return self

@@ -48,8 +48,8 @@ namespace jiminy::python
     // ************************ BOOST PYTHON HELPERS ******************************
     // ****************************************************************************
 
-    template<class E>
-    PyObject * createExceptionClass(const char * name, PyObject * baseTypeObj = PyExc_Exception)
+    template<typename E>
+    PyObject * registerException(const char * name, PyObject * baseTypeObj = PyExc_Exception)
     {
         const std::string scopeName = bp::extract<std::string>(bp::scope().attr("__name__"));
         std::size_t moduleNameEnd = scopeName.find('.');
@@ -82,9 +82,9 @@ namespace jiminy::python
     };
 
     template<typename T>
-    constexpr auto getSignature(T && fun)
+    constexpr auto getSignature(T && func)
     {
-        return get_signature_impl<decltype(std::function{fun})>::value;
+        return get_signature_impl<decltype(std::function{func})>::value;
     }
 
     template<class F, class CallPolicies, class Keywords>
@@ -114,10 +114,9 @@ namespace jiminy::python
            having to generate them manually. It simply consists in adding some special tags on top
            of the docstring, which works for now but it is not robust and may break in the future
            as this is an undocumented feature. */
-        const bp::converter::registration * r =
-            bp::converter::registry::query(typeid(WrappedClassT));
-        assert((std::string("Class ") + typeid(WrappedClassT).name() +
-                    " not registered to Boost Python.",
+        auto wrapperTypeId = bp::type_id<WrappedClassT>();
+        const bp::converter::registration * r = bp::converter::registry::query(wrapperTypeId);
+        assert((std::string("Class ") + wrapperTypeId.name() + " not registered to Boost Python.",
                 r != nullptr));
         PyTypeObject * nsPtr = r->get_class_object();
         bp::object nsName(
@@ -130,13 +129,13 @@ namespace jiminy::python
         // Add actual doc after those tags, if any
         funcPtr->doc(bp::str(detail::py_signature_tag) + bp::str(detail::cpp_signature_tag));
         // auto dict = bp::handle<>(bp::borrowed(nsPtr->tp_dict));
-        // bp::str funcName("force_func");
+        // bp::str funcName("func");
         // if (PyObject_GetItem(dict.get(), funcName.ptr()))
         // {
         //     PyObject_DelItem(dict.get(), funcName.ptr());
         // }
         // bp::object ns(bp::handle<>(bp::borrowed(nsPtr)));
-        // bp::objects::add_to_namespace(ns, "force_func", func);
+        // bp::objects::add_to_namespace(ns, "func", func);
     }
 
     inline const char * py_type_str(const bp::detail::signature_element & s)
@@ -330,11 +329,10 @@ namespace jiminy::python
     public bp::vector_indexing_suite<Container, NoProxy, DerivedPolicies>
     {
     public:
-        static bool contains(Container & /* container */,
-                             const typename Container::value_type & /* key */)
+        [[noreturn]] static bool contains(Container & /* container */,
+                                          const typename Container::value_type & /* key */)
         {
-            throw std::runtime_error("Contains method not supported.");
-            return false;
+            THROW_ERROR(not_implemented_error, "Contains method not supported.");
         }
     };
 
@@ -555,100 +553,86 @@ namespace jiminy::python
     }
 
     template<typename T>
-    std::optional<Eigen::Map<MatrixX<T>, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>>>
-    getEigenReferenceImpl(PyArrayObject * dataPyArray)
+    Eigen::Map<MatrixX<T>, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>>
+    getEigenReferenceImpl(PyArrayObject * arrayPy)
     {
         // Check array dtype
-        if (PyArray_EquivTypenums(PyArray_TYPE(dataPyArray), getPyType<T>()) == NPY_FALSE)
+        if (PyArray_EquivTypenums(PyArray_TYPE(arrayPy), getPyType<T>()) == NPY_FALSE)
         {
-            PRINT_ERROR("'values' input array has dtype '",
-                        PyArray_TYPE(dataPyArray),
+            THROW_ERROR(std::invalid_argument,
+                        "'values' input array has dtype '",
+                        PyArray_TYPE(arrayPy),
                         "' but '",
                         getPyType<T>(),
                         "' was expected.");
-            return {};
         }
 
         // Check array number of dimensions
-        switch (PyArray_NDIM(dataPyArray))
+        T * dataPtr = static_cast<T *>(PyArray_DATA(arrayPy));
+        switch (PyArray_NDIM(arrayPy))
         {
         case 0:
-            return {{static_cast<T *>(PyArray_DATA(dataPyArray)), 1, 1, {1, 1}}};
+            return {dataPtr, 1, 1, {1, 1}};
         case 1:
-            return {{static_cast<T *>(PyArray_DATA(dataPyArray)),
-                     PyArray_SIZE(dataPyArray),
-                     1,
-                     {PyArray_SIZE(dataPyArray), 1}}};
+            return {dataPtr, PyArray_SIZE(arrayPy), 1, {PyArray_SIZE(arrayPy), 1}};
         case 2:
         {
-            int32_t flags = PyArray_FLAGS(dataPyArray);
-            npy_intp * dataPyArrayShape = PyArray_SHAPE(dataPyArray);
+            int32_t flags = PyArray_FLAGS(arrayPy);
+            npy_intp * arrayPyShape = PyArray_SHAPE(arrayPy);
             if (flags & NPY_ARRAY_C_CONTIGUOUS)
             {
-                return {{static_cast<T *>(PyArray_DATA(dataPyArray)),
-                         dataPyArrayShape[0],
-                         dataPyArrayShape[1],
-                         {1, dataPyArrayShape[1]}}};
+                return {dataPtr, arrayPyShape[0], arrayPyShape[1], {1, arrayPyShape[1]}};
             }
             if (flags & NPY_ARRAY_F_CONTIGUOUS)
             {
-                return {{static_cast<T *>(PyArray_DATA(dataPyArray)),
-                         dataPyArrayShape[0],
-                         dataPyArrayShape[1],
-                         {dataPyArrayShape[0], 1}}};
+                return {dataPtr, arrayPyShape[0], arrayPyShape[1], {arrayPyShape[0], 1}};
             }
-            PRINT_ERROR("Numpy arrays must be either row or column contiguous.");
-            return {};
+            THROW_ERROR(std::invalid_argument,
+                        "Numpy arrays must be either row or column contiguous.");
         }
         default:
-            PRINT_ERROR("Only 1D and 2D 'np.ndarray' are supported.");
-            return {};
+            THROW_ERROR(not_implemented_error, "Only 1D and 2D 'np.ndarray' are supported.");
         }
     }
 
     /// \brief Generic converter from Numpy array to Eigen Matrix by reference.
-    inline std::optional<std::variant<
+    inline std::variant<
         Eigen::Map<MatrixX<double>, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>>,
-        Eigen::Map<MatrixX<int64_t>, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>>>>
+        Eigen::Map<MatrixX<int64_t>, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>>>
     getEigenReference(PyObject * dataPy)
     {
         // Check if raw Python object pointer is actually a numpy array
         if (!PyArray_Check(dataPy))
         {
-            PRINT_ERROR("'values' must have type 'np.ndarray'.");
-            return {};
+            THROW_ERROR(std::invalid_argument, "'values' must have type 'np.ndarray'.");
         }
 
         /* Cast raw Python object pointer to numpy array.
            Note that const qualifier is not supported by PyArray_DATA. */
-        PyArrayObject * dataPyArray = reinterpret_cast<PyArrayObject *>(dataPy);
+        PyArrayObject * arrayPy = reinterpret_cast<PyArrayObject *>(dataPy);
 
         // Check array dtype
-        if (PyArray_EquivTypenums(PyArray_TYPE(dataPyArray), NPY_FLOAT64) == NPY_TRUE)
+        if (PyArray_EquivTypenums(PyArray_TYPE(arrayPy), NPY_FLOAT64) == NPY_TRUE)
         {
-            return {getEigenReferenceImpl<double>(dataPyArray)};
+            return getEigenReferenceImpl<double>(arrayPy);
         }
-        if (PyArray_EquivTypenums(PyArray_TYPE(dataPyArray), NPY_INT64) == NPY_TRUE)
+        if (PyArray_EquivTypenums(PyArray_TYPE(arrayPy), NPY_INT64) == NPY_TRUE)
         {
-            return {getEigenReferenceImpl<int64_t>(dataPyArray)};
+            return getEigenReferenceImpl<int64_t>(arrayPy);
         }
-        else
-        {
-            PRINT_ERROR("'values' input array must have dtype 'np.float64' or 'np.int64'.");
-            return {};
-        }
+        THROW_ERROR(not_implemented_error,
+                    "'values' input array must have dtype 'np.float64' or 'np.int64'.");
     }
 
     /// Convert most C++ objects into Python objects by value
     template<typename T>
-    std::enable_if_t<
-        !is_vector_v<T> && !is_array_v<T> && !is_eigen_any_v<T> &&
-            !std::is_arithmetic_v<std::decay_t<T>> &&
-            !std::is_same_v<std::decay_t<T>, GenericConfig> &&
-            !std::is_same_v<std::decay_t<T>, std::pair<const std::string, SensorDataTypeMap>> &&
-            !std::is_same_v<std::decay_t<T>, std::string_view> &&
-            !std::is_same_v<std::decay_t<T>, FlexibleJointData>,
-        bp::object>
+    std::enable_if_t<!is_vector_v<T> && !is_array_v<T> && !is_eigen_any_v<T> &&
+                         !std::is_arithmetic_v<std::decay_t<T>> &&
+                         !std::is_same_v<std::decay_t<T>, GenericConfig> &&
+                         !std::is_same_v<std::decay_t<T>, SensorMeasurementTree::value_type> &&
+                         !std::is_same_v<std::decay_t<T>, std::string_view> &&
+                         !std::is_same_v<std::decay_t<T>, FlexibleJointData>,
+                     bp::object>
     convertToPython(T && data, const bool & copy = true)
     {
         if (copy)
@@ -709,7 +693,8 @@ namespace jiminy::python
     {
         if (!copy)
         {
-            throw std::runtime_error(
+            THROW_ERROR(
+                not_implemented_error,
                 "Passing 'FlexibleJointData' object to python by reference is not supported.");
         }
         bp::dict flexibilityJointDataPy;
@@ -722,9 +707,7 @@ namespace jiminy::python
     }
 
     template<typename T>
-    std::enable_if_t<
-        std::is_same_v<std::decay_t<T>, std::pair<const std::string, SensorDataTypeMap>>,
-        bp::object>
+    std::enable_if_t<std::is_same_v<std::decay_t<T>, SensorMeasurementTree::value_type>, bp::object>
     convertToPython(T && sensorDataTypeItem, const bool & copy)
     {
         auto & [sensorGroupName, sensorDataType] = sensorDataTypeItem;
@@ -864,7 +847,7 @@ namespace jiminy::python
 
     template<typename T>
     std::enable_if_t<!is_vector_v<T> && !is_array_v<T> && !is_map_v<T> && !is_eigen_any_v<T> &&
-                         !std::is_same_v<T, SensorsDataMap>,
+                         !std::is_same_v<T, SensorMeasurementTree>,
                      T>
     convertFromPython(const bp::object & dataPy)
     {
@@ -889,13 +872,12 @@ namespace jiminy::python
             // The input argument may be a 0D numpy array by any chance
             if (PyArray_Check(dataPy.ptr()))
             {
-                PyArrayObject * dataPyArray = reinterpret_cast<PyArrayObject *>(dataPy.ptr());
-                if (PyArray_NDIM(dataPyArray) == 0)
+                PyArrayObject * arrayPy = reinterpret_cast<PyArrayObject *>(dataPy.ptr());
+                if (PyArray_NDIM(arrayPy) == 0)
                 {
-                    if (PyArray_EquivTypenums(PyArray_TYPE(dataPyArray), getPyType<T>()) ==
-                        NPY_TRUE)
+                    if (PyArray_EquivTypenums(PyArray_TYPE(arrayPy), getPyType<T>()) == NPY_TRUE)
                     {
-                        return *static_cast<T *>(PyArray_DATA(dataPyArray));
+                        return *static_cast<T *>(PyArray_DATA(arrayPy));
                     }
                 }
             }
@@ -933,11 +915,10 @@ namespace jiminy::python
             np::ndarray dataNumpy = bp::extract<np::ndarray>(dataPy);
             if (dataNumpy.get_dtype() != np::dtype::get_builtin<Scalar>())
             {
-                throw std::runtime_error(
-                    "Scalar type of eigen object does not match dtype of numpy object.");
+                THROW_ERROR(std::invalid_argument,
+                            "Scalar type of eigen object does not match dtype of numpy object.");
             }
-            return getEigenReferenceImpl<Scalar>(reinterpret_cast<PyArrayObject *>(dataPy.ptr()))
-                .value();
+            return getEigenReferenceImpl<Scalar>(reinterpret_cast<PyArrayObject *>(dataPy.ptr()));
         }
         catch (const bp::error_already_set &)
         {
@@ -998,9 +979,9 @@ namespace jiminy::python
     namespace internal
     {
         template<typename T, size_t... Is, typename F>
-        std::array<T, sizeof...(Is)> BuildArrayFromCallable(std::index_sequence<Is...>, F fun)
+        std::array<T, sizeof...(Is)> BuildArrayFromCallable(std::index_sequence<Is...>, F func)
         {
-            return {fun(Is)...};
+            return {func(Is)...};
         }
     }
 
@@ -1011,7 +992,7 @@ namespace jiminy::python
         const bp::list listPy = bp::extract<bp::list>(dataPy);
         if (bp::len(listPy) != N)
         {
-            throw std::runtime_error("Consistent number of elements");
+            THROW_ERROR(std::invalid_argument, "Consistent number of elements");
         }
         return internal::BuildArrayFromCallable<typename T::value_type>(
             std::make_index_sequence<N>{},
@@ -1020,35 +1001,37 @@ namespace jiminy::python
     }
 
     template<typename T>
-    std::enable_if_t<std::is_same_v<T, SensorsDataMap>, T>
+    std::enable_if_t<std::is_same_v<T, SensorMeasurementTree>, T>
     convertFromPython(const bp::object & dataPy)
     {
-        SensorsDataMap data;
-        bp::dict sensorsGroupsPy = bp::extract<bp::dict>(dataPy);
-        bp::list sensorsGroupsNamesPy = sensorsGroupsPy.keys();
-        bp::list sensorsGroupsValuesPy = sensorsGroupsPy.values();
-        for (bp::ssize_t i = 0; i < bp::len(sensorsGroupsNamesPy); ++i)
+        SensorMeasurementTree sensorMeasurements;
+        bp::dict sensorMeasurementTreePy = bp::extract<bp::dict>(dataPy);
+        bp::list sensorTypesPy = sensorMeasurementTreePy.keys();
+        bp::list SensorMeasurementMapsPy = sensorMeasurementTreePy.values();
+        for (bp::ssize_t i = 0; i < bp::len(sensorTypesPy); ++i)
         {
-            SensorDataTypeMap sensorGroupData{};
-            std::string sensorGroupName = bp::extract<std::string>(sensorsGroupsNamesPy[i]);
-            bp::dict sensorsDataPy = bp::extract<bp::dict>(sensorsGroupsValuesPy[i]);
-            bp::list sensorsNamesPy = sensorsDataPy.keys();
-            bp::list sensorsValuesPy = sensorsDataPy.values();
-            for (bp::ssize_t j = 0; j < bp::len(sensorsNamesPy); ++j)
+            SensorMeasurementTree::mapped_type sensorMeasurementStack{};
+            std::string sensorType = bp::extract<std::string>(sensorTypesPy[i]);
+            bp::dict SensorMeasurementMapPy = bp::extract<bp::dict>(SensorMeasurementMapsPy[i]);
+            bp::list sensorNamesPy = SensorMeasurementMapPy.keys();
+            bp::list sensorMeasurementListPy = SensorMeasurementMapPy.values();
+            for (bp::ssize_t j = 0; j < bp::len(sensorNamesPy); ++j)
             {
-                std::string sensorName = bp::extract<std::string>(sensorsNamesPy[j]);
-                np::ndarray sensorDataNumpy = bp::extract<np::ndarray>(sensorsValuesPy[j]);
-                auto sensorData =
-                    convertFromPython<Eigen::Ref<const Eigen::VectorXd>>(sensorDataNumpy);
-                sensorGroupData.insert({sensorName, static_cast<std::size_t>(j), sensorData});
+                std::string sensorName = bp::extract<std::string>(sensorNamesPy[j]);
+                np::ndarray sensorMeasurementNumpy =
+                    bp::extract<np::ndarray>(sensorMeasurementListPy[j]);
+                auto sensorMeasurement =
+                    convertFromPython<Eigen::Ref<const Eigen::VectorXd>>(sensorMeasurementNumpy);
+                sensorMeasurementStack.insert(
+                    {sensorName, static_cast<size_t>(j), sensorMeasurement});
             }
-            data.emplace(sensorGroupName, std::move(sensorGroupData));
+            sensorMeasurements.emplace(sensorType, std::move(sensorMeasurementStack));
         }
-        return data;
+        return sensorMeasurements;
     }
 
     template<typename T>
-    std::enable_if_t<is_map_v<T> && !std::is_same_v<T, SensorsDataMap>, T>
+    std::enable_if_t<is_map_v<T> && !std::is_same_v<T, SensorMeasurementTree>, T>
     convertFromPython(const bp::object & dataPy)
     {
         using K = typename T::key_type;

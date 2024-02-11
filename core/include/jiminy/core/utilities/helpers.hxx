@@ -96,8 +96,8 @@ namespace jiminy
                      std::tuple<bool, const double &>>
     isGcdIncluded(const Args &... values)
     {
-        const double & minValue = minClipped(values...);
-        if (!std::isfinite(minValue))
+        const double & valueMin = minClipped(values...);
+        if (!std::isfinite(valueMin))
         {
             return {true, INF};
         }
@@ -107,15 +107,15 @@ namespace jiminy
            https://devblogs.microsoft.com/cppblog/compiler-improvements-in-vs-2015-update-2/#order-of-initializer-list
         */
         bool isIncluded = (
-            [&minValue](double value)
+            [&valueMin](double value)
             {
                 if (value < EPS)
                 {
                     return true;
                 }
-                return std::fmod(value, minValue) < EPS;
+                return std::fmod(value, valueMin) < EPS;
             }(values) && ...);
-        return {isIncluded, minValue};
+        return {isIncluded, valueMin};
     }
 
     template<typename InputIt, typename UnaryFunction>
@@ -123,25 +123,25 @@ namespace jiminy
                                            UnaryFunction,
                                            typename std::iterator_traits<InputIt>::reference>,
                      std::tuple<bool, const double &>>
-    isGcdIncluded(InputIt first, InputIt last, const UnaryFunction & func)
+    isGcdIncluded(InputIt first, InputIt last, const UnaryFunction & funcIn)
     {
-        const double & minValue = std::transform_reduce(first, last, INF, minClipped<>, func);
-        if (!std::isfinite(minValue))
+        const double & valueMin = std::transform_reduce(first, last, INF, minClipped<>, funcIn);
+        if (!std::isfinite(valueMin))
         {
             return {true, INF};
         }
-        auto lambda = [minValue, &func](const auto & elem)
+        auto func = [valueMin, &funcIn](const auto & elem)
         {
-            const double value = func(elem);
+            const double value = funcIn(elem);
             if (value < EPS)
             {
                 return true;
             }
-            return std::fmod(value, minValue) < EPS;
+            return std::fmod(value, valueMin) < EPS;
         };
         // FIXME: Order of evaluation is not always respected with MSVC.
-        bool isIncluded = std::all_of(first, last, lambda);
-        return {isIncluded, minValue};
+        bool isIncluded = std::all_of(first, last, func);
+        return {isIncluded, valueMin};
     }
 
     template<typename InputIt, typename UnaryFunction, typename... Args>

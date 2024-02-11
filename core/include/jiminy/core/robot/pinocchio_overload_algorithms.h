@@ -24,9 +24,10 @@
 #include "pinocchio/multibody/joint/fwd.hpp"  // `pinocchio::JointModelBase`, `pinocchio::JointDataBase`, ...
 #include "pinocchio/algorithm/aba.hpp"       // `pinocchio::aba`
 #include "pinocchio/algorithm/rnea.hpp"      // `pinocchio::rnea`
-#include "pinocchio/algorithm/crba.hpp"      // `pinocchio::crbaMinimal`
+#include "pinocchio/algorithm/crba.hpp"      // `pinocchio::crba`, `pinocchio::crbaMinimal`
 #include "pinocchio/algorithm/energy.hpp"    // `pinocchio::computeKineticEnergy`
 #include "pinocchio/algorithm/cholesky.hpp"  // `pinocchio::cholesky::`
+#include "pinocchio/algorithm/jacobian.hpp"  // `pinocchio::computeJointJacobians`
 
 #include "jiminy/core/fwd.h"
 #include "jiminy/core/engine/engine_multi_robot.h"
@@ -106,9 +107,22 @@ namespace jiminy::pinocchio_overload
     inline const typename pinocchio::DataTpl<Scalar, Options, JointCollectionTpl>::MatrixXs &
     crba(const pinocchio::ModelTpl<Scalar, Options, JointCollectionTpl> & model,
          pinocchio::DataTpl<Scalar, Options, JointCollectionTpl> & data,
-         const Eigen::MatrixBase<ConfigVectorType> & q)
+         const Eigen::MatrixBase<ConfigVectorType> & q,
+         bool fastMath = false)
     {
-        pinocchio::crbaMinimal(model, data, q);
+        /* `pinocchio::crbaMinimal` is faster than `crba` as it also compute the joint jacobians as
+           a by-product without having to call `pinocchio::computeJointJacobians` manually.
+           However, it is numerical instable compared to the classical and thoroughly-tested
+           `pinocchio::crba`, so its use must be avoided in practice. */
+        if (fastMath)
+        {
+            pinocchio::crbaMinimal(model, data, q);
+        }
+        else
+        {
+            pinocchio::crba(model, data, q);
+            pinocchio::computeJointJacobians(model, data);
+        }
         data.M.diagonal() += model.rotorInertia;
         return data.M;
     }
@@ -135,23 +149,24 @@ namespace jiminy::pinocchio_overload
             typedef typename Data::Inertia Inertia;
             typedef typename Data::Force Force;
 
-            const JointIndex & i = jmodel.id();
-            const JointIndex & parent = model.parents[i];
-            typename Inertia::Matrix6 & Ia = data.Yaba[i];
+            const JointIndex & jointIndex = jmodel.id();
+            const JointIndex & parentJointIndex = model.parents[jointIndex];
+            typename Inertia::Matrix6 & Ia = data.Yaba[jointIndex];
 
-            jmodel.jointVelocitySelector(data.u) -= jdata.S().transpose() * data.f[i];
+            jmodel.jointVelocitySelector(data.u) -= jdata.S().transpose() * data.f[jointIndex];
 
             // jmodel.calc_aba(jdata.derived(), Ia, parent > 0);
             const auto Im = model.rotorInertia.segment(jmodel.idx_v(), jmodel.nv());
-            calc_aba(jmodel.derived(), jdata.derived(), Im, Ia, parent > 0);
+            calc_aba(jmodel.derived(), jdata.derived(), Im, Ia, parentJointIndex > 0);
 
-            if (parent > 0)
+            if (parentJointIndex > 0)
             {
-                Force & pa = data.f[i];
-                pa.toVector().noalias() += Ia * data.a_gf[i].toVector();
+                Force & pa = data.f[jointIndex];
+                pa.toVector().noalias() += Ia * data.a_gf[jointIndex].toVector();
                 pa.toVector().noalias() += jdata.UDinv() * jmodel.jointVelocitySelector(data.u);
-                data.Yaba[parent] += pinocchio::internal::SE3actOn<Scalar>::run(data.liMi[i], Ia);
-                data.f[parent] += data.liMi[i].act(pa);
+                data.Yaba[parentJointIndex] +=
+                    pinocchio::internal::SE3actOn<Scalar>::run(data.liMi[jointIndex], Ia);
+                data.f[parentJointIndex] += data.liMi[jointIndex].act(pa);
             }
         }
 
@@ -479,10 +494,10 @@ namespace jiminy::pinocchio_overload
     }
 
     template<typename JacobianType>
-    hresult_t computeJMinvJt(const pinocchio::Model & model,
-                             pinocchio::Data & data,
-                             const Eigen::MatrixBase<JacobianType> & J,
-                             bool updateDecomposition = true)
+    void computeJMinvJt(const pinocchio::Model & model,
+                        pinocchio::Data & data,
+                        const Eigen::MatrixBase<JacobianType> & J,
+                        bool updateDecomposition = true)
     {
         // Compute the Cholesky decomposition of mass matrix M if requested
         if (updateDecomposition)
@@ -490,11 +505,11 @@ namespace jiminy::pinocchio_overload
             pinocchio::cholesky::decompose(model, data);
         }
 
-        // Make sure the decomposition of the mass matrix is valid
+        /* Make sure the decomposition of the mass matrix is valid.
+           It is always the case in theory but not sure in practice because of rounding errors. */
         if ((data.Dinv.array() < 0.0).any())
         {
-            PRINT_ERROR("The inertia matrix is not strictly positive definite.");
-            return hresult_t::ERROR_BAD_INPUT;
+            THROW_ERROR(std::runtime_error, "Inertia matrix not positive definite.");
         }
 
         /* Compute sDUiJt := sqrt(D)^-1 * U^-1 * J.T
@@ -521,8 +536,6 @@ namespace jiminy::pinocchio_overload
         data.JMinvJt.resize(J.rows(), J.rows());
         data.JMinvJt.triangularView<Eigen::Lower>().setZero();
         data.JMinvJt.selfadjointView<Eigen::Lower>().rankUpdate(sDUiJt.transpose());
-
-        return hresult_t::SUCCESS;
     }
 
     template<typename RhsType>

@@ -14,9 +14,10 @@ namespace jiminy
         using AbstractStepper::AbstractStepper;
 
     protected:
-        /// \brief Internal tryStep method wrapping the arguments as state_t and stateDerivative_t.
-        bool tryStepImpl(state_t & state,
-                         stateDerivative_t & stateDerivative,
+        /// \brief Internal tryStep method wrapping the arguments as State and
+        /// StateDerivative.
+        bool tryStepImpl(State & state,
+                         StateDerivative & stateDerivative,
                          double t,
                          double & dt) final override;
     };

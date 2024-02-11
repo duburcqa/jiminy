@@ -23,13 +23,13 @@ namespace jiminy
     public:
         /// \param[in] frameName Name of the frame on which the constraint is to be
         /// applied.
-        explicit FrameConstraint(const std::string & frameName,
-                                 const std::array<bool, 6> & maskDoFs = {
-                                     {true, true, true, true, true, true}}) noexcept;
+        explicit FrameConstraint(
+            const std::string & frameName,
+            const std::array<bool, 6> & maskDoFs = {true, true, true, true, true, true}) noexcept;
         virtual ~FrameConstraint() = default;
 
         const std::string & getFrameName() const noexcept;
-        pinocchio::FrameIndex getFrameIdx() const noexcept;
+        pinocchio::FrameIndex getFrameIndex() const noexcept;
 
         const std::vector<uint32_t> & getDofsFixed() const noexcept;
 
@@ -39,17 +39,16 @@ namespace jiminy
         void setNormal(const Eigen::Vector3d & normal) noexcept;
         const Eigen::Matrix3d & getLocalFrame() const noexcept;
 
-        virtual hresult_t reset(const Eigen::VectorXd & q,
-                                const Eigen::VectorXd & v) override final;
+        virtual void reset(const Eigen::VectorXd & q, const Eigen::VectorXd & v) override final;
 
-        virtual hresult_t computeJacobianAndDrift(const Eigen::VectorXd & q,
-                                                  const Eigen::VectorXd & v) override final;
+        virtual void computeJacobianAndDrift(const Eigen::VectorXd & q,
+                                             const Eigen::VectorXd & v) override final;
 
     private:
         /// \brief Name of the frame on which the constraint operates.
         const std::string frameName_;
         /// \brief Corresponding frame index.
-        pinocchio::FrameIndex frameIdx_{0};
+        pinocchio::FrameIndex frameIndex_{0};
         /// \brief Degrees of freedom to fix.
         std::vector<uint32_t> dofsFixed_;
         /// \brief Reference pose of the frame to enforce.

@@ -6,20 +6,20 @@ from .generic_bases import (DT_EPS,
                             BaseObsT,
                             BaseActT,
                             InfoType,
-                            SensorsDataType,
+                            SensorMeasurementStackMap,
                             EngineObsType,
-                            ObserverInterface,
-                            ControllerInterface,
-                            JiminyEnvInterface)
+                            InterfaceObserver,
+                            InterfaceController,
+                            InterfaceJiminyEnv)
 from .block_bases import (BlockStateT,
-                          BlockInterface,
+                          InterfaceBlock,
                           BaseObserverBlock,
                           BaseControllerBlock)
 from .pipeline_bases import (BasePipelineWrapper,
-                             ObservedJiminyEnv,
-                             ControlledJiminyEnv,
                              BaseTransformObservation,
-                             BaseTransformAction)
+                             BaseTransformAction,
+                             ObservedJiminyEnv,
+                             ControlledJiminyEnv)
 
 
 __all__ = [
@@ -30,17 +30,17 @@ __all__ = [
     'BaseActT',
     'BlockStateT',
     'InfoType',
-    'SensorsDataType',
+    'SensorMeasurementStackMap',
     'EngineObsType',
-    'ObserverInterface',
-    'ControllerInterface',
-    'JiminyEnvInterface',
-    'BlockInterface',
+    'InterfaceObserver',
+    'InterfaceController',
+    'InterfaceJiminyEnv',
+    'InterfaceBlock',
     'BaseObserverBlock',
     'BaseControllerBlock',
     'BasePipelineWrapper',
+    'BaseTransformObservation',
+    'BaseTransformAction',
     'ObservedJiminyEnv',
     'ControlledJiminyEnv',
-    'BaseTransformObservation',
-    'BaseTransformAction'
 ]

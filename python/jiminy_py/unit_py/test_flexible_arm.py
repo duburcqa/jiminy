@@ -96,20 +96,20 @@ class SimulateFlexibleArm(unittest.TestCase):
             N_FLEXIBILITY + 1, urdf_path)
 
         # Load URDF, create model.
-        self.motors_names = ["base_to_link0"]
-        robot = load_urdf_default(urdf_path, self.motors_names)
+        self.motor_names = ["base_to_link0"]
+        robot = load_urdf_default(urdf_path, self.motor_names)
 
         # Remove temporary file
         os.remove(urdf_path)
 
-        # Instantiate and initialize the controller
-        controller = jiminy.ControllerFunctor()
-        controller.initialize(robot)
+        # Instantiate and initialize a controller doing nothing
+        noop_controller = jiminy.FunctionalController()
+        noop_controller.initialize(robot)
 
         # Create a simulator using this robot and controller
         self.simulator = Simulator(
             robot,
-            controller,
+            noop_controller,
             viewer_kwargs=dict(
                 camera_pose=((0.0, -2.0, 0.0), (np.pi/2, 0.0, 0.0), None)
             ))
@@ -198,7 +198,7 @@ class SimulateFlexibleArm(unittest.TestCase):
         img_rigid = self.simulator.render(return_rgb_array=True)
 
         # Check different flexibility ordering
-        q_flex, img_flex, pnc_model_flex, visual_model_flex = [], [], [], []
+        q_flex, img_flex, pinocchio_model_flex, visual_model_flex = [], [], [], []
         for order in (range(N_FLEXIBILITY), range(N_FLEXIBILITY)[::-1]):
             # Specify joint flexibility parameters
             model_options = self.simulator.robot.get_model_options()
@@ -212,7 +212,7 @@ class SimulateFlexibleArm(unittest.TestCase):
             self.simulator.robot.set_model_options(model_options)
 
             # Serialize the model
-            pnc_model_flex.append(
+            pinocchio_model_flex.append(
                 self.simulator.robot.pinocchio_model.copy())
             visual_model_flex.append(
                 self.simulator.robot.visual_model.copy())
@@ -255,9 +255,10 @@ class SimulateFlexibleArm(unittest.TestCase):
                 self.assertTrue(np.allclose(geom1.placement.homogeneous,
                                             geom2.placement.homogeneous,
                                             atol=TOLERANCE))
-        for i in range(len(pnc_model_flex) - 1):
+        for i in range(len(pinocchio_model_flex) - 1):
             for I1, I2 in zip(
-                    pnc_model_flex[i].inertias, pnc_model_flex[i+1].inertias):
+                    pinocchio_model_flex[i].inertias,
+                    pinocchio_model_flex[i+1].inertias):
                 self.assertTrue(np.allclose(I1.toDynamicParameters(),
                                             I2.toDynamicParameters(),
                                             atol=TOLERANCE))

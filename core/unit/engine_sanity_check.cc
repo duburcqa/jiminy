@@ -2,6 +2,8 @@
 ///
 /// \details The tests in this file verify that the behavior of a simulated system matches
 ///          real-world physics, and that no memory is allocated by Eigen during a simulation.
+#include <filesystem>
+
 #include <gtest/gtest.h>
 
 #define EIGEN_RUNTIME_NO_MALLOC
@@ -25,7 +27,7 @@ inline constexpr double TOLERANCE = 1e-9;
 void computeCommand(double /* t */,
                     const Eigen::VectorXd & /* q */,
                     const Eigen::VectorXd & /* v */,
-                    const SensorsDataMap & /* sensorData */,
+                    const SensorMeasurementTree & /* sensorData */,
                     Eigen::VectorXd & /* command */)
 {
 }
@@ -34,7 +36,7 @@ void computeCommand(double /* t */,
 void internalDynamics(double /* t */,
                       const Eigen::VectorXd & /* q */,
                       const Eigen::VectorXd & /* v */,
-                      const SensorsDataMap & /* sensorData */,
+                      const SensorMeasurementTree & /* sensorData */,
                       Eigen::VectorXd & /* uCustom */)
 {
 }
@@ -50,14 +52,13 @@ TEST(EngineSanity, EnergyConservation)
     // Verify that when sending zero torque to a system, its energy remains constant
 
     // Double pendulum model
-    const std::string dataDirPath(UNIT_TEST_DATA_DIR);
-    const auto urdfPath = dataDirPath + "/double_pendulum_rigid.urdf";
+    const std::filesystem::path dataDirPath(UNIT_TEST_DATA_DIR);
+    const auto urdfPath = dataDirPath / "double_pendulum_rigid.urdf";
 
-    // All joints actuated.
+    // All joints actuated
     std::vector<std::string> motorJointNames{"PendulumJoint", "SecondPendulumJoint"};
-
     auto robot = std::make_shared<Robot>();
-    robot->initialize(urdfPath, false);
+    robot->initialize(urdfPath.string(), false);
     for (const std::string & jointName : motorJointNames)
     {
         auto motor = std::make_shared<SimpleMotor>(jointName);
@@ -81,21 +82,21 @@ TEST(EngineSanity, EnergyConservation)
     }
     robot->setMotorsOptions(motorsOptions);
 
-    auto controller = std::make_shared<ControllerFunctor<>>(computeCommand, internalDynamics);
+    auto controller = std::make_shared<FunctionalController<>>(computeCommand, internalDynamics);
     controller->initialize(robot);
 
     // Create engine
-    auto engine = std::make_shared<Engine>();
-    engine->initialize(robot, controller, callback);
+    Engine engine{};
+    engine.initialize(robot, controller, callback);
 
     // Configure engine: High accuracy + Continuous-time integration
-    GenericConfig simuOptions = engine->getDefaultEngineOptions();
+    GenericConfig simuOptions = engine.getDefaultEngineOptions();
     {
         GenericConfig & stepperOptions = boost::get<GenericConfig>(simuOptions.at("stepper"));
         boost::get<double>(stepperOptions.at("tolAbs")) = TOLERANCE * 1.0e-2;
         boost::get<double>(stepperOptions.at("tolRel")) = TOLERANCE * 1.0e-2;
     }
-    engine->setOptions(simuOptions);
+    engine.setOptions(simuOptions);
 
     // Run simulation
     Eigen::VectorXd q0 = Eigen::VectorXd::Zero(2);
@@ -104,16 +105,15 @@ TEST(EngineSanity, EnergyConservation)
     double tf = 10.0;
 
     // Run simulation
-    engine->reset();
-    engine->start(q0, v0);
+    engine.reset();
+    engine.start(q0, v0);
     Eigen::internal::set_is_malloc_allowed(false);
-    engine->step(tf);
-    engine->stop();
+    engine.step(tf);
+    engine.stop();
     Eigen::internal::set_is_malloc_allowed(true);
 
     // Get system energy
-    std::shared_ptr<const LogData> logDataPtr;
-    engine->getLog(logDataPtr);
+    std::shared_ptr<const LogData> logDataPtr = engine.getLog();
     const Eigen::VectorXd timesCont = getLogVariable(*logDataPtr, "Global.Time");
     ASSERT_DOUBLE_EQ(timesCont[timesCont.size() - 1], tf);
     const Eigen::VectorXd energyCont = getLogVariable(*logDataPtr, "HighLevelController.energy");
@@ -124,24 +124,24 @@ TEST(EngineSanity, EnergyConservation)
     ASSERT_NEAR(0.0, deltaEnergyCont, TOLERANCE);
 
     // Configure engine: Default accuracy + Discrete-time simulation
-    simuOptions = engine->getDefaultEngineOptions();
+    simuOptions = engine.getDefaultEngineOptions();
     {
         GenericConfig & stepperOptions = boost::get<GenericConfig>(simuOptions.at("stepper"));
         boost::get<double>(stepperOptions.at("sensorsUpdatePeriod")) = 1.0e-3;
         boost::get<double>(stepperOptions.at("controllerUpdatePeriod")) = 1.0e-3;
     }
-    engine->setOptions(simuOptions);
+    engine.setOptions(simuOptions);
 
     // Run simulation
-    engine->reset();
-    engine->start(q0, v0);
+    engine.reset();
+    engine.start(q0, v0);
     Eigen::internal::set_is_malloc_allowed(false);
-    engine->step(tf);
-    engine->stop();
+    engine.step(tf);
+    engine.stop();
     Eigen::internal::set_is_malloc_allowed(true);
 
     // Get system energy
-    engine->getLog(logDataPtr);
+    logDataPtr = engine.getLog();
     const Eigen::VectorXd timesDisc = getLogVariable(*logDataPtr, "Global.Time");
     ASSERT_DOUBLE_EQ(timesDisc[timesDisc.size() - 1], tf);
     const Eigen::VectorXd energyDisc = getLogVariable(*logDataPtr, "HighLevelController.energy");

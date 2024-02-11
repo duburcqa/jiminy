@@ -23,26 +23,23 @@ namespace jiminy
         /// \warning The only supported types are int64_t and double.
         ///
         /// \param[in] name Name of the variable to register.
-        /// \param[out] positionInBuffer Pointer on the allocated buffer holding the variable.
         ///
-        /// \return S_OK if successful, the corresponding telemetry error otherwise.
+        /// \return Pointer on the allocated buffer holding the variable.
         template<typename T>
-        hresult_t registerVariable(const std::string & name, T *& positionInBuffer);
+        T * registerVariable(const std::string & name);
 
         /// \brief Register a constant for the telemetry.
         ///
         /// \param[in] name Name of the invariant.
         /// \param[in] value Value of the invariant.
-        ///
-        /// \return S_OK if successful, the corresponding telemetry error otherwise.
-        hresult_t registerConstant(const std::string & name, const std::string & value);
+        void registerConstant(const std::string & name, const std::string & value);
 
         /// \brief Format the telemetry header with the current recorded informations.
         ///
         /// \warning Calling this method will disable further registrations.
         ///
         /// \param[out] header Header to populate.
-        void formatHeader(std::vector<char> & header);
+        std::vector<char> formatHeader();
 
         template<typename T>
         static_map_t<std::string, T, false> * getRegistry();
@@ -51,11 +48,11 @@ namespace jiminy
         // Must use dequeue to preserve pointer addresses after resize
 
         /// \brief Memory to handle constants.
-        static_map_t<std::string, std::string, false> constantsRegistry_{};
+        static_map_t<std::string, std::string, false> constantRegistry_{};
         /// \brief Memory to handle integers.
-        static_map_t<std::string, int64_t, false> integersRegistry_{};
+        static_map_t<std::string, int64_t, false> integerRegistry_{};
         /// \brief Memory to handle floats.
-        static_map_t<std::string, double, false> floatsRegistry_{};
+        static_map_t<std::string, double, false> floatRegistry_{};
         /// \brief Whether registering is available.
         bool isRegisteringAvailable_{true};
     };

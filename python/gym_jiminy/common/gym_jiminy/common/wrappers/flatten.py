@@ -1,5 +1,6 @@
 """ TODO: Write documentation.
 """
+from functools import reduce
 from typing import Generic, Optional
 from typing_extensions import TypeAlias
 
@@ -8,12 +9,14 @@ from numpy import typing as npt
 
 import gymnasium as gym
 
+from jiminy_py import tree
+
 from ..bases import (ObsT,
                      ActT,
-                     JiminyEnvInterface,
+                     InterfaceJiminyEnv,
                      BaseTransformObservation,
                      BaseTransformAction)
-from ..utils import build_reduce, build_flatten
+from ..utils import get_bounds, build_flatten
 
 
 FlattenedObsT: TypeAlias = ObsT
@@ -29,7 +32,7 @@ class FlattenObservation(BaseTransformObservation[FlattenedObsT, ObsT, ActT],
         All leaves of the observation space must have type `gym.spaces.Box`.
     """
     def __init__(self,
-                 env: JiminyEnvInterface[ObsT, ActT],
+                 env: InterfaceJiminyEnv[ObsT, ActT],
                  dtype: Optional[npt.DTypeLike] = None) -> None:
         """
         :param env: Environment to wrap.
@@ -41,9 +44,12 @@ class FlattenObservation(BaseTransformObservation[FlattenedObsT, ObsT, ActT],
         """
         # Find most appropriate dtype if not specified
         if dtype is None:
-            dtype = build_reduce(
-                lambda value: value.dtype, np.promote_types,
-                (env.observation,), None, 0)()
+            obs_flat = tree.map_structure(
+                lambda value: value.dtype, tree.flatten(env.observation))
+            if env.observation:
+                dtype = reduce(np.promote_types, obs_flat)
+            else:
+                dtype = np.float64
 
         # Make sure that `gym.space.Box` support the prescribed dtype
         if not isinstance(dtype, np.dtype):
@@ -62,13 +68,14 @@ class FlattenObservation(BaseTransformObservation[FlattenedObsT, ObsT, ActT],
         """Configure the observation space.
         """
         # Compute bounds of flattened observation space
-        get_leaf_bounds = build_reduce(
-            lambda *x: map(np.ravel, x), lambda x, y: x.append(y) or x, (),
-            self.env.observation_space, 0, initializer=list)
+        min_max_bounds_leaves = tree.map_structure(
+            lambda space: map(
+                np.ravel, get_bounds(space)),  # type: ignore[arg-type]
+            tree.flatten(self.env.observation_space))
         low, high = (
             np.concatenate(  # pylint: disable=unexpected-keyword-arg
-                leaf_bounds, dtype=self.dtype)
-            for leaf_bounds in zip(*get_leaf_bounds()))
+                bound_leaves, dtype=self.dtype)
+            for bound_leaves in zip(*min_max_bounds_leaves))
 
         # Initialize the observation space with proper dtype
         self.observation_space = gym.spaces.Box(low, high, dtype=self.dtype)
@@ -89,21 +96,24 @@ class FlattenAction(BaseTransformAction[FlattenedActT, ObsT, ActT],
         All leaves of the action space must have type `gym.spaces.Box`.
     """
     def __init__(self,
-                 env: JiminyEnvInterface[ObsT, ActT],
+                 env: InterfaceJiminyEnv[ObsT, ActT],
                  dtype: Optional[npt.DTypeLike] = None) -> None:
         """
         :param env: Environment to wrap.
-        :param dtype: Numpy dtype of the flattened observation. If `None`, the
-                      most appropriate dtype to avoid lost of information if
+        :param dtype: Numpy dtype of the flattened action. If `None`, the most
+                      appropriate dtype to avoid lost of information if
                       possible will be picked, following standard coercion
                       rules. See `np.promote_types` for details.
                       Optional: `None` by default.
         """
         # Find most appropriate dtype if not specified
         if dtype is None:
-            dtype = build_reduce(
-                lambda value: value.dtype, np.promote_types,
-                (env.observation,), None, 0)()
+            action_flat = tree.map_structure(
+                lambda value: value.dtype, tree.flatten(env.action))
+            if action_flat:
+                dtype = reduce(np.promote_types, action_flat)
+            else:
+                dtype = np.float64
 
         # Make sure that `gym.space.Box` support the prescribed dtype
         if not isinstance(dtype, np.dtype):
@@ -122,13 +132,14 @@ class FlattenAction(BaseTransformAction[FlattenedActT, ObsT, ActT],
         """Configure the action space.
         """
         # Compute bounds of flattened action space
-        get_leaf_bounds = build_reduce(
-            lambda *x: map(np.ravel, x), lambda x, y: x.append(y) or x, (),
-            self.env.action_space, 0, initializer=list)
+        min_max_bounds_leaves = tree.map_structure(
+            lambda space: map(
+                np.ravel, get_bounds(space)),  # type: ignore[arg-type]
+            tree.flatten(self.env.action_space))
         low, high = (
             np.concatenate(  # pylint: disable=unexpected-keyword-arg
-                leaf_bounds, dtype=self.dtype)
-            for leaf_bounds in zip(*get_leaf_bounds()))
+                bound_leaves, dtype=self.dtype)
+            for bound_leaves in zip(*min_max_bounds_leaves))
 
         # Initialize the action space with proper dtype
         self.action_space = gym.spaces.Box(low, high, dtype=self.dtype)

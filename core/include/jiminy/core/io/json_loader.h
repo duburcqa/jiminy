@@ -23,7 +23,7 @@ namespace jiminy
         explicit JsonLoader(const std::shared_ptr<AbstractIODevice> & device) noexcept;
 
         /// \brief Load json data from device and parse it to root json.
-        hresult_t load();
+        void load();
 
         /// \brief Reference to the parsed root json document.
         ///

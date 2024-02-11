@@ -8,12 +8,12 @@ import sys
 import math
 import array
 import signal
+import weakref
 import warnings
 import importlib
 import threading
 import multiprocessing as mp
 import xml.etree.ElementTree as ET
-from weakref import ref
 from functools import wraps
 from itertools import chain
 from datetime import datetime
@@ -1277,8 +1277,8 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
             self._watermark.set_tex_scale(TextureStage.getDefault(), 1.0, -1.0)
 
     def set_legend(self,
-                   items: Optional[Sequence[
-                       Tuple[str, Optional[Sequence[int]]]]] = None) -> None:
+                   items: Optional[Sequence[Tuple[str, Optional[
+                       Tuple[int, int, int, int]]]]] = None) -> None:
         """Add a matplotlib legend on bottom center on the window, as part of
         the 2D overlay. It will always appear on foreground.
 
@@ -1403,7 +1403,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         # Make sure plot submodule is available
         try:
             # pylint: disable=import-outside-toplevel
-            from matplotlib import font_manager
+            import matplotlib.font_manager
         except ImportError as e:
             raise ImportError(
                 "Method not available. Please install 'jiminy_py[plot]'."
@@ -1418,7 +1418,8 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
 
         if self._clock is None:
             # Get path of default matplotlib font
-            fontpath = _sanitize_path(font_manager.findfont(None))
+            fontpath = _sanitize_path(matplotlib.font_manager.findfont(
+                matplotlib.font_manager.FontProperties()))
 
             # Create clock on main window.
             self._clock = OnscreenText(
@@ -1793,25 +1794,19 @@ class Panda3dProxy(mp.Process):
             right before the next method execution instead of being thrown on
             the spot.
         """
-        proxy_ref = ref(self)
+        proxy = weakref.proxy(self)
 
         class ContextAsyncMode(AbstractContextManager):
             """Context manager forcing async execution when forwarding request
             to the underlying panda3d viewer instance.
             """
             def __enter__(self) -> None:
-                nonlocal proxy_ref
-                proxy = proxy_ref()
-                assert proxy is not None
                 proxy._is_async = True
 
             def __exit__(self,
                          exc_type: Optional[Type[BaseException]],
                          exc_value: Optional[BaseException],
                          traceback: Optional[TracebackType]) -> None:
-                nonlocal proxy_ref
-                proxy = proxy_ref()
-                assert proxy is not None
                 proxy._is_async = False
 
         return ContextAsyncMode()

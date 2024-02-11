@@ -143,15 +143,14 @@ namespace jiminy
         auto fieldnameIt = std::find(firstFieldnameIt, logData.variableNames.end(), fieldname);
         if (fieldnameIt == logData.variableNames.end())
         {
-            PRINT_ERROR("Variable '", fieldname, "' does not exist.");
-            return {};
+            THROW_ERROR(lookup_error, "Variable '", fieldname, "' does not exist.");
         }
-        const int64_t varIdx = std::distance(firstFieldnameIt, fieldnameIt);
+        const int64_t varIndex = std::distance(firstFieldnameIt, fieldnameIt);
         const Eigen::Index numInt = logData.integerValues.rows();
-        if (varIdx < numInt)
+        if (varIndex < numInt)
         {
-            return logData.integerValues.row(varIdx).cast<double>();
+            return logData.integerValues.row(varIndex).cast<double>();
         }
-        return logData.floatValues.row(varIdx - numInt);
+        return logData.floatValues.row(varIndex - numInt);
     }
 }

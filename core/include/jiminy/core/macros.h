@@ -42,6 +42,7 @@ namespace jiminy::internal
     template<size_t FL, size_t PFL>
     const char * extractFunctionName(const char (&func)[FL], const char (&pretty_func)[PFL])
     {
+        // FIXME: Make the whole method 'constexpr' when moving to C++20
         using reverse_ptr = std::reverse_iterator<const char *>;
         thread_local static char result[PFL];
         const char * locFuncName =
@@ -62,17 +63,18 @@ namespace jiminy::internal
 /* ANSI escape codes is used here as a cross-platform way to color text. For reference, see:
    https://solarianprogrammer.com/2019/04/08/c-programming-ansi-escape-codes-windows-macos-linux-terminals/
 */
-
-#define PRINT_ERROR(...)                                                                 \
-    std::cerr << "In " FILE_LINE ": In "                                                 \
-              << jiminy::internal::extractFunctionName(__func__, BOOST_CURRENT_FUNCTION) \
-              << ":\n\x1b[1;31merror:\x1b[0m " << toString(__VA_ARGS__) << std::endl
+#define THROW_ERROR(exception, ...)                                                       \
+    throw exception(                                                                      \
+        toString("In " FILE_LINE ": In ",                                                 \
+                 jiminy::internal::extractFunctionName(__func__, BOOST_CURRENT_FUNCTION), \
+                 ":\n\x1b[1;31merror:\x1b[0m ",                                           \
+                 __VA_ARGS__))
 
 #ifdef NDEBUG
 #    define PRINT_WARNING(...)
 #else
 #    define PRINT_WARNING(...)                                                               \
-        std::cerr << "In " FILE_LINE ": In "                                                 \
+        std::cout << "In " FILE_LINE ": In "                                                 \
                   << jiminy::internal::extractFunctionName(__func__, BOOST_CURRENT_FUNCTION) \
                   << ":\n\x1b[1;93mwarning:\x1b[0m " << toString(__VA_ARGS__) << std::endl
 #endif

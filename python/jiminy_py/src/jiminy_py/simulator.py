@@ -7,7 +7,7 @@ import atexit
 import logging
 import pathlib
 import tempfile
-from weakref import ref
+import weakref
 from copy import deepcopy
 from itertools import chain
 from functools import partial
@@ -93,25 +93,20 @@ class Simulator:
         # Wrap callback in nested function to hide update of progress bar
         # Note that a weak reference must be used to avoid circular reference
         # resulting in uncollectable object and hence memory leak.
-        simulator_ref = ref(self)
+        simulator_proxy = weakref.proxy(self)
 
-        def callback_wrapper(t: float,
+        def callback_wrapper(simulator_proxy: weakref.ProxyType,
+                             t: float,
                              *args: Any,
                              **kwargs: Any) -> None:
-            nonlocal simulator_ref
-            simulator = simulator_ref()
-            assert simulator is not None
-            if simulator.__pbar is not None:
-                simulator.__pbar.update(t - simulator.__pbar.n)
-            simulator._callback(t, *args, **kwargs)
+            if simulator_proxy.__pbar is not None:
+                simulator_proxy.__pbar.update(t - simulator_proxy.__pbar.n)
+            simulator_proxy._callback(t, *args, **kwargs)
 
         # Instantiate the low-level Jiminy engine, then initialize it
         self.engine = engine_class()
-        hresult = self.engine.initialize(robot, controller, callback_wrapper)
-        if hresult != jiminy.hresult_t.SUCCESS:
-            raise RuntimeError(
-                "Invalid robot or controller. Make sure they are both "
-                "initialized.")
+        self.engine.initialize(
+            robot, controller, partial(callback_wrapper, simulator_proxy))
 
         # Create shared memories and python-native attribute for fast access
         self.stepper_state = self.engine.stepper_state
@@ -349,31 +344,13 @@ class Simulator:
                                      the robot.
         """
         # Call base implementation
-        hresult = self.engine.start(
-            q_init, v_init, a_init, is_state_theoretical)
-        if hresult != jiminy.hresult_t.SUCCESS:
-            raise RuntimeError("Failed to start the simulation.")
+        self.engine.start(q_init, v_init, a_init, is_state_theoretical)
 
         # Share the external force buffer of the viewer with the engine.
         # Note that the force vector must be converted to pain list to avoid
         # copy with external sub-vector.
         if self.viewer is not None:
             self.viewer.f_external = [*self.system_state.f_external][1:]
-
-    def step(self, step_dt: float = -1) -> None:
-        """Integrate system dynamics from current state for a given duration.
-
-        :param step_dt: Duration for which to integrate. -1 to use default
-                        duration, namely until the next breakpoint if any,
-                        or 'engine_options["stepper"]["dtMax"]'.
-        """
-        # Perform a single integration step
-        if not self.is_simulation_running:
-            raise RuntimeError(
-                "No simulation running. Please call `start` before `step`.")
-        return_code = self.engine.step(step_dt)
-        if return_code != jiminy.hresult_t.SUCCESS:
-            raise RuntimeError("Failed to perform the simulation step.")
 
     def simulate(self,
                  t_end: float,
@@ -409,22 +386,21 @@ class Simulator:
                 "[{elapsed}<{remaining}]"))
 
         # Run the simulation
+        exception = None
         try:
-            return_code = self.engine.simulate(
+            self.engine.simulate(
                 t_end, q_init, v_init, a_init, is_state_theoretical)
         except Exception as e:  # pylint: disable=broad-exception-caught
-            LOGGER.warning(
-                "The simulation failed due to Python exception:\n %s", e)
-            return_code = jiminy.hresult_t.ERROR_GENERIC
+            exception = e
         finally:  # Make sure that the progress bar is properly closed
             if show_progress_bar:
                 assert self.__pbar is not None
                 self.__pbar.close()
                 self.__pbar = None
 
-        # Throw exception if not successful
-        if return_code != jiminy.hresult_t.SUCCESS:
-            raise RuntimeError("The simulation failed internally.")
+        # Re-throw exception if not successful
+        if exception is not None:
+            raise exception
 
         # Write log
         if log_path is not None and self.engine.stepper_state.q:
@@ -517,11 +493,11 @@ class Simulator:
                 # the joints having an external force registered to it.
                 if "display_f_external" not in viewer_kwargs:
                     force_frames = set(
-                        self.robot.pinocchio_model.frames[f_i.frame_idx].parent
-                        for f_i in self.engine.forces_profile)
+                        self.robot.pinocchio_model.frames[f.frame_index].parent
+                        for f in self.engine.profile_forces)
                     force_frames |= set(
-                        self.robot.pinocchio_model.frames[f_i.frame_idx].parent
-                        for f_i in self.engine.forces_impulse)
+                        self.robot.pinocchio_model.frames[f.frame_index].parent
+                        for f in self.engine.impulse_forces)
                     visibility = self.viewer._display_f_external
                     assert isinstance(visibility, list)
                     for i in force_frames:

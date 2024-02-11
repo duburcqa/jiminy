@@ -16,78 +16,63 @@ namespace jiminy
         setOptions(getDefaultMotorOptions());
     }
 
-    hresult_t SimpleMotor::initialize(const std::string & jointName)
+    void SimpleMotor::initialize(const std::string & jointName)
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
         jointName_ = jointName;
         isInitialized_ = true;
-        returnCode = refreshProxies();
 
-        if (returnCode != hresult_t::SUCCESS)
+        try
+        {
+            refreshProxies();
+        }
+        catch (...)
         {
             jointName_.clear();
             isInitialized_ = false;
+            throw;
         }
-
-        return returnCode;
     }
 
-    hresult_t SimpleMotor::setOptions(const GenericConfig & motorOptions)
+    void SimpleMotor::setOptions(const GenericConfig & motorOptions)
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
-        returnCode = AbstractMotorBase::setOptions(motorOptions);
+        AbstractMotorBase::setOptions(motorOptions);
 
         // Check if the friction parameters make sense
-        if (returnCode == hresult_t::SUCCESS)
+        // Make sure the user-defined position limit has the right dimension
+        if (boost::get<double>(motorOptions.at("frictionViscousPositive")) > 0.0)
         {
-            // Make sure the user-defined position limit has the right dimension
-            if (boost::get<double>(motorOptions.at("frictionViscousPositive")) > 0.0)
-            {
-                PRINT_ERROR("'frictionViscousPositive' must be negative.");
-                returnCode = hresult_t::ERROR_BAD_INPUT;
-            }
-            if (boost::get<double>(motorOptions.at("frictionViscousNegative")) > 0.0)
-            {
-                PRINT_ERROR("'frictionViscousNegative' must be negative.");
-                returnCode = hresult_t::ERROR_BAD_INPUT;
-            }
-            if (boost::get<double>(motorOptions.at("frictionDryPositive")) > 0.0)
-            {
-                PRINT_ERROR("'frictionDryPositive' must be negative.");
-                returnCode = hresult_t::ERROR_BAD_INPUT;
-            }
-            if (boost::get<double>(motorOptions.at("frictionDryNegative")) > 0.0)
-            {
-                PRINT_ERROR("'frictionDryNegative' must be negative.");
-                returnCode = hresult_t::ERROR_BAD_INPUT;
-            }
-            if (boost::get<double>(motorOptions.at("frictionDrySlope")) < 0.0)
-            {
-                PRINT_ERROR("'frictionDrySlope' must be positive.");
-                returnCode = hresult_t::ERROR_BAD_INPUT;
-            }
+            THROW_ERROR(std::invalid_argument, "'frictionViscousPositive' must be negative.");
+        }
+        if (boost::get<double>(motorOptions.at("frictionViscousNegative")) > 0.0)
+        {
+            THROW_ERROR(std::invalid_argument, "'frictionViscousNegative' must be negative.");
+        }
+        if (boost::get<double>(motorOptions.at("frictionDryPositive")) > 0.0)
+        {
+            THROW_ERROR(std::invalid_argument, "'frictionDryPositive' must be negative.");
+        }
+        if (boost::get<double>(motorOptions.at("frictionDryNegative")) > 0.0)
+        {
+            THROW_ERROR(std::invalid_argument, "'frictionDryNegative' must be negative.");
+        }
+        if (boost::get<double>(motorOptions.at("frictionDrySlope")) < 0.0)
+        {
+            THROW_ERROR(std::invalid_argument, "'frictionDrySlope' must be positive.");
         }
 
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            motorOptions_ = std::make_unique<const motorOptions_t>(motorOptions);
-        }
-
-        return returnCode;
+        motorOptions_ = std::make_unique<const SimpleMotorOptions>(motorOptions);
     }
 
-    hresult_t SimpleMotor::computeEffort(double /* t */,
-                                         const Eigen::VectorBlock<const Eigen::VectorXd> & /* q */,
-                                         double v,
-                                         double /* a */,
-                                         double command)
+    void SimpleMotor::computeEffort(double /* t */,
+                                    const Eigen::VectorBlock<const Eigen::VectorXd> & /* q */,
+                                    double v,
+                                    double /* a */,
+                                    double command)
     {
         if (!isInitialized_)
         {
-            PRINT_ERROR("Motor not initialized. Impossible to compute actual motor effort.");
-            return hresult_t::ERROR_INIT_FAILED;
+            THROW_ERROR(bad_control_flow,
+                        "Motor not initialized. Impossible to compute actual motor effort.");
         }
 
         /* Compute the motor effort, taking into account the limit, if any.
@@ -115,7 +100,5 @@ namespace jiminy
                     motorOptions_->frictionDryNegative * tanh(motorOptions_->frictionDrySlope * v);
             }
         }
-
-        return hresult_t::SUCCESS;
     }
 }

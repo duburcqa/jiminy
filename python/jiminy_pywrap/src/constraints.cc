@@ -38,24 +38,22 @@ namespace jiminy::python
         public bp::wrapper<AbstractConstraintImpl>
     {
     public:
-        hresult_t reset(const Eigen::VectorXd & q, const Eigen::VectorXd & v)
+        void reset(const Eigen::VectorXd & q, const Eigen::VectorXd & v)
         {
             bp::override func = this->get_override("reset");
             if (func)
             {
-                func(FctPyWrapperArgToPython(q), FctPyWrapperArgToPython(v));
+                func(FunPyWrapperArgToPython(q), FunPyWrapperArgToPython(v));
             }
-            return hresult_t::SUCCESS;
         }
 
-        hresult_t computeJacobianAndDrift(const Eigen::VectorXd & q, const Eigen::VectorXd & v)
+        void computeJacobianAndDrift(const Eigen::VectorXd & q, const Eigen::VectorXd & v)
         {
             bp::override func = this->get_override("compute_jacobian_and_drift");
             if (func)
             {
-                func(FctPyWrapperArgToPython(q), FctPyWrapperArgToPython(v));
+                func(FunPyWrapperArgToPython(q), FunPyWrapperArgToPython(v));
             }
-            return hresult_t::SUCCESS;
         }
     };
 
@@ -100,7 +98,7 @@ namespace jiminy::python
             std::array<bool, 6> maskDoFs;
             if (maskDoFsPy.is_none())
             {
-                maskDoFs = {{true, true, true, true, true, true}};
+                maskDoFs = {true, true, true, true, true, true};
             }
             else
             {
@@ -159,8 +157,8 @@ namespace jiminy::python
                 .ADD_PROPERTY_GET_WITH_POLICY("joint_name",
                                               &JointConstraint::getJointName,
                                               bp::return_value_policy<bp::return_by_value>())
-                .ADD_PROPERTY_GET_WITH_POLICY("joint_idx",
-                                              &JointConstraint::getJointModelIdx,
+                .ADD_PROPERTY_GET_WITH_POLICY("joint_index",
+                                              &JointConstraint::getJointIndex,
                                               bp::return_value_policy<bp::return_by_value>())
                 .ADD_PROPERTY_GET_SET_WITH_POLICY("reference_configuration",
                                                   &JointConstraint::getReferenceConfiguration,
@@ -181,8 +179,8 @@ namespace jiminy::python
                 .ADD_PROPERTY_GET_WITH_POLICY("frame_name",
                                               &FrameConstraint::getFrameName,
                                               bp::return_value_policy<bp::return_by_value>())
-                .ADD_PROPERTY_GET_WITH_POLICY("frame_idx",
-                                              &FrameConstraint::getFrameIdx,
+                .ADD_PROPERTY_GET_WITH_POLICY("frame_index",
+                                              &FrameConstraint::getFrameIndex,
                                               bp::return_value_policy<bp::return_by_value>())
                 .ADD_PROPERTY_GET_WITH_POLICY("dofs_fixed",
                                               &FrameConstraint::getDofsFixed,
@@ -205,8 +203,8 @@ namespace jiminy::python
                 .ADD_PROPERTY_GET_WITH_POLICY("frames_names",
                                               &DistanceConstraint::getFramesNames,
                                               bp::return_value_policy<result_converter<true>>())
-                .ADD_PROPERTY_GET_WITH_POLICY("frames_idx",
-                                              &DistanceConstraint::getFramesIdx,
+                .ADD_PROPERTY_GET_WITH_POLICY("frame_indices",
+                                              &DistanceConstraint::getFrameIndices,
                                               bp::return_value_policy<result_converter<true>>())
                 .ADD_PROPERTY_GET_SET_WITH_POLICY("reference_distance",
                                                   &DistanceConstraint::getReferenceDistance,
@@ -222,8 +220,8 @@ namespace jiminy::python
                 .ADD_PROPERTY_GET_WITH_POLICY("frame_name",
                                               &SphereConstraint::getFrameName,
                                               bp::return_value_policy<bp::return_by_value>())
-                .ADD_PROPERTY_GET_WITH_POLICY("frame_idx",
-                                              &SphereConstraint::getFrameIdx,
+                .ADD_PROPERTY_GET_WITH_POLICY("frame_index",
+                                              &SphereConstraint::getFrameIndex,
                                               bp::return_value_policy<bp::return_by_value>())
                 .ADD_PROPERTY_GET_SET_WITH_POLICY("reference_transform",
                                                   &SphereConstraint::getReferenceTransform,
@@ -239,8 +237,8 @@ namespace jiminy::python
                 .ADD_PROPERTY_GET_WITH_POLICY("frame_name",
                                               &WheelConstraint::getFrameName,
                                               bp::return_value_policy<bp::return_by_value>())
-                .ADD_PROPERTY_GET_WITH_POLICY("frame_idx",
-                                              &WheelConstraint::getFrameIdx,
+                .ADD_PROPERTY_GET_WITH_POLICY("frame_index",
+                                              &WheelConstraint::getFrameIndex,
                                               bp::return_value_policy<bp::return_by_value>())
                 .ADD_PROPERTY_GET_SET_WITH_POLICY("reference_transform",
                                                   &WheelConstraint::getReferenceTransform,
@@ -252,10 +250,10 @@ namespace jiminy::python
 
     BOOST_PYTHON_VISITOR_EXPOSE(Constraint)
 
-    // ***************************** PyConstraintsHolderVisitor ***********************************
+    // ***************************** PyConstraintTreeVisitor ***********************************
 
 
-    struct PyConstraintsHolderVisitor : public bp::def_visitor<PyConstraintsHolderVisitor>
+    struct PyConstraintTreeVisitor : public bp::def_visitor<PyConstraintTreeVisitor>
     {
     public:
         template<class PyClass>
@@ -263,69 +261,69 @@ namespace jiminy::python
         {
             // clang-format off
             cl
-                .ADD_PROPERTY_GET("bounds_joints", &PyConstraintsHolderVisitor::getBoundJoints)
-                .ADD_PROPERTY_GET("contact_frames", &PyConstraintsHolderVisitor::getContactFrames)
-                .ADD_PROPERTY_GET("collision_bodies", &PyConstraintsHolderVisitor::getCollisionBodies)
-                .ADD_PROPERTY_GET("registered", &PyConstraintsHolderVisitor::getRegistered)
+                .ADD_PROPERTY_GET("bounds_joints", &PyConstraintTreeVisitor::getBoundJoints)
+                .ADD_PROPERTY_GET("contact_frames", &PyConstraintTreeVisitor::getContactFrames)
+                .ADD_PROPERTY_GET("collision_bodies", &PyConstraintTreeVisitor::getCollisionBodies)
+                .ADD_PROPERTY_GET("registry", &PyConstraintTreeVisitor::getRegistry)
                 ;
             // clang-format on
         }
 
-        static bp::dict getBoundJoints(constraintsHolder_t & self)
+        static bp::dict getBoundJoints(ConstraintTree & self)
         {
-            bp::dict boundJoints;
-            for (auto & constraintItem : self.boundJoints)
+            bp::dict constraintBoundJointsPy;
+            for (auto & [name, constraint] : self.boundJoints)
             {
-                boundJoints[constraintItem.first] = constraintItem.second;
+                constraintBoundJointsPy[name] = constraint;
             }
-            return boundJoints;
+            return constraintBoundJointsPy;
         }
 
-        static bp::dict getContactFrames(constraintsHolder_t & self)
+        static bp::dict getContactFrames(ConstraintTree & self)
         {
-            bp::dict contactFrames;
-            for (auto & constraintItem : self.contactFrames)
+            bp::dict constraintContactFramesPy;
+            for (auto & [name, constraint] : self.contactFrames)
             {
-                contactFrames[constraintItem.first] = constraintItem.second;
+                constraintContactFramesPy[name] = constraint;
             }
-            return contactFrames;
+            return constraintContactFramesPy;
         }
 
-        static bp::list getCollisionBodies(constraintsHolder_t & self)
+        static bp::list getCollisionBodies(ConstraintTree & self)
         {
-            bp::list collisionBodies;
-            for (auto & constraintsMap : self.collisionBodies)
+            bp::list constraintCollisionBodies;
+            for (auto & constraintCollisionBodyMap : self.collisionBodies)
             {
-                bp::dict constraintsMapPy;
-                for (auto & constraintItem : constraintsMap)
+                bp::dict constraintCollisionBodyMapPy;
+                for (auto & [name, constraint] : constraintCollisionBodyMap)
                 {
-                    constraintsMapPy[constraintItem.first] = constraintItem.second;
+                    constraintCollisionBodyMapPy[name] = constraint;
                 }
-                collisionBodies.append(constraintsMapPy);
+                constraintCollisionBodies.append(constraintCollisionBodyMapPy);
             }
-            return collisionBodies;
+            return constraintCollisionBodies;
         }
 
-        static bp::dict getRegistered(constraintsHolder_t & self)
+        static bp::dict getRegistry(ConstraintTree & self)
         {
-            bp::dict registered;
-            for (auto & constraintItem : self.registered)
+            bp::dict constraintRegistryPy;
+            for (auto & [name, constraint] : self.registry)
             {
-                registered[constraintItem.first] = constraintItem.second;
+                constraintRegistryPy[name] = constraint;
             }
-            return registered;
+            return constraintRegistryPy;
         }
 
         static void expose()
         {
             // clang-format off
-            bp::class_<constraintsHolder_t,
-                       std::shared_ptr<constraintsHolder_t>,
-                       boost::noncopyable>("ConstraintsHolder", bp::no_init)
-                .def(PyConstraintsHolderVisitor());
+            bp::class_<ConstraintTree,
+                       std::shared_ptr<ConstraintTree>,
+                       boost::noncopyable>("ConstraintTree", bp::no_init)
+                .def(PyConstraintTreeVisitor());
             // clang-format on
         }
     };
 
-    BOOST_PYTHON_VISITOR_EXPOSE(ConstraintsHolder)
+    BOOST_PYTHON_VISITOR_EXPOSE(ConstraintTree)
 }

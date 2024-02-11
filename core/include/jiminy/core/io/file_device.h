@@ -17,16 +17,16 @@ namespace jiminy
         virtual ~FileDevice();
 
         std::size_t size() override;
-        hresult_t seek(std::ptrdiff_t pos) override;
+        void seek(std::ptrdiff_t pos) override;
         std::ptrdiff_t pos() override;
-        hresult_t resize(std::size_t size) override;
+        void resize(std::size_t size) override;
         std::size_t bytesAvailable() override;
 
         const std::string & name() const;
 
     protected:
-        hresult_t doOpen(openMode_t mode) override;
-        hresult_t doClose() override;
+        void doOpen(OpenMode mode) override;
+        void doClose() override;
 
         std::ptrdiff_t readData(void * data, std::size_t dataSize) override;
         std::ptrdiff_t writeData(const void * data, std::size_t dataSize) override;

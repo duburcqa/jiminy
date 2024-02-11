@@ -1,11 +1,12 @@
 """This file aims at verifying the sanity of the physics and the integration
 method of jiminy on simple mass.
 """
+import weakref
 import unittest
-import numpy as np
 from enum import Enum
-from weakref import ref
 from itertools import product
+
+import numpy as np
 from scipy.signal import savgol_filter
 
 import jiminy_py.core as jiminy
@@ -84,11 +85,11 @@ class SimulateSimpleMass(unittest.TestCase):
         elif shape == ShapeType.SPHERE:
             geom = robot.collision_model.geometryObjects[0]
             height = geom.geometry.radius
-        frame_idx = robot.pinocchio_model.getFrameId(self.body_name)
-        joint_idx = robot.pinocchio_model.frames[frame_idx].parent
-        frame_pose = robot.pinocchio_model.frames[frame_idx].placement
+        frame_index = robot.pinocchio_model.getFrameId(self.body_name)
+        joint_index = robot.pinocchio_model.frames[frame_index].parent
+        frame_pose = robot.pinocchio_model.frames[frame_index].placement
 
-        return robot, weight, height, joint_idx, frame_pose
+        return robot, weight, height, joint_index, frame_pose
 
     def _setup_controller_and_engine(self,
                                      engine, robot,
@@ -118,7 +119,7 @@ class SimulateSimpleMass(unittest.TestCase):
             The friction model is not assessed here.
         """
         # Create the robot
-        robot, weight, height, joint_idx, _ = self._setup(shape)
+        robot, weight, height, joint_index, _ = self._setup(shape)
 
         # Create, initialize, and configure the engine
         engine = jiminy.Engine()
@@ -168,7 +169,7 @@ class SimulateSimpleMass(unittest.TestCase):
             ((v_z_jiminy > 0.0) & (penetration_depth < 0.0))))[0]) > 1))
 
         # Compare the numerical and analytical equilibrium state.
-        f_ext_z = engine.system_state.f_external[joint_idx].linear[2]
+        f_ext_z = engine.system_state.f_external[joint_index].linear[2]
         self.assertTrue(np.allclose(f_ext_z, weight, atol=TOLERANCE))
         self.assertTrue(np.allclose(
             -penetration_depth[-1], weight / self.k_contact, atol=TOLERANCE))
@@ -189,24 +190,24 @@ class SimulateSimpleMass(unittest.TestCase):
             The friction model is not assessed here.
         """
         # Create the robot
-        robot, *_, joint_idx, frame_pose = self._setup(ShapeType.POINT)
+        robot, *_, joint_index, frame_pose = self._setup(ShapeType.POINT)
 
         # Create the engine
         engine = jiminy.Engine()
 
         # No control law, only check sensors data
-        engine_ref = ref(engine)
-        def check_sensors_data(t, q, v, sensors_data, command):
+        engine_proxy = weakref.proxy(engine)
+        def check_sensor_measurements(t, q, v, sensor_measurements, command):
             # Verify sensor data, if the engine has been initialized
-            nonlocal engine_ref, frame_pose
-            engine = engine_ref()
-            assert engine is not None
-            if engine.is_initialized:
-                f_linear = sensors_data[ContactSensor.type, self.body_name]
-                f_wrench = sensors_data[ForceSensor.type, self.body_name]
+            nonlocal engine_proxy
+            if engine_proxy.is_initialized:
+                f_linear = sensor_measurements[
+                    ContactSensor.type, self.body_name]
+                f_wrench = sensor_measurements[
+                    ForceSensor.type, self.body_name]
                 f_contact_sensor = frame_pose * Force(f_linear, np.zeros(3))
                 f_force_sensor = frame_pose * Force(*np.split(f_wrench, 2))
-                f_true = engine.system_state.f_external[joint_idx]
+                f_true = engine_proxy.system_state.f_external[joint_index]
                 self.assertTrue(np.allclose(
                     f_contact_sensor.linear, f_true.linear, atol=TOLERANCE))
                 self.assertTrue(np.allclose(
@@ -214,14 +215,14 @@ class SimulateSimpleMass(unittest.TestCase):
 
         # Internal dynamics: make the mass spin to generate nontrivial
         # rotations.
-        def spinning_force(t, q, v, sensors_data, u_custom):
+        def spinning_force(t, q, v, sensor_measurements, u_custom):
             u_custom[3:6] = 1.0
 
         # Initialize and configure the engine
         self._setup_controller_and_engine(
             engine,
             robot,
-            compute_command=check_sensors_data,
+            compute_command=check_sensor_measurements,
             internal_dynamics=spinning_force)
 
         # Increase the integration timestep
@@ -263,8 +264,8 @@ class SimulateSimpleMass(unittest.TestCase):
 
         # Register an impulse of force
         t0, dt, Fx = 0.05, 0.8, 5.0
-        F = np.array([Fx, 0.0, 0.0, 0.0, 0.0, 0.0])
-        engine.register_force_impulse(self.body_name, t0, dt, F)
+        wrench = np.array([Fx, 0.0, 0.0, 0.0, 0.0, 0.0])
+        engine.register_impulse_force(self.body_name, t0, dt, wrench)
 
         # Run simulation
         x0 = neutral_state(robot, split=False)
@@ -366,7 +367,7 @@ class SimulateSimpleMass(unittest.TestCase):
             if min(dt, 2.0 / constraint.baumgarte_freq - dt) < 1e-6:
                 delta_prev = np.full((6,), np.nan)
                 constraint.reference_transform = SE3.Random()
-            transform = robot.pinocchio_data.oMf[constraint.frame_idx]
+            transform = robot.pinocchio_data.oMf[constraint.frame_index]
             ref_transform = constraint.reference_transform
             delta = np.concatenate((
                 transform.translation - ref_transform.translation,

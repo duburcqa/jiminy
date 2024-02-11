@@ -34,18 +34,17 @@ jobs:
 
     steps:
     - name: Configure Pagefile
-      uses: al-cheb/configure-pagefile-action@v1.3
+      uses: al-cheb/configure-pagefile-action@v1.4
       with:
         disk-root: "C:"
-    - name: Create workspace on secondary drive that has more space
+    - name: Create workspace on secondary drive (C:) that has more space
       run: |
         New-Item -ItemType Directory -Force -Path C:\workspace
         New-Item -ItemType Junction -Force -Value C:\workspace -Path "${env:GITHUB_WORKSPACE}/workspace"
     - name: Configure Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.PYTHON_VERSION }}
-        architecture: 'x64'
     - name: Checkout jiminy
       uses: actions/checkout@v4
       with:
@@ -143,9 +142,9 @@ jobs:
         }
     - name: Upload the wheel for Windows of jiminy_py
       if: matrix.BUILD_TYPE == 'Release'
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
-        name: wheelhouse
+        name: wheelhouse-${{ matrix.PYTHON_VERSION }}
         path: 'workspace/build/wheelhouse'
 
     #####################################################################################
@@ -209,20 +208,21 @@ jobs:
 
   publish-pypi-win10:
     name: (Windows) Publish on PyPi the wheel for Windows of jiminy_py
+    runs-on: ubuntu-22.04
+    permissions:
+      id-token: write
+
     needs: build-and-test-win10
-    runs-on: ubuntu-20.04
     if: github.repository == 'duburcqa/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
 
     steps:
     - name: Download the wheels previously generated
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
-        name: wheelhouse
+        pattern: wheelhouse-*
+        merge-multiple: true
         path: wheelhouse
     - name: Publish on PyPi the wheels
-      uses: pypa/gh-action-pypi-publish@v1.8.10
+      uses: pypa/gh-action-pypi-publish@v1.8.11
       with:
-        user: __token__
-        password: ${{ secrets.PYPI_DEPLOY }}
         packages-dir: wheelhouse
-        verify-metadata: false

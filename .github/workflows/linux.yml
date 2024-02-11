@@ -19,7 +19,7 @@ jobs:
         PYTHON_VERSION: ['3.8', '3.9', '3.10', '3.11', '3.12']
         BUILD_TYPE: ['Release']
         include:
-          - PYTHON_VERSION: '3.8'
+          - PYTHON_VERSION: '3.10'
             BUILD_TYPE: 'Debug'
 
     defaults:
@@ -33,12 +33,11 @@ jobs:
 
     steps:
     - name: Configure Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.PYTHON_VERSION }}
-        architecture: 'x64'
     - name: Free Disk Space
-      uses: jlumbroso/free-disk-space@v1.3.0
+      uses: jlumbroso/free-disk-space@v1.3.1
       with:
         tool-cache: false
         android: true

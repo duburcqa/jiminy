@@ -38,65 +38,67 @@ namespace jiminy
     FileDevice::FileDevice(const std::string & filename) noexcept :
     AbstractIODevice(
 #ifndef _WIN32
-        openMode_t::NON_BLOCKING | openMode_t::SYNC |
+        OpenMode::NON_BLOCKING | OpenMode::SYNC |
 #endif
-        openMode_t::READ_ONLY | openMode_t::WRITE_ONLY | openMode_t::READ_WRITE |
-        openMode_t::TRUNCATE | openMode_t::NEW_ONLY | openMode_t::EXISTING_ONLY |
-        openMode_t::APPEND),
+        OpenMode::READ_ONLY | OpenMode::WRITE_ONLY | OpenMode::READ_WRITE | OpenMode::TRUNCATE |
+        OpenMode::NEW_ONLY | OpenMode::EXISTING_ONLY | OpenMode::APPEND),
     filename_{filename}
     {
     }
 
     FileDevice::~FileDevice()
     {
+        if (isOpen())
+        {
 #if defined(close)
 #    pragma push_macro("close")
 #    undef close
 #endif
-        close();
+            close();
 #if defined(close)
 #    pragma pop_macro("close")
 #endif
+        }
     }
 
-    hresult_t FileDevice::doOpen(openMode_t mode)
+    void FileDevice::doOpen(OpenMode mode)
     {
         int32_t openFlags = 0;
-        if (mode & openMode_t::READ_ONLY)
+        if (mode & OpenMode::READ_ONLY)
         {
             openFlags |= O_RDONLY;
         }
-        if (mode & openMode_t::WRITE_ONLY)
+        if (mode & OpenMode::WRITE_ONLY)
         {
             openFlags |= O_WRONLY;
             openFlags |= O_CREAT;
         }
-        if (mode & openMode_t::READ_WRITE)
+        if (mode & OpenMode::READ_WRITE)
         {
             openFlags |= O_RDWR;
         }
-        if (mode & openMode_t::TRUNCATE)
+        if (mode & OpenMode::TRUNCATE)
         {
             openFlags |= O_TRUNC;
         }
-        if (mode & openMode_t::NEW_ONLY)
+        if (mode & OpenMode::NEW_ONLY)
         {
             openFlags |= O_EXCL;
         }
-        if (mode & openMode_t::EXISTING_ONLY)
+        if (mode & OpenMode::EXISTING_ONLY)
         {
             openFlags &= ~O_CREAT;
         }
-        if (mode & openMode_t::APPEND)
+        if (mode & OpenMode::APPEND)
         {
             openFlags |= O_APPEND;
         }
 #ifndef _WIN32
-        if (mode & openMode_t::NON_BLOCKING)
+        if (mode & OpenMode::NON_BLOCKING)
         {
             openFlags |= O_NONBLOCK;
         }
-        if (mode & openMode_t::SYNC)
+        if (mode & OpenMode::SYNC)
         {
             openFlags |= O_SYNC;
         }
@@ -108,43 +110,32 @@ namespace jiminy
         const int32_t rc = ::open(filename_.c_str(), openFlags, S_IRUSR | S_IWUSR);
         if (rc < 0)
         {
-            lastError_ = hresult_t::ERROR_GENERIC;
-            PRINT_ERROR("Impossible to open the file using the desired mode.");
-            return lastError_;
+            THROW_ERROR(std::ios_base::failure,
+                        "Impossible to open the file using the desired mode.");
         }
-
         fileDescriptor_ = rc;
-
-        return hresult_t::SUCCESS;
     }
 
-    hresult_t FileDevice::doClose()
+    void FileDevice::doClose()
     {
         const int32_t rc = ::close(fileDescriptor_);
         if (rc < 0)
         {
-            lastError_ = hresult_t::ERROR_GENERIC;
-            PRINT_ERROR("Impossible to close the file.");
-            return lastError_;
+            THROW_ERROR(std::ios_base::failure, "Impossible to close the file.");
         }
-        else
-        {
-            fileDescriptor_ = -1;
-        }
-        return hresult_t::SUCCESS;
+        fileDescriptor_ = -1;
     }
 
-    hresult_t FileDevice::seek(std::ptrdiff_t pos)
+    void FileDevice::seek(std::ptrdiff_t pos)
     {
         const ssize_t rc = ::lseek(fileDescriptor_, pos, SEEK_SET);
         if (rc < 0)
         {
-            lastError_ = hresult_t::ERROR_GENERIC;
-            PRINT_ERROR(
-                "The file is not open, or the requested position '", pos, "' is out of scope.");
-            return lastError_;
+            THROW_ERROR(std::ios_base::failure,
+                        "File not open, or requested position '",
+                        pos,
+                        "' is out of scope.");
         }
-        return hresult_t::SUCCESS;
     }
 
     std::ptrdiff_t FileDevice::pos()
@@ -152,9 +143,8 @@ namespace jiminy
         const ssize_t pos_cur = ::lseek(fileDescriptor_, 0, SEEK_CUR);
         if (pos_cur < 0)
         {
-            lastError_ = hresult_t::ERROR_GENERIC;
-            PRINT_ERROR(
-                "The file is not open, or the position would be negative or beyond the end.");
+            THROW_ERROR(std::ios_base::failure,
+                        "File not open, or position would be negative or beyond the end.");
         }
         return pos_cur;
     }
@@ -165,8 +155,7 @@ namespace jiminy
         int32_t rc = ::fstat(fileDescriptor_, &st);
         if (rc < 0)
         {
-            lastError_ = hresult_t::ERROR_GENERIC;
-            PRINT_ERROR("Impossible to access the file.");
+            THROW_ERROR(std::ios_base::failure, "Impossible to access the file.");
         }
         return st.st_size;
     }
@@ -185,9 +174,8 @@ namespace jiminy
         const ssize_t readBytes = ::read(fileDescriptor_, data, dataSize);
         if (readBytes < 0)
         {
-            lastError_ = hresult_t::ERROR_GENERIC;
-            PRINT_ERROR(
-                "The file is not open, or data buffer is outside accessible address space.");
+            THROW_ERROR(std::ios_base::failure,
+                        "File not open, or data buffer is outside accessible address space.");
         }
         return static_cast<std::ptrdiff_t>(readBytes);
     }
@@ -197,9 +185,8 @@ namespace jiminy
         const ssize_t writtenBytes = ::write(fileDescriptor_, data, dataSize);
         if (writtenBytes < 0)
         {
-            lastError_ = hresult_t::ERROR_GENERIC;
-            PRINT_ERROR(
-                "The file is not open, or data buffer is outside accessible address space.");
+            THROW_ERROR(std::ios_base::failure,
+                        "File not open, or data buffer is outside accessible address space.");
         }
         return writtenBytes;
     }
@@ -209,15 +196,12 @@ namespace jiminy
         return filename_;
     }
 
-    hresult_t FileDevice::resize(std::size_t size)
+    void FileDevice::resize(std::size_t size)
     {
         const int rc = ::ftruncate(fileDescriptor_, size);
         if (rc < 0)
         {
-            lastError_ = hresult_t::ERROR_GENERIC;
-            PRINT_ERROR("The file is not open.");
-            return lastError_;
+            THROW_ERROR(std::ios_base::failure, "File not open.");
         }
-        return hresult_t::SUCCESS;
     }
 }

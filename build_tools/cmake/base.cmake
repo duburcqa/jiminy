@@ -11,6 +11,18 @@ if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.27.0)
     cmake_policy(SET CMP0144 NEW)
 endif()
 
+# Forces GCC/Clang compilers to enable color diagnostics.
+# CMake versions 3.24 and below do not support this option, so we have
+# to invoke the color diagnostics flags manually.
+set(CMAKE_COLOR_DIAGNOSTICS ON)
+if(CMAKE_VERSION VERSION_LESS "3.24.0")
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        add_compile_options(-fdiagnostics-color=always)
+    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+        add_compile_options(-fcolor-diagnostics)
+    endif()
+endif()
+
 # Check if network is available before compiling external projects
 if(WIN32)
     find_program(HAS_PING "ping")
@@ -35,11 +47,10 @@ if(MSVC)
     # system include of dependencies is not working properly so far.
     set(WARN_FULL "/W2 /wd4068 /wd4715 /wd4820 /wd4244 /wd4005 /wd4834 /wd5105 /wd4251 /WX")
 else()
-    set(WARN_FULL "-Wall -Wextra -pedantic \
-                   -pedantic-errors -Wcast-align -Wcast-qual \
-                   -Wfloat-equal -Wformat=2 -Wformat-nonliteral \
-                   -Wformat-security -Wformat-y2k -Wimport \
-                   -Winit-self -Winvalid-pch -Wlong-long \
+    set(WARN_FULL "-Wall -Wextra -pedantic -pedantic-errors \
+                   -Wformat=2 -Wformat-nonliteral -Wformat-security \
+                   -Wformat-y2k -Wcast-align -Wcast-qual -Wfloat-equal \
+                   -Wimport -Winit-self -Winvalid-pch -Wlong-long \
                    -Wmissing-field-initializers -Wmissing-noreturn \
                    -Wmissing-format-attribute -Wctor-dtor-privacy \
                    -Wpointer-arith -Wold-style-cast -Wpacked \
@@ -47,15 +58,16 @@ else()
                    -Wstack-protector -Wstrict-aliasing=2 \
                    -Wswitch-default -Wswitch-enum -Wunreachable-code \
                    -Wunused -Wundef -Wdisabled-optimization \
-                   -Wmissing-braces -Wtrigraphs -Wparentheses \
-                   -Wwrite-strings -Wsequence-point -Wdeprecated \
-                   -Wconversion -Wdelete-non-virtual-dtor \
+                   -Wtrigraphs -Wparentheses -Wwrite-strings \
+                   -Wsequence-point -Wdeprecated -Wconversion \
+                   -Wdelete-non-virtual-dtor -Wno-missing-braces \
                    -Wno-sign-conversion -Wno-non-virtual-dtor \
                    -Wno-unknown-pragmas -Wno-unknown-warning-option \
                    -Wno-unknown-warning -Wno-undefined-var-template \
                    -Wno-long-long -Wno-error=maybe-uninitialized \
                    -Wno-error=uninitialized -Wno-error=deprecated \
-                   -Wno-error=array-bounds -Wno-error=redundant-move")
+                   -Wno-error=array-bounds -Wno-error=redundant-move \
+                   -Wno-error=suggest-attribute=noreturn")
 endif()
 
 # Shared libraries need PIC

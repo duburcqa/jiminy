@@ -21,7 +21,7 @@ using namespace jiminy;
 void computeCommand(double /* t */,
                     const Eigen::VectorXd & /* q */,
                     const Eigen::VectorXd & /* v */,
-                    const SensorsDataMap & /* sensorsData */,
+                    const SensorMeasurementTree & /* sensorMeasurements */,
                     Eigen::VectorXd & /* command */)
 {
     // No controller: energy should be preserved
@@ -30,7 +30,7 @@ void computeCommand(double /* t */,
 void internalDynamics(double /* t */,
                       const Eigen::VectorXd & /* q */,
                       const Eigen::VectorXd & /* v */,
-                      const SensorsDataMap & /* sensorsData */,
+                      const SensorMeasurementTree & /* sensorMeasurements */,
                       Eigen::VectorXd & /* uCustom */)
 {
 }
@@ -46,7 +46,10 @@ int main(int /* argc */, char * /* argv */[])
     // ==================== Extract the user paramaters ====================
     // =====================================================================
 
-    // Set URDF and log output.
+    /* Set URDF and log output.
+       Note that `std::filesystem::path` must be converted explicitly on Windows OS when passed to
+       functions expecting `std::string` as input argument. This is because it uses `wchar_t`
+       instead of `char_t` internally, which is only implicitly convertible to `std::wstring`. */
     const std::filesystem::path filePath(__FILE__);
     const auto jiminySrcPath = filePath.parent_path().parent_path().parent_path().parent_path();
     const auto dataPath = jiminySrcPath / "data/toys_models";
@@ -78,12 +81,12 @@ int main(int /* argc */, char * /* argv */[])
     }
 
     // Instantiate and configuration the controller
-    auto controller = std::make_shared<ControllerFunctor<>>(computeCommand, internalDynamics);
+    auto controller = std::make_shared<FunctionalController<>>(computeCommand, internalDynamics);
     controller->initialize(robot);
 
     // Instantiate and configuration the engine
-    auto engine = std::make_shared<Engine>();
-    GenericConfig simuOptions = engine->getOptions();
+    Engine engine{};
+    GenericConfig simuOptions = engine.getOptions();
     GenericConfig & telemetryOptions = boost::get<GenericConfig>(simuOptions.at("telemetry"));
     boost::get<bool>(telemetryOptions.at("isPersistent")) = true;
     boost::get<bool>(telemetryOptions.at("enableConfiguration")) = true;
@@ -115,8 +118,8 @@ int main(int /* argc */, char * /* argv */[])
     boost::get<double>(contactsOptions.at("friction")) = 5.0;
     boost::get<double>(contactsOptions.at("transitionEps")) = 0.001;
     boost::get<double>(contactsOptions.at("transitionVelocity")) = 0.01;
-    engine->setOptions(simuOptions);
-    engine->initialize(robot, controller, callback);
+    engine.setOptions(simuOptions);
+    engine.initialize(robot, controller, callback);
     std::cout << "Initialization: " << timer.toc<std::milli>() << "ms" << std::endl;
 
     // =====================================================================
@@ -131,20 +134,19 @@ int main(int /* argc */, char * /* argv */[])
 
     // Run simulation
     timer.tic();
-    engine->simulate(tf, q0, v0);
+    engine.simulate(tf, q0, v0);
     std::cout << "Simulation: " << timer.toc<std::milli>() << "ms" << std::endl;
 
     // Write the log file
     std::vector<std::string> fieldnames;
-    std::shared_ptr<const LogData> logData;
-    engine->getLog(logData);
-    std::cout << logData->times.size() << " log points" << std::endl;
-    std::cout << engine->getStepperState().iter << " internal integration steps" << std::endl;
+    std::shared_ptr<const LogData> logDataPtr = engine.getLog();
+    std::cout << logDataPtr->times.size() << " log points" << std::endl;
+    std::cout << engine.getStepperState().iter << " internal integration steps" << std::endl;
     timer.tic();
-    engine->writeLog((outputDirPath / "log.data").string(), "binary");
+    engine.writeLog((outputDirPath / "log.data").string(), "binary");
     std::cout << "Write log binary: " << timer.toc<std::milli>() << "ms" << std::endl;
     timer.tic();
-    engine->writeLog((outputDirPath / "log.hdf5").string(), "hdf5");
+    engine.writeLog((outputDirPath / "log.hdf5").string(), "hdf5");
     std::cout << "Write log HDF5: " << timer.toc<std::milli>() << "ms" << std::endl;
 
     return 0;

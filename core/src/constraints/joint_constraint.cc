@@ -1,4 +1,5 @@
 #include "jiminy/core/robot/model.h"
+#include "jiminy/core/utilities/pinocchio.h"  // `getJointIndex`
 
 #include "jiminy/core/constraints/joint_constraint.h"
 
@@ -19,9 +20,9 @@ namespace jiminy
         return jointName_;
     }
 
-    pinocchio::JointIndex JointConstraint::getJointModelIdx() const noexcept
+    pinocchio::JointIndex JointConstraint::getJointIndex() const noexcept
     {
-        return jointModelIdx_;
+        return jointIndex_;
     }
 
     void JointConstraint::setReferenceConfiguration(
@@ -52,49 +53,33 @@ namespace jiminy
         return isReversed_;
     }
 
-    hresult_t JointConstraint::reset(const Eigen::VectorXd & q, const Eigen::VectorXd & /* v */)
+    void JointConstraint::reset(const Eigen::VectorXd & q, const Eigen::VectorXd & /* v */)
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
         // Make sure the model still exists
         auto model = model_.lock();
         if (!model)
         {
-            PRINT_ERROR("Model pointer expired or unset.");
-            returnCode = hresult_t::ERROR_GENERIC;
+            THROW_ERROR(bad_control_flow, "Model pointer expired or unset.");
         }
 
         // Get joint index
-        if (returnCode == hresult_t::SUCCESS)
+        jointIndex_ = ::jiminy::getJointIndex(model->pinocchioModel_, jointName_);
+
+        // Get the joint model
+        const pinocchio::JointModel & jointModel = model->pinocchioModel_.joints[jointIndex_];
+
+        // Initialize constraint jacobian, drift and multipliers
+        jacobian_.setZero(jointModel.nv(), model->pinocchioModel_.nv);
+        jacobian_.middleCols(jointModel.idx_v(), jointModel.nv()).setIdentity();
+        if (isReversed_)
         {
-            jointModelIdx_ = model->pncModel_.getJointId(jointName_);
-            if (jointModelIdx_ == static_cast<pinocchio::JointIndex>(model->pncModel_.njoints))
-            {
-                PRINT_ERROR("No joint with name '", jointName_, "' in model.");
-                returnCode = hresult_t::ERROR_GENERIC;
-            }
+            jacobian_ *= -1;
         }
+        drift_.setZero(jointModel.nv());
+        lambda_.setZero(jointModel.nv());
 
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            // Get the joint model
-            const pinocchio::JointModel & jointModel = model->pncModel_.joints[jointModelIdx_];
-
-            // Initialize constraint jacobian, drift and multipliers
-            jacobian_.setZero(jointModel.nv(), model->pncModel_.nv);
-            jacobian_.middleCols(jointModel.idx_v(), jointModel.nv()).setIdentity();
-            if (isReversed_)
-            {
-                jacobian_ *= -1;
-            }
-            drift_.setZero(jointModel.nv());
-            lambda_.setZero(jointModel.nv());
-
-            // Get the current joint position and use it as reference
-            configurationRef_ = jointModel.jointConfigSelector(q);
-        }
-
-        return returnCode;
+        // Get the current joint position and use it as reference
+        configurationRef_ = jointModel.jointConfigSelector(q);
     }
 
     template<typename ConfigVectorIn1, typename ConfigVectorIn2, typename TangentVectorType>
@@ -115,13 +100,13 @@ namespace jiminy
              const ConfigVectorIn1 & q0,
              const ConfigVectorIn2 & q1,
              TangentVectorType & v,
-             size_t qIdx,
-             size_t vIdx)
+             size_t qIndex,
+             size_t vIndex)
         {
             typename pinocchio::LieGroupMap::template operation<JointModel>::type lgo;
-            lgo.difference(q0.segment(qIdx, jmodel.nq()),
-                           q1.segment(qIdx, jmodel.nq()),
-                           v.segment(vIdx, jmodel.nv()));
+            lgo.difference(q0.segment(qIndex, jmodel.nq()),
+                           q1.segment(qIndex, jmodel.nq()),
+                           v.segment(vIndex, jmodel.nv()));
         }
 
         template<typename JointModel>
@@ -130,14 +115,14 @@ namespace jiminy
              const ConfigVectorIn1 & q0,
              const ConfigVectorIn2 & q1,
              TangentVectorType & v,
-             size_t qIdx,
-             size_t vIdx)
+             size_t qIndex,
+             size_t vIndex)
         {
             for (const auto & joint : jmodel.derived().joints)
             {
-                algo(joint.derived(), q0, q1, v, qIdx, vIdx);
-                qIdx += joint.nq();
-                vIdx += joint.nv();
+                algo(joint.derived(), q0, q1, v, qIndex, vIndex);
+                qIndex += joint.nq();
+                vIndex += joint.nv();
             }
         }
     };
@@ -153,20 +138,19 @@ namespace jiminy
         return v;
     }
 
-    hresult_t JointConstraint::computeJacobianAndDrift(const Eigen::VectorXd & q,
-                                                       const Eigen::VectorXd & v)
+    void JointConstraint::computeJacobianAndDrift(const Eigen::VectorXd & q,
+                                                  const Eigen::VectorXd & v)
     {
         if (!isAttached_)
         {
-            PRINT_ERROR("Constraint not attached to a model.");
-            return hresult_t::ERROR_GENERIC;
+            std::logic_error("Constraint not attached to a model.");
         }
 
         // Assuming the model still exists
         auto model = model_.lock();
 
         // Get the joint model
-        const pinocchio::JointModel & jointModel = model->pncModel_.joints[jointModelIdx_];
+        const pinocchio::JointModel & jointModel = model->pinocchioModel_.joints[jointIndex_];
 
         // Add Baumgarte stabilization drift
         const Eigen::VectorXd deltaPosition =
@@ -176,7 +160,5 @@ namespace jiminy
         {
             drift_ *= -1;
         }
-
-        return hresult_t::SUCCESS;
     }
 }

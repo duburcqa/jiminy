@@ -590,7 +590,7 @@ namespace jiminy
     }
 #pragma GCC diagnostic pop
 
-    hpp::fcl::CollisionGeometryPtr_t discretizeHeightmap(const HeightmapFunctor & heightmap,
+    hpp::fcl::CollisionGeometryPtr_t discretizeHeightmap(const HeightmapFunction & heightmap,
                                                          double xMin,
                                                          double xMax,
                                                          double xUnit,
@@ -686,7 +686,7 @@ namespace jiminy
         return mesh_ptr;
     }
 
-    HeightmapFunctor sumHeightmaps(std::vector<HeightmapFunctor> heightmaps)
+    HeightmapFunction sumHeightmaps(const std::vector<HeightmapFunction> & heightmaps)
     {
         if (heightmaps.size() == 1)
         {
@@ -700,7 +700,7 @@ namespace jiminy
 
             height = 0.0;
             normal.setZero();
-            for (HeightmapFunctor const & heightmap : heightmaps)
+            for (const HeightmapFunction & heightmap : heightmaps)
             {
                 heightmap(pos, height_i, normal_i);
                 height += height_i;
@@ -710,7 +710,7 @@ namespace jiminy
         };
     }
 
-    HeightmapFunctor mergeHeightmaps(std::vector<HeightmapFunctor> heightmaps)
+    HeightmapFunction mergeHeightmaps(const std::vector<HeightmapFunction> & heightmaps)
     {
         if (heightmaps.size() == 1)
         {
@@ -724,7 +724,7 @@ namespace jiminy
 
             height = -INF;
             bool is_dirty = false;
-            for (HeightmapFunctor const & heightmap : heightmaps)
+            for (const HeightmapFunction & heightmap : heightmaps)
             {
                 heightmap(pos, height_i, normal_i);
                 if (std::abs(height_i - height) < EPS)

@@ -27,7 +27,7 @@ namespace jiminy
             return config;
         };
 
-        struct motorOptions_t : public abstractMotorOptions_t
+        struct SimpleMotorOptions : public AbstractMotorOptions
         {
             /// \brief Flag to enable the joint friction.
             ///
@@ -56,8 +56,8 @@ namespace jiminy
             /// \pre Must be negative.
             const double frictionDrySlope;
 
-            motorOptions_t(const GenericConfig & options) :
-            abstractMotorOptions_t(options),
+            SimpleMotorOptions(const GenericConfig & options) :
+            AbstractMotorOptions(options),
             enableFriction{boost::get<bool>(options.at("enableFriction"))},
             frictionViscousPositive{boost::get<double>(options.at("frictionViscousPositive"))},
             frictionViscousNegative{boost::get<double>(options.at("frictionViscousNegative"))},
@@ -75,19 +75,19 @@ namespace jiminy
         auto shared_from_this() { return shared_from(this); }
         auto shared_from_this() const { return shared_from(this); }
 
-        hresult_t initialize(const std::string & jointName);
+        void initialize(const std::string & jointName);
 
-        hresult_t setOptions(const GenericConfig & motorOptions) override;
-
-    private:
-        hresult_t computeEffort(double t,
-                                const Eigen::VectorBlock<const Eigen::VectorXd> & q,
-                                double v,
-                                double a,
-                                double command) override;
+        void setOptions(const GenericConfig & motorOptions) override;
 
     private:
-        std::unique_ptr<const motorOptions_t> motorOptions_{nullptr};
+        void computeEffort(double t,
+                           const Eigen::VectorBlock<const Eigen::VectorXd> & q,
+                           double v,
+                           double a,
+                           double command) override;
+
+    private:
+        std::unique_ptr<const SimpleMotorOptions> motorOptions_{nullptr};
     };
 }
 

@@ -53,13 +53,13 @@ class AntEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
             config_path=config_path, debug=debug, **kwargs)
 
         # Get the list of independant bodies (not connected via fixed joint)
-        self.bodies_idx = [0]  # World is part of bodies list
+        self.body_indices = [0]  # World is part of bodies list
         for i, frame in enumerate(simulator.robot.pinocchio_model.frames):
             if frame.type == FrameType.BODY:
                 frame_prev = simulator.robot.pinocchio_model.frames[
                     frame.previousFrame]
                 if frame_prev.type != FrameType.FIXED_JOINT:
-                    self.bodies_idx.append(i)
+                    self.body_indices.append(i)
 
         # Observation chunks proxy for fast access
         self.obs_chunks: List[np.ndarray] = []
@@ -80,16 +80,16 @@ class AntEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
     def _neutral(self) -> np.ndarray:
         """ TODO: Write documentation.
         """
-        def joint_position_idx(joint_name: str) -> int:
-            joint_idx = self.robot.pinocchio_model.getJointId(joint_name)
-            return self.robot.pinocchio_model.joints[joint_idx].idx_q
+        def joint_position_index(joint_name: str) -> int:
+            joint_index = self.robot.pinocchio_model.getJointId(joint_name)
+            return self.robot.pinocchio_model.joints[joint_index].idx_q
 
         qpos = neutral(self.robot.pinocchio_model)
         qpos[2] = 0.75
-        qpos[joint_position_idx('ankle_1')] = 1.0
-        qpos[joint_position_idx('ankle_2')] = -1.0
-        qpos[joint_position_idx('ankle_3')] = -1.0
-        qpos[joint_position_idx('ankle_4')] = 1.0
+        qpos[joint_position_index('ankle_1')] = 1.0
+        qpos[joint_position_index('ankle_2')] = -1.0
+        qpos[joint_position_index('ankle_3')] = -1.0
+        qpos[joint_position_index('ankle_4')] = 1.0
 
         return qpos
 
@@ -133,12 +133,12 @@ class AntEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         low = np.concatenate([
             np.full_like(position_space.low[2:], -np.inf),
             np.full_like(velocity_space.low, -np.inf),
-            np.full(len(self.bodies_idx) * 6, -1.0)
+            np.full(len(self.body_indices) * 6, -1.0)
         ])
         high = np.concatenate([
             np.full_like(position_space.high[2:], np.inf),
             np.full_like(velocity_space.high, np.inf),
-            np.full(len(self.bodies_idx) * 6, 1.0)
+            np.full(len(self.body_indices) * 6, 1.0)
         ])
 
         self.observation_space = gym.spaces.Box(
@@ -170,10 +170,10 @@ class AntEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         # Update observation buffer
         assert isinstance(self.observation_space, gym.spaces.Box)
         for obs, size in zip(self.obs_chunks, self.obs_chunks_sizes):
-            obs_idx = slice(*size)
-            low = self.observation_space.low[obs_idx]
-            high = self.observation_space.high[obs_idx]
-            obs.clip(low, high, out=self.observation[obs_idx])
+            obs_slice = slice(*size)
+            low = self.observation_space.low[obs_slice]
+            high = self.observation_space.high[obs_slice]
+            obs.clip(low, high, out=self.observation[obs_slice])
 
         # Transform observed linear velocity to be in world frame
         self.observation[slice(*self.obs_chunks_sizes[1])][:3] = \
@@ -207,9 +207,9 @@ class AntEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
 
         ctrl_cost = 0.5 * np.square(self.action).sum()
 
-        f_ext_idx = slice(self.obs_chunks_sizes[2][0],
+        obs_slice = slice(self.obs_chunks_sizes[2][0],
                           self.obs_chunks_sizes[-1][1])
-        f_ext = self.observation[f_ext_idx]
+        f_ext = self.observation[obs_slice]
         contact_cost = 0.5 * 1e-3 * np.square(f_ext).sum()
 
         survive_reward = 1.0 if not terminated else 0.0

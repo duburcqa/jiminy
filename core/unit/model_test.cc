@@ -30,26 +30,26 @@ TEST_P(ModelTestFixture, CreateFlexible)
     model->initialize(urdfPath, hasFreeflyer, std::vector<std::string>(), true);
 
     // We now have a rigid robot: perform rigid computation on this
-    auto q = pinocchio::randomConfiguration(model->pncModel_);
+    auto q = pinocchio::randomConfiguration(model->pinocchioModel_);
     if (hasFreeflyer)
     {
         q.head<3>().setZero();
     }
-    auto pncData = pinocchio::Data(model->pncModel_);
-    pinocchio::framesForwardKinematics(model->pncModel_, pncData, q);
+    auto pinocchioData = pinocchio::Data(model->pinocchioModel_);
+    pinocchio::framesForwardKinematics(model->pinocchioModel_, pinocchioData, q);
 
     // Model is rigid, so configuration should not change
     Eigen::VectorXd qflex;
-    ASSERT_TRUE(model->getFlexibleConfigurationFromRigid(q, qflex) == hresult_t::SUCCESS);
+    model->getFlexiblePositionFromRigid(q, qflex);
     ASSERT_TRUE(qflex.isApprox(q));
 
     auto visualData = pinocchio::GeometryData(model->visualModel_);
     pinocchio::updateGeometryPlacements(
-        model->pncModel_, pncData, model->visualModel_, visualData);
+        model->pinocchioModel_, pinocchioData, model->visualModel_, visualData);
 
     auto collisionData = pinocchio::GeometryData(model->collisionModel_);
     pinocchio::updateGeometryPlacements(
-        model->pncModel_, pncData, model->collisionModel_, collisionData);
+        model->pinocchioModel_, pinocchioData, model->collisionModel_, collisionData);
 
     // Add flexibility to joint and frame
     auto options = model->getOptions();
@@ -61,22 +61,24 @@ TEST_P(ModelTestFixture, CreateFlexible)
     boost::get<FlexibilityConfig>(dynamicsOptions.at("flexibilityConfig")) = flexConfig;
     model->setOptions(options);
 
-    ASSERT_TRUE(model->getFlexibleConfigurationFromRigid(q, qflex) == hresult_t::SUCCESS);
+    model->getFlexiblePositionFromRigid(q, qflex);
     ASSERT_EQ(qflex.size(),
               q.size() + Eigen::Quaterniond::Coefficients::RowsAtCompileTime * flexConfig.size());
 
     // Recompute frame, geometry and collision pose, and check that nothing has moved.
-    pinocchio::framesForwardKinematics(model->pncModel_, model->pncData_, qflex);
+    pinocchio::framesForwardKinematics(model->pinocchioModel_, model->pinocchioData_, qflex);
     pinocchio::updateGeometryPlacements(
-        model->pncModel_, model->pncData_, model->visualModel_, model->visualData_);
-    pinocchio::updateGeometryPlacements(
-        model->pncModel_, model->pncData_, model->collisionModel_, model->collisionData_);
+        model->pinocchioModel_, model->pinocchioData_, model->visualModel_, model->visualData_);
+    pinocchio::updateGeometryPlacements(model->pinocchioModel_,
+                                        model->pinocchioData_,
+                                        model->collisionModel_,
+                                        model->collisionData_);
 
-    for (uint32_t i = 0; i < model->pncModelOrig_.frames.size(); i++)
+    for (uint32_t i = 0; i < model->pinocchioModelOrig_.frames.size(); i++)
     {
-        const pinocchio::Frame & frame = model->pncModelOrig_.frames[i];
-        const pinocchio::FrameIndex flexIdx = model->pncModel_.getFrameId(frame.name);
-        ASSERT_TRUE(pncData.oMf[i].isApprox(model->pncData_.oMf[flexIdx]));
+        const pinocchio::Frame & frame = model->pinocchioModelOrig_.frames[i];
+        const pinocchio::FrameIndex flexIndex = model->pinocchioModel_.getFrameId(frame.name);
+        ASSERT_TRUE(pinocchioData.oMf[i].isApprox(model->pinocchioData_.oMf[flexIndex]));
     }
 
     for (uint32_t i = 0; i < model->visualData_.oMg.size(); i++)

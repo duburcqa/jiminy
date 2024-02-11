@@ -8,7 +8,7 @@ from typing import Optional, Tuple, Sequence, Callable, TypedDict, Any
 
 import numpy as np
 
-from eigenpy import LDLT
+import eigenpy
 import hppfcl
 import pinocchio as pin
 from pinocchio.rpy import (rpyToMatrix,  # pylint: disable=import-error
@@ -223,24 +223,24 @@ def update_quantities(robot: jiminy.Model,
                                   Optional: True by default.
     """
     if use_theoretical_model:
-        pnc_model = robot.pinocchio_model_th
-        pnc_data = robot.pinocchio_data_th
+        model = robot.pinocchio_model_th
+        data = robot.pinocchio_data_th
     else:
-        pnc_model = robot.pinocchio_model
-        pnc_data = robot.pinocchio_data
+        model = robot.pinocchio_model
+        data = robot.pinocchio_data
 
     if (update_physics and update_com and
             update_energy and update_jacobian and
             velocity is not None and acceleration is None):
-        pin.computeAllTerms(pnc_model, pnc_data, position, velocity)
+        pin.computeAllTerms(model, data, position, velocity)
     else:
         if velocity is None:
-            pin.forwardKinematics(pnc_model, pnc_data, position)
+            pin.forwardKinematics(model, data, position)
         elif acceleration is None:
-            pin.forwardKinematics(pnc_model, pnc_data, position, velocity)
+            pin.forwardKinematics(model, data, position, velocity)
         else:
             pin.forwardKinematics(
-                pnc_model, pnc_data, position, velocity, acceleration)
+                model, data, position, velocity, acceleration)
 
         if update_com:
             if velocity is None:
@@ -249,28 +249,28 @@ def update_quantities(robot: jiminy.Model,
                 kinematic_level = pin.KinematicLevel.VELOCITY
             else:
                 kinematic_level = pin.KinematicLevel.ACCELERATION
-            pin.centerOfMass(pnc_model, pnc_data, kinematic_level, False)
+            pin.centerOfMass(model, data, kinematic_level, False)
 
         if update_jacobian:
             if update_com:
-                pin.jacobianCenterOfMass(pnc_model, pnc_data)
-            pin.computeJointJacobians(pnc_model, pnc_data)
+                pin.jacobianCenterOfMass(model, data)
+            pin.computeJointJacobians(model, data)
 
         if update_physics:
             if velocity is not None:
-                pin.nonLinearEffects(pnc_model, pnc_data, position, velocity)
-            pin.crba(pnc_model, pnc_data, position)
+                pin.nonLinearEffects(model, data, position, velocity)
+            pin.crba(model, data, position)
 
         if update_energy:
             if velocity is not None:
-                pin.computeKineticEnergy(pnc_model, pnc_data)
-            pin.computePotentialEnergy(pnc_model, pnc_data)
+                pin.computeKineticEnergy(model, data)
+            pin.computePotentialEnergy(model, data)
 
-    pin.updateFramePlacements(pnc_model, pnc_data)
+    pin.updateFramePlacements(model, data)
 
     if update_collisions:
         pin.updateGeometryPlacements(
-            pnc_model, pnc_data, robot.collision_model, robot.collision_data)
+            model, data, robot.collision_model, robot.collision_data)
         pin.computeCollisions(
             robot.collision_model, robot.collision_data,
             stop_at_first_collision=False)
@@ -305,18 +305,18 @@ def get_body_world_transform(robot: jiminy.Model,
     """
     # Pick the right pinocchio model and data
     if use_theoretical_model:
-        pnc_model = robot.pinocchio_model_th
-        pnc_data = robot.pinocchio_data_th
+        model = robot.pinocchio_model_th
+        data = robot.pinocchio_data_th
     else:
-        pnc_model = robot.pinocchio_model
-        pnc_data = robot.pinocchio_data
+        model = robot.pinocchio_model
+        data = robot.pinocchio_data
 
     # Get frame index and make sure it exists
-    body_id = pnc_model.getFrameId(body_name)
-    assert body_id < pnc_model.nframes, f"Frame '{body_name}' does not exits."
+    body_id = model.getFrameId(body_name)
+    assert body_id < model.nframes, f"Frame '{body_name}' does not exits."
 
     # Get body transform in world frame
-    transform = pnc_data.oMf[body_id]
+    transform = data.oMf[body_id]
     if copy:
         transform = transform.copy()
 
@@ -342,17 +342,17 @@ def get_body_world_velocity(robot: jiminy.Model,
     """
     # Pick the right pinocchio model and data
     if use_theoretical_model:
-        pnc_model = robot.pinocchio_model_th
-        pnc_data = robot.pinocchio_data_th
+        model = robot.pinocchio_model_th
+        data = robot.pinocchio_data_th
     else:
-        pnc_model = robot.pinocchio_model
-        pnc_data = robot.pinocchio_data
+        model = robot.pinocchio_model
+        data = robot.pinocchio_data
 
     # Get frame index and make sure it exists
-    body_id = pnc_model.getFrameId(body_name)
-    assert body_id < pnc_model.nframes, f"Frame '{body_name}' does not exits."
+    body_id = model.getFrameId(body_name)
+    assert body_id < model.nframes, f"Frame '{body_name}' does not exits."
 
-    return pin.getFrameVelocity(pnc_model, pnc_data, body_id, pin.WORLD)
+    return pin.getFrameVelocity(model, data, body_id, pin.WORLD)
 
 
 def get_body_world_acceleration(robot: jiminy.Model,
@@ -377,17 +377,17 @@ def get_body_world_acceleration(robot: jiminy.Model,
     """
     # Pick the right pinocchio model and data
     if use_theoretical_model:
-        pnc_model = robot.pinocchio_model_th
-        pnc_data = robot.pinocchio_data_th
+        model = robot.pinocchio_model_th
+        data = robot.pinocchio_data_th
     else:
-        pnc_model = robot.pinocchio_model
-        pnc_data = robot.pinocchio_data
+        model = robot.pinocchio_model
+        data = robot.pinocchio_data
 
     # Get frame index and make sure it exists
-    body_id = pnc_model.getFrameId(body_name)
-    assert body_id < pnc_model.nframes, f"Frame '{body_name}' does not exits."
+    body_id = model.getFrameId(body_name)
+    assert body_id < model.nframes, f"Frame '{body_name}' does not exits."
 
-    return pin.getFrameAcceleration(pnc_model, pnc_data, body_id, pin.WORLD)
+    return pin.getFrameAcceleration(model, data, body_id, pin.WORLD)
 
 
 def compute_transform_contact(
@@ -412,10 +412,13 @@ def compute_transform_contact(
     """
     # pylint: disable=unsupported-assignment-operation,unsubscriptable-object
 
+    # Proxy for convenience
+    collision_model = robot.collision_model
+
     # Compute the transform in the world of the contact points
     contact_frames_transform = []
-    for frame_idx in robot.contact_frames_idx:
-        transform = robot.pinocchio_data.oMf[frame_idx]
+    for frame_index in robot.contact_frame_indices:
+        transform = robot.pinocchio_data.oMf[frame_index]
         contact_frames_transform.append(transform)
 
     # Compute the transform of the ground at these points
@@ -485,15 +488,15 @@ def compute_transform_contact(
     # Take into account the collision bodies
     # TODO: Take into account the ground profile
     min_distance = float('inf')
-    deepest_idx = None
+    deepest_index = None
     for i, dist_req in enumerate(robot.collision_data.distanceResults):
         if np.linalg.norm(dist_req.normal) > 1e-6:
-            body_idx = robot.collision_model.collisionPairs[0].first
-            body_geom = robot.collision_model.geometryObjects[body_idx]
+            body_index = collision_model.collisionPairs[0].first
+            body_geom = robot.collision_model.geometryObjects[body_index]
             if dist_req.normal[2] > 0.0 and \
                     isinstance(body_geom.geometry, hppfcl.Box):
-                ground_idx = robot.collision_model.collisionPairs[0].second
-                ground_geom = robot.collision_model.geometryObjects[ground_idx]
+                ground_index = collision_model.collisionPairs[0].second
+                ground_geom = collision_model.geometryObjects[ground_index]
                 box_size = 2.0 * ground_geom.geometry.halfSide
                 body_size = 2.0 * body_geom.geometry.halfSide
                 distance = - body_size[2] - box_size[2] - dist_req.min_distance
@@ -501,22 +504,22 @@ def compute_transform_contact(
                 distance = dist_req.min_distance
             if distance < min_distance:
                 min_distance = distance
-                deepest_idx = i
+                deepest_index = i
         else:
             LOGGER.warning("Collision computation failed for some reason. "
                            "Skipping this collision pair.")
-    if deepest_idx is not None and (
+    if deepest_index is not None and (
             not contact_frames_pos_rel or
             transform_offset.translation[2] < -min_distance):
         transform_offset.translation[2] = -min_distance
         if not contact_frames_pos_rel:
-            geom_idx = robot.collision_model.collisionPairs[deepest_idx].first
-            geom = robot.collision_model.geometryObjects[geom_idx]
+            geom_index = collision_model.collisionPairs[deepest_index].first
+            geom = collision_model.geometryObjects[geom_index]
             if isinstance(geom.geometry, hppfcl.Box):
-                dist_rslt = robot.collision_data.distanceResults[deepest_idx]
+                dist_rslt = robot.collision_data.distanceResults[deepest_index]
                 collision_position = dist_rslt.getNearestPoint1()
                 transform_offset.rotation = \
-                    robot.collision_data.oMg[geom_idx].rotation.T
+                    robot.collision_data.oMg[geom_index].rotation.T
                 transform_offset.translation[2] += (
                     collision_position -
                     transform_offset.rotation @ collision_position)[2]
@@ -661,30 +664,29 @@ def compute_efforts_from_fixed_body(
     """
     # Pick the right pinocchio model and data
     if use_theoretical_model:
-        pnc_model = robot.pinocchio_model_th
-        pnc_data = robot.pinocchio_data_th
+        model = robot.pinocchio_model_th
+        data = robot.pinocchio_data_th
     else:
-        pnc_model = robot.pinocchio_model
-        pnc_data = robot.pinocchio_data
+        model = robot.pinocchio_model
+        data = robot.pinocchio_data
 
     # Apply a first run of rnea without explicit external forces
-    jiminy.rnea(pnc_model, pnc_data, position, velocity, acceleration)
+    jiminy.rnea(model, data, position, velocity, acceleration)
 
     # Initialize vector of exterior forces to zero
     f_ext = pin.StdVec_Force()
-    f_ext.extend(len(pnc_model.names) * (pin.Force.Zero(),))
+    f_ext.extend(len(model.names) * (pin.Force.Zero(),))
 
     # Compute the force at the contact frame
-    pin.forwardKinematics(pnc_model, pnc_data, position)
-    support_foot_idx = pnc_model.frames[
-        pnc_model.getBodyId(fixed_body_name)].parent
-    f_ext[support_foot_idx] = pnc_data.oMi[support_foot_idx] \
-        .actInv(pnc_data.oMi[1]).act(pnc_data.f[1])
+    pin.forwardKinematics(model, data, position)
+    support_joint_index = model.frames[
+        model.getBodyId(fixed_body_name)].parent
+    f_ext[support_joint_index] = data.oMi[support_joint_index].actInv(
+        data.oMi[1]).act(data.f[1])
 
     # Recompute the efforts with RNEA and the correct external forces
-    tau = jiminy.rnea(
-        pnc_model, pnc_data, position, velocity, acceleration, f_ext)
-    f_ext = f_ext[support_foot_idx]
+    tau = jiminy.rnea(model, data, position, velocity, acceleration, f_ext)
+    f_ext = f_ext[support_joint_index]
 
     return tau, f_ext
 
@@ -724,14 +726,14 @@ def compute_inverse_dynamics(robot: jiminy.Model,
         acceleration = robot.get_flexible_velocity_from_rigid(acceleration)
 
     # Define some proxies for convenience
-    pnc_model = robot.pinocchio_model
-    pnc_data = robot.pinocchio_data
-    motors_velocity_idx = robot.motors_velocity_idx
+    model = robot.pinocchio_model
+    data = robot.pinocchio_data
+    motor_velocity_indices = robot.motor_velocity_indices
 
     # Updating kinematics quantities
     pin.forwardKinematics(
-        pnc_model, pnc_data, position, velocity, acceleration)
-    pin.updateFramePlacements(pnc_model, pnc_data)
+        model, data, position, velocity, acceleration)
+    pin.updateFramePlacements(model, data)
 
     # Compute constraint jacobian and drift
     robot.compute_constraints(position, velocity)
@@ -740,25 +742,24 @@ def compute_inverse_dynamics(robot: jiminy.Model,
     # No need to compute the internal matrix using `crba` nor to perform the
     # cholesky decomposition since it is already done by `compute_constraints`
     # internally.
-    M_inv = pin.cholesky.computeMinv(pnc_model, pnc_data)
+    M_inv = pin.cholesky.computeMinv(model, data)
+    M_inv_mcol = M_inv[:, motor_velocity_indices]
 
     # Compute non-linear effects
-    pin.nonLinearEffects(pnc_model, pnc_data, position, velocity)
-    nle = pnc_data.nle
+    pin.nonLinearEffects(model, data, position, velocity)
+    nle = data.nle
 
     # Compute constraint forces
-    jiminy.computeJMinvJt(pnc_model, pnc_data, J)
-    a_f = jiminy.solveJMinvJtv(pnc_data, - drift + J @ M_inv @ nle)
-    B_f = jiminy.solveJMinvJtv(
-        pnc_data, - J @ M_inv[:, motors_velocity_idx], False)
+    jiminy.computeJMinvJt(model, data, J)
+    a_f = jiminy.solveJMinvJtv(data, + J @ M_inv @ nle - drift)
+    B_f = jiminy.solveJMinvJtv(data, - J @ M_inv_mcol, False)
 
     # compute feedforward term
-    a_ydd = (M_inv @ (- nle + J.T @ a_f) - acceleration)[motors_velocity_idx]
-    B_ydd = (
-        M_inv[:, motors_velocity_idx] + M_inv @ J.T @ B_f)[motors_velocity_idx]
+    a_ydd = (M_inv @ (J.T @ a_f - nle) - acceleration)[motor_velocity_indices]
+    B_ydd = (M_inv_mcol + M_inv @ J.T @ B_f)[motor_velocity_indices]
 
     # Compute motor torques
-    u = LDLT(B_ydd).solve(- a_ydd)
+    u = eigenpy.LDLT(B_ydd).solve(- a_ydd)
 
     return u
 

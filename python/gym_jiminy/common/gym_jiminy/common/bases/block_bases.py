@@ -18,15 +18,15 @@ from .generic_bases import (ObsT,
                             ActT,
                             BaseObsT,
                             BaseActT,
-                            ControllerInterface,
-                            ObserverInterface,
-                            JiminyEnvInterface)
+                            InterfaceController,
+                            InterfaceObserver,
+                            InterfaceJiminyEnv)
 
 
 BlockStateT = TypeVar('BlockStateT', bound=Union[DataNested, None])
 
 
-class BlockInterface(ABC, Generic[BlockStateT, BaseObsT, BaseActT]):
+class InterfaceBlock(ABC, Generic[BlockStateT, BaseObsT, BaseActT]):
     """Base class for blocks used for pipeline control design. Blocks can be
     either observers and controllers.
 
@@ -35,7 +35,7 @@ class BlockInterface(ABC, Generic[BlockStateT, BaseObsT, BaseActT]):
         and `get_state` must be overloaded accordingly. The internal state will
         be added automatically to the observation space of the environment.
     """
-    env: JiminyEnvInterface[BaseObsT, BaseActT]
+    env: InterfaceJiminyEnv[BaseObsT, BaseActT]
     name: str
     update_ratio: int
     state_space: gym.Space[BlockStateT]
@@ -45,7 +45,7 @@ class BlockInterface(ABC, Generic[BlockStateT, BaseObsT, BaseActT]):
 
     def __init__(self,
                  name: str,
-                 env: JiminyEnvInterface[BaseObsT, BaseActT],
+                 env: InterfaceJiminyEnv[BaseObsT, BaseActT],
                  update_ratio: int = 1,
                  **kwargs: Any) -> None:
         """Initialize the block interface.
@@ -69,7 +69,7 @@ class BlockInterface(ABC, Generic[BlockStateT, BaseObsT, BaseActT]):
                        multiple inheritance through multiple inheritance.
         """
         # Make sure that the provided environment is valid
-        assert isinstance(env.unwrapped, JiminyEnvInterface)
+        assert isinstance(env.unwrapped, InterfaceJiminyEnv)
 
         # Backup some user argument(s)
         self.env = env
@@ -117,8 +117,8 @@ class BlockInterface(ABC, Generic[BlockStateT, BaseObsT, BaseActT]):
         """
 
 
-class BaseObserverBlock(ObserverInterface[ObsT, BaseObsT],
-                        BlockInterface[BlockStateT, BaseObsT, BaseActT],
+class BaseObserverBlock(InterfaceObserver[ObsT, BaseObsT],
+                        InterfaceBlock[BlockStateT, BaseObsT, BaseActT],
                         Generic[ObsT, BlockStateT, BaseObsT, BaseActT]):
     """Base class to implement observe that can be used compute observation
     features of a `BaseJiminyEnv` environment, through any number of
@@ -180,8 +180,8 @@ class BaseObserverBlock(ObserverInterface[ObsT, BaseObsT],
 
 
 class BaseControllerBlock(
-        ControllerInterface[ActT, BaseActT],
-        BlockInterface[BlockStateT, BaseObsT, BaseActT],
+        InterfaceController[ActT, BaseActT],
+        InterfaceBlock[BlockStateT, BaseObsT, BaseActT],
         Generic[ActT, BlockStateT, BaseObsT, BaseActT]):
     """Base class to implement controller that can be used compute targets to
     apply to the robot of a `BaseJiminyEnv` environment, through any number of

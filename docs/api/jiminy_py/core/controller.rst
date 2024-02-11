@@ -11,7 +11,7 @@ controller
    :undoc-members:
    :show-inheritance:
 
-.. autoclass:: jiminy_py.core.ControllerFunctor
+.. autoclass:: jiminy_py.core.FunctionalController
    :members:
    :undoc-members:
    :show-inheritance:

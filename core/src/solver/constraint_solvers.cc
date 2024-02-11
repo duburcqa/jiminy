@@ -16,44 +16,44 @@ namespace jiminy
 
     PGSSolver::PGSSolver(const pinocchio::Model * model,
                          pinocchio::Data * data,
-                         constraintsHolder_t * constraintsHolder,
+                         ConstraintTree * constraints,
                          double friction,
                          double torsion,
                          double tolAbs,
                          double tolRel,
-                         uint32_t maxIter) noexcept :
+                         uint32_t iterMax) noexcept :
     model_{model},
     data_{data},
-    maxIter_{maxIter},
+    iterMax_{iterMax},
     tolAbs_{tolAbs},
     tolRel_{tolRel}
     {
         Eigen::Index constraintsRowsMax = 0U;
-        constraintsHolder->foreach(
+        constraints->foreach(
             [&](const std::shared_ptr<AbstractConstraintBase> & constraint,
-                constraintsHolderType_t holderType)
+                ConstraintNodeType node)
             {
                 // Define constraint blocks
                 const Eigen::Index constraintDim = static_cast<Eigen::Index>(constraint->getDim());
                 ConstraintBlock block{};
                 ConstraintData constraintData{};
-                switch (holderType)
+                switch (node)
                 {
-                case constraintsHolderType_t::BOUNDS_JOINTS:
+                case ConstraintNodeType::BOUNDS_JOINTS:
                     // The joint is blocked in only one direction
                     block.lo = 0.0;
                     block.hi = INF;
-                    block.fIdx[0] = 0;
+                    block.fIndex[0] = 0;
                     block.fSize = 1;
                     constraintData.blocks[0] = block;
                     constraintData.nBlocks = 1;
                     break;
-                case constraintsHolderType_t::CONTACT_FRAMES:
-                case constraintsHolderType_t::COLLISION_BODIES:
+                case ConstraintNodeType::CONTACT_FRAMES:
+                case ConstraintNodeType::COLLISION_BODIES:
                     // Non-penetration normal force
                     block.lo = 0.0;
                     block.hi = INF;
-                    block.fIdx[0] = 2;
+                    block.fIndex[0] = 2;
                     block.fSize = 1;
                     constraintData.blocks[0] = block;
 
@@ -61,8 +61,8 @@ namespace jiminy
                     block.lo = qNAN;
                     block.hi = torsion;
                     block.isZero = (torsion < EPS);
-                    block.fIdx[0] = 3;
-                    block.fIdx[1] = 2;
+                    block.fIndex[0] = 3;
+                    block.fIndex[1] = 2;
                     block.fSize = 2;
                     constraintData.blocks[1] = block;
 
@@ -70,15 +70,15 @@ namespace jiminy
                     block.lo = qNAN;
                     block.hi = friction;
                     block.isZero = (friction < EPS);
-                    block.fIdx[0] = 0;
-                    block.fIdx[1] = 1;
-                    block.fIdx[2] = 2;
+                    block.fIndex[0] = 0;
+                    block.fIndex[1] = 1;
+                    block.fIndex[2] = 2;
                     block.fSize = 3;
                     constraintData.blocks[2] = block;
 
                     constraintData.nBlocks = 3;
                     break;
-                case constraintsHolderType_t::USER:
+                case ConstraintNodeType::USER:
                 default:
                     break;
                 }
@@ -111,9 +111,9 @@ namespace jiminy
             }
 
             // Loop over all coefficients individually
-            Eigen::Index i = constraintData.startIdx;
-            const Eigen::Index endIdx = i + constraintData.dim;
-            for (; i < endIdx; ++i)
+            Eigen::Index i = constraintData.startIndex;
+            const Eigen::Index endIndex = i + constraintData.dim;
+            for (; i < endIndex; ++i)
             {
                 y_[i] = b[i] - A.col(i).dot(x);
                 x[i] += y_[i] / A(i, i);
@@ -135,10 +135,10 @@ namespace jiminy
 
                 // Extract block data
                 const ConstraintBlock & block = constraintData.blocks[i];
-                const Eigen::Index * fIdx = block.fIdx;
+                const Eigen::Index * fIndex = block.fIndex;
                 const std::uint_fast8_t & fSize = block.fSize;
-                const Eigen::Index o = constraintData.startIdx;
-                const Eigen::Index i0 = o + fIdx[0];
+                const Eigen::Index o = constraintData.startIndex;
+                const Eigen::Index i0 = o + fIndex[0];
                 const double hi = block.hi;
                 const double lo = block.lo;
                 double & e = x[i0];
@@ -150,7 +150,7 @@ namespace jiminy
                     e *= 0;
                     for (std::uint_fast8_t j = 1; j < fSize - 1; ++j)
                     {
-                        x[o + fIdx[j]] *= 0;
+                        x[o + fIndex[j]] *= 0;
                     }
                     continue;
                 }
@@ -160,7 +160,7 @@ namespace jiminy
                 y_[i0] = b[i0] - A.col(i0).dot(x);
                 for (std::uint_fast8_t j = 1; j < fSize - 1; ++j)
                 {
-                    const Eigen::Index k = o + fIdx[j];
+                    const Eigen::Index k = o + fIndex[j];
                     y_[k] = b[k] - A.col(k).dot(x);
                     const double A_kk = A(k, k);
                     if (A_kk > A_max)
@@ -171,7 +171,7 @@ namespace jiminy
                 e += y_[i0] / A_max;
                 for (std::uint_fast8_t j = 1; j < fSize - 1; ++j)
                 {
-                    const Eigen::Index k = o + fIdx[j];
+                    const Eigen::Index k = o + fIndex[j];
                     x[k] += y_[k] / A_max;
                 }
 
@@ -183,7 +183,7 @@ namespace jiminy
                 }
                 else
                 {
-                    const double thr = hi * xConst[fIdx[fSize - 1]];
+                    const double thr = hi * xConst[fIndex[fSize - 1]];
                     if (fSize == 2)
                     {
                         // Specialization for speedup and numerical stability
@@ -195,7 +195,7 @@ namespace jiminy
                         double squaredNorm = e * e;
                         for (std::uint_fast8_t j = 1; j < fSize - 1; ++j)
                         {
-                            const double f = xConst[fIdx[j]];
+                            const double f = xConst[fIndex[j]];
                             squaredNorm += f * f;
                         }
                         if (squaredNorm > thr * thr)
@@ -204,7 +204,7 @@ namespace jiminy
                             e *= scale;
                             for (std::uint_fast8_t j = 1; j < fSize - 1; ++j)
                             {
-                                xConst[fIdx[j]] *= scale;
+                                xConst[fIndex[j]] *= scale;
                             }
                         }
                     }
@@ -227,7 +227,7 @@ namespace jiminy
         y_.setZero();
 
         // Perform multiple PGS loop until convergence or max iter reached
-        for (uint32_t iter = 0; iter < maxIter_; ++iter)
+        for (uint32_t iter = 0; iter < iterMax_; ++iter)
         {
             // Backup previous residuals
             yPrev_ = y_;
@@ -267,7 +267,7 @@ namespace jiminy
                 gamma_.segment(constraintRows, constraintDim) = constraint->getDrift();
                 lambda_.segment(constraintRows, constraintDim) = constraint->lambda_;
             }
-            constraintData.startIdx = constraintRows;
+            constraintData.startIndex = constraintRows;
             constraintRows += constraintDim;
         };
 
@@ -287,16 +287,8 @@ namespace jiminy
         Eigen::MatrixXd & A = data_->JMinvJt;
         if (!isStateUpToDate)
         {
-            /* Compute JMinvJt, including cholesky decomposition of inertia matrix.
-               Abort computation if the inertia matrix is not positive definite, which is never
-               supposed to happen in theory but in practice it is not sure because of compounding
-               of errors. */
-            const hresult_t returnCode = pinocchio_overload::computeJMinvJt(*model_, *data_, J);
-            if (returnCode != hresult_t::SUCCESS)
-            {
-                data_->ddq.setConstant(qNAN);
-                return false;
-            }
+            // Compute JMinvJt, including cholesky decomposition of inertia matrix
+            pinocchio_overload::computeJMinvJt(*model_, *data_, J);
 
             /* Add regularization term in case A is not invertible.
 

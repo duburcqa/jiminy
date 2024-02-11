@@ -20,7 +20,7 @@ from ray.rllib.policy.view_requirement import ViewRequirement
 _, tf, _ = try_import_tf()
 _, nn = try_import_torch()
 
-logger = logging.getLogger(__name__)
+LOGGER = logging.getLogger(__name__)
 
 
 class FullyConnectedNetwork(TorchModelV2, nn.Module):
@@ -42,7 +42,7 @@ class FullyConnectedNetwork(TorchModelV2, nn.Module):
         no_final_linear = model_config.get("no_final_linear")
         vf_share_layers = model_config.get("vf_share_layers")
 
-        logger.debug("Constructing fcnet {} {}".format(hiddens, activation))
+        LOGGER.debug("Constructing fcnet {} {}".format(hiddens, activation))
         layers = []
         prev_layer_size = int(np.product(obs_space.shape))
         self._logits = None

@@ -17,8 +17,8 @@ from typing import (
 import toml
 import gymnasium as gym
 
-from ..bases import (JiminyEnvInterface,
-                     BlockInterface,
+from ..bases import (InterfaceJiminyEnv,
+                     InterfaceBlock,
                      BaseControllerBlock,
                      BaseObserverBlock,
                      BasePipelineWrapper,
@@ -94,7 +94,7 @@ class LayerConfig(TypedDict, total=False):
 
 def build_pipeline(env_config: EnvConfig,
                    layers_config: Sequence[LayerConfig]
-                   ) -> Callable[..., JiminyEnvInterface]:
+                   ) -> Callable[..., InterfaceJiminyEnv]:
     """Wrap together an environment inheriting from `BaseJiminyEnv` with any
     number of layers, as a unified pipeline environment class inheriting from
     `BasePipelineWrapper`. Each layer is wrapped individually and successively.
@@ -108,10 +108,10 @@ def build_pipeline(env_config: EnvConfig,
         configuration of a individual layer, as a dict of type `LayerConfig`.
     """
     # Define helper to wrap a single layer
-    def build_layer(env_creator: Callable[..., JiminyEnvInterface],
+    def build_layer(env_creator: Callable[..., InterfaceJiminyEnv],
                     wrapper_cls: Type[BasePipelineWrapper],
                     wrapper_kwargs: Dict[str, Any],
-                    block_cls: Optional[Type[BlockInterface]],
+                    block_cls: Optional[Type[InterfaceBlock]],
                     block_kwargs: Dict[str, Any],
                     **env_kwargs: Any
                     ) -> BasePipelineWrapper:
@@ -171,12 +171,12 @@ def build_pipeline(env_config: EnvConfig,
         return wrapper_cls(*args, **wrapper_kwargs)
 
     # Define callback for instantiating the base environment
-    env_cls: Union[Type[JiminyEnvInterface], str] = env_config["cls"]
+    env_cls: Union[Type[InterfaceJiminyEnv], str] = env_config["cls"]
     if isinstance(env_cls, str):
         obj = locate(env_cls)
-        assert isinstance(obj, type) and issubclass(obj, JiminyEnvInterface)
+        assert isinstance(obj, type) and issubclass(obj, InterfaceJiminyEnv)
         env_cls = obj
-    pipeline_creator: Callable[..., JiminyEnvInterface] = partial(
+    pipeline_creator: Callable[..., InterfaceJiminyEnv] = partial(
         env_cls, **env_config.get("kwargs", {}))
 
     # Generate pipeline recursively
@@ -187,14 +187,14 @@ def build_pipeline(env_config: EnvConfig,
 
         # Make sure block and wrappers are class type and parse them if string
         block_cls = block_config.get("cls")
-        block_cls_: Optional[Type[BlockInterface]] = None
+        block_cls_: Optional[Type[InterfaceBlock]] = None
         if isinstance(block_cls, str):
             obj = locate(block_cls)
             assert (isinstance(obj, type) and
-                    issubclass(obj, BlockInterface))
+                    issubclass(obj, InterfaceBlock))
             block_cls_ = obj
         elif block_cls is not None:
-            assert issubclass(block_cls, BlockInterface)
+            assert issubclass(block_cls, InterfaceBlock)
             block_cls_ = block_cls
         wrapper_cls = wrapper_config.get("cls")
         wrapper_cls_: Optional[Type[BasePipelineWrapper]] = None
@@ -239,7 +239,7 @@ def build_pipeline(env_config: EnvConfig,
     return pipeline_creator
 
 
-def load_pipeline(fullpath: str) -> Callable[..., JiminyEnvInterface]:
+def load_pipeline(fullpath: str) -> Callable[..., InterfaceJiminyEnv]:
     """Load pipeline from JSON or TOML configuration file.
 
     :param: Fullpath of the configuration file.

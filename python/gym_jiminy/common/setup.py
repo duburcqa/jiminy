@@ -54,9 +54,6 @@ setup(
         # Use internally to speedup computation of math methods
         # - 0.54: Adds 'np.clip'
         "numba>=0.54.0",
-        # Use to operate on nested data structure conveniently.
-        # - 0.1.7 breaking API and internal changes.
-        "dm-tree>=0.1.7",
         # Standard interface library for reinforcement learning.
         # - `gym` has been replaced by `gymnasium` for 0.26.0+
         # - 0.28.0: fully typed

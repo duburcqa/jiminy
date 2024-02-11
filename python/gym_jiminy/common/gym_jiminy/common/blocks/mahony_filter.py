@@ -12,7 +12,7 @@ from jiminy_py.core import (  # pylint: disable=no-name-in-module
     ImuSensor as imu)
 import pinocchio as pin
 
-from ..bases import BaseObsT, BaseActT, BaseObserverBlock, JiminyEnvInterface
+from ..bases import BaseObsT, BaseActT, BaseObserverBlock, InterfaceJiminyEnv
 from ..utils import fill
 
 
@@ -94,7 +94,7 @@ def mahony_filter(q: np.ndarray,
     bias_hat -= dt * ki * omega_mes
 
 
-@nb.jit(nopython=True, nogil=True, cache=False)
+@nb.jit(nopython=True, nogil=True, cache=True)
 def remove_twist(q: np.ndarray) -> None:
     """Remove the twist part of the Twist-after-Swing decomposition of given
     orientations in quaternion representation.
@@ -223,7 +223,7 @@ class MahonyFilter(
     """
     def __init__(self,
                  name: str,
-                 env: JiminyEnvInterface[BaseObsT, BaseActT],
+                 env: InterfaceJiminyEnv[BaseObsT, BaseActT],
                  *,
                  update_ratio: int = 1,
                  twist_time_constant: Optional[float] = None,
@@ -271,7 +271,7 @@ class MahonyFilter(
                           Optional: `0.1` by default.
         """
         # Handling of default argument(s)
-        num_imu_sensors = len(env.robot.sensors_names[imu.type])
+        num_imu_sensors = len(env.robot.sensor_names[imu.type])
         if isinstance(kp, float):
             kp = np.full((num_imu_sensors,), kp)
         if isinstance(ki, float):
@@ -297,7 +297,7 @@ class MahonyFilter(
             np.isfinite(self.twist_time_constant_inv))
 
         # Extract gyroscope and accelerometer data for fast access
-        self.gyro, self.acc = np.split(env.sensors_data[imu.type], 2)
+        self.gyro, self.acc = np.split(env.sensor_measurements[imu.type], 2)
 
         # Allocate gyroscope bias estimate
         self._bias = np.zeros((3, num_imu_sensors))
@@ -323,7 +323,7 @@ class MahonyFilter(
         # internal state of the (partially observable) MDP since the previous
         # observation must be provided anyway when integrating the observable
         # dynamics by definition.
-        num_imu_sensors = len(self.env.robot.sensors_names[imu.type])
+        num_imu_sensors = len(self.env.robot.sensor_names[imu.type])
         self.state_space = gym.spaces.Box(
             low=np.full((3, num_imu_sensors), -np.inf),
             high=np.full((3, num_imu_sensors), np.inf),
@@ -336,7 +336,7 @@ class MahonyFilter(
         the robot at once, with special treatment for their twist part. See
         `__init__` documentation for details.
         """
-        num_imu_sensors = len(self.env.robot.sensors_names[imu.type])
+        num_imu_sensors = len(self.env.robot.sensor_names[imu.type])
         self.observation_space = gym.spaces.Box(
             low=np.full((4, num_imu_sensors), -1.0 - 1e-9),
             high=np.full((4, num_imu_sensors), 1.0 + 1e-9),
@@ -352,7 +352,8 @@ class MahonyFilter(
                 "This block does not support time-continuous update.")
 
         # Refresh gyroscope and accelerometer proxies
-        self.gyro, self.acc = np.split(self.env.sensors_data[imu.type], 2)
+        self.gyro, self.acc = np.split(
+            self.env.sensor_measurements[imu.type], 2)
 
         # Reset the sensor bias
         fill(self._bias, 0)
@@ -379,7 +380,7 @@ class MahonyFilter(
         observation space, but having lists of string as leaves. Generic
         fieldnames are used by default.
         """
-        sensor_names = self.env.robot.sensors_names[imu.type]
+        sensor_names = self.env.robot.sensor_names[imu.type]
         return [[f"{name}.Quat{e}" for name in sensor_names]
                 for e in ("x", "y", "z", "w")]
 
@@ -402,10 +403,10 @@ class MahonyFilter(
                     is_initialized = True
             if not is_initialized:
                 robot = self.env.robot
-                for i, name in enumerate(robot.sensors_names[imu.type]):
+                for i, name in enumerate(robot.sensor_names[imu.type]):
                     sensor = robot.get_sensor(imu.type, name)
                     assert isinstance(sensor, imu)
-                    rot = robot.pinocchio_data.oMf[sensor.frame_idx].rotation
+                    rot = robot.pinocchio_data.oMf[sensor.frame_index].rotation
                     self.observation[:, i] = pin.Quaternion(rot).coeffs()
                     if self._update_twist:
                         self._twist[i] = np.arctan2(

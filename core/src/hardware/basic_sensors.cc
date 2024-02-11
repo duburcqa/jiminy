@@ -14,49 +14,36 @@
 #include "jiminy/core/hardware/basic_sensors.h"
 
 
-#define GET_ROBOT_AND_CHECK_SENSOR_INTEGRITY()                                           \
-    if (!isAttached_)                                                                    \
-    {                                                                                    \
-        PRINT_ERROR("Sensor not attached to any robot. Impossible to refresh proxies."); \
-        returnCode = hresult_t::ERROR_INIT_FAILED;                                       \
-    }                                                                                    \
-                                                                                         \
-    auto robot = robot_.lock();                                                          \
-    if (returnCode == hresult_t::SUCCESS)                                                \
-    {                                                                                    \
-        if (!robot)                                                                      \
-        {                                                                                \
-            PRINT_ERROR("Robot has been deleted. Impossible to refresh proxies.");       \
-            returnCode = hresult_t::ERROR_GENERIC;                                       \
-        }                                                                                \
-    }                                                                                    \
-                                                                                         \
-    if (returnCode == hresult_t::SUCCESS)                                                \
-    {                                                                                    \
-        if (!robot->getIsInitialized())                                                  \
-        {                                                                                \
-            PRINT_ERROR("Robot not initialized. Impossible to refresh proxies.");        \
-            returnCode = hresult_t::ERROR_INIT_FAILED;                                   \
-        }                                                                                \
-    }                                                                                    \
-                                                                                         \
-    if (returnCode == hresult_t::SUCCESS)                                                \
-    {                                                                                    \
-        if (!isInitialized_)                                                             \
-        {                                                                                \
-            PRINT_ERROR("Sensor not initialized. Impossible to refresh proxies.");       \
-            returnCode = hresult_t::ERROR_INIT_FAILED;                                   \
-        }                                                                                \
+#define GET_ROBOT_AND_CHECK_SENSOR_INTEGRITY()                                                   \
+    if (!isAttached_)                                                                            \
+    {                                                                                            \
+        THROW_ERROR(bad_control_flow,                                                            \
+                    "Sensor not attached to any robot. Impossible to refresh proxies.");         \
+    }                                                                                            \
+                                                                                                 \
+    auto robot = robot_.lock();                                                                  \
+    if (!robot)                                                                                  \
+    {                                                                                            \
+        THROW_ERROR(bad_control_flow, "Robot has been deleted. Impossible to refresh proxies."); \
+    }                                                                                            \
+                                                                                                 \
+    if (!robot->getIsInitialized())                                                              \
+    {                                                                                            \
+        THROW_ERROR(bad_control_flow, "Robot not initialized. Impossible to refresh proxies.");  \
+    }                                                                                            \
+                                                                                                 \
+    if (!isInitialized_)                                                                         \
+    {                                                                                            \
+        THROW_ERROR(bad_control_flow, "Sensor not initialized. Impossible to refresh proxies."); \
     }
 
 
-#define GET_ROBOT_IF_INITIALIZED()                                           \
-    if (!isInitialized_)                                                     \
-    {                                                                        \
-        PRINT_ERROR("Sensor not initialized. Impossible to update sensor."); \
-        return hresult_t::ERROR_INIT_FAILED;                                 \
-    }                                                                        \
-                                                                             \
+#define GET_ROBOT_IF_INITIALIZED()                                                             \
+    if (!isInitialized_)                                                                       \
+    {                                                                                          \
+        THROW_ERROR(bad_control_flow, "Sensor not initialized. Impossible to update sensor."); \
+    }                                                                                          \
+                                                                                               \
     auto robot = robot_.lock();
 
 
@@ -72,80 +59,64 @@ namespace jiminy
     template<>
     const bool AbstractSensorTpl<ImuSensor>::areFieldnamesGrouped_{false};
 
-    hresult_t ImuSensor::initialize(const std::string & frameName)
+    void ImuSensor::initialize(const std::string & frameName)
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
         frameName_ = frameName;
         isInitialized_ = true;
-        returnCode = refreshProxies();
 
-        if (returnCode != hresult_t::SUCCESS)
+        try
+        {
+            refreshProxies();
+        }
+        catch (...)
         {
             frameName_.clear();
             isInitialized_ = false;
+            throw;
         }
-
-        return returnCode;
     }
 
-    hresult_t ImuSensor::setOptions(const GenericConfig & sensorOptions)
+    void ImuSensor::setOptions(const GenericConfig & sensorOptions)
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
         // Check that bias / std is of the correct size
         const Eigen::VectorXd & bias = boost::get<Eigen::VectorXd>(sensorOptions.at("bias"));
         const Eigen::VectorXd & noiseStd =
             boost::get<Eigen::VectorXd>(sensorOptions.at("noiseStd"));
         if (bias.size() && bias.size() != 9)
         {
-            PRINT_ERROR(
+            THROW_ERROR(
+                std::invalid_argument,
                 "Wrong bias vector. It must contain 9 values:\n"
                 "  - the first three are the angle-axis representation of a rotation bias applied "
                 "to all sensor signal.\n"
                 "  - the next six are respectively gyroscope and accelerometer additive bias.");
-            returnCode = hresult_t::ERROR_BAD_INPUT;
         }
         if (noiseStd.size() && noiseStd.size() != 6)
         {
-            PRINT_ERROR("Wrong noise std vector. It must contain 6 values corresponding "
-                        "respectively to gyroscope and accelerometer additive bias.");
-            returnCode = hresult_t::ERROR_BAD_INPUT;
+            THROW_ERROR(
+                std::invalid_argument,
+                "Wrong noise std vector. It must contain 6 values corresponding respectively to "
+                "gyroscope and accelerometer additive bias.");
         }
 
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            returnCode = AbstractSensorTpl<ImuSensor>::setOptions(sensorOptions);
-        }
-
-        return returnCode;
+        AbstractSensorTpl<ImuSensor>::setOptions(sensorOptions);
     }
 
-    hresult_t ImuSensor::refreshProxies()
+    void ImuSensor::refreshProxies()
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
         GET_ROBOT_AND_CHECK_SENSOR_INTEGRITY()
 
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            returnCode = ::jiminy::getFrameIdx(robot->pncModel_, frameName_, frameIdx_);
-        }
+        frameIndex_ = ::jiminy::getFrameIndex(robot->pinocchioModel_, frameName_);
 
-        if (returnCode == hresult_t::SUCCESS)
+        if (baseSensorOptions_->bias.size())
         {
-            if (baseSensorOptions_->bias.size())
-            {
-                // Convert first three components of bias to quaternion
-                sensorRotationBiasInv_ = pinocchio::exp3(-baseSensorOptions_->bias.head<3>());
-            }
-            else
-            {
-                sensorRotationBiasInv_ = Eigen::Matrix3d::Identity();
-            }
+            // Convert first three components of bias to quaternion
+            sensorRotationBiasInv_ = pinocchio::exp3(-baseSensorOptions_->bias.head<3>());
         }
-
-        return returnCode;
+        else
+        {
+            sensorRotationBiasInv_ = Eigen::Matrix3d::Identity();
+        }
     }
 
     const std::string & ImuSensor::getFrameName() const
@@ -153,35 +124,33 @@ namespace jiminy
         return frameName_;
     }
 
-    pinocchio::FrameIndex ImuSensor::getFrameIdx() const
+    pinocchio::FrameIndex ImuSensor::getFrameIndex() const
     {
-        return frameIdx_;
+        return frameIndex_;
     }
 
-    hresult_t ImuSensor::set(double /* t */,
-                             const Eigen::VectorXd & /* q */,
-                             const Eigen::VectorXd & /* v */,
-                             const Eigen::VectorXd & /* a */,
-                             const Eigen::VectorXd & /* uMotor */,
-                             const ForceVector & /* fExternal */)
+    void ImuSensor::set(double /* t */,
+                        const Eigen::VectorXd & /* q */,
+                        const Eigen::VectorXd & /* v */,
+                        const Eigen::VectorXd & /* a */,
+                        const Eigen::VectorXd & /* uMotor */,
+                        const ForceVector & /* fExternal */)
     {
         GET_ROBOT_IF_INITIALIZED()
 
         // Compute gyroscope signal
         const pinocchio::Motion velocity = pinocchio::getFrameVelocity(
-            robot->pncModel_, robot->pncData_, frameIdx_, pinocchio::LOCAL);
+            robot->pinocchioModel_, robot->pinocchioData_, frameIndex_, pinocchio::LOCAL);
         data().head<3>() = velocity.angular();
 
         // Compute accelerometer signal
         const pinocchio::Motion acceleration = pinocchio::getFrameClassicalAcceleration(
-            robot->pncModel_, robot->pncData_, frameIdx_, pinocchio::LOCAL);
+            robot->pinocchioModel_, robot->pinocchioData_, frameIndex_, pinocchio::LOCAL);
 
         // Accelerometer measures the classical (not spatial !) linear acceleration minus gravity
-        const Eigen::Matrix3d & rot = robot->pncData_.oMf[frameIdx_].rotation();
+        const Eigen::Matrix3d & rot = robot->pinocchioData_.oMf[frameIndex_].rotation();
         data().tail<3>() =
-            acceleration.linear() - rot.transpose() * robot->pncModel_.gravity.linear();
-
-        return hresult_t::SUCCESS;
+            acceleration.linear() - rot.transpose() * robot->pinocchioModel_.gravity.linear();
     }
 
     void ImuSensor::measureData()
@@ -216,57 +185,44 @@ namespace jiminy
     template<>
     const bool AbstractSensorTpl<ContactSensor>::areFieldnamesGrouped_{false};
 
-    hresult_t ContactSensor::initialize(const std::string & frameName)
+    void ContactSensor::initialize(const std::string & frameName)
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
         frameName_ = frameName;
         isInitialized_ = true;
-        returnCode = refreshProxies();
 
-        if (returnCode != hresult_t::SUCCESS)
+        try
+        {
+            refreshProxies();
+        }
+        catch (...)
         {
             frameName_.clear();
             isInitialized_ = false;
+            throw;
         }
-
-        return returnCode;
     }
 
-    hresult_t ContactSensor::refreshProxies()
+    void ContactSensor::refreshProxies()
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
         GET_ROBOT_AND_CHECK_SENSOR_INTEGRITY()
 
-        if (returnCode == hresult_t::SUCCESS)
+        const std::vector<std::string> & contactFrameNames = robot->getContactFrameNames();
+        auto contactFrameNameIt =
+            std::find(contactFrameNames.begin(), contactFrameNames.end(), frameName_);
+        if (contactFrameNameIt == contactFrameNames.end())
         {
-            const std::vector<std::string> & contactFramesNames = robot->getContactFramesNames();
-            auto contactFrameNameIt =
-                std::find(contactFramesNames.begin(), contactFramesNames.end(), frameName_);
-            if (contactFrameNameIt == contactFramesNames.end())
-            {
-                PRINT_ERROR("Sensor frame not associated with any contact point of the robot. "
-                            "Impossible to refresh proxies.");
-                returnCode = hresult_t::ERROR_BAD_INPUT;
-            }
+            THROW_ERROR(std::logic_error,
+                        "Sensor frame not associated with any contact point of the robot. "
+                        "Impossible to refresh proxies.");
         }
 
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            returnCode = ::jiminy::getFrameIdx(robot->pncModel_, frameName_, frameIdx_);
-        }
+        frameIndex_ = ::jiminy::getFrameIndex(robot->pinocchioModel_, frameName_);
 
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            const std::vector<pinocchio::FrameIndex> & contactFramesIdx =
-                robot->getContactFramesIdx();
-            auto contactFrameIdxIt =
-                std::find(contactFramesIdx.begin(), contactFramesIdx.end(), frameIdx_);
-            contactForceIdx_ = std::distance(contactFramesIdx.begin(), contactFrameIdxIt);
-        }
-
-        return returnCode;
+        const std::vector<pinocchio::FrameIndex> & contactFrameIndices =
+            robot->getContactFrameIndices();
+        auto contactFrameIndexIt =
+            std::find(contactFrameIndices.begin(), contactFrameIndices.end(), frameIndex_);
+        contactIndex_ = std::distance(contactFrameIndices.begin(), contactFrameIndexIt);
     }
 
     const std::string & ContactSensor::getFrameName() const
@@ -274,23 +230,21 @@ namespace jiminy
         return frameName_;
     }
 
-    pinocchio::FrameIndex ContactSensor::getFrameIdx() const
+    pinocchio::FrameIndex ContactSensor::getFrameIndex() const
     {
-        return frameIdx_;
+        return frameIndex_;
     }
 
-    hresult_t ContactSensor::set(double /* t */,
-                                 const Eigen::VectorXd & /* q */,
-                                 const Eigen::VectorXd & /* v */,
-                                 const Eigen::VectorXd & /* a */,
-                                 const Eigen::VectorXd & /* uMotor */,
-                                 const ForceVector & /* fExternal */)
+    void ContactSensor::set(double /* t */,
+                            const Eigen::VectorXd & /* q */,
+                            const Eigen::VectorXd & /* v */,
+                            const Eigen::VectorXd & /* a */,
+                            const Eigen::VectorXd & /* uMotor */,
+                            const ForceVector & /* fExternal */)
     {
         GET_ROBOT_IF_INITIALIZED()
 
-        data() = robot->contactForces_[contactForceIdx_].linear();
-
-        return hresult_t::SUCCESS;
+        data() = robot->contactForces_[contactIndex_].linear();
     }
 
     // ===================== ForceSensor =========================
@@ -303,61 +257,49 @@ namespace jiminy
     template<>
     const bool AbstractSensorTpl<ForceSensor>::areFieldnamesGrouped_{false};
 
-    hresult_t ForceSensor::initialize(const std::string & frameName)
+    void ForceSensor::initialize(const std::string & frameName)
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
         frameName_ = frameName;
         isInitialized_ = true;
-        returnCode = refreshProxies();
 
-        if (returnCode != hresult_t::SUCCESS)
+        try
+        {
+            refreshProxies();
+        }
+        catch (...)
         {
             frameName_.clear();
             isInitialized_ = false;
+            throw;
         }
-
-        return returnCode;
     }
 
-    hresult_t ForceSensor::refreshProxies()
+    void ForceSensor::refreshProxies()
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
         GET_ROBOT_AND_CHECK_SENSOR_INTEGRITY()
 
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            returnCode = ::jiminy::getFrameIdx(robot->pncModel_, frameName_, frameIdx_);
-        }
+        frameIndex_ = ::jiminy::getFrameIndex(robot->pinocchioModel_, frameName_);
 
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            // 'parent' returns the parent joint
-            parentJointModelIdx_ = robot->pncModel_.frames[frameIdx_].parent;
-        }
+        // 'parent' returns the parent joint
+        parentJointIndex_ = robot->pinocchioModel_.frames[frameIndex_].parent;
 
-        if (returnCode == hresult_t::SUCCESS)
+        contactIndexPlacementPairs_.clear();
+        const pinocchio::Frame & frameRef = robot->pinocchioModel_.frames[frameIndex_];
+        const std::vector<pinocchio::FrameIndex> & contactFrameIndices =
+            robot->getContactFrameIndices();
+        for (uint32_t contactIndex = 0; contactIndex < contactFrameIndices.size(); ++contactIndex)
         {
-            contactForcesIdxAndPlacement_.clear();
-            const pinocchio::Frame & frameRef = robot->pncModel_.frames[frameIdx_];
-            const std::vector<pinocchio::FrameIndex> & contactFramesIdx =
-                robot->getContactFramesIdx();
-            for (uint32_t contactIdx = 0; contactIdx < contactFramesIdx.size(); ++contactIdx)
+            pinocchio::FrameIndex contactFrameIndex = contactFrameIndices[contactIndex];
+            const pinocchio::Frame & contactFrame =
+                robot->pinocchioModel_.frames[contactFrameIndex];
+            if (parentJointIndex_ == contactFrame.parent)
             {
-                pinocchio::FrameIndex contactFrameIdx = contactFramesIdx[contactIdx];
-                const pinocchio::Frame & contactFrame = robot->pncModel_.frames[contactFrameIdx];
-                if (parentJointModelIdx_ == contactFrame.parent)
-                {
-                    const pinocchio::SE3 contactPlacementRel =
-                        frameRef.placement.actInv(contactFrame.placement);
-                    contactForcesIdxAndPlacement_.emplace_back(contactIdx,
-                                                               std::move(contactPlacementRel));
-                }
+                const pinocchio::SE3 contactPlacementRel =
+                    frameRef.placement.actInv(contactFrame.placement);
+                contactIndexPlacementPairs_.emplace_back(contactIndex,
+                                                         std::move(contactPlacementRel));
             }
         }
-
-        return returnCode;
     }
 
     const std::string & ForceSensor::getFrameName() const
@@ -365,22 +307,22 @@ namespace jiminy
         return frameName_;
     }
 
-    pinocchio::FrameIndex ForceSensor::getFrameIdx() const
+    pinocchio::FrameIndex ForceSensor::getFrameIndex() const
     {
-        return frameIdx_;
+        return frameIndex_;
     }
 
-    pinocchio::JointIndex ForceSensor::getJointModelIdx() const
+    pinocchio::JointIndex ForceSensor::getJointIndex() const
     {
-        return parentJointModelIdx_;
+        return parentJointIndex_;
     }
 
-    hresult_t ForceSensor::set(double /* t */,
-                               const Eigen::VectorXd & /* q */,
-                               const Eigen::VectorXd & /* v */,
-                               const Eigen::VectorXd & /* a */,
-                               const Eigen::VectorXd & /* uMotor */,
-                               const ForceVector & /* fExternal */)
+    void ForceSensor::set(double /* t */,
+                          const Eigen::VectorXd & /* q */,
+                          const Eigen::VectorXd & /* v */,
+                          const Eigen::VectorXd & /* a */,
+                          const Eigen::VectorXd & /* uMotor */,
+                          const ForceVector & /* fExternal */)
     {
         // Returns the force applied on parent body in frame
 
@@ -388,14 +330,12 @@ namespace jiminy
 
         // Compute the sum of all contact forces applied on parent joint
         data().setZero();
-        for (const auto & [contactForceIndex, contactPlacement] : contactForcesIdxAndPlacement_)
+        for (const auto & [contactIndex, contactPlacement] : contactIndexPlacementPairs_)
         {
             // Must transform the force from contact frame to sensor frame
-            f_ = contactPlacement.act(robot->contactForces_[contactForceIndex]);
+            f_ = contactPlacement.act(robot->contactForces_[contactIndex]);
             data() += f_.toVector();
         }
-
-        return hresult_t::SUCCESS;
     }
 
     // ===================== EncoderSensor =========================
@@ -407,54 +347,43 @@ namespace jiminy
     template<>
     const bool AbstractSensorTpl<EncoderSensor>::areFieldnamesGrouped_{true};
 
-    hresult_t EncoderSensor::initialize(const std::string & jointName)
+    void EncoderSensor::initialize(const std::string & jointName)
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
         jointName_ = jointName;
         isInitialized_ = true;
-        returnCode = refreshProxies();
 
-        if (returnCode != hresult_t::SUCCESS)
+        try
+        {
+            refreshProxies();
+        }
+        catch (...)
         {
             jointName_.clear();
             isInitialized_ = false;
+            throw;
         }
-
-        return returnCode;
     }
 
-    hresult_t EncoderSensor::refreshProxies()
+    void EncoderSensor::refreshProxies()
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
         GET_ROBOT_AND_CHECK_SENSOR_INTEGRITY()
 
-        if (returnCode == hresult_t::SUCCESS)
+        if (!robot->pinocchioModel_.existJointName(jointName_))
         {
-            if (!robot->pncModel_.existJointName(jointName_))
-            {
-                PRINT_ERROR("Sensor attached to a joint that does not exist.");
-                returnCode = hresult_t::ERROR_INIT_FAILED;
-            }
+            THROW_ERROR(std::runtime_error, "Sensor attached to a joint that does not exist.");
         }
 
-        if (returnCode == hresult_t::SUCCESS)
+        jointIndex_ = ::jiminy::getJointIndex(robot->pinocchioModel_, jointName_);
+        jointType_ = getJointTypeFromIndex(robot->pinocchioModel_, jointIndex_);
+
+        // Motors are only supported for linear and rotary joints
+        if (jointType_ != JointModelType::LINEAR && jointType_ != JointModelType::ROTARY &&
+            jointType_ != JointModelType::ROTARY_UNBOUNDED)
         {
-            jointModelIdx_ = robot->pncModel_.getJointId(jointName_);
-            getJointTypeFromIdx(robot->pncModel_, jointModelIdx_, jointType_);
-
-            // Motors are only supported for linear and rotary joints
-            if (jointType_ != JointModelType::LINEAR && jointType_ != JointModelType::ROTARY &&
-                jointType_ != JointModelType::ROTARY_UNBOUNDED)
-            {
-                PRINT_ERROR("An encoder sensor can only be associated with a 1-dof linear or "
-                            "rotary joint.");
-                returnCode = hresult_t::ERROR_BAD_INPUT;
-            }
+            THROW_ERROR(
+                std::runtime_error,
+                "Encoder sensors can only be associated with a 1-dof linear or rotary joint.");
         }
-
-        return returnCode;
     }
 
     const std::string & EncoderSensor::getJointName() const
@@ -462,9 +391,9 @@ namespace jiminy
         return jointName_;
     }
 
-    pinocchio::JointIndex EncoderSensor::getJointModelIdx() const
+    pinocchio::JointIndex EncoderSensor::getJointIndex() const
     {
-        return jointModelIdx_;
+        return jointIndex_;
     }
 
     JointModelType EncoderSensor::getJointType() const
@@ -472,31 +401,29 @@ namespace jiminy
         return jointType_;
     }
 
-    hresult_t EncoderSensor::set(double /* t */,
-                                 const Eigen::VectorXd & q,
-                                 const Eigen::VectorXd & v,
-                                 const Eigen::VectorXd & /* a */,
-                                 const Eigen::VectorXd & /* uMotor */,
-                                 const ForceVector & /* fExternal */)
+    void EncoderSensor::set(double /* t */,
+                            const Eigen::VectorXd & q,
+                            const Eigen::VectorXd & v,
+                            const Eigen::VectorXd & /* a */,
+                            const Eigen::VectorXd & /* uMotor */,
+                            const ForceVector & /* fExternal */)
     {
         GET_ROBOT_IF_INITIALIZED()
 
-        const auto & joint = robot->pncModel_.joints[jointModelIdx_];
-        const Eigen::Index jointPositionIdx = joint.idx_q();
-        const Eigen::Index jointVelocityIdx = joint.idx_v();
+        const auto & joint = robot->pinocchioModel_.joints[jointIndex_];
+        const Eigen::Index jointPositionIndex = joint.idx_q();
+        const Eigen::Index jointVelocityIndex = joint.idx_v();
         if (jointType_ == JointModelType::ROTARY_UNBOUNDED)
         {
-            const double cosTheta = q[jointPositionIdx];
-            const double sinTheta = q[jointPositionIdx + 1];
+            const double cosTheta = q[jointPositionIndex];
+            const double sinTheta = q[jointPositionIndex + 1];
             data()[0] = std::atan2(sinTheta, cosTheta);
         }
         else
         {
-            data()[0] = q[jointPositionIdx];
+            data()[0] = q[jointPositionIndex];
         }
-        data()[1] = v[jointVelocityIdx];
-
-        return hresult_t::SUCCESS;
+        data()[1] = v[jointVelocityIndex];
     }
 
     // ===================== EffortSensor =========================
@@ -508,41 +435,29 @@ namespace jiminy
     template<>
     const bool AbstractSensorTpl<EffortSensor>::areFieldnamesGrouped_{true};
 
-    hresult_t EffortSensor::initialize(const std::string & motorName)
+    void EffortSensor::initialize(const std::string & motorName)
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
         motorName_ = motorName;
         isInitialized_ = true;
-        returnCode = refreshProxies();
 
-        if (returnCode != hresult_t::SUCCESS)
+        try
+        {
+            refreshProxies();
+        }
+        catch (...)
         {
             motorName_.clear();
             isInitialized_ = false;
+            throw;
         }
-
-        return returnCode;
     }
 
-    hresult_t EffortSensor::refreshProxies()
+    void EffortSensor::refreshProxies()
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
         GET_ROBOT_AND_CHECK_SENSOR_INTEGRITY()
 
-        std::weak_ptr<const AbstractMotorBase> motor;
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            returnCode = robot->getMotor(motorName_, motor);
-        }
-
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            motorIdx_ = motor.lock()->getIdx();
-        }
-
-        return returnCode;
+        std::weak_ptr<const AbstractMotorBase> motor = robot->getMotor(motorName_);
+        motorIndex_ = motor.lock()->getIndex();
     }
 
     const std::string & EffortSensor::getMotorName() const
@@ -550,26 +465,24 @@ namespace jiminy
         return motorName_;
     }
 
-    std::size_t EffortSensor::getMotorIdx() const
+    std::size_t EffortSensor::getMotorIndex() const
     {
-        return motorIdx_;
+        return motorIndex_;
     }
 
-    hresult_t EffortSensor::set(double /* t */,
-                                const Eigen::VectorXd & /* q */,
-                                const Eigen::VectorXd & /* v */,
-                                const Eigen::VectorXd & /* a */,
-                                const Eigen::VectorXd & uMotor,
-                                const ForceVector & /* fExternal */)
+    void EffortSensor::set(double /* t */,
+                           const Eigen::VectorXd & /* q */,
+                           const Eigen::VectorXd & /* v */,
+                           const Eigen::VectorXd & /* a */,
+                           const Eigen::VectorXd & uMotor,
+                           const ForceVector & /* fExternal */)
     {
         if (!isInitialized_)
         {
-            PRINT_ERROR("Sensor not initialized. Impossible to set sensor data.");
-            return hresult_t::ERROR_INIT_FAILED;
+            THROW_ERROR(bad_control_flow,
+                        "Sensor not initialized. Impossible to set sensor data.");
         }
 
-        data()[0] = uMotor[motorIdx_];
-
-        return hresult_t::SUCCESS;
+        data()[0] = uMotor[motorIndex_];
     }
 }

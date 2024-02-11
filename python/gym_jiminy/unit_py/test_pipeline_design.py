@@ -1,13 +1,15 @@
 """ TODO: Write documentation
 """
+import gc
 import os
+import weakref
 import unittest
 
 import numpy as np
 
 from jiminy_py.robot import _gcd
 from gym_jiminy.common.utils import build_pipeline, load_pipeline
-from gym_jiminy.common.bases import JiminyEnvInterface
+from gym_jiminy.common.bases import InterfaceJiminyEnv
 
 
 TOLERANCE = 1.0e-6
@@ -109,6 +111,20 @@ class PipelineDesign(unittest.TestCase):
         env = self.ANYmalPipelineEnv()
         self.assertEqual(env.unwrapped.step_dt, self.step_dt)
 
+    def test_memory_leak(self):
+        """Check that memory is freed when environment goes out of scope.
+
+        This test aims to detect circular references between Python and C++
+        objects that cannot be tracked by Python, which would make it
+        impossible for the garbage collector to release memory.
+        """
+        env = self.ANYmalPipelineEnv()
+        env.reset()
+        proxy = weakref.proxy(env)
+        env = None
+        gc.collect()
+        self.assertRaises(ReferenceError, lambda: proxy.action)
+
     def test_initial_state(self):
         """ TODO: Write documentation
         """
@@ -137,7 +153,7 @@ class PipelineDesign(unittest.TestCase):
         self.assertTrue(np.all(controller_target_obs[-1] == 0.0))
 
         # Observation is consistent with internal simulator state
-        imu_data_ref = env.simulator.robot.sensors_data['ImuSensor']
+        imu_data_ref = env.simulator.robot.sensor_measurements['ImuSensor']
         imu_data_obs = obs['measurements']['ImuSensor'][-1]
         self.assertTrue(np.all(imu_data_ref == imu_data_obs))
         state_ref = {'q': env.system_state.q, 'v': env.system_state.v}
@@ -165,7 +181,7 @@ class PipelineDesign(unittest.TestCase):
         # Initial observation is consistent with internal simulator state
         controller_target_obs = obs['actions']['pd_controller']
         self.assertTrue(np.all(controller_target_obs[-1] == action))
-        imu_data_ref = env.simulator.robot.sensors_data['ImuSensor']
+        imu_data_ref = env.simulator.robot.sensor_measurements['ImuSensor']
         imu_data_obs = obs['measurements']['ImuSensor'][-1]
         self.assertFalse(np.all(imu_data_ref == imu_data_obs))
         state_ref = {'q': env.system_state.q, 'v': env.system_state.v}
@@ -180,7 +196,7 @@ class PipelineDesign(unittest.TestCase):
         for i, t in enumerate(np.flip(obs['t'])):
             self.assertTrue(np.isclose(
                 t, n_steps_breakpoint * env.step_dt - i * stack_dt, TOLERANCE))
-        imu_data_ref = env.simulator.robot.sensors_data['ImuSensor']
+        imu_data_ref = env.simulator.robot.sensor_measurements['ImuSensor']
         imu_data_obs = obs['measurements']['ImuSensor'][-1]
         self.assertTrue(np.all(imu_data_ref == imu_data_obs))
 
@@ -188,7 +204,7 @@ class PipelineDesign(unittest.TestCase):
         # Perform a single step and get log data
         env = self.ANYmalPipelineEnv()
 
-        def configure_telemetry() -> JiminyEnvInterface:
+        def configure_telemetry() -> InterfaceJiminyEnv:
             engine_options = env.simulator.engine.get_options()
             engine_options['telemetry']['enableCommand'] = True
             env.simulator.engine.set_options(engine_options)

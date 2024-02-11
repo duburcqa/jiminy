@@ -10,26 +10,27 @@ on:
 jobs:
   build-test-and-deploy-doc-ubuntu:
     name: >-
-      (${{ matrix.os }}) (${{ matrix.BUILD_TYPE }}) (${{ matrix.COMPILER }}, ${{ matrix.GENERATOR }})
+      (${{ matrix.OS }}) (${{ matrix.BUILD_TYPE }}) (${{ matrix.COMPILER }}, ${{ matrix.GENERATOR }})
       Easy install the dependencies. Build the project and run the unit tests. Generate and deploy the documentation.
-    runs-on: ${{ matrix.os }}
 
     strategy:
       matrix:
-        os: [ubuntu-20.04, ubuntu-22.04]
+        OS: ['ubuntu-20.04', 'ubuntu-22.04']
         GENERATOR: ['Unix Makefiles']
         COMPILER: ['gcc']
         BUILD_TYPE: ['Release']
         include:
-          - os: ubuntu-20.04
+          - OS: 'ubuntu-20.04'
             GENERATOR: 'Unix Makefiles'
             COMPILER: 'gcc'
             BUILD_TYPE: 'Debug'
-          - os: ubuntu-20.04  # For some reason, importing 'jiminy_py' causes segfault on ubuntu-22.04
+          - OS: 'ubuntu-20.04'  # For some reason, importing 'jiminy_py' causes segfault on ubuntu-22.04
             GENERATOR: 'Ninja'
             COMPILER: 'clang'
             LINKER_FLAGS: '-fuse-ld=gold'
             BUILD_TYPE: 'Release'
+
+    runs-on: ${{ matrix.OS }}
 
     defaults:
       run:
@@ -42,7 +43,7 @@ jobs:
     - name: Checkout branch
       uses: actions/checkout@v4
     - name: Free Disk Space
-      uses: jlumbroso/free-disk-space@v1.3.0
+      uses: jlumbroso/free-disk-space@v1.3.1
       with:
         tool-cache: false
         android: true
@@ -80,7 +81,7 @@ jobs:
     #####################################################################################
 
     - name: PEP8 Code Style Check
-      if: matrix.os == 'ubuntu-20.04' && matrix.BUILD_TYPE == 'Release' && matrix.COMPILER == 'gcc'
+      if: matrix.OS == 'ubuntu-20.04' && matrix.BUILD_TYPE == 'Release' && matrix.COMPILER == 'gcc'
       run: |
         "${PYTHON_EXECUTABLE}" -m pip install flake8
         flake8 --ignore=E121,E126,E123,E226,E241,E266,E402,E741,F405,W504 \
@@ -157,7 +158,7 @@ jobs:
     #####################################################################################
 
     - name: Python linter
-      if: matrix.os == 'ubuntu-20.04' && matrix.BUILD_TYPE == 'Release' && matrix.COMPILER == 'gcc'
+      if: matrix.OS == 'ubuntu-20.04' && matrix.BUILD_TYPE == 'Release' && matrix.COMPILER == 'gcc'
       run: |
         cd "${RootDir}/python/jiminy_py/"
         pylint --rcfile="${RootDir}/.pylintrc" "src/"
@@ -175,7 +176,7 @@ jobs:
         cmake . -DCOMPONENT=docs -P ./cmake_install.cmake
     - name: Deploy to GitHub Pages
       if:  >-
-        matrix.os == 'ubuntu-22.04' && success() &&
+        matrix.OS == 'ubuntu-22.04' && success() &&
         github.repository == 'duburcqa/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
       uses: crazy-max/ghaction-github-pages@v4
       with:

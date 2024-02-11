@@ -17,26 +17,26 @@ namespace jiminy
 
         auto shared_from_this() { return shared_from(this); }
 
-        hresult_t initialize(const std::string & frameName);
+        void initialize(const std::string & frameName);
 
-        hresult_t setOptions(const GenericConfig & sensorOptions) override;
-        hresult_t refreshProxies() override;
+        void setOptions(const GenericConfig & sensorOptions) override;
+        void refreshProxies() override;
 
         const std::string & getFrameName() const;
-        pinocchio::FrameIndex getFrameIdx() const;
+        pinocchio::FrameIndex getFrameIndex() const;
 
     private:
-        hresult_t set(double t,
-                      const Eigen::VectorXd & q,
-                      const Eigen::VectorXd & v,
-                      const Eigen::VectorXd & a,
-                      const Eigen::VectorXd & uMotor,
-                      const ForceVector & fExternal) override;
+        void set(double t,
+                 const Eigen::VectorXd & q,
+                 const Eigen::VectorXd & v,
+                 const Eigen::VectorXd & a,
+                 const Eigen::VectorXd & uMotor,
+                 const ForceVector & fExternal) override;
         void measureData() override;
 
     private:
         std::string frameName_{};
-        pinocchio::FrameIndex frameIdx_{0};
+        pinocchio::FrameIndex frameIndex_{0};
         /// \brief Sensor inverse rotation bias.
         Eigen::Matrix3d sensorRotationBiasInv_{Eigen::Matrix3d::Identity()};
     };
@@ -55,25 +55,25 @@ namespace jiminy
 
         auto shared_from_this() { return shared_from(this); }
 
-        hresult_t initialize(const std::string & frameName);
+        void initialize(const std::string & frameName);
 
-        hresult_t refreshProxies() override;
+        void refreshProxies() override;
 
         const std::string & getFrameName() const;
-        pinocchio::FrameIndex getFrameIdx() const;
+        pinocchio::FrameIndex getFrameIndex() const;
 
     private:
-        hresult_t set(double t,
-                      const Eigen::VectorXd & q,
-                      const Eigen::VectorXd & v,
-                      const Eigen::VectorXd & a,
-                      const Eigen::VectorXd & uMotor,
-                      const ForceVector & fExternal) override;
+        void set(double t,
+                 const Eigen::VectorXd & q,
+                 const Eigen::VectorXd & v,
+                 const Eigen::VectorXd & a,
+                 const Eigen::VectorXd & uMotor,
+                 const ForceVector & fExternal) override;
 
     private:
         std::string frameName_{};
-        pinocchio::FrameIndex frameIdx_{0};
-        std::size_t contactForceIdx_{0};
+        pinocchio::FrameIndex frameIndex_{0};
+        std::size_t contactIndex_{0};
     };
 
     template<>
@@ -90,27 +90,27 @@ namespace jiminy
 
         auto shared_from_this() { return shared_from(this); }
 
-        hresult_t initialize(const std::string & frameName);
+        void initialize(const std::string & frameName);
 
-        hresult_t refreshProxies() override;
+        void refreshProxies() override;
 
         const std::string & getFrameName() const;
-        pinocchio::FrameIndex getFrameIdx() const;
-        pinocchio::JointIndex getJointModelIdx() const;
+        pinocchio::FrameIndex getFrameIndex() const;
+        pinocchio::JointIndex getJointIndex() const;
 
     private:
-        hresult_t set(double t,
-                      const Eigen::VectorXd & q,
-                      const Eigen::VectorXd & v,
-                      const Eigen::VectorXd & a,
-                      const Eigen::VectorXd & uMotor,
-                      const ForceVector & fExternal) override;
+        void set(double t,
+                 const Eigen::VectorXd & q,
+                 const Eigen::VectorXd & v,
+                 const Eigen::VectorXd & a,
+                 const Eigen::VectorXd & uMotor,
+                 const ForceVector & fExternal) override;
 
     private:
         std::string frameName_{};
-        pinocchio::FrameIndex frameIdx_{0};
-        pinocchio::JointIndex parentJointModelIdx_{0};
-        static_map_t<std::size_t, pinocchio::SE3> contactForcesIdxAndPlacement_{};
+        pinocchio::FrameIndex frameIndex_{0};
+        pinocchio::JointIndex parentJointIndex_{0};
+        static_map_t<std::size_t, pinocchio::SE3> contactIndexPlacementPairs_{};
         pinocchio::Force f_{};
     };
 
@@ -128,25 +128,25 @@ namespace jiminy
 
         auto shared_from_this() { return shared_from(this); }
 
-        hresult_t initialize(const std::string & jointName);
+        void initialize(const std::string & jointName);
 
-        hresult_t refreshProxies() override;
+        void refreshProxies() override;
 
         const std::string & getJointName() const;
-        pinocchio::JointIndex getJointModelIdx() const;
+        pinocchio::JointIndex getJointIndex() const;
         JointModelType getJointType() const;
 
     private:
-        hresult_t set(double t,
-                      const Eigen::VectorXd & q,
-                      const Eigen::VectorXd & v,
-                      const Eigen::VectorXd & a,
-                      const Eigen::VectorXd & uMotor,
-                      const ForceVector & fExternal) override;
+        void set(double t,
+                 const Eigen::VectorXd & q,
+                 const Eigen::VectorXd & v,
+                 const Eigen::VectorXd & a,
+                 const Eigen::VectorXd & uMotor,
+                 const ForceVector & fExternal) override;
 
     private:
         std::string jointName_{};
-        pinocchio::JointIndex jointModelIdx_{0};
+        pinocchio::JointIndex jointIndex_{0};
         JointModelType jointType_{JointModelType::UNSUPPORTED};
     };
 
@@ -164,24 +164,24 @@ namespace jiminy
 
         auto shared_from_this() { return shared_from(this); }
 
-        hresult_t initialize(const std::string & motorName);
+        void initialize(const std::string & motorName);
 
-        hresult_t refreshProxies() override;
+        void refreshProxies() override;
 
         const std::string & getMotorName() const;
-        std::size_t getMotorIdx() const;
+        std::size_t getMotorIndex() const;
 
     private:
-        hresult_t set(double t,
-                      const Eigen::VectorXd & q,
-                      const Eigen::VectorXd & v,
-                      const Eigen::VectorXd & a,
-                      const Eigen::VectorXd & uMotor,
-                      const ForceVector & fExternal) override;
+        void set(double t,
+                 const Eigen::VectorXd & q,
+                 const Eigen::VectorXd & v,
+                 const Eigen::VectorXd & a,
+                 const Eigen::VectorXd & uMotor,
+                 const ForceVector & fExternal) override;
 
     private:
         std::string motorName_{};
-        std::size_t motorIdx_{0};
+        std::size_t motorIndex_{0};
     };
 
     template<>

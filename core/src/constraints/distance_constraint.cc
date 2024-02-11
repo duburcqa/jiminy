@@ -14,7 +14,7 @@ namespace jiminy
     DistanceConstraint::DistanceConstraint(const std::string & firstFrameName,
                                            const std::string & secondFrameName) noexcept :
     AbstractConstraintTpl(),
-    frameNames_{{firstFrameName, secondFrameName}}
+    frameNames_{firstFrameName, secondFrameName}
     {
     }
 
@@ -23,21 +23,19 @@ namespace jiminy
         return frameNames_;
     }
 
-    const std::array<pinocchio::FrameIndex, 2> & DistanceConstraint::getFramesIdx() const noexcept
+    const std::array<pinocchio::FrameIndex, 2> &
+    DistanceConstraint::getFrameIndices() const noexcept
     {
         return frameIndices_;
     }
 
-    hresult_t DistanceConstraint::setReferenceDistance(double distanceRef)
+    void DistanceConstraint::setReferenceDistance(double distanceRef)
     {
         if (distanceRef < 0.0)
         {
-            PRINT_ERROR("The reference distance must be positive.");
-            return hresult_t::ERROR_BAD_INPUT;
+            THROW_ERROR(std::invalid_argument, "Reference distance must be positive.");
         }
         distanceRef_ = distanceRef;
-
-        return hresult_t::SUCCESS;
     }
 
     double DistanceConstraint::getReferenceDistance() const noexcept
@@ -45,83 +43,75 @@ namespace jiminy
         return distanceRef_;
     }
 
-    hresult_t DistanceConstraint::reset(const Eigen::VectorXd & /* q */,
-                                        const Eigen::VectorXd & /* v */)
+    void DistanceConstraint::reset(const Eigen::VectorXd & /* q */,
+                                   const Eigen::VectorXd & /* v */)
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
         // Make sure the model still exists
         auto model = model_.lock();
         if (!model)
         {
-            PRINT_ERROR("Model pointer expired or unset.");
-            returnCode = hresult_t::ERROR_GENERIC;
+            THROW_ERROR(bad_control_flow, "Model pointer expired or unset.");
         }
 
         // Get frames indices
         for (uint8_t i = 0; i < 2; ++i)
         {
-            if (returnCode == hresult_t::SUCCESS)
-            {
-                returnCode =
-                    ::jiminy::getFrameIdx(model->pncModel_, frameNames_[i], frameIndices_[i]);
-            }
+            frameIndices_[i] = ::jiminy::getFrameIndex(model->pinocchioModel_, frameNames_[i]);
         }
 
-        if (returnCode == hresult_t::SUCCESS)
+        // Initialize frames jacobians buffers
+        for (Matrix6Xd & frameJacobian : frameJacobians_)
         {
-            // Initialize frames jacobians buffers
-            for (Matrix6Xd & frameJacobian : frameJacobians_)
-            {
-                frameJacobian.setZero(6, model->pncModel_.nv);
-            }
-
-            // Initialize jacobian, drift and multipliers
-            jacobian_.setZero(1, model->pncModel_.nv);
-            drift_.setZero(1);
-            lambda_.setZero(1);
-
-            // Compute the current distance and use it as reference
-            const Eigen::Vector3d deltaPosition =
-                model->pncData_.oMf[frameIndices_[0]].translation() -
-                model->pncData_.oMf[frameIndices_[1]].translation();
-            distanceRef_ = deltaPosition.norm();
+            frameJacobian.setZero(6, model->pinocchioModel_.nv);
         }
 
-        return returnCode;
+        // Initialize jacobian, drift and multipliers
+        jacobian_.setZero(1, model->pinocchioModel_.nv);
+        drift_.setZero(1);
+        lambda_.setZero(1);
+
+        // Compute the current distance and use it as reference
+        const Eigen::Vector3d deltaPosition =
+            model->pinocchioData_.oMf[frameIndices_[0]].translation() -
+            model->pinocchioData_.oMf[frameIndices_[1]].translation();
+        distanceRef_ = deltaPosition.norm();
     }
 
-    hresult_t DistanceConstraint::computeJacobianAndDrift(const Eigen::VectorXd & /* q */,
-                                                          const Eigen::VectorXd & /* v */)
+    void DistanceConstraint::computeJacobianAndDrift(const Eigen::VectorXd & /* q */,
+                                                     const Eigen::VectorXd & /* v */)
     {
         if (!isAttached_)
         {
-            PRINT_ERROR("Constraint not attached to a model.");
-            return hresult_t::ERROR_GENERIC;
+            THROW_ERROR(bad_control_flow, "Constraint not attached to a model.");
         }
 
         // Assuming model still exists.
         auto model = model_.lock();
 
         // Compute direction between frames
-        const Eigen::Vector3d deltaPosition = model->pncData_.oMf[frameIndices_[0]].translation() -
-                                              model->pncData_.oMf[frameIndices_[1]].translation();
+        const Eigen::Vector3d deltaPosition =
+            model->pinocchioData_.oMf[frameIndices_[0]].translation() -
+            model->pinocchioData_.oMf[frameIndices_[1]].translation();
         const double deltaPositionNorm = deltaPosition.norm();
         const Eigen::Vector3d direction = deltaPosition / deltaPositionNorm;
 
         // Compute relative velocity between frames
         std::array<pinocchio::Motion, 2> frameVelocities{};
-        frameVelocities[0] = getFrameVelocity(
-            model->pncModel_, model->pncData_, frameIndices_[0], pinocchio::LOCAL_WORLD_ALIGNED);
-        frameVelocities[1] = getFrameVelocity(
-            model->pncModel_, model->pncData_, frameIndices_[1], pinocchio::LOCAL_WORLD_ALIGNED);
+        frameVelocities[0] = getFrameVelocity(model->pinocchioModel_,
+                                              model->pinocchioData_,
+                                              frameIndices_[0],
+                                              pinocchio::LOCAL_WORLD_ALIGNED);
+        frameVelocities[1] = getFrameVelocity(model->pinocchioModel_,
+                                              model->pinocchioData_,
+                                              frameIndices_[1],
+                                              pinocchio::LOCAL_WORLD_ALIGNED);
         Eigen::Vector3d deltaVelocity = frameVelocities[0].linear() - frameVelocities[1].linear();
 
         // Get jacobian in local frame: J_1 - J_2
         for (uint8_t i = 0; i < 2; ++i)
         {
-            getFrameJacobian(model->pncModel_,
-                             model->pncData_,
+            getFrameJacobian(model->pinocchioModel_,
+                             model->pinocchioData_,
                              frameIndices_[i],
                              pinocchio::LOCAL_WORLD_ALIGNED,
                              frameJacobians_[i]);
@@ -133,8 +123,8 @@ namespace jiminy
         std::array<pinocchio::Motion, 2> frameAccelerations{};
         for (uint8_t i = 0; i < 2; ++i)
         {
-            frameAccelerations[i] = getFrameAcceleration(model->pncModel_,
-                                                         model->pncData_,
+            frameAccelerations[i] = getFrameAcceleration(model->pinocchioModel_,
+                                                         model->pinocchioData_,
                                                          frameIndices_[i],
                                                          pinocchio::LOCAL_WORLD_ALIGNED);
             frameAccelerations[i].linear() +=
@@ -150,7 +140,5 @@ namespace jiminy
 
         // Add Baumgarte stabilization drift
         drift_[0] += kp_ * (deltaPositionNorm - distanceRef_) + kd_ * deltaVelocityProj;
-
-        return hresult_t::SUCCESS;
     }
 }

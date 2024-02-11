@@ -25,22 +25,21 @@ namespace jiminy
         virtual ~DistanceConstraint() = default;
 
         const std::array<std::string, 2> & getFramesNames() const noexcept;
-        const std::array<pinocchio::FrameIndex, 2> & getFramesIdx() const noexcept;
+        const std::array<pinocchio::FrameIndex, 2> & getFrameIndices() const noexcept;
 
-        hresult_t setReferenceDistance(double distanceRef);
+        void setReferenceDistance(double distanceRef);
         double getReferenceDistance() const noexcept;
 
-        virtual hresult_t reset(const Eigen::VectorXd & q,
-                                const Eigen::VectorXd & v) override final;
+        virtual void reset(const Eigen::VectorXd & q, const Eigen::VectorXd & v) override final;
 
-        virtual hresult_t computeJacobianAndDrift(const Eigen::VectorXd & q,
-                                                  const Eigen::VectorXd & v) override final;
+        virtual void computeJacobianAndDrift(const Eigen::VectorXd & q,
+                                             const Eigen::VectorXd & v) override final;
 
     private:
         /// \brief Names of the frames on which the constraint operates.
         std::array<std::string, 2> frameNames_;
         /// \brief Corresponding frames indices.
-        std::array<pinocchio::FrameIndex, 2> frameIndices_{{0, 0}};
+        std::array<pinocchio::FrameIndex, 2> frameIndices_{0, 0};
         /// \brief Reference Distance between the frames
         double distanceRef_{0.0};
         /// \brief Stores frame jacobians in world.

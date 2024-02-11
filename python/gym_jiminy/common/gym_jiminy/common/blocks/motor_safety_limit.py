@@ -12,7 +12,7 @@ from jiminy_py.core import (  # pylint: disable=no-name-in-module
 from .proportional_derivative_controller import get_encoder_to_motor_map
 
 from ..bases import (BaseObsT,
-                     JiminyEnvInterface,
+                     InterfaceJiminyEnv,
                      BaseControllerBlock,
                      BasePipelineWrapper,
                      ControlledJiminyEnv)
@@ -106,7 +106,7 @@ class MotorSafetyLimit(
     """  # noqa: E501  # pylint: disable=line-too-long
     def __init__(self,
                  name: str,
-                 env: JiminyEnvInterface[BaseObsT, np.ndarray],
+                 env: InterfaceJiminyEnv[BaseObsT, np.ndarray],
                  *,
                  kp: float,
                  kd: float,
@@ -125,7 +125,7 @@ class MotorSafetyLimit(
                                   starting to break.
         """
         # Make sure that no other controller has been added prior to this block
-        env_unwrapped: JiminyEnvInterface = env
+        env_unwrapped: InterfaceJiminyEnv = env
         while isinstance(env_unwrapped, BasePipelineWrapper):
             if isinstance(env_unwrapped, ControlledJiminyEnv):
                 raise TypeError(
@@ -137,20 +137,18 @@ class MotorSafetyLimit(
         self.kd = kd
 
         # Define buffers storing information about the motors for efficiency
-        motors_position_idx: List[int] = sum(env.robot.motors_position_idx, [])
+        motor_position_indices: List[int] = sum(
+            env.robot.motor_position_indices, [])
         self.motors_position_lower = env.robot.position_limit_lower[
-            motors_position_idx] + soft_position_margin
+            motor_position_indices] + soft_position_margin
         self.motors_position_upper = env.robot.position_limit_upper[
-            motors_position_idx] - soft_position_margin
+            motor_position_indices] - soft_position_margin
         self.motors_velocity_limit = np.minimum(env.robot.velocity_limit[
-            env.robot.motors_velocity_idx], soft_velocity_max)
+            env.robot.motor_velocity_indices], soft_velocity_max)
         self.motors_effort_limit = env.robot.command_limit[
-            env.robot.motors_velocity_idx]
+            env.robot.motor_velocity_indices]
         self.motors_effort_limit[
             self.motors_position_lower > self.motors_position_upper] = 0.0
-
-        # Extract measured motor positions and velocities for fast access
-        self.q_measured, self.v_measured = env.sensors_data[encoder.type]
 
         # Mapping from motors to encoders
         self.encoder_to_motor = get_encoder_to_motor_map(env.robot)
@@ -158,6 +156,10 @@ class MotorSafetyLimit(
         # Whether stored reference to encoder measurements are already in the
         # same order as the motors, allowing skipping re-ordering entirely.
         self._is_same_order = isinstance(self.encoder_to_motor, slice)
+
+        # Extract measured motor positions and velocities for fast access
+        self.q_measured, self.v_measured = (
+            env.sensor_measurements[encoder.type])
 
         # Initialize the controller
         super().__init__(name, env, 1)
@@ -174,14 +176,13 @@ class MotorSafetyLimit(
         super()._setup()
 
         # Refresh measured motor positions and velocities proxies
-        self.q_measured, self.v_measured = self.env.sensors_data[encoder.type]
-        self.q_measured, self.v_measured = self.env.sensors_data[
-            encoder.type][:, self.encoder_to_motor]
+        self.q_measured, self.v_measured = (
+            self.env.sensor_measurements[encoder.type])
 
     @property
     def fieldnames(self) -> List[str]:
         return [f"currentMotorTorque{name}"
-                for name in self.env.robot.motors_names]
+                for name in self.env.robot.motor_names]
 
     def compute_command(self, action: np.ndarray) -> np.ndarray:
         """Apply safety limits to the desired motor torques right before

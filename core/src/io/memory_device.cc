@@ -7,10 +7,9 @@ namespace jiminy
     MemoryDevice::MemoryDevice(std::size_t sizeIn) noexcept :
     AbstractIODevice(
 #ifndef _WIN32
-        openMode_t::NON_BLOCKING |
+        OpenMode::NON_BLOCKING |
 #endif
-        openMode_t::READ_ONLY | openMode_t::WRITE_ONLY | openMode_t::READ_WRITE |
-        openMode_t::APPEND),
+        OpenMode::READ_ONLY | OpenMode::WRITE_ONLY | OpenMode::READ_WRITE | OpenMode::APPEND),
     buffer_(sizeIn),
     currentPos_{0}
     {
@@ -27,10 +26,9 @@ namespace jiminy
     MemoryDevice::MemoryDevice(std::vector<uint8_t> && initBuffer) noexcept :
     AbstractIODevice(
 #ifndef _WIN32
-        openMode_t::NON_BLOCKING |
+        OpenMode::NON_BLOCKING |
 #endif
-        openMode_t::READ_ONLY | openMode_t::WRITE_ONLY | openMode_t::READ_WRITE |
-        openMode_t::APPEND),
+        OpenMode::READ_ONLY | OpenMode::WRITE_ONLY | OpenMode::READ_WRITE | OpenMode::APPEND),
     buffer_(std::move(initBuffer)),
     currentPos_{0}
     {
@@ -38,19 +36,19 @@ namespace jiminy
 
     MemoryDevice::~MemoryDevice()
     {
-        close();
+        if (isOpen())
+        {
+            close();
+        }
     }
 
-    hresult_t MemoryDevice::seek(std::ptrdiff_t pos)
+    void MemoryDevice::seek(std::ptrdiff_t pos)
     {
         if ((pos < 0) || static_cast<std::size_t>(pos) > size())
         {
-            lastError_ = hresult_t::ERROR_GENERIC;
-            PRINT_ERROR("The requested position '", pos, "' is out of scope.");
-            return lastError_;
+            THROW_ERROR(std::invalid_argument, "Requested position '", pos, "' out of bound.");
         }
         currentPos_ = pos;
-        return hresult_t::SUCCESS;
     }
 
     std::ptrdiff_t MemoryDevice::readData(void * data, std::size_t dataSize)
@@ -71,24 +69,18 @@ namespace jiminy
         return toWrite;
     }
 
-    hresult_t MemoryDevice::doOpen(openMode_t modes)
+    void MemoryDevice::doOpen(OpenMode modes)
     {
-        if (!(modes & openMode_t::APPEND))
+        if (!(modes & OpenMode::APPEND))
         {
             currentPos_ = 0;
         }
-
-        return hresult_t::SUCCESS;
     }
 
-    hresult_t MemoryDevice::doClose()
-    {
-        return hresult_t::SUCCESS;
-    }
+    void MemoryDevice::doClose() {}
 
-    hresult_t MemoryDevice::resize(std::size_t size)
+    void MemoryDevice::resize(std::size_t size)
     {
         buffer_.resize(size);
-        return hresult_t::SUCCESS;
     }
 }

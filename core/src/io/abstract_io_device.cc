@@ -4,116 +4,87 @@
 
 namespace jiminy
 {
-    openMode_t operator|(openMode_t modeA, openMode_t modeB)
+    OpenMode operator|(OpenMode modeA, OpenMode modeB)
     {
-        return static_cast<openMode_t>(static_cast<int32_t>(modeA) | static_cast<int32_t>(modeB));
+        return static_cast<OpenMode>(static_cast<int32_t>(modeA) | static_cast<int32_t>(modeB));
     }
 
-    openMode_t operator&(openMode_t modeA, openMode_t modeB)
+    OpenMode operator&(OpenMode modeA, OpenMode modeB)
     {
-        return static_cast<openMode_t>(static_cast<int32_t>(modeA) & static_cast<int32_t>(modeB));
+        return static_cast<OpenMode>(static_cast<int32_t>(modeA) & static_cast<int32_t>(modeB));
     }
 
-    openMode_t operator|=(openMode_t & modeA, openMode_t modeB)
+    OpenMode operator|=(OpenMode & modeA, OpenMode modeB)
     {
         return modeA = modeA | modeB;
     }
 
-    openMode_t operator&=(openMode_t & modeA, openMode_t modeB)
+    OpenMode operator&=(OpenMode & modeA, OpenMode modeB)
     {
         return modeA = modeA & modeB;
     }
 
-    openMode_t operator~(openMode_t mode)
+    OpenMode operator~(OpenMode mode)
     {
-        return static_cast<openMode_t>(~static_cast<int32_t>(mode));
+        return static_cast<OpenMode>(~static_cast<int32_t>(mode));
     }
 
-    AbstractIODevice::AbstractIODevice(openMode_t supportedModes) noexcept :
+    AbstractIODevice::AbstractIODevice(OpenMode supportedModes) noexcept :
     supportedModes_(supportedModes)
     {
     }
 
-    hresult_t AbstractIODevice::open(openMode_t modes)
+    void AbstractIODevice::open(OpenMode modes)
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
         if (isOpen())
         {
-            PRINT_ERROR("Already open.");
-            returnCode = lastError_ = hresult_t::ERROR_GENERIC;
+            THROW_ERROR(bad_control_flow, "Device already open.");
         }
 
-        if (returnCode == hresult_t::SUCCESS)
+        if ((modes & supportedModes_) != modes)
         {
-            if ((modes & supportedModes_) != modes)
-            {
-                std::cout << "supportedModes_: " << supportedModes_ << " | modes: " << modes
-                          << std::endl;
-                throw std::runtime_error("ERROR");
-                PRINT_ERROR("At least one of the selected modes is not supported.");
-                returnCode = lastError_ = hresult_t::ERROR_GENERIC;
-            }
+            THROW_ERROR(std::invalid_argument,
+                        "At least one of the selected modes is not supported by the device.");
         }
 
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            returnCode = doOpen(modes);
-        }
-
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            modes_ = modes;
-        }
-
-        return returnCode;
+        doOpen(modes);
+        modes_ = modes;
     }
 
-    hresult_t AbstractIODevice::close()
+    void AbstractIODevice::close()
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
         if (!isOpen())
         {
-            returnCode = hresult_t::ERROR_GENERIC;
+            THROW_ERROR(bad_control_flow, "Device not open.");
         }
 
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            returnCode = doClose();
-        }
-
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            modes_ = NOT_OPEN;
-        }
-
-        return returnCode;
+        doClose();
+        modes_ = NOT_OPEN;
     }
 
-    openMode_t AbstractIODevice::openModes() const
+    OpenMode AbstractIODevice::openModes() const
     {
         return modes_;
     }
 
-    openMode_t AbstractIODevice::supportedModes() const
+    OpenMode AbstractIODevice::supportedModes() const
     {
         return supportedModes_;
     }
 
     bool AbstractIODevice::isWritable() const
     {
-        return (modes_ & openMode_t::WRITE_ONLY) || (modes_ & openMode_t::READ_WRITE);
+        return (modes_ & OpenMode::WRITE_ONLY) || (modes_ & OpenMode::READ_WRITE);
     }
 
     bool AbstractIODevice::isReadable() const
     {
-        return (modes_ & openMode_t::READ_ONLY) || (modes_ & openMode_t::READ_WRITE);
+        return (modes_ & OpenMode::READ_ONLY) || (modes_ & OpenMode::READ_WRITE);
     }
 
     bool AbstractIODevice::isOpen() const
     {
-        return (modes_ != openMode_t::NOT_OPEN);
+        return (modes_ != OpenMode::NOT_OPEN);
     }
 
     bool AbstractIODevice::isSequential() const
@@ -126,18 +97,14 @@ namespace jiminy
         return bytesAvailable();
     }
 
-    hresult_t AbstractIODevice::resize(std::size_t /* size */)
+    void AbstractIODevice::resize(std::size_t /* size */)
     {
-        lastError_ = hresult_t::ERROR_GENERIC;
-        PRINT_ERROR("This method is not available.");
-        return lastError_;
+        THROW_ERROR(not_implemented_error, "Method not available.");
     }
 
-    hresult_t AbstractIODevice::seek(std::ptrdiff_t /* pos */)
+    void AbstractIODevice::seek(std::ptrdiff_t /* pos */)
     {
-        lastError_ = hresult_t::ERROR_GENERIC;
-        PRINT_ERROR("This method is not available.");
-        return lastError_;
+        THROW_ERROR(not_implemented_error, "Method not available.");
     }
 
     std::ptrdiff_t AbstractIODevice::pos()
@@ -150,12 +117,7 @@ namespace jiminy
         return 0;
     }
 
-    hresult_t AbstractIODevice::getLastError() const
-    {
-        return lastError_;
-    }
-
-    hresult_t AbstractIODevice::write(const void * data, std::size_t dataSize)
+    void AbstractIODevice::write(const void * data, std::size_t dataSize)
     {
         std::size_t toWrite = dataSize;
         const uint8_t * bufferPos = static_cast<const uint8_t *>(data);
@@ -165,17 +127,13 @@ namespace jiminy
             std::ptrdiff_t writtenBytes = writeData(bufferPos + (dataSize - toWrite), toWrite);
             if (writtenBytes <= 0)
             {
-                lastError_ = hresult_t::ERROR_GENERIC;
-                PRINT_ERROR("No data was written. The device is full is probably full.");
-                return lastError_;
+                THROW_ERROR(std::ios_base::failure, "No data was written. Device probably full.");
             }
             toWrite -= writtenBytes;
         }
-
-        return hresult_t::SUCCESS;
     }
 
-    hresult_t AbstractIODevice::read(void * data, std::size_t dataSize)
+    void AbstractIODevice::read(void * data, std::size_t dataSize)
     {
         std::size_t toRead = dataSize;
         uint8_t * bufferPos = static_cast<uint8_t *>(data);
@@ -185,13 +143,9 @@ namespace jiminy
             std::ptrdiff_t readBytes = readData(bufferPos + (dataSize - toRead), toRead);
             if (readBytes <= 0)
             {
-                lastError_ = hresult_t::ERROR_GENERIC;
-                PRINT_ERROR("No data was read. The device is full is probably empty.");
-                return lastError_;
+                THROW_ERROR(std::ios_base::failure, "No data was read. Device probably empty.");
             }
             toRead -= readBytes;
         }
-
-        return hresult_t::SUCCESS;
     }
 }

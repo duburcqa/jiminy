@@ -152,17 +152,17 @@ class CassieJiminyEnv(WalkerJiminyEnv):
 
         # Remove irrelevant contact points
         self.robot.remove_contact_points([
-            name for name in self.robot.contact_frames_names
+            name for name in self.robot.contact_frame_names
             if int(name.split("_")[-1]) in (0, 1, 4, 5)])
 
     def _neutral(self) -> np.ndarray:
         def set_joint_rotary_position(joint_name: str, theta: float) -> None:
             """Helper to set the configuration of a 1-DoF revolute joint.
             """
-            joint_idx = self.robot.pinocchio_model.getJointId(joint_name)
-            joint = self.robot.pinocchio_model.joints[joint_idx]
+            joint_index = self.robot.pinocchio_model.getJointId(joint_name)
+            joint = self.robot.pinocchio_model.joints[joint_index]
             joint_type = get_joint_type(
-                self.robot.pinocchio_model, joint_idx)
+                self.robot.pinocchio_model, joint_index)
             q_joint: Union[Sequence[float], float]
             if joint_type == JointModelType.ROTARY_UNBOUNDED:
                 q_joint = (math.cos(theta), math.sin(theta))
