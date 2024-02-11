@@ -311,7 +311,7 @@ class MeshcatWrapper:
         with open(os.devnull, 'w') as stdout, redirect_stdout(stdout):
             with open(os.devnull, 'w') as stderr, redirect_stderr(stderr):
                 self.gui = meshcat.Visualizer(zmq_url)
-        self.__zmq_socket = self.gui.window.zmq_socket
+        self._zmq_socket = self.gui.window.zmq_socket
 
         # Create a backend recorder. It is not fully initialized to reduce
         # overhead when not used, which is way more usual than the contrary.
@@ -345,10 +345,10 @@ class MeshcatWrapper:
     def close(self) -> None:
         """ TODO: Write documentation.
         """
-        if hasattr(self, "__zmq_socket"):
-            if not self.__zmq_socket.closed:
-                self.__zmq_socket.send(b"stop")
-                self.__zmq_socket.close()
+        if hasattr(self, "_zmq_socket"):
+            if not self._zmq_socket.closed:
+                self._zmq_socket.send(b"stop")
+                self._zmq_socket.close()
         if hasattr(self, "comm_manager") and self.comm_manager is not None:
             self.comm_manager.close()
         if hasattr(self, "recorder") is not None:
@@ -363,15 +363,15 @@ class MeshcatWrapper:
             # perform a single `do_one_iteration`, just in case there is
             # already comm waiting in the queue to be registered, but it should
             # not be necessary.
-            self.__zmq_socket.send(b"wait")
+            self._zmq_socket.send(b"wait")
             if self.comm_manager is None:
-                self.__zmq_socket.recv()
+                self._zmq_socket.recv()
             else:
                 while True:
                     try:
                         # Try first, just in case there is already a comm for
                         # websocket available.
-                        self.__zmq_socket.recv(flags=zmq.NOBLOCK)
+                        self._zmq_socket.recv(flags=zmq.NOBLOCK)
                         break
                     except zmq.error.ZMQError:
                         # No websocket nor comm connection available at this
@@ -395,21 +395,21 @@ class MeshcatWrapper:
         # of comms currently registered. It is necessary to check for a reply
         # of the server periodically, and the number of responses corresponds
         # to the actual number of comms.
-        self.__zmq_socket.send(b"ready")
+        self._zmq_socket.send(b"ready")
         if self.comm_manager is not None:
             while True:
                 process_kernel_comm()
                 try:
-                    msg = self.__zmq_socket.recv(flags=zmq.NOBLOCK)
+                    msg = self._zmq_socket.recv(flags=zmq.NOBLOCK)
                     return msg.decode("utf-8")
                 except zmq.error.ZMQError:
                     pass
-        return self.__zmq_socket.recv().decode("utf-8")
+        return self._zmq_socket.recv().decode("utf-8")
 
     def set_legend_item(self, uniq_id: str, color: str, text: str) -> None:
         """ TODO: Write documentation.
         """
-        self.__zmq_socket.send_multipart([
+        self._zmq_socket.send_multipart([
             b"set_property",      # Frontend command. Used by Python zmq server
             b"",                  # Tree path. Empty path means root
             umsgpack.packb({      # Backend command. Used by javascript
@@ -419,12 +419,12 @@ class MeshcatWrapper:
                 "color": color   # "rgba(0, 0, 0, 0)" and "black" supported
             })
         ])
-        self.__zmq_socket.recv()  # Receive acknowledgement
+        self._zmq_socket.recv()  # Receive acknowledgement
 
     def remove_legend_item(self, uniq_id: str) -> None:
         """ TODO: Write documentation.
         """
-        self.__zmq_socket.send_multipart([
+        self._zmq_socket.send_multipart([
             b"set_property",
             b"",
             umsgpack.packb({
@@ -433,7 +433,7 @@ class MeshcatWrapper:
                 "text": ""       # Empty message means delete the item, if any
             })
         ])
-        self.__zmq_socket.recv()
+        self._zmq_socket.recv()
 
     def set_watermark(self,
                       img_fullpath: str,
@@ -465,7 +465,7 @@ class MeshcatWrapper:
             img_data = f"data:image/{img_format};base64,{img_raw}"
 
         # Send ZMQ request to acknowledge reply
-        self.__zmq_socket.send_multipart([
+        self._zmq_socket.send_multipart([
             b"set_property",
             b"",
             umsgpack.packb({
@@ -475,12 +475,12 @@ class MeshcatWrapper:
                 "height": height
             })
         ])
-        self.__zmq_socket.recv()
+        self._zmq_socket.recv()
 
     def remove_watermark(self) -> None:
         """ TODO: Write documentation.
         """
-        self.__zmq_socket.send_multipart([
+        self._zmq_socket.send_multipart([
             b"set_property",
             b"",
             umsgpack.packb({
@@ -488,7 +488,7 @@ class MeshcatWrapper:
                 "data": ""   # Empty string means delete the watermark, if any
             })
         ])
-        self.__zmq_socket.recv()
+        self._zmq_socket.recv()
 
     def start_recording(self, fps: float, width: int, height: int) -> None:
         """ TODO: Write documentation.
