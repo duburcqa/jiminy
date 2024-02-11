@@ -2,7 +2,7 @@
 cmake_minimum_required(VERSION 3.12.4)
 
 # Set the build version (specify a tweak version to indicated post-release if needed)
-set(BUILD_VERSION 1.7.19.1)
+set(BUILD_VERSION 1.8.0)
 
 # Set compatibility
 set(COMPATIBILITY_VERSION SameMinorVersion)
