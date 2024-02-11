@@ -102,14 +102,14 @@ class SimulateFlexibleArm(unittest.TestCase):
         # Remove temporary file
         os.remove(urdf_path)
 
-        # Instantiate and initialize the controller
-        controller = jiminy.FunctionalController()
-        controller.initialize(robot)
+        # Instantiate and initialize a controller doing nothing
+        noop_controller = jiminy.FunctionalController()
+        noop_controller.initialize(robot)
 
         # Create a simulator using this robot and controller
         self.simulator = Simulator(
             robot,
-            controller,
+            noop_controller,
             viewer_kwargs=dict(
                 camera_pose=((0.0, -2.0, 0.0), (np.pi/2, 0.0, 0.0), None)
             ))

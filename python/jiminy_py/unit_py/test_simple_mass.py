@@ -1,11 +1,12 @@
 """This file aims at verifying the sanity of the physics and the integration
 method of jiminy on simple mass.
 """
+import weakref
 import unittest
-import numpy as np
 from enum import Enum
-from weakref import ref
 from itertools import product
+
+import numpy as np
 from scipy.signal import savgol_filter
 
 import jiminy_py.core as jiminy
@@ -195,20 +196,18 @@ class SimulateSimpleMass(unittest.TestCase):
         engine = jiminy.Engine()
 
         # No control law, only check sensors data
-        engine_ref = ref(engine)
+        engine_proxy = weakref.proxy(engine)
         def check_sensor_measurements(t, q, v, sensor_measurements, command):
             # Verify sensor data, if the engine has been initialized
-            nonlocal engine_ref, frame_pose
-            engine = engine_ref()
-            assert engine is not None
-            if engine.is_initialized:
+            nonlocal engine_proxy
+            if engine_proxy.is_initialized:
                 f_linear = sensor_measurements[
                     ContactSensor.type, self.body_name]
                 f_wrench = sensor_measurements[
                     ForceSensor.type, self.body_name]
                 f_contact_sensor = frame_pose * Force(f_linear, np.zeros(3))
                 f_force_sensor = frame_pose * Force(*np.split(f_wrench, 2))
-                f_true = engine.system_state.f_external[joint_index]
+                f_true = engine_proxy.system_state.f_external[joint_index]
                 self.assertTrue(np.allclose(
                     f_contact_sensor.linear, f_true.linear, atol=TOLERANCE))
                 self.assertTrue(np.allclose(

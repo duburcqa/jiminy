@@ -8,12 +8,12 @@ import sys
 import math
 import array
 import signal
+import weakref
 import warnings
 import importlib
 import threading
 import multiprocessing as mp
 import xml.etree.ElementTree as ET
-from weakref import ref
 from functools import wraps
 from itertools import chain
 from datetime import datetime
@@ -1794,25 +1794,19 @@ class Panda3dProxy(mp.Process):
             right before the next method execution instead of being thrown on
             the spot.
         """
-        proxy_ref = ref(self)
+        proxy = weakref.proxy(self)
 
         class ContextAsyncMode(AbstractContextManager):
             """Context manager forcing async execution when forwarding request
             to the underlying panda3d viewer instance.
             """
             def __enter__(self) -> None:
-                nonlocal proxy_ref
-                proxy = proxy_ref()
-                assert proxy is not None
                 proxy._is_async = True
 
             def __exit__(self,
                          exc_type: Optional[Type[BaseException]],
                          exc_value: Optional[BaseException],
                          traceback: Optional[TracebackType]) -> None:
-                nonlocal proxy_ref
-                proxy = proxy_ref()
-                assert proxy is not None
                 proxy._is_async = False
 
         return ContextAsyncMode()

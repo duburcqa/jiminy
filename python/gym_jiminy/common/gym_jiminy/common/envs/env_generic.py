@@ -4,12 +4,14 @@ the official OpenAI Gym API and extended it to add more functionalities.
 """
 import os
 import math
+import weakref
 import logging
 import tempfile
 from copy import deepcopy
 from collections import OrderedDict
 from collections.abc import Mapping
 from itertools import chain
+from functools import partial
 from typing import (
     Dict, Any, List, cast, no_type_check, Optional, Tuple, Callable, Iterable,
     Union, SupportsFloat, Iterator,  Generic, Sequence, Mapping as MappingT,
@@ -733,13 +735,15 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         env: InterfaceJiminyEnv = self
         if reset_hook is not None:
             assert callable(reset_hook)
-            env_derived = reset_hook() or self
+            env_derived = reset_hook() or env
             assert env_derived.unwrapped is self
             env = env_derived
         self._env_derived = env
 
-        # Instantiate the actual controller
-        controller = jiminy.FunctionalController(env._controller_handle)
+        # Instantiate the actual controller.
+        # Note that a weak reference must be used to avoid circular reference.
+        controller = jiminy.FunctionalController(
+            partial(type(env)._controller_handle, weakref.proxy(env)))
         controller.initialize(self.robot)
         self.simulator.set_controller(controller)
 
