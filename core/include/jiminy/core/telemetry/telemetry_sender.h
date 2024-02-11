@@ -46,20 +46,20 @@ namespace jiminy
         ///          telemetry sender will fetch its value when calling 'updateValues'.
         ///
         /// \param[in] name Name of the field to record in the telemetry.
-        /// \param[in] value Pointer to the newly recorded field.
+        /// \param[in] value Pointer to the corresponding scalar value.
         template<typename Scalar>
-        std::enable_if_t<std::is_arithmetic_v<Scalar>, hresult_t>
+        std::enable_if_t<std::is_arithmetic_v<Scalar>, void>
         registerVariable(const std::string & name, const Scalar * valuePtr);
 
         template<typename KeyType, typename Derived>
-        hresult_t registerVariable(const std::vector<KeyType> & fieldnames,
-                                   const Eigen::MatrixBase<Derived> & values);
+        void registerVariable(const std::vector<KeyType> & fieldnames,
+                              const Eigen::MatrixBase<Derived> & values);
 
         /// \brief Add an invariant header entry in the log file.
         ///
         /// \param[in] name Name of the invariant.
         /// \param[in] value Value of the invariant.
-        hresult_t registerConstant(const std::string & name, const std::string & value);
+        void registerConstant(const std::string & name, const std::string & value);
 
         /// \brief Update all registered variables in the telemetry buffer.
         void updateValues();

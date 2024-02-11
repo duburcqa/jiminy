@@ -14,20 +14,18 @@ namespace jiminy
         }
     }
 
-    hresult_t AbstractConstraintBase::attach(std::weak_ptr<const Model> model)
+    void AbstractConstraintBase::attach(std::weak_ptr<const Model> model)
     {
         // Make sure the constraint is not already attached
         if (isAttached_)
         {
-            PRINT_ERROR("Constraint already attached to a model.");
-            return hresult_t::ERROR_GENERIC;
+            THROW_ERROR(bad_control_flow, "Constraint already attached to a model.");
         }
 
         // Make sure the model still exists
         if (model.expired())
         {
-            PRINT_ERROR("Model pointer expired or unset.");
-            return hresult_t::ERROR_GENERIC;
+            THROW_ERROR(bad_control_flow, "Model pointer expired or unset.");
         }
 
         // Consider the constraint is attached at this point
@@ -36,8 +34,6 @@ namespace jiminy
 
         // Enable constraint by default
         isEnabled_ = true;
-
-        return hresult_t::SUCCESS;
     }
 
     void AbstractConstraintBase::detach()
@@ -62,15 +58,13 @@ namespace jiminy
         return isEnabled_;
     }
 
-    hresult_t AbstractConstraintBase::setBaumgartePositionGain(double kp)
+    void AbstractConstraintBase::setBaumgartePositionGain(double kp)
     {
         if (kp < 0.0)
         {
-            PRINT_ERROR("The position gain must be positive.");
-            return hresult_t::ERROR_GENERIC;
+            THROW_ERROR(std::invalid_argument, "Position gain must be positive.");
         }
         kp_ = kp;
-        return hresult_t::SUCCESS;
     }
 
     double AbstractConstraintBase::getBaumgartePositionGain() const
@@ -78,15 +72,13 @@ namespace jiminy
         return kp_;
     }
 
-    hresult_t AbstractConstraintBase::setBaumgarteVelocityGain(double kd)
+    void AbstractConstraintBase::setBaumgarteVelocityGain(double kd)
     {
         if (kd < 0.0)
         {
-            PRINT_ERROR("The velocity gain must be positive.");
-            return hresult_t::ERROR_GENERIC;
+            THROW_ERROR(std::invalid_argument, "Velocity gain must be positive.");
         }
         kd_ = kd;
-        return hresult_t::SUCCESS;
     }
 
     double AbstractConstraintBase::getBaumgarteVelocityGain() const
@@ -94,20 +86,17 @@ namespace jiminy
         return kd_;
     }
 
-    hresult_t AbstractConstraintBase::setBaumgarteFreq(double freq)
+    void AbstractConstraintBase::setBaumgarteFreq(double freq)
     {
         if (freq < 0.0)
         {
-            PRINT_ERROR("The natural frequency must be positive.");
-            return hresult_t::ERROR_GENERIC;
+            THROW_ERROR(std::invalid_argument, "Natural frequency must be positive.");
         }
 
         // Critically damped position/velocity gains
         const double omega = 2.0 * M_PI * freq;
         kp_ = omega * omega;
         kd_ = 2.0 * omega;
-
-        return hresult_t::SUCCESS;
     }
 
     double AbstractConstraintBase::getBaumgarteFreq() const

@@ -17,7 +17,7 @@ namespace jiminy
 
     AbstractController::~AbstractController() = default;
 
-    hresult_t AbstractController::initialize(std::weak_ptr<const Robot> robotIn)
+    void AbstractController::initialize(std::weak_ptr<const Robot> robotIn)
     {
         /* Note that it is not possible to reinitialize a controller for a different robot, because
            otherwise, it would be necessary to check consistency with system at engine level when
@@ -27,14 +27,12 @@ namespace jiminy
         auto robot = robotIn.lock();
         if (!robot)
         {
-            PRINT_ERROR("Robot pointer expired or unset.");
-            return hresult_t::ERROR_GENERIC;
+            THROW_ERROR(bad_control_flow, "Robot pointer expired or unset.");
         }
 
         if (!robot->getIsInitialized())
         {
-            PRINT_ERROR("The robot is not initialized.");
-            return hresult_t::ERROR_INIT_FAILED;
+            THROW_ERROR(bad_control_flow, "Robot not initialized.");
         }
 
         // Backup robot
@@ -45,53 +43,46 @@ namespace jiminy
         isInitialized_ = true;
 
         // Reset the controller completely
-        reset(true);  // Cannot fail at this point
+        reset(true);
 
+        // Make sure that calling command and internal dynamics is not raising an exception
+        double t = 0.0;
+        const Eigen::VectorXd q = pinocchio::neutral(robot->pinocchioModel_);
+        const Eigen::VectorXd v = Eigen::VectorXd::Zero(robot->nv());
+        Eigen::VectorXd command = Eigen::VectorXd(robot->nmotors());
+        Eigen::VectorXd uCustom = Eigen::VectorXd(robot->nv());
         try
         {
-            double t = 0.0;
-            const Eigen::VectorXd q = pinocchio::neutral(robot->pinocchioModel_);
-            const Eigen::VectorXd v = Eigen::VectorXd::Zero(robot->nv());
-            Eigen::VectorXd command = Eigen::VectorXd(robot->getMotorNames().size());
-            Eigen::VectorXd uCustom = Eigen::VectorXd(robot->nv());
-            hresult_t returnCode = computeCommand(t, q, v, command);
-            if (returnCode == hresult_t::SUCCESS)
-            {
-                if (static_cast<std::size_t>(command.size()) != robot->getMotorNames().size())
-                {
-                    PRINT_ERROR("'computeCommand' returns command with wrong size.");
-                    return hresult_t::ERROR_BAD_INPUT;
-                }
-
-                internalDynamics(t, q, v, uCustom);
-                if (uCustom.size() != robot->nv())
-                {
-                    PRINT_ERROR("'internalDynamics' returns command with wrong size.");
-                    return hresult_t::ERROR_BAD_INPUT;
-                }
-            }
-            return returnCode;
+            computeCommand(t, q, v, command);
         }
         catch (const std::exception & e)
         {
             isInitialized_ = false;
             robot_.reset();
             sensorMeasurements_.clear();
-            PRINT_ERROR(
+            THROW_ERROR(
+                std::invalid_argument,
                 "Something is wrong, probably because of 'commandFun'.\nRaised from exception: ",
                 e.what());
-            return hresult_t::ERROR_GENERIC;
         }
-
-        return hresult_t::SUCCESS;
+        if (command.size() != robot->nmotors())
+        {
+            THROW_ERROR(std::invalid_argument,
+                        "'computeCommand' returns command with wrong size.");
+        }
+        internalDynamics(t, q, v, uCustom);
+        if (uCustom.size() != robot->nv())
+        {
+            THROW_ERROR(std::invalid_argument,
+                        "'internalDynamics' returns command with wrong size.");
+        }
     }
 
-    hresult_t AbstractController::reset(bool resetDynamicTelemetry)
+    void AbstractController::reset(bool resetDynamicTelemetry)
     {
         if (!isInitialized_)
         {
-            PRINT_ERROR("The controller is not initialized.");
-            return hresult_t::ERROR_INIT_FAILED;
+            THROW_ERROR(bad_control_flow, "The controller is not initialized.");
         }
 
         // Reset the telemetry buffer of dynamically registered quantities
@@ -104,8 +95,7 @@ namespace jiminy
         auto robot = robot_.lock();
         if (!robot)
         {
-            PRINT_ERROR("Robot pointer expired or unset.");
-            return hresult_t::ERROR_GENERIC;
+            THROW_ERROR(bad_control_flow, "Robot pointer expired or unset.");
         }
 
         /* Refresh the sensor data proxy.
@@ -114,68 +104,50 @@ namespace jiminy
 
         // Update the telemetry flag
         isTelemetryConfigured_ = false;
-
-        return hresult_t::SUCCESS;
     }
 
-    hresult_t AbstractController::configureTelemetry(std::shared_ptr<TelemetryData> telemetryData,
-                                                     const std::string & prefix)
+    void AbstractController::configureTelemetry(std::shared_ptr<TelemetryData> telemetryData,
+                                                const std::string & prefix)
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
         if (!isInitialized_)
         {
-            PRINT_ERROR("The controller is not initialized.");
-            returnCode = hresult_t::ERROR_INIT_FAILED;
+            THROW_ERROR(bad_control_flow, "Controller not initialized.");
         }
 
         if (!isTelemetryConfigured_ && baseControllerOptions_->telemetryEnable)
         {
             if (!telemetryData)
             {
-                PRINT_ERROR("Telemetry not initialized. Impossible to log controller data.");
-                returnCode = hresult_t::ERROR_INIT_FAILED;
+                THROW_ERROR(bad_control_flow,
+                            "Telemetry not initialized. Impossible to log controller data.");
             }
 
-            if (returnCode == hresult_t::SUCCESS)
+            std::string telemetryName{CONTROLLER_TELEMETRY_NAMESPACE};
+            if (!prefix.empty())
             {
-                std::string name{CONTROLLER_TELEMETRY_NAMESPACE};
-                if (!prefix.empty())
-                {
-                    name = addCircumfix(name, prefix, {}, TELEMETRY_FIELDNAME_DELIMITER);
-                }
-                telemetrySender_->configure(telemetryData, name);
+                telemetryName =
+                    addCircumfix(telemetryName, prefix, {}, TELEMETRY_FIELDNAME_DELIMITER);
+            }
+            telemetrySender_->configure(telemetryData, telemetryName);
+
+            for (const auto & [constantName, constantValue] : constantRegistry_)
+            {
+                telemetrySender_->registerConstant(constantName, constantValue);
+            }
+            for (const auto & [variableName, variableValuePtr] : variableRegistry_)
+            {
+                // FIXME: Remove explicit `name` capture when moving to C++20
+                std::visit([&, &variableName = variableName](auto && arg)
+                           { telemetrySender_->registerVariable(variableName, arg); },
+                           variableValuePtr);
             }
 
-            for (const auto & [name, value] : constantRegistry_)
-            {
-                if (returnCode == hresult_t::SUCCESS)
-                {
-                    returnCode = telemetrySender_->registerConstant(name, value);
-                }
-            }
-            for (const auto & [name, valuePtr] : variableRegistry_)
-            {
-                if (returnCode == hresult_t::SUCCESS)
-                {
-                    // FIXME: Remove explicit `name` capture when moving to C++20
-                    std::visit([&, &name = name](auto && arg)
-                               { returnCode = telemetrySender_->registerVariable(name, arg); },
-                               valuePtr);
-                }
-            }
-
-            if (returnCode == hresult_t::SUCCESS)
-            {
-                isTelemetryConfigured_ = true;
-            }
+            isTelemetryConfigured_ = true;
         }
-
-        return returnCode;
     }
 
     template<typename Scalar>
-    hresult_t registerVariableImpl(
+    void registerVariableImpl(
         static_map_t<std::string, std::variant<const double *, const int64_t *>> &
             registeredVariables,
         bool isTelemetryConfigured,
@@ -185,8 +157,8 @@ namespace jiminy
     {
         if (isTelemetryConfigured)
         {
-            PRINT_ERROR("Telemetry already initialized. Impossible to register new variables.");
-            return hresult_t::ERROR_INIT_FAILED;
+            THROW_ERROR(bad_control_flow,
+                        "Telemetry already initialized. Impossible to register new variables.");
         }
 
         std::vector<std::string>::const_iterator fieldIt = fieldnames.begin();
@@ -199,16 +171,13 @@ namespace jiminy
                                            { return element.first == *fieldIt; });
             if (variableIt != registeredVariables.end())
             {
-                PRINT_ERROR("Variable already registered.");
-                return hresult_t::ERROR_BAD_INPUT;
+                THROW_ERROR(lookup_error, "Variable already registered.");
             }
             registeredVariables.emplace_back(*fieldIt, &values[i]);
         }
-
-        return hresult_t::SUCCESS;
     }
 
-    hresult_t AbstractController::registerVariable(
+    void AbstractController::registerVariable(
         const std::vector<std::string> & fieldnames,
         const Eigen::Ref<VectorX<double>, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>> &
             values)
@@ -217,7 +186,7 @@ namespace jiminy
             variableRegistry_, isTelemetryConfigured_, fieldnames, values);
     }
 
-    hresult_t AbstractController::registerVariable(
+    void AbstractController::registerVariable(
         const std::vector<std::string> & fieldnames,
         const Eigen::Ref<VectorX<int64_t>, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>> &
             values)
@@ -245,12 +214,11 @@ namespace jiminy
         return controllerOptionsGeneric_;
     }
 
-    hresult_t AbstractController::setOptions(const GenericConfig & controllerOptions)
+    void AbstractController::setOptions(const GenericConfig & controllerOptions)
     {
         controllerOptionsGeneric_ = controllerOptions;
         baseControllerOptions_ =
             std::make_unique<const ControllerOptions>(controllerOptionsGeneric_);
-        return hresult_t::SUCCESS;
     }
 
     bool AbstractController::getIsInitialized() const

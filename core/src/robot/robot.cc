@@ -26,10 +26,10 @@ namespace jiminy
         detachMotors();
     }
 
-    hresult_t Robot::initialize(const std::string & urdfPath,
-                                bool hasFreeflyer,
-                                const std::vector<std::string> & meshPackageDirs,
-                                bool loadVisualMeshes)
+    void Robot::initialize(const std::string & urdfPath,
+                           bool hasFreeflyer,
+                           const std::vector<std::string> & meshPackageDirs,
+                           bool loadVisualMeshes)
     {
         // Detach all the motors and sensors
         detachSensors();
@@ -40,9 +40,9 @@ namespace jiminy
         return Model::initialize(urdfPath, hasFreeflyer, meshPackageDirs, loadVisualMeshes);
     }
 
-    hresult_t Robot::initialize(const pinocchio::Model & pinocchioModel,
-                                const pinocchio::GeometryModel & collisionModel,
-                                const pinocchio::GeometryModel & visualModel)
+    void Robot::initialize(const pinocchio::Model & pinocchioModel,
+                           const pinocchio::GeometryModel & collisionModel,
+                           const pinocchio::GeometryModel & visualModel)
     {
         // Detach all the motors and sensors
         detachSensors();
@@ -77,142 +77,102 @@ namespace jiminy
         isTelemetryConfigured_ = false;
     }
 
-    hresult_t Robot::configureTelemetry(std::shared_ptr<TelemetryData> telemetryData,
-                                        const std::string & prefix)
+    void Robot::configureTelemetry(std::shared_ptr<TelemetryData> telemetryData,
+                                   const std::string & prefix)
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
         if (!isInitialized_)
         {
-            PRINT_ERROR("The robot is not initialized.");
-            returnCode = hresult_t::ERROR_INIT_FAILED;
+            THROW_ERROR(bad_control_flow, "Robot is initialized.");
         }
+
+        telemetryData_ = telemetryData;
 
         isTelemetryConfigured_ = false;
-        if (returnCode == hresult_t::SUCCESS)
+        for (const auto & [sensorType, sensorGroup] : sensors_)
         {
-            telemetryData_ = telemetryData;
-        }
-
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            if (!isTelemetryConfigured_)
+            for (const auto & sensor : sensorGroup)
             {
-                for (const auto & [sensorType, sensorGroup] : sensors_)
+                if (sensorTelemetryOptions_[sensorType])
                 {
-                    for (const auto & sensor : sensorGroup)
-                    {
-                        if (returnCode == hresult_t::SUCCESS)
-                        {
-                            if (sensorTelemetryOptions_[sensorType])
-                            {
-                                returnCode = sensor->configureTelemetry(telemetryData_, prefix);
-                            }
-                        }
-                    }
+                    sensor->configureTelemetry(telemetryData_, prefix);
                 }
             }
         }
-
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            isTelemetryConfigured_ = true;
-        }
-
-        return returnCode;
+        isTelemetryConfigured_ = true;
     }
 
-    hresult_t Robot::attachMotor(std::shared_ptr<AbstractMotorBase> motor)
-    {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
-        if (!isInitialized_)
-        {
-            PRINT_ERROR("The robot is not initialized.");
-            returnCode = hresult_t::ERROR_INIT_FAILED;
-        }
-
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            if (getIsLocked())
-            {
-                PRINT_ERROR("Robot is locked, probably because a simulation is running. Please "
-                            "stop it before adding motors.");
-                returnCode = hresult_t::ERROR_GENERIC;
-            }
-        }
-
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            const std::string & motorName = motor->getName();
-            auto motorIt = std::find_if(motors_.begin(),
-                                        motors_.end(),
-                                        [&motorName](const auto & elem)
-                                        { return (elem->getName() == motorName); });
-            if (motorIt != motors_.end())
-            {
-                PRINT_ERROR("A motor with the same name already exists.");
-                returnCode = hresult_t::ERROR_BAD_INPUT;
-            }
-        }
-
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            // Define robot notification method, responsible for updating the robot if
-            // necessary after changing the motor parameters, for example the armature.
-            auto notifyRobot =
-                [robot_ = std::weak_ptr<Robot>(shared_from_this())](AbstractMotorBase & motorIn)
-            {
-                // Make sure the robot still exists
-                auto robot = robot_.lock();
-                if (!robot)
-                {
-                    PRINT_ERROR("Robot has been deleted. Impossible to notify motor update.");
-                    return hresult_t::ERROR_GENERIC;
-                }
-
-                // Update rotor inertia and effort limit of pinocchio model
-                Eigen::Index jointVelocityOrigIndex;
-                getJointVelocityFirstIndex(
-                    robot->pinocchioModelOrig_, motorIn.getJointName(), jointVelocityOrigIndex);
-                robot->pinocchioModel_.rotorInertia[motorIn.getJointVelocityIndex()] =
-                    robot->pinocchioModelOrig_.rotorInertia[jointVelocityOrigIndex] +
-                    motorIn.getArmature();
-                robot->pinocchioModel_.effortLimit[motorIn.getJointVelocityIndex()] =
-                    motorIn.getCommandLimit();
-
-                return hresult_t::SUCCESS;
-            };
-
-            // Attach the motor
-            returnCode = motor->attach(shared_from_this(), notifyRobot, motorSharedStorage_.get());
-        }
-
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            // Add the motor to the holder
-            motors_.push_back(motor);
-
-            // Refresh the motors proxies
-            refreshMotorProxies();
-        }
-
-        return returnCode;
-    }
-
-    hresult_t Robot::detachMotor(const std::string & motorName)
+    void Robot::attachMotor(std::shared_ptr<AbstractMotorBase> motor)
     {
         if (!isInitialized_)
         {
-            PRINT_ERROR("Robot not initialized.");
-            return hresult_t::ERROR_INIT_FAILED;
+            THROW_ERROR(bad_control_flow, "Robot not initialized.");
         }
 
         if (getIsLocked())
         {
-            PRINT_ERROR("Robot is locked, probably because a simulation is running. Please stop "
-                        "it before removing motors.");
-            return hresult_t::ERROR_GENERIC;
+            THROW_ERROR(std::logic_error,
+                        "Robot already locked, probably because a simulation is running. "
+                        "Please stop it before adding motors.");
+        }
+
+        const std::string & motorName = motor->getName();
+        auto motorIt = std::find_if(motors_.begin(),
+                                    motors_.end(),
+                                    [&motorName](const auto & elem)
+                                    { return (elem->getName() == motorName); });
+        if (motorIt != motors_.end())
+        {
+            THROW_ERROR(std::logic_error,
+                        "Another motor with name '",
+                        motorName,
+                        "' is already attached.");
+        }
+
+        // Define robot notification method, responsible for updating the robot if
+        // necessary after changing the motor parameters, for example the armature.
+        auto notifyRobot =
+            [robot_ = std::weak_ptr<Robot>(shared_from_this())](AbstractMotorBase & motorIn)
+        {
+            // Make sure the robot still exists
+            auto robot = robot_.lock();
+            if (!robot)
+            {
+                THROW_ERROR(std::runtime_error,
+                            "Robot has been deleted. Impossible to notify motor update.");
+            }
+
+            // Update rotor inertia and effort limit of pinocchio model
+            const Eigen::Index jointVelocityOrigIndex =
+                getJointVelocityFirstIndex(robot->pinocchioModelOrig_, motorIn.getJointName());
+            robot->pinocchioModel_.rotorInertia[motorIn.getJointVelocityIndex()] =
+                robot->pinocchioModelOrig_.rotorInertia[jointVelocityOrigIndex] +
+                motorIn.getArmature();
+            robot->pinocchioModel_.effortLimit[motorIn.getJointVelocityIndex()] =
+                motorIn.getCommandLimit();
+        };
+
+        // Attach the motor
+        motor->attach(shared_from_this(), notifyRobot, motorSharedStorage_.get());
+
+        // Add the motor to the holder
+        motors_.push_back(motor);
+
+        // Refresh the motors proxies
+        refreshMotorProxies();
+    }
+
+    void Robot::detachMotor(const std::string & motorName)
+    {
+        if (!isInitialized_)
+        {
+            THROW_ERROR(bad_control_flow, "Robot not initialized.");
+        }
+
+        if (getIsLocked())
+        {
+            THROW_ERROR(std::logic_error,
+                        "Robot already locked, probably because a simulation is running. "
+                        "Please stop it before removing motors.");
         }
 
         auto motorIt = std::find_if(motors_.cbegin(),
@@ -221,44 +181,35 @@ namespace jiminy
                                     { return (elem->getName() == motorName); });
         if (motorIt == motors_.cend())
         {
-            PRINT_ERROR("No motor with this name exists.");
-            return hresult_t::ERROR_BAD_INPUT;
+            THROW_ERROR(std::logic_error, "No motor with name '", motorName, "' is attached.");
         }
 
         // Reset effortLimit and rotorInertia
         const std::shared_ptr<AbstractMotorBase> & motor = *motorIt;
-        Eigen::Index jointVelocityOrigIndex;
-        ::jiminy::getJointVelocityFirstIndex(
-            pinocchioModelOrig_, motor->getJointName(), jointVelocityOrigIndex);
+        const Eigen::Index jointVelocityOrigIndex =
+            ::jiminy::getJointVelocityFirstIndex(pinocchioModelOrig_, motor->getJointName());
         pinocchioModel_.rotorInertia[motor->getJointVelocityIndex()] =
             pinocchioModelOrig_.rotorInertia[jointVelocityOrigIndex];
         pinocchioModel_.effortLimit[motor->getJointVelocityIndex()] = 0.0;
 
         // Detach the motor
-        motor->detach();  // Cannot fail at this point
+        motor->detach();
 
         // Remove the motor from the holder
         motors_.erase(motorIt);
 
         // Refresh the motors proxies
         refreshMotorProxies();
-
-        return hresult_t::SUCCESS;
     }
 
-    hresult_t Robot::detachMotors(std::vector<std::string> motorsNames)
+    void Robot::detachMotors(std::vector<std::string> motorsNames)
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
         if (motorsNames.empty())
         {
             // Remove all sensors if none is specified
-            if (returnCode == hresult_t::SUCCESS)
+            if (!motorNames_.empty())
             {
-                if (!motorNames_.empty())
-                {
-                    returnCode = detachMotors(motorNames_);
-                }
+                detachMotors(motorNames_);
             }
         }
         else
@@ -266,124 +217,97 @@ namespace jiminy
             // Make sure that no motor names are duplicates
             if (checkDuplicates(motorsNames))
             {
-                PRINT_ERROR("Duplicated motor names.");
-                returnCode = hresult_t::ERROR_BAD_INPUT;
+                THROW_ERROR(std::invalid_argument, "Duplicated motor names found.");
             }
 
-            if (returnCode == hresult_t::SUCCESS)
+            // Make sure that every motor name exist
+            if (!checkInclusion(motorNames_, motorsNames))
             {
-                // Make sure that every motor name exist
-                if (!checkInclusion(motorNames_, motorsNames))
-                {
-                    PRINT_ERROR("At least one of the motor names does not exist.");
-                    returnCode = hresult_t::ERROR_BAD_INPUT;
-                }
+                THROW_ERROR(std::invalid_argument,
+                            "At least one of the motor names does not exist.");
             }
 
             // Detach motors one-by-one
             for (const std::string & name : motorsNames)
             {
-                if (returnCode == hresult_t::SUCCESS)
-                {
-                    returnCode = detachMotor(name);
-                }
+                detachMotor(name);
             }
         }
-
-        return returnCode;
     }
 
-    hresult_t Robot::attachSensor(std::shared_ptr<AbstractSensorBase> sensor)
+    void Robot::attachSensor(std::shared_ptr<AbstractSensorBase> sensor)
     {
         // The sensors' names must be unique, even if their type is different.
 
-        hresult_t returnCode = hresult_t::SUCCESS;
-
         if (!isInitialized_)
         {
-            PRINT_ERROR("The robot is not initialized.");
-            returnCode = hresult_t::ERROR_INIT_FAILED;
+            THROW_ERROR(bad_control_flow, "The robot is not initialized.");
         }
 
-        if (returnCode == hresult_t::SUCCESS)
+        if (getIsLocked())
         {
-            if (getIsLocked())
-            {
-                PRINT_ERROR("Robot is locked, probably because a simulation is running. Please "
-                            "stop it before adding sensors.");
-                returnCode = hresult_t::ERROR_GENERIC;
-            }
+            THROW_ERROR(std::logic_error,
+                        "Robot already locked, probably because a simulation is running. "
+                        "Please stop it before removing motors.");
         }
 
         const std::string & sensorName = sensor->getName();
         const std::string & sensorType = sensor->getType();
         SensorTree::const_iterator sensorGroupIt;
-        if (returnCode == hresult_t::SUCCESS)
+        sensorGroupIt = sensors_.find(sensorType);
+        if (sensorGroupIt != sensors_.end())
         {
-            sensorGroupIt = sensors_.find(sensorType);
-            if (sensorGroupIt != sensors_.end())
+            auto sensorIt = std::find_if(sensorGroupIt->second.begin(),
+                                         sensorGroupIt->second.end(),
+                                         [&sensorName](const auto & elem)
+                                         { return (elem->getName() == sensorName); });
+            if (sensorIt != sensorGroupIt->second.end())
             {
-                auto sensorIt = std::find_if(sensorGroupIt->second.begin(),
-                                             sensorGroupIt->second.end(),
-                                             [&sensorName](const auto & elem)
-                                             { return (elem->getName() == sensorName); });
-                if (sensorIt != sensorGroupIt->second.end())
-                {
-                    PRINT_ERROR("A sensor with the same type and name already exists.");
-                    returnCode = hresult_t::ERROR_BAD_INPUT;
-                }
+                THROW_ERROR(std::invalid_argument,
+                            "A sensor with the same type and name already exists.");
             }
         }
 
-        if (returnCode == hresult_t::SUCCESS)
+        // Create a new sensor data holder if necessary
+        if (sensorGroupIt == sensors_.end())
         {
-            // Create a new sensor data holder if necessary
-            if (sensorGroupIt == sensors_.end())
-            {
-                sensorSharedStorageMap_.emplace(sensorType,
-                                                std::make_shared<SensorSharedStorage>());
-                sensorTelemetryOptions_.emplace(sensorType,
-                                                true);  // Enable the telemetry by default
-            }
-
-            // Attach the sensor
-            returnCode =
-                sensor->attach(shared_from_this(), sensorSharedStorageMap_[sensorType].get());
+            sensorSharedStorageMap_.emplace(sensorType, std::make_shared<SensorSharedStorage>());
+            sensorTelemetryOptions_.emplace(sensorType,
+                                            true);  // Enable the telemetry by default
         }
 
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            // Create the sensor and add it to its group
-            sensors_[sensorType].push_back(sensor);
+        // Attach the sensor
+        sensor->attach(shared_from_this(), sensorSharedStorageMap_[sensorType].get());
 
-            // Refresh the sensors proxies
-            refreshSensorProxies();
-        }
+        // Create the sensor and add it to its group
+        sensors_[sensorType].push_back(sensor);
 
-        return returnCode;
+        // Refresh the sensors proxies
+        refreshSensorProxies();
     }
 
-    hresult_t Robot::detachSensor(const std::string & sensorType, const std::string & sensorName)
+    void Robot::detachSensor(const std::string & sensorType, const std::string & sensorName)
     {
         if (getIsLocked())
         {
-            PRINT_ERROR("Robot is locked, probably because a simulation is running. Please stop "
-                        "it before removing sensors.");
-            return hresult_t::ERROR_GENERIC;
+            THROW_ERROR(std::logic_error,
+                        "Robot already locked, probably because a simulation is running. "
+                        "Please stop it before removing motors.");
         }
 
         if (!isInitialized_)
         {
-            PRINT_ERROR("Robot not initialized.");
-            return hresult_t::ERROR_INIT_FAILED;
+            THROW_ERROR(bad_control_flow, "Robot not initialized.");
         }
 
         // FIXME: remove explicit conversion to `std::string` when moving to C++20
         auto sensorGroupIt = sensors_.find(std::string{sensorType});
         if (sensorGroupIt == sensors_.end())
         {
-            PRINT_ERROR("This type of sensor does not exist.");
-            return hresult_t::ERROR_BAD_INPUT;
+            THROW_ERROR(std::invalid_argument,
+                        "None of the attached sensors has type '",
+                        sensorType,
+                        "'.");
         }
 
         SensorVector::iterator sensorIt;
@@ -393,12 +317,16 @@ namespace jiminy
                                 { return (elem->getName() == sensorName); });
         if (sensorIt == sensorGroupIt->second.end())
         {
-            PRINT_ERROR("No sensor with this type and name exists.");
-            return hresult_t::ERROR_BAD_INPUT;
+            THROW_ERROR(std::invalid_argument,
+                        "None of the attached sensors of type '",
+                        sensorType,
+                        "' has name '",
+                        sensorName,
+                        "'.");
         }
 
         // Detach the sensor
-        (*sensorIt)->detach();  // Cannot fail at this point
+        (*sensorIt)->detach();
 
         // Remove the sensor from its group
         sensorGroupIt->second.erase(sensorIt);
@@ -413,31 +341,26 @@ namespace jiminy
 
         // Refresh the sensors proxies
         refreshSensorProxies();
-
-        return hresult_t::SUCCESS;
     }
 
-    hresult_t Robot::detachSensors(const std::string & sensorType)
+    void Robot::detachSensors(const std::string & sensorType)
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
         if (!sensorType.empty())
         {
             auto sensorGroupIt = sensors_.find(sensorType);
             if (sensorGroupIt == sensors_.end())
             {
-                PRINT_ERROR("No sensor with this type exists.");
-                returnCode = hresult_t::ERROR_BAD_INPUT;
+                THROW_ERROR(std::invalid_argument,
+                            "None of the attached sensors has type '",
+                            sensorType,
+                            "'.");
             }
 
             std::vector<std::string> sensorGroupNames =
                 sensorNames_[sensorType];  // Make a copy since calling detachSensors update it !
             for (const std::string & sensorName : sensorGroupNames)
             {
-                if (returnCode == hresult_t::SUCCESS)
-                {
-                    returnCode = detachSensor(sensorType, sensorName);
-                }
+                detachSensor(sensorType, sensorName);
             }
         }
         else
@@ -450,128 +373,89 @@ namespace jiminy
                            [](const auto & pair) -> std::string { return pair.first; });
             for (const std::string & sensorTypeName : sensorsTypesNames)
             {
-                if (returnCode == hresult_t::SUCCESS)
-                {
-                    returnCode = detachSensors(sensorTypeName);
-                }
+                detachSensors(sensorTypeName);
             }
         }
-
-        return returnCode;
     }
 
-    hresult_t Robot::refreshProxies()
+    void Robot::refreshProxies()
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
         if (!isInitialized_)
         {
-            PRINT_ERROR("Robot not initialized.");
-            returnCode = hresult_t::ERROR_INIT_FAILED;
+            THROW_ERROR(bad_control_flow, "Robot not initialized.");
         }
 
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            returnCode = Model::refreshProxies();
-        }
-
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            returnCode = refreshMotorProxies();
-        }
-
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            returnCode = refreshSensorProxies();
-        }
-
-        return returnCode;
+        Model::refreshProxies();
+        refreshMotorProxies();
+        refreshSensorProxies();
     }
 
-    hresult_t Robot::refreshMotorProxies()
+    void Robot::refreshMotorProxies()
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
         if (!isInitialized_)
         {
-            PRINT_ERROR("Robot not initialized.");
-            returnCode = hresult_t::ERROR_INIT_FAILED;
+            THROW_ERROR(bad_control_flow, "Robot not initialized.");
         }
 
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            // Determine the number of motors
-            nmotors_ = motors_.size();
+        // Determine the number of motors
+        nmotors_ = motors_.size();
 
-            // Extract the motor names
-            motorNames_.clear();
-            motorNames_.reserve(nmotors_);
-            std::transform(motors_.begin(),
-                           motors_.end(),
-                           std::back_inserter(motorNames_),
+        // Extract the motor names
+        motorNames_.clear();
+        motorNames_.reserve(nmotors_);
+        std::transform(motors_.begin(),
+                       motors_.end(),
+                       std::back_inserter(motorNames_),
+                       [](const auto & elem) -> std::string { return elem->getName(); });
+
+        // Generate the fieldnames associated with command
+        logCommandFieldnames_.clear();
+        logCommandFieldnames_.reserve(nmotors_);
+        std::transform(
+            motors_.begin(),
+            motors_.end(),
+            std::back_inserter(logCommandFieldnames_),
+            [](const auto & elem) -> std::string
+            { return addCircumfix(elem->getName(), toString(JOINT_PREFIX_BASE, "Command")); });
+
+        // Generate the fieldnames associated with motor efforts
+        logMotorEffortFieldnames_.clear();
+        logMotorEffortFieldnames_.reserve(nmotors_);
+        std::transform(
+            motors_.begin(),
+            motors_.end(),
+            std::back_inserter(logMotorEffortFieldnames_),
+            [](const auto & elem) -> std::string
+            { return addCircumfix(elem->getName(), toString(JOINT_PREFIX_BASE, "Effort")); });
+    }
+
+    void Robot::refreshSensorProxies()
+    {
+        if (!isInitialized_)
+        {
+            THROW_ERROR(bad_control_flow, "Robot not initialized.");
+        }
+
+        // Extract the motor names
+        sensorNames_.clear();
+        sensorNames_.reserve(sensors_.size());
+        for (const auto & [sensorType, sensorGroup] : sensors_)
+        {
+            std::vector<std::string> sensorGroupNames;
+            sensorGroupNames.reserve(sensorGroup.size());
+            std::transform(sensorGroup.begin(),
+                           sensorGroup.end(),
+                           std::back_inserter(sensorGroupNames),
                            [](const auto & elem) -> std::string { return elem->getName(); });
-
-            // Generate the fieldnames associated with command
-            logCommandFieldnames_.clear();
-            logCommandFieldnames_.reserve(nmotors_);
-            std::transform(
-                motors_.begin(),
-                motors_.end(),
-                std::back_inserter(logCommandFieldnames_),
-                [](const auto & elem) -> std::string
-                { return addCircumfix(elem->getName(), toString(JOINT_PREFIX_BASE, "Command")); });
-
-            // Generate the fieldnames associated with motor efforts
-            logMotorEffortFieldnames_.clear();
-            logMotorEffortFieldnames_.reserve(nmotors_);
-            std::transform(
-                motors_.begin(),
-                motors_.end(),
-                std::back_inserter(logMotorEffortFieldnames_),
-                [](const auto & elem) -> std::string
-                { return addCircumfix(elem->getName(), toString(JOINT_PREFIX_BASE, "Effort")); });
+            sensorNames_.emplace(sensorType, std::move(sensorGroupNames));
         }
-
-        return returnCode;
     }
 
-    hresult_t Robot::refreshSensorProxies()
-    {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
-        if (!isInitialized_)
-        {
-            PRINT_ERROR("Robot not initialized.");
-            returnCode = hresult_t::ERROR_INIT_FAILED;
-        }
-
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            // Extract the motor names
-            sensorNames_.clear();
-            sensorNames_.reserve(sensors_.size());
-            for (const auto & [sensorType, sensorGroup] : sensors_)
-            {
-                std::vector<std::string> sensorGroupNames;
-                sensorGroupNames.reserve(sensorGroup.size());
-                std::transform(sensorGroup.begin(),
-                               sensorGroup.end(),
-                               std::back_inserter(sensorGroupNames),
-                               [](const auto & elem) -> std::string { return elem->getName(); });
-                sensorNames_.emplace(sensorType, std::move(sensorGroupNames));
-            }
-        }
-
-        return returnCode;
-    }
-
-    hresult_t Robot::getMotor(const std::string & motorName,
-                              std::shared_ptr<AbstractMotorBase> & motor)
+    std::shared_ptr<AbstractMotorBase> Robot::getMotor(const std::string & motorName)
     {
         if (!isInitialized_)
         {
-            PRINT_ERROR("Robot not initialized.");
-            return hresult_t::ERROR_INIT_FAILED;
+            THROW_ERROR(bad_control_flow, "Robot not initialized.");
         }
 
         auto motorIt = std::find_if(motors_.begin(),
@@ -580,22 +464,17 @@ namespace jiminy
                                     { return (elem->getName() == motorName); });
         if (motorIt == motors_.end())
         {
-            PRINT_ERROR("No motor with this name exists.");
-            return hresult_t::ERROR_BAD_INPUT;
+            THROW_ERROR(
+                std::invalid_argument, "None of the attached motors has name '", motorName, "'.");
         }
-
-        motor = *motorIt;
-
-        return hresult_t::SUCCESS;
+        return *motorIt;
     }
 
-    hresult_t Robot::getMotor(const std::string & motorName,
-                              std::weak_ptr<const AbstractMotorBase> & motor) const
+    std::weak_ptr<const AbstractMotorBase> Robot::getMotor(const std::string & motorName) const
     {
         if (!isInitialized_)
         {
-            PRINT_ERROR("Robot not initialized.");
-            return hresult_t::ERROR_INIT_FAILED;
+            THROW_ERROR(bad_control_flow, "Robot not initialized.");
         }
 
         auto motorIt = std::find_if(motors_.begin(),
@@ -604,13 +483,10 @@ namespace jiminy
                                     { return (elem->getName() == motorName); });
         if (motorIt == motors_.end())
         {
-            PRINT_ERROR("No motor with this name exists.");
-            return hresult_t::ERROR_BAD_INPUT;
+            THROW_ERROR(
+                std::invalid_argument, "None of the attached motors has name '", motorName, "'.");
         }
-
-        motor = std::const_pointer_cast<const AbstractMotorBase>(*motorIt);
-
-        return hresult_t::SUCCESS;
+        return std::const_pointer_cast<const AbstractMotorBase>(*motorIt);
     }
 
     const Robot::MotorVector & Robot::getMotors() const
@@ -618,21 +494,21 @@ namespace jiminy
         return motors_;
     }
 
-    hresult_t Robot::getSensor(const std::string & sensorType,
-                               const std::string & sensorName,
-                               std::weak_ptr<const AbstractSensorBase> & sensor) const
+    std::shared_ptr<AbstractSensorBase> Robot::getSensor(const std::string & sensorType,
+                                                         const std::string & sensorName)
     {
         if (!isInitialized_)
         {
-            PRINT_ERROR("Robot not initialized.");
-            return hresult_t::ERROR_INIT_FAILED;
+            THROW_ERROR(bad_control_flow, "Robot not initialized.");
         }
 
         auto sensorGroupIt = sensors_.find(sensorType);
         if (sensorGroupIt == sensors_.end())
         {
-            PRINT_ERROR("This type of sensor does not exist.");
-            return hresult_t::ERROR_BAD_INPUT;
+            THROW_ERROR(std::invalid_argument,
+                        "None of the attached sensors has type '",
+                        sensorType,
+                        "'.");
         }
 
         auto sensorIt = std::find_if(sensorGroupIt->second.begin(),
@@ -641,30 +517,32 @@ namespace jiminy
                                      { return (elem->getName() == sensorName); });
         if (sensorIt == sensorGroupIt->second.end())
         {
-            PRINT_ERROR("No sensor with this type and name exists.");
-            return hresult_t::ERROR_BAD_INPUT;
+            THROW_ERROR(std::invalid_argument,
+                        "None of the attached sensors of type '",
+                        sensorType,
+                        "' has name '",
+                        sensorName,
+                        "'.");
         }
 
-        sensor = std::const_pointer_cast<const AbstractSensorBase>(*sensorIt);
-
-        return hresult_t::SUCCESS;
+        return *sensorIt;
     }
 
-    hresult_t Robot::getSensor(const std::string & sensorType,
-                               const std::string & sensorName,
-                               std::shared_ptr<AbstractSensorBase> & sensor)
+    std::weak_ptr<const AbstractSensorBase> Robot::getSensor(const std::string & sensorType,
+                                                             const std::string & sensorName) const
     {
         if (!isInitialized_)
         {
-            PRINT_ERROR("Robot not initialized.");
-            return hresult_t::ERROR_INIT_FAILED;
+            THROW_ERROR(bad_control_flow, "Robot not initialized.");
         }
 
         auto sensorGroupIt = sensors_.find(sensorType);
         if (sensorGroupIt == sensors_.end())
         {
-            PRINT_ERROR("This type of sensor does not exist.");
-            return hresult_t::ERROR_BAD_INPUT;
+            THROW_ERROR(std::invalid_argument,
+                        "None of the attached sensors has type '",
+                        sensorType,
+                        "'.");
         }
 
         auto sensorIt = std::find_if(sensorGroupIt->second.begin(),
@@ -673,13 +551,15 @@ namespace jiminy
                                      { return (elem->getName() == sensorName); });
         if (sensorIt == sensorGroupIt->second.end())
         {
-            PRINT_ERROR("No sensor with this type and name exists.");
-            return hresult_t::ERROR_BAD_INPUT;
+            THROW_ERROR(std::invalid_argument,
+                        "None of the attached sensors of type '",
+                        sensorType,
+                        "' has name '",
+                        sensorName,
+                        "'.");
         }
 
-        sensor = *sensorIt;
-
-        return hresult_t::SUCCESS;
+        return std::const_pointer_cast<const AbstractSensorBase>(*sensorIt);
     }
 
     const Robot::SensorTree & Robot::getSensors() const
@@ -687,79 +567,46 @@ namespace jiminy
         return sensors_;
     }
 
-    hresult_t Robot::setOptions(const GenericConfig & robotOptions)
+    void Robot::setOptions(const GenericConfig & robotOptions)
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
         GenericConfig::const_iterator modelOptionsIt;
         modelOptionsIt = robotOptions.find("model");
         if (modelOptionsIt == robotOptions.end())
         {
-            PRINT_ERROR("'model' options are missing.");
-            returnCode = hresult_t::ERROR_INIT_FAILED;
+            THROW_ERROR(std::invalid_argument, "'model' options are missing.");
         }
 
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            const GenericConfig & modelOptions = boost::get<GenericConfig>(modelOptionsIt->second);
-            returnCode = setModelOptions(modelOptions);
-        }
+        const GenericConfig & modelOptions = boost::get<GenericConfig>(modelOptionsIt->second);
+        setModelOptions(modelOptions);
 
         GenericConfig::const_iterator motorsOptionsIt;
-        if (returnCode == hresult_t::SUCCESS)
+        motorsOptionsIt = robotOptions.find("motors");
+        if (motorsOptionsIt == robotOptions.end())
         {
-            motorsOptionsIt = robotOptions.find("motors");
-            if (motorsOptionsIt == robotOptions.end())
-            {
-                PRINT_ERROR("'motors' options are missing.");
-                returnCode = hresult_t::ERROR_INIT_FAILED;
-            }
+            THROW_ERROR(std::invalid_argument, "'motors' options are missing.");
         }
 
-        if (returnCode == hresult_t::SUCCESS)
+        const GenericConfig & motorsOptions = boost::get<GenericConfig>(motorsOptionsIt->second);
+        setMotorsOptions(motorsOptions);
+
+        GenericConfig::const_iterator sensorOptionsIt = robotOptions.find("sensors");
+        if (sensorOptionsIt == robotOptions.end())
         {
-            const GenericConfig & motorsOptions =
-                boost::get<GenericConfig>(motorsOptionsIt->second);
-            returnCode = setMotorsOptions(motorsOptions);
+            THROW_ERROR(std::invalid_argument, "'sensors' options are missing.");
         }
 
-        GenericConfig::const_iterator sensorOptionsIt;
-        if (returnCode == hresult_t::SUCCESS)
+        const GenericConfig & sensorOptions = boost::get<GenericConfig>(sensorOptionsIt->second);
+        setSensorsOptions(sensorOptions);
+
+        GenericConfig::const_iterator telemetryOptionsIt = robotOptions.find("telemetry");
+        if (telemetryOptionsIt == robotOptions.end())
         {
-            sensorOptionsIt = robotOptions.find("sensors");
-            if (sensorOptionsIt == robotOptions.end())
-            {
-                PRINT_ERROR("'sensors' options are missing.");
-                returnCode = hresult_t::ERROR_INIT_FAILED;
-            }
+            THROW_ERROR(std::invalid_argument, "'telemetry' options are missing.");
         }
 
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            const GenericConfig & sensorOptions =
-                boost::get<GenericConfig>(sensorOptionsIt->second);
-            returnCode = setSensorsOptions(sensorOptions);
-        }
-
-        GenericConfig::const_iterator telemetryOptionsIt;
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            telemetryOptionsIt = robotOptions.find("telemetry");
-            if (telemetryOptionsIt == robotOptions.end())
-            {
-                PRINT_ERROR("'telemetry' options are missing.");
-                returnCode = hresult_t::ERROR_INIT_FAILED;
-            }
-        }
-
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            const GenericConfig & telemetryOptions =
-                boost::get<GenericConfig>(telemetryOptionsIt->second);
-            returnCode = setTelemetryOptions(telemetryOptions);
-        }
-
-        return returnCode;
+        const GenericConfig & telemetryOptions =
+            boost::get<GenericConfig>(telemetryOptionsIt->second);
+        setTelemetryOptions(telemetryOptions);
     }
 
     GenericConfig Robot::getOptions() const noexcept
@@ -775,74 +622,54 @@ namespace jiminy
         return robotOptions;
     }
 
-    hresult_t Robot::setMotorOptions(const std::string & motorName,
-                                     const GenericConfig & motorOptions)
+    void Robot::setMotorOptions(const std::string & motorName, const GenericConfig & motorOptions)
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
         if (getIsLocked())
         {
-            PRINT_ERROR("Robot is locked, probably because a simulation is running. Please stop "
-                        "it before updating the motor options.");
-            returnCode = hresult_t::ERROR_GENERIC;
+            THROW_ERROR(std::logic_error,
+                        "Robot already locked, probably because a simulation is running. "
+                        "Please stop it before removing motors.");
         }
 
         MotorVector::iterator motorIt;
-        if (returnCode == hresult_t::SUCCESS)
+        motorIt = std::find_if(motors_.begin(),
+                               motors_.end(),
+                               [&motorName](const auto & elem)
+                               { return (elem->getName() == motorName); });
+        if (motorIt == motors_.end())
         {
-            motorIt = std::find_if(motors_.begin(),
-                                   motors_.end(),
-                                   [&motorName](const auto & elem)
-                                   { return (elem->getName() == motorName); });
-            if (motorIt == motors_.end())
-            {
-                PRINT_ERROR("No motor with this name exists.");
-                returnCode = hresult_t::ERROR_BAD_INPUT;
-            }
+            THROW_ERROR(
+                std::invalid_argument, "None of the attached motors has name '", motorName, "'.");
         }
 
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            returnCode = (*motorIt)->setOptions(motorOptions);
-        }
-
-        return returnCode;
+        (*motorIt)->setOptions(motorOptions);
     }
 
-    hresult_t Robot::setMotorsOptions(const GenericConfig & motorsOptions)
+    void Robot::setMotorsOptions(const GenericConfig & motorsOptions)
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
         if (getIsLocked())
         {
-            PRINT_ERROR("Robot is locked, probably because a simulation is running. Please stop "
-                        "it before updating the motor options.");
-            returnCode = hresult_t::ERROR_GENERIC;
+            THROW_ERROR(std::logic_error,
+                        "Robot already locked, probably because a simulation is running. "
+                        "Please stop it before removing motors.");
         }
 
         for (const auto & motor : motors_)
         {
-            if (returnCode == hresult_t::SUCCESS)
+            auto motorOptionIt = motorsOptions.find(motor->getName());
+            if (motorOptionIt != motorsOptions.end())
             {
-                auto motorOptionIt = motorsOptions.find(motor->getName());
-                if (motorOptionIt != motorsOptions.end())
-                {
-                    returnCode =
-                        motor->setOptions(boost::get<GenericConfig>(motorOptionIt->second));
-                }
-                else
-                {
-                    returnCode = motor->setOptionsAll(motorsOptions);
-                    break;
-                }
+                motor->setOptions(boost::get<GenericConfig>(motorOptionIt->second));
+            }
+            else
+            {
+                motor->setOptionsAll(motorsOptions);
+                break;
             }
         }
-
-        return returnCode;
     }
 
-    hresult_t Robot::getMotorOptions(const std::string & motorName,
-                                     GenericConfig & motorOptions) const
+    GenericConfig Robot::getMotorOptions(const std::string & motorName) const
     {
         auto motorIt = std::find_if(motors_.begin(),
                                     motors_.end(),
@@ -850,13 +677,10 @@ namespace jiminy
                                     { return (elem->getName() == motorName); });
         if (motorIt == motors_.end())
         {
-            PRINT_ERROR("No motor with this name exists.");
-            return hresult_t::ERROR_BAD_INPUT;
+            THROW_ERROR(
+                std::invalid_argument, "None of the attached motors has name '", motorName, "'.");
         }
-
-        motorOptions = (*motorIt)->getOptions();
-
-        return hresult_t::SUCCESS;
+        return (*motorIt)->getOptions();
     }
 
     GenericConfig Robot::getMotorsOptions() const
@@ -869,156 +693,24 @@ namespace jiminy
         return motorsOptions;
     }
 
-    hresult_t Robot::setSensorOptions(const std::string & sensorType,
-                                      const std::string & sensorName,
-                                      const GenericConfig & sensorOptions)
+    void Robot::setSensorOptions(const std::string & sensorType,
+                                 const std::string & sensorName,
+                                 const GenericConfig & sensorOptions)
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
         if (getIsLocked())
         {
-            PRINT_ERROR("Robot is locked, probably because a simulation is running. Please stop "
-                        "it before updating the sensor options.");
-            returnCode = hresult_t::ERROR_GENERIC;
+            THROW_ERROR(std::logic_error,
+                        "Robot already locked, probably because a simulation is running. "
+                        "Please stop it before removing motors.");
         }
 
-        auto sensorGroupIt = sensors_.find(sensorType);
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            if (sensorGroupIt == sensors_.end())
-            {
-                PRINT_ERROR("This type of sensor does not exist.");
-                returnCode = hresult_t::ERROR_BAD_INPUT;
-            }
-        }
-
-        auto sensorIt = std::find_if(sensorGroupIt->second.begin(),
-                                     sensorGroupIt->second.end(),
-                                     [&sensorName](const auto & elem)
-                                     { return (elem->getName() == sensorName); });
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            if (sensorIt == sensorGroupIt->second.end())
-            {
-                PRINT_ERROR("No sensor with this type and name exists.");
-                returnCode = hresult_t::ERROR_BAD_INPUT;
-            }
-        }
-
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            returnCode = (*sensorIt)->setOptions(sensorOptions);
-        }
-
-        return returnCode;
-    }
-
-    hresult_t Robot::setSensorsOptions(const std::string & sensorType,
-                                       const GenericConfig & sensorsOptions)
-    {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
-        if (getIsLocked())
-        {
-            PRINT_ERROR("Robot is locked, probably because a simulation is running. Please stop "
-                        "it before updating the sensor options.");
-            returnCode = hresult_t::ERROR_GENERIC;
-        }
-
-        SensorTree::iterator sensorGroupIt;
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            sensorGroupIt = sensors_.find(sensorType);
-            if (sensorGroupIt == sensors_.end())
-            {
-                PRINT_ERROR("This type of sensor does not exist.");
-                returnCode = hresult_t::ERROR_BAD_INPUT;
-            }
-        }
-
-        for (const auto & sensor : sensorGroupIt->second)
-        {
-            if (returnCode == hresult_t::SUCCESS)
-            {
-                auto sensorOptionIt = sensorsOptions.find(sensor->getName());
-                if (sensorOptionIt != sensorsOptions.end())
-                {
-                    returnCode =
-                        sensor->setOptions(boost::get<GenericConfig>(sensorOptionIt->second));
-                }
-                else
-                {
-                    returnCode = sensor->setOptionsAll(sensorsOptions);
-                    break;
-                }
-            }
-        }
-
-        return returnCode;
-    }
-
-    hresult_t Robot::setSensorsOptions(const GenericConfig & sensorsOptions)
-    {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
-        if (getIsLocked())
-        {
-            PRINT_ERROR("Robot is locked, probably because a simulation is running. Please stop "
-                        "it before updating the sensor options.");
-            returnCode = hresult_t::ERROR_GENERIC;
-        }
-
-        for (const auto & [sensorType, sensorGroup] : sensors_)
-        {
-            if (returnCode == hresult_t::SUCCESS)
-            {
-                // FIXME: remove explicit conversion to `std::string` when moving to C++20
-                auto sensorGroupOptionsIt = sensorsOptions.find(std::string{sensorType});
-                if (sensorGroupOptionsIt != sensorsOptions.end())
-                {
-                    const GenericConfig & sensorGroupOptions =
-                        boost::get<GenericConfig>(sensorGroupOptionsIt->second);
-
-                    for (const auto & sensor : sensorGroup)
-                    {
-                        if (returnCode == hresult_t::SUCCESS)
-                        {
-                            const std::string & sensorName = sensor->getName();
-
-                            auto sensorOptionsIt = sensorGroupOptions.find(sensorName);
-                            if (sensorOptionsIt != sensorGroupOptions.end())
-                            {
-                                returnCode = sensor->setOptions(
-                                    boost::get<GenericConfig>(sensorOptionsIt->second));
-                            }
-                            else
-                            {
-                                PRINT_ERROR("No sensor with this name exists.");
-                                returnCode = hresult_t::ERROR_BAD_INPUT;
-                            }
-                        }
-                    }
-                }
-                else
-                {
-                    PRINT_ERROR("This type of sensor does not exist.");
-                    returnCode = hresult_t::ERROR_BAD_INPUT;
-                }
-            }
-        }
-
-        return returnCode;
-    }
-
-    hresult_t Robot::getSensorOptions(const std::string & sensorType,
-                                      const std::string & sensorName,
-                                      GenericConfig & sensorOptions) const
-    {
         auto sensorGroupIt = sensors_.find(sensorType);
         if (sensorGroupIt == sensors_.end())
         {
-            PRINT_ERROR("This type of sensor does not exist.");
-            return hresult_t::ERROR_BAD_INPUT;
+            THROW_ERROR(std::invalid_argument,
+                        "None of the attached sensors has type '",
+                        sensorType,
+                        "'.");
         }
 
         auto sensorIt = std::find_if(sensorGroupIt->second.begin(),
@@ -1027,31 +719,146 @@ namespace jiminy
                                      { return (elem->getName() == sensorName); });
         if (sensorIt == sensorGroupIt->second.end())
         {
-            PRINT_ERROR("No sensor with this type and name exists.");
-            return hresult_t::ERROR_BAD_INPUT;
+            THROW_ERROR(std::invalid_argument,
+                        "None of the attached sensors of type '",
+                        sensorType,
+                        "' has name '",
+                        sensorName,
+                        "'.");
         }
 
-        sensorOptions = (*sensorIt)->getOptions();
-
-        return hresult_t::SUCCESS;
+        (*sensorIt)->setOptions(sensorOptions);
     }
 
-    hresult_t Robot::getSensorsOptions(const std::string & sensorType,
-                                       GenericConfig & sensorsOptions) const
+    void Robot::setSensorsOptions(const std::string & sensorType,
+                                  const GenericConfig & sensorsOptions)
+    {
+        if (getIsLocked())
+        {
+            THROW_ERROR(std::logic_error,
+                        "Robot already locked, probably because a simulation is running. "
+                        "Please stop it before removing motors.");
+        }
+
+        SensorTree::iterator sensorGroupIt;
+        sensorGroupIt = sensors_.find(sensorType);
+        if (sensorGroupIt == sensors_.end())
+        {
+            THROW_ERROR(std::invalid_argument,
+                        "None of the attached sensors has type '",
+                        sensorType,
+                        "'.");
+        }
+
+        for (const auto & sensor : sensorGroupIt->second)
+        {
+            auto sensorOptionIt = sensorsOptions.find(sensor->getName());
+            if (sensorOptionIt != sensorsOptions.end())
+            {
+                sensor->setOptions(boost::get<GenericConfig>(sensorOptionIt->second));
+            }
+            else
+            {
+                sensor->setOptionsAll(sensorsOptions);
+                break;
+            }
+        }
+    }
+
+    void Robot::setSensorsOptions(const GenericConfig & sensorsOptions)
+    {
+        if (getIsLocked())
+        {
+            THROW_ERROR(std::logic_error,
+                        "Robot already locked, probably because a simulation is running. "
+                        "Please stop it before removing motors.");
+        }
+
+        for (const auto & [sensorType, sensorGroup] : sensors_)
+        {
+            // FIXME: remove explicit conversion to `std::string` when moving to C++20
+            auto sensorGroupOptionsIt = sensorsOptions.find(std::string{sensorType});
+            if (sensorGroupOptionsIt != sensorsOptions.end())
+            {
+                const GenericConfig & sensorGroupOptions =
+                    boost::get<GenericConfig>(sensorGroupOptionsIt->second);
+
+                for (const auto & sensor : sensorGroup)
+                {
+                    const std::string & sensorName = sensor->getName();
+
+                    auto sensorOptionsIt = sensorGroupOptions.find(sensorName);
+                    if (sensorOptionsIt != sensorGroupOptions.end())
+                    {
+                        sensor->setOptions(boost::get<GenericConfig>(sensorOptionsIt->second));
+                    }
+                    else
+                    {
+                        THROW_ERROR(std::invalid_argument,
+                                    "None of the attached sensors of type '",
+                                    sensorType,
+                                    "' has name '",
+                                    sensorName,
+                                    "'.");
+                    }
+                }
+            }
+            else
+            {
+                THROW_ERROR(std::invalid_argument,
+                            "None of the attached sensors has type '",
+                            sensorType,
+                            "'.");
+            }
+        }
+    }
+
+    GenericConfig Robot::getSensorOptions(const std::string & sensorType,
+                                          const std::string & sensorName) const
     {
         auto sensorGroupIt = sensors_.find(sensorType);
         if (sensorGroupIt == sensors_.end())
         {
-            PRINT_ERROR("This type of sensor does not exist.");
-            return hresult_t::ERROR_BAD_INPUT;
+            THROW_ERROR(std::invalid_argument,
+                        "None of the attached sensors has type '",
+                        sensorType,
+                        "'.");
         }
-        sensorsOptions.clear();
+
+        auto sensorIt = std::find_if(sensorGroupIt->second.begin(),
+                                     sensorGroupIt->second.end(),
+                                     [&sensorName](const auto & elem)
+                                     { return (elem->getName() == sensorName); });
+        if (sensorIt == sensorGroupIt->second.end())
+        {
+            THROW_ERROR(std::invalid_argument,
+                        "None of the attached sensors of type '",
+                        sensorType,
+                        "' has name '",
+                        sensorName,
+                        "'.");
+        }
+
+        return (*sensorIt)->getOptions();
+    }
+
+    GenericConfig Robot::getSensorsOptions(const std::string & sensorType) const
+    {
+        auto sensorGroupIt = sensors_.find(sensorType);
+        if (sensorGroupIt == sensors_.end())
+        {
+            THROW_ERROR(std::invalid_argument,
+                        "None of the attached sensors has type '",
+                        sensorType,
+                        "'.");
+        }
+
+        GenericConfig sensorsOptions{};
         for (const auto & sensor : sensorGroupIt->second)
         {
             sensorsOptions[sensor->getName()] = sensor->getOptions();
         }
-
-        return hresult_t::SUCCESS;
+        return sensorsOptions;
     }
 
     GenericConfig Robot::getSensorsOptions() const
@@ -1069,7 +876,7 @@ namespace jiminy
         return sensorsOptions;
     }
 
-    hresult_t Robot::setModelOptions(const GenericConfig & modelOptions)
+    void Robot::setModelOptions(const GenericConfig & modelOptions)
     {
         return Model::setOptions(modelOptions);
     }
@@ -1079,13 +886,13 @@ namespace jiminy
         return Model::getOptions();
     }
 
-    hresult_t Robot::setTelemetryOptions(const GenericConfig & telemetryOptions)
+    void Robot::setTelemetryOptions(const GenericConfig & telemetryOptions)
     {
         if (getIsLocked())
         {
-            PRINT_ERROR("Robot is locked, probably because a simulation is running. Please stop "
-                        "it before updating the telemetry options.");
-            return hresult_t::ERROR_GENERIC;
+            THROW_ERROR(std::logic_error,
+                        "Robot already locked, probably because a simulation is running. "
+                        "Please stop it before removing motors.");
         }
 
         for (auto & [sensorType, sensorGroupTelemetryOption] : sensorTelemetryOptions_)
@@ -1094,13 +901,10 @@ namespace jiminy
             auto sensorTelemetryOptionIt = telemetryOptions.find(optionTelemetryName);
             if (sensorTelemetryOptionIt == telemetryOptions.end())
             {
-                PRINT_ERROR("Missing field.");
-                return hresult_t::ERROR_GENERIC;
+                THROW_ERROR(std::invalid_argument, "Missing field '", optionTelemetryName, "'.");
             }
             sensorGroupTelemetryOption = boost::get<bool>(sensorTelemetryOptionIt->second);
         }
-
-        return hresult_t::SUCCESS;
     }
 
     GenericConfig Robot::getTelemetryOptions() const
@@ -1114,26 +918,19 @@ namespace jiminy
         return telemetryOptions;
     }
 
-    hresult_t Robot::dumpOptions(const std::string & filepath) const
+    void Robot::dumpOptions(const std::string & filepath) const
     {
         std::shared_ptr<AbstractIODevice> device = std::make_shared<FileDevice>(filepath);
         return jsonDump(getOptions(), device);
     }
 
-    hresult_t Robot::loadOptions(const std::string & filepath)
+    void Robot::loadOptions(const std::string & filepath)
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
         std::shared_ptr<AbstractIODevice> device = std::make_shared<FileDevice>(filepath);
         GenericConfig robotOptions;
-        returnCode = jsonLoad(robotOptions, device);
+        jsonLoad(robotOptions, device);
 
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            returnCode = setOptions(robotOptions);
-        }
-
-        return returnCode;
+        setOptions(robotOptions);
     }
 
     bool Robot::getIsTelemetryConfigured() const
@@ -1257,17 +1054,15 @@ namespace jiminy
         }
     }
 
-    hresult_t Robot::getLock(std::unique_ptr<LockGuardLocal> & lock)
+    std::unique_ptr<LockGuardLocal> Robot::getLock()
     {
         if (mutexLocal_->isLocked())
         {
-            PRINT_ERROR("Robot already locked. Please release the current lock first.");
-            return hresult_t::ERROR_GENERIC;
+            THROW_ERROR(std::logic_error,
+                        "Robot already locked. Please release it first prior requesting lock.");
         }
 
-        lock = std::make_unique<LockGuardLocal>(*mutexLocal_);
-
-        return hresult_t::SUCCESS;
+        return std::make_unique<LockGuardLocal>(*mutexLocal_);
     }
 
     bool Robot::getIsLocked() const
@@ -1361,7 +1156,7 @@ namespace jiminy
         return logMotorEffortFieldnames_;
     }
 
-    uint64_t Robot::nmotors() const
+    Eigen::Index Robot::nmotors() const
     {
         return nmotors_;
     }

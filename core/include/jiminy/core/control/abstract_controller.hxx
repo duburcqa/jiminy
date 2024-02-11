@@ -11,18 +11,15 @@ namespace jiminy
     ///
     /// \param[in] fieldnames Name of the variable.
     /// \param[in] values Variable to add to the telemetry.
-    ///
-    /// \return Return code to determine whether the execution of the method was successful.
     template<typename T>
-    hresult_t AbstractController::registerConstant(const std::string_view & fieldname,
-                                                   const T & value)
+    void AbstractController::registerConstant(const std::string_view & fieldname, const T & value)
     {
         // Delayed variable registration (Taken into account by 'configureTelemetry')
 
         if (isTelemetryConfigured_)
         {
-            PRINT_ERROR("Telemetry already initialized. Impossible to register new variables.");
-            return hresult_t::ERROR_INIT_FAILED;
+            THROW_ERROR(bad_control_flow,
+                        "Telemetry already initialized. Impossible to register new variables.");
         }
 
         // Check in local cache before.
@@ -32,21 +29,18 @@ namespace jiminy
                                        { return element.first == fieldname; });
         if (constantIt != constantRegistry_.end())
         {
-            PRINT_ERROR("Constant already registered.");
-            return hresult_t::ERROR_BAD_INPUT;
+            THROW_ERROR(bad_control_flow, "Constant already registered.");
         }
         constantRegistry_.emplace_back(fieldname, toString(value));
-
-        return hresult_t::SUCCESS;
     }
 
     template<typename T>
-    hresult_t AbstractController::registerVariable(const std::string_view & name, const T & value)
+    void AbstractController::registerVariable(const std::string_view & name, const T & value)
     {
         if (isTelemetryConfigured_)
         {
-            PRINT_ERROR("Telemetry already initialized. Impossible to register new variables.");
-            return hresult_t::ERROR_INIT_FAILED;
+            THROW_ERROR(bad_control_flow,
+                        "Telemetry already initialized. Impossible to register new variables.");
         }
 
         // Check in local cache before.
@@ -56,12 +50,9 @@ namespace jiminy
                                        { return element.first == name; });
         if (variableIt != variableRegistry_.end())
         {
-            PRINT_ERROR("Variable already registered.");
-            return hresult_t::ERROR_BAD_INPUT;
+            THROW_ERROR(bad_control_flow, "Variable already registered.");
         }
         variableRegistry_.emplace_back(name, &value);
-
-        return hresult_t::SUCCESS;
     }
 }
 

@@ -120,7 +120,7 @@ namespace jiminy
     struct JIMINY_DLLAPI SystemState
     {
     public:
-        hresult_t initialize(const Robot & robot);
+        void initialize(const Robot & robot);
         bool getIsInitialized() const;
 
         void clear();

@@ -15,7 +15,8 @@ jobs:
 
     strategy:
       matrix:
-        OS: ['macos-14']  # 'macos-13': Intel (x86), 'macos-14': Apple Silicon (arm64)
+        OS: ['macos-13']  # 'macos-13': Intel (x86), 'macos-14': Apple Silicon (arm64)
+                          # meshcat video recorder 'playwright' is not working on 'macos-14' runners.
         PYTHON_VERSION: ['3.10', '3.11', '3.12']  # `setup-python` does not support Python<3.10 on Apple Silicon
         BUILD_TYPE: ['Release']
         include:
@@ -25,7 +26,7 @@ jobs:
           - OS: 'macos-13'
             PYTHON_VERSION: '3.9'
             BUILD_TYPE: 'Release'
-          - OS: 'macos-14'
+          - OS: 'macos-13'
             PYTHON_VERSION: '3.11'
             BUILD_TYPE: 'Debug'
 

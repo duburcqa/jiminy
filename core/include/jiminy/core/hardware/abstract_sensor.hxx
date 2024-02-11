@@ -12,24 +12,22 @@ namespace jiminy
     // ========================== AbstractSensorBase ==============================
 
     template<typename DerivedType>
-    hresult_t AbstractSensorBase::set(const Eigen::MatrixBase<DerivedType> & value)
+    void AbstractSensorBase::set(const Eigen::MatrixBase<DerivedType> & value)
     {
         if (!isAttached_)
         {
-            PRINT_ERROR("Sensor not attached to any robot.");
-            return hresult_t::ERROR_GENERIC;
+            THROW_ERROR(bad_control_flow, "Sensor not attached to any robot.");
         }
 
         auto robot = robot_.lock();
         if (!robot || robot->getIsLocked())
         {
-            PRINT_ERROR("Robot is locked, probably because a simulation is running. Please stop "
-                        "it before setting sensor value manually.");
-            return hresult_t::ERROR_GENERIC;
+            THROW_ERROR(bad_control_flow,
+                        "Robot is locked, probably because a simulation is running. "
+                        "Please stop it before setting sensor value manually.");
         }
 
         get() = value;
-        return hresult_t::SUCCESS;
     }
 
     // ========================== AbstractSensorTpl ===============================
@@ -45,22 +43,21 @@ namespace jiminy
     }
 
     template<typename T>
-    hresult_t AbstractSensorTpl<T>::attach(std::weak_ptr<const Robot> robot,
-                                           SensorSharedStorage * sharedStorage)
+    void AbstractSensorTpl<T>::attach(std::weak_ptr<const Robot> robot,
+                                      SensorSharedStorage * sharedStorage)
     {
         // Make sure the sensor is not already attached
         if (isAttached_)
         {
-            PRINT_ERROR(
+            THROW_ERROR(
+                bad_control_flow,
                 "Sensor already attached to a robot. Please 'detach' method before attaching it.");
-            return hresult_t::ERROR_GENERIC;
         }
 
         // Make sure the robot still exists
         if (robot.expired())
         {
-            PRINT_ERROR("Robot pointer expired or unset.");
-            return hresult_t::ERROR_GENERIC;
+            THROW_ERROR(bad_control_flow, "Robot pointer expired or unset.");
         }
 
         // Copy references to the robot and shared data
@@ -92,19 +89,16 @@ namespace jiminy
 
         // Update the flag
         isAttached_ = true;
-
-        return hresult_t::SUCCESS;
     }
 
     template<typename T>
-    hresult_t AbstractSensorTpl<T>::detach()
+    void AbstractSensorTpl<T>::detach()
     {
         // Delete the part of the shared memory associated with the sensor
 
         if (!isAttached_)
         {
-            PRINT_ERROR("Sensor not attached to any robot.");
-            return hresult_t::ERROR_GENERIC;
+            THROW_ERROR(bad_control_flow, "Sensor not attached to any robot.");
         }
 
         // Remove associated col in the shared data buffers
@@ -149,32 +143,30 @@ namespace jiminy
 
         // Update the flag
         isAttached_ = false;
-
-        return hresult_t::SUCCESS;
     }
 
     template<typename T>
-    hresult_t AbstractSensorTpl<T>::resetAll(uint32_t seed)
+    void AbstractSensorTpl<T>::resetAll(uint32_t seed)
     {
         // Make sure all the sensors are attached to a robot
         for (AbstractSensorBase * sensor : sharedStorage_->sensors_)
         {
             if (!sensor->isAttached_)
             {
-                PRINT_ERROR("Sensor '",
+                THROW_ERROR(bad_control_flow,
+                            "Sensor '",
                             sensor->name_,
                             "' of type '",
                             type_,
                             "' not attached to any robot.");
-                return hresult_t::ERROR_GENERIC;
             }
         }
 
         // Make sure the robot still exists
         if (robot_.expired())
         {
-            PRINT_ERROR("Robot has been deleted. Impossible to reset the sensors.");
-            return hresult_t::ERROR_GENERIC;
+            THROW_ERROR(bad_control_flow,
+                        "Robot has been deleted. Impossible to reset the sensors.");
         }
 
         // Clear the shared data buffers
@@ -216,30 +208,20 @@ namespace jiminy
             // Reset the telemetry state
             sensor.isTelemetryConfigured_ = false;
         }
-
-        return hresult_t::SUCCESS;
     }
 
     template<typename T>
-    hresult_t AbstractSensorTpl<T>::setOptionsAll(const GenericConfig & sensorOptions)
+    void AbstractSensorTpl<T>::setOptionsAll(const GenericConfig & sensorOptions)
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
         if (!isAttached_)
         {
-            PRINT_ERROR("Sensor not attached to any robot.");
-            returnCode = hresult_t::ERROR_GENERIC;
+            THROW_ERROR(bad_control_flow, "Sensor not attached to any robot.");
         }
 
         for (AbstractSensorBase * sensor : sharedStorage_->sensors_)
         {
-            if (returnCode == hresult_t::SUCCESS)
-            {
-                returnCode = sensor->setOptions(sensorOptions);
-            }
+            sensor->setOptions(sensorOptions);
         }
-
-        return returnCode;
     }
 
     template<typename T>
@@ -305,7 +287,7 @@ namespace jiminy
     }
 
     template<typename T>
-    hresult_t AbstractSensorTpl<T>::interpolateData()
+    void AbstractSensorTpl<T>::interpolateData()
     {
         assert(sharedStorage_->times_.size() > 0 && "No data to interpolatePositions.");
 
@@ -377,8 +359,7 @@ namespace jiminy
         {
             if (idxLeft < 0)
             {
-                PRINT_ERROR("No data old enough is available.");
-                return hresult_t::ERROR_GENERIC;
+                THROW_ERROR(std::runtime_error, "No data old enough is available.");
             }
             else if (baseSensorOptions_->delayInterpolationOrder == 0)
             {
@@ -396,8 +377,8 @@ namespace jiminy
             }
             else
             {
-                PRINT_ERROR("`delayInterpolationOrder` must be either 0 or 1.");
-                return hresult_t::ERROR_BAD_INPUT;
+                THROW_ERROR(not_implemented_error,
+                            "`delayInterpolationOrder` must be either 0 or 1.");
             }
         }
         else
@@ -425,47 +406,32 @@ namespace jiminy
                 get() = sharedStorage_->data_.back().col(sensorIndex_);
             }
         }
-
-        return hresult_t::SUCCESS;
     }
 
     template<typename T>
-    hresult_t AbstractSensorTpl<T>::measureDataAll()
+    void AbstractSensorTpl<T>::measureDataAll()
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
         for (AbstractSensorBase * sensor : sharedStorage_->sensors_)
         {
             // Compute the real value at current time, namely taking into account the sensor delay
-            if (returnCode == hresult_t::SUCCESS)
-            {
-                returnCode = sensor->interpolateData();
-            }
+            sensor->interpolateData();
 
             // Skew the data with white noise and bias
-            if (returnCode == hresult_t::SUCCESS)
-            {
-                sensor->measureData();
-            }
+            sensor->measureData();
         }
-
-        return returnCode;
     }
 
     template<typename T>
-    hresult_t AbstractSensorTpl<T>::setAll(double t,
-                                           const Eigen::VectorXd & q,
-                                           const Eigen::VectorXd & v,
-                                           const Eigen::VectorXd & a,
-                                           const Eigen::VectorXd & uMotor,
-                                           const ForceVector & fExternal)
+    void AbstractSensorTpl<T>::setAll(double t,
+                                      const Eigen::VectorXd & q,
+                                      const Eigen::VectorXd & v,
+                                      const Eigen::VectorXd & a,
+                                      const Eigen::VectorXd & uMotor,
+                                      const ForceVector & fExternal)
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
         if (!isAttached_)
         {
-            PRINT_ERROR("Sensor not attached to any robot.");
-            return hresult_t::ERROR_GENERIC;
+            THROW_ERROR(bad_control_flow, "Sensor not attached to any robot.");
         }
 
         /* Make sure at least the requested delay plus the maximum time step is available to handle
@@ -528,19 +494,11 @@ namespace jiminy
         // Update the last real data buffer
         for (AbstractSensorBase * sensor : sharedStorage_->sensors_)
         {
-            if (returnCode == hresult_t::SUCCESS)
-            {
-                returnCode = sensor->set(t, q, v, a, uMotor, fExternal);
-            }
+            sensor->set(t, q, v, a, uMotor, fExternal);
         }
 
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            // Compute the measurement data
-            returnCode = measureDataAll();
-        }
-
-        return returnCode;
+        // Compute the measurement data
+        measureDataAll();
     }
 
     template<typename T>

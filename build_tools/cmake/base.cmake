@@ -11,6 +11,18 @@ if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.27.0)
     cmake_policy(SET CMP0144 NEW)
 endif()
 
+# Forces GCC/Clang compilers to enable color diagnostics.
+# CMake versions 3.24 and below do not support this option, so we have
+# to invoke the color diagnostics flags manually.
+set(CMAKE_COLOR_DIAGNOSTICS ON)
+if(CMAKE_VERSION VERSION_LESS "3.24.0")
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        add_compile_options(-fdiagnostics-color=always)
+    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+        add_compile_options(-fcolor-diagnostics)
+    endif()
+endif()
+
 # Check if network is available before compiling external projects
 if(WIN32)
     find_program(HAS_PING "ping")
@@ -54,7 +66,8 @@ else()
                    -Wno-unknown-warning -Wno-undefined-var-template \
                    -Wno-long-long -Wno-error=maybe-uninitialized \
                    -Wno-error=uninitialized -Wno-error=deprecated \
-                   -Wno-error=array-bounds -Wno-error=redundant-move")
+                   -Wno-error=array-bounds -Wno-error=redundant-move \
+                   -Wno-error=suggest-attribute=noreturn")
 endif()
 
 # Shared libraries need PIC

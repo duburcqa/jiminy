@@ -494,10 +494,10 @@ namespace jiminy::pinocchio_overload
     }
 
     template<typename JacobianType>
-    hresult_t computeJMinvJt(const pinocchio::Model & model,
-                             pinocchio::Data & data,
-                             const Eigen::MatrixBase<JacobianType> & J,
-                             bool updateDecomposition = true)
+    void computeJMinvJt(const pinocchio::Model & model,
+                        pinocchio::Data & data,
+                        const Eigen::MatrixBase<JacobianType> & J,
+                        bool updateDecomposition = true)
     {
         // Compute the Cholesky decomposition of mass matrix M if requested
         if (updateDecomposition)
@@ -505,11 +505,11 @@ namespace jiminy::pinocchio_overload
             pinocchio::cholesky::decompose(model, data);
         }
 
-        // Make sure the decomposition of the mass matrix is valid
+        /* Make sure the decomposition of the mass matrix is valid.
+           It is always the case in theory but not sure in practice because of rounding errors. */
         if ((data.Dinv.array() < 0.0).any())
         {
-            PRINT_ERROR("The inertia matrix is not positive definite.");
-            return hresult_t::ERROR_BAD_INPUT;
+            THROW_ERROR(std::runtime_error, "Inertia matrix not positive definite.");
         }
 
         /* Compute sDUiJt := sqrt(D)^-1 * U^-1 * J.T
@@ -536,8 +536,6 @@ namespace jiminy::pinocchio_overload
         data.JMinvJt.resize(J.rows(), J.rows());
         data.JMinvJt.triangularView<Eigen::Lower>().setZero();
         data.JMinvJt.selfadjointView<Eigen::Lower>().rankUpdate(sDUiJt.transpose());
-
-        return hresult_t::SUCCESS;
     }
 
     template<typename RhsType>

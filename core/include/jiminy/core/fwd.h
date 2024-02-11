@@ -168,33 +168,25 @@ namespace jiminy
     // ****************************** Jiminy-specific declarations ***************************** //
 
     // Exceptions
-    class jiminy_exception : public std::exception
-    {
-    public:
-        using std::exception::exception;
-    };
-
-    class not_initialized : public jiminy_exception, public std::logic_error
+    class not_implemented_error : public std::logic_error
     {
     public:
         using std::logic_error::logic_error;
         using std::logic_error::logic_error::what;
     };
 
-    class initialization_failed : public jiminy_exception, public std::runtime_error
+    class bad_control_flow : public std::logic_error
     {
     public:
-        using std::runtime_error::runtime_error;
-        using std::runtime_error::runtime_error::what;
+        using std::logic_error::logic_error;
+        using std::logic_error::logic_error::what;
     };
 
-    // Error codes
-    enum class hresult_t : int32_t
+    class lookup_error : public std::logic_error
     {
-        SUCCESS = 1,
-        ERROR_GENERIC = -1,
-        ERROR_BAD_INPUT = -2,
-        ERROR_INIT_FAILED = -3
+    public:
+        using std::logic_error::logic_error;
+        using std::logic_error::logic_error::what;
     };
 
     // Ground profile functors

@@ -309,7 +309,7 @@ class SimulateTwoMasses(unittest.TestCase):
             x_jiminy[:, :7], x_jiminy[0, :7], atol=TOLERANCE))
 
     def test_constraint_external_force(self):
-        """Test support of external force applied with constraints.
+        r"""Test support of external force applied with constraints.
 
         To provide a non-trivial test case with an external force non-colinear
         to the constraints, simulate two masses oscillating, one along the x

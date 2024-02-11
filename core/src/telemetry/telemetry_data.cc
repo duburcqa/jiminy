@@ -13,13 +13,12 @@ namespace jiminy
         isRegisteringAvailable_ = true;
     }
 
-    hresult_t TelemetryData::registerConstant(const std::string & name, const std::string & value)
+    void TelemetryData::registerConstant(const std::string & name, const std::string & value)
     {
         // Check if registration is possible
         if (!isRegisteringAvailable_)
         {
-            PRINT_ERROR("Registration is locked.");
-            return hresult_t::ERROR_GENERIC;
+            THROW_ERROR(bad_control_flow, "Registration already locked.");
         }
 
         // Check if already in memory
@@ -30,17 +29,17 @@ namespace jiminy
                          { return element.first == name; });
         if (variableIt != constantRegistry_.end())
         {
-            PRINT_ERROR("Entry already exists.");
-            return hresult_t::ERROR_GENERIC;
+            THROW_ERROR(bad_control_flow, "Entry '", name, "' already exists.");
         }
 
         // Register new constant
         constantRegistry_.emplace_back(name, value);
-        return hresult_t::SUCCESS;
     }
 
-    void TelemetryData::formatHeader(std::vector<char> & header)
+    std::vector<char> TelemetryData::formatHeader()
     {
+        std::vector<char> header{};
+
         // Define helper to easily insert new lines in header
         auto insertLineInHeader = [&header](auto &&... args) -> void
         {
@@ -112,6 +111,8 @@ namespace jiminy
 
         // Start data section
         insertLineInHeader(START_DATA);
+
+        return header;
     }
 
     template<>

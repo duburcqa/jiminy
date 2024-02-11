@@ -17,16 +17,16 @@ namespace jiminy
         virtual ~MemoryDevice();
 
         std::size_t size() override { return buffer_.size(); }
-        hresult_t seek(std::ptrdiff_t pos) override;
+        void seek(std::ptrdiff_t pos) override;
         std::ptrdiff_t pos() override { return currentPos_; }
-        hresult_t resize(std::size_t size) override;
+        void resize(std::size_t size) override;
         std::size_t bytesAvailable() override { return size() - currentPos_; }
 
         bool isSequential() const override { return false; }
 
     protected:
-        hresult_t doOpen(OpenMode modes) override;
-        hresult_t doClose() override;
+        void doOpen(OpenMode modes) override;
+        void doClose() override;
 
         std::ptrdiff_t readData(void * data, std::size_t dataSize) override;
         std::ptrdiff_t writeData(const void * data, std::size_t dataSize) override;

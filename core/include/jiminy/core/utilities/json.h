@@ -17,15 +17,15 @@ namespace jiminy
 
     Json::Value JIMINY_DLLAPI convertToJson(const GenericConfig & value);
 
-    hresult_t JIMINY_DLLAPI jsonDump(const GenericConfig & config,
-                                     std::shared_ptr<AbstractIODevice> & device);
+    void JIMINY_DLLAPI jsonDump(const GenericConfig & config,
+                                std::shared_ptr<AbstractIODevice> & device);
 
     // ************* Conversion from JSON utilities *****************
 
     GenericConfig JIMINY_DLLAPI convertFromJson(const Json::Value & value);
 
-    hresult_t JIMINY_DLLAPI jsonLoad(GenericConfig & config,
-                                     std::shared_ptr<AbstractIODevice> & device);
+    void JIMINY_DLLAPI jsonLoad(GenericConfig & config,
+                                std::shared_ptr<AbstractIODevice> & device);
 }
 
 #endif  // JIMINY_JSON_H

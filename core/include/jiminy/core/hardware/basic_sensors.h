@@ -17,21 +17,21 @@ namespace jiminy
 
         auto shared_from_this() { return shared_from(this); }
 
-        hresult_t initialize(const std::string & frameName);
+        void initialize(const std::string & frameName);
 
-        hresult_t setOptions(const GenericConfig & sensorOptions) override;
-        hresult_t refreshProxies() override;
+        void setOptions(const GenericConfig & sensorOptions) override;
+        void refreshProxies() override;
 
         const std::string & getFrameName() const;
         pinocchio::FrameIndex getFrameIndex() const;
 
     private:
-        hresult_t set(double t,
-                      const Eigen::VectorXd & q,
-                      const Eigen::VectorXd & v,
-                      const Eigen::VectorXd & a,
-                      const Eigen::VectorXd & uMotor,
-                      const ForceVector & fExternal) override;
+        void set(double t,
+                 const Eigen::VectorXd & q,
+                 const Eigen::VectorXd & v,
+                 const Eigen::VectorXd & a,
+                 const Eigen::VectorXd & uMotor,
+                 const ForceVector & fExternal) override;
         void measureData() override;
 
     private:
@@ -55,20 +55,20 @@ namespace jiminy
 
         auto shared_from_this() { return shared_from(this); }
 
-        hresult_t initialize(const std::string & frameName);
+        void initialize(const std::string & frameName);
 
-        hresult_t refreshProxies() override;
+        void refreshProxies() override;
 
         const std::string & getFrameName() const;
         pinocchio::FrameIndex getFrameIndex() const;
 
     private:
-        hresult_t set(double t,
-                      const Eigen::VectorXd & q,
-                      const Eigen::VectorXd & v,
-                      const Eigen::VectorXd & a,
-                      const Eigen::VectorXd & uMotor,
-                      const ForceVector & fExternal) override;
+        void set(double t,
+                 const Eigen::VectorXd & q,
+                 const Eigen::VectorXd & v,
+                 const Eigen::VectorXd & a,
+                 const Eigen::VectorXd & uMotor,
+                 const ForceVector & fExternal) override;
 
     private:
         std::string frameName_{};
@@ -90,21 +90,21 @@ namespace jiminy
 
         auto shared_from_this() { return shared_from(this); }
 
-        hresult_t initialize(const std::string & frameName);
+        void initialize(const std::string & frameName);
 
-        hresult_t refreshProxies() override;
+        void refreshProxies() override;
 
         const std::string & getFrameName() const;
         pinocchio::FrameIndex getFrameIndex() const;
         pinocchio::JointIndex getJointIndex() const;
 
     private:
-        hresult_t set(double t,
-                      const Eigen::VectorXd & q,
-                      const Eigen::VectorXd & v,
-                      const Eigen::VectorXd & a,
-                      const Eigen::VectorXd & uMotor,
-                      const ForceVector & fExternal) override;
+        void set(double t,
+                 const Eigen::VectorXd & q,
+                 const Eigen::VectorXd & v,
+                 const Eigen::VectorXd & a,
+                 const Eigen::VectorXd & uMotor,
+                 const ForceVector & fExternal) override;
 
     private:
         std::string frameName_{};
@@ -128,21 +128,21 @@ namespace jiminy
 
         auto shared_from_this() { return shared_from(this); }
 
-        hresult_t initialize(const std::string & jointName);
+        void initialize(const std::string & jointName);
 
-        hresult_t refreshProxies() override;
+        void refreshProxies() override;
 
         const std::string & getJointName() const;
         pinocchio::JointIndex getJointIndex() const;
         JointModelType getJointType() const;
 
     private:
-        hresult_t set(double t,
-                      const Eigen::VectorXd & q,
-                      const Eigen::VectorXd & v,
-                      const Eigen::VectorXd & a,
-                      const Eigen::VectorXd & uMotor,
-                      const ForceVector & fExternal) override;
+        void set(double t,
+                 const Eigen::VectorXd & q,
+                 const Eigen::VectorXd & v,
+                 const Eigen::VectorXd & a,
+                 const Eigen::VectorXd & uMotor,
+                 const ForceVector & fExternal) override;
 
     private:
         std::string jointName_{};
@@ -164,20 +164,20 @@ namespace jiminy
 
         auto shared_from_this() { return shared_from(this); }
 
-        hresult_t initialize(const std::string & motorName);
+        void initialize(const std::string & motorName);
 
-        hresult_t refreshProxies() override;
+        void refreshProxies() override;
 
         const std::string & getMotorName() const;
         std::size_t getMotorIndex() const;
 
     private:
-        hresult_t set(double t,
-                      const Eigen::VectorXd & q,
-                      const Eigen::VectorXd & v,
-                      const Eigen::VectorXd & a,
-                      const Eigen::VectorXd & uMotor,
-                      const ForceVector & fExternal) override;
+        void set(double t,
+                 const Eigen::VectorXd & q,
+                 const Eigen::VectorXd & v,
+                 const Eigen::VectorXd & a,
+                 const Eigen::VectorXd & uMotor,
+                 const ForceVector & fExternal) override;
 
     private:
         std::string motorName_{};

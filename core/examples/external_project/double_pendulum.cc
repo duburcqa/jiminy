@@ -81,8 +81,8 @@ int main(int argc, char * argv[])
     controller->initialize(robot);
 
     // Instantiate the engine
-    auto engine = std::make_shared<Engine>();
-    engine->initialize(robot, controller, callback);
+    Engine engine{};
+    engine.initialize(robot, controller, callback);
     std::cout << "Initialization: " << timer.toc<std::milli>() << "ms" << std::endl;
 
     // =====================================================================
@@ -97,19 +97,18 @@ int main(int argc, char * argv[])
 
     // Run simulation
     timer.tic();
-    engine->simulate(tf, q0, v0);
+    engine.simulate(tf, q0, v0);
     std::cout << "Simulation: " << timer.toc<std::milli>() << "ms" << std::endl;
 
     // Write the log file
     std::vector<std::string> fieldnames;
-    std::shared_ptr<const LogData> logData;
-    engine->getLog(logData);
-    std::cout << logData->times.size() << " log points" << std::endl;
-    std::cout << engine->getStepperState().iter << " internal integration steps" << std::endl;
+    std::shared_ptr<const LogData> logDataPtr = engine.getLog();
+    std::cout << logDataPtr->times.size() << " log points" << std::endl;
+    std::cout << engine.getStepperState().iter << " internal integration steps" << std::endl;
     timer.tic();
-    engine->writeLog((outputDirPath / "log.data").string(), "binary");
+    engine.writeLog((outputDirPath / "log.data").string(), "binary");
     std::cout << "Write log binary: " << timer.toc<std::milli>() << "ms" << std::endl;
-    engine->writeLog((outputDirPath / "log.hdf5").string(), "hdf5");
+    engine.writeLog((outputDirPath / "log.hdf5").string(), "hdf5");
     std::cout << "Write log HDF5: " << timer.toc<std::milli>() << "ms" << std::endl;
 
     return 0;

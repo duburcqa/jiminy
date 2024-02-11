@@ -107,11 +107,7 @@ class Simulator:
 
         # Instantiate the low-level Jiminy engine, then initialize it
         self.engine = engine_class()
-        hresult = self.engine.initialize(robot, controller, callback_wrapper)
-        if hresult != jiminy.hresult_t.SUCCESS:
-            raise RuntimeError(
-                "Invalid robot or controller. Make sure they are both "
-                "initialized.")
+        self.engine.initialize(robot, controller, callback_wrapper)
 
         # Create shared memories and python-native attribute for fast access
         self.stepper_state = self.engine.stepper_state
@@ -349,31 +345,13 @@ class Simulator:
                                      the robot.
         """
         # Call base implementation
-        hresult = self.engine.start(
-            q_init, v_init, a_init, is_state_theoretical)
-        if hresult != jiminy.hresult_t.SUCCESS:
-            raise RuntimeError("Failed to start the simulation.")
+        self.engine.start(q_init, v_init, a_init, is_state_theoretical)
 
         # Share the external force buffer of the viewer with the engine.
         # Note that the force vector must be converted to pain list to avoid
         # copy with external sub-vector.
         if self.viewer is not None:
             self.viewer.f_external = [*self.system_state.f_external][1:]
-
-    def step(self, step_dt: float = -1) -> None:
-        """Integrate system dynamics from current state for a given duration.
-
-        :param step_dt: Duration for which to integrate. -1 to use default
-                        duration, namely until the next breakpoint if any,
-                        or 'engine_options["stepper"]["dtMax"]'.
-        """
-        # Perform a single integration step
-        if not self.is_simulation_running:
-            raise RuntimeError(
-                "No simulation running. Please call `start` before `step`.")
-        return_code = self.engine.step(step_dt)
-        if return_code != jiminy.hresult_t.SUCCESS:
-            raise RuntimeError("Failed to perform the simulation step.")
 
     def simulate(self,
                  t_end: float,
@@ -409,22 +387,21 @@ class Simulator:
                 "[{elapsed}<{remaining}]"))
 
         # Run the simulation
+        exception = None
         try:
-            return_code = self.engine.simulate(
+            self.engine.simulate(
                 t_end, q_init, v_init, a_init, is_state_theoretical)
         except Exception as e:  # pylint: disable=broad-exception-caught
-            LOGGER.warning(
-                "The simulation failed due to Python exception:\n %s", e)
-            return_code = jiminy.hresult_t.ERROR_GENERIC
+            exception = e
         finally:  # Make sure that the progress bar is properly closed
             if show_progress_bar:
                 assert self.__pbar is not None
                 self.__pbar.close()
                 self.__pbar = None
 
-        # Throw exception if not successful
-        if return_code != jiminy.hresult_t.SUCCESS:
-            raise RuntimeError("The simulation failed internally.")
+        # Re-throw exception if not successful
+        if exception is not None:
+            raise exception
 
         # Write log
         if log_path is not None and self.engine.stepper_state.q:

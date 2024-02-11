@@ -48,17 +48,20 @@ namespace jiminy
 
     FileDevice::~FileDevice()
     {
+        if (isOpen())
+        {
 #if defined(close)
 #    pragma push_macro("close")
 #    undef close
 #endif
-        close();
+            close();
 #if defined(close)
 #    pragma pop_macro("close")
 #endif
+        }
     }
 
-    hresult_t FileDevice::doOpen(OpenMode mode)
+    void FileDevice::doOpen(OpenMode mode)
     {
         int32_t openFlags = 0;
         if (mode & OpenMode::READ_ONLY)
@@ -107,43 +110,32 @@ namespace jiminy
         const int32_t rc = ::open(filename_.c_str(), openFlags, S_IRUSR | S_IWUSR);
         if (rc < 0)
         {
-            lastError_ = hresult_t::ERROR_GENERIC;
-            PRINT_ERROR("Impossible to open the file using the desired mode.");
-            return lastError_;
+            THROW_ERROR(std::ios_base::failure,
+                        "Impossible to open the file using the desired mode.");
         }
-
         fileDescriptor_ = rc;
-
-        return hresult_t::SUCCESS;
     }
 
-    hresult_t FileDevice::doClose()
+    void FileDevice::doClose()
     {
         const int32_t rc = ::close(fileDescriptor_);
         if (rc < 0)
         {
-            lastError_ = hresult_t::ERROR_GENERIC;
-            PRINT_ERROR("Impossible to close the file.");
-            return lastError_;
+            THROW_ERROR(std::ios_base::failure, "Impossible to close the file.");
         }
-        else
-        {
-            fileDescriptor_ = -1;
-        }
-        return hresult_t::SUCCESS;
+        fileDescriptor_ = -1;
     }
 
-    hresult_t FileDevice::seek(std::ptrdiff_t pos)
+    void FileDevice::seek(std::ptrdiff_t pos)
     {
         const ssize_t rc = ::lseek(fileDescriptor_, pos, SEEK_SET);
         if (rc < 0)
         {
-            lastError_ = hresult_t::ERROR_GENERIC;
-            PRINT_ERROR(
-                "The file is not open, or the requested position '", pos, "' is out of scope.");
-            return lastError_;
+            THROW_ERROR(std::ios_base::failure,
+                        "File not open, or requested position '",
+                        pos,
+                        "' is out of scope.");
         }
-        return hresult_t::SUCCESS;
     }
 
     std::ptrdiff_t FileDevice::pos()
@@ -151,9 +143,8 @@ namespace jiminy
         const ssize_t pos_cur = ::lseek(fileDescriptor_, 0, SEEK_CUR);
         if (pos_cur < 0)
         {
-            lastError_ = hresult_t::ERROR_GENERIC;
-            PRINT_ERROR(
-                "The file is not open, or the position would be negative or beyond the end.");
+            THROW_ERROR(std::ios_base::failure,
+                        "File not open, or position would be negative or beyond the end.");
         }
         return pos_cur;
     }
@@ -164,8 +155,7 @@ namespace jiminy
         int32_t rc = ::fstat(fileDescriptor_, &st);
         if (rc < 0)
         {
-            lastError_ = hresult_t::ERROR_GENERIC;
-            PRINT_ERROR("Impossible to access the file.");
+            THROW_ERROR(std::ios_base::failure, "Impossible to access the file.");
         }
         return st.st_size;
     }
@@ -184,9 +174,8 @@ namespace jiminy
         const ssize_t readBytes = ::read(fileDescriptor_, data, dataSize);
         if (readBytes < 0)
         {
-            lastError_ = hresult_t::ERROR_GENERIC;
-            PRINT_ERROR(
-                "The file is not open, or data buffer is outside accessible address space.");
+            THROW_ERROR(std::ios_base::failure,
+                        "File not open, or data buffer is outside accessible address space.");
         }
         return static_cast<std::ptrdiff_t>(readBytes);
     }
@@ -196,9 +185,8 @@ namespace jiminy
         const ssize_t writtenBytes = ::write(fileDescriptor_, data, dataSize);
         if (writtenBytes < 0)
         {
-            lastError_ = hresult_t::ERROR_GENERIC;
-            PRINT_ERROR(
-                "The file is not open, or data buffer is outside accessible address space.");
+            THROW_ERROR(std::ios_base::failure,
+                        "File not open, or data buffer is outside accessible address space.");
         }
         return writtenBytes;
     }
@@ -208,15 +196,12 @@ namespace jiminy
         return filename_;
     }
 
-    hresult_t FileDevice::resize(std::size_t size)
+    void FileDevice::resize(std::size_t size)
     {
         const int rc = ::ftruncate(fileDescriptor_, size);
         if (rc < 0)
         {
-            lastError_ = hresult_t::ERROR_GENERIC;
-            PRINT_ERROR("The file is not open.");
-            return lastError_;
+            THROW_ERROR(std::ios_base::failure, "File not open.");
         }
-        return hresult_t::SUCCESS;
     }
 }

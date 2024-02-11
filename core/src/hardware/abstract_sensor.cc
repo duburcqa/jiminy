@@ -17,44 +17,38 @@ namespace jiminy
 
     AbstractSensorBase::~AbstractSensorBase() = default;
 
-    hresult_t AbstractSensorBase::configureTelemetry(std::shared_ptr<TelemetryData> telemetryData,
-                                                     const std::string & prefix)
+    void AbstractSensorBase::configureTelemetry(std::shared_ptr<TelemetryData> telemetryData,
+                                                const std::string & prefix)
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
+        if (isTelemetryConfigured_)
+        {
+            return;
+        }
 
         if (!isInitialized_)
         {
-            PRINT_ERROR("Sensor '", name_, "' of type '", getType(), "' is not initialized.");
-            returnCode = hresult_t::ERROR_INIT_FAILED;
+            THROW_ERROR(bad_control_flow,
+                        "Sensor '",
+                        name_,
+                        "' of type '",
+                        getType(),
+                        "' is not initialized.");
         }
 
-        if (returnCode == hresult_t::SUCCESS)
+        if (!telemetryData)
         {
-            if (!isTelemetryConfigured_)
-            {
-                if (telemetryData)
-                {
-                    std::string name = getTelemetryName();
-                    if (!prefix.empty())
-                    {
-                        name = addCircumfix(name, prefix, {}, TELEMETRY_FIELDNAME_DELIMITER);
-                    }
-                    telemetrySender_->configure(telemetryData, name);
-                    returnCode = telemetrySender_->registerVariable(getFieldnames(), get());
-                    if (returnCode == hresult_t::SUCCESS)
-                    {
-                        isTelemetryConfigured_ = true;
-                    }
-                }
-                else
-                {
-                    PRINT_ERROR("Telemetry not initialized. Impossible to log sensor data.");
-                    returnCode = hresult_t::ERROR_INIT_FAILED;
-                }
-            }
+            THROW_ERROR(bad_control_flow,
+                        "Telemetry not initialized. Impossible to log sensor data.");
         }
 
-        return returnCode;
+        std::string name = getTelemetryName();
+        if (!prefix.empty())
+        {
+            name = addCircumfix(name, prefix, {}, TELEMETRY_FIELDNAME_DELIMITER);
+        }
+        telemetrySender_->configure(telemetryData, name);
+        telemetrySender_->registerVariable(getFieldnames(), get());
+        isTelemetryConfigured_ = true;
     }
 
     void AbstractSensorBase::updateTelemetry()
@@ -81,11 +75,10 @@ namespace jiminy
         }
     }
 
-    hresult_t AbstractSensorBase::setOptions(const GenericConfig & sensorOptions)
+    void AbstractSensorBase::setOptions(const GenericConfig & sensorOptions)
     {
         sensorOptionsGeneric_ = sensorOptions;
         baseSensorOptions_ = std::make_unique<const AbstractSensorOptions>(sensorOptionsGeneric_);
-        return hresult_t::SUCCESS;
     }
 
     GenericConfig AbstractSensorBase::getOptions() const noexcept

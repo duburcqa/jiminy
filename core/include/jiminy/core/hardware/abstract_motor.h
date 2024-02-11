@@ -85,7 +85,7 @@ namespace jiminy
         ///
         /// \remark This method is not intended to be called manually. The Robot to which the motor
         ///         is added is taking care of it when its own `refresh` method is called.
-        virtual hresult_t refreshProxies();
+        virtual void refreshProxies();
 
         /// \brief Reset the internal state of the motors.
         ///
@@ -93,7 +93,7 @@ namespace jiminy
         ///
         /// \remark  This method is not intended to be called manually. The Robot to which the
         ///          motor is added is taking care of it when its own `reset` method is called.
-        virtual hresult_t resetAll();
+        virtual void resetAll();
 
         /// \brief Configuration options of the motor.
         GenericConfig getOptions() const noexcept;
@@ -107,12 +107,12 @@ namespace jiminy
         /// \brief Set the configuration options of the motor.
         ///
         /// \param[in] motorOptions Dictionary with the parameters of the motor.
-        virtual hresult_t setOptions(const GenericConfig & motorOptions);
+        virtual void setOptions(const GenericConfig & motorOptions);
 
         /// \brief Set the same configuration options for all motors of same type as current one.
         ///
         /// \param[in] motorOptions Dictionary with the parameters used for any motor.
-        hresult_t setOptionsAll(const GenericConfig & motorOptions);
+        void setOptionsAll(const GenericConfig & motorOptions);
 
         /// \brief Whether the motor has been initialized.
         bool getIsInitialized() const;
@@ -154,11 +154,11 @@ namespace jiminy
         /// \param[in] v Current velocity of the motor.
         /// \param[in] a Current acceleration of the motor.
         /// \param[in] command Current command effort of the motor.
-        virtual hresult_t computeEffort(double t,
-                                        const Eigen::VectorBlock<const Eigen::VectorXd> & q,
-                                        double v,
-                                        double a,
-                                        double command) = 0; /* copy on purpose */
+        virtual void computeEffort(double t,
+                                   const Eigen::VectorBlock<const Eigen::VectorXd> & q,
+                                   double v,
+                                   double a,
+                                   double command) = 0; /* copy on purpose */
 
         /// \brief Request every motors to update their actual effort based of the input data.
         ///
@@ -173,13 +173,11 @@ namespace jiminy
         /// \param[in] v Current velocity vector of the robot.
         /// \param[in] a Current acceleration vector of the robot.
         /// \param[in] command Current command effort vector of the robot.
-        ///
-        /// \return Return code to determine whether the execution of the method was successful.
-        hresult_t computeEffortAll(double t,
-                                   const Eigen::VectorXd & q,
-                                   const Eigen::VectorXd & v,
-                                   const Eigen::VectorXd & a,
-                                   const Eigen::VectorXd & command);
+        void computeEffortAll(double t,
+                              const Eigen::VectorXd & q,
+                              const Eigen::VectorXd & v,
+                              const Eigen::VectorXd & a,
+                              const Eigen::VectorXd & command);
 
     protected:
         /// \brief Reference to the last data buffer corresponding to the true effort of the motor.
@@ -189,12 +187,12 @@ namespace jiminy
         /// \brief Attach the sensor to a robot
         ///
         /// \details This method must be called before initializing the sensor.
-        hresult_t attach(std::weak_ptr<const Robot> robot,
-                         std::function<hresult_t(AbstractMotorBase & /*motor*/)> notifyRobot,
-                         MotorSharedStorage * sharedStorage);
+        void attach(std::weak_ptr<const Robot> robot,
+                    std::function<void(AbstractMotorBase & /*motor*/)> notifyRobot,
+                    MotorSharedStorage * sharedStorage);
 
         /// \brief Detach the sensor from the robot.
-        hresult_t detach();
+        void detach();
 
     public:
         /// \brief Structure with the parameters of the motor.
@@ -210,7 +208,7 @@ namespace jiminy
         /// \brief Robot for which the command and internal dynamics.
         std::weak_ptr<const Robot> robot_{};
         /// \brief Notify the robot that the configuration of the sensors have changed.
-        std::function<hresult_t(AbstractMotorBase &)> notifyRobot_{};
+        std::function<void(AbstractMotorBase &)> notifyRobot_{};
         /// \brief Name of the motor.
         std::string name_;
         /// \brief Index of the motor in the measurement buffer.

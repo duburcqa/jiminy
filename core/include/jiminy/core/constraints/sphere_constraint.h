@@ -38,11 +38,11 @@ namespace jiminy
         void setReferenceTransform(const pinocchio::SE3 & transformRef) noexcept;
         const pinocchio::SE3 & getReferenceTransform() const noexcept;
 
-        virtual hresult_t reset(const Eigen::VectorXd & /* q */,
-                                const Eigen::VectorXd & /* v */) override final;
+        virtual void reset(const Eigen::VectorXd & /* q */,
+                           const Eigen::VectorXd & /* v */) override final;
 
-        virtual hresult_t computeJacobianAndDrift(const Eigen::VectorXd & q,
-                                                  const Eigen::VectorXd & v) override final;
+        virtual void computeJacobianAndDrift(const Eigen::VectorXd & q,
+                                             const Eigen::VectorXd & v) override final;
 
     private:
         /// \brief Name of the frame on which the constraint operates.

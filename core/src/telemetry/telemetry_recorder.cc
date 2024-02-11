@@ -16,21 +16,16 @@ namespace jiminy
 
     TelemetryRecorder::~TelemetryRecorder()
     {
-        if (!flows_.empty())
-        {
-            flows_.back().close();
-        }
+        reset();
     }
 
-    hresult_t TelemetryRecorder::initialize(TelemetryData * telemetryData, double timeUnit)
+    void TelemetryRecorder::initialize(TelemetryData * telemetryData, double timeUnit)
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
         if (isInitialized_)
         {
-            PRINT_ERROR("TelemetryRecorder already initialized.");
-            returnCode = hresult_t::ERROR_INIT_FAILED;
+            THROW_ERROR(bad_control_flow, "TelemetryRecorder already initialized.");
         }
+
         // Log the time unit as constant
         timeUnitInv_ = 1.0 / timeUnit;
         std::ostringstream timeUnitStr;
@@ -39,42 +34,29 @@ namespace jiminy
         // FIXME: remove explicit conversion to `std::string` when moving to C++20
         telemetryData->registerConstant(std::string{TIME_UNIT}, timeUnitStr.str());
 
-        std::vector<char> header;
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            // Clear the MemoryDevice buffer
-            flows_.clear();
+        // Clear the MemoryDevice buffer
+        flows_.clear();
 
-            // Get telemetry data infos
-            integerRegistry_ = telemetryData->getRegistry<int64_t>();
-            integerSectionSize_ = sizeof(int64_t) * integerRegistry_->size();
-            floatRegistry_ = telemetryData->getRegistry<double>();
-            floatSectionSize_ = sizeof(double) * floatRegistry_->size();
-            recordedBytesPerLine_ = integerSectionSize_ + floatSectionSize_ +
-                                    START_LINE_TOKEN.size() +
-                                    sizeof(int64_t);  // int64_t for Global.Time
+        // Get telemetry data infos
+        integerRegistry_ = telemetryData->getRegistry<int64_t>();
+        integerSectionSize_ = sizeof(int64_t) * integerRegistry_->size();
+        floatRegistry_ = telemetryData->getRegistry<double>();
+        floatSectionSize_ = sizeof(double) * floatRegistry_->size();
+        recordedBytesPerLine_ = integerSectionSize_ + floatSectionSize_ + START_LINE_TOKEN.size() +
+                                sizeof(int64_t);  // int64_t for Global.Time
 
-            // Get the header
-            telemetryData->formatHeader(header);
-            headerSize_ = header.size();
+        // Get the header
+        std::vector<char> header = telemetryData->formatHeader();
+        headerSize_ = header.size();
 
-            // Create a new MemoryDevice and open it
-            returnCode = createNewChunk();
-        }
+        // Create a new MemoryDevice and open it
+        createNewChunk();
 
         // Write the Header
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            returnCode = flows_[0].write(header);
-        }
+        flows_[0].write(header);
 
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            recordedBytes_ = headerSize_;
-            isInitialized_ = true;
-        }
-
-        return returnCode;
+        recordedBytes_ = headerSize_;
+        isInitialized_ = true;
     }
 
     double TelemetryRecorder::getLogDurationMax(double timeUnit)
@@ -94,6 +76,12 @@ namespace jiminy
 
     void TelemetryRecorder::reset()
     {
+        // Return early if not initialized
+        if (!isInitialized_)
+        {
+            return;
+        }
+
         // Close the current MemoryDevice, if any and if it was opened
         if (!flows_.empty())
         {
@@ -103,10 +91,8 @@ namespace jiminy
         isInitialized_ = false;
     }
 
-    hresult_t TelemetryRecorder::createNewChunk()
+    void TelemetryRecorder::createNewChunk()
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
         // Close the current MemoryDevice, if any and if it was opened
         const bool hasHeader = !flows_.empty();
         if (hasHeader)
@@ -127,90 +113,73 @@ namespace jiminy
         std::size_t recordedDataLinesMax = (bufferSizeMax - headerSize) / recordedBytesPerLine_;
         recordedBytesLimit_ = headerSize + recordedDataLinesMax * recordedBytesPerLine_;
         flows_.emplace_back(recordedBytesLimit_);
-        returnCode = flows_.back().open(OpenMode::READ_WRITE);
+        flows_.back().open(OpenMode::READ_WRITE);
 
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            recordedBytes_ = 0;
-        }
-
-        return returnCode;
+        recordedBytes_ = 0;
     }
 
-    hresult_t TelemetryRecorder::flushSnapshot(double time)
+    void TelemetryRecorder::flushSnapshot(double time)
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
         if (recordedBytes_ == recordedBytesLimit_)
         {
-            returnCode = createNewChunk();
+            createNewChunk();
         }
 
-        if (returnCode == hresult_t::SUCCESS)
+        // Write new line token
+        flows_.back().write(START_LINE_TOKEN);
+
+        // Write time
+        flows_.back().write(static_cast<int64_t>(std::round(time * timeUnitInv_)));
+
+        // Write data, integers first
+        for (const std::pair<std::string, int64_t> & keyValue : *integerRegistry_)
         {
-            // Write new line token
-            flows_.back().write(START_LINE_TOKEN);
-
-            // Write time
-            flows_.back().write(static_cast<int64_t>(std::round(time * timeUnitInv_)));
-
-            // Write data, integers first
-            for (const std::pair<std::string, int64_t> & keyValue : *integerRegistry_)
-            {
-                flows_.back().write(keyValue.second);
-            }
-
-            // Write data, floats last
-            for (const std::pair<std::string, double> & keyValue : *floatRegistry_)
-            {
-                flows_.back().write(keyValue.second);
-            }
-
-            // Update internal counter
-            recordedBytes_ += recordedBytesPerLine_;
+            flows_.back().write(keyValue.second);
         }
 
-        return returnCode;
+        // Write data, floats last
+        for (const std::pair<std::string, double> & keyValue : *floatRegistry_)
+        {
+            flows_.back().write(keyValue.second);
+        }
+
+        // Update internal counter
+        recordedBytes_ += recordedBytesPerLine_;
     }
 
-    hresult_t TelemetryRecorder::writeLog(const std::string & filename)
+    void TelemetryRecorder::writeLog(const std::string & filename)
     {
         FileDevice myFile(filename);
         myFile.open(OpenMode::WRITE_ONLY | OpenMode::TRUNCATE);
-        if (myFile.isOpen())
+        if (!myFile.isOpen())
         {
-            for (auto & flow : flows_)
-            {
-                const std::ptrdiff_t posOld = flow.pos();
-                flow.seek(0);
-
-                std::vector<uint8_t> bufferChunk;
-                bufferChunk.resize(static_cast<std::size_t>(posOld));
-                flow.read(bufferChunk);
-                myFile.write(bufferChunk);
-
-                flow.seek(posOld);
-            }
-
-            myFile.close();
+            THROW_ERROR(std::ios_base::failure,
+                        "Impossible to create the log file. Check if root folder "
+                        "exists and if you have writing permissions.");
         }
-        else
+
+        for (auto & flow : flows_)
         {
-            PRINT_ERROR("Impossible to create the log file. Check if root folder exists and if "
-                        "you have writing permissions.");
-            return hresult_t::ERROR_BAD_INPUT;
+            const std::ptrdiff_t posOld = flow.pos();
+            flow.seek(0);
+
+            std::vector<uint8_t> bufferChunk;
+            bufferChunk.resize(static_cast<std::size_t>(posOld));
+            flow.read(bufferChunk);
+            myFile.write(bufferChunk);
+
+            flow.seek(posOld);
         }
-        return hresult_t::SUCCESS;
+
+        myFile.close();
     }
 
-    hresult_t parseLogDataRaw(std::vector<AbstractIODevice *> & flows,
-                              int64_t integerSectionSize,
-                              int64_t floatSectionSize,
-                              int64_t headerSize,
-                              LogData & logData)
+    LogData parseLogDataRaw(std::vector<AbstractIODevice *> & flows,
+                            int64_t integerSectionSize,
+                            int64_t floatSectionSize,
+                            int64_t headerSize)
     {
-        // Clear everything that may be stored
-        logData = {};
+        LogData logData{};
 
         // Set data structure
         const Eigen::Index numInt =
@@ -238,9 +207,9 @@ namespace jiminy
                     flow->read(version);
                     if (version != TELEMETRY_VERSION)
                     {
-                        PRINT_ERROR(
+                        THROW_ERROR(
+                            std::runtime_error,
                             "Log telemetry version not supported. Impossible to read log.");
-                        return hresult_t::ERROR_BAD_INPUT;
                     }
                     logData.version = version;
 
@@ -364,10 +333,10 @@ namespace jiminy
         logData.integerValues.conservativeResize(Eigen::NoChange, timeIndex);
         logData.floatValues.conservativeResize(Eigen::NoChange, timeIndex);
 
-        return hresult_t::SUCCESS;
+        return logData;
     }
 
-    hresult_t TelemetryRecorder::getLog(LogData & logData)
+    LogData TelemetryRecorder::getLog()
     {
         std::vector<AbstractIODevice *> abstractFlows_;
         for (MemoryDevice & device : flows_)
@@ -376,80 +345,70 @@ namespace jiminy
         }
 
         return parseLogDataRaw(
-            abstractFlows_, integerSectionSize_, floatSectionSize_, headerSize_, logData);
+            abstractFlows_, integerSectionSize_, floatSectionSize_, headerSize_);
     }
 
-    hresult_t TelemetryRecorder::readLog(const std::string & filename, LogData & logData)
+    LogData TelemetryRecorder::readLog(const std::string & filename)
     {
-        int64_t integerSectionSize;
-        int64_t floatSectionSize;
-        int64_t headerSize;
-
         std::ifstream file = std::ifstream(filename, std::ios::in | std::ifstream::binary);
-
-        if (file.is_open())
+        if (!file.is_open())
         {
-            // Skip the version flag
-            int32_t header_version_length = sizeof(int32_t);
-            file.seekg(header_version_length);
-
-            std::vector<std::string> headerBuffer;
-            std::string subHeaderBuffer;
-
-            // Reach the beginning of the constants
-            while (std::getline(file, subHeaderBuffer, '\0').good() &&
-                   subHeaderBuffer != START_CONSTANTS)
-            {
-            }
-
-            // Get all the logged constants
-            while (std::getline(file, subHeaderBuffer, '\0').good() &&
-                   subHeaderBuffer != START_COLUMNS)
-            {
-                headerBuffer.push_back(subHeaderBuffer);
-            }
-
-            // Get the names of the logged variables
-            while (std::getline(file, subHeaderBuffer, '\0').good() &&
-                   subHeaderBuffer != START_DATA)
-            {
-                // Do nothing
-            }
-
-            // Make sure the log file is not corrupted
-            if (!file.good())
-            {
-                PRINT_ERROR("Corrupted log file.");
-                return hresult_t::ERROR_BAD_INPUT;
-            }
-
-            // Extract the number of integers and floats from the list of logged constants
-            const std::string & headerNumIntEntries = headerBuffer[headerBuffer.size() - 2];
-            int64_t delimiter = headerNumIntEntries.find(TELEMETRY_CONSTANT_DELIMITER);
-            const int32_t NumIntEntries = std::stoi(headerNumIntEntries.substr(delimiter + 1));
-            const std::string & headerNumFloatEntries = headerBuffer[headerBuffer.size() - 1];
-            delimiter = headerNumFloatEntries.find(TELEMETRY_CONSTANT_DELIMITER);
-            const int32_t NumFloatEntries = std::stoi(headerNumFloatEntries.substr(delimiter + 1));
-
-            // Deduce the parameters required to parse the whole binary log file
-            integerSectionSize = (NumIntEntries - 1) * sizeof(int64_t);  // Remove Global.Time
-            floatSectionSize = NumFloatEntries * sizeof(double);
-            headerSize = static_cast<int64_t>(file.tellg());  // Last '\0' is included
-
-            // Close the file
-            file.close();
+            THROW_ERROR(std::ios_base::failure,
+                        "Impossible to open the log file. Check that the file "
+                        "exists and that you have reading permissions.");
         }
-        else
+
+        // Make sure the log file is not corrupted
+        if (!file.good())
         {
-            PRINT_ERROR("Impossible to open the log file. Check that the file exists and that you "
-                        "have reading permissions.");
-            return hresult_t::ERROR_BAD_INPUT;
+            THROW_ERROR(std::ios_base::failure, "Corrupted log file.");
         }
+
+        // Skip the version flag
+        int32_t header_version_length = sizeof(int32_t);
+        file.seekg(header_version_length);
+
+        std::vector<std::string> headerBuffer;
+        std::string subHeaderBuffer;
+
+        // Reach the beginning of the constants
+        while (std::getline(file, subHeaderBuffer, '\0').good() &&
+               subHeaderBuffer != START_CONSTANTS)
+        {
+        }
+
+        // Get all the logged constants
+        while (std::getline(file, subHeaderBuffer, '\0').good() &&
+               subHeaderBuffer != START_COLUMNS)
+        {
+            headerBuffer.push_back(subHeaderBuffer);
+        }
+
+        // Get the names of the logged variables
+        while (std::getline(file, subHeaderBuffer, '\0').good() && subHeaderBuffer != START_DATA)
+        {
+        }
+
+        // Extract the number of integers and floats from the list of logged constants
+        const std::string & headerNumIntEntries = headerBuffer[headerBuffer.size() - 2];
+        int64_t delimiter = headerNumIntEntries.find(TELEMETRY_CONSTANT_DELIMITER);
+        const int32_t NumIntEntries = std::stoi(headerNumIntEntries.substr(delimiter + 1));
+        const std::string & headerNumFloatEntries = headerBuffer[headerBuffer.size() - 1];
+        delimiter = headerNumFloatEntries.find(TELEMETRY_CONSTANT_DELIMITER);
+        const int32_t NumFloatEntries = std::stoi(headerNumFloatEntries.substr(delimiter + 1));
+
+        // Deduce the parameters required to parse the whole binary log file
+        int64_t integerSectionSize = (NumIntEntries - 1) * sizeof(int64_t);  // Remove Global.Time
+        int64_t floatSectionSize = NumFloatEntries * sizeof(double);
+        int64_t headerSize = static_cast<int64_t>(file.tellg());  // Last '\0' is included
+
+        // Close the file
+        file.close();
 
         FileDevice device(filename);
         device.open(OpenMode::READ_ONLY);
         std::vector<AbstractIODevice *> flows;
         flows.push_back(&device);
-        return parseLogDataRaw(flows, integerSectionSize, floatSectionSize, headerSize, logData);
+        return parseLogDataRaw(flows, integerSectionSize, floatSectionSize, headerSize);
     }
 }

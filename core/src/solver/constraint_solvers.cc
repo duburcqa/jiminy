@@ -287,16 +287,8 @@ namespace jiminy
         Eigen::MatrixXd & A = data_->JMinvJt;
         if (!isStateUpToDate)
         {
-            /* Compute JMinvJt, including cholesky decomposition of inertia matrix.
-               Abort computation if the inertia matrix is not positive definite, which is never
-               supposed to happen in theory but in practice it is not sure because of compounding
-               of errors. */
-            const hresult_t returnCode = pinocchio_overload::computeJMinvJt(*model_, *data_, J);
-            if (returnCode != hresult_t::SUCCESS)
-            {
-                data_->ddq.setConstant(qNAN);
-                return false;
-            }
+            // Compute JMinvJt, including cholesky decomposition of inertia matrix
+            pinocchio_overload::computeJMinvJt(*model_, *data_, J);
 
             /* Add regularization term in case A is not invertible.
 

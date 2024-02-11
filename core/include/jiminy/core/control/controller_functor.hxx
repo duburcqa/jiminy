@@ -26,33 +26,27 @@ namespace jiminy
     }
 
     template<typename F1, typename F2>
-    hresult_t FunctionalController<F1, F2>::computeCommand(
+    void FunctionalController<F1, F2>::computeCommand(
         double t, const Eigen::VectorXd & q, const Eigen::VectorXd & v, Eigen::VectorXd & command)
     {
         if (!getIsInitialized())
         {
-            PRINT_ERROR("The controller is not initialized.");
-            return hresult_t::ERROR_INIT_FAILED;
+            THROW_ERROR(bad_control_flow, "Controller not initialized.");
         }
 
         commandFun_(t, q, v, sensorMeasurements_, command);
-
-        return hresult_t::SUCCESS;
     }
 
     template<typename F1, typename F2>
-    hresult_t FunctionalController<F1, F2>::internalDynamics(
+    void FunctionalController<F1, F2>::internalDynamics(
         double t, const Eigen::VectorXd & q, const Eigen::VectorXd & v, Eigen::VectorXd & uCustom)
     {
         if (!getIsInitialized())
         {
-            PRINT_ERROR("The controller is not initialized.");
-            return hresult_t::ERROR_INIT_FAILED;
+            THROW_ERROR(bad_control_flow, "Controller not initialized.");
         }
 
         // Sensor data are already up-to-date
         internalDynamicsFun_(t, q, v, sensorMeasurements_, uCustom);
-
-        return hresult_t::SUCCESS;
     }
 }

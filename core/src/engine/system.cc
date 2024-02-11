@@ -60,12 +60,11 @@ namespace jiminy
 
     // ************************************** System state ************************************* //
 
-    hresult_t SystemState::initialize(const Robot & robot)
+    void SystemState::initialize(const Robot & robot)
     {
         if (!robot.getIsInitialized())
         {
-            PRINT_ERROR("Robot not initialized.");
-            return hresult_t::ERROR_INIT_FAILED;
+            THROW_ERROR(bad_control_flow, "Robot not initialized.");
         }
 
         Eigen::Index nv = robot.nv();
@@ -81,8 +80,6 @@ namespace jiminy
         uCustom.setZero(nv);
         fExternal = ForceVector(nJoints, pinocchio::Force::Zero());
         isInitialized_ = true;
-
-        return hresult_t::SUCCESS;
     }
 
     bool SystemState::getIsInitialized() const

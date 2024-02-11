@@ -29,16 +29,13 @@ namespace jiminy
         return frameIndices_;
     }
 
-    hresult_t DistanceConstraint::setReferenceDistance(double distanceRef)
+    void DistanceConstraint::setReferenceDistance(double distanceRef)
     {
         if (distanceRef < 0.0)
         {
-            PRINT_ERROR("The reference distance must be positive.");
-            return hresult_t::ERROR_BAD_INPUT;
+            THROW_ERROR(std::invalid_argument, "Reference distance must be positive.");
         }
         distanceRef_ = distanceRef;
-
-        return hresult_t::SUCCESS;
     }
 
     double DistanceConstraint::getReferenceDistance() const noexcept
@@ -46,59 +43,46 @@ namespace jiminy
         return distanceRef_;
     }
 
-    hresult_t DistanceConstraint::reset(const Eigen::VectorXd & /* q */,
-                                        const Eigen::VectorXd & /* v */)
+    void DistanceConstraint::reset(const Eigen::VectorXd & /* q */,
+                                   const Eigen::VectorXd & /* v */)
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
         // Make sure the model still exists
         auto model = model_.lock();
         if (!model)
         {
-            PRINT_ERROR("Model pointer expired or unset.");
-            returnCode = hresult_t::ERROR_GENERIC;
+            THROW_ERROR(bad_control_flow, "Model pointer expired or unset.");
         }
 
         // Get frames indices
         for (uint8_t i = 0; i < 2; ++i)
         {
-            if (returnCode == hresult_t::SUCCESS)
-            {
-                returnCode = ::jiminy::getFrameIndex(
-                    model->pinocchioModel_, frameNames_[i], frameIndices_[i]);
-            }
+            frameIndices_[i] = ::jiminy::getFrameIndex(model->pinocchioModel_, frameNames_[i]);
         }
 
-        if (returnCode == hresult_t::SUCCESS)
+        // Initialize frames jacobians buffers
+        for (Matrix6Xd & frameJacobian : frameJacobians_)
         {
-            // Initialize frames jacobians buffers
-            for (Matrix6Xd & frameJacobian : frameJacobians_)
-            {
-                frameJacobian.setZero(6, model->pinocchioModel_.nv);
-            }
-
-            // Initialize jacobian, drift and multipliers
-            jacobian_.setZero(1, model->pinocchioModel_.nv);
-            drift_.setZero(1);
-            lambda_.setZero(1);
-
-            // Compute the current distance and use it as reference
-            const Eigen::Vector3d deltaPosition =
-                model->pinocchioData_.oMf[frameIndices_[0]].translation() -
-                model->pinocchioData_.oMf[frameIndices_[1]].translation();
-            distanceRef_ = deltaPosition.norm();
+            frameJacobian.setZero(6, model->pinocchioModel_.nv);
         }
 
-        return returnCode;
+        // Initialize jacobian, drift and multipliers
+        jacobian_.setZero(1, model->pinocchioModel_.nv);
+        drift_.setZero(1);
+        lambda_.setZero(1);
+
+        // Compute the current distance and use it as reference
+        const Eigen::Vector3d deltaPosition =
+            model->pinocchioData_.oMf[frameIndices_[0]].translation() -
+            model->pinocchioData_.oMf[frameIndices_[1]].translation();
+        distanceRef_ = deltaPosition.norm();
     }
 
-    hresult_t DistanceConstraint::computeJacobianAndDrift(const Eigen::VectorXd & /* q */,
-                                                          const Eigen::VectorXd & /* v */)
+    void DistanceConstraint::computeJacobianAndDrift(const Eigen::VectorXd & /* q */,
+                                                     const Eigen::VectorXd & /* v */)
     {
         if (!isAttached_)
         {
-            PRINT_ERROR("Constraint not attached to a model.");
-            return hresult_t::ERROR_GENERIC;
+            THROW_ERROR(bad_control_flow, "Constraint not attached to a model.");
         }
 
         // Assuming model still exists.
@@ -156,7 +140,5 @@ namespace jiminy
 
         // Add Baumgarte stabilization drift
         drift_[0] += kp_ * (deltaPositionNorm - distanceRef_) + kd_ * deltaVelocityProj;
-
-        return hresult_t::SUCCESS;
     }
 }
