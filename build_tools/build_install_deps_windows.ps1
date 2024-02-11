@@ -108,7 +108,7 @@ if (-not (Test-Path -PathType Container "$RootDir/eigenpy")) {
 }
 Push-Location -Path "$RootDir/eigenpy"
 git reset --hard
-git fetch origin "v3.1.4"
+git fetch origin "v3.3.0"
 git checkout --force FETCH_HEAD
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --depth 1 --jobs 8
@@ -164,7 +164,7 @@ if (-not (Test-Path -PathType Container "$RootDir/cppad")) {
 }
 Push-Location -Path "$RootDir/cppad"
 git reset --hard
-git fetch origin "20230000.0"
+git fetch origin "20240000.2"
 git checkout --force FETCH_HEAD
 Pop-Location
 
@@ -195,7 +195,7 @@ if (-not (Test-Path -PathType Container "$RootDir/hpp-fcl")) {
 }
 Push-Location -Path "$RootDir/hpp-fcl"
 git reset --hard
-git fetch origin "v2.4.0"
+git fetch origin "v2.4.1"
 git checkout --force FETCH_HEAD
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --depth 1 --jobs 8
@@ -214,7 +214,7 @@ if (-not (Test-Path -PathType Container "$RootDir/pinocchio")) {
 }
 Push-Location -Path "$RootDir/pinocchio"
 git reset --hard
-git fetch origin "v2.6.21"
+git fetch origin "v2.7.0"
 git checkout --force FETCH_HEAD
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --depth 1 --jobs 8

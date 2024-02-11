@@ -83,16 +83,3 @@ diff --git a/cmake/boost.cmake b/cmake/boost.cmake
      set(Boost_NO_BOOST_CMAKE ON)
    endif("${Boost_SHORT_VERSION}" VERSION_GREATER "1.70"
          OR "${Boost_SHORT_VERSION}" VERSION_EQUAL "1.70")
-diff --git a/bindings/python/utils/conversions.cpp b/bindings/python/utils/conversions.cpp
-index 87800d2b..c73707e5 100644
---- a/bindings/python/utils/conversions.cpp
-+++ b/bindings/python/utils/conversions.cpp
-@@ -37,7 +37,7 @@ namespace pinocchio
-     template <typename TupleOrList>
-     SE3 XYZQUATToSE3_bp(const TupleOrList& v)
-     {
--      ssize_t size = bp::len(v);
-+      bp::ssize_t size = bp::len(v);
-       if(size != 7)
-       {
-         throw std::invalid_argument(

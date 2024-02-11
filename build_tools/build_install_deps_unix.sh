@@ -110,7 +110,7 @@ if [ ! -d "${RootDir}/eigenpy" ]; then
 fi
 cd "${RootDir}/eigenpy"
 git reset --hard
-git fetch origin "v3.1.4" && git checkout --force FETCH_HEAD || true
+git fetch origin "v3.3.0" && git checkout --force FETCH_HEAD || true
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --depth 1 --jobs 8
 git apply --reject --whitespace=fix "${RootDir}/build_tools/patch_deps_unix/eigenpy.patch"
@@ -155,7 +155,7 @@ if [ ! -d "${RootDir}/cppad" ]; then
 fi
 cd "${RootDir}/cppad"
 git reset --hard
-git fetch origin "20230000.0" && git checkout --force FETCH_HEAD || true
+git fetch origin "20240000.2" && git checkout --force FETCH_HEAD || true
 
 ### Checkout CppADCodeGen
 if [ ! -d "${RootDir}/cppadcodegen" ]; then
@@ -180,7 +180,7 @@ if [ ! -d "${RootDir}/hpp-fcl" ]; then
 fi
 cd "${RootDir}/hpp-fcl"
 git reset --hard
-git fetch origin "v2.4.0" && git checkout --force FETCH_HEAD || true
+git fetch origin "v2.4.1" && git checkout --force FETCH_HEAD || true
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --depth 1 --jobs 8
 git apply --reject --whitespace=fix "${RootDir}/build_tools/patch_deps_unix/hppfcl.patch"
@@ -194,7 +194,7 @@ if [ ! -d "${RootDir}/pinocchio" ]; then
 fi
 cd "${RootDir}/pinocchio"
 git reset --hard
-git fetch origin "v2.6.21" && git checkout --force FETCH_HEAD || true
+git fetch origin "v2.7.0" && git checkout --force FETCH_HEAD || true
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --depth 1 --jobs 8
 git apply --reject --whitespace=fix "${RootDir}/build_tools/patch_deps_unix/pinocchio.patch"
