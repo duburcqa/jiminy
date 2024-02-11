@@ -67,10 +67,8 @@ namespace jiminy
         return convertToJson<GenericConfig>(value);
     }
 
-    hresult_t jsonDump(const GenericConfig & config, std::shared_ptr<AbstractIODevice> & device)
+    void jsonDump(const GenericConfig & config, std::shared_ptr<AbstractIODevice> & device)
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
         // Create the memory device if necessary (the device is nullptr)
         if (!device)
         {
@@ -81,9 +79,7 @@ namespace jiminy
         JsonWriter ioWrite(device);
 
         // Convert the configuration in Json and write it in the device
-        returnCode = ioWrite.dump(convertToJson(config));
-
-        return returnCode;
+        ioWrite.dump(convertToJson(config));
     }
 
     // ************* Convertion from JSON utilities *****************
@@ -195,8 +191,8 @@ namespace jiminy
                     }
                     else
                     {
-                        PRINT_ERROR("Unknown data type: std::vector<", type, ">");
-                        field = std::string{"ValueError"};
+                        THROW_ERROR(
+                            std::invalid_argument, "Unknown data type: std::vector<", type, ">");
                     }
                 }
                 else
@@ -246,8 +242,10 @@ namespace jiminy
                     }
                     else
                     {
-                        PRINT_ERROR("Unknown data type: std::vector<", it->type(), ">");
-                        field = std::string{"ValueError"};
+                        THROW_ERROR(std::invalid_argument,
+                                    "Unknown data type: std::vector<",
+                                    it->type(),
+                                    ">");
                     }
                 }
                 else
@@ -257,8 +255,7 @@ namespace jiminy
             }
             else
             {
-                PRINT_ERROR("Unknown data type: ", root->type());
-                field = std::string{"ValueError"};
+                THROW_ERROR(std::invalid_argument, "Unknown data type: ", root->type());
             }
 
             config[root.key().asString()] = field;
@@ -271,18 +268,11 @@ namespace jiminy
         return convertFromJson<GenericConfig>(value);
     }
 
-    hresult_t jsonLoad(GenericConfig & config, std::shared_ptr<AbstractIODevice> & device)
+    void jsonLoad(GenericConfig & config, std::shared_ptr<AbstractIODevice> & device)
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
         JsonLoader ioRead(device);
-        returnCode = ioRead.load();
+        ioRead.load();
 
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            config = convertFromJson<GenericConfig>(*ioRead.getRoot());
-        }
-
-        return returnCode;
+        config = convertFromJson<GenericConfig>(*ioRead.getRoot());
     }
 }

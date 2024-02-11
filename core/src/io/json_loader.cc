@@ -11,35 +11,25 @@ namespace jiminy
     {
     }
 
-    hresult_t JsonLoader::load()
+    void JsonLoader::load()
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
+        device_->open(OpenMode::READ_ONLY);
 
-        returnCode = device_->open(OpenMode::READ_ONLY);
+        auto size = device_->bytesAvailable();
+        payload_.resize(size);
+        device_->read(payload_);
 
-        if (returnCode == hresult_t::SUCCESS)
+        std::string errs;
+        Json::CharReaderBuilder rbuilder;
+        std::unique_ptr<Json::CharReader> reader(rbuilder.newCharReader());
+        const bool isParsingOk = reader->parse(
+            (payload_.data()), payload_.data() + payload_.size(), rootJson_.get(), &errs);
+        if (!isParsingOk)
         {
-            auto size = device_->bytesAvailable();
-            payload_.resize(size);
-            returnCode = device_->read(payload_);
-        }
-
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            std::string errs;
-            Json::CharReaderBuilder rbuilder;
-            std::unique_ptr<Json::CharReader> reader(rbuilder.newCharReader());
-            const bool isParsingOk = reader->parse(
-                (payload_.data()), payload_.data() + payload_.size(), rootJson_.get(), &errs);
-            if (!isParsingOk)
-            {
-                returnCode = hresult_t::ERROR_GENERIC;
-            }
+            THROW_ERROR(std::ios_base::failure, "Impossible to parse JSON content.");
         }
 
         device_->close();
-
-        return returnCode;
     }
 
     const Json::Value * JsonLoader::getRoot()

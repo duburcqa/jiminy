@@ -48,8 +48,8 @@ namespace jiminy::python
     // ************************ BOOST PYTHON HELPERS ******************************
     // ****************************************************************************
 
-    template<class E>
-    PyObject * createExceptionClass(const char * name, PyObject * baseTypeObj = PyExc_Exception)
+    template<typename E>
+    PyObject * registerException(const char * name, PyObject * baseTypeObj = PyExc_Exception)
     {
         const std::string scopeName = bp::extract<std::string>(bp::scope().attr("__name__"));
         std::size_t moduleNameEnd = scopeName.find('.');
@@ -329,11 +329,10 @@ namespace jiminy::python
     public bp::vector_indexing_suite<Container, NoProxy, DerivedPolicies>
     {
     public:
-        static bool contains(Container & /* container */,
-                             const typename Container::value_type & /* key */)
+        [[noreturn]] static bool contains(Container & /* container */,
+                                          const typename Container::value_type & /* key */)
         {
-            throw std::runtime_error("Contains method not supported.");
-            return false;
+            THROW_ERROR(not_implemented_error, "Contains method not supported.");
         }
     };
 
@@ -554,88 +553,75 @@ namespace jiminy::python
     }
 
     template<typename T>
-    std::optional<Eigen::Map<MatrixX<T>, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>>>
-    getEigenReferenceImpl(PyArrayObject * dataPyArray)
+    Eigen::Map<MatrixX<T>, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>>
+    getEigenReferenceImpl(PyArrayObject * arrayPy)
     {
         // Check array dtype
-        if (PyArray_EquivTypenums(PyArray_TYPE(dataPyArray), getPyType<T>()) == NPY_FALSE)
+        if (PyArray_EquivTypenums(PyArray_TYPE(arrayPy), getPyType<T>()) == NPY_FALSE)
         {
-            PRINT_ERROR("'values' input array has dtype '",
-                        PyArray_TYPE(dataPyArray),
+            THROW_ERROR(std::invalid_argument,
+                        "'values' input array has dtype '",
+                        PyArray_TYPE(arrayPy),
                         "' but '",
                         getPyType<T>(),
                         "' was expected.");
-            return {};
         }
 
         // Check array number of dimensions
-        switch (PyArray_NDIM(dataPyArray))
+        T * dataPtr = static_cast<T *>(PyArray_DATA(arrayPy));
+        switch (PyArray_NDIM(arrayPy))
         {
         case 0:
-            return {{static_cast<T *>(PyArray_DATA(dataPyArray)), 1, 1, {1, 1}}};
+            return {dataPtr, 1, 1, {1, 1}};
         case 1:
-            return {{static_cast<T *>(PyArray_DATA(dataPyArray)),
-                     PyArray_SIZE(dataPyArray),
-                     1,
-                     {PyArray_SIZE(dataPyArray), 1}}};
+            return {dataPtr, PyArray_SIZE(arrayPy), 1, {PyArray_SIZE(arrayPy), 1}};
         case 2:
         {
-            int32_t flags = PyArray_FLAGS(dataPyArray);
-            npy_intp * dataPyArrayShape = PyArray_SHAPE(dataPyArray);
+            int32_t flags = PyArray_FLAGS(arrayPy);
+            npy_intp * arrayPyShape = PyArray_SHAPE(arrayPy);
             if (flags & NPY_ARRAY_C_CONTIGUOUS)
             {
-                return {{static_cast<T *>(PyArray_DATA(dataPyArray)),
-                         dataPyArrayShape[0],
-                         dataPyArrayShape[1],
-                         {1, dataPyArrayShape[1]}}};
+                return {dataPtr, arrayPyShape[0], arrayPyShape[1], {1, arrayPyShape[1]}};
             }
             if (flags & NPY_ARRAY_F_CONTIGUOUS)
             {
-                return {{static_cast<T *>(PyArray_DATA(dataPyArray)),
-                         dataPyArrayShape[0],
-                         dataPyArrayShape[1],
-                         {dataPyArrayShape[0], 1}}};
+                return {dataPtr, arrayPyShape[0], arrayPyShape[1], {arrayPyShape[0], 1}};
             }
-            PRINT_ERROR("Numpy arrays must be either row or column contiguous.");
-            return {};
+            THROW_ERROR(std::invalid_argument,
+                        "Numpy arrays must be either row or column contiguous.");
         }
         default:
-            PRINT_ERROR("Only 1D and 2D 'np.ndarray' are supported.");
-            return {};
+            THROW_ERROR(not_implemented_error, "Only 1D and 2D 'np.ndarray' are supported.");
         }
     }
 
     /// \brief Generic converter from Numpy array to Eigen Matrix by reference.
-    inline std::optional<std::variant<
+    inline std::variant<
         Eigen::Map<MatrixX<double>, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>>,
-        Eigen::Map<MatrixX<int64_t>, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>>>>
+        Eigen::Map<MatrixX<int64_t>, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>>>
     getEigenReference(PyObject * dataPy)
     {
         // Check if raw Python object pointer is actually a numpy array
         if (!PyArray_Check(dataPy))
         {
-            PRINT_ERROR("'values' must have type 'np.ndarray'.");
-            return {};
+            THROW_ERROR(std::invalid_argument, "'values' must have type 'np.ndarray'.");
         }
 
         /* Cast raw Python object pointer to numpy array.
            Note that const qualifier is not supported by PyArray_DATA. */
-        PyArrayObject * dataPyArray = reinterpret_cast<PyArrayObject *>(dataPy);
+        PyArrayObject * arrayPy = reinterpret_cast<PyArrayObject *>(dataPy);
 
         // Check array dtype
-        if (PyArray_EquivTypenums(PyArray_TYPE(dataPyArray), NPY_FLOAT64) == NPY_TRUE)
+        if (PyArray_EquivTypenums(PyArray_TYPE(arrayPy), NPY_FLOAT64) == NPY_TRUE)
         {
-            return {getEigenReferenceImpl<double>(dataPyArray)};
+            return getEigenReferenceImpl<double>(arrayPy);
         }
-        if (PyArray_EquivTypenums(PyArray_TYPE(dataPyArray), NPY_INT64) == NPY_TRUE)
+        if (PyArray_EquivTypenums(PyArray_TYPE(arrayPy), NPY_INT64) == NPY_TRUE)
         {
-            return {getEigenReferenceImpl<int64_t>(dataPyArray)};
+            return getEigenReferenceImpl<int64_t>(arrayPy);
         }
-        else
-        {
-            PRINT_ERROR("'values' input array must have dtype 'np.float64' or 'np.int64'.");
-            return {};
-        }
+        THROW_ERROR(not_implemented_error,
+                    "'values' input array must have dtype 'np.float64' or 'np.int64'.");
     }
 
     /// Convert most C++ objects into Python objects by value
@@ -707,7 +693,8 @@ namespace jiminy::python
     {
         if (!copy)
         {
-            throw std::runtime_error(
+            THROW_ERROR(
+                not_implemented_error,
                 "Passing 'FlexibleJointData' object to python by reference is not supported.");
         }
         bp::dict flexibilityJointDataPy;
@@ -885,13 +872,12 @@ namespace jiminy::python
             // The input argument may be a 0D numpy array by any chance
             if (PyArray_Check(dataPy.ptr()))
             {
-                PyArrayObject * dataPyArray = reinterpret_cast<PyArrayObject *>(dataPy.ptr());
-                if (PyArray_NDIM(dataPyArray) == 0)
+                PyArrayObject * arrayPy = reinterpret_cast<PyArrayObject *>(dataPy.ptr());
+                if (PyArray_NDIM(arrayPy) == 0)
                 {
-                    if (PyArray_EquivTypenums(PyArray_TYPE(dataPyArray), getPyType<T>()) ==
-                        NPY_TRUE)
+                    if (PyArray_EquivTypenums(PyArray_TYPE(arrayPy), getPyType<T>()) == NPY_TRUE)
                     {
-                        return *static_cast<T *>(PyArray_DATA(dataPyArray));
+                        return *static_cast<T *>(PyArray_DATA(arrayPy));
                     }
                 }
             }
@@ -929,11 +915,10 @@ namespace jiminy::python
             np::ndarray dataNumpy = bp::extract<np::ndarray>(dataPy);
             if (dataNumpy.get_dtype() != np::dtype::get_builtin<Scalar>())
             {
-                throw std::runtime_error(
-                    "Scalar type of eigen object does not match dtype of numpy object.");
+                THROW_ERROR(std::invalid_argument,
+                            "Scalar type of eigen object does not match dtype of numpy object.");
             }
-            return getEigenReferenceImpl<Scalar>(reinterpret_cast<PyArrayObject *>(dataPy.ptr()))
-                .value();
+            return getEigenReferenceImpl<Scalar>(reinterpret_cast<PyArrayObject *>(dataPy.ptr()));
         }
         catch (const bp::error_already_set &)
         {
@@ -1007,7 +992,7 @@ namespace jiminy::python
         const bp::list listPy = bp::extract<bp::list>(dataPy);
         if (bp::len(listPy) != N)
         {
-            throw std::runtime_error("Consistent number of elements");
+            THROW_ERROR(std::invalid_argument, "Consistent number of elements");
         }
         return internal::BuildArrayFromCallable<typename T::value_type>(
             std::make_index_sequence<N>{},

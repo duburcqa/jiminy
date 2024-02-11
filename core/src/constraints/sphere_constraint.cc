@@ -41,49 +41,36 @@ namespace jiminy
         return transformRef_;
     }
 
-    hresult_t SphereConstraint::reset(const Eigen::VectorXd & /* q */,
-                                      const Eigen::VectorXd & /* v */)
+    void SphereConstraint::reset(const Eigen::VectorXd & /* q */, const Eigen::VectorXd & /* v */)
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
         // Make sure the model still exists
         auto model = model_.lock();
         if (!model)
         {
-            PRINT_ERROR("Model pointer expired or unset.");
-            returnCode = hresult_t::ERROR_GENERIC;
+            THROW_ERROR(bad_control_flow, "Model pointer expired or unset.");
         }
 
         // Get frame index
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            returnCode = ::jiminy::getFrameIndex(model->pinocchioModel_, frameName_, frameIndex_);
-        }
+        frameIndex_ = ::jiminy::getFrameIndex(model->pinocchioModel_, frameName_);
 
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            // Initialize frames jacobians buffers
-            frameJacobian_.setZero(6, model->pinocchioModel_.nv);
+        // Initialize frames jacobians buffers
+        frameJacobian_.setZero(6, model->pinocchioModel_.nv);
 
-            // Initialize jacobian, drift and multipliers
-            jacobian_.setZero(3, model->pinocchioModel_.nv);
-            drift_.setZero(3);
-            lambda_.setZero(3);
+        // Initialize jacobian, drift and multipliers
+        jacobian_.setZero(3, model->pinocchioModel_.nv);
+        drift_.setZero(3);
+        lambda_.setZero(3);
 
-            // Get the current frame position and use it as reference
-            transformRef_ = model->pinocchioData_.oMf[frameIndex_];
-        }
-
-        return returnCode;
+        // Get the current frame position and use it as reference
+        transformRef_ = model->pinocchioData_.oMf[frameIndex_];
     }
 
-    hresult_t SphereConstraint::computeJacobianAndDrift(const Eigen::VectorXd & /* q */,
-                                                        const Eigen::VectorXd & /* v */)
+    void SphereConstraint::computeJacobianAndDrift(const Eigen::VectorXd & /* q */,
+                                                   const Eigen::VectorXd & /* v */)
     {
         if (!isAttached_)
         {
-            PRINT_ERROR("Constraint not attached to a model.");
-            return hresult_t::ERROR_GENERIC;
+            THROW_ERROR(bad_control_flow, "Constraint not attached to a model.");
         }
 
         // Assuming the model still exists
@@ -132,7 +119,5 @@ namespace jiminy
 
         // Add Baumgarte stabilization drift
         drift_ += kp_ * deltaPosition * normal_ + kd_ * velocity;
-
-        return hresult_t::SUCCESS;
     }
 }

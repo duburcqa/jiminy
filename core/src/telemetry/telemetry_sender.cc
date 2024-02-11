@@ -11,8 +11,7 @@ namespace jiminy
         bufferPosition_.clear();
     }
 
-    hresult_t TelemetrySender::registerConstant(const std::string & name,
-                                                const std::string & value)
+    void TelemetrySender::registerConstant(const std::string & name, const std::string & value)
     {
         const std::string fullFieldName =
             addCircumfix(name, objectName_, {}, TELEMETRY_FIELDNAME_DELIMITER);

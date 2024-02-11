@@ -30,24 +30,27 @@ namespace jiminy::python
     namespace np = boost::python::numpy;
 
     template<typename T>
-    using TimeStateFun =
-        typename std::function<T(double, const Eigen::VectorXd &, const Eigen::VectorXd &)>;
+    void exposeTimeStateFunc(const std::string_view & name)
+    {
+        using TimeStateFun =
+            typename std::function<T(double, const Eigen::VectorXd &, const Eigen::VectorXd &)>;
 
-#define TIME_STATE_FCT_EXPOSE(Name, Type)                                                     \
-    bp::class_<TimeStateFun<Type>, boost::noncopyable>("TimeStateFunctor" #Name, bp::no_init) \
-        .def("__call__",                                                                      \
-             &TimeStateFun<Type>::operator(),                                                 \
-             bp::return_value_policy<bp::return_by_value>(),                                  \
-             (bp::arg("self"), "t", "q", "v"));
+        bp::class_<TimeStateFun, boost::noncopyable>(name.data(), bp::no_init)
+            .def("__call__",
+                 &TimeStateFun::operator(),
+                 bp::return_value_policy<bp::return_by_value>(),
+                 (bp::arg("self"), "t", "q", "v"));
+    }
 
-#define REGISTER_TO_PYTHON_BY_VALUE_CONVERTER(Type)                                       \
-    {                                                                                     \
-        bp::type_info info = bp::type_id<Type>();                                         \
-        const bp::converter::registration * reg = bp::converter::registry::query(info);   \
-        if (reg == nullptr || *reg->m_to_python == nullptr)                               \
-        {                                                                                 \
-            bp::to_python_converter<Type, converterToPython<const Type &, true>, true>(); \
-        }                                                                                 \
+    template<typename T>
+    void registerToPythonByValueConverter()
+    {
+        bp::type_info info = bp::type_id<T>();
+        const bp::converter::registration * reg = bp::converter::registry::query(info);
+        if (reg == nullptr || *reg->m_to_python == nullptr)
+        {
+            bp::to_python_converter<T, converterToPython<const T &, true>, true>();
+        }
     }
 
     BOOST_PYTHON_MODULE(PYTHON_LIBRARY_NAME)
@@ -65,13 +68,6 @@ namespace jiminy::python
         bp::scope().attr("__version__") = bp::str(JIMINY_VERSION);
         bp::scope().attr("__raw_version__") = bp::str(JIMINY_VERSION);
 
-        // Interfaces for hresult_t enum
-        bp::enum_<hresult_t>("hresult_t")
-            .value("SUCCESS", hresult_t::SUCCESS)
-            .value("ERROR_GENERIC", hresult_t::ERROR_GENERIC)
-            .value("ERROR_BAD_INPUT", hresult_t::ERROR_BAD_INPUT)
-            .value("ERROR_INIT_FAILED", hresult_t::ERROR_INIT_FAILED);
-
         // Interfaces for JointModelType enum
         bp::enum_<JointModelType>("JointModelType")
             .value("NONE", JointModelType::UNSUPPORTED)
@@ -88,10 +84,15 @@ namespace jiminy::python
             .value("STAIRS", heightmapType_t::STAIRS)
             .value("GENERIC", heightmapType_t::GENERIC);
 
-        // Expose custom Jiminy exceptions
-        PyObject * jiminyException = createExceptionClass<jiminy_exception>("JiminyException");
-        createExceptionClass<not_initialized>("NotInitialized", jiminyException);
-        createExceptionClass<initialization_failed>("InitializationFailed", jiminyException);
+        /* Expose some standard and Jiminy-specific exceptions.
+           The tree of native Python exceptions and their corresponding C API are available here:
+           - https://docs.python.org/3/library/exceptions.html#exception-hierarchy
+           - https://docs.python.org/3/c-api/exceptions.html#standard-exceptions */
+        PyObject * PyExc_LogicError = registerException<std::logic_error>("LogicError");
+        registerException<std::ios_base::failure>("OSError", PyExc_OSError);
+        registerException<not_implemented_error>("NotImplementedError", PyExc_LogicError);
+        registerException<bad_control_flow>("BadControlFlow", PyExc_LogicError);
+        registerException<lookup_error>("LookupError", PyExc_LookupError);
 
         // Disable CPP docstring
         bp::docstring_options doc_options;
@@ -99,11 +100,11 @@ namespace jiminy::python
 
         /* Enable some automatic C++ to Python converters.
            By default, conversion is by-value unless specified explicitly via a call policy. */
-        REGISTER_TO_PYTHON_BY_VALUE_CONVERTER(GenericConfig);
+        registerToPythonByValueConverter<GenericConfig>();
 
         // Expose functors
-        TIME_STATE_FCT_EXPOSE(Bool, bool)
-        TIME_STATE_FCT_EXPOSE(PinocchioForce, pinocchio::Force)
+        exposeTimeStateFunc<bool>("TimeStateBoolFunctor");
+        exposeTimeStateFunc<pinocchio::Force>("TimeStateForceFunctor");
         exposeHeightmapFunction();
 
         /* Expose compatibility layer, to support both new and old C++ ABI, and to restore

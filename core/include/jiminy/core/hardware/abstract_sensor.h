@@ -117,13 +117,13 @@ namespace jiminy
         ///
         /// \remark This method is not intended to be called manually. The Robot to which the
         ///         sensor is added is taking care of it when its own `reset` method is called.
-        virtual hresult_t resetAll(uint32_t seed) = 0;
+        virtual void resetAll(uint32_t seed) = 0;
 
         /// \brief Refresh the proxies.
         ///
         /// \remark This method is not intended to be called manually. The Robot to which the motor
         ///         is added is taking care of it when its own `refresh` method is called.
-        virtual hresult_t refreshProxies() = 0;
+        virtual void refreshProxies() = 0;
 
         /// \brief Configure the telemetry of the sensor.
         ///
@@ -138,10 +138,8 @@ namespace jiminy
         ///         end of each simulation steps.
         ///
         /// \param[in] telemetryData Shared pointer to the robot-wide telemetry data object
-        ///
-        /// \return Return code to determine whether the execution of the method was successful.
-        virtual hresult_t configureTelemetry(std::shared_ptr<TelemetryData> telemetryData,
-                                             const std::string & prefix = {});
+        virtual void configureTelemetry(std::shared_ptr<TelemetryData> telemetryData,
+                                        const std::string & prefix = {});
 
         /// \brief Update the internal buffers of the telemetry associated with variables monitored
         ///        by the sensor.
@@ -158,19 +156,19 @@ namespace jiminy
         /// \brief Set the configuration options of the sensor.
         ///
         /// \param[in] sensorOptions Dictionary with the parameters of the sensor.
-        virtual hresult_t setOptions(const GenericConfig & sensorOptions);
+        virtual void setOptions(const GenericConfig & sensorOptions);
 
         /// \brief Set the same configuration options of any sensor of the same type than the
         ///        current one.
         ///
         /// \param[in] sensorOptions Dictionary with the parameters used for any sensor.
-        virtual hresult_t setOptionsAll(const GenericConfig & sensorOptions) = 0;
+        virtual void setOptionsAll(const GenericConfig & sensorOptions) = 0;
 
         /// \brief Configuration options of the sensor.
         GenericConfig getOptions() const noexcept;
 
         template<typename DerivedType>
-        hresult_t set(const Eigen::MatrixBase<DerivedType> & value);
+        void set(const Eigen::MatrixBase<DerivedType> & value);
 
         /// \brief Measurement of the sensor at the current time.
         ///
@@ -227,14 +225,12 @@ namespace jiminy
         /// \param[in] a Current acceleration of the robot.
         /// \param[in] uMotor Current motor efforts.
         /// \param[in] fExternal Current external forces applied on the robot.
-        ///
-        /// \return Return code to determine whether the execution of the method was successful.
-        virtual hresult_t setAll(double t,
-                                 const Eigen::VectorXd & q,
-                                 const Eigen::VectorXd & v,
-                                 const Eigen::VectorXd & a,
-                                 const Eigen::VectorXd & uMotor,
-                                 const ForceVector & fExternal) = 0;
+        virtual void setAll(double t,
+                            const Eigen::VectorXd & q,
+                            const Eigen::VectorXd & v,
+                            const Eigen::VectorXd & a,
+                            const Eigen::VectorXd & uMotor,
+                            const ForceVector & fExternal) = 0;
 
         /// \brief Request the sensor to record data based of the input data.
         ///
@@ -247,23 +243,21 @@ namespace jiminy
         /// \param[in] a Current acceleration of the robot.
         /// \param[in] uMotor Current motor efforts.
         /// \param[in] fExternal Current external forces applied on the robot.
-        ///
-        /// \return Return code to determine whether the execution of the method was successful.
-        virtual hresult_t set(double t,
-                              const Eigen::VectorXd & q,
-                              const Eigen::VectorXd & v,
-                              const Eigen::VectorXd & a,
-                              const Eigen::VectorXd & uMotor,
-                              const ForceVector & fExternal) = 0;
+        virtual void set(double t,
+                         const Eigen::VectorXd & q,
+                         const Eigen::VectorXd & v,
+                         const Eigen::VectorXd & a,
+                         const Eigen::VectorXd & uMotor,
+                         const ForceVector & fExternal) = 0;
 
         /// \brief Attach the sensor to a robot.
         ///
         /// \details This method must be called before initializing the sensor.
-        virtual hresult_t attach(std::weak_ptr<const Robot> robot,
-                                 SensorSharedStorage * sharedStorage) = 0;
+        virtual void attach(std::weak_ptr<const Robot> robot,
+                            SensorSharedStorage * sharedStorage) = 0;
 
         /// \brief Detach the sensor from the robot.
-        virtual hresult_t detach() = 0;
+        virtual void detach() = 0;
 
         /// \brief Eigen Reference to a Eigen Vector corresponding to the last data recorded (or
         ///        being recorded) by the sensor.
@@ -286,13 +280,13 @@ namespace jiminy
         virtual std::string getTelemetryName() const = 0;
 
         /// \brief Set the measurement buffer with the real data interpolated at the current time.
-        virtual hresult_t interpolateData() = 0;
+        virtual void interpolateData() = 0;
 
         /// \brief Add white noise and bias to the measurement buffer.
         virtual void measureData();
 
         /// \brief Set the measurement buffer with true data, but skewed with white noise and bias.
-        virtual hresult_t measureDataAll() = 0;
+        virtual void measureDataAll() = 0;
 
     public:
         /// \brief Structure with the parameters of the sensor
@@ -332,10 +326,10 @@ namespace jiminy
         auto shared_from_this() { return shared_from(this); }
         auto shared_from_this() const { return shared_from(this); }
 
-        hresult_t resetAll(uint32_t seed) override final;
+        void resetAll(uint32_t seed) override final;
         void updateTelemetryAll() override final;
 
-        virtual hresult_t setOptionsAll(const GenericConfig & sensorOptions) override final;
+        virtual void setOptionsAll(const GenericConfig & sensorOptions) override final;
         virtual std::size_t getIndex() const override final;
         virtual const std::string & getType() const override final;
         virtual const std::vector<std::string> & getFieldnames() const final;
@@ -344,22 +338,22 @@ namespace jiminy
         virtual Eigen::Ref<const Eigen::VectorXd> get() const override final;
 
     protected:
-        virtual hresult_t setAll(double t,
-                                 const Eigen::VectorXd & q,
-                                 const Eigen::VectorXd & v,
-                                 const Eigen::VectorXd & a,
-                                 const Eigen::VectorXd & uMotor,
-                                 const ForceVector & fExternal) override final;
+        virtual void setAll(double t,
+                            const Eigen::VectorXd & q,
+                            const Eigen::VectorXd & v,
+                            const Eigen::VectorXd & a,
+                            const Eigen::VectorXd & uMotor,
+                            const ForceVector & fExternal) override final;
         virtual Eigen::Ref<Eigen::VectorXd> get() override final;
         virtual Eigen::Ref<Eigen::VectorXd> data() override final;
 
     private:
-        virtual hresult_t attach(std::weak_ptr<const Robot> robot,
-                                 SensorSharedStorage * sharedStorage) override final;
-        virtual hresult_t detach() override final;
+        virtual void attach(std::weak_ptr<const Robot> robot,
+                            SensorSharedStorage * sharedStorage) override final;
+        virtual void detach() override final;
         virtual std::string getTelemetryName() const override final;
-        virtual hresult_t interpolateData() override final;
-        virtual hresult_t measureDataAll() override final;
+        virtual void interpolateData() override final;
+        virtual void measureDataAll() override final;
 
     public:
         /* Be careful, the static variables must be const since the 'static' keyword binds all the

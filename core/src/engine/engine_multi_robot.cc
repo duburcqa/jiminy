@@ -69,79 +69,69 @@ namespace jiminy
     // Cannot be default in the header since some types are incomplete at this point
     EngineMultiRobot::~EngineMultiRobot() = default;
 
-    hresult_t EngineMultiRobot::addSystem(const std::string & systemName,
-                                          std::shared_ptr<Robot> robot,
-                                          std::shared_ptr<AbstractController> controller,
-                                          const AbortSimulationFunction & callback)
+    void EngineMultiRobot::addSystem(const std::string & systemName,
+                                     std::shared_ptr<Robot> robot,
+                                     std::shared_ptr<AbstractController> controller,
+                                     const AbortSimulationFunction & callback)
     {
         // Make sure that no simulation is running
         if (isSimulationRunning_)
         {
-            PRINT_ERROR("A simulation is already running. Stop it before adding a new system.");
-            return hresult_t::ERROR_GENERIC;
+            THROW_ERROR(bad_control_flow,
+                        "Simulation already running. Stop it before adding new system.");
         }
 
         if (!robot)
         {
-            PRINT_ERROR("Robot unspecified.");
-            return hresult_t::ERROR_INIT_FAILED;
+            THROW_ERROR(std::invalid_argument, "Robot unspecified.");
         }
 
         if (!robot->getIsInitialized())
         {
-            PRINT_ERROR("Robot not initialized.");
-            return hresult_t::ERROR_INIT_FAILED;
+            THROW_ERROR(bad_control_flow, "Robot not initialized.");
         }
 
         if (!controller)
         {
-            PRINT_ERROR("Controller unspecified.");
-            return hresult_t::ERROR_INIT_FAILED;
+            THROW_ERROR(std::invalid_argument, "Controller unspecified.");
         }
 
         if (!controller->getIsInitialized())
         {
-            PRINT_ERROR("Controller not initialized.");
-            return hresult_t::ERROR_INIT_FAILED;
+            THROW_ERROR(bad_control_flow, "Controller not initialized.");
         }
 
         auto robot_controller = controller->robot_.lock();
         if (!robot_controller)
         {
-            PRINT_ERROR("Controller's robot expired or unset.");
-            return hresult_t::ERROR_INIT_FAILED;
+            THROW_ERROR(std::invalid_argument, "Controller's robot expired or unset.");
         }
 
         if (robot != robot_controller)
         {
-            PRINT_ERROR("Controller not initialized for specified robot.");
-            return hresult_t::ERROR_INIT_FAILED;
+            THROW_ERROR(std::invalid_argument, "Controller not initialized for specified robot.");
         }
 
         // TODO: Check that the callback function is working as expected
         // FIXME: remove explicit constructor call when moving to C++20
         systems_.emplace_back(System{systemName, robot, controller, callback});
         systemDataVec_.resize(systems_.size());
-
-        return hresult_t::SUCCESS;
     }
 
-    hresult_t EngineMultiRobot::addSystem(const std::string & systemName,
-                                          std::shared_ptr<Robot> robot,
-                                          const AbortSimulationFunction & callback)
+    void EngineMultiRobot::addSystem(const std::string & systemName,
+                                     std::shared_ptr<Robot> robot,
+                                     const AbortSimulationFunction & callback)
     {
         // Make sure an actual robot is specified
         if (!robot)
         {
-            PRINT_ERROR("Robot unspecified.");
-            return hresult_t::ERROR_INIT_FAILED;
+            THROW_ERROR(std::invalid_argument, "Robot unspecified.");
         }
 
         // Make sure the robot is properly initialized
         if (!robot->getIsInitialized())
         {
-            PRINT_ERROR("Robot not initialized.");
-            return hresult_t::ERROR_INIT_FAILED;
+            THROW_ERROR(std::invalid_argument, "Robot not initialized.");
         }
 
         // When using several robots the robots names are specified
@@ -149,8 +139,7 @@ namespace jiminy
         // have a name
         if (systems_.size() && systemName == "")
         {
-            PRINT_ERROR("All systems but the first one must have a name.");
-            return hresult_t::ERROR_GENERIC;
+            THROW_ERROR(std::invalid_argument, "All systems but the first one must have a name.");
         }
 
         // Check if a system with the same name already exists
@@ -160,8 +149,10 @@ namespace jiminy
                                      { return (sys.name == systemName); });
         if (systemIt != systems_.end())
         {
-            PRINT_ERROR("A system with this name has already been added to the engine.");
-            return hresult_t::ERROR_BAD_INPUT;
+            THROW_ERROR(std::invalid_argument,
+                        "System with name '",
+                        systemName,
+                        "'has already been added to the engine.");
         }
 
         // Make sure none of the existing system is referring to the same robot
@@ -170,8 +161,10 @@ namespace jiminy
                                 [&robot](const auto & sys) { return (sys.robot == robot); });
         if (systemIt != systems_.end())
         {
-            PRINT_ERROR("The system '", systemIt->name, "' is already referring to this robot.");
-            return hresult_t::ERROR_BAD_INPUT;
+            THROW_ERROR(std::invalid_argument,
+                        "System '",
+                        systemIt->name,
+                        "' already referring to this robot.");
         }
 
         // Create and initialize a controller doing nothing
@@ -189,311 +182,232 @@ namespace jiminy
         return addSystem(systemName, robot, controller, callback);
     }
 
-    hresult_t EngineMultiRobot::removeSystem(const std::string & systemName)
+    void EngineMultiRobot::removeSystem(const std::string & systemName)
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
         // Make sure that no simulation is running
         if (isSimulationRunning_)
         {
-            PRINT_ERROR("A simulation is already running. Stop it before removing a system.");
-            returnCode = hresult_t::ERROR_GENERIC;
+            THROW_ERROR(bad_control_flow,
+                        "Simulation already running. Stop it before removing a system.");
         }
 
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            /* Remove every coupling forces involving the system.
-               Note that it is already checking that the system exists. */
-            returnCode = removeCouplingForces(systemName);
-        }
+        /* Remove every coupling forces involving the system.
+           Note that it is already checking that the system exists. */
+        removeCouplingForces(systemName);
 
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            // Get the system index
-            std::ptrdiff_t systemIndex{};
-            getSystemIndex(systemName, systemIndex);  // Cannot fail at this point
+        // Get system index
+        std::ptrdiff_t systemIndex = getSystemIndex(systemName);
 
-            // Update the systems' indices for the remaining coupling forces
-            for (auto & force : couplingForces_)
+        // Update the systems' indices for the remaining coupling forces
+        for (auto & force : couplingForces_)
+        {
+            if (force.systemIndex1 > systemIndex)
             {
-                if (force.systemIndex1 > systemIndex)
-                {
-                    --force.systemIndex1;
-                }
-                if (force.systemIndex2 > systemIndex)
-                {
-                    --force.systemIndex2;
-                }
+                --force.systemIndex1;
             }
-
-            // Remove the system from the list
-            systems_.erase(systems_.begin() + systemIndex);
-            systemDataVec_.erase(systemDataVec_.begin() + systemIndex);
+            if (force.systemIndex2 > systemIndex)
+            {
+                --force.systemIndex2;
+            }
         }
 
-        return returnCode;
+        // Remove the system from the list
+        systems_.erase(systems_.begin() + systemIndex);
+        systemDataVec_.erase(systemDataVec_.begin() + systemIndex);
     }
 
-    hresult_t EngineMultiRobot::setController(const std::string & systemName,
-                                              std::shared_ptr<AbstractController> controller)
+    void EngineMultiRobot::setController(const std::string & systemName,
+                                         std::shared_ptr<AbstractController> controller)
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
         // Make sure that no simulation is running
         if (isSimulationRunning_)
         {
-            PRINT_ERROR("A simulation is already running. Stop it before setting a new controller "
-                        "for a system.");
-            returnCode = hresult_t::ERROR_GENERIC;
+            THROW_ERROR(bad_control_flow,
+                        "Simulation already running. Stop it before setting a new "
+                        "controller for a system.");
         }
 
         // Make sure that the controller is initialized
-        if (returnCode == hresult_t::SUCCESS)
+        if (!controller->getIsInitialized())
         {
-            if (!controller->getIsInitialized())
-            {
-                PRINT_ERROR("Controller not initialized.");
-                returnCode = hresult_t::ERROR_INIT_FAILED;
-            }
+            THROW_ERROR(bad_control_flow, "Controller not initialized.");
         }
 
         auto robot_controller = controller->robot_.lock();
-        if (returnCode == hresult_t::SUCCESS)
+        if (!robot_controller)
         {
-            if (!robot_controller)
-            {
-                PRINT_ERROR("Controller's robot expired or unset.");
-                returnCode = hresult_t::ERROR_INIT_FAILED;
-            }
+            THROW_ERROR(bad_control_flow, "Controller's robot expired or unset.");
         }
 
-        // Make sure that the system for which to set the controller exists
-        System * system;
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            returnCode = getSystem(systemName, system);
-        }
+        // Get the system for which to set the controller
+        System & system = getSystem(systemName);
 
-        if (returnCode == hresult_t::SUCCESS)
+        if (system.robot != robot_controller)
         {
-            if (system->robot != robot_controller)
-            {
-                PRINT_ERROR(
-                    "Controller not initialized for robot associated with specified system.");
-                returnCode = hresult_t::ERROR_INIT_FAILED;
-            }
+            THROW_ERROR(std::invalid_argument,
+                        "Controller not initialized for robot associated with specified system.");
         }
 
         // Set the controller
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            system->controller = controller;
-        }
-
-        return returnCode;
+        system.controller = controller;
     }
 
-    hresult_t EngineMultiRobot::registerCouplingForce(const std::string & systemName1,
-                                                      const std::string & systemName2,
-                                                      const std::string & frameName1,
-                                                      const std::string & frameName2,
-                                                      const CouplingForceFunction & forceFunc)
+    void EngineMultiRobot::registerCouplingForce(const std::string & systemName1,
+                                                 const std::string & systemName2,
+                                                 const std::string & frameName1,
+                                                 const std::string & frameName2,
+                                                 const CouplingForceFunction & forceFunc)
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
         // Make sure that no simulation is running
         if (isSimulationRunning_)
         {
-            PRINT_ERROR("A simulation is already running. Stop it before adding coupling forces.");
-            returnCode = hresult_t::ERROR_GENERIC;
+            THROW_ERROR(bad_control_flow,
+                        "Simulation already running. Stop it before adding coupling forces.");
         }
 
         // Get system and frame indices
-        std::ptrdiff_t systemIndex1;
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            returnCode = getSystemIndex(systemName1, systemIndex1);
-        }
-
-        std::ptrdiff_t systemIndex2;
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            returnCode = getSystemIndex(systemName2, systemIndex2);
-        }
-
-        pinocchio::FrameIndex frameIndex1;
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            returnCode = getFrameIndex(
-                systems_[systemIndex1].robot->pinocchioModel_, frameName1, frameIndex1);
-        }
-
-        pinocchio::FrameIndex frameIndex2;
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            returnCode = getFrameIndex(
-                systems_[systemIndex2].robot->pinocchioModel_, frameName2, frameIndex2);
-        }
+        const std::ptrdiff_t systemIndex1 = getSystemIndex(systemName1);
+        const std::ptrdiff_t systemIndex2 = getSystemIndex(systemName2);
+        const pinocchio::FrameIndex frameIndex1 =
+            getFrameIndex(systems_[systemIndex1].robot->pinocchioModel_, frameName1);
+        const pinocchio::FrameIndex frameIndex2 =
+            getFrameIndex(systems_[systemIndex2].robot->pinocchioModel_, frameName2);
 
         // Make sure it is not coupling the exact same frame
-        if (returnCode == hresult_t::SUCCESS)
+        if (systemIndex1 == systemIndex2 && frameIndex1 == frameIndex2)
         {
-            if (systemIndex1 == systemIndex2 && frameIndex1 == frameIndex2)
-            {
-                PRINT_ERROR("A coupling force requires different frames.");
-                returnCode = hresult_t::ERROR_GENERIC;
-            }
+            THROW_ERROR(std::invalid_argument,
+                        "A coupling force must involve two different frames.");
         }
 
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            couplingForces_.emplace_back(systemName1,
-                                         systemIndex1,
-                                         systemName2,
-                                         systemIndex2,
-                                         frameName1,
-                                         frameIndex1,
-                                         frameName2,
-                                         frameIndex2,
-                                         forceFunc);
-        }
-
-        return returnCode;
+        couplingForces_.emplace_back(systemName1,
+                                     systemIndex1,
+                                     systemName2,
+                                     systemIndex2,
+                                     frameName1,
+                                     frameIndex1,
+                                     frameName2,
+                                     frameIndex2,
+                                     forceFunc);
     }
 
-    hresult_t EngineMultiRobot::registerViscoelasticCouplingForce(const std::string & systemName1,
-                                                                  const std::string & systemName2,
-                                                                  const std::string & frameName1,
-                                                                  const std::string & frameName2,
-                                                                  const Vector6d & stiffness,
-                                                                  const Vector6d & damping,
-                                                                  double alpha)
+    void EngineMultiRobot::registerViscoelasticCouplingForce(const std::string & systemName1,
+                                                             const std::string & systemName2,
+                                                             const std::string & frameName1,
+                                                             const std::string & frameName2,
+                                                             const Vector6d & stiffness,
+                                                             const Vector6d & damping,
+                                                             double alpha)
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
+        // Make sure that the input arguments are valid
         if ((stiffness.array() < 0.0).any() || (damping.array() < 0.0).any())
         {
-            PRINT_ERROR("The stiffness and damping parameters must be positive.");
-            returnCode = hresult_t::ERROR_GENERIC;
+            THROW_ERROR(std::invalid_argument,
+                        "Stiffness and damping parameters must be positive.");
         }
 
-        System * system1;
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            returnCode = getSystem(systemName1, system1);
-        }
+        // Get system and frame indices
+        System * system1 = &getSystem(systemName1);
+        System * system2 = &getSystem(systemName2);
+        pinocchio::FrameIndex frameIndex1 =
+            getFrameIndex(system1->robot->pinocchioModel_, frameName1);
+        pinocchio::FrameIndex frameIndex2 =
+            getFrameIndex(system2->robot->pinocchioModel_, frameName2);
 
-        System * system2;
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            returnCode = getSystem(systemName2, system2);
-        }
+        // Allocate memory
+        double angle{0.0};
+        Eigen::Matrix3d rot12{}, rotJLog12{}, rotJExp12{}, rotRef12{}, omega{};
+        Eigen::Vector3d rotLog12{}, pos12{}, posLocal12{}, fLin{}, fAng{};
 
-        pinocchio::FrameIndex frameIndex1, frameIndex2;
-        if (returnCode == hresult_t::SUCCESS)
+        auto forceFunc = [=](double /* t */,
+                             const Eigen::VectorXd & /* q1 */,
+                             const Eigen::VectorXd & /* v1 */,
+                             const Eigen::VectorXd & /* q2 */,
+                             const Eigen::VectorXd & /* v2 */) mutable -> pinocchio::Force
         {
-            getFrameIndex(system1->robot->pinocchioModel_, frameName1, frameIndex1);
-            getFrameIndex(system2->robot->pinocchioModel_, frameName2, frameIndex2);
-        }
-
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            // Allocate memory
-            double angle{0.0};
-            Eigen::Matrix3d rot12{}, rotJLog12{}, rotJExp12{}, rotRef12{}, omega{};
-            Eigen::Vector3d rotLog12{}, pos12{}, posLocal12{}, fLin{}, fAng{};
-
-            auto forceFunc = [=](double /* t */,
-                                 const Eigen::VectorXd & /* q1 */,
-                                 const Eigen::VectorXd & /* v1 */,
-                                 const Eigen::VectorXd & /* q2 */,
-                                 const Eigen::VectorXd & /* v2 */) mutable -> pinocchio::Force
+            /* One must keep track of system pointers and frames indices internally and update
+               them at reset since the systems may have changed between simulations. Note that
+               `isSimulationRunning_` is false when called for the first time in `start` method
+               before locking the robot, so it is the right time to update those proxies. */
+            if (!isSimulationRunning_)
             {
-                /* One must keep track of system pointers and frames indices internally and update
-                   them at reset since the systems may have changed between simulations. Note that
-                   `isSimulationRunning_` is false when called for the first time in `start` method
-                   before locking the robot, so it is the right time to update those proxies. */
-                if (!isSimulationRunning_)
-                {
-                    getSystem(systemName1, system1);
-                    getFrameIndex(system1->robot->pinocchioModel_, frameName1, frameIndex1);
-                    getSystem(systemName2, system2);
-                    getFrameIndex(system2->robot->pinocchioModel_, frameName2, frameIndex2);
-                }
+                system1 = &getSystem(systemName1);
+                system2 = &getSystem(systemName2);
+                frameIndex1 = getFrameIndex(system1->robot->pinocchioModel_, frameName1);
+                frameIndex2 = getFrameIndex(system2->robot->pinocchioModel_, frameName2);
+            }
 
-                // Get the frames positions and velocities in world
-                const pinocchio::SE3 & oMf1{system1->robot->pinocchioData_.oMf[frameIndex1]};
-                const pinocchio::SE3 & oMf2{system2->robot->pinocchioData_.oMf[frameIndex2]};
-                const pinocchio::Motion oVf1{getFrameVelocity(system1->robot->pinocchioModel_,
-                                                              system1->robot->pinocchioData_,
-                                                              frameIndex1,
-                                                              pinocchio::LOCAL_WORLD_ALIGNED)};
-                const pinocchio::Motion oVf2{getFrameVelocity(system2->robot->pinocchioModel_,
-                                                              system2->robot->pinocchioData_,
-                                                              frameIndex2,
-                                                              pinocchio::LOCAL_WORLD_ALIGNED)};
+            // Get the frames positions and velocities in world
+            const pinocchio::SE3 & oMf1{system1->robot->pinocchioData_.oMf[frameIndex1]};
+            const pinocchio::SE3 & oMf2{system2->robot->pinocchioData_.oMf[frameIndex2]};
+            const pinocchio::Motion oVf1{getFrameVelocity(system1->robot->pinocchioModel_,
+                                                          system1->robot->pinocchioData_,
+                                                          frameIndex1,
+                                                          pinocchio::LOCAL_WORLD_ALIGNED)};
+            const pinocchio::Motion oVf2{getFrameVelocity(system2->robot->pinocchioModel_,
+                                                          system2->robot->pinocchioData_,
+                                                          frameIndex2,
+                                                          pinocchio::LOCAL_WORLD_ALIGNED)};
 
-                // Compute intermediary quantities
-                rot12.noalias() = oMf1.rotation().transpose() * oMf2.rotation();
-                rotLog12 = pinocchio::log3(rot12, angle);
-                assert((angle < 0.95 * M_PI) &&
-                       "Relative angle between reference frames of viscoelastic coupling must be "
-                       "smaller than 0.95 * pi.");
-                pinocchio::Jlog3(angle, rotLog12, rotJLog12);
-                fAng = stiffness.tail<3>().array() * rotLog12.array();
-                rotLog12 *= alpha;
-                pinocchio::Jexp3(rotLog12, rotJExp12);
-                rotRef12.noalias() = oMf1.rotation() * pinocchio::exp3(rotLog12);
-                pos12 = oMf2.translation() - oMf1.translation();
-                posLocal12.noalias() = rotRef12.transpose() * pos12;
-                fLin = stiffness.head<3>().array() * posLocal12.array();
-                omega.noalias() = alpha * rotJExp12 * rotJLog12;
+            // Compute intermediary quantities
+            rot12.noalias() = oMf1.rotation().transpose() * oMf2.rotation();
+            rotLog12 = pinocchio::log3(rot12, angle);
+            if (angle < 0.95 * M_PI)
+            {
+                THROW_ERROR(std::runtime_error,
+                            "Relative angle between reference frames of viscoelastic "
+                            "coupling must be smaller than 0.95 * pi.");
+            }
+            pinocchio::Jlog3(angle, rotLog12, rotJLog12);
+            fAng = stiffness.tail<3>().array() * rotLog12.array();
+            rotLog12 *= alpha;
+            pinocchio::Jexp3(rotLog12, rotJExp12);
+            rotRef12.noalias() = oMf1.rotation() * pinocchio::exp3(rotLog12);
+            pos12 = oMf2.translation() - oMf1.translation();
+            posLocal12.noalias() = rotRef12.transpose() * pos12;
+            fLin = stiffness.head<3>().array() * posLocal12.array();
+            omega.noalias() = alpha * rotJExp12 * rotJLog12;
 
-                /* Compute the relative velocity. The application point is the "linear"
-                   interpolation between the frames placement with alpha ratio. */
-                const pinocchio::Motion oVf12{oVf2 - oVf1};
-                pinocchio::Motion velLocal12{
-                    rotRef12.transpose() *
-                        (oVf12.linear() + pos12.cross(oVf2.angular() - alpha * oVf12.angular())),
-                    rotRef12.transpose() * oVf12.angular()};
+            /* Compute the relative velocity. The application point is the "linear"
+               interpolation between the frames placement with alpha ratio. */
+            const pinocchio::Motion oVf12{oVf2 - oVf1};
+            pinocchio::Motion velLocal12{
+                rotRef12.transpose() *
+                    (oVf12.linear() + pos12.cross(oVf2.angular() - alpha * oVf12.angular())),
+                rotRef12.transpose() * oVf12.angular()};
 
-                // Compute the coupling force acting on frame 2
-                pinocchio::Force f{};
-                f.linear() = damping.head<3>().array() * velLocal12.linear().array();
-                f.angular() = (1.0 - alpha) * f.linear().cross(posLocal12);
-                f.angular().array() += damping.tail<3>().array() * velLocal12.angular().array();
-                f.linear() += fLin;
-                f.linear() = rotRef12 * f.linear();
-                f.angular() = rotRef12 * f.angular();
-                f.angular() -=
-                    oMf2.rotation() * omega.colwise().cross(posLocal12).transpose() * fLin;
-                f.angular() += oMf1.rotation() * rotJLog12 * fAng;
+            // Compute the coupling force acting on frame 2
+            pinocchio::Force f{};
+            f.linear() = damping.head<3>().array() * velLocal12.linear().array();
+            f.angular() = (1.0 - alpha) * f.linear().cross(posLocal12);
+            f.angular().array() += damping.tail<3>().array() * velLocal12.angular().array();
+            f.linear() += fLin;
+            f.linear() = rotRef12 * f.linear();
+            f.angular() = rotRef12 * f.angular();
+            f.angular() -= oMf2.rotation() * omega.colwise().cross(posLocal12).transpose() * fLin;
+            f.angular() += oMf1.rotation() * rotJLog12 * fAng;
 
-                // Deduce the force acting on frame 1 from action-reaction law
-                f.angular() += pos12.cross(f.linear());
+            // Deduce the force acting on frame 1 from action-reaction law
+            f.angular() += pos12.cross(f.linear());
 
-                return f;
-            };
+            return f;
+        };
 
-            returnCode =
-                registerCouplingForce(systemName1, systemName2, frameName1, frameName2, forceFunc);
-        }
-
-        return returnCode;
+        registerCouplingForce(systemName1, systemName2, frameName1, frameName2, forceFunc);
     }
 
-    hresult_t EngineMultiRobot::registerViscoelasticCouplingForce(const std::string & systemName,
-                                                                  const std::string & frameName1,
-                                                                  const std::string & frameName2,
-                                                                  const Vector6d & stiffness,
-                                                                  const Vector6d & damping,
-                                                                  double alpha)
+    void EngineMultiRobot::registerViscoelasticCouplingForce(const std::string & systemName,
+                                                             const std::string & frameName1,
+                                                             const std::string & frameName2,
+                                                             const Vector6d & stiffness,
+                                                             const Vector6d & damping,
+                                                             double alpha)
     {
         return registerViscoelasticCouplingForce(
             systemName, systemName, frameName1, frameName2, stiffness, damping, alpha);
     }
 
-    hresult_t EngineMultiRobot::registerViscoelasticDirectionalCouplingForce(
+    void EngineMultiRobot::registerViscoelasticDirectionalCouplingForce(
         const std::string & systemName1,
         const std::string & systemName2,
         const std::string & frameName1,
@@ -502,94 +416,71 @@ namespace jiminy
         double damping,
         double restLength)
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
+        // Make sure that the input arguments are valid
         if (stiffness < 0.0 || damping < 0.0)
         {
-            PRINT_ERROR("The stiffness and damping parameters must be positive.");
-            returnCode = hresult_t::ERROR_GENERIC;
+            THROW_ERROR(std::invalid_argument,
+                        "The stiffness and damping parameters must be positive.");
         }
 
-        System * system1;
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            returnCode = getSystem(systemName1, system1);
-        }
+        // Get system and frame indices
+        System * system1 = &getSystem(systemName1);
+        System * system2 = &getSystem(systemName2);
+        pinocchio::FrameIndex frameIndex1 =
+            getFrameIndex(system1->robot->pinocchioModel_, frameName1);
+        pinocchio::FrameIndex frameIndex2 =
+            getFrameIndex(system2->robot->pinocchioModel_, frameName2);
 
-        pinocchio::FrameIndex frameIndex1;
-        if (returnCode == hresult_t::SUCCESS)
+        auto forceFunc = [=](double /* t */,
+                             const Eigen::VectorXd & /* q1 */,
+                             const Eigen::VectorXd & /* v1 */,
+                             const Eigen::VectorXd & /* q2 */,
+                             const Eigen::VectorXd & /* v2 */) mutable -> pinocchio::Force
         {
-            returnCode = getFrameIndex(system1->robot->pinocchioModel_, frameName1, frameIndex1);
-        }
-
-        System * system2;
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            returnCode = getSystem(systemName2, system2);
-        }
-
-        pinocchio::FrameIndex frameIndex2;
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            returnCode = getFrameIndex(system2->robot->pinocchioModel_, frameName2, frameIndex2);
-        }
-
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            auto forceFunc = [=](double /* t */,
-                                 const Eigen::VectorXd & /* q1 */,
-                                 const Eigen::VectorXd & /* v1 */,
-                                 const Eigen::VectorXd & /* q2 */,
-                                 const Eigen::VectorXd & /* v2 */) mutable -> pinocchio::Force
+            /* One must keep track of system pointers and frames indices internally and update
+               them at reset since the systems may have changed between simulations. Note that
+               `isSimulationRunning_` is false when called for the first time in `start` method
+               before locking the robot, so it is the right time to update those proxies. */
+            if (!isSimulationRunning_)
             {
-                /* One must keep track of system pointers and frames indices internally and update
-                   them at reset since the systems may have changed between simulations. Note that
-                   `isSimulationRunning_` is false when called for the first time in `start` method
-                   before locking the robot, so it is the right time to update those proxies. */
-                if (!isSimulationRunning_)
-                {
-                    getSystem(systemName1, system1);
-                    getFrameIndex(system1->robot->pinocchioModel_, frameName1, frameIndex1);
-                    getSystem(systemName2, system2);
-                    getFrameIndex(system2->robot->pinocchioModel_, frameName2, frameIndex2);
-                }
+                system1 = &getSystem(systemName1);
+                system2 = &getSystem(systemName2);
+                frameIndex1 = getFrameIndex(system1->robot->pinocchioModel_, frameName1);
+                frameIndex2 = getFrameIndex(system2->robot->pinocchioModel_, frameName2);
+            }
 
-                // Get the frames positions and velocities in world
-                const pinocchio::SE3 & oMf1{system1->robot->pinocchioData_.oMf[frameIndex1]};
-                const pinocchio::SE3 & oMf2{system2->robot->pinocchioData_.oMf[frameIndex2]};
-                const pinocchio::Motion oVf1{getFrameVelocity(system1->robot->pinocchioModel_,
-                                                              system1->robot->pinocchioData_,
-                                                              frameIndex1,
-                                                              pinocchio::LOCAL_WORLD_ALIGNED)};
-                const pinocchio::Motion oVf2{getFrameVelocity(system2->robot->pinocchioModel_,
-                                                              system2->robot->pinocchioData_,
-                                                              frameIndex2,
-                                                              pinocchio::LOCAL_WORLD_ALIGNED)};
+            // Get the frames positions and velocities in world
+            const pinocchio::SE3 & oMf1{system1->robot->pinocchioData_.oMf[frameIndex1]};
+            const pinocchio::SE3 & oMf2{system2->robot->pinocchioData_.oMf[frameIndex2]};
+            const pinocchio::Motion oVf1{getFrameVelocity(system1->robot->pinocchioModel_,
+                                                          system1->robot->pinocchioData_,
+                                                          frameIndex1,
+                                                          pinocchio::LOCAL_WORLD_ALIGNED)};
+            const pinocchio::Motion oVf2{getFrameVelocity(system2->robot->pinocchioModel_,
+                                                          system2->robot->pinocchioData_,
+                                                          frameIndex2,
+                                                          pinocchio::LOCAL_WORLD_ALIGNED)};
 
-                // Compute the linear force coupling them
-                Eigen::Vector3d dir12{oMf2.translation() - oMf1.translation()};
-                const double length{dir12.norm()};
-                auto vel12 = oVf2.linear() - oVf1.linear();
-                if (length > EPS)
-                {
-                    dir12 /= length;
-                    auto vel12Proj = vel12.dot(dir12);
-                    return {(stiffness * (length - restLength) + damping * vel12Proj) * dir12,
-                            Eigen::Vector3d::Zero()};
-                }
-                /* The direction between frames is ill-defined, so applying force in the direction
-                   of the linear velocity instead. */
-                return {damping * vel12, Eigen::Vector3d::Zero()};
-            };
+            // Compute the linear force coupling them
+            Eigen::Vector3d dir12{oMf2.translation() - oMf1.translation()};
+            const double length{dir12.norm()};
+            auto vel12 = oVf2.linear() - oVf1.linear();
+            if (length > EPS)
+            {
+                dir12 /= length;
+                auto vel12Proj = vel12.dot(dir12);
+                return {(stiffness * (length - restLength) + damping * vel12Proj) * dir12,
+                        Eigen::Vector3d::Zero()};
+            }
+            /* The direction between frames is ill-defined, so applying force in the direction
+               of the linear velocity instead. */
+            return {damping * vel12, Eigen::Vector3d::Zero()};
+        };
 
-            returnCode =
-                registerCouplingForce(systemName1, systemName2, frameName1, frameName2, forceFunc);
-        }
-
-        return returnCode;
+        registerCouplingForce(systemName1, systemName2, frameName1, frameName2, forceFunc);
     }
 
-    hresult_t EngineMultiRobot::registerViscoelasticDirectionalCouplingForce(
+    void EngineMultiRobot::registerViscoelasticDirectionalCouplingForce(
         const std::string & systemName,
         const std::string & frameName1,
         const std::string & frameName2,
@@ -601,92 +492,62 @@ namespace jiminy
             systemName, systemName, frameName1, frameName2, stiffness, damping, restLength);
     }
 
-    hresult_t EngineMultiRobot::removeCouplingForces(const std::string & systemName1,
-                                                     const std::string & systemName2)
+    void EngineMultiRobot::removeCouplingForces(const std::string & systemName1,
+                                                const std::string & systemName2)
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
         // Make sure that no simulation is running
         if (isSimulationRunning_)
         {
-            PRINT_ERROR(
-                "A simulation is already running. Stop it before removing coupling forces.");
-            returnCode = hresult_t::ERROR_GENERIC;
+            THROW_ERROR(bad_control_flow,
+                        "Simulation already running. Stop it before removing coupling forces.");
         }
 
-        System * system1;
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            returnCode = getSystem(systemName1, system1);
-        }
+        // Make sure that the systems exist
+        getSystem(systemName1);
+        getSystem(systemName2);
 
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            System * system2;
-            returnCode = getSystem(systemName2, system2);
-        }
-
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            couplingForces_.erase(std::remove_if(couplingForces_.begin(),
-                                                 couplingForces_.end(),
-                                                 [&systemName1, &systemName2](const auto & force) {
-                                                     return (force.systemName1 == systemName1 &&
-                                                             force.systemName2 == systemName2);
-                                                 }),
-                                  couplingForces_.end());
-        }
-
-        return returnCode;
+        // Remove corresponding coupling forces if any
+        couplingForces_.erase(std::remove_if(couplingForces_.begin(),
+                                             couplingForces_.end(),
+                                             [&systemName1, &systemName2](const auto & force) {
+                                                 return (force.systemName1 == systemName1 &&
+                                                         force.systemName2 == systemName2);
+                                             }),
+                              couplingForces_.end());
     }
 
-    hresult_t EngineMultiRobot::removeCouplingForces(const std::string & systemName)
+    void EngineMultiRobot::removeCouplingForces(const std::string & systemName)
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
         // Make sure that no simulation is running
         if (isSimulationRunning_)
         {
-            PRINT_ERROR(
-                "A simulation is already running. Stop it before removing coupling forces.");
-            returnCode = hresult_t::ERROR_GENERIC;
+            THROW_ERROR(bad_control_flow,
+                        "Simulation already running. Stop it before removing coupling forces.");
         }
 
-        System * system;
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            returnCode = getSystem(systemName, system);
-        }
+        // Make sure that the system exists
+        getSystem(systemName);
 
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            couplingForces_.erase(std::remove_if(couplingForces_.begin(),
-                                                 couplingForces_.end(),
-                                                 [&systemName](const auto & force) {
-                                                     return (force.systemName1 == systemName ||
-                                                             force.systemName2 == systemName);
-                                                 }),
-                                  couplingForces_.end());
-        }
-
-        return returnCode;
+        // Remove corresponding coupling forces if any
+        couplingForces_.erase(std::remove_if(couplingForces_.begin(),
+                                             couplingForces_.end(),
+                                             [&systemName](const auto & force) {
+                                                 return (force.systemName1 == systemName ||
+                                                         force.systemName2 == systemName);
+                                             }),
+                              couplingForces_.end());
     }
 
-    hresult_t EngineMultiRobot::removeCouplingForces()
+    void EngineMultiRobot::removeCouplingForces()
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
         // Make sure that no simulation is running
         if (isSimulationRunning_)
         {
-            PRINT_ERROR(
-                "A simulation is already running. Stop it before removing coupling forces.");
-            returnCode = hresult_t::ERROR_GENERIC;
+            THROW_ERROR(bad_control_flow,
+                        "Simulation already running. Stop it before removing coupling forces.");
         }
 
         couplingForces_.clear();
-
-        return returnCode;
     }
 
     const CouplingForceVector & EngineMultiRobot::getCouplingForces() const
@@ -694,29 +555,18 @@ namespace jiminy
         return couplingForces_;
     }
 
-    hresult_t EngineMultiRobot::removeAllForces()
+    void EngineMultiRobot::removeAllForces()
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-        returnCode = removeCouplingForces();
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            returnCode = removeImpulseForces();
-        }
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            returnCode = removeProfileForces();
-        }
-        return returnCode;
+        removeCouplingForces();
+        removeImpulseForces();
+        removeProfileForces();
     }
 
-    hresult_t EngineMultiRobot::configureTelemetry()
+    void EngineMultiRobot::configureTelemetry()
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
         if (systems_.empty())
         {
-            PRINT_ERROR("No system added to the engine.");
-            returnCode = hresult_t::ERROR_INIT_FAILED;
+            THROW_ERROR(bad_control_flow, "No system added to the engine.");
         }
 
         if (!isTelemetryConfigured_)
@@ -764,29 +614,20 @@ namespace jiminy
                     addCircumfix("energy", systemIt->name, {}, TELEMETRY_FIELDNAME_DELIMITER);
 
                 // Register variables to the telemetry senders
-                if (returnCode == hresult_t::SUCCESS)
+                if (engineOptions_->telemetry.enableConfiguration)
                 {
-                    if (engineOptions_->telemetry.enableConfiguration)
-                    {
-                        returnCode = telemetrySender_->registerVariable(
-                            systemDataIt->logPositionFieldnames, systemDataIt->state.q);
-                    }
+                    telemetrySender_->registerVariable(systemDataIt->logPositionFieldnames,
+                                                       systemDataIt->state.q);
                 }
-                if (returnCode == hresult_t::SUCCESS)
+                if (engineOptions_->telemetry.enableVelocity)
                 {
-                    if (engineOptions_->telemetry.enableVelocity)
-                    {
-                        returnCode = telemetrySender_->registerVariable(
-                            systemDataIt->logVelocityFieldnames, systemDataIt->state.v);
-                    }
+                    telemetrySender_->registerVariable(systemDataIt->logVelocityFieldnames,
+                                                       systemDataIt->state.v);
                 }
-                if (returnCode == hresult_t::SUCCESS)
+                if (engineOptions_->telemetry.enableAcceleration)
                 {
-                    if (engineOptions_->telemetry.enableAcceleration)
-                    {
-                        returnCode = telemetrySender_->registerVariable(
-                            systemDataIt->logAccelerationFieldnames, systemDataIt->state.a);
-                    }
+                    telemetrySender_->registerVariable(systemDataIt->logAccelerationFieldnames,
+                                                       systemDataIt->state.a);
                 }
                 if (engineOptions_->telemetry.enableForceExternal)
                 {
@@ -795,56 +636,33 @@ namespace jiminy
                         const auto & fext = systemDataIt->state.fExternal[i].toVector();
                         for (uint8_t j = 0; j < 6U; ++j)
                         {
-                            returnCode = telemetrySender_->registerVariable(
+                            telemetrySender_->registerVariable(
                                 systemDataIt->logForceExternalFieldnames[(i - 1) * 6U + j],
                                 &fext[j]);
                         }
                     }
                 }
-                if (returnCode == hresult_t::SUCCESS)
+                if (engineOptions_->telemetry.enableCommand)
                 {
-                    if (engineOptions_->telemetry.enableCommand)
-                    {
-                        returnCode = telemetrySender_->registerVariable(
-                            systemDataIt->logCommandFieldnames, systemDataIt->state.command);
-                    }
+                    telemetrySender_->registerVariable(systemDataIt->logCommandFieldnames,
+                                                       systemDataIt->state.command);
                 }
-                if (returnCode == hresult_t::SUCCESS)
+                if (engineOptions_->telemetry.enableMotorEffort)
                 {
-                    if (engineOptions_->telemetry.enableMotorEffort)
-                    {
-                        returnCode = telemetrySender_->registerVariable(
-                            systemDataIt->logMotorEffortFieldnames, systemDataIt->state.uMotor);
-                    }
+                    telemetrySender_->registerVariable(systemDataIt->logMotorEffortFieldnames,
+                                                       systemDataIt->state.uMotor);
                 }
-                if (returnCode == hresult_t::SUCCESS)
+                if (engineOptions_->telemetry.enableEnergy)
                 {
-                    if (engineOptions_->telemetry.enableEnergy)
-                    {
-                        returnCode = telemetrySender_->registerVariable(
-                            systemDataIt->logEnergyFieldname, &(*energyIt));
-                    }
+                    telemetrySender_->registerVariable(systemDataIt->logEnergyFieldname,
+                                                       &(*energyIt));
                 }
-
-                if (returnCode == hresult_t::SUCCESS)
-                {
-                    returnCode =
-                        systemIt->controller->configureTelemetry(telemetryData_, systemIt->name);
-                }
-                if (returnCode == hresult_t::SUCCESS)
-                {
-                    returnCode =
-                        systemIt->robot->configureTelemetry(telemetryData_, systemIt->name);
-                }
+                systemIt->controller->configureTelemetry(telemetryData_, systemIt->name);
+                systemIt->robot->configureTelemetry(telemetryData_, systemIt->name);
             }
         }
 
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            isTelemetryConfigured_ = true;
-        }
-
-        return returnCode;
+        isTelemetryConfigured_ = true;
     }
 
     void EngineMultiRobot::updateTelemetry()
@@ -881,7 +699,7 @@ namespace jiminy
         }
 
         // Clear log data buffer
-        logData_ = nullptr;
+        logData_.reset();
 
         // Reset the dynamic force register if requested
         if (removeAllForce)
@@ -1083,32 +901,30 @@ namespace jiminy
         }
     }
 
-    hresult_t EngineMultiRobot::start(
+    void EngineMultiRobot::start(
         const std::map<std::string, Eigen::VectorXd> & qInit,
         const std::map<std::string, Eigen::VectorXd> & vInit,
         const std::optional<std::map<std::string, Eigen::VectorXd>> & aInit)
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
         // Make sure that no simulation is running
         if (isSimulationRunning_)
         {
-            PRINT_ERROR("A simulation is already running. Stop it before starting again.");
-            return hresult_t::ERROR_GENERIC;
+            THROW_ERROR(bad_control_flow,
+                        "Simulation already running. Stop it before starting again.");
         }
 
         if (systems_.empty())
         {
-            PRINT_ERROR("No system to simulate. Please add one before starting a simulation.");
-            return hresult_t::ERROR_INIT_FAILED;
+            THROW_ERROR(bad_control_flow,
+                        "No system to simulate. Please add one before starting a simulation.");
         }
 
         const std::size_t nSystems = systems_.size();
         if (qInit.size() != nSystems || vInit.size() != nSystems)
         {
-            PRINT_ERROR("The number of initial configurations and velocities must match the "
-                        "number of systems.");
-            return hresult_t::ERROR_BAD_INPUT;
+            THROW_ERROR(std::invalid_argument,
+                        "The number of initial configurations and velocities must "
+                        "match the number of systems.");
         }
 
         // Check the dimension of the initial state associated with every system and order them
@@ -1122,21 +938,21 @@ namespace jiminy
             auto vInitIt = vInit.find(system.name);
             if (qInitIt == qInit.end() || vInitIt == vInit.end())
             {
-                PRINT_ERROR("System '",
+                THROW_ERROR(std::invalid_argument,
+                            "System '",
                             system.name,
                             "'does not have an initial configuration or velocity.");
-                return hresult_t::ERROR_BAD_INPUT;
             }
 
             const Eigen::VectorXd & q = qInitIt->second;
             const Eigen::VectorXd & v = vInitIt->second;
             if (q.rows() != system.robot->nq() || v.rows() != system.robot->nv())
             {
-                PRINT_ERROR("The dimension of the initial configuration or velocity is "
+                THROW_ERROR(std::invalid_argument,
+                            "The dimension of the initial configuration or velocity is "
                             "inconsistent with model size for system '",
                             system.name,
                             "'.");
-                return hresult_t::ERROR_BAD_INPUT;
             }
 
             // Make sure the initial state is normalized
@@ -1144,11 +960,11 @@ namespace jiminy
                 system.robot->pinocchioModel_, q, std::numeric_limits<float>::epsilon());
             if (!isValid)
             {
-                PRINT_ERROR("The initial configuration is not consistent with the types of "
-                            "joints of the model for system '",
+                THROW_ERROR(std::invalid_argument,
+                            "The initial configuration is not consistent with the types of joints "
+                            "of the model for system '",
                             system.name,
                             "'.");
-                return hresult_t::ERROR_BAD_INPUT;
             }
 
             /* Check that the initial configuration is not out-of-bounds if appropriate.
@@ -1159,18 +975,20 @@ namespace jiminy
                  ((EPS < q.array() - system.robot->getPositionLimitMax().array()).any() ||
                   (EPS < system.robot->getPositionLimitMin().array() - q.array()).any())))
             {
-                PRINT_ERROR(
-                    "The initial configuration is out-of-bounds for system '", system.name, "'.");
-                return hresult_t::ERROR_BAD_INPUT;
+                THROW_ERROR(std::invalid_argument,
+                            "The initial configuration is out-of-bounds for system '",
+                            system.name,
+                            "'.");
             }
 
             // Check that the initial velocity is not out-of-bounds
             if ((system.robot->modelOptions_->joints.enableVelocityLimit &&
                  (system.robot->getVelocityLimit().array() < v.array().abs()).any()))
             {
-                PRINT_ERROR(
-                    "The initial velocity is out-of-bounds for system '", system.name, "'.");
-                return hresult_t::ERROR_BAD_INPUT;
+                THROW_ERROR(std::invalid_argument,
+                            "The initial velocity is out-of-bounds for system '",
+                            system.name,
+                            "'.");
             }
 
             /* Make sure the configuration is normalized (as double), since normalization is
@@ -1190,9 +1008,9 @@ namespace jiminy
             // Check the dimension of the initial acceleration associated with every system
             if (aInit->size() != nSystems)
             {
-                PRINT_ERROR("If specified, the number of initial accelerations must match the "
-                            "number of systems.");
-                return hresult_t::ERROR_BAD_INPUT;
+                THROW_ERROR(std::invalid_argument,
+                            "If specified, the number of initial accelerations "
+                            "must match the number of systems.");
             }
 
             for (const auto & system : systems_)
@@ -1200,19 +1018,20 @@ namespace jiminy
                 auto aInitIt = aInit->find(system.name);
                 if (aInitIt == aInit->end())
                 {
-                    PRINT_ERROR(
-                        "System '", system.name, "'does not have an initial acceleration.");
-                    return hresult_t::ERROR_BAD_INPUT;
+                    THROW_ERROR(std::invalid_argument,
+                                "System '",
+                                system.name,
+                                "'does not have an initial acceleration.");
                 }
 
                 const Eigen::VectorXd & a = aInitIt->second;
                 if (a.rows() != system.robot->nv())
                 {
-                    PRINT_ERROR("The dimension of the initial acceleration is inconsistent "
-                                "with model size for system '",
+                    THROW_ERROR(std::invalid_argument,
+                                "The dimension of the initial acceleration is inconsistent with "
+                                "model size for system '",
                                 system.name,
                                 "'.");
-                    return hresult_t::ERROR_BAD_INPUT;
                 }
 
                 aSplit.emplace_back(a);
@@ -1236,8 +1055,8 @@ namespace jiminy
                 {
                     if (!sensor->getIsInitialized())
                     {
-                        PRINT_ERROR("At least a sensor of a robot is not initialized.");
-                        return hresult_t::ERROR_INIT_FAILED;
+                        THROW_ERROR(bad_control_flow,
+                                    "At least a sensor of a robot is not initialized.");
                     }
                 }
             }
@@ -1246,8 +1065,8 @@ namespace jiminy
             {
                 if (!motor->getIsInitialized())
                 {
-                    PRINT_ERROR("At least a motor of a robot is not initialized.");
-                    return hresult_t::ERROR_INIT_FAILED;
+                    THROW_ERROR(bad_control_flow,
+                                "At least a motor of a robot is not initialized.");
                 }
             }
         }
@@ -1335,12 +1154,10 @@ namespace jiminy
         // Update the frame indices associated with the coupling forces
         for (auto & force : couplingForces_)
         {
-            getFrameIndex(systems_[force.systemIndex1].robot->pinocchioModel_,
-                          force.frameName1,
-                          force.frameIndex1);
-            getFrameIndex(systems_[force.systemIndex2].robot->pinocchioModel_,
-                          force.frameName2,
-                          force.frameIndex2);
+            force.frameIndex1 = getFrameIndex(systems_[force.systemIndex1].robot->pinocchioModel_,
+                                              force.frameName1);
+            force.frameIndex2 = getFrameIndex(systems_[force.systemIndex2].robot->pinocchioModel_,
+                                              force.frameName2);
         }
 
         systemIt = systems_.begin();
@@ -1350,11 +1167,13 @@ namespace jiminy
             // Update the frame indices associated with the impulse forces and force profiles
             for (auto & force : systemDataIt->profileForces)
             {
-                getFrameIndex(systemIt->robot->pinocchioModel_, force.frameName, force.frameIndex);
+                force.frameIndex =
+                    getFrameIndex(systemIt->robot->pinocchioModel_, force.frameName);
             }
             for (auto & force : systemDataIt->impulseForces)
             {
-                getFrameIndex(systemIt->robot->pinocchioModel_, force.frameName, force.frameIndex);
+                force.frameIndex =
+                    getFrameIndex(systemIt->robot->pinocchioModel_, force.frameName);
             }
 
             // Initialize the impulse force breakpoint point iterator
@@ -1411,7 +1230,7 @@ namespace jiminy
                 Matrix6Xd::Zero(6, systemIt->robot->pinocchioModel_.nv));
 
             // Reset the constraints
-            returnCode = systemIt->robot->resetConstraints(q, v);
+            systemIt->robot->resetConstraints(q, v);
 
             /* Set Baumgarte stabilization natural frequency for contact constraints
                Enable all contact constraints by default, it will be disable automatically if not
@@ -1487,304 +1306,289 @@ namespace jiminy
 
                 if (forceMax > 1e5)
                 {
-                    PRINT_ERROR("The initial force exceeds 1e5 for at least one contact point, "
-                                "which is forbidden for the sake of numerical stability. Please "
-                                "update the initial state.");
-                    return hresult_t::ERROR_BAD_INPUT;
+                    THROW_ERROR(
+                        std::invalid_argument,
+                        "The initial force exceeds 1e5 for at least one contact point, which is "
+                        "forbidden for the sake of numerical stability. Please update the initial "
+                        "state.");
                 }
             }
         }
 
+        // Lock the robots. At this point, it is no longer possible to change them anymore.
         systemIt = systems_.begin();
         systemDataIt = systemDataVec_.begin();
         for (; systemIt != systems_.end(); ++systemIt, ++systemDataIt)
         {
-            if (returnCode == hresult_t::SUCCESS)
+            systemDataIt->robotLock = systemIt->robot->getLock();
+        }
+
+        // Instantiate the desired LCP solver
+        systemIt = systems_.begin();
+        systemDataIt = systemDataVec_.begin();
+        for (; systemIt != systems_.end(); ++systemIt, ++systemDataIt)
+        {
+            const std::string & constraintSolverType = engineOptions_->constraints.solver;
+            switch (CONSTRAINT_SOLVERS_MAP.at(constraintSolverType))
             {
-                // Lock the robot. At this point, it is no longer possible to change it anymore.
-                returnCode = systemIt->robot->getLock(systemDataIt->robotLock);
+            case ConstraintSolverType::PGS:
+                systemDataIt->constraintSolver =
+                    std::make_unique<PGSSolver>(&systemIt->robot->pinocchioModel_,
+                                                &systemIt->robot->pinocchioData_,
+                                                &systemDataIt->constraints,
+                                                engineOptions_->contacts.friction,
+                                                engineOptions_->contacts.torsion,
+                                                engineOptions_->stepper.tolAbs,
+                                                engineOptions_->stepper.tolRel,
+                                                PGS_MAX_ITERATIONS);
+                break;
+            case ConstraintSolverType::UNSUPPORTED:
+            default:
+                break;
             }
         }
 
-        if (returnCode == hresult_t::SUCCESS)
+        /* Compute the efforts, internal and external forces applied on every systems excluding
+           user-specified internal dynamics if any. */
+        computeAllTerms(t, qSplit, vSplit);
+
+        // Backup all external forces and internal efforts excluding constraint forces
+        vector_aligned_t<ForceVector> fextNoConst;
+        std::vector<Eigen::VectorXd> uInternalConst;
+        fextNoConst.reserve(nSystems);
+        uInternalConst.reserve(nSystems);
+        for (const auto & systemData : systemDataVec_)
         {
-            // Instantiate the desired LCP solver
+            fextNoConst.push_back(systemData.state.fExternal);
+            uInternalConst.push_back(systemData.state.uInternal);
+        }
+
+        /* Solve algebraic coupling between accelerations, sensors and controllers, by
+           iterating several times until it (hopefully) converges. */
+        bool isFirstIter = true;
+        for (uint32_t i = 0; i < INIT_ITERATIONS; ++i)
+        {
             systemIt = systems_.begin();
             systemDataIt = systemDataVec_.begin();
-            for (; systemIt != systems_.end(); ++systemIt, ++systemDataIt)
+            auto fextNoConstIt = fextNoConst.begin();
+            auto uInternalConstIt = uInternalConst.begin();
+            for (; systemIt != systems_.end();
+                 ++systemIt, ++systemDataIt, ++fextNoConstIt, ++uInternalConstIt)
             {
-                const std::string & constraintSolverType = engineOptions_->constraints.solver;
-                switch (CONSTRAINT_SOLVERS_MAP.at(constraintSolverType))
-                {
-                case ConstraintSolverType::PGS:
-                    systemDataIt->constraintSolver =
-                        std::make_unique<PGSSolver>(&systemIt->robot->pinocchioModel_,
-                                                    &systemIt->robot->pinocchioData_,
-                                                    &systemDataIt->constraints,
-                                                    engineOptions_->contacts.friction,
-                                                    engineOptions_->contacts.torsion,
-                                                    engineOptions_->stepper.tolAbs,
-                                                    engineOptions_->stepper.tolRel,
-                                                    PGS_MAX_ITERATIONS);
-                    break;
-                case ConstraintSolverType::UNSUPPORTED:
-                default:
-                    break;
-                }
-            }
-
-            /* Compute the efforts, internal and external forces applied on every systems excluding
-               user-specified internal dynamics if any. */
-            computeAllTerms(t, qSplit, vSplit);
-
-            // Backup all external forces and internal efforts excluding constraint forces
-            vector_aligned_t<ForceVector> fextNoConst;
-            std::vector<Eigen::VectorXd> uInternalConst;
-            fextNoConst.reserve(nSystems);
-            uInternalConst.reserve(nSystems);
-            for (const auto & systemData : systemDataVec_)
-            {
-                fextNoConst.push_back(systemData.state.fExternal);
-                uInternalConst.push_back(systemData.state.uInternal);
-            }
-
-            /* Solve algebraic coupling between accelerations, sensors and controllers, by
-               iterating several times until it (hopefully) converges. */
-            bool isFirstIter = true;
-            for (uint32_t i = 0; i < INIT_ITERATIONS; ++i)
-            {
-                systemIt = systems_.begin();
-                systemDataIt = systemDataVec_.begin();
-                auto fextNoConstIt = fextNoConst.begin();
-                auto uInternalConstIt = uInternalConst.begin();
-                for (; systemIt != systems_.end();
-                     ++systemIt, ++systemDataIt, ++fextNoConstIt, ++uInternalConstIt)
-                {
-                    // Get some system state proxies
-                    const Eigen::VectorXd & q = systemDataIt->state.q;
-                    const Eigen::VectorXd & v = systemDataIt->state.v;
-                    Eigen::VectorXd & a = systemDataIt->state.a;
-                    Eigen::VectorXd & u = systemDataIt->state.u;
-                    Eigen::VectorXd & command = systemDataIt->state.command;
-                    Eigen::VectorXd & uMotor = systemDataIt->state.uMotor;
-                    Eigen::VectorXd & uInternal = systemDataIt->state.uInternal;
-                    Eigen::VectorXd & uCustom = systemDataIt->state.uCustom;
-                    ForceVector & fext = systemDataIt->state.fExternal;
-
-                    // Reset the external forces and internal efforts
-                    fext = *fextNoConstIt;
-                    uInternal = *uInternalConstIt;
-
-                    // Compute dynamics
-                    a = computeAcceleration(
-                        *systemIt, *systemDataIt, q, v, u, fext, !isFirstIter, isFirstIter);
-
-                    // Make sure there is no nan at this point
-                    if ((a.array() != a.array()).any())
-                    {
-                        PRINT_ERROR("Impossible to compute the acceleration. Probably a subtree "
-                                    "has zero inertia along an articulated axis.");
-                        return hresult_t::ERROR_GENERIC;
-                    }
-
-                    // Compute all external terms including joints accelerations and forces
-                    computeAllExtraTerms(systems_, systemDataVec_, fPrev_);
-
-                    // Compute the sensor data with the updated effort and acceleration
-                    systemIt->robot->computeSensorMeasurements(t, q, v, a, uMotor, fext);
-
-                    // Compute the actual motor effort
-                    computeCommand(*systemIt, t, q, v, command);
-
-                    // Compute the actual motor effort
-                    systemIt->robot->computeMotorEfforts(t, q, v, a, command);
-                    uMotor = systemIt->robot->getMotorEfforts();
-
-                    // Compute the internal dynamics
-                    uCustom.setZero();
-                    systemIt->controller->internalDynamics(t, q, v, uCustom);
-
-                    // Compute the total effort vector
-                    u = uInternal + uCustom;
-                    for (const auto & motor : systemIt->robot->getMotors())
-                    {
-                        const std::size_t motorIndex = motor->getIndex();
-                        const Eigen::Index motorVelocityIndex = motor->getJointVelocityIndex();
-                        u[motorVelocityIndex] += uMotor[motorIndex];
-                    }
-                }
-                isFirstIter = false;
-            }
-
-            // Update sensor data one last time to take into account the actual motor effort
-            systemIt = systems_.begin();
-            systemDataIt = systemDataVec_.begin();
-            for (; systemIt != systems_.end(); ++systemIt, ++systemDataIt)
-            {
+                // Get some system state proxies
                 const Eigen::VectorXd & q = systemDataIt->state.q;
                 const Eigen::VectorXd & v = systemDataIt->state.v;
-                const Eigen::VectorXd & a = systemDataIt->state.a;
-                const Eigen::VectorXd & uMotor = systemDataIt->state.uMotor;
-                const ForceVector & fext = systemDataIt->state.fExternal;
+                Eigen::VectorXd & a = systemDataIt->state.a;
+                Eigen::VectorXd & u = systemDataIt->state.u;
+                Eigen::VectorXd & command = systemDataIt->state.command;
+                Eigen::VectorXd & uMotor = systemDataIt->state.uMotor;
+                Eigen::VectorXd & uInternal = systemDataIt->state.uInternal;
+                Eigen::VectorXd & uCustom = systemDataIt->state.uCustom;
+                ForceVector & fext = systemDataIt->state.fExternal;
+
+                // Reset the external forces and internal efforts
+                fext = *fextNoConstIt;
+                uInternal = *uInternalConstIt;
+
+                // Compute dynamics
+                a = computeAcceleration(
+                    *systemIt, *systemDataIt, q, v, u, fext, !isFirstIter, isFirstIter);
+
+                // Make sure there is no nan at this point
+                if ((a.array() != a.array()).any())
+                {
+                    THROW_ERROR(std::runtime_error,
+                                "Impossible to compute the acceleration. Probably a "
+                                "subtree has zero inertia along an articulated axis.");
+                }
+
+                // Compute all external terms including joints accelerations and forces
+                computeAllExtraTerms(systems_, systemDataVec_, fPrev_);
+
+                // Compute the sensor data with the updated effort and acceleration
                 systemIt->robot->computeSensorMeasurements(t, q, v, a, uMotor, fext);
-            }
 
-            // Backend the updated joint accelerations and forces
-            syncAllAccelerationsAndForces(systems_, contactForcesPrev_, fPrev_, aPrev_);
+                // Compute the actual motor effort
+                computeCommand(*systemIt, t, q, v, command);
 
-            // Synchronize the global stepper state with the individual system states
-            syncStepperStateWithSystems();
+                // Compute the actual motor effort
+                systemIt->robot->computeMotorEfforts(t, q, v, a, command);
+                uMotor = systemIt->robot->getMotorEfforts();
 
-            // Initialize the last system states
-            for (auto & systemData : systemDataVec_)
-            {
-                systemData.statePrev = systemData.state;
-            }
+                // Compute the internal dynamics
+                uCustom.setZero();
+                systemIt->controller->internalDynamics(t, q, v, uCustom);
 
-            // Lock the telemetry. At this point it is not possible to register new variables.
-            configureTelemetry();
-
-            // Log systems data
-            for (const auto & system : systems_)
-            {
-                // Backup URDF file
-                const std::string telemetryUrdfFile =
-                    addCircumfix("urdf_file", system.name, {}, TELEMETRY_FIELDNAME_DELIMITER);
-                const std::string & urdfFileString = system.robot->getUrdfAsString();
-                telemetrySender_->registerConstant(telemetryUrdfFile, urdfFileString);
-
-                // Backup 'has_freeflyer' option
-                const std::string telemetrHasFreeflyer =
-                    addCircumfix("has_freeflyer", system.name, {}, TELEMETRY_FIELDNAME_DELIMITER);
-                telemetrySender_->registerConstant(telemetrHasFreeflyer,
-                                                   toString(system.robot->getHasFreeflyer()));
-
-                // Backup mesh package lookup directories
-                const std::string telemetryMeshPackageDirs = addCircumfix(
-                    "mesh_package_dirs", system.name, {}, TELEMETRY_FIELDNAME_DELIMITER);
-                std::string meshPackageDirsString;
-                std::stringstream meshPackageDirsStream;
-                const std::vector<std::string> & meshPackageDirs =
-                    system.robot->getMeshPackageDirs();
-                copy(meshPackageDirs.begin(),
-                     meshPackageDirs.end(),
-                     std::ostream_iterator<std::string>(meshPackageDirsStream, ";"));
-                if (meshPackageDirsStream.peek() !=
-                    decltype(meshPackageDirsStream)::traits_type::eof())
+                // Compute the total effort vector
+                u = uInternal + uCustom;
+                for (const auto & motor : systemIt->robot->getMotors())
                 {
-                    meshPackageDirsString = meshPackageDirsStream.str();
-                    meshPackageDirsString.pop_back();
-                }
-                telemetrySender_->registerConstant(telemetryMeshPackageDirs,
-                                                   meshPackageDirsString);
-
-                // Backup the true and theoretical Pinocchio::Model
-                std::string key = addCircumfix(
-                    "pinocchio_model", system.name, {}, TELEMETRY_FIELDNAME_DELIMITER);
-                std::string value = saveToBinary(system.robot->pinocchioModel_);
-                telemetrySender_->registerConstant(key, value);
-
-                /* Backup the Pinocchio GeometryModel for collisions and visuals.
-                   It may fail because of missing serialization methods for convex, or because it
-                   cannot fit into memory (return code). Persistent mode is automatically enforced
-                   if no URDF is associated with the robot.*/
-                if (engineOptions_->telemetry.isPersistent || urdfFileString.empty())
-                {
-                    try
-                    {
-                        key = addCircumfix(
-                            "collision_model", system.name, {}, TELEMETRY_FIELDNAME_DELIMITER);
-                        value = saveToBinary(system.robot->collisionModel_);
-                        telemetrySender_->registerConstant(key, value);
-
-                        key = addCircumfix(
-                            "visual_model", system.name, {}, TELEMETRY_FIELDNAME_DELIMITER);
-                        value = saveToBinary(system.robot->visualModel_);
-                        telemetrySender_->registerConstant(key, value);
-                    }
-                    catch (const std::exception & e)
-                    {
-                        std::string msg{"Failed to log the collision and/or visual model."};
-                        if (urdfFileString.empty())
-                        {
-                            msg += " It will be impossible to replay log files because no URDF "
-                                   "file is available as fallback.";
-                        }
-                        msg += "\nRaised from exception: ";
-                        PRINT_ERROR(msg, e.what());
-                    }
+                    const std::size_t motorIndex = motor->getIndex();
+                    const Eigen::Index motorVelocityIndex = motor->getJointVelocityIndex();
+                    u[motorVelocityIndex] += uMotor[motorIndex];
                 }
             }
-
-            // Log all options
-            GenericConfig allOptions;
-            for (const auto & system : systems_)
-            {
-                const std::string telemetryRobotOptions =
-                    addCircumfix("system", system.name, {}, TELEMETRY_FIELDNAME_DELIMITER);
-                GenericConfig systemOptions;
-                systemOptions["robot"] = system.robot->getOptions();
-                systemOptions["controller"] = system.controller->getOptions();
-                allOptions[telemetryRobotOptions] = systemOptions;
-            }
-            allOptions["engine"] = engineOptionsGeneric_;
-            Json::Value allOptionsJson = convertToJson(allOptions);
-            Json::StreamWriterBuilder jsonWriter;
-            jsonWriter["indentation"] = "";
-            const std::string allOptionsString = Json::writeString(jsonWriter, allOptionsJson);
-            telemetrySender_->registerConstant("options", allOptionsString);
-
-            // Write the header: this locks the registration of new variables
-            telemetryRecorder_->initialize(telemetryData_.get(), getTelemetryTimeUnit());
-
-            // At this point, consider that the simulation is running
-            isSimulationRunning_ = true;
+            isFirstIter = false;
         }
 
-        return returnCode;
+        // Update sensor data one last time to take into account the actual motor effort
+        systemIt = systems_.begin();
+        systemDataIt = systemDataVec_.begin();
+        for (; systemIt != systems_.end(); ++systemIt, ++systemDataIt)
+        {
+            const Eigen::VectorXd & q = systemDataIt->state.q;
+            const Eigen::VectorXd & v = systemDataIt->state.v;
+            const Eigen::VectorXd & a = systemDataIt->state.a;
+            const Eigen::VectorXd & uMotor = systemDataIt->state.uMotor;
+            const ForceVector & fext = systemDataIt->state.fExternal;
+            systemIt->robot->computeSensorMeasurements(t, q, v, a, uMotor, fext);
+        }
+
+        // Backend the updated joint accelerations and forces
+        syncAllAccelerationsAndForces(systems_, contactForcesPrev_, fPrev_, aPrev_);
+
+        // Synchronize the global stepper state with the individual system states
+        syncStepperStateWithSystems();
+
+        // Initialize the last system states
+        for (auto & systemData : systemDataVec_)
+        {
+            systemData.statePrev = systemData.state;
+        }
+
+        // Lock the telemetry. At this point it is not possible to register new variables.
+        configureTelemetry();
+
+        // Log systems data
+        for (const auto & system : systems_)
+        {
+            // Backup URDF file
+            const std::string telemetryUrdfFile =
+                addCircumfix("urdf_file", system.name, {}, TELEMETRY_FIELDNAME_DELIMITER);
+            const std::string & urdfFileString = system.robot->getUrdfAsString();
+            telemetrySender_->registerConstant(telemetryUrdfFile, urdfFileString);
+
+            // Backup 'has_freeflyer' option
+            const std::string telemetrHasFreeflyer =
+                addCircumfix("has_freeflyer", system.name, {}, TELEMETRY_FIELDNAME_DELIMITER);
+            telemetrySender_->registerConstant(telemetrHasFreeflyer,
+                                               toString(system.robot->getHasFreeflyer()));
+
+            // Backup mesh package lookup directories
+            const std::string telemetryMeshPackageDirs =
+                addCircumfix("mesh_package_dirs", system.name, {}, TELEMETRY_FIELDNAME_DELIMITER);
+            std::string meshPackageDirsString;
+            std::stringstream meshPackageDirsStream;
+            const std::vector<std::string> & meshPackageDirs = system.robot->getMeshPackageDirs();
+            copy(meshPackageDirs.begin(),
+                 meshPackageDirs.end(),
+                 std::ostream_iterator<std::string>(meshPackageDirsStream, ";"));
+            if (meshPackageDirsStream.peek() !=
+                decltype(meshPackageDirsStream)::traits_type::eof())
+            {
+                meshPackageDirsString = meshPackageDirsStream.str();
+                meshPackageDirsString.pop_back();
+            }
+            telemetrySender_->registerConstant(telemetryMeshPackageDirs, meshPackageDirsString);
+
+            // Backup the true and theoretical Pinocchio::Model
+            std::string key =
+                addCircumfix("pinocchio_model", system.name, {}, TELEMETRY_FIELDNAME_DELIMITER);
+            std::string value = saveToBinary(system.robot->pinocchioModel_);
+            telemetrySender_->registerConstant(key, value);
+
+            /* Backup the Pinocchio GeometryModel for collisions and visuals.
+               It may fail because of missing serialization methods for convex, or because it
+               cannot fit into memory (return code). Persistent mode is automatically enforced
+               if no URDF is associated with the robot.*/
+            if (engineOptions_->telemetry.isPersistent || urdfFileString.empty())
+            {
+                try
+                {
+                    key = addCircumfix(
+                        "collision_model", system.name, {}, TELEMETRY_FIELDNAME_DELIMITER);
+                    value = saveToBinary(system.robot->collisionModel_);
+                    telemetrySender_->registerConstant(key, value);
+
+                    key = addCircumfix(
+                        "visual_model", system.name, {}, TELEMETRY_FIELDNAME_DELIMITER);
+                    value = saveToBinary(system.robot->visualModel_);
+                    telemetrySender_->registerConstant(key, value);
+                }
+                catch (const std::exception & e)
+                {
+                    std::string msg{"Failed to log the collision and/or visual model."};
+                    if (urdfFileString.empty())
+                    {
+                        msg += " It will be impossible to replay log files because no URDF "
+                               "file is available as fallback.";
+                    }
+                    msg += "\nRaised from exception: ";
+                    PRINT_WARNING(msg, e.what());
+                }
+            }
+        }
+
+        // Log all options
+        GenericConfig allOptions;
+        for (const auto & system : systems_)
+        {
+            const std::string telemetryRobotOptions =
+                addCircumfix("system", system.name, {}, TELEMETRY_FIELDNAME_DELIMITER);
+            GenericConfig systemOptions;
+            systemOptions["robot"] = system.robot->getOptions();
+            systemOptions["controller"] = system.controller->getOptions();
+            allOptions[telemetryRobotOptions] = systemOptions;
+        }
+        allOptions["engine"] = engineOptionsGeneric_;
+        Json::Value allOptionsJson = convertToJson(allOptions);
+        Json::StreamWriterBuilder jsonWriter;
+        jsonWriter["indentation"] = "";
+        const std::string allOptionsString = Json::writeString(jsonWriter, allOptionsJson);
+        telemetrySender_->registerConstant("options", allOptionsString);
+
+        // Write the header: this locks the registration of new variables
+        telemetryRecorder_->initialize(telemetryData_.get(), getTelemetryTimeUnit());
+
+        // At this point, consider that the simulation is running
+        isSimulationRunning_ = true;
     }
 
-    hresult_t EngineMultiRobot::simulate(
+    void EngineMultiRobot::simulate(
         double tEnd,
         const std::map<std::string, Eigen::VectorXd> & qInit,
         const std::map<std::string, Eigen::VectorXd> & vInit,
         const std::optional<std::map<std::string, Eigen::VectorXd>> & aInit)
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
         if (systems_.empty())
         {
-            PRINT_ERROR("No system to simulate. Please add one before starting a simulation.");
-            returnCode = hresult_t::ERROR_INIT_FAILED;
+            THROW_ERROR(bad_control_flow,
+                        "No system to simulate. Please add one before starting simulation.");
         }
 
         if (tEnd < 5e-3)
         {
-            PRINT_ERROR("The duration of the simulation cannot be shorter than 5ms.");
-            returnCode = hresult_t::ERROR_BAD_INPUT;
+            THROW_ERROR(std::invalid_argument, "Simulation duration cannot be shorter than 5ms.");
         }
 
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            // Reset the robot, controller, and engine
-            reset(true, false);
+        // Reset the robot, controller, and engine
+        reset(true, false);
 
-            // Start the simulation
-            returnCode = start(qInit, vInit, aInit);
-        }
+        // Start the simulation
+        start(qInit, vInit, aInit);
 
         // Now that telemetry has been initialized, check simulation duration
         if (tEnd > telemetryRecorder_->getLogDurationMax())
         {
-            PRINT_ERROR("Time overflow: with the current precision the maximum value that can be "
+            THROW_ERROR(std::runtime_error,
+                        "Time overflow: with the current precision the maximum value that can be "
                         "logged is ",
                         telemetryRecorder_->getLogDurationMax(),
                         "s. Decrease logger precision to simulate for longer than that.");
-            returnCode = hresult_t::ERROR_BAD_INPUT;
         }
 
         // Integration loop based on boost::numeric::odeint::detail::integrate_times
-        while (returnCode == hresult_t::SUCCESS)
+        while (true)
         {
             // Stop the simulation if the end time has been reached
             if (tEnd - stepperState_.t < SIMULATION_MIN_TIMESTEP)
@@ -1840,28 +1644,24 @@ namespace jiminy
             {
                 stepSize = std::min(engineOptions_->stepper.dtMax, tEnd - stepperState_.t);
             }
-            returnCode = step(stepSize);  // Automatic dt adjustment
+            step(stepSize);  // Automatic dt adjustment
         }
 
         // Stop the simulation. The lock on the telemetry and the robots are released.
         stop();
-
-        return returnCode;
     }
 
-    hresult_t EngineMultiRobot::step(double stepSize)
+    void EngineMultiRobot::step(double stepSize)
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
         // Check if the simulation has started
         if (!isSimulationRunning_)
         {
-            PRINT_ERROR("No simulation running. Please start it before using step method.");
-            return hresult_t::ERROR_GENERIC;
+            THROW_ERROR(bad_control_flow,
+                        "No simulation running. Please start one before using step method.");
         }
 
         // Clear log data buffer
-        logData_ = nullptr;
+        logData_.reset();
 
         // Check if there is something wrong with the integration
         auto qIt = stepperState_.qSplit.begin();
@@ -1871,17 +1671,15 @@ namespace jiminy
         {
             if (qIt->hasNaN() || vIt->hasNaN() || aIt->hasNaN())
             {
-                PRINT_ERROR(
-                    "The low-level ode solver failed. Consider increasing the stepper accuracy.");
-                return hresult_t::ERROR_GENERIC;
+                THROW_ERROR(std::runtime_error,
+                            "Low-level ode solver failed. Consider increasing stepper accuracy.");
             }
         }
 
         // Check if the desired step size is suitable
         if (stepSize > EPS && stepSize < SIMULATION_MIN_TIMESTEP)
         {
-            PRINT_ERROR("The requested step size is out of bounds.");
-            return hresult_t::ERROR_BAD_INPUT;
+            THROW_ERROR(std::invalid_argument, "Step size out of bounds.");
         }
 
         /* Set end time: The default step size is equal to the controller update period if
@@ -1912,11 +1710,11 @@ namespace jiminy
            integration. */
         if (stepperState_.t + stepSize > telemetryRecorder_->getLogDurationMax())
         {
-            PRINT_ERROR("Time overflow: with the current precision the maximum value that "
-                        "can be logged is ",
+            THROW_ERROR(std::runtime_error,
+                        "Time overflow: with the current precision the maximum value that can be "
+                        "logged is ",
                         telemetryRecorder_->getLogDurationMax(),
                         "s. Decrease logger precision to simulate for longer than that.");
-            return hresult_t::ERROR_GENERIC;
         }
 
         /* Avoid compounding of error using Kahan algorithm. It consists in keeping track of the
@@ -1966,7 +1764,7 @@ namespace jiminy
         timer_.tic();
 
         // Perform the integration. Do not simulate extremely small time steps.
-        while ((tEnd - t >= STEPPER_MIN_TIMESTEP) && (returnCode == hresult_t::SUCCESS))
+        while (tEnd - t >= STEPPER_MIN_TIMESTEP)
         {
             // Initialize next breakpoint time to the one recommended by the stepper
             double tNext = t;
@@ -2440,63 +2238,60 @@ namespace jiminy
             // Exception handling
             if (isNan)
             {
-                PRINT_ERROR("Something is wrong with the physics. Aborting integration.");
-                returnCode = hresult_t::ERROR_GENERIC;
+                THROW_ERROR(std::runtime_error,
+                            "Something is wrong with the physics. Aborting integration.");
             }
             if (successiveIterFailed > engineOptions_->stepper.successiveIterFailedMax)
             {
-                PRINT_ERROR("Too many successive iteration failures. Probably something is "
-                            "going wrong with the physics. Aborting integration.");
-                returnCode = hresult_t::ERROR_GENERIC;
+                THROW_ERROR(std::runtime_error,
+                            "Too many successive iteration failures. Probably something "
+                            "is going wrong with the physics. Aborting integration.");
             }
             for (uint32_t successiveSolveFailed : successiveSolveFailedAll)
             {
                 if (successiveSolveFailed > engineOptions_->stepper.successiveIterFailedMax)
                 {
-                    PRINT_ERROR("Too many successive constraint solving failures. Try increasing "
-                                "the regularization factor. Aborting integration.");
-                    return hresult_t::ERROR_GENERIC;
+                    THROW_ERROR(
+                        std::runtime_error,
+                        "Too many successive constraint solving failures. Try increasing the "
+                        "regularization factor. Aborting integration.");
                 }
             }
             if (dt < STEPPER_MIN_TIMESTEP)
             {
-                PRINT_ERROR("The internal time step is getting too small. Impossible to "
+                THROW_ERROR(std::runtime_error,
+                            "The internal time step is getting too small. Impossible to "
                             "integrate physics further in time. Aborting integration.");
-                returnCode = hresult_t::ERROR_GENERIC;
             }
             if (EPS < engineOptions_->stepper.timeout &&
                 engineOptions_->stepper.timeout < timer_.toc())
             {
-                PRINT_ERROR("Step computation timeout. Aborting integration.");
-                returnCode = hresult_t::ERROR_GENERIC;
+                THROW_ERROR(std::runtime_error, "Step computation timeout. Aborting integration.");
             }
 
             // Update sensors data if necessary, namely if time-continuous or breakpoint
-            if (returnCode == hresult_t::SUCCESS)
+            const double sensorsUpdatePeriod = engineOptions_->stepper.sensorsUpdatePeriod;
+            const double dtNextSensorsUpdatePeriod =
+                sensorsUpdatePeriod - std::fmod(t, sensorsUpdatePeriod);
+            bool mustUpdateSensors = sensorsUpdatePeriod < EPS;
+            if (!mustUpdateSensors)
             {
-                const double sensorsUpdatePeriod = engineOptions_->stepper.sensorsUpdatePeriod;
-                const double dtNextSensorsUpdatePeriod =
-                    sensorsUpdatePeriod - std::fmod(t, sensorsUpdatePeriod);
-                bool mustUpdateSensors = sensorsUpdatePeriod < EPS;
-                if (!mustUpdateSensors)
+                mustUpdateSensors = dtNextSensorsUpdatePeriod < SIMULATION_MIN_TIMESTEP ||
+                                    sensorsUpdatePeriod - dtNextSensorsUpdatePeriod <
+                                        STEPPER_MIN_TIMESTEP;
+            }
+            if (mustUpdateSensors)
+            {
+                auto systemIt = systems_.begin();
+                auto systemDataIt = systemDataVec_.begin();
+                for (; systemIt != systems_.end(); ++systemIt, ++systemDataIt)
                 {
-                    mustUpdateSensors = dtNextSensorsUpdatePeriod < SIMULATION_MIN_TIMESTEP ||
-                                        sensorsUpdatePeriod - dtNextSensorsUpdatePeriod <
-                                            STEPPER_MIN_TIMESTEP;
-                }
-                if (mustUpdateSensors)
-                {
-                    auto systemIt = systems_.begin();
-                    auto systemDataIt = systemDataVec_.begin();
-                    for (; systemIt != systems_.end(); ++systemIt, ++systemDataIt)
-                    {
-                        const Eigen::VectorXd & q = systemDataIt->state.q;
-                        const Eigen::VectorXd & v = systemDataIt->state.v;
-                        const Eigen::VectorXd & a = systemDataIt->state.a;
-                        const Eigen::VectorXd & uMotor = systemDataIt->state.uMotor;
-                        const ForceVector & fext = systemDataIt->state.fExternal;
-                        systemIt->robot->computeSensorMeasurements(t, q, v, a, uMotor, fext);
-                    }
+                    const Eigen::VectorXd & q = systemDataIt->state.q;
+                    const Eigen::VectorXd & v = systemDataIt->state.v;
+                    const Eigen::VectorXd & a = systemDataIt->state.a;
+                    const Eigen::VectorXd & uMotor = systemDataIt->state.uMotor;
+                    const ForceVector & fext = systemDataIt->state.fExternal;
+                    systemIt->robot->computeSensorMeasurements(t, q, v, a, uMotor, fext);
                 }
             }
         }
@@ -2504,12 +2299,7 @@ namespace jiminy
         /* Update the final time and dt to make sure it corresponds to the desired values and avoid
            compounding of error. Anyway the user asked for a step of exactly stepSize, so he is
            expecting this value to be reached. */
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            t = tEnd;
-        }
-
-        return returnCode;
+        t = tEnd;
     }
 
     void EngineMultiRobot::stop()
@@ -2530,7 +2320,7 @@ namespace jiminy
         updateTelemetry();
 
         // Clear log data buffer one last time, now that the final point has been added
-        logData_ = nullptr;
+        logData_.reset();
 
         /* Reset the telemetry.
            Note that calling ``stop` or  `reset` does NOT clear the internal data buffer of
@@ -2543,63 +2333,49 @@ namespace jiminy
         isSimulationRunning_ = false;
     }
 
-    hresult_t EngineMultiRobot::registerImpulseForce(const std::string & systemName,
-                                                     const std::string & frameName,
-                                                     double t,
-                                                     double dt,
-                                                     const pinocchio::Force & force)
+    void EngineMultiRobot::registerImpulseForce(const std::string & systemName,
+                                                const std::string & frameName,
+                                                double t,
+                                                double dt,
+                                                const pinocchio::Force & force)
     {
-        // Make sure that the forces do NOT overlap while taking into account dt.
-
-        hresult_t returnCode = hresult_t::SUCCESS;
-
         if (isSimulationRunning_)
         {
-            PRINT_ERROR("A simulation is running. Please stop it before registering new forces.");
-            returnCode = hresult_t::ERROR_GENERIC;
+            THROW_ERROR(
+                bad_control_flow,
+                "Simulation already running. Please stop it before registering new forces.");
         }
 
         if (dt < STEPPER_MIN_TIMESTEP)
         {
-            PRINT_ERROR("The force duration cannot be smaller than ", STEPPER_MIN_TIMESTEP, ".");
-            returnCode = hresult_t::ERROR_BAD_INPUT;
+            THROW_ERROR(std::invalid_argument,
+                        "Force duration cannot be smaller than ",
+                        STEPPER_MIN_TIMESTEP,
+                        "s.");
         }
 
         if (t < 0.0)
         {
-            PRINT_ERROR("The force application time must be positive.");
-            returnCode = hresult_t::ERROR_BAD_INPUT;
+            THROW_ERROR(std::invalid_argument, "Force application time must be positive.");
         }
 
         if (frameName == "universe")
         {
-            PRINT_ERROR("Impossible to apply external forces to the universe itself!");
-            returnCode = hresult_t::ERROR_GENERIC;
+            THROW_ERROR(std::invalid_argument,
+                        "Impossible to apply external forces to the universe itself!");
         }
 
-        std::ptrdiff_t systemIndex;
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            returnCode = getSystemIndex(systemName, systemIndex);
-        }
+        // TODO: Make sure that the forces do NOT overlap while taking into account dt.
 
-        pinocchio::FrameIndex frameIndex;
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            const System & system = systems_[systemIndex];
-            returnCode = getFrameIndex(system.robot->pinocchioModel_, frameName, frameIndex);
-        }
+        std::ptrdiff_t systemIndex = getSystemIndex(systemName);
+        pinocchio::FrameIndex frameIndex =
+            getFrameIndex(systems_[systemIndex].robot->pinocchioModel_, frameName);
 
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            SystemData & systemData = systemDataVec_[systemIndex];
-            systemData.impulseForces.emplace_back(frameName, frameIndex, t, dt, force);
-            systemData.impulseForceBreakpoints.emplace(t);
-            systemData.impulseForceBreakpoints.emplace(t + dt);
-            systemData.isImpulseForceActiveVec.emplace_back(false);
-        }
-
-        return hresult_t::SUCCESS;
+        SystemData & systemData = systemDataVec_[systemIndex];
+        systemData.impulseForces.emplace_back(frameName, frameIndex, t, dt, force);
+        systemData.impulseForceBreakpoints.emplace(t);
+        systemData.impulseForceBreakpoints.emplace(t + dt);
+        systemData.isImpulseForceActiveVec.emplace_back(false);
     }
 
     template<typename... Args>
@@ -2627,218 +2403,138 @@ namespace jiminy
         return {isIncluded, *valueMinPtr};
     }
 
-    hresult_t EngineMultiRobot::registerProfileForce(const std::string & systemName,
-                                                     const std::string & frameName,
-                                                     const ProfileForceFunction & forceFunc,
-                                                     double updatePeriod)
+    void EngineMultiRobot::registerProfileForce(const std::string & systemName,
+                                                const std::string & frameName,
+                                                const ProfileForceFunction & forceFunc,
+                                                double updatePeriod)
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
         if (isSimulationRunning_)
         {
-            PRINT_ERROR("A simulation is running. Please stop it before registering new forces.");
-            returnCode = hresult_t::ERROR_GENERIC;
-        }
-
-        std::ptrdiff_t systemIndex;
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            returnCode = getSystemIndex(systemName, systemIndex);
+            THROW_ERROR(
+                bad_control_flow,
+                "Simulation already running. Please stop it before registering new forces.");
         }
 
         if (frameName == "universe")
         {
-            PRINT_ERROR("Impossible to apply external forces to the universe itself!");
-            returnCode = hresult_t::ERROR_GENERIC;
+            THROW_ERROR(std::invalid_argument,
+                        "Impossible to apply external forces to the universe itself!");
         }
 
-        pinocchio::FrameIndex frameIndex;
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            const System & system = systems_[systemIndex];
-            returnCode = getFrameIndex(system.robot->pinocchioModel_, frameName, frameIndex);
-        }
+        // Get system and frame indices
+        std::ptrdiff_t systemIndex = getSystemIndex(systemName);
+        pinocchio::FrameIndex frameIndex =
+            getFrameIndex(systems_[systemIndex].robot->pinocchioModel_, frameName);
 
         // Make sure the update period is valid
-        if (returnCode == hresult_t::SUCCESS)
+        if (EPS < updatePeriod && updatePeriod < SIMULATION_MIN_TIMESTEP)
         {
-            if (EPS < updatePeriod && updatePeriod < SIMULATION_MIN_TIMESTEP)
-            {
-                PRINT_ERROR(
-                    "Cannot register external force profile with update period smaller than ",
-                    SIMULATION_MIN_TIMESTEP,
-                    "s. Adjust period or switch to continuous mode "
-                    "by setting period to zero.");
-                returnCode = hresult_t::ERROR_BAD_INPUT;
-            }
+            THROW_ERROR(
+                std::invalid_argument,
+                "Cannot register external force profile with update period smaller than ",
+                SIMULATION_MIN_TIMESTEP,
+                "s. Adjust period or switch to continuous mode by setting period to zero.");
         }
-
         // Make sure the desired update period is a multiple of the stepper period
         auto [isIncluded, updatePeriodMin] =
             isGcdIncluded(systemDataVec_, stepperUpdatePeriod_, updatePeriod);
-        if (returnCode == hresult_t::SUCCESS)
+        if (!isIncluded)
         {
-            if (!isIncluded)
-            {
-                PRINT_ERROR(
-                    "In discrete mode, the update period of force profiles and the stepper "
-                    "update period (min of controller and sensor update periods) must be "
-                    "multiple of each other.");
-                returnCode = hresult_t::ERROR_BAD_INPUT;
-            }
+            THROW_ERROR(std::invalid_argument,
+                        "In discrete mode, the update period of force profiles and the "
+                        "stepper update period (min of controller and sensor update "
+                        "periods) must be multiple of each other.");
         }
 
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            // Set breakpoint period during the integration loop
-            stepperUpdatePeriod_ = updatePeriodMin;
+        // Set breakpoint period during the integration loop
+        stepperUpdatePeriod_ = updatePeriodMin;
 
-            // Add force profile to register
-            SystemData & systemData = systemDataVec_[systemIndex];
-            systemData.profileForces.emplace_back(frameName, frameIndex, updatePeriod, forceFunc);
-        }
-
-        return returnCode;
+        // Add force profile to register
+        SystemData & systemData = systemDataVec_[systemIndex];
+        systemData.profileForces.emplace_back(frameName, frameIndex, updatePeriod, forceFunc);
     }
 
-    hresult_t EngineMultiRobot::removeImpulseForces(const std::string & systemName)
-    {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
-        // Make sure that no simulation is running
-        if (isSimulationRunning_)
-        {
-            PRINT_ERROR(
-                "A simulation is already running. Stop it before removing coupling forces.");
-            returnCode = hresult_t::ERROR_GENERIC;
-        }
-
-        std::ptrdiff_t systemIndex;
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            returnCode = getSystemIndex(systemName, systemIndex);
-        }
-
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            SystemData & systemData = systemDataVec_[systemIndex];
-            systemData.impulseForces.clear();
-        }
-
-        return hresult_t::SUCCESS;
-    }
-
-    hresult_t EngineMultiRobot::removeImpulseForces()
+    void EngineMultiRobot::removeImpulseForces(const std::string & systemName)
     {
         // Make sure that no simulation is running
         if (isSimulationRunning_)
         {
-            PRINT_ERROR(
-                "A simulation is already running. Stop it before removing coupling forces.");
-            return hresult_t::ERROR_GENERIC;
+            THROW_ERROR(bad_control_flow,
+                        "Simulation already running. Stop it before removing coupling forces.");
+        }
+
+        std::ptrdiff_t systemIndex = getSystemIndex(systemName);
+        SystemData & systemData = systemDataVec_[systemIndex];
+        systemData.impulseForces.clear();
+    }
+
+    void EngineMultiRobot::removeImpulseForces()
+    {
+        // Make sure that no simulation is running
+        if (isSimulationRunning_)
+        {
+            THROW_ERROR(bad_control_flow,
+                        "simulation already running. Stop it before removing coupling forces.");
         }
 
         for (auto & systemData : systemDataVec_)
         {
             systemData.impulseForces.clear();
         }
-
-        return hresult_t::SUCCESS;
     }
 
-    hresult_t EngineMultiRobot::removeProfileForces(const std::string & systemName)
-    {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
-        // Make sure that no simulation is running
-        if (isSimulationRunning_)
-        {
-            PRINT_ERROR(
-                "A simulation is already running. Stop it before removing coupling forces.");
-            return hresult_t::ERROR_GENERIC;
-        }
-
-        std::ptrdiff_t systemIndex;
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            returnCode = getSystemIndex(systemName, systemIndex);
-        }
-
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            // Remove force profile from register
-            SystemData & systemData = systemDataVec_[systemIndex];
-            systemData.profileForces.clear();
-
-            // Set breakpoint period during the integration loop
-            // FIXME: replaced `std::get<N>` by placeholder `_` when moving to C++26 (P2169R4)
-            stepperUpdatePeriod_ =
-                std::get<1>(isGcdIncluded(systemDataVec_,
-                                          engineOptions_->stepper.sensorsUpdatePeriod,
-                                          engineOptions_->stepper.controllerUpdatePeriod));
-        }
-
-        return hresult_t::SUCCESS;
-    }
-
-    hresult_t EngineMultiRobot::removeProfileForces()
+    void EngineMultiRobot::removeProfileForces(const std::string & systemName)
     {
         // Make sure that no simulation is running
         if (isSimulationRunning_)
         {
-            PRINT_ERROR(
-                "A simulation is already running. Stop it before removing coupling forces.");
-            return hresult_t::ERROR_GENERIC;
+            THROW_ERROR(bad_control_flow,
+                        "Simulation already running. Stop it before removing coupling forces.");
+        }
+
+
+        // Remove force profile from register
+        std::ptrdiff_t systemIndex = getSystemIndex(systemName);
+        SystemData & systemData = systemDataVec_[systemIndex];
+        systemData.profileForces.clear();
+
+        // Set breakpoint period during the integration loop
+        // FIXME: replaced `std::get<N>` by placeholder `_` when moving to C++26 (P2169R4)
+        stepperUpdatePeriod_ =
+            std::get<1>(isGcdIncluded(systemDataVec_,
+                                      engineOptions_->stepper.sensorsUpdatePeriod,
+                                      engineOptions_->stepper.controllerUpdatePeriod));
+    }
+
+    void EngineMultiRobot::removeProfileForces()
+    {
+        // Make sure that no simulation is running
+        if (isSimulationRunning_)
+        {
+            THROW_ERROR(bad_control_flow,
+                        "Simulation already running. Stop it before removing coupling forces.");
         }
 
         for (auto & systemData : systemDataVec_)
         {
             systemData.profileForces.clear();
         }
-
-        return hresult_t::SUCCESS;
     }
 
-    hresult_t EngineMultiRobot::getImpulseForces(
-        const std::string & systemName, const ImpulseForceVector *& impulseForcesPtr) const
+    const ImpulseForceVector & EngineMultiRobot::getImpulseForces(
+        const std::string & systemName) const
     {
-        static ImpulseForceVector impulseForcesDummy;
-
-        hresult_t returnCode = hresult_t::SUCCESS;
-
-        impulseForcesPtr = &impulseForcesDummy;
-
-        std::ptrdiff_t systemIndex;
-        returnCode = getSystemIndex(systemName, systemIndex);
-
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            const SystemData & systemData = systemDataVec_[systemIndex];
-            impulseForcesPtr = &systemData.impulseForces;
-        }
-
-        return returnCode;
+        std::ptrdiff_t systemIndex = getSystemIndex(systemName);
+        const SystemData & systemData = systemDataVec_[systemIndex];
+        return systemData.impulseForces;
     }
 
-    hresult_t EngineMultiRobot::getProfileForces(
-        const std::string & systemName, const ProfileForceVector *& profileForcesPtr) const
+    const ProfileForceVector & EngineMultiRobot::getProfileForces(
+        const std::string & systemName) const
     {
-        static ProfileForceVector forcesRegisterDummy;
-
-        hresult_t returnCode = hresult_t::SUCCESS;
-
-        profileForcesPtr = &forcesRegisterDummy;
-
-        std::ptrdiff_t systemIndex;
-        returnCode = getSystemIndex(systemName, systemIndex);
-
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            const SystemData & systemData = systemDataVec_[systemIndex];
-            profileForcesPtr = &systemData.profileForces;
-        }
-
-        return returnCode;
+        std::ptrdiff_t systemIndex = getSystemIndex(systemName);
+        const SystemData & systemData = systemDataVec_[systemIndex];
+        return systemData.profileForces;
     }
 
     GenericConfig EngineMultiRobot::getOptions() const noexcept
@@ -2846,12 +2542,12 @@ namespace jiminy
         return engineOptionsGeneric_;
     }
 
-    hresult_t EngineMultiRobot::setOptions(const GenericConfig & engineOptions)
+    void EngineMultiRobot::setOptions(const GenericConfig & engineOptions)
     {
         if (isSimulationRunning_)
         {
-            PRINT_ERROR("A simulation is running. Please stop it before updating the options.");
-            return hresult_t::ERROR_GENERIC;
+            THROW_ERROR(bad_control_flow,
+                        "Simulation already running. Please stop it before updating the options.");
         }
 
         // Make sure the dtMax is not out of range
@@ -2859,8 +2555,7 @@ namespace jiminy
         const double dtMax = boost::get<double>(stepperOptions.at("dtMax"));
         if (SIMULATION_MAX_TIMESTEP + EPS < dtMax || dtMax < SIMULATION_MIN_TIMESTEP)
         {
-            PRINT_ERROR("'dtMax' option is out of range.");
-            return hresult_t::ERROR_BAD_INPUT;
+            THROW_ERROR(std::invalid_argument, "'dtMax' option is out of range.");
         }
 
         // Make sure successiveIterFailedMax is strictly positive
@@ -2868,16 +2563,16 @@ namespace jiminy
             boost::get<uint32_t>(stepperOptions.at("successiveIterFailedMax"));
         if (successiveIterFailedMax < 1)
         {
-            PRINT_ERROR("'successiveIterFailedMax' must be strictly positive.");
-            return hresult_t::ERROR_BAD_INPUT;
+            THROW_ERROR(std::invalid_argument,
+                        "'successiveIterFailedMax' must be strictly positive.");
         }
 
         // Make sure the selected ode solver is available and instantiate it
         const std::string & odeSolver = boost::get<std::string>(stepperOptions.at("odeSolver"));
         if (STEPPERS.find(odeSolver) == STEPPERS.end())
         {
-            PRINT_ERROR("The requested ODE solver is not available.");
-            return hresult_t::ERROR_BAD_INPUT;
+            THROW_ERROR(
+                std::invalid_argument, "Requested ODE solver '", odeSolver, "' not available.");
         }
 
         // Make sure the controller and sensor update periods are valid
@@ -2890,17 +2585,17 @@ namespace jiminy
         if ((EPS < sensorsUpdatePeriod && sensorsUpdatePeriod < SIMULATION_MIN_TIMESTEP) ||
             (EPS < controllerUpdatePeriod && controllerUpdatePeriod < SIMULATION_MIN_TIMESTEP))
         {
-            PRINT_ERROR(
+            THROW_ERROR(
+                std::invalid_argument,
                 "Cannot simulate a discrete system with update period smaller than ",
                 SIMULATION_MIN_TIMESTEP,
                 "s. Adjust period or switch to continuous mode by setting period to zero.");
-            return hresult_t::ERROR_BAD_INPUT;
         }
         else if (!isIncluded)
         {
-            PRINT_ERROR("In discrete mode, the controller and sensor update periods must be "
-                        "multiple of each other.");
-            return hresult_t::ERROR_BAD_INPUT;
+            THROW_ERROR(std::invalid_argument,
+                        "In discrete mode, the controller and sensor update "
+                        "periods must be multiple of each other.");
         }
 
         // Make sure the contacts options are fine
@@ -2911,42 +2606,42 @@ namespace jiminy
         const auto constraintSolverIt = CONSTRAINT_SOLVERS_MAP.find(constraintSolverType);
         if (constraintSolverIt == CONSTRAINT_SOLVERS_MAP.end())
         {
-            PRINT_ERROR("The requested constraint solver is not available.");
-            return hresult_t::ERROR_BAD_INPUT;
+            THROW_ERROR(std::invalid_argument,
+                        "Requested constraint solver '",
+                        constraintSolverType,
+                        "' not available.");
         }
         double regularization = boost::get<double>(constraintsOptions.at("regularization"));
         if (regularization < 0.0)
         {
-            PRINT_ERROR("The constraints option 'regularization' must be positive.");
-            return hresult_t::ERROR_BAD_INPUT;
+            THROW_ERROR(std::invalid_argument,
+                        "Constraint option 'regularization' must be positive.");
         }
 
         // Make sure the contacts options are fine
-        GenericConfig contactsOptions = boost::get<GenericConfig>(engineOptions.at("contacts"));
-        const std::string & contactModel = boost::get<std::string>(contactsOptions.at("model"));
+        GenericConfig contactOptions = boost::get<GenericConfig>(engineOptions.at("contacts"));
+        const std::string & contactModel = boost::get<std::string>(contactOptions.at("model"));
         const auto contactModelIt = CONTACT_MODELS_MAP.find(contactModel);
         if (contactModelIt == CONTACT_MODELS_MAP.end())
         {
-            PRINT_ERROR("The requested contact model is not available.");
-            return hresult_t::ERROR_BAD_INPUT;
+            THROW_ERROR(std::invalid_argument, "Requested contact model not available.");
         }
-        double contactsTransitionEps = boost::get<double>(contactsOptions.at("transitionEps"));
+        double contactsTransitionEps = boost::get<double>(contactOptions.at("transitionEps"));
         if (contactsTransitionEps < 0.0)
         {
-            PRINT_ERROR("The contacts option 'transitionEps' must be positive.");
-            return hresult_t::ERROR_BAD_INPUT;
+            THROW_ERROR(std::invalid_argument, "Contact option 'transitionEps' must be positive.");
         }
-        double transitionVelocity = boost::get<double>(contactsOptions.at("transitionVelocity"));
+        double transitionVelocity = boost::get<double>(contactOptions.at("transitionVelocity"));
         if (transitionVelocity < EPS)
         {
-            PRINT_ERROR("The contacts option 'transitionVelocity' must be strictly positive.");
-            return hresult_t::ERROR_BAD_INPUT;
+            THROW_ERROR(std::invalid_argument,
+                        "Contact option 'transitionVelocity' must be strictly positive.");
         }
-        double stabilizationFreq = boost::get<double>(contactsOptions.at("stabilizationFreq"));
+        double stabilizationFreq = boost::get<double>(contactOptions.at("stabilizationFreq"));
         if (stabilizationFreq < 0.0)
         {
-            PRINT_ERROR("The contacts option 'stabilizationFreq' must be positive.");
-            return hresult_t::ERROR_BAD_INPUT;
+            THROW_ERROR(std::invalid_argument,
+                        "Contact option 'stabilizationFreq' must be positive.");
         }
 
         // Make sure the user-defined gravity force has the right dimension
@@ -2954,8 +2649,7 @@ namespace jiminy
         Eigen::VectorXd gravity = boost::get<Eigen::VectorXd>(worldOptions.at("gravity"));
         if (gravity.size() != 6)
         {
-            PRINT_ERROR("The size of the gravity force vector must be 6.");
-            return hresult_t::ERROR_BAD_INPUT;
+            THROW_ERROR(std::invalid_argument, "The size of the gravity force vector must be 6.");
         }
 
         /* Reset random number generators if setOptions is called for the first time, or if the
@@ -2979,8 +2673,6 @@ namespace jiminy
 
         // Set breakpoint period during the integration loop
         stepperUpdatePeriod_ = updatePeriodMin;
-
-        return hresult_t::SUCCESS;
     }
 
     std::vector<std::string> EngineMultiRobot::getSystemNames() const
@@ -2994,8 +2686,7 @@ namespace jiminy
         return systemsNames;
     }
 
-    hresult_t EngineMultiRobot::getSystemIndex(const std::string & systemName,
-                                               std::ptrdiff_t & systemIndex) const
+    std::ptrdiff_t EngineMultiRobot::getSystemIndex(const std::string & systemName) const
     {
         auto systemIt = std::find_if(systems_.begin(),
                                      systems_.end(),
@@ -3003,59 +2694,32 @@ namespace jiminy
                                      { return (sys.name == systemName); });
         if (systemIt == systems_.end())
         {
-            PRINT_ERROR("No system with this name has been added to the engine.");
-            return hresult_t::ERROR_BAD_INPUT;
+            THROW_ERROR(std::invalid_argument,
+                        "No system with this name has been added to the engine.");
         }
 
-        systemIndex = std::distance(systems_.begin(), systemIt);
-
-        return hresult_t::SUCCESS;
+        return std::distance(systems_.begin(), systemIt);
     }
 
-    hresult_t EngineMultiRobot::getSystem(const std::string & systemName, System *& system)
+    System & EngineMultiRobot::getSystem(const std::string & systemName)
     {
-        static System systemEmpty;
-
-        hresult_t returnCode = hresult_t::SUCCESS;
-
         auto systemIt = std::find_if(systems_.begin(),
                                      systems_.end(),
                                      [&systemName](const auto & sys)
                                      { return (sys.name == systemName); });
         if (systemIt == systems_.end())
         {
-            PRINT_ERROR("No system with this name has been added to the engine.");
-            returnCode = hresult_t::ERROR_BAD_INPUT;
+            THROW_ERROR(std::invalid_argument,
+                        "No system with this name has been added to the engine.");
         }
 
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            system = &(*systemIt);
-            return returnCode;
-        }
-
-        system = &systemEmpty;
-
-        return returnCode;
+        return *systemIt;
     }
 
-    hresult_t EngineMultiRobot::getSystemState(const std::string & systemName,
-                                               const SystemState *& systemState) const
+    const SystemState & EngineMultiRobot::getSystemState(const std::string & systemName) const
     {
-        static const SystemState systemStateEmpty;
-
-        hresult_t returnCode = hresult_t::SUCCESS;
-
-        std::ptrdiff_t systemIndex;
-        returnCode = getSystemIndex(systemName, systemIndex);
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            systemState = &(systemDataVec_[systemIndex].state);
-            return returnCode;
-        }
-
-        systemState = &systemStateEmpty;
-        return returnCode;
+        std::ptrdiff_t systemIndex = getSystemIndex(systemName);
+        return systemDataVec_[systemIndex].state;
     }
 
     const StepperState & EngineMultiRobot::getStepperState() const
@@ -3949,11 +3613,11 @@ namespace jiminy
         }
     }
 
-    hresult_t EngineMultiRobot::computeSystemsDynamics(double t,
-                                                       const std::vector<Eigen::VectorXd> & qSplit,
-                                                       const std::vector<Eigen::VectorXd> & vSplit,
-                                                       std::vector<Eigen::VectorXd> & aSplit,
-                                                       bool isStateUpToDate)
+    void EngineMultiRobot::computeSystemsDynamics(double t,
+                                                  const std::vector<Eigen::VectorXd> & qSplit,
+                                                  const std::vector<Eigen::VectorXd> & vSplit,
+                                                  std::vector<Eigen::VectorXd> & aSplit,
+                                                  bool isStateUpToDate)
     {
         /* Note that the position of the free flyer is in world frame, whereas the velocities and
            accelerations are relative to the parent body frame. */
@@ -3961,8 +3625,8 @@ namespace jiminy
         // Make sure that a simulation is running
         if (!isSimulationRunning_)
         {
-            PRINT_ERROR("No simulation running. Please start it before calling this method.");
-            return hresult_t::ERROR_INIT_FAILED;
+            THROW_ERROR(std::logic_error,
+                        "No simulation running. Please start one before calling this method.");
         }
 
         // Make sure memory has been allocated for the output acceleration
@@ -4069,8 +3733,6 @@ namespace jiminy
             *aIt = computeAcceleration(
                 *systemIt, *systemDataIt, *qIt, *vIt, u, fext, isStateUpToDate);
         }
-
-        return hresult_t::SUCCESS;
     }
 
     const Eigen::VectorXd & EngineMultiRobot::computeAcceleration(System & system,
@@ -4235,34 +3897,28 @@ namespace jiminy
     // ================ Log reading and writing utilities ================
     // ===================================================================
 
-    hresult_t EngineMultiRobot::getLog(std::shared_ptr<const LogData> & logData)
+    std::shared_ptr<const LogData> EngineMultiRobot::getLog()
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
         // Update internal log data buffer if uninitialized
         if (!logData_)
         {
-            logData_ = std::make_shared<LogData>();
-            returnCode = telemetryRecorder_->getLog(*logData_);
+            logData_ = std::make_shared<LogData>(telemetryRecorder_->getLog());
         }
 
         // Return shared pointer to internal log data buffer
-        logData = std::const_pointer_cast<const LogData>(logData_);
-
-        return returnCode;
+        return std::const_pointer_cast<const LogData>(logData_);
     }
 
-    hresult_t readLogHdf5(const std::string & filename, LogData & logData)
+    LogData readLogHdf5(const std::string & filename)
     {
-        // Clear log data if any
-        logData = {};
+        LogData logData{};
 
         // Open HDF5 logfile
         std::unique_ptr<H5::H5File> file;
         try
         {
-            /* Specifying `H5F_CLOSE_STRONG` must be specified to completely close the file
-               (including all open objects) before returning. See:
+            /* Specifying `H5F_CLOSE_STRONG` is necessary to completely close the file (including
+               all open objects) before returning. See:
                https://docs.hdfgroup.org/hdf5/v1_12/group___f_a_p_l.html#ga60e3567f677fd3ade75b909b636d7b9c
             */
             H5::FileAccPropList access_plist;
@@ -4270,11 +3926,11 @@ namespace jiminy
             file = std::make_unique<H5::H5File>(
                 filename, H5F_ACC_RDONLY, H5::FileCreatPropList::DEFAULT, access_plist);
         }
-        catch (const H5::FileIException & open_file)
+        catch (const H5::FileIException &)
         {
-            PRINT_ERROR("Impossible to open the log file. Make sure it exists and you have "
-                        "reading permissions.");
-            return hresult_t::ERROR_BAD_INPUT;
+            THROW_ERROR(std::runtime_error,
+                        "Impossible to open the log file. Make sure it exists and "
+                        "you have reading permissions.");
         }
 
         // Extract all constants. There is no ordering among them, unlike variables.
@@ -4381,27 +4037,26 @@ namespace jiminy
         // Close file once done
         file->close();
 
-        return hresult_t::SUCCESS;
+        return logData;
     }
 
-    hresult_t EngineMultiRobot::readLog(
-        const std::string & filename, const std::string & format, LogData & logData)
+    LogData EngineMultiRobot::readLog(const std::string & filename, const std::string & format)
     {
         if (format == "binary")
         {
-            return TelemetryRecorder::readLog(filename, logData);
+            return TelemetryRecorder::readLog(filename);
         }
-        else if (format == "hdf5")
+        if (format == "hdf5")
         {
-            return readLogHdf5(filename, logData);
+            return readLogHdf5(filename);
         }
-
-        PRINT_ERROR("Format '", format, "' not recognized. It must be either 'binary' or 'hdf5'.");
-        return hresult_t::ERROR_BAD_INPUT;
+        THROW_ERROR(std::invalid_argument,
+                    "Format '",
+                    format,
+                    "' not recognized. It must be either 'binary' or 'hdf5'.");
     }
 
-    hresult_t writeLogHdf5(const std::string & filename,
-                           const std::shared_ptr<const LogData> & logData)
+    void writeLogHdf5(const std::string & filename, const std::shared_ptr<const LogData> & logData)
     {
         // Open HDF5 logfile
         std::unique_ptr<H5::H5File> file;
@@ -4414,9 +4069,9 @@ namespace jiminy
         }
         catch (const H5::FileIException & open_file)
         {
-            PRINT_ERROR("Impossible to create the log file. Make sure the root folder exists and "
-                        "you have writing permissions.");
-            return hresult_t::ERROR_BAD_INPUT;
+            THROW_ERROR(std::runtime_error,
+                        "Impossible to create the log file. Make sure the root folder "
+                        "exists and you have writing permissions.");
         }
 
         // Add "VERSION" attribute
@@ -4538,48 +4193,36 @@ namespace jiminy
 
         // Close file once done
         file->close();
-
-        return hresult_t::SUCCESS;
     }
 
-    hresult_t EngineMultiRobot::writeLog(const std::string & filename, const std::string & format)
+    void EngineMultiRobot::writeLog(const std::string & filename, const std::string & format)
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
         // Make sure there is something to write
         if (!isTelemetryConfigured_)
         {
-            PRINT_ERROR("Telemetry not configured. Please start a simulation before writing log.");
-            returnCode = hresult_t::ERROR_BAD_INPUT;
+            THROW_ERROR(bad_control_flow,
+                        "Telemetry not configured. Please start a simulation before writing log.");
         }
 
         // Pick the appropriate format
-        if (returnCode == hresult_t::SUCCESS)
+        if (format == "binary")
         {
-            if (format == "binary")
-            {
-                returnCode = telemetryRecorder_->writeLog(filename);
-            }
-            else if (format == "hdf5")
-            {
-                // Extract log data
-                std::shared_ptr<const LogData> logData;
-                returnCode = getLog(logData);
-
-                // Write log data
-                if (returnCode == hresult_t::SUCCESS)
-                {
-                    returnCode = writeLogHdf5(filename, logData);
-                }
-            }
-            else
-            {
-                PRINT_ERROR(
-                    "Format '", format, "' not recognized. It must be either 'binary' or 'hdf5'.");
-                returnCode = hresult_t::ERROR_BAD_INPUT;
-            }
+            telemetryRecorder_->writeLog(filename);
         }
+        else if (format == "hdf5")
+        {
+            // Extract log data
+            std::shared_ptr<const LogData> logData = getLog();
 
-        return returnCode;
+            // Write log data
+            writeLogHdf5(filename, logData);
+        }
+        else
+        {
+            THROW_ERROR(std::invalid_argument,
+                        "Format '",
+                        format,
+                        "' not recognized. It must be either 'binary' or 'hdf5'.");
+        }
     }
 }

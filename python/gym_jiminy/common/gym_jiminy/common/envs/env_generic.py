@@ -614,20 +614,13 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         # Check if variable can be registered successfully to the telemetry.
         # Note that a dummy controller must be created to avoid using the
         # actual one to keep control of when registration will take place.
-        try:
-            is_success = register_variables(
-                jiminy.BaseController(), fieldnames, value)
-        except ValueError as e:
-            raise ValueError(
-                f"'fieldnames' ({fieldnames})' if not consistent with the "
-                f"'value' ({value})") from e
+        register_variables(jiminy.BaseController(), fieldnames, value)
 
         # Combine namespace and variable name if provided
         name = ".".join(filter(None, (namespace, name)))
 
         # Store the header and a reference to the variable if successful
-        if is_success:
-            self._registered_variables[name] = (fieldnames, value)
+        self._registered_variables[name] = (fieldnames, value)
 
     @property
     def step_dt(self) -> float:

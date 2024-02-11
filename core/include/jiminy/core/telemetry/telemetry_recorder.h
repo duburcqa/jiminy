@@ -24,18 +24,18 @@ namespace jiminy
         ///
         /// \param[in] telemetryData Data to log.
         /// \param[in] timeUnit Unit with which the time will be logged.
-        hresult_t initialize(TelemetryData * telemetryData, double timeUnit);
+        void initialize(TelemetryData * telemetryData, double timeUnit);
 
         /// \brief Reset the recorder.
         void reset();
 
         /// \brief Create a new line in the record with the current telemetry data.
-        hresult_t flushSnapshot(double time);
+        void flushSnapshot(double time);
 
-        hresult_t getLog(LogData & logData);
-        static hresult_t readLog(const std::string & filename, LogData & logData);
+        LogData getLog();
+        static LogData readLog(const std::string & filename);
 
-        hresult_t writeLog(const std::string & filename);
+        void writeLog(const std::string & filename);
 
         bool getIsInitialized();
 
@@ -47,9 +47,7 @@ namespace jiminy
 
     private:
         /// \brief Create a new file to continue the recording.
-        ///
-        /// \return SUCCESS if successful, the corresponding telemetry error otherwise.
-        hresult_t createNewChunk();
+        void createNewChunk();
 
     private:
         std::deque<MemoryDevice> flows_{};

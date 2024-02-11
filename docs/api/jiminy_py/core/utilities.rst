@@ -1,7 +1,7 @@
 utilities
 =========
 
-.. autoclass:: jiminy_py.core.hresult_t
+.. autoclass:: jiminy_py.core.void
    :members:
    :undoc-members:
    :show-inheritance:

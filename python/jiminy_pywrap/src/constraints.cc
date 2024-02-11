@@ -38,24 +38,22 @@ namespace jiminy::python
         public bp::wrapper<AbstractConstraintImpl>
     {
     public:
-        hresult_t reset(const Eigen::VectorXd & q, const Eigen::VectorXd & v)
+        void reset(const Eigen::VectorXd & q, const Eigen::VectorXd & v)
         {
             bp::override func = this->get_override("reset");
             if (func)
             {
                 func(FunPyWrapperArgToPython(q), FunPyWrapperArgToPython(v));
             }
-            return hresult_t::SUCCESS;
         }
 
-        hresult_t computeJacobianAndDrift(const Eigen::VectorXd & q, const Eigen::VectorXd & v)
+        void computeJacobianAndDrift(const Eigen::VectorXd & q, const Eigen::VectorXd & v)
         {
             bp::override func = this->get_override("compute_jacobian_and_drift");
             if (func)
             {
                 func(FunPyWrapperArgToPython(q), FunPyWrapperArgToPython(v));
             }
-            return hresult_t::SUCCESS;
         }
     };
 

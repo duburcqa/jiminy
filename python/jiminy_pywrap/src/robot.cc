@@ -27,10 +27,10 @@ namespace jiminy::python
             // clang-format off
             cl
                 .def("add_frame",
-                    static_cast<
-                        hresult_t (Model::*)(const std::string &, const std::string &, const pinocchio::SE3 &)
-                    >(&Model::addFrame),
-                    (bp::arg("self"), "frame_name", "parent_body_name", "frame_placement"))
+                     static_cast<
+                         void (Model::*)(const std::string &, const std::string &, const pinocchio::SE3 &)
+                     >(&Model::addFrame),
+                     (bp::arg("self"), "frame_name", "parent_body_name", "frame_placement"))
                 .def("remove_frame", &Model::removeFrame,
                                      (bp::arg("self"), "frame_name"))
                 .def("add_collision_bodies", &PyModelVisitor::addCollisionBodies,
@@ -46,17 +46,20 @@ namespace jiminy::python
                                               (bp::arg("self"), "frame_names"))
 
                 .def("add_constraint",
-                    static_cast<
-                        hresult_t (Model::*)(const std::string &, const std::shared_ptr<AbstractConstraintBase> &)
-                    >(&Model::addConstraint),
-                    (bp::arg("self"), "name", "constraint"))
+                     static_cast<
+                         void (Model::*)(const std::string &, const std::shared_ptr<AbstractConstraintBase> &)
+                     >(&Model::addConstraint),
+                     (bp::arg("self"), "name", "constraint"))
                 .def("remove_constraint",
-                    static_cast<
-                        hresult_t (Model::*)(const std::string &)
-                    >(&Model::removeConstraint),
-                    (bp::arg("self"), "name"))
-                .def("get_constraint", &PyModelVisitor::getConstraint,
-                                      (bp::arg("self"), "constraint_name"))
+                     static_cast<
+                         void (Model::*)(const std::string &)
+                     >(&Model::removeConstraint),
+                     (bp::arg("self"), "name"))
+                .def("get_constraint",
+                     static_cast<
+                         std::shared_ptr<AbstractConstraintBase> (Model::*)(const std::string &)
+                     >(&Model::getConstraint),
+                     (bp::arg("self"), "constraint_name"))
                 .def("exist_constraint", &Model::existConstraint,
                                          (bp::arg("self"), "constraint_name"))
                 .ADD_PROPERTY_GET("has_constraints", &Model::hasConstraints)
@@ -175,37 +178,29 @@ namespace jiminy::python
             // clang-format on
         }
 
-        static hresult_t addCollisionBodies(
-            Model & self, const bp::list & linkNamesPy, bool ignoreMeshes)
+        static void addCollisionBodies(
+            Model & self, const bp::object & linkNamesPy, bool ignoreMeshes)
         {
             auto linkNames = convertFromPython<std::vector<std::string>>(linkNamesPy);
             return self.addCollisionBodies(linkNames, ignoreMeshes);
         }
 
-        static hresult_t removeCollisionBodies(Model & self, const bp::list & linkNamesPy)
+        static void removeCollisionBodies(Model & self, const bp::object & linkNamesPy)
         {
             auto linkNames = convertFromPython<std::vector<std::string>>(linkNamesPy);
             return self.removeCollisionBodies(linkNames);
         }
 
-        static hresult_t addContactPoints(Model & self, const bp::list & frameNamesPy)
+        static void addContactPoints(Model & self, const bp::object & frameNamesPy)
         {
             auto frameNames = convertFromPython<std::vector<std::string>>(frameNamesPy);
             return self.addContactPoints(frameNames);
         }
 
-        static hresult_t removeContactPoints(Model & self, const bp::list & frameNamesPy)
+        static void removeContactPoints(Model & self, const bp::object & frameNamesPy)
         {
             auto frameNames = convertFromPython<std::vector<std::string>>(frameNamesPy);
             return self.removeContactPoints(frameNames);
-        }
-
-        static std::shared_ptr<AbstractConstraintBase> getConstraint(
-            Model & self, const std::string & constraintName)
-        {
-            std::shared_ptr<AbstractConstraintBase> constraint;
-            self.getConstraint(constraintName, constraint);
-            return constraint;
         }
 
         static std::shared_ptr<ConstraintTree> getConstraints(Model & self)
@@ -313,10 +308,10 @@ namespace jiminy::python
                                     bp::arg("mesh_package_dirs") = bp::list(),
                                     bp::arg("load_visual_meshes") = false))
                 .def("initialize",
-                    static_cast<
-                        hresult_t (Robot::*)(const pinocchio::Model &, const pinocchio::GeometryModel &, const pinocchio::GeometryModel &)
-                    >(&Robot::initialize),
-                    (bp::arg("self"), "pinocchio_model", "collision_model", "visual_model"))
+                     static_cast<
+                         void (Robot::*)(const pinocchio::Model &, const pinocchio::GeometryModel &, const pinocchio::GeometryModel &)
+                     >(&Robot::initialize),
+                     (bp::arg("self"), "pinocchio_model", "collision_model", "visual_model"))
 
                 .ADD_PROPERTY_GET_WITH_POLICY("is_locked",
                                               &Robot::getIsLocked,
@@ -329,8 +324,11 @@ namespace jiminy::python
 
                 .def("attach_motor", &Robot::attachMotor,
                                      (bp::arg("self"), "motor"))
-                .def("get_motor", &PyRobotVisitor::getMotor,
-                                  (bp::arg("self"), "motor_name"))
+                .def("get_motor",
+                     static_cast<
+                         std::shared_ptr<AbstractMotorBase> (Robot::*)(const std::string &)
+                     >(&Robot::getMotor),
+                     (bp::arg("self"), "motor_name"))
                 .def("detach_motor", &Robot::detachMotor,
                                      (bp::arg("self"), "joint_name"))
                 .def("detach_motors", &PyRobotVisitor::detachMotors,
@@ -343,8 +341,11 @@ namespace jiminy::python
                 .def("detach_sensors", &Robot::detachSensors,
                                        (bp::arg("self"),
                                         bp::arg("sensor_type") = std::string()))
-                .def("get_sensor", &PyRobotVisitor::getSensor,
-                                   (bp::arg("self"), "sensor_type", "sensor_name"))
+                .def("get_sensor",
+                     static_cast<
+                         std::shared_ptr<AbstractSensorBase> (Robot::*)(const std::string &, const std::string &)
+                     >(&Robot::getSensor),
+                     (bp::arg("self"), "sensor_type", "sensor_name"))
 
                 .ADD_PROPERTY_GET("sensor_measurements", &PyRobotVisitor::getSensorMeasurements)
 
@@ -360,9 +361,9 @@ namespace jiminy::python
                 .def("set_sensors_options", &PyRobotVisitor::setSensorsOptions,
                                             (bp::arg("self"), "sensors_options"))
                 .def("get_sensors_options",
-                    static_cast<
-                        GenericConfig (Robot::*)(void) const
-                    >(&Robot::getSensorsOptions))
+                     static_cast<
+                         GenericConfig (Robot::*)(void) const
+                     >(&Robot::getSensorsOptions))
                 .def("set_telemetry_options", &PyRobotVisitor::setTelemetryOptions,
                                               (bp::arg("self"), "telemetry_options"))
                 .def("get_telemetry_options", &Robot::getTelemetryOptions)
@@ -393,36 +394,20 @@ namespace jiminy::python
             // clang-format on
         }
 
-        static hresult_t initialize(Robot & self,
-                                    const std::string & urdfPath,
-                                    bool hasFreeflyer,
-                                    const bp::list & meshPackageDirsPy,
-                                    bool loadVisualMeshes)
+        static void initialize(Robot & self,
+                               const std::string & urdfPath,
+                               bool hasFreeflyer,
+                               const bp::object & meshPackageDirsPy,
+                               bool loadVisualMeshes)
         {
             auto meshPackageDirs = convertFromPython<std::vector<std::string>>(meshPackageDirsPy);
             return self.initialize(urdfPath, hasFreeflyer, meshPackageDirs, loadVisualMeshes);
         }
 
-        static hresult_t detachMotors(Robot & self, const bp::list & motorNamesPy)
+        static void detachMotors(Robot & self, const bp::object & motorNamesPy)
         {
             auto motorNames = convertFromPython<std::vector<std::string>>(motorNamesPy);
             return self.detachMotors(motorNames);
-        }
-
-        static std::shared_ptr<AbstractMotorBase> getMotor(Robot & self,
-                                                           const std::string & motorName)
-        {
-            std::shared_ptr<AbstractMotorBase> motor;
-            self.getMotor(motorName, motor);
-            return motor;
-        }
-
-        static std::shared_ptr<AbstractSensorBase> getSensor(
-            Robot & self, const std::string & sensorType, const std::string & sensorName)
-        {
-            std::shared_ptr<AbstractSensorBase> sensor;
-            self.getSensor(sensorType, sensorName, sensor);
-            return sensor;
         }
 
         static std::shared_ptr<SensorMeasurementTree> getSensorMeasurements(Robot & self)
@@ -441,35 +426,35 @@ namespace jiminy::python
             return sensorsNamesPy;
         }
 
-        static hresult_t setOptions(Robot & self, const bp::dict & configPy)
+        static void setOptions(Robot & self, const bp::dict & configPy)
         {
             GenericConfig config = self.getOptions();
             convertFromPython(configPy, config);
             return self.setOptions(config);
         }
 
-        static hresult_t setModelOptions(Robot & self, const bp::dict & configPy)
+        static void setModelOptions(Robot & self, const bp::dict & configPy)
         {
             GenericConfig config = self.getModelOptions();
             convertFromPython(configPy, config);
             return self.setModelOptions(config);
         }
 
-        static hresult_t setMotorsOptions(Robot & self, const bp::dict & configPy)
+        static void setMotorsOptions(Robot & self, const bp::dict & configPy)
         {
             GenericConfig config = self.getMotorsOptions();
             convertFromPython(configPy, config);
             return self.setMotorsOptions(config);
         }
 
-        static hresult_t setSensorsOptions(Robot & self, const bp::dict & configPy)
+        static void setSensorsOptions(Robot & self, const bp::dict & configPy)
         {
             GenericConfig config = self.getSensorsOptions();
             convertFromPython(configPy, config);
             return self.setSensorsOptions(config);
         }
 
-        static hresult_t setTelemetryOptions(Robot & self, const bp::dict & configPy)
+        static void setTelemetryOptions(Robot & self, const bp::dict & configPy)
         {
             GenericConfig config = self.getTelemetryOptions();
             convertFromPython(configPy, config);

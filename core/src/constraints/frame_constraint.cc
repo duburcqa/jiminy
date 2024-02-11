@@ -72,53 +72,40 @@ namespace jiminy
         return rotationLocal_;
     }
 
-    hresult_t FrameConstraint::reset(const Eigen::VectorXd & /* q */,
-                                     const Eigen::VectorXd & /* v */)
+    void FrameConstraint::reset(const Eigen::VectorXd & /* q */, const Eigen::VectorXd & /* v */)
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
         // Make sure the model still exists
         auto model = model_.lock();
         if (!model)
         {
-            PRINT_ERROR("Model pointer expired or unset.");
-            returnCode = hresult_t::ERROR_GENERIC;
+            THROW_ERROR(bad_control_flow, "Model pointer expired or unset.");
         }
 
         // Get frame index
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            returnCode = ::jiminy::getFrameIndex(model->pinocchioModel_, frameName_, frameIndex_);
-        }
+        frameIndex_ = ::jiminy::getFrameIndex(model->pinocchioModel_, frameName_);
 
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            // Initialize frames jacobians buffers
-            frameJacobian_.setZero(6, model->pinocchioModel_.nv);
+        // Initialize frames jacobians buffers
+        frameJacobian_.setZero(6, model->pinocchioModel_.nv);
 
-            // Initialize constraint jacobian, drift and multipliers
-            const Eigen::Index dim = static_cast<Eigen::Index>(dofsFixed_.size());
-            jacobian_.setZero(dim, model->pinocchioModel_.nv);
-            drift_.setZero(dim);
-            lambda_.setZero(dim);
+        // Initialize constraint jacobian, drift and multipliers
+        const Eigen::Index dim = static_cast<Eigen::Index>(dofsFixed_.size());
+        jacobian_.setZero(dim, model->pinocchioModel_.nv);
+        drift_.setZero(dim);
+        lambda_.setZero(dim);
 
-            // Get the current frame position and use it as reference
-            transformRef_ = model->pinocchioData_.oMf[frameIndex_];
+        // Get the current frame position and use it as reference
+        transformRef_ = model->pinocchioData_.oMf[frameIndex_];
 
-            // Set local frame to world by default
-            rotationLocal_.setIdentity();
-        }
-
-        return returnCode;
+        // Set local frame to world by default
+        rotationLocal_.setIdentity();
     }
 
-    hresult_t FrameConstraint::computeJacobianAndDrift(const Eigen::VectorXd & /* q */,
-                                                       const Eigen::VectorXd & /* v */)
+    void FrameConstraint::computeJacobianAndDrift(const Eigen::VectorXd & /* q */,
+                                                  const Eigen::VectorXd & /* v */)
     {
         if (!isAttached_)
         {
-            PRINT_ERROR("Constraint not attached to a model.");
-            return hresult_t::ERROR_GENERIC;
+            THROW_ERROR(bad_control_flow, "Constraint not attached to a model.");
         }
 
         // Assuming the model still exists.
@@ -193,7 +180,5 @@ namespace jiminy
             jacobian_.row(i) = frameJacobian_.row(dofIndex);
             drift_[i] = frameDrift_.toVector()[dofIndex];
         }
-
-        return hresult_t::SUCCESS;
     }
 }

@@ -916,13 +916,8 @@ class BaseJiminyRobot(jiminy.Robot):
         mesh_env_path = os.environ.get('JIMINY_DATA_PATH', None)
         if mesh_env_path is not None:
             mesh_package_dirs.append(mesh_env_path)
-        return_code = super().initialize(
+        super().initialize(
             urdf_path, has_freeflyer, mesh_package_dirs, load_visual_meshes)
-
-        if return_code != jiminy.hresult_t.SUCCESS:
-            raise ValueError(
-                "Impossible to load the URDF file. Either the file is "
-                "corrupted or does not exit.")
 
         # Load the hardware description file if available
         if hardware_path is None:

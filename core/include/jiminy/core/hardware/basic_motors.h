@@ -75,16 +75,16 @@ namespace jiminy
         auto shared_from_this() { return shared_from(this); }
         auto shared_from_this() const { return shared_from(this); }
 
-        hresult_t initialize(const std::string & jointName);
+        void initialize(const std::string & jointName);
 
-        hresult_t setOptions(const GenericConfig & motorOptions) override;
+        void setOptions(const GenericConfig & motorOptions) override;
 
     private:
-        hresult_t computeEffort(double t,
-                                const Eigen::VectorBlock<const Eigen::VectorXd> & q,
-                                double v,
-                                double a,
-                                double command) override;
+        void computeEffort(double t,
+                           const Eigen::VectorBlock<const Eigen::VectorXd> & q,
+                           double v,
+                           double a,
+                           double command) override;
 
     private:
         std::unique_ptr<const SimpleMotorOptions> motorOptions_{nullptr};

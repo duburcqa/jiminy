@@ -27,14 +27,13 @@ namespace jiminy
         const std::array<std::string, 2> & getFramesNames() const noexcept;
         const std::array<pinocchio::FrameIndex, 2> & getFrameIndices() const noexcept;
 
-        hresult_t setReferenceDistance(double distanceRef);
+        void setReferenceDistance(double distanceRef);
         double getReferenceDistance() const noexcept;
 
-        virtual hresult_t reset(const Eigen::VectorXd & q,
-                                const Eigen::VectorXd & v) override final;
+        virtual void reset(const Eigen::VectorXd & q, const Eigen::VectorXd & v) override final;
 
-        virtual hresult_t computeJacobianAndDrift(const Eigen::VectorXd & q,
-                                                  const Eigen::VectorXd & v) override final;
+        virtual void computeJacobianAndDrift(const Eigen::VectorXd & q,
+                                             const Eigen::VectorXd & v) override final;
 
     private:
         /// \brief Names of the frames on which the constraint operates.

@@ -86,17 +86,17 @@ TEST(EngineSanity, EnergyConservation)
     controller->initialize(robot);
 
     // Create engine
-    auto engine = std::make_shared<Engine>();
-    engine->initialize(robot, controller, callback);
+    Engine engine{};
+    engine.initialize(robot, controller, callback);
 
     // Configure engine: High accuracy + Continuous-time integration
-    GenericConfig simuOptions = engine->getDefaultEngineOptions();
+    GenericConfig simuOptions = engine.getDefaultEngineOptions();
     {
         GenericConfig & stepperOptions = boost::get<GenericConfig>(simuOptions.at("stepper"));
         boost::get<double>(stepperOptions.at("tolAbs")) = TOLERANCE * 1.0e-2;
         boost::get<double>(stepperOptions.at("tolRel")) = TOLERANCE * 1.0e-2;
     }
-    engine->setOptions(simuOptions);
+    engine.setOptions(simuOptions);
 
     // Run simulation
     Eigen::VectorXd q0 = Eigen::VectorXd::Zero(2);
@@ -105,16 +105,15 @@ TEST(EngineSanity, EnergyConservation)
     double tf = 10.0;
 
     // Run simulation
-    engine->reset();
-    engine->start(q0, v0);
+    engine.reset();
+    engine.start(q0, v0);
     Eigen::internal::set_is_malloc_allowed(false);
-    engine->step(tf);
-    engine->stop();
+    engine.step(tf);
+    engine.stop();
     Eigen::internal::set_is_malloc_allowed(true);
 
     // Get system energy
-    std::shared_ptr<const LogData> logDataPtr;
-    engine->getLog(logDataPtr);
+    std::shared_ptr<const LogData> logDataPtr = engine.getLog();
     const Eigen::VectorXd timesCont = getLogVariable(*logDataPtr, "Global.Time");
     ASSERT_DOUBLE_EQ(timesCont[timesCont.size() - 1], tf);
     const Eigen::VectorXd energyCont = getLogVariable(*logDataPtr, "HighLevelController.energy");
@@ -125,24 +124,24 @@ TEST(EngineSanity, EnergyConservation)
     ASSERT_NEAR(0.0, deltaEnergyCont, TOLERANCE);
 
     // Configure engine: Default accuracy + Discrete-time simulation
-    simuOptions = engine->getDefaultEngineOptions();
+    simuOptions = engine.getDefaultEngineOptions();
     {
         GenericConfig & stepperOptions = boost::get<GenericConfig>(simuOptions.at("stepper"));
         boost::get<double>(stepperOptions.at("sensorsUpdatePeriod")) = 1.0e-3;
         boost::get<double>(stepperOptions.at("controllerUpdatePeriod")) = 1.0e-3;
     }
-    engine->setOptions(simuOptions);
+    engine.setOptions(simuOptions);
 
     // Run simulation
-    engine->reset();
-    engine->start(q0, v0);
+    engine.reset();
+    engine.start(q0, v0);
     Eigen::internal::set_is_malloc_allowed(false);
-    engine->step(tf);
-    engine->stop();
+    engine.step(tf);
+    engine.stop();
     Eigen::internal::set_is_malloc_allowed(true);
 
     // Get system energy
-    engine->getLog(logDataPtr);
+    logDataPtr = engine.getLog();
     const Eigen::VectorXd timesDisc = getLogVariable(*logDataPtr, "Global.Time");
     ASSERT_DOUBLE_EQ(timesDisc[timesDisc.size() - 1], tf);
     const Eigen::VectorXd energyDisc = getLogVariable(*logDataPtr, "HighLevelController.energy");

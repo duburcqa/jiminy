@@ -92,7 +92,7 @@ def get_fieldnames(structure: Union[gym.Space[DataNested], DataNested],
 def register_variables(controller: jiminy.AbstractController,
                        fieldnames: Union[
                            ValuesView[FieldNested], FieldNested],
-                       data: DataNested) -> bool:
+                       data: DataNested) -> None:
     """Register data from `Gym.Space` to the telemetry of a controller.
 
     .. warning::
@@ -113,21 +113,9 @@ def register_variables(controller: jiminy.AbstractController,
                        method. It can be a nested list or/and dict. The leaves
                        are str corresponding to the name of each scalar data.
     :param data: Data from `gym.spaces.Space` to register.
-
-    :returns: Whether the registration has been successful.
     """
     for fieldname, value in zip(
             tree.flatten_up_to(data, fieldnames), tree.flatten(data)):
-        if any(np.issubsctype(value, type) for type in (np.float64, np.int64)):
-            assert isinstance(fieldname, list), (
-                f"'fieldname' ({fieldname}) should be a list of strings.")
-            hresult = controller.register_variables(fieldname, value)
-            if hresult != jiminy.hresult_t.SUCCESS:
-                return False
-        else:
-            LOGGER.warning(
-                "Variables of dtype '%s' cannot be registered to the "
-                "telemetry. It must have dtype 'np.float64' or 'np.int64'.",
-                value.dtype)
-            return False
-    return True
+        assert isinstance(fieldname, list), (
+            f"'fieldname' ({fieldname}) should be a list of strings.")
+        controller.register_variables(fieldname, value)

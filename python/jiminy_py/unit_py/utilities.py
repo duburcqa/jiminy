@@ -67,7 +67,7 @@ def setup_controller_and_engine(
         compute_command: Optional[FunctionalControllerCallable] = None,
         internal_dynamics: Optional[FunctionalControllerCallable] = None
         ) -> None:
-    """Setup an engine to integrate the dynamics of a given robot, for a
+    r"""Setup an engine to integrate the dynamics of a given robot, for a
     specific user-defined control law and internal dynamics.
 
     The goal of this function is to ease the configuration of `jiminy.Engine`
@@ -201,8 +201,7 @@ def simulate_and_get_state_evolution(
             name = system.name
             q0[name] = x0[name][:system.robot.nq]
             v0[name] = x0[name][-system.robot.nv:]
-    hresult = engine.simulate(tf, q0, v0)
-    assert hresult == jiminy.hresult_t.SUCCESS
+    engine.simulate(tf, q0, v0)
 
     # Get log data
     log_vars = engine.log_data["variables"]

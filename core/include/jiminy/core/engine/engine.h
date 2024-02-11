@@ -18,20 +18,19 @@ namespace jiminy
         explicit Engine() = default;
         ~Engine() = default;
 
-        hresult_t initialize(std::shared_ptr<Robot> robot,
-                             std::shared_ptr<AbstractController> controller,
-                             const AbortSimulationFunction & callback);
-        hresult_t initialize(std::shared_ptr<Robot> robot,
-                             const AbortSimulationFunction & callback);
+        void initialize(std::shared_ptr<Robot> robot,
+                        std::shared_ptr<AbstractController> controller,
+                        const AbortSimulationFunction & callback);
+        void initialize(std::shared_ptr<Robot> robot, const AbortSimulationFunction & callback);
 
-        hresult_t setController(std::shared_ptr<AbstractController> controller);
+        void setController(std::shared_ptr<AbstractController> controller);
 
         /* Forbid direct usage of these methods since it does not make sense for single robot
            engine (every overloads are affected at once). */
-        hresult_t addSystem(const std::string & systemName,
-                            std::shared_ptr<Robot> robot,
-                            std::shared_ptr<AbstractController> controller);
-        hresult_t removeSystem(const std::string & systemName);
+        [[noreturn]] void addSystem(const std::string & systemName,
+                                    std::shared_ptr<Robot> robot,
+                                    std::shared_ptr<AbstractController> controller);
+        [[noreturn]] void removeSystem(const std::string & systemName);
 
         /// \brief Reset the engine and compute initial state.
         ///
@@ -44,10 +43,10 @@ namespace jiminy
         ///                  Optional: Zero by default.
         /// \param[in] isStateTheoretical Specify if the initial state is associated with the
         ///                               current or theoretical model.
-        hresult_t start(const Eigen::VectorXd & qInit,
-                        const Eigen::VectorXd & vInit,
-                        const std::optional<Eigen::VectorXd> & aInit = std::nullopt,
-                        bool isStateTheoretical = false);
+        void start(const Eigen::VectorXd & qInit,
+                   const Eigen::VectorXd & vInit,
+                   const std::optional<Eigen::VectorXd> & aInit = std::nullopt,
+                   bool isStateTheoretical = false);
 
         /// \brief Run a simulation of duration tEnd, starting at xInit.
         ///
@@ -57,53 +56,53 @@ namespace jiminy
         /// \param[in] aInit Initial acceleration, i.e. state at t=0.
         /// \param[in] isStateTheoretical Specify if the initial state is associated with the
         ///                               current or theoretical model.
-        hresult_t simulate(double tEnd,
-                           const Eigen::VectorXd & qInit,
-                           const Eigen::VectorXd & vInit,
-                           const std::optional<Eigen::VectorXd> & aInit = std::nullopt,
-                           bool isStateTheoretical = false);
+        void simulate(double tEnd,
+                      const Eigen::VectorXd & qInit,
+                      const Eigen::VectorXd & vInit,
+                      const std::optional<Eigen::VectorXd> & aInit = std::nullopt,
+                      bool isStateTheoretical = false);
 
-        hresult_t registerImpulseForce(
+        void registerImpulseForce(
             const std::string & frameName, double t, double dt, const pinocchio::Force & force);
-        hresult_t registerProfileForce(const std::string & frameName,
-                                       const ProfileForceFunction & forceFunc,
-                                       double updatePeriod = 0.0);
+        void registerProfileForce(const std::string & frameName,
+                                  const ProfileForceFunction & forceFunc,
+                                  double updatePeriod = 0.0);
 
         // Redefined to leverage C++ name hiding of overloaded base methods in derived class
-        hresult_t removeImpulseForces();
-        hresult_t removeProfileForces();
+        void removeImpulseForces();
+        void removeProfileForces();
 
         const ImpulseForceVector & getImpulseForces() const;
         const ProfileForceVector & getProfileForces() const;
 
-        hresult_t registerCouplingForce(const std::string & frameName1,
-                                        const std::string & frameName2,
-                                        const ProfileForceFunction & forceFunc);
-        hresult_t registerViscoelasticCouplingForce(const std::string & frameName1,
-                                                    const std::string & frameName2,
-                                                    const Vector6d & stiffness,
-                                                    const Vector6d & damping,
-                                                    double alpha = 0.5);
-        hresult_t registerViscoelasticDirectionalCouplingForce(const std::string & frameName1,
-                                                               const std::string & frameName2,
-                                                               double stiffness,
-                                                               double damping,
-                                                               double restLength = 0.0);
+        void registerCouplingForce(const std::string & frameName1,
+                                   const std::string & frameName2,
+                                   const ProfileForceFunction & forceFunc);
+        void registerViscoelasticCouplingForce(const std::string & frameName1,
+                                               const std::string & frameName2,
+                                               const Vector6d & stiffness,
+                                               const Vector6d & damping,
+                                               double alpha = 0.5);
+        void registerViscoelasticDirectionalCouplingForce(const std::string & frameName1,
+                                                          const std::string & frameName2,
+                                                          double stiffness,
+                                                          double damping,
+                                                          double restLength = 0.0);
 
-        hresult_t removeCouplingForces();
+        void removeCouplingForces();
 
-        hresult_t removeAllForces();
+        void removeAllForces();
 
         bool getIsInitialized() const;
-        hresult_t getSystem(System *& system);
-        hresult_t getRobot(std::shared_ptr<Robot> & robot);
-        hresult_t getController(std::shared_ptr<AbstractController> & controller);
-        hresult_t getSystemState(const SystemState *& systemState) const;
+        System & getSystem();
+        std::shared_ptr<Robot> getRobot();
+        std::shared_ptr<AbstractController> getController();
+        const SystemState & getSystemState() const;
 
     private:
-        hresult_t initializeImpl(std::shared_ptr<Robot> robot,
-                                 std::shared_ptr<AbstractController> controller,
-                                 const AbortSimulationFunction & callback);
+        void initializeImpl(std::shared_ptr<Robot> robot,
+                            std::shared_ptr<AbstractController> controller,
+                            const AbortSimulationFunction & callback);
 
     protected:
         bool isInitialized_;

@@ -22,24 +22,22 @@ namespace jiminy
         }
     }
 
-    hresult_t AbstractMotorBase::attach(
-        std::weak_ptr<const Robot> robot,
-        std::function<hresult_t(AbstractMotorBase & /*motor*/)> notifyRobot,
-        MotorSharedStorage * sharedStorage)
+    void AbstractMotorBase::attach(std::weak_ptr<const Robot> robot,
+                                   std::function<void(AbstractMotorBase & /*motor*/)> notifyRobot,
+                                   MotorSharedStorage * sharedStorage)
     {
         // Make sure the motor is not already attached
         if (isAttached_)
         {
-            PRINT_ERROR(
+            THROW_ERROR(
+                std::logic_error,
                 "Motor already attached to a robot. Please 'detach' method before attaching it.");
-            return hresult_t::ERROR_GENERIC;
         }
 
         // Make sure the robot still exists
         if (robot.expired())
         {
-            PRINT_ERROR("Robot pointer expired or unset.");
-            return hresult_t::ERROR_GENERIC;
+            THROW_ERROR(std::runtime_error, "Robot pointer expired or unset.");
         }
 
         // Copy references to the robot and shared data
@@ -60,18 +58,15 @@ namespace jiminy
 
         // Update the flag
         isAttached_ = true;
-
-        return hresult_t::SUCCESS;
     }
 
-    hresult_t AbstractMotorBase::detach()
+    void AbstractMotorBase::detach()
     {
         // Delete the part of the shared memory associated with the motor
 
         if (!isAttached_)
         {
-            PRINT_ERROR("Motor not attached to any robot.");
-            return hresult_t::ERROR_GENERIC;
+            THROW_ERROR(bad_control_flow, "Motor not attached to any robot.");
         }
 
         // Remove associated col in the global data buffer
@@ -104,24 +99,21 @@ namespace jiminy
 
         // Update the flag
         isAttached_ = false;
-
-        return hresult_t::SUCCESS;
     }
 
-    hresult_t AbstractMotorBase::resetAll()
+    void AbstractMotorBase::resetAll()
     {
         // Make sure the motor is attached to a robot
         if (!isAttached_)
         {
-            PRINT_ERROR("Motor not attached to any robot.");
-            return hresult_t::ERROR_GENERIC;
+            THROW_ERROR(bad_control_flow, "Motor not attached to any robot.");
         }
 
         // Make sure the robot still exists
         if (robot_.expired())
         {
-            PRINT_ERROR("Robot has been deleted. Impossible to reset the motors.");
-            return hresult_t::ERROR_GENERIC;
+            THROW_ERROR(std::runtime_error,
+                        "Robot has been deleted. Impossible to reset the motors.");
         }
 
         // Clear the shared data buffer
@@ -133,11 +125,9 @@ namespace jiminy
             // Refresh proxies that are robot-dependent
             motor->refreshProxies();
         }
-
-        return hresult_t::SUCCESS;
     }
 
-    hresult_t AbstractMotorBase::setOptions(const GenericConfig & motorOptions)
+    void AbstractMotorBase::setOptions(const GenericConfig & motorOptions)
     {
         // Check if the internal buffers must be updated
         bool internalBuffersMustBeUpdated = false;
@@ -178,8 +168,6 @@ namespace jiminy
                 refreshProxies();
             }
         }
-
-        return hresult_t::SUCCESS;
     }
 
     GenericConfig AbstractMotorBase::getOptions() const noexcept
@@ -187,102 +175,73 @@ namespace jiminy
         return motorOptionsGeneric_;
     }
 
-    hresult_t AbstractMotorBase::refreshProxies()
+    void AbstractMotorBase::refreshProxies()
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
         if (!isAttached_)
         {
-            PRINT_ERROR("Motor not attached to any robot. Impossible to refresh proxies.");
-            returnCode = hresult_t::ERROR_INIT_FAILED;
+            THROW_ERROR(bad_control_flow,
+                        "Motor not attached to any robot. Impossible to refresh proxies.");
         }
 
         auto robot = robot_.lock();
-        if (returnCode == hresult_t::SUCCESS)
+        if (!robot)
         {
-            if (!robot)
-            {
-                PRINT_ERROR("Robot has been deleted. Impossible to refresh proxies.");
-                returnCode = hresult_t::ERROR_GENERIC;
-            }
+            THROW_ERROR(std::runtime_error,
+                        "Robot has been deleted. Impossible to refresh proxies.");
         }
 
-        if (returnCode == hresult_t::SUCCESS)
+        if (!isInitialized_)
         {
-            if (!isInitialized_)
-            {
-                PRINT_ERROR("Motor not initialized. Impossible to refresh proxies.");
-                returnCode = hresult_t::ERROR_INIT_FAILED;
-            }
+            THROW_ERROR(bad_control_flow, "Motor not initialized. Impossible to refresh proxies.");
         }
 
-        if (returnCode == hresult_t::SUCCESS)
+        if (!robot->getIsInitialized())
         {
-            if (!robot->getIsInitialized())
-            {
-                PRINT_ERROR("Robot not initialized. Impossible to refresh proxies.");
-                returnCode = hresult_t::ERROR_INIT_FAILED;
-            }
+            THROW_ERROR(bad_control_flow, "Robot not initialized. Impossible to refresh proxies.");
         }
 
-        if (returnCode == hresult_t::SUCCESS)
+        jointIndex_ = ::jiminy::getJointIndex(robot->pinocchioModel_, jointName_);
+        jointType_ = getJointTypeFromIndex(robot->pinocchioModel_, jointIndex_);
+
+        // Motors are only supported for linear and rotary joints
+        if (jointType_ != JointModelType::LINEAR && jointType_ != JointModelType::ROTARY &&
+            jointType_ != JointModelType::ROTARY_UNBOUNDED)
         {
-            returnCode = ::jiminy::getJointIndex(robot->pinocchioModel_, jointName_, jointIndex_);
+            THROW_ERROR(std::logic_error,
+                        "A motor can only be associated with a 1-dof linear or rotary joint.");
         }
 
-        if (returnCode == hresult_t::SUCCESS)
+        jointPositionIndex_ = getJointPositionFirstIndex(robot->pinocchioModel_, jointName_);
+        jointVelocityIndex_ = getJointVelocityFirstIndex(robot->pinocchioModel_, jointName_);
+
+        // Get the motor effort limits from the URDF or the user options.
+        if (baseMotorOptions_->commandLimitFromUrdf)
         {
-            returnCode = getJointTypeFromIndex(robot->pinocchioModel_, jointIndex_, jointType_);
+            const Eigen::Index jointVelocityOrigIndex =
+                getJointVelocityFirstIndex(robot->pinocchioModelOrig_, jointName_);
+            commandLimit_ = robot->pinocchioModelOrig_.effortLimit[jointVelocityOrigIndex] /
+                            baseMotorOptions_->mechanicalReduction;
+        }
+        else
+        {
+            commandLimit_ = baseMotorOptions_->commandLimit;
         }
 
-        if (returnCode == hresult_t::SUCCESS)
+        // Get the rotor inertia
+        if (baseMotorOptions_->enableArmature)
         {
-            // Motors are only supported for linear and rotary joints
-            if (jointType_ != JointModelType::LINEAR && jointType_ != JointModelType::ROTARY &&
-                jointType_ != JointModelType::ROTARY_UNBOUNDED)
-            {
-                PRINT_ERROR("A motor can only be associated with a 1-dof linear or rotary joint.");
-                returnCode = hresult_t::ERROR_BAD_INPUT;
-            }
+            armature_ = baseMotorOptions_->armature;
+        }
+        else
+        {
+            armature_ = 0.0;
         }
 
-        if (returnCode == hresult_t::SUCCESS)
+        // Propagate the user-defined motor inertia at Pinocchio model level
+        if (notifyRobot_)
         {
-            getJointPositionFirstIndex(robot->pinocchioModel_, jointName_, jointPositionIndex_);
-            getJointVelocityFirstIndex(robot->pinocchioModel_, jointName_, jointVelocityIndex_);
-
-            // Get the motor effort limits from the URDF or the user options.
-            if (baseMotorOptions_->commandLimitFromUrdf)
-            {
-                Eigen::Index jointVelocityOrigIndex;
-                getJointVelocityFirstIndex(
-                    robot->pinocchioModelOrig_, jointName_, jointVelocityOrigIndex);
-                commandLimit_ = robot->pinocchioModelOrig_.effortLimit[jointVelocityOrigIndex] /
-                                baseMotorOptions_->mechanicalReduction;
-            }
-            else
-            {
-                commandLimit_ = baseMotorOptions_->commandLimit;
-            }
-
-            // Get the rotor inertia
-            if (baseMotorOptions_->enableArmature)
-            {
-                armature_ = baseMotorOptions_->armature;
-            }
-            else
-            {
-                armature_ = 0.0;
-            }
-
-            // Propagate the user-defined motor inertia at Pinocchio model level
-            if (notifyRobot_)
-            {
-                returnCode = notifyRobot_(*this);
-            }
+            notifyRobot_(*this);
         }
-
-        return returnCode;
     }
 
     double AbstractMotorBase::get() const
@@ -305,26 +264,18 @@ namespace jiminy
         return sharedStorage_->data_;
     }
 
-    hresult_t AbstractMotorBase::setOptionsAll(const GenericConfig & motorOptions)
+    void AbstractMotorBase::setOptionsAll(const GenericConfig & motorOptions)
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
         // Make sure the motor is attached to a robot
         if (!isAttached_)
         {
-            PRINT_ERROR("Motor not attached to any robot.");
-            returnCode = hresult_t::ERROR_GENERIC;
+            THROW_ERROR(bad_control_flow, "Motor not attached to any robot.");
         }
 
         for (AbstractMotorBase * motor : sharedStorage_->motors_)
         {
-            if (returnCode == hresult_t::SUCCESS)
-            {
-                returnCode = motor->setOptions(motorOptions);
-            }
+            motor->setOptions(motorOptions);
         }
-
-        return returnCode;
     }
 
     bool AbstractMotorBase::getIsInitialized() const
@@ -377,44 +328,35 @@ namespace jiminy
         return armature_;
     }
 
-    hresult_t AbstractMotorBase::computeEffortAll(double t,
-                                                  const Eigen::VectorXd & q,
-                                                  const Eigen::VectorXd & v,
-                                                  const Eigen::VectorXd & a,
-                                                  const Eigen::VectorXd & command)
+    void AbstractMotorBase::computeEffortAll(double t,
+                                             const Eigen::VectorXd & q,
+                                             const Eigen::VectorXd & v,
+                                             const Eigen::VectorXd & a,
+                                             const Eigen::VectorXd & command)
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
         // Make sure the motor is attached to a robot
         if (!isAttached_)
         {
-            PRINT_ERROR("Motor not attached to any robot.");
-            returnCode = hresult_t::ERROR_GENERIC;
+            THROW_ERROR(bad_control_flow, "Motor not attached to any robot.");
         }
 
         // Compute the actual effort of every motor
         for (AbstractMotorBase * motor : sharedStorage_->motors_)
         {
-            if (returnCode == hresult_t::SUCCESS)
+            uint8_t nq_motor;
+            if (motor->getJointType() == JointModelType::ROTARY_UNBOUNDED)
             {
-                uint8_t nq_motor;
-                if (motor->getJointType() == JointModelType::ROTARY_UNBOUNDED)
-                {
-                    nq_motor = 2;
-                }
-                else
-                {
-                    nq_motor = 1;
-                }
-                returnCode =
-                    motor->computeEffort(t,
-                                         q.segment(motor->getJointPositionIndex(), nq_motor),
-                                         v[motor->getJointVelocityIndex()],
-                                         a[motor->getJointVelocityIndex()],
-                                         command[motor->getIndex()]);
+                nq_motor = 2;
             }
+            else
+            {
+                nq_motor = 1;
+            }
+            motor->computeEffort(t,
+                                 q.segment(motor->getJointPositionIndex(), nq_motor),
+                                 v[motor->getJointVelocityIndex()],
+                                 a[motor->getJointVelocityIndex()],
+                                 command[motor->getIndex()]);
         }
-
-        return returnCode;
     }
 }

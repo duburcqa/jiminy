@@ -40,7 +40,7 @@ TEST_P(ModelTestFixture, CreateFlexible)
 
     // Model is rigid, so configuration should not change
     Eigen::VectorXd qflex;
-    ASSERT_TRUE(model->getFlexiblePositionFromRigid(q, qflex) == hresult_t::SUCCESS);
+    model->getFlexiblePositionFromRigid(q, qflex);
     ASSERT_TRUE(qflex.isApprox(q));
 
     auto visualData = pinocchio::GeometryData(model->visualModel_);
@@ -61,7 +61,7 @@ TEST_P(ModelTestFixture, CreateFlexible)
     boost::get<FlexibilityConfig>(dynamicsOptions.at("flexibilityConfig")) = flexConfig;
     model->setOptions(options);
 
-    ASSERT_TRUE(model->getFlexiblePositionFromRigid(q, qflex) == hresult_t::SUCCESS);
+    model->getFlexiblePositionFromRigid(q, qflex);
     ASSERT_EQ(qflex.size(),
               q.size() + Eigen::Quaterniond::Coefficients::RowsAtCompileTime * flexConfig.size());
 

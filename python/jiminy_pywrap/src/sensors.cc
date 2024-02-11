@@ -85,7 +85,7 @@ namespace jiminy::python
                 auto sensorDataIt = SensorMeasurementTreeByName.find(sensorName);
                 if (sensorDataIt == SensorMeasurementTreeByName.end())
                 {
-                    throw std::runtime_error("");
+                    THROW_ERROR(std::runtime_error, "");
                 }
                 return sensorDataIt->value;
             }
@@ -197,8 +197,8 @@ namespace jiminy::python
 
         static std::shared_ptr<SensorMeasurementTree> factory(bp::dict & sensorDataPy)
         {
-            auto sensorData = convertFromPython<SensorMeasurementTree>(sensorDataPy);
-            return std::make_shared<SensorMeasurementTree>(std::move(sensorData));
+            return std::make_shared<SensorMeasurementTree>(
+                convertFromPython<SensorMeasurementTree>(sensorDataPy));
         }
 
         static void factoryWrapper(bp::object & self, bp::dict & sensorDataPy)
@@ -254,7 +254,7 @@ namespace jiminy::python
                                                   >(&AbstractSensorBase::get),
                                                   bp::return_value_policy<result_converter<false>>(),
                                                   static_cast<
-                                                      hresult_t (AbstractSensorBase::*)(const Eigen::MatrixBase<Eigen::VectorXd> &)
+                                                      void (AbstractSensorBase::*)(const Eigen::MatrixBase<Eigen::VectorXd> &)
                                                   >(&AbstractSensorBase::set))
 
                 .def("set_options", &PyAbstractSensorVisitor::setOptions)
@@ -289,7 +289,7 @@ namespace jiminy::python
             return s.str();
         }
 
-        static hresult_t setOptions(AbstractSensorBase & self, const bp::dict & configPy)
+        static void setOptions(AbstractSensorBase & self, const bp::dict & configPy)
         {
             GenericConfig config = self.getOptions();
             convertFromPython(configPy, config);

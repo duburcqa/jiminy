@@ -34,32 +34,28 @@ namespace jiminy
         auto shared_from_this() { return shared_from(this); }
         auto shared_from_this() const { return shared_from(this); }
 
-        hresult_t initialize(const pinocchio::Model & pinocchioModel,
-                             const pinocchio::GeometryModel & collisionModel,
-                             const pinocchio::GeometryModel & visualModel);
-        hresult_t initialize(const std::string & urdfPath,
-                             bool hasFreeflyer = true,
-                             const std::vector<std::string> & meshPackageDirs = {},
-                             bool loadVisualMeshes = false);
+        void initialize(const pinocchio::Model & pinocchioModel,
+                        const pinocchio::GeometryModel & collisionModel,
+                        const pinocchio::GeometryModel & visualModel);
+        void initialize(const std::string & urdfPath,
+                        bool hasFreeflyer = true,
+                        const std::vector<std::string> & meshPackageDirs = {},
+                        bool loadVisualMeshes = false);
 
-        hresult_t attachMotor(std::shared_ptr<AbstractMotorBase> motor);
-        hresult_t getMotor(const std::string & motorName,
-                           std::shared_ptr<AbstractMotorBase> & motor);
-        hresult_t getMotor(const std::string & motorName,
-                           std::weak_ptr<const AbstractMotorBase> & motor) const;
+        void attachMotor(std::shared_ptr<AbstractMotorBase> motor);
+        std::shared_ptr<AbstractMotorBase> getMotor(const std::string & motorName);
+        std::weak_ptr<const AbstractMotorBase> getMotor(const std::string & motorName) const;
         const MotorVector & getMotors() const;
-        hresult_t detachMotor(const std::string & motorName);
-        hresult_t detachMotors(std::vector<std::string> motorsNames = {});
-        hresult_t attachSensor(std::shared_ptr<AbstractSensorBase> sensor);
-        hresult_t getSensor(const std::string & sensorType,
-                            const std::string & sensorName,
-                            std::shared_ptr<AbstractSensorBase> & sensor);
-        hresult_t getSensor(const std::string & sensorType,
-                            const std::string & sensorName,
-                            std::weak_ptr<const AbstractSensorBase> & sensor) const;
+        void detachMotor(const std::string & motorName);
+        void detachMotors(std::vector<std::string> motorsNames = {});
+        void attachSensor(std::shared_ptr<AbstractSensorBase> sensor);
+        std::shared_ptr<AbstractSensorBase> getSensor(const std::string & sensorType,
+                                                      const std::string & sensorName);
+        std::weak_ptr<const AbstractSensorBase> getSensor(const std::string & sensorType,
+                                                          const std::string & sensorName) const;
         const SensorTree & getSensors() const;
-        hresult_t detachSensor(const std::string & sensorType, const std::string & sensorName);
-        hresult_t detachSensors(const std::string & sensorType = {});
+        void detachSensor(const std::string & sensorType, const std::string & sensorName);
+        void detachSensors(const std::string & sensorType = {});
 
         void computeMotorEfforts(double t,
                                  const Eigen::VectorXd & q,
@@ -79,39 +75,35 @@ namespace jiminy
         Eigen::Ref<const Eigen::VectorXd> getSensorMeasurement(
             const std::string & sensorType, const std::string & sensorName) const;
 
-        hresult_t setOptions(const GenericConfig & robotOptions);
+        void setOptions(const GenericConfig & robotOptions);
         GenericConfig getOptions() const noexcept;
-        hresult_t setMotorOptions(const std::string & motorName,
-                                  const GenericConfig & motorOptions);
-        hresult_t setMotorsOptions(const GenericConfig & motorsOptions);
-        hresult_t getMotorOptions(const std::string & motorName,
-                                  GenericConfig & motorOptions) const;
+        void setMotorOptions(const std::string & motorName, const GenericConfig & motorOptions);
+        void setMotorsOptions(const GenericConfig & motorsOptions);
+        GenericConfig getMotorOptions(const std::string & motorName) const;
         GenericConfig getMotorsOptions() const;
-        hresult_t setSensorOptions(const std::string & sensorType,
-                                   const std::string & sensorName,
-                                   const GenericConfig & sensorOptions);
-        hresult_t setSensorsOptions(const std::string & sensorType,
-                                    const GenericConfig & sensorsOptions);
-        hresult_t setSensorsOptions(const GenericConfig & sensorsOptions);
-        hresult_t getSensorOptions(const std::string & sensorType,
-                                   const std::string & sensorName,
-                                   GenericConfig & sensorOptions) const;
-        hresult_t getSensorsOptions(const std::string & sensorType,
-                                    GenericConfig & sensorsOptions) const;
+        void setSensorOptions(const std::string & sensorType,
+                              const std::string & sensorName,
+                              const GenericConfig & sensorOptions);
+        void setSensorsOptions(const std::string & sensorType,
+                               const GenericConfig & sensorsOptions);
+        void setSensorsOptions(const GenericConfig & sensorsOptions);
+        GenericConfig getSensorOptions(const std::string & sensorType,
+                                       const std::string & sensorName) const;
+        GenericConfig getSensorsOptions(const std::string & sensorType) const;
         GenericConfig getSensorsOptions() const;
-        hresult_t setModelOptions(const GenericConfig & modelOptions);
+        void setModelOptions(const GenericConfig & modelOptions);
         GenericConfig getModelOptions() const;
-        hresult_t setTelemetryOptions(const GenericConfig & telemetryOptions);
+        void setTelemetryOptions(const GenericConfig & telemetryOptions);
         GenericConfig getTelemetryOptions() const;
 
-        hresult_t dumpOptions(const std::string & filepath) const;
-        hresult_t loadOptions(const std::string & filepath);
+        void dumpOptions(const std::string & filepath) const;
+        void loadOptions(const std::string & filepath);
 
         /// \remarks Those methods are not intended to be called manually. The Engine is taking
         ///          care of it.
         virtual void reset(const uniform_random_bit_generator_ref<uint32_t> & g) override;
-        virtual hresult_t configureTelemetry(std::shared_ptr<TelemetryData> telemetryData,
-                                             const std::string & prefix = {});
+        virtual void configureTelemetry(std::shared_ptr<TelemetryData> telemetryData,
+                                        const std::string & prefix = {});
         void updateTelemetry();
         bool getIsTelemetryConfigured() const;
 
@@ -128,15 +120,15 @@ namespace jiminy
         const std::vector<std::string> & getLogMotorEffortFieldnames() const;
 
         // Getters without 'get' prefix for consistency with pinocchio C++ API
-        uint64_t nmotors() const;
+        Eigen::Index nmotors() const;
 
-        hresult_t getLock(std::unique_ptr<LockGuardLocal> & lock);
+        std::unique_ptr<LockGuardLocal> getLock();
         bool getIsLocked() const;
 
     protected:
-        hresult_t refreshMotorProxies();
-        hresult_t refreshSensorProxies();
-        virtual hresult_t refreshProxies() override;
+        void refreshMotorProxies();
+        void refreshSensorProxies();
+        virtual void refreshProxies() override;
 
     protected:
         bool isTelemetryConfigured_{false};
@@ -153,7 +145,7 @@ namespace jiminy
         /// \brief Fieldnames of the motors effort.
         std::vector<std::string> logMotorEffortFieldnames_{};
         /// \brief The number of motors.
-        uint64_t nmotors_{0U};
+        Eigen::Index nmotors_{0};
 
     private:
         std::unique_ptr<MutexLocal> mutexLocal_{std::make_unique<MutexLocal>()};

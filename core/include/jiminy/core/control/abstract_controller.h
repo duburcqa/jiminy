@@ -56,9 +56,7 @@ namespace jiminy
         /// \brief Set the parameters of the controller.
         ///
         /// \param[in] robot Robot
-        ///
-        /// \return Return code to determine whether the execution of the method was successful.
-        virtual hresult_t initialize(std::weak_ptr<const Robot> robot);
+        virtual void initialize(std::weak_ptr<const Robot> robot);
 
         /// \brief Dynamically registered a scalar variable to the telemetry. It is the main entry
         ///        point for a user to log custom variables.
@@ -70,10 +68,8 @@ namespace jiminy
         ///
         /// \param[in] name Name of the variable. It will appear in the header of the log.
         /// \param[in] values Variable to add to the telemetry.
-        ///
-        /// \return Return code to determine whether the execution of the method was successful.
         template<typename T>
-        hresult_t registerVariable(const std::string_view & name, const T & value);
+        void registerVariable(const std::string_view & name, const T & value);
 
         /// \brief Dynamically registered a Eigen Vector to the telemetry.
         ///
@@ -81,13 +77,11 @@ namespace jiminy
         ///                       header of the log.
         /// \param[in] values Eigen vector to add to the telemetry. It accepts non-contiguous
         ///                   temporary.
-        ///
-        /// \return Return code to determine whether the execution of the method was successful.
-        hresult_t registerVariable(
+        void registerVariable(
             const std::vector<std::string> & fieldnames,
             const Eigen::Ref<VectorX<double>, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>> &
                 values);
-        hresult_t registerVariable(
+        void registerVariable(
             const std::vector<std::string> & fieldnames,
             const Eigen::Ref<VectorX<int64_t>, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>> &
                 values);
@@ -96,10 +90,8 @@ namespace jiminy
         ///
         /// \param[in] name Name of the variable.
         /// \param[in] values Variable to add to the telemetry
-        ///
-        /// \return Return code to determine whether the execution of the method was successful.
         template<typename T>
-        hresult_t registerConstant(const std::string_view & name, const T & value);
+        void registerConstant(const std::string_view & name, const T & value);
 
         /// \brief Remove all variables dynamically registered to the telemetry.
         ///
@@ -115,12 +107,10 @@ namespace jiminy
         /// \param[in] q Current configuration vector.
         /// \param[in] v Current velocity vector.
         /// \param[out] command Output effort vector.
-        ///
-        /// \return Return code to determine whether the execution of the method was successful.
-        virtual hresult_t computeCommand(double t,
-                                         const Eigen::VectorXd & q,
-                                         const Eigen::VectorXd & v,
-                                         Eigen::VectorXd & command) = 0;
+        virtual void computeCommand(double t,
+                                    const Eigen::VectorXd & q,
+                                    const Eigen::VectorXd & v,
+                                    Eigen::VectorXd & command) = 0;
 
         /// \brief Emulate custom phenomenon that are part of the internal dynamics of the system
         ///        but not included in the physics engine.
@@ -129,12 +119,10 @@ namespace jiminy
         /// \param[in] q Current configuration vector.
         /// \param[in] v Current velocity vector.
         /// \param[in] uCustom Output effort vector.
-        ///
-        /// \return Return code to determine whether the execution of the method was successful.
-        virtual hresult_t internalDynamics(double t,
-                                           const Eigen::VectorXd & q,
-                                           const Eigen::VectorXd & v,
-                                           Eigen::VectorXd & uCustom) = 0;
+        virtual void internalDynamics(double t,
+                                      const Eigen::VectorXd & q,
+                                      const Eigen::VectorXd & v,
+                                      Eigen::VectorXd & uCustom) = 0;
 
         /// \brief Dictionary with the parameters of the controller.
         GenericConfig getOptions() const noexcept;
@@ -144,9 +132,7 @@ namespace jiminy
         /// \details Note that one must reset Jiminy Engine for this to take effect.
         ///
         /// \param[in] controllerOptions Dictionary with the parameters of the controller.
-        ///
-        /// \return Return code to determine whether the execution of the method was successful.
-        hresult_t setOptions(const GenericConfig & controllerOptions);
+        void setOptions(const GenericConfig & controllerOptions);
 
         /// \brief Configure the telemetry of the controller.
         ///
@@ -160,10 +146,8 @@ namespace jiminy
         ///         it before flushing the telemetry data at the end of each simulation steps.
         ///
         /// \param[in] telemetryData Shared pointer to the robot-wide telemetry data object
-        ///
-        /// \return Return code to determine whether the execution of the method was successful.
-        virtual hresult_t configureTelemetry(std::shared_ptr<TelemetryData> telemetryData,
-                                             const std::string & prefix = {});
+        virtual void configureTelemetry(std::shared_ptr<TelemetryData> telemetryData,
+                                        const std::string & prefix = {});
 
         /// \brief Update the internal buffers of the telemetry associated with variables monitored
         ///        by the controller.
@@ -188,7 +172,7 @@ namespace jiminy
         ///
         /// \param[in] resetDynamicTelemetry Whether variables dynamically registered to the
         ///                                  telemetry must be removed. Optional: False by default.
-        virtual hresult_t reset(bool resetDynamicTelemetry = false);
+        virtual void reset(bool resetDynamicTelemetry = false);
 
         /// \brief Whether the controller has been initialized.
         ///

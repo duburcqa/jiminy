@@ -333,17 +333,17 @@ namespace jiminy
         explicit EngineMultiRobot() noexcept;
         ~EngineMultiRobot();
 
-        hresult_t addSystem(const std::string & systemName,
-                            std::shared_ptr<Robot> robot,
-                            std::shared_ptr<AbstractController> controller,
-                            const AbortSimulationFunction & callback);
-        hresult_t addSystem(const std::string & systemName,
-                            std::shared_ptr<Robot> robot,
-                            const AbortSimulationFunction & callback);
-        hresult_t removeSystem(const std::string & systemName);
+        void addSystem(const std::string & systemName,
+                       std::shared_ptr<Robot> robot,
+                       std::shared_ptr<AbstractController> controller,
+                       const AbortSimulationFunction & callback);
+        void addSystem(const std::string & systemName,
+                       std::shared_ptr<Robot> robot,
+                       const AbortSimulationFunction & callback);
+        void removeSystem(const std::string & systemName);
 
-        hresult_t setController(const std::string & systemName,
-                                std::shared_ptr<AbstractController> controller);
+        void setController(const std::string & systemName,
+                           std::shared_ptr<AbstractController> controller);
 
         /// \brief Add a force linking both systems together.
         ///
@@ -358,24 +358,24 @@ namespace jiminy
         /// \param[in] frameName2 Frame on the second system where the opposite force is applied.
         /// \param[in] forceFunc Callback function returning the force that systemName2 applies on
         ///                      systemName1, in the global frame of frameName1.
-        hresult_t registerCouplingForce(const std::string & systemName1,
-                                        const std::string & systemName2,
-                                        const std::string & frameName1,
-                                        const std::string & frameName2,
-                                        const CouplingForceFunction & forceFunc);
-        hresult_t registerViscoelasticDirectionalCouplingForce(const std::string & systemName1,
-                                                               const std::string & systemName2,
-                                                               const std::string & frameName1,
-                                                               const std::string & frameName2,
-                                                               double stiffness,
-                                                               double damping,
-                                                               double restLength = 0.0);
-        hresult_t registerViscoelasticDirectionalCouplingForce(const std::string & systemName,
-                                                               const std::string & frameName1,
-                                                               const std::string & frameName2,
-                                                               double stiffness,
-                                                               double damping,
-                                                               double restLength = 0.0);
+        void registerCouplingForce(const std::string & systemName1,
+                                   const std::string & systemName2,
+                                   const std::string & frameName1,
+                                   const std::string & frameName2,
+                                   const CouplingForceFunction & forceFunc);
+        void registerViscoelasticDirectionalCouplingForce(const std::string & systemName1,
+                                                          const std::string & systemName2,
+                                                          const std::string & frameName1,
+                                                          const std::string & frameName2,
+                                                          double stiffness,
+                                                          double damping,
+                                                          double restLength = 0.0);
+        void registerViscoelasticDirectionalCouplingForce(const std::string & systemName,
+                                                          const std::string & frameName1,
+                                                          const std::string & frameName2,
+                                                          double stiffness,
+                                                          double damping,
+                                                          double restLength = 0.0);
 
         /// \brief 6-DoFs spring-damper coupling force modelling a flexible bushing.
         ///
@@ -386,27 +386,27 @@ namespace jiminy
         ///
         /// \see See official drake documentation:
         ///      https://drake.mit.edu/doxygen_cxx/classdrake_1_1multibody_1_1_linear_bushing_roll_pitch_yaw.html
-        hresult_t registerViscoelasticCouplingForce(const std::string & systemName1,
-                                                    const std::string & systemName2,
-                                                    const std::string & frameName1,
-                                                    const std::string & frameName2,
-                                                    const Vector6d & stiffness,
-                                                    const Vector6d & damping,
-                                                    double alpha = 0.5);
-        hresult_t registerViscoelasticCouplingForce(const std::string & systemName,
-                                                    const std::string & frameName1,
-                                                    const std::string & frameName2,
-                                                    const Vector6d & stiffness,
-                                                    const Vector6d & damping,
-                                                    double alpha = 0.5);
-        hresult_t removeCouplingForces(const std::string & systemName1,
-                                       const std::string & systemName2);
-        hresult_t removeCouplingForces(const std::string & systemName);
-        hresult_t removeCouplingForces();
+        void registerViscoelasticCouplingForce(const std::string & systemName1,
+                                               const std::string & systemName2,
+                                               const std::string & frameName1,
+                                               const std::string & frameName2,
+                                               const Vector6d & stiffness,
+                                               const Vector6d & damping,
+                                               double alpha = 0.5);
+        void registerViscoelasticCouplingForce(const std::string & systemName,
+                                               const std::string & frameName1,
+                                               const std::string & frameName2,
+                                               const Vector6d & stiffness,
+                                               const Vector6d & damping,
+                                               double alpha = 0.5);
+        void removeCouplingForces(const std::string & systemName1,
+                                  const std::string & systemName2);
+        void removeCouplingForces(const std::string & systemName);
+        void removeCouplingForces();
 
         const CouplingForceVector & getCouplingForces() const;
 
-        hresult_t removeAllForces();
+        void removeAllForces();
 
         /// \brief Reset engine.
         ///
@@ -427,22 +427,18 @@ namespace jiminy
         /// \param[in] vInit Initial velocity of every system.
         /// \param[in] aInit Initial acceleration of every system.
         ///                  Optional: Zero by default.
-        hresult_t start(
+        void start(
             const std::map<std::string, Eigen::VectorXd> & qInit,
             const std::map<std::string, Eigen::VectorXd> & vInit,
             const std::optional<std::map<std::string, Eigen::VectorXd>> & aInit = std::nullopt);
 
-        /// \brief Integrate system from current state for a duration equal to stepSize
+        /// \brief Integrate system dynamics from current state for a given duration.
         ///
-        /// \details This function performs a single 'integration step', in the sense that only the
-        ///          endpoint is added to the log. The integrator object is allowed to perform
-        ///          multiple steps inside of this interval.
+        /// \details Internally, the integrator may perform multiple steps inside in the interval.
         ///
-        /// \remarks One may specify a negative timestep to use the default update value.
-        ///
-        /// \param[in] stepSize Duration for which to integrate ; set to negative value to use
-        /// default update value.
-        hresult_t step(double stepSize = -1);
+        /// \param[in] stepSize Duration for which to integrate. -1 for default duration, ie until
+        ///                     next breakpoint if any, or 'engine_options["stepper"]["dtMax"]'.
+        void step(double stepSize = -1);
 
         /// \brief Stop the simulation.
         ///
@@ -458,7 +454,7 @@ namespace jiminy
         /// \param[in] vInit Initial velocity of every system, i.e. at t=0.0.
         /// \param[in] aInit Initial acceleration of every system, i.e. at t=0.0.
         ///                  Optional: Zero by default.
-        hresult_t simulate(
+        void simulate(
             double tEnd,
             const std::map<std::string, Eigen::VectorXd> & qInit,
             const std::map<std::string, Eigen::VectorXd> & vInit,
@@ -467,39 +463,35 @@ namespace jiminy
         /// \brief Apply an impulse force on a frame for a given duration at the desired time.
         ///
         /// \warning The force must be given in the world frame.
-        hresult_t registerImpulseForce(const std::string & systemName,
-                                       const std::string & frameName,
-                                       double t,
-                                       double dt,
-                                       const pinocchio::Force & force);
+        void registerImpulseForce(const std::string & systemName,
+                                  const std::string & frameName,
+                                  double t,
+                                  double dt,
+                                  const pinocchio::Force & force);
         /// \brief Apply an external force profile on a frame.
         ///
         /// \details It can be either time-continuous or discrete. The force can be time- and
         ///          state-dependent, and must be given in the world frame.
-        hresult_t registerProfileForce(const std::string & systemName,
-                                       const std::string & frameName,
-                                       const ProfileForceFunction & forceFunc,
-                                       double updatePeriod = 0.0);
+        void registerProfileForce(const std::string & systemName,
+                                  const std::string & frameName,
+                                  const ProfileForceFunction & forceFunc,
+                                  double updatePeriod = 0.0);
 
-        hresult_t removeImpulseForces(const std::string & systemName);
-        hresult_t removeProfileForces(const std::string & systemName);
-        hresult_t removeImpulseForces();
-        hresult_t removeProfileForces();
+        void removeImpulseForces(const std::string & systemName);
+        void removeProfileForces(const std::string & systemName);
+        void removeImpulseForces();
+        void removeProfileForces();
 
-        hresult_t getImpulseForces(const std::string & systemName,
-                                   const ImpulseForceVector *& impulseForcesPtr) const;
-        hresult_t getProfileForces(const std::string & systemName,
-                                   const ProfileForceVector *& profileForcesPtr) const;
+        const ImpulseForceVector & getImpulseForces(const std::string & systemName) const;
+        const ProfileForceVector & getProfileForces(const std::string & systemName) const;
 
         GenericConfig getOptions() const noexcept;
-        hresult_t setOptions(const GenericConfig & engineOptions);
+        void setOptions(const GenericConfig & engineOptions);
         bool getIsTelemetryConfigured() const;
         std::vector<std::string> getSystemNames() const;
-        hresult_t getSystemIndex(const std::string & systemName,
-                                 std::ptrdiff_t & systemIndex) const;
-        hresult_t getSystem(const std::string & systemName, System *& system);
-        hresult_t getSystemState(const std::string & systemName,
-                                 const SystemState *& systemState) const;
+        System & getSystem(const std::string & systemName);
+        std::ptrdiff_t getSystemIndex(const std::string & systemName) const;
+        const SystemState & getSystemState(const std::string & systemName) const;
         const StepperState & getStepperState() const;
         const bool & getIsSimulationRunning() const;  // return const reference on purpose
         static double getSimulationDurationMax();
@@ -509,14 +501,14 @@ namespace jiminy
                                              const Eigen::VectorXd & q,
                                              const Eigen::VectorXd & v,
                                              const Eigen::VectorXd & a);
-        hresult_t computeSystemsDynamics(double t,
-                                         const std::vector<Eigen::VectorXd> & qSplit,
-                                         const std::vector<Eigen::VectorXd> & vSplit,
-                                         std::vector<Eigen::VectorXd> & aSplit,
-                                         bool isStateUpToDate = false);
+        void computeSystemsDynamics(double t,
+                                    const std::vector<Eigen::VectorXd> & qSplit,
+                                    const std::vector<Eigen::VectorXd> & vSplit,
+                                    std::vector<Eigen::VectorXd> & aSplit,
+                                    bool isStateUpToDate = false);
 
     protected:
-        hresult_t configureTelemetry();
+        void configureTelemetry();
         void updateTelemetry();
 
         void syncStepperStateWithSystems();
@@ -604,12 +596,11 @@ namespace jiminy
                                                     bool ignoreBounds = false);
 
     public:
-        hresult_t getLog(std::shared_ptr<const LogData> & logData);
+        std::shared_ptr<const LogData> getLog();
 
-        static hresult_t readLog(
-            const std::string & filename, const std::string & format, LogData & logData);
+        static LogData readLog(const std::string & filename, const std::string & format);
 
-        hresult_t writeLog(const std::string & filename, const std::string & format);
+        void writeLog(const std::string & filename, const std::string & format);
 
     private:
         template<typename Scalar,

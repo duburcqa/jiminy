@@ -248,52 +248,48 @@ namespace jiminy
         explicit Model() noexcept;
         virtual ~Model() = default;
 
-        hresult_t initialize(const pinocchio::Model & pinocchioModel,
-                             const pinocchio::GeometryModel & collisionModel,
-                             const pinocchio::GeometryModel & visualModel);
-        hresult_t initialize(const std::string & urdfPath,
-                             bool hasFreeflyer = true,
-                             const std::vector<std::string> & meshPackageDirs = {},
-                             bool loadVisualMeshes = false);
+        void initialize(const pinocchio::Model & pinocchioModel,
+                        const pinocchio::GeometryModel & collisionModel,
+                        const pinocchio::GeometryModel & visualModel);
+        void initialize(const std::string & urdfPath,
+                        bool hasFreeflyer = true,
+                        const std::vector<std::string> & meshPackageDirs = {},
+                        bool loadVisualMeshes = false);
 
         /// \brief Add a frame in the kinematic tree, attached to the frame of an existing body.
         ///
         /// \param[in] frameName Name of the frame to be added.
         /// \param[in] parentBodyName Name of the parent body frame.
         /// \param[in] framePlacement Frame placement wrt the parent body frame.
-        hresult_t addFrame(const std::string & frameName,
-                           const std::string & parentBodyName,
-                           const pinocchio::SE3 & framePlacement);
-        hresult_t removeFrame(const std::string & frameName);
-        hresult_t addCollisionBodies(const std::vector<std::string> & bodyNames,
-                                     bool ignoreMeshes = false);
-        hresult_t removeCollisionBodies(
-            std::vector<std::string> frameNames = {});  // Copy on purpose
-        hresult_t addContactPoints(const std::vector<std::string> & frameNames);
-        hresult_t removeContactPoints(const std::vector<std::string> & frameNames = {});
+        void addFrame(const std::string & frameName,
+                      const std::string & parentBodyName,
+                      const pinocchio::SE3 & framePlacement);
+        void removeFrame(const std::string & frameName);
+        void addCollisionBodies(const std::vector<std::string> & bodyNames,
+                                bool ignoreMeshes = false);
+        void removeCollisionBodies(std::vector<std::string> frameNames = {});  // Copy on purpose
+        void addContactPoints(const std::vector<std::string> & frameNames);
+        void removeContactPoints(const std::vector<std::string> & frameNames = {});
 
         /// \brief Add a kinematic constraint to the robot.
         ///
         /// \param[in] constraintName Unique name identifying the kinematic constraint.
         /// \param[in] constraint Constraint to add.
-        hresult_t addConstraint(const std::string & constraintName,
-                                const std::shared_ptr<AbstractConstraintBase> & constraint);
+        void addConstraint(const std::string & constraintName,
+                           const std::shared_ptr<AbstractConstraintBase> & constraint);
 
         /// \brief Remove a kinematic constraint form the system.
         ///
         /// \param[in] constraintName Unique name identifying the kinematic constraint.
-        hresult_t removeConstraint(const std::string & constraintName);
+        void removeConstraint(const std::string & constraintName);
 
         /// \brief Pointer to the constraint referenced by constraintName
         ///
         /// \param[in] constraintName Name of the constraint to get.
-        ///
-        /// \return ERROR_BAD_INPUT if constraintName does not exist, SUCCESS otherwise.
-        hresult_t getConstraint(const std::string & constraintName,
-                                std::shared_ptr<AbstractConstraintBase> & constraint);
+        std::shared_ptr<AbstractConstraintBase> getConstraint(const std::string & constraintName);
 
-        hresult_t getConstraint(const std::string & constraintName,
-                                std::weak_ptr<const AbstractConstraintBase> & constraint) const;
+        std::weak_ptr<const AbstractConstraintBase> getConstraint(
+            const std::string & constraintName) const;
 
         // Copy on purpose
         ConstraintTree getConstraints();
@@ -303,7 +299,7 @@ namespace jiminy
         /// \brief Returns true if at least one constraint is active on the robot.
         bool hasConstraints() const;
 
-        hresult_t resetConstraints(const Eigen::VectorXd & q, const Eigen::VectorXd & v);
+        void resetConstraints(const Eigen::VectorXd & q, const Eigen::VectorXd & v);
 
         /// \brief Compute jacobian and drift associated to all the constraints.
         ///
@@ -316,7 +312,7 @@ namespace jiminy
         void computeConstraints(const Eigen::VectorXd & q, const Eigen::VectorXd & v);
 
         // Copy on purpose
-        hresult_t setOptions(GenericConfig modelOptions);
+        void setOptions(GenericConfig modelOptions);
         GenericConfig getOptions() const noexcept;
 
         /// \remark This method are not intended to be called manually. The Engine is taking care
@@ -356,38 +352,38 @@ namespace jiminy
         const std::vector<std::string> & getLogAccelerationFieldnames() const;
         const std::vector<std::string> & getLogForceExternalFieldnames() const;
 
-        hresult_t getFlexiblePositionFromRigid(const Eigen::VectorXd & qRigid,
-                                               Eigen::VectorXd & qFlex) const;
-        hresult_t getRigidPositionFromFlexible(const Eigen::VectorXd & qFlex,
-                                               Eigen::VectorXd & qRigid) const;
-        hresult_t getFlexibleVelocityFromRigid(const Eigen::VectorXd & vRigid,
-                                               Eigen::VectorXd & vFlex) const;
-        hresult_t getRigidVelocityFromFlexible(const Eigen::VectorXd & vFlex,
-                                               Eigen::VectorXd & vRigid) const;
+        void getFlexiblePositionFromRigid(const Eigen::VectorXd & qRigid,
+                                          Eigen::VectorXd & qFlex) const;
+        void getRigidPositionFromFlexible(const Eigen::VectorXd & qFlex,
+                                          Eigen::VectorXd & qRigid) const;
+        void getFlexibleVelocityFromRigid(const Eigen::VectorXd & vRigid,
+                                          Eigen::VectorXd & vFlex) const;
+        void getRigidVelocityFromFlexible(const Eigen::VectorXd & vFlex,
+                                          Eigen::VectorXd & vRigid) const;
 
     protected:
-        hresult_t generateModelFlexible();
-        hresult_t generateModelBiased(const uniform_random_bit_generator_ref<uint32_t> & g);
+        void generateModelFlexible();
+        void generateModelBiased(const uniform_random_bit_generator_ref<uint32_t> & g);
 
-        hresult_t addFrame(const std::string & frameName,
-                           const std::string & parentBodyName,
-                           const pinocchio::SE3 & framePlacement,
-                           const pinocchio::FrameType & frameType);
-        hresult_t removeFrames(const std::vector<std::string> & frameNames);
+        void addFrame(const std::string & frameName,
+                      const std::string & parentBodyName,
+                      const pinocchio::SE3 & framePlacement,
+                      const pinocchio::FrameType & frameType);
+        void removeFrames(const std::vector<std::string> & frameNames);
 
-        hresult_t addConstraint(const std::string & constraintName,
-                                const std::shared_ptr<AbstractConstraintBase> & constraint,
-                                ConstraintNodeType node);
-        hresult_t addConstraints(const ConstraintMap & constraintMap, ConstraintNodeType node);
-        hresult_t removeConstraint(const std::string & constraintName, ConstraintNodeType node);
-        hresult_t removeConstraints(const std::vector<std::string> & constraintsNames,
-                                    ConstraintNodeType node);
+        void addConstraint(const std::string & constraintName,
+                           const std::shared_ptr<AbstractConstraintBase> & constraint,
+                           ConstraintNodeType node);
+        void addConstraints(const ConstraintMap & constraintMap, ConstraintNodeType node);
+        void removeConstraint(const std::string & constraintName, ConstraintNodeType node);
+        void removeConstraints(const std::vector<std::string> & constraintNames,
+                               ConstraintNodeType node);
 
-        hresult_t refreshGeometryProxies();
-        hresult_t refreshContactProxies();
+        void refreshGeometryProxies();
+        void refreshContactProxies();
         /// \brief Refresh the proxies of the kinematics constraints.
-        hresult_t refreshConstraintProxies();
-        virtual hresult_t refreshProxies();
+        void refreshConstraintProxies();
+        virtual void refreshProxies();
 
     public:
         pinocchio::Model pinocchioModelOrig_{};

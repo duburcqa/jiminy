@@ -61,9 +61,7 @@ namespace jiminy
         /// \brief Open the device.
         ///
         /// \param mode Mode to apply for opening the device.
-        ///
-        /// \return hresult_t::SUCCESS if successful, another hresult_t value otherwise.
-        hresult_t open(OpenMode mode);
+        void open(OpenMode mode);
 
         /// \brief Write data in the device.
         ///
@@ -71,9 +69,7 @@ namespace jiminy
         ///          template shall be extended with specific implementation.
         ///
         /// \param Value to write into the device.
-        ///
-        /// \return hresult_t::SUCCESS if successful, another hresult_t value otherwise.
-        hresult_t close();
+        void close();
 
         /// \brief Current opening modes.
         OpenMode openModes() const;
@@ -103,15 +99,13 @@ namespace jiminy
         /// \brief Move the current position cursor to pos if possible.
         ///
         /// \param pos Desired new position of the cursor.
-        ///
-        /// \return hresult_t::SUCCESS if successful, another hresult_t value otherwise.
-        virtual hresult_t seek(std::ptrdiff_t pos);
+        virtual void seek(std::ptrdiff_t pos);
 
         /// \brief The current cursor position (0 if there is not concept of position cursor).
         virtual std::ptrdiff_t pos();
 
         /// \brief Resize the device to provided size.
-        virtual hresult_t resize(std::size_t size);
+        virtual void resize(std::size_t size);
 
         /// \brief Returns the number of bytes that are available for reading. Commonly used with
         ///        sequential device.
@@ -123,19 +117,15 @@ namespace jiminy
         ///          template shall be extended with specific implementation.
         ///
         /// \param Value to write into the device.
-        ///
-        /// \return hresult_t::SUCCESS if successful, another hresult_t value otherwise.
         template<typename T>
-        std::enable_if_t<!is_contiguous_container_v<T> && std::is_trivially_copyable_v<T>,
-                         hresult_t>
+        std::enable_if_t<!is_contiguous_container_v<T> && std::is_trivially_copyable_v<T>, void>
         write(const T & value);
 
         template<typename T>
-        std::enable_if_t<is_contiguous_container_v<T>, hresult_t> write(const T & value);
+        std::enable_if_t<is_contiguous_container_v<T>, void> write(const T & value);
 
         template<typename T>
-        std::enable_if_t<!is_contiguous_container_v<T> && !std::is_trivially_copyable_v<T>,
-                         hresult_t>
+        std::enable_if_t<!is_contiguous_container_v<T> && !std::is_trivially_copyable_v<T>, void>
         write(const T & value) = delete;
 
         /// \brief Read data in the device.
@@ -144,30 +134,24 @@ namespace jiminy
         ///          template shall be extended with specific implementation.
         ///
         /// \param Value to store read data.
-        ///
-        /// \return hresult_t::SUCCESS if successful, another hresult_t value otherwise.
         template<typename T>
         std::enable_if_t<!is_contiguous_container_v<remove_cvref_t<T>> &&
                              std::is_trivially_copyable_v<remove_cvref_t<T>>,
-                         hresult_t>
+                         void>
         read(T && value);
 
         template<typename T>
-        std::enable_if_t<is_contiguous_container_v<remove_cvref_t<T>>, hresult_t> read(T && value);
+        std::enable_if_t<is_contiguous_container_v<remove_cvref_t<T>>, void> read(T && value);
 
         template<typename T>
         std::enable_if_t<!is_contiguous_container_v<remove_cvref_t<T>> &&
                              !std::is_trivially_copyable_v<remove_cvref_t<T>>,
-                         hresult_t>
+                         void>
         read(T && value) = delete;
 
-        /// \brief Retrieve the latest error. Useful for calls that do not return an error code
-        ///        directly.
-        hresult_t getLastError() const;
-
     protected:
-        virtual hresult_t doOpen(OpenMode mode) = 0;
-        virtual hresult_t doClose() = 0;
+        virtual void doOpen(OpenMode mode) = 0;
+        virtual void doClose() = 0;
 
         /// \brief Write data in the device.
         ///
@@ -181,17 +165,13 @@ namespace jiminy
         ///
         /// \param data Buffer of data to write.
         /// \param dataSize Number of bytes to write.
-        ///
-        /// \return hresult_t::SUCCESS if successful, another hresult_t value otherwise.
-        virtual hresult_t write(const void * data, std::size_t dataSize);
+        virtual void write(const void * data, std::size_t dataSize);
 
         /// \brief Read data from the device.
         ///
         /// \param data Buffer to store read data.
         /// \param dataSize Number of bytes to read.
-        ///
-        /// \return hresult_t::SUCCESS if successful, another hresult_t value otherwise.
-        virtual hresult_t read(void * data, std::size_t dataSize);
+        virtual void read(void * data, std::size_t dataSize);
 
         /// \brief Read data in the device.
         ///
@@ -206,8 +186,6 @@ namespace jiminy
         const OpenMode supportedModes_;
         /// \brief Current opening mode.
         OpenMode modes_{OpenMode::NOT_OPEN};
-        /// \brief Latest generated error.
-        hresult_t lastError_{hresult_t::SUCCESS};
     };
 }
 

@@ -93,6 +93,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                  **kwargs: Any) -> None:
         r"""
         :param urdf_path: Path of the urdf model to be used for the simulation.
+                          It is assumed that the robot has a floating base.
         :param hardware_path: Path of Jiminy hardware description toml file.
                               Optional: Looking for '\*_hardware.toml' file in
                               the same folder and with the same name.

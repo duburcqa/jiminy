@@ -54,12 +54,10 @@ namespace jiminy
         /// \param[in] q Current configuration vector
         /// \param[in] v Current velocity vector
         /// \param[out] command Output effort vector
-        ///
-        /// \return Return code to determine whether the execution of the method was successful.
-        virtual hresult_t computeCommand(double t,
-                                         const Eigen::VectorXd & q,
-                                         const Eigen::VectorXd & v,
-                                         Eigen::VectorXd & command) override;
+        virtual void computeCommand(double t,
+                                    const Eigen::VectorXd & q,
+                                    const Eigen::VectorXd & v,
+                                    Eigen::VectorXd & command) override;
 
         /// \brief Emulate custom phenomenon that are part of the internal dynamics of the system
         ///        but not included in the physics engine.
@@ -68,12 +66,10 @@ namespace jiminy
         /// \param[in] q Current configuration vector.
         /// \param[in] v Current velocity vector.
         /// \param[in] command Output effort vector.
-        ///
-        /// \return Return code to determine whether the execution of the method was successful.
-        virtual hresult_t internalDynamics(double t,
-                                           const Eigen::VectorXd & q,
-                                           const Eigen::VectorXd & v,
-                                           Eigen::VectorXd & uCustom) override;
+        virtual void internalDynamics(double t,
+                                      const Eigen::VectorXd & q,
+                                      const Eigen::VectorXd & v,
+                                      Eigen::VectorXd & uCustom) override;
 
     private:
         /// \brief 'Callable' computing the command.

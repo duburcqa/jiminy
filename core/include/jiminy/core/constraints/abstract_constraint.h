@@ -29,17 +29,17 @@ namespace jiminy
         ///
         /// \remark This method is not intended to be called manually. The Robot to which the
         ///         constraint is added is taking care of it when its own `reset` method is called.
-        virtual hresult_t reset(const Eigen::VectorXd & q, const Eigen::VectorXd & v) = 0;
+        virtual void reset(const Eigen::VectorXd & q, const Eigen::VectorXd & v) = 0;
 
         void enable();
         void disable();
         bool getIsEnabled() const;
 
-        hresult_t setBaumgartePositionGain(double kp);
+        void setBaumgartePositionGain(double kp);
         double getBaumgartePositionGain() const;
-        hresult_t setBaumgarteVelocityGain(double kd);
+        void setBaumgarteVelocityGain(double kd);
         double getBaumgarteVelocityGain() const;
-        hresult_t setBaumgarteFreq(double freq);
+        void setBaumgarteFreq(double freq);
         /// \brief Natural frequency of critically damping position/velocity error correction.
         double getBaumgarteFreq() const;
 
@@ -50,8 +50,8 @@ namespace jiminy
         ///
         /// \param[in] q Current joint position.
         /// \param[in] v Current joint velocity.
-        virtual hresult_t computeJacobianAndDrift(const Eigen::VectorXd & q,
-                                                  const Eigen::VectorXd & v) = 0;
+        virtual void computeJacobianAndDrift(const Eigen::VectorXd & q,
+                                             const Eigen::VectorXd & v) = 0;
 
         virtual const std::string & getType() const = 0;
 
@@ -70,7 +70,7 @@ namespace jiminy
         /// \param[in] model Model on which to apply the constraint.
         ///
         /// \return Error code: attach may fail, including if the constraint is already attached.
-        hresult_t attach(std::weak_ptr<const Model> model);
+        void attach(std::weak_ptr<const Model> model);
 
         /// \brief Detach the constraint from its model.
         void detach();

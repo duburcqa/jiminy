@@ -19,7 +19,7 @@ namespace jiminy
         explicit JsonWriter(const std::shared_ptr<AbstractIODevice> & device) noexcept;
 
         /// \brief Dump current content to device.
-        hresult_t dump(const Json::Value & input);
+        void dump(const Json::Value & input);
 
     private:
         std::shared_ptr<AbstractIODevice> device_;

@@ -3,7 +3,8 @@
 
 #include <optional>
 
-#include "pinocchio/multibody/fcl.hpp"  // `pinocchio::GeometryType`
+#include "pinocchio/multibody/fcl.hpp"    // `pinocchio::GeometryType`
+#include "pinocchio/multibody/frame.hpp"  // `pinocchio::FrameType`
 
 #include "jiminy/core/fwd.h"
 
@@ -12,63 +13,54 @@ namespace jiminy
 {
     JointModelType JIMINY_DLLAPI getJointType(const pinocchio::JointModel & jointModel) noexcept;
 
-    hresult_t JIMINY_DLLAPI getJointTypeFromIndex(const pinocchio::Model & model,
-                                                  pinocchio::JointIndex jointIndex,
-                                                  JointModelType & jointType);
+    JointModelType JIMINY_DLLAPI getJointTypeFromIndex(const pinocchio::Model & model,
+                                                       pinocchio::JointIndex jointIndex);
 
-    hresult_t JIMINY_DLLAPI getJointNameFromPositionIndex(const pinocchio::Model & model,
-                                                          pinocchio::JointIndex jointPositionIndex,
-                                                          std::string & jointName);
+    std::string JIMINY_DLLAPI getJointNameFromPositionIndex(
+        const pinocchio::Model & model, pinocchio::JointIndex jointPositionIndex);
 
-    hresult_t JIMINY_DLLAPI getJointNameFromVelocityIndex(const pinocchio::Model & model,
-                                                          pinocchio::JointIndex jointVelocityIndex,
-                                                          std::string & jointName);
+    std::string JIMINY_DLLAPI getJointNameFromVelocityIndex(
+        const pinocchio::Model & model, pinocchio::JointIndex jointVelocityIndex);
 
-    hresult_t getJointTypePositionSuffixes(JointModelType jointType,
-                                           std::vector<std::string_view> & jointPositionSuffixes);
+    // FIXME: Return std::span<std::string_view> and add constexpr specifier when moving to C++20
+    std::vector<std::string_view> getJointTypePositionSuffixes(JointModelType jointType);
 
-    hresult_t getJointTypeVelocitySuffixes(JointModelType jointType,
-                                           std::vector<std::string_view> & jointVelocitySuffixes);
+    // FIXME: Return std::span<std::string_view> and add constexpr specifier when moving to C++20
+    std::vector<std::string_view> getJointTypeVelocitySuffixes(JointModelType jointType);
 
-    hresult_t JIMINY_DLLAPI getFrameIndex(const pinocchio::Model & model,
-                                          const std::string & frameName,
-                                          pinocchio::FrameIndex & frameIndex);
-    hresult_t JIMINY_DLLAPI getFrameIndices(const pinocchio::Model & model,
-                                            const std::vector<std::string> & frameNames,
-                                            std::vector<pinocchio::FrameIndex> & frameIndices);
+    pinocchio::FrameIndex JIMINY_DLLAPI getFrameIndex(
+        const pinocchio::Model & model,
+        const std::string & frameName,
+        pinocchio::FrameType frameType = static_cast<pinocchio::FrameType>(
+            pinocchio::JOINT | pinocchio::FIXED_JOINT | pinocchio::BODY | pinocchio::OP_FRAME |
+            pinocchio::SENSOR));
+    std::vector<pinocchio::FrameIndex> JIMINY_DLLAPI getFrameIndices(
+        const pinocchio::Model & model, const std::vector<std::string> & frameNames);
 
-    hresult_t JIMINY_DLLAPI getJointIndex(const pinocchio::Model & model,
-                                          const std::string & jointName,
-                                          pinocchio::JointIndex & jointIndex);
-    hresult_t JIMINY_DLLAPI getJointIndices(
+    pinocchio::JointIndex JIMINY_DLLAPI getJointIndex(const pinocchio::Model & model,
+                                                      const std::string & jointName);
+    std::vector<pinocchio::JointIndex> JIMINY_DLLAPI getJointIndices(
+        const pinocchio::Model & model, const std::vector<std::string> & jointNames);
+
+    /// \brief Return only the first position index associated with the joint regardless its number
+    ///        of degrees of freedom.
+    Eigen::Index JIMINY_DLLAPI getJointPositionFirstIndex(const pinocchio::Model & model,
+                                                          const std::string & jointName);
+    /// \brief Return all the position indices associated with the joint.
+    std::vector<Eigen::Index> JIMINY_DLLAPI getJointPositionIndices(const pinocchio::Model & model,
+                                                                    const std::string & jointName);
+    std::vector<Eigen::Index> JIMINY_DLLAPI getJointsPositionIndices(
         const pinocchio::Model & model,
         const std::vector<std::string> & jointNames,
-        std::vector<pinocchio::JointIndex> & jointModelIndices);
-
-    hresult_t JIMINY_DLLAPI getJointPositionFirstIndex(const pinocchio::Model & model,
-                                                       const std::string & jointName,
-                                                       Eigen::Index & jointPositionFirstIndex);
-    hresult_t JIMINY_DLLAPI getJointPositionIndices(
-        const pinocchio::Model & model,
-        const std::string & jointName,
-        std::vector<Eigen::Index> & jointPositionIndices);
-    hresult_t JIMINY_DLLAPI getJointsPositionIndices(
-        const pinocchio::Model & model,
-        const std::vector<std::string> & jointNames,
-        std::vector<Eigen::Index> & jointsPositionIndices,
         bool onlyFirstIndex = false);
 
-    hresult_t JIMINY_DLLAPI getJointVelocityFirstIndex(const pinocchio::Model & model,
-                                                       const std::string & jointName,
-                                                       Eigen::Index & jointVelocityFirstIndex);
-    hresult_t JIMINY_DLLAPI getJointVelocityIndices(
-        const pinocchio::Model & model,
-        const std::string & jointName,
-        std::vector<Eigen::Index> & jointVelocityIndices);
-    hresult_t JIMINY_DLLAPI getJointsVelocityIndices(
+    Eigen::Index JIMINY_DLLAPI getJointVelocityFirstIndex(const pinocchio::Model & model,
+                                                          const std::string & jointName);
+    std::vector<Eigen::Index> JIMINY_DLLAPI getJointVelocityIndices(const pinocchio::Model & model,
+                                                                    const std::string & jointName);
+    std::vector<Eigen::Index> JIMINY_DLLAPI getJointsVelocityIndices(
         const pinocchio::Model & model,
         const std::vector<std::string> & jointNames,
-        std::vector<Eigen::Index> & jointsVelocityIndices,
         bool onlyFirstIndex = false);
 
     bool JIMINY_DLLAPI isPositionValid(
@@ -80,18 +72,17 @@ namespace jiminy
                     pinocchio::JointIndex jointIndex1,
                     pinocchio::JointIndex jointIndex2);
 
-    hresult_t insertFlexibilityBeforeJointInModel(pinocchio::Model & model,
-                                                  const std::string & childJointName,
-                                                  const std::string & newJointName);
+    void insertFlexibilityBeforeJointInModel(pinocchio::Model & model,
+                                             const std::string & childJointName,
+                                             const std::string & newJointName);
 
-    hresult_t insertFlexibilityAtFixedFrameInModel(pinocchio::Model & model,
-                                                   const std::string & frameName);
+    void insertFlexibilityAtFixedFrameInModel(pinocchio::Model & model,
+                                              const std::string & frameName);
 
-    hresult_t JIMINY_DLLAPI interpolatePositions(const pinocchio::Model & model,
-                                                 const Eigen::VectorXd & timesIn,
-                                                 const Eigen::MatrixXd & positionsIn,
-                                                 const Eigen::VectorXd & timesOut,
-                                                 Eigen::MatrixXd & positionsOut);
+    Eigen::MatrixXd JIMINY_DLLAPI interpolatePositions(const pinocchio::Model & model,
+                                                       const Eigen::VectorXd & timesIn,
+                                                       const Eigen::MatrixXd & positionsIn,
+                                                       const Eigen::VectorXd & timesOut);
 
     /// \brief Translate a force expressed at the given fixed frame to its parent joint frame.
     ///
@@ -106,15 +97,15 @@ namespace jiminy
                                                     pinocchio::FrameIndex frameIndex,
                                                     const pinocchio::Force & fextInGlobal);
 
-    hresult_t buildGeometryModelFromUrdf(const pinocchio::Model & model,
-                                         const std::string & filename,
-                                         const pinocchio::GeometryType & type,
-                                         pinocchio::GeometryModel & geomModel,
-                                         const std::vector<std::string> & meshPackageDirs,
-                                         bool loadMeshes = true,
-                                         bool makeConvexMeshes = false);
+    pinocchio::GeometryModel buildGeometryModelFromUrdf(
+        const pinocchio::Model & model,
+        const std::string & filename,
+        const pinocchio::GeometryType & type,
+        const std::vector<std::string> & meshPackageDirs,
+        bool loadMeshes = true,
+        bool makeConvexMeshes = false);
 
-    hresult_t JIMINY_DLLAPI buildMultipleModelsFromUrdf(
+    void JIMINY_DLLAPI buildMultipleModelsFromUrdf(
         const std::string & urdfPath,
         bool hasFreeflyer,
         const std::vector<std::string> & meshPackageDirs,
