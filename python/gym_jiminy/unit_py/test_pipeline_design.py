@@ -1,6 +1,8 @@
 """ TODO: Write documentation
 """
+import gc
 import os
+import weakref
 import unittest
 
 import numpy as np
@@ -108,6 +110,20 @@ class PipelineDesign(unittest.TestCase):
         # It does not override the default persistently
         env = self.ANYmalPipelineEnv()
         self.assertEqual(env.unwrapped.step_dt, self.step_dt)
+
+    def test_memory_leak(self):
+        """Check that memory is freed when environment goes out of scope.
+
+        This test aims to detect circular references between Python and C++
+        objects that cannot be tracked by Python, which would make it
+        impossible for the garbage collector to release memory.
+        """
+        env = self.ANYmalPipelineEnv()
+        env.reset()
+        proxy = weakref.proxy(env)
+        env = None
+        gc.collect()
+        self.assertRaises(ReferenceError, lambda: proxy.action)
 
     def test_initial_state(self):
         """ TODO: Write documentation

@@ -7,7 +7,7 @@ import atexit
 import logging
 import pathlib
 import tempfile
-from weakref import ref
+import weakref
 from copy import deepcopy
 from itertools import chain
 from functools import partial
@@ -93,21 +93,20 @@ class Simulator:
         # Wrap callback in nested function to hide update of progress bar
         # Note that a weak reference must be used to avoid circular reference
         # resulting in uncollectable object and hence memory leak.
-        simulator_ref = ref(self)
+        simulator_proxy = weakref.proxy(self)
 
-        def callback_wrapper(t: float,
+        def callback_wrapper(simulator_proxy: weakref.ProxyType,
+                             t: float,
                              *args: Any,
                              **kwargs: Any) -> None:
-            nonlocal simulator_ref
-            simulator = simulator_ref()
-            assert simulator is not None
-            if simulator.__pbar is not None:
-                simulator.__pbar.update(t - simulator.__pbar.n)
-            simulator._callback(t, *args, **kwargs)
+            if simulator_proxy.__pbar is not None:
+                simulator_proxy.__pbar.update(t - simulator_proxy.__pbar.n)
+            simulator_proxy._callback(t, *args, **kwargs)
 
         # Instantiate the low-level Jiminy engine, then initialize it
         self.engine = engine_class()
-        self.engine.initialize(robot, controller, callback_wrapper)
+        self.engine.initialize(
+            robot, controller, partial(callback_wrapper, simulator_proxy))
 
         # Create shared memories and python-native attribute for fast access
         self.stepper_state = self.engine.stepper_state
