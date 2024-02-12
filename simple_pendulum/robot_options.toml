@@ -9,7 +9,7 @@ tolRel = 1.0e-6
 tolAbs = 1.0e-5
 iterMax = 0
 timeout = -1
-randomSeed = 0
+randomSeedSeq = [0,]
 logInternalStepperSteps = false
 
 # ================= Telemetry ==================
