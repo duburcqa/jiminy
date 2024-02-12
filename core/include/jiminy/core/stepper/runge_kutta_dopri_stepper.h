@@ -34,8 +34,14 @@ namespace jiminy
         /// \brief Stepper order, used to scale the error.
         inline constexpr double STEPPER_ORDER = 5.0;
         /// \brief Safety factor when updating the error, should be less than 1.
-        inline constexpr double SAFETY = 0.8;
-        /// \brief Miminum allowed relative step decrease.
+        ///
+        /// \details The larger the more conservative. More precisely, a small safety factor means
+        ///          that the step size will be increased less aggressively when the error is small
+        ///          and decreased more aggressively when the error is large.
+        inline constexpr double SAFETY = 0.9;
+        /// \brief Maximum acceptable error threshold below which step size is increased.
+        inline constexpr double ERROR_THRESHOLD = 0.5;
+        /// \brief Mininum allowed relative step decrease.
         inline constexpr double MIN_FACTOR = 0.2;
         /// \brief Maximum allowed relative step increase.
         inline constexpr double MAX_FACTOR = 5.0;
