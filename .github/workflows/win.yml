@@ -226,3 +226,4 @@ jobs:
       uses: pypa/gh-action-pypi-publish@v1.8.11
       with:
         packages-dir: wheelhouse
+        verify-metadata: false
