@@ -6,7 +6,7 @@ from collections import OrderedDict
 from collections.abc import Mapping, MutableMapping, Sequence, MutableSequence
 from typing import (
     Any, Dict, Optional, Union, Sequence as SequenceT, Mapping as MappingT,
-    Iterable, Tuple, Literal, SupportsFloat, TypeVar, Type, Callable, Protocol,
+    Iterable, Tuple, Literal, SupportsFloat, TypeVar, Type, Callable,
     no_type_check, cast)
 
 import numba as nb
@@ -17,9 +17,6 @@ import gymnasium as gym
 
 from jiminy_py import tree
 from jiminy_py.core import array_copyto  # pylint: disable=no-name-in-module
-
-
-GLOBAL_RNG = np.random.default_rng()
 
 
 ValueT = TypeVar('ValueT')
@@ -34,16 +31,6 @@ DataNested = StructNested[np.ndarray]
 DataNestedT = TypeVar('DataNestedT', bound=DataNested)
 
 ArrayOrScalar = Union[np.ndarray, SupportsFloat]
-ArrayOrScalarT = TypeVar('ArrayOrScalarT', bound=ArrayOrScalar)
-
-
-class RandomDistribution(Protocol):
-    """Protocol to be satisfied when passing generic statistical distribution
-    callable to `sample` method.
-    """
-    def __call__(self, rg: np.random.Generator, *args: Any, **kwargs: Any
-                 ) -> ArrayOrScalar:
-        ...
 
 
 @no_type_check
@@ -128,92 +115,6 @@ def get_bounds(space: gym.Space
     if isinstance(space, gym.spaces.MultiDiscrete):
         return 0, space.nvec
     return None, None
-
-
-def sample(low: Union[float, np.ndarray] = -1.0,
-           high: Union[float, np.ndarray] = 1.0,
-           dist: Union[str, RandomDistribution] = 'uniform',
-           scale: Union[float, np.ndarray] = 1.0,
-           enable_log_scale: bool = False,
-           shape: Optional[SequenceT[int]] = None,
-           rg: Optional[np.random.Generator] = None
-           ) -> np.ndarray:
-    """Randomly sample values from a given distribution.
-
-    .. note:
-        If 'low', 'high', and 'scale' are floats, then the output is float if
-        'shape' is None, otherwise it has type `np.ndarray` and shape 'shape'.
-        Similarly, if any of 'low', 'high', and 'scale' are `np.ndarray`, then
-        its shape follows the broadcasting rules between these variables.
-
-    :param low: Lower value for bounded distribution, negative-side standard
-                deviation otherwise.
-                Optional: -1.0 by default.
-    :param high: Upper value for bounded distribution, positive-side standard
-                 deviation otherwise.
-                 Optional: 1.0 by default.
-    :param dist: The statistical from which to draw samples, either provided as
-                 a pre-defined string or a callable. For strings, then it must
-                 be a member function of `np.random.Generator` (only 'uniform'
-                 and 'normal' are supported for now). For callables, it must
-                 corresponds to a standardized distribution and satisfying
-                 `gym_jiminy.common.utils.RandomDistribution` protocol. This is
-                 especially useful for specifying custom parameters of complex
-                 distributions such as Beta. Using `functools.partial` is
-                 recommended, eg `partial(np.random.Generator.Beta, a=1, b=8)`.
-                 Optional: 'uniform' by default.
-    :param scale: Shrink the standard deviation of the distribution around the
-                  mean by this factor.
-                  Optional: No scaling by default?
-    :param enable_log_scale: The sampled values are power of 10.
-    :param shape: Enforce of the sampling shape. Only available if 'low',
-                  'high' and 'scale' are floats. `None` to disable.
-                  Optional: Disabled by default.
-    :param rg: Custom random number generator from which to draw samples.
-               Optional: Default to `np.random`.
-    """
-    # Compute mean and deviation from low and high arguments
-    mean = 0.5 * (low + high)
-    dev = 0.5 * scale * (high - low)
-
-    # Get sample shape.
-    # Better use dev than mean since it works even if only scale is array.
-    if isinstance(dev, np.ndarray):
-        if shape is None:
-            shape = dev.shape
-        else:
-            try:
-                shape = list(shape)
-                np.broadcast(np.empty(shape, dtype=[]), dev)
-            except ValueError as e:
-                raise ValueError(
-                    f"'shape' {shape} must be broadcast-able with 'low', "
-                    f"'high' and 'scale' {dev.shape} if specified.") from e
-
-    # Define "standardized" distribution callable if only its name was provided
-    if isinstance(dist, str):
-        if dist not in ('uniform', 'normal'):
-            raise NotImplementedError(
-                f"'{dist}' distribution type is not supported for now.")
-        dist_fn = getattr(np.random.Generator, dist)
-        if dist == 'uniform':
-            # The uniform distribution is NOT standardized by default
-            dist_fn = partial(dist_fn, low=-1.0, high=1.0)
-    else:
-        dist_fn = dist
-
-    # Generate samples from distribution.
-    # Make sure that the result is always returned as np.ndarray.
-    value = np.asarray(dist_fn(rg or GLOBAL_RNG, size=shape))
-
-    # Apply mean and standard deviation transformation
-    value = mean + dev * value
-
-    # Revert log scale if requested
-    if enable_log_scale:
-        value = 10 ** value
-
-    return value
 
 
 @no_type_check
