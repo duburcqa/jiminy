@@ -50,7 +50,7 @@ python -m pip install --prefer-binary gym-jiminy[all]
 
 ## Excluding dependencies on Ubuntu 18+
 
-First, one must install the pre-compiled libraries of the dependencies. Most of them are available on `robotpkg` APT repository. Just run the bash script to install them automatically for Ubuntu 18 and upward. It should be straightforward to adapt it to any other distribution for which `robotpkg` is available.
+First, one must install the pre-compiled libraries of the dependencies. Most of them are available on `robotpkg` APT repository. Just run the bash script to install them automatically for Ubuntu 18 and upward. It should be straightforward to adapt it to any other distribution for which `robotpkg` is available. Note that if you plan to use a virtual environment (`venv`, `pyenv`, ...), you must install the Python dependencies manually using `pip`, i.e. `"wheel", "numpy>=1.21,<2.0"`.
 
 ```bash
 sudo env "PATH=$PATH" ./build_tools/easy_install_deps_ubuntu.sh
@@ -66,16 +66,16 @@ InstallDir="$RootDir/install"
 
 mkdir "$RootDir/build" "$InstallDir"
 cd "$RootDir/build"
-cmake "$RootDir" -DCMAKE_INSTALL_PREFIX="$InstallDir" \
-      -DBoost_NO_SYSTEM_PATHS=OFF \
+cmake "$RootDir" -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="/opt/openrobots/" \
+      -DPYTHON_EXECUTABLE="$(python3 -c 'import sys; sys.stdout.write(sys.executable)')" \
       -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON \
       -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2
 ```
 
-## Including dependencies on Linux-based OS
+## Including dependencies on Unix-based OS
 
-### Prerequisites
+### Prerequisites (must be adapted to package managers other than `apt`)
 
 ```bash
 sudo apt install -y gnupg curl wget build-essential cmake doxygen graphviz
