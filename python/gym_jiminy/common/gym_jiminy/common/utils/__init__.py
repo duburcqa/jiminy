@@ -3,7 +3,6 @@
 from .spaces import (DataNested,
                      FieldNested,
                      get_bounds,
-                     sample,
                      zeros,
                      fill,
                      copyto,
@@ -20,7 +19,8 @@ from .spaces import (DataNested,
 from .helpers import (is_breakpoint,
                       is_nan,
                       get_fieldnames,
-                      register_variables)
+                      register_variables,
+                      sample)
 from .pipeline import build_pipeline, load_pipeline
 
 

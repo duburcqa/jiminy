@@ -25,6 +25,13 @@ namespace jiminy
     double RungeKuttaDOPRIStepper::computeError(
         const State & initialState, const State & solution, double dt)
     {
+        // Compute error scale given absolute and relative tolerance
+        otherSolution_.setZero();
+        initialState.difference(otherSolution_, scale_);
+        scale_.absInPlace();
+        scale_ *= tolRel_;
+        scale_ += tolAbs_;
+        
         // Compute alternative solution
         stateIncrement_.setZero();
         for (std::size_t i = 0; i < ki_.size(); ++i)
@@ -36,44 +43,38 @@ namespace jiminy
         // Evaluate error between both states to adjust step
         solution.difference(otherSolution_, error_);
 
-        // Compute absolute and relative element-wise maximum error
-        double errorAbsNorm = INF;
-        double errorRelNorm = INF;
-        if (tolAbs_ > EPS)
-        {
-            errorAbsNorm = error_.normInf() / tolAbs_;
-        }
-        if (tolRel_ > EPS)
-        {
-            otherSolution_.setZero();
-            solution.difference(otherSolution_, scale_);
-            error_ /= scale_;
-            errorRelNorm = error_.normInf() / tolRel_;
-        }
-
-        // Return the smallest error between absolute and relative
-        return std::min(errorAbsNorm, errorRelNorm);
+        // Return element-wise maximum rescaled error
+        error_ /= scale_;
+        return error_.normInf();
     }
 
     bool RungeKuttaDOPRIStepper::adjustStepImpl(double error, double & dt)
     {
-        // Make sure the error is defined, otherwise rely on a simple heuristic
+        // Make sure the error is defined, otherwise rely on simple heuristic
         if (std::isnan(error))
         {
             dt *= 0.1;
             return false;
         }
 
-        // Adjustment algorithm from boost implementation
+        /* Adjustment algorithm from boost implementation.
+           For technical reference, see original boost::odeint implementation:
+           https://beta.boost.org/doc/libs/1_82_0/libs/numeric/odeint/doc/html/boost_numeric_odeint/odeint_in_detail/steppers.html#boost_numeric_odeint.odeint_in_detail.steppers.controlled_steppers
+        */
         if (error < 1.0)
         {
-            // Only increase if error is sufficiently small
-            if (error < std::pow(DOPRI::SAFETY, DOPRI::STEPPER_ORDER))
+            /* Increase step size only if the error is sufficiently small.
+               The threshold must be chosen in a way to guarantee that it actually decreases. */
+            if (error <
+                std::min(DOPRI::ERROR_THRESHOLD, std::pow(DOPRI::SAFETY, DOPRI::STEPPER_ORDER)))
             {
-                // Prevent numeric rounding error when close to zero
-                const double newError = std::max(
+                /* Prevent numeric rounding error when close to zero.
+                   Multiply step size by 'DOPRI::SAFETY / (error ** (1 / DOPRI::STEPPER_ORDER))',
+                   up to 'DOPRI::MAX_FACTOR'.
+                */
+                const double clippedError = std::max(
                     error, std::pow(DOPRI::MAX_FACTOR / DOPRI::SAFETY, -DOPRI::STEPPER_ORDER));
-                dt *= DOPRI::SAFETY * std::pow(newError, -1.0 / DOPRI::STEPPER_ORDER);
+                dt *= DOPRI::SAFETY * std::pow(clippedError, -1.0 / DOPRI::STEPPER_ORDER);
             }
             return true;
         }

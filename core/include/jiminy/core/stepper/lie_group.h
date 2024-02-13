@@ -76,6 +76,13 @@ namespace Eigen
         const DataType & a() const { return derived().a(); }
         DataType & a() { return derived().a(); }
 
+        StateDerivativeBase & absInPlace()
+        {
+            v().array() = v().array().abs();
+            a().array() = a().array().abs();
+            return *this;
+        }
+
         template<int p>
         RealScalar lpNorm() const;
         RealScalar norm() const { return lpNorm<2>(); };
@@ -1244,6 +1251,15 @@ namespace Eigen
         for (std::size_t i = 0; i < vector_.size(); ++i)                                      \
         {                                                                                     \
             vector_[i] += scale * vectorIn[i];                                                \
+        }                                                                                     \
+        return *this;                                                                         \
+    }                                                                                         \
+                                                                                              \
+    StateDerivativeVector & absInPlace()                                                      \
+    {                                                                                         \
+        for (std::size_t i = 0; i < vector_.size(); ++i)                                      \
+        {                                                                                     \
+            vector_[i].absInPlace();                                                          \
         }                                                                                     \
         return *this;                                                                         \
     }
