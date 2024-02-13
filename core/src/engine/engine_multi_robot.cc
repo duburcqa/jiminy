@@ -352,7 +352,7 @@ namespace jiminy
             // Compute intermediary quantities
             rot12.noalias() = oMf1.rotation().transpose() * oMf2.rotation();
             rotLog12 = pinocchio::log3(rot12, angle);
-            if (angle < 0.95 * M_PI)
+            if (angle > 0.95 * M_PI)
             {
                 THROW_ERROR(std::runtime_error,
                             "Relative angle between reference frames of viscoelastic "
@@ -3409,8 +3409,11 @@ namespace jiminy
 
             const Eigen::Map<const Eigen::Quaterniond> quat(q.segment<4>(positionIndex).data());
             const Eigen::Vector3d angleAxis = pinocchio::quaternion::log3(quat, angle);
-            assert((angle < 0.95 * M_PI) &&
-                   "Flexible joint angle must be smaller than 0.95 * pi.");
+            if (angle > 0.95 * M_PI)  // Angle is always positive
+            {
+                THROW_ERROR(std::runtime_error,
+                            "Flexible joint angle must be smaller than 0.95 * pi.");
+            }
             pinocchio::Jlog3(angle, angleAxis, rotJlog3);
             uInternal.segment<3>(velocityIndex) -=
                 rotJlog3 * (stiffness.array() * angleAxis.array()).matrix();
