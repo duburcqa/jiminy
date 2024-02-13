@@ -25,6 +25,13 @@ namespace jiminy
     double RungeKuttaDOPRIStepper::computeError(
         const State & initialState, const State & solution, double dt)
     {
+        // Compute error scale given absolute and relative tolerance
+        otherSolution_.setZero();
+        initialState.difference(otherSolution_, scale_);
+        scale_.absInPlace();
+        scale_ *= tolRel_;
+        scale_ += tolAbs_;
+        
         // Compute alternative solution
         stateIncrement_.setZero();
         for (std::size_t i = 0; i < ki_.size(); ++i)
@@ -36,14 +43,7 @@ namespace jiminy
         // Evaluate error between both states to adjust step
         solution.difference(otherSolution_, error_);
 
-        // Compute error scale
-        otherSolution_.setZero();
-        solution.difference(otherSolution_, scale_);
-        scale_.absInPlace();
-        scale_ *= tolRel_;
-        scale_ += tolAbs_;
-
-        // Return rescaled element-wise maximum error
+        // Return element-wise maximum rescaled error
         error_ /= scale_;
         return error_.normInf();
     }
