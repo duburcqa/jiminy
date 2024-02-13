@@ -141,9 +141,10 @@ class AcrobotJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         # Call base implementation
         super()._setup()
 
-        # Increase stepper accuracy for time-continuous control
+        # Enforce fixed-timestep integrator.
+        # It ensures calling 'step' always takes the same amount of time.
         engine_options = self.simulator.engine.get_options()
-        engine_options["stepper"]["solver"] = "runge_kutta_4"
+        engine_options["stepper"]["odeSolver"] = "runge_kutta_4"
         engine_options["stepper"]["dtMax"] = CONTROL_DT
         self.simulator.engine.set_options(engine_options)
 
