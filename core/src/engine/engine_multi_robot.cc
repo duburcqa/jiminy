@@ -1957,21 +1957,24 @@ namespace jiminy
                         hasDynamicsChanged = false;
                     }
 
-                    // Adjust stepsize to end up exactly at the next breakpoint
-                    dt = std::min(dt, tNext - t);
-                    if (dtLargest > SIMULATION_MIN_TIMESTEP)
+                    /* Adjust stepsize to end up exactly at the next breakpoint if it is reasonable
+                       to expect that integration will be successful, namely:
+                       - If the next breakpoint is closer than the estimated maximum step size
+                       OR
+                       - If the next breakpoint is farther but not so far away compared to the
+                         estimated maximum step size, AND the previous integration trial was
+                         successful. This last condition is essential to prevent infinite loop of
+                         slightly increasing the step size, failing to integrate, then try again
+                         and again until triggering maximum successive iteration failure exception.
+                         The current implementation is conservative and does not check that the
+                         previous failure was due to this stepsize adjustment procedure, but it is
+                         just a performance optimization trick, so it should not be a big deal. */
+                    const double dtResidualThr =
+                        std::min(SIMULATION_MIN_TIMESTEP, 0.1 * dtLargest);
+                    if (tNext - t < dt ||
+                        (successiveIterFailed == 0 && tNext - t < dt + dtResidualThr))
                     {
-                        if (tNext - (t + dt) < SIMULATION_MIN_TIMESTEP)
-                        {
-                            dt = tNext - t;
-                        }
-                    }
-                    else
-                    {
-                        if (tNext - (t + dt) < STEPPER_MIN_TIMESTEP)
-                        {
-                            dt = tNext - t;
-                        }
+                        dt = tNext - t;
                     }
 
                     /* Trying to reach multiples of STEPPER_MIN_TIMESTEP whenever possible. The
@@ -2555,7 +2558,12 @@ namespace jiminy
         const double dtMax = boost::get<double>(stepperOptions.at("dtMax"));
         if (SIMULATION_MAX_TIMESTEP + EPS < dtMax || dtMax < SIMULATION_MIN_TIMESTEP)
         {
-            THROW_ERROR(std::invalid_argument, "'dtMax' option is out of range.");
+            THROW_ERROR(std::invalid_argument,
+                        "'dtMax' option must bge in range [",
+                        SIMULATION_MIN_TIMESTEP,
+                        ", ",
+                        SIMULATION_MAX_TIMESTEP,
+                        "].");
         }
 
         // Make sure successiveIterFailedMax is strictly positive
