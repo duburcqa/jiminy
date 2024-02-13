@@ -2140,20 +2140,12 @@ namespace jiminy
                     }
 
                     // Adjust stepsize to end up exactly at the next breakpoint
-                    dt = min(dt, tNext - t);
-                    if (dtLargest > SIMULATION_MIN_TIMESTEP)
+                    const float64_t dtResidualThr =
+                        std::min(SIMULATION_MIN_TIMESTEP, 0.1 * dtLargest);
+                    if (tNext - t < dt ||
+                        (successiveIterFailed == 0 && tNext - t < dt + dtResidualThr))
                     {
-                        if (tNext - (t + dt) < SIMULATION_MIN_TIMESTEP)
-                        {
-                            dt = tNext - t;
-                        }
-                    }
-                    else
-                    {
-                        if (tNext - (t + dt) < STEPPER_MIN_TIMESTEP)
-                        {
-                            dt = tNext - t;
-                        }
+                        dt = tNext - t;
                     }
 
                     /* Trying to reach multiples of STEPPER_MIN_TIMESTEP whenever
