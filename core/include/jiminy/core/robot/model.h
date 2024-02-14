@@ -31,6 +31,9 @@ namespace jiminy
         USER = 3
     };
 
+    /* Note that following ordering plays a critical role as it determines in which order `foreach`
+       iterates over all the constraints. This has a directly effect on the solution found by 'PGS'
+       constraint solvers. */
     inline constexpr std::array constraintNodeTypesAll{ConstraintNodeType::BOUNDS_JOINTS,
                                                        ConstraintNodeType::CONTACT_FRAMES,
                                                        ConstraintNodeType::COLLISION_BODIES,

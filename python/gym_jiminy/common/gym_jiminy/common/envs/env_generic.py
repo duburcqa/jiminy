@@ -677,7 +677,8 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         # Remove external forces, if any
         self.simulator.remove_all_forces()
 
-        # Make sure the environment is properly setup
+        # Make sure the environment is properly setup.
+        # Note that the robot is not allowed to change after this point.
         self._setup()
 
         # Make sure the low-level engine has not changed,
@@ -1286,7 +1287,9 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         engine_options = self.simulator.engine.get_options()
         engine_options["stepper"]["iterMax"] = 0
         engine_options["stepper"]["dtMax"] = min(0.02, self.step_dt)
-        engine_options["stepper"]["logInternalStepperSteps"] = False
+        if self.debug:
+            engine_options["stepper"]["verbose"] = True
+            engine_options["stepper"]["logInternalStepperSteps"] = True
 
         # Set maximum computation time for single internal integration steps
         engine_options["stepper"]["timeout"] = 2.0

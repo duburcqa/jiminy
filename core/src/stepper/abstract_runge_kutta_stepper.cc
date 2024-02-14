@@ -38,7 +38,7 @@ namespace jiminy
             stateIncrement_.setZero();
             for (Eigen::Index j = 0; j < i; ++j)
             {
-                /* Equivalent to `stateIncrement_ += dt * A_(i, j) * ki_[j]`
+                /* Equivalent to `stateIncrement_ += (dt * A_(i, j)) * ki_[j]`
                    but more efficient because it avoid temporaries. */
                 stateIncrement_.sumInPlace(ki_[j], dt * A_(i, j));
             }

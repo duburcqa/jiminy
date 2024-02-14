@@ -149,7 +149,7 @@ namespace jiminy
             config["tolRel"] = 1.0e-4;
             config["dtMax"] = SIMULATION_MAX_TIMESTEP;
             config["dtRestoreThresholdRel"] = 0.2;
-            config["successiveIterFailedMax"] = 1000U;
+            config["successiveIterFailedMax"] = 5000U;
             config["iterMax"] = 0U;   // <= 0: disable
             config["timeout"] = 0.0;  // <= 0.0: disable
             config["sensorsUpdatePeriod"] = 0.0;
