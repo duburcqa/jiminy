@@ -20,14 +20,6 @@ namespace jiminy
 
     struct ConstraintData
     {
-    public:
-        DISABLE_COPY(ConstraintData)
-
-    public:
-        explicit ConstraintData() = default;
-        ConstraintData(ConstraintData && constraintData) = default;
-
-    public:
         AbstractConstraintBase * constraint{nullptr};
         Eigen::Index startIndex{-1};
         bool isInactive{false};

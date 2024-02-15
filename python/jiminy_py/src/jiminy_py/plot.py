@@ -708,7 +708,7 @@ def plot_log(log_data: Dict[str, Any],
     # Create figure, without closing the existing one
     figure = TabbedFigure.plot(
         time, tabs_data, **{  # type: ignore[arg-type]
-            "plot_method": "plot", **kwargs})
+            "plot_method": "plot", "sync_tabs": True, **kwargs})
 
     # Show the figure if appropriate, blocking if necessary
     if block and not figure.offscreen:

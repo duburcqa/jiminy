@@ -33,9 +33,10 @@ if __name__ == '__main__':
     engine_options = simulator.engine.get_options()
     engine_options['contacts']['model'] = 'constraint'
     engine_options['contacts']['stabilizationFreq'] = 20.0
-    engine_options["constraints"]["regularization"] = 0.0
+    engine_options["constraints"]['regularization'] = 0.0
 
     # Configure integrator
+    engine_options["stepper"]['logInternalStepperSteps'] = True
     engine_options['stepper']['odeSolver'] = 'runge_kutta_dopri5'
     engine_options['stepper']['dtMax'] = 1.0e-3
 

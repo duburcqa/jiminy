@@ -3,6 +3,8 @@
 [engine.stepper]
 verbose = false
 odeSolver = "euler_explicit"
+tolAbs = 1e-5
+tolRel = 1e-4
 sensorsUpdatePeriod = 0.005
 controllerUpdatePeriod = 0.005
 logInternalStepperSteps = false
@@ -19,3 +21,9 @@ model = "constraint"
 stabilizationFreq = 25.0
 transitionEps = 2.0e-3
 friction = 0.5
+
+# ======== Joints bounds configuration ========
+
+[system.robot.model.joints]
+enablePositionLimit = true
+enableVelocityLimit = true

@@ -121,8 +121,8 @@ namespace jiminy
         }
 
         /* Second, loop over all bounds constraints.
-           Update breadth-first to converge faster. The deeper is it the more coefficients at the
-           very end. Note that the maximum number of blocks per constraint is 3. */
+           Update breadth-first for faster convergence, knowing that the number of blocks
+           per constraint cannot exceed 3. */
         for (std::size_t i = 0; i < 3; ++i)
         {
             for (const ConstraintData & constraintData : constraintsData_)
@@ -235,8 +235,11 @@ namespace jiminy
             // Do a single iteration
             ProjectedGaussSeidelIter(A, b, x);
 
-            // Check if terminate conditions are satisfied
-            const double tol = tolAbs_ + tolRel_ * y_.cwiseAbs().maxCoeff();
+            /* Stopping the algorithm has stalled.
+               It is impossible to define a criteria on the residuals directly because they only
+               cancel for constraints whose bounds are inactive. Otherwise they can grow arbitrary
+               large. */
+            auto tol = tolAbs_ + tolRel_ * y_.array().abs();
             if (((y_ - yPrev_).array().abs() < tol).all())
             {
                 return true;

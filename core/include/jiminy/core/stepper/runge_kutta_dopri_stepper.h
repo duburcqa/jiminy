@@ -38,7 +38,7 @@ namespace jiminy
         /// \details The larger the more conservative. More precisely, a small safety factor means
         ///          that the step size will be increased less aggressively when the error is small
         ///          and decreased more aggressively when the error is large.
-        inline constexpr double SAFETY = 0.9;
+        inline constexpr double SAFETY = 0.7;
         /// \brief Maximum acceptable error threshold below which step size is increased.
         inline constexpr double ERROR_THRESHOLD = 0.5;
         /// \brief Mininum allowed relative step decrease.
