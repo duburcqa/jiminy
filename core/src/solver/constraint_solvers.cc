@@ -12,7 +12,13 @@
 
 namespace jiminy
 {
-    inline constexpr double PGS_MIN_REGULARIZER{1.0e-11};
+    inline constexpr double MIN_REGULARIZER{1.0e-11};
+
+    inline constexpr double RELAX_MIN{0.01};
+    inline constexpr double RELAX_MAX{1.0};
+    inline constexpr uint32_t RELAX_MIN_ITER_NUM{20};
+    inline constexpr uint32_t RELAX_MAX_ITER_NUM{30};
+    inline constexpr double RELAX_SLOPE_ORDER{2.0};
 
     PGSSolver::PGSSolver(const pinocchio::Model * model,
                          pinocchio::Data * data,
@@ -99,6 +105,7 @@ namespace jiminy
 
     void PGSSolver::ProjectedGaussSeidelIter(const Eigen::MatrixXd & A,
                                              const Eigen::VectorXd::SegmentReturnType & b,
+                                             const double w,
                                              Eigen::VectorXd::SegmentReturnType & x)
     {
         // First, loop over all unbounded constraints
@@ -168,11 +175,11 @@ namespace jiminy
                         A_max = A_kk;
                     }
                 }
-                e += y_[i0] / A_max;
+                e += w * y_[i0] / A_max;
                 for (std::uint_fast8_t j = 1; j < fSize - 1; ++j)
                 {
                     const Eigen::Index k = o + fIndex[j];
-                    x[k] += y_[k] / A_max;
+                    x[k] += w * y_[k] / A_max;
                 }
 
                 // Project the coefficient between lower and upper bounds
@@ -221,7 +228,10 @@ namespace jiminy
            tolerance, even if unconstrained. It seems to be related to compounding of errors, maybe
            due to the recursive computations. */
 
-        assert(b.size() > 0 && "The number of inequality constraints must be larger than 0.");
+        if (b.size() == 0)
+        {
+            throw std::logic_error("The number of inequality constraints must be larger than 0.");
+        }
 
         // Reset the residuals
         y_.setZero();
@@ -232,14 +242,35 @@ namespace jiminy
             // Backup previous residuals
             yPrev_ = y_;
 
-            // Do a single iteration
-            ProjectedGaussSeidelIter(A, b, x);
+            // Update the under-relaxation factor
+            const double ratio = (static_cast<double>(iterMax_ - RELAX_MIN_ITER_NUM) - iter) /
+                                 (iterMax_ - RELAX_MIN_ITER_NUM - RELAX_MAX_ITER_NUM);
+            double w = RELAX_MAX;
+            if (ratio < 1.0)
+            {
+                w = RELAX_MIN;
+                if (ratio > 0.0)
+                {
+                    w += (RELAX_MAX - RELAX_MIN) * std::pow(ratio, RELAX_SLOPE_ORDER);
+                }
+            }
 
-            /* Stopping the algorithm has stalled.
-               It is impossible to define a criteria on the residuals directly because they only
-               cancel for constraints whose bounds are inactive. Otherwise they can grow arbitrary
-               large. */
-            auto tol = tolAbs_ + tolRel_ * y_.array().abs();
+            // Do one iteration
+            ProjectedGaussSeidelIter(A, b, w, x);
+
+            /* Abort if stopping criteria is met.
+               It is not possible to define a stopping criteria on the residuals directly because
+               they can grow arbitrary large for constraints whose bounds are active. It follows
+               that stagnation of residuals is the only viable criteria.
+               The PGS algorithm has been modified for solving second-order cone LCP, which means
+               that only the L2-norm of the tangential forces can be expected to converge. Because
+               of this, it is too restrictive to check the element-wise variation of the residuals
+               over iterations. It makes more sense to look at the Linf-norm instead, but this
+               criteria is very lax. A good compromise may be to look at the constraint-block-wise
+               L2-norm, which is similar to what Drake simulator is doing. For reference, see:
+               https://github.com/RobotLocomotion/drake/blob/master/multibody/contact_solvers/pgs_solver.cc
+            */
+            const double tol = tolAbs_ + tolRel_ * y_.lpNorm<Eigen::Infinity>() + EPS;
             if (((y_ - yPrev_).array().abs() < tol).all())
             {
                 return true;
@@ -300,7 +331,7 @@ namespace jiminy
 
                See: - http://mujoco.org/book/modeling.html#CSolver
                     - http://mujoco.org/book/computation.html#soParameters  */
-            A.diagonal() += (A.diagonal() * dampingInv).cwiseMax(PGS_MIN_REGULARIZER);
+            A.diagonal() += (A.diagonal() * dampingInv).cwiseMax(MIN_REGULARIZER);
 
             /* The LCP is not fully up-to-date since the upper triangular part is still missing.
                This will only be done if necessary. */

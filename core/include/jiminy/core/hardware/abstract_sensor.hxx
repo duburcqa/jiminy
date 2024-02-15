@@ -289,7 +289,11 @@ namespace jiminy
     template<typename T>
     void AbstractSensorTpl<T>::interpolateData()
     {
-        assert(sharedStorage_->times_.size() > 0 && "No data to interpolatePositions.");
+        // Make sure that data is available
+        if (sharedStorage_->times_.empty())
+        {
+            throw std::logic_error("No data to interpolate.");
+        }
 
         // Sample the delay uniformly
         const double delay =

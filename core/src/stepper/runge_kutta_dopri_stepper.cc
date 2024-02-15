@@ -31,7 +31,7 @@ namespace jiminy
         scale_.absInPlace();
         scale_ *= tolRel_;
         scale_ += tolAbs_;
-        
+
         // Compute alternative solution
         stateIncrement_.setZero();
         for (std::size_t i = 0; i < ki_.size(); ++i)
@@ -70,8 +70,7 @@ namespace jiminy
             {
                 /* Prevent numeric rounding error when close to zero.
                    Multiply step size by 'DOPRI::SAFETY / (error ** (1 / DOPRI::STEPPER_ORDER))',
-                   up to 'DOPRI::MAX_FACTOR'.
-                */
+                   up to 'DOPRI::MAX_FACTOR'. */
                 const double clippedError = std::max(
                     error, std::pow(DOPRI::MAX_FACTOR / DOPRI::SAFETY, -DOPRI::STEPPER_ORDER));
                 dt *= DOPRI::SAFETY * std::pow(clippedError, -1.0 / DOPRI::STEPPER_ORDER);

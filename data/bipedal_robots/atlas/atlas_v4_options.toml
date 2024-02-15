@@ -8,7 +8,7 @@ tolRel = 1e-4
 sensorsUpdatePeriod = 0.005
 controllerUpdatePeriod = 0.005
 logInternalStepperSteps = false
-successiveIterFailedMax = 5000
+successiveIterFailedMax = 1000
 randomSeedSeq = [0,]
 
 # ============== Contact dynamics ===============
@@ -22,6 +22,7 @@ model = "constraint"
 stabilizationFreq = 25.0
 transitionEps = 5.0e-3
 friction = 0.8
+torsion = 0.0
 
 # ======== Joints bounds configuration ========
 
