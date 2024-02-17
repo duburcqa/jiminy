@@ -67,8 +67,11 @@ namespace jiminy
         {
             if (sharedMeasurementsPtr_)
             {
-                assert((size() == static_cast<std::size_t>(sharedMeasurementsPtr_->cols())) &&
-                       "Number of sensors inconsistent with shared measurements.");
+                if (size() != static_cast<std::size_t>(sharedMeasurementsPtr_->cols()))
+                {
+                    throw std::logic_error(
+                        "Number of sensors inconsistent with shared measurements.");
+                }
                 return *sharedMeasurementsPtr_;
             }
             else
@@ -86,8 +89,11 @@ namespace jiminy
                 // Set internal buffer by copying sensor data sequentially
                 for (const auto & sensor : *this)
                 {
-                    assert(sensor.value.size() == dataSize &&
-                           "Cannot get all data at once for heterogeneous sensors.");
+                    if (sensor.value.size() != dataSize)
+                    {
+                        throw std::logic_error(
+                            "Cannot get all data at once for heterogeneous sensors.");
+                    }
                     data_.row(sensor.index) = sensor.value;
                 }
 

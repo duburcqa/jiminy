@@ -306,33 +306,33 @@ namespace jiminy::python
 
         // Do not use EigenPy To-Python converter because it considers matrices with 1 column as vectors
         bp::def("interpolate_positions", &interpolatePositions,
-                                         (bp::arg("pinocchio_model"), "times_in", "positions_in", "times_out"),
-                                         bp::return_value_policy<result_converter<true>>());
+                                         bp::return_value_policy<result_converter<true>>(),
+                                         (bp::arg("pinocchio_model"), "times_in", "positions_in", "times_out"));
 
         bp::def("aba",
                 &pinocchio_overload::aba<
                     double, 0, pinocchio::JointCollectionDefaultTpl, Eigen::VectorXd, Eigen::VectorXd, Eigen::VectorXd, pinocchio::Force>,
+                bp::return_value_policy<result_converter<false>>(),
                 (bp::arg("pinocchio_model"), "pinocchio_data", "q", "v", "u", "fext"),
-                "Compute ABA with external forces, store the result in Data::ddq and return it.",
-                bp::return_value_policy<result_converter<false>>());
+                "Compute ABA with external forces, store the result in Data::ddq and return it.");
         bp::def("rnea",
                 &pinocchio_overload::rnea<
                     double, 0, pinocchio::JointCollectionDefaultTpl, Eigen::VectorXd, Eigen::VectorXd, Eigen::VectorXd>,
+                bp::return_value_policy<result_converter<false>>(),
                 (bp::arg("pinocchio_model"), "pinocchio_data", "q", "v", "a"),
-                "Compute the RNEA without external forces, store the result in Data and return it.",
-                bp::return_value_policy<result_converter<false>>());
+                "Compute the RNEA without external forces, store the result in Data and return it.");
         bp::def("rnea",
                 &pinocchio_overload::rnea<
                     double, 0, pinocchio::JointCollectionDefaultTpl, Eigen::VectorXd, Eigen::VectorXd, Eigen::VectorXd, pinocchio::Force>,
+                bp::return_value_policy<result_converter<false>>(),
                 (bp::arg("pinocchio_model"), "pinocchio_data", "q", "v", "a", "fext"),
-                "Compute the RNEA with external forces, store the result in Data and return it.",
-                bp::return_value_policy<result_converter<false>>());
+                "Compute the RNEA with external forces, store the result in Data and return it.");
         bp::def("crba",
                 &pinocchio_overload::crba<
                     double, 0, pinocchio::JointCollectionDefaultTpl, Eigen::VectorXd>,
+                bp::return_value_policy<result_converter<false>>(),
                 (bp::arg("pinocchio_model"), "pinocchio_data", "q", bp::arg("fast_math") = false),
-                "Computes CRBA, store the result in Data and return it.",
-                bp::return_value_policy<result_converter<false>>());
+                "Computes CRBA, store the result in Data and return it.");
         bp::def("computeKineticEnergy",
                 &pinocchio_overload::computeKineticEnergy<
                     double, 0, pinocchio::JointCollectionDefaultTpl, Eigen::VectorXd, Eigen::VectorXd>,
@@ -343,6 +343,7 @@ namespace jiminy::python
 
         bp::def("computeJMinvJt",
                 &pinocchio_overload::computeJMinvJt<Eigen::MatrixXd>,
+                bp::return_value_policy<result_converter<false>>(),
                 (bp::arg("pinocchio_model"), "pinocchio_data", "J", bp::arg("update_decomposition") = true));
         bp::def("solveJMinvJtv", &solveJMinvJtv,
                 (bp::arg("pinocchio_data"), "v", bp::arg("update_decomposition") = true));
