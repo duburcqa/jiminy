@@ -8,7 +8,6 @@ tolRel = 1e-4
 sensorsUpdatePeriod = 0.005
 controllerUpdatePeriod = 0.005
 logInternalStepperSteps = false
-successiveIterFailedMax = 1000
 randomSeedSeq = [0,]
 
 # ============== Contact dynamics ===============

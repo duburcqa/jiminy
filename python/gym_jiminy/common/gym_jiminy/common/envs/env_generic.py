@@ -60,6 +60,12 @@ from ..bases import (ObsT,
 from .internal import loop_interactive
 
 
+# Maximum realtime slowdown of simulation steps before triggering timeout error
+TIMEOUT_RATIO = 50
+
+# Absolute tolerance when checking that observations are valid
+OBS_CONTAINS_TOL = 0.01
+
 # Define universal bounds for the observation space
 FREEFLYER_POS_TRANS_MAX = 1000.0
 FREEFLYER_VEL_LIN_MAX = 1000.0
@@ -72,8 +78,6 @@ SENSOR_FORCE_MAX = 100000.0
 SENSOR_MOMENT_MAX = 10000.0
 SENSOR_GYRO_MAX = 100.0
 SENSOR_ACCEL_MAX = 10000.0
-
-OBS_CONTAINS_TOL = 0.01
 
 
 LOGGER = logging.getLogger(__name__)
@@ -1286,13 +1290,12 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         # Configure the low-level integrator
         engine_options = self.simulator.engine.get_options()
         engine_options["stepper"]["iterMax"] = 0
-        engine_options["stepper"]["dtMax"] = min(0.02, self.step_dt)
         if self.debug:
             engine_options["stepper"]["verbose"] = True
             engine_options["stepper"]["logInternalStepperSteps"] = True
 
         # Set maximum computation time for single internal integration steps
-        engine_options["stepper"]["timeout"] = 2.0
+        engine_options["stepper"]["timeout"] = self.step_dt * TIMEOUT_RATIO
         if self.debug:
             engine_options["stepper"]["timeout"] = 0.0
 
