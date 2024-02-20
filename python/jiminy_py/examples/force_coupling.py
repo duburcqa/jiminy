@@ -18,15 +18,15 @@ if __name__ == '__main__':
     urdf_path = f"{MODULE_DIR}/../../jiminy_py/unit_py/data/sphere_primitive.urdf"
 
     # Instantiate the robots
-    robot1 = jiminy.Robot()
+    robot1 = jiminy.Robot("robot1")
     robot1.initialize(urdf_path, has_freeflyer=True)
-    robot2 = jiminy.Robot()
+    robot2 = jiminy.Robot("robot2")
     robot2.initialize(urdf_path, has_freeflyer=True)
 
     # Instantiate a multi-robot engine
-    engine = jiminy.EngineMultiRobot()
-    engine.add_system("robot1", robot1)
-    engine.add_system("robot2", robot2)
+    engine = jiminy.Engine()
+    engine.add_robot(robot1)
+    engine.add_robot(robot2)
 
     # Define coupling force
     stiffness = np.array([0.2, 0.5, 1.0, 0.2, 0.3, 0.6])
@@ -68,7 +68,7 @@ if __name__ == '__main__':
 
     # Add markers
     Viewer.close()
-    views = [Viewer(system.robot) for system in engine.systems]
+    views = [Viewer(robot) for robot in engine.robots]
     Viewer._backend_obj.gui.show_floor(False)
     views[0].add_marker("root_joint_1", "frame", oMf1, color="black", scale=1)
     views[0].add_marker("root_joint_2", "frame", oMf2, color="red", scale=1)
@@ -76,7 +76,7 @@ if __name__ == '__main__':
     # Run the simulation while extracting the coupling force
     dt = 0.01
     force_refs = [
-        system_state.f_external[1] for system_state in engine.system_states]
+        robot_state.f_external[1] for robot_state in engine.robot_states]
     forces, kinetic_momentum, energy_robots, energy_spring = [], [], [], []
     try:
         for i in range(2000):

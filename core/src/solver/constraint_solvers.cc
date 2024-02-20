@@ -275,6 +275,49 @@ namespace jiminy
             {
                 return true;
             }
+
+            // std::cout << "[" << iter << "] (" << w << "): ";
+            // bool isSuccess = true;
+            // for (std::size_t i = 0; i < 3; ++i)
+            //{
+            //     for (const ConstraintData & constraintData : constraintsData_)
+            //     {
+            //         if (constraintData.isInactive || constraintData.nBlocks <= i)
+            //         {
+            //             continue;
+            //         }
+            //
+            //         const ConstraintBlock & block = constraintData.blocks[i];
+            //         const Eigen::Index * fIndex = block.fIndex;
+            //         const Eigen::Index i0 = constraintData.startIndex + fIndex[0];
+            //         double yNorm = y_[i0] * y_[i0];
+            //         double yPrevNorm = yPrev_[i0] * yPrev_[i0];
+            //         for (std::uint_fast8_t j = 1; j < block.fSize - 1; ++j)
+            //         {
+            //             yNorm += y_[fIndex[j]] * y_[fIndex[j]];
+            //             yPrevNorm += yPrev_[fIndex[j]] * yPrev_[fIndex[j]];
+            //         }
+            //         yNorm = std::sqrt(yNorm);
+            //         yPrevNorm = std::sqrt(yPrevNorm);
+            //
+            //         const double tol = tolAbs_ + tolRel_ * yNorm + EPS;
+            //         std::cout << std::abs(yNorm - yPrevNorm) << "(" << tol << "), ";
+            //         if (std::abs(yNorm - yPrevNorm) > tol)
+            //         {
+            //             isSuccess = false;
+            //             break;
+            //         }
+            //     }
+            //     if (!isSuccess)
+            //     {
+            //         break;
+            //     }
+            // }
+            // std::cout << std::endl;
+            // if (isSuccess)
+            //{
+            //     return true;
+            // }
         }
 
         // Impossible to converge

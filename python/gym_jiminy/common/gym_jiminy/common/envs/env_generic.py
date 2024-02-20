@@ -185,13 +185,13 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
 
         # Define some proxies for fast access
         self.engine: jiminy.Engine = self.simulator.engine
-        self.robot = self.engine.robot
+        self.robot = self.simulator.robot
         self.stepper_state = self.simulator.stepper_state
         self.is_simulation_running = self.simulator.is_simulation_running
-        self.system_state = self.engine.system_state
-        self._system_state_q = self.system_state.q
-        self._system_state_v = self.system_state.v
-        self._system_state_a = self.system_state.a
+        self.robot_state = self.simulator.robot_state
+        self._robot_state_q = self.robot_state.q
+        self._robot_state_v = self.robot_state.v
+        self._robot_state_a = self.robot_state.a
         self.sensor_measurements: SensorMeasurementStackMap = OrderedDict(
             self.robot.sensor_measurements)
 
@@ -694,7 +694,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
 
         # Re-initialize some shared memories.
         # It is necessary because the robot may have changed.
-        self.system_state = self.engine.system_state
+        self.robot_state = self.simulator.robot_state
         self.sensor_measurements = OrderedDict(self.robot.sensor_measurements)
 
         # Enforce the low-level controller.
@@ -704,9 +704,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         # re-initialize the existing one by calling `controller.initialize`
         # method BEFORE calling `reset` method because doing otherwise would
         # cause a segfault.
-        noop_controller = jiminy.FunctionalController()
-        noop_controller.initialize(self.robot)
-        self.simulator.set_controller(noop_controller)
+        self.robot.controller = None
 
         # Reset the simulator.
         # Do NOT remove all forces since it has already been done before, and
@@ -747,17 +745,15 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
 
         # Instantiate the actual controller.
         # Note that a weak reference must be used to avoid circular reference.
-        controller = jiminy.FunctionalController(
+        self.robot.controller = jiminy.FunctionalController(
             partial(type(env)._controller_handle, weakref.proxy(env)))
-        controller.initialize(self.robot)
-        self.simulator.set_controller(controller)
 
         # Configure the maximum number of steps
         self.max_steps = int(self.simulation_duration_max // self.step_dt)
 
         # Register user-specified variables to the telemetry
         for header, value in self._registered_variables.values():
-            register_variables(controller, header, value)
+            register_variables(self.robot.controller, header, value)
 
         # Sample the initial state and reset the low-level engine
         qpos, qvel = self._sample_state()
@@ -772,11 +768,11 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         self.simulator.start(
             qpos, qvel, None, self.simulator.use_theoretical_model)
 
-        # Refresh system_state proxies. It must be done here because memory is
+        # Refresh robot_state proxies. It must be done here because memory is
         # only allocated by the engine when starting a simulation.
-        self._system_state_q = self.system_state.q
-        self._system_state_v = self.system_state.v
-        self._system_state_a = self.system_state.a
+        self._robot_state_q = self.robot_state.q
+        self._robot_state_v = self.robot_state.v
+        self._robot_state_a = self.robot_state.a
 
         # Initialize shared buffers
         self._initialize_buffers()
@@ -787,8 +783,8 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         # Initialize the observation
         env._observer_handle(
             self.stepper_state.t,
-            self._system_state_q,
-            self._system_state_v,
+            self._robot_state_q,
+            self._robot_state_v,
             self.robot.sensor_measurements)
 
         # Initialize specialized most-derived observation clipping operator
@@ -903,12 +899,12 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         # of the every integration steps, during the controller update.
         self._env_derived._observer_handle(
             self.stepper_state.t,
-            self._system_state_q,
-            self._system_state_v,
+            self._robot_state_q,
+            self._robot_state_v,
             self.robot.sensor_measurements)
 
         # Make sure there is no 'nan' value in observation
-        if is_nan(self._system_state_a):
+        if is_nan(self._robot_state_a):
             raise RuntimeError(
                 "The acceleration of the system is 'nan'. Something went "
                 "wrong with jiminy engine.")
@@ -1146,7 +1142,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
             obs = self.observation
             self.render()
             if not enable_is_done and self.robot.has_freeflyer:
-                return self._system_state_q[2] < 0.0
+                return self._robot_state_q[2] < 0.0
             return terminated or truncated
 
         # Run interactive loop

@@ -23,18 +23,19 @@ fi
 
 ### Set the compiler(s) if undefined
 if [ -z ${CMAKE_C_COMPILER} ]; then
-  CMAKE_C_COMPILER="gcc"
+  CMAKE_C_COMPILER="$(which gcc)"
   echo "CMAKE_C_COMPILER is unset. Defaulting to '${CMAKE_C_COMPILER}'."
 fi
 if [ -z ${CMAKE_CXX_COMPILER} ]; then
-  CMAKE_CXX_COMPILER="g++"
+  CMAKE_CXX_COMPILER="$(which g++)"
   echo "CMAKE_CXX_COMPILER is unset. Defaulting to '${CMAKE_CXX_COMPILER}'."
 fi
 
 ### Set common CMAKE_C/CXX_FLAGS
 #   '_LIBCPP_ENABLE_CXX17_REMOVED_UNARY_BINARY_FUNCTION' flag is required to compile `boost::container_hash::hash`
 #   with C++17 enabled from "old" releases of Boost.
-CMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -D_LIBCPP_ENABLE_CXX17_REMOVED_UNARY_BINARY_FUNCTION -Wno-deprecated-declarations"
+CMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -D_LIBCPP_ENABLE_CXX17_REMOVED_UNARY_BINARY_FUNCTION $(
+                 ) -Wno-deprecated-declarations -Wno-enum-constexpr-conversion"
 if [ "${BUILD_TYPE}" == "Release" ]; then
   CMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -DNDEBUG -O3"
 elif [ "${BUILD_TYPE}" == "Debug" ]; then
@@ -271,6 +272,7 @@ mkdir -p "${RootDir}/boost/build"
 mkdir -p "${RootDir}/eigen3/build"
 cd "${RootDir}/eigen3/build"
 cmake "${RootDir}/eigen3" -Wno-dev -DCMAKE_CXX_STANDARD=17 \
+      -DCMAKE_C_COMPILER="${CMAKE_C_COMPILER}" -DCMAKE_CXX_COMPILER="${CMAKE_CXX_COMPILER}" \
       -DCMAKE_INSTALL_PREFIX="${InstallDir}" \
       -DBUILD_TESTING=OFF -DEIGEN_BUILD_PKGCONFIG=ON
 make install -j2
@@ -324,7 +326,9 @@ make install -j2
 
 mkdir -p "${RootDir}/urdfdom_headers/build"
 cd "${RootDir}/urdfdom_headers/build"
-cmake "${RootDir}/urdfdom_headers" -Wno-dev -DCMAKE_INSTALL_PREFIX="${InstallDir}" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+cmake "${RootDir}/urdfdom_headers" -Wno-dev -DCMAKE_CXX_STANDARD=17 \
+      -DCMAKE_C_COMPILER="${CMAKE_C_COMPILER}" -DCMAKE_CXX_COMPILER="${CMAKE_CXX_COMPILER}" \
+      -DCMAKE_INSTALL_PREFIX="${InstallDir}" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2
 
 ################################## Build and install urdfdom ###########################################
@@ -437,8 +441,8 @@ cmake "${RootDir}/pinocchio" -Wno-dev -DCMAKE_CXX_STANDARD=17 \
       -DBUILD_WITH_AUTODIFF_SUPPORT=ON -DBUILD_WITH_CODEGEN_SUPPORT=ON -DBUILD_WITH_CASADI_SUPPORT=OFF \
       -DBUILD_WITH_OPENMP_SUPPORT=OFF -DGENERATE_PYTHON_STUBS=OFF -DBUILD_TESTING=OFF -DINSTALL_DOCUMENTATION=OFF  \
       -DCMAKE_CXX_FLAGS_RELEASE_INIT="" -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -DBOOST_BIND_GLOBAL_PLACEHOLDERS $(
-      ) -Wno-uninitialized -Wno-type-limits -Wno-deprecated-declarations -Wno-unused-local-typedefs $(
-      ) -Wno-extra -Wno-unknown-warning-option -Wno-unknown-warning" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+      ) -Wno-uninitialized -Wno-type-limits -Wno-unused-local-typedefs -Wno-extra $(
+      ) -Wno-unknown-warning-option -Wno-unknown-warning" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2
 
 # Copy cmake configuration files for cppad and cppadcodegen

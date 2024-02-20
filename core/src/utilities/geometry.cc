@@ -70,7 +70,7 @@ namespace jiminy
                 // clang-format on
             }
 
-            /// @brief Compute the minor defined as the determinant of the sub-matrix formed by
+            /// \brief Compute the minor defined as the determinant of the sub-matrix formed by
             ///        deleting row i and col j
             template<int i, int j>
             double cofactor() const
@@ -131,14 +131,14 @@ namespace jiminy
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
-        /// @brief Fast mesh simplification utility.
+        /// \brief Fast mesh simplification utility.
         ///
-        /// @details The original algorithm has been developed by Michael Garland and Paul
+        /// \details The original algorithm has been developed by Michael Garland and Paul
         ///          Heckbert. The technical details can be found in their paper, "Surface
         ///          Simplification Using Quadric Error Metrics.", 1997:
         ///          http://www.cs.cmu.edu/~garland/Papers/quadrics.pdf
         ///
-        /// @sa The proposed implementation is based on code from Sven Forstmann released in 2014
+        /// \sa The proposed implementation is based on code from Sven Forstmann released in 2014
         ///     under the MIT License:
         ///     https://github.com/sp4cerat/Fast-Quadric-Mesh-Simplification
         class MeshSimplifier
@@ -164,7 +164,7 @@ namespace jiminy
                 }
             }
 
-            /// @brief Compute error for one specific edge.
+            /// \brief Compute error for one specific edge.
             std::pair<double, Eigen::Vector3d> computeError(std::size_t id_v1, std::size_t id_v2)
             {
                 // Extract the relevant vertices
@@ -221,7 +221,7 @@ namespace jiminy
                 return {err1, p1};
             }
 
-            /// @brief Check if a triangle flips when this edge is removed.
+            /// \brief Check if a triangle flips when this edge is removed.
             bool flipped(const Eigen::Vector3d & p,
                          std::size_t i1,
                          const Vertex & v0,
@@ -253,7 +253,7 @@ namespace jiminy
                 return false;
             }
 
-            /// @brief Update triangle connections and edge error after a edge is collapsed.
+            /// \brief Update triangle connections and edge error after a edge is collapsed.
             void collapseTriangles(const std::size_t & i0,
                                    const Vertex & v,
                                    std::vector<bool> & is_deleted,
@@ -419,7 +419,7 @@ namespace jiminy
                 }
             }
 
-            /// @brief Main simplification function.
+            /// \brief Main simplification function.
             void simplify(std::size_t mesh_update_rate = 5,
                           double aggressiveness = 7,
                           int64_t max_iter = 100,

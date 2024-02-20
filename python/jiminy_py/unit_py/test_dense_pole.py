@@ -182,7 +182,7 @@ class SimulateDensePole(unittest.TestCase):
             is_enabled = const.is_enabled
             for _ in range(int(np.round(t_end / step_dt))):
                 self.simulator.step(step_dt)
-                theta = self.simulator.system_state.q[0]
+                theta = self.simulator.robot_state.q[0]
                 if contact_model != 'constraint':
                     continue
                 if self.joint_limit - np.abs(theta) <= 0.0:

@@ -151,9 +151,9 @@ class AntEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         if not self.is_simulation_running:
             # Initialize observation chunks
             self.obs_chunks = [
-                self._system_state_q[2:],
-                self._system_state_v,
-                *[f.vector for f in self.system_state.f_external]
+                self._robot_state_q[2:],
+                self._robot_state_v,
+                *[f.vector for f in self.robot_state.f_external]
             ]
 
             # Initialize observation chunks sizes
@@ -165,7 +165,7 @@ class AntEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
                 idx_start = idx_end
 
             # Initialize previous torso position
-            self.xpos_prev = self._system_state_q[0]
+            self.xpos_prev = self._robot_state_q[0]
 
         # Update observation buffer
         assert isinstance(self.observation_space, gym.spaces.Box)
@@ -177,7 +177,7 @@ class AntEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
 
         # Transform observed linear velocity to be in world frame
         self.observation[slice(*self.obs_chunks_sizes[1])][:3] = \
-            Quaternion(self._system_state_q[3:7]) * self.obs_chunks[1][:3]
+            Quaternion(self._robot_state_q[3:7]) * self.obs_chunks[1][:3]
 
     def has_terminated(self) -> Tuple[bool, bool]:
         """ TODO: Write documentation.
@@ -186,7 +186,7 @@ class AntEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         terminated, truncated = super().has_terminated()
 
         # Check if the agent is jumping far too high or stuck on its back
-        zpos = self._system_state_q[2]
+        zpos = self._robot_state_q[2]
         if 1.0 < zpos or zpos < 0.2:
             truncated = True
 
@@ -202,7 +202,7 @@ class AntEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         reward = 0.0
 
         # Compute forward velocity reward
-        xpos = self._system_state_q[0]
+        xpos = self._robot_state_q[0]
         forward_reward = (xpos - self.xpos_prev) / self.step_dt
 
         ctrl_cost = 0.5 * np.square(self.action).sum()

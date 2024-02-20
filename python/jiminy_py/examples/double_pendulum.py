@@ -36,18 +36,16 @@ if __name__ == '__main__':
         def internal_dynamics(self, t, q, v, u_custom):
             pass
 
-    controller = Controller()
-    controller.initialize(robot)
+    robot.controller = Controller()
 
     # Instantiate the engine
     engine = jiminy.Engine()
-    engine.initialize(robot, controller)
+    engine.add_robot(robot)
 
     # ################## Configuration the simulation #########################
 
     robot_options = robot.get_options()
     engine_options = engine.get_options()
-    ctrl_options = controller.get_options()
 
     robot_options["telemetry"]["enableImuSensors"] = True
     engine_options["telemetry"]["isPersistent"] = True
@@ -76,7 +74,6 @@ if __name__ == '__main__':
 
     robot.set_options(robot_options)
     engine.set_options(engine_options)
-    controller.set_options(ctrl_options)
 
     # ####################### Run the simulation ##############################
 

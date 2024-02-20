@@ -102,14 +102,9 @@ class SimulateFlexibleArm(unittest.TestCase):
         # Remove temporary file
         os.remove(urdf_path)
 
-        # Instantiate and initialize a controller doing nothing
-        noop_controller = jiminy.FunctionalController()
-        noop_controller.initialize(robot)
-
         # Create a simulator using this robot and controller
         self.simulator = Simulator(
             robot,
-            noop_controller,
             viewer_kwargs=dict(
                 camera_pose=((0.0, -2.0, 0.0), (np.pi/2, 0.0, 0.0), None)
             ))
@@ -123,9 +118,10 @@ class SimulateFlexibleArm(unittest.TestCase):
         t_end = 4.0
 
         # Generate temporary log file
+        model_name = self.simulator.robot.pinocchio_model.name
         ext = log_format if log_format != "binary" else "data"
         fd, log_path = tempfile.mkstemp(
-            prefix=f"{self.simulator.robot.name}_", suffix=f".{ext}")
+            prefix=f"{model_name}_", suffix=f".{ext}")
         os.close(fd)
 
         # Run the simulation
@@ -135,7 +131,7 @@ class SimulateFlexibleArm(unittest.TestCase):
 
         # Generate temporary video file
         fd, video_path = tempfile.mkstemp(
-            prefix=f"{self.simulator.robot.name}_", suffix=".mp4")
+            prefix=f"{model_name}_", suffix=".mp4")
         os.close(fd)
 
         # Record the result
@@ -192,7 +188,7 @@ class SimulateFlexibleArm(unittest.TestCase):
             t_end, q0, v0, is_state_theoretical=True, show_progress_bar=False)
 
         # Extract the final configuration
-        q_rigid = self.simulator.system_state.q.copy()
+        q_rigid = self.simulator.robot_state.q.copy()
 
         # Render the scene
         img_rigid = self.simulator.render(return_rgb_array=True)
@@ -225,7 +221,7 @@ class SimulateFlexibleArm(unittest.TestCase):
             # Extract the final configuration
             q_flex.append(
                 self.simulator.robot.get_rigid_configuration_from_flexible(
-                    self.simulator.system_state.q))
+                    self.simulator.robot_state.q))
 
             # Render the scene
             img_flex.append(self.simulator.render(return_rgb_array=True))

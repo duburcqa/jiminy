@@ -156,7 +156,7 @@ class PipelineDesign(unittest.TestCase):
         imu_data_ref = env.simulator.robot.sensor_measurements['ImuSensor']
         imu_data_obs = obs['measurements']['ImuSensor'][-1]
         self.assertTrue(np.all(imu_data_ref == imu_data_obs))
-        state_ref = {'q': env.system_state.q, 'v': env.system_state.v}
+        state_ref = {'q': env.robot_state.q, 'v': env.robot_state.v}
         state_obs = obs['states']['agent']
         self.assertTrue(np.all(state_ref['q'] == state_obs['q']))
         self.assertTrue(np.all(state_ref['v'] == state_obs['v']))
@@ -184,7 +184,7 @@ class PipelineDesign(unittest.TestCase):
         imu_data_ref = env.simulator.robot.sensor_measurements['ImuSensor']
         imu_data_obs = obs['measurements']['ImuSensor'][-1]
         self.assertFalse(np.all(imu_data_ref == imu_data_obs))
-        state_ref = {'q': env.system_state.q, 'v': env.system_state.v}
+        state_ref = {'q': env.robot_state.q, 'v': env.robot_state.v}
         state_obs = obs['states']['agent']
         self.assertTrue(np.all(state_ref['q'] == state_obs['q']))
         self.assertTrue(np.all(state_ref['v'] == state_obs['v']))

@@ -54,8 +54,8 @@ if __name__ == '__main__':
     simulator.engine.set_options(engine_options)
 
     # Sample the initial state
-    qpos = pin.neutral(simulator.system.robot.pinocchio_model)
-    qvel = np.zeros(simulator.system.robot.nv)
+    qpos = pin.neutral(simulator.robot.pinocchio_model)
+    qvel = np.zeros(simulator.robot.nv)
     qpos[2] += 1.5
     qvel[0] = 2.0
     qvel[3] = 1.0

@@ -18,6 +18,7 @@ if __name__ == '__main__':
     urdf_path = f"{MODULE_DIR}/../../jiminy_py/unit_py/data/sphere_primitive.urdf"
     simulator = Simulator.build(
         urdf_path, has_freeflyer=True, hardware_path="")
+    robot = simulator.robot
 
     # Disable constraint solver regularization
     engine_options = simulator.engine.get_options()
@@ -33,17 +34,17 @@ if __name__ == '__main__':
     # Add fixed frame constraint
     constraint = jiminy.FrameConstraint(
         "MassBody", [True, True, True, True, True, True])
-    simulator.robot.add_constraint("MassBody", constraint)
+    robot.add_constraint("MassBody", constraint)
     constraint.baumgarte_freq = 1.0
 
     # Add IMU to the robot
     imu_sensor = jiminy.ImuSensor("MassBody")
-    simulator.robot.attach_sensor(imu_sensor)
+    robot.attach_sensor(imu_sensor)
     imu_sensor.initialize("MassBody")
 
     # Sample the initial state
-    qpos = pin.neutral(simulator.robot.pinocchio_model)
-    qvel = np.zeros(simulator.robot.nv)
+    qpos = pin.neutral(robot.pinocchio_model)
+    qvel = np.zeros(robot.nv)
 
     # Run a simulation
     delta = []
@@ -53,7 +54,7 @@ if __name__ == '__main__':
         delta_t = simulator.stepper_state.t % (1.1 / constraint.baumgarte_freq)
         if min(delta_t, 1.1 / constraint.baumgarte_freq - delta_t) < 1e-6:
             constraint.reference_transform = pin.SE3.Random()
-        transform = simulator.robot.pinocchio_data.oMf[constraint.frame_index]
+        transform = robot.pinocchio_data.oMf[constraint.frame_index]
         ref_transform = constraint.reference_transform
         delta.append(np.concatenate((
             transform.translation - ref_transform.translation,
@@ -66,7 +67,7 @@ if __name__ == '__main__':
     simulator.render(display_dcm=False)
     simulator.viewer._backend_obj.gui.show_floor(False)
     simulator.viewer.add_marker(
-        "MassBody", "frame", pose=simulator.robot.pinocchio_data.oMf[1])
+        "MassBody", "frame", pose=robot.pinocchio_data.oMf[1])
     simulator.replay(enable_travelling=False)
 
     # Plot the simulation data

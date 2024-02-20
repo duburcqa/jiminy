@@ -179,7 +179,7 @@ class InterfaceJiminyEnv(
     simulator: Simulator
     robot: jiminy.Robot
     stepper_state: jiminy.StepperState
-    system_state: jiminy.SystemState
+    robot_state: jiminy.RobotState
     sensor_measurements: SensorMeasurementStackMap
     is_simulation_running: npt.NDArray[np.bool_]
 

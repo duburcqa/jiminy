@@ -46,7 +46,7 @@ class SimulateMultiRobot(unittest.TestCase):
                 u_custom[:] = - self.k * q - self.nu * v
 
         # Create two identical robots
-        engine = jiminy.EngineMultiRobot()
+        engine = jiminy.Engine()
 
         # Configure the engine
         engine_options = engine.get_options()
@@ -55,35 +55,34 @@ class SimulateMultiRobot(unittest.TestCase):
         engine_options["stepper"]["tolRel"] = TOLERANCE * 1e-2
         engine.set_options(engine_options)
 
-        system_names = ['FirstSystem', 'SecondSystem']
-        robots = []
-        for i in range(2):
-            robots.append(load_urdf_default(urdf_name, motor_names))
+        robot_names = ('FirstSystem', 'SecondSystem')
+        for i, robot_name in enumerate(robot_names):
+            robot = load_urdf_default(
+                urdf_name, motor_names, False, robot_name)
 
             # Create controller
-            controller = Controller(k[i], nu[i])
-            controller.initialize(robots[i])
+            robot.controller = Controller(k[i], nu[i])
 
             # Add system to engine.
-            engine.add_system(system_names[i], robots[i], controller)
+            engine.add_robot(robot)
 
         # Add coupling force between both systems: a spring between both masses
         def force(t, q1, v1, q2, v2, f):
             f[0] = k[2] * (q2[0] - q1[0]) + nu[2] * (v2[0] - v1[0])
 
-        engine.register_coupling_force(
-            system_names[0], system_names[1], "Mass", "Mass", force)
+        engine.register_coupling_force(*robot_names, "Mass", "Mass", force)
 
         # Run simulation and extract some information from log data
-        x0 = {'FirstSystem': np.array([0.1, 0.0]),
-              'SecondSystem': np.array([-0.1, 0.0])}
+        x0 = dict(zip(robot_names, (
+            np.array([0.1, 0.0]), np.array([-0.1, 0.0]))))
         tf = 10.0
         time, x_jiminy = simulate_and_get_state_evolution(
             engine, tf, x0, split=False)
         x_jiminy = np.concatenate(x_jiminy, axis=-1)
 
         # Define analytical system dynamics: two masses linked by three springs
-        m = [r.pinocchio_model_th.inertias[1].mass for r in robots]
+        m = [robot.pinocchio_model_th.inertias[1].mass
+             for robot in engine.robots]
         k_eq = [x + k[2] for x in k]
         nu_eq = [x + nu[2] for x in nu]
         A = np.array([[            0.0,              1.0,             0.0,              0.0],
