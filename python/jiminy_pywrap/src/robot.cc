@@ -3,6 +3,7 @@
 #include "jiminy/core/hardware/abstract_sensor.h"
 #include "jiminy/core/hardware/abstract_motor.h"
 #include "jiminy/core/constraints/abstract_constraint.h"
+#include "jiminy/core/control/abstract_controller.h"
 #include "jiminy/core/robot/robot.h"
 
 #include "pinocchio/bindings/python/fwd.hpp"
@@ -98,9 +99,6 @@ namespace jiminy::python
                 .ADD_PROPERTY_GET_WITH_POLICY("mesh_package_dirs",
                                               &Model::getMeshPackageDirs,
                                               bp::return_value_policy<result_converter<true>>())
-                .ADD_PROPERTY_GET_WITH_POLICY("name",
-                                              &Model::getName,
-                                              bp::return_value_policy<bp::return_by_value>())
                 .ADD_PROPERTY_GET_WITH_POLICY("urdf_path",
                                               &Model::getUrdfPath,
                                               bp::return_value_policy<bp::return_by_value>())
@@ -283,7 +281,10 @@ namespace jiminy::python
         static void expose()
         {
             // clang-format off
-            bp::class_<Model, std::shared_ptr<Model>, boost::noncopyable>("Model", bp::no_init)
+            bp::class_<Model,
+                       std::shared_ptr<Model>,
+                       boost::noncopyable
+                       >("Model", bp::no_init)
                 .def(PyModelVisitor());
             // clang-format on
         }
@@ -317,6 +318,10 @@ namespace jiminy::python
                                               &Robot::getIsLocked,
                                               bp::return_value_policy<bp::return_by_value>())
 
+                .ADD_PROPERTY_GET_WITH_POLICY("name",
+                                              &Robot::getName,
+                                              bp::return_value_policy<bp::return_by_value>())
+
                 .def("dump_options", &Robot::dumpOptions,
                                      (bp::arg("self"), "json_filename"))
                 .def("load_options", &Robot::loadOptions,
@@ -347,6 +352,12 @@ namespace jiminy::python
                      >(&Robot::getSensor),
                      (bp::arg("self"), "sensor_type", "sensor_name"))
 
+                .ADD_PROPERTY_GET_SET("controller",
+                                      static_cast<
+                                          std::shared_ptr<AbstractController> (Robot::*)()
+                                      >(&Robot::getController),
+                                      &Robot::setController)
+
                 .ADD_PROPERTY_GET("sensor_measurements", &PyRobotVisitor::getSensorMeasurements)
 
                 .def("set_options", &PyRobotVisitor::setOptions,
@@ -360,10 +371,10 @@ namespace jiminy::python
                 .def("get_motors_options", &Robot::getMotorsOptions)
                 .def("set_sensors_options", &PyRobotVisitor::setSensorsOptions,
                                             (bp::arg("self"), "sensors_options"))
-                .def("get_sensors_options",
-                     static_cast<
-                         GenericConfig (Robot::*)(void) const
-                     >(&Robot::getSensorsOptions))
+                .def("get_sensors_options", &Robot::getSensorsOptions)
+                .def("set_controller_options", &PyRobotVisitor::setControllerOptions,
+                                              (bp::arg("self"), "controller_options"))
+                .def("get_controller_options", &Robot::getControllerOptions)
                 .def("set_telemetry_options", &PyRobotVisitor::setTelemetryOptions,
                                               (bp::arg("self"), "telemetry_options"))
                 .def("get_telemetry_options", &Robot::getTelemetryOptions)
@@ -454,6 +465,13 @@ namespace jiminy::python
             return self.setSensorsOptions(config);
         }
 
+        static void setControllerOptions(Robot & self, const bp::dict & configPy)
+        {
+            GenericConfig config = self.getControllerOptions();
+            convertFromPython(configPy, config);
+            return self.setControllerOptions(config);
+        }
+
         static void setTelemetryOptions(Robot & self, const bp::dict & configPy)
         {
             GenericConfig config = self.getTelemetryOptions();
@@ -464,7 +482,10 @@ namespace jiminy::python
         static void expose()
         {
             // clang-format off
-            bp::class_<Robot, bp::bases<Model>, std::shared_ptr<Robot>, boost::noncopyable>("Robot")
+            bp::class_<Robot, bp::bases<Model>,
+                       std::shared_ptr<Robot>,
+                       boost::noncopyable
+                       >("Robot", bp::init<const std::string &>(bp::arg("name") = ""))
                 .def(PyRobotVisitor());
             // clang-format on
         }

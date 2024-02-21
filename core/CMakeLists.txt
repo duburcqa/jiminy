@@ -61,8 +61,6 @@ set(SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/src/stepper/abstract_runge_kutta_stepper.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/stepper/runge_kutta4_stepper.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/stepper/runge_kutta_dopri_stepper.cc"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/engine/system.cc"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/engine/engine_multi_robot.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/engine/engine.cc"
 )
 

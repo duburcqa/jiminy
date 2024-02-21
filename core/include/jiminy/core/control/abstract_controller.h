@@ -16,7 +16,6 @@ namespace jiminy
     class TelemetrySender;
     class TelemetryData;
     class Robot;
-    class Engine;
 
     /// \brief Generic interface for any controller.
     ///
@@ -53,7 +52,10 @@ namespace jiminy
         explicit AbstractController() noexcept;
         virtual ~AbstractController();
 
-        /// \brief Set the parameters of the controller.
+        /// \brief Initialize the internal state of the controller for a given robot.
+        ///
+        /// \details This method can be called multiple times with different robots. The internal
+        ///          state of the controller will be systematically overwritten.
         ///
         /// \param[in] robot Robot
         virtual void initialize(std::weak_ptr<const Robot> robot);

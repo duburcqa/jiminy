@@ -152,7 +152,7 @@ namespace jiminy
         // Get the joint model
         const pinocchio::JointModel & jointModel = model->pinocchioModel_.joints[jointIndex_];
 
-        // Add Baumgarte stabilization drift
+        // Add Baumgarte stabilization to drift
         const Eigen::VectorXd deltaPosition =
             difference(jointModel, configurationRef_, jointModel.jointConfigSelector(q));
         drift_ = kp_ * deltaPosition + kd_ * jointModel.jointVelocitySelector(v);

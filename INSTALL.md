@@ -79,7 +79,7 @@ make install -j2
 
 ```bash
 sudo apt install -y gnupg curl wget build-essential cmake doxygen graphviz
-python -m pip install "numpy>=1.21,<2.0"
+python -m pip install "wheel", "numpy>=1.21,<2.0"
 ```
 
 ### Jiminy dependencies build and install

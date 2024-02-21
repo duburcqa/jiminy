@@ -13,6 +13,7 @@ namespace jiminy
     class AbstractMotorBase;
     struct SensorSharedStorage;
     class AbstractSensorBase;
+    class AbstractController;
     class TelemetryData;
     class MutexLocal;
     class LockGuardLocal;
@@ -28,7 +29,8 @@ namespace jiminy
         DISABLE_COPY(Robot)
 
     public:
-        explicit Robot() noexcept;
+        /// \param[in] name Name of the Robot.
+        explicit Robot(const std::string & name = "") noexcept;
         virtual ~Robot();
 
         auto shared_from_this() { return shared_from(this); }
@@ -41,6 +43,8 @@ namespace jiminy
                         bool hasFreeflyer = true,
                         const std::vector<std::string> & meshPackageDirs = {},
                         bool loadVisualMeshes = false);
+
+        const std::string & getName() const;
 
         void attachMotor(std::shared_ptr<AbstractMotorBase> motor);
         std::shared_ptr<AbstractMotorBase> getMotor(const std::string & motorName);
@@ -56,6 +60,10 @@ namespace jiminy
         const SensorTree & getSensors() const;
         void detachSensor(const std::string & sensorType, const std::string & sensorName);
         void detachSensors(const std::string & sensorType = {});
+
+        void setController(const std::shared_ptr<AbstractController> & controller);
+        std::shared_ptr<AbstractController> getController();
+        std::weak_ptr<const AbstractController> getController() const;
 
         void computeMotorEfforts(double t,
                                  const Eigen::VectorXd & q,
@@ -77,22 +85,14 @@ namespace jiminy
 
         void setOptions(const GenericConfig & robotOptions);
         GenericConfig getOptions() const noexcept;
-        void setMotorOptions(const std::string & motorName, const GenericConfig & motorOptions);
-        void setMotorsOptions(const GenericConfig & motorsOptions);
-        GenericConfig getMotorOptions(const std::string & motorName) const;
-        GenericConfig getMotorsOptions() const;
-        void setSensorOptions(const std::string & sensorType,
-                              const std::string & sensorName,
-                              const GenericConfig & sensorOptions);
-        void setSensorsOptions(const std::string & sensorType,
-                               const GenericConfig & sensorsOptions);
-        void setSensorsOptions(const GenericConfig & sensorsOptions);
-        GenericConfig getSensorOptions(const std::string & sensorType,
-                                       const std::string & sensorName) const;
-        GenericConfig getSensorsOptions(const std::string & sensorType) const;
-        GenericConfig getSensorsOptions() const;
         void setModelOptions(const GenericConfig & modelOptions);
         GenericConfig getModelOptions() const;
+        void setMotorsOptions(const GenericConfig & motorsOptions);
+        GenericConfig getMotorsOptions() const;
+        void setSensorsOptions(const GenericConfig & sensorsOptions);
+        GenericConfig getSensorsOptions() const;
+        void setControllerOptions(const GenericConfig & controllerOptions);
+        GenericConfig getControllerOptions() const;
         void setTelemetryOptions(const GenericConfig & telemetryOptions);
         GenericConfig getTelemetryOptions() const;
 
@@ -102,8 +102,7 @@ namespace jiminy
         /// \remarks Those methods are not intended to be called manually. The Engine is taking
         ///          care of it.
         virtual void reset(const uniform_random_bit_generator_ref<uint32_t> & g) override;
-        virtual void configureTelemetry(std::shared_ptr<TelemetryData> telemetryData,
-                                        const std::string & prefix = {});
+        virtual void configureTelemetry(std::shared_ptr<TelemetryData> telemetryData);
         void updateTelemetry();
         bool getIsTelemetryConfigured() const;
 
@@ -133,9 +132,11 @@ namespace jiminy
     protected:
         bool isTelemetryConfigured_{false};
         std::shared_ptr<TelemetryData> telemetryData_{nullptr};
+        /// \brief Motors attached to the robot.
         MotorVector motors_{};
+        /// \brief Sensors attached to the robot.
         SensorTree sensors_{};
-        std::unordered_map<std::string, bool> sensorTelemetryOptions_{};
+        std::unordered_map<std::string, bool> telemetryOptions_{};
         /// \brief Name of the motors.
         std::vector<std::string> motorNames_{};
         /// \brief Name of the sensors.
@@ -144,8 +145,12 @@ namespace jiminy
         std::vector<std::string> logCommandFieldnames_{};
         /// \brief Fieldnames of the motors effort.
         std::vector<std::string> logMotorEffortFieldnames_{};
-        /// \brief The number of motors.
+        /// \brief Number of motors.
         Eigen::Index nmotors_{0};
+        /// \brief Controller of the robot.
+        std::shared_ptr<AbstractController> controller_{nullptr};
+        /// \brief Name of the robot.
+        std::string name_;
 
     private:
         std::unique_ptr<MutexLocal> mutexLocal_{std::make_unique<MutexLocal>()};

@@ -35,6 +35,22 @@ namespace jiminy
             THROW_ERROR(bad_control_flow, "Robot not initialized.");
         }
 
+        // Make sure that the controller is not already bound to another robot
+        if (isInitialized_)
+        {
+            auto robotOld = robot_.lock();
+            if (robotOld && robotOld.get() != robot.get())
+            {
+                auto controllerOld = robotOld->getController().lock();
+                if (controllerOld && controllerOld.get() == this)
+                {
+                    THROW_ERROR(bad_control_flow,
+                                "Controller already bound to another robot. Please unbind it "
+                                "first before re-initializing it.");
+                }
+            }
+        }
+
         // Backup robot
         robot_ = robotIn;
 
@@ -134,10 +150,10 @@ namespace jiminy
             {
                 telemetrySender_->registerConstant(constantName, constantValue);
             }
-            for (const auto & [variableName, variableValuePtr] : variableRegistry_)
+            for (const auto & [variableNameIn, variableValuePtr] : variableRegistry_)
             {
                 // FIXME: Remove explicit `name` capture when moving to C++20
-                std::visit([&, &variableName = variableName](auto && arg)
+                std::visit([&, &variableName = variableNameIn](auto && arg)
                            { telemetrySender_->registerVariable(variableName, arg); },
                            variableValuePtr);
             }

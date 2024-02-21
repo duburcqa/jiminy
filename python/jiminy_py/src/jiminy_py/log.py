@@ -44,7 +44,7 @@ SENSORS_FIELDS: Dict[
 FieldNested = Union[Dict[str, 'FieldNested'], Sequence['FieldNested'], str]
 
 
-read_log = jiminy.core.EngineMultiRobot.read_log
+read_log = jiminy.core.Engine.read_log
 
 
 @overload
@@ -199,9 +199,8 @@ def build_robot_from_log(
         os.remove(urdf_path)
 
         # Load the options
-        all_options = log_constants[
-            ".".join((ENGINE_NAMESPACE, "options"))]
-        robot.set_options(all_options["system"]["robot"])
+        all_options = log_constants[".".join((ENGINE_NAMESPACE, "options"))]
+        robot.set_options(all_options["robot"])
 
         # Update model in-place.
         # Note that `__setstate__` re-allocates memory instead of just calling

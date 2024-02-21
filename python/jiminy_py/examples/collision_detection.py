@@ -11,21 +11,6 @@ import pinocchio as pin
 # Get script directory
 MODULE_DIR = os.path.dirname(__file__)
 
-# Create a gym environment for a simple cube
-urdf_path = f"{MODULE_DIR}/../../jiminy_py/unit_py/data/box_collision_mesh.urdf"
-simulator = Simulator.build(urdf_path, has_freeflyer=True)
-
-# Sample the initial state
-qpos = pin.neutral(simulator.system.robot.pinocchio_model)
-qvel = np.zeros(simulator.system.robot.nv)
-qpos[2] += 1.5
-qvel[0] = 2.0
-qvel[3] = 1.0
-qvel[5] = 2.0
-
-# Run a simulation
-simulator.start(qpos, qvel)
-
 # Create collision detection functor
 class CollisionChecker:
     def __init__(self,
@@ -54,10 +39,26 @@ class CollisionChecker:
             self.oMg1, self.oMg2, self.req, self.res))
 
 if __name__ == '__main__':
+    # Create a gym environment for a simple cube
+    urdf_path = f"{MODULE_DIR}/../../jiminy_py/unit_py/data/box_collision_mesh.urdf"
+    simulator = Simulator.build(urdf_path, has_freeflyer=True)
+
+    # Instantiate collision checker
     check_collision = CollisionChecker(simulator.robot.collision_model,
                                        simulator.robot.collision_data,
                                        "MassBody_0",
                                        "ground")
+
+    # Sample the initial state
+    qpos = pin.neutral(simulator.robot.pinocchio_model)
+    qvel = np.zeros(simulator.robot.nv)
+    qpos[2] += 1.5
+    qvel[0] = 2.0
+    qvel[3] = 1.0
+    qvel[5] = 2.0
+
+    # Run a simulation
+    simulator.start(qpos, qvel)
 
     # Run the simulation until collision detection
     while True:
@@ -68,4 +69,3 @@ if __name__ == '__main__':
 
     # Replay the simulation
     simulator.replay(enable_travelling=False, display_contact_frames=True)
-

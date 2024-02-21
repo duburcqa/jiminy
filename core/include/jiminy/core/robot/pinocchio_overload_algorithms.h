@@ -30,7 +30,7 @@
 #include "pinocchio/algorithm/jacobian.hpp"  // `pinocchio::computeJointJacobians`
 
 #include "jiminy/core/fwd.h"
-#include "jiminy/core/engine/engine_multi_robot.h"
+#include "jiminy/core/engine/engine.h"
 
 
 namespace jiminy::pinocchio_overload
