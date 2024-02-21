@@ -1,5 +1,5 @@
-[system.robot.model.dynamics]
+[robot.model.dynamics]
 enableFlexibleModel = false
 
-[system.robot.motors.PendulumJoint]
+[robot.motors.PendulumJoint]
 enableFriction = false

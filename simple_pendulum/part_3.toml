@@ -1,2 +1,2 @@
-[system.robot.motors.PendulumJoint]
+[robot.motors.PendulumJoint]
 enableFriction = false

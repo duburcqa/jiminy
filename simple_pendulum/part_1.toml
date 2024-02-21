@@ -2,9 +2,9 @@
 sensorsUpdatePeriod = 0.0
 controllerUpdatePeriod = 0.0
 
-[system.robot.model.dynamics]
+[robot.model.dynamics]
 enableFlexibleModel = false
 
-[system.robot.motors.PendulumJoint]
+[robot.motors.PendulumJoint]
 enableCommandLimit = false
 enableFriction = false
