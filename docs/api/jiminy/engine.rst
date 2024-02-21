@@ -11,12 +11,7 @@ engine
    :members:
    :undoc-members:
 
-.. doxygenstruct:: jiminy::SystemState
-   :project: jiminy
-   :members:
-   :undoc-members:
-
-.. doxygenclass:: jiminy::EngineMultiRobot
+.. doxygenstruct:: jiminy::RobotState
    :project: jiminy
    :members:
    :undoc-members:

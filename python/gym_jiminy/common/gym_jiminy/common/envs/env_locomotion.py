@@ -1,7 +1,7 @@
 """Generic environment to learn locomotion skills for legged robots using
 Jiminy simulator as physics engine.
 """
-from typing import Optional, Dict, Union, Callable, Any, Type, Sequence, Tuple
+from typing import Optional, Dict, Union, Any, Type, Sequence, Tuple
 
 import numpy as np
 
@@ -60,11 +60,6 @@ DEFAULT_SIMULATION_DURATION = 30.0  # (s) Default simulation duration
 DEFAULT_STEP_DT = 0.04              # (s) Stepper update period
 
 DEFAULT_HLC_TO_LLC_RATIO = 1  # (NA)
-
-
-ImpulseForceType = Dict[str, Union[str, float, np.ndarray]]
-ProfileForceFunc = Callable[[float, np.ndarray, np.ndarray, np.ndarray], None]
-ProfileForceType = Dict[str, Union[str, ProfileForceFunc]]
 
 
 class WalkerJiminyEnv(BaseJiminyEnv):
@@ -367,7 +362,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         terminated, truncated = super().has_terminated()
 
         # Check if the agent has successfully solved the task
-        if self._system_state_q[2] < self._height_neutral * 0.5:
+        if self._robot_state_q[2] < self._height_neutral * 0.5:
             terminated = True
 
         return terminated, truncated
@@ -397,7 +392,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
 
         if 'energy' in reward_mixture_keys:
             v_mot = self.robot.sensor_measurements[encoder.type][1]
-            command = self.system_state.command
+            command = self.robot_state.command
             power_consumption = np.sum(np.maximum(command * v_mot, 0.0))
             power_consumption_rel = \
                 power_consumption / self._power_consumption_max

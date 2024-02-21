@@ -16,16 +16,16 @@ namespace jiminy
 {
     // ***************************** Uniform random bit generators ***************************** //
 
-    /// @brief 32-bits Permuted Congruential Generator (PCG) random number generator. This
+    /// \brief 32-bits Permuted Congruential Generator (PCG) random number generator. This
     ///        generator has excellent statistical quality while being much faster than Mersenne
     ///        Twister (std::mt19937) and having acceptable period (2^62).
     ///
-    /// @details The PCG random number generation scheme has been developed by Melissa O'Neill. The
+    /// \details The PCG random number generation scheme has been developed by Melissa O'Neill. The
     ///          technical details can be found in his origin paper, "PCG: A Family of Simple Fast
     ///          Space-Efficient Statistically Good Algorithms for Random Number Generation.",
     ///          2014. For additional information, please visit: http://www.pcg-random.org
     ///
-    /// @warning This implementation has not been vectorized by leveraging SIMD instructions. As
+    /// \warning This implementation has not been vectorized by leveraging SIMD instructions. As
     ///          such, all platforms are supported out-of-the-box and yield reproducible results,
     ///          at the cost of running significantly slower to when it comes to sampling enough
     ///          data at once (e.g. AVX512 operates on 16 floats at once). This use-case is largely
@@ -33,7 +33,7 @@ namespace jiminy
     ///          For completeness, here is a another fully vectorized implementation:
     ///          https://github.com/lemire/simdpcg
     ///
-    /// @sa The proposed implementation is a minimal version of `pcg32_fast` released under the
+    /// \sa The proposed implementation is a minimal version of `pcg32_fast` released under the
     ///     Apache License, Version 2.0: https://github.com/imneme/pcg-cpp
     class JIMINY_DLLAPI PCG32
     {
@@ -241,14 +241,14 @@ namespace jiminy
     uniform(
         Eigen::Index nrows, Eigen::Index ncols, Generator & g, float lo = 0.0F, float hi = 1.0F);
 
-    /// @details The original Ziggurat algorithm for single-precision floating-point scalars is
+    /// \details The original Ziggurat algorithm for single-precision floating-point scalars is
     ///          used internally. This method is known to be about x4 times faster than the
     ///          Box–Muller transform but significantly more complex to implement and more
     ///          notably to vectorize using SIMD instructions. For details about these methods:
     ///          https://en.wikipedia.org/wiki/Ziggurat_algorithm
     ///          https://en.wikipedia.org/wiki/Box–Muller_transform
     ///
-    /// @warning This implementation has been optimized for sampling individual scalar here and
+    /// \warning This implementation has been optimized for sampling individual scalar here and
     ///          there, rather than all at once in a vector. The proposed PCG32 random number
     ///          generator is consistent with this design choice. Fully vectorized implementations
     ///          of Ziggurat algorithm and Box-Muller transform that supports both x86 and
@@ -257,7 +257,7 @@ namespace jiminy
     ///          It you are looking for fully vectorized implementation of some other statistical
     ///          distributions, have a look to this project: https://github.com/bab2min/EigenRand
     ///
-    /// @sa Based on the original implementation by Marsaglia and Tsang (JSS, 2000):
+    /// \sa Based on the original implementation by Marsaglia and Tsang (JSS, 2000):
     ///     https://people.sc.fsu.edu/~jburkardt/cpp_src/ziggurat/ziggurat.html
     ///     This implementation is known to fail some standard statistical tests as described
     ///     by Doornik (2005). This is not an issue for most applications. For reference:
@@ -415,11 +415,11 @@ namespace jiminy
     protected:
         virtual double grad(int32_t knot, double delta) const noexcept = 0;
 
-        /// @brief Improved Smoothstep function by Ken Perlin (aka Smootherstep).
+        /// \brief Improved Smoothstep function by Ken Perlin (aka Smootherstep).
         ///
-        /// @details It has zero 1st and 2nd-order derivatives at dt = 0.0, and 1.0.
+        /// \details It has zero 1st and 2nd-order derivatives at dt = 0.0, and 1.0.
         ///
-        /// @sa For reference, see:
+        /// \sa For reference, see:
         ///     https://en.wikipedia.org/wiki/Smoothstep#Variations
         static double fade(double delta) noexcept;
         static double lerp(double ratio, double yLeft, double yRight) noexcept;

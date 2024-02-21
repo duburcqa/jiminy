@@ -169,7 +169,7 @@ class SimulateSimpleMass(unittest.TestCase):
             ((v_z_jiminy > 0.0) & (penetration_depth < 0.0))))[0]) > 1))
 
         # Compare the numerical and analytical equilibrium state.
-        f_ext_z = engine.system_state.f_external[joint_index].linear[2]
+        f_ext_z = engine.robot_states[0].f_external[joint_index].linear[2]
         self.assertTrue(np.allclose(f_ext_z, weight, atol=TOLERANCE))
         self.assertTrue(np.allclose(
             -penetration_depth[-1], weight / self.k_contact, atol=TOLERANCE))
@@ -200,14 +200,14 @@ class SimulateSimpleMass(unittest.TestCase):
         def check_sensor_measurements(t, q, v, sensor_measurements, command):
             # Verify sensor data, if the engine has been initialized
             nonlocal engine_proxy
-            if engine_proxy.is_initialized:
+            if engine_proxy.is_simulation_running:
                 f_linear = sensor_measurements[
                     ContactSensor.type, self.body_name]
                 f_wrench = sensor_measurements[
                     ForceSensor.type, self.body_name]
                 f_contact_sensor = frame_pose * Force(f_linear, np.zeros(3))
                 f_force_sensor = frame_pose * Force(*np.split(f_wrench, 2))
-                f_true = engine_proxy.system_state.f_external[joint_index]
+                f_true = engine_proxy.robot_states[0].f_external[joint_index]
                 self.assertTrue(np.allclose(
                     f_contact_sensor.linear, f_true.linear, atol=TOLERANCE))
                 self.assertTrue(np.allclose(
@@ -265,7 +265,7 @@ class SimulateSimpleMass(unittest.TestCase):
         # Register an impulse of force
         t0, dt, Fx = 0.05, 0.8, 5.0
         wrench = np.array([Fx, 0.0, 0.0, 0.0, 0.0, 0.0])
-        engine.register_impulse_force(self.body_name, t0, dt, wrench)
+        engine.register_impulse_force("", self.body_name, t0, dt, wrench)
 
         # Run simulation
         x0 = neutral_state(robot, split=False)
@@ -343,7 +343,7 @@ class SimulateSimpleMass(unittest.TestCase):
 
         # Create, initialize, and configure the engine
         engine = jiminy.Engine()
-        engine.initialize(robot)
+        engine.add_robot(robot)
 
         # Disable constraint solver regularization
         engine_options = engine.get_options()
@@ -373,7 +373,7 @@ class SimulateSimpleMass(unittest.TestCase):
                 transform.translation - ref_transform.translation,
                 log3(transform.rotation @ ref_transform.rotation.T)))
             self.assertFalse(np.any(delta / delta_prev > 1.0))
-            engine.step(dt_desired=0.01)
+            engine.step(step_dt=0.01)
             delta_prev = delta
         engine.stop()
 

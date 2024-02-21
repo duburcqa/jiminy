@@ -156,7 +156,7 @@ class PipelineDesign(unittest.TestCase):
         imu_data_ref = env.simulator.robot.sensor_measurements['ImuSensor']
         imu_data_obs = obs['measurements']['ImuSensor'][-1]
         self.assertTrue(np.all(imu_data_ref == imu_data_obs))
-        state_ref = {'q': env.system_state.q, 'v': env.system_state.v}
+        state_ref = {'q': env.robot_state.q, 'v': env.robot_state.v}
         state_obs = obs['states']['agent']
         self.assertTrue(np.all(state_ref['q'] == state_obs['q']))
         self.assertTrue(np.all(state_ref['v'] == state_obs['v']))
@@ -184,7 +184,7 @@ class PipelineDesign(unittest.TestCase):
         imu_data_ref = env.simulator.robot.sensor_measurements['ImuSensor']
         imu_data_obs = obs['measurements']['ImuSensor'][-1]
         self.assertFalse(np.all(imu_data_ref == imu_data_obs))
-        state_ref = {'q': env.system_state.q, 'v': env.system_state.v}
+        state_ref = {'q': env.robot_state.q, 'v': env.robot_state.v}
         state_obs = obs['states']['agent']
         self.assertTrue(np.all(state_ref['q'] == state_obs['q']))
         self.assertTrue(np.all(state_ref['v'] == state_obs['v']))
@@ -207,6 +207,7 @@ class PipelineDesign(unittest.TestCase):
         def configure_telemetry() -> InterfaceJiminyEnv:
             engine_options = env.simulator.engine.get_options()
             engine_options['telemetry']['enableCommand'] = True
+            engine_options['stepper']['logInternalStepperSteps'] = False
             env.simulator.engine.set_options(engine_options)
             return env
 
@@ -214,7 +215,7 @@ class PipelineDesign(unittest.TestCase):
         env.step(env.action)
 
         # Check that the command is updated 1/2 low-level controller update
-        log_vars = env.log_data["variables"]
+        log_vars = env.log_data['variables']
         u_log = log_vars['HighLevelController.currentCommandLF_HAA']
         self.assertEqual(env.control_dt, 2 * env.unwrapped.control_dt)
         self.assertTrue(np.all(u_log[:2] == 0.0))

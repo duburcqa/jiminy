@@ -176,10 +176,10 @@ namespace jiminy
         return (x << r) | (x >> (32 - r));
     }
 
-    /// @brief MurmurHash3 is a non-cryptographic hash function initially designed
+    /// \brief MurmurHash3 is a non-cryptographic hash function initially designed
     ///        for hash-based lookup.
     ///
-    /// @sa It was written by Austin Appleby, and is placed in the public domain.
+    /// \sa It was written by Austin Appleby, and is placed in the public domain.
     ///     The author hereby disclaims copyright to this source code:
     ///     https://github.com/aappleby/smhasher/blob/master/src/MurmurHash3.cpp
     static uint32_t MurmurHash3(const void * key, int32_t len, uint32_t seed) noexcept

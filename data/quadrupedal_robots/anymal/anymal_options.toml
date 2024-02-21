@@ -3,12 +3,14 @@
 [engine.stepper]
 verbose = false
 odeSolver = "euler_explicit"
+tolAbs = 1e-5
+tolRel = 1e-4
 sensorsUpdatePeriod = 0.005
 controllerUpdatePeriod = 0.005
 logInternalStepperSteps = false
 randomSeedSeq = [0,]
 
-# ============== Ground dynamics ===============
+# ============== Contact dynamics ===============
 
 [engine.constraints]
 solver = "PGS"
@@ -22,6 +24,6 @@ friction = 1.0
 
 # ======== Joints bounds configuration ========
 
-[system.robot.model.joints]
+[robot.model.joints]
 enablePositionLimit = true
 enableVelocityLimit = true

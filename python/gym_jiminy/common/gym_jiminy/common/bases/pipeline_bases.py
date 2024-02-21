@@ -77,7 +77,7 @@ class BasePipelineWrapper(
         self.simulator = env.simulator
         self.robot = env.robot
         self.stepper_state = env.stepper_state
-        self.system_state = env.system_state
+        self.robot_state = env.robot_state
         self.sensor_measurements = env.sensor_measurements
         self.is_simulation_running = env.is_simulation_running
 
@@ -267,7 +267,7 @@ class BasePipelineWrapper(
 
         # Refresh some proxies for fast lookup
         self.robot = self.env.robot
-        self.system_state = self.env.system_state
+        self.robot_state = self.env.robot_state
         self.sensor_measurements = self.env.sensor_measurements
 
         # Initialize specialized operator(s) for efficiency

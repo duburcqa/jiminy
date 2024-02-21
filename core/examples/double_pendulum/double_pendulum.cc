@@ -35,7 +35,7 @@ void internalDynamics(double /* t */,
 {
 }
 
-bool callback(double /* t */, const Eigen::VectorXd & /* q */, const Eigen::VectorXd & /* v */)
+bool callback()
 {
     return true;
 }
@@ -81,8 +81,8 @@ int main(int /* argc */, char * /* argv */[])
     }
 
     // Instantiate and configuration the controller
-    auto controller = std::make_shared<FunctionalController<>>(computeCommand, internalDynamics);
-    controller->initialize(robot);
+    robot->setController(
+        std::make_shared<FunctionalController<>>(computeCommand, internalDynamics));
 
     // Instantiate and configuration the engine
     Engine engine{};
@@ -119,7 +119,7 @@ int main(int /* argc */, char * /* argv */[])
     boost::get<double>(contactsOptions.at("transitionEps")) = 0.001;
     boost::get<double>(contactsOptions.at("transitionVelocity")) = 0.01;
     engine.setOptions(simuOptions);
-    engine.initialize(robot, controller, callback);
+    engine.addRobot(robot);
     std::cout << "Initialization: " << timer.toc<std::milli>() << "ms" << std::endl;
 
     // =====================================================================
@@ -134,7 +134,7 @@ int main(int /* argc */, char * /* argv */[])
 
     // Run simulation
     timer.tic();
-    engine.simulate(tf, q0, v0);
+    engine.simulate(tf, q0, v0, std::nullopt, false, callback);
     std::cout << "Simulation: " << timer.toc<std::milli>() << "ms" << std::endl;
 
     // Write the log file

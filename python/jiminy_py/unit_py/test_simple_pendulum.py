@@ -68,7 +68,14 @@ class SimulateSimplePendulum(unittest.TestCase):
         corresponds to a given time.
         """
         # Run simulation
-        q0, v0 = x0[:engine.robot.nq], x0[-engine.robot.nv:]
+        if isinstance(x0, np.ndarray):
+            q0, v0 = x0[:engine.robots[0].nq], x0[-engine.robots[0].nv:]
+        else:
+            q0, v0 = {}, {}
+            for robot in engine.robots:
+                q0[robot.name] = x0[robot.name][:robot.nq]
+                v0[robot.name] = x0[robot.name][-robot.nv:]
+
         engine.simulate(tf, q0, v0)
 
         # Get log data
@@ -397,7 +404,7 @@ class SimulateSimplePendulum(unittest.TestCase):
                        "F": np.array([0.0, 0.0, 2.0e5, 0.0, 0.0, 0.0])}]
         for force in F_register:
             engine.register_impulse_force(
-                "PendulumLink", force["t"], force["dt"], force["F"])
+                "", "PendulumLink", force["t"], force["dt"], force["F"])
 
         # Configure the engine: No gravity + Continuous time simulation
         engine_options = engine.get_options()

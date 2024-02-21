@@ -1,12 +1,7 @@
 engine
 ======
 
-.. autoclass:: jiminy_py.core.system
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-.. autoclass:: jiminy_py.core.EngineMultiRobot
+.. autoclass:: jiminy_py.core.Engine
    :members:
    :undoc-members:
    :show-inheritance:
@@ -16,12 +11,7 @@ engine
    :undoc-members:
    :show-inheritance:
 
-.. autoclass:: jiminy_py.core.SystemState
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-.. autoclass:: jiminy_py.core.Engine
+.. autoclass:: jiminy_py.core.RobotState
    :members:
    :undoc-members:
    :show-inheritance:

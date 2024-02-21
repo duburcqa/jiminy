@@ -30,7 +30,7 @@
 #include "pinocchio/algorithm/jacobian.hpp"  // `pinocchio::computeJointJacobians`
 
 #include "jiminy/core/fwd.h"
-#include "jiminy/core/engine/engine_multi_robot.h"
+#include "jiminy/core/engine/engine.h"
 
 
 namespace jiminy::pinocchio_overload
@@ -494,10 +494,10 @@ namespace jiminy::pinocchio_overload
     }
 
     template<typename JacobianType>
-    void computeJMinvJt(const pinocchio::Model & model,
-                        pinocchio::Data & data,
-                        const Eigen::MatrixBase<JacobianType> & J,
-                        bool updateDecomposition = true)
+    const Eigen::MatrixXd & computeJMinvJt(const pinocchio::Model & model,
+                                           pinocchio::Data & data,
+                                           const Eigen::MatrixBase<JacobianType> & J,
+                                           bool updateDecomposition = true)
     {
         // Compute the Cholesky decomposition of mass matrix M if requested
         if (updateDecomposition)
@@ -536,6 +536,8 @@ namespace jiminy::pinocchio_overload
         data.JMinvJt.resize(J.rows(), J.rows());
         data.JMinvJt.triangularView<Eigen::Lower>().setZero();
         data.JMinvJt.selfadjointView<Eigen::Lower>().rankUpdate(sDUiJt.transpose());
+
+        return data.JMinvJt;
     }
 
     template<typename RhsType>

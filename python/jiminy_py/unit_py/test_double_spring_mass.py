@@ -148,7 +148,7 @@ class SimulateTwoMasses(unittest.TestCase):
             nonlocal k_ext
             f[0] = - k_ext * (q[0] + q[1])
 
-        engine.register_profile_force("SecondMass", external_force)
+        engine.register_profile_force("", "SecondMass", external_force)
 
         # Add the extra external force to second mass
         self.A[3, :] += np.array([
@@ -189,8 +189,8 @@ class SimulateTwoMasses(unittest.TestCase):
         def compute_command(t, q, v, sensor_measurements, command):
             # Check if local external force is properly computed
             nonlocal f_local
-            if engine.is_initialized:
-                f_ext = engine.system_state.f_external[joint_index].vector
+            if engine.is_simulation_running:
+                f_ext = engine.robot_states[0].f_external[joint_index].vector
                 self.assertTrue(np.allclose(f_ext, f_local, atol=TOLERANCE))
 
         # Create and initialize the engine
@@ -207,7 +207,7 @@ class SimulateTwoMasses(unittest.TestCase):
             f[:3] = R @ f_local[:3]
             f[3:] = R @ f_local[3:]
 
-        engine.register_profile_force("FirstJoint", external_force)
+        engine.register_profile_force("", "FirstJoint", external_force)
 
         # Configure the engine
         engine_options = engine.get_options()
@@ -326,12 +326,11 @@ class SimulateTwoMasses(unittest.TestCase):
               ^         \<>\
             [O (f)] <><> [M_11] <><> [M_12 (f)]
         """
-        # Build two robots with freeflyers, with a freeflyer and a fixed second
+        # Build two robots with freeflyer, with a freeflyer and a fixed second
         # body constraint.
 
-        # Rebuild the model with a freeflyer
-        robots = [jiminy.Robot(), jiminy.Robot()]
-        engine = jiminy.EngineMultiRobot()
+        # Instantiate the engine
+        engine = jiminy.Engine()
 
         # Configure the engine
         engine_options = engine.get_options()
@@ -342,22 +341,22 @@ class SimulateTwoMasses(unittest.TestCase):
         engine.set_options(engine_options)
 
         # Define some internal parameters
-        system_names = ['FirstSystem', 'SecondSystem']
         k = np.array([[100, 50], [80, 120]])
         nu = np.array([[0.2, 0.01], [0.05, 0.1]])
         k_cross = 100
 
         # Initialize and configure the engine
-        for i in [0, 1]:
+        robot_names = ('FirstSystem', 'SecondSystem')
+        for i, robot_name in enumerate(robot_names):
             # Load robot
-            robots[i] = load_urdf_default(
-                self.urdf_name, self.motor_names, has_freeflyer=True)
+            robot = load_urdf_default(
+                self.urdf_name, self.motor_names, True, robot_name)
 
             # Apply constraints
             freeflyer_constraint = jiminy.FrameConstraint("world")
-            robots[i].add_constraint("world", freeflyer_constraint)
+            robot.add_constraint("world", freeflyer_constraint)
             fix_mass_constraint = jiminy.FrameConstraint("SecondMass")
-            robots[i].add_constraint("fixMass", fix_mass_constraint)
+            robot.add_constraint("fixMass", fix_mass_constraint)
 
             # Create controller
             class Controller(jiminy.BaseController):
@@ -369,11 +368,10 @@ class SimulateTwoMasses(unittest.TestCase):
                 def internal_dynamics(self, t, q, v, u_custom):
                     u_custom[6:] = - self.k * q[7:] - self.nu * v[6:]
 
-            controller = Controller(k[i, :], nu[i, :])
-            controller.initialize(robots[i])
+            robot.controller = Controller(k[i, :], nu[i, :])
 
-            # Add system to engine
-            engine.add_system(system_names[i], robots[i], controller)
+            # Add robot to engine
+            engine.add_robot(robot)
 
         # Add coupling force
         def force(t, q1, v1, q2, v2, f):
@@ -387,7 +385,7 @@ class SimulateTwoMasses(unittest.TestCase):
             f[1] = + k_cross * (1 + d2) * q2[7]
 
         engine.register_coupling_force(
-            *system_names, "FirstMass", "FirstMass", force)
+            *robot_names, "FirstMass", "FirstMass", force)
 
         # Initialize the whole system.
         x_init = {}
@@ -415,7 +413,7 @@ class SimulateTwoMasses(unittest.TestCase):
         x_jiminy_extract = np.hstack([x[:, [7, 8, 15, 16]] for x in x_jiminy])
 
         # Define dynamics of this system
-        def system_dynamics(t, x):
+        def dynamics(t, x):
             # Velocity to position
             dx = np.zeros(8)
             dx[:2] = x[2:4]
@@ -442,7 +440,7 @@ class SimulateTwoMasses(unittest.TestCase):
             return dx
 
         x0 = np.hstack([x_init[key][[7, 8, 15, 16]] for key in x_init])
-        x_python = integrate_dynamics(time, x0, system_dynamics)
+        x_python = integrate_dynamics(time, x0, dynamics)
         np.testing.assert_allclose(x_jiminy_extract, x_python, atol=TOLERANCE)
 
 

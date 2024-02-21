@@ -7,13 +7,11 @@ import atexit
 import logging
 import pathlib
 import tempfile
-import weakref
 from copy import deepcopy
 from itertools import chain
 from functools import partial
-from collections import OrderedDict
 from typing import (
-    Any, List, Dict, Optional, Union, Type, Sequence, Iterable, Callable)
+    Any, List, Dict, Optional, Union, Sequence, Iterable, Callable)
 
 import toml
 import numpy as np
@@ -50,25 +48,21 @@ DEFAULT_GROUND_STIFFNESS = 4.0e6
 DEFAULT_GROUND_DAMPING = 2.0e3
 
 
+ProfileForceFunc = Callable[[float, np.ndarray, np.ndarray, np.ndarray], None]
+
+
 class Simulator:
-    """This class wraps the different submodules of Jiminy, namely the robot,
-    controller, engine, and viewer, as a single simulation environment. The
-    user only as to create a robot and associated controller if any, and
-    give high-level instructions to the simulator.
+    """Single-robot simulation wrapper providing a unified user-API on top of
+    the low-level jiminy C++ core library and Python-native modules for 3D
+    rendering and log data visualization.
     """
     def __init__(self,  # pylint: disable=unused-argument
                  robot: jiminy.Robot,
-                 controller: Optional[jiminy.AbstractController] = None,
-                 engine_class: Type[jiminy.Engine] = jiminy.Engine,
                  use_theoretical_model: bool = False,
                  viewer_kwargs: Optional[Dict[str, Any]] = None,
                  **kwargs: Any) -> None:
         """
         :param robot: Jiminy robot already initialized.
-        :param controller: Jiminy (observer-)controller already initialized.
-                           Optional: None by default.
-        :param engine_class: Class of engine to use.
-                             Optional: jiminy_py.core.Engine by default.
         :param use_theoretical_model: Whether the state corresponds to the
                                       theoretical model when updating and
                                       fetching the robot's state.
@@ -86,27 +80,18 @@ class Simulator:
 
         # Handling of default argument(s)
         if "robot_name" not in self.viewer_kwargs:
-            base_name = re.sub('[^A-Za-z0-9_]', '_', robot.name)
+            model_name = robot.pinocchio_model.name
+            base_name = re.sub('[^A-Za-z0-9_]', '_', model_name)
             robot_name = f"{base_name}_{next(tempfile._get_candidate_names())}"
             self.viewer_kwargs["robot_name"] = robot_name
 
-        # Wrap callback in nested function to hide update of progress bar
-        # Note that a weak reference must be used to avoid circular reference
-        # resulting in uncollectable object and hence memory leak.
-        simulator_proxy = weakref.proxy(self)
-
-        def callback_wrapper(simulator_proxy: weakref.ProxyType,
-                             t: float,
-                             *args: Any,
-                             **kwargs: Any) -> None:
-            if simulator_proxy.__pbar is not None:
-                simulator_proxy.__pbar.update(t - simulator_proxy.__pbar.n)
-            simulator_proxy._callback(t, *args, **kwargs)
-
         # Instantiate the low-level Jiminy engine, then initialize it
-        self.engine = engine_class()
-        self.engine.initialize(
-            robot, controller, partial(callback_wrapper, simulator_proxy))
+        self.engine = jiminy.Engine()
+        self.engine.add_robot(robot)
+
+        # Define proxies for convenience
+        self.robot = robot
+        self.robot_state = self.engine.robot_states[0]
 
         # Create shared memories and python-native attribute for fast access
         self.stepper_state = self.engine.stepper_state
@@ -117,7 +102,7 @@ class Simulator:
         self._viewers: Sequence[Viewer] = []
 
         # Internal buffer for progress bar management
-        self.__pbar: Optional[tqdm] = None
+        self._pbar: Optional[tqdm] = None
 
         # Figure holder
         self._figure: Optional[TabbedFigure] = None
@@ -280,14 +265,62 @@ class Simulator:
         return (self.viewer is not None and
                 self.viewer.is_open())  # type: ignore[misc]
 
-    def _callback(self,
-                  t: float,  # pylint: disable=unused-argument
-                  q: np.ndarray,  # pylint: disable=unused-argument
-                  v: np.ndarray,  # pylint: disable=unused-argument
-                  out: np.ndarray) -> None:
-        """Callback method for the simulation.
+    def register_profile_force(self,
+                               frame_name: str,
+                               force_func: ProfileForceFunc,
+                               update_period: float = 0.0) -> None:
+        r"""Apply an external force profile on a given frame.
+
+        The force can be time- and state-dependent, and may be time-continuous
+        or updated periodically (Zero-Order Hold).
+
+        :param frame_name: Name of the frame at which to apply the force.
+        :param force_func:
+            .. raw:: html
+
+                Force profile as a callable with signature:
+
+            | force_func\(
+            |    **t**: float,
+            |    **q**: np.ndarray,
+            |    **v**: np.ndarray,
+            |    **force**: np.ndarray
+            |    \) -> None
+
+            where `force` corresponds the spatial force in local world aligned
+            frame, ie its origin is located at application frame but its basis
+            is aligned with world frame. It is represented as a `np.ndarray`
+            (Fx, Fy, Fz, Mx, My, Mz) that must be updated in-place.
+        :param update_period: Update period of the force. It must be set to 0.0
+                              for time-continuous. Discrete update is strongly
+                              recommended for native Python callables because
+                              evaluating them is so slow that it would slowdown
+                              the whole simulation. There is no issue for C++
+                              bindings such as `jiminy.RandomPerlinProcess`.
         """
-        out[()] = True
+        return self.engine.register_profile_force(
+            "", frame_name, force_func, update_period)
+
+    def register_impulse_force(self,
+                               frame_name: str,
+                               t: float,
+                               dt: float,
+                               force: np.ndarray) -> None:
+        r"""Apply an external impulse force on a given frame.
+
+        The force starts at the fixed point in time and lasts a given duration.
+        In the meantime, its profile is square-shaped, ie the force remains
+        constant.
+
+        :param frame_name: Name of the frame at which to apply the force.
+        :param t: Time at which to start applying the external force.
+        :param dt: Duration of the force.
+        :param force_func: Spatial force in local world aligned frame, ie its
+                           origin is located at application frame but its basis
+                           is aligned with world frame. It is represented as a
+                           `np.ndarray` (Fx, Fy, Fz, Mx, My, Mz).
+        """
+        return self.engine.register_impulse_force("", frame_name, t, dt, force)
 
     def seed(self, seed: Union[np.uint32, np.ndarray]) -> None:
         """Set the seed of the simulation and reset the simulation.
@@ -350,7 +383,7 @@ class Simulator:
         # Note that the force vector must be converted to pain list to avoid
         # copy with external sub-vector.
         if self.viewer is not None:
-            self.viewer.f_external = [*self.system_state.f_external][1:]
+            self.viewer.f_external = [*self.robot_state.f_external][1:]
 
     def simulate(self,
                  t_end: float,
@@ -358,6 +391,7 @@ class Simulator:
                  v_init: np.ndarray,
                  a_init: Optional[np.ndarray] = None,
                  is_state_theoretical: bool = True,
+                 callback: Optional[Callable[[], bool]] = None,
                  log_path: Optional[str] = None,
                  show_progress_bar: bool = True) -> None:
         """Run a simulation, starting from x0=(q0,v0) at t=0 up to tf.
@@ -365,13 +399,17 @@ class Simulator:
         .. note::
             Optionally, log the result of the simulation.
 
-        :param t_end: Simulation end time.
+        :param t_end: Simulation duration.
         :param q_init: Initial configuration.
         :param v_init: Initial velocity.
         :param a_init: Initial acceleration.
         :param is_state_theoretical: Whether the initial state is associated
                                      with the actual or theoretical model of
                                      the robot.
+        :param callback: Callable that can be specified to abort simulation. It
+                         will be evaluated after every simulation step. Abort
+                         if false is returned.
+                         Optional: None by default.
         :param log_path: Save log data to this location. Disable if None.
                          Note that the format extension '.data' is enforced.
                          Optional, disable by default.
@@ -379,28 +417,53 @@ class Simulator:
                                   simulation. None to enable only if available.
                                   Optional: None by default.
         """
-        # Show progress bar if requested
+        # Handling of progress bar if requested
         if show_progress_bar:
-            self.__pbar = tqdm(total=t_end, bar_format=(
+            # Initialize the progress bar
+            self._pbar = tqdm(total=t_end, bar_format=(
                 "{percentage:3.0f}%|{bar}| {n:.2f}/{total_fmt} "
                 "[{elapsed}<{remaining}]"))
 
+            # Define callable responsible for updating the progress bar
+            def update_progress_bar() -> bool:
+                """Update progress bar based on current simulation time.
+                """
+                nonlocal self
+                if self._pbar is not None:
+                    t = self.engine.stepper_state.t
+                    self._pbar.update(t - self._pbar.n)
+                return True
+
+            # Hijack simulation callback to also update the progress bar
+            if callback is None:
+                callback = update_progress_bar
+            else:
+                def callback_wrapper(callback: Callable[[], bool]) -> bool:
+                    """Update progress bar based on current simulation time,
+                    then call a given callback function.
+                    """
+                    nonlocal update_progress_bar
+                    return update_progress_bar() and callback()
+
+                callback = partial(callback_wrapper, self, callback)
+
         # Run the simulation
-        exception = None
+        err = None
         try:
             self.engine.simulate(
-                t_end, q_init, v_init, a_init, is_state_theoretical)
+                t_end, q_init, v_init, a_init, is_state_theoretical, callback)
         except Exception as e:  # pylint: disable=broad-exception-caught
-            exception = e
-        finally:  # Make sure that the progress bar is properly closed
-            if show_progress_bar:
-                assert self.__pbar is not None
-                self.__pbar.close()
-                self.__pbar = None
+            err = e
+
+        # Make sure that the progress bar is properly closed
+        if show_progress_bar:
+            assert self._pbar is not None
+            self._pbar.close()
+            self._pbar = None
 
         # Re-throw exception if not successful
-        if exception is not None:
-            raise exception
+        if err is not None:
+            raise err
 
         # Write log
         if log_path is not None and self.engine.stepper_state.q:
@@ -476,7 +539,7 @@ class Simulator:
 
             # Share the external force buffer of the viewer with the engine
             if self.is_simulation_running:
-                self.viewer.f_external = [*self.system_state.f_external][1:]
+                self.viewer.f_external = [*self.robot_state.f_external][1:]
 
             if self.viewer.backend.startswith('panda3d'):
                 # Enable display of COM, DCM and contact markers by default if
@@ -492,12 +555,14 @@ class Simulator:
                 # Enable display of external forces by default only for
                 # the joints having an external force registered to it.
                 if "display_f_external" not in viewer_kwargs:
+                    profile_forces, *_ = self.engine.profile_forces.values()
                     force_frames = set(
                         self.robot.pinocchio_model.frames[f.frame_index].parent
-                        for f in self.engine.profile_forces)
+                        for f in profile_forces)
+                    impulse_forces, *_ = self.engine.impulse_forces.values()
                     force_frames |= set(
                         self.robot.pinocchio_model.frames[f.frame_index].parent
-                        for f in self.engine.impulse_forces)
+                        for f in impulse_forces)
                     visibility = self.viewer._display_f_external
                     assert isinstance(visibility, list)
                     for i in force_frames:
@@ -652,47 +717,18 @@ class Simulator:
 
         return self._figure
 
-    def get_controller_options(self) -> dict:
-        """Getter of the options of Jiminy Controller.
-        """
-        return self.engine.controller.get_options()
-
-    def set_controller_options(self, options: dict) -> None:
-        """Setter of the options of Jiminy Controller.
-        """
-        self.engine.controller.set_options(options)
-
     def get_options(self) -> Dict[str, Dict[str, Dict[str, Any]]]:
-        """Get the options of robot (including controller), and engine.
+        """Get the options of the engine plus the robot (including controller).
         """
-        options: Dict[str, Dict[str, Dict[str, Any]]] = OrderedDict(
-            system=OrderedDict(robot=OrderedDict(), controller=OrderedDict()),
-            engine=OrderedDict())
-        robot_options = options['system']['robot']
-        robot_options_copy = self.robot.get_options()
-        robot_options['model'] = robot_options_copy['model']
-        robot_options['motors'] = robot_options_copy['motors']
-        robot_options['sensors'] = robot_options_copy['sensors']
-        robot_options['telemetry'] = robot_options_copy['telemetry']
-        options['system']['controller'] = self.get_controller_options()
-        engine_options = options['engine']
-        engine_options_copy = self.engine.get_options()
-        engine_options['stepper'] = engine_options_copy['stepper']
-        engine_options['world'] = engine_options_copy['world']
-        engine_options['joints'] = engine_options_copy['joints']
-        engine_options['constraints'] = engine_options_copy['constraints']
-        engine_options['contacts'] = engine_options_copy['contacts']
-        engine_options['telemetry'] = engine_options_copy['telemetry']
-        return options
+        return {'engine': self.engine.get_options(),
+                'robot': self.robot.get_options()}
 
     def set_options(self,
                     options: Dict[str, Dict[str, Dict[str, Any]]]) -> None:
         """Set the options of robot (including controller), and engine.
         """
-        controller_options = options['system']['controller']
-        self.robot.set_options(options['system']['robot'])
-        self.set_controller_options(controller_options)
         self.engine.set_options(options['engine'])
+        self.robot.set_options(options['robot'])
 
     def export_options(self,
                        config_path: Optional[Union[str, os.PathLike]] = None

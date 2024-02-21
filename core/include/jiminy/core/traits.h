@@ -97,7 +97,7 @@ namespace jiminy
 
     namespace internal
     {
-        /// @sa For reference, see:
+        /// \sa For reference, see:
         /// https://stackoverflow.com/a/34672753/4820605
         template<template<typename...> class Base, typename Derived>
         struct IsBaseOfTemplateImpl

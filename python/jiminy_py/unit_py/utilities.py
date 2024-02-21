@@ -18,7 +18,8 @@ FunctionalControllerCallable = Callable[[
 
 def load_urdf_default(urdf_name: str,
                       motor_names: Sequence[str] = (),
-                      has_freeflyer: bool = False) -> jiminy.Robot:
+                      has_freeflyer: bool = False,
+                      robot_name: str = "") -> jiminy.Robot:
     """Create a jiminy.Robot from a URDF with several simplifying hypothesis.
 
     The goal of this function is to ease creation of `jiminy.Robot` from a URDF
@@ -38,7 +39,7 @@ def load_urdf_default(urdf_name: str,
     urdf_path = os.path.join(data_root_dir, urdf_name)
 
     # Create and initialize the robot
-    robot = jiminy.Robot()
+    robot = jiminy.Robot(robot_name)
     robot.initialize(urdf_path, has_freeflyer, [data_root_dir])
 
     # Add motors to the robot
@@ -62,7 +63,7 @@ def load_urdf_default(urdf_name: str,
 
 
 def setup_controller_and_engine(
-        engine: jiminy.EngineMultiRobot,
+        engine: jiminy.Engine,
         robot: jiminy.Robot,
         compute_command: Optional[FunctionalControllerCallable] = None,
         internal_dynamics: Optional[FunctionalControllerCallable] = None
@@ -72,8 +73,8 @@ def setup_controller_and_engine(
 
     The goal of this function is to ease the configuration of `jiminy.Engine`
     by doing the following operations:
-      - Wrapping the control law and internal dynamics in a
-        jiminy.FunctionalController.
+      - Wrapping the control law and internal dynamics as
+        `jiminy.FunctionalController`.
       - Register the system robot/controller in the engine to
         integrate its dynamics.
 
@@ -82,8 +83,7 @@ def setup_controller_and_engine(
     :param compute_command:
         .. raw:: html
 
-            Control law, which must be an function handle with the following
-            signature:
+            Control law as a callable with signature:
 
         | compute_command\(
         |    **t**: float,
@@ -97,7 +97,7 @@ def setup_controller_and_engine(
     :param internal_dynamics:
         .. raw:: html
 
-            Internal dynamics function handle with signature:
+            Internal dynamics as a callable with signature:
 
         | internal_dynamics\(
         |    **t**: float,
@@ -110,11 +110,11 @@ def setup_controller_and_engine(
         Optional: No internal dynamics by default.
     """
     # Instantiate the controller
-    controller = jiminy.FunctionalController(compute_command, internal_dynamics)
-    controller.initialize(robot)
+    robot.controller = jiminy.FunctionalController(
+        compute_command, internal_dynamics)
 
     # Initialize the engine
-    engine.initialize(robot, controller)
+    engine.add_robot(robot)
 
 
 def neutral_state(robot: jiminy.Model,
@@ -174,7 +174,7 @@ def integrate_dynamics(time: np.ndarray,
 
 
 def simulate_and_get_state_evolution(
-        engine: jiminy.EngineMultiRobot,
+        engine: jiminy.Engine,
         tf: float,
         x0: Union[Dict[str, np.ndarray], np.ndarray],
         split: bool = False) -> Union[
@@ -193,14 +193,13 @@ def simulate_and_get_state_evolution(
         given time.
     """
     # Run simulation
-    if isinstance(engine, jiminy.Engine):
-        q0, v0 = x0[:engine.robot.nq], x0[-engine.robot.nv:]
+    if isinstance(x0, np.ndarray):
+        q0, v0 = x0[:engine.robots[0].nq], x0[-engine.robots[0].nv:]
     else:
         q0, v0 = {}, {}
-        for system in engine.systems:
-            name = system.name
-            q0[name] = x0[name][:system.robot.nq]
-            v0[name] = x0[name][-system.robot.nv:]
+        for robot in engine.robots:
+            q0[robot.name] = x0[robot.name][:robot.nq]
+            v0[robot.name] = x0[robot.name][-robot.nv:]
     engine.simulate(tf, q0, v0)
 
     # Get log data
@@ -208,13 +207,13 @@ def simulate_and_get_state_evolution(
 
     # Extract state evolution over time
     time = log_vars['Global.Time']
-    if isinstance(engine, jiminy.Engine):
+    if isinstance(x0, np.ndarray):
         q_jiminy = np.stack([
             log_vars['.'.join(['HighLevelController', s])]
-            for s in engine.robot.log_position_fieldnames], axis=-1)
+            for s in engine.robots[0].log_position_fieldnames], axis=-1)
         v_jiminy = np.stack([
             log_vars['.'.join(['HighLevelController', s])]
-            for s in engine.robot.log_velocity_fieldnames], axis=-1)
+            for s in engine.robots[0].log_velocity_fieldnames], axis=-1)
         if split:
             return time, q_jiminy, v_jiminy
         else:
@@ -222,13 +221,13 @@ def simulate_and_get_state_evolution(
             return time, x_jiminy
     else:
         q_jiminy = [np.stack([
-            log_vars['.'.join(['HighLevelController', sys.name, s])]
-            for s in sys.robot.log_position_fieldnames
-        ], axis=-1) for sys in engine.systems]
+            log_vars['.'.join(['HighLevelController', robot.name, s])]
+            for s in robot.log_position_fieldnames
+        ], axis=-1) for robot in engine.robots]
         v_jiminy = [np.stack([
-            log_vars['.'.join(['HighLevelController', sys.name, s])]
-            for s in sys.robot.log_velocity_fieldnames
-        ], axis=-1) for sys in engine.systems]
+            log_vars['.'.join(['HighLevelController', robot.name, s])]
+            for s in robot.log_velocity_fieldnames
+        ], axis=-1) for robot in engine.robots]
         if split:
             return time, q_jiminy, v_jiminy
         else:

@@ -42,17 +42,6 @@ namespace jiminy::python
                  (bp::arg("self"), "t", "q", "v"));
     }
 
-    template<typename T>
-    void registerToPythonByValueConverter()
-    {
-        bp::type_info info = bp::type_id<T>();
-        const bp::converter::registration * reg = bp::converter::registry::query(info);
-        if (reg == nullptr || *reg->m_to_python == nullptr)
-        {
-            bp::to_python_converter<T, converterToPython<const T &, true>, true>();
-        }
-    }
-
     BOOST_PYTHON_MODULE(PYTHON_LIBRARY_NAME)
     {
         /* Initialized boost::python::numpy.
@@ -98,8 +87,8 @@ namespace jiminy::python
         bp::docstring_options doc_options;
         doc_options.disable_cpp_signatures();
 
-        /* Enable some automatic C++ to Python converters.
-           By default, conversion is by-value unless specified explicitly via a call policy. */
+        /* Enable some automatic C++ from/to Python converters.
+           By default, conversion is by-value unless overwritten via a call policy. */
         registerToPythonByValueConverter<GenericConfig>();
 
         // Expose functors
@@ -129,9 +118,7 @@ namespace jiminy::python
         exposeFunctionalController();
         exposeForces();
         exposeStepperState();
-        exposeSystemState();
-        exposeSystem();
-        exposeEngineMultiRobot();
+        exposeRobotState();
         exposeEngine();
     }
 

@@ -77,12 +77,12 @@ int main(int argc, char * argv[])
     }
 
     // Instantiate the controller
-    auto controller = std::make_shared<FunctionalController<>>(computeCommand, internalDynamics);
-    controller->initialize(robot);
+    robot->setController(
+        std::make_shared<FunctionalController<>>(computeCommand, internalDynamics));
 
     // Instantiate the engine
     Engine engine{};
-    engine.initialize(robot, controller, callback);
+    engine.addRobot(robot);
     std::cout << "Initialization: " << timer.toc<std::milli>() << "ms" << std::endl;
 
     // =====================================================================
@@ -97,7 +97,7 @@ int main(int argc, char * argv[])
 
     // Run simulation
     timer.tic();
-    engine.simulate(tf, q0, v0);
+    engine.simulate(tf, q0, v0, std::nullopt, callback);
     std::cout << "Simulation: " << timer.toc<std::milli>() << "ms" << std::endl;
 
     // Write the log file

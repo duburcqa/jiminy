@@ -54,7 +54,8 @@ class PipelineControl(unittest.TestCase):
 
         # Check that the final posture matches the expected one
         data_dir = os.path.join(os.path.dirname(__file__), "data")
-        img_prefix = '_'.join((self.env.robot.name, "standing", "*"))
+        model_name = self.env.robot.pinocchio_model.name
+        img_prefix = '_'.join((model_name, "standing", "*"))
         img_min_diff = np.inf
         for img_fullpath in glob(os.path.join(data_dir, img_prefix)):
             rgba_array_rel_ref = plt.imread(img_fullpath)
@@ -75,7 +76,7 @@ class PipelineControl(unittest.TestCase):
             raw_bytes = io.BytesIO()
             img_obj.save(raw_bytes, "PNG")
             raw_bytes.seek(0)
-            print(f"{self.env.robot.name} - {self.env.viewer.backend}:",
+            print(f"{model_name} - {self.env.viewer.backend}:",
                   base64.b64encode(raw_bytes.read()))
         self.assertLessEqual(img_min_diff, IMAGE_DIFF_THRESHOLD)
 
@@ -187,7 +188,7 @@ class PipelineControl(unittest.TestCase):
         for n_steps in (0, 5, 20, 10, 0):
             env.reset(seed=0)
             if a_prev is None:
-                a_prev = env.system_state.a.copy()
-            assert np.all(a_prev == env.system_state.a)
+                a_prev = env.robot_state.a.copy()
+            assert np.all(a_prev == env.robot_state.a)
             for _ in range(n_steps):
                 env.step(env.action)

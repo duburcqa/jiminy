@@ -41,11 +41,6 @@ void internalDynamics(double /* t */,
 {
 }
 
-bool callback(double /* t */, const Eigen::VectorXd & /* q */, const Eigen::VectorXd & /* v */)
-{
-    return true;
-}
-
 
 TEST(EngineSanity, EnergyConservation)
 {
@@ -82,12 +77,13 @@ TEST(EngineSanity, EnergyConservation)
     }
     robot->setMotorsOptions(motorsOptions);
 
-    auto controller = std::make_shared<FunctionalController<>>(computeCommand, internalDynamics);
-    controller->initialize(robot);
+    // Instantiate the controller
+    robot->setController(
+        std::make_shared<FunctionalController<>>(computeCommand, internalDynamics));
 
     // Create engine
     Engine engine{};
-    engine.initialize(robot, controller, callback);
+    engine.addRobot(robot);
 
     // Configure engine: High accuracy + Continuous-time integration
     GenericConfig simuOptions = engine.getDefaultEngineOptions();

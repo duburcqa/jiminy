@@ -253,6 +253,14 @@ namespace jiminy::python
     #define DEF_READONLY2(namePy, memberFuncPtr) \
         DEF_READONLY3(namePy, memberFuncPtr, nullptr)
 
+    #define DEF_READONLY_WITH_POLICY4(namePy, attributePtr, policy, doc) \
+        add_property(namePy, \
+                     bp::make_getter(attributePtr, policy), \
+                     getPropertySignaturesWithDoc(doc, attributePtr).c_str())
+
+    #define DEF_READONLY_WITH_POLICY3(namePy, attributePtr, policy) \
+        DEF_READONLY_WITH_POLICY4(namePy, attributePtr, policy, nullptr)
+
     #define ADD_PROPERTY_GET3(namePy, memberFuncPtr, doc) \
         add_property(namePy, \
                      memberFuncPtr, \
@@ -300,6 +308,7 @@ namespace jiminy::python
 
     // Handle overloading
     #define DEF_READONLY(...) VFUNC(DEF_READONLY, __VA_ARGS__)
+    #define DEF_READONLY_WITH_POLICY(...) VFUNC(DEF_READONLY_WITH_POLICY, __VA_ARGS__)
     #define ADD_PROPERTY_GET(...) VFUNC(ADD_PROPERTY_GET, __VA_ARGS__)
     #define ADD_PROPERTY_GET_WITH_POLICY(...) VFUNC(ADD_PROPERTY_GET_WITH_POLICY, __VA_ARGS__)
     #define ADD_PROPERTY_GET_SET(...) VFUNC(ADD_PROPERTY_GET_SET, __VA_ARGS__)
@@ -806,6 +815,17 @@ namespace jiminy::python
         };
     };
 
+    template<typename T>
+    void registerToPythonByValueConverter()
+    {
+        bp::type_info info = bp::type_id<T>();
+        const bp::converter::registration * reg = bp::converter::registry::query(info);
+        if (reg == nullptr || *reg->m_to_python == nullptr)
+        {
+            bp::to_python_converter<T, converterToPython<const T &, true>, true>();
+        }
+    }
+
     // ****************************************************************************
     // **************************** PYTHON TO C++ *********************************
     // ****************************************************************************
@@ -1086,6 +1106,48 @@ namespace jiminy::python
             boost::apply_visitor(visitor, configField.second);
         }
     }
+
+    template<typename T>
+    struct RegisterFromPythonByValueConverter
+    {
+        RegisterFromPythonByValueConverter()
+        {
+            bp::converter::registry::push_back(
+                &convertible,
+                &construct,
+                bp::type_id<T>(),
+                &bp::converter::expected_from_python_type<T>::get_pytype);
+        }
+
+        /* No generic implementation for checking whether a Python object is convertible to a given
+           C++ type can be provided. The only way with the current design is trying to do so by
+           calling `convertFromPython` and see if it raises an exception, but the cost of this
+           approach would be prohibitive. */
+        static void * convertible(PyObject * obj_ptr);
+
+        static void construct(PyObject * objPtr,
+                              bp::converter::rvalue_from_python_stage1_data * data)
+        {
+            // Convert raw python object to boost::python
+            bp::object objPy = bp::object(bp::handle<>(bp::borrowed(objPtr)));
+
+            // Grab pointer to memory into which to construct the new QString
+            void * storage = reinterpret_cast<bp::converter::rvalue_from_python_storage<T> *>(data)
+                                 ->storage.bytes;
+
+            /* In-place construct the new C++ object from the python object.
+               Note that, starting with C++17, Return Value Optimization (RVO) is an integral part
+               of the standard rather than a compiler optimization as it was before. This means
+               that the following expression is equivalent to constructing the object directly when
+               calling placement-new operator. No additional temporary is created and neither copy
+               nor move constructor has to be implemented. They can even be explicitly deleted.
+               Consequently, this will always compile as long as `convertFromPython` does. */
+            new (storage) T{convertFromPython<T>(objPy)};
+
+            // Stash the memory chunk pointer for later use by boost.python
+            data->convertible = storage;
+        }
+    };
 }
 
 #endif  // UTILITIES_PYTHON_H

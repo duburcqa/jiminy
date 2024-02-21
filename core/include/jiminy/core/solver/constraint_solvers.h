@@ -20,14 +20,6 @@ namespace jiminy
 
     struct ConstraintData
     {
-    public:
-        DISABLE_COPY(ConstraintData)
-
-    public:
-        explicit ConstraintData() = default;
-        ConstraintData(ConstraintData && constraintData) = default;
-
-    public:
         AbstractConstraintBase * constraint{nullptr};
         Eigen::Index startIndex{-1};
         bool isInactive{false};
@@ -42,7 +34,7 @@ namespace jiminy
         virtual ~AbstractConstraintSolver() = default;
 
         /// \brief Compute the solution of the Nonlinear Complementary Problem:
-        ///        A x + b = w,
+        ///        A x - b = w,
         ///        s.t. (w[i] > 0 and x[i] = 0) or (w[i] = 0 and x[i] > 0
         ///
         ///        for non-linear boxed bounds lo(x) < x < hi(x):
@@ -76,6 +68,7 @@ namespace jiminy
     private:
         void ProjectedGaussSeidelIter(const Eigen::MatrixXd & A,
                                       const Eigen::VectorXd::SegmentReturnType & b,
+                                      const double w,
                                       Eigen::VectorXd::SegmentReturnType & x);
         bool ProjectedGaussSeidelSolver(const Eigen::MatrixXd & A,
                                         const Eigen::VectorXd::SegmentReturnType & b,
