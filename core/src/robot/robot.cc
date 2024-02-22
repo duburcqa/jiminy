@@ -62,8 +62,8 @@ namespace jiminy
     }
 
     void Robot::initialize(const pinocchio::Model & pinocchioModel,
-                           const pinocchio::GeometryModel & collisionModel,
-                           const pinocchio::GeometryModel & visualModel)
+                           const std::optional<pinocchio::GeometryModel> & collisionModel,
+                           const std::optional<pinocchio::GeometryModel> & visualModel)
     {
         // Detach all the motors and sensors
         detachSensors();
@@ -85,6 +85,14 @@ namespace jiminy
     {
         // Reset telemetry flag
         isTelemetryConfigured_ = false;
+
+        // Make sure that the robot is not locked
+        if (getIsLocked())
+        {
+            THROW_ERROR(bad_control_flow,
+                        "Robot already locked, probably because a simulation is running. "
+                        "Please stop it before calling 'reset'.");
+        }
 
         // Reset model
         Model::reset(g);
@@ -152,7 +160,7 @@ namespace jiminy
 
         if (getIsLocked())
         {
-            THROW_ERROR(std::logic_error,
+            THROW_ERROR(bad_control_flow,
                         "Robot already locked, probably because a simulation is running. "
                         "Please stop it before adding motors.");
         }
@@ -212,7 +220,7 @@ namespace jiminy
 
         if (getIsLocked())
         {
-            THROW_ERROR(std::logic_error,
+            THROW_ERROR(bad_control_flow,
                         "Robot already locked, probably because a simulation is running. "
                         "Please stop it before removing motors.");
         }
@@ -288,7 +296,7 @@ namespace jiminy
 
         if (getIsLocked())
         {
-            THROW_ERROR(std::logic_error,
+            THROW_ERROR(bad_control_flow,
                         "Robot already locked, probably because a simulation is running. "
                         "Please stop it before removing motors.");
         }
@@ -336,7 +344,7 @@ namespace jiminy
 
         if (getIsLocked())
         {
-            THROW_ERROR(std::logic_error,
+            THROW_ERROR(bad_control_flow,
                         "Robot already locked, probably because a simulation is running. "
                         "Please stop it before removing motors.");
         }
@@ -424,7 +432,7 @@ namespace jiminy
         // Make sure that the robot is not locked
         if (getIsLocked())
         {
-            THROW_ERROR(std::logic_error,
+            THROW_ERROR(bad_control_flow,
                         "Robot already locked, probably because a simulation is running. "
                         "Please stop it before setting a new controller.");
         }
@@ -741,7 +749,7 @@ namespace jiminy
     {
         if (getIsLocked())
         {
-            THROW_ERROR(std::logic_error,
+            THROW_ERROR(bad_control_flow,
                         "Robot already locked, probably because a simulation is running. "
                         "Please stop it before removing motors.");
         }
@@ -775,7 +783,7 @@ namespace jiminy
     {
         if (getIsLocked())
         {
-            THROW_ERROR(std::logic_error,
+            THROW_ERROR(bad_control_flow,
                         "Robot already locked, probably because a simulation is running. "
                         "Please stop it before removing motors.");
         }
@@ -848,7 +856,7 @@ namespace jiminy
     {
         if (getIsLocked())
         {
-            THROW_ERROR(std::logic_error,
+            THROW_ERROR(bad_control_flow,
                         "Robot already locked, probably because a simulation is running. "
                         "Please stop it before removing motors.");
         }
@@ -969,10 +977,8 @@ namespace jiminy
                 &sensorsSharedIt->second->measurements_);
             for (const auto & sensor : sensorGroup)
             {
-                // FIXME: manually casting to const is really necessary ?
-                auto sensorConst = std::const_pointer_cast<const AbstractSensorBase>(sensor);
                 sensorsMeasurementsStack.insert(
-                    {sensorConst->getName(), sensorConst->getIndex(), sensorConst->get()});
+                    {sensor->getName(), sensor->getIndex(), sensor->get()});
             }
             data.emplace(sensorType, std::move(sensorsMeasurementsStack));
         }
@@ -1020,7 +1026,7 @@ namespace jiminy
     {
         if (mutexLocal_->isLocked())
         {
-            THROW_ERROR(std::logic_error,
+            THROW_ERROR(bad_control_flow,
                         "Robot already locked. Please release it first prior requesting lock.");
         }
 

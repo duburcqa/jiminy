@@ -18,6 +18,40 @@ namespace jiminy::python
 
     // ***************************** PyModelVisitor ***********************************
 
+    namespace internal::model
+    {
+        template<typename T>
+        void initialize(T & self,
+                        const std::string & urdfPath,
+                        bool hasFreeflyer,
+                        const bp::object & meshPackageDirsPy,
+                        bool loadVisualMeshes)
+        {
+            auto meshPackageDirs = convertFromPython<std::vector<std::string>>(meshPackageDirsPy);
+            return self.initialize(urdfPath, hasFreeflyer, meshPackageDirs, loadVisualMeshes);
+        }
+
+        template<typename T>
+        void initializeFromModels(T & self,
+                                  const pinocchio::Model & pinocchioModel,
+                                  const bp::object & collisionModelPy,
+                                  const bp::object & visualModelPy)
+        {
+            std::optional<pinocchio::GeometryModel> collisionModel;
+            if (!collisionModelPy.is_none())
+            {
+                collisionModel.emplace(
+                    bp::extract<const pinocchio::GeometryModel &>(collisionModelPy));
+            }
+            std::optional<pinocchio::GeometryModel> visualModel;
+            if (!visualModelPy.is_none())
+            {
+                visualModel.emplace(bp::extract<const pinocchio::GeometryModel &>(visualModelPy));
+            }
+            return self.initialize(pinocchioModel, collisionModel, visualModel);
+        }
+    }
+
     struct PyModelVisitor : public bp::def_visitor<PyModelVisitor>
     {
     public:
@@ -27,6 +61,21 @@ namespace jiminy::python
         {
             // clang-format off
             cl
+                .def("initialize", &internal::model::initialize<typename PyClass::wrapped_type>,
+                                   (bp::arg("self"), "urdf_path",
+                                    bp::arg("has_freeflyer") = false,
+                                    bp::arg("mesh_package_dirs") = bp::list(),
+                                    bp::arg("load_visual_meshes") = false))
+                .def("initialize", &internal::model::initializeFromModels<typename PyClass::wrapped_type>,
+                                   (bp::arg("self"), "pinocchio_model",
+                                    bp::arg("collision_model") = bp::object(),
+                                    bp::arg("visual_model") = bp::object()))
+
+                .def("reset", makeFunction(
+                              ConvertGeneratorFromPythonAndInvoke(&Model::reset),
+                              bp::default_call_policies(),
+                              (bp::arg("self"), "generator")))
+
                 .def("add_frame",
                      static_cast<
                          void (Model::*)(const std::string &, const std::string &, const pinocchio::SE3 &)
@@ -64,7 +113,9 @@ namespace jiminy::python
                 .def("exist_constraint", &Model::existConstraint,
                                          (bp::arg("self"), "constraint_name"))
                 .ADD_PROPERTY_GET("has_constraints", &Model::hasConstraints)
-                .ADD_PROPERTY_GET("constraints", &PyModelVisitor::getConstraints)
+                .ADD_PROPERTY_GET_WITH_POLICY("constraints",
+                                              &Model::getConstraints,
+                                              bp::return_value_policy<result_converter<false>>())
                 .def("get_constraints_jacobian_and_drift", &PyModelVisitor::getConstraintsJacobianAndDrift)
                 .def("compute_constraints", &Model::computeConstraints,
                                             (bp::arg("self"), "q", "v"))
@@ -201,11 +252,6 @@ namespace jiminy::python
             return self.removeContactPoints(frameNames);
         }
 
-        static std::shared_ptr<ConstraintTree> getConstraints(Model & self)
-        {
-            return std::make_shared<ConstraintTree>(self.getConstraints());
-        }
-
         static bp::tuple getConstraintsJacobianAndDrift(Model & self)
         {
             Eigen::Index constraintRow = 0;
@@ -284,7 +330,7 @@ namespace jiminy::python
             bp::class_<Model,
                        std::shared_ptr<Model>,
                        boost::noncopyable
-                       >("Model", bp::no_init)
+                       >("Model", bp::init<>())
                 .def(PyModelVisitor());
             // clang-format on
         }
@@ -303,16 +349,15 @@ namespace jiminy::python
         {
             // clang-format off
             cl
-                .def("initialize", &PyRobotVisitor::initialize,
+                .def("initialize", &internal::model::initialize<typename PyClass::wrapped_type>,
                                    (bp::arg("self"), "urdf_path",
                                     bp::arg("has_freeflyer") = false,
                                     bp::arg("mesh_package_dirs") = bp::list(),
                                     bp::arg("load_visual_meshes") = false))
-                .def("initialize",
-                     static_cast<
-                         void (Robot::*)(const pinocchio::Model &, const pinocchio::GeometryModel &, const pinocchio::GeometryModel &)
-                     >(&Robot::initialize),
-                     (bp::arg("self"), "pinocchio_model", "collision_model", "visual_model"))
+                .def("initialize", &internal::model::initializeFromModels<typename PyClass::wrapped_type>,
+                                   (bp::arg("self"), "pinocchio_model",
+                                    bp::arg("collision_model") = bp::object(),
+                                    bp::arg("visual_model") = bp::object()))
 
                 .ADD_PROPERTY_GET_WITH_POLICY("is_locked",
                                               &Robot::getIsLocked,
@@ -358,6 +403,8 @@ namespace jiminy::python
                                       >(&Robot::getController),
                                       &Robot::setController)
 
+                .def("compute_sensor_measurements", &PyRobotVisitor::computeSensorMeasurements,
+                                                    (bp::arg("self"), "t", "q", "v", "a", "u_motor", "f_external"))
                 .ADD_PROPERTY_GET("sensor_measurements", &PyRobotVisitor::getSensorMeasurements)
 
                 .def("set_options", &PyRobotVisitor::setOptions,
@@ -405,16 +452,6 @@ namespace jiminy::python
             // clang-format on
         }
 
-        static void initialize(Robot & self,
-                               const std::string & urdfPath,
-                               bool hasFreeflyer,
-                               const bp::object & meshPackageDirsPy,
-                               bool loadVisualMeshes)
-        {
-            auto meshPackageDirs = convertFromPython<std::vector<std::string>>(meshPackageDirsPy);
-            return self.initialize(urdfPath, hasFreeflyer, meshPackageDirs, loadVisualMeshes);
-        }
-
         static void detachMotors(Robot & self, const bp::object & motorNamesPy)
         {
             auto motorNames = convertFromPython<std::vector<std::string>>(motorNamesPy);
@@ -424,6 +461,18 @@ namespace jiminy::python
         static std::shared_ptr<SensorMeasurementTree> getSensorMeasurements(Robot & self)
         {
             return std::make_shared<SensorMeasurementTree>(self.getSensorMeasurements());
+        }
+
+        static void computeSensorMeasurements(Robot & self,
+                                              double t,
+                                              const Eigen::VectorXd & q,
+                                              const Eigen::VectorXd & v,
+                                              const Eigen::VectorXd & a,
+                                              const Eigen::VectorXd & uMotor,
+                                              const bp::list & fExternalPy)
+        {
+            ForceVector fExternal = bp::extract<ForceVector>(fExternalPy);
+            self.computeSensorMeasurements(t, q, v, a, uMotor, fExternal);
         }
 
         static bp::dict getSensorNames(Robot & self)

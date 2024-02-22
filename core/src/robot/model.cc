@@ -38,6 +38,8 @@
 
 namespace jiminy
 {
+    // ************************************** Constraints ************************************** //
+
     void ConstraintTree::clear() noexcept
     {
         boundJoints.clear();
@@ -46,26 +48,27 @@ namespace jiminy
         registry.clear();
     }
 
-    ConstraintMap::iterator getImpl(ConstraintMap & constraintMap, const std::string & key)
+    template<typename T>
+    auto findImpl(T && constraints, const std::string & key, ConstraintNodeType node)
     {
-        return std::find_if(constraintMap.begin(),
-                            constraintMap.end(),
-                            [&key](const auto & constraintPair)
-                            { return constraintPair.first == key; });
-    }
+        // Determine return types based on argument constness
+        constexpr bool isConst = std::is_const_v<std::remove_reference_t<T>>;
+        using constraintMapT = std::conditional_t<isConst, const ConstraintMap, ConstraintMap>;
+        using constraintIteratorT =
+            std::conditional_t<isConst, ConstraintMap::const_iterator, ConstraintMap::iterator>;
 
-    std::pair<ConstraintMap *, ConstraintMap::iterator> ConstraintTree::find(
-        const std::string & key, ConstraintNodeType node)
-    {
         // Pointers are NOT initialized to nullptr by default
-        ConstraintMap * constraintMapPtr{nullptr};
-        ConstraintMap::iterator constraintIt;
+        constraintMapT * constraintMapPtr{nullptr};
+        constraintIteratorT constraintIt{};
         if (node == ConstraintNodeType::COLLISION_BODIES)
         {
-            for (ConstraintMap & collisionBody : collisionBodies)
+            for (auto & collisionBody : constraints.collisionBodies)
             {
                 constraintMapPtr = &collisionBody;
-                constraintIt = getImpl(*constraintMapPtr, key);
+                constraintIt = std::find_if(constraintMapPtr->begin(),
+                                            constraintMapPtr->end(),
+                                            [&key](const auto & constraintPair)
+                                            { return constraintPair.first == key; });
                 if (constraintIt != constraintMapPtr->end())
                 {
                     break;
@@ -77,27 +80,42 @@ namespace jiminy
             switch (node)
             {
             case ConstraintNodeType::BOUNDS_JOINTS:
-                constraintMapPtr = &boundJoints;
+                constraintMapPtr = &constraints.boundJoints;
                 break;
             case ConstraintNodeType::CONTACT_FRAMES:
-                constraintMapPtr = &contactFrames;
+                constraintMapPtr = &constraints.contactFrames;
                 break;
             case ConstraintNodeType::USER:
             case ConstraintNodeType::COLLISION_BODIES:
             default:
-                constraintMapPtr = &registry;
+                constraintMapPtr = &constraints.registry;
             }
-            constraintIt = getImpl(*constraintMapPtr, key);
+            constraintIt = std::find_if(constraintMapPtr->begin(),
+                                        constraintMapPtr->end(),
+                                        [&key](const auto & constraintPair)
+                                        { return constraintPair.first == key; });
         }
 
-        return {constraintMapPtr, constraintIt};
+        return std::make_pair(constraintMapPtr, constraintIt);
+    }
+
+    std::pair<ConstraintMap *, ConstraintMap::iterator> ConstraintTree::find(
+        const std::string & key, ConstraintNodeType node)
+    {
+        return findImpl(*this, key, node);
+    }
+
+    std::pair<const ConstraintMap *, ConstraintMap::const_iterator> ConstraintTree::find(
+        const std::string & key, ConstraintNodeType node) const
+    {
+        return findImpl(*this, key, node);
     }
 
     bool ConstraintTree::exist(const std::string & key, ConstraintNodeType node) const
     {
         const auto [constraintMapPtr, constraintIt] =
             const_cast<ConstraintTree *>(this)->find(key, node);
-        return (constraintMapPtr && constraintIt != constraintMapPtr->end());
+        return (constraintMapPtr && constraintIt != constraintMapPtr->cend());
     }
 
     bool ConstraintTree::exist(const std::string & key) const
@@ -113,17 +131,17 @@ namespace jiminy
     }
 
     std::shared_ptr<AbstractConstraintBase> ConstraintTree::get(const std::string & key,
-                                                                ConstraintNodeType node)
+                                                                ConstraintNodeType node) const
     {
         auto [constraintMapPtr, constraintIt] = find(key, node);
-        if (constraintMapPtr && constraintIt != constraintMapPtr->end())
+        if (constraintMapPtr && constraintIt != constraintMapPtr->cend())
         {
             return constraintIt->second;
         }
         return {};
     }
 
-    std::shared_ptr<AbstractConstraintBase> ConstraintTree::get(const std::string & key)
+    std::shared_ptr<AbstractConstraintBase> ConstraintTree::get(const std::string & key) const
     {
         std::shared_ptr<AbstractConstraintBase> constraint;
         for (ConstraintNodeType node : constraintNodeTypesAll)
@@ -166,14 +184,16 @@ namespace jiminy
         return constraintMapPtr->end();
     }
 
+    // ***************************************** Model ***************************************** //
+
     Model::Model() noexcept
     {
         setOptions(getDefaultModelOptions());
     }
 
     void Model::initialize(const pinocchio::Model & pinocchioModel,
-                           const pinocchio::GeometryModel & collisionModel,
-                           const pinocchio::GeometryModel & visualModel)
+                           const std::optional<pinocchio::GeometryModel> & collisionModel,
+                           const std::optional<pinocchio::GeometryModel> & visualModel)
     {
         if (pinocchioModel.nq == 0)
         {
@@ -193,8 +213,8 @@ namespace jiminy
 
         // Set the models
         pinocchioModelOrig_ = pinocchioModel;
-        collisionModelOrig_ = collisionModel;
-        visualModelOrig_ = visualModel;
+        collisionModelOrig_ = collisionModel.value_or(pinocchio::GeometryModel());
+        visualModelOrig_ = visualModel.value_or(pinocchio::GeometryModel());
 
         // Add ground geometry object to collision model is not already available
         if (!collisionModelOrig_.existGeometryName("ground"))
@@ -839,7 +859,7 @@ namespace jiminy
         return constraint;
     }
 
-    ConstraintTree Model::getConstraints()
+    const ConstraintTree & Model::getConstraints() const
     {
         return constraints_;
     }

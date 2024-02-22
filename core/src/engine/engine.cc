@@ -1187,10 +1187,6 @@ namespace jiminy
             const Eigen::VectorXd & a = robotDataIt->state.a;
             computeForwardKinematics(*robotIt, q, v, a);
 
-            /* Backup constraint register for fast lookup.
-               Internal constraints cannot be added/removed at this point. */
-            robotDataIt->constraints = (*robotIt)->getConstraints();
-
             // Initialize contacts forces in local frame
             const std::vector<pinocchio::FrameIndex> & contactFrameIndices =
                 (*robotIt)->getContactFrameIndices();
@@ -1219,7 +1215,8 @@ namespace jiminy
                Enable all contact constraints by default, it will be disable automatically if not
                in contact. It is useful to start in post-hysteresis state to avoid discontinuities
                at init. */
-            robotDataIt->constraints.foreach(
+            const ConstraintTree & constraints = (*robotIt)->getConstraints();
+            constraints.foreach(
                 [&contactModel = contactModel_,
                  &enablePositionLimit = (*robotIt)->modelOptions_->joints.enablePositionLimit,
                  &freq = engineOptions_->contacts.stabilizationFreq](
@@ -1266,7 +1263,7 @@ namespace jiminy
                 double forceMax = 0.0;
                 for (std::size_t i = 0; i < contactFrameIndices.size(); ++i)
                 {
-                    auto & constraint = robotDataIt->constraints.contactFrames[i].second;
+                    auto & constraint = constraints.contactFrames[i].second;
                     pinocchio::Force & fextLocal = robotDataIt->contactFrameForces[i];
                     computeContactDynamicsAtFrame(
                         *robotIt, contactFrameIndices[i], constraint, fextLocal);
@@ -1279,7 +1276,7 @@ namespace jiminy
                     {
                         const pinocchio::PairIndex & collisionPairIndex =
                             collisionPairIndices[i][j];
-                        auto & constraint = robotDataIt->constraints.collisionBodies[i][j].second;
+                        auto & constraint = constraints.collisionBodies[i][j].second;
                         pinocchio::Force & fextLocal = robotDataIt->collisionBodiesForces[i][j];
                         computeContactDynamicsAtBody(
                             *robotIt, collisionPairIndex, constraint, fextLocal);
@@ -1318,7 +1315,7 @@ namespace jiminy
                 robotDataIt->constraintSolver =
                     std::make_unique<PGSSolver>(&((*robotIt)->pinocchioModel_),
                                                 &((*robotIt)->pinocchioData_),
-                                                &robotDataIt->constraints,
+                                                &((*robotIt)->getConstraints()),
                                                 engineOptions_->contacts.friction,
                                                 engineOptions_->contacts.torsion,
                                                 engineOptions_->stepper.tolAbs,
@@ -2909,10 +2906,11 @@ namespace jiminy
         pinocchio::computeCollisions(geomModel, geomData, false);
     }
 
-    void Engine::computeContactDynamicsAtBody(const std::shared_ptr<Robot> & robot,
-                                              const pinocchio::PairIndex & collisionPairIndex,
-                                              std::shared_ptr<AbstractConstraintBase> & constraint,
-                                              pinocchio::Force & fextLocal) const
+    void Engine::computeContactDynamicsAtBody(
+        const std::shared_ptr<Robot> & robot,
+        const pinocchio::PairIndex & collisionPairIndex,
+        const std::shared_ptr<AbstractConstraintBase> & constraint,
+        pinocchio::Force & fextLocal) const
     {
         // TODO: It is assumed that the ground is flat. For now ground profile is not supported
         // with body collision. Nevertheless it should not be to hard to generated a collision
@@ -3012,7 +3010,7 @@ namespace jiminy
     void Engine::computeContactDynamicsAtFrame(
         const std::shared_ptr<Robot> & robot,
         pinocchio::FrameIndex frameIndex,
-        std::shared_ptr<AbstractConstraintBase> & constraint,
+        const std::shared_ptr<AbstractConstraintBase> & constraint,
         pinocchio::Force & fextLocal) const
     {
         /* Returns the external force in the contact frame. It must then be converted into a force
@@ -3194,7 +3192,7 @@ namespace jiminy
             const Eigen::VectorXd & /* positionLimitMax */,
             const std::unique_ptr<const Engine::EngineOptions> & /* engineOptions */,
             ContactModelType /* contactModel */,
-            std::shared_ptr<AbstractConstraintBase> & /* constraint */,
+            const std::shared_ptr<AbstractConstraintBase> & /* constraint */,
             Eigen::VectorXd & /* u */>
             ArgsType;
 
@@ -3212,7 +3210,7 @@ namespace jiminy
              const Eigen::VectorXd & positionLimitMax,
              const std::unique_ptr<const Engine::EngineOptions> & engineOptions,
              ContactModelType contactModel,
-             std::shared_ptr<AbstractConstraintBase> & constraint,
+             const std::shared_ptr<AbstractConstraintBase> & constraint,
              Eigen::VectorXd & u)
         {
             // Define some proxies for convenience
@@ -3278,7 +3276,7 @@ namespace jiminy
              const Eigen::VectorXd & /* positionLimitMax */,
              const std::unique_ptr<const Engine::EngineOptions> & /* engineOptions */,
              ContactModelType contactModel,
-             std::shared_ptr<AbstractConstraintBase> & constraint,
+             const std::shared_ptr<AbstractConstraintBase> & constraint,
              Eigen::VectorXd & /* u */)
         {
             if (contactModel == ContactModelType::CONSTRAINT)
@@ -3305,7 +3303,7 @@ namespace jiminy
              const Eigen::VectorXd & /* positionLimitMax */,
              const std::unique_ptr<const Engine::EngineOptions> & /* engineOptions */,
              ContactModelType contactModel,
-             std::shared_ptr<AbstractConstraintBase> & constraint,
+             const std::shared_ptr<AbstractConstraintBase> & constraint,
              Eigen::VectorXd & /* u */)
         {
             PRINT_WARNING("No position bounds implemented for this type of joint.");
@@ -3401,7 +3399,6 @@ namespace jiminy
     };
 
     void Engine::computeInternalDynamics(const std::shared_ptr<Robot> & robot,
-                                         RobotData & robotData,
                                          double /* t */,
                                          const Eigen::VectorXd & q,
                                          const Eigen::VectorXd & v,
@@ -3410,6 +3407,7 @@ namespace jiminy
         // Define some proxies
         const pinocchio::Model & model = robot->pinocchioModel_;
         const pinocchio::Data & data = robot->pinocchioData_;
+        const ConstraintTree & constraints = robot->getConstraints();
 
         // Enforce the position limit (rigid joints only)
         if (robot->modelOptions_->joints.enablePositionLimit)
@@ -3420,7 +3418,7 @@ namespace jiminy
                 robot->getRigidJointIndices();
             for (std::size_t i = 0; i < rigidJointIndices.size(); ++i)
             {
-                auto & constraint = robotData.constraints.boundJoints[i].second;
+                auto & constraint = constraints.boundJoints[i].second;
                 computePositionLimitsForcesAlgo::run(
                     model.joints[rigidJointIndices[i]],
                     typename computePositionLimitsForcesAlgo::ArgsType(data,
@@ -3482,6 +3480,9 @@ namespace jiminy
                                         ForceVector & fext,
                                         bool isStateUpToDate) const
     {
+        // Define proxy for convenience
+        const ConstraintTree & constraints = robot->getConstraints();
+
         // Compute the forces at contact points
         const std::vector<pinocchio::FrameIndex> & contactFrameIndices =
             robot->getContactFrameIndices();
@@ -3489,7 +3490,7 @@ namespace jiminy
         {
             // Compute force at the given contact frame.
             const pinocchio::FrameIndex frameIndex = contactFrameIndices[i];
-            auto & constraint = robotData.constraints.contactFrames[i].second;
+            auto & constraint = constraints.contactFrames[i].second;
             pinocchio::Force & fextLocal = robotData.contactFrameForces[i];
             if (!isStateUpToDate)
             {
@@ -3525,7 +3526,7 @@ namespace jiminy
                 if (!isStateUpToDate)
                 {
                     const pinocchio::PairIndex & collisionPairIndex = collisionPairIndices[i][j];
-                    auto & constraint = robotData.constraints.collisionBodies[i][j].second;
+                    auto & constraint = constraints.collisionBodies[i][j].second;
                     computeContactDynamicsAtBody(robot, collisionPairIndex, constraint, fextLocal);
                 }
 
@@ -3654,7 +3655,7 @@ namespace jiminy
                position/velocity bounds dynamics, and flexibility dynamics. */
             if (!isStateUpToDate)
             {
-                computeInternalDynamics(*robotIt, *robotDataIt, t, *qIt, *vIt, uInternal);
+                computeInternalDynamics(*robotIt, t, *qIt, *vIt, uInternal);
             }
 
             /* Compute the collision forces and estimated time at which the contact state will
@@ -3678,7 +3679,7 @@ namespace jiminy
         // Make sure that a simulation is running
         if (!isSimulationRunning_)
         {
-            THROW_ERROR(std::logic_error,
+            THROW_ERROR(bad_control_flow,
                         "No simulation running. Please start one before calling this method.");
         }
 
@@ -3848,12 +3849,13 @@ namespace jiminy
             }
 
             // Restore contact frame forces and bounds internal efforts
-            robotData.constraints.foreach(
+            const ConstraintTree & constraints = robot->getConstraints();
+            constraints.foreach(
                 ConstraintNodeType::BOUNDS_JOINTS,
                 [&u = robotData.state.u,
                  &uInternal = robotData.state.uInternal,
                  &joints = const_cast<pinocchio::Model::JointModelVector &>(model.joints)](
-                    std::shared_ptr<AbstractConstraintBase> & constraint,
+                    const std::shared_ptr<AbstractConstraintBase> & constraint,
                     ConstraintNodeType /* node */)
                 {
                     if (!constraint->getIsEnabled())
@@ -3869,10 +3871,9 @@ namespace jiminy
                     jointModel.jointVelocitySelector(u) += uJoint;
                 });
 
-            auto constraintIt = robotData.constraints.contactFrames.begin();
+            auto constraintIt = constraints.contactFrames.begin();
             auto forceIt = robot->contactForces_.begin();
-            for (; constraintIt != robotData.constraints.contactFrames.end();
-                 ++constraintIt, ++forceIt)
+            for (; constraintIt != constraints.contactFrames.end(); ++constraintIt, ++forceIt)
             {
                 auto & constraint = *constraintIt->second.get();
                 if (!constraint.getIsEnabled())
@@ -3905,9 +3906,9 @@ namespace jiminy
                     convertForceGlobalFrameToJoint(model, data, frameIndex, fextInWorld);
             }
 
-            robotData.constraints.foreach(
+            constraints.foreach(
                 ConstraintNodeType::COLLISION_BODIES,
-                [&fext, &model, &data](std::shared_ptr<AbstractConstraintBase> & constraint,
+                [&fext, &model, &data](const std::shared_ptr<AbstractConstraintBase> & constraint,
                                        ConstraintNodeType /* node */)
                 {
                     if (!constraint->getIsEnabled())

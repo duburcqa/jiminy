@@ -1107,6 +1107,85 @@ namespace jiminy::python
         }
     }
 
+    // ****************************** Convert Generator to Python ****************************** //
+
+    template<typename R, typename F, typename... Args>
+    R convertGeneratorFromPythonAndInvoke(F callable, bp::object generatorPy, Args &&... args)
+    {
+        // First, check if the provided generator can be implicitly converted
+        bp::extract<uniform_random_bit_generator_ref<uint32_t>> generatorPyGetter(generatorPy);
+        if (generatorPyGetter.check())
+        {
+            return callable(generatorPyGetter(), std::forward<Args>(args)...);
+        }
+
+        // If not, assuming it is a numpy random generator and try to extract the raw function
+        bp::object ctypes_addressof = bp::import("ctypes").attr("addressof");
+        bp::object next_uint32_ctype = generatorPy.attr("ctypes").attr("next_uint32");
+        uintptr_t next_uint32_addr = bp::extract<uintptr_t>(ctypes_addressof(next_uint32_ctype));
+        auto next_uint32 = *reinterpret_cast<uint32_t (**)(void *)>(next_uint32_addr);
+        bp::object state_ctype = generatorPy.attr("ctypes").attr("state_address");
+        void * state_ptr = reinterpret_cast<void *>(bp::extract<uintptr_t>(state_ctype)());
+
+        return callable([state_ptr, next_uint32]() -> uint32_t { return next_uint32(state_ptr); },
+                        std::forward<Args>(args)...);
+    }
+
+    template<typename Signature, typename>
+    class ConvertGeneratorFromPythonAndInvoke;
+
+    template<typename R, typename Generator, typename... Args>
+    class ConvertGeneratorFromPythonAndInvoke<R(Generator, Args...), void>
+    {
+    public:
+        ConvertGeneratorFromPythonAndInvoke(R (*func)(Generator, Args...)) :
+        func_{func}
+        {
+        }
+
+        R operator()(bp::object generatorPy, Args... argsPy)
+        {
+            return convertGeneratorFromPythonAndInvoke<R, R (*)(Generator, Args...), Args...>(
+                func_, generatorPy, std::forward<Args>(argsPy)...);
+        }
+
+    private:
+        R (*func_)(Generator, Args...);
+    };
+
+    template<typename R, typename... Args>
+    ConvertGeneratorFromPythonAndInvoke(R (*)(Args...))
+        -> ConvertGeneratorFromPythonAndInvoke<R(Args...), void>;
+
+    template<typename T, typename R, typename Generator, typename... Args>
+    class ConvertGeneratorFromPythonAndInvoke<R(Generator, Args...), T>
+    {
+    public:
+        ConvertGeneratorFromPythonAndInvoke(R (T::*memFun)(Generator, Args...)) :
+        memFun_{memFun}
+        {
+        }
+
+        R operator()(T & obj, bp::object generatorPy, Args... argsPy)
+        {
+            auto callable = [&obj, memFun = memFun_](Generator generator, Args... args) -> R
+            {
+                return (obj.*memFun)(generator, args...);
+            };
+            return convertGeneratorFromPythonAndInvoke<R, decltype(callable), Args...>(
+                callable, generatorPy, std::forward<Args>(argsPy)...);
+        }
+
+    private:
+        R (T::*memFun_)(Generator, Args...);
+    };
+
+    template<typename T, typename R, typename... Args>
+    ConvertGeneratorFromPythonAndInvoke(R (T::*)(Args...))
+        -> ConvertGeneratorFromPythonAndInvoke<R(Args...), T>;
+
+    // **************************** Automatic From Python converter **************************** //
+
     template<typename T>
     struct RegisterFromPythonByValueConverter
     {
