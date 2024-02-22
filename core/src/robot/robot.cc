@@ -44,36 +44,42 @@ namespace jiminy
         return controller;
     }
 
+    template<typename... Args>
+    void initializeImpl(Robot & robot, Args... args)
+    {
+        // Make sure that no simulation is already running
+        if (robot.getIsLocked())
+        {
+            THROW_ERROR(bad_control_flow,
+                        "Robot already locked, probably because a simulation is running. "
+                        "Please stop it before calling 'initialize'.");
+        }
+
+        // Detach all the motors and sensors
+        robot.detachSensors();
+        robot.detachMotors();
+
+        /* Delete the current model and generate a new one.
+           Note that is also refresh all proxies automatically. */
+        robot.Model::initialize(args...);
+
+        // Initialize default controller
+        robot.setController({});
+    }
+
     void Robot::initialize(const std::string & urdfPath,
                            bool hasFreeflyer,
                            const std::vector<std::string> & meshPackageDirs,
                            bool loadVisualMeshes)
     {
-        // Detach all the motors and sensors
-        detachSensors();
-        detachMotors();
-
-        /* Delete the current model and generate a new one.
-           Note that is also refresh all proxies automatically. */
-        Model::initialize(urdfPath, hasFreeflyer, meshPackageDirs, loadVisualMeshes);
-
-        // Initialize default controller
-        controller_ = MakeDefaultController(shared_from_this());
+        initializeImpl(*this, urdfPath, hasFreeflyer, meshPackageDirs, loadVisualMeshes);
     }
 
     void Robot::initialize(const pinocchio::Model & pinocchioModel,
                            const std::optional<pinocchio::GeometryModel> & collisionModel,
                            const std::optional<pinocchio::GeometryModel> & visualModel)
     {
-        // Detach all the motors and sensors
-        detachSensors();
-        detachMotors();
-
-        // Delete the current model and generate a new one
-        Model::initialize(pinocchioModel, collisionModel, visualModel);
-
-        // Initialize default controller
-        controller_ = MakeDefaultController(shared_from_this());
+        initializeImpl(*this, pinocchioModel, collisionModel, visualModel);
     }
 
     const std::string & Robot::getName() const

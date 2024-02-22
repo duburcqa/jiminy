@@ -165,8 +165,16 @@ namespace jiminy
         // Make sure the robot still exists
         if (robot_.expired())
         {
+            THROW_ERROR(bad_control_flow, "Robot has been deleted. Impossible to reset sensors.");
+        }
+
+        // Make sure that no simulation is already running
+        auto robot = robot_.lock();
+        if (robot && robot->getIsLocked())
+        {
             THROW_ERROR(bad_control_flow,
-                        "Robot has been deleted. Impossible to reset the sensors.");
+                        "Robot already locked, probably because a simulation is running. "
+                        "Please stop it before resetting sensors.");
         }
 
         // Clear the shared data buffers
