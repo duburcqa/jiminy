@@ -20,36 +20,38 @@ namespace jiminy::python
 {
     namespace bp = boost::python;
 
-    // ************* Expose impulse, profile, and coupling force registers **************
+    // ***************************************** Forces **************************************** //
 
-    static bp::object profileForceWrapper(const ProfileForce & self)
+    namespace internal::forces
     {
-        bp::object func = makeFunction(
-            self.func, bp::return_value_policy<bp::return_by_value>(), (bp::arg("t"), "q", "v"));
-        setFunctionWrapperModule<ProfileForce>(func);
-        return func;
-    }
+        static bp::object profileForceWrapper(const ProfileForce & self)
+        {
+            bp::object func = makeFunction(self.func,
+                                           bp::return_value_policy<bp::return_by_value>(),
+                                           (bp::arg("t"), "q", "v"));
+            setFunctionWrapperModule<ProfileForce>(func);
+            return func;
+        }
 
-    static bp::object couplingForceWrapper(const CouplingForce & self)
-    {
-        bp::object func = makeFunction(self.func,
-                                       bp::return_value_policy<bp::return_by_value>(),
-                                       (bp::arg("t"), "q1", "v1", "q2", "v2"));
-        setFunctionWrapperModule<CouplingForce>(func);
-        return func;
+        static bp::object couplingForceWrapper(const CouplingForce & self)
+        {
+            bp::object func = makeFunction(self.func,
+                                           bp::return_value_policy<bp::return_by_value>(),
+                                           (bp::arg("t"), "q1", "v1", "q2", "v2"));
+            setFunctionWrapperModule<CouplingForce>(func);
+            return func;
+        }
     }
 
     void exposeForces()
     {
-        // clang-format off
-        bp::class_<ProfileForce,
-                   std::shared_ptr<ProfileForce>,
-                   boost::noncopyable>("ProfileForce", bp::no_init)
+        bp::class_<ProfileForce, std::shared_ptr<ProfileForce>, boost::noncopyable>("ProfileForce",
+                                                                                    bp::no_init)
             .DEF_READONLY("frame_name", &ProfileForce::frameName)
             .DEF_READONLY("frame_index", &ProfileForce::frameIndex)
             .DEF_READONLY("update_period", &ProfileForce::updatePeriod)
             .DEF_READONLY("force", &ProfileForce::force)
-            .ADD_PROPERTY_GET("func", profileForceWrapper);
+            .ADD_PROPERTY_GET("func", internal::forces::profileForceWrapper);
 
         /* Note that it will be impossible to slice the vector if `boost::noncopyable` is set for
            the stl container, or if the value type contained itself. In such a case, it raises a
@@ -57,57 +59,33 @@ namespace jiminy::python
         bp::class_<ProfileForceVector>("ProfileForceVector", bp::no_init)
             .def(vector_indexing_suite_no_contains<ProfileForceVector>());
 
-        bp::class_<ImpulseForce,
-                   std::shared_ptr<ImpulseForce>,
-                   boost::noncopyable>("ImpulseForce", bp::no_init)
+        bp::class_<ImpulseForce, std::shared_ptr<ImpulseForce>, boost::noncopyable>("ImpulseForce",
+                                                                                    bp::no_init)
             .DEF_READONLY("frame_name", &ImpulseForce::frameName)
             .DEF_READONLY("frame_index", &ImpulseForce::frameIndex)
             .DEF_READONLY("t", &ImpulseForce::t)
             .DEF_READONLY("dt", &ImpulseForce::dt)
             .DEF_READONLY("force", &ImpulseForce::force);
 
-        bp::class_<ImpulseForceVector,
-                   boost::noncopyable>("ImpulseForceVector", bp::no_init)
+        bp::class_<ImpulseForceVector, boost::noncopyable>("ImpulseForceVector", bp::no_init)
             .def(vector_indexing_suite_no_contains<ImpulseForceVector>());
 
-        bp::class_<CouplingForce,
-                   std::shared_ptr<CouplingForce>,
-                   boost::noncopyable>("CouplingForce", bp::no_init)
+        bp::class_<CouplingForce, std::shared_ptr<CouplingForce>, boost::noncopyable>(
+            "CouplingForce", bp::no_init)
             .DEF_READONLY("robot_name_1", &CouplingForce::robotName1)
             .DEF_READONLY("robot_index_1", &CouplingForce::robotIndex1)
             .DEF_READONLY("robot_name_2", &CouplingForce::robotName2)
             .DEF_READONLY("robot_index_2", &CouplingForce::robotIndex2)
-            .ADD_PROPERTY_GET("func", couplingForceWrapper);
+            .ADD_PROPERTY_GET("func", internal::forces::couplingForceWrapper);
 
-        bp::class_<CouplingForceVector,
-                   boost::noncopyable>("CouplingForceVector", bp::no_init)
+        bp::class_<CouplingForceVector, boost::noncopyable>("CouplingForceVector", bp::no_init)
             .def(vector_indexing_suite_no_contains<CouplingForceVector>());
-        // clang-format on
     }
 
-    // ***************************** PyStepperStateVisitor ***********************************
+    // ************************************** StepperState ************************************* //
 
-    struct PyStepperStateVisitor : public bp::def_visitor<PyStepperStateVisitor>
+    namespace internal::stepper_state
     {
-    public:
-        /// \brief Expose C++ API through the visitor.
-        template<class PyClass>
-        void visit(PyClass & cl) const
-        {
-            // clang-format off
-            cl
-                .DEF_READONLY("iter", &StepperState::iter)
-                .DEF_READONLY("iter_failed", &StepperState::iterFailed)
-                .DEF_READONLY("t", &StepperState::t)
-                .DEF_READONLY("dt", &StepperState::dt)
-                .ADD_PROPERTY_GET("q", &PyStepperStateVisitor::getQ)
-                .ADD_PROPERTY_GET("v", &PyStepperStateVisitor::getV)
-                .ADD_PROPERTY_GET("a", &PyStepperStateVisitor::getA)
-                .def("__repr__", &PyStepperStateVisitor::repr)
-                ;
-            // clang-format on
-        }
-
         static bp::object getQ(const StepperState & self)
         {
             return convertToPython(self.qSplit, false);
@@ -148,45 +126,26 @@ namespace jiminy::python
             }
             return s.str();
         }
+    }
 
-        static void expose()
-        {
-            // clang-format off
-            bp::class_<StepperState,
-                       std::shared_ptr<StepperState>,
-                       boost::noncopyable>("StepperState", bp::no_init)
-                .def(PyStepperStateVisitor());
-            // clang-format on
-        }
-    };
-
-    BOOST_PYTHON_VISITOR_EXPOSE(StepperState)
-
-    // ***************************** PyRobotStateVisitor ***********************************
-
-    struct PyRobotStateVisitor : public bp::def_visitor<PyRobotStateVisitor>
+    void exposeStepperState()
     {
-    public:
-        /// \brief Expose C++ API through the visitor.
-        template<class PyClass>
-        void visit(PyClass & cl) const
-        {
-            // clang-format off
-            cl
-                .DEF_READONLY("q", &RobotState::q)
-                .DEF_READONLY("v", &RobotState::v)
-                .DEF_READONLY("a", &RobotState::a)
-                .DEF_READONLY("command", &RobotState::command)
-                .DEF_READONLY("u", &RobotState::u)
-                .DEF_READONLY("u_motor", &RobotState::uMotor)
-                .DEF_READONLY("u_internal", &RobotState::uInternal)
-                .DEF_READONLY("u_custom", &RobotState::uCustom)
-                .DEF_READONLY("f_external", &RobotState::fExternal)
-                .def("__repr__", &PyRobotStateVisitor::repr)
-                ;
-            // clang-format on
-        }
+        bp::class_<StepperState, std::shared_ptr<StepperState>, boost::noncopyable>("StepperState",
+                                                                                    bp::no_init)
+            .DEF_READONLY("iter", &StepperState::iter)
+            .DEF_READONLY("iter_failed", &StepperState::iterFailed)
+            .DEF_READONLY("t", &StepperState::t)
+            .DEF_READONLY("dt", &StepperState::dt)
+            .ADD_PROPERTY_GET("q", &internal::stepper_state::getQ)
+            .ADD_PROPERTY_GET("v", &internal::stepper_state::getV)
+            .ADD_PROPERTY_GET("a", &internal::stepper_state::getA)
+            .def("__repr__", &internal::stepper_state::repr);
+    }
 
+    // *************************************** RobotState ************************************** //
+
+    namespace internal::robot_state
+    {
         static std::string repr(RobotState & self)
         {
             std::stringstream s;
@@ -207,206 +166,28 @@ namespace jiminy::python
             }
             return s.str();
         }
+    }
 
-        static void expose()
-        {
-            // clang-format off
-            bp::class_<RobotState,
-                       std::shared_ptr<RobotState>,
-                       boost::noncopyable>("RobotState", bp::no_init)
-                .def(PyRobotStateVisitor());
-            // clang-format on
-        }
-    };
-
-    BOOST_PYTHON_VISITOR_EXPOSE(RobotState)
-
-    // ************************* PyEngineVisitor ****************************
-
-    struct PyEngineVisitor : public bp::def_visitor<PyEngineVisitor>
+    void exposeRobotState()
     {
-    public:
-        template<class PyClass>
-        void visit(PyClass & cl) const
-        {
-            // clang-format off
-            cl
-                .def("add_robot", &Engine::addRobot,
-                                  (bp::arg("self"), "robot"))
-                .def("remove_robot", &Engine::removeRobot,
-                                     (bp::arg("self"), "robot_name"))
+        bp::class_<RobotState, std::shared_ptr<RobotState>, boost::noncopyable>("RobotState",
+                                                                                bp::no_init)
+            .DEF_READONLY("q", &RobotState::q)
+            .DEF_READONLY("v", &RobotState::v)
+            .DEF_READONLY("a", &RobotState::a)
+            .DEF_READONLY("command", &RobotState::command)
+            .DEF_READONLY("u", &RobotState::u)
+            .DEF_READONLY("u_motor", &RobotState::uMotor)
+            .DEF_READONLY("u_internal", &RobotState::uInternal)
+            .DEF_READONLY("u_custom", &RobotState::uCustom)
+            .DEF_READONLY("f_external", &RobotState::fExternal)
+            .def("__repr__", &internal::robot_state::repr);
+    }
 
-                .def("reset",
-                     static_cast<
-                         void (Engine::*)(bool, bool)
-                     >(&Engine::reset),
-                     (bp::arg("self"),
-                      bp::arg("reset_random_generator") = false,
-                      bp::arg("remove_all_forces") = false))
-                .def("start", &PyEngineVisitor::startFromDict,
-                              (bp::arg("self"), "q_init_dict", "v_init_dict",
-                               bp::arg("a_init_dict") = bp::object()))  // bp::object() means 'None' in Python
-                .def("start", &PyEngineVisitor::start,
-                              (bp::arg("self"), "q_init", "v_init",
-                               bp::arg("a_init") = bp::object(),
-                               bp::arg("is_state_theoretical") = false))
-                .def("step", &Engine::step,
-                             (bp::arg("self"), bp::arg("step_dt") = -1))
-                .def("stop", &Engine::stop, (bp::arg("self")))
-                .def("simulate", &PyEngineVisitor::simulateFromDict,
-                                 (bp::arg("self"), "t_end", "q_init_dict", "v_init_dict",
-                                  bp::arg("a_init_dict") = bp::object(),
-                                  bp::arg("callback") = bp::object()))
-                .def("simulate", &PyEngineVisitor::simulate,
-                                 (bp::arg("self"), "t_end", "q_init", "v_init",
-                                  bp::arg("a_init") = bp::object(),
-                                  bp::arg("is_state_theoretical") = false,
-                                  bp::arg("callback") = bp::object()))
-                .def("compute_forward_kinematics", &Engine::computeForwardKinematics,
-                                                   (bp::arg("robot"), "q", "v", "a"))
-                .staticmethod("compute_forward_kinematics")
-                .def("compute_robots_dynamics", &PyEngineVisitor::computeRobotsDynamics,
-                                                 bp::return_value_policy<result_converter<true>>(),
-                                                 (bp::arg("self"), "t_end", "q_list", "v_list"))
+    // ***************************************** Engine **************************************** //
 
-                .ADD_PROPERTY_GET("log_data", &PyEngineVisitor::getLog)
-                .def("read_log", &PyEngineVisitor::readLog,
-                                 (bp::arg("fullpath"), bp::arg("format") = bp::object()),
-                                 "Read a logfile from jiminy.\n\n"
-                                 ".. note::\n    This function supports both binary and hdf5 log.\n\n"
-                                 ":param fullpath: Name of the file to load.\n"
-                                 ":param format: Name of the file to load.\n\n"
-                                 ":returns: Dictionary containing the logged constants and variables.")
-                .staticmethod("read_log")
-                .def("write_log", &Engine::writeLog, (bp::arg("self"), "fullpath", "format"))
-
-                .def("register_impulse_force", &PyEngineVisitor::registerImpulseForce,
-                                               (bp::arg("self"), "robot_name",
-                                                "frame_name", "t", "dt", "force"))
-                .def("remove_impulse_forces",
-                     static_cast<
-                         void (Engine::*)(const std::string &)
-                     >(&Engine::removeImpulseForces),
-                     (bp::arg("self"), "robot_name"))
-                .def("remove_impulse_forces",
-                     static_cast<
-                         void (Engine::*)(void)
-                     >(&Engine::removeImpulseForces),
-                     (bp::arg("self")))
-                .ADD_PROPERTY_GET("impulse_forces", &PyEngineVisitor::getImpulseForces)
-
-                .def("register_profile_force", &PyEngineVisitor::registerProfileForce,
-                                               (bp::arg("self"), "robot_name",
-                                                "frame_name", "force_func",
-                                                bp::arg("update_period") = 0.0))
-                .def("remove_profile_forces",
-                     static_cast<
-                         void (Engine::*)(const std::string &)
-                     >(&Engine::removeProfileForces),
-                     (bp::arg("self"), "robot_name"))
-                .def("remove_profile_forces",
-                     static_cast<
-                         void (Engine::*)(void)
-                     >(&Engine::removeProfileForces),
-                     (bp::arg("self")))
-                .ADD_PROPERTY_GET("profile_forces", &PyEngineVisitor::getProfileForces)
-
-                .def("register_coupling_force", &PyEngineVisitor::registerCouplingForce,
-                                                (bp::arg("self"),
-                                                 "robot_name_1", "robot_name_2",
-                                                 "frame_name_1", "frame_name_2",
-                                                 "force_func"))
-                .def("register_viscoelastic_coupling_force",
-                     static_cast<
-                         void (Engine::*)(
-                             const std::string &,
-                             const std::string &,
-                             const std::string &,
-                             const std::string &,
-                             const Vector6d &,
-                             const Vector6d &,
-                             double)
-                     >(&Engine::registerViscoelasticCouplingForce),
-                     (bp::arg("self"), "robot_name_1", "robot_name_2",
-                      "frame_name_1", "frame_name_2", "stiffness", "damping", bp::arg("alpha") = 0.5))
-                .def("register_viscoelastic_coupling_force",
-                     static_cast<
-                         void (Engine::*)(
-                             const std::string &,
-                             const std::string &,
-                             const std::string &,
-                             const Vector6d &,
-                             const Vector6d &,
-                             double)
-                     >(&Engine::registerViscoelasticCouplingForce),
-                     (bp::arg("self"), "robot_name", "frame_name_1", "frame_name_2",
-                      "stiffness", "damping", bp::arg("alpha") = 0.5))
-                .def("register_viscoelastic_directional_coupling_force",
-                     static_cast<
-                         void (Engine::*)(
-                             const std::string &,
-                             const std::string &,
-                             const std::string &,
-                             const std::string &,
-                             double,
-                             double,
-                             double)
-                     >(&Engine::registerViscoelasticDirectionalCouplingForce),
-                     (bp::arg("self"), "robot_name_1", "robot_name_2", "frame_name_1", "frame_name_2",
-                      "stiffness", "damping", bp::arg("rest_length") = 0.0))
-                .def("register_viscoelastic_directional_coupling_force",
-                     static_cast<
-                         void (Engine::*)(
-                             const std::string &,
-                             const std::string &,
-                             const std::string &,
-                             double,
-                             double,
-                             double)
-                     >(&Engine::registerViscoelasticDirectionalCouplingForce),
-                     (bp::arg("self"), "robot_name", "frame_name_1", "frame_name_2",
-                      "stiffness", "damping", bp::arg("rest_length") = 0.0))
-                .def("remove_coupling_forces",
-                     static_cast<
-                         void (Engine::*)(const std::string &, const std::string &)
-                     >(&Engine::removeCouplingForces),
-                     (bp::arg("self"), "robot_name_1", "robot_name_2"))
-                .def("remove_coupling_forces",
-                     static_cast<
-                         void (Engine::*)(const std::string &)
-                     >(&Engine::removeCouplingForces),
-                     (bp::arg("self"), "robot_name"))
-                .def("remove_coupling_forces",
-                     static_cast<
-                         void (Engine::*)(void)
-                     >(&Engine::removeCouplingForces),
-                     (bp::arg("self")))
-                .ADD_PROPERTY_GET_WITH_POLICY("coupling_forces",
-                                              &Engine::getCouplingForces,
-                                              bp::return_value_policy<result_converter<false>>())
-
-                .def("remove_all_forces", &Engine::removeAllForces)
-
-                .def("set_options", &PyEngineVisitor::setOptions)
-                .def("get_options", &Engine::getOptions)
-
-                .DEF_READONLY_WITH_POLICY("robots",
-                                          &Engine::robots_,
-                                          bp::return_value_policy<result_converter<true>>())
-
-                .ADD_PROPERTY_GET("robot_states", &PyEngineVisitor::getRobotStates)
-                .ADD_PROPERTY_GET_WITH_POLICY("stepper_state",
-                                              &Engine::getStepperState,
-                                              bp::return_value_policy<result_converter<false>>())
-                .ADD_PROPERTY_GET_WITH_POLICY("is_simulation_running",
-                                              &Engine::getIsSimulationRunning,
-                                              bp::return_value_policy<result_converter<false>>())
-                .add_static_property("simulation_duration_max", &Engine::getSimulationDurationMax)
-                .add_static_property("telemetry_time_unit", &Engine::getTelemetryTimeUnit)
-                ;
-            // clang-format on
-        }
-
+    namespace internal::engine
+    {
         static bp::dict getImpulseForces(Engine & self)
         {
             bp::dict impulseForcesPy;
@@ -807,17 +588,198 @@ namespace jiminy::python
             convertFromPython(configPy, config);
             return self.setOptions(config);
         }
+    }
 
-        static void expose()
-        {
-            // clang-format off
-            bp::class_<Engine,
-                       std::shared_ptr<Engine>,
-                       boost::noncopyable>("Engine")
-                .def(PyEngineVisitor());
-            // clang-format on
-        }
-    };
+    void exposeEngine()
+    {
+        bp::class_<Engine, std::shared_ptr<Engine>, boost::noncopyable>("Engine")
+            .def("add_robot", &Engine::addRobot, (bp::arg("self"), "robot"))
+            .def("remove_robot", &Engine::removeRobot, (bp::arg("self"), "robot_name"))
 
-    BOOST_PYTHON_VISITOR_EXPOSE(Engine)
+            .def("reset",
+                 static_cast<void (Engine::*)(bool, bool)>(&Engine::reset),
+                 (bp::arg("self"),
+                  bp::arg("reset_random_generator") = false,
+                  bp::arg("remove_all_forces") = false))
+            .def("start",
+                 &internal::engine::startFromDict,
+                 (bp::arg("self"),
+                  "q_init_dict",
+                  "v_init_dict",
+                  bp::arg("a_init_dict") = bp::object()))  // bp::object() means 'None' in Python
+            .def("start",
+                 &internal::engine::start,
+                 (bp::arg("self"),
+                  "q_init",
+                  "v_init",
+                  bp::arg("a_init") = bp::object(),
+                  bp::arg("is_state_theoretical") = false))
+            .def("step", &Engine::step, (bp::arg("self"), bp::arg("step_dt") = -1))
+            .def("stop", &Engine::stop, (bp::arg("self")))
+            .def("simulate",
+                 &internal::engine::simulateFromDict,
+                 (bp::arg("self"),
+                  "t_end",
+                  "q_init_dict",
+                  "v_init_dict",
+                  bp::arg("a_init_dict") = bp::object(),
+                  bp::arg("callback") = bp::object()))
+            .def("simulate",
+                 &internal::engine::simulate,
+                 (bp::arg("self"),
+                  "t_end",
+                  "q_init",
+                  "v_init",
+                  bp::arg("a_init") = bp::object(),
+                  bp::arg("is_state_theoretical") = false,
+                  bp::arg("callback") = bp::object()))
+            .def("compute_forward_kinematics",
+                 &Engine::computeForwardKinematics,
+                 (bp::arg("robot"), "q", "v", "a"))
+            .staticmethod("compute_forward_kinematics")
+            .def("compute_robots_dynamics",
+                 &internal::engine::computeRobotsDynamics,
+                 bp::return_value_policy<result_converter<true>>(),
+                 (bp::arg("self"), "t_end", "q_list", "v_list"))
+
+            .ADD_PROPERTY_GET("log_data", &internal::engine::getLog)
+            .def("read_log",
+                 &internal::engine::readLog,
+                 (bp::arg("fullpath"), bp::arg("format") = bp::object()),
+                 "Read a logfile from jiminy.\n\n"
+                 ".. note::\n    This function supports both binary and hdf5 log.\n\n"
+                 ":param fullpath: Name of the file to load.\n"
+                 ":param format: Name of the file to load.\n\n"
+                 ":returns: Dictionary containing the logged constants and variables.")
+            .staticmethod("read_log")
+            .def("write_log", &Engine::writeLog, (bp::arg("self"), "fullpath", "format"))
+
+            .def("register_impulse_force",
+                 &internal::engine::registerImpulseForce,
+                 (bp::arg("self"), "robot_name", "frame_name", "t", "dt", "force"))
+            .def("remove_impulse_forces",
+                 static_cast<void (Engine::*)(const std::string &)>(&Engine::removeImpulseForces),
+                 (bp::arg("self"), "robot_name"))
+            .def("remove_impulse_forces",
+                 static_cast<void (Engine::*)(void)>(&Engine::removeImpulseForces),
+                 (bp::arg("self")))
+            .ADD_PROPERTY_GET("impulse_forces", &internal::engine::getImpulseForces)
+
+            .def("register_profile_force",
+                 &internal::engine::registerProfileForce,
+                 (bp::arg("self"),
+                  "robot_name",
+                  "frame_name",
+                  "force_func",
+                  bp::arg("update_period") = 0.0))
+            .def("remove_profile_forces",
+                 static_cast<void (Engine::*)(const std::string &)>(&Engine::removeProfileForces),
+                 (bp::arg("self"), "robot_name"))
+            .def("remove_profile_forces",
+                 static_cast<void (Engine::*)(void)>(&Engine::removeProfileForces),
+                 (bp::arg("self")))
+            .ADD_PROPERTY_GET("profile_forces", &internal::engine::getProfileForces)
+
+            .def("register_coupling_force",
+                 &internal::engine::registerCouplingForce,
+                 (bp::arg("self"),
+                  "robot_name_1",
+                  "robot_name_2",
+                  "frame_name_1",
+                  "frame_name_2",
+                  "force_func"))
+            .def("register_viscoelastic_coupling_force",
+                 static_cast<void (Engine::*)(const std::string &,
+                                              const std::string &,
+                                              const std::string &,
+                                              const std::string &,
+                                              const Vector6d &,
+                                              const Vector6d &,
+                                              double)>(&Engine::registerViscoelasticCouplingForce),
+                 (bp::arg("self"),
+                  "robot_name_1",
+                  "robot_name_2",
+                  "frame_name_1",
+                  "frame_name_2",
+                  "stiffness",
+                  "damping",
+                  bp::arg("alpha") = 0.5))
+            .def("register_viscoelastic_coupling_force",
+                 static_cast<void (Engine::*)(const std::string &,
+                                              const std::string &,
+                                              const std::string &,
+                                              const Vector6d &,
+                                              const Vector6d &,
+                                              double)>(&Engine::registerViscoelasticCouplingForce),
+                 (bp::arg("self"),
+                  "robot_name",
+                  "frame_name_1",
+                  "frame_name_2",
+                  "stiffness",
+                  "damping",
+                  bp::arg("alpha") = 0.5))
+            .def("register_viscoelastic_directional_coupling_force",
+                 static_cast<void (Engine::*)(const std::string &,
+                                              const std::string &,
+                                              const std::string &,
+                                              const std::string &,
+                                              double,
+                                              double,
+                                              double)>(
+                     &Engine::registerViscoelasticDirectionalCouplingForce),
+                 (bp::arg("self"),
+                  "robot_name_1",
+                  "robot_name_2",
+                  "frame_name_1",
+                  "frame_name_2",
+                  "stiffness",
+                  "damping",
+                  bp::arg("rest_length") = 0.0))
+            .def("register_viscoelastic_directional_coupling_force",
+                 static_cast<void (Engine::*)(const std::string &,
+                                              const std::string &,
+                                              const std::string &,
+                                              double,
+                                              double,
+                                              double)>(
+                     &Engine::registerViscoelasticDirectionalCouplingForce),
+                 (bp::arg("self"),
+                  "robot_name",
+                  "frame_name_1",
+                  "frame_name_2",
+                  "stiffness",
+                  "damping",
+                  bp::arg("rest_length") = 0.0))
+            .def("remove_coupling_forces",
+                 static_cast<void (Engine::*)(const std::string &, const std::string &)>(
+                     &Engine::removeCouplingForces),
+                 (bp::arg("self"), "robot_name_1", "robot_name_2"))
+            .def("remove_coupling_forces",
+                 static_cast<void (Engine::*)(const std::string &)>(&Engine::removeCouplingForces),
+                 (bp::arg("self"), "robot_name"))
+            .def("remove_coupling_forces",
+                 static_cast<void (Engine::*)(void)>(&Engine::removeCouplingForces),
+                 (bp::arg("self")))
+            .ADD_PROPERTY_GET_WITH_POLICY("coupling_forces",
+                                          &Engine::getCouplingForces,
+                                          bp::return_value_policy<result_converter<false>>())
+
+            .def("remove_all_forces", &Engine::removeAllForces)
+
+            .def("set_options", &internal::engine::setOptions)
+            .def("get_options", &Engine::getOptions)
+
+            .DEF_READONLY_WITH_POLICY(
+                "robots", &Engine::robots_, bp::return_value_policy<result_converter<true>>())
+
+            .ADD_PROPERTY_GET("robot_states", &internal::engine::getRobotStates)
+            .ADD_PROPERTY_GET_WITH_POLICY("stepper_state",
+                                          &Engine::getStepperState,
+                                          bp::return_value_policy<result_converter<false>>())
+            .ADD_PROPERTY_GET_WITH_POLICY("is_simulation_running",
+                                          &Engine::getIsSimulationRunning,
+                                          bp::return_value_policy<result_converter<false>>())
+            .add_static_property("simulation_duration_max", &Engine::getSimulationDurationMax)
+            .add_static_property("telemetry_time_unit", &Engine::getTelemetryTimeUnit);
+    }
 }

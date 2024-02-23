@@ -106,12 +106,12 @@ namespace jiminy::python
 
         // Expose structs and classes
         exposeSensorMeasurementTree();
-        exposeConstraint();
+        exposeConstraints();
         exposeConstraintTree();
         exposeModel();
         exposeRobot();
         exposeAbstractMotor();
-        exposeSimpleMotor();
+        exposeBasicMotors();
         exposeAbstractSensor();
         exposeBasicSensors();
         exposeAbstractController();

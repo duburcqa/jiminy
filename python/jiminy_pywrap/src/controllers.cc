@@ -14,7 +14,7 @@ namespace jiminy::python
 {
     namespace bp = boost::python;
 
-    // ***************************** PyAbstractControllerVisitor **********************************
+    // *********************************** AbstractController ********************************** //
 
     /* Using an intermediary class is a trick to enable defining `bp::base<...>` in conjunction
        with `bp::wrapper<...>`. */
@@ -76,48 +76,15 @@ namespace jiminy::python
         }
     };
 
-    struct PyAbstractControllerVisitor : public bp::def_visitor<PyAbstractControllerVisitor>
+    namespace internal::abstract_controller
     {
-    public:
-        template<class PyClass>
-        void visit(PyClass & cl) const
-        {
-            // clang-format off
-            cl
-                .def("initialize", &PyAbstractControllerVisitor::initialize,
-                                   (bp::arg("self"), "robot"))
-                .def("reset", &AbstractController::reset,
-                              (bp::arg("self"), bp::arg("reset_dynamic_telemetry") = false))
-                .def("compute_command", &AbstractController::computeCommand,
-                                        (bp::arg("self"), "t", "q", "v", "command"))
-                .def("internal_dynamics", &AbstractController::internalDynamics,
-                                          (bp::arg("self"), "t", "q", "v", "u_custom"))
-                .ADD_PROPERTY_GET_WITH_POLICY("is_initialized",
-                                              &AbstractController::getIsInitialized,
-                                              bp::return_value_policy<bp::return_by_value>())
-                .def("register_variable", &PyAbstractControllerVisitor::registerVariable,
-                                          (bp::arg("self"), "fieldname", "value"),
-                                          "@copydoc AbstractController::registerVariable")
-                .def("register_variables", &PyAbstractControllerVisitor::registerVariableArray,
-                                           (bp::arg("self"), "fieldnames", "values"))
-                .def("register_constants", &PyAbstractControllerVisitor::registerConstant,
-                                           (bp::arg("self"), "fieldnames", "values"))
-                .def("remove_entries", &AbstractController::removeEntries)
-                .def("set_options", &PyAbstractControllerVisitor::setOptions,
-                                    (bp::arg("self"), "options"))
-                .def("get_options", &AbstractController::getOptions)
-                .ADD_PROPERTY_GET("robot", &PyAbstractControllerVisitor::getRobot)
-                .DEF_READONLY("sensor_measurements", &AbstractController::sensorMeasurements_)
-                ;
-            // clang-format on
-        }
 
         static void initialize(AbstractController & self, const std::shared_ptr<Robot> & robot)
         {
             /* Cannot use input shared pointer because its reference counter is corrupted for some
-               reason, making it impossible to use it in conjunction with weak_ptr. The only known
-               workaround is using `enable_shared_from_this` trick:
-               https://github.com/boostorg/python/issues/189 */
+                reason, making it impossible to use it in conjunction with weak_ptr. The only known
+                workaround is using `enable_shared_from_this` trick:
+                https://github.com/boostorg/python/issues/189 */
             return self.initialize(robot->shared_from_this());
         }
 
@@ -254,31 +221,62 @@ namespace jiminy::python
             // It is not possible to keep constness
             return std::const_pointer_cast<Robot>(self.robot_.lock());
         }
+    }
 
-        static void expose()
-        {
-            // clang-format off
-            bp::class_<AbstractController,
-                       std::shared_ptr<AbstractController>,
-                       boost::noncopyable>("AbstractController", bp::no_init)
-                .def(PyAbstractControllerVisitor());
+    void exposeAbstractController()
+    {
+        bp::class_<AbstractController, std::shared_ptr<AbstractController>, boost::noncopyable>(
+            "AbstractController", bp::no_init)
+            .def("initialize",
+                 &internal::abstract_controller::initialize,
+                 (bp::arg("self"), "robot"))
+            .def("reset",
+                 &AbstractController::reset,
+                 (bp::arg("self"), bp::arg("reset_dynamic_telemetry") = false))
+            .def("compute_command",
+                 &AbstractController::computeCommand,
+                 (bp::arg("self"), "t", "q", "v", "command"))
+            .def("internal_dynamics",
+                 &AbstractController::internalDynamics,
+                 (bp::arg("self"), "t", "q", "v", "u_custom"))
+            .ADD_PROPERTY_GET_WITH_POLICY("is_initialized",
+                                          &AbstractController::getIsInitialized,
+                                          bp::return_value_policy<bp::return_by_value>())
+            .def("register_variable",
+                 &internal::abstract_controller::registerVariable,
+                 (bp::arg("self"), "fieldname", "value"),
+                 "@copydoc AbstractController::registerVariable")
+            .def("register_variables",
+                 &internal::abstract_controller::registerVariableArray,
+                 (bp::arg("self"), "fieldnames", "values"))
+            .def("register_constants",
+                 &internal::abstract_controller::registerConstant,
+                 (bp::arg("self"), "fieldnames", "values"))
+            .def("remove_entries", &AbstractController::removeEntries)
+            .def("set_options",
+                 &internal::abstract_controller::setOptions,
+                 (bp::arg("self"), "options"))
+            .def("get_options", &AbstractController::getOptions)
+            .ADD_PROPERTY_GET("robot", &internal::abstract_controller::getRobot)
+            .DEF_READONLY("sensor_measurements", &AbstractController::sensorMeasurements_);
 
-            bp::class_<AbstractControllerPyWrapper, bp::bases<AbstractController>,
-                       std::shared_ptr<AbstractControllerPyWrapper>,
-                       boost::noncopyable>("BaseController")
-                .def("reset", &AbstractController::reset, &AbstractControllerPyWrapper::ResetDefault,
-                              (bp::arg("self"), bp::arg("reset_dynamic_telemetry") = false))
-                .def("compute_command", bp::pure_virtual(&AbstractController::computeCommand),
-                                        (bp::arg("self"), "t", "q", "v", "command"))
-                .def("internal_dynamics", bp::pure_virtual(&AbstractController::internalDynamics),
-                                          (bp::arg("self"), "t", "q", "v", "u_custom"));
-            // clang-format on
-        }
-    };
+        bp::class_<AbstractControllerPyWrapper,
+                   bp::bases<AbstractController>,
+                   std::shared_ptr<AbstractControllerPyWrapper>,
+                   boost::noncopyable>("BaseController")
+            .def("reset",
+                 &AbstractController::reset,
+                 &AbstractControllerPyWrapper::ResetDefault,
+                 (bp::arg("self"), bp::arg("reset_dynamic_telemetry") = false))
+            .def("compute_command",
+                 bp::pure_virtual(&AbstractController::computeCommand),
+                 (bp::arg("self"), "t", "q", "v", "command"))
+            .def("internal_dynamics",
+                 bp::pure_virtual(&AbstractController::internalDynamics),
+                 (bp::arg("self"), "t", "q", "v", "u_custom"));
+    }
 
-    BOOST_PYTHON_VISITOR_EXPOSE(AbstractController)
-
-    // ***************************** PyFunctionalControllerVisitor ***************************** //
+    // ********************************** FunctionalController ********************************* //
 
     using BaseFunctionalControllerPy =
         FunctionalController<ControllerFunPyWrapper, ControllerFunPyWrapper>;
@@ -314,35 +312,35 @@ namespace jiminy::python
         }
     };
 
-    struct PyFunctionalControllerVisitor
+    namespace internal::functional_controller
     {
-    public:
         static std::shared_ptr<FunctionalControllerPyWrapper> factory(
             bp::object & commandPy, bp::object & internalDynamicsPy)
         {
             return std::make_shared<FunctionalControllerPyWrapper>(
                 ControllerFunPyWrapper(commandPy), ControllerFunPyWrapper(internalDynamicsPy));
         }
+    }
 
-        static void expose()
-        {
-            // clang-format off
-            bp::class_<BaseFunctionalControllerPy, bp::bases<AbstractController>,
-                       std::shared_ptr<BaseFunctionalControllerPy>,
-                       boost::noncopyable>("BaseFunctionalController", bp::no_init);
+    void exposeFunctionalController()
+    {
+        bp::class_<BaseFunctionalControllerPy,
+                   bp::bases<AbstractController>,
+                   std::shared_ptr<BaseFunctionalControllerPy>,
+                   boost::noncopyable>("BaseFunctionalController", bp::no_init);
 
-            bp::class_<FunctionalControllerPyWrapper, bp::bases<BaseFunctionalControllerPy>,
-                       std::shared_ptr<FunctionalControllerPyWrapper>,
-                       boost::noncopyable>("FunctionalController", bp::no_init)
-                .def("__init__", bp::make_constructor(&PyFunctionalControllerVisitor::factory,
-                                 bp::default_call_policies(),
-                                (bp::arg("compute_command") = bp::object(),
-                                 bp::arg("internal_dynamics") = bp::object())))
-                .def("reset", &BaseFunctionalControllerPy::reset, &FunctionalControllerPyWrapper::ResetDefault,
-                              (bp::arg("self"), bp::arg("reset_dynamic_telemetry") = false));
-            // clang-format on
-        }
-    };
-
-    BOOST_PYTHON_VISITOR_EXPOSE(FunctionalController)
+        bp::class_<FunctionalControllerPyWrapper,
+                   bp::bases<BaseFunctionalControllerPy>,
+                   std::shared_ptr<FunctionalControllerPyWrapper>,
+                   boost::noncopyable>("FunctionalController", bp::no_init)
+            .def("__init__",
+                 bp::make_constructor(&internal::functional_controller::factory,
+                                      bp::default_call_policies(),
+                                      (bp::arg("compute_command") = bp::object(),
+                                       bp::arg("internal_dynamics") = bp::object())))
+            .def("reset",
+                 &BaseFunctionalControllerPy::reset,
+                 &FunctionalControllerPyWrapper::ResetDefault,
+                 (bp::arg("self"), bp::arg("reset_dynamic_telemetry") = false));
+    }
 }

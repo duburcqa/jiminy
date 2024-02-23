@@ -66,12 +66,6 @@ namespace jiminy::python
         return pythonExceptionTypeObj;
     }
 
-#define BOOST_PYTHON_VISITOR_EXPOSE(class) \
-    void expose##class()                   \
-    {                                      \
-        Py##class##Visitor::expose();      \
-    }
-
     template<typename T>
     struct get_signature_impl;
 
