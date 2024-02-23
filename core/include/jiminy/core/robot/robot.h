@@ -74,6 +74,10 @@ namespace jiminy
         const Eigen::VectorXd & getMotorEfforts() const;
         double getMotorEffort(const std::string & motorName) const;
 
+        /// \warning It assumes that kinematic quantities have been updated previously and are
+        ///          consistent with the following input arguments. If not, one must call
+        ///          `pinocchio::forwardKinematics` and `pinocchio::updateFramePlacements`
+        ///          beforehand.
         void computeSensorMeasurements(double t,
                                        const Eigen::VectorXd & q,
                                        const Eigen::VectorXd & v,

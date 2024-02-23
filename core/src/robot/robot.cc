@@ -159,11 +159,13 @@ namespace jiminy
 
     void Robot::attachMotor(std::shared_ptr<AbstractMotorBase> motor)
     {
+        // The robot must be initialized
         if (!isInitialized_)
         {
             THROW_ERROR(bad_control_flow, "Robot not initialized.");
         }
 
+        // No simulation must be running
         if (getIsLocked())
         {
             THROW_ERROR(bad_control_flow,
@@ -219,11 +221,13 @@ namespace jiminy
 
     void Robot::detachMotor(const std::string & motorName)
     {
+        // The robot must be initialized
         if (!isInitialized_)
         {
             THROW_ERROR(bad_control_flow, "Robot not initialized.");
         }
 
+        // No simulation must be running
         if (getIsLocked())
         {
             THROW_ERROR(bad_control_flow,
@@ -293,13 +297,13 @@ namespace jiminy
 
     void Robot::attachSensor(std::shared_ptr<AbstractSensorBase> sensor)
     {
-        // The sensors' names must be unique, even if their type is different.
-
+        // The robot must be initialized
         if (!isInitialized_)
         {
-            THROW_ERROR(bad_control_flow, "The robot is not initialized.");
+            THROW_ERROR(bad_control_flow, "Robot not initialized.");
         }
 
+        // No simulation must be running
         if (getIsLocked())
         {
             THROW_ERROR(bad_control_flow,
@@ -307,6 +311,7 @@ namespace jiminy
                         "Please stop it before removing motors.");
         }
 
+        // Attached sensors' names must be unique, even if their type is different.
         const std::string & sensorName = sensor->getName();
         const std::string & sensorType = sensor->getType();
         SensorTree::const_iterator sensorGroupIt;
@@ -343,11 +348,13 @@ namespace jiminy
 
     void Robot::detachSensor(const std::string & sensorType, const std::string & sensorName)
     {
+        // The robot must be initialized
         if (!isInitialized_)
         {
             THROW_ERROR(bad_control_flow, "Robot not initialized.");
         }
 
+        // No simulation must be running
         if (getIsLocked())
         {
             THROW_ERROR(bad_control_flow,
@@ -435,12 +442,18 @@ namespace jiminy
 
     void Robot::setController(const std::shared_ptr<AbstractController> & controller)
     {
-        // Make sure that the robot is not locked
+        // The robot must be initialized
+        if (!isInitialized_)
+        {
+            THROW_ERROR(bad_control_flow, "Robot not initialized.");
+        }
+
+        // No simulation must be running
         if (getIsLocked())
         {
             THROW_ERROR(bad_control_flow,
                         "Robot already locked, probably because a simulation is running. "
-                        "Please stop it before setting a new controller.");
+                        "Please stop it before removing motors.");
         }
 
         // Reset controller to default if none was specified
@@ -743,6 +756,13 @@ namespace jiminy
 
     void Robot::setModelOptions(const GenericConfig & modelOptions)
     {
+        if (getIsLocked())
+        {
+            THROW_ERROR(bad_control_flow,
+                        "Robot already locked, probably because a simulation is running. "
+                        "Please stop it before removing motors.");
+        }
+
         return Model::setOptions(modelOptions);
     }
 
@@ -850,6 +870,13 @@ namespace jiminy
 
     void Robot::setControllerOptions(const GenericConfig & controllerOptions)
     {
+        if (getIsLocked())
+        {
+            THROW_ERROR(bad_control_flow,
+                        "Robot already locked, probably because a simulation is running. "
+                        "Please stop it before removing motors.");
+        }
+
         return controller_->setOptions(controllerOptions);
     }
 
@@ -936,18 +963,22 @@ namespace jiminy
 
     double Robot::getMotorEffort(const std::string & motorName) const
     {
-        static const double motorEffortEmpty = -1;
+        if (!isInitialized_)
+        {
+            THROW_ERROR(bad_control_flow, "Robot not initialized.");
+        }
 
         auto motorIt = std::find_if(motors_.begin(),
                                     motors_.end(),
                                     [&motorName](const auto & elem)
                                     { return (elem->getName() == motorName); });
-        if (motorIt != motors_.end())
+        if (motorIt == motors_.end())
         {
-            return (*motorIt)->get();
+            THROW_ERROR(
+                std::logic_error, "No motor with name '", motorName, "' attached to the robot.");
         }
 
-        return motorEffortEmpty;
+        return (*motorIt)->get();
     }
 
     void Robot::computeSensorMeasurements(double t,
@@ -957,10 +988,10 @@ namespace jiminy
                                           const Eigen::VectorXd & uMotor,
                                           const ForceVector & fExternal)
     {
-        /* Note that it is assumed that the kinematic quantities have been
-           updated previously to be consistent with (q, v, a, u). If not,
-           one is supposed to call  `pinocchio::forwardKinematics` and
-           `pinocchio::updateFramePlacements` before calling this method. */
+        if (!isInitialized_)
+        {
+            THROW_ERROR(bad_control_flow, "Robot not initialized.");
+        }
 
         for (const auto & sensorGroupItem : sensors_)
         {
@@ -973,6 +1004,11 @@ namespace jiminy
 
     SensorMeasurementTree Robot::getSensorMeasurements() const
     {
+        if (!isInitialized_)
+        {
+            THROW_ERROR(bad_control_flow, "Robot not initialized.");
+        }
+
         SensorMeasurementTree data;
         auto sensorGroupIt = sensors_.cbegin();
         auto sensorsSharedIt = sensorSharedStorageMap_.cbegin();
@@ -994,23 +1030,33 @@ namespace jiminy
     Eigen::Ref<const Eigen::VectorXd> Robot::getSensorMeasurement(
         const std::string & sensorType, const std::string & sensorName) const
     {
-        static const Eigen::VectorXd sensorDataEmpty;
-        static const Eigen::Ref<const Eigen::VectorXd> sensorDataRefEmpty(sensorDataEmpty);
-
-        auto sensorGroupIt = sensors_.find(sensorType);
-        if (sensorGroupIt != sensors_.end())
+        if (!isInitialized_)
         {
-            auto sensorIt = std::find_if(sensorGroupIt->second.begin(),
-                                         sensorGroupIt->second.end(),
-                                         [&sensorName](const auto & elem)
-                                         { return (elem->getName() == sensorName); });
-            if (sensorIt != sensorGroupIt->second.end())
-            {
-                return (*sensorIt)->get();
-            }
+            THROW_ERROR(bad_control_flow, "Robot not initialized.");
         }
 
-        return sensorDataRefEmpty;
+        auto sensorGroupIt = sensors_.find(sensorType);
+        if (sensorGroupIt == sensors_.end())
+        {
+            THROW_ERROR(
+                std::logic_error, "No sensor of type '", sensorType, "' attached to the robot.");
+        }
+
+        auto sensorIt = std::find_if(sensorGroupIt->second.begin(),
+                                     sensorGroupIt->second.end(),
+                                     [&sensorName](const auto & elem)
+                                     { return (elem->getName() == sensorName); });
+        if (sensorIt == sensorGroupIt->second.end())
+        {
+            THROW_ERROR(std::logic_error,
+                        "No sensor of type '",
+                        sensorType,
+                        "' with name '",
+                        sensorName,
+                        "' attached to the robot.");
+        }
+
+        return (*sensorIt)->get();
     }
 
     void Robot::updateTelemetry()
