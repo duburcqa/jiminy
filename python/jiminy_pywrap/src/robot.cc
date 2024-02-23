@@ -338,18 +338,6 @@ namespace jiminy::python
             return std::make_shared<SensorMeasurementTree>(self.getSensorMeasurements());
         }
 
-        static void computeSensorMeasurements(Robot & self,
-                                              double t,
-                                              const Eigen::VectorXd & q,
-                                              const Eigen::VectorXd & v,
-                                              const Eigen::VectorXd & a,
-                                              const Eigen::VectorXd & uMotor,
-                                              const bp::list & fExternalPy)
-        {
-            ForceVector fExternal = bp::extract<ForceVector>(fExternalPy);
-            self.computeSensorMeasurements(t, q, v, a, uMotor, fExternal);
-        }
-
         static bp::dict getSensorNames(Robot & self)
         {
             bp::dict sensorsNamesPy;
@@ -458,7 +446,7 @@ namespace jiminy::python
                                   &Robot::setController)
 
             .def("compute_sensor_measurements",
-                 &internal::robot::computeSensorMeasurements,
+                 &Robot::computeSensorMeasurements,
                  (bp::arg("self"), "t", "q", "v", "a", "u_motor", "f_external"))
             .ADD_PROPERTY_GET("sensor_measurements", &internal::robot::getSensorMeasurements)
 

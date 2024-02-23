@@ -45,7 +45,7 @@ namespace jiminy
     }
 
     template<typename... Args>
-    void initializeImpl(Robot & robot, Args... args)
+    static void initializeImpl(Robot & robot, Args... args)
     {
         // Make sure that no simulation is already running
         if (robot.getIsLocked())

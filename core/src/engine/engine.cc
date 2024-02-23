@@ -845,9 +845,9 @@ namespace jiminy
         data.dhg.angular() += data.dhg.linear().cross(data.com[0]);
     }
 
-    void computeAllExtraTerms(std::vector<std::shared_ptr<Robot>> & robots,
-                              const vector_aligned_t<RobotData> & robotDataVec,
-                              vector_aligned_t<ForceVector> & f)
+    static void computeAllExtraTerms(std::vector<std::shared_ptr<Robot>> & robots,
+                                     const vector_aligned_t<RobotData> & robotDataVec,
+                                     vector_aligned_t<ForceVector> & f)
     {
         auto robotIt = robots.begin();
         auto robotDataIt = robotDataVec.begin();
@@ -858,10 +858,10 @@ namespace jiminy
         }
     }
 
-    void syncAccelerationsAndForces(const std::shared_ptr<Robot> & robot,
-                                    ForceVector & contactForces,
-                                    ForceVector & f,
-                                    MotionVector & a)
+    static void syncAccelerationsAndForces(const std::shared_ptr<Robot> & robot,
+                                           ForceVector & contactForces,
+                                           ForceVector & f,
+                                           MotionVector & a)
     {
         for (std::size_t i = 0; i < robot->getContactFrameNames().size(); ++i)
         {
@@ -875,10 +875,10 @@ namespace jiminy
         }
     }
 
-    void syncAllAccelerationsAndForces(const std::vector<std::shared_ptr<Robot>> & robots,
-                                       vector_aligned_t<ForceVector> & contactForces,
-                                       vector_aligned_t<ForceVector> & f,
-                                       vector_aligned_t<MotionVector> & a)
+    static void syncAllAccelerationsAndForces(const std::vector<std::shared_ptr<Robot>> & robots,
+                                              vector_aligned_t<ForceVector> & contactForces,
+                                              vector_aligned_t<ForceVector> & f,
+                                              vector_aligned_t<MotionVector> & a)
     {
         std::vector<std::shared_ptr<Robot>>::const_iterator robotIt = robots.begin();
         auto contactForceIt = contactForces.begin();
@@ -2846,7 +2846,6 @@ namespace jiminy
     // ================ Core physics utilities ================
     // ========================================================
 
-
     void Engine::computeForwardKinematics(std::shared_ptr<Robot> & robot,
                                           const Eigen::VectorXd & q,
                                           const Eigen::VectorXd & v,
@@ -3962,7 +3961,7 @@ namespace jiminy
         return std::const_pointer_cast<const LogData>(logData_);
     }
 
-    LogData readLogHdf5(const std::string & filename)
+    static LogData readLogHdf5(const std::string & filename)
     {
         LogData logData{};
 
@@ -4109,7 +4108,8 @@ namespace jiminy
                     "' not recognized. It must be either 'binary' or 'hdf5'.");
     }
 
-    void writeLogHdf5(const std::string & filename, const std::shared_ptr<const LogData> & logData)
+    static void writeLogHdf5(const std::string & filename,
+                             const std::shared_ptr<const LogData> & logData)
     {
         // Open HDF5 logfile
         std::unique_ptr<H5::H5File> file;

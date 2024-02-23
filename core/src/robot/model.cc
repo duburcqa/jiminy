@@ -49,7 +49,7 @@ namespace jiminy
     }
 
     template<typename T>
-    auto findImpl(T && constraints, const std::string & key, ConstraintNodeType node)
+    static auto findImpl(T && constraints, const std::string & key, ConstraintNodeType node)
     {
         // Determine return types based on argument constness
         constexpr bool isConst = std::is_const_v<std::remove_reference_t<T>>;

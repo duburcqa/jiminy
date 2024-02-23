@@ -104,7 +104,7 @@ namespace jiminy::python
             .def("__init__", bp::make_constructor(&makePCG32FromSeedSed,
                              bp::default_call_policies(),
                              (bp::arg("seed_seq"))))
-            .def("__call__", &PCG32::operator(), bp::args("self"))
+            .def("__call__", &PCG32::operator(), (bp::arg("self")))
             .def("seed", &seedPCG32FromSeedSed, (bp::arg("self"), "seed_seq"))
             .add_static_property(
                 "min", &PCG32::min, getPropertySignaturesWithDoc(nullptr, &PCG32::min).c_str())
