@@ -21,6 +21,8 @@ namespace jiminy
     class FrameConstraint;
     class JointConstraint;
 
+    // ************************************** Constraints ************************************** //
+
     using ConstraintMap = static_map_t<std::string, std::shared_ptr<AbstractConstraintBase>>;
 
     enum class JIMINY_DLLAPI ConstraintNodeType : uint8_t
@@ -46,20 +48,22 @@ namespace jiminy
 
         std::pair<ConstraintMap *, ConstraintMap::iterator> find(const std::string & key,
                                                                  ConstraintNodeType node);
+        std::pair<const ConstraintMap *, ConstraintMap::const_iterator> find(
+            const std::string & key, ConstraintNodeType node) const;
 
         bool exist(const std::string & key) const;
         bool exist(const std::string & key, ConstraintNodeType node) const;
 
-        std::shared_ptr<AbstractConstraintBase> get(const std::string & key);
+        std::shared_ptr<AbstractConstraintBase> get(const std::string & key) const;
         std::shared_ptr<AbstractConstraintBase> get(const std::string & key,
-                                                    ConstraintNodeType node);
+                                                    ConstraintNodeType node) const;
 
         void insert(const ConstraintMap & constraintMap, ConstraintNodeType node);
 
         ConstraintMap::iterator erase(const std::string & key, ConstraintNodeType node);
 
         template<typename Function>
-        void foreach(ConstraintNodeType node, Function && func)
+        void foreach(ConstraintNodeType node, Function && func) const
         {
             if (node == ConstraintNodeType::COLLISION_BODIES)
             {
@@ -73,7 +77,7 @@ namespace jiminy
             }
             else
             {
-                ConstraintMap * constraintMapPtr;
+                const ConstraintMap * constraintMapPtr;
                 switch (node)
                 {
                 case ConstraintNodeType::BOUNDS_JOINTS:
@@ -89,7 +93,7 @@ namespace jiminy
                 default:
                     constraintMapPtr = nullptr;
                 }
-                for (auto & constraintItem : *constraintMapPtr)
+                for (const auto & constraintItem : *constraintMapPtr)
                 {
                     std::invoke(std::forward<Function>(func), constraintItem.second, node);
                 }
@@ -98,7 +102,7 @@ namespace jiminy
 
         template<typename Function, std::size_t N>
         void foreach(const std::array<ConstraintNodeType, N> & constraintsHolderTypes,
-                     Function && func)
+                     Function && func) const
         {
             for (ConstraintNodeType node : constraintsHolderTypes)
             {
@@ -107,7 +111,7 @@ namespace jiminy
         }
 
         template<typename Function>
-        void foreach(Function && func)
+        void foreach(Function && func) const
         {
             foreach(constraintNodeTypesAll, std::forward<Function>(func));
         }
@@ -122,6 +126,8 @@ namespace jiminy
         /// \brief Constraints explicitly registered by user.
         ConstraintMap registry{};
     };
+
+    // ***************************************** Model ***************************************** //
 
     class JIMINY_DLLAPI Model : public std::enable_shared_from_this<Model>
     {
@@ -251,9 +257,10 @@ namespace jiminy
         explicit Model() noexcept;
         virtual ~Model() = default;
 
-        void initialize(const pinocchio::Model & pinocchioModel,
-                        const pinocchio::GeometryModel & collisionModel,
-                        const pinocchio::GeometryModel & visualModel);
+        void initialize(
+            const pinocchio::Model & pinocchioModel,
+            const std::optional<pinocchio::GeometryModel> & collisionModel = std::nullopt,
+            const std::optional<pinocchio::GeometryModel> & visualModel = std::nullopt);
         void initialize(const std::string & urdfPath,
                         bool hasFreeflyer = true,
                         const std::vector<std::string> & meshPackageDirs = {},
@@ -294,8 +301,7 @@ namespace jiminy
         std::weak_ptr<const AbstractConstraintBase> getConstraint(
             const std::string & constraintName) const;
 
-        // Copy on purpose
-        ConstraintTree getConstraints();
+        const ConstraintTree & getConstraints() const;
 
         bool existConstraint(const std::string & constraintName) const;
 
@@ -318,8 +324,8 @@ namespace jiminy
         void setOptions(GenericConfig modelOptions);
         GenericConfig getOptions() const noexcept;
 
-        /// \remark This method are not intended to be called manually. The Engine is taking care
-        ///         of it.
+        /// \remark This method does not have to be called manually before running a simulation.
+        ///         The Engine is taking care of it.
         virtual void reset(const uniform_random_bit_generator_ref<uint32_t> & g);
 
         bool getIsInitialized() const;

@@ -53,7 +53,7 @@ namespace jiminy
     public:
         explicit PGSSolver(const pinocchio::Model * model,
                            pinocchio::Data * data,
-                           ConstraintTree * constraints,
+                           const ConstraintTree * constraints,
                            double friction,
                            double torsion,
                            double tolAbs,

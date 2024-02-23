@@ -93,81 +93,6 @@ namespace jiminy::python
 
 #undef GENERIC_DISTRIBUTION_WRAPPER
 
-    template<typename R, typename F, typename... Args>
-    R convertGeneratorToPythonAndInvoke(F callable, bp::object generatorPy, Args &&... args)
-    {
-        // First, check if the provided generator can be implicitly converted
-        bp::extract<uniform_random_bit_generator_ref<uint32_t>> generatorPyGetter(generatorPy);
-        if (generatorPyGetter.check())
-        {
-            return callable(generatorPyGetter(), std::forward<Args>(args)...);
-        }
-
-        // If not, assuming it is a numpy random generator and try to extract the raw function
-        bp::object ctypes_addressof = bp::import("ctypes").attr("addressof");
-        bp::object next_uint32_ctype = generatorPy.attr("ctypes").attr("next_uint32");
-        uintptr_t next_uint32_addr = bp::extract<uintptr_t>(ctypes_addressof(next_uint32_ctype));
-        auto next_uint32 = *reinterpret_cast<uint32_t (**)(void *)>(next_uint32_addr);
-        bp::object state_ctype = generatorPy.attr("ctypes").attr("state_address");
-        void * state_ptr = reinterpret_cast<void *>(bp::extract<uintptr_t>(state_ctype)());
-
-        return callable([state_ptr, next_uint32]() -> uint32_t { return next_uint32(state_ptr); },
-                        std::forward<Args>(args)...);
-    }
-
-    template<typename Signature, typename>
-    class ConvertGeneratorToPythonAndInvoke;
-
-    template<typename R, typename Generator, typename... Args>
-    class ConvertGeneratorToPythonAndInvoke<R(Generator, Args...), void>
-    {
-    public:
-        ConvertGeneratorToPythonAndInvoke(R (*func)(Generator, Args...)) :
-        func_{func}
-        {
-        }
-
-        R operator()(bp::object generatorPy, Args... argsPy)
-        {
-            return convertGeneratorToPythonAndInvoke<R, R (*)(Generator, Args...), Args...>(
-                func_, generatorPy, std::forward<Args>(argsPy)...);
-        }
-
-    private:
-        R (*func_)(Generator, Args...);
-    };
-
-    template<typename R, typename... Args>
-    ConvertGeneratorToPythonAndInvoke(R (*)(Args...))
-        -> ConvertGeneratorToPythonAndInvoke<R(Args...), void>;
-
-    template<typename T, typename R, typename Generator, typename... Args>
-    class ConvertGeneratorToPythonAndInvoke<R(Generator, Args...), T>
-    {
-    public:
-        ConvertGeneratorToPythonAndInvoke(R (T::*memFun)(Generator, Args...)) :
-        memFun_{memFun}
-        {
-        }
-
-        R operator()(T & obj, bp::object generatorPy, Args... argsPy)
-        {
-            auto callable = [&obj, memFun = memFun_](Generator generator, Args... args) -> R
-            {
-                return (obj.*memFun)(generator, args...);
-            };
-            return convertGeneratorToPythonAndInvoke<R, decltype(callable), Args...>(
-                callable, generatorPy, std::forward<Args>(argsPy)...);
-        }
-
-    private:
-        R (T::*memFun_)(Generator, Args...);
-    };
-
-    template<typename T, typename R, typename... Args>
-    ConvertGeneratorToPythonAndInvoke(R (T::*)(Args...))
-        -> ConvertGeneratorToPythonAndInvoke<R(Args...), T>;
-
     void exposeGenerators()
     {
         // clang-format off
@@ -179,7 +104,7 @@ namespace jiminy::python
             .def("__init__", bp::make_constructor(&makePCG32FromSeedSed,
                              bp::default_call_policies(),
                              (bp::arg("seed_seq"))))
-            .def("__call__", &PCG32::operator(), bp::args("self"))
+            .def("__call__", &PCG32::operator(), (bp::arg("self")))
             .def("seed", &seedPCG32FromSeedSed, (bp::arg("self"), "seed_seq"))
             .add_static_property(
                 "min", &PCG32::min, getPropertySignaturesWithDoc(nullptr, &PCG32::min).c_str())
@@ -188,15 +113,15 @@ namespace jiminy::python
 
         bp::implicitly_convertible<PCG32, uniform_random_bit_generator_ref<uint32_t>>();
 
-#define BIND_GENERIC_DISTRIBUTION(dist, arg1, arg2)                                          \
-        bp::def(#dist, makeFunction(                                                         \
-            ConvertGeneratorToPythonAndInvoke(&dist##FromStackedArgs),                       \
-            bp::default_call_policies(),                                                     \
-            (bp::arg("generator"), #arg1, #arg2)));                                          \
-        bp::def(#dist, makeFunction(                                                         \
-            ConvertGeneratorToPythonAndInvoke(&dist##FromSize),                              \
-            bp::default_call_policies(),                                                     \
-            (bp::arg("generator"), bp::arg(#arg1) = 0.0F, bp::arg(#arg2) = 1.0F,             \
+#define BIND_GENERIC_DISTRIBUTION(dist, arg1, arg2)                               \
+        bp::def(#dist, makeFunction(                                              \
+            ConvertGeneratorFromPythonAndInvoke(&dist##FromStackedArgs),          \
+            bp::default_call_policies(),                                          \
+            (bp::arg("generator"), #arg1, #arg2)));                               \
+        bp::def(#dist, makeFunction(                                              \
+            ConvertGeneratorFromPythonAndInvoke(&dist##FromSize),                 \
+            bp::default_call_policies(),                                          \
+            (bp::arg("generator"), bp::arg(#arg1) = 0.0F, bp::arg(#arg2) = 1.0F,  \
              bp::arg("size") = bp::object())));
 
     BIND_GENERIC_DISTRIBUTION(uniform, lo, hi)
@@ -205,7 +130,7 @@ namespace jiminy::python
 #undef BIND_GENERIC_DISTRIBUTION
 
         // Must be declared last to take precedence over generic declaration with default values
-        bp::def("uniform", makeFunction(ConvertGeneratorToPythonAndInvoke(
+        bp::def("uniform", makeFunction(ConvertGeneratorFromPythonAndInvoke(
             static_cast<
                 float (*)(const uniform_random_bit_generator_ref<uint32_t> &)
             >(&uniform)),
@@ -220,7 +145,7 @@ namespace jiminy::python
             .def("__call__", &PeriodicGaussianProcess::operator(),
                              (bp::arg("self"), bp::arg("time")))
             .def("reset", makeFunction(
-                          ConvertGeneratorToPythonAndInvoke(&PeriodicGaussianProcess::reset),
+                          ConvertGeneratorFromPythonAndInvoke(&PeriodicGaussianProcess::reset),
                           bp::default_call_policies(),
                           (bp::arg("self"), "generator")))
             .ADD_PROPERTY_GET_WITH_POLICY("wavelength",
@@ -238,7 +163,7 @@ namespace jiminy::python
             .def("__call__", &PeriodicFourierProcess::operator(),
                              (bp::arg("self"), bp::arg("time")))
             .def("reset", makeFunction(
-                          ConvertGeneratorToPythonAndInvoke(&PeriodicFourierProcess::reset),
+                          ConvertGeneratorFromPythonAndInvoke(&PeriodicFourierProcess::reset),
                           bp::default_call_policies(),
                           (bp::arg("self"), "generator")))
             .ADD_PROPERTY_GET_WITH_POLICY("wavelength",
@@ -254,7 +179,7 @@ namespace jiminy::python
             .def("__call__", &AbstractPerlinProcess::operator(),
                              (bp::arg("self"), "time"))
             .def("reset", makeFunction(
-                          ConvertGeneratorToPythonAndInvoke(&AbstractPerlinProcess::reset),
+                          ConvertGeneratorFromPythonAndInvoke(&AbstractPerlinProcess::reset),
                           bp::default_call_policies(),
                           (bp::arg("self"), "generator")))
             .ADD_PROPERTY_GET_WITH_POLICY("wavelength",

@@ -112,8 +112,16 @@ namespace jiminy
         // Make sure the robot still exists
         if (robot_.expired())
         {
-            THROW_ERROR(std::runtime_error,
-                        "Robot has been deleted. Impossible to reset the motors.");
+            THROW_ERROR(std::runtime_error, "Robot has been deleted. Impossible to reset motors.");
+        }
+
+        // Make sure that no simulation is already running
+        auto robot = robot_.lock();
+        if (robot && robot->getIsLocked())
+        {
+            THROW_ERROR(bad_control_flow,
+                        "Robot already locked, probably because a simulation is running. "
+                        "Please stop it before resetting motors.");
         }
 
         // Clear the shared data buffer
@@ -129,6 +137,15 @@ namespace jiminy
 
     void AbstractMotorBase::setOptions(const GenericConfig & motorOptions)
     {
+        // Make sure that no simulation is already running
+        auto robot = robot_.lock();
+        if (robot && robot->getIsLocked())
+        {
+            THROW_ERROR(bad_control_flow,
+                        "Robot already locked, probably because a simulation is running. "
+                        "Please stop it before setting motor options.");
+        }
+
         // Check if the internal buffers must be updated
         bool internalBuffersMustBeUpdated = false;
         if (isInitialized_)
@@ -161,7 +178,7 @@ namespace jiminy
         baseMotorOptions_ = std::make_unique<const AbstractMotorOptions>(motorOptionsGeneric_);
 
         // Refresh the proxies if the robot is initialized if available
-        if (auto robot = robot_.lock())
+        if (robot)
         {
             if (internalBuffersMustBeUpdated && robot->getIsInitialized() && isAttached_)
             {
@@ -180,24 +197,26 @@ namespace jiminy
         if (!isAttached_)
         {
             THROW_ERROR(bad_control_flow,
-                        "Motor not attached to any robot. Impossible to refresh proxies.");
+                        "Motor not attached to any robot. Impossible to refresh motor proxies.");
         }
 
         auto robot = robot_.lock();
         if (!robot)
         {
             THROW_ERROR(std::runtime_error,
-                        "Robot has been deleted. Impossible to refresh proxies.");
+                        "Robot has been deleted. Impossible to refresh motor proxies.");
         }
 
         if (!isInitialized_)
         {
-            THROW_ERROR(bad_control_flow, "Motor not initialized. Impossible to refresh proxies.");
+            THROW_ERROR(bad_control_flow,
+                        "Motor not initialized. Impossible to refresh motor proxies.");
         }
 
         if (!robot->getIsInitialized())
         {
-            THROW_ERROR(bad_control_flow, "Robot not initialized. Impossible to refresh proxies.");
+            THROW_ERROR(bad_control_flow,
+                        "Robot not initialized. Impossible to refresh motor proxies.");
         }
 
         jointIndex_ = ::jiminy::getJointIndex(robot->pinocchioModel_, jointName_);
@@ -257,6 +276,11 @@ namespace jiminy
     double & AbstractMotorBase::data()
     {
         return sharedStorage_->data_[motorIndex_];
+    }
+
+    bool AbstractMotorBase::isAttached() const
+    {
+        return isAttached_;
     }
 
     const Eigen::VectorXd & AbstractMotorBase::getAll() const

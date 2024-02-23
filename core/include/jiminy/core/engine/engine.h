@@ -8,7 +8,6 @@
 #include "jiminy/core/fwd.h"
 #include "jiminy/core/utilities/helpers.h"  // `Timer`
 #include "jiminy/core/utilities/random.h"   // `PCG32`
-#include "jiminy/core/robot/model.h"
 
 
 namespace jiminy
@@ -189,8 +188,6 @@ namespace jiminy
 
         uint32_t successiveSolveFailed{0};
         std::unique_ptr<AbstractConstraintSolver> constraintSolver{nullptr};
-        /// \brief Store copy of constraints register for fast access.
-        ConstraintTree constraints{};
         /// \brief Contact forces for each contact frames in local frame.
         ForceVector contactFrameForces{};
         /// \brief Contact forces for each geometries of each collision bodies in local frame.
@@ -702,7 +699,7 @@ namespace jiminy
         void computeContactDynamicsAtBody(
             const std::shared_ptr<Robot> & robot,
             const pinocchio::PairIndex & collisionPairIndex,
-            std::shared_ptr<AbstractConstraintBase> & contactConstraint,
+            const std::shared_ptr<AbstractConstraintBase> & contactConstraint,
             pinocchio::Force & fextLocal) const;
 
         /// \brief Compute the force resulting from ground contact on a given frame.
@@ -714,7 +711,7 @@ namespace jiminy
         void computeContactDynamicsAtFrame(
             const std::shared_ptr<Robot> & robot,
             pinocchio::FrameIndex frameIndex,
-            std::shared_ptr<AbstractConstraintBase> & collisionConstraint,
+            const std::shared_ptr<AbstractConstraintBase> & collisionConstraint,
             pinocchio::Force & fextLocal) const;
 
         /// \brief Compute the ground reaction force for a given normal direction and depth.
@@ -728,7 +725,6 @@ namespace jiminy
                             const Eigen::VectorXd & v,
                             Eigen::VectorXd & command);
         void computeInternalDynamics(const std::shared_ptr<Robot> & robot,
-                                     RobotData & robotData,
                                      double t,
                                      const Eigen::VectorXd & q,
                                      const Eigen::VectorXd & v,

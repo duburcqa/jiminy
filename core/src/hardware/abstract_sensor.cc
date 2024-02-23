@@ -77,6 +77,16 @@ namespace jiminy
 
     void AbstractSensorBase::setOptions(const GenericConfig & sensorOptions)
     {
+        // Make sure that no simulation is already running
+        auto robot = robot_.lock();
+        if (robot && robot->getIsLocked())
+        {
+            THROW_ERROR(bad_control_flow,
+                        "Robot already locked, probably because a simulation is running. "
+                        "Please stop it before setting sensor options.");
+        }
+
+        // Set sensor options
         sensorOptionsGeneric_ = sensorOptions;
         baseSensorOptions_ = std::make_unique<const AbstractSensorOptions>(sensorOptionsGeneric_);
     }

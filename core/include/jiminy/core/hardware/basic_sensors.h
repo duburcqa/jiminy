@@ -57,6 +57,7 @@ namespace jiminy
 
         void initialize(const std::string & frameName);
 
+        void setOptions(const GenericConfig & sensorOptions) override;
         void refreshProxies() override;
 
         const std::string & getFrameName() const;
@@ -92,6 +93,7 @@ namespace jiminy
 
         void initialize(const std::string & frameName);
 
+        void setOptions(const GenericConfig & sensorOptions) override;
         void refreshProxies() override;
 
         const std::string & getFrameName() const;
@@ -130,6 +132,7 @@ namespace jiminy
 
         void initialize(const std::string & jointName);
 
+        void setOptions(const GenericConfig & sensorOptions) override;
         void refreshProxies() override;
 
         const std::string & getJointName() const;
@@ -166,6 +169,7 @@ namespace jiminy
 
         void initialize(const std::string & motorName);
 
+        void setOptions(const GenericConfig & sensorOptions) override;
         void refreshProxies() override;
 
         const std::string & getMotorName() const;

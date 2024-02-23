@@ -14,27 +14,30 @@
 #include "jiminy/core/hardware/basic_sensors.h"
 
 
-#define GET_ROBOT_AND_CHECK_SENSOR_INTEGRITY()                                                   \
-    if (!isAttached_)                                                                            \
-    {                                                                                            \
-        THROW_ERROR(bad_control_flow,                                                            \
-                    "Sensor not attached to any robot. Impossible to refresh proxies.");         \
-    }                                                                                            \
-                                                                                                 \
-    auto robot = robot_.lock();                                                                  \
-    if (!robot)                                                                                  \
-    {                                                                                            \
-        THROW_ERROR(bad_control_flow, "Robot has been deleted. Impossible to refresh proxies."); \
-    }                                                                                            \
-                                                                                                 \
-    if (!robot->getIsInitialized())                                                              \
-    {                                                                                            \
-        THROW_ERROR(bad_control_flow, "Robot not initialized. Impossible to refresh proxies.");  \
-    }                                                                                            \
-                                                                                                 \
-    if (!isInitialized_)                                                                         \
-    {                                                                                            \
-        THROW_ERROR(bad_control_flow, "Sensor not initialized. Impossible to refresh proxies."); \
+#define GET_ROBOT_AND_CHECK_SENSOR_INTEGRITY()                                                  \
+    if (!isAttached_)                                                                           \
+    {                                                                                           \
+        THROW_ERROR(bad_control_flow,                                                           \
+                    "Sensor not attached to any robot. Impossible to refresh sensor proxies."); \
+    }                                                                                           \
+                                                                                                \
+    auto robot = robot_.lock();                                                                 \
+    if (!robot)                                                                                 \
+    {                                                                                           \
+        THROW_ERROR(bad_control_flow,                                                           \
+                    "Robot has been deleted. Impossible to refresh sensor proxies.");           \
+    }                                                                                           \
+                                                                                                \
+    if (!robot->getIsInitialized())                                                             \
+    {                                                                                           \
+        THROW_ERROR(bad_control_flow,                                                           \
+                    "Robot not initialized. Impossible to refresh sensor proxies.");            \
+    }                                                                                           \
+                                                                                                \
+    if (!isInitialized_)                                                                        \
+    {                                                                                           \
+        THROW_ERROR(bad_control_flow,                                                           \
+                    "Sensor not initialized. Impossible to refresh sensor proxies.");           \
     }
 
 
@@ -46,6 +49,14 @@
                                                                                                \
     auto robot = robot_.lock();
 
+#define CHECK_SIMULATION_NOT_RUNNING()                                                 \
+    auto robot = robot_.lock();                                                        \
+    if (robot && robot->getIsLocked())                                                 \
+    {                                                                                  \
+        THROW_ERROR(bad_control_flow,                                                  \
+                    "Robot already locked, probably because a simulation is running. " \
+                    "Please stop it before refreshing sensor proxies.");               \
+    }
 
 namespace jiminy
 {
@@ -61,9 +72,15 @@ namespace jiminy
 
     void ImuSensor::initialize(const std::string & frameName)
     {
+        // Make sure that no simulation is already running
+        // TODO: This check should be enforced by AbstractMotor somehow
+        CHECK_SIMULATION_NOT_RUNNING()
+
+        // Update frame name
         frameName_ = frameName;
         isInitialized_ = true;
 
+        // Try refreshing proxies if possible, restore internals before throwing exception if not
         try
         {
             refreshProxies();
@@ -99,6 +116,7 @@ namespace jiminy
                 "gyroscope and accelerometer additive bias.");
         }
 
+        // Set options now that sanity check were made
         AbstractSensorTpl<ImuSensor>::setOptions(sensorOptions);
     }
 
@@ -187,9 +205,15 @@ namespace jiminy
 
     void ContactSensor::initialize(const std::string & frameName)
     {
+        // Make sure that no simulation is already running
+        // TODO: This check should be enforced by AbstractMotor somehow
+        CHECK_SIMULATION_NOT_RUNNING()
+
+        // Update frame name
         frameName_ = frameName;
         isInitialized_ = true;
 
+        // Try refreshing proxies if possible, restore internals before throwing exception if not
         try
         {
             refreshProxies();
@@ -200,6 +224,25 @@ namespace jiminy
             isInitialized_ = false;
             throw;
         }
+    }
+
+    void ContactSensor::setOptions(const GenericConfig & sensorOptions)
+    {
+        // Check that bias / std is of the correct size
+        const Eigen::VectorXd & bias = boost::get<Eigen::VectorXd>(sensorOptions.at("bias"));
+        const Eigen::VectorXd & noiseStd =
+            boost::get<Eigen::VectorXd>(sensorOptions.at("noiseStd"));
+        if (bias.size() && bias.size() != 3)
+        {
+            THROW_ERROR(std::invalid_argument, "Wrong bias vector size.");
+        }
+        if (noiseStd.size() && noiseStd.size() != 3)
+        {
+            THROW_ERROR(std::invalid_argument, "Wrong noise std vector size.");
+        }
+
+        // Set options now that sanity check were made
+        AbstractSensorTpl<ContactSensor>::setOptions(sensorOptions);
     }
 
     void ContactSensor::refreshProxies()
@@ -213,7 +256,7 @@ namespace jiminy
         {
             THROW_ERROR(std::logic_error,
                         "Sensor frame not associated with any contact point of the robot. "
-                        "Impossible to refresh proxies.");
+                        "Impossible to refresh sensor proxies.");
         }
 
         frameIndex_ = ::jiminy::getFrameIndex(robot->pinocchioModel_, frameName_);
@@ -259,9 +302,15 @@ namespace jiminy
 
     void ForceSensor::initialize(const std::string & frameName)
     {
+        // Make sure that no simulation is already running
+        // TODO: This check should be enforced by AbstractMotor somehow
+        CHECK_SIMULATION_NOT_RUNNING()
+
+        // Update frame name
         frameName_ = frameName;
         isInitialized_ = true;
 
+        // Try refreshing proxies if possible, restore internals before throwing exception if not
         try
         {
             refreshProxies();
@@ -272,6 +321,25 @@ namespace jiminy
             isInitialized_ = false;
             throw;
         }
+    }
+
+    void ForceSensor::setOptions(const GenericConfig & sensorOptions)
+    {
+        // Check that bias / std is of the correct size
+        const Eigen::VectorXd & bias = boost::get<Eigen::VectorXd>(sensorOptions.at("bias"));
+        const Eigen::VectorXd & noiseStd =
+            boost::get<Eigen::VectorXd>(sensorOptions.at("noiseStd"));
+        if (bias.size() && bias.size() != 6)
+        {
+            THROW_ERROR(std::invalid_argument, "Wrong bias vector size.");
+        }
+        if (noiseStd.size() && noiseStd.size() != 6)
+        {
+            THROW_ERROR(std::invalid_argument, "Wrong noise std vector size.");
+        }
+
+        // Set options now that sanity check were made
+        AbstractSensorTpl<ForceSensor>::setOptions(sensorOptions);
     }
 
     void ForceSensor::refreshProxies()
@@ -349,9 +417,15 @@ namespace jiminy
 
     void EncoderSensor::initialize(const std::string & jointName)
     {
+        // Make sure that no simulation is already running
+        // TODO: This check should be enforced by AbstractMotor somehow
+        CHECK_SIMULATION_NOT_RUNNING()
+
+        // Update joint name
         jointName_ = jointName;
         isInitialized_ = true;
 
+        // Try refreshing proxies if possible, restore internals before throwing exception if not
         try
         {
             refreshProxies();
@@ -362,6 +436,25 @@ namespace jiminy
             isInitialized_ = false;
             throw;
         }
+    }
+
+    void EncoderSensor::setOptions(const GenericConfig & sensorOptions)
+    {
+        // Check that bias / std is of the correct size
+        const Eigen::VectorXd & bias = boost::get<Eigen::VectorXd>(sensorOptions.at("bias"));
+        const Eigen::VectorXd & noiseStd =
+            boost::get<Eigen::VectorXd>(sensorOptions.at("noiseStd"));
+        if (bias.size() && bias.size() != 1)
+        {
+            THROW_ERROR(std::invalid_argument, "Wrong bias vector size.");
+        }
+        if (noiseStd.size() && noiseStd.size() != 1)
+        {
+            THROW_ERROR(std::invalid_argument, "Wrong noise std vector size.");
+        }
+
+        // Set options now that sanity check were made
+        AbstractSensorTpl<EncoderSensor>::setOptions(sensorOptions);
     }
 
     void EncoderSensor::refreshProxies()
@@ -437,9 +530,15 @@ namespace jiminy
 
     void EffortSensor::initialize(const std::string & motorName)
     {
+        // Make sure that no simulation is already running
+        // TODO: This check should be enforced by AbstractMotor somehow
+        CHECK_SIMULATION_NOT_RUNNING()
+
+        // Update motor name
         motorName_ = motorName;
         isInitialized_ = true;
 
+        // Try refreshing proxies if possible, restore internals before throwing exception if not
         try
         {
             refreshProxies();
@@ -450,6 +549,25 @@ namespace jiminy
             isInitialized_ = false;
             throw;
         }
+    }
+
+    void EffortSensor::setOptions(const GenericConfig & sensorOptions)
+    {
+        // Check that bias / std is of the correct size
+        const Eigen::VectorXd & bias = boost::get<Eigen::VectorXd>(sensorOptions.at("bias"));
+        const Eigen::VectorXd & noiseStd =
+            boost::get<Eigen::VectorXd>(sensorOptions.at("noiseStd"));
+        if (bias.size() && bias.size() != 1)
+        {
+            THROW_ERROR(std::invalid_argument, "Wrong bias vector size.");
+        }
+        if (noiseStd.size() && noiseStd.size() != 1)
+        {
+            THROW_ERROR(std::invalid_argument, "Wrong noise std vector size.");
+        }
+
+        // Set options now that sanity check were made
+        AbstractSensorTpl<EffortSensor>::setOptions(sensorOptions);
     }
 
     void EffortSensor::refreshProxies()

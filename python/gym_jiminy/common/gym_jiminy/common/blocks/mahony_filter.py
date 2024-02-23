@@ -244,18 +244,6 @@ class MahonyFilter(
             to kept the original estimate provided by Mahony Filter.
             See `remove_twist` and `update_twist` documentation for details.
             Optional: `None` by default.
-        :param twist_mode: Method used to compute twist part of twist-after-
-                           swing decomposition of the estimated orientation.
-                           It can be either 'none', 'leaky', 'default'. If
-                           'none', then the twist part is removed from mahony
-                           estimate. If 'leaky', it is removed and replaced
-                           by a leaky integrator estimate with given time
-                           constant. This choice is recommended because the
-                           twist is not observable by the accelerometer, so
-                           its value comes from the sole integration of the
-                           gyroscope, which is drifting and therefore
-                           unreliable.
-                           Optional: `False` by default.
         :param exact_init: Whether to initialize orientation estimate using
                            accelerometer measurements or ground truth. `False`
                            is not recommended because the robot is often
@@ -284,13 +272,13 @@ class MahonyFilter(
 
         # Keep track of how the twist must be computed
         self.twist_time_constant_inv: Optional[float]
-        if twist_time_constant is not None:
+        if twist_time_constant is None:
+            self.twist_time_constant_inv = None
+        else:
             if twist_time_constant > 0.0:
                 self.twist_time_constant_inv = 1.0 / twist_time_constant
             else:
                 self.twist_time_constant_inv = float("inf")
-        else:
-            self.twist_time_constant_inv = None
         self._remove_twist = self.twist_time_constant_inv is not None
         self._update_twist = (
             self.twist_time_constant_inv is not None and

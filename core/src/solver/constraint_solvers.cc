@@ -2,10 +2,11 @@
 #include "pinocchio/multibody/data.hpp"      // `pinocchio::Data`
 #include "pinocchio/algorithm/cholesky.hpp"  // `pinocchio::cholesky::`
 
-#include "jiminy/core/robot/pinocchio_overload_algorithms.h"
-#include "jiminy/core/constraints/abstract_constraint.h"
 #include "jiminy/core/utilities/random.h"
 #include "jiminy/core/utilities/helpers.h"
+#include "jiminy/core/constraints/abstract_constraint.h"
+#include "jiminy/core/robot/pinocchio_overload_algorithms.h"
+#include "jiminy/core/robot/model.h"
 
 #include "jiminy/core/solver/constraint_solvers.h"
 
@@ -22,7 +23,7 @@ namespace jiminy
 
     PGSSolver::PGSSolver(const pinocchio::Model * model,
                          pinocchio::Data * data,
-                         ConstraintTree * constraints,
+                         const ConstraintTree * constraints,
                          double friction,
                          double torsion,
                          double tolAbs,
