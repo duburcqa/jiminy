@@ -290,7 +290,6 @@ namespace jiminy::python
 
             // clang-format off
             cl
-                .def("initialize", &DerivedSensor::initialize)
                 .def_readonly("type", &DerivedSensor::type_)
                 .def_readonly("has_prefix", &DerivedSensor::areFieldnamesGrouped_)
                 .add_static_property("fieldnames", bp::make_getter(&DerivedSensor::fieldnames_,
@@ -299,83 +298,31 @@ namespace jiminy::python
             // clang-format on
         }
 
-        template<typename PyClass>
-        static std::enable_if_t<std::is_same_v<typename PyClass::wrapped_type, ImuSensor> ||
-                                    std::is_same_v<typename PyClass::wrapped_type, ContactSensor>,
-                                void>
-        visit(PyClass & cl)
-        {
-            using DerivedSensor = typename PyClass::wrapped_type;
+        template<typename DerivedSensor>
+        inline static constexpr bool isFrameBasedSensor =
+            std::disjunction_v<std::is_same<DerivedSensor, ImuSensor>,
+                               std::is_same<DerivedSensor, ContactSensor>,
+                               std::is_same<DerivedSensor, ForceSensor>>;
 
+        template<typename PyClass, typename DerivedSensor = typename PyClass::wrapped_type>
+        static std::enable_if_t<!isFrameBasedSensor<DerivedSensor>, void> visit(PyClass & cl)
+        {
+            visitBasicSensors(cl);
+        }
+
+        template<typename PyClass, typename DerivedSensor = typename PyClass::wrapped_type>
+        static std::enable_if_t<isFrameBasedSensor<DerivedSensor>, void> visit(PyClass & cl)
+        {
             visitBasicSensors(cl);
 
             // clang-format off
             cl
+                .def("initialize", &DerivedSensor::initialize, (bp::arg("self"), "frame_name"))
                 .ADD_PROPERTY_GET_WITH_POLICY("frame_name",
                                               &DerivedSensor::getFrameName,
                                               bp::return_value_policy<bp::return_by_value>())
                 .ADD_PROPERTY_GET_WITH_POLICY("frame_index",
                                               &DerivedSensor::getFrameIndex,
-                                              bp::return_value_policy<bp::return_by_value>())
-                ;
-            // clang-format on
-        }
-
-        template<typename PyClass>
-        static std::enable_if_t<std::is_same_v<typename PyClass::wrapped_type, ForceSensor>, void>
-        visit(PyClass & cl)
-        {
-            visitBasicSensors(cl);
-
-            // clang-format off
-            cl
-                .ADD_PROPERTY_GET_WITH_POLICY("frame_name",
-                                              &ForceSensor::getFrameName,
-                                              bp::return_value_policy<bp::return_by_value>())
-                .ADD_PROPERTY_GET_WITH_POLICY("frame_index",
-                                              &ForceSensor::getFrameIndex,
-                                              bp::return_value_policy<bp::return_by_value>())
-                .ADD_PROPERTY_GET_WITH_POLICY("joint_index",
-                                              &ForceSensor::getJointIndex,
-                                              bp::return_value_policy<bp::return_by_value>())
-                ;
-            // clang-format on
-        }
-
-        template<typename PyClass>
-        static std::enable_if_t<std::is_same_v<typename PyClass::wrapped_type, EncoderSensor>, void>
-        visit(PyClass & cl)
-        {
-            visitBasicSensors(cl);
-
-            // clang-format off
-            cl
-                .ADD_PROPERTY_GET_WITH_POLICY("joint_name",
-                                              &EncoderSensor::getJointName,
-                                              bp::return_value_policy<bp::return_by_value>())
-                .ADD_PROPERTY_GET_WITH_POLICY("joint_index",
-                                              &EncoderSensor::getJointIndex,
-                                              bp::return_value_policy<bp::return_by_value>())
-                .ADD_PROPERTY_GET_WITH_POLICY("joint_type",
-                                              &EncoderSensor::getJointType,
-                                              bp::return_value_policy<bp::return_by_value>())
-                ;
-            // clang-format on
-        }
-
-        template<typename PyClass>
-        static std::enable_if_t<std::is_same_v<typename PyClass::wrapped_type, EffortSensor>, void>
-        visit(PyClass & cl)
-        {
-            visitBasicSensors(cl);
-
-            // clang-format off
-            cl
-                .ADD_PROPERTY_GET_WITH_POLICY("motor_name",
-                                              &EffortSensor::getMotorName,
-                                              bp::return_value_policy<bp::return_by_value>())
-                .ADD_PROPERTY_GET_WITH_POLICY("motor_index",
-                                              &EffortSensor::getMotorIndex,
                                               bp::return_value_policy<bp::return_by_value>())
                 ;
             // clang-format on
@@ -387,36 +334,56 @@ namespace jiminy::python
                        bp::bases<AbstractSensorBase>,
                        std::shared_ptr<ImuSensor>,
                        boost::noncopyable>(
-                "ImuSensor", bp::init<const std::string &>((bp::arg("self"), "frame_name")))
+                "ImuSensor", bp::init<const std::string &>((bp::arg("self"), "name")))
                 .def(PyBasicSensorsVisitor());
 
             bp::class_<ContactSensor,
                        bp::bases<AbstractSensorBase>,
                        std::shared_ptr<ContactSensor>,
                        boost::noncopyable>(
-                "ContactSensor", bp::init<const std::string &>((bp::arg("self"), "frame_name")))
+                "ContactSensor", bp::init<const std::string &>((bp::arg("self"), "name")))
                 .def(PyBasicSensorsVisitor());
 
             bp::class_<ForceSensor,
                        bp::bases<AbstractSensorBase>,
                        std::shared_ptr<ForceSensor>,
                        boost::noncopyable>(
-                "ForceSensor", bp::init<const std::string &>((bp::arg("self"), "frame_name")))
-                .def(PyBasicSensorsVisitor());
+                "ForceSensor", bp::init<const std::string &>((bp::arg("self"), "name")))
+                .def(PyBasicSensorsVisitor())
+                .ADD_PROPERTY_GET_WITH_POLICY("joint_index",
+                                              &ForceSensor::getJointIndex,
+                                              bp::return_value_policy<bp::return_by_value>());
 
             bp::class_<EncoderSensor,
                        bp::bases<AbstractSensorBase>,
                        std::shared_ptr<EncoderSensor>,
                        boost::noncopyable>(
-                "EncoderSensor", bp::init<const std::string &>((bp::arg("self"), "joint_name")))
-                .def(PyBasicSensorsVisitor());
+                "EncoderSensor", bp::init<const std::string &>((bp::arg("self"), "name")))
+                .def(PyBasicSensorsVisitor())
+                .def("initialize", &EncoderSensor::initialize, (bp::arg("self"), "joint_name"))
+                .ADD_PROPERTY_GET_WITH_POLICY("joint_name",
+                                              &EncoderSensor::getJointName,
+                                              bp::return_value_policy<bp::return_by_value>())
+                .ADD_PROPERTY_GET_WITH_POLICY("joint_index",
+                                              &EncoderSensor::getJointIndex,
+                                              bp::return_value_policy<bp::return_by_value>())
+                .ADD_PROPERTY_GET_WITH_POLICY("joint_type",
+                                              &EncoderSensor::getJointType,
+                                              bp::return_value_policy<bp::return_by_value>());
 
             bp::class_<EffortSensor,
                        bp::bases<AbstractSensorBase>,
                        std::shared_ptr<EffortSensor>,
                        boost::noncopyable>(
-                "EffortSensor", bp::init<const std::string &>((bp::arg("self"), "joint_name")))
-                .def(PyBasicSensorsVisitor());
+                "EffortSensor", bp::init<const std::string &>((bp::arg("self"), "name")))
+                .def(PyBasicSensorsVisitor())
+                .def("initialize", &EffortSensor::initialize, (bp::arg("self"), "motor_name"))
+                .ADD_PROPERTY_GET_WITH_POLICY("motor_name",
+                                              &EffortSensor::getMotorName,
+                                              bp::return_value_policy<bp::return_by_value>())
+                .ADD_PROPERTY_GET_WITH_POLICY("motor_index",
+                                              &EffortSensor::getMotorIndex,
+                                              bp::return_value_policy<bp::return_by_value>());
         }
     };
 
