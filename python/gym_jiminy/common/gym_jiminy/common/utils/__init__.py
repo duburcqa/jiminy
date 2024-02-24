@@ -2,6 +2,7 @@
 
 from .spaces import (DataNested,
                      FieldNested,
+                     ArrayOrScalar,
                      get_bounds,
                      zeros,
                      fill,
@@ -27,6 +28,7 @@ from .pipeline import build_pipeline, load_pipeline
 __all__ = [
     'DataNested',
     'FieldNested',
+    'ArrayOrScalar',
     'get_bounds',
     'sample',
     'zeros',

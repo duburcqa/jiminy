@@ -2,7 +2,7 @@
 reinforcement learning pipeline environment design.
 """
 import logging
-from typing import List, Union, Optional
+from typing import List, Union, Optional, Tuple
 
 import numpy as np
 import numba as nb
@@ -13,7 +13,7 @@ from jiminy_py.core import (  # pylint: disable=no-name-in-module
 import pinocchio as pin
 
 from ..bases import BaseObsT, BaseActT, BaseObserverBlock, InterfaceJiminyEnv
-from ..utils import fill
+from ..utils import fill, ArrayOrScalar
 
 
 EARTH_SURFACE_GRAVITY = 9.81
@@ -88,10 +88,72 @@ def mahony_filter(q: np.ndarray,
     )
 
     # First order quaternion normalization to prevent compounding of errors
-    q *= (3.0 - np.sum(q * q, axis=0)) / 2
+    q *= (3.0 - np.sum(np.square(q), axis=0)) / 2
 
     # Update Gyro bias
     bias_hat -= dt * ki * omega_mes
+
+
+@nb.jit(nopython=True, cache=True)
+def compute_tilt(q_in: np.ndarray) -> None:
+    """Compute e_z in R(q) frame (Euler-Rodrigues Formula): R(q).T @ e_z.
+
+    :param q: Array whose rows are the 4 components of quaternions (x, y, z, w)
+              and columns are N independent orientations.
+
+    :returns: Tuple of arrays corresponding to the 3 individual components
+              (a_x, a_y, a_z) of N independent tilt axes.
+    """
+    q_x, q_y, q_z, q_w = q_in
+    v_x = 2 * (q_x * q_z - q_y * q_w)
+    v_y = 2 * (q_y * q_z + q_w * q_x)
+    v_z = 1 - 2 * (q_x * q_x + q_y * q_y)
+    return (v_x, v_y, v_z)
+
+
+@nb.jit(nopython=True, nogil=True, cache=True)
+def quat_from_vector(
+        v_a: Tuple[ArrayOrScalar, ArrayOrScalar, ArrayOrScalar],
+        q_out: np.ndarray) -> None:
+    """Compute the "smallest" rotation transforming vector 'v_a' in 'e_z'.
+
+    :param v_a: Tuple of arrays corresponding to the 3 individual components
+                (a_x, a_y, a_z) of N independent tilt axes.
+    :param q: Array where the result will be stored. The rows are the 4
+              components of quaternions (x, y, z, w) and columns are the N
+              independent orientations.
+    """
+    # Extract individual tilt components
+    v_x, v_y, v_z = v_a
+
+    # There is a singularity when the rotation axis of orientation estimate
+    # and z-axis are nearly opposites, i.e. v_z ~= -1. One solution that
+    # ensure continuity of q_w is picked arbitrarily using SVD decomposition.
+    # See `Eigen::Quaternion::FromTwoVectors` implementation for details.
+    if q_out.ndim > 1:
+        is_singular = np.any(v_z < -1.0 + TWIST_SWING_SINGULARITY_THR)
+    else:
+        is_singular = v_z < -1.0 + TWIST_SWING_SINGULARITY_THR
+    if is_singular:
+        if q_out.ndim > 1:
+            for i, q_out_i in enumerate(q_out.T):
+                quat_from_vector((v_x[i], v_y[i], v_z[i]), q_out_i)
+        else:
+            _, _, v_h = np.linalg.svd(np.array((
+                (v_x, v_y, v_z),
+                (0.0, 0.0, 1.0))
+            ), full_matrices=True)
+            w_2 = (1 + max(v_z, -1)) / 2
+            q_out[:3], q_out[3] = v_h[-1] * np.sqrt(1 - w_2), np.sqrt(w_2)
+    else:
+        s = np.sqrt(2 * (1 + v_z))
+        q_out[0], q_out[1], q_out[2], q_out[3] = v_y / s, v_x / s, 0.0, s / 2
+
+    # First order quaternion normalization to prevent compounding of errors.
+    # If not done, shit may happen with removing twist again and again on the
+    # same quaternion, which is typically the case when the IMU is steady, so
+    # that the mahony filter update is actually skipped internally.
+    q_out *= (3.0 - np.sum(np.square(q_out), axis=0)) / 2
 
 
 @nb.jit(nopython=True, nogil=True, cache=True)
@@ -118,40 +180,10 @@ def remove_twist(q: np.ndarray) -> None:
               the swing part. It will be updated in-place.
     """
     # Compute e_z in R(q) frame (Euler-Rodrigues Formula): R(q).T @ e_z
-    q_x, q_y, q_z, q_w = q
-    v_x = 2 * (q_x * q_z - q_y * q_w)
-    v_y = 2 * (q_y * q_z + q_w * q_x)
-    v_z = 1 - 2 * (q_x * q_x + q_y * q_y)
+    v_a = compute_tilt(q)
 
-    # Compute the "smallest" rotation transforming vector 'v_a' in 'e_z'.
-    # There is a singularity when the rotation axis of orientation estimate
-    # and z-axis are nearly opposites, i.e. v_z ~= -1. One solution that
-    # ensure continuity of q_w is picked arbitrarily using SVD decomposition.
-    # See `Eigen::Quaternion::FromTwoVectors` implementation for details.
-    if q.ndim > 1:
-        is_singular = np.any(v_z < -1.0 + TWIST_SWING_SINGULARITY_THR)
-    else:
-        is_singular = v_z < -1.0 + TWIST_SWING_SINGULARITY_THR
-    if is_singular:
-        if q.ndim > 1:
-            for q_i in q.T:
-                remove_twist(q_i)
-        else:
-            _, _, v_h = np.linalg.svd(np.array((
-                (v_x, v_y, v_z),
-                (0.0, 0.0, 1.0))
-            ), full_matrices=True)
-            w_2 = (1 + max(v_z, -1)) / 2
-            q[:3], q[3] = v_h[-1] * np.sqrt(1 - w_2), np.sqrt(w_2)
-    else:
-        s = np.sqrt(2 * (1 + v_z))
-        q[0], q[1], q[2], q[3] = v_y / s, v_x / s, 0.0, s / 2
-
-    # First order quaternion normalization to prevent compounding of errors.
-    # If not done, shit may happen with removing twist again and again on the
-    # same quaternion, which is typically the case when the IMU is steady, so
-    # that the mahony filter updated is actually skipped internally.
-    q *= (3.0 - np.sum(q * q, axis=0)) / 2
+    # Compute the "smallest" rotation transforming vector 'v_a' in 'e_z'
+    quat_from_vector(v_a, q)
 
 
 @nb.jit(nopython=True, nogil=True, cache=True)
