@@ -257,17 +257,14 @@ class MahonyFilter(
                  name: str,
                  env: InterfaceJiminyEnv[BaseObsT, BaseActT],
                  *,
-                 update_ratio: int = 1,
                  twist_time_constant: Optional[float] = None,
                  exact_init: bool = True,
                  kp: Union[np.ndarray, float] = 1.0,
-                 ki: Union[np.ndarray, float] = 0.1) -> None:
+                 ki: Union[np.ndarray, float] = 0.1,
+                 update_ratio: int = 1) -> None:
         """
         :param name: Name of the block.
         :param env: Environment to connect with.
-        :param update_ratio: Ratio between the update period of the controller
-                             and the one of the subsequent controller.
-                             Optional: `1` by default.
         :param twist_time_constant:
             If specified, it corresponds to the time constant of the leaky
             integrator used to estimate the twist part of twist-after-swing
@@ -289,6 +286,9 @@ class MahonyFilter(
                           Optional: `1.0` by default.
         :param mahony_ki: Integral gain used for gyro bias estimate.
                           Optional: `0.1` by default.
+        :param update_ratio: Ratio between the update period of the controller
+                             and the one of the subsequent controller.
+                             Optional: `1` by default.
         """
         # Handling of default argument(s)
         num_imu_sensors = len(env.robot.sensor_names[imu.type])

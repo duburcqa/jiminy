@@ -1,5 +1,18 @@
 # pylint: disable=missing-module-docstring
 
+from .math import (squared_norm_2,
+                   matrix_to_quat,
+                   matrices_to_quat,
+                   matrix_to_rpy,
+                   matrix_to_yaw,
+                   quat_to_matrix,
+                   quat_to_rpy,
+                   quat_to_yaw,
+                   quat_to_yaw_cos_sin,
+                   quat_multiply,
+                   quat_average,
+                   rpy_to_matrix,
+                   rpy_to_quat)
 from .spaces import (DataNested,
                      FieldNested,
                      ArrayOrScalar,
@@ -26,6 +39,19 @@ from .pipeline import build_pipeline, load_pipeline
 
 
 __all__ = [
+    "squared_norm_2",
+    "matrix_to_quat",
+    "matrices_to_quat",
+    "matrix_to_rpy",
+    "matrix_to_yaw",
+    "quat_to_matrix",
+    "quat_to_rpy",
+    "quat_to_yaw",
+    "quat_to_yaw_cos_sin",
+    "quat_multiply",
+    "quat_average",
+    "rpy_to_matrix",
+    "rpy_to_quat",
     'DataNested',
     'FieldNested',
     'ArrayOrScalar',
