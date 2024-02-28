@@ -66,7 +66,7 @@ def mahony_filter(q: np.ndarray,
     omega_mes = np.stack((
         v_y_hat * v_z - v_z_hat * v_y,
         v_z_hat * v_x - v_x_hat * v_z,
-        v_x_hat * v_y - v_y_hat * v_x), axis=0)
+        v_x_hat * v_y - v_y_hat * v_x), 0)
     omega[:] = gyro - bias_hat + kp * omega_mes
 
     # Early return if there is no IMU motion
@@ -74,7 +74,7 @@ def mahony_filter(q: np.ndarray,
         return
 
     # Compute Axis-Angle repr. of the angular velocity: exp3(dt * omega)
-    theta = np.sqrt(np.sum(omega * omega, axis=0))
+    theta = np.sqrt(np.sum(omega * omega, 0))
     axis = omega / theta
     theta *= dt / 2
     (p_x, p_y, p_z), p_w = (axis * np.sin(theta)), np.cos(theta)
@@ -88,7 +88,7 @@ def mahony_filter(q: np.ndarray,
     )
 
     # First order quaternion normalization to prevent compounding of errors
-    q *= (3.0 - np.sum(np.square(q), axis=0)) / 2
+    q *= (3.0 - np.sum(np.square(q), 0)) / 2
 
     # Update Gyro bias
     bias_hat -= dt * ki * omega_mes
@@ -153,7 +153,7 @@ def quat_from_vector(
     # If not done, shit may happen with removing twist again and again on the
     # same quaternion, which is typically the case when the IMU is steady, so
     # that the mahony filter update is actually skipped internally.
-    q_out *= (3.0 - np.sum(np.square(q_out), axis=0)) / 2
+    q_out *= (3.0 - np.sum(np.square(q_out), 0)) / 2
 
 
 @nb.jit(nopython=True, nogil=True, cache=True)
@@ -316,8 +316,9 @@ class MahonyFilter(
             self.twist_time_constant_inv is not None and
             np.isfinite(self.twist_time_constant_inv))
 
-        # Extract gyroscope and accelerometer data for fast access
-        self.gyro, self.acc = np.split(env.sensor_measurements[imu.type], 2)
+        # Define gyroscope and accelerometer proxies for fast access.
+        # Note that they will be initialized in `_setup` method.
+        self.gyro, self.acc = np.array([]), np.array([])
 
         # Allocate gyroscope bias estimate
         self._bias = np.zeros((3, num_imu_sensors))
@@ -366,6 +367,9 @@ class MahonyFilter(
         # Call base implementation
         super()._setup()
 
+        # Fix initialization of the observation to be valid quaternions.
+        self.observation[-1] = 1.0
+
         # Make sure observe update is discrete-time
         if self.env.observe_dt <= 0.0:
             raise ValueError(
@@ -393,13 +397,6 @@ class MahonyFilter(
 
     @property
     def fieldnames(self) -> List[List[str]]:
-        """Get mapping between each scalar element of the observation space of
-        the observer block and the associated fieldname for logging.
-
-        It is expected to return an object with the same structure than the
-        observation space, but having lists of string as leaves. Generic
-        fieldnames are used by default.
-        """
         sensor_names = self.env.robot.sensor_names[imu.type]
         return [[f"{name}.Quat{e}" for name in sensor_names]
                 for e in ("x", "y", "z", "w")]

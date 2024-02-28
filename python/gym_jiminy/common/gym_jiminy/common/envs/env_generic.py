@@ -183,17 +183,17 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         self.enforce_bounded_spaces = enforce_bounded_spaces
         self.debug = debug
 
-        # Define some proxies for fast access
+        # Define some proxies for fast access.
+        # Note that some of them will be initialized in `_setup` method.
         self.engine: jiminy.Engine = self.simulator.engine
-        self.robot = self.simulator.robot
         self.stepper_state = self.simulator.stepper_state
         self.is_simulation_running = self.simulator.is_simulation_running
+        self.robot = self.simulator.robot
         self.robot_state = self.simulator.robot_state
-        self._robot_state_q = self.robot_state.q
-        self._robot_state_v = self.robot_state.v
-        self._robot_state_a = self.robot_state.a
-        self.sensor_measurements: SensorMeasurementStackMap = OrderedDict(
-            self.robot.sensor_measurements)
+        self._robot_state_q = np.array([])
+        self._robot_state_v = np.array([])
+        self._robot_state_a = np.array([])
+        self.sensor_measurements: SensorMeasurementStackMap = OrderedDict()
 
         # Top-most block of the pipeline to which the environment is part of
         self._env_derived: InterfaceJiminyEnv = self
@@ -689,8 +689,8 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         # otherwise some proxies would be corrupted.
         if self.engine is not self.simulator.engine:
             raise RuntimeError(
-                "Changing unexpectedly the memory address of the low-level "
-                "jiminy engine is an undefined behavior.")
+                "Changing the memory address of the low-level jiminy engine "
+                "is an undefined behavior.")
 
         # Re-initialize some shared memories.
         # It is necessary because the robot may have changed.
@@ -1457,13 +1457,19 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
             initialization stage in particular. A workaround consists in
             checking whether the simulation already started. It is not exactly
             the same but it does the job regarding preserving efficiency.
+
+        .. warning::
+            One must only rely on `measurement` to get the state of the robot,
+            as anything else is not reliable for this. More specifically,
+            `self.robot_state` would not be valid if an adaptive stepper is
+            being used for physics integration.
         """
         observation = self.observation
         array_copyto(observation["t"], measurement["t"])
-        state_agent_out = observation['states']['agent']
-        state_agent_in = measurement['states']['agent']
-        array_copyto(state_agent_out['q'], state_agent_in['q'])
-        array_copyto(state_agent_out['v'], state_agent_in['v'])
+        agent_state_out = observation['states']['agent']
+        agent_state_in = measurement['states']['agent']
+        array_copyto(agent_state_out['q'], agent_state_in['q'])
+        array_copyto(agent_state_out['v'], agent_state_in['v'])
         sensors_out = observation['measurements']
         sensors_in = measurement['measurements']
         for sensor_type in self._sensors_types:

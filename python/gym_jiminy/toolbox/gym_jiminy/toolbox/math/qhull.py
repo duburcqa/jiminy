@@ -40,9 +40,9 @@ def compute_distance_convex_to_point(points: np.ndarray,
     points_1 = points[np.roll(vertex_indices, 1)].T
     points_0 = points[vertex_indices].T
     vectors = points_1 - points_0
-    normals = np.stack((-vectors[1], vectors[0]), axis=0)
-    normals /= np.sqrt(np.sum(np.square(normals), axis=0))
-    offsets = - np.sum(normals * points_0, axis=0)
+    normals = np.stack((-vectors[1], vectors[0]), 0)
+    normals /= np.sqrt(np.sum(np.square(normals), 0))
+    offsets = - np.sum(normals * points_0, 0)
     equations = np.concatenate((normals, np.expand_dims(offsets, 0)))
 
     # Determine for each query point if it lies inside or outside
@@ -54,7 +54,7 @@ def compute_distance_convex_to_point(points: np.ndarray,
     # from every segment of the convex hull.
     ratios = np.sum(
         (np.expand_dims(queries, -1) - points_0) * vectors, axis=1
-        ) / np.sum(np.square(vectors), axis=0)
+        ) / np.sum(np.square(vectors), 0)
     ratios = np.clip(ratios, 0.0, 1.0)
     projs = np.expand_dims(ratios, 1) * vectors + points_0
     dist = np.sqrt(_amin_last_axis(np.sum(np.square(

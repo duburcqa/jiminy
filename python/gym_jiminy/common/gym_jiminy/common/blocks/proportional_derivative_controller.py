@@ -2,6 +2,7 @@
 with gym_jiminy reinforcement learning pipeline environment design.
 """
 import math
+import warnings
 from typing import List, Union
 
 import numpy as np
@@ -192,7 +193,7 @@ def get_encoder_to_motor_map(robot: jiminy.Robot) -> Union[slice, List[int]]:
     :returns: A slice if possible, a list of indices otherwise.
     """
     # Define the mapping from motors to encoders
-    encoder_to_motor = [-1 for _ in range(robot.nmotors)]
+    encoder_to_motor = (-1 for _ in range(robot.nmotors))
     encoders = [robot.get_sensor(encoder.type, sensor_name)
                 for sensor_name in robot.sensor_names[encoder.type]]
     for i, motor_name in enumerate(robot.motor_names):
@@ -293,6 +294,10 @@ class PDController(
         # Whether stored reference to encoder measurements are already in the
         # same order as the motors, allowing skipping re-ordering entirely.
         self._is_same_order = isinstance(self.encoder_to_motor, slice)
+        if not self._is_same_order:
+            warnings.warn(
+                "Consider using the same ordering for encoders and motors for "
+                "optimal performance.")
 
         # Define buffers storing information about the motors for efficiency.
         # Note that even if the robot instance may change from one simulation
@@ -340,9 +345,9 @@ class PDController(
         self._command_state_lower = np.stack(command_state_lower, axis=0)
         self._command_state_upper = np.stack(command_state_upper, axis=0)
 
-        # Extract measured motor positions and velocities for fast access
-        self.q_measured, self.v_measured = (
-            env.sensor_measurements[encoder.type])
+        # Extract measured motor positions and velocities for fast access.
+        # Note that they will be initialized in `_setup` method.
+        self.q_measured, self.v_measured = np.array([]), np.array([])
 
         # Allocate memory for the command state
         self._command_state = np.zeros((order + 1, env.robot.nmotors))
@@ -385,8 +390,7 @@ class PDController(
                 "This block does not support time-continuous update.")
 
         # Refresh measured motor positions and velocities proxies
-        self.q_measured, self.v_measured = (
-            self.env.sensor_measurements[encoder.type])
+        self.q_measured, self.v_measured = np.array([]), np.array([])
 
         # Reset the command state
         fill(self._command_state, 0)
