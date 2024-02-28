@@ -95,7 +95,7 @@ def mahony_filter(q: np.ndarray,
 
 
 @nb.jit(nopython=True, cache=True)
-def compute_tilt(q_in: np.ndarray) -> None:
+def compute_tilt(q: np.ndarray) -> None:
     """Compute e_z in R(q) frame (Euler-Rodrigues Formula): R(q).T @ e_z.
 
     :param q: Array whose rows are the 4 components of quaternions (x, y, z, w)
@@ -104,17 +104,18 @@ def compute_tilt(q_in: np.ndarray) -> None:
     :returns: Tuple of arrays corresponding to the 3 individual components
               (a_x, a_y, a_z) of N independent tilt axes.
     """
-    q_x, q_y, q_z, q_w = q_in
+    q_x, q_y, q_z, q_w = q
     v_x = 2 * (q_x * q_z - q_y * q_w)
     v_y = 2 * (q_y * q_z + q_w * q_x)
     v_z = 1 - 2 * (q_x * q_x + q_y * q_y)
     return (v_x, v_y, v_z)
 
 
-@nb.jit(nopython=True, nogil=True, cache=True)
+# FIXME: Enabling cache causes segfault on Apple Silicon
+@nb.jit(nopython=True, cache=False)
 def quat_from_vector(
         v_a: Tuple[ArrayOrScalar, ArrayOrScalar, ArrayOrScalar],
-        q_out: np.ndarray) -> None:
+        q: np.ndarray) -> None:
     """Compute the "smallest" rotation transforming vector 'v_a' in 'e_z'.
 
     :param v_a: Tuple of arrays corresponding to the 3 individual components
@@ -130,33 +131,34 @@ def quat_from_vector(
     # and z-axis are nearly opposites, i.e. v_z ~= -1. One solution that
     # ensure continuity of q_w is picked arbitrarily using SVD decomposition.
     # See `Eigen::Quaternion::FromTwoVectors` implementation for details.
-    if q_out.ndim > 1:
+    if q.ndim > 1:
         is_singular = np.any(v_z < -1.0 + TWIST_SWING_SINGULARITY_THR)
     else:
         is_singular = v_z < -1.0 + TWIST_SWING_SINGULARITY_THR
     if is_singular:
-        if q_out.ndim > 1:
-            for i, q_out_i in enumerate(q_out.T):
-                quat_from_vector((v_x[i], v_y[i], v_z[i]), q_out_i)
+        if q.ndim > 1:
+            for i, q_i in enumerate(q.T):
+                quat_from_vector((v_x[i], v_y[i], v_z[i]), q_i)
         else:
             _, _, v_h = np.linalg.svd(np.array((
                 (v_x, v_y, v_z),
                 (0.0, 0.0, 1.0))
             ), full_matrices=True)
             w_2 = (1 + max(v_z, -1)) / 2
-            q_out[:3], q_out[3] = v_h[-1] * np.sqrt(1 - w_2), np.sqrt(w_2)
+            q[:3], q[3] = v_h[-1] * np.sqrt(1 - w_2), np.sqrt(w_2)
     else:
         s = np.sqrt(2 * (1 + v_z))
-        q_out[0], q_out[1], q_out[2], q_out[3] = v_y / s, v_x / s, 0.0, s / 2
+        q[0], q[1], q[2], q[3] = v_y / s, v_x / s, 0.0, s / 2
 
     # First order quaternion normalization to prevent compounding of errors.
     # If not done, shit may happen with removing twist again and again on the
     # same quaternion, which is typically the case when the IMU is steady, so
     # that the mahony filter update is actually skipped internally.
-    q_out *= (3.0 - np.sum(np.square(q_out), 0)) / 2
+    q *= (3.0 - np.sum(np.square(q), 0)) / 2
 
 
-@nb.jit(nopython=True, nogil=True, cache=True)
+# FIXME: Enabling cache causes segfault on Apple Silicon
+@nb.jit(nopython=True, cache=False)
 def remove_twist(q: np.ndarray) -> None:
     """Remove the twist part of the Twist-after-Swing decomposition of given
     orientations in quaternion representation.
@@ -173,7 +175,6 @@ def remove_twist(q: np.ndarray) -> None:
           using inertial sensors", PhD Thesis, M. Vigne, 2021, p. 130.
         * See "Swing-twist decomposition in Clifford algebra", P. Dobrowolski,
           2015 (https://arxiv.org/abs/1506.05481)
-
 
     :param q: Array whose rows are the 4 components of quaternions (x, y, z, w)
               and columns are N independent orientations from which to remove

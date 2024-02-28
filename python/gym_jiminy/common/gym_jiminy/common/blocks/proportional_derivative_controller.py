@@ -193,7 +193,7 @@ def get_encoder_to_motor_map(robot: jiminy.Robot) -> Union[slice, List[int]]:
     :returns: A slice if possible, a list of indices otherwise.
     """
     # Define the mapping from motors to encoders
-    encoder_to_motor = (-1 for _ in range(robot.nmotors))
+    encoder_to_motor = [-1 for _ in range(robot.nmotors)]
     encoders = [robot.get_sensor(encoder.type, sensor_name)
                 for sensor_name in robot.sensor_names[encoder.type]]
     for i, motor_name in enumerate(robot.motor_names):
@@ -390,7 +390,8 @@ class PDController(
                 "This block does not support time-continuous update.")
 
         # Refresh measured motor positions and velocities proxies
-        self.q_measured, self.v_measured = np.array([]), np.array([])
+        self.q_measured, self.v_measured = (
+            self.env.sensor_measurements[encoder.type])
 
         # Reset the command state
         fill(self._command_state, 0)

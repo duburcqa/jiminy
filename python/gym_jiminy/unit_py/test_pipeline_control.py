@@ -144,7 +144,7 @@ class PipelineControl(unittest.TestCase):
             rpy_true = pin.rpy.matrixToRpy(imu_rot)
             rpy_est = pin.rpy.matrixToRpy(
                 pin.Quaternion(env.observer.observation).matrix())
-            self.assertTrue(np.allclose(rpy_true, rpy_est, atol=0.01))
+            np.testing.assert_allclose(rpy_true, rpy_est, atol=0.01)
         env.stop()
 
     def test_pid_controller(self):

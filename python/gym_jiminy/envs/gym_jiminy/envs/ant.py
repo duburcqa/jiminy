@@ -4,20 +4,16 @@
 
 import os
 import sys
-from typing import Any, List, Tuple
+from typing import Any, Tuple
 
 import gymnasium as gym
 import numpy as np
-from pinocchio import (Quaternion,
-                       FrameType,
-                       neutral,
-                       normalize,
-                       framesForwardKinematics)
+import pinocchio as pin
 
 from jiminy_py.simulator import Simulator
 from gym_jiminy.common.bases import InfoType, EngineObsType
 from gym_jiminy.common.envs import BaseJiminyEnv
-from gym_jiminy.common.utils import sample, copyto
+from gym_jiminy.common.utils import sample, copyto, squared_norm_2, clip
 
 if sys.version_info < (3, 9):
     from importlib_resources import files
@@ -55,10 +51,10 @@ class AntEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         # Get the list of independent bodies (not connected via fixed joint)
         self.body_indices = [0]  # World is part of bodies list
         for i, frame in enumerate(simulator.robot.pinocchio_model.frames):
-            if frame.type == FrameType.BODY:
+            if frame.type == pin.FrameType.BODY:
                 frame_prev = simulator.robot.pinocchio_model.frames[
                     frame.previousFrame]
-                if frame_prev.type != FrameType.FIXED_JOINT:
+                if frame_prev.type != pin.FrameType.FIXED_JOINT:
                     self.body_indices.append(i)
 
         # Previous torso position along x-axis in world frame
@@ -71,7 +67,7 @@ class AntEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         # Define base orientation and external forces proxies for fast access.
         # Note that they will be initialized in `_initialize_buffers`.
         self._base_rot = np.array([])
-        self._f_external:Tuple[np.ndarray] = ()
+        self._f_external: Tuple[np.ndarray] = ()
 
         # Initialize base class
         super().__init__(
@@ -89,7 +85,7 @@ class AntEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
             joint_index = self.robot.pinocchio_model.getJointId(joint_name)
             return self.robot.pinocchio_model.joints[joint_index].idx_q
 
-        qpos = neutral(self.robot.pinocchio_model)
+        qpos = pin.neutral(self.robot.pinocchio_model)
         qpos[2] = 0.75
         qpos[joint_position_index('ankle_1')] = 1.0
         qpos[joint_position_index('ankle_2')] = -1.0
@@ -104,10 +100,10 @@ class AntEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         # Add noise on top of neutral configuration
         qpos = self._neutral()
         qpos += sample(scale=0.1, shape=(self.robot.nq,), rg=self.np_random)
-        qpos = normalize(self.robot.pinocchio_model, qpos)
+        qpos = pin.normalize(self.robot.pinocchio_model, qpos)
 
         # Make sure it does not go through the ground
-        framesForwardKinematics(
+        pin.framesForwardKinematics(
             self.robot.pinocchio_model, self.robot.pinocchio_data, qpos)
         dist_rlt = self.robot.collision_data.distanceResults
         qpos[2] -= min(0.0, *[dist_req.min_distance for dist_req in dist_rlt])
@@ -171,10 +167,11 @@ class AntEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         for data in (
                 self._robot_state_q[2:],
                 self._robot_state_v[:3],
-                self._robot_state_v[3:],                *self._f_external):
-           obs_index_last = obs_index_first + len(data)
-           obs_slices.append(self.observation[obs_index_first:obs_index_last])
-           obs_index_first = obs_index_last
+                self._robot_state_v[3:],
+                *self._f_external):
+            obs_index_last = obs_index_first + len(data)
+            obs_slices.append(self.observation[obs_index_first:obs_index_last])
+            obs_index_first = obs_index_last
         self._obs_slices = (obs_slices[0], *obs_slices[2:], obs_slices[1])
 
         # Initialize previous torso position along x-axis
@@ -189,6 +186,9 @@ class AntEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
 
         # Transform observed linear velocity to be in world frame
         self._obs_slices[-1][:] = self._base_rot @ self._robot_state_v[:3]
+
+        # Clip observation to make sure it is not out of bounds
+        clip(self.observation, self.observation_space)
 
     def has_terminated(self) -> Tuple[bool, bool]:
         """ TODO: Write documentation.
@@ -218,10 +218,7 @@ class AntEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
 
         ctrl_cost = 0.5 * np.square(self.action).sum()
 
-        obs_slice = slice(self.obs_chunk_slices[2].start(),
-                          self.obs_chunk_slices[-1].stop())
-        f_ext = self.observation[obs_slice]
-        contact_cost = 0.5 * 1e-3 * np.square(f_ext).sum()
+        contact_cost = 0.5 * 1e-3 * sum(map(squared_norm_2, self._f_external))
 
         survive_reward = 1.0 if not terminated else 0.0
 
