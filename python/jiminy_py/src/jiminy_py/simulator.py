@@ -89,10 +89,6 @@ class Simulator:
         self.engine = jiminy.Engine()
         self.engine.add_robot(robot)
 
-        # Define proxies for convenience
-        self.robot = robot
-        self.robot_state = self.engine.robot_states[0]
-
         # Create shared memories and python-native attribute for fast access
         self.stepper_state = self.engine.stepper_state
         self.is_simulation_running = self.engine.is_simulation_running
@@ -240,19 +236,44 @@ class Simulator:
         return chain(super().__dir__(), dir(self.engine))
 
     @property
-    def pinocchio_model(self) -> pin.Model:
-        """Getter of the pinocchio model, depending on the value of
-           'use_theoretical_model'.
+    def robot(self) -> jiminy.Robot:
+        """Convenience proxy to get the robot.
+
+        Internally, all it does is returning `self.engine.robots[0]` without
+        any additional processing.
         """
+        # A property is used in place of an instance attribute to keep pointing
+        # to the right robot if the latter has been replaced by the user. Doing
+        # so is dodgy and rarely necessary. For this reason, this capability is
+        # not advertised but supported nonetheless.
+        return self.engine.robots[0]
+
+    @property
+    def robot_state(self) -> jiminy.Robot:
+        """Convenience proxy to get the state of the robot.
+
+        Internally, all it does is returning `self.engine.robot_states[0]`
+        without any additional processing.
+        """
+        # property is used in place of attribute for extra safety
+        return self.engine.robot_states[0]
+
+    @property
+    def pinocchio_model(self) -> pin.Model:
+        """Get the appropraite pinocchio model, depending on the value of
+           'self.use_theoretical_model'.
+        """
+        # property is used in place of attribute for extra safety
         if self.use_theoretical_model and self.robot.is_flexible:
             return self.robot.pinocchio_model_th
         return self.robot.pinocchio_model
 
     @property
     def pinocchio_data(self) -> pin.Data:
-        """Getter of the pinocchio data, depending on the value of
-           'use_theoretical_model'.
+        """Get the appropriate pinocchio data, depending on the value of
+           'self.use_theoretical_model'.
         """
+        # property is used in place of attribute for extra safety
         if self.use_theoretical_model and self.robot.is_flexible:
             return self.robot.pinocchio_data_th
         return self.robot.pinocchio_data
