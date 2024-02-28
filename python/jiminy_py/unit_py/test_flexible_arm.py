@@ -12,7 +12,6 @@ import xml.etree.ElementTree as ET
 import numpy as np
 from PIL import Image
 
-import jiminy_py.core as jiminy
 from jiminy_py.simulator import Simulator
 from jiminy_py.viewer import Viewer, play_logs_files
 
@@ -220,7 +219,7 @@ class SimulateFlexibleArm(unittest.TestCase):
 
             # Extract the final configuration
             q_flex.append(
-                self.simulator.robot.get_rigid_configuration_from_flexible(
+                self.simulator.robot.get_rigid_position_from_flexible(
                     self.simulator.robot_state.q))
 
             # Render the scene

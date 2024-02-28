@@ -300,7 +300,11 @@ namespace jiminy::python
                                      (bp::arg("pinocchio_model"), "position", bp::arg("tol_abs") = std::numeric_limits<float>::epsilon()));
 
         bp::def("get_frame_indices", &getFrameIndices,
-                                     (bp::arg("pinocchio_model"), "frames_names"));
+                                     bp::return_value_policy<result_converter<true>>(),
+                                     (bp::arg("pinocchio_model"), "frame_names"));
+        bp::def("get_joint_indices", &getFrameIndices,
+                                     bp::return_value_policy<result_converter<true>>(),
+                                     (bp::arg("pinocchio_model"), "joint_names"));
 
         bp::def("array_copyto", &arrayCopyTo, (bp::arg("dst"), "src"));
 
