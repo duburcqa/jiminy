@@ -75,8 +75,8 @@ class BasePipelineWrapper(
         """
         # Initialize some proxies for fast lookup
         self.simulator = env.simulator
-        self.robot = env.robot
         self.stepper_state = env.stepper_state
+        self.robot = env.robot
         self.robot_state = env.robot_state
         self.sensor_measurements = env.sensor_measurements
         self.is_simulation_running = env.is_simulation_running
