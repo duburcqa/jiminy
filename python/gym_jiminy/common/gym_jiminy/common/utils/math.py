@@ -251,15 +251,17 @@ def matrix_to_rpy(mat: np.ndarray,
     else:
         assert out.shape == (3, *mat.shape[2:])
         out_ = out
+
+    # Direct translation of Eigen: `R.eulerAngles(2, 1, 0).reverse()`
     # roll, pitch, yaw = out_
-    out_[2] = np.arctan2(mat[1, 0], mat[0, 0])
     cos_pitch = np.sqrt(mat[2, 2] ** 2 + mat[2, 1] ** 2)
-    out_[1] = np.arctan2(- mat[2, 0], np.sign(out_[2]) * cos_pitch)
-    out_[2] += np.pi * (out_[2] < 0.0)
+    out_[1] = np.arctan2(- mat[2, 0], cos_pitch)
+    out_[2] = np.arctan2(mat[1, 0], mat[0, 0])
     sin_yaw, cos_yaw = np.sin(out_[2]), np.cos(out_[2])
     out_[0] = np.arctan2(
         sin_yaw * mat[0, 2] - cos_yaw * mat[1, 2],
         cos_yaw * mat[1, 1] - sin_yaw * mat[0, 1])
+
     return out_
 
 

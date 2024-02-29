@@ -3,15 +3,6 @@
 from typing import Union, Tuple, Optional
 
 import numpy as np
-import numba as nb
-
-
-@nb.jit(nopython=True, cache=True)
-def squared_norm_2(array: np.ndarray) -> float:
-    """Fast implementation of the sum of squared array elements, optimized for
-    small to medium size 1D arrays.
-    """
-    return np.sum(np.square(array))
 
 
 def quat_average(quat: np.ndarray,

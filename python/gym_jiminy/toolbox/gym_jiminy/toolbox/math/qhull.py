@@ -7,7 +7,7 @@ import numba as nb
 from numba.np.extensions import cross2d
 from scipy.spatial import _qhull
 
-from .generic import squared_norm_2
+from gym_jiminy.common.utils import squared_norm_2
 
 
 @nb.jit(nopython=True, nogil=True, cache=True, inline='always')

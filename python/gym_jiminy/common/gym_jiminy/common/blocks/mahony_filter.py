@@ -10,10 +10,9 @@ import gymnasium as gym
 
 from jiminy_py.core import (  # pylint: disable=no-name-in-module
     ImuSensor as imu)
-import pinocchio as pin
 
 from ..bases import BaseObsT, BaseActT, BaseObserverBlock, InterfaceJiminyEnv
-from ..utils import fill, ArrayOrScalar
+from ..utils import ArrayOrScalar, fill, matrices_to_quat
 
 
 EARTH_SURFACE_GRAVITY = 9.81
@@ -112,7 +111,7 @@ def mahony_filter(q: np.ndarray,
 # FIXME: Enabling cache causes segfault on Apple Silicon
 @no_type_check
 @nb.jit(nopython=True, cache=False)
-def quat_from_vector(
+def swing_from_vector(
         v_a: Tuple[ArrayOrScalar, ArrayOrScalar, ArrayOrScalar],
         q: np.ndarray) -> None:
     """Compute the "smallest" rotation transforming vector 'v_a' in 'e_z'.
@@ -137,7 +136,7 @@ def quat_from_vector(
     if is_singular:
         if q.ndim > 1:
             for i, q_i in enumerate(q.T):
-                quat_from_vector((v_x[i], v_y[i], v_z[i]), q_i)
+                swing_from_vector((v_x[i], v_y[i], v_z[i]), q_i)
         else:
             _, _, v_h = np.linalg.svd(np.array((
                 (v_x, v_y, v_z),
@@ -183,7 +182,7 @@ def remove_twist(q: np.ndarray) -> None:
     v_a = compute_tilt(q)
 
     # Compute the "smallest" rotation transforming vector 'v_a' in 'e_z'
-    quat_from_vector(v_a, q)
+    swing_from_vector(v_a, q)
 
 
 @nb.jit(nopython=True, nogil=True, cache=True)
@@ -257,7 +256,7 @@ class MahonyFilter(
                  name: str,
                  env: InterfaceJiminyEnv[BaseObsT, BaseActT],
                  *,
-                 twist_time_constant: Optional[float] = None,
+                 twist_time_constant: Optional[float] = 0.0,
                  exact_init: bool = True,
                  kp: Union[np.ndarray, float] = 1.0,
                  ki: Union[np.ndarray, float] = 0.1,
@@ -272,7 +271,7 @@ class MahonyFilter(
             Filter. If `0.0`, then its is kept constant equal to zero. `None`
             to kept the original estimate provided by Mahony Filter.
             See `remove_twist` and `update_twist` documentation for details.
-            Optional: `None` by default.
+            Optional: `0.0` by default.
         :param exact_init: Whether to initialize orientation estimate using
                            accelerometer measurements or ground truth. `False`
                            is not recommended because the robot is often
@@ -430,23 +429,32 @@ class MahonyFilter(
                         "The acceleration at reset is too small. Impossible "
                         "to initialize Mahony filter for 'exact_init=False'.")
                 else:
+                    # Try to determine the orientation of the IMU from its
+                    # measured acceleration at initialization. This approach is
+                    # not very accurate because the initial acceleration is
+                    # often jerky, plus the tilt is not observable at all.
                     acc = self.acc / np.linalg.norm(self.acc, axis=0)
-                    axis = np.stack(
-                        (acc[1], -acc[0], np.zeros(acc.shape[1:])), axis=0)
-                    s = np.sqrt(2 * (1 + acc[2]))
-                    self.observation[:] = *(axis / s), s / 2
+                    swing_from_vector(acc, self.observation)
+
                     self._is_initialized = True
             if not self._is_initialized:
+                # Get true orientation of IMU frames
+                imu_rots = []
                 robot = self.env.robot
-                for i, name in enumerate(robot.sensor_names[imu.type]):
+                for name in robot.sensor_names[imu.type]:
                     sensor = robot.get_sensor(imu.type, name)
                     assert isinstance(sensor, imu)
                     rot = robot.pinocchio_data.oMf[sensor.frame_index].rotation
-                    # TODO: use `matrix_to_quat` instead of `pin.Quaternion`
-                    self.observation[:, i] = pin.Quaternion(rot).coeffs()
-                    if self._update_twist:
-                        self._twist[i] = np.arctan2(
-                            self.observation[2, i], self.observation[3, i])
+                    imu_rots.append(rot)
+
+                # Convert it to quaternions
+                matrices_to_quat(tuple(imu_rots), self.observation)
+
+                # Keep track of tilt if necessary
+                if self._update_twist:
+                    self._twist[:] = np.arctan2(
+                        self.observation[2], self.observation[3])
+
                 self._is_initialized = True
             return
 

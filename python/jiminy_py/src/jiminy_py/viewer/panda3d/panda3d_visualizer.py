@@ -2020,7 +2020,7 @@ class Panda3dVisualizer(BaseVisualizer):
     Based on https://github.com/stack-of-tasks/pinocchio/blob/master/bindings/python/pinocchio/visualize/panda3d_visualizer.py
     Copyright (c) 2014-2020, CNRS
     Copyright (c) 2018-2020, INRIA
-    """  # noqa: E501
+    """  # noqa: E501  # pylint: disable=line-too-long
     def initViewer(self,  # pylint: disable=arguments-differ
                    viewer: Optional[Union[Panda3dViewer, Panda3dApp]] = None,
                    loadModel: bool = False,
