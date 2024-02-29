@@ -26,15 +26,15 @@ from gymnasium.envs.registration import EnvSpec
 
 from ..utils import DataNested, is_breakpoint, zeros, build_copyto, copy
 
-from .generic_bases import (DT_EPS,
-                            ObsT,
-                            ActT,
-                            BaseObsT,
-                            BaseActT,
-                            InfoType,
-                            EngineObsType,
-                            InterfaceJiminyEnv)
-from .block_bases import BaseControllerBlock, BaseObserverBlock
+from .generic import (DT_EPS,
+                      ObsT,
+                      ActT,
+                      BaseObsT,
+                      BaseActT,
+                      InfoType,
+                      EngineObsType,
+                      InterfaceJiminyEnv)
+from .block import BaseControllerBlock, BaseObserverBlock
 
 
 OtherObsT = TypeVar('OtherObsT', bound=DataNested)

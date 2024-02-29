@@ -396,10 +396,10 @@ class PDController(
         # Reset the command state
         fill(self._command_state, 0)
 
-        # Make sure that `pd_controller` has been pre-compiled, otherwise the
-        # first simulation step may timeout because of it.
-        if not pd_controller.signatures:
-            self.compute_command(self.env.action)
+        # Call `pd_controller` to make sure that it has been pre-compiled,
+        # otherwise the first simulation step will take much more time than
+        # expected, which is likely to raise a timeout exception.
+        self.compute_command(self.env.action)
 
     @property
     def fieldnames(self) -> List[str]:

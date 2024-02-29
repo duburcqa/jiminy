@@ -851,10 +851,8 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                 self.longitude_deg = self.longitude_deg - 360.0
             if self.longitude_deg < -180.0:
                 self.longitude_deg = self.longitude_deg + 360.0
-            if self.latitude_deg > (90.0 - 0.001):
-                self.latitude_deg = 90.0 - 0.001
-            if self.latitude_deg < (-90.0 + 0.001):
-                self.latitude_deg = -90.0 + 0.001
+            self.latitude_deg = min(max(
+                self.latitude_deg, -90.0 + 0.001), 90.0 - 0.001)
 
             longitude = self.longitude_deg * np.pi / 180.0
             latitude = self.latitude_deg * np.pi / 180.0
@@ -2022,7 +2020,7 @@ class Panda3dVisualizer(BaseVisualizer):
     Based on https://github.com/stack-of-tasks/pinocchio/blob/master/bindings/python/pinocchio/visualize/panda3d_visualizer.py
     Copyright (c) 2014-2020, CNRS
     Copyright (c) 2018-2020, INRIA
-    """  # noqa: E501  # pylint: disable=line-too-long
+    """  # noqa: E501
     def initViewer(self,  # pylint: disable=arguments-differ
                    viewer: Optional[Union[Panda3dViewer, Panda3dApp]] = None,
                    loadModel: bool = False,

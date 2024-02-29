@@ -62,12 +62,12 @@ class AntEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
 
         # Define observation slices proxy for fast access.
         # Note that they will be initialized in `_initialize_buffers`.
-        self._obs_slices: Tuple[np.ndarray] = ()
+        self._obs_slices: Tuple[np.ndarray, ...] = ()
 
         # Define base orientation and external forces proxies for fast access.
         # Note that they will be initialized in `_initialize_buffers`.
         self._base_rot = np.array([])
-        self._f_external: Tuple[np.ndarray] = ()
+        self._f_external: Tuple[np.ndarray, ...] = ()
 
         # Initialize base class
         super().__init__(

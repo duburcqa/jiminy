@@ -2,7 +2,7 @@
 reinforcement learning pipeline environment design.
 """
 import logging
-from typing import List, Union, Optional, Tuple
+from typing import List, Union, Optional, Tuple, no_type_check
 
 import numpy as np
 import numba as nb
@@ -23,7 +23,7 @@ LOGGER = logging.getLogger(__name__)
 
 
 @nb.jit(nopython=True, cache=True)
-def compute_tilt(q: np.ndarray) -> None:
+def compute_tilt(q: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Compute e_z in R(q) frame (Euler-Rodrigues Formula): R(q).T @ e_z.
 
     :param q: Array whose rows are the 4 components of quaternions (x, y, z, w)
@@ -110,6 +110,7 @@ def mahony_filter(q: np.ndarray,
 
 
 # FIXME: Enabling cache causes segfault on Apple Silicon
+@no_type_check
 @nb.jit(nopython=True, cache=False)
 def quat_from_vector(
         v_a: Tuple[ArrayOrScalar, ArrayOrScalar, ArrayOrScalar],
@@ -398,11 +399,14 @@ class MahonyFilter(
                 "provide a meaningful estimate of the IMU orientations. It "
                 "should not exceed 10ms.", self.observe_dt)
 
-        # Make sure that `mahony_filter` has been pre-compiled, otherwise the
-        # first simulation step may timeout because of it.
-        if not mahony_filter.signatures:
-            self._is_initialized = True
-            self.refresh_observation(self.env.observation)
+        # Call `mahony_filter` to make sure that it has been pre-compiled, to
+        # avoid raising a timeout exception during the first simulation step.
+        # Note that it is not reliable to check if `mahony_filter` has been
+        # compiled at least once, because it may have been compiled for a
+        # different environment, for which `mahony_filter` may be another
+        # signature and therefore trigger yet another compilation.
+        self._is_initialized = True
+        self.refresh_observation(self.env.observation)
 
         # Consider that the observer is not initialized anymore
         self._is_initialized = False

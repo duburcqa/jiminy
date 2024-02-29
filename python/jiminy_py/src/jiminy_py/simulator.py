@@ -249,7 +249,7 @@ class Simulator:
         return self.engine.robots[0]
 
     @property
-    def robot_state(self) -> jiminy.Robot:
+    def robot_state(self) -> jiminy.RobotState:
         """Convenience proxy to get the state of the robot.
 
         Internally, all it does is returning `self.engine.robot_states[0]`

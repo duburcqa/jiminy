@@ -72,7 +72,6 @@ def quat_to_rpy(quat: np.ndarray,
     else:
         assert out.shape == (3, *quat.shape[1:])
         out_ = out
-    roll, pitch, yaw = out_
 
     # Compute some intermediary quantities
     q_xx, q_xy, q_xz, q_xw = quat[-4] * quat[-4:]
@@ -86,10 +85,11 @@ def quat_to_rpy(quat: np.ndarray,
     q_xz *= norm_inv
 
     # Compute Roll, Pitch and Yaw separately
-    roll[:] = np.arctan2(2 * (q_xw + q_yz), 1.0 - 2 * (q_xx + q_yy))
-    pitch[:] = - np.pi / 2 + 2 * np.arctan2(
+    # roll, pitch, yaw = out_
+    out_[0] = np.arctan2(2 * (q_xw + q_yz), 1.0 - 2 * (q_xx + q_yy))
+    out_[1] = - np.pi / 2 + 2 * np.arctan2(
         np.sqrt(1.0 + 2 * (q_yw - q_xz)), np.sqrt(1.0 - 2 * (q_yw - q_xz)))
-    yaw[:] = np.arctan2(2 * (q_zw + q_xy), 1.0 - 2 * (q_yy + q_zz))
+    out_[2] = np.arctan2(2 * (q_zw + q_xy), 1.0 - 2 * (q_yy + q_zz))
 
     return out_
 
@@ -143,11 +143,11 @@ def matrix_to_quat(mat: np.ndarray,
     else:
         assert out.shape == (4, *mat.shape[2:])
         out_ = out
-    q_x, q_y, q_z, q_w = out_
-    q_x[:] = mat[2, 1] - mat[1, 2]
-    q_y[:] = mat[0, 2] - mat[2, 0]
-    q_z[:] = mat[1, 0] - mat[0, 1]
-    q_w[:] = 1.0 + mat[0, 0] + mat[1, 1] + mat[2, 2]
+    # q_x, q_y, q_z, q_w = out_
+    out_[0] = mat[2, 1] - mat[1, 2]
+    out_[1] = mat[0, 2] - mat[2, 0]
+    out_[2] = mat[1, 0] - mat[0, 1]
+    out_[3] = 1.0 + mat[0, 0] + mat[1, 1] + mat[2, 2]
     out_ /= np.sqrt(np.sum(np.square(out_), 0))
     return out_
 
@@ -170,35 +170,35 @@ def matrices_to_quat(mat_list: Tuple[np.ndarray],
     else:
         assert out.shape == (4, len(mat_list))
         out_ = out
-    q_x, q_y, q_z, q_w = out_
+    # q_x, q_y, q_z, q_w = out_
     t = np.empty((len(mat_list),))
     for i, mat in enumerate(mat_list):
         if mat[2, 2] < 0:
             if mat[0, 0] > mat[1, 1]:
                 t[i] = 1 + mat[0, 0] - mat[1, 1] - mat[2, 2]
-                q_x[i] = t[i]
-                q_y[i] = mat[1, 0] + mat[0, 1]
-                q_z[i] = mat[0, 2] + mat[2, 0]
-                q_w[i] = mat[2, 1] - mat[1, 2]
+                out_[0][i] = t[i]
+                out_[1][i] = mat[1, 0] + mat[0, 1]
+                out_[2][i] = mat[0, 2] + mat[2, 0]
+                out_[3][i] = mat[2, 1] - mat[1, 2]
             else:
                 t[i] = 1 - mat[0, 0] + mat[1, 1] - mat[2, 2]
-                q_x[i] = mat[1, 0] + mat[0, 1]
-                q_y[i] = t[i]
-                q_z[i] = mat[2, 1] + mat[1, 2]
-                q_w[i] = mat[0, 2] - mat[2, 0]
+                out_[0][i] = mat[1, 0] + mat[0, 1]
+                out_[1][i] = t[i]
+                out_[2][i] = mat[2, 1] + mat[1, 2]
+                out_[3][i] = mat[0, 2] - mat[2, 0]
         else:
             if mat[0, 0] < -mat[1, 1]:
                 t[i] = 1 - mat[0, 0] - mat[1, 1] + mat[2, 2]
-                q_x[i] = mat[0, 2] + mat[2, 0]
-                q_y[i] = mat[2, 1] + mat[1, 2]
-                q_z[i] = t[i]
-                q_w[i] = mat[1, 0] - mat[0, 1]
+                out_[0][i] = mat[0, 2] + mat[2, 0]
+                out_[1][i] = mat[2, 1] + mat[1, 2]
+                out_[2][i] = t[i]
+                out_[3][i] = mat[1, 0] - mat[0, 1]
             else:
                 t[i] = 1 + mat[0, 0] + mat[1, 1] + mat[2, 2]
-                q_x[i] = mat[2, 1] - mat[1, 2]
-                q_y[i] = mat[0, 2] - mat[2, 0]
-                q_z[i] = mat[1, 0] - mat[0, 1]
-                q_w[i] = t[i]
+                out_[0][i] = mat[2, 1] - mat[1, 2]
+                out_[1][i] = mat[0, 2] - mat[2, 0]
+                out_[2][i] = mat[1, 0] - mat[0, 1]
+                out_[3][i] = t[i]
     out_ /= 2 * np.sqrt(t)
     return out_
 
@@ -251,13 +251,13 @@ def matrix_to_rpy(mat: np.ndarray,
     else:
         assert out.shape == (3, *mat.shape[2:])
         out_ = out
-    roll, pitch, yaw = out_
-    yaw[:] = np.arctan2(mat[1, 0], mat[0, 0])
+    # roll, pitch, yaw = out_
+    out_[2] = np.arctan2(mat[1, 0], mat[0, 0])
     cos_pitch = np.sqrt(mat[2, 2] ** 2 + mat[2, 1] ** 2)
-    pitch[:] = np.arctan2(- mat[2, 0], np.sign(yaw) * cos_pitch)
-    yaw[:] += np.pi * (yaw < 0.0)
-    sin_yaw, cos_yaw = np.sin(yaw), np.cos(yaw)
-    roll[:] = np.arctan2(
+    out_[1] = np.arctan2(- mat[2, 0], np.sign(out_[2]) * cos_pitch)
+    out_[2] += np.pi * (out_[2] < 0.0)
+    sin_yaw, cos_yaw = np.sin(out_[2]), np.cos(out_[2])
+    out_[0] = np.arctan2(
         sin_yaw * mat[0, 2] - cos_yaw * mat[1, 2],
         cos_yaw * mat[1, 1] - sin_yaw * mat[0, 1])
     return out_
@@ -280,15 +280,15 @@ def rpy_to_quat(rpy: np.ndarray,
     else:
         assert out.shape == (4, *rpy.shape[1:])
         out_ = out
-    q_x, q_y, q_z, q_w = out_
     roll, pitch, yaw = rpy
     cos_roll, sin_roll = np.cos(roll / 2), np.sin(roll / 2)
     cos_pitch, sin_pitch = np.cos(pitch / 2), np.sin(pitch / 2)
     cos_yaw, sin_yaw = np.cos(yaw / 2), np.sin(yaw / 2)
-    q_x[:] = sin_roll * cos_pitch * cos_yaw - cos_roll * sin_pitch * sin_yaw
-    q_y[:] = cos_roll * sin_pitch * cos_yaw + sin_roll * cos_pitch * sin_yaw
-    q_z[:] = cos_roll * cos_pitch * sin_yaw - sin_roll * sin_pitch * cos_yaw
-    q_w[:] = cos_roll * cos_pitch * cos_yaw + sin_roll * sin_pitch * sin_yaw
+    # q_x, q_y, q_z, q_w = out_
+    out_[0] = sin_roll * cos_pitch * cos_yaw - cos_roll * sin_pitch * sin_yaw
+    out_[1] = cos_roll * sin_pitch * cos_yaw + sin_roll * cos_pitch * sin_yaw
+    out_[2] = cos_roll * cos_pitch * sin_yaw - sin_roll * sin_pitch * cos_yaw
+    out_[3] = cos_roll * cos_pitch * cos_yaw + sin_roll * sin_pitch * sin_yaw
     return out_
 
 
@@ -321,12 +321,12 @@ def quat_multiply(quat_left: np.ndarray,
     else:
         assert out.shape == quat_left.shape
         out_ = out
-    qx_out, qy_out, qz_out, qw_out = out_
     (qx_l, qy_l, qz_l, qw_l), (qx_r, qy_r, qz_r, qw_r) = quat_left, quat_right
-    qx_out[:] = qw_l * qx_r + qx_l * qw_r + qy_l * qz_r - qz_l * qy_r
-    qy_out[:] = qw_l * qy_r - qx_l * qz_r + qy_l * qw_r + qz_l * qx_r
-    qz_out[:] = qw_l * qz_r + qx_l * qy_r - qy_l * qx_r + qz_l * qw_r
-    qw_out[:] = qw_l * qw_r - qx_l * qx_r - qy_l * qy_r - qz_l * qz_r
+    # qx_out, qy_out, qz_out, qw_out = out_
+    out_[0] = qw_l * qx_r + qx_l * qw_r + qy_l * qz_r - qz_l * qy_r
+    out_[1] = qw_l * qy_r - qx_l * qz_r + qy_l * qw_r + qz_l * qx_r
+    out_[2] = qw_l * qz_r + qx_l * qy_r - qy_l * qx_r + qz_l * qw_r
+    out_[3] = qw_l * qw_r - qx_l * qx_r - qy_l * qy_r - qz_l * qz_r
     return out_
 
 
