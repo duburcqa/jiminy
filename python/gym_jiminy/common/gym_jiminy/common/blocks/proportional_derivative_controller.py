@@ -396,6 +396,11 @@ class PDController(
         # Reset the command state
         fill(self._command_state, 0)
 
+        # Make sure that `pd_controller` has been pre-compiled, otherwise the
+        # first simulation step may timeout because of it.
+        if not pd_controller.signatures:
+            self.compute_command(self.env.action)
+
     @property
     def fieldnames(self) -> List[str]:
         return [f"target{N_ORDER_DERIVATIVE_NAMES[self.order]}{name}"
@@ -409,6 +414,10 @@ class PDController(
 
         It is proportional to the error between the observed motors positions/
         velocities and the target ones.
+
+        .. warning::
+            Calling this method manually while a simulation is running is
+            forbidden, because it would mess with the controller update period.
 
         :param action: Desired N-th order deriv. of the target motor positions.
         """
@@ -424,12 +433,6 @@ class PDController(
                         self._command_state_upper[i],
                         out=self._command_state[i])
 
-        # Skip integrating command and return early if no simulation running.
-        # It also checks that the low-level function is already pre-compiled.
-        # This is necessary to avoid spurious timeout during first step.
-        if not is_simulation_running and pd_controller.signatures:
-            return np.zeros_like(action)
-
         # Update the highest order derivative of the target motor positions to
         # match the provided action.
         array_copyto(self._action, action)
@@ -444,7 +447,8 @@ class PDController(
             q_measured = q_measured[self.encoder_to_motor]
             v_measured = v_measured[self.encoder_to_motor]
 
-        # Compute the motor efforts using PD control
+        # Compute the motor efforts using PD control.
+        # The command state must not be updated if no simulation is running.
         return pd_controller(
             q_measured,
             v_measured,
@@ -454,4 +458,4 @@ class PDController(
             self.kp,
             self.kd,
             self.motors_effort_limit,
-            self.control_dt)
+            self.control_dt if is_simulation_running else 0.0)

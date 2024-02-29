@@ -22,6 +22,23 @@ TWIST_SWING_SINGULARITY_THR = 1e-6
 LOGGER = logging.getLogger(__name__)
 
 
+@nb.jit(nopython=True, cache=True)
+def compute_tilt(q: np.ndarray) -> None:
+    """Compute e_z in R(q) frame (Euler-Rodrigues Formula): R(q).T @ e_z.
+
+    :param q: Array whose rows are the 4 components of quaternions (x, y, z, w)
+              and columns are N independent orientations.
+
+    :returns: Tuple of arrays corresponding to the 3 individual components
+              (a_x, a_y, a_z) of N independent tilt axes.
+    """
+    q_x, q_y, q_z, q_w = q
+    v_x = 2 * (q_x * q_z - q_y * q_w)
+    v_y = 2 * (q_y * q_z + q_w * q_x)
+    v_z = 1 - 2 * (q_x * q_x + q_y * q_y)
+    return (v_x, v_y, v_z)
+
+
 @nb.jit(nopython=True, nogil=True, cache=True)
 def mahony_filter(q: np.ndarray,
                   omega: np.ndarray,
@@ -55,10 +72,7 @@ def mahony_filter(q: np.ndarray,
 
     """
     # Compute expected Earth's gravity (Euler-Rodrigues Formula): R(q).T @ e_z
-    q_x, q_y, q_z, q_w = q
-    v_x = 2 * (q_x * q_z - q_y * q_w)
-    v_y = 2 * (q_y * q_z + q_w * q_x)
-    v_z = 1 - 2 * (q_x * q_x + q_y * q_y)
+    v_x, v_y, v_z = compute_tilt(q)
 
     # Compute the angular velocity using Explicit Complementary Filter:
     # omega_mes = v_a_hat x v_a, where x is the cross product.
@@ -80,6 +94,7 @@ def mahony_filter(q: np.ndarray,
     (p_x, p_y, p_z), p_w = (axis * np.sin(theta)), np.cos(theta)
 
     # Integrate the orientation: q * exp3(dt * omega)
+    q_x, q_y, q_z, q_w = q
     q[0], q[1], q[2], q[3] = (
         q_x * p_w + q_w * p_x - q_z * p_y + q_y * p_z,
         q_y * p_w + q_z * p_x + q_w * p_y - q_x * p_z,
@@ -92,23 +107,6 @@ def mahony_filter(q: np.ndarray,
 
     # Update Gyro bias
     bias_hat -= dt * ki * omega_mes
-
-
-@nb.jit(nopython=True, cache=True)
-def compute_tilt(q: np.ndarray) -> None:
-    """Compute e_z in R(q) frame (Euler-Rodrigues Formula): R(q).T @ e_z.
-
-    :param q: Array whose rows are the 4 components of quaternions (x, y, z, w)
-              and columns are N independent orientations.
-
-    :returns: Tuple of arrays corresponding to the 3 individual components
-              (a_x, a_y, a_z) of N independent tilt axes.
-    """
-    q_x, q_y, q_z, q_w = q
-    v_x = 2 * (q_x * q_z - q_y * q_w)
-    v_y = 2 * (q_y * q_z + q_w * q_x)
-    v_z = 1 - 2 * (q_x * q_x + q_y * q_y)
-    return (v_x, v_y, v_z)
 
 
 # FIXME: Enabling cache causes segfault on Apple Silicon
@@ -148,7 +146,7 @@ def quat_from_vector(
             q[:3], q[3] = v_h[-1] * np.sqrt(1 - w_2), np.sqrt(w_2)
     else:
         s = np.sqrt(2 * (1 + v_z))
-        q[0], q[1], q[2], q[3] = v_y / s, v_x / s, 0.0, s / 2
+        q[0], q[1], q[2], q[3] = v_y / s, - v_x / s, 0.0, s / 2
 
     # First order quaternion normalization to prevent compounding of errors.
     # If not done, shit may happen with removing twist again and again on the
@@ -317,6 +315,13 @@ class MahonyFilter(
             self.twist_time_constant_inv is not None and
             np.isfinite(self.twist_time_constant_inv))
 
+        # Must keep track of whether the observer has been initialized, because
+        # relying on `self.env.is_simulation_running` is not possible for
+        # observers in particular. Indeed, the simulation is already running
+        # when refresh_observation is called for the first time of an episode,
+        # unlike `compute_command`.
+        self._is_initialized = False
+
         # Define gyroscope and accelerometer proxies for fast access.
         # Note that they will be initialized in `_setup` method.
         self.gyro, self.acc = np.array([]), np.array([])
@@ -368,7 +373,7 @@ class MahonyFilter(
         # Call base implementation
         super()._setup()
 
-        # Fix initialization of the observation to be valid quaternions.
+        # Fix initialization of the observation to be valid quaternions
         self.observation[-1] = 1.0
 
         # Make sure observe update is discrete-time
@@ -393,6 +398,15 @@ class MahonyFilter(
                 "provide a meaningful estimate of the IMU orientations. It "
                 "should not exceed 10ms.", self.observe_dt)
 
+        # Make sure that `mahony_filter` has been pre-compiled, otherwise the
+        # first simulation step may timeout because of it.
+        if not mahony_filter.signatures:
+            self._is_initialized = True
+            self.refresh_observation(self.env.observation)
+
+        # Consider that the observer is not initialized anymore
+        self._is_initialized = False
+
     def get_state(self) -> np.ndarray:
         return self._bias
 
@@ -405,8 +419,7 @@ class MahonyFilter(
     def refresh_observation(self, measurement: BaseObsT) -> None:
         # Re-initialize the quaternion estimate if no simulation running.
         # It corresponds to the rotation transforming 'acc' in 'e_z'.
-        if not self.env.is_simulation_running:
-            is_initialized = False
+        if not self._is_initialized:
             if not self.exact_init:
                 if (np.abs(self.acc) < 0.1 * EARTH_SURFACE_GRAVITY).all():
                     LOGGER.warning(
@@ -418,19 +431,20 @@ class MahonyFilter(
                         (acc[1], -acc[0], np.zeros(acc.shape[1:])), axis=0)
                     s = np.sqrt(2 * (1 + acc[2]))
                     self.observation[:] = *(axis / s), s / 2
-                    is_initialized = True
-            if not is_initialized:
+                    self._is_initialized = True
+            if not self._is_initialized:
                 robot = self.env.robot
                 for i, name in enumerate(robot.sensor_names[imu.type]):
                     sensor = robot.get_sensor(imu.type, name)
                     assert isinstance(sensor, imu)
                     rot = robot.pinocchio_data.oMf[sensor.frame_index].rotation
+                    # TODO: use `matrix_to_quat` instead of `pin.Quaternion`
                     self.observation[:, i] = pin.Quaternion(rot).coeffs()
                     if self._update_twist:
                         self._twist[i] = np.arctan2(
                             self.observation[2, i], self.observation[3, i])
-            if mahony_filter.signatures:
-                return
+                self._is_initialized = True
+            return
 
         # Run an iteration of the filter, computing the next state estimate
         mahony_filter(self.observation,
