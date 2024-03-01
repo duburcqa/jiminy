@@ -19,7 +19,7 @@ import pinocchio as pin
 
 from ..utils import sample
 from ..bases import InfoType
-from .env_generic import BaseJiminyEnv
+from .generic import BaseJiminyEnv
 
 
 GROUND_FRICTION_RANGE = (0.2, 2.0)

@@ -851,10 +851,8 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                 self.longitude_deg = self.longitude_deg - 360.0
             if self.longitude_deg < -180.0:
                 self.longitude_deg = self.longitude_deg + 360.0
-            if self.latitude_deg > (90.0 - 0.001):
-                self.latitude_deg = 90.0 - 0.001
-            if self.latitude_deg < (-90.0 + 0.001):
-                self.latitude_deg = -90.0 + 0.001
+            self.latitude_deg = min(max(
+                self.latitude_deg, -90.0 + 0.001), 90.0 - 0.001)
 
             longitude = self.longitude_deg * np.pi / 180.0
             latitude = self.latitude_deg * np.pi / 180.0

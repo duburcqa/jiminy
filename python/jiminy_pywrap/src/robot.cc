@@ -49,6 +49,14 @@ namespace jiminy::python
         return self.initialize(pinocchioModel, collisionModel, visualModel);
     }
 
+    template<typename T>
+    static void setOptions(T & self, const bp::dict & configPy)
+    {
+        GenericConfig config = self.getOptions();
+        convertFromPython(configPy, config);
+        return self.setOptions(config);
+    }
+
     namespace internal::model
     {
         static void addCollisionBodies(
@@ -171,6 +179,9 @@ namespace jiminy::python
                               bp::default_call_policies(),
                               (bp::arg("self"), "generator")))
 
+            .def("set_options", &setOptions<Model>, (bp::arg("self"), "options"))
+            .def("get_options", &Model::getOptions)
+
             .def("add_frame",
                  static_cast<void (Model::*)(
                      const std::string &, const std::string &, const pinocchio::SE3 &)>(
@@ -213,13 +224,13 @@ namespace jiminy::python
                  &internal::model::getConstraintsJacobianAndDrift)
             .def("compute_constraints", &Model::computeConstraints, (bp::arg("self"), "q", "v"))
 
-            .def("get_flexible_configuration_from_rigid",
+            .def("get_flexible_position_from_rigid",
                  &internal::model::getFlexiblePositionFromRigid,
                  (bp::arg("self"), "rigid_position"))
             .def("get_flexible_velocity_from_rigid",
                  &internal::model::getFlexibleVelocityFromRigid,
                  (bp::arg("self"), "rigid_velocity"))
-            .def("get_rigid_configuration_from_flexible",
+            .def("get_rigid_position_from_flexible",
                  &internal::model::getRigidPositionFromFlexible,
                  (bp::arg("self"), "flexible_position"))
             .def("get_rigid_velocity_from_flexible",
@@ -283,7 +294,7 @@ namespace jiminy::python
             .ADD_PROPERTY_GET_WITH_POLICY("rigid_joint_names",
                                           &Model::getRigidJointNames,
                                           bp::return_value_policy<result_converter<true>>())
-            .ADD_PROPERTY_GET_WITH_POLICY("rigid_joint_index",
+            .ADD_PROPERTY_GET_WITH_POLICY("rigid_joint_indices",
                                           &Model::getRigidJointIndices,
                                           bp::return_value_policy<result_converter<true>>())
             .ADD_PROPERTY_GET_WITH_POLICY("rigid_joint_position_indices",
@@ -347,13 +358,6 @@ namespace jiminy::python
                 sensorsNamesPy[sensorTypeNames.first] = convertToPython(sensorTypeNames.second);
             }
             return sensorsNamesPy;
-        }
-
-        static void setOptions(Robot & self, const bp::dict & configPy)
-        {
-            GenericConfig config = self.getOptions();
-            convertFromPython(configPy, config);
-            return self.setOptions(config);
         }
 
         static void setModelOptions(Robot & self, const bp::dict & configPy)
@@ -450,7 +454,7 @@ namespace jiminy::python
                  (bp::arg("self"), "t", "q", "v", "a", "u_motor", "f_external"))
             .ADD_PROPERTY_GET("sensor_measurements", &internal::robot::getSensorMeasurements)
 
-            .def("set_options", &internal::robot::setOptions, (bp::arg("self"), "robot_options"))
+            .def("set_options", &setOptions<Robot>, (bp::arg("self"), "robot_options"))
             .def("get_options", &Robot::getOptions)
             .def("set_model_options",
                  &internal::robot::setModelOptions,

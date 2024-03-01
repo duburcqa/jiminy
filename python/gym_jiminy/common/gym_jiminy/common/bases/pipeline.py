@@ -26,15 +26,15 @@ from gymnasium.envs.registration import EnvSpec
 
 from ..utils import DataNested, is_breakpoint, zeros, build_copyto, copy
 
-from .generic_bases import (DT_EPS,
-                            ObsT,
-                            ActT,
-                            BaseObsT,
-                            BaseActT,
-                            InfoType,
-                            EngineObsType,
-                            InterfaceJiminyEnv)
-from .block_bases import BaseControllerBlock, BaseObserverBlock
+from .generic import (DT_EPS,
+                      ObsT,
+                      ActT,
+                      BaseObsT,
+                      BaseActT,
+                      InfoType,
+                      EngineObsType,
+                      InterfaceJiminyEnv)
+from .block import BaseControllerBlock, BaseObserverBlock
 
 
 OtherObsT = TypeVar('OtherObsT', bound=DataNested)
@@ -75,8 +75,8 @@ class BasePipelineWrapper(
         """
         # Initialize some proxies for fast lookup
         self.simulator = env.simulator
-        self.robot = env.robot
         self.stepper_state = env.stepper_state
+        self.robot = env.robot
         self.robot_state = env.robot_state
         self.sensor_measurements = env.sensor_measurements
         self.is_simulation_running = env.is_simulation_running

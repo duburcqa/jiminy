@@ -3305,7 +3305,9 @@ namespace jiminy
              const std::shared_ptr<AbstractConstraintBase> & constraint,
              Eigen::VectorXd & /* u */)
         {
+#ifndef NDEBUG
             PRINT_WARNING("No position bounds implemented for this type of joint.");
+#endif
             if (contactModel == ContactModelType::CONSTRAINT)
             {
                 // Disable fixed joint constraint
@@ -3393,7 +3395,9 @@ namespace jiminy
              ContactModelType /* contactModel */,
              Eigen::VectorXd & /* u */)
         {
+#ifndef NDEBUG
             PRINT_WARNING("No velocity bounds implemented for this type of joint.");
+#endif
         }
     };
 
@@ -3829,12 +3833,12 @@ namespace jiminy
             }
 
             // Call forward dynamics
-            bool isSucess = robotData.constraintSolver->SolveBoxedForwardDynamics(
+            bool isSuccess = robotData.constraintSolver->SolveBoxedForwardDynamics(
                 engineOptions_->constraints.regularization, isStateUpToDate, ignoreBounds);
 
             /* Monitor number of successive constraint solving failure. Exception raising is
                delegated to the 'step' method since this method is supposed to always succeed. */
-            if (isSucess)
+            if (isSuccess)
             {
                 robotData.successiveSolveFailed = 0U;
             }
@@ -3842,7 +3846,7 @@ namespace jiminy
             {
                 if (engineOptions_->stepper.verbose)
                 {
-                    std::cout << "Constraint solver failure." << std::endl;
+                    PRINT_WARNING("Constraint solver failure.");
                 }
                 ++robotData.successiveSolveFailed;
             }

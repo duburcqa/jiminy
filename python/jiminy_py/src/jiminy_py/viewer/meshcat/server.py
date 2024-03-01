@@ -301,7 +301,6 @@ def _meshcat_server(info: Dict[str, str], verbose: bool) -> None:
     """Meshcat server daemon, using in/out argument to get the zmq url instead
     of reading stdout as it was.
     """
-    # pylint: disable=consider-using-with
     # Redirect both stdout and stderr to devnull if not verbose
     if not verbose:
         devnull = open(os.devnull, 'w')

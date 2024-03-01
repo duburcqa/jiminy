@@ -19,7 +19,9 @@ import pinocchio as pin
 
 from gym_jiminy.envs import (
     AtlasPDControlJiminyEnv, CassiePDControlJiminyEnv, DigitPDControlJiminyEnv)
-from gym_jiminy.common.blocks import PDController
+from gym_jiminy.common.blocks import PDController, MahonyFilter
+from gym_jiminy.common.utils import (
+    quat_to_rpy, matrix_to_rpy, matrix_to_quat, remove_twist_from_quat)
 
 
 IMAGE_DIFF_THRESHOLD = 5.0
@@ -125,7 +127,7 @@ class PipelineControl(unittest.TestCase):
         """
         # Instantiate and reset the environment
         env = AtlasPDControlJiminyEnv()
-        env.reset()
+        assert isinstance(env.observer, MahonyFilter)
 
         # Define a constant action that move the upper-body in all directions
         robot = env.robot
@@ -139,13 +141,38 @@ class PipelineControl(unittest.TestCase):
         imu_rot = robot.pinocchio_data.oMf[sensor.frame_index].rotation
 
         # Check that the estimate IMU orientation is accurate over the episode
-        for i in range(200):
-            env.step(action * (1 - 2 * ((i // 50) % 2)))
-            rpy_true = pin.rpy.matrixToRpy(imu_rot)
-            rpy_est = pin.rpy.matrixToRpy(
-                pin.Quaternion(env.observer.observation).matrix())
-            self.assertTrue(np.allclose(rpy_true, rpy_est, atol=0.01))
-        env.stop()
+        for twist_time_constant in (None, float("inf"), 0.0):
+            # Reinitialize the observer
+            env.observer = MahonyFilter(
+                env.observer.name,
+                env.observer.env,
+                twist_time_constant=twist_time_constant,
+                exact_init=True,
+                kp=env.observer.kp,
+                ki=env.observer.ki)
+
+            # Reset the environment
+            env.reset()
+
+            # Run of few simulation steps
+            for i in range(200):
+                env.step(action * (1 - 2 * ((i // 50) % 2)))
+
+                if twist_time_constant == 0.0:
+                    # The twist must be ignored as it is not observable
+                    obs_true = matrix_to_quat(imu_rot)
+                    remove_twist_from_quat(obs_true)
+                    rpy_true = quat_to_rpy(obs_true)
+                    obs_est = env.observer.observation[:, 0].copy()
+                    remove_twist_from_quat(obs_est)
+                    rpy_est = quat_to_rpy(obs_est)
+                else:
+                    # The twist is either measured or estimated
+                    rpy_true = matrix_to_rpy(imu_rot)
+                    rpy_est = quat_to_rpy(env.observer.observation[:, 0])
+
+                np.testing.assert_allclose(rpy_true, rpy_est, atol=0.01)
+            env.stop()
 
     def test_pid_controller(self):
         """ TODO: Write documentation.

@@ -721,7 +721,7 @@ def compute_inverse_dynamics(robot: jiminy.Model,
 
     # Convert theoretical position, velocity and acceleration if necessary
     if use_theoretical_model and robot.is_flexible:
-        position = robot.get_flexible_configuration_from_rigid(position)
+        position = robot.get_flexible_position_from_rigid(position)
         velocity = robot.get_flexible_velocity_from_rigid(velocity)
         acceleration = robot.get_flexible_velocity_from_rigid(acceleration)
 

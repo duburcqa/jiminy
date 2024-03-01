@@ -1,6 +1,7 @@
 """Implementation of basic Proportional-Derivative controller block compatible
 with gym_jiminy reinforcement learning pipeline environment design.
 """
+import warnings
 from typing import List
 
 import numpy as np
@@ -156,10 +157,14 @@ class MotorSafetyLimit(
         # Whether stored reference to encoder measurements are already in the
         # same order as the motors, allowing skipping re-ordering entirely.
         self._is_same_order = isinstance(self.encoder_to_motor, slice)
+        if not self._is_same_order:
+            warnings.warn(
+                "Consider using the same ordering for encoders and motors for "
+                "optimal performance.")
 
-        # Extract measured motor positions and velocities for fast access
-        self.q_measured, self.v_measured = (
-            env.sensor_measurements[encoder.type])
+        # Extract measured motor positions and velocities for fast access.
+        # Note that they will be initialized in `_setup` method.
+        self.q_measured, self.v_measured = np.array([]), np.array([])
 
         # Initialize the controller
         super().__init__(name, env, 1)

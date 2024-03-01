@@ -217,8 +217,8 @@ class InterfaceJiminyEnv(
         self.observe_dt = -1
         self.control_dt = -1
 
-        # It is always necessary to refresh the observation at after reset
-        self.__is_observation_refreshed = True
+        # The observation must always be refreshed after setup
+        self.__is_observation_refreshed = False
 
         # Reset observation and action buffers
         fill(self.observation, 0)
@@ -244,8 +244,13 @@ class InterfaceJiminyEnv(
         :param v: Current actual velocity vector.
         :param sensor_measurements: Current sensor data.
         """
-        # Refresh the observation if not already done
-        if not self.__is_observation_refreshed:
+        # Refresh the observation if not already done but only if a simulation
+        # is already running. It would be pointless to refresh the observation
+        # at this point since the controller will be called multiple times at
+        # start. Besides, it would defeat the purpose `_initialize_buffers`,
+        # that is supposed to be executed before `refresh_observation` is being
+        # called for the first time of an episode.
+        if not self.__is_observation_refreshed and self.is_simulation_running:
             measurement = self.__measurement
             measurement["t"][()] = t
             measurement["states"]["agent"]["q"] = q
@@ -255,9 +260,7 @@ class InterfaceJiminyEnv(
             for sensor_type in self._sensors_types:
                 measurement_sensors[sensor_type] = next(sensor_measurements_it)
             self.refresh_observation(measurement)
-
-        # Consider observation has been refreshed iif a simulation is running
-        self.__is_observation_refreshed = self.is_simulation_running.item()
+            self.__is_observation_refreshed = True
 
     def _controller_handle(self,
                            t: float,

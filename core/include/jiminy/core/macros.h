@@ -65,19 +65,14 @@ namespace jiminy::internal
 */
 #define THROW_ERROR(exception, ...)                                                       \
     throw exception(                                                                      \
-        toString("In ",                                                                   \
-                 jiminy::internal::extractFunctionName(__func__, BOOST_CURRENT_FUNCTION), \
-                 " (" FILE_LINE "):\n",                                                   \
+        toString(jiminy::internal::extractFunctionName(__func__, BOOST_CURRENT_FUNCTION), \
+                 "(" FILE_LINE "):\n",                                                    \
                  __VA_ARGS__))
 
-#ifdef NDEBUG
-#    define PRINT_WARNING(...)
-#else
-#    define PRINT_WARNING(...)                                                               \
-        std::cout << "\x1b[1;93mWARNING\x1b[0m: In "                                         \
-                  << jiminy::internal::extractFunctionName(__func__, BOOST_CURRENT_FUNCTION) \
-                  << " (" FILE_LINE "):\n"                                                   \
-                  << toString(__VA_ARGS__) << std::endl
-#endif
+#define PRINT_WARNING(...)                                                               \
+    std::cout << "\x1b[1;93mWARNING\x1b[0m:"                                             \
+              << jiminy::internal::extractFunctionName(__func__, BOOST_CURRENT_FUNCTION) \
+              << "(" FILE_LINE "):\n"                                                    \
+              << toString(__VA_ARGS__) << std::endl
 
 #endif  // JIMINY_MACRO_H
