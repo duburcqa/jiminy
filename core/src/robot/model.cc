@@ -1672,41 +1672,6 @@ namespace jiminy
         }
     }
 
-    void Model::getRigidPositionFromFlexible(const Eigen::VectorXd & qFlex,
-                                             Eigen::VectorXd & qRigid) const
-    {
-        // Define some proxies
-        uint32_t nqFlex = pncModelFlexibleOrig_.nq;
-
-        // Check the size of the input state
-        if (qFlex.size() != nqFlex)
-        {
-            THROW_ERROR(std::invalid_argument, "Size of qFlex inconsistent with flexible model.");
-        }
-
-        // Initialize the rigid state
-        qRigid = pinocchio::neutral(pinocchioModelOrig_);
-
-        // Compute the rigid state based on the flexible state
-        int32_t idxRigid = 0;
-        int32_t idxFlex = 0;
-        for (; idxRigid < pinocchioModelOrig_.njoints; ++idxFlex)
-        {
-            const std::string & jointRigidName = pinocchioModelOrig_.names[idxRigid];
-            const std::string & jointFlexName = pncModelFlexibleOrig_.names[idxFlex];
-            if (jointRigidName == jointFlexName)
-            {
-                const auto & jointRigid = pinocchioModelOrig_.joints[idxRigid];
-                const auto & jointFlex = pncModelFlexibleOrig_.joints[idxFlex];
-                if (jointRigid.idx_q() >= 0)
-                {
-                    qRigid.segment(jointRigid.idx_q(), jointRigid.nq()) =
-                        qFlex.segment(jointFlex.idx_q(), jointFlex.nq());
-                }
-                ++idxRigid;
-            }
-        }
-    }
 
     void Model::getFlexibleVelocityFromRigid(const Eigen::VectorXd & vRigid,
                                              Eigen::VectorXd & vFlex) const
@@ -1746,6 +1711,42 @@ namespace jiminy
         }
     }
 
+    void Model::getRigidPositionFromFlexible(const Eigen::VectorXd & qFlex,
+                                             Eigen::VectorXd & qRigid) const
+    {
+        // Define some proxies
+        uint32_t nqFlex = pncModelFlexibleOrig_.nq;
+
+        // Check the size of the input state
+        if (qFlex.size() != nqFlex)
+        {
+            THROW_ERROR(std::invalid_argument, "Size of qFlex inconsistent with flexible model.");
+        }
+
+        // Initialize the rigid state
+        qRigid = pinocchio::neutral(pinocchioModelOrig_);
+
+        // Compute the rigid state based on the flexible state
+        int32_t idxRigid = 0;
+        int32_t idxFlex = 0;
+        for (; idxRigid < pinocchioModelOrig_.njoints; ++idxFlex)
+        {
+            const std::string & jointRigidName = pinocchioModelOrig_.names[idxRigid];
+            const std::string & jointFlexName = pncModelFlexibleOrig_.names[idxFlex];
+            if (jointRigidName == jointFlexName)
+            {
+                const auto & jointRigid = pinocchioModelOrig_.joints[idxRigid];
+                const auto & jointFlex = pncModelFlexibleOrig_.joints[idxFlex];
+                if (jointRigid.idx_q() >= 0)
+                {
+                    qRigid.segment(jointRigid.idx_q(), jointRigid.nq()) =
+                        qFlex.segment(jointFlex.idx_q(), jointFlex.nq());
+                }
+                ++idxRigid;
+            }
+        }
+    }
+
     void Model::getRigidVelocityFromFlexible(const Eigen::VectorXd & vFlex,
                                              Eigen::VectorXd & vRigid) const
     {
@@ -1778,10 +1779,7 @@ namespace jiminy
                     vRigid.segment(jointRigid.idx_v(), jointRigid.nv()) =
                         vFlex.segment(jointFlex.idx_v(), jointFlex.nv());
                 }
-            }
-            else
-            {
-                ++idxFlex;
+                ++idxRigid;
             }
         }
     }
