@@ -224,12 +224,20 @@ class MahonyFilter(
             self.twist_time_constant_inv is not None and
             np.isfinite(self.twist_time_constant_inv))
 
-        # Must keep track of whether the observer has been initialized, because
-        # relying on `self.env.is_simulation_running` is not possible for
-        # observers in particular. Indeed, the simulation is already running
-        # when refresh_observation is called for the first time of an episode,
-        # unlike `compute_command`.
+        # Whether the observer has been initialized.
+        # This flag must be managed internally because relying on
+        # `self.env.is_simulation_running` is not possible for observer blocks.
+        # Unlike `compute_command`, the simulation is already running when
+        # `refresh_observation`` is called for the first time of an episode.
         self._is_initialized = False
+
+        # Whether the observer has been compiled already.
+        # This is necessary avoid raising a timeout exception during the first
+        # simulation step. It is not reliable to only check if `mahony_filter`
+        # has been compiled once, because a different environment may have been
+        # involved, for which `mahony_filter` may be another signature,
+        # triggering yet another compilation.
+        self._is_compiled = False
 
         # Define gyroscope and accelerometer proxies for fast access.
         # Note that they will be initialized in `_setup` method.
@@ -307,14 +315,13 @@ class MahonyFilter(
                 "provide a meaningful estimate of the IMU orientations. It "
                 "should not exceed 10ms.", self.observe_dt)
 
-        # Call `mahony_filter` to make sure that it has been pre-compiled, to
-        # avoid raising a timeout exception during the first simulation step.
-        # Note that it is not reliable to check if `mahony_filter` has been
-        # compiled at least once, because it may have been compiled for a
-        # different environment, for which `mahony_filter` may be another
-        # signature and therefore trigger yet another compilation.
-        self._is_initialized = True
-        self.refresh_observation(self.env.observation)
+        # Call `refresh_observation` manually to make sure that all the jitted
+        # method of it control flow has been compiled.
+        if not self._is_compiled:
+            self._is_initialized = False
+            for _ in range(2):
+                self.refresh_observation(self.env.observation)
+            self._is_compiled = True
 
         # Consider that the observer is not initialized anymore
         self._is_initialized = False
