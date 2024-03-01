@@ -1,9 +1,14 @@
 """ TODO: Write documentation.
 """
-from typing import Union, Tuple, Optional
+from typing import Union, Tuple, Optional, no_type_check
 
 import numpy as np
 import numba as nb
+
+from .spaces import ArrayOrScalar
+
+
+TWIST_SWING_SINGULARITY_THR = 1e-6
 
 
 @nb.jit(nopython=True, cache=True)
@@ -330,6 +335,101 @@ def quat_multiply(quat_left: np.ndarray,
     out_[2] = qw_l * qz_r + qx_l * qy_r - qy_l * qx_r + qz_l * qw_r
     out_[3] = qw_l * qw_r - qx_l * qx_r - qy_l * qy_r - qz_l * qz_r
     return out_
+
+
+@nb.jit(nopython=True, cache=True)
+def compute_tilt_from_quat(q: np.ndarray
+                           ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Compute e_z in R(q) frame (Euler-Rodrigues Formula): R(q).T @ e_z.
+
+    :param q: Array whose rows are the 4 components of quaternions (x, y, z, w)
+              and columns are N independent orientations.
+
+    :returns: Tuple of arrays corresponding to the 3 individual components
+              (a_x, a_y, a_z) of N independent tilt axes.
+    """
+    q_x, q_y, q_z, q_w = q
+    v_x = 2 * (q_x * q_z - q_y * q_w)
+    v_y = 2 * (q_y * q_z + q_w * q_x)
+    v_z = 1 - 2 * (q_x * q_x + q_y * q_y)
+    return (v_x, v_y, v_z)
+
+
+# FIXME: Enabling cache causes segfault on Apple Silicon
+@no_type_check
+@nb.jit(nopython=True, cache=False)
+def swing_from_vector(
+        v_a: Tuple[ArrayOrScalar, ArrayOrScalar, ArrayOrScalar],
+        q: np.ndarray) -> None:
+    """Compute the "smallest" rotation transforming vector 'v_a' in 'e_z'.
+
+    :param v_a: Tuple of arrays corresponding to the 3 individual components
+                (a_x, a_y, a_z) of N independent tilt axes.
+    :param q: Array where the result will be stored. The rows are the 4
+              components of quaternions (x, y, z, w) and columns are the N
+              independent orientations.
+    """
+    # Extract individual tilt components
+    v_x, v_y, v_z = v_a
+
+    # There is a singularity when the rotation axis of orientation estimate
+    # and z-axis are nearly opposites, i.e. v_z ~= -1. One solution that
+    # ensure continuity of q_w is picked arbitrarily using SVD decomposition.
+    # See `Eigen::Quaternion::FromTwoVectors` implementation for details.
+    if q.ndim > 1:
+        is_singular = np.any(v_z < -1.0 + TWIST_SWING_SINGULARITY_THR)
+    else:
+        is_singular = v_z < -1.0 + TWIST_SWING_SINGULARITY_THR
+    if is_singular:
+        if q.ndim > 1:
+            for i, q_i in enumerate(q.T):
+                swing_from_vector((v_x[i], v_y[i], v_z[i]), q_i)
+        else:
+            _, _, v_h = np.linalg.svd(np.array((
+                (v_x, v_y, v_z),
+                (0.0, 0.0, 1.0))
+            ), full_matrices=True)
+            w_2 = (1 + max(v_z, -1)) / 2
+            q[:3], q[3] = v_h[-1] * np.sqrt(1 - w_2), np.sqrt(w_2)
+    else:
+        s = np.sqrt(2 * (1 + v_z))
+        q[0], q[1], q[2], q[3] = v_y / s, - v_x / s, 0.0, s / 2
+
+    # First order quaternion normalization to prevent compounding of errors.
+    # If not done, shit may happen with removing twist again and again on the
+    # same quaternion, which is typically the case when the IMU is steady, so
+    # that the mahony filter update is actually skipped internally.
+    q *= (3.0 - np.sum(np.square(q), 0)) / 2
+
+
+# FIXME: Enabling cache causes segfault on Apple Silicon
+@nb.jit(nopython=True, cache=False)
+def remove_twist_from_quat(q: np.ndarray) -> None:
+    """Remove the twist part of the Twist-after-Swing decomposition of given
+    orientations in quaternion representation.
+
+    Any rotation R can be decomposed as:
+
+        R = R_z * R_s
+
+    where R_z (the twist) is a rotation around e_z and R_s (the swing) is
+    the "smallest" rotation matrix such that t(R_s) = t(R).
+
+    .. seealso::
+        * See "Estimation and control of the deformations of an exoskeleton
+          using inertial sensors", PhD Thesis, M. Vigne, 2021, p. 130.
+        * See "Swing-twist decomposition in Clifford algebra", P. Dobrowolski,
+          2015 (https://arxiv.org/abs/1506.05481)
+
+    :param q: Array whose rows are the 4 components of quaternions (x, y, z, w)
+              and columns are N independent orientations from which to remove
+              the swing part. It will be updated in-place.
+    """
+    # Compute e_z in R(q) frame (Euler-Rodrigues Formula): R(q).T @ e_z
+    v_a = compute_tilt_from_quat(q)
+
+    # Compute the "smallest" rotation transforming vector 'v_a' in 'e_z'
+    swing_from_vector(v_a, q)
 
 
 def quat_average(quat: np.ndarray,

@@ -20,8 +20,8 @@ import pinocchio as pin
 from gym_jiminy.envs import (
     AtlasPDControlJiminyEnv, CassiePDControlJiminyEnv, DigitPDControlJiminyEnv)
 from gym_jiminy.common.blocks import PDController, MahonyFilter
-from gym_jiminy.common.blocks.mahony_filter import remove_twist
-from gym_jiminy.common.utils import quat_to_rpy, matrix_to_rpy, matrix_to_quat
+from gym_jiminy.common.utils import (
+    quat_to_rpy, matrix_to_rpy, matrix_to_quat, remove_twist_from_quat)
 
 
 IMAGE_DIFF_THRESHOLD = 5.0
@@ -161,10 +161,10 @@ class PipelineControl(unittest.TestCase):
                 if twist_time_constant == 0.0:
                     # The twist must be ignored as it is not observable
                     obs_true = matrix_to_quat(imu_rot)
-                    remove_twist(obs_true)
+                    remove_twist_from_quat(obs_true)
                     rpy_true = quat_to_rpy(obs_true)
                     obs_est = env.observer.observation[:, 0].copy()
-                    remove_twist(obs_est)
+                    remove_twist_from_quat(obs_est)
                     rpy_est = quat_to_rpy(obs_est)
                 else:
                     # The twist is either measured or estimated
