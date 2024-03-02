@@ -16,7 +16,7 @@ from jiminy_py.core import array_copyto  # pylint: disable=no-name-in-module
 from jiminy_py.simulator import Simulator
 from jiminy_py.viewer.viewer import is_display_available
 
-from ..utils import DataNested, fill
+from ..utils import DataNested
 
 
 # Temporal resolution of simulator steps
@@ -155,7 +155,7 @@ class InterfaceController(ABC, Generic[ActT, BaseActT]):
 
         :returns: Aggregated reward for the current step.
         """
-        raise NotImplementedError
+        return 0.0
 
 
 # Note that `InterfaceJiminyEnv` must inherit from `InterfaceObserver`
@@ -220,10 +220,6 @@ class InterfaceJiminyEnv(
         # The observation must always be refreshed after setup
         self.__is_observation_refreshed = False
 
-        # Reset observation and action buffers
-        fill(self.observation, 0)
-        fill(self.action, 0)
-
     @no_type_check
     def _observer_handle(self,
                          t: float,
@@ -259,7 +255,11 @@ class InterfaceJiminyEnv(
             sensor_measurements_it = iter(sensor_measurements.values())
             for sensor_type in self._sensors_types:
                 measurement_sensors[sensor_type] = next(sensor_measurements_it)
-            self.refresh_observation(measurement)
+            try:
+                self.refresh_observation(measurement)
+            except RuntimeError as e:
+                raise RuntimeError(
+                    "The observation space must be constant.") from e
             self.__is_observation_refreshed = True
 
     def _controller_handle(self,

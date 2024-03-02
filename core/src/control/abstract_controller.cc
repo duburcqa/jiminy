@@ -203,7 +203,7 @@ namespace jiminy
                                            { return element.first == *fieldIt; });
             if (variableIt != registeredVariables.end())
             {
-                THROW_ERROR(lookup_error, "Variable already registered.");
+                THROW_ERROR(lookup_error, "Variable '", *fieldIt, "' already registered.");
             }
             registeredVariables.emplace_back(*fieldIt, &values[i]);
         }

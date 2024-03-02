@@ -160,10 +160,13 @@ def matrix_to_quat(mat: np.ndarray,
 # TODO: Merge this method with `matrix_to_quat` by leverage compile-time
 # implementation dispatching via `nb.generated_jit` or `nb.overload`.
 @nb.jit(nopython=True, cache=True)
-def matrices_to_quat(mat_list: Tuple[np.ndarray],
+def matrices_to_quat(mat_list: Tuple[np.ndarray, ...],
                      out: Optional[np.ndarray] = None) -> np.ndarray:
     """Compute the [qx, qy, qz, qw] Quaternion representation of multiple
     rotation matrices.
+
+    .. seealso::
+        See https://math.stackexchange.com/a/3183435.
 
     :param mat: Tuple of N arrays corresponding to independent 3D rotation
                 matrices.

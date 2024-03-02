@@ -7,20 +7,6 @@ contactFrameNames = []  #['tip_1', 'tip_2', 'tip_3', 'tip_4']
 
 # ============== Motors ===============
 
-[Motor.SimpleMotor.hip_4]
-joint_name = "hip_4"
-mechanicalReduction = 150.0
-armature = 1.0
-frictionViscousPositive = -1.0
-frictionViscousNegative = -1.0
-
-[Motor.SimpleMotor.ankle_4]
-joint_name = "ankle_4"
-mechanicalReduction = 150.0
-armature = 1.0
-frictionViscousPositive = -1.0
-frictionViscousNegative = -1.0
-
 [Motor.SimpleMotor.hip_1]
 joint_name = "hip_1"
 mechanicalReduction = 150.0
@@ -58,6 +44,20 @@ frictionViscousNegative = -1.0
 
 [Motor.SimpleMotor.ankle_3]
 joint_name = "ankle_3"
+mechanicalReduction = 150.0
+armature = 1.0
+frictionViscousPositive = -1.0
+frictionViscousNegative = -1.0
+
+[Motor.SimpleMotor.hip_4]
+joint_name = "hip_4"
+mechanicalReduction = 150.0
+armature = 1.0
+frictionViscousPositive = -1.0
+frictionViscousNegative = -1.0
+
+[Motor.SimpleMotor.ankle_4]
+joint_name = "ankle_4"
 mechanicalReduction = 150.0
 armature = 1.0
 frictionViscousPositive = -1.0

@@ -12,7 +12,7 @@ from typing import Any, Union, Generic, TypeVar, cast
 
 import gymnasium as gym
 
-from ..utils import FieldNested, DataNested, get_fieldnames, fill, zeros
+from ..utils import FieldNested, DataNested, get_fieldnames, zeros
 
 from .generic import (ObsT,
                       ActT,
@@ -158,9 +158,6 @@ class BaseObserverBlock(InterfaceObserver[ObsT, BaseObsT],
     def _setup(self) -> None:
         # Compute the update period
         self.observe_dt = self.env.observe_dt * self.update_ratio
-
-        # Set default observation
-        fill(self.observation, 0)
 
         # Make sure the controller period is lower than environment timestep
         assert self.observe_dt <= self.env.step_dt, (
