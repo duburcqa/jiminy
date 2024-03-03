@@ -112,7 +112,7 @@
         <box size="0.1 0.025 0.01"/>
       </geometry>
       <material name="">
-        <color rgba="1.0 1.0 1.0 0.0"/>
+        <color rgba="0.5 0.5 0.5 1.0"/>
       </material>
     </visual>
     <inertial>
