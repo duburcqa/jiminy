@@ -2,7 +2,7 @@ from gymnasium.envs.registration import register
 
 from .cartpole import CartPoleJiminyEnv
 from .acrobot import AcrobotJiminyEnv
-from .ant import AntEnv
+from .ant import AntJiminyEnv
 from .cassie import CassieJiminyEnv, CassiePDControlJiminyEnv
 from .digit import DigitJiminyEnv, DigitPDControlJiminyEnv
 from .anymal import ANYmalJiminyEnv, ANYmalPDControlJiminyEnv
@@ -15,7 +15,7 @@ from .atlas import (AtlasJiminyEnv,
 __all__ = [
     'CartPoleJiminyEnv',
     'AcrobotJiminyEnv',
-    'AntEnv',
+    'AntJiminyEnv',
     'CassieJiminyEnv',
     'CassiePDControlJiminyEnv',
     'DigitJiminyEnv',
@@ -46,7 +46,7 @@ register(
 )
 register(
     id='ant',
-    entry_point='gym_jiminy.envs:AntEnv',
+    entry_point='gym_jiminy.envs:AntJiminyEnv',
     max_episode_steps=1000,
     reward_threshold=6000.0,
     order_enforce=False,

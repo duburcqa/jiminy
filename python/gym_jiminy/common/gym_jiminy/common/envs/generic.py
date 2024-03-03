@@ -167,13 +167,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
             else:
                 render_mode = 'rgb_array'
 
-        # Make sure the rendering mode is valid.
-        if render_mode == 'human' and {
-                **kwargs, **simulator.viewer_kwargs
-                }.get('backend') == 'panda3d-sync':
-            raise ValueError(
-                "render_mode='human' is incompatible with "
-                "backend='panda3d-sync'.")
+        # Make sure that rendering mode is valid
         assert render_mode in self.metadata['render_modes']
 
         # Backup some user arguments

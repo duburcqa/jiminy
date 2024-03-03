@@ -37,7 +37,7 @@ class PipelineControl(unittest.TestCase):
         """ TODO: Write documentation
         """
         # Reset the environment
-        self.env.reset()
+        self.env.reset(seed=0)
 
         # Zero target motors velocities, so that the robot stands still
         action = np.zeros(self.env.robot.nmotors)
@@ -146,13 +146,13 @@ class PipelineControl(unittest.TestCase):
             env.observer = MahonyFilter(
                 env.observer.name,
                 env.observer.env,
+                kp=0.0,
+                ki=0.0,
                 twist_time_constant=twist_time_constant,
-                exact_init=True,
-                kp=env.observer.kp,
-                ki=env.observer.ki)
+                exact_init=True)
 
             # Reset the environment
-            env.reset()
+            env.reset(seed=0)
 
             # Run of few simulation steps
             for i in range(200):
@@ -179,7 +179,7 @@ class PipelineControl(unittest.TestCase):
         """
         # Instantiate the environment and run a simulation with random action
         env = AtlasPDControlJiminyEnv()
-        env.reset()
+        env.reset(seed=0)
         env.unwrapped._height_neutral = float("-inf")
         while env.stepper_state.t < 2.0:
             env.step(0.2 * env.action_space.sample())

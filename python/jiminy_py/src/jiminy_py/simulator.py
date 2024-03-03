@@ -607,7 +607,7 @@ class Simulator:
             self.viewer.set_camera_transform(*camera_pose)
 
         # Make sure the graphical window is open if required
-        if not return_rgb_array:
+        if not return_rgb_array and self.viewer.backend != "panda3d-sync":
             Viewer.open_gui()
 
         # Try refreshing the viewer

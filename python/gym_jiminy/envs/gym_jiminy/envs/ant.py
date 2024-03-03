@@ -13,7 +13,7 @@ import pinocchio as pin
 from jiminy_py.simulator import Simulator
 from gym_jiminy.common.bases import InfoType, EngineObsType
 from gym_jiminy.common.envs import BaseJiminyEnv
-from gym_jiminy.common.utils import sample, copyto, squared_norm_2, clip
+from gym_jiminy.common.utils import sample, copyto, squared_norm_2
 
 if sys.version_info < (3, 9):
     from importlib_resources import files
@@ -25,7 +25,7 @@ else:
 STEP_DT = 0.05
 
 
-class AntEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
+class AntJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
     """ TODO: Write documentation.
     """
 
@@ -65,9 +65,12 @@ class AntEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         self._obs_slices: Tuple[np.ndarray, ...] = ()
 
         # Define base orientation and external forces proxies for fast access.
-        # Note that they will be initialized in `_initialize_buffers`.
         self._base_rot = np.array([])
         self._f_external: Tuple[np.ndarray, ...] = ()
+
+        # Rigid configuration and velocity of the robot.
+        self._q_rigid = np.array([])
+        self._v_rigid = np.array([])
 
         # Initialize base class
         super().__init__(
@@ -120,10 +123,10 @@ class AntEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
 
         The observation space comprises:
 
-            - robot configuration vector (absolute position (x, y) excluded),
-            - robot velocity vector (with base linear velocity in world frame),
-            - flatten external forces applied on each body in local frame, ie
-              centered at their respective center of mass.
+            - rigid configuration (absolute position (x, y) excluded),
+            - rigid velocity (with base linear velocity in world frame),
+            - flattened external forces applied on each body in local frame,
+              ie centered at their respective center of mass.
         """
         # http://www.mujoco.org/book/APIreference.html#mjData
 
@@ -157,7 +160,12 @@ class AntEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         self._base_rot = self.robot.pinocchio_data.oMf[1].rotation
 
         # Initialize vector of external forces
-        self._f_external = tuple(f.vector for f in self.robot_state.f_external)
+        self._f_external = tuple(
+            self.robot_state.f_external[joint_index].vector
+            for joint_index in self.robot.rigid_joint_indices)
+
+        # Refresh buffers manually to initialize them early
+        self._refresh_buffers()
 
         # Re-initialize observation slices.
         # Note that the base linear velocity is isolated as it will be computed
@@ -165,9 +173,9 @@ class AntEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         obs_slices = []
         obs_index_first = 0
         for data in (
-                self._robot_state_q[2:],
-                self._robot_state_v[:3],
-                self._robot_state_v[3:],
+                self._q_rigid[2:],
+                self._v_rigid[:3],
+                self._v_rigid[3:],
                 *self._f_external):
             obs_index_last = obs_index_first + len(data)
             obs_slices.append(self.observation[obs_index_first:obs_index_last])
@@ -177,18 +185,26 @@ class AntEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         # Initialize previous torso position along x-axis
         self._xpos_prev = self._robot_state_q[0]
 
+    def _refresh_buffers(self) -> None:
+        self._q_rigid = self.robot.get_rigid_position_from_flexible(
+            self._robot_state_q)
+        self._v_rigid = self.robot.get_rigid_velocity_from_flexible(
+            self._robot_state_v)
+
     def refresh_observation(self, measurement: EngineObsType) -> None:
         # Update observation
         copyto(self._obs_slices[:-1], (
-            self._robot_state_q[2:],
-            self._robot_state_v[3:],
-            *self._f_external))
+            self._q_rigid[2:], self._v_rigid[3:], *self._f_external))
 
         # Transform observed linear velocity to be in world frame
         self._obs_slices[-1][:] = self._base_rot @ self._robot_state_v[:3]
 
-        # Clip observation to make sure it is not out of bounds
-        clip(self.observation, self.observation_space)
+        # Clip observation in-place to make sure it is not out of bounds
+        assert isinstance(self.observation_space, gym.spaces.Box)
+        np.clip(self.observation,
+                self.observation_space.low,
+                self.observation_space.high,
+                out=self.observation)
 
     def has_terminated(self) -> Tuple[bool, bool]:
         """ TODO: Write documentation.
