@@ -126,9 +126,10 @@ class InterfaceController(ABC, Generic[ActT, BaseActT]):
         """
 
     def compute_reward(self,
-                       terminated: bool,
-                       truncated: bool,
-                       info: InfoType) -> float:
+                       terminated: bool,  # pylint: disable=unused-argument
+                       truncated: bool,  # pylint: disable=unused-argument
+                       info: InfoType  # pylint: disable=unused-argument
+                       ) -> float:
         """Compute the reward related to a specific control block.
 
         For the corresponding MDP to be stationary, the computation of the
