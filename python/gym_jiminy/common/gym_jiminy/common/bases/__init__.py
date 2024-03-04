@@ -1,20 +1,20 @@
 # pylint: disable=missing-module-docstring
 
-from .generic import (DT_EPS,
-                      ObsT,
-                      ActT,
-                      BaseObsT,
-                      BaseActT,
-                      InfoType,
-                      SensorMeasurementStackMap,
-                      EngineObsType,
-                      InterfaceObserver,
-                      InterfaceController,
-                      InterfaceJiminyEnv)
-from .block import (BlockStateT,
-                    InterfaceBlock,
-                    BaseObserverBlock,
-                    BaseControllerBlock)
+from .interfaces import (DT_EPS,
+                         ObsT,
+                         ActT,
+                         BaseObsT,
+                         BaseActT,
+                         InfoType,
+                         SensorMeasurementStackMap,
+                         EngineObsType,
+                         InterfaceObserver,
+                         InterfaceController,
+                         InterfaceJiminyEnv)
+from .blocks import (BlockStateT,
+                     InterfaceBlock,
+                     BaseObserverBlock,
+                     BaseControllerBlock)
 from .pipeline import (BasePipelineWrapper,
                        BaseTransformObservation,
                        BaseTransformAction,

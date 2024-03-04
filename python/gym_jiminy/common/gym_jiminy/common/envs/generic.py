@@ -39,7 +39,7 @@ from jiminy_py.viewer.viewer import (DEFAULT_CAMERA_XYZRPY_REL,
                                      Viewer)
 from jiminy_py.viewer.replay import viewer_lock  # type: ignore[attr-defined]
 
-from pinocchio import neutral, normalize, framesForwardKinematics
+import pinocchio as pin
 
 from ..utils import (FieldNested,
                      DataNested,
@@ -248,9 +248,9 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
             [], DataNested] = OrderedDict
 
         # Set robot in neutral configuration
-        qpos = self._neutral()
-        framesForwardKinematics(
-            self.robot.pinocchio_model, self.robot.pinocchio_data, qpos)
+        q = self._neutral()
+        pin.framesForwardKinematics(
+            self.robot.pinocchio_model, self.robot.pinocchio_data, q)
 
         # Configure the default camera pose if not already done
         if "camera_pose" not in self.simulator.viewer_kwargs:
@@ -741,6 +741,29 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
                 "Controller update period must be a divisor of environment "
                 "simulation timestep")
 
+        # Sample the initial state and reset the low-level engine
+        q_init, v_init = self._sample_state()
+        if not jiminy.is_position_valid(
+                self.simulator.pinocchio_model, q_init):
+            raise RuntimeError(
+                "The initial state provided by `_sample_state` is "
+                "inconsistent with the dimension or types of joints of the "
+                "model.")
+
+        # Set robot in initial configuration
+        pin.framesForwardKinematics(
+            self.robot.pinocchio_model, self.robot.pinocchio_data, q_init)
+
+        # Initialize sensor measurements that are zero-ed at this point. This
+        # may be necessary for pre-compiling blocks before actually starting
+        # the simulation to avoid triggering timeout error. Indeed, some
+        # computations may require valid sensor data, such as normalized
+        # quaternion or non-zero linear acceleration.
+        a_init, u_motor = (np.zeros(self.robot.nv),) * 2
+        f_external = [pin.Force.Zero(),] * self.robot.pinocchio_model.njoints
+        self.robot.compute_sensor_measurements(
+            0.0, q_init, v_init, a_init, u_motor, f_external)
+
         # Run the reset hook if any.
         # Note that the reset hook must be called after `_setup` because it
         # expects that the robot is not going to change anymore at this point.
@@ -767,18 +790,9 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         for header, value in self._registered_variables.values():
             register_variables(self.robot.controller, header, value)
 
-        # Sample the initial state and reset the low-level engine
-        qpos, qvel = self._sample_state()
-        if not jiminy.is_position_valid(
-                self.simulator.pinocchio_model, qpos):
-            raise RuntimeError(
-                "The initial state provided by `_sample_state` is "
-                "inconsistent with the dimension or types of joints of the "
-                "model.")
-
         # Start the engine
         self.simulator.start(
-            qpos, qvel, None, self.simulator.use_theoretical_model)
+            q_init, v_init, None, self.simulator.use_theoretical_model)
 
         # Refresh robot_state proxies. It must be done here because memory is
         # only allocated by the engine when starting a simulation.
@@ -1314,11 +1328,6 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         # Update engine options
         self.simulator.engine.set_options(engine_options)
 
-        # Set robot in neutral configuration
-        qpos = self._neutral()
-        framesForwardKinematics(
-            self.robot.pinocchio_model, self.robot.pinocchio_data, qpos)
-
     def _initialize_observation_space(self) -> None:
         """Configure the observation of the environment.
 
@@ -1355,20 +1364,20 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
             the configuration.
         """
         # Get the neutral configuration of the actual model
-        qpos = neutral(self.robot.pinocchio_model)
+        q = pin.neutral(self.robot.pinocchio_model)
 
         # Make sure it is not out-of-bounds
         position_limit_lower = self.robot.position_limit_lower
         position_limit_upper = self.robot.position_limit_upper
-        for idx, val in enumerate(qpos):
+        for idx, val in enumerate(q):
             lo, hi = position_limit_lower[idx], position_limit_upper[idx]
             if hi < val or val < lo:
-                qpos[idx] = 0.5 * (lo + hi)
+                q[idx] = 0.5 * (lo + hi)
 
         # Return rigid/flexible configuration
         if self.simulator.use_theoretical_model:
-            return qpos[self.robot.rigid_joint_position_indices]
-        return qpos
+            return q[self.robot.rigid_joint_position_indices]
+        return q
 
     def _sample_state(self) -> Tuple[np.ndarray, np.ndarray]:
         """Returns a valid configuration and velocity for the robot.
@@ -1384,27 +1393,27 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
             state. It can be overloaded to act as a random state generator.
         """
         # Get the neutral configuration
-        qpos = self._neutral()
+        q = self._neutral()
 
         # Make sure the configuration is not out-of-bound
-        qpos.clip(self.robot.position_limit_lower,
-                  self.robot.position_limit_upper,
-                  out=qpos)
+        q.clip(self.robot.position_limit_lower,
+               self.robot.position_limit_upper,
+               out=q)
 
         # Make sure the configuration is normalized
-        qpos = normalize(self.robot.pinocchio_model, qpos)
+        q = pin.normalize(self.robot.pinocchio_model, q)
 
         # Make sure the robot impacts the ground
         if self.robot.has_freeflyer:
             engine_options = self.simulator.engine.get_options()
             ground_fun = engine_options['world']['groundProfile']
             compute_freeflyer_state_from_fixed_body(
-                self.robot, qpos, ground_profile=ground_fun)
+                self.robot, q, ground_profile=ground_fun)
 
         # Zero velocity
-        qvel = np.zeros(self.robot.pinocchio_model.nv)
+        v = np.zeros(self.robot.pinocchio_model.nv)
 
-        return qpos, qvel
+        return q, v
 
     def _initialize_buffers(self) -> None:
         """Initialize internal buffers for fast access to shared memory or to

@@ -107,7 +107,6 @@ class PipelineControl(unittest.TestCase):
                         CassiePDControlJiminyEnv,
                         DigitPDControlJiminyEnv):
                 self.env = Env(
-                    debug=True,
                     render_mode='rgb_array',
                     viewer_kwargs=dict(
                         backend=backend,
@@ -171,8 +170,7 @@ class PipelineControl(unittest.TestCase):
                     rpy_true = matrix_to_rpy(imu_rot)
                     rpy_est = quat_to_rpy(env.observer.observation[:, 0])
 
-                np.testing.assert_allclose(rpy_true, rpy_est, atol=0.01)
-            env.stop()
+                np.testing.assert_allclose(rpy_true, rpy_est, atol=5e-3)
 
     def test_pid_controller(self):
         """ TODO: Write documentation.
