@@ -130,7 +130,7 @@ class DeformationEstimatorBlock(unittest.TestCase):
             imu_frame_names=robot.sensor_names['ImuSensor'],
             flex_frame_names=robot.flexible_joint_names,
             ignore_twist=True,
-            update_ratio=1)
+            update_ratio=-1)
         env = ObservedJiminyEnv(env, deformation_estimator)
 
         # Simulate for a while
@@ -235,7 +235,7 @@ class DeformationEstimatorBlock(unittest.TestCase):
                             imu_frame_names=IMU_FRAME_NAMES,
                             flex_frame_names=FLEXIBLE_FRAME_NAMES,
                             ignore_twist=False,
-                            update_ratio=1,
+                            update_ratio=-1,
                         )
                     )
                 )

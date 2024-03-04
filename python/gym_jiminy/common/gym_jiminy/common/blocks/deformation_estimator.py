@@ -533,8 +533,9 @@ class DeformationEstimator(
                                to the IMU quaternion estimates. Their ordering
                                must be consistent with the true IMU sensors of
                                the robot.
-        :param update_ratio: Ratio between the update period of the controller
-                             and the one of the subsequent controller.
+        :param update_ratio: Ratio between the update period of the observer
+                             and the one of the subsequent observer. -1 to
+                             match the simulation timestep of the environment.
                              Optional: `1` by default.
         """
         # Sanitize user argument(s)
