@@ -723,6 +723,24 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         if self.observe_dt < 0.0:
             self.observe_dt = self.control_dt
 
+        # Make sure that both the observer and the controller are running
+        # faster than the environment to which it is attached for the action to
+        # take effect and be observable. Moreover, their respective update
+        # period must be a divisor of the environment step for both
+        # computational efficiency and avoid breaking markovian assumption due
+        # to previous action having a direct effect on the next step.
+        control_update_ratio, observe_update_ratio = 0.0, 0.0
+        if self.observe_dt > 0.0:
+            observe_update_ratio = round(self.step_dt / self.observe_dt, 10)
+            assert round(observe_update_ratio) == observe_update_ratio, (
+                "Observer update period must be a divisor of environment "
+                "simulation timestep")
+        if self.control_dt > 0.0:
+            control_update_ratio = round(self.step_dt / self.control_dt, 10)
+            assert round(control_update_ratio) == control_update_ratio, (
+                "Controller update period must be a divisor of environment "
+                "simulation timestep")
+
         # Run the reset hook if any.
         # Note that the reset hook must be called after `_setup` because it
         # expects that the robot is not going to change anymore at this point.

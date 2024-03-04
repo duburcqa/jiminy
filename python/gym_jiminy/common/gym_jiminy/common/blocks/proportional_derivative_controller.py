@@ -258,7 +258,8 @@ class PDController(
         :param name: Name of the block.
         :param env: Environment to connect with.
         :param update_ratio: Ratio between the update period of the controller
-                             and the one of the subsequent controller.
+                             and the one of the subsequent controller. -1 to
+                             match the simulation timestep of the environment.
         :param order: Derivative order of the action.
         :param kp: PD controller position-proportional gains in motor order.
         :param kd: PD controller velocity-proportional gains in motor order.

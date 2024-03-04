@@ -62,9 +62,11 @@ class InterfaceBlock(ABC, Generic[BlockStateT, BaseObsT, BaseActT]):
 
         :param name: Name of the block.
         :param env: Environment to connect with.
-        :param update_ratio: Ratio between the update period of the high-level
-                             controller and the one of the subsequent
-                             lower-level controller.
+        :param update_ratio: Ratio between the update period of the top-level
+                             block and the one of the subsequent lower-level
+                             block. The value '-1' to can be used for forcing
+                             the update period to match the simulation timestep
+                             of the base environment itself.
         :param kwargs: Extra keyword arguments that may be useful for mixing
                        multiple inheritance through multiple inheritance.
         """
@@ -157,7 +159,10 @@ class BaseObserverBlock(InterfaceObserver[ObsT, BaseObsT],
 
     def _setup(self) -> None:
         # Compute the update period
-        self.observe_dt = self.env.observe_dt * self.update_ratio
+        if self.update_ratio > 0.0:
+            self.observe_dt = self.env.observe_dt * self.update_ratio
+        else:
+            self.observe_dt = self.env.step_dt
 
         # Make sure the controller period is lower than environment timestep
         assert self.observe_dt <= self.env.step_dt, (
@@ -218,7 +223,10 @@ class BaseControllerBlock(
 
     def _setup(self) -> None:
         # Compute the update period
-        self.control_dt = self.env.control_dt * self.update_ratio
+        if self.update_ratio > 0.0:
+            self.control_dt = self.env.control_dt * self.update_ratio
+        else:
+            self.control_dt = self.env.step_dt
 
         # Make sure the controller period is lower than environment timestep
         assert self.control_dt <= self.env.step_dt, (

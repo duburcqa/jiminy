@@ -194,8 +194,9 @@ class MahonyFilter(
                           Optional: `1.0` by default.
         :param mahony_ki: Integral gain used for gyro bias estimate.
                           Optional: `0.1` by default.
-        :param update_ratio: Ratio between the update period of the controller
-                             and the one of the subsequent controller.
+        :param update_ratio: Ratio between the update period of the observer
+                             and the one of the subsequent observer. -1 to
+                             match the simulation timestep of the environment.
                              Optional: `1` by default.
         """
         # Handling of default argument(s)
@@ -342,8 +343,8 @@ class MahonyFilter(
             if not self.exact_init:
                 if (np.abs(self.acc) < 0.1 * EARTH_SURFACE_GRAVITY).all():
                     LOGGER.warning(
-                        "The acceleration at reset is too small. Impossible "
-                        "to initialize Mahony filter for 'exact_init=False'.")
+                        "The robot is free-falling. Impossible to initialize "
+                        "Mahony filter for 'exact_init=False'.")
                 else:
                     # Try to determine the orientation of the IMU from its
                     # measured acceleration at initialization. This approach is
