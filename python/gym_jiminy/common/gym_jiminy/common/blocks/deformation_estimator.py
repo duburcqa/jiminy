@@ -1,3 +1,6 @@
+"""Implementation of a stateless kinematic deformation estimator block
+compatible with gym_jiminy reinforcement learning pipeline environment design.
+"""
 from collections.abc import Mapping
 from typing import List, Dict, Sequence, Tuple, Optional
 
