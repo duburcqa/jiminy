@@ -732,12 +732,14 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         control_update_ratio, observe_update_ratio = 0.0, 0.0
         if self.observe_dt > 0.0:
             observe_update_ratio = round(self.step_dt / self.observe_dt, 10)
-        assert round(control_update_ratio) == control_update_ratio, (
-            "Observer update period must be divisor of environment timestep")
+            assert round(observe_update_ratio) == observe_update_ratio, (
+                "Observer update period must be a divisor of environment "
+                "simulation timestep")
         if self.control_dt > 0.0:
             control_update_ratio = round(self.step_dt / self.control_dt, 10)
-        assert round(control_update_ratio) == control_update_ratio, (
-            "Controller update period must be divisor of environment timestep")
+            assert round(control_update_ratio) == control_update_ratio, (
+                "Controller update period must be a divisor of environment "
+                "simulation timestep")
 
         # Run the reset hook if any.
         # Note that the reset hook must be called after `_setup` because it
