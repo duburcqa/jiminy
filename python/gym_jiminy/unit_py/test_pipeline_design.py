@@ -31,7 +31,7 @@ class PipelineDesign(unittest.TestCase):
                 cls='gym_jiminy.envs.ANYmalJiminyEnv',
                 kwargs=dict(
                     step_dt=self.step_dt,
-                    debug=True
+                    debug=False
                 )
             ),
             layers_config=[
@@ -88,14 +88,14 @@ class PipelineDesign(unittest.TestCase):
         # Load TOML pipeline description, create env and perform a step
         toml_file = os.path.join(data_dir, "anymal_pipeline.toml")
         ANYmalPipelineEnv = load_pipeline(toml_file)
-        env = ANYmalPipelineEnv(debug=True)
+        env = ANYmalPipelineEnv()
         env.reset(seed=0)
         env.step(env.action)
 
         # Load JSON pipeline description, create env and perform a step
         json_file = os.path.join(data_dir, "anymal_pipeline.json")
         ANYmalPipelineEnv = load_pipeline(json_file)
-        env = ANYmalPipelineEnv(debug=True)
+        env = ANYmalPipelineEnv()
         env.reset(seed=0)
         env.step(env.action)
 

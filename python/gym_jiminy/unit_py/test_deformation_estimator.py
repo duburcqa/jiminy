@@ -102,7 +102,7 @@ class DeformationEstimatorBlock(unittest.TestCase):
         simulator.engine.set_options(engine_options)
 
         # Instantiate the environment
-        env = BaseJiminyEnv(simulator, step_dt=0.0001, debug=True)
+        env = BaseJiminyEnv(simulator, step_dt=0.01)
 
         # Add controller and observer blocks
         pd_controller = PDController(
@@ -135,7 +135,7 @@ class DeformationEstimatorBlock(unittest.TestCase):
 
         # Simulate for a while
         env.reset(seed=0)
-        for _ in range(10000):
+        for _ in range(100):
             env.step(env.action)
 
         # Check that deformation estimates matches ground truth

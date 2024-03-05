@@ -24,17 +24,17 @@ import gymnasium as gym
 from gymnasium.core import RenderFrame
 from gymnasium.envs.registration import EnvSpec
 
-from ..utils import DataNested, is_breakpoint, zeros, build_copyto, copy
+from .interfaces import (DT_EPS,
+                         ObsT,
+                         ActT,
+                         BaseObsT,
+                         BaseActT,
+                         InfoType,
+                         EngineObsType,
+                         InterfaceJiminyEnv)
+from .blocks import BaseControllerBlock, BaseObserverBlock
 
-from .generic import (DT_EPS,
-                      ObsT,
-                      ActT,
-                      BaseObsT,
-                      BaseActT,
-                      InfoType,
-                      EngineObsType,
-                      InterfaceJiminyEnv)
-from .block import BaseControllerBlock, BaseObserverBlock
+from ..utils import DataNested, is_breakpoint, zeros, build_copyto, copy
 
 
 OtherObsT = TypeVar('OtherObsT', bound=DataNested)

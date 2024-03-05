@@ -14,13 +14,13 @@ import gymnasium as gym
 
 from ..utils import FieldNested, DataNested, get_fieldnames, zeros
 
-from .generic import (ObsT,
-                      ActT,
-                      BaseObsT,
-                      BaseActT,
-                      InterfaceController,
-                      InterfaceObserver,
-                      InterfaceJiminyEnv)
+from .interfaces import (ObsT,
+                         ActT,
+                         BaseObsT,
+                         BaseActT,
+                         InterfaceController,
+                         InterfaceObserver,
+                         InterfaceJiminyEnv)
 
 
 BlockStateT = TypeVar('BlockStateT', bound=Union[DataNested, None])
