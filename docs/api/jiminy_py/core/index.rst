@@ -5,9 +5,9 @@ core
    :maxdepth: 1
 
    robot
+   constraints
    sensors
    motors
    controller
    engine
-   constraints
    utilities

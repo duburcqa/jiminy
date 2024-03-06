@@ -37,7 +37,7 @@ namespace jiminy::python
         static bp::object getPyFun(HeightmapFunction & self)
         {
             HeightmapFunPyWrapper * pyWrapper(self.target<HeightmapFunPyWrapper>());
-            if (!pyWrapper || pyWrapper->heightmapType_ != heightmapType_t::GENERIC)
+            if (!pyWrapper || pyWrapper->heightmapType_ != HeightmapType::GENERIC)
             {
                 return {};
             }
@@ -45,7 +45,7 @@ namespace jiminy::python
         }
 
         static std::shared_ptr<HeightmapFunction> factory(bp::object & objPy,
-                                                          heightmapType_t objType)
+                                                          HeightmapType objType)
         {
             return std::make_shared<HeightmapFunction>(HeightmapFunPyWrapper(objPy, objType));
         }
@@ -59,7 +59,7 @@ namespace jiminy::python
                  bp::make_constructor(&internal::heightmap_function::factory,
                                       bp::default_call_policies(),
                                       (bp::arg("heightmap_function"),
-                                       bp::arg("heightmap_type") = heightmapType_t::GENERIC)))
+                                       bp::arg("heightmap_type") = HeightmapType::GENERIC)))
             .def("__call__", &internal::heightmap_function::eval, (bp::arg("self"), "position"))
             .ADD_PROPERTY_GET_WITH_POLICY("py_function",
                                           &internal::heightmap_function::getPyFun,

@@ -4,6 +4,7 @@ Blocks
 .. toctree::
    :maxdepth: 1
 
-   mahony_filter
-   motor_safety_limit
    proportional_derivative_controller
+   motor_safety_limit
+   mahony_filter
+   deformation_estimator

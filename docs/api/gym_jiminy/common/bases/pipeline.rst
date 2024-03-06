@@ -1,7 +1,7 @@
 Pipeline
 ========
 
-.. automodule:: gym_jiminy.common.bases.pipeline_bases
+.. automodule:: gym_jiminy.common.bases.pipeline
    :members:
    :undoc-members:
    :show-inheritance:

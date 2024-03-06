@@ -11,7 +11,3 @@ robot
    :undoc-members:
    :show-inheritance:
 
-.. autoclass:: jiminy_py.core.SensorMeasurementTree
-   :members:
-   :undoc-members:
-   :show-inheritance:

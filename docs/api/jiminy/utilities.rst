@@ -9,7 +9,6 @@ Timer
    :members:
    :undoc-members:
 
-
 IO file and Directory
 ---------------------
 
@@ -19,10 +18,10 @@ IO file and Directory
 Conversion from/to JSON
 -----------------------
 
-.. doxygenfunction:: jiminy::convertToJson(configHolder_t const &value)
+.. doxygenfunction:: jiminy::convertToJson(const GenericConfig & value)
    :project: jiminy
 
-.. doxygenfunction:: jiminy::convertFromJson(Json::Value const &value)
+.. doxygenfunction:: jiminy::convertFromJson(const Json::Value & value)
    :project: jiminy
 
 Geometry
@@ -44,12 +43,6 @@ Random number generation
    :project: jiminy
    :members:
 
-.. doxygenfunction:: jiminy::uniform
-   :project: jiminy
-
-.. doxygenfunction:: jiminy::normal
-   :project: jiminy
-
 .. doxygenfunction:: jiminy::PeriodicGaussianProcess
    :project: jiminy
    :members:
@@ -66,13 +59,19 @@ Random number generation
    :project: jiminy
    :members:
 
+.. doxygenfunction:: jiminy::uniform
+   :project: jiminy
+
+.. doxygenfunction:: jiminy::normal
+   :project: jiminy
+
 .. doxygenfunction:: jiminy::tiles
    :project: jiminy
 
 Telemetry
 ---------
 
-.. doxygenfunction:: jiminy::getLogFieldValue
+.. doxygenfunction:: jiminy::getLogVariable
    :project: jiminy
 
 Pinocchio
