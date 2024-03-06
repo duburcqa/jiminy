@@ -136,7 +136,14 @@ class AcrobotJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
                             self.observation[-self.robot.nv:])
 
     def _setup(self) -> None:
-        """ TODO: Write documentation.
+        """Configure the environment.
+
+        In practice, it sets the stepper options to enforce a fixed-timestep
+        integrator after calling the base implementation.
+
+        .. note::
+            This method must be called once, after the environment has been
+            reset. This is done automatically when calling `reset` method.
         """
         # Call base implementation
         super()._setup()

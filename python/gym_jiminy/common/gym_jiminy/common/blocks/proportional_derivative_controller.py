@@ -29,7 +29,7 @@ N_ORDER_DERIVATIVE_NAMES = ("Position", "Velocity", "Acceleration", "Jerk")
 EVAL_DEADBAND = 5.0e-3
 
 
-@nb.jit(nopython=True, nogil=True, cache=True, inline='always')
+@nb.jit(nopython=True, cache=True, inline='always')
 def toeplitz(col: np.ndarray, row: np.ndarray) -> np.ndarray:
     """Numba-compatible implementation of `scipy.linalg.toeplitz` method.
 
@@ -53,7 +53,7 @@ def toeplitz(col: np.ndarray, row: np.ndarray) -> np.ndarray:
                       strides=(-stride, stride))
 
 
-@nb.jit(nopython=True, nogil=True, cache=True, inline='always')
+@nb.jit(nopython=True, cache=True, inline='always', fastmath=True)
 def integrate_zoh(state_prev: np.ndarray,
                   state_min: np.ndarray,
                   state_max: np.ndarray,
@@ -103,13 +103,13 @@ def integrate_zoh(state_prev: np.ndarray,
 
     # Clip highest-order derivative to ensure every derivative are within
     # bounds if possible, lowest orders in priority otherwise.
-    deriv = np.clip(state_prev[-1], deriv_min, deriv_max)
+    deriv = np.minimum(np.maximum(state_prev[-1], deriv_min), deriv_max)
 
     # Integrate, taking into account clipped highest derivative
     return integ_zero + integ_drift * deriv
 
 
-@nb.jit(nopython=True, nogil=True, cache=True)
+@nb.jit(nopython=True, cache=True, fastmath=True)
 def pd_controller(q_measured: np.ndarray,
                   v_measured: np.ndarray,
                   command_state: np.ndarray,
@@ -174,7 +174,8 @@ def pd_controller(q_measured: np.ndarray,
     u_command = kp * (q_error + kd * v_error)
 
     # Clip the command motors torques before returning
-    return np.clip(u_command, -motors_effort_limit, motors_effort_limit)
+    return np.minimum(np.maximum(
+        u_command, -motors_effort_limit), motors_effort_limit)
 
 
 def get_encoder_to_motor_map(robot: jiminy.Robot) -> Union[slice, List[int]]:

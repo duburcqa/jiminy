@@ -1,5 +1,7 @@
 # mypy: disable-error-code="attr-defined, name-defined"
-""" TODO: Write documentation.
+"""This module adds the notion of hardware and option TOML configuration files
+for robots. It provides utilities for generating them automatically and a basic
+wrapper on top of the lower-level Jiminy Robot for loading them.
 """
 import os
 import re
@@ -39,7 +41,8 @@ GeometryObjectType = Literal['primitive', 'mesh']
 
 
 class _DuplicateFilter(logging.Filter):
-    """ TODO: Write documentation.
+    """Basic logging filter for printing out identical logging messages only
+    once regardless its origin by keeping track of the whole history.
     """
     def __init__(self) -> None:
         super().__init__()

@@ -28,7 +28,6 @@ STEP_DT = 0.05
 class AntJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
     """ TODO: Write documentation.
     """
-
     def __init__(self, debug: bool = False, **kwargs: Any) -> None:
         """
         :param debug: Whether the debug mode must be enabled.
@@ -82,7 +81,10 @@ class AntJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
                 **kwargs})
 
     def _neutral(self) -> np.ndarray:
-        """ TODO: Write documentation.
+        """Returns a neutral valid configuration for the agent.
+
+        This configuration is statically stable on flat ground. The four legs
+        are all in contact with the ground in the same configuration.
         """
         def joint_position_index(joint_name: str) -> int:
             joint_index = self.robot.pinocchio_model.getJointId(joint_name)
@@ -98,7 +100,13 @@ class AntJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         return qpos
 
     def _sample_state(self) -> Tuple[np.ndarray, np.ndarray]:
-        """ TODO: Write documentation.
+        """Returns a randomized yet valid configuration and velocity for the
+        robot.
+
+        Randomness is added on top of the neutral configuration of the robot,
+        including the floating base and all revolute joints. On top of that,
+        the initial vertical height of the robot is randomized separately. The
+        initial velocity completely random without any particular pattern.
         """
         # Add noise on top of neutral configuration
         qpos = self._neutral()
@@ -112,20 +120,21 @@ class AntJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         qpos[2] -= min(0.0, *[dist_req.min_distance for dist_req in dist_rlt])
 
         # Zero mean normally distributed initial velocity
-        qvel = sample(
-            dist='normal', scale=0.1, shape=(self.robot.nv,),
-            rg=self.np_random)
+        qvel = sample(dist='normal',
+                      scale=0.1,
+                      shape=(self.robot.nv,),
+                      rg=self.np_random)
 
         return qpos, qvel
 
     def _initialize_observation_space(self) -> None:
-        """ TODO: Write documentation.
+        """Configure the observation of the environment.
 
         The observation space comprises:
 
-            - rigid configuration (absolute position (x, y) excluded),
-            - rigid velocity (with base linear velocity in world frame),
-            - flattened external forces applied on each body in local frame,
+            * rigid configuration (absolute position (x, y) excluded),
+            * rigid velocity (with base linear velocity in world frame),
+            * flattened external forces applied on each body in local frame,
               ie centered at their respective center of mass.
         """
         # http://www.mujoco.org/book/APIreference.html#mjData
@@ -207,7 +216,11 @@ class AntJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
                 out=self.observation)
 
     def has_terminated(self) -> Tuple[bool, bool]:
-        """ TODO: Write documentation.
+        """Determine whether the episode is over.
+
+        It adds one extra truncation criterion on top of the one defined in the
+        base implementation. More precisely, the vertical height of the
+        floating base of the robot must not exceed 0.2m.
         """
         # Call base implementation
         terminated, truncated = super().has_terminated()
@@ -223,7 +236,9 @@ class AntJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
                        terminated: bool,
                        truncated: bool,
                        info: InfoType) -> float:
-        """ TODO: Write documentation.
+        """Compute the reward related to a specific control block.
+
+        # TODO: Write documentation.
         """
         # Initialize total reward
         reward = 0.0

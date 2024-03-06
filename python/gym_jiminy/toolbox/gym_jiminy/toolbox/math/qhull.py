@@ -10,7 +10,7 @@ from scipy.spatial import _qhull
 from gym_jiminy.common.utils import squared_norm_2
 
 
-@nb.jit(nopython=True, nogil=True, cache=True, inline='always')
+@nb.jit(nopython=True, cache=True, inline='always')
 def _amin_last_axis(array: np.ndarray) -> np.ndarray:
     """ TODO: Write documentation.
     """
@@ -20,7 +20,7 @@ def _amin_last_axis(array: np.ndarray) -> np.ndarray:
     return res
 
 
-@nb.jit(nopython=True, nogil=True, cache=True, inline='always')
+@nb.jit(nopython=True, cache=True, inline='always')
 def _all_last_axis(array: np.ndarray) -> np.ndarray:
     """ TODO: Write documentation.
     """
@@ -30,7 +30,7 @@ def _all_last_axis(array: np.ndarray) -> np.ndarray:
     return res
 
 
-@nb.jit(nopython=True, nogil=True, cache=True)
+@nb.jit(nopython=True, cache=True)
 def compute_distance_convex_to_point(points: np.ndarray,
                                      vertex_indices: np.ndarray,
                                      queries: np.ndarray) -> np.ndarray:
@@ -66,7 +66,7 @@ def compute_distance_convex_to_point(points: np.ndarray,
     return signed_dist
 
 
-@nb.jit(nopython=True, nogil=True, cache=True)
+@nb.jit(nopython=True, cache=True)
 def compute_distance_convex_to_ray(
         points: np.ndarray,
         vertex_indices: np.ndarray,

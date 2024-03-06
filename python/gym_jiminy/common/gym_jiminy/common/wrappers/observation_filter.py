@@ -1,4 +1,5 @@
-""" TODO: Write documentation.
+"""This module implements a block transformation for filtering out some of the
+keys of the observation space of an environment that may be arbitrarily nested.
 """
 from collections import OrderedDict
 from typing import Sequence, Union, Generic

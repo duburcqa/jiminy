@@ -1,5 +1,8 @@
 # mypy: disable-error-code="attr-defined, name-defined"
-""" TODO: Write documentation.
+"""This module implements a basic wrapper on top of the lower-level Jiminy
+Engine that simplifies the user API for the very common single-robot scenario
+while extending its capability by integrating native support of 3D scene
+rendering and figure plotting of telemetry log data.
 """
 import os
 import re
