@@ -33,11 +33,11 @@ from .spaces import (DataNested,
                      build_contains,
                      build_normalize,
                      build_flatten)
-from .helpers import (is_breakpoint,
-                      is_nan,
-                      get_fieldnames,
-                      register_variables,
-                      sample)
+from .misc import (is_breakpoint,
+                   is_nan,
+                   get_fieldnames,
+                   register_variables,
+                   sample)
 from .pipeline import build_pipeline, load_pipeline
 
 

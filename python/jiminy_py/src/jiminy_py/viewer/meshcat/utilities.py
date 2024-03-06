@@ -1,4 +1,4 @@
-""" TODO: Write documentation.
+"""Miscellaneous utilities shared across client, server and recorder modules.
 """
 import os
 import sys

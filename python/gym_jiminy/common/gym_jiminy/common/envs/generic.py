@@ -61,7 +61,7 @@ from .internal import loop_interactive
 
 
 # Maximum realtime slowdown of simulation steps before triggering timeout error
-TIMEOUT_RATIO = 50
+TIMEOUT_RATIO = 10
 
 # Absolute tolerance when checking that observations are valid
 OBS_CONTAINS_TOL = 0.01
@@ -102,11 +102,11 @@ class _LazyDictItemFilter(Mapping):
 
 class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
                     Generic[ObsT, ActT]):
-    """Base class to train a robot in Gym OpenAI using a user-specified Python
-    Jiminy engine for physics computations.
+    """Base class to train an agent in Gym OpenAI using Jiminy simulator for
+    physics computations.
 
-    It creates an Gym environment wrapping Jiminy Engine and behaves like any
-    other Gym environment.
+    It creates an Gym environment wrapping an already instantiated Jiminy
+    simulator and behaves like any standard Gym environment.
 
     The observation space is a dictionary gathering the current simulation
     time, the real robot state, and the sensors data. The action is a vector
@@ -1332,7 +1332,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         """Configure the observation of the environment.
 
         By default, the observation is a dictionary gathering the current
-        simulation time, the real robot state, and the sensors data.
+        simulation time, the real agent state, and the sensors data.
 
         .. note::
             This method is called internally by `reset` method at the very end,
@@ -1348,7 +1348,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         self.observation_space = spaces.Dict(observation_spaces)
 
     def _neutral(self) -> np.ndarray:
-        """Returns a neutral valid configuration for the robot.
+        """Returns a neutral valid configuration for the agent.
 
         The default implementation returns the neutral configuration if valid,
         the "mean" configuration otherwise (right in the middle of the position
@@ -1380,7 +1380,8 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         return q
 
     def _sample_state(self) -> Tuple[np.ndarray, np.ndarray]:
-        """Returns a valid configuration and velocity for the robot.
+        """Returns a randomized yet valid configuration and velocity for the
+        robot.
 
         The default implementation returns the neutral configuration and zero
         velocity.

@@ -41,7 +41,7 @@ class MonitorInfoCallback(DefaultCallbacks):
             info = episode._last_infos.get(_DUMMY_AGENT_ID)
         if info is not None:
             for key, value in info.items():
-                # TODO: This line cause memory to grow unboundedly
+                # FIXME: This line cause memory to grow unboundedly
                 episode.hist_data.setdefault(key, []).append(value)
 
     def on_episode_end(self,

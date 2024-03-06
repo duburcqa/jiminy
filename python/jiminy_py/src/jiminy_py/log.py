@@ -1,5 +1,6 @@
 # mypy: disable-error-code="attr-defined, name-defined"
-""" TODO: Write documentation.
+"""Utilities for extracting structured information from log data, from
+reconstructing the robot to reading telemetry variables.
 """
 import os
 import tempfile

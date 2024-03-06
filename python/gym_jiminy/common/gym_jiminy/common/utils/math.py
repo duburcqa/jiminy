@@ -1,4 +1,8 @@
-""" TODO: Write documentation.
+"""Mathematic utilities heavily optimized for speed.
+
+They combine batch-processing with Just-In-Time (JIT) compiling via Numba when
+possible for optimal performance. Most of them are dealing with rotations (SO3)
+to perform transformations or convert from one representation to another.
 """
 from typing import Union, Tuple, Optional, no_type_check
 
@@ -11,7 +15,7 @@ from .spaces import ArrayOrScalar
 TWIST_SWING_SINGULARITY_THR = 1e-6
 
 
-@nb.jit(nopython=True, cache=True)
+@nb.jit(nopython=True, cache=True, inline='always')
 def squared_norm_2(array: np.ndarray) -> float:
     """Fast implementation of the sum of squared array elements, optimized for
     small to medium size 1D arrays.
@@ -31,7 +35,7 @@ def matrix_to_yaw(mat: np.ndarray) -> float:
     return np.arctan2(mat[1, 0], mat[0, 0])
 
 
-@nb.jit(nopython=True, cache=True)
+@nb.jit(nopython=True, cache=True, inline='always')
 def quat_to_yaw_cos_sin(quat: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     """Compute cosine and sine of the yaw from Yaw-Pitch-Roll Euler angles
     representation of a single or a batch of quaternions.
@@ -454,7 +458,8 @@ def quat_average(quat: np.ndarray,
                 provided, a new array is freshly-allocated, which is slower.
     """
     # TODO: This function cannot be jitted because numba does not support
-    # batched matrix multiplication for now.
+    # batched matrix multiplication for now. See official issue for details:
+    # https://github.com/numba/numba/issues/3804
     assert quat.ndim >= 2
     if axis is None:
         axis = tuple(range(1, quat.ndim))

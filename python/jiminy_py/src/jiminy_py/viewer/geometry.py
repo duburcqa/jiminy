@@ -1,4 +1,5 @@
-""" TODO: Write documentation.
+"""This module gathers utilities related to geometry objects that do not
+dependent on a specific rendering backend such as Meshcat or Panda3D.
 """
 from typing import Tuple
 

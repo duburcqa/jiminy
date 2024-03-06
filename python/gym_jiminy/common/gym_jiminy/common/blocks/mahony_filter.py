@@ -24,7 +24,7 @@ EARTH_SURFACE_GRAVITY = 9.81
 LOGGER = logging.getLogger(__name__)
 
 
-@nb.jit(nopython=True, nogil=True, cache=True)
+@nb.jit(nopython=True, cache=True)
 def mahony_filter(q: np.ndarray,
                   omega: np.ndarray,
                   gyro: np.ndarray,
@@ -94,7 +94,7 @@ def mahony_filter(q: np.ndarray,
     bias_hat -= dt * ki * omega_mes
 
 
-@nb.jit(nopython=True, nogil=True, cache=True)
+@nb.jit(nopython=True, cache=True)
 def update_twist(q: np.ndarray,
                  twist: np.ndarray,
                  omega: np.ndarray,

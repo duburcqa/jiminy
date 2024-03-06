@@ -1,5 +1,6 @@
 # mypy: disable-error-code="attr-defined, name-defined"
-""" TODO: Write documentation.
+"""Generic utilities for conveniently replaying and/or recording a simulation
+in a 3D viewer from telemetry log data.
 """
 import os
 import time

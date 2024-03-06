@@ -1,5 +1,8 @@
 # mypy: disable-error-code="attr-defined"
-""" TODO: Write documentation.
+"""This modules provides a set of tools to visualize telemetry log data in a
+convenient and portable way. These tools are designed to work on any platform
+without root permission, including in local Jupyter notebook, VS Code, and
+Google Colaboratory. No graphical server is required for offscreen rendering.
 """
 import os
 import sys

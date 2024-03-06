@@ -1,4 +1,5 @@
-""" TODO: Write documentation.
+"""This module implements a block transformation for flattening observation
+space of the environment.
 """
 from functools import reduce
 from typing import Generic, Optional
