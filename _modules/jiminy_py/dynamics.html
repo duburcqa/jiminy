@@ -1,0 +1,1007 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>jiminy_py.dynamics &mdash; jiminy 1.8.3 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../_static/documentation_options.js?v=82e6e318"></script>
+        <script src="../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            jiminy
+              <img src="../../_static/jiminy_logo.svg" class="logo" alt="Logo"/>
+          </a>
+              <div class="version">
+                1.8.3
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">README</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../README.html">Key features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../README.html#gym-jiminy">Gym Jiminy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../README.html#demo">Demo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../README.html#getting-started">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">INSTALLATION</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../INSTALL.html">Easy-install on Ubuntu 18+</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../INSTALL.html#building-from-source">Building from source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">TUTORIALS</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorial.html">An introduction to Jiminy</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API DOC</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../api/jiminy/index.html">Jiminy C++ API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/jiminy_py/index.html">Jiminy Python API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/gym_jiminy/common/index.html">Gym Jiminy API</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Technical Specifications</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../spec/src/tlmc_format_specification.html">HDF5 telemetry log format (TLMC)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../spec/pdf/index.html">Downloadable PDF</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">jiminy</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">jiminy_py.dynamics</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for jiminy_py.dynamics</h1><div class="highlight"><pre>
+<span></span><span class="c1"># mypy: disable-error-code=&quot;attr-defined, name-defined&quot;</span>
+<span class="sd">&quot;&quot;&quot;Helpers to ease computation of kinematic and dynamic quantities.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="c1"># pylint: disable=invalid-name,no-member</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">from</span> <span class="nn">copy</span> <span class="kn">import</span> <span class="n">deepcopy</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">TypedDict</span><span class="p">,</span> <span class="n">Any</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="kn">import</span> <span class="nn">eigenpy</span>
+<span class="kn">import</span> <span class="nn">hppfcl</span>
+<span class="kn">import</span> <span class="nn">pinocchio</span> <span class="k">as</span> <span class="nn">pin</span>
+<span class="kn">from</span> <span class="nn">pinocchio.rpy</span> <span class="kn">import</span> <span class="p">(</span><span class="n">rpyToMatrix</span><span class="p">,</span>  <span class="c1"># pylint: disable=import-error</span>
+                           <span class="n">matrixToRpy</span><span class="p">,</span>
+                           <span class="n">computeRpyJacobian</span><span class="p">,</span>
+                           <span class="n">computeRpyJacobianInverse</span><span class="p">)</span>
+
+<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">core</span> <span class="k">as</span> <span class="n">jiminy</span>
+
+
+<span class="n">LOGGER</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<span class="c1"># #####################################################################</span>
+<span class="c1"># ######################### Generic math ##############################</span>
+<span class="c1"># #####################################################################</span>
+
+<div class="viewcode-block" id="SE3ToXYZRPY">
+<a class="viewcode-back" href="../../api/jiminy_py/dynamics.html#jiminy_py.dynamics.SE3ToXYZRPY">[docs]</a>
+<span class="k">def</span> <span class="nf">SE3ToXYZRPY</span><span class="p">(</span><span class="n">M</span><span class="p">:</span> <span class="n">pin</span><span class="o">.</span><span class="n">SE3</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Convert Pinocchio SE3 object to [X,Y,Z,Roll,Pitch,Yaw] vector.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">((</span><span class="n">M</span><span class="o">.</span><span class="n">translation</span><span class="p">,</span> <span class="n">matrixToRpy</span><span class="p">(</span><span class="n">M</span><span class="o">.</span><span class="n">rotation</span><span class="p">)))</span></div>
+
+
+
+<div class="viewcode-block" id="XYZRPYToSE3">
+<a class="viewcode-back" href="../../api/jiminy_py/dynamics.html#jiminy_py.dynamics.XYZRPYToSE3">[docs]</a>
+<span class="k">def</span> <span class="nf">XYZRPYToSE3</span><span class="p">(</span><span class="n">xyzrpy</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Convert [X,Y,Z,Roll,Pitch,Yaw] vector to Pinocchio SE3 object.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">pin</span><span class="o">.</span><span class="n">SE3</span><span class="p">(</span><span class="n">rpyToMatrix</span><span class="p">(</span><span class="n">xyzrpy</span><span class="p">[</span><span class="mi">3</span><span class="p">:]),</span> <span class="n">xyzrpy</span><span class="p">[:</span><span class="mi">3</span><span class="p">])</span></div>
+
+
+
+<div class="viewcode-block" id="XYZRPYToXYZQuat">
+<a class="viewcode-back" href="../../api/jiminy_py/dynamics.html#jiminy_py.dynamics.XYZRPYToXYZQuat">[docs]</a>
+<span class="k">def</span> <span class="nf">XYZRPYToXYZQuat</span><span class="p">(</span><span class="n">xyzrpy</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Convert [X,Y,Z,Roll,Pitch,Yaw] to [X,Y,Z,Qx,Qy,Qz,Qw].</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">xyz</span><span class="p">,</span> <span class="n">rpy</span> <span class="o">=</span> <span class="n">xyzrpy</span><span class="p">[:</span><span class="mi">3</span><span class="p">],</span> <span class="n">xyzrpy</span><span class="p">[</span><span class="mi">3</span><span class="p">:]</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">((</span><span class="n">xyz</span><span class="p">,</span> <span class="n">pin</span><span class="o">.</span><span class="n">Quaternion</span><span class="p">(</span><span class="n">rpyToMatrix</span><span class="p">(</span><span class="n">rpy</span><span class="p">))</span><span class="o">.</span><span class="n">coeffs</span><span class="p">()))</span></div>
+
+
+
+<div class="viewcode-block" id="XYZQuatToXYZRPY">
+<a class="viewcode-back" href="../../api/jiminy_py/dynamics.html#jiminy_py.dynamics.XYZQuatToXYZRPY">[docs]</a>
+<span class="k">def</span> <span class="nf">XYZQuatToXYZRPY</span><span class="p">(</span><span class="n">xyzquat</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Convert [X,Y,Z,Qx,Qy,Qz,Qw] to [X,Y,Z,Roll,Pitch,Yaw].</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">xyz</span><span class="p">,</span> <span class="n">quat</span> <span class="o">=</span> <span class="n">xyzquat</span><span class="p">[:</span><span class="mi">3</span><span class="p">],</span> <span class="n">xyzquat</span><span class="p">[</span><span class="mi">3</span><span class="p">:]</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">((</span><span class="n">xyz</span><span class="p">,</span> <span class="n">matrixToRpy</span><span class="p">(</span><span class="n">pin</span><span class="o">.</span><span class="n">Quaternion</span><span class="p">(</span><span class="n">quat</span><span class="p">)</span><span class="o">.</span><span class="n">matrix</span><span class="p">())))</span></div>
+
+
+
+<div class="viewcode-block" id="velocityXYZRPYToXYZQuat">
+<a class="viewcode-back" href="../../api/jiminy_py/dynamics.html#jiminy_py.dynamics.velocityXYZRPYToXYZQuat">[docs]</a>
+<span class="k">def</span> <span class="nf">velocityXYZRPYToXYZQuat</span><span class="p">(</span><span class="n">xyzrpy</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                            <span class="n">dxyzrpy</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Convert the derivative of [X,Y,Z,Roll,Pitch,Yaw] to [X,Y,Z,Qx,Qy,Qz,Qw].</span>
+
+<span class="sd">    .. warning::</span>
+<span class="sd">        Linear velocity in XYZRPY must be local-world-aligned frame, while</span>
+<span class="sd">        returned linear velocity in XYZQuat is in local frame.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">rpy</span> <span class="o">=</span> <span class="n">xyzrpy</span><span class="p">[</span><span class="mi">3</span><span class="p">:]</span>
+    <span class="n">R</span><span class="p">,</span> <span class="n">J_rpy</span> <span class="o">=</span> <span class="n">rpyToMatrix</span><span class="p">(</span><span class="n">rpy</span><span class="p">),</span> <span class="n">computeRpyJacobian</span><span class="p">(</span><span class="n">rpy</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">((</span><span class="n">R</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">dxyzrpy</span><span class="p">[:</span><span class="mi">3</span><span class="p">],</span> <span class="n">J_rpy</span> <span class="o">@</span> <span class="n">dxyzrpy</span><span class="p">[</span><span class="mi">3</span><span class="p">:]))</span></div>
+
+
+
+<div class="viewcode-block" id="velocityXYZQuatToXYZRPY">
+<a class="viewcode-back" href="../../api/jiminy_py/dynamics.html#jiminy_py.dynamics.velocityXYZQuatToXYZRPY">[docs]</a>
+<span class="k">def</span> <span class="nf">velocityXYZQuatToXYZRPY</span><span class="p">(</span><span class="n">xyzquat</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                            <span class="n">v</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Convert the derivative of [X,Y,Z,Qx,Qy,Qz,Qw] to [X,Y,Z,Roll,Pitch,Yaw].</span>
+
+<span class="sd">    .. note:</span>
+<span class="sd">        No need to estimate yaw angle to get RPY velocity, since</span>
+<span class="sd">        `computeRpyJacobianInverse` only depends on Roll and Pitch angles.</span>
+<span class="sd">        However, it is not the case for the linear velocity.</span>
+
+<span class="sd">    .. warning::</span>
+<span class="sd">        Linear velocity in XYZQuat must be local frame, while returned linear</span>
+<span class="sd">        velocity in XYZRPY is in local-world-aligned frame.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">quat</span> <span class="o">=</span> <span class="n">pin</span><span class="o">.</span><span class="n">Quaternion</span><span class="p">(</span><span class="n">xyzquat</span><span class="p">[</span><span class="mi">3</span><span class="p">:])</span>
+    <span class="n">rpy</span> <span class="o">=</span> <span class="n">matrixToRpy</span><span class="p">(</span><span class="n">quat</span><span class="o">.</span><span class="n">matrix</span><span class="p">())</span>
+    <span class="n">J_rpy_inv</span> <span class="o">=</span> <span class="n">computeRpyJacobianInverse</span><span class="p">(</span><span class="n">rpy</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">((</span><span class="n">quat</span> <span class="o">*</span> <span class="n">v</span><span class="p">[:</span><span class="mi">3</span><span class="p">],</span> <span class="n">J_rpy_inv</span> <span class="o">@</span> <span class="n">v</span><span class="p">[</span><span class="mi">3</span><span class="p">:]))</span></div>
+
+
+
+<span class="c1"># #####################################################################</span>
+<span class="c1"># #################### State and Trajectory ###########################</span>
+<span class="c1"># #####################################################################</span>
+
+<div class="viewcode-block" id="State">
+<a class="viewcode-back" href="../../api/jiminy_py/dynamics.html#jiminy_py.dynamics.State">[docs]</a>
+<span class="k">class</span> <span class="nc">State</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Store the kinematics and dynamics data of the robot at a given time.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>  <span class="c1"># pylint: disable=unused-argument</span>
+                 <span class="n">t</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                 <span class="n">q</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                 <span class="n">v</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">a</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">tau</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">contact_frames</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">f_ext</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Sequence</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">copy</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+                 <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param t: Time.</span>
+<span class="sd">        :param q: Configuration vector.</span>
+<span class="sd">        :param v: Velocity vector.</span>
+<span class="sd">        :param a: Acceleration vector.</span>
+<span class="sd">        :param tau: Joint efforts.</span>
+<span class="sd">        :param contact_frames: Name of the contact frames.</span>
+<span class="sd">        :param f_ext: Joint external forces.</span>
+<span class="sd">        :param copy: Force to copy the arguments.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Time</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">t</span> <span class="o">=</span> <span class="n">t</span>
+        <span class="c1"># Configuration vector</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">q</span> <span class="o">=</span> <span class="n">deepcopy</span><span class="p">(</span><span class="n">q</span><span class="p">)</span> <span class="k">if</span> <span class="n">copy</span> <span class="k">else</span> <span class="n">q</span>
+        <span class="c1"># Velocity vector</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">v</span> <span class="o">=</span> <span class="n">deepcopy</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">if</span> <span class="n">copy</span> <span class="k">else</span> <span class="n">v</span>
+        <span class="c1"># Acceleration vector</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">a</span> <span class="o">=</span> <span class="n">deepcopy</span><span class="p">(</span><span class="n">a</span><span class="p">)</span> <span class="k">if</span> <span class="n">copy</span> <span class="k">else</span> <span class="n">a</span>
+        <span class="c1"># Effort vector</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tau</span> <span class="o">=</span> <span class="n">deepcopy</span><span class="p">(</span><span class="n">tau</span><span class="p">)</span> <span class="k">if</span> <span class="n">copy</span> <span class="k">else</span> <span class="n">tau</span>
+        <span class="c1"># Frame names of the contact points</span>
+        <span class="k">if</span> <span class="n">copy</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">contact_frames</span> <span class="o">=</span> <span class="n">deepcopy</span><span class="p">(</span><span class="n">contact_frames</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">contact_frames</span> <span class="o">=</span> <span class="n">contact_frames</span>
+        <span class="c1"># External forces</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">f_ext</span> <span class="o">=</span> <span class="n">deepcopy</span><span class="p">(</span><span class="n">f_ext</span><span class="p">)</span> <span class="k">if</span> <span class="n">copy</span> <span class="k">else</span> <span class="n">f_ext</span>
+
+    <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Convert the kinematics and dynamics data into string.</span>
+
+<span class="sd">        :returns: The kinematics and dynamics data as a string.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">val</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">msg</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2"> : </span><span class="si">{</span><span class="n">val</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="k">return</span> <span class="n">msg</span></div>
+
+
+
+<div class="viewcode-block" id="TrajectoryDataType">
+<a class="viewcode-back" href="../../api/jiminy_py/dynamics.html#jiminy_py.dynamics.TrajectoryDataType">[docs]</a>
+<span class="k">class</span> <span class="nc">TrajectoryDataType</span><span class="p">(</span><span class="n">TypedDict</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Basic data structure storing the required information about a trajectory</span>
+<span class="sd">    to later replay it using `jiminy_py.viewer.play_trajectories`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># List of State objects of increasing time.</span>
+    <span class="n">evolution_robot</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">State</span><span class="p">]</span>
+    <span class="c1"># Jiminy robot. None if omitted.</span>
+    <span class="n">robot</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">jiminy</span><span class="o">.</span><span class="n">Robot</span><span class="p">]</span>
+    <span class="c1"># Whether to use theoretical or actual model</span>
+    <span class="n">use_theoretical_model</span><span class="p">:</span> <span class="nb">bool</span></div>
+
+
+
+<span class="c1"># #####################################################################</span>
+<span class="c1"># ################### Kinematic and dynamics ##########################</span>
+<span class="c1"># #####################################################################</span>
+
+<div class="viewcode-block" id="update_quantities">
+<a class="viewcode-back" href="../../api/jiminy_py/dynamics.html#jiminy_py.dynamics.update_quantities">[docs]</a>
+<span class="k">def</span> <span class="nf">update_quantities</span><span class="p">(</span><span class="n">robot</span><span class="p">:</span> <span class="n">jiminy</span><span class="o">.</span><span class="n">Model</span><span class="p">,</span>
+                      <span class="n">position</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                      <span class="n">velocity</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                      <span class="n">acceleration</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                      <span class="n">update_physics</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+                      <span class="n">update_com</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+                      <span class="n">update_energy</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+                      <span class="n">update_jacobian</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+                      <span class="n">update_collisions</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+                      <span class="n">use_theoretical_model</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Compute all quantities using position, velocity and acceleration</span>
+<span class="sd">    configurations.</span>
+
+<span class="sd">    Run multiple algorithms to compute all quantities which can be known with</span>
+<span class="sd">    the model position, velocity and acceleration.</span>
+
+<span class="sd">    This includes:</span>
+<span class="sd">    - body spatial transforms,</span>
+<span class="sd">    - body spatial velocities,</span>
+<span class="sd">    - body spatial drifts,</span>
+<span class="sd">    - body transform acceleration,</span>
+<span class="sd">    - body transform jacobians,</span>
+<span class="sd">    - center-of-mass position,</span>
+<span class="sd">    - center-of-mass velocity,</span>
+<span class="sd">    - center-of-mass drift,</span>
+<span class="sd">    - center-of-mass acceleration,</span>
+<span class="sd">    - center-of-mass jacobian,</span>
+<span class="sd">    - articular inertia matrix,</span>
+<span class="sd">    - non-linear effects (Coriolis + gravity)</span>
+<span class="sd">    - collisions and distances</span>
+
+<span class="sd">    .. note::</span>
+<span class="sd">        Computation results are stored internally in the robot, and can</span>
+<span class="sd">        be retrieved with associated getters.</span>
+
+<span class="sd">    .. warning::</span>
+<span class="sd">        This function modifies the internal robot data.</span>
+
+<span class="sd">    .. warning::</span>
+<span class="sd">        It does not called overloaded pinocchio methods provided by</span>
+<span class="sd">        `jiminy_py.core` but the original pinocchio methods instead. As a</span>
+<span class="sd">        result, it does not take into account the rotor inertias / armatures.</span>
+<span class="sd">        One is responsible of calling the appropriate methods manually instead</span>
+<span class="sd">        of this one if necessary. This behavior is expected to change in the</span>
+<span class="sd">        future.</span>
+
+<span class="sd">    :param robot: Jiminy robot.</span>
+<span class="sd">    :param position: Robot position vector.</span>
+<span class="sd">    :param velocity: Robot velocity vector.</span>
+<span class="sd">    :param acceleration: Robot acceleration vector.</span>
+<span class="sd">    :param update_physics: Whether to compute the non-linear effects and</span>
+<span class="sd">                           internal/external forces.</span>
+<span class="sd">                           Optional: True by default.</span>
+<span class="sd">    :param update_com: Whether to compute the COM of the robot AND each link</span>
+<span class="sd">                       individually. The global COM is the first index.</span>
+<span class="sd">                       Optional: False by default.</span>
+<span class="sd">    :param update_energy: Whether to compute the energy of the robot.</span>
+<span class="sd">                          Optional: False by default</span>
+<span class="sd">    :param update_jacobian: Whether to compute the jacobians.</span>
+<span class="sd">                            Optional: False by default.</span>
+<span class="sd">    :param use_theoretical_model: Whether the state corresponds to the</span>
+<span class="sd">                                  theoretical model when updating and fetching</span>
+<span class="sd">                                  the robot&#39;s state.</span>
+<span class="sd">                                  Optional: True by default.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">use_theoretical_model</span><span class="p">:</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="n">robot</span><span class="o">.</span><span class="n">pinocchio_model_th</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">robot</span><span class="o">.</span><span class="n">pinocchio_data_th</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="n">robot</span><span class="o">.</span><span class="n">pinocchio_model</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">robot</span><span class="o">.</span><span class="n">pinocchio_data</span>
+
+    <span class="k">if</span> <span class="p">(</span><span class="n">update_physics</span> <span class="ow">and</span> <span class="n">update_com</span> <span class="ow">and</span>
+            <span class="n">update_energy</span> <span class="ow">and</span> <span class="n">update_jacobian</span> <span class="ow">and</span>
+            <span class="n">velocity</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">acceleration</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="n">pin</span><span class="o">.</span><span class="n">computeAllTerms</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">position</span><span class="p">,</span> <span class="n">velocity</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">velocity</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">pin</span><span class="o">.</span><span class="n">forwardKinematics</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">position</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">acceleration</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">pin</span><span class="o">.</span><span class="n">forwardKinematics</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">position</span><span class="p">,</span> <span class="n">velocity</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">pin</span><span class="o">.</span><span class="n">forwardKinematics</span><span class="p">(</span>
+                <span class="n">model</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">position</span><span class="p">,</span> <span class="n">velocity</span><span class="p">,</span> <span class="n">acceleration</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">update_com</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">velocity</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">kinematic_level</span> <span class="o">=</span> <span class="n">pin</span><span class="o">.</span><span class="n">KinematicLevel</span><span class="o">.</span><span class="n">POSITION</span>
+            <span class="k">elif</span> <span class="n">acceleration</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">kinematic_level</span> <span class="o">=</span> <span class="n">pin</span><span class="o">.</span><span class="n">KinematicLevel</span><span class="o">.</span><span class="n">VELOCITY</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">kinematic_level</span> <span class="o">=</span> <span class="n">pin</span><span class="o">.</span><span class="n">KinematicLevel</span><span class="o">.</span><span class="n">ACCELERATION</span>
+            <span class="n">pin</span><span class="o">.</span><span class="n">centerOfMass</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">kinematic_level</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">update_jacobian</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">update_com</span><span class="p">:</span>
+                <span class="n">pin</span><span class="o">.</span><span class="n">jacobianCenterOfMass</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+            <span class="n">pin</span><span class="o">.</span><span class="n">computeJointJacobians</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">update_physics</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">velocity</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">pin</span><span class="o">.</span><span class="n">nonLinearEffects</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">position</span><span class="p">,</span> <span class="n">velocity</span><span class="p">)</span>
+            <span class="n">pin</span><span class="o">.</span><span class="n">crba</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">position</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">update_energy</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">velocity</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">pin</span><span class="o">.</span><span class="n">computeKineticEnergy</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+            <span class="n">pin</span><span class="o">.</span><span class="n">computePotentialEnergy</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+
+    <span class="n">pin</span><span class="o">.</span><span class="n">updateFramePlacements</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">update_collisions</span><span class="p">:</span>
+        <span class="n">pin</span><span class="o">.</span><span class="n">updateGeometryPlacements</span><span class="p">(</span>
+            <span class="n">model</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">robot</span><span class="o">.</span><span class="n">collision_model</span><span class="p">,</span> <span class="n">robot</span><span class="o">.</span><span class="n">collision_data</span><span class="p">)</span>
+        <span class="n">pin</span><span class="o">.</span><span class="n">computeCollisions</span><span class="p">(</span>
+            <span class="n">robot</span><span class="o">.</span><span class="n">collision_model</span><span class="p">,</span> <span class="n">robot</span><span class="o">.</span><span class="n">collision_data</span><span class="p">,</span>
+            <span class="n">stop_at_first_collision</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">pin</span><span class="o">.</span><span class="n">computeDistances</span><span class="p">(</span><span class="n">robot</span><span class="o">.</span><span class="n">collision_model</span><span class="p">,</span> <span class="n">robot</span><span class="o">.</span><span class="n">collision_data</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">dist_req</span> <span class="ow">in</span> <span class="n">robot</span><span class="o">.</span><span class="n">collision_data</span><span class="o">.</span><span class="n">distanceResults</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">dist_req</span><span class="o">.</span><span class="n">normal</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">1e-6</span><span class="p">:</span>
+                <span class="n">pin</span><span class="o">.</span><span class="n">computeDistances</span><span class="p">(</span>
+                    <span class="n">robot</span><span class="o">.</span><span class="n">collision_model</span><span class="p">,</span> <span class="n">robot</span><span class="o">.</span><span class="n">collision_data</span><span class="p">)</span>
+                <span class="k">break</span></div>
+
+
+
+<div class="viewcode-block" id="get_body_world_transform">
+<a class="viewcode-back" href="../../api/jiminy_py/dynamics.html#jiminy_py.dynamics.get_body_world_transform">[docs]</a>
+<span class="k">def</span> <span class="nf">get_body_world_transform</span><span class="p">(</span><span class="n">robot</span><span class="p">:</span> <span class="n">jiminy</span><span class="o">.</span><span class="n">Model</span><span class="p">,</span>
+                             <span class="n">body_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                             <span class="n">use_theoretical_model</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+                             <span class="n">copy</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pin</span><span class="o">.</span><span class="n">SE3</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Get the transform from world frame to body frame for a given body.</span>
+
+<span class="sd">    .. warning::</span>
+<span class="sd">        It is assumed that `update_quantities` has been called beforehand.</span>
+
+<span class="sd">    :param robot: Jiminy robot.</span>
+<span class="sd">    :param body_name: Name of the body.</span>
+<span class="sd">    :param use_theoretical_model: Whether the state corresponds to the</span>
+<span class="sd">                                  theoretical model when updating and fetching</span>
+<span class="sd">                                  the robot&#39;s state.</span>
+<span class="sd">                                  Optional: True by default.</span>
+<span class="sd">    :param copy: Whether to return the internal buffers (which could be</span>
+<span class="sd">                 altered) or copy them.</span>
+<span class="sd">                 Optional: True by default. It is less efficient but safer.</span>
+
+<span class="sd">    :returns: Body transform.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Pick the right pinocchio model and data</span>
+    <span class="k">if</span> <span class="n">use_theoretical_model</span><span class="p">:</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="n">robot</span><span class="o">.</span><span class="n">pinocchio_model_th</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">robot</span><span class="o">.</span><span class="n">pinocchio_data_th</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="n">robot</span><span class="o">.</span><span class="n">pinocchio_model</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">robot</span><span class="o">.</span><span class="n">pinocchio_data</span>
+
+    <span class="c1"># Get frame index and make sure it exists</span>
+    <span class="n">body_id</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">getFrameId</span><span class="p">(</span><span class="n">body_name</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">body_id</span> <span class="o">&lt;</span> <span class="n">model</span><span class="o">.</span><span class="n">nframes</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;Frame &#39;</span><span class="si">{</span><span class="n">body_name</span><span class="si">}</span><span class="s2">&#39; does not exits.&quot;</span>
+
+    <span class="c1"># Get body transform in world frame</span>
+    <span class="n">transform</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">oMf</span><span class="p">[</span><span class="n">body_id</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">copy</span><span class="p">:</span>
+        <span class="n">transform</span> <span class="o">=</span> <span class="n">transform</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+    <span class="k">return</span> <span class="n">transform</span></div>
+
+
+
+<div class="viewcode-block" id="get_body_world_velocity">
+<a class="viewcode-back" href="../../api/jiminy_py/dynamics.html#jiminy_py.dynamics.get_body_world_velocity">[docs]</a>
+<span class="k">def</span> <span class="nf">get_body_world_velocity</span><span class="p">(</span><span class="n">robot</span><span class="p">:</span> <span class="n">jiminy</span><span class="o">.</span><span class="n">Model</span><span class="p">,</span>
+                            <span class="n">body_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                            <span class="n">use_theoretical_model</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pin</span><span class="o">.</span><span class="n">SE3</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Get the spatial velocity in world frame.</span>
+
+<span class="sd">    .. warning::</span>
+<span class="sd">        It is assumed that `update_quantities` has been called beforehand.</span>
+
+<span class="sd">    :param robot: Jiminy robot.</span>
+<span class="sd">    :param body_name: Name of the body.</span>
+<span class="sd">    :param use_theoretical_model: Whether the state corresponds to the</span>
+<span class="sd">                                  theoretical model when updating and fetching</span>
+<span class="sd">                                  the robot&#39;s state.</span>
+<span class="sd">                                  Optional: True by default.</span>
+
+<span class="sd">    :returns: Spatial velocity.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Pick the right pinocchio model and data</span>
+    <span class="k">if</span> <span class="n">use_theoretical_model</span><span class="p">:</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="n">robot</span><span class="o">.</span><span class="n">pinocchio_model_th</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">robot</span><span class="o">.</span><span class="n">pinocchio_data_th</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="n">robot</span><span class="o">.</span><span class="n">pinocchio_model</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">robot</span><span class="o">.</span><span class="n">pinocchio_data</span>
+
+    <span class="c1"># Get frame index and make sure it exists</span>
+    <span class="n">body_id</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">getFrameId</span><span class="p">(</span><span class="n">body_name</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">body_id</span> <span class="o">&lt;</span> <span class="n">model</span><span class="o">.</span><span class="n">nframes</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;Frame &#39;</span><span class="si">{</span><span class="n">body_name</span><span class="si">}</span><span class="s2">&#39; does not exits.&quot;</span>
+
+    <span class="k">return</span> <span class="n">pin</span><span class="o">.</span><span class="n">getFrameVelocity</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">body_id</span><span class="p">,</span> <span class="n">pin</span><span class="o">.</span><span class="n">WORLD</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="get_body_world_acceleration">
+<a class="viewcode-back" href="../../api/jiminy_py/dynamics.html#jiminy_py.dynamics.get_body_world_acceleration">[docs]</a>
+<span class="k">def</span> <span class="nf">get_body_world_acceleration</span><span class="p">(</span><span class="n">robot</span><span class="p">:</span> <span class="n">jiminy</span><span class="o">.</span><span class="n">Model</span><span class="p">,</span>
+                                <span class="n">body_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                                <span class="n">use_theoretical_model</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pin</span><span class="o">.</span><span class="n">SE3</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Get the body spatial acceleration in world frame.</span>
+
+<span class="sd">    The moment of this tensor (i.e linear part) is NOT the linear acceleration</span>
+<span class="sd">    of the center of the body frame, expressed in the world frame.</span>
+
+<span class="sd">    .. warning::</span>
+<span class="sd">        It is assumed that `update_quantities` has been called.</span>
+
+<span class="sd">    :param robot: Jiminy robot.</span>
+<span class="sd">    :param body_name: Name of the body.</span>
+<span class="sd">    :param use_theoretical_model: Whether the state corresponds to the</span>
+<span class="sd">                                  theoretical model when updating and fetching</span>
+<span class="sd">                                  the robot&#39;s state.</span>
+<span class="sd">                                  Optional: True by default.</span>
+
+<span class="sd">    :returns: Spatial acceleration.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Pick the right pinocchio model and data</span>
+    <span class="k">if</span> <span class="n">use_theoretical_model</span><span class="p">:</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="n">robot</span><span class="o">.</span><span class="n">pinocchio_model_th</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">robot</span><span class="o">.</span><span class="n">pinocchio_data_th</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="n">robot</span><span class="o">.</span><span class="n">pinocchio_model</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">robot</span><span class="o">.</span><span class="n">pinocchio_data</span>
+
+    <span class="c1"># Get frame index and make sure it exists</span>
+    <span class="n">body_id</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">getFrameId</span><span class="p">(</span><span class="n">body_name</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">body_id</span> <span class="o">&lt;</span> <span class="n">model</span><span class="o">.</span><span class="n">nframes</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;Frame &#39;</span><span class="si">{</span><span class="n">body_name</span><span class="si">}</span><span class="s2">&#39; does not exits.&quot;</span>
+
+    <span class="k">return</span> <span class="n">pin</span><span class="o">.</span><span class="n">getFrameAcceleration</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">body_id</span><span class="p">,</span> <span class="n">pin</span><span class="o">.</span><span class="n">WORLD</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="compute_transform_contact">
+<a class="viewcode-back" href="../../api/jiminy_py/dynamics.html#jiminy_py.dynamics.compute_transform_contact">[docs]</a>
+<span class="k">def</span> <span class="nf">compute_transform_contact</span><span class="p">(</span>
+        <span class="n">robot</span><span class="p">:</span> <span class="n">jiminy</span><span class="o">.</span><span class="n">Model</span><span class="p">,</span>
+        <span class="n">ground_profile</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">[</span>
+            <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">],</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pin</span><span class="o">.</span><span class="n">SE3</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Compute the transform the apply to the freeflyer to touch the ground</span>
+<span class="sd">    with up to 3 contact points.</span>
+
+<span class="sd">    This method can be used in conjunction with</span>
+<span class="sd">    `compute_freeflyer_state_from_fixed_body` to ensures no contact points are</span>
+<span class="sd">    going through the ground and up to three are in contact.</span>
+
+<span class="sd">    .. warning::</span>
+<span class="sd">        It is assumed that `update_quantities` has been called.</span>
+
+<span class="sd">    :param robot: Jiminy robot.</span>
+<span class="sd">    :param ground_profile: Ground profile callback.</span>
+
+<span class="sd">    :returns: The transform the apply in order to touch the ground.</span>
+<span class="sd">              If the robot has no contact point, then the identity is returned.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># pylint: disable=unsupported-assignment-operation,unsubscriptable-object</span>
+
+    <span class="c1"># Proxy for convenience</span>
+    <span class="n">collision_model</span> <span class="o">=</span> <span class="n">robot</span><span class="o">.</span><span class="n">collision_model</span>
+
+    <span class="c1"># Compute the transform in the world of the contact points</span>
+    <span class="n">contact_frames_transform</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">frame_index</span> <span class="ow">in</span> <span class="n">robot</span><span class="o">.</span><span class="n">contact_frame_indices</span><span class="p">:</span>
+        <span class="n">transform</span> <span class="o">=</span> <span class="n">robot</span><span class="o">.</span><span class="n">pinocchio_data</span><span class="o">.</span><span class="n">oMf</span><span class="p">[</span><span class="n">frame_index</span><span class="p">]</span>
+        <span class="n">contact_frames_transform</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">transform</span><span class="p">)</span>
+
+    <span class="c1"># Compute the transform of the ground at these points</span>
+    <span class="k">if</span> <span class="n">ground_profile</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">contact_ground_transform</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">ground_pos</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">frame_transform</span> <span class="ow">in</span> <span class="n">contact_frames_transform</span><span class="p">:</span>
+            <span class="n">ground_pos</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">normal</span> <span class="o">=</span> <span class="n">ground_profile</span><span class="p">(</span>
+                <span class="n">frame_transform</span><span class="o">.</span><span class="n">translation</span><span class="p">[:</span><span class="mi">2</span><span class="p">])</span>
+            <span class="n">ground_rot</span> <span class="o">=</span> <span class="n">pin</span><span class="o">.</span><span class="n">Quaternion</span><span class="o">.</span><span class="n">FromTwoVectors</span><span class="p">(</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">]),</span> <span class="n">normal</span><span class="p">)</span><span class="o">.</span><span class="n">matrix</span><span class="p">()</span>
+            <span class="n">contact_ground_transform</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">pin</span><span class="o">.</span><span class="n">SE3</span><span class="p">(</span><span class="n">ground_rot</span><span class="p">,</span> <span class="n">ground_pos</span><span class="p">))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">contact_ground_transform</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">pin</span><span class="o">.</span><span class="n">SE3</span><span class="o">.</span><span class="n">Identity</span><span class="p">()</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">contact_frames_transform</span><span class="p">]</span>
+
+    <span class="c1"># Compute the position and normal of the contact points wrt their</span>
+    <span class="c1"># respective ground transform.</span>
+    <span class="n">contact_frames_pos_rel</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">frame_transform</span><span class="p">,</span> <span class="n">ground_transform</span> <span class="ow">in</span> \
+            <span class="nb">zip</span><span class="p">(</span><span class="n">contact_frames_transform</span><span class="p">,</span> <span class="n">contact_ground_transform</span><span class="p">):</span>
+        <span class="n">transform_rel</span> <span class="o">=</span> <span class="n">ground_transform</span><span class="o">.</span><span class="n">actInv</span><span class="p">(</span><span class="n">frame_transform</span><span class="p">)</span>
+        <span class="n">contact_frames_pos_rel</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">transform_rel</span><span class="o">.</span><span class="n">translation</span><span class="p">)</span>
+
+    <span class="c1"># Order the contact points by depth</span>
+    <span class="n">contact_frames_order</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">([</span>
+        <span class="n">pos</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="k">for</span> <span class="n">pos</span> <span class="ow">in</span> <span class="n">contact_frames_pos_rel</span><span class="p">])</span>
+    <span class="n">contact_frames_pos_rel</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">contact_frames_pos_rel</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">contact_frames_order</span><span class="p">]</span>
+
+    <span class="c1"># Compute the contact plane normal</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">contact_frames_pos_rel</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="c1"># Try to compute a valid normal using three deepest points</span>
+        <span class="n">contact_edge_ref</span> <span class="o">=</span> \
+            <span class="n">contact_frames_pos_rel</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">contact_frames_pos_rel</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">contact_edge_ref</span> <span class="o">/=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">contact_edge_ref</span><span class="p">)</span>
+        <span class="n">contact_edge_alt</span> <span class="o">=</span> \
+            <span class="n">contact_frames_pos_rel</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">contact_frames_pos_rel</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+        <span class="n">contact_edge_alt</span> <span class="o">/=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">contact_edge_alt</span><span class="p">)</span>
+        <span class="n">normal_offset</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cross</span><span class="p">(</span><span class="n">contact_edge_ref</span><span class="p">,</span> <span class="n">contact_edge_alt</span><span class="p">)</span>
+
+        <span class="c1"># Make sure that the normal is valid, otherwise use the default one</span>
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">normal_offset</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">0.6</span><span class="p">:</span>
+            <span class="n">normal_offset</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">])</span>
+
+        <span class="c1"># Make sure the normal is pointing upward</span>
+        <span class="k">if</span> <span class="n">normal_offset</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mf">0.0</span><span class="p">:</span>
+            <span class="n">normal_offset</span> <span class="o">*=</span> <span class="o">-</span><span class="mf">1.0</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># Fallback to world aligned if no reference can be computed</span>
+        <span class="n">normal_offset</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">])</span>
+
+    <span class="c1"># Compute the translation and rotation to apply the touch the ground</span>
+    <span class="n">rot_offset</span> <span class="o">=</span> <span class="n">pin</span><span class="o">.</span><span class="n">Quaternion</span><span class="o">.</span><span class="n">FromTwoVectors</span><span class="p">(</span>
+        <span class="n">normal_offset</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">]))</span><span class="o">.</span><span class="n">matrix</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">contact_frames_pos_rel</span><span class="p">:</span>
+        <span class="n">contact_frame_pos</span> <span class="o">=</span> <span class="n">contact_frames_transform</span><span class="p">[</span>
+            <span class="n">contact_frames_order</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span><span class="o">.</span><span class="n">translation</span>
+        <span class="n">pos_shift</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">rot_offset</span> <span class="o">@</span> <span class="n">contact_frame_pos</span><span class="p">)[</span><span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="n">contact_frame_pos</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+        <span class="n">pos_offset</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span>
+            <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="o">-</span> <span class="n">pos_shift</span> <span class="o">-</span> <span class="n">contact_frames_pos_rel</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">2</span><span class="p">]])</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">pos_offset</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+    <span class="n">transform_offset</span> <span class="o">=</span> <span class="n">pin</span><span class="o">.</span><span class="n">SE3</span><span class="p">(</span><span class="n">rot_offset</span><span class="p">,</span> <span class="n">pos_offset</span><span class="p">)</span>
+
+    <span class="c1"># Take into account the collision bodies</span>
+    <span class="c1"># FIXME: Take into account the ground profile</span>
+    <span class="n">min_distance</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="s1">&#39;inf&#39;</span><span class="p">)</span>
+    <span class="n">deepest_index</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">dist_req</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">robot</span><span class="o">.</span><span class="n">collision_data</span><span class="o">.</span><span class="n">distanceResults</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">dist_req</span><span class="o">.</span><span class="n">normal</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mf">1e-6</span><span class="p">:</span>
+            <span class="n">body_index</span> <span class="o">=</span> <span class="n">collision_model</span><span class="o">.</span><span class="n">collisionPairs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">first</span>
+            <span class="n">body_geom</span> <span class="o">=</span> <span class="n">robot</span><span class="o">.</span><span class="n">collision_model</span><span class="o">.</span><span class="n">geometryObjects</span><span class="p">[</span><span class="n">body_index</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">dist_req</span><span class="o">.</span><span class="n">normal</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mf">0.0</span> <span class="ow">and</span> \
+                    <span class="nb">isinstance</span><span class="p">(</span><span class="n">body_geom</span><span class="o">.</span><span class="n">geometry</span><span class="p">,</span> <span class="n">hppfcl</span><span class="o">.</span><span class="n">Box</span><span class="p">):</span>
+                <span class="n">ground_index</span> <span class="o">=</span> <span class="n">collision_model</span><span class="o">.</span><span class="n">collisionPairs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">second</span>
+                <span class="n">ground_geom</span> <span class="o">=</span> <span class="n">collision_model</span><span class="o">.</span><span class="n">geometryObjects</span><span class="p">[</span><span class="n">ground_index</span><span class="p">]</span>
+                <span class="n">box_size</span> <span class="o">=</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">ground_geom</span><span class="o">.</span><span class="n">geometry</span><span class="o">.</span><span class="n">halfSide</span>
+                <span class="n">body_size</span> <span class="o">=</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">body_geom</span><span class="o">.</span><span class="n">geometry</span><span class="o">.</span><span class="n">halfSide</span>
+                <span class="n">distance</span> <span class="o">=</span> <span class="o">-</span> <span class="n">body_size</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="n">box_size</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="n">dist_req</span><span class="o">.</span><span class="n">min_distance</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">distance</span> <span class="o">=</span> <span class="n">dist_req</span><span class="o">.</span><span class="n">min_distance</span>
+            <span class="k">if</span> <span class="n">distance</span> <span class="o">&lt;</span> <span class="n">min_distance</span><span class="p">:</span>
+                <span class="n">min_distance</span> <span class="o">=</span> <span class="n">distance</span>
+                <span class="n">deepest_index</span> <span class="o">=</span> <span class="n">i</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">LOGGER</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Collision computation failed for some reason. &quot;</span>
+                           <span class="s2">&quot;Skipping this collision pair.&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">deepest_index</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="p">(</span>
+            <span class="ow">not</span> <span class="n">contact_frames_pos_rel</span> <span class="ow">or</span>
+            <span class="n">transform_offset</span><span class="o">.</span><span class="n">translation</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">&lt;</span> <span class="o">-</span><span class="n">min_distance</span><span class="p">):</span>
+        <span class="n">transform_offset</span><span class="o">.</span><span class="n">translation</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="n">min_distance</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">contact_frames_pos_rel</span><span class="p">:</span>
+            <span class="n">geom_index</span> <span class="o">=</span> <span class="n">collision_model</span><span class="o">.</span><span class="n">collisionPairs</span><span class="p">[</span><span class="n">deepest_index</span><span class="p">]</span><span class="o">.</span><span class="n">first</span>
+            <span class="n">geom</span> <span class="o">=</span> <span class="n">collision_model</span><span class="o">.</span><span class="n">geometryObjects</span><span class="p">[</span><span class="n">geom_index</span><span class="p">]</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">geom</span><span class="o">.</span><span class="n">geometry</span><span class="p">,</span> <span class="n">hppfcl</span><span class="o">.</span><span class="n">Box</span><span class="p">):</span>
+                <span class="n">dist_rslt</span> <span class="o">=</span> <span class="n">robot</span><span class="o">.</span><span class="n">collision_data</span><span class="o">.</span><span class="n">distanceResults</span><span class="p">[</span><span class="n">deepest_index</span><span class="p">]</span>
+                <span class="n">collision_position</span> <span class="o">=</span> <span class="n">dist_rslt</span><span class="o">.</span><span class="n">getNearestPoint1</span><span class="p">()</span>
+                <span class="n">transform_offset</span><span class="o">.</span><span class="n">rotation</span> <span class="o">=</span> \
+                    <span class="n">robot</span><span class="o">.</span><span class="n">collision_data</span><span class="o">.</span><span class="n">oMg</span><span class="p">[</span><span class="n">geom_index</span><span class="p">]</span><span class="o">.</span><span class="n">rotation</span><span class="o">.</span><span class="n">T</span>
+                <span class="n">transform_offset</span><span class="o">.</span><span class="n">translation</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">+=</span> <span class="p">(</span>
+                    <span class="n">collision_position</span> <span class="o">-</span>
+                    <span class="n">transform_offset</span><span class="o">.</span><span class="n">rotation</span> <span class="o">@</span> <span class="n">collision_position</span><span class="p">)[</span><span class="mi">2</span><span class="p">]</span>
+
+    <span class="k">return</span> <span class="n">transform_offset</span></div>
+
+
+
+<div class="viewcode-block" id="compute_freeflyer_state_from_fixed_body">
+<a class="viewcode-back" href="../../api/jiminy_py/dynamics.html#jiminy_py.dynamics.compute_freeflyer_state_from_fixed_body">[docs]</a>
+<span class="k">def</span> <span class="nf">compute_freeflyer_state_from_fixed_body</span><span class="p">(</span>
+        <span class="n">robot</span><span class="p">:</span> <span class="n">jiminy</span><span class="o">.</span><span class="n">Model</span><span class="p">,</span>
+        <span class="n">position</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+        <span class="n">velocity</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">acceleration</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">fixed_body_name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">ground_profile</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">[</span>
+            <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">],</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">use_theoretical_model</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Fill rootjoint data from articular data when a body is fixed and</span>
+<span class="sd">    aligned with world frame.</span>
+
+<span class="sd">    This method computes the position of freeflyer in the fixed body frame.</span>
+
+<span class="sd">    If **fixed_body_name** is omitted, it will default to either:</span>
+
+<span class="sd">        - the set of three contact points</span>
+<span class="sd">        - a single collision body</span>
+
+<span class="sd">    In such a way that no contact points nor collision bodies are going through</span>
+<span class="sd">    the ground and at least contact points or a collision body are touching it.</span>
+
+<span class="sd">    `None` is returned if their is no contact frame or if the robot does not</span>
+<span class="sd">    have a freeflyer.</span>
+
+<span class="sd">    .. warning::</span>
+<span class="sd">        This function modifies the internal robot data.</span>
+
+<span class="sd">    .. warning::</span>
+<span class="sd">        The method fills in freeflyer data instead of returning an updated copy</span>
+<span class="sd">        for efficiency.</span>
+
+<span class="sd">    :param robot: Jiminy robot.</span>
+<span class="sd">    :param position: Must contain current articular data. The freeflyer data</span>
+<span class="sd">                     can contain any value, it will be ignored and replaced.</span>
+<span class="sd">    :param velocity: See position.</span>
+<span class="sd">    :param acceleration: See position.</span>
+<span class="sd">    :param fixed_body_name: Name of the body frame that is considered fixed</span>
+<span class="sd">                            parallel to world frame.</span>
+<span class="sd">                            Optional: It will be infered from the set of</span>
+<span class="sd">                            contact points and collision bodies.</span>
+<span class="sd">    :param ground_profile: Ground profile callback.</span>
+<span class="sd">    :param use_theoretical_model:</span>
+<span class="sd">        Whether the state corresponds to the theoretical model when updating</span>
+<span class="sd">        and fetching the robot&#39;s state. Must be False if `fixed_body_name` is</span>
+<span class="sd">        not speficied.</span>
+<span class="sd">        Optional: True by default if `fixed_body_name` is specified, False</span>
+<span class="sd">        otherwise.</span>
+
+<span class="sd">    :returns: Name of the contact frame, if any.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Early return if no freeflyer</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">robot</span><span class="o">.</span><span class="n">has_freeflyer</span><span class="p">:</span>
+        <span class="k">return</span>
+
+    <span class="c1"># Handling of default arguments</span>
+    <span class="k">if</span> <span class="n">use_theoretical_model</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">use_theoretical_model</span> <span class="o">=</span> <span class="n">fixed_body_name</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+
+    <span class="c1"># Clear freeflyer position, velocity and acceleration</span>
+    <span class="n">position</span><span class="p">[:</span><span class="mi">6</span><span class="p">]</span><span class="o">.</span><span class="n">fill</span><span class="p">(</span><span class="mf">0.0</span><span class="p">)</span>
+    <span class="n">position</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span>
+    <span class="k">if</span> <span class="n">velocity</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">velocity</span><span class="p">[:</span><span class="mi">6</span><span class="p">]</span><span class="o">.</span><span class="n">fill</span><span class="p">(</span><span class="mf">0.0</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">acceleration</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">acceleration</span><span class="p">[:</span><span class="mi">6</span><span class="p">]</span><span class="o">.</span><span class="n">fill</span><span class="p">(</span><span class="mf">0.0</span><span class="p">)</span>
+
+    <span class="c1"># Update kinematics, frame placements and collision information</span>
+    <span class="n">update_quantities</span><span class="p">(</span><span class="n">robot</span><span class="p">,</span>
+                      <span class="n">position</span><span class="p">,</span>
+                      <span class="n">velocity</span><span class="p">,</span>
+                      <span class="n">acceleration</span><span class="p">,</span>
+                      <span class="n">update_physics</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                      <span class="n">update_com</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                      <span class="n">update_energy</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                      <span class="n">use_theoretical_model</span><span class="o">=</span><span class="n">use_theoretical_model</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">fixed_body_name</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">use_theoretical_model</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                <span class="s2">&quot;Cannot infer contact transform for theoretical model.&quot;</span><span class="p">)</span>
+        <span class="n">w_M_ff</span> <span class="o">=</span> <span class="n">compute_transform_contact</span><span class="p">(</span><span class="n">robot</span><span class="p">,</span> <span class="n">ground_profile</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">ff_M_fixed_body</span> <span class="o">=</span> <span class="n">get_body_world_transform</span><span class="p">(</span>
+            <span class="n">robot</span><span class="p">,</span> <span class="n">fixed_body_name</span><span class="p">,</span> <span class="n">use_theoretical_model</span><span class="p">,</span> <span class="n">copy</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">ground_profile</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">ground_translation</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+            <span class="n">ground_translation</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">normal</span> <span class="o">=</span> <span class="n">ground_profile</span><span class="p">(</span>
+                <span class="n">ff_M_fixed_body</span><span class="o">.</span><span class="n">translation</span><span class="p">[:</span><span class="mi">2</span><span class="p">])</span>
+            <span class="n">ground_rotation</span> <span class="o">=</span> <span class="n">pin</span><span class="o">.</span><span class="n">Quaternion</span><span class="o">.</span><span class="n">FromTwoVectors</span><span class="p">(</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">]),</span> <span class="n">normal</span><span class="p">)</span><span class="o">.</span><span class="n">matrix</span><span class="p">()</span>
+            <span class="n">w_M_ground</span> <span class="o">=</span> <span class="n">pin</span><span class="o">.</span><span class="n">SE3</span><span class="p">(</span><span class="n">ground_rotation</span><span class="p">,</span> <span class="n">ground_translation</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">w_M_ground</span> <span class="o">=</span> <span class="n">pin</span><span class="o">.</span><span class="n">SE3</span><span class="o">.</span><span class="n">Identity</span><span class="p">()</span>
+        <span class="n">w_M_ff</span> <span class="o">=</span> <span class="n">w_M_ground</span><span class="o">.</span><span class="n">act</span><span class="p">(</span><span class="n">ff_M_fixed_body</span><span class="o">.</span><span class="n">inverse</span><span class="p">())</span>
+    <span class="n">position</span><span class="p">[:</span><span class="mi">7</span><span class="p">]</span> <span class="o">=</span> <span class="n">pin</span><span class="o">.</span><span class="n">SE3ToXYZQUAT</span><span class="p">(</span><span class="n">w_M_ff</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">fixed_body_name</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">velocity</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">ff_v_fixed_body</span> <span class="o">=</span> <span class="n">get_body_world_velocity</span><span class="p">(</span>
+                <span class="n">robot</span><span class="p">,</span> <span class="n">fixed_body_name</span><span class="p">,</span> <span class="n">use_theoretical_model</span><span class="p">)</span>
+            <span class="n">base_link_velocity</span> <span class="o">=</span> <span class="o">-</span> <span class="n">ff_v_fixed_body</span>
+            <span class="n">velocity</span><span class="p">[:</span><span class="mi">6</span><span class="p">]</span> <span class="o">=</span> <span class="n">base_link_velocity</span><span class="o">.</span><span class="n">vector</span>
+
+        <span class="k">if</span> <span class="n">acceleration</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">ff_a_fixedBody</span> <span class="o">=</span> <span class="n">get_body_world_acceleration</span><span class="p">(</span>
+                <span class="n">robot</span><span class="p">,</span> <span class="n">fixed_body_name</span><span class="p">,</span> <span class="n">use_theoretical_model</span><span class="p">)</span>
+            <span class="n">base_link_acceleration</span> <span class="o">=</span> <span class="o">-</span> <span class="n">ff_a_fixedBody</span>
+            <span class="n">acceleration</span><span class="p">[:</span><span class="mi">6</span><span class="p">]</span> <span class="o">=</span> <span class="n">base_link_acceleration</span><span class="o">.</span><span class="n">vector</span></div>
+
+
+
+<div class="viewcode-block" id="compute_efforts_from_fixed_body">
+<a class="viewcode-back" href="../../api/jiminy_py/dynamics.html#jiminy_py.dynamics.compute_efforts_from_fixed_body">[docs]</a>
+<span class="k">def</span> <span class="nf">compute_efforts_from_fixed_body</span><span class="p">(</span>
+        <span class="n">robot</span><span class="p">:</span> <span class="n">jiminy</span><span class="o">.</span><span class="n">Model</span><span class="p">,</span>
+        <span class="n">position</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+        <span class="n">velocity</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+        <span class="n">acceleration</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+        <span class="n">fixed_body_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">use_theoretical_model</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">pin</span><span class="o">.</span><span class="n">Force</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Compute the efforts using RNEA method.</span>
+
+<span class="sd">    .. warning::</span>
+<span class="sd">        This function modifies the internal robot data.</span>
+
+<span class="sd">    :param robot: Jiminy robot.</span>
+<span class="sd">    :param position: Robot configuration vector.</span>
+<span class="sd">    :param velocity: Robot velocity vector.</span>
+<span class="sd">    :param acceleration: Robot acceleration vector.</span>
+<span class="sd">    :param fixed_body_name: Name of the body frame.</span>
+<span class="sd">    :param use_theoretical_model: Whether the state corresponds to the</span>
+<span class="sd">                                  theoretical model when updating and fetching</span>
+<span class="sd">                                  the robot&#39;s state.</span>
+<span class="sd">                                  Optional: True by default.</span>
+
+<span class="sd">    :returns: articular efforts and external forces.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Pick the right pinocchio model and data</span>
+    <span class="k">if</span> <span class="n">use_theoretical_model</span><span class="p">:</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="n">robot</span><span class="o">.</span><span class="n">pinocchio_model_th</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">robot</span><span class="o">.</span><span class="n">pinocchio_data_th</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="n">robot</span><span class="o">.</span><span class="n">pinocchio_model</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">robot</span><span class="o">.</span><span class="n">pinocchio_data</span>
+
+    <span class="c1"># Apply a first run of rnea without explicit external forces</span>
+    <span class="n">jiminy</span><span class="o">.</span><span class="n">rnea</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">position</span><span class="p">,</span> <span class="n">velocity</span><span class="p">,</span> <span class="n">acceleration</span><span class="p">)</span>
+
+    <span class="c1"># Initialize vector of exterior forces to zero</span>
+    <span class="n">f_ext</span> <span class="o">=</span> <span class="n">pin</span><span class="o">.</span><span class="n">StdVec_Force</span><span class="p">()</span>
+    <span class="n">f_ext</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">names</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">pin</span><span class="o">.</span><span class="n">Force</span><span class="o">.</span><span class="n">Zero</span><span class="p">(),))</span>
+
+    <span class="c1"># Compute the force at the contact frame</span>
+    <span class="n">pin</span><span class="o">.</span><span class="n">forwardKinematics</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">position</span><span class="p">)</span>
+    <span class="n">support_joint_index</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">frames</span><span class="p">[</span>
+        <span class="n">model</span><span class="o">.</span><span class="n">getBodyId</span><span class="p">(</span><span class="n">fixed_body_name</span><span class="p">)]</span><span class="o">.</span><span class="n">parent</span>
+    <span class="n">f_ext</span><span class="p">[</span><span class="n">support_joint_index</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">oMi</span><span class="p">[</span><span class="n">support_joint_index</span><span class="p">]</span><span class="o">.</span><span class="n">actInv</span><span class="p">(</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">oMi</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span><span class="o">.</span><span class="n">act</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">f</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+
+    <span class="c1"># Recompute the efforts with RNEA and the correct external forces</span>
+    <span class="n">tau</span> <span class="o">=</span> <span class="n">jiminy</span><span class="o">.</span><span class="n">rnea</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">position</span><span class="p">,</span> <span class="n">velocity</span><span class="p">,</span> <span class="n">acceleration</span><span class="p">,</span> <span class="n">f_ext</span><span class="p">)</span>
+    <span class="n">f_ext</span> <span class="o">=</span> <span class="n">f_ext</span><span class="p">[</span><span class="n">support_joint_index</span><span class="p">]</span>
+
+    <span class="k">return</span> <span class="n">tau</span><span class="p">,</span> <span class="n">f_ext</span></div>
+
+
+
+<div class="viewcode-block" id="compute_inverse_dynamics">
+<a class="viewcode-back" href="../../api/jiminy_py/dynamics.html#jiminy_py.dynamics.compute_inverse_dynamics">[docs]</a>
+<span class="k">def</span> <span class="nf">compute_inverse_dynamics</span><span class="p">(</span><span class="n">robot</span><span class="p">:</span> <span class="n">jiminy</span><span class="o">.</span><span class="n">Model</span><span class="p">,</span>
+                             <span class="n">position</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                             <span class="n">velocity</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                             <span class="n">acceleration</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                             <span class="n">use_theoretical_model</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+                             <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Compute the motor torques through inverse dynamics, assuming to external</span>
+<span class="sd">    forces except the one resulting from the anyaltical constraints applied on</span>
+<span class="sd">    the model.</span>
+
+<span class="sd">    .. warning::</span>
+<span class="sd">        This function modifies the internal robot data.</span>
+
+<span class="sd">    :param robot: Jiminy robot.</span>
+<span class="sd">    :param position: Robot configuration vector.</span>
+<span class="sd">    :param velocity: Robot velocity vector.</span>
+<span class="sd">    :param acceleration: Robot acceleration vector.</span>
+<span class="sd">    :param use_theoretical_model: Whether the position, velocity and</span>
+<span class="sd">                                  acceleration are associated with the</span>
+<span class="sd">                                  theoretical model instead of the actual one.</span>
+<span class="sd">                                  Optional: False by default.</span>
+
+<span class="sd">    :returns: motor torques.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">robot</span><span class="o">.</span><span class="n">has_constraints</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
+            <span class="s2">&quot;Robot without active constraints is not supported for now.&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Convert theoretical position, velocity and acceleration if necessary</span>
+    <span class="k">if</span> <span class="n">use_theoretical_model</span> <span class="ow">and</span> <span class="n">robot</span><span class="o">.</span><span class="n">is_flexible</span><span class="p">:</span>
+        <span class="n">position</span> <span class="o">=</span> <span class="n">robot</span><span class="o">.</span><span class="n">get_flexible_position_from_rigid</span><span class="p">(</span><span class="n">position</span><span class="p">)</span>
+        <span class="n">velocity</span> <span class="o">=</span> <span class="n">robot</span><span class="o">.</span><span class="n">get_flexible_velocity_from_rigid</span><span class="p">(</span><span class="n">velocity</span><span class="p">)</span>
+        <span class="n">acceleration</span> <span class="o">=</span> <span class="n">robot</span><span class="o">.</span><span class="n">get_flexible_velocity_from_rigid</span><span class="p">(</span><span class="n">acceleration</span><span class="p">)</span>
+
+    <span class="c1"># Define some proxies for convenience</span>
+    <span class="n">model</span> <span class="o">=</span> <span class="n">robot</span><span class="o">.</span><span class="n">pinocchio_model</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">robot</span><span class="o">.</span><span class="n">pinocchio_data</span>
+    <span class="n">motor_velocity_indices</span> <span class="o">=</span> <span class="n">robot</span><span class="o">.</span><span class="n">motor_velocity_indices</span>
+
+    <span class="c1"># Updating kinematics quantities</span>
+    <span class="n">pin</span><span class="o">.</span><span class="n">forwardKinematics</span><span class="p">(</span>
+        <span class="n">model</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">position</span><span class="p">,</span> <span class="n">velocity</span><span class="p">,</span> <span class="n">acceleration</span><span class="p">)</span>
+    <span class="n">pin</span><span class="o">.</span><span class="n">updateFramePlacements</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+
+    <span class="c1"># Compute constraint jacobian and drift</span>
+    <span class="n">robot</span><span class="o">.</span><span class="n">compute_constraints</span><span class="p">(</span><span class="n">position</span><span class="p">,</span> <span class="n">velocity</span><span class="p">)</span>
+    <span class="n">J</span><span class="p">,</span> <span class="n">drift</span> <span class="o">=</span> <span class="n">robot</span><span class="o">.</span><span class="n">get_constraints_jacobian_and_drift</span><span class="p">()</span>
+
+    <span class="c1"># No need to compute the internal matrix using `crba` nor to perform the</span>
+    <span class="c1"># cholesky decomposition since it is already done by `compute_constraints`</span>
+    <span class="c1"># internally.</span>
+    <span class="n">M_inv</span> <span class="o">=</span> <span class="n">pin</span><span class="o">.</span><span class="n">cholesky</span><span class="o">.</span><span class="n">computeMinv</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+    <span class="n">M_inv_mcol</span> <span class="o">=</span> <span class="n">M_inv</span><span class="p">[:,</span> <span class="n">motor_velocity_indices</span><span class="p">]</span>
+
+    <span class="c1"># Compute non-linear effects</span>
+    <span class="n">pin</span><span class="o">.</span><span class="n">nonLinearEffects</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">position</span><span class="p">,</span> <span class="n">velocity</span><span class="p">)</span>
+    <span class="n">nle</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">nle</span>
+
+    <span class="c1"># Compute constraint forces</span>
+    <span class="n">jiminy</span><span class="o">.</span><span class="n">computeJMinvJt</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">J</span><span class="p">)</span>
+    <span class="n">a_f</span> <span class="o">=</span> <span class="n">jiminy</span><span class="o">.</span><span class="n">solveJMinvJtv</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="o">+</span> <span class="n">J</span> <span class="o">@</span> <span class="n">M_inv</span> <span class="o">@</span> <span class="n">nle</span> <span class="o">-</span> <span class="n">drift</span><span class="p">)</span>
+    <span class="n">B_f</span> <span class="o">=</span> <span class="n">jiminy</span><span class="o">.</span><span class="n">solveJMinvJtv</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="o">-</span> <span class="n">J</span> <span class="o">@</span> <span class="n">M_inv_mcol</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+
+    <span class="c1"># compute feedforward term</span>
+    <span class="n">a_ydd</span> <span class="o">=</span> <span class="p">(</span><span class="n">M_inv</span> <span class="o">@</span> <span class="p">(</span><span class="n">J</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">a_f</span> <span class="o">-</span> <span class="n">nle</span><span class="p">)</span> <span class="o">-</span> <span class="n">acceleration</span><span class="p">)[</span><span class="n">motor_velocity_indices</span><span class="p">]</span>
+    <span class="n">B_ydd</span> <span class="o">=</span> <span class="p">(</span><span class="n">M_inv_mcol</span> <span class="o">+</span> <span class="n">M_inv</span> <span class="o">@</span> <span class="n">J</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">B_f</span><span class="p">)[</span><span class="n">motor_velocity_indices</span><span class="p">]</span>
+
+    <span class="c1"># Compute motor torques</span>
+    <span class="n">u</span> <span class="o">=</span> <span class="n">eigenpy</span><span class="o">.</span><span class="n">LDLT</span><span class="p">(</span><span class="n">B_ydd</span><span class="p">)</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="o">-</span> <span class="n">a_ydd</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">u</span></div>
+
+
+
+<span class="c1"># #####################################################################</span>
+<span class="c1"># ################### State sequence wrappers #########################</span>
+<span class="c1"># #####################################################################</span>
+
+<div class="viewcode-block" id="compute_freeflyer">
+<a class="viewcode-back" href="../../api/jiminy_py/dynamics.html#jiminy_py.dynamics.compute_freeflyer">[docs]</a>
+<span class="k">def</span> <span class="nf">compute_freeflyer</span><span class="p">(</span><span class="n">trajectory_data</span><span class="p">:</span> <span class="n">TrajectoryDataType</span><span class="p">,</span>
+                      <span class="n">freeflyer_continuity</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Compute the freeflyer positions and velocities.</span>
+
+<span class="sd">    .. warning::</span>
+<span class="sd">        This function modifies the internal robot data.</span>
+
+<span class="sd">    :param trajectory_data: Sequence of States for which to retrieve the</span>
+<span class="sd">                            freeflyer.</span>
+<span class="sd">    :param freeflyer_continuity: Whether to enforce the continuity in position</span>
+<span class="sd">                                 of the freeflyer.</span>
+<span class="sd">                                 Optional: True by default.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">robot</span> <span class="o">=</span> <span class="n">trajectory_data</span><span class="p">[</span><span class="s1">&#39;robot&#39;</span><span class="p">]</span>
+
+    <span class="n">contact_frame_prev</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">w_M_ff_offset</span> <span class="o">=</span> <span class="n">pin</span><span class="o">.</span><span class="n">SE3</span><span class="o">.</span><span class="n">Identity</span><span class="p">()</span>
+    <span class="n">w_M_ff_prev</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">trajectory_data</span><span class="p">[</span><span class="s1">&#39;evolution_robot&#39;</span><span class="p">]:</span>
+        <span class="c1"># Compute freeflyer using contact frame as reference frame</span>
+        <span class="n">compute_freeflyer_state_from_fixed_body</span><span class="p">(</span>
+            <span class="n">robot</span><span class="p">,</span> <span class="n">s</span><span class="o">.</span><span class="n">q</span><span class="p">,</span> <span class="n">s</span><span class="o">.</span><span class="n">v</span><span class="p">,</span> <span class="n">s</span><span class="o">.</span><span class="n">a</span><span class="p">,</span> <span class="n">s</span><span class="o">.</span><span class="n">contact_frame</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+
+        <span class="c1"># Move freeflyer to ensure continuity over time, if requested</span>
+        <span class="k">if</span> <span class="n">freeflyer_continuity</span><span class="p">:</span>
+            <span class="c1"># Extract the current freeflyer transform</span>
+            <span class="n">w_M_ff</span> <span class="o">=</span> <span class="n">pin</span><span class="o">.</span><span class="n">XYZQUATToSE3</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">q</span><span class="p">[:</span><span class="mi">7</span><span class="p">])</span>
+
+            <span class="c1"># Update the internal buffer of the freeflyer transform</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">contact_frame_prev</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span>
+                    <span class="n">contact_frame_prev</span> <span class="o">!=</span> <span class="n">s</span><span class="o">.</span><span class="n">contact_frame</span><span class="p">):</span>
+                <span class="n">w_M_ff_offset</span> <span class="o">=</span> <span class="n">w_M_ff_offset</span> <span class="o">*</span> <span class="n">w_M_ff_prev</span> <span class="o">*</span> <span class="n">w_M_ff</span><span class="o">.</span><span class="n">inverse</span><span class="p">()</span>
+            <span class="n">contact_frame_prev</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">contact_frame</span>
+            <span class="n">w_M_ff_prev</span> <span class="o">=</span> <span class="n">w_M_ff</span>
+
+            <span class="c1"># Add the appropriate offset to the freeflyer</span>
+            <span class="n">w_M_ff</span> <span class="o">=</span> <span class="n">w_M_ff_offset</span> <span class="o">*</span> <span class="n">w_M_ff</span>
+            <span class="n">s</span><span class="o">.</span><span class="n">q</span><span class="p">[:</span><span class="mi">7</span><span class="p">]</span> <span class="o">=</span> <span class="n">pin</span><span class="o">.</span><span class="n">SE3ToXYZQUAT</span><span class="p">(</span><span class="n">w_M_ff</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="compute_efforts">
+<a class="viewcode-back" href="../../api/jiminy_py/dynamics.html#jiminy_py.dynamics.compute_efforts">[docs]</a>
+<span class="k">def</span> <span class="nf">compute_efforts</span><span class="p">(</span><span class="n">trajectory_data</span><span class="p">:</span> <span class="n">TrajectoryDataType</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Compute the efforts in the trajectory using RNEA method.</span>
+
+<span class="sd">    :param trajectory_data: Sequence of States for which to compute the</span>
+<span class="sd">                            efforts.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">robot</span> <span class="o">=</span> <span class="n">trajectory_data</span><span class="p">[</span><span class="s1">&#39;robot&#39;</span><span class="p">]</span>
+    <span class="n">use_theoretical_model</span> <span class="o">=</span> <span class="n">trajectory_data</span><span class="p">[</span><span class="s1">&#39;use_theoretical_model&#39;</span><span class="p">]</span>
+
+    <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">trajectory_data</span><span class="p">[</span><span class="s1">&#39;evolution_robot&#39;</span><span class="p">]:</span>
+        <span class="k">assert</span> <span class="n">s</span><span class="o">.</span><span class="n">q</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">s</span><span class="o">.</span><span class="n">v</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">s</span><span class="o">.</span><span class="n">a</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="k">assert</span> <span class="n">s</span><span class="o">.</span><span class="n">contact_frames</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="n">s</span><span class="o">.</span><span class="n">tau</span><span class="p">,</span> <span class="n">s</span><span class="o">.</span><span class="n">f_ext</span> <span class="o">=</span> <span class="n">compute_efforts_from_fixed_body</span><span class="p">(</span>
+            <span class="n">robot</span><span class="p">,</span> <span class="n">s</span><span class="o">.</span><span class="n">q</span><span class="p">,</span> <span class="n">s</span><span class="o">.</span><span class="n">v</span><span class="p">,</span> <span class="n">s</span><span class="o">.</span><span class="n">a</span><span class="p">,</span> <span class="n">s</span><span class="o">.</span><span class="n">contact_frame</span><span class="p">,</span> <span class="n">use_theoretical_model</span><span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, Alexis Duburcq - MIT licence.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

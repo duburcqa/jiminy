@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>gym_jiminy.common.utils.math &mdash; jiminy 1.8.3 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../../_static/documentation_options.js?v=82e6e318"></script>
+        <script src="../../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            jiminy
+              <img src="../../../../_static/jiminy_logo.svg" class="logo" alt="Logo"/>
+          </a>
+              <div class="version">
+                1.8.3
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">README</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html">Key features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#gym-jiminy">Gym Jiminy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#demo">Demo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#getting-started">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">INSTALLATION</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html">Easy-install on Ubuntu 18+</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html#building-from-source">Building from source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">TUTORIALS</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorial.html">An introduction to Jiminy</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API DOC</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/jiminy/index.html">Jiminy C++ API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/jiminy_py/index.html">Jiminy Python API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/gym_jiminy/common/index.html">Gym Jiminy API</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Technical Specifications</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/src/tlmc_format_specification.html">HDF5 telemetry log format (TLMC)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/pdf/index.html">Downloadable PDF</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">jiminy</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">gym_jiminy.common.utils.math</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for gym_jiminy.common.utils.math</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Mathematic utilities heavily optimized for speed.</span>
+
+<span class="sd">They combine batch-processing with Just-In-Time (JIT) compiling via Numba when</span>
+<span class="sd">possible for optimal performance. Most of them are dealing with rotations (SO3)</span>
+<span class="sd">to perform transformations or convert from one representation to another.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">no_type_check</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">numba</span> <span class="k">as</span> <span class="nn">nb</span>
+
+<span class="kn">from</span> <span class="nn">.spaces</span> <span class="kn">import</span> <span class="n">ArrayOrScalar</span>
+
+
+<span class="n">TWIST_SWING_SINGULARITY_THR</span> <span class="o">=</span> <span class="mf">1e-6</span>
+
+
+<div class="viewcode-block" id="squared_norm_2">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/utils/math.html#gym_jiminy.common.utils.math.squared_norm_2">[docs]</a>
+<span class="nd">@nb</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="n">nopython</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">inline</span><span class="o">=</span><span class="s1">&#39;always&#39;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">squared_norm_2</span><span class="p">(</span><span class="n">array</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Fast implementation of the sum of squared array elements, optimized for</span>
+<span class="sd">    small to medium size 1D arrays.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">square</span><span class="p">(</span><span class="n">array</span><span class="p">))</span></div>
+
+
+
+<div class="viewcode-block" id="matrix_to_yaw">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/utils/math.html#gym_jiminy.common.utils.math.matrix_to_yaw">[docs]</a>
+<span class="nd">@nb</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="n">nopython</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">matrix_to_yaw</span><span class="p">(</span><span class="n">mat</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Compute the yaw from Yaw-Pitch-Roll Euler angles representation of a</span>
+<span class="sd">    rotation matrix in 3D Euclidean space.</span>
+
+<span class="sd">    :param mat: N-dimensional array whose first and second dimensions gathers</span>
+<span class="sd">                the 3-by-3 rotation matrix elements.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">assert</span> <span class="n">mat</span><span class="o">.</span><span class="n">ndim</span> <span class="o">&gt;=</span> <span class="mi">2</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">arctan2</span><span class="p">(</span><span class="n">mat</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">mat</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span></div>
+
+
+
+<div class="viewcode-block" id="quat_to_yaw_cos_sin">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/utils/math.html#gym_jiminy.common.utils.math.quat_to_yaw_cos_sin">[docs]</a>
+<span class="nd">@nb</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="n">nopython</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">inline</span><span class="o">=</span><span class="s1">&#39;always&#39;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">quat_to_yaw_cos_sin</span><span class="p">(</span><span class="n">quat</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Compute cosine and sine of the yaw from Yaw-Pitch-Roll Euler angles</span>
+<span class="sd">    representation of a single or a batch of quaternions.</span>
+
+<span class="sd">    :param quat: N-dimensional array whose first dimension gathers the 4</span>
+<span class="sd">                 quaternion coordinates [qx, qy, qz, qw].</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">assert</span> <span class="n">quat</span><span class="o">.</span><span class="n">ndim</span> <span class="o">&gt;=</span> <span class="mi">1</span>
+    <span class="p">(</span><span class="n">q_xy</span><span class="p">,</span> <span class="n">q_yy</span><span class="p">),</span> <span class="p">(</span><span class="n">q_zz</span><span class="p">,</span> <span class="n">q_zw</span><span class="p">)</span> <span class="o">=</span> <span class="n">quat</span><span class="p">[</span><span class="o">-</span><span class="mi">3</span><span class="p">]</span> <span class="o">*</span> <span class="n">quat</span><span class="p">[</span><span class="o">-</span><span class="mi">4</span><span class="p">:</span><span class="o">-</span><span class="mi">2</span><span class="p">],</span> <span class="n">quat</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">]</span> <span class="o">*</span> <span class="n">quat</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">:]</span>
+    <span class="n">cos_yaw</span><span class="p">,</span> <span class="n">sin_yaw</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">-</span> <span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="n">q_yy</span> <span class="o">+</span> <span class="n">q_zz</span><span class="p">),</span> <span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="n">q_xy</span> <span class="o">+</span> <span class="n">q_zw</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">cos_yaw</span><span class="p">,</span> <span class="n">sin_yaw</span></div>
+
+
+
+<div class="viewcode-block" id="quat_to_yaw">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/utils/math.html#gym_jiminy.common.utils.math.quat_to_yaw">[docs]</a>
+<span class="nd">@nb</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="n">nopython</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">quat_to_yaw</span><span class="p">(</span><span class="n">quat</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Compute the yaw from Yaw-Pitch-Roll Euler angles representation of a</span>
+<span class="sd">    single or a batch of quaternions.</span>
+
+<span class="sd">    :param quat: N-dimensional array whose first dimension gathers the 4</span>
+<span class="sd">                 quaternion coordinates [qx, qy, qz, qw].</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">assert</span> <span class="n">quat</span><span class="o">.</span><span class="n">ndim</span> <span class="o">&gt;=</span> <span class="mi">1</span>
+    <span class="n">cos_yaw</span><span class="p">,</span> <span class="n">sin_yaw</span> <span class="o">=</span> <span class="n">quat_to_yaw_cos_sin</span><span class="p">(</span><span class="n">quat</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">arctan2</span><span class="p">(</span><span class="n">sin_yaw</span><span class="p">,</span> <span class="n">cos_yaw</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="quat_to_rpy">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/utils/math.html#gym_jiminy.common.utils.math.quat_to_rpy">[docs]</a>
+<span class="nd">@nb</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="n">nopython</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">quat_to_rpy</span><span class="p">(</span><span class="n">quat</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                <span class="n">out</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Compute the Yaw-Pitch-Roll Euler angles representation of a single or a</span>
+<span class="sd">    batch of quaternions.</span>
+
+<span class="sd">    :param quat: N-dimensional array whose first dimension gathers the 4</span>
+<span class="sd">                 quaternion coordinates [qx, qy, qz, qw].</span>
+<span class="sd">    :param out: A pre-allocated array into which the result is stored. If not</span>
+<span class="sd">                provided, a new array is freshly-allocated, which is slower.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">assert</span> <span class="n">quat</span><span class="o">.</span><span class="n">ndim</span> <span class="o">&gt;=</span> <span class="mi">1</span>
+
+    <span class="c1"># Allocate memory for the output array</span>
+    <span class="k">if</span> <span class="n">out</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">out_</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="mi">3</span><span class="p">,</span> <span class="o">*</span><span class="n">quat</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">:]))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">assert</span> <span class="n">out</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="o">*</span><span class="n">quat</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
+        <span class="n">out_</span> <span class="o">=</span> <span class="n">out</span>
+
+    <span class="c1"># Compute some intermediary quantities</span>
+    <span class="n">q_xx</span><span class="p">,</span> <span class="n">q_xy</span><span class="p">,</span> <span class="n">q_xz</span><span class="p">,</span> <span class="n">q_xw</span> <span class="o">=</span> <span class="n">quat</span><span class="p">[</span><span class="o">-</span><span class="mi">4</span><span class="p">]</span> <span class="o">*</span> <span class="n">quat</span><span class="p">[</span><span class="o">-</span><span class="mi">4</span><span class="p">:]</span>
+    <span class="n">q_yy</span><span class="p">,</span> <span class="n">q_yz</span><span class="p">,</span> <span class="n">q_yw</span> <span class="o">=</span> <span class="n">quat</span><span class="p">[</span><span class="o">-</span><span class="mi">3</span><span class="p">]</span> <span class="o">*</span> <span class="n">quat</span><span class="p">[</span><span class="o">-</span><span class="mi">3</span><span class="p">:]</span>
+    <span class="n">q_zz</span><span class="p">,</span> <span class="n">q_zw</span> <span class="o">=</span> <span class="n">quat</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">]</span> <span class="o">*</span> <span class="n">quat</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">:]</span>
+
+    <span class="c1"># First-order normalization (by copy) to avoid numerical instabilities</span>
+    <span class="n">q_ww</span> <span class="o">=</span> <span class="n">quat</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">quat</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">norm_inv</span> <span class="o">=</span> <span class="p">((</span><span class="mf">3.0</span> <span class="o">-</span> <span class="p">(</span><span class="n">q_xx</span> <span class="o">+</span> <span class="n">q_yy</span> <span class="o">+</span> <span class="n">q_zz</span> <span class="o">+</span> <span class="n">q_ww</span><span class="p">))</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="n">q_yw</span> <span class="o">*=</span> <span class="n">norm_inv</span>
+    <span class="n">q_xz</span> <span class="o">*=</span> <span class="n">norm_inv</span>
+
+    <span class="c1"># Compute Roll, Pitch and Yaw separately</span>
+    <span class="c1"># roll, pitch, yaw = out_</span>
+    <span class="n">out_</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arctan2</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="n">q_xw</span> <span class="o">+</span> <span class="n">q_yz</span><span class="p">),</span> <span class="mf">1.0</span> <span class="o">-</span> <span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="n">q_xx</span> <span class="o">+</span> <span class="n">q_yy</span><span class="p">))</span>
+    <span class="n">out_</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="mi">2</span> <span class="o">+</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">arctan2</span><span class="p">(</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">+</span> <span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="n">q_yw</span> <span class="o">-</span> <span class="n">q_xz</span><span class="p">)),</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="n">q_yw</span> <span class="o">-</span> <span class="n">q_xz</span><span class="p">)))</span>
+    <span class="n">out_</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arctan2</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="n">q_zw</span> <span class="o">+</span> <span class="n">q_xy</span><span class="p">),</span> <span class="mf">1.0</span> <span class="o">-</span> <span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="n">q_yy</span> <span class="o">+</span> <span class="n">q_zz</span><span class="p">))</span>
+
+    <span class="k">return</span> <span class="n">out_</span></div>
+
+
+
+<div class="viewcode-block" id="quat_to_matrix">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/utils/math.html#gym_jiminy.common.utils.math.quat_to_matrix">[docs]</a>
+<span class="nd">@nb</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="n">nopython</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">quat_to_matrix</span><span class="p">(</span><span class="n">quat</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                   <span class="n">out</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Compute the Rotation Matrix representation of a single or a</span>
+<span class="sd">    batch of quaternions.</span>
+
+<span class="sd">    :param quat: N-dimensional array whose first dimension gathers the 4</span>
+<span class="sd">                 quaternion coordinates [qx, qy, qz, qw].</span>
+<span class="sd">    :param out: A pre-allocated array into which the result is stored. If not</span>
+<span class="sd">                provided, a new array is freshly-allocated, which is slower.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">assert</span> <span class="n">quat</span><span class="o">.</span><span class="n">ndim</span> <span class="o">&gt;=</span> <span class="mi">1</span>
+    <span class="k">if</span> <span class="n">out</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">out_</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="o">*</span><span class="n">quat</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">:]))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">assert</span> <span class="n">out</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="o">*</span><span class="n">quat</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
+        <span class="n">out_</span> <span class="o">=</span> <span class="n">out</span>
+    <span class="n">q_xx</span><span class="p">,</span> <span class="n">q_xy</span><span class="p">,</span> <span class="n">q_xz</span><span class="p">,</span> <span class="n">q_xw</span> <span class="o">=</span> <span class="n">quat</span><span class="p">[</span><span class="o">-</span><span class="mi">4</span><span class="p">]</span> <span class="o">*</span> <span class="n">quat</span><span class="p">[</span><span class="o">-</span><span class="mi">4</span><span class="p">:]</span>
+    <span class="n">q_yy</span><span class="p">,</span> <span class="n">q_yz</span><span class="p">,</span> <span class="n">q_yw</span> <span class="o">=</span> <span class="n">quat</span><span class="p">[</span><span class="o">-</span><span class="mi">3</span><span class="p">]</span> <span class="o">*</span> <span class="n">quat</span><span class="p">[</span><span class="o">-</span><span class="mi">3</span><span class="p">:]</span>
+    <span class="n">q_zz</span><span class="p">,</span> <span class="n">q_zw</span> <span class="o">=</span> <span class="n">quat</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">]</span> <span class="o">*</span> <span class="n">quat</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">:]</span>
+    <span class="n">out_</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">-</span> <span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="n">q_yy</span> <span class="o">+</span> <span class="n">q_zz</span><span class="p">)</span>
+    <span class="n">out_</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="n">q_xy</span> <span class="o">-</span> <span class="n">q_zw</span><span class="p">)</span>
+    <span class="n">out_</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="n">q_xz</span> <span class="o">+</span> <span class="n">q_yw</span><span class="p">)</span>
+    <span class="n">out_</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="n">q_xy</span> <span class="o">+</span> <span class="n">q_zw</span><span class="p">)</span>
+    <span class="n">out_</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">-</span> <span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="n">q_xx</span> <span class="o">+</span> <span class="n">q_zz</span><span class="p">)</span>
+    <span class="n">out_</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="n">q_yz</span> <span class="o">-</span> <span class="n">q_xw</span><span class="p">)</span>
+    <span class="n">out_</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="n">q_xz</span> <span class="o">-</span> <span class="n">q_yw</span><span class="p">)</span>
+    <span class="n">out_</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="n">q_yz</span> <span class="o">+</span> <span class="n">q_xw</span><span class="p">)</span>
+    <span class="n">out_</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">-</span> <span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="n">q_xx</span> <span class="o">+</span> <span class="n">q_yy</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">out_</span></div>
+
+
+
+<div class="viewcode-block" id="matrix_to_quat">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/utils/math.html#gym_jiminy.common.utils.math.matrix_to_quat">[docs]</a>
+<span class="nd">@nb</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="n">nopython</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">matrix_to_quat</span><span class="p">(</span><span class="n">mat</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                   <span class="n">out</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Compute the [qx, qy, qz, qw] Quaternion representation of a single or a</span>
+<span class="sd">    batch of rotation matrices.</span>
+
+<span class="sd">    :param mat: N-dimensional array whose first and second dimensions gathers</span>
+<span class="sd">                the 3-by-3 rotation matrix elements.</span>
+<span class="sd">    :param out: A pre-allocated array into which the result is stored. If not</span>
+<span class="sd">                provided, a new array is freshly-allocated, which is slower.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">assert</span> <span class="n">mat</span><span class="o">.</span><span class="n">ndim</span> <span class="o">&gt;=</span> <span class="mi">2</span>
+    <span class="k">if</span> <span class="n">out</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">out_</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="mi">4</span><span class="p">,</span> <span class="o">*</span><span class="n">mat</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">:]))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">assert</span> <span class="n">out</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="o">*</span><span class="n">mat</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">:])</span>
+        <span class="n">out_</span> <span class="o">=</span> <span class="n">out</span>
+    <span class="c1"># q_x, q_y, q_z, q_w = out_</span>
+    <span class="n">out_</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">mat</span><span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">mat</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span>
+    <span class="n">out_</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">mat</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="n">mat</span><span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+    <span class="n">out_</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">mat</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">mat</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span>
+    <span class="n">out_</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">+</span> <span class="n">mat</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">mat</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">mat</span><span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span>
+    <span class="n">out_</span> <span class="o">/=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">square</span><span class="p">(</span><span class="n">out_</span><span class="p">),</span> <span class="mi">0</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">out_</span></div>
+
+
+
+<span class="c1"># TODO: Merge this method with `matrix_to_quat` by leverage compile-time</span>
+<span class="c1"># implementation dispatching via `nb.generated_jit` or `nb.overload`.</span>
+<div class="viewcode-block" id="matrices_to_quat">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/utils/math.html#gym_jiminy.common.utils.math.matrices_to_quat">[docs]</a>
+<span class="nd">@nb</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="n">nopython</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">matrices_to_quat</span><span class="p">(</span><span class="n">mat_list</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="o">...</span><span class="p">],</span>
+                     <span class="n">out</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Compute the [qx, qy, qz, qw] Quaternion representation of multiple</span>
+<span class="sd">    rotation matrices.</span>
+
+<span class="sd">    .. seealso::</span>
+<span class="sd">        See https://math.stackexchange.com/a/3183435.</span>
+
+<span class="sd">    :param mat: Tuple of N arrays corresponding to independent 3D rotation</span>
+<span class="sd">                matrices.</span>
+<span class="sd">    :param out: A pre-allocated array into which the result is stored. If not</span>
+<span class="sd">                provided, a new array is freshly-allocated, which is slower.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">out</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">out_</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="mi">4</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">mat_list</span><span class="p">)))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">assert</span> <span class="n">out</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">mat_list</span><span class="p">))</span>
+        <span class="n">out_</span> <span class="o">=</span> <span class="n">out</span>
+    <span class="c1"># q_x, q_y, q_z, q_w = out_</span>
+    <span class="n">t</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">mat_list</span><span class="p">),))</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">mat</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">mat_list</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">mat</span><span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">mat</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">mat</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]:</span>
+                <span class="n">t</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">+</span> <span class="n">mat</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">mat</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">mat</span><span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span>
+                <span class="n">out_</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">t</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+                <span class="n">out_</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">mat</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">mat</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span>
+                <span class="n">out_</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">mat</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">+</span> <span class="n">mat</span><span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+                <span class="n">out_</span><span class="p">[</span><span class="mi">3</span><span class="p">][</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">mat</span><span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">mat</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">t</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">mat</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">mat</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">mat</span><span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span>
+                <span class="n">out_</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">mat</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">mat</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span>
+                <span class="n">out_</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">t</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+                <span class="n">out_</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">mat</span><span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">mat</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span>
+                <span class="n">out_</span><span class="p">[</span><span class="mi">3</span><span class="p">][</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">mat</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="n">mat</span><span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">mat</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">&lt;</span> <span class="o">-</span><span class="n">mat</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]:</span>
+                <span class="n">t</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">mat</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">mat</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">mat</span><span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span>
+                <span class="n">out_</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">mat</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">+</span> <span class="n">mat</span><span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+                <span class="n">out_</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">mat</span><span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">mat</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span>
+                <span class="n">out_</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">t</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+                <span class="n">out_</span><span class="p">[</span><span class="mi">3</span><span class="p">][</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">mat</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">mat</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">t</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">+</span> <span class="n">mat</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">mat</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">mat</span><span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span>
+                <span class="n">out_</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">mat</span><span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">mat</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span>
+                <span class="n">out_</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">mat</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="n">mat</span><span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+                <span class="n">out_</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">mat</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">mat</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span>
+                <span class="n">out_</span><span class="p">[</span><span class="mi">3</span><span class="p">][</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">t</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+    <span class="n">out_</span> <span class="o">/=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">out_</span></div>
+
+
+
+<div class="viewcode-block" id="rpy_to_matrix">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/utils/math.html#gym_jiminy.common.utils.math.rpy_to_matrix">[docs]</a>
+<span class="nd">@nb</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="n">nopython</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">rpy_to_matrix</span><span class="p">(</span><span class="n">rpy</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                  <span class="n">out</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Compute the Rotation Matrix representation of a single or a</span>
+<span class="sd">    batch of Yaw-Pitch-Roll Euler angles.</span>
+
+<span class="sd">    :param rpy: N-dimensional array whose first dimension gathers the 3</span>
+<span class="sd">                Yaw-Pitch-Roll Euler angles [Roll, Pitch, Yaw].</span>
+<span class="sd">    :param out: A pre-allocated array into which the result is stored. If not</span>
+<span class="sd">                provided, a new array is freshly-allocated, which is slower.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">assert</span> <span class="n">rpy</span><span class="o">.</span><span class="n">ndim</span> <span class="o">&gt;=</span> <span class="mi">1</span>
+    <span class="k">if</span> <span class="n">out</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">out_</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="o">*</span><span class="n">rpy</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">:]))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">assert</span> <span class="n">out</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="o">*</span><span class="n">rpy</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
+        <span class="n">out_</span> <span class="o">=</span> <span class="n">out</span>
+    <span class="n">cos_roll</span><span class="p">,</span> <span class="n">cos_pitch</span><span class="p">,</span> <span class="n">cos_yaw</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">rpy</span><span class="p">[</span><span class="o">-</span><span class="mi">3</span><span class="p">:])</span>
+    <span class="n">sin_roll</span><span class="p">,</span> <span class="n">sin_pitch</span><span class="p">,</span> <span class="n">sin_yaw</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">rpy</span><span class="p">[</span><span class="o">-</span><span class="mi">3</span><span class="p">:])</span>
+    <span class="n">out_</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">cos_pitch</span> <span class="o">*</span> <span class="n">cos_yaw</span>
+    <span class="n">out_</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span> <span class="n">cos_roll</span> <span class="o">*</span> <span class="n">sin_yaw</span> <span class="o">+</span> <span class="n">sin_roll</span> <span class="o">*</span> <span class="n">sin_pitch</span> <span class="o">*</span> <span class="n">cos_yaw</span>
+    <span class="n">out_</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">sin_roll</span> <span class="o">*</span> <span class="n">sin_yaw</span> <span class="o">+</span> <span class="n">cos_roll</span> <span class="o">*</span> <span class="n">sin_pitch</span> <span class="o">*</span> <span class="n">cos_yaw</span>
+    <span class="n">out_</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">cos_pitch</span> <span class="o">*</span> <span class="n">sin_yaw</span>
+    <span class="n">out_</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">cos_roll</span> <span class="o">*</span> <span class="n">cos_yaw</span> <span class="o">+</span> <span class="n">sin_roll</span> <span class="o">*</span> <span class="n">sin_pitch</span> <span class="o">*</span> <span class="n">sin_yaw</span>
+    <span class="n">out_</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span> <span class="n">sin_roll</span> <span class="o">*</span> <span class="n">cos_yaw</span> <span class="o">+</span> <span class="n">cos_roll</span> <span class="o">*</span> <span class="n">sin_pitch</span> <span class="o">*</span> <span class="n">sin_yaw</span>
+    <span class="n">out_</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span> <span class="n">sin_pitch</span>
+    <span class="n">out_</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">sin_roll</span> <span class="o">*</span> <span class="n">cos_pitch</span>
+    <span class="n">out_</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">cos_roll</span> <span class="o">*</span> <span class="n">cos_pitch</span>
+    <span class="k">return</span> <span class="n">out_</span></div>
+
+
+
+<div class="viewcode-block" id="matrix_to_rpy">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/utils/math.html#gym_jiminy.common.utils.math.matrix_to_rpy">[docs]</a>
+<span class="nd">@nb</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="n">nopython</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">matrix_to_rpy</span><span class="p">(</span><span class="n">mat</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                  <span class="n">out</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Compute the Yaw-Pitch-Roll Euler angles representation of a single or a</span>
+<span class="sd">    batch of rotation matrices.</span>
+
+<span class="sd">    :param mat: N-dimensional array whose first and second dimensions gathers</span>
+<span class="sd">                the 3-by-3 rotation matrix elements.</span>
+<span class="sd">    :param out: A pre-allocated array into which the result is stored. If not</span>
+<span class="sd">                provided, a new array is freshly-allocated, which is slower.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">assert</span> <span class="n">mat</span><span class="o">.</span><span class="n">ndim</span> <span class="o">&gt;=</span> <span class="mi">2</span>
+    <span class="k">if</span> <span class="n">out</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">out_</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="mi">3</span><span class="p">,</span> <span class="o">*</span><span class="n">mat</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">:]))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">assert</span> <span class="n">out</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="o">*</span><span class="n">mat</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">:])</span>
+        <span class="n">out_</span> <span class="o">=</span> <span class="n">out</span>
+
+    <span class="c1"># Direct translation of Eigen: `R.eulerAngles(2, 1, 0).reverse()`</span>
+    <span class="c1"># roll, pitch, yaw = out_</span>
+    <span class="n">cos_pitch</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">mat</span><span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">+</span> <span class="n">mat</span><span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="n">out_</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arctan2</span><span class="p">(</span><span class="o">-</span> <span class="n">mat</span><span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">cos_pitch</span><span class="p">)</span>
+    <span class="n">out_</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arctan2</span><span class="p">(</span><span class="n">mat</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">mat</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
+    <span class="n">sin_yaw</span><span class="p">,</span> <span class="n">cos_yaw</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">out_</span><span class="p">[</span><span class="mi">2</span><span class="p">]),</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">out_</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+    <span class="n">out_</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arctan2</span><span class="p">(</span>
+        <span class="n">sin_yaw</span> <span class="o">*</span> <span class="n">mat</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="n">cos_yaw</span> <span class="o">*</span> <span class="n">mat</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">],</span>
+        <span class="n">cos_yaw</span> <span class="o">*</span> <span class="n">mat</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">sin_yaw</span> <span class="o">*</span> <span class="n">mat</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
+
+    <span class="k">return</span> <span class="n">out_</span></div>
+
+
+
+<div class="viewcode-block" id="rpy_to_quat">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/utils/math.html#gym_jiminy.common.utils.math.rpy_to_quat">[docs]</a>
+<span class="nd">@nb</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="n">nopython</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">rpy_to_quat</span><span class="p">(</span><span class="n">rpy</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                <span class="n">out</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Compute the [qx, qy, qz, qw] Quaternion representation of a single or a</span>
+<span class="sd">    batch of Yaw-Pitch-Roll Euler angles.</span>
+
+<span class="sd">    :param rpy: N-dimensional array whose first dimension gathers the 3</span>
+<span class="sd">                Yaw-Pitch-Roll Euler angles [Roll, Pitch, Yaw].</span>
+<span class="sd">    :param out: A pre-allocated array into which the result is stored. If not</span>
+<span class="sd">                provided, a new array is freshly-allocated, which is slower.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">assert</span> <span class="n">rpy</span><span class="o">.</span><span class="n">ndim</span> <span class="o">&gt;=</span> <span class="mi">1</span>
+    <span class="k">if</span> <span class="n">out</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">out_</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="mi">4</span><span class="p">,</span> <span class="o">*</span><span class="n">rpy</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">:]))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">assert</span> <span class="n">out</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="o">*</span><span class="n">rpy</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
+        <span class="n">out_</span> <span class="o">=</span> <span class="n">out</span>
+    <span class="n">roll</span><span class="p">,</span> <span class="n">pitch</span><span class="p">,</span> <span class="n">yaw</span> <span class="o">=</span> <span class="n">rpy</span>
+    <span class="n">cos_roll</span><span class="p">,</span> <span class="n">sin_roll</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">roll</span> <span class="o">/</span> <span class="mi">2</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">roll</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="n">cos_pitch</span><span class="p">,</span> <span class="n">sin_pitch</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">pitch</span> <span class="o">/</span> <span class="mi">2</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">pitch</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="n">cos_yaw</span><span class="p">,</span> <span class="n">sin_yaw</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">yaw</span> <span class="o">/</span> <span class="mi">2</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">yaw</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="c1"># q_x, q_y, q_z, q_w = out_</span>
+    <span class="n">out_</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">sin_roll</span> <span class="o">*</span> <span class="n">cos_pitch</span> <span class="o">*</span> <span class="n">cos_yaw</span> <span class="o">-</span> <span class="n">cos_roll</span> <span class="o">*</span> <span class="n">sin_pitch</span> <span class="o">*</span> <span class="n">sin_yaw</span>
+    <span class="n">out_</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">cos_roll</span> <span class="o">*</span> <span class="n">sin_pitch</span> <span class="o">*</span> <span class="n">cos_yaw</span> <span class="o">+</span> <span class="n">sin_roll</span> <span class="o">*</span> <span class="n">cos_pitch</span> <span class="o">*</span> <span class="n">sin_yaw</span>
+    <span class="n">out_</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">cos_roll</span> <span class="o">*</span> <span class="n">cos_pitch</span> <span class="o">*</span> <span class="n">sin_yaw</span> <span class="o">-</span> <span class="n">sin_roll</span> <span class="o">*</span> <span class="n">sin_pitch</span> <span class="o">*</span> <span class="n">cos_yaw</span>
+    <span class="n">out_</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="n">cos_roll</span> <span class="o">*</span> <span class="n">cos_pitch</span> <span class="o">*</span> <span class="n">cos_yaw</span> <span class="o">+</span> <span class="n">sin_roll</span> <span class="o">*</span> <span class="n">sin_pitch</span> <span class="o">*</span> <span class="n">sin_yaw</span>
+    <span class="k">return</span> <span class="n">out_</span></div>
+
+
+
+<div class="viewcode-block" id="quat_multiply">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/utils/math.html#gym_jiminy.common.utils.math.quat_multiply">[docs]</a>
+<span class="nd">@nb</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="n">nopython</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">quat_multiply</span><span class="p">(</span><span class="n">quat_left</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                  <span class="n">quat_right</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                  <span class="n">out</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Compute the composition of rotations as pair-wise product of two single</span>
+<span class="sd">    or batches of quaternions [qx, qy, qz, qw], ie `quat_left * quat_right`.</span>
+
+<span class="sd">    .. warning::</span>
+<span class="sd">        Beware the argument order is important because the composition of</span>
+<span class="sd">        rotations is not commutative.</span>
+
+<span class="sd">    .. seealso::</span>
+<span class="sd">        See `https://en.wikipedia.org/wiki/Quaternions_and_spatial_rotation`.</span>
+
+<span class="sd">    :param quat_left: Left-hand side of the quaternion product, as a</span>
+<span class="sd">                      N-dimensional array whose first dimension gathers the 4</span>
+<span class="sd">                      quaternion coordinates [qx, qy, qz, qw].</span>
+<span class="sd">    :param quat_right: Right-hand side of the quaternion product, as a</span>
+<span class="sd">                       N-dimensional array whose first dimension gathers the 4</span>
+<span class="sd">                       quaternion coordinates [qx, qy, qz, qw].</span>
+<span class="sd">    :param out: A pre-allocated array into which the result is stored. If not</span>
+<span class="sd">                provided, a new array is freshly-allocated, which is slower.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">assert</span> <span class="n">quat_left</span><span class="o">.</span><span class="n">ndim</span> <span class="o">&gt;=</span> <span class="mi">1</span> <span class="ow">and</span> <span class="n">quat_left</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="n">quat_right</span><span class="o">.</span><span class="n">shape</span>
+    <span class="k">if</span> <span class="n">out</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">out_</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty_like</span><span class="p">(</span><span class="n">quat_left</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">assert</span> <span class="n">out</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="n">quat_left</span><span class="o">.</span><span class="n">shape</span>
+        <span class="n">out_</span> <span class="o">=</span> <span class="n">out</span>
+    <span class="p">(</span><span class="n">qx_l</span><span class="p">,</span> <span class="n">qy_l</span><span class="p">,</span> <span class="n">qz_l</span><span class="p">,</span> <span class="n">qw_l</span><span class="p">),</span> <span class="p">(</span><span class="n">qx_r</span><span class="p">,</span> <span class="n">qy_r</span><span class="p">,</span> <span class="n">qz_r</span><span class="p">,</span> <span class="n">qw_r</span><span class="p">)</span> <span class="o">=</span> <span class="n">quat_left</span><span class="p">,</span> <span class="n">quat_right</span>
+    <span class="c1"># qx_out, qy_out, qz_out, qw_out = out_</span>
+    <span class="n">out_</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">qw_l</span> <span class="o">*</span> <span class="n">qx_r</span> <span class="o">+</span> <span class="n">qx_l</span> <span class="o">*</span> <span class="n">qw_r</span> <span class="o">+</span> <span class="n">qy_l</span> <span class="o">*</span> <span class="n">qz_r</span> <span class="o">-</span> <span class="n">qz_l</span> <span class="o">*</span> <span class="n">qy_r</span>
+    <span class="n">out_</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">qw_l</span> <span class="o">*</span> <span class="n">qy_r</span> <span class="o">-</span> <span class="n">qx_l</span> <span class="o">*</span> <span class="n">qz_r</span> <span class="o">+</span> <span class="n">qy_l</span> <span class="o">*</span> <span class="n">qw_r</span> <span class="o">+</span> <span class="n">qz_l</span> <span class="o">*</span> <span class="n">qx_r</span>
+    <span class="n">out_</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">qw_l</span> <span class="o">*</span> <span class="n">qz_r</span> <span class="o">+</span> <span class="n">qx_l</span> <span class="o">*</span> <span class="n">qy_r</span> <span class="o">-</span> <span class="n">qy_l</span> <span class="o">*</span> <span class="n">qx_r</span> <span class="o">+</span> <span class="n">qz_l</span> <span class="o">*</span> <span class="n">qw_r</span>
+    <span class="n">out_</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="n">qw_l</span> <span class="o">*</span> <span class="n">qw_r</span> <span class="o">-</span> <span class="n">qx_l</span> <span class="o">*</span> <span class="n">qx_r</span> <span class="o">-</span> <span class="n">qy_l</span> <span class="o">*</span> <span class="n">qy_r</span> <span class="o">-</span> <span class="n">qz_l</span> <span class="o">*</span> <span class="n">qz_r</span>
+    <span class="k">return</span> <span class="n">out_</span></div>
+
+
+
+<div class="viewcode-block" id="compute_tilt_from_quat">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/utils/math.html#gym_jiminy.common.utils.math.compute_tilt_from_quat">[docs]</a>
+<span class="nd">@nb</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="n">nopython</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">compute_tilt_from_quat</span><span class="p">(</span><span class="n">q</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span>
+                           <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Compute e_z in R(q) frame (Euler-Rodrigues Formula): R(q).T @ e_z.</span>
+
+<span class="sd">    :param q: Array whose rows are the 4 components of quaternions (x, y, z, w)</span>
+<span class="sd">              and columns are N independent orientations.</span>
+
+<span class="sd">    :returns: Tuple of arrays corresponding to the 3 individual components</span>
+<span class="sd">              (a_x, a_y, a_z) of N independent tilt axes.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">q_x</span><span class="p">,</span> <span class="n">q_y</span><span class="p">,</span> <span class="n">q_z</span><span class="p">,</span> <span class="n">q_w</span> <span class="o">=</span> <span class="n">q</span>
+    <span class="n">v_x</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="n">q_x</span> <span class="o">*</span> <span class="n">q_z</span> <span class="o">-</span> <span class="n">q_y</span> <span class="o">*</span> <span class="n">q_w</span><span class="p">)</span>
+    <span class="n">v_y</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="n">q_y</span> <span class="o">*</span> <span class="n">q_z</span> <span class="o">+</span> <span class="n">q_w</span> <span class="o">*</span> <span class="n">q_x</span><span class="p">)</span>
+    <span class="n">v_z</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">-</span> <span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="n">q_x</span> <span class="o">*</span> <span class="n">q_x</span> <span class="o">+</span> <span class="n">q_y</span> <span class="o">*</span> <span class="n">q_y</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">v_x</span><span class="p">,</span> <span class="n">v_y</span><span class="p">,</span> <span class="n">v_z</span><span class="p">)</span></div>
+
+
+
+<span class="c1"># FIXME: Enabling cache causes segfault on Apple Silicon</span>
+<div class="viewcode-block" id="swing_from_vector">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/utils/math.html#gym_jiminy.common.utils.math.swing_from_vector">[docs]</a>
+<span class="nd">@no_type_check</span>
+<span class="nd">@nb</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="n">nopython</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">swing_from_vector</span><span class="p">(</span>
+        <span class="n">v_a</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">ArrayOrScalar</span><span class="p">,</span> <span class="n">ArrayOrScalar</span><span class="p">,</span> <span class="n">ArrayOrScalar</span><span class="p">],</span>
+        <span class="n">q</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Compute the &quot;smallest&quot; rotation transforming vector &#39;v_a&#39; in &#39;e_z&#39;.</span>
+
+<span class="sd">    :param v_a: Tuple of arrays corresponding to the 3 individual components</span>
+<span class="sd">                (a_x, a_y, a_z) of N independent tilt axes.</span>
+<span class="sd">    :param q: Array where the result will be stored. The rows are the 4</span>
+<span class="sd">              components of quaternions (x, y, z, w) and columns are the N</span>
+<span class="sd">              independent orientations.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Extract individual tilt components</span>
+    <span class="n">v_x</span><span class="p">,</span> <span class="n">v_y</span><span class="p">,</span> <span class="n">v_z</span> <span class="o">=</span> <span class="n">v_a</span>
+
+    <span class="c1"># There is a singularity when the rotation axis of orientation estimate</span>
+    <span class="c1"># and z-axis are nearly opposites, i.e. v_z ~= -1. One solution that</span>
+    <span class="c1"># ensure continuity of q_w is picked arbitrarily using SVD decomposition.</span>
+    <span class="c1"># See `Eigen::Quaternion::FromTwoVectors` implementation for details.</span>
+    <span class="k">if</span> <span class="n">q</span><span class="o">.</span><span class="n">ndim</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">is_singular</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">v_z</span> <span class="o">&lt;</span> <span class="o">-</span><span class="mf">1.0</span> <span class="o">+</span> <span class="n">TWIST_SWING_SINGULARITY_THR</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">is_singular</span> <span class="o">=</span> <span class="n">v_z</span> <span class="o">&lt;</span> <span class="o">-</span><span class="mf">1.0</span> <span class="o">+</span> <span class="n">TWIST_SWING_SINGULARITY_THR</span>
+    <span class="k">if</span> <span class="n">is_singular</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">q</span><span class="o">.</span><span class="n">ndim</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">q_i</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">q</span><span class="o">.</span><span class="n">T</span><span class="p">):</span>
+                <span class="n">swing_from_vector</span><span class="p">((</span><span class="n">v_x</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">v_y</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">v_z</span><span class="p">[</span><span class="n">i</span><span class="p">]),</span> <span class="n">q_i</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">_</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">v_h</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">svd</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">((</span>
+                <span class="p">(</span><span class="n">v_x</span><span class="p">,</span> <span class="n">v_y</span><span class="p">,</span> <span class="n">v_z</span><span class="p">),</span>
+                <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">))</span>
+            <span class="p">),</span> <span class="n">full_matrices</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">w_2</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="nb">max</span><span class="p">(</span><span class="n">v_z</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">))</span> <span class="o">/</span> <span class="mi">2</span>
+            <span class="n">q</span><span class="p">[:</span><span class="mi">3</span><span class="p">],</span> <span class="n">q</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="n">v_h</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">w_2</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">w_2</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">v_z</span><span class="p">))</span>
+        <span class="n">q</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">q</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">q</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">q</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="n">v_y</span> <span class="o">/</span> <span class="n">s</span><span class="p">,</span> <span class="o">-</span> <span class="n">v_x</span> <span class="o">/</span> <span class="n">s</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="n">s</span> <span class="o">/</span> <span class="mi">2</span>
+
+    <span class="c1"># First order quaternion normalization to prevent compounding of errors.</span>
+    <span class="c1"># If not done, shit may happen with removing twist again and again on the</span>
+    <span class="c1"># same quaternion, which is typically the case when the IMU is steady, so</span>
+    <span class="c1"># that the mahony filter update is actually skipped internally.</span>
+    <span class="n">q</span> <span class="o">*=</span> <span class="p">(</span><span class="mf">3.0</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">square</span><span class="p">(</span><span class="n">q</span><span class="p">),</span> <span class="mi">0</span><span class="p">))</span> <span class="o">/</span> <span class="mi">2</span></div>
+
+
+
+<span class="c1"># FIXME: Enabling cache causes segfault on Apple Silicon</span>
+<div class="viewcode-block" id="remove_twist_from_quat">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/utils/math.html#gym_jiminy.common.utils.math.remove_twist_from_quat">[docs]</a>
+<span class="nd">@nb</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="n">nopython</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">remove_twist_from_quat</span><span class="p">(</span><span class="n">q</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Remove the twist part of the Twist-after-Swing decomposition of given</span>
+<span class="sd">    orientations in quaternion representation.</span>
+
+<span class="sd">    Any rotation R can be decomposed as:</span>
+
+<span class="sd">        R = R_z * R_s</span>
+
+<span class="sd">    where R_z (the twist) is a rotation around e_z and R_s (the swing) is</span>
+<span class="sd">    the &quot;smallest&quot; rotation matrix such that t(R_s) = t(R).</span>
+
+<span class="sd">    .. seealso::</span>
+<span class="sd">        * See &quot;Estimation and control of the deformations of an exoskeleton</span>
+<span class="sd">          using inertial sensors&quot;, PhD Thesis, M. Vigne, 2021, p. 130.</span>
+<span class="sd">        * See &quot;Swing-twist decomposition in Clifford algebra&quot;, P. Dobrowolski,</span>
+<span class="sd">          2015 (https://arxiv.org/abs/1506.05481)</span>
+
+<span class="sd">    :param q: Array whose rows are the 4 components of quaternions (x, y, z, w)</span>
+<span class="sd">              and columns are N independent orientations from which to remove</span>
+<span class="sd">              the swing part. It will be updated in-place.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Compute e_z in R(q) frame (Euler-Rodrigues Formula): R(q).T @ e_z</span>
+    <span class="n">v_a</span> <span class="o">=</span> <span class="n">compute_tilt_from_quat</span><span class="p">(</span><span class="n">q</span><span class="p">)</span>
+
+    <span class="c1"># Compute the &quot;smallest&quot; rotation transforming vector &#39;v_a&#39; in &#39;e_z&#39;</span>
+    <span class="n">swing_from_vector</span><span class="p">(</span><span class="n">v_a</span><span class="p">,</span> <span class="n">q</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="quat_average">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/utils/math.html#gym_jiminy.common.utils.math.quat_average">[docs]</a>
+<span class="k">def</span> <span class="nf">quat_average</span><span class="p">(</span><span class="n">quat</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                 <span class="n">axis</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">],</span> <span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+                 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Compute the average of a batch of quaternions [qx, qy, qz, qw] over some</span>
+<span class="sd">    or all axes.</span>
+
+<span class="sd">    Here, the average is defined as a quaternion minimizing the mean error</span>
+<span class="sd">    wrt every individual quaternion. The distance metric used as error is the</span>
+<span class="sd">    dot product of quaternions `p.dot(q)`, which is directly related to the</span>
+<span class="sd">    angle between them `cos(angle(p.conjugate() * q) / 2)`. This metric as the</span>
+<span class="sd">    major advantage to yield a quadratic problem, which can be solved very</span>
+<span class="sd">    efficiently, unlike the squared angle `angle(p.conjugate() * q) ** 2`.</span>
+
+<span class="sd">    :param quat: N-dimensional (N &gt;= 2) array whose first dimension gathers the</span>
+<span class="sd">                 4 quaternion coordinates [qx, qy, qz, qw].</span>
+<span class="sd">    :param out: A pre-allocated array into which the result is stored. If not</span>
+<span class="sd">                provided, a new array is freshly-allocated, which is slower.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># TODO: This function cannot be jitted because numba does not support</span>
+    <span class="c1"># batched matrix multiplication for now. See official issue for details:</span>
+    <span class="c1"># https://github.com/numba/numba/issues/3804</span>
+    <span class="k">assert</span> <span class="n">quat</span><span class="o">.</span><span class="n">ndim</span> <span class="o">&gt;=</span> <span class="mi">2</span>
+    <span class="k">if</span> <span class="n">axis</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">axis</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">quat</span><span class="o">.</span><span class="n">ndim</span><span class="p">))</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">axis</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="n">axis</span> <span class="o">=</span> <span class="p">(</span><span class="n">axis</span><span class="p">,)</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">axis</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="mi">0</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">axis</span>
+    <span class="n">q_perm</span> <span class="o">=</span> <span class="n">quat</span><span class="o">.</span><span class="n">transpose</span><span class="p">((</span>
+        <span class="o">*</span><span class="p">(</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">quat</span><span class="o">.</span><span class="n">ndim</span><span class="p">)</span> <span class="k">if</span> <span class="n">i</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">axis</span><span class="p">),</span> <span class="mi">0</span><span class="p">,</span> <span class="o">*</span><span class="n">axis</span><span class="p">))</span>
+    <span class="n">q_flat</span> <span class="o">=</span> <span class="n">q_perm</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="o">*</span><span class="n">q_perm</span><span class="o">.</span><span class="n">shape</span><span class="p">[:</span><span class="o">-</span><span class="nb">len</span><span class="p">(</span><span class="n">axis</span><span class="p">)],</span> <span class="o">-</span><span class="mi">1</span><span class="p">))</span>
+    <span class="n">_</span><span class="p">,</span> <span class="n">eigvec</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">eigh</span><span class="p">(</span><span class="n">q_flat</span> <span class="o">@</span> <span class="n">np</span><span class="o">.</span><span class="n">swapaxes</span><span class="p">(</span><span class="n">q_flat</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">2</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">moveaxis</span><span class="p">(</span><span class="n">eigvec</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, Alexis Duburcq - MIT licence.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

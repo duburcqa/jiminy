@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>gym_jiminy.common.utils.pipeline &mdash; jiminy 1.8.3 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../../_static/documentation_options.js?v=82e6e318"></script>
+        <script src="../../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            jiminy
+              <img src="../../../../_static/jiminy_logo.svg" class="logo" alt="Logo"/>
+          </a>
+              <div class="version">
+                1.8.3
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">README</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html">Key features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#gym-jiminy">Gym Jiminy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#demo">Demo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#getting-started">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">INSTALLATION</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html">Easy-install on Ubuntu 18+</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html#building-from-source">Building from source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">TUTORIALS</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorial.html">An introduction to Jiminy</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API DOC</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/jiminy/index.html">Jiminy C++ API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/jiminy_py/index.html">Jiminy Python API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/gym_jiminy/common/index.html">Gym Jiminy API</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Technical Specifications</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/src/tlmc_format_specification.html">HDF5 telemetry log format (TLMC)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/pdf/index.html">Downloadable PDF</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">jiminy</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">gym_jiminy.common.utils.pipeline</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for gym_jiminy.common.utils.pipeline</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Helper methods to generate learning environment pipeline, consisting in an</span>
+<span class="sd">bare-bone environment inheriting from `BaseJiminyEnv`, wrapped together with</span>
+<span class="sd">any number of successive blocks as a unified environment, in Matlab Simulink</span>
+<span class="sd">fashion.</span>
+
+<span class="sd">It enables to break down a complex control architectures in many submodules,</span>
+<span class="sd">making it easier to maintain and avoiding code duplications between use cases.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">pathlib</span>
+<span class="kn">from</span> <span class="nn">pydoc</span> <span class="kn">import</span> <span class="n">locate</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">Dict</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Type</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">TypedDict</span><span class="p">)</span>
+
+<span class="kn">import</span> <span class="nn">toml</span>
+<span class="kn">import</span> <span class="nn">gymnasium</span> <span class="k">as</span> <span class="nn">gym</span>
+
+<span class="kn">from</span> <span class="nn">..bases</span> <span class="kn">import</span> <span class="p">(</span><span class="n">InterfaceJiminyEnv</span><span class="p">,</span>
+                     <span class="n">InterfaceBlock</span><span class="p">,</span>
+                     <span class="n">BaseControllerBlock</span><span class="p">,</span>
+                     <span class="n">BaseObserverBlock</span><span class="p">,</span>
+                     <span class="n">BasePipelineWrapper</span><span class="p">,</span>
+                     <span class="n">ObservedJiminyEnv</span><span class="p">,</span>
+                     <span class="n">ControlledJiminyEnv</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">..envs</span> <span class="kn">import</span> <span class="n">BaseJiminyEnv</span>
+
+
+<div class="viewcode-block" id="EnvConfig">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/utils/pipeline.html#gym_jiminy.common.utils.pipeline.EnvConfig">[docs]</a>
+<span class="k">class</span> <span class="nc">EnvConfig</span><span class="p">(</span><span class="n">TypedDict</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Environment class type.</span>
+
+<span class="sd">    .. note::</span>
+<span class="sd">        Both class type or fully qualified dotted path are supported.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="bp">cls</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Type</span><span class="p">[</span><span class="n">BaseJiminyEnv</span><span class="p">],</span> <span class="nb">str</span><span class="p">]</span>
+
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Environment constructor default arguments.</span>
+
+<span class="sd">    This attribute can be omitted.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">kwargs</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span></div>
+
+
+
+<div class="viewcode-block" id="BlockConfig">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/utils/pipeline.html#gym_jiminy.common.utils.pipeline.BlockConfig">[docs]</a>
+<span class="k">class</span> <span class="nc">BlockConfig</span><span class="p">(</span><span class="n">TypedDict</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Block class type. If must derive from `BaseControllerBlock` for</span>
+<span class="sd">    controller blocks or from `BaseObserverBlock` for observer blocks.</span>
+
+<span class="sd">    .. note::</span>
+<span class="sd">        Both class type or fully qualified dotted path are supported.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="bp">cls</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Type</span><span class="p">[</span><span class="n">BaseControllerBlock</span><span class="p">],</span> <span class="n">Type</span><span class="p">[</span><span class="n">BaseObserverBlock</span><span class="p">],</span> <span class="nb">str</span><span class="p">]</span>
+
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Block constructor default arguments.</span>
+
+<span class="sd">    This attribute can be omitted.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">kwargs</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span></div>
+
+
+
+<div class="viewcode-block" id="WrapperConfig">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/utils/pipeline.html#gym_jiminy.common.utils.pipeline.WrapperConfig">[docs]</a>
+<span class="k">class</span> <span class="nc">WrapperConfig</span><span class="p">(</span><span class="n">TypedDict</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Wrapper class type.</span>
+
+<span class="sd">    .. note::</span>
+<span class="sd">        Both class type or fully qualified dotted path are supported.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="bp">cls</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Type</span><span class="p">[</span><span class="n">BasePipelineWrapper</span><span class="p">],</span> <span class="nb">str</span><span class="p">]</span>
+
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Wrapper constructor default arguments.</span>
+
+<span class="sd">    This attribute can be omitted.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">kwargs</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span></div>
+
+
+
+<div class="viewcode-block" id="LayerConfig">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/utils/pipeline.html#gym_jiminy.common.utils.pipeline.LayerConfig">[docs]</a>
+<span class="k">class</span> <span class="nc">LayerConfig</span><span class="p">(</span><span class="n">TypedDict</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Block constructor default arguments.</span>
+
+<span class="sd">    This attribute can be omitted. If so, then &#39;wrapper_cls&#39; must be</span>
+<span class="sd">    specified and must not require any block. Typically, it happens when the</span>
+<span class="sd">    wrapper is not doing any computation on its own but just transforming the</span>
+<span class="sd">    action or observation, e.g. stacking observation frames.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">block</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">BlockConfig</span><span class="p">]</span>
+
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Wrapper configuration.</span>
+
+<span class="sd">    This attribute can be omitted. If so, then &#39;block&#39; must be specified and</span>
+<span class="sd">    must this block must be associated with a unique wrapper type to allow for</span>
+<span class="sd">    automatic type inference. It works with any observer and controller block.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">wrapper</span><span class="p">:</span> <span class="n">WrapperConfig</span></div>
+
+
+
+<div class="viewcode-block" id="build_pipeline">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/utils/pipeline.html#gym_jiminy.common.utils.pipeline.build_pipeline">[docs]</a>
+<span class="k">def</span> <span class="nf">build_pipeline</span><span class="p">(</span><span class="n">env_config</span><span class="p">:</span> <span class="n">EnvConfig</span><span class="p">,</span>
+                   <span class="n">layers_config</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">LayerConfig</span><span class="p">]</span>
+                   <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">InterfaceJiminyEnv</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Wrap together an environment inheriting from `BaseJiminyEnv` with any</span>
+<span class="sd">    number of layers, as a unified pipeline environment class inheriting from</span>
+<span class="sd">    `BasePipelineWrapper`. Each layer is wrapped individually and successively.</span>
+
+<span class="sd">    :param env_config:</span>
+<span class="sd">        Configuration of the environment, as a dict of type `EnvConfig`.</span>
+
+<span class="sd">    :param layers_config:</span>
+<span class="sd">        Configuration of the blocks, as a list. The list is ordered from the</span>
+<span class="sd">        lowest level layer to the highest, each element corresponding to the</span>
+<span class="sd">        configuration of a individual layer, as a dict of type `LayerConfig`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Define helper to wrap a single layer</span>
+    <span class="k">def</span> <span class="nf">build_layer</span><span class="p">(</span><span class="n">env_creator</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">InterfaceJiminyEnv</span><span class="p">],</span>
+                    <span class="n">wrapper_cls</span><span class="p">:</span> <span class="n">Type</span><span class="p">[</span><span class="n">BasePipelineWrapper</span><span class="p">],</span>
+                    <span class="n">wrapper_kwargs</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span>
+                    <span class="n">block_cls</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Type</span><span class="p">[</span><span class="n">InterfaceBlock</span><span class="p">]],</span>
+                    <span class="n">block_kwargs</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span>
+                    <span class="o">**</span><span class="n">env_kwargs</span><span class="p">:</span> <span class="n">Any</span>
+                    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">BasePipelineWrapper</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Helper wrapping a base environment or a pipeline with additional</span>
+<span class="sd">        layer, typically an observer or a controller.</span>
+
+<span class="sd">        :param env_creator: Callable that takes optional keyword arguments as</span>
+<span class="sd">                            input and returns an pipeline or base environment.</span>
+<span class="sd">        :param block_cls: Type of block to connect to the environment, if</span>
+<span class="sd">                            any. `None` to disable.</span>
+<span class="sd">                            Optional: Disabled by default</span>
+<span class="sd">        :param block_kwargs: Keyword arguments to forward to the constructor of</span>
+<span class="sd">                             the wrapped block. See &#39;env_kwargs&#39;.</span>
+<span class="sd">        :param wrapper_cls: Type of wrapper to use to gather the environment</span>
+<span class="sd">                              and the block.</span>
+<span class="sd">        :param wrapper_kwargs: Keyword arguments to forward to the constructor</span>
+<span class="sd">                               of the wrapper. See &#39;env_kwargs&#39;.</span>
+<span class="sd">        :param env_kwargs: Keyword arguments to forward to the constructor of</span>
+<span class="sd">                           the wrapped environment. Note that it will only</span>
+<span class="sd">                           overwrite the default value, so it will still be</span>
+<span class="sd">                           possible to set different values by explicitly</span>
+<span class="sd">                           defining them when calling the constructor of the</span>
+<span class="sd">                           generated wrapper.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Initialize constructor arguments</span>
+        <span class="n">args</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="c1"># Instantiate the environment, which may be a lower-level wrapper</span>
+        <span class="n">env</span> <span class="o">=</span> <span class="n">env_creator</span><span class="p">(</span><span class="o">**</span><span class="n">env_kwargs</span><span class="p">)</span>
+        <span class="n">args</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">env</span><span class="p">)</span>
+
+        <span class="c1"># Instantiate the block associated with the wrapper if any</span>
+        <span class="k">if</span> <span class="n">block_cls</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">block_name</span> <span class="o">=</span> <span class="n">block_kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;name&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">block_name</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">block_index</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="n">env_wrapper</span><span class="p">:</span> <span class="n">gym</span><span class="o">.</span><span class="n">Env</span> <span class="o">=</span> <span class="n">env</span>
+                <span class="k">while</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">env_wrapper</span><span class="p">,</span> <span class="n">BasePipelineWrapper</span><span class="p">):</span>
+                    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">env_wrapper</span><span class="p">,</span> <span class="n">ControlledJiminyEnv</span><span class="p">):</span>
+                        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">env_wrapper</span><span class="o">.</span><span class="n">controller</span><span class="p">,</span> <span class="n">block_cls</span><span class="p">):</span>
+                            <span class="n">block_index</span> <span class="o">+=</span> <span class="mi">1</span>
+                    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">env_wrapper</span><span class="p">,</span> <span class="n">ObservedJiminyEnv</span><span class="p">):</span>
+                        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">env_wrapper</span><span class="o">.</span><span class="n">observer</span><span class="p">,</span> <span class="n">block_cls</span><span class="p">):</span>
+                            <span class="n">block_index</span> <span class="o">+=</span> <span class="mi">1</span>
+                    <span class="n">env_wrapper</span> <span class="o">=</span> <span class="n">env_wrapper</span><span class="o">.</span><span class="n">env</span>
+                <span class="n">block_name</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span>
+                    <span class="sa">r</span><span class="s2">&quot;([a-z\d])([A-Z])&quot;</span><span class="p">,</span> <span class="sa">r</span><span class="s1">&#39;\1_\2&#39;</span><span class="p">,</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span>
+                        <span class="sa">r</span><span class="s2">&quot;([A-Z]+)([A-Z][a-z])&quot;</span><span class="p">,</span> <span class="sa">r</span><span class="s1">&#39;\1_\2&#39;</span><span class="p">,</span> <span class="n">block_cls</span><span class="o">.</span><span class="vm">__name__</span><span class="p">)</span>
+                    <span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">block_index</span><span class="p">:</span>
+                    <span class="n">block_name</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;_</span><span class="si">{</span><span class="n">block_index</span><span class="si">}</span><span class="s2">&quot;</span>
+
+            <span class="n">block</span> <span class="o">=</span> <span class="n">block_cls</span><span class="p">(</span><span class="n">block_name</span><span class="p">,</span> <span class="n">env</span><span class="p">,</span> <span class="o">**</span><span class="n">block_kwargs</span><span class="p">)</span>
+            <span class="n">args</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">block</span><span class="p">)</span>
+
+        <span class="c1"># Instantiate the wrapper</span>
+        <span class="k">return</span> <span class="n">wrapper_cls</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">wrapper_kwargs</span><span class="p">)</span>
+
+    <span class="c1"># Define callback for instantiating the base environment</span>
+    <span class="n">env_cls</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Type</span><span class="p">[</span><span class="n">InterfaceJiminyEnv</span><span class="p">],</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">env_config</span><span class="p">[</span><span class="s2">&quot;cls&quot;</span><span class="p">]</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">env_cls</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="n">obj</span> <span class="o">=</span> <span class="n">locate</span><span class="p">(</span><span class="n">env_cls</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="nb">type</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">InterfaceJiminyEnv</span><span class="p">)</span>
+        <span class="n">env_cls</span> <span class="o">=</span> <span class="n">obj</span>
+    <span class="n">pipeline_creator</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">InterfaceJiminyEnv</span><span class="p">]</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span>
+        <span class="n">env_cls</span><span class="p">,</span> <span class="o">**</span><span class="n">env_config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;kwargs&quot;</span><span class="p">,</span> <span class="p">{}))</span>
+
+    <span class="c1"># Generate pipeline recursively</span>
+    <span class="k">for</span> <span class="n">layer_config</span> <span class="ow">in</span> <span class="n">layers_config</span><span class="p">:</span>
+        <span class="c1"># Extract block and wrapper config</span>
+        <span class="n">block_config</span> <span class="o">=</span> <span class="n">layer_config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;block&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="p">{}</span>
+        <span class="n">wrapper_config</span> <span class="o">=</span> <span class="n">layer_config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;wrapper&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="p">{}</span>
+
+        <span class="c1"># Make sure block and wrappers are class type and parse them if string</span>
+        <span class="n">block_cls</span> <span class="o">=</span> <span class="n">block_config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;cls&quot;</span><span class="p">)</span>
+        <span class="n">block_cls_</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Type</span><span class="p">[</span><span class="n">InterfaceBlock</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">block_cls</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="n">obj</span> <span class="o">=</span> <span class="n">locate</span><span class="p">(</span><span class="n">block_cls</span><span class="p">)</span>
+            <span class="k">assert</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="nb">type</span><span class="p">)</span> <span class="ow">and</span>
+                    <span class="nb">issubclass</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">InterfaceBlock</span><span class="p">))</span>
+            <span class="n">block_cls_</span> <span class="o">=</span> <span class="n">obj</span>
+        <span class="k">elif</span> <span class="n">block_cls</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">assert</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">block_cls</span><span class="p">,</span> <span class="n">InterfaceBlock</span><span class="p">)</span>
+            <span class="n">block_cls_</span> <span class="o">=</span> <span class="n">block_cls</span>
+        <span class="n">wrapper_cls</span> <span class="o">=</span> <span class="n">wrapper_config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;cls&quot;</span><span class="p">)</span>
+        <span class="n">wrapper_cls_</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Type</span><span class="p">[</span><span class="n">BasePipelineWrapper</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">wrapper_cls</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="n">obj</span> <span class="o">=</span> <span class="n">locate</span><span class="p">(</span><span class="n">wrapper_cls</span><span class="p">)</span>
+            <span class="k">assert</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="nb">type</span><span class="p">)</span> <span class="ow">and</span>
+                    <span class="nb">issubclass</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">BasePipelineWrapper</span><span class="p">))</span>
+            <span class="n">wrapper_cls_</span> <span class="o">=</span> <span class="n">obj</span>
+        <span class="k">elif</span> <span class="n">wrapper_cls</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">assert</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">wrapper_cls</span><span class="p">,</span> <span class="nb">type</span><span class="p">)</span> <span class="ow">and</span>
+                    <span class="nb">issubclass</span><span class="p">(</span><span class="n">wrapper_cls</span><span class="p">,</span> <span class="n">BasePipelineWrapper</span><span class="p">))</span>
+            <span class="n">wrapper_cls_</span> <span class="o">=</span> <span class="n">wrapper_cls</span>
+
+        <span class="c1"># Handling of default keyword arguments</span>
+        <span class="n">block_kwargs</span> <span class="o">=</span> <span class="n">block_config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;kwargs&quot;</span><span class="p">,</span> <span class="p">{})</span>
+        <span class="n">wrapper_kwargs</span> <span class="o">=</span> <span class="n">wrapper_config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;kwargs&quot;</span><span class="p">,</span> <span class="p">{})</span>
+
+        <span class="c1"># Handling of default wrapper class type</span>
+        <span class="k">if</span> <span class="n">wrapper_cls_</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">block_cls_</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">if</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">block_cls_</span><span class="p">,</span> <span class="n">BaseControllerBlock</span><span class="p">):</span>
+                    <span class="n">wrapper_cls_</span> <span class="o">=</span> <span class="n">ControlledJiminyEnv</span>
+                <span class="k">elif</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">block_cls_</span><span class="p">,</span> <span class="n">BaseObserverBlock</span><span class="p">):</span>
+                    <span class="n">wrapper_cls_</span> <span class="o">=</span> <span class="n">ObservedJiminyEnv</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                        <span class="sa">f</span><span class="s2">&quot;Block of type &#39;</span><span class="si">{</span><span class="n">block_cls_</span><span class="si">}</span><span class="s2">&#39; does not support &quot;</span>
+                        <span class="s2">&quot;automatic default wrapper type inference. Please &quot;</span>
+                        <span class="s2">&quot;specify it manually.&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s2">&quot;Either &#39;block.cls&#39; or &#39;wrapper.cls&#39; must be specified.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Add layer on top of the existing pipeline</span>
+        <span class="n">pipeline_creator</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span><span class="n">build_layer</span><span class="p">,</span>
+                                   <span class="n">pipeline_creator</span><span class="p">,</span>
+                                   <span class="n">wrapper_cls_</span><span class="p">,</span>
+                                   <span class="n">wrapper_kwargs</span><span class="p">,</span>
+                                   <span class="n">block_cls_</span><span class="p">,</span>
+                                   <span class="n">block_kwargs</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">pipeline_creator</span></div>
+
+
+
+<div class="viewcode-block" id="load_pipeline">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/utils/pipeline.html#gym_jiminy.common.utils.pipeline.load_pipeline">[docs]</a>
+<span class="k">def</span> <span class="nf">load_pipeline</span><span class="p">(</span><span class="n">fullpath</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">InterfaceJiminyEnv</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Load pipeline from JSON or TOML configuration file.</span>
+
+<span class="sd">    :param: Fullpath of the configuration file.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">file_ext</span> <span class="o">=</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">(</span><span class="n">fullpath</span><span class="p">)</span><span class="o">.</span><span class="n">suffix</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">fullpath</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">file_ext</span> <span class="o">==</span> <span class="s1">&#39;.json&#39;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">build_pipeline</span><span class="p">(</span><span class="o">**</span><span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">file_ext</span> <span class="o">==</span> <span class="s1">&#39;.toml&#39;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">build_pipeline</span><span class="p">(</span><span class="o">**</span><span class="n">toml</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">))</span>
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Only json and toml formats are supported.&quot;</span><span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, Alexis Duburcq - MIT licence.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
