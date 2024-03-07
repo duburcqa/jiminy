@@ -1,4 +1,9 @@
-""" TODO: Write documentation.
+"""Utilities operating over complex `Gym.Space`s associated with arbitrarily
+nested data structure of `np.ndarray` and heavily optimized for speed.
+
+They combine static control flow pre-computed for given space and eventually
+some pre-allocated values with Just-In-Time (JIT) compiling via Numba when
+possible for optimal performance.
 """
 import math
 from functools import partial
@@ -34,7 +39,7 @@ ArrayOrScalar = Union[np.ndarray, SupportsFloat]
 
 
 @no_type_check
-@nb.jit(nopython=True, cache=True)
+@nb.jit(nopython=True, cache=True, fastmath=True)
 def _array_clip(value: np.ndarray,
                 low: Optional[ArrayOrScalar],
                 high: Optional[ArrayOrScalar]) -> np.ndarray:
@@ -44,26 +49,35 @@ def _array_clip(value: np.ndarray,
     :param low: Optional lower bound.
     :param high: Optional upper bound.
     """
+    # Note that in-place clipping is actually slower than out-of-place in
+    # Numba when 'fastmath' compilation flag is set.
+
+    # Short circuit if there is neither low or high bounds
     if low is None and high is None:
         return value.copy()
+
+    # Generic case.
+    # Note that chaining `np.minimum` with `np.maximum` yields to better
+    # performance than `np.clip` when 'fastmath' compilation flag is set.
     if value.ndim:
-        out_nd = value
+        if low is not None and high is not None:
+            return np.minimum(np.maximum(value, low), high)
         if low is not None:
-            out_nd = np.maximum(out_nd, low)
-        if high is not None:
-            out_nd = np.minimum(out_nd, high)
-        return out_nd
-    # Surprisingly, calling '.item()' on python scalars is supported by numba
-    out_0d = value.item()
+            return np.maximum(value, low)
+        return np.minimum(value, high)
+
+    # Scalar case.
+    # Strangely, calling '.item()' on Python scalars is supported by Numba.
+    out = value.item()
     if low is not None:
-        out_0d = max(out_0d, low.item())
+        out = max(out, low.item())
     if high is not None:
-        out_0d = min(out_0d, high.item())
-    return np.array(out_0d)
+        out = min(out, high.item())
+    return np.array(out)
 
 
 @no_type_check
-@nb.jit(nopython=True, cache=True)
+@nb.jit(nopython=True, cache=True, fastmath=True)
 def _array_contains(value: np.ndarray,
                     low: Optional[ArrayOrScalar],
                     high: Optional[ArrayOrScalar],
@@ -909,7 +923,7 @@ def build_map(fn: Callable[..., ValueT],
             return post_fn
 
         # Create new empty container to all transformed values.
-        # TODO: The actual container should be created at the end if unmutable.
+        # FIXME: Immutable containers should be instantiated at the end.
         def _create(cls: Type[ValueT], *args: Any) -> ValueT:
             # pylint: disable=unused-argument
             return cls()

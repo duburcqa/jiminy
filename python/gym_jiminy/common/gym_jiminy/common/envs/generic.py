@@ -39,7 +39,7 @@ from jiminy_py.viewer.viewer import (DEFAULT_CAMERA_XYZRPY_REL,
                                      Viewer)
 from jiminy_py.viewer.replay import viewer_lock  # type: ignore[attr-defined]
 
-from pinocchio import neutral, normalize, framesForwardKinematics
+import pinocchio as pin
 
 from ..utils import (FieldNested,
                      DataNested,
@@ -61,7 +61,7 @@ from .internal import loop_interactive
 
 
 # Maximum realtime slowdown of simulation steps before triggering timeout error
-TIMEOUT_RATIO = 50
+TIMEOUT_RATIO = 10
 
 # Absolute tolerance when checking that observations are valid
 OBS_CONTAINS_TOL = 0.01
@@ -102,11 +102,11 @@ class _LazyDictItemFilter(Mapping):
 
 class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
                     Generic[ObsT, ActT]):
-    """Base class to train a robot in Gym OpenAI using a user-specified Python
-    Jiminy engine for physics computations.
+    """Base class to train an agent in Gym OpenAI using Jiminy simulator for
+    physics computations.
 
-    It creates an Gym environment wrapping Jiminy Engine and behaves like any
-    other Gym environment.
+    It creates an Gym environment wrapping an already instantiated Jiminy
+    simulator and behaves like any standard Gym environment.
 
     The observation space is a dictionary gathering the current simulation
     time, the real robot state, and the sensors data. The action is a vector
@@ -167,13 +167,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
             else:
                 render_mode = 'rgb_array'
 
-        # Make sure the rendering mode is valid.
-        if render_mode == 'human' and {
-                **kwargs, **simulator.viewer_kwargs
-                }.get('backend') == 'panda3d-sync':
-            raise ValueError(
-                "render_mode='human' is incompatible with "
-                "backend='panda3d-sync'.")
+        # Make sure that rendering mode is valid
         assert render_mode in self.metadata['render_modes']
 
         # Backup some user arguments
@@ -183,17 +177,17 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         self.enforce_bounded_spaces = enforce_bounded_spaces
         self.debug = debug
 
-        # Define some proxies for fast access
+        # Define some proxies for fast access.
+        # Note that some of them will be initialized in `_setup` method.
         self.engine: jiminy.Engine = self.simulator.engine
-        self.robot = self.simulator.robot
         self.stepper_state = self.simulator.stepper_state
         self.is_simulation_running = self.simulator.is_simulation_running
+        self.robot = self.simulator.robot
         self.robot_state = self.simulator.robot_state
-        self._robot_state_q = self.robot_state.q
-        self._robot_state_v = self.robot_state.v
-        self._robot_state_a = self.robot_state.a
-        self.sensor_measurements: SensorMeasurementStackMap = OrderedDict(
-            self.robot.sensor_measurements)
+        self._robot_state_q = np.array([])
+        self._robot_state_v = np.array([])
+        self._robot_state_a = np.array([])
+        self.sensor_measurements: SensorMeasurementStackMap = OrderedDict()
 
         # Top-most block of the pipeline to which the environment is part of
         self._env_derived: InterfaceJiminyEnv = self
@@ -254,9 +248,9 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
             [], DataNested] = OrderedDict
 
         # Set robot in neutral configuration
-        qpos = self._neutral()
-        framesForwardKinematics(
-            self.robot.pinocchio_model, self.robot.pinocchio_data, qpos)
+        q = self._neutral()
+        pin.framesForwardKinematics(
+            self.robot.pinocchio_model, self.robot.pinocchio_data, q)
 
         # Configure the default camera pose if not already done
         if "camera_pose" not in self.simulator.viewer_kwargs:
@@ -689,8 +683,8 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         # otherwise some proxies would be corrupted.
         if self.engine is not self.simulator.engine:
             raise RuntimeError(
-                "Changing unexpectedly the memory address of the low-level "
-                "jiminy engine is an undefined behavior.")
+                "Changing the memory address of the low-level jiminy engine "
+                "is an undefined behavior.")
 
         # Re-initialize some shared memories.
         # It is necessary because the robot may have changed.
@@ -729,6 +723,47 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         if self.observe_dt < 0.0:
             self.observe_dt = self.control_dt
 
+        # Make sure that both the observer and the controller are running
+        # faster than the environment to which it is attached for the action to
+        # take effect and be observable. Moreover, their respective update
+        # period must be a divisor of the environment step for both
+        # computational efficiency and avoid breaking markovian assumption due
+        # to previous action having a direct effect on the next step.
+        control_update_ratio, observe_update_ratio = 0.0, 0.0
+        if self.observe_dt > 0.0:
+            observe_update_ratio = round(self.step_dt / self.observe_dt, 10)
+            assert round(observe_update_ratio) == observe_update_ratio, (
+                "Observer update period must be a divisor of environment "
+                "simulation timestep")
+        if self.control_dt > 0.0:
+            control_update_ratio = round(self.step_dt / self.control_dt, 10)
+            assert round(control_update_ratio) == control_update_ratio, (
+                "Controller update period must be a divisor of environment "
+                "simulation timestep")
+
+        # Sample the initial state and reset the low-level engine
+        q_init, v_init = self._sample_state()
+        if not jiminy.is_position_valid(
+                self.simulator.pinocchio_model, q_init):
+            raise RuntimeError(
+                "The initial state provided by `_sample_state` is "
+                "inconsistent with the dimension or types of joints of the "
+                "model.")
+
+        # Set robot in initial configuration
+        pin.framesForwardKinematics(
+            self.robot.pinocchio_model, self.robot.pinocchio_data, q_init)
+
+        # Initialize sensor measurements that are zero-ed at this point. This
+        # may be necessary for pre-compiling blocks before actually starting
+        # the simulation to avoid triggering timeout error. Indeed, some
+        # computations may require valid sensor data, such as normalized
+        # quaternion or non-zero linear acceleration.
+        a_init, u_motor = (np.zeros(self.robot.nv),) * 2
+        f_external = [pin.Force.Zero(),] * self.robot.pinocchio_model.njoints
+        self.robot.compute_sensor_measurements(
+            0.0, q_init, v_init, a_init, u_motor, f_external)
+
         # Run the reset hook if any.
         # Note that the reset hook must be called after `_setup` because it
         # expects that the robot is not going to change anymore at this point.
@@ -755,18 +790,9 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         for header, value in self._registered_variables.values():
             register_variables(self.robot.controller, header, value)
 
-        # Sample the initial state and reset the low-level engine
-        qpos, qvel = self._sample_state()
-        if not jiminy.is_position_valid(
-                self.simulator.pinocchio_model, qpos):
-            raise RuntimeError(
-                "The initial state provided by `_sample_state` is "
-                "inconsistent with the dimension or types of joints of the "
-                "model.")
-
         # Start the engine
         self.simulator.start(
-            qpos, qvel, None, self.simulator.use_theoretical_model)
+            q_init, v_init, None, self.simulator.use_theoretical_model)
 
         # Refresh robot_state proxies. It must be done here because memory is
         # only allocated by the engine when starting a simulation.
@@ -1302,16 +1328,11 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         # Update engine options
         self.simulator.engine.set_options(engine_options)
 
-        # Set robot in neutral configuration
-        qpos = self._neutral()
-        framesForwardKinematics(
-            self.robot.pinocchio_model, self.robot.pinocchio_data, qpos)
-
     def _initialize_observation_space(self) -> None:
         """Configure the observation of the environment.
 
         By default, the observation is a dictionary gathering the current
-        simulation time, the real robot state, and the sensors data.
+        simulation time, the real agent state, and the sensors data.
 
         .. note::
             This method is called internally by `reset` method at the very end,
@@ -1327,7 +1348,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         self.observation_space = spaces.Dict(observation_spaces)
 
     def _neutral(self) -> np.ndarray:
-        """Returns a neutral valid configuration for the robot.
+        """Returns a neutral valid configuration for the agent.
 
         The default implementation returns the neutral configuration if valid,
         the "mean" configuration otherwise (right in the middle of the position
@@ -1343,23 +1364,24 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
             the configuration.
         """
         # Get the neutral configuration of the actual model
-        qpos = neutral(self.robot.pinocchio_model)
+        q = pin.neutral(self.robot.pinocchio_model)
 
         # Make sure it is not out-of-bounds
         position_limit_lower = self.robot.position_limit_lower
         position_limit_upper = self.robot.position_limit_upper
-        for idx, val in enumerate(qpos):
+        for idx, val in enumerate(q):
             lo, hi = position_limit_lower[idx], position_limit_upper[idx]
             if hi < val or val < lo:
-                qpos[idx] = 0.5 * (lo + hi)
+                q[idx] = 0.5 * (lo + hi)
 
         # Return rigid/flexible configuration
         if self.simulator.use_theoretical_model:
-            return qpos[self.robot.rigid_joint_position_indices]
-        return qpos
+            return q[self.robot.rigid_joint_position_indices]
+        return q
 
     def _sample_state(self) -> Tuple[np.ndarray, np.ndarray]:
-        """Returns a valid configuration and velocity for the robot.
+        """Returns a randomized yet valid configuration and velocity for the
+        robot.
 
         The default implementation returns the neutral configuration and zero
         velocity.
@@ -1372,27 +1394,27 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
             state. It can be overloaded to act as a random state generator.
         """
         # Get the neutral configuration
-        qpos = self._neutral()
+        q = self._neutral()
 
         # Make sure the configuration is not out-of-bound
-        qpos.clip(self.robot.position_limit_lower,
-                  self.robot.position_limit_upper,
-                  out=qpos)
+        q.clip(self.robot.position_limit_lower,
+               self.robot.position_limit_upper,
+               out=q)
 
         # Make sure the configuration is normalized
-        qpos = normalize(self.robot.pinocchio_model, qpos)
+        q = pin.normalize(self.robot.pinocchio_model, q)
 
         # Make sure the robot impacts the ground
         if self.robot.has_freeflyer:
             engine_options = self.simulator.engine.get_options()
             ground_fun = engine_options['world']['groundProfile']
             compute_freeflyer_state_from_fixed_body(
-                self.robot, qpos, ground_profile=ground_fun)
+                self.robot, q, ground_profile=ground_fun)
 
         # Zero velocity
-        qvel = np.zeros(self.robot.pinocchio_model.nv)
+        v = np.zeros(self.robot.pinocchio_model.nv)
 
-        return qpos, qvel
+        return q, v
 
     def _initialize_buffers(self) -> None:
         """Initialize internal buffers for fast access to shared memory or to
@@ -1457,13 +1479,19 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
             initialization stage in particular. A workaround consists in
             checking whether the simulation already started. It is not exactly
             the same but it does the job regarding preserving efficiency.
+
+        .. warning::
+            One must only rely on `measurement` to get the state of the robot,
+            as anything else is not reliable for this. More specifically,
+            `self.robot_state` would not be valid if an adaptive stepper is
+            being used for physics integration.
         """
         observation = self.observation
         array_copyto(observation["t"], measurement["t"])
-        state_agent_out = observation['states']['agent']
-        state_agent_in = measurement['states']['agent']
-        array_copyto(state_agent_out['q'], state_agent_in['q'])
-        array_copyto(state_agent_out['v'], state_agent_in['v'])
+        agent_state_out = observation['states']['agent']
+        agent_state_in = measurement['states']['agent']
+        array_copyto(agent_state_out['q'], agent_state_in['q'])
+        array_copyto(agent_state_out['v'], agent_state_in['v'])
         sensors_out = observation['measurements']
         sensors_in = measurement['measurements']
         for sensor_type in self._sensors_types:

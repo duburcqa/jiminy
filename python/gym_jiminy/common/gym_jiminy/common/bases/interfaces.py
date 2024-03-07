@@ -16,7 +16,7 @@ from jiminy_py.core import array_copyto  # pylint: disable=no-name-in-module
 from jiminy_py.simulator import Simulator
 from jiminy_py.viewer.viewer import is_display_available
 
-from ..utils import DataNested, fill
+from ..utils import DataNested
 
 
 # Temporal resolution of simulator steps
@@ -126,9 +126,10 @@ class InterfaceController(ABC, Generic[ActT, BaseActT]):
         """
 
     def compute_reward(self,
-                       terminated: bool,
-                       truncated: bool,
-                       info: InfoType) -> float:
+                       terminated: bool,  # pylint: disable=unused-argument
+                       truncated: bool,  # pylint: disable=unused-argument
+                       info: InfoType  # pylint: disable=unused-argument
+                       ) -> float:
         """Compute the reward related to a specific control block.
 
         For the corresponding MDP to be stationary, the computation of the
@@ -155,7 +156,7 @@ class InterfaceController(ABC, Generic[ActT, BaseActT]):
 
         :returns: Aggregated reward for the current step.
         """
-        raise NotImplementedError
+        return 0.0
 
 
 # Note that `InterfaceJiminyEnv` must inherit from `InterfaceObserver`
@@ -217,12 +218,8 @@ class InterfaceJiminyEnv(
         self.observe_dt = -1
         self.control_dt = -1
 
-        # It is always necessary to refresh the observation at after reset
-        self.__is_observation_refreshed = True
-
-        # Reset observation and action buffers
-        fill(self.observation, 0)
-        fill(self.action, 0)
+        # The observation must always be refreshed after setup
+        self.__is_observation_refreshed = False
 
     @no_type_check
     def _observer_handle(self,
@@ -244,8 +241,13 @@ class InterfaceJiminyEnv(
         :param v: Current actual velocity vector.
         :param sensor_measurements: Current sensor data.
         """
-        # Refresh the observation if not already done
-        if not self.__is_observation_refreshed:
+        # Refresh the observation if not already done but only if a simulation
+        # is already running. It would be pointless to refresh the observation
+        # at this point since the controller will be called multiple times at
+        # start. Besides, it would defeat the purpose `_initialize_buffers`,
+        # that is supposed to be executed before `refresh_observation` is being
+        # called for the first time of an episode.
+        if not self.__is_observation_refreshed and self.is_simulation_running:
             measurement = self.__measurement
             measurement["t"][()] = t
             measurement["states"]["agent"]["q"] = q
@@ -254,10 +256,12 @@ class InterfaceJiminyEnv(
             sensor_measurements_it = iter(sensor_measurements.values())
             for sensor_type in self._sensors_types:
                 measurement_sensors[sensor_type] = next(sensor_measurements_it)
-            self.refresh_observation(measurement)
-
-        # Consider observation has been refreshed iif a simulation is running
-        self.__is_observation_refreshed = self.is_simulation_running.item()
+            try:
+                self.refresh_observation(measurement)
+            except RuntimeError as e:
+                raise RuntimeError(
+                    "The observation space must be constant.") from e
+            self.__is_observation_refreshed = True
 
     def _controller_handle(self,
                            t: float,

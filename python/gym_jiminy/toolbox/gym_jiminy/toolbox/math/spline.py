@@ -187,8 +187,7 @@ class _SolvehBanded(torch.autograd.Function):
 
 
 class Spline(nn.Module):
-    """This class defines an interpolator using piecewise polynomials of order
-    3.
+    """Interpolator using Piecewise polynomials of order 3.
 
     The interpolator can be initialized using either:
         - the value of the function at given sampling points. In this case, the

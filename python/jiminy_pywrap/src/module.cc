@@ -67,11 +67,11 @@ namespace jiminy::python
             .value("SPHERICAL", JointModelType::SPHERICAL)
             .value("FREE", JointModelType::FREE);
 
-        // Interfaces for heightmapType_t enum
-        bp::enum_<heightmapType_t>("heightmapType_t")
-            .value("CONSTANT", heightmapType_t::CONSTANT)
-            .value("STAIRS", heightmapType_t::STAIRS)
-            .value("GENERIC", heightmapType_t::GENERIC);
+        // Interfaces for HeightmapType enum
+        bp::enum_<HeightmapType>("HeightmapType")
+            .value("CONSTANT", HeightmapType::CONSTANT)
+            .value("STAIRS", HeightmapType::STAIRS)
+            .value("GENERIC", HeightmapType::GENERIC);
 
         /* Expose some standard and Jiminy-specific exceptions.
            The tree of native Python exceptions and their corresponding C API are available here:
@@ -106,12 +106,12 @@ namespace jiminy::python
 
         // Expose structs and classes
         exposeSensorMeasurementTree();
-        exposeConstraint();
+        exposeConstraints();
         exposeConstraintTree();
         exposeModel();
         exposeRobot();
         exposeAbstractMotor();
-        exposeSimpleMotor();
+        exposeBasicMotors();
         exposeAbstractSensor();
         exposeBasicSensors();
         exposeAbstractController();

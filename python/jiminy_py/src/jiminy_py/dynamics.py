@@ -1,5 +1,5 @@
 # mypy: disable-error-code="attr-defined, name-defined"
-""" TODO: Write documentation.
+"""Helpers to ease computation of kinematic and dynamic quantities.
 """
 # pylint: disable=invalid-name,no-member
 import logging
@@ -486,7 +486,7 @@ def compute_transform_contact(
     transform_offset = pin.SE3(rot_offset, pos_offset)
 
     # Take into account the collision bodies
-    # TODO: Take into account the ground profile
+    # FIXME: Take into account the ground profile
     min_distance = float('inf')
     deepest_index = None
     for i, dist_req in enumerate(robot.collision_data.distanceResults):
@@ -721,7 +721,7 @@ def compute_inverse_dynamics(robot: jiminy.Model,
 
     # Convert theoretical position, velocity and acceleration if necessary
     if use_theoretical_model and robot.is_flexible:
-        position = robot.get_flexible_configuration_from_rigid(position)
+        position = robot.get_flexible_position_from_rigid(position)
         velocity = robot.get_flexible_velocity_from_rigid(velocity)
         acceleration = robot.get_flexible_velocity_from_rigid(acceleration)
 

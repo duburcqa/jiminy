@@ -1,5 +1,8 @@
 # mypy: disable-error-code="attr-defined"
-""" TODO: Write documentation.
+"""This modules provides a set of tools to visualize telemetry log data in a
+convenient and portable way. These tools are designed to work on any platform
+without root permission, including in local Jupyter notebook, VS Code, and
+Google Colaboratory. No graphical server is required for offscreen rendering.
 """
 import os
 import sys
@@ -155,7 +158,7 @@ class TabbedFigure:
         if self.offscreen:
             self.figure.set_size_inches(18, 12)
         else:
-            self.figure.set_size_inches(14, 8)
+            self.figure.set_size_inches(12, 8)
 
         # Register 'on resize' event callback to adjust layout
         self.figure.canvas.mpl_connect('resize_event', self.adjust_layout)

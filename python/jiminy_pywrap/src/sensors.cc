@@ -14,64 +14,11 @@ namespace jiminy::python
 
     // ********************************* SensorMeasurementTree ********************************* //
 
-    struct PySensorMeasurementTreeVisitor : public bp::def_visitor<PySensorMeasurementTreeVisitor>
+    namespace internal::sensor_measurement_tree
     {
-    public:
-        /// \brief Expose C++ API through the visitor.
-        template<class PyClass>
-        void visit(PyClass & cl) const
+        static bp::ssize_t len(SensorMeasurementTree & self)
         {
-            // clang-format off
-            cl
-                /* with_custodian_and_ward_postcall is used to tie the lifetime of the Python
-                   object with the one of the C++ reference, so that the Python object does not
-                   get deleted while the C++ object is not. */
-                .def("__init__", &PySensorMeasurementTreeVisitor::factoryWrapper,
-                                 bp::with_custodian_and_ward_postcall<1, 2>(),
-                                 (bp::arg("self"), "sensor_measurements"))
-                .def("__len__", &PySensorMeasurementTreeVisitor::len,
-                                (bp::arg("self")))
-                .def("__getitem__", &PySensorMeasurementTreeVisitor::getItem,
-                                    bp::return_value_policy<result_converter<false>>(),
-                                    (bp::arg("self"), "sensor_info"))
-                .def("__getitem__", &PySensorMeasurementTreeVisitor::getItemSplit,
-                                    bp::return_value_policy<result_converter<false>>(),
-                                    (bp::arg("self"), "sensor_type", "sensor_name"))
-                .def("__getitem__", &PySensorMeasurementTreeVisitor::getSub,
-                                    bp::return_value_policy<result_converter<false>>(),
-                                    (bp::arg("self"), "sensor_type"))
-                /* Using '__iter__' is discouraged because it has very poor efficiency due to
-                   the overhead of translating 'StopIteration' exception when reaching the end. */
-                .def("__iter__", bp::range<bp::return_value_policy<result_converter<false>>>(
-                                 static_cast<
-                                     SensorMeasurementTree::iterator (SensorMeasurementTree::*)(void)
-                                 >(&SensorMeasurementTree::begin),
-                                 static_cast<
-                                     SensorMeasurementTree::iterator (SensorMeasurementTree::*)(void)
-                                 >(&SensorMeasurementTree::end)))
-                .def("__contains__", &PySensorMeasurementTreeVisitor::contains,
-                                     (bp::arg("self"), "key"))
-                .def("__repr__", &PySensorMeasurementTreeVisitor::repr)
-                .def("keys", &PySensorMeasurementTreeVisitor::keys,
-                             (bp::arg("self")))
-                .def("keys", &PySensorMeasurementTreeVisitor::keysSensorType,
-                             (bp::arg("self"), "sensor_type"))
-                .def("values", &PySensorMeasurementTreeVisitor::values,
-                               (bp::arg("self")))
-                .def("items", &PySensorMeasurementTreeVisitor::items,
-                              (bp::arg("self")))
-                ;
-            // clang-format on
-        }
-
-        static bp::ssize_t len(SensorMeasurementTree & self) { return self.size(); }
-
-        static const Eigen::Ref<const Eigen::VectorXd> & getItem(SensorMeasurementTree & self,
-                                                                 const bp::tuple & sensorInfo)
-        {
-            const std::string sensorType = bp::extract<std::string>(sensorInfo[0]);
-            const std::string sensorName = bp::extract<std::string>(sensorInfo[1]);
-            return PySensorMeasurementTreeVisitor::getItemSplit(self, sensorType, sensorName);
+            return self.size();
         }
 
         static const Eigen::Ref<const Eigen::VectorXd> & getItemSplit(
@@ -97,6 +44,14 @@ namespace jiminy::python
                 PyErr_SetString(PyExc_KeyError, errorMsg.str().c_str());
                 throw bp::error_already_set();
             }
+        }
+
+        static const Eigen::Ref<const Eigen::VectorXd> & getItem(SensorMeasurementTree & self,
+                                                                 const bp::tuple & sensorInfo)
+        {
+            const std::string sensorType = bp::extract<std::string>(sensorInfo[0]);
+            const std::string sensorName = bp::extract<std::string>(sensorInfo[1]);
+            return internal::sensor_measurement_tree::getItemSplit(self, sensorType, sensorName);
         }
 
         static const Eigen::MatrixXd & getSub(SensorMeasurementTree & self,
@@ -203,69 +158,60 @@ namespace jiminy::python
 
         static void factoryWrapper(bp::object & self, bp::dict & sensorDataPy)
         {
-            auto constructor = bp::make_constructor(&PySensorMeasurementTreeVisitor::factory);
+            auto constructor = bp::make_constructor(&internal::sensor_measurement_tree::factory);
             constructor(self, sensorDataPy);
         }
+    }
 
-        static void expose()
-        {
-            // clang-format off
-            bp::class_<SensorMeasurementTree,
-                       std::shared_ptr<SensorMeasurementTree>,
-                       boost::noncopyable>("SensorMeasurementTree", bp::no_init)
-                .def(PySensorMeasurementTreeVisitor());
-            // clang-format on
-        }
-    };
-
-    BOOST_PYTHON_VISITOR_EXPOSE(SensorMeasurementTree)
-
-    // ************************* PyAbstractSensorVisitor ******************************
-
-    struct PyAbstractSensorVisitor : public bp::def_visitor<PyAbstractSensorVisitor>
+    void exposeSensorMeasurementTree()
     {
-    public:
-        /// \brief Expose C++ API through the visitor.
-        template<class PyClass>
-        void visit(PyClass & cl) const
-        {
-            // clang-format off
-            cl
-                .ADD_PROPERTY_GET_WITH_POLICY("is_initialized",
-                                              &AbstractSensorBase::getIsInitialized,
-                                              bp::return_value_policy<bp::return_by_value>())
+        bp::class_<SensorMeasurementTree,
+                   std::shared_ptr<SensorMeasurementTree>,
+                   boost::noncopyable>("SensorMeasurementTree", bp::no_init)
+            /* with_custodian_and_ward_postcall is used to tie the lifetime of the Python
+               object with the one of the C++ reference, so that the Python object does not
+               get deleted while the C++ object is not. */
+            .def("__init__",
+                 &internal::sensor_measurement_tree::factoryWrapper,
+                 bp::with_custodian_and_ward_postcall<1, 2>(),
+                 (bp::arg("self"), "sensor_measurements"))
+            .def("__len__", &internal::sensor_measurement_tree::len, (bp::arg("self")))
+            .def("__getitem__",
+                 &internal::sensor_measurement_tree::getItem,
+                 bp::return_value_policy<result_converter<false>>(),
+                 (bp::arg("self"), "sensor_info"))
+            .def("__getitem__",
+                 &internal::sensor_measurement_tree::getItemSplit,
+                 bp::return_value_policy<result_converter<false>>(),
+                 (bp::arg("self"), "sensor_type", "sensor_name"))
+            .def("__getitem__",
+                 &internal::sensor_measurement_tree::getSub,
+                 bp::return_value_policy<result_converter<false>>(),
+                 (bp::arg("self"), "sensor_type"))
+            /* Using '__iter__' is discouraged because it has very poor efficiency due to
+               the overhead of translating 'StopIteration' exception when reaching the end. */
+            .def("__iter__",
+                 bp::range<bp::return_value_policy<result_converter<false>>>(
+                     static_cast<SensorMeasurementTree::iterator (SensorMeasurementTree::*)(void)>(
+                         &SensorMeasurementTree::begin),
+                     static_cast<SensorMeasurementTree::iterator (SensorMeasurementTree::*)(void)>(
+                         &SensorMeasurementTree::end)))
+            .def("__contains__",
+                 &internal::sensor_measurement_tree::contains,
+                 (bp::arg("self"), "key"))
+            .def("__repr__", &internal::sensor_measurement_tree::repr)
+            .def("keys", &internal::sensor_measurement_tree::keys, (bp::arg("self")))
+            .def("keys",
+                 &internal::sensor_measurement_tree::keysSensorType,
+                 (bp::arg("self"), "sensor_type"))
+            .def("values", &internal::sensor_measurement_tree::values, (bp::arg("self")))
+            .def("items", &internal::sensor_measurement_tree::items, (bp::arg("self")));
+    }
 
-                .ADD_PROPERTY_GET_WITH_POLICY("type",
-                                              &AbstractSensorBase::getType,
-                                              bp::return_value_policy<bp::return_by_value>())
-                .ADD_PROPERTY_GET_WITH_POLICY("fieldnames",
-                                              &AbstractSensorBase::getFieldnames,
-                                              bp::return_value_policy<result_converter<true>>())
+    // ************************************* AbstractSensor ************************************ //
 
-                .ADD_PROPERTY_GET_WITH_POLICY("name",
-                                              &AbstractSensorBase::getName,
-                                              bp::return_value_policy<bp::return_by_value>())
-                .ADD_PROPERTY_GET_WITH_POLICY("index",
-                                              &AbstractSensorBase::getIndex,
-                                              bp::return_value_policy<bp::return_by_value>())
-                .ADD_PROPERTY_GET_SET_WITH_POLICY("data",
-                                                  static_cast<
-                                                      Eigen::Ref<const Eigen::VectorXd> (AbstractSensorBase::*)(void) const
-                                                  >(&AbstractSensorBase::get),
-                                                  bp::return_value_policy<result_converter<false>>(),
-                                                  static_cast<
-                                                      void (AbstractSensorBase::*)(const Eigen::MatrixBase<Eigen::VectorXd> &)
-                                                  >(&AbstractSensorBase::set))
-
-                .def("set_options", &PyAbstractSensorVisitor::setOptions)
-                .def("get_options", &AbstractSensorBase::getOptions)
-
-                .def("__repr__", &PyAbstractSensorVisitor::repr)
-                ;
-            // clang-format on
-        }
-
-    public:
+    namespace internal::abstract_sensor
+    {
         static std::string repr(AbstractSensorBase & self)
         {
             std::stringstream s;
@@ -295,21 +241,44 @@ namespace jiminy::python
             convertFromPython(configPy, config);
             return self.setOptions(config);
         }
+    }
 
-        static void expose()
-        {
-            // clang-format off
-            bp::class_<AbstractSensorBase,
-                       std::shared_ptr<AbstractSensorBase>,
-                       boost::noncopyable>("AbstractSensor", bp::no_init)
-                .def(PyAbstractSensorVisitor());
-            // clang-format on
-        }
-    };
+    void exposeAbstractSensor()
+    {
+        bp::class_<AbstractSensorBase, std::shared_ptr<AbstractSensorBase>, boost::noncopyable>(
+            "AbstractSensor", bp::no_init)
+            .ADD_PROPERTY_GET_WITH_POLICY("is_initialized",
+                                          &AbstractSensorBase::getIsInitialized,
+                                          bp::return_value_policy<bp::return_by_value>())
 
-    BOOST_PYTHON_VISITOR_EXPOSE(AbstractSensor)
+            .ADD_PROPERTY_GET_WITH_POLICY("type",
+                                          &AbstractSensorBase::getType,
+                                          bp::return_value_policy<bp::return_by_value>())
+            .ADD_PROPERTY_GET_WITH_POLICY("fieldnames",
+                                          &AbstractSensorBase::getFieldnames,
+                                          bp::return_value_policy<result_converter<true>>())
 
-    // ************************** PyBasicSensorsVisitor ******************************
+            .ADD_PROPERTY_GET_WITH_POLICY("name",
+                                          &AbstractSensorBase::getName,
+                                          bp::return_value_policy<bp::return_by_value>())
+            .ADD_PROPERTY_GET_WITH_POLICY("index",
+                                          &AbstractSensorBase::getIndex,
+                                          bp::return_value_policy<bp::return_by_value>())
+            .ADD_PROPERTY_GET_SET_WITH_POLICY(
+                "data",
+                static_cast<Eigen::Ref<const Eigen::VectorXd> (AbstractSensorBase::*)(void) const>(
+                    &AbstractSensorBase::get),
+                bp::return_value_policy<result_converter<false>>(),
+                static_cast<void (AbstractSensorBase::*)(
+                    const Eigen::MatrixBase<Eigen::VectorXd> &)>(&AbstractSensorBase::set))
+
+            .def("set_options", &internal::abstract_sensor::setOptions)
+            .def("get_options", &AbstractSensorBase::getOptions)
+
+            .def("__repr__", &internal::abstract_sensor::repr);
+    }
+
+    // ************************************** BasicSensors ************************************* //
 
     struct PyBasicSensorsVisitor : public bp::def_visitor<PyBasicSensorsVisitor>
     {
@@ -321,7 +290,6 @@ namespace jiminy::python
 
             // clang-format off
             cl
-                .def("initialize", &DerivedSensor::initialize)
                 .def_readonly("type", &DerivedSensor::type_)
                 .def_readonly("has_prefix", &DerivedSensor::areFieldnamesGrouped_)
                 .add_static_property("fieldnames", bp::make_getter(&DerivedSensor::fieldnames_,
@@ -330,18 +298,26 @@ namespace jiminy::python
             // clang-format on
         }
 
-        template<typename PyClass>
-        static std::enable_if_t<std::is_same_v<typename PyClass::wrapped_type, ImuSensor> ||
-                                    std::is_same_v<typename PyClass::wrapped_type, ContactSensor>,
-                                void>
-        visit(PyClass & cl)
-        {
-            using DerivedSensor = typename PyClass::wrapped_type;
+        template<typename DerivedSensor>
+        inline static constexpr bool isFrameBasedSensor =
+            std::disjunction_v<std::is_same<DerivedSensor, ImuSensor>,
+                               std::is_same<DerivedSensor, ContactSensor>,
+                               std::is_same<DerivedSensor, ForceSensor>>;
 
+        template<typename PyClass, typename DerivedSensor = typename PyClass::wrapped_type>
+        static std::enable_if_t<!isFrameBasedSensor<DerivedSensor>, void> visit(PyClass & cl)
+        {
+            visitBasicSensors(cl);
+        }
+
+        template<typename PyClass, typename DerivedSensor = typename PyClass::wrapped_type>
+        static std::enable_if_t<isFrameBasedSensor<DerivedSensor>, void> visit(PyClass & cl)
+        {
             visitBasicSensors(cl);
 
             // clang-format off
             cl
+                .def("initialize", &DerivedSensor::initialize, (bp::arg("self"), "frame_name"))
                 .ADD_PROPERTY_GET_WITH_POLICY("frame_name",
                                               &DerivedSensor::getFrameName,
                                               bp::return_value_policy<bp::return_by_value>())
@@ -352,35 +328,39 @@ namespace jiminy::python
             // clang-format on
         }
 
-        template<typename PyClass>
-        static std::enable_if_t<std::is_same_v<typename PyClass::wrapped_type, ForceSensor>, void>
-        visit(PyClass & cl)
+        static void expose()
         {
-            visitBasicSensors(cl);
+            bp::class_<ImuSensor,
+                       bp::bases<AbstractSensorBase>,
+                       std::shared_ptr<ImuSensor>,
+                       boost::noncopyable>(
+                "ImuSensor", bp::init<const std::string &>((bp::arg("self"), "name")))
+                .def(PyBasicSensorsVisitor());
 
-            // clang-format off
-            cl
-                .ADD_PROPERTY_GET_WITH_POLICY("frame_name",
-                                              &ForceSensor::getFrameName,
-                                              bp::return_value_policy<bp::return_by_value>())
-                .ADD_PROPERTY_GET_WITH_POLICY("frame_index",
-                                              &ForceSensor::getFrameIndex,
-                                              bp::return_value_policy<bp::return_by_value>())
+            bp::class_<ContactSensor,
+                       bp::bases<AbstractSensorBase>,
+                       std::shared_ptr<ContactSensor>,
+                       boost::noncopyable>(
+                "ContactSensor", bp::init<const std::string &>((bp::arg("self"), "name")))
+                .def(PyBasicSensorsVisitor());
+
+            bp::class_<ForceSensor,
+                       bp::bases<AbstractSensorBase>,
+                       std::shared_ptr<ForceSensor>,
+                       boost::noncopyable>(
+                "ForceSensor", bp::init<const std::string &>((bp::arg("self"), "name")))
+                .def(PyBasicSensorsVisitor())
                 .ADD_PROPERTY_GET_WITH_POLICY("joint_index",
                                               &ForceSensor::getJointIndex,
-                                              bp::return_value_policy<bp::return_by_value>())
-                ;
-            // clang-format on
-        }
+                                              bp::return_value_policy<bp::return_by_value>());
 
-        template<typename PyClass>
-        static std::enable_if_t<std::is_same_v<typename PyClass::wrapped_type, EncoderSensor>, void>
-        visit(PyClass & cl)
-        {
-            visitBasicSensors(cl);
-
-            // clang-format off
-            cl
+            bp::class_<EncoderSensor,
+                       bp::bases<AbstractSensorBase>,
+                       std::shared_ptr<EncoderSensor>,
+                       boost::noncopyable>(
+                "EncoderSensor", bp::init<const std::string &>((bp::arg("self"), "name")))
+                .def(PyBasicSensorsVisitor())
+                .def("initialize", &EncoderSensor::initialize, (bp::arg("self"), "joint_name"))
                 .ADD_PROPERTY_GET_WITH_POLICY("joint_name",
                                               &EncoderSensor::getJointName,
                                               bp::return_value_policy<bp::return_by_value>())
@@ -389,69 +369,26 @@ namespace jiminy::python
                                               bp::return_value_policy<bp::return_by_value>())
                 .ADD_PROPERTY_GET_WITH_POLICY("joint_type",
                                               &EncoderSensor::getJointType,
-                                              bp::return_value_policy<bp::return_by_value>())
-                ;
-            // clang-format on
-        }
+                                              bp::return_value_policy<bp::return_by_value>());
 
-        template<typename PyClass>
-        static std::enable_if_t<std::is_same_v<typename PyClass::wrapped_type, EffortSensor>, void>
-        visit(PyClass & cl)
-        {
-            visitBasicSensors(cl);
-
-            // clang-format off
-            cl
+            bp::class_<EffortSensor,
+                       bp::bases<AbstractSensorBase>,
+                       std::shared_ptr<EffortSensor>,
+                       boost::noncopyable>(
+                "EffortSensor", bp::init<const std::string &>((bp::arg("self"), "name")))
+                .def(PyBasicSensorsVisitor())
+                .def("initialize", &EffortSensor::initialize, (bp::arg("self"), "motor_name"))
                 .ADD_PROPERTY_GET_WITH_POLICY("motor_name",
                                               &EffortSensor::getMotorName,
                                               bp::return_value_policy<bp::return_by_value>())
                 .ADD_PROPERTY_GET_WITH_POLICY("motor_index",
                                               &EffortSensor::getMotorIndex,
-                                              bp::return_value_policy<bp::return_by_value>())
-                ;
-            // clang-format on
-        }
-
-        static void expose()
-        {
-            // clang-format off
-            bp::class_<ImuSensor, bp::bases<AbstractSensorBase>,
-                       std::shared_ptr<ImuSensor>,
-                       boost::noncopyable>("ImuSensor",
-                       bp::init<const std::string &>(
-                       (bp::arg("self"), "frame_name")))
-                .def(PyBasicSensorsVisitor());
-
-            bp::class_<ContactSensor, bp::bases<AbstractSensorBase>,
-                       std::shared_ptr<ContactSensor>,
-                       boost::noncopyable>("ContactSensor",
-                       bp::init<const std::string &>(
-                       (bp::arg("self"), "frame_name")))
-                .def(PyBasicSensorsVisitor());
-
-            bp::class_<ForceSensor, bp::bases<AbstractSensorBase>,
-                       std::shared_ptr<ForceSensor>,
-                       boost::noncopyable>("ForceSensor",
-                       bp::init<const std::string &>(
-                       (bp::arg("self"), "frame_name")))
-                .def(PyBasicSensorsVisitor());
-
-            bp::class_<EncoderSensor, bp::bases<AbstractSensorBase>,
-                       std::shared_ptr<EncoderSensor>,
-                       boost::noncopyable>("EncoderSensor",
-                       bp::init<const std::string &>(
-                       (bp::arg("self"), "joint_name")))
-                .def(PyBasicSensorsVisitor());
-
-            bp::class_<EffortSensor, bp::bases<AbstractSensorBase>,
-                       std::shared_ptr<EffortSensor>,
-                       boost::noncopyable>("EffortSensor",
-                       bp::init<const std::string &>(
-                       (bp::arg("self"), "joint_name")))
-                .def(PyBasicSensorsVisitor());
-            // clang-format on
+                                              bp::return_value_policy<bp::return_by_value>());
         }
     };
 
-    BOOST_PYTHON_VISITOR_EXPOSE(BasicSensors)
+    void exposeBasicSensors()
+    {
+        PyBasicSensorsVisitor::expose();
+    }
 }

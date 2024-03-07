@@ -67,7 +67,7 @@ namespace jiminy
 
     template<class T, class I = std::size_t>
     inline constexpr bool is_contiguous_container_v =
-        std::conjunction<internal::hasSize<T>, internal::isContiguousIndexable<T, I>>::value;
+        std::conjunction_v<internal::hasSize<T>, internal::isContiguousIndexable<T, I>>;
 
     // ************************************** select_last ************************************** //
 

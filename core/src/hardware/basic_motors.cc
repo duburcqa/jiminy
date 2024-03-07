@@ -1,6 +1,5 @@
-#include <algorithm>
-
 #include "jiminy/core/utilities/helpers.h"
+#include "jiminy/core/robot/robot.h"
 
 #include "jiminy/core/hardware/basic_motors.h"
 
@@ -18,9 +17,21 @@ namespace jiminy
 
     void SimpleMotor::initialize(const std::string & jointName)
     {
+        // Make sure that no simulation is already running
+        // TODO: This check should be enforced by AbstractMotor somehow
+        auto robot = robot_.lock();
+        if (robot && robot->getIsLocked())
+        {
+            THROW_ERROR(bad_control_flow,
+                        "Robot already locked, probably because a simulation is running. "
+                        "Please stop it before refreshing motor proxies.");
+        }
+
+        // Update joint name
         jointName_ = jointName;
         isInitialized_ = true;
 
+        // Try refreshing proxies if possible, restore internals before throwing exception if not
         try
         {
             refreshProxies();

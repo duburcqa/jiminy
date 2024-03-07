@@ -1,6 +1,7 @@
 """Implementation of basic Proportional-Derivative controller block compatible
 with gym_jiminy reinforcement learning pipeline environment design.
 """
+import warnings
 from typing import List
 
 import numpy as np
@@ -18,7 +19,7 @@ from ..bases import (BaseObsT,
                      ControlledJiminyEnv)
 
 
-@nb.jit(nopython=True, nogil=True, cache=True)
+@nb.jit(nopython=True, cache=True, fastmath=True)
 def apply_safety_limits(command: np.ndarray,
                         q_measured: np.ndarray,
                         v_measured: np.ndarray,
@@ -61,19 +62,20 @@ def apply_safety_limits(command: np.ndarray,
                                 not even if needed to enforce safe operation.
     """
     # Computes velocity bounds based on margin from soft joint limit if any
-    safe_velocity_lower = motors_velocity_limit * np.clip(
-        -kp * (q_measured - motors_soft_position_lower), -1.0, 1.0)
-    safe_velocity_upper = motors_velocity_limit * np.clip(
-        -kp * (q_measured - motors_soft_position_upper), -1.0, 1.0)
+    safe_velocity_lower = motors_velocity_limit * np.minimum(np.maximum(
+        -kp * (q_measured - motors_soft_position_lower), -1.0), 1.0)
+    safe_velocity_upper = motors_velocity_limit * np.minimum(np.maximum(
+        -kp * (q_measured - motors_soft_position_upper), -1.0), 1.0)
 
     # Computes effort bounds based on velocity and effort bounds
-    safe_effort_lower = motors_effort_limit * np.clip(
-        -kd * (v_measured - safe_velocity_lower), -1.0, 1.0)
-    safe_effort_upper = motors_effort_limit * np.clip(
-        -kd * (v_measured - safe_velocity_upper), -1.0, 1.0)
+    safe_effort_lower = motors_effort_limit * np.minimum(np.maximum(
+        -kd * (v_measured - safe_velocity_lower), -1.0), 1.0)
+    safe_effort_upper = motors_effort_limit * np.minimum(np.maximum(
+        -kd * (v_measured - safe_velocity_upper), -1.0), 1.0)
 
     # Clip command according to safe effort bounds
-    return np.clip(command, safe_effort_lower, safe_effort_upper)
+    return np.minimum(np.maximum(
+        command, safe_effort_lower), safe_effort_upper)
 
 
 class MotorSafetyLimit(
@@ -156,10 +158,14 @@ class MotorSafetyLimit(
         # Whether stored reference to encoder measurements are already in the
         # same order as the motors, allowing skipping re-ordering entirely.
         self._is_same_order = isinstance(self.encoder_to_motor, slice)
+        if not self._is_same_order:
+            warnings.warn(
+                "Consider using the same ordering for encoders and motors for "
+                "optimal performance.")
 
-        # Extract measured motor positions and velocities for fast access
-        self.q_measured, self.v_measured = (
-            env.sensor_measurements[encoder.type])
+        # Extract measured motor positions and velocities for fast access.
+        # Note that they will be initialized in `_setup` method.
+        self.q_measured, self.v_measured = np.array([]), np.array([])
 
         # Initialize the controller
         super().__init__(name, env, 1)

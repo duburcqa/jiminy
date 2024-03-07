@@ -23,6 +23,15 @@ namespace jiminy
            otherwise, it would be necessary to check consistency with system at engine level when
            calling reset. */
 
+        // Make sure that no simulation is already running
+        auto robotOld = robot_.lock();
+        if (robotOld && robotOld->getIsLocked())
+        {
+            THROW_ERROR(bad_control_flow,
+                        "Robot already locked, probably because a simulation is running. "
+                        "Please stop it before re-initializing its controller.");
+        }
+
         // Make sure the robot is valid
         auto robot = robotIn.lock();
         if (!robot)
@@ -38,7 +47,6 @@ namespace jiminy
         // Make sure that the controller is not already bound to another robot
         if (isInitialized_)
         {
-            auto robotOld = robot_.lock();
             if (robotOld && robotOld.get() != robot.get())
             {
                 auto controllerOld = robotOld->getController().lock();
@@ -101,6 +109,15 @@ namespace jiminy
             THROW_ERROR(bad_control_flow, "The controller is not initialized.");
         }
 
+        // Make sure that no simulation is already running
+        auto robot = robot_.lock();
+        if (robot && robot->getIsLocked())
+        {
+            THROW_ERROR(bad_control_flow,
+                        "Robot already locked, probably because a simulation is running. "
+                        "Please stop it before re-initializing its controller.");
+        }
+
         // Reset the telemetry buffer of dynamically registered quantities
         if (resetDynamicTelemetry)
         {
@@ -108,7 +125,6 @@ namespace jiminy
         }
 
         // Make sure the robot still exists
-        auto robot = robot_.lock();
         if (!robot)
         {
             THROW_ERROR(bad_control_flow, "Robot pointer expired or unset.");
@@ -187,7 +203,7 @@ namespace jiminy
                                            { return element.first == *fieldIt; });
             if (variableIt != registeredVariables.end())
             {
-                THROW_ERROR(lookup_error, "Variable already registered.");
+                THROW_ERROR(lookup_error, "Variable '", *fieldIt, "' already registered.");
             }
             registeredVariables.emplace_back(*fieldIt, &values[i]);
         }
@@ -232,6 +248,16 @@ namespace jiminy
 
     void AbstractController::setOptions(const GenericConfig & controllerOptions)
     {
+        // Make sure that no simulation is already running
+        auto robot = robot_.lock();
+        if (robot && robot->getIsLocked())
+        {
+            THROW_ERROR(bad_control_flow,
+                        "Robot already locked, probably because a simulation is running. "
+                        "Please stop it before re-initializing its controller.");
+        }
+
+        // Set controller options
         controllerOptionsGeneric_ = controllerOptions;
         baseControllerOptions_ =
             std::make_unique<const ControllerOptions>(controllerOptionsGeneric_);

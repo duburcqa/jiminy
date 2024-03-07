@@ -1,4 +1,7 @@
-""" TODO: Write documentation.
+"""This module implements a high-level API on top of Panda3d to simplify its
+use for robotic applications given that Panda3d is a video game engine in the
+first place. It also provides a set of procedurally generated primitive shapes,
+including cone and torus.
 """
 # pylint: disable=attribute-defined-outside-init,invalid-name
 import io
@@ -851,10 +854,8 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                 self.longitude_deg = self.longitude_deg - 360.0
             if self.longitude_deg < -180.0:
                 self.longitude_deg = self.longitude_deg + 360.0
-            if self.latitude_deg > (90.0 - 0.001):
-                self.latitude_deg = 90.0 - 0.001
-            if self.latitude_deg < (-90.0 + 0.001):
-                self.latitude_deg = -90.0 + 0.001
+            self.latitude_deg = min(max(
+                self.latitude_deg, -90.0 + 0.001), 90.0 - 0.001)
 
             longitude = self.longitude_deg * np.pi / 180.0
             latitude = self.latitude_deg * np.pi / 180.0

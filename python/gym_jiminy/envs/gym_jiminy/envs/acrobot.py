@@ -132,11 +132,18 @@ class AcrobotJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
                          debug=debug)
 
         # Create some proxies for fast access
-        self.__state_view = (self.observation[:self.robot.nq],
-                             self.observation[-self.robot.nv:])
+        self._state_view = (self.observation[:self.robot.nq],
+                            self.observation[-self.robot.nv:])
 
     def _setup(self) -> None:
-        """ TODO: Write documentation.
+        """Configure the environment.
+
+        In practice, it sets the stepper options to enforce a fixed-timestep
+        integrator after calling the base implementation.
+
+        .. note::
+            This method must be called once, after the environment has been
+            reset. This is done automatically when calling `reset` method.
         """
         # Call base implementation
         super()._setup()
@@ -166,7 +173,7 @@ class AcrobotJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
             For goal env, in addition of the current robot state, both the
             desired and achieved goals are observable.
         """
-        copyto(self.__state_view, measurement[
+        copyto(self._state_view, measurement[
             'states']['agent'].values())  # type: ignore[index,union-attr]
 
     def _initialize_action_space(self) -> None:

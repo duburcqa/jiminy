@@ -205,7 +205,7 @@ namespace jiminy::python
 
     // ************************** HeightmapFunPyWrapper ******************************
 
-    enum class heightmapType_t : uint8_t
+    enum class HeightmapType : uint8_t
     {
         CONSTANT = 0x01,
         STAIRS = 0x02,
@@ -214,7 +214,7 @@ namespace jiminy::python
 
     struct HeightmapFunPyWrapper
     {
-        HeightmapFunPyWrapper(const bp::object & funcPy, heightmapType_t objType) :
+        HeightmapFunPyWrapper(const bp::object & funcPy, HeightmapType objType) :
         heightmapType_{objType},
         handlePyPtr_{funcPy}
         {
@@ -225,22 +225,22 @@ namespace jiminy::python
         {
             switch (heightmapType_)
             {
-            case heightmapType_t::CONSTANT:
+            case HeightmapType::CONSTANT:
                 height = bp::extract<double>(handlePyPtr_);
                 normal = Eigen::Vector3d::UnitZ();
                 break;
-            case heightmapType_t::STAIRS:
+            case HeightmapType::STAIRS:
                 handlePyPtr_(posFrame, convertToPython(height, false));
                 normal = Eigen::Vector3d::UnitZ();
                 break;
-            case heightmapType_t::GENERIC:
+            case HeightmapType::GENERIC:
             default:
                 handlePyPtr_(
                     posFrame, convertToPython(height, false), convertToPython(normal, false));
             }
         }
 
-        heightmapType_t heightmapType_;
+        HeightmapType heightmapType_;
         bp::object handlePyPtr_;
     };
 

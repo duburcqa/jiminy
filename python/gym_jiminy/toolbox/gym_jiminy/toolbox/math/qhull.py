@@ -7,10 +7,10 @@ import numba as nb
 from numba.np.extensions import cross2d
 from scipy.spatial import _qhull
 
-from .generic import squared_norm_2
+from gym_jiminy.common.utils import squared_norm_2
 
 
-@nb.jit(nopython=True, nogil=True, cache=True, inline='always')
+@nb.jit(nopython=True, cache=True, inline='always')
 def _amin_last_axis(array: np.ndarray) -> np.ndarray:
     """ TODO: Write documentation.
     """
@@ -20,7 +20,7 @@ def _amin_last_axis(array: np.ndarray) -> np.ndarray:
     return res
 
 
-@nb.jit(nopython=True, nogil=True, cache=True, inline='always')
+@nb.jit(nopython=True, cache=True, inline='always')
 def _all_last_axis(array: np.ndarray) -> np.ndarray:
     """ TODO: Write documentation.
     """
@@ -30,7 +30,7 @@ def _all_last_axis(array: np.ndarray) -> np.ndarray:
     return res
 
 
-@nb.jit(nopython=True, nogil=True, cache=True)
+@nb.jit(nopython=True, cache=True)
 def compute_distance_convex_to_point(points: np.ndarray,
                                      vertex_indices: np.ndarray,
                                      queries: np.ndarray) -> np.ndarray:
@@ -40,9 +40,9 @@ def compute_distance_convex_to_point(points: np.ndarray,
     points_1 = points[np.roll(vertex_indices, 1)].T
     points_0 = points[vertex_indices].T
     vectors = points_1 - points_0
-    normals = np.stack((-vectors[1], vectors[0]), axis=0)
-    normals /= np.sqrt(np.sum(np.square(normals), axis=0))
-    offsets = - np.sum(normals * points_0, axis=0)
+    normals = np.stack((-vectors[1], vectors[0]), 0)
+    normals /= np.sqrt(np.sum(np.square(normals), 0))
+    offsets = - np.sum(normals * points_0, 0)
     equations = np.concatenate((normals, np.expand_dims(offsets, 0)))
 
     # Determine for each query point if it lies inside or outside
@@ -54,7 +54,7 @@ def compute_distance_convex_to_point(points: np.ndarray,
     # from every segment of the convex hull.
     ratios = np.sum(
         (np.expand_dims(queries, -1) - points_0) * vectors, axis=1
-        ) / np.sum(np.square(vectors), axis=0)
+        ) / np.sum(np.square(vectors), 0)
     ratios = np.clip(ratios, 0.0, 1.0)
     projs = np.expand_dims(ratios, 1) * vectors + points_0
     dist = np.sqrt(_amin_last_axis(np.sum(np.square(
@@ -66,7 +66,7 @@ def compute_distance_convex_to_point(points: np.ndarray,
     return signed_dist
 
 
-@nb.jit(nopython=True, nogil=True, cache=True)
+@nb.jit(nopython=True, cache=True)
 def compute_distance_convex_to_ray(
         points: np.ndarray,
         vertex_indices: np.ndarray,

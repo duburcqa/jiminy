@@ -31,7 +31,7 @@ class PipelineDesign(unittest.TestCase):
                 cls='gym_jiminy.envs.ANYmalJiminyEnv',
                 kwargs=dict(
                     step_dt=self.step_dt,
-                    debug=True
+                    debug=False
                 )
             ),
             layers_config=[
@@ -88,15 +88,15 @@ class PipelineDesign(unittest.TestCase):
         # Load TOML pipeline description, create env and perform a step
         toml_file = os.path.join(data_dir, "anymal_pipeline.toml")
         ANYmalPipelineEnv = load_pipeline(toml_file)
-        env = ANYmalPipelineEnv(debug=True)
-        env.reset()
+        env = ANYmalPipelineEnv()
+        env.reset(seed=0)
         env.step(env.action)
 
         # Load JSON pipeline description, create env and perform a step
         json_file = os.path.join(data_dir, "anymal_pipeline.json")
         ANYmalPipelineEnv = load_pipeline(json_file)
-        env = ANYmalPipelineEnv(debug=True)
-        env.reset()
+        env = ANYmalPipelineEnv()
+        env.reset(seed=0)
         env.step(env.action)
 
     def test_override_default(self):
@@ -119,7 +119,7 @@ class PipelineDesign(unittest.TestCase):
         impossible for the garbage collector to release memory.
         """
         env = self.ANYmalPipelineEnv()
-        env.reset()
+        env.reset(seed=0)
         proxy = weakref.proxy(env)
         env = None
         gc.collect()
@@ -130,7 +130,7 @@ class PipelineDesign(unittest.TestCase):
         """
         # Get initial observation
         env = self.ANYmalPipelineEnv()
-        obs, _ = env.reset()
+        obs, _ = env.reset(seed=0)
 
         # Controller target is observed, and has right name
         self.assertTrue('actions' in obs and 'pd_controller' in obs['actions'])
@@ -166,7 +166,7 @@ class PipelineDesign(unittest.TestCase):
         """
         # Perform a single step
         env = self.ANYmalPipelineEnv()
-        env.reset()
+        env.reset(seed=0)
         action = env.env.observation['actions']['pd_controller'].copy()
         action += 1.0e-3
         obs, *_ = env.step(action)
@@ -211,7 +211,7 @@ class PipelineDesign(unittest.TestCase):
             env.simulator.engine.set_options(engine_options)
             return env
 
-        env.reset(options=dict(reset_hook=configure_telemetry))
+        env.reset(seed=0, options=dict(reset_hook=configure_telemetry))
         env.step(env.action)
 
         # Check that the command is updated 1/2 low-level controller update

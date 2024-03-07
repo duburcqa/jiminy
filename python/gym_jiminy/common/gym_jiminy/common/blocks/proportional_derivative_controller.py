@@ -2,6 +2,7 @@
 with gym_jiminy reinforcement learning pipeline environment design.
 """
 import math
+import warnings
 from typing import List, Union
 
 import numpy as np
@@ -28,7 +29,7 @@ N_ORDER_DERIVATIVE_NAMES = ("Position", "Velocity", "Acceleration", "Jerk")
 EVAL_DEADBAND = 5.0e-3
 
 
-@nb.jit(nopython=True, nogil=True, cache=True, inline='always')
+@nb.jit(nopython=True, cache=True, inline='always')
 def toeplitz(col: np.ndarray, row: np.ndarray) -> np.ndarray:
     """Numba-compatible implementation of `scipy.linalg.toeplitz` method.
 
@@ -52,7 +53,7 @@ def toeplitz(col: np.ndarray, row: np.ndarray) -> np.ndarray:
                       strides=(-stride, stride))
 
 
-@nb.jit(nopython=True, nogil=True, cache=True, inline='always')
+@nb.jit(nopython=True, cache=True, inline='always', fastmath=True)
 def integrate_zoh(state_prev: np.ndarray,
                   state_min: np.ndarray,
                   state_max: np.ndarray,
@@ -102,13 +103,13 @@ def integrate_zoh(state_prev: np.ndarray,
 
     # Clip highest-order derivative to ensure every derivative are within
     # bounds if possible, lowest orders in priority otherwise.
-    deriv = np.clip(state_prev[-1], deriv_min, deriv_max)
+    deriv = np.minimum(np.maximum(state_prev[-1], deriv_min), deriv_max)
 
     # Integrate, taking into account clipped highest derivative
     return integ_zero + integ_drift * deriv
 
 
-@nb.jit(nopython=True, nogil=True, cache=True)
+@nb.jit(nopython=True, cache=True, fastmath=True)
 def pd_controller(q_measured: np.ndarray,
                   v_measured: np.ndarray,
                   command_state: np.ndarray,
@@ -173,7 +174,8 @@ def pd_controller(q_measured: np.ndarray,
     u_command = kp * (q_error + kd * v_error)
 
     # Clip the command motors torques before returning
-    return np.clip(u_command, -motors_effort_limit, motors_effort_limit)
+    return np.minimum(np.maximum(
+        u_command, -motors_effort_limit), motors_effort_limit)
 
 
 def get_encoder_to_motor_map(robot: jiminy.Robot) -> Union[slice, List[int]]:
@@ -257,7 +259,8 @@ class PDController(
         :param name: Name of the block.
         :param env: Environment to connect with.
         :param update_ratio: Ratio between the update period of the controller
-                             and the one of the subsequent controller.
+                             and the one of the subsequent controller. -1 to
+                             match the simulation timestep of the environment.
         :param order: Derivative order of the action.
         :param kp: PD controller position-proportional gains in motor order.
         :param kd: PD controller velocity-proportional gains in motor order.
@@ -293,6 +296,10 @@ class PDController(
         # Whether stored reference to encoder measurements are already in the
         # same order as the motors, allowing skipping re-ordering entirely.
         self._is_same_order = isinstance(self.encoder_to_motor, slice)
+        if not self._is_same_order:
+            warnings.warn(
+                "Consider using the same ordering for encoders and motors for "
+                "optimal performance.")
 
         # Define buffers storing information about the motors for efficiency.
         # Note that even if the robot instance may change from one simulation
@@ -340,9 +347,9 @@ class PDController(
         self._command_state_lower = np.stack(command_state_lower, axis=0)
         self._command_state_upper = np.stack(command_state_upper, axis=0)
 
-        # Extract measured motor positions and velocities for fast access
-        self.q_measured, self.v_measured = (
-            env.sensor_measurements[encoder.type])
+        # Extract measured motor positions and velocities for fast access.
+        # Note that they will be initialized in `_setup` method.
+        self.q_measured, self.v_measured = np.array([]), np.array([])
 
         # Allocate memory for the command state
         self._command_state = np.zeros((order + 1, env.robot.nmotors))
@@ -405,6 +412,10 @@ class PDController(
         It is proportional to the error between the observed motors positions/
         velocities and the target ones.
 
+        .. warning::
+            Calling this method manually while a simulation is running is
+            forbidden, because it would mess with the controller update period.
+
         :param action: Desired N-th order deriv. of the target motor positions.
         """
         # Re-initialize the command state to the current motor state if the
@@ -418,12 +429,6 @@ class PDController(
                         self._command_state_lower[i],
                         self._command_state_upper[i],
                         out=self._command_state[i])
-
-        # Skip integrating command and return early if no simulation running.
-        # It also checks that the low-level function is already pre-compiled.
-        # This is necessary to avoid spurious timeout during first step.
-        if not is_simulation_running and pd_controller.signatures:
-            return np.zeros_like(action)
 
         # Update the highest order derivative of the target motor positions to
         # match the provided action.
@@ -439,7 +444,8 @@ class PDController(
             q_measured = q_measured[self.encoder_to_motor]
             v_measured = v_measured[self.encoder_to_motor]
 
-        # Compute the motor efforts using PD control
+        # Compute the motor efforts using PD control.
+        # The command state must not be updated if no simulation is running.
         return pd_controller(
             q_measured,
             v_measured,
@@ -449,4 +455,4 @@ class PDController(
             self.kp,
             self.kd,
             self.motors_effort_limit,
-            self.control_dt)
+            self.control_dt if is_simulation_running else 0.0)

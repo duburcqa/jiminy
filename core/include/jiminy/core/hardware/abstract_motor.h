@@ -183,6 +183,8 @@ namespace jiminy
         /// \brief Reference to the last data buffer corresponding to the true effort of the motor.
         double & data();
 
+        bool isAttached() const;
+
     private:
         /// \brief Attach the sensor to a robot
         ///
@@ -203,14 +205,8 @@ namespace jiminy
         GenericConfig motorOptionsGeneric_{};
         /// \brief Flag to determine whether the controller has been initialized or not.
         bool isInitialized_{false};
-        /// \brief Flag to determine whether the motor is attached to a robot.
-        bool isAttached_{false};
         /// \brief Robot for which the command and internal dynamics.
         std::weak_ptr<const Robot> robot_{};
-        /// \brief Notify the robot that the configuration of the sensors have changed.
-        std::function<void(AbstractMotorBase &)> notifyRobot_{};
-        /// \brief Name of the motor.
-        std::string name_;
         /// \brief Index of the motor in the measurement buffer.
         std::size_t motorIndex_{0};
         std::string jointName_{};
@@ -222,6 +218,12 @@ namespace jiminy
         double armature_{0.0};
 
     private:
+        /// \brief Name of the motor.
+        std::string name_;
+        /// \brief Flag to determine whether the motor is attached to a robot.
+        bool isAttached_{false};
+        /// \brief Notify the robot that the configuration of the sensors have changed.
+        std::function<void(AbstractMotorBase &)> notifyRobot_{};
         /// \brief Shared data between every motors associated with the robot.
         MotorSharedStorage * sharedStorage_{nullptr};
     };

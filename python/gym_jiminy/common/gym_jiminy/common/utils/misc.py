@@ -1,4 +1,5 @@
-""" TODO: Write documentation.
+"""Miscellaneous utilities that have no place anywhere else but are very useful
+nonetheless.
 """
 import math
 import logging

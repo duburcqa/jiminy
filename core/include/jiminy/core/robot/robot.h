@@ -36,9 +36,10 @@ namespace jiminy
         auto shared_from_this() { return shared_from(this); }
         auto shared_from_this() const { return shared_from(this); }
 
-        void initialize(const pinocchio::Model & pinocchioModel,
-                        const pinocchio::GeometryModel & collisionModel,
-                        const pinocchio::GeometryModel & visualModel);
+        void initialize(
+            const pinocchio::Model & pinocchioModel,
+            const std::optional<pinocchio::GeometryModel> & collisionModel = std::nullopt,
+            const std::optional<pinocchio::GeometryModel> & visualModel = std::nullopt);
         void initialize(const std::string & urdfPath,
                         bool hasFreeflyer = true,
                         const std::vector<std::string> & meshPackageDirs = {},
@@ -72,13 +73,17 @@ namespace jiminy
                                  const Eigen::VectorXd & command);
         const Eigen::VectorXd & getMotorEfforts() const;
         double getMotorEffort(const std::string & motorName) const;
+
+        /// \warning It assumes that kinematic quantities have been updated previously and are
+        ///          consistent with the following input arguments. If not, one must call
+        ///          `pinocchio::forwardKinematics` and `pinocchio::updateFramePlacements`
+        ///          beforehand.
         void computeSensorMeasurements(double t,
                                        const Eigen::VectorXd & q,
                                        const Eigen::VectorXd & v,
                                        const Eigen::VectorXd & a,
                                        const Eigen::VectorXd & uMotor,
                                        const ForceVector & fExternal);
-
         SensorMeasurementTree getSensorMeasurements() const;
         Eigen::Ref<const Eigen::VectorXd> getSensorMeasurement(
             const std::string & sensorType, const std::string & sensorName) const;
@@ -99,8 +104,8 @@ namespace jiminy
         void dumpOptions(const std::string & filepath) const;
         void loadOptions(const std::string & filepath);
 
-        /// \remarks Those methods are not intended to be called manually. The Engine is taking
-        ///          care of it.
+        /// \remark This method does not have to be called manually before running a simulation.
+        ///         The Engine is taking care of it.
         virtual void reset(const uniform_random_bit_generator_ref<uint32_t> & g) override;
         virtual void configureTelemetry(std::shared_ptr<TelemetryData> telemetryData);
         void updateTelemetry();
