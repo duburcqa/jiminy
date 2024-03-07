@@ -420,67 +420,67 @@ class DeformationEstimator(
     that are presumably responsible for most of the whole deformation of the
     mechanical structure.
 
-    .. details::
-        The number of IMU sensors and flexibility frames must be consistent:
-            * If the robot has no freeflyer, there must be as many IMU sensors
-              as flexibility frames (0), ie
+    The number of IMU sensors and flexibility frames must be consistent:
+        * If the robot has no freeflyer, there must be as many IMU sensors as
+          flexibility frames (0), ie
 
-              *---o---x---o---x---o---x
-                          |
-                          |
-                          x---o---x
+            *---o---x---o---x---o---x
+                        |
+                        |
+                        x---o---x
 
-            * Otherwise, it can either have one more IMU than flexibility
-              frames (1), the same number (2), or up to one less IMU per
-              branch in the kinematic tree (3).
+        * Otherwise, it can either have one more IMU than flexibility frames
+          (1), the same number (2), or up to one less IMU per branch in the
+          kinematic tree (3).
 
-              (1) x---o---x---o---x---o---x
-                              |
-                              |
-                              x---o---x
+            (1) x---o---x---o---x---o---x
+                            |
+                            |
+                            x---o---x
 
-              (2) +---o---x---o---x---o---x
-                              |
-                              |
-                              x---o---x
+            (2) +---o---x---o---x---o---x
+                            |
+                            |
+                            x---o---x
 
-              (3) +---o---x---o---x---o---+
-                              |
-                              |
-                              x---o---+
+            (3) +---o---x---o---x---o---+
+                            |
+                            |
+                            x---o---+
 
-        *: Fixed base, +: leaf frame, x: IMU frame, o: flexibility frame
+    *: Fixed base, +: leaf frame, x: IMU frame, o: flexibility frame
 
-        (1): The pose of the freeflyer is ignored when estimating the
-        deformation at the flexibility frames in local frame. Mathematically,
-        it is the same as (0) when considering a virtual IMU with fixed
-        orientation to identity for the root joint.
+    (1): The pose of the freeflyer is ignored when estimating the deformation
+         at the flexibility frames in local frame. Mathematically, it is the
+         same as (0) when considering a virtual IMU with fixed orientation to
+         identity for the root joint.
 
-        (2): One has to compensate for the missing IMU by providing the
-        configuration of the freeflyer. More precisely, one should ensure that
-        the orientation of the parent frame of the orphan flexibility frame
-        matches the reality for the rigid configuration. This usually requires
-        making some assumptions to guess to pose of the frame that is not
-        directly observable. Any discrepancy will be aggregated to the
-        estimated deformation for the orphan flexibility frame specifically
-        since both cannot be distinguished. This issue typically happens when
-        there is no IMUs in the feet of a legged robot. In such a case, there
-        is no better option than assuming that one of the active contact bodies
-        remains flat on the ground. If the twist of the IMUs are ignored, then
-        the twist of the contact body does not matter either, otherwise it must
-        be set appropriately by the user to get a meaningless estimate for the
-        twist of the deformation. If it cannot be observed by some
-        exteroceptive sensor such as vision, then the most reasonable
-        assumption is to suppose that it matches the twist of the IMU coming
-        right after in the kinematic tree. This way, they will cancel out each
-        other without adding bias to the twist of the orphan flexibility frame.
+    (2): One has to compensate for the missing IMU by providing instead the
+         configuration of the freeflyer. More precisely, one should ensure that
+         the orientation of the parent frame of the orphan flexibility frame
+         matches the reality for the rigid configuration. This usually requires
+         making some assumptions to guess to pose of the frame that is not
+         directly observable. Any discrepancy will be aggregated to the
+         estimated deformation for the orphan flexibility frame specifically
+         since both cannot be distinguished. This issue typically happens when
+         there is no IMUs in the feet of a legged robot. In such a case, there
+         is no better option than assuming that one of the active contact
+         bodies remains flat on the ground. If the twist of the IMUs are
+         ignored, then the twist of the contact body does not matter either,
+         otherwise it must be set appropriately by the user to get a
+         meaningless estimate for the twist of the deformation. If it cannot be
+         observed by some exteroceptive sensor such as vision, then the most
+         reasonable assumption is to suppose that it matches the twist of the
+         IMU coming right after in the kinematic tree. This way, they will
+         cancel out each other without adding bias to the twist of the orphan
+         flexibility frame.
 
-        (3): This case is basically the same as (2), with the addition that
-        only the deformation of one of the orphan flexibility frames can
-        be estimated at once, namely the one whose parent frame is declared as
-        having known orientation. The other ones will be set to identity. For a
-        legged robot, this corresponds to one of the contact bodies, usually
-        the one holding most of the total weight.
+    (3): This case is basically the same as (2), with the addition that only
+         the deformation of one of the orphan flexibility frames can be
+         estimated at once, namely the one whose parent frame is declared as
+         having known orientation. The other ones will be set to identity. For
+         a legged robot, this corresponds to one of the contact bodies, usually
+         the one holding most of the total weight.
 
     .. warning::
         (2) and (3) are not supported for now, as it requires using one
