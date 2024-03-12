@@ -10,24 +10,34 @@ if [ -z ${BUILD_TYPE} ]; then
 fi
 
 ### Set the macos sdk version min if undefined
-if [ -z ${OSX_DEPLOYMENT_TARGET} ]; then
-  OSX_DEPLOYMENT_TARGET="10.15"
-  echo "OSX_DEPLOYMENT_TARGET is unset. Defaulting to '${OSX_DEPLOYMENT_TARGET}'."
-fi
+if [ "$(uname -s)" = "Darwin" ]; then
+  if [ -z ${OSX_DEPLOYMENT_TARGET} ]; then
+    OSX_DEPLOYMENT_TARGET="10.15"
+    echo "OSX_DEPLOYMENT_TARGET is unset. Defaulting to '${OSX_DEPLOYMENT_TARGET}'."
+  fi
 
-### Set the build architecture if undefined
-if [ -z ${OSX_ARCHITECTURES} ]; then
-  OSX_ARCHITECTURES="arm64"
-  echo "OSX_ARCHITECTURES is unset. Defaulting to '${OSX_ARCHITECTURES}'."
+  ### Set the build architecture if undefined
+  if [ -z ${OSX_ARCHITECTURES} ]; then
+    OSX_ARCHITECTURES="arm64"
+    echo "OSX_ARCHITECTURES is unset. Defaulting to '${OSX_ARCHITECTURES}'."
+  fi
 fi
 
 ### Set the compiler(s) if undefined
 if [ -z ${CMAKE_C_COMPILER} ]; then
-  CMAKE_C_COMPILER="$(which gcc)"
+  if [ "$(uname -s)" = "Darwin" ]; then
+      CMAKE_C_COMPILER="$(which clang)"
+  else
+      CMAKE_C_COMPILER="$(which gcc)"
+  fi
   echo "CMAKE_C_COMPILER is unset. Defaulting to '${CMAKE_C_COMPILER}'."
 fi
 if [ -z ${CMAKE_CXX_COMPILER} ]; then
-  CMAKE_CXX_COMPILER="$(which g++)"
+  if [ "$(uname -s)" = "Darwin" ]; then
+      CMAKE_CXX_COMPILER="$(which clang++)"
+  else
+      CMAKE_CXX_COMPILER="$(which g++)"
+  fi
   echo "CMAKE_CXX_COMPILER is unset. Defaulting to '${CMAKE_CXX_COMPILER}'."
 fi
 
@@ -101,6 +111,8 @@ git apply --reject --whitespace=fix "${RootDir}/build_tools/patch_deps_unix/boos
 if [ ! -d "${RootDir}/eigen3" ]; then
   git clone --depth 1 https://gitlab.com/libeigen/eigen.git "${RootDir}/eigen3"
 fi
+rm -rf "${RootDir}/eigen3/build"
+mkdir -p "${RootDir}/eigen3/build"
 cd "${RootDir}/eigen3"
 git reset --hard
 git fetch origin "3.4.0" && git checkout --force FETCH_HEAD || true
@@ -109,6 +121,8 @@ git fetch origin "3.4.0" && git checkout --force FETCH_HEAD || true
 if [ ! -d "${RootDir}/eigenpy" ]; then
   git clone --depth 1 https://github.com/stack-of-tasks/eigenpy.git "${RootDir}/eigenpy"
 fi
+rm -rf "${RootDir}/eigenpy/build"
+mkdir -p "${RootDir}/eigenpy/build"
 cd "${RootDir}/eigenpy"
 git reset --hard
 git fetch origin "v3.3.0" && git checkout --force FETCH_HEAD || true
@@ -120,6 +134,8 @@ git apply --reject --whitespace=fix "${RootDir}/build_tools/patch_deps_unix/eige
 if [ ! -d "${RootDir}/tinyxml" ]; then
   git clone --depth 1 https://github.com/robotology-dependencies/tinyxml.git "${RootDir}/tinyxml"
 fi
+rm -rf "${RootDir}/tinyxml/build"
+mkdir -p "${RootDir}/tinyxml/build"
 cd "${RootDir}/tinyxml"
 git reset --hard
 git fetch origin "master" && git checkout --force FETCH_HEAD || true
@@ -129,6 +145,8 @@ git apply --reject --whitespace=fix "${RootDir}/build_tools/patch_deps_unix/tiny
 if [ ! -d "${RootDir}/console_bridge" ]; then
   git clone --depth 1 https://github.com/ros/console_bridge.git "${RootDir}/console_bridge"
 fi
+rm -rf "${RootDir}/console_bridge/build"
+mkdir -p "${RootDir}/console_bridge/build"
 cd "${RootDir}/console_bridge"
 git reset --hard
 git fetch origin "0.3.2" && git checkout --force FETCH_HEAD || true
@@ -137,6 +155,8 @@ git fetch origin "0.3.2" && git checkout --force FETCH_HEAD || true
 if [ ! -d "${RootDir}/urdfdom_headers" ]; then
   git clone --depth 1 https://github.com/ros/urdfdom_headers.git "${RootDir}/urdfdom_headers"
 fi
+rm -rf "${RootDir}/urdfdom_headers/build"
+mkdir -p "${RootDir}/urdfdom_headers/build"
 cd "${RootDir}/urdfdom_headers"
 git reset --hard
 git fetch origin "1.0.4" && git checkout --force FETCH_HEAD || true
@@ -145,6 +165,8 @@ git fetch origin "1.0.4" && git checkout --force FETCH_HEAD || true
 if [ ! -d "${RootDir}/urdfdom" ]; then
   git clone --depth 1 https://github.com/ros/urdfdom.git "${RootDir}/urdfdom"
 fi
+rm -rf "${RootDir}/urdfdom/build"
+mkdir -p "${RootDir}/urdfdom/build"
 cd "${RootDir}/urdfdom"
 git reset --hard
 git fetch origin "1.0.3" && git checkout --force FETCH_HEAD || true
@@ -154,6 +176,8 @@ git apply --reject --whitespace=fix "${RootDir}/build_tools/patch_deps_unix/urdf
 if [ ! -d "${RootDir}/cppad" ]; then
   git clone --depth 1 https://github.com/coin-or/CppAD.git "${RootDir}/cppad"
 fi
+rm -rf "${RootDir}/cppad/build"
+mkdir -p "${RootDir}/cppad/build"
 cd "${RootDir}/cppad"
 git reset --hard
 git fetch origin "20240000.2" && git checkout --force FETCH_HEAD || true
@@ -162,6 +186,8 @@ git fetch origin "20240000.2" && git checkout --force FETCH_HEAD || true
 if [ ! -d "${RootDir}/cppadcodegen" ]; then
   git clone --depth 1 https://github.com/joaoleal/CppADCodeGen.git "${RootDir}/cppadcodegen"
 fi
+rm -rf "${RootDir}/cppadcodegen/build"
+mkdir -p "${RootDir}/cppadcodegen/build"
 cd "${RootDir}/cppadcodegen"
 git reset --hard
 git fetch origin "v2.4.3" && git checkout --force FETCH_HEAD || true
@@ -170,6 +196,8 @@ git fetch origin "v2.4.3" && git checkout --force FETCH_HEAD || true
 if [ ! -d "${RootDir}/assimp" ]; then
   git clone --depth 1 https://github.com/assimp/assimp.git "${RootDir}/assimp"
 fi
+rm -rf "${RootDir}/assimp/build"
+mkdir -p "${RootDir}/assimp/build"
 cd "${RootDir}/assimp"
 git reset --hard
 git fetch origin "v5.2.5" && git checkout --force FETCH_HEAD || true
@@ -179,6 +207,8 @@ if [ ! -d "${RootDir}/hpp-fcl" ]; then
   git clone --depth 1 https://github.com/humanoid-path-planner/hpp-fcl.git "${RootDir}/hpp-fcl"
   git config --global url."https://".insteadOf git://
 fi
+rm -rf "${RootDir}/hpp-fcl/build"
+mkdir -p "${RootDir}/hpp-fcl/build"
 cd "${RootDir}/hpp-fcl"
 git reset --hard
 git fetch origin "v2.4.1" && git checkout --force FETCH_HEAD || true
@@ -186,6 +216,7 @@ git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --depth 1 --jobs 8
 git apply --reject --whitespace=fix "${RootDir}/build_tools/patch_deps_unix/hppfcl.patch"
 cd "${RootDir}/hpp-fcl/third-parties/qhull"
+rm -rf "${RootDir}/hpp-fcl/third-parties/qhull/build"
 git fetch origin "v8.0.2" && git checkout --force FETCH_HEAD || true
 
 ### Checkout pinocchio and its submodules
@@ -193,6 +224,8 @@ if [ ! -d "${RootDir}/pinocchio" ]; then
   git clone --depth 1 https://github.com/stack-of-tasks/pinocchio.git "${RootDir}/pinocchio"
   git config --global url."https://".insteadOf git://
 fi
+rm -rf "${RootDir}/pinocchio/build"
+mkdir -p "${RootDir}/pinocchio/build"
 cd "${RootDir}/pinocchio"
 git reset --hard
 git fetch origin "v2.7.0" && git checkout --force FETCH_HEAD || true
@@ -269,7 +302,6 @@ mkdir -p "${RootDir}/boost/build"
 
 #################################### Build and install eigen3 ##########################################
 
-mkdir -p "${RootDir}/eigen3/build"
 cd "${RootDir}/eigen3/build"
 cmake "${RootDir}/eigen3" -Wno-dev -DCMAKE_CXX_STANDARD=17 \
       -DCMAKE_C_COMPILER="${CMAKE_C_COMPILER}" -DCMAKE_CXX_COMPILER="${CMAKE_CXX_COMPILER}" \
@@ -279,7 +311,6 @@ make install -j2
 
 ################################### Build and install eigenpy ##########################################
 
-mkdir -p "${RootDir}/eigenpy/build"
 cd "${RootDir}/eigenpy/build"
 cmake "${RootDir}/eigenpy" -Wno-dev -DCMAKE_CXX_STANDARD=17 \
       -DCMAKE_C_COMPILER="${CMAKE_C_COMPILER}" -DCMAKE_CXX_COMPILER="${CMAKE_CXX_COMPILER}" \
@@ -297,7 +328,6 @@ make install -j2
 
 ################################## Build and install tinyxml ###########################################
 
-mkdir -p "${RootDir}/tinyxml/build"
 cd "${RootDir}/tinyxml/build"
 cmake "${RootDir}/tinyxml" -Wno-dev -DCMAKE_CXX_STANDARD=17 \
       -DCMAKE_C_COMPILER="${CMAKE_C_COMPILER}" -DCMAKE_CXX_COMPILER="${CMAKE_CXX_COMPILER}" \
@@ -311,7 +341,6 @@ make install -j2
 
 ############################## Build and install console_bridge ########################################
 
-mkdir -p "${RootDir}/console_bridge/build"
 cd "${RootDir}/console_bridge/build"
 cmake "${RootDir}/console_bridge" -Wno-dev -DCMAKE_CXX_STANDARD=17 \
       -DCMAKE_C_COMPILER="${CMAKE_C_COMPILER}" -DCMAKE_CXX_COMPILER="${CMAKE_CXX_COMPILER}" \
@@ -324,7 +353,6 @@ make install -j2
 
 ############################### Build and install urdfdom_headers ######################################
 
-mkdir -p "${RootDir}/urdfdom_headers/build"
 cd "${RootDir}/urdfdom_headers/build"
 cmake "${RootDir}/urdfdom_headers" -Wno-dev -DCMAKE_CXX_STANDARD=17 \
       -DCMAKE_C_COMPILER="${CMAKE_C_COMPILER}" -DCMAKE_CXX_COMPILER="${CMAKE_CXX_COMPILER}" \
@@ -333,7 +361,6 @@ make install -j2
 
 ################################## Build and install urdfdom ###########################################
 
-mkdir -p "${RootDir}/urdfdom/build"
 cd "${RootDir}/urdfdom/build"
 cmake "${RootDir}/urdfdom" -Wno-dev -DCMAKE_CXX_STANDARD=17 \
       -DCMAKE_C_COMPILER="${CMAKE_C_COMPILER}" -DCMAKE_CXX_COMPILER="${CMAKE_CXX_COMPILER}" \
@@ -346,7 +373,6 @@ make install -j2
 
 ################################### Build and install CppAD ##########################################
 
-mkdir -p "${RootDir}/cppad/build"
 cd "${RootDir}/cppad/build"
 cmake "${RootDir}/cppad" -Wno-dev -DCMAKE_CXX_STANDARD=17 \
       -DCMAKE_C_COMPILER="${CMAKE_C_COMPILER}" -DCMAKE_CXX_COMPILER="${CMAKE_CXX_COMPILER}" \
@@ -359,7 +385,6 @@ make install -j2
 
 ################################### Build and install CppADCodeGen ##########################################
 
-mkdir -p "${RootDir}/cppadcodegen/build"
 cd "${RootDir}/cppadcodegen/build"
 cmake "${RootDir}/cppadcodegen" -Wno-dev -DCMAKE_CXX_STANDARD=17 \
       -DCMAKE_C_COMPILER="${CMAKE_C_COMPILER}" -DCMAKE_CXX_COMPILER="${CMAKE_CXX_COMPILER}" \
@@ -374,7 +399,6 @@ make install -j2
 
 # C flag 'HAVE_HIDDEN' must be specified to hide internal symbols of zlib that may not be exposed at
 # runtime causing undefined symbol error when loading hpp-fcl shared library.
-mkdir -p "${RootDir}/assimp/build"
 cd "${RootDir}/assimp/build"
 cmake "${RootDir}/assimp" -Wno-dev -DCMAKE_CXX_STANDARD=17 \
       -DCMAKE_C_COMPILER="${CMAKE_C_COMPILER}" -DCMAKE_CXX_COMPILER="${CMAKE_CXX_COMPILER}" \
@@ -404,7 +428,6 @@ cmake "${RootDir}/hpp-fcl/third-parties/qhull" -Wno-dev -DCMAKE_CXX_STANDARD=17 
       -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2
 
-mkdir -p "${RootDir}/hpp-fcl/build"
 cd "${RootDir}/hpp-fcl/build"
 cmake "${RootDir}/hpp-fcl" -Wno-dev -DCMAKE_CXX_STANDARD=17 \
       -DCMAKE_C_COMPILER="${CMAKE_C_COMPILER}" -DCMAKE_CXX_COMPILER="${CMAKE_CXX_COMPILER}" \
@@ -425,8 +448,7 @@ make install -j2
 
 ################################# Build and install Pinocchio ##########################################
 
-### Build and install pinocchio, finally !
-mkdir -p "${RootDir}/pinocchio/build"
+### Build and install pinocchio
 cd "${RootDir}/pinocchio/build"
 cmake "${RootDir}/pinocchio" -Wno-dev -DCMAKE_CXX_STANDARD=17 \
       -DCMAKE_C_COMPILER="${CMAKE_C_COMPILER}" -DCMAKE_CXX_COMPILER="${CMAKE_CXX_COMPILER}" \
