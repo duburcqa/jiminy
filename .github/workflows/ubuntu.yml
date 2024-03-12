@@ -76,7 +76,7 @@ jobs:
           sudo apt install ninja-build
         fi
         "${PYTHON_EXECUTABLE}" -m pip install "torch" -f https://download.pytorch.org/whl/torch
-        "${PYTHON_EXECUTABLE}" -m pip install "gymnasium>=0.26,<0.29" "importlib-metadata>=3.3.0"
+        "${PYTHON_EXECUTABLE}" -m pip install "gymnasium>=0.28,<1.0" "importlib-metadata>=3.3.0"
 
     #####################################################################################
 
@@ -152,7 +152,7 @@ jobs:
     - name: Run unit tests for gym_jiminy
       if: matrix.BUILD_TYPE == 'Release'
       run: |
-        cd "${RootDir}/python/gym_jiminy/examples/reinforcement_learning/rllib"
+        cd "${RootDir}/python/gym_jiminy/examples/rllib"
         "${PYTHON_EXECUTABLE}" acrobot_ppo.py
 
         "${PYTHON_EXECUTABLE}" -m pip install "stable_baselines3>=2.0"

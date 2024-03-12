@@ -398,10 +398,10 @@ class ObservedJiminyEnv(
             observation['measurement'] = base_observation
         if (state := self.observer.get_state()) is not None:
             states = observation.setdefault('states', OrderedDict())
-            assert isinstance(states, dict)
+            assert isinstance(states, OrderedDict)
             states[self.observer.name] = state
         features = observation.setdefault('features', OrderedDict())
-        assert isinstance(features, dict)
+        assert isinstance(features, OrderedDict)
         features[self.observer.name] = self.observer.observation
         self.observation = cast(NestedObsT, observation)
 
@@ -449,11 +449,11 @@ class ObservedJiminyEnv(
         if self.observer.state_space is not None:
             state_spaces = observation_space.setdefault(
                 'states', gym.spaces.Dict())
-            assert isinstance(state_spaces, MutableMapping)
+            assert isinstance(state_spaces, gym.spaces.Dict)
             state_spaces[self.observer.name] = self.observer.state_space
         feature_spaces = observation_space.setdefault(
             'features', gym.spaces.Dict())
-        assert isinstance(feature_spaces, MutableMapping)
+        assert isinstance(feature_spaces, gym.spaces.Dict)
         feature_spaces[self.observer.name] = self.observer.observation_space
         self.observation_space = gym.spaces.Dict(observation_space)
 
@@ -617,11 +617,11 @@ class ControlledJiminyEnv(
             observation['measurement'] = base_observation
         if (state := self.controller.get_state()) is not None:
             states = observation.setdefault('states', OrderedDict())
-            assert isinstance(states, dict)
+            assert isinstance(states, OrderedDict)
             states[self.controller.name] = state
         if self.augment_observation:
             actions = observation.setdefault('actions', OrderedDict())
-            assert isinstance(actions, dict)
+            assert isinstance(actions, OrderedDict)
             actions[self.controller.name] = self.action
         self.observation = cast(NestedObsT, observation)
 
@@ -675,12 +675,12 @@ class ControlledJiminyEnv(
         if self.controller.state_space is not None:
             state_spaces = observation_space.setdefault(
                 'states', gym.spaces.Dict())
-            assert isinstance(state_spaces, MutableMapping)
+            assert isinstance(state_spaces, gym.spaces.Dict)
             state_spaces[self.controller.name] = self.controller.state_space
         if self.augment_observation:
             action_spaces = observation_space.setdefault(
                 'actions', gym.spaces.Dict())
-            assert isinstance(action_spaces, MutableMapping)
+            assert isinstance(action_spaces, gym.spaces.Dict)
             action_spaces[self.controller.name] = self.controller.action_space
         self.observation_space = gym.spaces.Dict(observation_space)
 

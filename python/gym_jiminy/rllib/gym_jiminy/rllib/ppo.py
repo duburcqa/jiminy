@@ -162,13 +162,12 @@ def _compute_mirrored_value(value: torch.Tensor,
         matrix.
         """
         if len(shape) > 1:
-            data = data.reshape((-1, *shape)) \
-                       .swapaxes(1, 0) \
-                       .reshape((shape[0], -1))
+            assert len(shape) == 2, "shape > 2 is not supported for now."
+            data = data.reshape(
+                (-1, *shape)).swapaxes(1, 0).reshape((shape[0], -1))
             data_mirrored = mirror_mat @ data
-            return data_mirrored.reshape((shape[0], -1, shape[1])) \
-                                .swapaxes(1, 0) \
-                                .reshape((-1, *shape))
+            return data_mirrored.reshape(
+                (shape[0], -1, shape[1])).swapaxes(1, 0).reshape((-1, *shape))
         return torch.mm(data, mirror_mat)
 
     if isinstance(mirror_mat, dict):
@@ -269,7 +268,8 @@ class PPO(_PPO):
 
     @classmethod
     @override(_PPO)
-    def get_default_policy_class(cls, config: AlgorithmConfig
+    def get_default_policy_class(cls,
+                                 config: AlgorithmConfig
                                  ) -> Optional[Type[Policy]]:
         """Returns a default Policy class to use, given a config.
         """
@@ -373,6 +373,7 @@ class PPOTorchPolicy(_PPOTorchPolicy):
             data_col=SampleBatch.OBS,
             space=self.observation_space,
             shift=-1,
+            batch_repeat_value=1,
             used_for_compute_actions=False,
             used_for_training=True)
         return view_requirements

@@ -76,7 +76,7 @@ jobs:
       if: matrix.PYTHON_VERSION != '3.12'
       run: |
         "${PYTHON_EXECUTABLE}" -m pip install "torch" -f https://download.pytorch.org/whl/torch
-        "${PYTHON_EXECUTABLE}" -m pip install "gymnasium>=0.26,<0.29" "importlib-metadata>=3.3.0"
+        "${PYTHON_EXECUTABLE}" -m pip install "gymnasium>=0.28,<1.0" "importlib-metadata>=3.3.0"
 
     #####################################################################################
 
@@ -123,7 +123,7 @@ jobs:
     - name: Run unit tests for gym_jiminy
       if: matrix.BUILD_TYPE == 'Release' && matrix.PYTHON_VERSION != '3.12'
       run: |
-        cd "$RootDir/python/gym_jiminy/examples/reinforcement_learning/rllib"
+        cd "$RootDir/python/gym_jiminy/examples/rllib"
         gdb -batch -ex "run" -ex "bt" --args "${PYTHON_EXECUTABLE}" acrobot_ppo.py 2>&1 | \
           grep -v ^"No stack."$ && exit 1
 
@@ -148,7 +148,7 @@ jobs:
         make install
 
         # FIXME: Force re-installing the right version of gymnasium
-        "${PYTHON_EXECUTABLE}" -m pip install "gymnasium>=0.28,<0.29"
+        "${PYTHON_EXECUTABLE}" -m pip install "gymnasium>=0.28,<1.0"
 
         # mypy is not able to follow `.pth` when checking directories or files.
         # This bug may be fixed in the future. The only workaround is to set `MYPYPATH` manually.

@@ -4,7 +4,7 @@ algorithm of Ray RLlib reinforcement learning framework.
 It solves it consistently in less than 100000 timesteps in average.
 
 .. warning::
-    This script has been tested for pytorch~=2.0 and ray[rllib]~=2.5.0
+    This script has been tested for pytorch~=2.3 and ray[rllib]~=2.9.3
 """
 
 # ====================== Configure Python workspace =======================
@@ -29,21 +29,20 @@ from gym_jiminy.rllib.utilities import (initialize,
                                         evaluate_local_worker,
                                         evaluate_algo)
 
+# ============================ User parameters ============================
+
+GYM_ENV_NAME = "gym_jiminy.envs:acrobot"
+GYM_ENV_KWARGS = {
+    'continuous': True
+}
+ENABLE_RECORDING = True
+ENABLE_VIEWER = "JIMINY_VIEWER_DISABLE" not in os.environ
+DEBUG = False
+SEED = 0
+N_THREADS = 9
+N_GPU = 0
 
 if __name__ == "__main__":
-    # ============================ User parameters ============================
-
-    GYM_ENV_NAME = "gym_jiminy.envs:acrobot"
-    GYM_ENV_KWARGS = {
-        'continuous': True
-    }
-    ENABLE_VIEWER = "JIMINY_VIEWER_DISABLE" in os.environ
-    SPEED_RATIO = 1.0
-    DEBUG = False
-    SEED = 0
-    N_THREADS = 9
-    N_GPU = 0
-
     # ==================== Initialize Ray and Tensorboard =====================
 
     # Start Ray and Tensorboard background processes
@@ -52,7 +51,7 @@ if __name__ == "__main__":
 
     # Register the environment
     register_env("env", lambda env_config: FrameRateLimiter(
-        gym.make(GYM_ENV_NAME, **env_config), SPEED_RATIO))
+        gym.make(GYM_ENV_NAME, **env_config), speed_ratio=1.0))
 
     # ====================== Configure policy's network =======================
 
@@ -106,9 +105,9 @@ if __name__ == "__main__":
     )
 
     # Debugging and monitoring settings
-    algo_config.rollouts(
+    algo_config.fault_tolerance(
         # Whether to attempt to continue training if a worker crashes
-        ignore_worker_failures=False
+        recreate_failed_workers=False
     )
     algo_config.debugging(
         # Set the log level for the whole learning process
@@ -205,8 +204,8 @@ if __name__ == "__main__":
         custom_evaluation_function=partial(
             evaluate_algo,
             print_stats=True,
-            enable_replay=ENABLE_VIEWER or None,
-            record_video=ENABLE_VIEWER
+            enable_replay=ENABLE_VIEWER,
+            record_video=ENABLE_RECORDING
         ),
         # Partially override configuration for evaluation
         evaluation_config=dict(
@@ -292,7 +291,8 @@ if __name__ == "__main__":
     algo = algo_config.build()
 
     # Train the agent
-    checkpoint_path = train(algo, max_timesteps=200000, logdir=algo.logdir)
+    result = train(algo, max_timesteps=200000, logdir=algo.logdir)
+    checkpoint_path = result.checkpoint.path
 
     # ========================= Terminate Ray backend =========================
 
@@ -303,7 +303,7 @@ if __name__ == "__main__":
 
     # Build a standalone local evaluation worker (not requiring ray backend)
     register_env("env", lambda env_config: FrameRateLimiter(
-        gym.make(GYM_ENV_NAME, **env_config), SPEED_RATIO))
+        gym.make(GYM_ENV_NAME, **env_config), speed_ratio=1.0))
     worker = build_eval_worker_from_checkpoint(checkpoint_path)
     evaluate_local_worker(worker,
                           evaluation_num=1,
