@@ -1,0 +1,22 @@
+# options: https://github.com/google/yapf
+# Do not enable auto-formatting for now because it does not support:
+# * splitting all arguments on separated lines if it does not fit on one line
+#   AND adding a single line is not enough.
+# * Prefer splitting top-level over low-level (eg add new line instead of
+#   splitting typing annotations)
+# In addition, there are several annoying issues:
+# * Inconsistent formatting from time to time
+# * Inline comments are messing up with formatting
+
+[style]
+
+based_on_style = google
+column_limit = 79
+
+coalesce_brackets = True
+blank_lines_between_top_level_imports_and_variables = 2
+spaces_around_power_operator = True
+# split_all_top_level_comma_separated_values = True
+split_arguments_when_comma_terminated = True
+split_before_expression_after_opening_paren = True
+split_before_named_assigns = False
