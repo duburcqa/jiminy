@@ -71,6 +71,10 @@ jobs:
     #####################################################################################
 
     - name: Configure and build jiminy
+      # FIXME: CMake exits with non-zero code if an error occurred in 'execute_process'.
+      # Indeed, such errors are expected to occur if some gym_jiminy add-on cannot be
+      # installed because of missing pre-compiled dependency on Pypi.
+      continue-on-error: true
       run: |
         $ErrorActionPreference = "Stop"
         Set-PSDebug -Trace 1
@@ -86,7 +90,7 @@ jobs:
           New-Item -ItemType "directory" -Force -Path "$RootDir/build"
         }
         Set-Location -Path $RootDir/build
-        cmake "$RootDir" -G "${env:GENERATOR}" -DCMAKE_GENERATOR_PLATFORM=x64 `
+        cmake "$RootDir" -Wdev -G "${env:GENERATOR}" -DCMAKE_GENERATOR_PLATFORM=x64 `
               -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
               -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" `
               -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF -DCMAKE_VERBOSE_MAKEFILE=ON `
@@ -141,7 +145,7 @@ jobs:
             python -m pip install --force-reinstall --no-deps $wheel_path
         }
     - name: Upload the wheel for Windows of jiminy_py
-      if: matrix.BUILD_TYPE == 'Release'
+      if: matrix.BUILD_TYPE != 'Debug'
       uses: actions/upload-artifact@v4
       with:
         name: wheelhouse-${{ matrix.PYTHON_VERSION }}
@@ -182,23 +186,25 @@ jobs:
 
         python -m unittest discover -s "${RootDir}/python/jiminy_py/unit_py" -v
 
-    - name: Run unit tests for gym_jiminy
-      if: matrix.BUILD_TYPE != 'Release'
+    - name: Run unit tests for gym jiminy base module
       run: |
         $RootDir = "${env:GITHUB_WORKSPACE}/workspace" -replace '\\', '/'
 
-        Set-Location -Path "$RootDir/python/gym_jiminy/unit_py"
-        python -m unittest test_pipeline_control.py test_pipeline_design.py -v
+        if ("${{ matrix.BUILD_TYPE }}" -eq "Debug") {
+          ${env:JIMINY_BUILD_DEBUG} = 1
+        }
+        python -m unittest discover -s "$RootDir/python/gym_jiminy/unit_py" -v
 
-    - name: Running unit tests for gym_jiminy
-      if: matrix.BUILD_TYPE == 'Release' && matrix.PYTHON_VERSION != '3.12'
+    - name: Run examples for gym jiminy add-on modules
+      if: matrix.BUILD_TYPE != 'Debug' && matrix.PYTHON_VERSION != '3.11' && matrix.PYTHON_VERSION != '3.12'
       run: |
         $RootDir = "${env:GITHUB_WORKSPACE}/workspace" -replace '\\', '/'
 
+        # FIXME: Python 3.11 was not supported by ray on Windows until very recently.
+        # It has been fixed on master but not on the latest available release (2.93).
+        # See: https://github.com/ray-project/ray/pull/42097
         Set-Location -Path "$RootDir/python/gym_jiminy/examples/rllib"
         python acrobot_ppo.py
-
-        python -m unittest discover -s "$RootDir/python/gym_jiminy/unit_py" -v
 
 #########################################################################################
 

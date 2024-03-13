@@ -4,6 +4,18 @@ cmake_minimum_required(VERSION 3.12.4)
 # Set the build version (specify a tweak version to indicated post-release if needed)
 set(BUILD_VERSION 1.8.3)
 
+# MSVC runtime library flags are defined by 'CMAKE_MSVC_RUNTIME_LIBRARY'
+if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.15.7)
+    cmake_policy(SET CMP0091 NEW)
+    set(CMAKE_POLICY_DEFAULT_CMP0091 NEW)
+endif()
+
+# Set find_package strategy to look for both upper-case and case-preserved variables
+if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.27.0)
+    cmake_policy(SET CMP0144 NEW)
+    set(CMAKE_POLICY_DEFAULT_CMP0144 NEW)
+endif()
+
 # Set compatibility
 set(COMPATIBILITY_VERSION SameMinorVersion)
 

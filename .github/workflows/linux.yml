@@ -84,9 +84,10 @@ jobs:
       run: |
         unset Boost_ROOT
 
-        mkdir "$RootDir/build"
-        cd "$RootDir/build"
-        cmake "$RootDir" -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" \
+        mkdir "${RootDir}/build"
+        cd "${RootDir}/build"
+        cmake "${RootDir}" -Wdev \
+              -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" \
               -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" \
               -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE -DBoost_USE_STATIC_LIBS=ON \
               -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
@@ -103,9 +104,9 @@ jobs:
       run: |
         "$InstallDir/bin/jiminy_double_pendulum"
 
-        mkdir -p "$RootDir/core/examples/external_project/build"
-        cd "$RootDir/core/examples/external_project/build"
-        cmake "$RootDir/core/examples/external_project/" -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+        mkdir -p "${RootDir}/core/examples/external_project/build"
+        cd "${RootDir}/core/examples/external_project/build"
+        cmake "${RootDir}/core/examples/external_project/" -DCMAKE_INSTALL_PREFIX="$InstallDir" \
               -DCMAKE_PREFIX_PATH="$InstallDir" -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
               -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}" -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
         make install
@@ -118,29 +119,33 @@ jobs:
       run: |
         ctest --output-on-failure --test-dir "${RootDir}/build/core/unit"
 
-        "${PYTHON_EXECUTABLE}" -m unittest discover -s "$RootDir/python/jiminy_py/unit_py" -v
+        "${PYTHON_EXECUTABLE}" -m unittest discover -s "${RootDir}/python/jiminy_py/unit_py" -v
 
-    - name: Run unit tests for gym_jiminy
-      if: matrix.BUILD_TYPE == 'Release' && matrix.PYTHON_VERSION != '3.12'
+    - name: Run unit tests for gym jiminy base module
       run: |
-        cd "$RootDir/python/gym_jiminy/examples/rllib"
-        gdb -batch -ex "run" -ex "bt" --args "${PYTHON_EXECUTABLE}" acrobot_ppo.py 2>&1 | \
-          grep -v ^"No stack."$ && exit 1
+        if [[ "${{ matrix.BUILD_TYPE }}" == 'Debug' ]] ; then
+          export JIMINY_BUILD_DEBUG=
+        fi
+        "${PYTHON_EXECUTABLE}" -m unittest discover -s "${RootDir}/python/gym_jiminy/unit_py" -v
 
-        "${PYTHON_EXECUTABLE}" -m unittest discover -s "$RootDir/python/gym_jiminy/unit_py" -v
+    - name: Run examples for gym jiminy add-on modules
+      if: matrix.BUILD_TYPE != 'Debug' && matrix.PYTHON_VERSION != '3.12'
+      run: |
+        cd "${RootDir}/python/gym_jiminy/examples/rllib"
+        "${PYTHON_EXECUTABLE}" acrobot_ppo.py
 
     - name: Python static type checker
-      if: matrix.PYTHON_VERSION == '3.8' && matrix.BUILD_TYPE == 'Release'
+      if: matrix.PYTHON_VERSION == '3.8' && matrix.BUILD_TYPE != 'Debug'
       run: |
         # Generate stubs
-        stubgen -p jiminy_py -o $RootDir/build/pypi/jiminy_py/src
-        "${PYTHON_EXECUTABLE}" "$RootDir/build_tools/stub_gen.py" \
-          -o $RootDir/build/stubs --ignore-invalid=all jiminy_py
-        cp $RootDir/build/stubs/jiminy_py-stubs/core/__init__.pyi \
-           $RootDir/build/pypi/jiminy_py/src/jiminy_py/core/core.pyi
+        stubgen -p jiminy_py -o ${RootDir}/build/pypi/jiminy_py/src
+        "${PYTHON_EXECUTABLE}" "${RootDir}/build_tools/stub_gen.py" \
+          -o ${RootDir}/build/stubs --ignore-invalid=all jiminy_py
+        cp ${RootDir}/build/stubs/jiminy_py-stubs/core/__init__.pyi \
+           ${RootDir}/build/pypi/jiminy_py/src/jiminy_py/core/core.pyi
 
         # Re-install jiminy with stubs
-        cd "$RootDir/build"
+        cd "${RootDir}/build"
         make install
 
         # mypy is not able to follow `.pth` when checking directories or files.
@@ -148,9 +153,9 @@ jobs:
         # Anyway, the stubs generated for eigenpy, hppfcl and pinocchio they are incomplete and
         # even partially wrong, so it is better to ignore them for now.
         # See: https://github.com/python/mypy/issues/14848.
-        cd "$RootDir/python/jiminy_py/"
-        mypy --config-file="$RootDir/.mypy.ini" -p src
+        cd "${RootDir}/python/jiminy_py/"
+        mypy --config-file="${RootDir}/.mypy.ini" -p src
         for name in "common" "envs" "toolbox" "rllib"; do
-          cd "$RootDir/python/gym_jiminy/$name"
-          mypy --config-file="$RootDir/.mypy.ini" -p gym_jiminy
+          cd "${RootDir}/python/gym_jiminy/$name"
+          mypy --config-file="${RootDir}/.mypy.ini" -p gym_jiminy
         done

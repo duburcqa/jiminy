@@ -90,7 +90,8 @@ jobs:
         mkdir "${RootDir}/build"
         cd "${RootDir}/build"
         export LD_LIBRARY_PATH="${InstallDir}/lib/:/usr/local/lib"
-        cmake "${RootDir}" -DCMAKE_INSTALL_PREFIX="${InstallDir}" -DCMAKE_PREFIX_PATH="${InstallDir}" \
+        cmake "${RootDir}" -Wdev \
+              -DCMAKE_INSTALL_PREFIX="${InstallDir}" -DCMAKE_PREFIX_PATH="${InstallDir}" \
               -DCMAKE_C_COMPILER="${CMAKE_C_COMPILER}" -DCMAKE_CXX_COMPILER="${CMAKE_CXX_COMPILER}" \
               -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" \
               -DCMAKE_OSX_DEPLOYMENT_TARGET="${OSX_DEPLOYMENT_TARGET}" \
@@ -140,7 +141,7 @@ jobs:
             -p "macosx_${OSX_DEPLOYMENT_TARGET//./_}_${WHEEL_ARCH}" "${RootDir}/build/wheelhouse/"*.whl
         "${PYTHON_EXECUTABLE}" -m pip install --force-reinstall --no-deps "${RootDir}/build/wheelhouse/"*.whl
     - name: Upload the wheel for Linux of jiminy_py
-      if: matrix.BUILD_TYPE == 'Release'
+      if: matrix.BUILD_TYPE != 'Debug'
       uses: actions/upload-artifact@v4
       with:
         name: wheelhouse-${{ matrix.PYTHON_VERSION }}
@@ -175,23 +176,24 @@ jobs:
         cd "${RootDir}/python/jiminy_py/unit_py"
         "${PYTHON_EXECUTABLE}" -m unittest discover -v
 
-    - name: Run unit tests for gym_jiminy
-      if: matrix.BUILD_TYPE != 'Release'
+    - name: Run unit tests for gym jiminy base module
       run: |
-        # Disabling `test_pipeline_control.py` on MacOS because `test_pid_standing` is failing
-        # for 'panda3d-sync' backend due to meshes still loading at screenshot time.
-        cd "${RootDir}/python/gym_jiminy/unit_py"
-        "${PYTHON_EXECUTABLE}" -m unittest test_pipeline_design.py -v
+        export LD_LIBRARY_PATH="${InstallDir}/lib/:/usr/local/lib"
 
-    - name: Run unit tests for gym jiminy
-      if: matrix.BUILD_TYPE == 'Release' && matrix.PYTHON_VERSION != '3.12'
+        # FIXME: Disabling `test_pipeline_control.py` on MacOS because `test_pid_standing` is
+        # failing for 'panda3d-sync' backend due to meshes still loading at screenshot time.
+        if [[ "${{ matrix.BUILD_TYPE }}" == 'Debug' ]] ; then
+          export JIMINY_BUILD_DEBUG=
+        fi
+        "${PYTHON_EXECUTABLE}" -m unittest discover -s "${RootDir}/python/gym_jiminy/unit_py" -v
+
+    - name: Run examples for gym jiminy add-on modules
+      if: matrix.BUILD_TYPE != 'Debug' && matrix.PYTHON_VERSION != '3.12'
       run: |
         export LD_LIBRARY_PATH="${InstallDir}/lib/:/usr/local/lib"
 
         cd "${RootDir}/python/gym_jiminy/examples/rllib"
         "${PYTHON_EXECUTABLE}" acrobot_ppo.py
-
-        "${PYTHON_EXECUTABLE}" -m unittest discover -s "${RootDir}/python/gym_jiminy/unit_py" -v
 
 #########################################################################################
 

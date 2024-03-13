@@ -55,7 +55,8 @@ else()
                     OUTPUT_VARIABLE HAS_NO_WRITE_PERMISSION_ON_PYTHON_SYS_SITELIB)
 endif()
 
-set(PYTHON_INSTALL_FLAGS " --no-warn-script-location --prefer-binary ")
+# Libraries not distributed as wheel must be explicitly whitelisted via '--no-binary'.
+set(PYTHON_INSTALL_FLAGS " --no-warn-script-location --only-binary :all:")
 if(${HAS_NO_WRITE_PERMISSION_ON_PYTHON_SYS_SITELIB})
     set(PYTHON_INSTALL_FLAGS "${PYTHON_INSTALL_FLAGS} --user ")
     message(STATUS "No right on Python system site-packages: ${Python_SYS_SITELIB}.\n"
@@ -168,14 +169,15 @@ function(deployPythonPackageDevelop)
 
     # Loop over all packages sequentially
     foreach(PKG_NAME IN LISTS ARGS)
-        install(CODE "execute_process(COMMAND ${Python_EXECUTABLE} -m pip install ${PYTHON_INSTALL_FLAGS} -e .
+        install(CODE "cmake_policy(SET CMP0012 NEW)
+                      execute_process(COMMAND ${Python_EXECUTABLE} -m pip install ${PYTHON_INSTALL_FLAGS} -e .
                                       WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/${PKG_NAME}
                                       RESULT_VARIABLE RETURN_CODE)
-                      if(NOT RETURN_CODE EQUAL 0)
-                          if (NOT ${ALLOW_FAILURE})
-                              message(FATAL_ERROR \"Python installation of '${PKG_NAME}' failed.\")
-                          else()
+                      if(RETURN_CODE AND NOT RETURN_CODE EQUAL 0)
+                          if (${ALLOW_FAILURE})
                               message(WARNING \"Python installation of '${PKG_NAME}' failed.\")
+                          else()
+                              message(FATAL_ERROR \"Python installation of '${PKG_NAME}' failed.\")
                           endif()
                       endif()")
     endforeach()

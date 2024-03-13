@@ -37,7 +37,7 @@ void internalDynamics(double t,
 {
 }
 
-bool callback(double t, const Eigen::VectorXd & q, const Eigen::VectorXd & v)
+bool callback()
 {
     return true;
 }
@@ -97,7 +97,7 @@ int main(int argc, char * argv[])
 
     // Run simulation
     timer.tic();
-    engine.simulate(tf, q0, v0, std::nullopt, callback);
+    engine.simulate(tf, q0, v0, std::nullopt, false, callback);
     std::cout << "Simulation: " << timer.toc<std::milli>() << "ms" << std::endl;
 
     // Write the log file

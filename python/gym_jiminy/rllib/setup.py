@@ -35,7 +35,7 @@ setup(
         # * <1.6.0: GPU detection must be patched to work
         # * > 2.5.0: multi-GPU support
         # * 1.11.0 / 2.2.0 / 2.5.0 / 2.9.0: Breaking changes
-        "ray[default,rllib]~=2.9.0",
+        "ray[rllib]~=2.9.0",
         # Used for monitoring (logging and publishing) learning progress
         "tensorboardX",
         # Plot data directly in terminal to monitor stats without X-server

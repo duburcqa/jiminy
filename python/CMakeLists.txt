@@ -99,7 +99,11 @@ buildPythonWheel("python/${LIBRARY_NAME}_py"
                  "${CMAKE_BINARY_DIR}/pypi/dist/${LIBRARY_NAME}_py")
 
 # Install Python package jiminy_py
-deployPythonPackage("${LIBRARY_NAME}_py[meshcat,plot,dev]")
+if(DEFINED CMAKE_SUPPRESS_DEVELOPER_WARNINGS AND NOT CMAKE_SUPPRESS_DEVELOPER_WARNINGS)
+    deployPythonPackage("${LIBRARY_NAME}_py[meshcat,plot,dev]")
+else()
+    deployPythonPackage("${LIBRARY_NAME}_py[meshcat,plot]")
+endif()
 
 ################ gym_jiminy ################
 

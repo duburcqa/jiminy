@@ -2,6 +2,7 @@
 """
 import os
 import io
+import sys
 import base64
 import logging
 import unittest
@@ -28,6 +29,9 @@ IMAGE_DIFF_THRESHOLD = 5.0
 
 # Small tolerance for numerical equality
 TOLERANCE = 1.0e-6
+
+# Skip some tests if Jiminy has been compiled in debug on Mac OS
+DEBUG = "JIMINY_BUILD_DEBUG" in os.environ
 
 
 class PipelineControl(unittest.TestCase):
@@ -101,6 +105,8 @@ class PipelineControl(unittest.TestCase):
         self.assertTrue(np.all(
             np.abs(velocity_mes[time > time[-1] - 1.0]) < 1.0e-3))
 
+    @unittest.skipIf(DEBUG and sys.platform == "darwin",
+                     "skipping when compiled in debug on Mac OS")
     def test_pid_standing(self):
         for backend in ('panda3d-sync', 'meshcat'):
             for Env in (AtlasPDControlJiminyEnv,
