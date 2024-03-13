@@ -109,8 +109,9 @@ if(INSTALL_GYM_JIMINY)
                       "python/gym_${LIBRARY_NAME}/envs"
                       "python/gym_${LIBRARY_NAME}/rllib"
                       "${CMAKE_BINARY_DIR}/pypi/dist/gym_${LIBRARY_NAME}")
-     deployPythonPackageDevelop("python/gym_${LIBRARY_NAME}/common"
-                                "python/gym_${LIBRARY_NAME}/toolbox"
+     deployPythonPackageDevelop("python/gym_${LIBRARY_NAME}/common" FALSE)
+     deployPythonPackageDevelop("python/gym_${LIBRARY_NAME}/toolbox"
                                 "python/gym_${LIBRARY_NAME}/envs"
-                                "python/gym_${LIBRARY_NAME}/rllib")
+                                "python/gym_${LIBRARY_NAME}/rllib"
+                                TRUE)  # ALLOW_FAILURE
 endif()

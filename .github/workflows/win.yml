@@ -63,10 +63,10 @@ jobs:
         ${env:BUILD_TYPE} = "${{ matrix.BUILD_TYPE }}"
         & "./workspace/build_tools/build_install_deps_windows.ps1"
     - name: Install pre-compiled binaries for additional gym-jiminy dependencies
-      if: matrix.PYTHON_VERSION != '3.12'
+      if: matrix.PYTHON_VERSION != '3.13'
       run: |
         python -m pip install "torch" -f https://download.pytorch.org/whl/torch
-        python -m pip install "gymnasium>=0.28,<1.0" "importlib-metadata>=3.3.0"
+        python -m pip install "gymnasium>=0.28,<1.0" "stable_baselines3>=2.0"
 
     #####################################################################################
 
@@ -94,7 +94,7 @@ jobs:
               -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE `
               -DBoost_USE_STATIC_LIBS=ON -DPYTHON_REQUIRED_VERSION="${{ matrix.PYTHON_VERSION }}" `
               -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON `
-              -DINSTALL_GYM_JIMINY=${{ ((matrix.PYTHON_VERSION == '3.12') && 'OFF') || 'ON' }} `
+              -DINSTALL_GYM_JIMINY=${{ ((matrix.PYTHON_VERSION == '3.13') && 'OFF') || 'ON' }} `
               -DCMAKE_CXX_FLAGS="${env:CMAKE_CXX_FLAGS} $(
               ) -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC -DBOOST_CORE_USE_GENERIC_CMATH $(
               ) -DEIGENPY_STATIC -DURDFDOM_STATIC -DHPP_FCL_STATIC -DPINOCCHIO_STATIC"
@@ -197,10 +197,6 @@ jobs:
 
         Set-Location -Path "$RootDir/python/gym_jiminy/examples/rllib"
         python acrobot_ppo.py
-
-        # FIXME: Must install stable_baselines3 after running rllib test
-        # because they require a different version of `gymnasium`.
-        python -m pip install "stable_baselines3>=2.0"
 
         python -m unittest discover -s "$RootDir/python/gym_jiminy/unit_py" -v
 

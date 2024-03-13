@@ -75,10 +75,10 @@ jobs:
         OSX_DEPLOYMENT_TARGET=${OSX_DEPLOYMENT_TARGET} OSX_ARCHITECTURES=${OSX_ARCHITECTURES} \
           BUILD_TYPE="${{ matrix.BUILD_TYPE }}" ./build_tools/build_install_deps_unix.sh
     - name: Install pre-compiled binaries for additional gym-jiminy dependencies
-      if: matrix.PYTHON_VERSION != '3.12'
+      if: matrix.PYTHON_VERSION != '3.13'
       run: |
         "${PYTHON_EXECUTABLE}" -m pip install "torch" -f https://download.pytorch.org/whl/torch
-        "${PYTHON_EXECUTABLE}" -m pip install "gymnasium>=0.28,<1.0" "importlib-metadata>=3.3.0"
+        "${PYTHON_EXECUTABLE}" -m pip install "gymnasium>=0.28,<1.0" "stable_baselines3>=2.0"
 
     #####################################################################################
 
@@ -99,7 +99,7 @@ jobs:
               -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
               -DBoost_USE_STATIC_LIBS=ON -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
               -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON \
-              -DINSTALL_GYM_JIMINY=${{ (matrix.PYTHON_VERSION == '3.12' && 'OFF') || 'ON' }} \
+              -DINSTALL_GYM_JIMINY=${{ (matrix.PYTHON_VERSION == '3.13' && 'OFF') || 'ON' }} \
               -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}" -DCMAKE_BUILD_TYPE="${{ matrix.BUILD_TYPE }}"
         make -j2
 
@@ -190,10 +190,6 @@ jobs:
 
         cd "${RootDir}/python/gym_jiminy/examples/rllib"
         "${PYTHON_EXECUTABLE}" acrobot_ppo.py
-
-        # FIXME: Must install stable_baselines3 after running rllib test
-        # because they require a different version of `gymnasium`.
-        "${PYTHON_EXECUTABLE}" -m pip install "stable_baselines3>=2.0"
 
         "${PYTHON_EXECUTABLE}" -m unittest discover -s "${RootDir}/python/gym_jiminy/unit_py" -v
 

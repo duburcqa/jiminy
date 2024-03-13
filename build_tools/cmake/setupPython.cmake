@@ -113,9 +113,10 @@ if(${Boost_MINOR_VERSION} GREATER_EQUAL 67)
     set(Boost_USE_STATIC_LIBS OFF)
     set(Boost_LIB_PREFIX "")
     unset(Boost_LIBRARIES)
-    find_package(Boost REQUIRED COMPONENTS
-                "python${Python_VERSION_MAJOR}${Python_VERSION_MINOR}"
-                "numpy${Python_VERSION_MAJOR}${Python_VERSION_MINOR}")
+    find_package(
+        Boost REQUIRED COMPONENTS
+        "python${Python_VERSION_MAJOR}${Python_VERSION_MINOR}"
+        "numpy${Python_VERSION_MAJOR}${Python_VERSION_MINOR}")
     set(BOOST_PYTHON_LIB "${Boost_LIBRARIES}")
     unset(Boost_LIBRARIES)
     if(WIN32)
@@ -154,13 +155,28 @@ function(deployPythonPackage)
 endfunction()
 
 function(deployPythonPackageDevelop)
-    # The input arguments are [PKG_NAME...]
-    foreach(PKG_NAME IN LISTS ARGN)
+    # The input arguments are [PKG_NAME...], ALLOW_FAILURE
+
+    # Extract the output arguments (see `buildPythonWheel`)
+    set(ARGS ${ARGN})
+    list(LENGTH ARGS NUM_ARGS)
+    if(${NUM_ARGS} LESS 2)
+        message(FATAL_ERROR "Please specify at least one PKG_NAME and ALLOW_FAILURE.")
+    endif()
+    list(GET ARGS -1 ALLOW_FAILURE)
+    list(REMOVE_AT ARGS -1)
+
+    # Loop over all packages sequentially
+    foreach(PKG_NAME IN LISTS ARGS)
         install(CODE "execute_process(COMMAND ${Python_EXECUTABLE} -m pip install ${PYTHON_INSTALL_FLAGS} -e .
                                       WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/${PKG_NAME}
                                       RESULT_VARIABLE RETURN_CODE)
                       if(NOT RETURN_CODE EQUAL 0)
-                          message(FATAL_ERROR \"Python installation of '${PKG_NAME}' failed.\")
+                          if (NOT ${ALLOW_FAILURE})
+                              message(FATAL_ERROR \"Python installation of '${PKG_NAME}' failed.\")
+                          else()
+                              message(WARNING \"Python installation of '${PKG_NAME}' failed.\")
+                          endif()
                       endif()")
     endforeach()
 endfunction()

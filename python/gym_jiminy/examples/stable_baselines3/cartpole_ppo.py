@@ -1,5 +1,5 @@
 """Solve the official Open AI Gym Acrobot problem simulated in Jiminy using PPO
-algorithm of Stable_baseline3 reinforcement learning framework.
+algorithm of Stable_baselines3 reinforcement learning framework.
 
 It solves it consistently in less than 100000 timesteps in average, and in
 about 40000 at best.
