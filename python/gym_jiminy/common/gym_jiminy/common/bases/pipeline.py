@@ -397,12 +397,12 @@ class ObservedJiminyEnv(
         else:
             observation['measurement'] = base_observation
         if (state := self.observer.get_state()) is not None:
-            observation.setdefault(
-                'states', OrderedDict())[  # type: ignore[index]
-                    self.observer.name] = state
-        observation.setdefault(
-            'features', OrderedDict())[  # type: ignore[index]
-                self.observer.name] = self.observer.observation
+            states = observation.setdefault('states', OrderedDict())
+            assert isinstance(states, OrderedDict)
+            states[self.observer.name] = state
+        features = observation.setdefault('features', OrderedDict())
+        assert isinstance(features, OrderedDict)
+        features[self.observer.name] = self.observer.observation
         self.observation = cast(NestedObsT, observation)
 
         # Register the observer's internal state and feature to the telemetry
@@ -447,12 +447,14 @@ class ObservedJiminyEnv(
         else:
             observation_space['measurement'] = base_observation_space
         if self.observer.state_space is not None:
-            observation_space.setdefault(  # type: ignore[index]
-                'states', gym.spaces.Dict())[
-                    self.observer.name] = self.observer.state_space
-        observation_space.setdefault(  # type: ignore[index]
-            'features', gym.spaces.Dict())[
-                self.observer.name] = self.observer.observation_space
+            state_spaces = observation_space.setdefault(
+                'states', gym.spaces.Dict())
+            assert isinstance(state_spaces, gym.spaces.Dict)
+            state_spaces[self.observer.name] = self.observer.state_space
+        feature_spaces = observation_space.setdefault(
+            'features', gym.spaces.Dict())
+        assert isinstance(feature_spaces, gym.spaces.Dict)
+        feature_spaces[self.observer.name] = self.observer.observation_space
         self.observation_space = gym.spaces.Dict(observation_space)
 
     def refresh_observation(self, measurement: EngineObsType) -> None:
@@ -614,13 +616,13 @@ class ControlledJiminyEnv(
         else:
             observation['measurement'] = base_observation
         if (state := self.controller.get_state()) is not None:
-            observation.setdefault(
-                'states', OrderedDict())[  # type: ignore[index]
-                    self.controller.name] = state
+            states = observation.setdefault('states', OrderedDict())
+            assert isinstance(states, OrderedDict)
+            states[self.controller.name] = state
         if self.augment_observation:
-            observation.setdefault(
-                'actions', OrderedDict())[  # type: ignore[index]
-                    self.controller.name] = self.action
+            actions = observation.setdefault('actions', OrderedDict())
+            assert isinstance(actions, OrderedDict)
+            actions[self.controller.name] = self.action
         self.observation = cast(NestedObsT, observation)
 
         # Register the controller's internal state and target to the telemetry
@@ -671,13 +673,15 @@ class ControlledJiminyEnv(
         else:
             observation_space['measurement'] = base_observation_space
         if self.controller.state_space is not None:
-            observation_space.setdefault(  # type: ignore[index]
-                'states', gym.spaces.Dict())[
-                    self.controller.name] = self.controller.state_space
+            state_spaces = observation_space.setdefault(
+                'states', gym.spaces.Dict())
+            assert isinstance(state_spaces, gym.spaces.Dict)
+            state_spaces[self.controller.name] = self.controller.state_space
         if self.augment_observation:
-            observation_space.setdefault(  # type: ignore[index]
-                'actions', gym.spaces.Dict())[
-                    self.controller.name] = self.controller.action_space
+            action_spaces = observation_space.setdefault(
+                'actions', gym.spaces.Dict())
+            assert isinstance(action_spaces, gym.spaces.Dict)
+            action_spaces[self.controller.name] = self.controller.action_space
         self.observation_space = gym.spaces.Dict(observation_space)
 
     def refresh_observation(self, measurement: EngineObsType) -> None:

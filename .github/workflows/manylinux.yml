@@ -62,7 +62,7 @@ jobs:
         echo "InstallDir=${GITHUB_WORKSPACE}/install" >> $GITHUB_ENV
 
         "${PYTHON_EXECUTABLE}" -m pip install setuptools wheel "pip>=20.3"
-        "${PYTHON_EXECUTABLE}" -m pip install "numpy>=1.21,<2.0"
+        "${PYTHON_EXECUTABLE}" -m pip install "numpy>=1.23,<2.0"
         "${PYTHON_EXECUTABLE}" -m pip install twine cmake
     - name: Build project dependencies
       run: |
@@ -78,7 +78,8 @@ jobs:
         mkdir "$RootDir/build"
         cd "$RootDir/build"
         export LD_LIBRARY_PATH="$InstallDir/lib:$InstallDir/lib64:/usr/local/lib"
-        cmake "$RootDir" -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" \
+        cmake "$RootDir" -Wdev \
+              -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" \
               -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DCMAKE_VERBOSE_MAKEFILE=ON \
               -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" \
               -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \

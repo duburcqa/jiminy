@@ -1,16 +1,6 @@
 # Minimum version required
 cmake_minimum_required(VERSION 3.12.4)
 
-# MSVC runtime library flags are defined by 'CMAKE_MSVC_RUNTIME_LIBRARY'
-if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.15.7)
-    cmake_policy(SET CMP0091 NEW)
-endif()
-
-# Set find_package strategy to look for both upper-case and case-preserved variables
-if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.27.0)
-    cmake_policy(SET CMP0144 NEW)
-endif()
-
 # Forces GCC/Clang compilers to enable color diagnostics.
 # CMake versions 3.24 and below do not support this option, so we have
 # to invoke the color diagnostics flags manually.

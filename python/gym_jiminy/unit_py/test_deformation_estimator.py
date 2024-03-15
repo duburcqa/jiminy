@@ -16,6 +16,9 @@ from gym_jiminy.common.utils import matrices_to_quat, build_pipeline
 from gym_jiminy.envs import AntJiminyEnv
 
 
+DEBUG = "JIMINY_BUILD_DEBUG" in os.environ
+
+
 class DeformationEstimatorBlock(unittest.TestCase):
     """ TODO: Write documentation
     """
@@ -102,7 +105,7 @@ class DeformationEstimatorBlock(unittest.TestCase):
         simulator.engine.set_options(engine_options)
 
         # Instantiate the environment
-        env = BaseJiminyEnv(simulator, step_dt=0.01)
+        env = BaseJiminyEnv(simulator, step_dt=0.01, debug=DEBUG)
 
         # Add controller and observer blocks
         pd_controller = PDController(
@@ -243,7 +246,7 @@ class DeformationEstimatorBlock(unittest.TestCase):
         )
 
         # Instantiate the environment
-        env = PipelineEnv()
+        env = PipelineEnv(debug=DEBUG)
 
         # Run a simulation
         env.reset(seed=0)

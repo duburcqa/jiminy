@@ -59,7 +59,7 @@ echo "-- Python writable site-packages: ${PYTHON_SITELIB}"
 apt update && \
 apt install -y python3-pip && \
 ${SUDO_CMD} python3 -m pip install setuptools wheel "pip>=20.3" && \
-${SUDO_CMD} python3 -m pip install "numpy>=1.21,<2.0" "numba>=0.54.0"
+${SUDO_CMD} python3 -m pip install "numpy>=1.23,<2.0" "numba>=0.54.0"
 
 # Install standard linux utilities
 apt install -y gnupg curl wget build-essential cmake doxygen graphviz pandoc

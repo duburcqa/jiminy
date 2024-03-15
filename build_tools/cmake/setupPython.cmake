@@ -55,7 +55,8 @@ else()
                     OUTPUT_VARIABLE HAS_NO_WRITE_PERMISSION_ON_PYTHON_SYS_SITELIB)
 endif()
 
-set(PYTHON_INSTALL_FLAGS " --no-warn-script-location --prefer-binary ")
+# Libraries not distributed as wheel must be explicitly whitelisted via '--no-binary'.
+set(PYTHON_INSTALL_FLAGS " --no-warn-script-location --only-binary :all:")
 if(${HAS_NO_WRITE_PERMISSION_ON_PYTHON_SYS_SITELIB})
     set(PYTHON_INSTALL_FLAGS "${PYTHON_INSTALL_FLAGS} --user ")
     message(STATUS "No right on Python system site-packages: ${Python_SYS_SITELIB}.\n"
@@ -113,9 +114,10 @@ if(${Boost_MINOR_VERSION} GREATER_EQUAL 67)
     set(Boost_USE_STATIC_LIBS OFF)
     set(Boost_LIB_PREFIX "")
     unset(Boost_LIBRARIES)
-    find_package(Boost REQUIRED COMPONENTS
-                "python${Python_VERSION_MAJOR}${Python_VERSION_MINOR}"
-                "numpy${Python_VERSION_MAJOR}${Python_VERSION_MINOR}")
+    find_package(
+        Boost REQUIRED COMPONENTS
+        "python${Python_VERSION_MAJOR}${Python_VERSION_MINOR}"
+        "numpy${Python_VERSION_MAJOR}${Python_VERSION_MINOR}")
     set(BOOST_PYTHON_LIB "${Boost_LIBRARIES}")
     unset(Boost_LIBRARIES)
     if(WIN32)
@@ -154,13 +156,29 @@ function(deployPythonPackage)
 endfunction()
 
 function(deployPythonPackageDevelop)
-    # The input arguments are [PKG_NAME...]
-    foreach(PKG_NAME IN LISTS ARGN)
-        install(CODE "execute_process(COMMAND ${Python_EXECUTABLE} -m pip install ${PYTHON_INSTALL_FLAGS} -e .
+    # The input arguments are [PKG_NAME...], ALLOW_FAILURE
+
+    # Extract the output arguments (see `buildPythonWheel`)
+    set(ARGS ${ARGN})
+    list(LENGTH ARGS NUM_ARGS)
+    if(${NUM_ARGS} LESS 2)
+        message(FATAL_ERROR "Please specify at least one PKG_NAME and ALLOW_FAILURE.")
+    endif()
+    list(GET ARGS -1 ALLOW_FAILURE)
+    list(REMOVE_AT ARGS -1)
+
+    # Loop over all packages sequentially
+    foreach(PKG_NAME IN LISTS ARGS)
+        install(CODE "cmake_policy(SET CMP0012 NEW)
+                      execute_process(COMMAND ${Python_EXECUTABLE} -m pip install ${PYTHON_INSTALL_FLAGS} -e .
                                       WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/${PKG_NAME}
                                       RESULT_VARIABLE RETURN_CODE)
-                      if(NOT RETURN_CODE EQUAL 0)
-                          message(FATAL_ERROR \"Python installation of '${PKG_NAME}' failed.\")
+                      if(RETURN_CODE AND NOT RETURN_CODE EQUAL 0)
+                          if (${ALLOW_FAILURE})
+                              message(WARNING \"Python installation of '${PKG_NAME}' failed.\")
+                          else()
+                              message(FATAL_ERROR \"Python installation of '${PKG_NAME}' failed.\")
+                          endif()
                       endif()")
     endforeach()
 endfunction()
