@@ -271,7 +271,7 @@ else
   echo "Build type '${BUILD_TYPE}' not supported." >&2
   exit 1
 fi
-CMAKE_CXX_FLAGS_B2="-fPIC -std=c++11"
+CMAKE_CXX_FLAGS_B2="-fPIC -std=c++17"
 if [ "${OSTYPE//[0-9.]/}" == "darwin" ]; then
   CMAKE_CXX_FLAGS_B2="${CMAKE_CXX_FLAGS_B2} -mmacosx-version-min=${OSX_DEPLOYMENT_TARGET}"
 fi

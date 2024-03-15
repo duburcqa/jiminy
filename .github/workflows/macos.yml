@@ -68,7 +68,7 @@ jobs:
         echo "InstallDir=${GITHUB_WORKSPACE}/install" >> $GITHUB_ENV
 
         "${PYTHON_EXECUTABLE}" -m pip install setuptools wheel "pip>=20.3"
-        "${PYTHON_EXECUTABLE}" -m pip install "numpy>=1.21,<2.0"
+        "${PYTHON_EXECUTABLE}" -m pip install "numpy>=1.23,<2.0"
         "${PYTHON_EXECUTABLE}" -m pip install delocate twine
     - name: Build jiminy dependencies
       run: |

@@ -85,19 +85,16 @@ setup(
         "jiminy_replay=jiminy_py.viewer.replay:_play_logs_files_entrypoint"
     ]},
     install_requires=[
-        # Display elegant and versatile process bar.
-        "tqdm",
         # Standard library for matrix algebra.
         # - 1.20 breaks ABI
         # - >=1.21,<1.21.5 is causing segfault with boost::python.
         #   See issue: https://github.com/boostorg/python/issues/376
         # - 1.22 breaks API for compiled libs.
-        np_req,
+        # - 2.0 is backward compatible up to 1.23, but not forward compatible.
+        #   see: https://numpy.org/devdocs/dev/depending_on_numpy.html
+        "numpy>=1.23,<2.0",
         # Parser for Jiminy's hardware description file.
         "toml",
-        # Used internally by Robot to replace meshes by associated minimal
-        # volume bounding box.
-        "trimesh",
         # Standalone cross-platform mesh visualizer used as Viewer's backend.
         # Panda3d is NOT supported by PyPy even if built from source.
         # - 1.10.12 fixes numerous bugs
@@ -111,7 +108,12 @@ setup(
         # Used internally by Viewer to record video programmatically when
         # Panda3d is used as rendering backend.
         # - >= 8.0.0 provides cross-platform precompiled binary wheels
-        "av>=8.0.0"
+        "av>=8.0.0",
+        # Used internally by Robot to replace meshes by associated minimal
+        # volume bounding box.
+        "trimesh",
+        # Display elegant and versatile process bar.
+        "tqdm"
     ],
     extras_require={
         "plot": [

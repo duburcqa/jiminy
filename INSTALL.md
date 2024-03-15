@@ -50,7 +50,7 @@ python -m pip install --prefer-binary gym-jiminy[all]
 
 ## Excluding dependencies on Ubuntu 18+
 
-First, one must install the pre-compiled libraries of the dependencies. Most of them are available on `robotpkg` APT repository. Just run the bash script to install them automatically for Ubuntu 18 and upward. It should be straightforward to adapt it to any other distribution for which `robotpkg` is available. Note that if you plan to use a virtual environment (`venv`, `pyenv`, ...), you must install the Python dependencies manually using `pip`, i.e. `"wheel", "numpy>=1.21,<2.0"`.
+First, one must install the pre-compiled libraries of the dependencies. Most of them are available on `robotpkg` APT repository. Just run the bash script to install them automatically for Ubuntu 18 and upward. It should be straightforward to adapt it to any other distribution for which `robotpkg` is available. Note that if you plan to use a virtual environment (`venv`, `pyenv`, ...), you must install the Python dependencies manually using `pip`, i.e. `"wheel", "numpy>=1.23,<2.0"`.
 
 ```bash
 sudo env "PATH=$PATH" ./build_tools/easy_install_deps_ubuntu.sh
@@ -79,7 +79,7 @@ make install -j2
 
 ```bash
 sudo apt install -y gnupg curl wget build-essential cmake doxygen graphviz
-python -m pip install "wheel", "numpy>=1.21,<2.0"
+python -m pip install "wheel", "numpy>=1.23,<2.0"
 ```
 
 ### Jiminy dependencies build and install
@@ -121,7 +121,7 @@ You have to preinstall by yourself the (free) MSVC 2019 toolchain.
 Then, install `setuptools`, `wheel` and `numpy`.
 
 ```powershell
-python -m pip install setuptools wheel "numpy>=1.21,<2.0"
+python -m pip install setuptools wheel "numpy>=1.23,<2.0"
 ```
 
 ### Jiminy dependencies build and install
