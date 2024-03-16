@@ -97,6 +97,8 @@ unset Boost_ROOT
 if [ ! -d "${RootDir}/boost" ]; then
   git clone --depth 1 https://github.com/boostorg/boost.git "${RootDir}/boost"
 fi
+rm -rf "${RootDir}/boost/build"
+mkdir -p "${RootDir}/boost/build"
 cd "${RootDir}/boost"
 git reset --hard
 git fetch origin "boost-1.76.0" && git checkout --force FETCH_HEAD || true

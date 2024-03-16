@@ -90,6 +90,15 @@ namespace jiminy::python
         return bp::extract<np::ndarray>(objPy);
     }
 
+    template<typename T>
+    void EigenMapTransposeAssign(char * dstData, char * srcData, npy_intp rows, npy_intp cols)
+    {
+        using EigenMapType = Eigen::Map<MatrixX<T>>;
+        EigenMapType dst(reinterpret_cast<T *>(dstData), rows, cols);
+        EigenMapType src(reinterpret_cast<T *>(srcData), cols, rows);
+        dst = src.transpose();
+    }
+
     void arrayCopyTo(PyObject * dstPy, PyObject * srcPy)
     {
         // Making sure that 'dst' is a valid array and is writable, raises an exception otherwise
@@ -104,83 +113,38 @@ namespace jiminy::python
             THROW_ERROR(std::invalid_argument, "'dst' must be writable.");
         }
 
+        // Return early if destination is empty
+        if (PyArray_SIZE(dstPyArray) < 1)
+        {
+            return;
+        }
+
         // Dedicated path to fill with scalar
         const npy_intp itemsize = PyArray_ITEMSIZE(dstPyArray);
         char * dstPyData = PyArray_BYTES(dstPyArray);
+        PyArrayObject * srcPyArray = reinterpret_cast<PyArrayObject *>(srcPy);
         if (!PyArray_Check(srcPy) || PyArray_IsScalar(srcPy, Generic) ||
-            (PyArray_SIZE(reinterpret_cast<PyArrayObject *>(srcPy)) == 1))
+            (PyArray_SIZE(srcPyArray) == 1))
         {
             /* Eigen does a much better job than element-wise copy assignment in this scenario.
-               Note that only the width of the scalar type matters here, not the actual type.
                Ensure copy and casting are both slow as they allocate new array, so avoiding
                using them entirely if possible and falling back to default routine otherwise. */
-            if ((itemsize == 8) && (dstPyFlags & NPY_ARRAY_ALIGNED) &&
+            if ((dstPyFlags & NPY_ARRAY_ALIGNED) &&
                 (dstPyFlags & (NPY_ARRAY_C_CONTIGUOUS | NPY_ARRAY_F_CONTIGUOUS)))
             {
-                // Convert src scalar data to raw bytes with dst dtype, casting if necessary
-                bool isSuccess = false;
-                double srcPyScalar;
+                // Extract built-in scalar value to promote setitem fast path
                 if (PyArray_Check(srcPy))
                 {
-                    PyArrayObject * srcPyArray = reinterpret_cast<PyArrayObject *>(srcPy);
-                    if (PyArray_EquivArrTypes(dstPyArray, srcPyArray))
-                    {
-                        srcPyScalar = *reinterpret_cast<double *>(PyArray_DATA(srcPyArray));
-                        isSuccess = true;
-                    }
-                    else
-                    {
-                        int dstPyTypeNum = PyArray_TYPE(dstPyArray);
-                        PyArray_Descr * srcPyDtype = PyArray_DESCR(srcPyArray);
-                        if (!PyTypeNum_ISEXTENDED(dstPyTypeNum) &&
-                            !PyTypeNum_ISEXTENDED(srcPyDtype->type_num))
-                        {
-                            auto srcToDstCastFunc = PyArray_GetCastFunc(srcPyDtype, dstPyTypeNum);
-                            srcToDstCastFunc(
-                                PyArray_DATA(srcPyArray), &srcPyScalar, 1, NULL, NULL);
-                            isSuccess = true;
-                        }
-                    }
-                }
-                else if (PyArray_IsScalar(srcPy, Generic))
-                {
-                    PyArray_CastScalarToCtype(srcPy, &srcPyScalar, PyArray_DESCR(dstPyArray));
-                    isSuccess = true;
-                }
-                else if (PyFloat_Check(srcPy) || PyLong_Check(srcPy))
-                {
-                    int dstPyTypeNum = PyArray_TYPE(dstPyArray);
-                    PyArray_Descr * srcPyDtype = PyArray_DescrFromObject(srcPy, NULL);
-                    if (!PyTypeNum_ISEXTENDED(dstPyTypeNum))
-                    {
-                        auto srcToDstCastFunc = PyArray_GetCastFunc(srcPyDtype, dstPyTypeNum);
-                        if (PyFloat_Check(srcPy))
-                        {
-                            srcPyScalar = PyFloat_AsDouble(srcPy);
-                        }
-                        else
-                        {
-                            auto srcPyBuiltin = std::make_unique<long>(PyLong_AsLong(srcPy));
-                            srcPyScalar = *reinterpret_cast<double *>(srcPyBuiltin.get());
-                        }
-                        if (srcToDstCastFunc != NULL)
-                        {
-                            srcToDstCastFunc(&srcPyScalar, &srcPyScalar, 1, NULL, NULL);
-                            isSuccess = true;
-                        }
-                    }
-                    Py_DECREF(srcPyDtype);
+                    srcPy = PyArray_GETITEM(srcPyArray, PyArray_BYTES(srcPyArray));
                 }
 
-                // Copy scalar bytes to destination if available
-                if (isSuccess)
-                {
-                    Eigen::Map<VectorX<double>> dst(reinterpret_cast<double *>(dstPyData),
-                                                    PyArray_SIZE(dstPyArray));
-                    dst.setConstant(srcPyScalar);
-                    return;
-                }
+                // Convert src scalar data to raw bytes with dst dtype, casting if necessary
+                PyArray_SETITEM(dstPyArray, dstPyData, srcPy);
+                Eigen::Map<MatrixX<char>> dst(dstPyData, itemsize, PyArray_SIZE(dstPyArray));
+                dst.rightCols(dst.cols() - 1).colwise() = dst.col(0);
+                return;
             }
+
             // Too complicated to deal with it manually. Falling back to default routine.
             if (PyArray_FillWithScalar(dstPyArray, srcPy) < 0)
             {
@@ -189,8 +153,7 @@ namespace jiminy::python
             return;
         }
 
-        // Check if too complicated to deal with it manually. Falling back to default routine.
-        PyArrayObject * srcPyArray = reinterpret_cast<PyArrayObject *>(srcPy);
+        // Falling back to default routine if too complicated to deal with it manually
         const int dstNdim = PyArray_NDIM(dstPyArray);
         const int srcNdim = PyArray_NDIM(srcPyArray);
         const npy_intp * const dstShape = PyArray_SHAPE(dstPyArray);
@@ -209,67 +172,80 @@ namespace jiminy::python
 
         // Multi-dimensional array but no broadcasting nor casting required. Easy enough to handle.
         char * srcPyData = PyArray_BYTES(srcPyArray);
-        if (commonPyFlags & (NPY_ARRAY_C_CONTIGUOUS | NPY_ARRAY_F_CONTIGUOUS))
+        if ((commonPyFlags & NPY_ARRAY_ALIGNED) &&
+            (commonPyFlags & (NPY_ARRAY_C_CONTIGUOUS | NPY_ARRAY_F_CONTIGUOUS)))
         {
-            /* Fast specialization if both dst and src are jointly C- or F-contiguous.
-               Note that converting arrays to Eigen matrices would leverage SIMD-vectorized
-               assignment, which is faster than `memcpy`. Yet, instantiating the mapping is tricky
-               because of memory alignment issues and dtype handling, so let's keep it simple. The
-               slowdown should be marginal for small-size arrays (size < 50). */
-            memcpy(dstPyData, srcPyData, PyArray_NBYTES(dstPyArray));
+            // Fast specialization if both dst and src are jointly C- or F-contiguous
+            Eigen::Map<MatrixX<char>> dst(dstPyData, itemsize, PyArray_SIZE(dstPyArray));
+            Eigen::Map<MatrixX<char>> src(srcPyData, itemsize, PyArray_SIZE(srcPyArray));
+            dst = src;
+            return;
         }
-        else if ((dstNdim == 2) && (itemsize == 8) &&
-                 (dstPyFlags & (NPY_ARRAY_C_CONTIGUOUS | NPY_ARRAY_F_CONTIGUOUS)) &&
-                 (srcPyFlags & (NPY_ARRAY_C_CONTIGUOUS | NPY_ARRAY_F_CONTIGUOUS)))
+        if ((dstNdim == 2) && (dstPyFlags & (NPY_ARRAY_C_CONTIGUOUS | NPY_ARRAY_F_CONTIGUOUS)) &&
+            (srcPyFlags & (NPY_ARRAY_C_CONTIGUOUS | NPY_ARRAY_F_CONTIGUOUS)))
         {
             /* Using Eigen once again to avoid slow element-wise copy assignment.
-               TODO: Extend to support any number of dims by working on flattened view. */
-            using EigenMapType = Eigen::Map<Eigen::MatrixXd>;
+               Note that only the width of the scalar type matters here, not the actual type.
+               TODO: Extend to support any number of dims by operating on flattened view. */
+            npy_intp rows, cols;
             if (dstPyFlags & NPY_ARRAY_C_CONTIGUOUS)
             {
-                EigenMapType dst(reinterpret_cast<double *>(dstPyData), dstShape[1], dstShape[0]);
-                EigenMapType src(reinterpret_cast<double *>(srcPyData), dstShape[0], dstShape[1]);
-                dst = src.transpose();
+                rows = dstShape[1];
+                cols = dstShape[0];
             }
             else
             {
-                EigenMapType dst(reinterpret_cast<double *>(dstPyData), dstShape[0], dstShape[1]);
-                EigenMapType src(reinterpret_cast<double *>(srcPyData), dstShape[1], dstShape[0]);
-                dst = src.transpose();
+                rows = dstShape[0];
+                cols = dstShape[1];
+            }
+            switch (itemsize)
+            {
+            case 8:
+                EigenMapTransposeAssign<uint64_t>(dstPyData, srcPyData, rows, cols);
+                return;
+            case 4:
+                EigenMapTransposeAssign<uint32_t>(dstPyData, srcPyData, rows, cols);
+                return;
+            case 2:
+                EigenMapTransposeAssign<uint16_t>(dstPyData, srcPyData, rows, cols);
+                return;
+            case 1:
+                EigenMapTransposeAssign<uint8_t>(dstPyData, srcPyData, rows, cols);
+                return;
+            default:
+                break;
             }
         }
-        else
+
+        // Falling back to slow element-wise strided ND-array copy assignment
+        int i = 0;
+        npy_intp coord[NPY_MAXDIMS];
+        const npy_intp * const dstStrides = PyArray_STRIDES(dstPyArray);
+        const npy_intp * const srcStrides = PyArray_STRIDES(srcPyArray);
+        memset(coord, 0, dstNdim * sizeof(npy_intp));
+        while (i < dstNdim)
         {
-            // Falling back to slow element-wise strided ND-array copy assignment
-            int i = 0;
-            npy_intp coord[NPY_MAXDIMS];
-            const npy_intp * const dstStrides = PyArray_STRIDES(dstPyArray);
-            const npy_intp * const srcStrides = PyArray_STRIDES(srcPyArray);
-            memset(coord, 0, dstNdim * sizeof(npy_intp));
-            while (i < dstNdim)
+            char * _dstPyData = dstPyData;
+            char * _srcPyData = srcPyData;
+            for (int j = 0; j < dstShape[0]; ++j)
             {
-                char * _dstPyData = dstPyData;
-                char * _srcPyData = srcPyData;
-                for (int j = 0; j < dstShape[0]; ++j)
+                memcpy(_dstPyData, _srcPyData, itemsize);
+                _dstPyData += dstStrides[0];
+                _srcPyData += srcStrides[0];
+            }
+            for (i = 1; i < dstNdim; ++i)
+            {
+                if (++coord[i] == dstShape[i])
                 {
-                    memcpy(_dstPyData, _srcPyData, itemsize);
-                    _dstPyData += dstStrides[0];
-                    _srcPyData += srcStrides[0];
+                    coord[i] = 0;
+                    dstPyData -= (dstShape[i] - 1) * dstStrides[i];
+                    srcPyData -= (dstShape[i] - 1) * srcStrides[i];
                 }
-                for (i = 1; i < dstNdim; ++i)
+                else
                 {
-                    if (++coord[i] == dstShape[i])
-                    {
-                        coord[i] = 0;
-                        dstPyData -= (dstShape[i] - 1) * dstStrides[i];
-                        srcPyData -= (dstShape[i] - 1) * srcStrides[i];
-                    }
-                    else
-                    {
-                        dstPyData += dstStrides[i];
-                        srcPyData += srcStrides[i];
-                        break;
-                    }
+                    dstPyData += dstStrides[i];
+                    srcPyData += srcStrides[i];
+                    break;
                 }
             }
         }
