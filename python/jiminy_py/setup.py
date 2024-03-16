@@ -1,5 +1,4 @@
 from glob import glob
-from importlib.metadata import version
 from setuptools import setup, dist, find_namespace_packages
 from setuptools.command.install import install
 
@@ -19,20 +18,6 @@ class InstallPlatlib(install):
         super().finalize_options()
         if self.distribution.has_ext_modules():
             self.install_lib = self.install_platlib
-
-
-# Enforce the right numpy version. It assumes the version currently available
-# was used to compile all the C++ extension modules shipping with Jiminy.
-# - Numpy API is not backward compatible but is forward compatible
-# - For some reason, forward compatibility from 1.19 to 1.20+ seems broken
-# - A few versions must be blacklisted because of Boost::Python incompatibility
-# - Numpy >= 1.21.0 is required for full typing support
-np_ver = tuple(map(int, version('numpy').split(".", 3)[:2]))
-np_req = f"numpy>={np_ver[0]}.{np_ver[1]}.0"
-if np_ver < (1, 20):
-    np_req += ",<1.20.0"
-elif np_ver < (1, 22):
-    np_req += ",!=1.21.0,!=1.21.1,!=1.21.2,!=1.21.3,!=1.21.4"
 
 
 setup(
