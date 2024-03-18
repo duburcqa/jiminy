@@ -25,6 +25,7 @@ namespace jiminy
 
     template<>
     const std::string AbstractConstraintTpl<FrameConstraint>::type_{"FrameConstraint"};
+    template class JIMINY_EXPL_TPL_INST_DLLEXPORT AbstractConstraintTpl<FrameConstraint>;
 
     FrameConstraint::FrameConstraint(const std::string & frameName,
                                      const std::array<bool, 6> & maskDoFs) noexcept :

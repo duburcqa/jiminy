@@ -69,6 +69,7 @@ namespace jiminy
         "Gyrox", "Gyroy", "Gyroz", "Accelx", "Accely", "Accelz"};
     template<>
     const bool AbstractSensorTpl<ImuSensor>::areFieldnamesGrouped_{false};
+    template class JIMINY_EXPL_TPL_INST_DLLEXPORT AbstractSensorTpl<ImuSensor>;
 
     void ImuSensor::initialize(const std::string & frameName)
     {
@@ -202,6 +203,7 @@ namespace jiminy
     const std::vector<std::string> AbstractSensorTpl<ContactSensor>::fieldnames_{"FX", "FY", "FZ"};
     template<>
     const bool AbstractSensorTpl<ContactSensor>::areFieldnamesGrouped_{false};
+    template class JIMINY_EXPL_TPL_INST_DLLEXPORT AbstractSensorTpl<ContactSensor>;
 
     void ContactSensor::initialize(const std::string & frameName)
     {
@@ -299,6 +301,7 @@ namespace jiminy
         "FX", "FY", "FZ", "MX", "MY", "MZ"};
     template<>
     const bool AbstractSensorTpl<ForceSensor>::areFieldnamesGrouped_{false};
+    template class JIMINY_EXPL_TPL_INST_DLLEXPORT AbstractSensorTpl<ForceSensor>;
 
     void ForceSensor::initialize(const std::string & frameName)
     {
@@ -414,6 +417,7 @@ namespace jiminy
     const std::vector<std::string> AbstractSensorTpl<EncoderSensor>::fieldnames_{"Q", "V"};
     template<>
     const bool AbstractSensorTpl<EncoderSensor>::areFieldnamesGrouped_{true};
+    template class JIMINY_EXPL_TPL_INST_DLLEXPORT AbstractSensorTpl<EncoderSensor>;
 
     void EncoderSensor::initialize(const std::string & jointName)
     {
@@ -527,6 +531,7 @@ namespace jiminy
     const std::vector<std::string> AbstractSensorTpl<EffortSensor>::fieldnames_{"U"};
     template<>
     const bool AbstractSensorTpl<EffortSensor>::areFieldnamesGrouped_{true};
+    template class JIMINY_EXPL_TPL_INST_DLLEXPORT AbstractSensorTpl<EffortSensor>;
 
     void EffortSensor::initialize(const std::string & motorName)
     {

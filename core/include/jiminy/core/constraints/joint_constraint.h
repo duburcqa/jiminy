@@ -48,6 +48,10 @@ namespace jiminy
         /// \brief Whether to reverse the sign of the constraint.
         bool isReversed_{false};
     };
+
+    template<>
+    const std::string JIMINY_EXPL_TPL_INST_DLLEXPORT AbstractConstraintTpl<JointConstraint>::type_;
+    extern template class JIMINY_EXPL_TPL_INST_DLLIMPORT AbstractConstraintTpl<JointConstraint>;
 }
 
 #endif  // end of JIMINY_JOINT_CONSTRAINT_H

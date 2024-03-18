@@ -62,6 +62,10 @@ namespace jiminy
         /// \brief Stores full frame drift in reference frame.
         pinocchio::Motion frameDrift_{};
     };
+
+    template<>
+    const std::string JIMINY_EXPL_TPL_INST_DLLEXPORT AbstractConstraintTpl<FrameConstraint>::type_;
+    extern template class JIMINY_EXPL_TPL_INST_DLLIMPORT AbstractConstraintTpl<FrameConstraint>;
 }
 
 #endif  // end of JIMINY_ABSTRACT_MOTOR_H

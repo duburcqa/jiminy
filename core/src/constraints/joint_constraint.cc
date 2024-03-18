@@ -8,6 +8,7 @@ namespace jiminy
 {
     template<>
     const std::string AbstractConstraintTpl<JointConstraint>::type_{"JointConstraint"};
+    template class JIMINY_EXPL_TPL_INST_DLLEXPORT AbstractConstraintTpl<JointConstraint>;
 
     JointConstraint::JointConstraint(const std::string & jointName) noexcept :
     AbstractConstraintTpl(),

@@ -60,6 +60,11 @@ namespace jiminy
         /// \brief Stores full frame jacobian in world.
         Matrix6Xd frameJacobian_{};
     };
+
+    template<>
+    const std::string JIMINY_EXPL_TPL_INST_DLLEXPORT
+        AbstractConstraintTpl<SphereConstraint>::type_;
+    extern template class JIMINY_EXPL_TPL_INST_DLLIMPORT AbstractConstraintTpl<SphereConstraint>;
 }
 
 #endif  // end of JIMINY_SPHERE_CONSTRAINT_H

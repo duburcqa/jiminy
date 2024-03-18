@@ -12,6 +12,7 @@
 #include "jiminy/core/utilities/helpers.h"
 #include "jiminy/core/io/file_device.h"
 #include "jiminy/core/hardware/abstract_sensor.h"
+#include "jiminy/core/hardware/basic_sensors.h"
 #include "jiminy/core/hardware/basic_motors.h"
 #include "jiminy/core/control/controller_functor.h"
 #include "jiminy/core/engine/engine.h"
@@ -61,7 +62,6 @@ int main(int argc, char * argv[])
     Timer timer;
 
     // Instantiate and configuration the robot
-    std::vector<std::string> motorJointNames{"SecondPendulumJoint"};
     auto robot = std::make_shared<Robot>();
     GenericConfig modelOptions = robot->getModelOptions();
     GenericConfig & jointsOptions = boost::get<GenericConfig>(modelOptions.at("joints"));
@@ -69,16 +69,18 @@ int main(int argc, char * argv[])
     boost::get<bool>(jointsOptions.at("velocityLimitFromUrdf")) = true;
     robot->setModelOptions(modelOptions);
     robot->initialize(urdfPath.string(), false, {});
-    for (const std::string & jointName : motorJointNames)
-    {
-        auto motor = std::make_shared<SimpleMotor>(jointName);
-        robot->attachMotor(motor);
-        motor->initialize(jointName);
-    }
+
+    // Attach motor and encoder to the robot
+    auto motor = std::make_shared<SimpleMotor>("motor");
+    robot->attachMotor(motor);
+    motor->initialize("SecondPendulumJoint");
+    auto sensor = std::make_shared<EncoderSensor>("encoder");
+    robot->attachSensor(sensor);
+    sensor->initialize("SecondPendulumJoint");
 
     // Instantiate the controller
-    robot->setController(
-        std::make_shared<FunctionalController<>>(computeCommand, internalDynamics));
+    auto controller = std::make_shared<FunctionalController<>>(computeCommand, internalDynamics);
+    robot->setController(controller);
 
     // Instantiate the engine
     Engine engine{};
@@ -99,6 +101,11 @@ int main(int argc, char * argv[])
     timer.tic();
     engine.simulate(tf, q0, v0, std::nullopt, false, callback);
     std::cout << "Simulation: " << timer.toc<std::milli>() << "ms" << std::endl;
+
+    // Print final encoder data for debug
+    std::cout << "Final encoder data: "
+              << controller->sensorMeasurements_[EncoderSensor::type_].getAll().transpose()
+              << std::endl;
 
     // Write the log file
     std::vector<std::string> fieldnames;

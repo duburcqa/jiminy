@@ -10,6 +10,7 @@ namespace jiminy
 {
     template<>
     const std::string AbstractConstraintTpl<DistanceConstraint>::type_{"DistanceConstraint"};
+    template class JIMINY_EXPL_TPL_INST_DLLEXPORT AbstractConstraintTpl<DistanceConstraint>;
 
     DistanceConstraint::DistanceConstraint(const std::string & firstFrameName,
                                            const std::string & secondFrameName) noexcept :

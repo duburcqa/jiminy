@@ -10,6 +10,7 @@ namespace jiminy
 {
     template<>
     const std::string AbstractConstraintTpl<WheelConstraint>::type_("WheelConstraint");
+    template class JIMINY_EXPL_TPL_INST_DLLEXPORT AbstractConstraintTpl<WheelConstraint>;
 
     WheelConstraint::WheelConstraint(const std::string & frameName,
                                      double wheelRadius,

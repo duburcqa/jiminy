@@ -10,6 +10,7 @@ namespace jiminy
 {
     template<>
     const std::string AbstractConstraintTpl<SphereConstraint>::type_{"SphereConstraint"};
+    template class JIMINY_EXPL_TPL_INST_DLLEXPORT AbstractConstraintTpl<SphereConstraint>;
 
     SphereConstraint::SphereConstraint(const std::string & frameName,
                                        double sphereRadius,

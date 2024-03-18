@@ -314,7 +314,7 @@ namespace jiminy
     };
 
     template<typename T>
-    class AbstractSensorTpl : public AbstractSensorBase
+    class JIMINY_DLLEXPORT AbstractSensorTpl : public AbstractSensorBase
     {
     public:
         DISABLE_COPY(AbstractSensorTpl)

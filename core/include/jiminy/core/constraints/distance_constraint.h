@@ -45,6 +45,11 @@ namespace jiminy
         /// \brief Stores frame jacobians in world.
         std::array<Matrix6Xd, 2> frameJacobians_{};
     };
+
+    template<>
+    const std::string JIMINY_EXPL_TPL_INST_DLLEXPORT
+        AbstractConstraintTpl<DistanceConstraint>::type_;
+    extern template class JIMINY_EXPL_TPL_INST_DLLIMPORT AbstractConstraintTpl<DistanceConstraint>;
 }
 
 #endif  // end of JIMINY_TRANSMISSION_CONSTRAINT_H
