@@ -19,8 +19,14 @@ list(GET _VERSION 1 BUILD_VERSION_MINOR)
 # Add definition of Jiminy version for C++ headers
 add_definitions("-DJIMINY_VERSION=\"${BUILD_VERSION}\"")
 
-# Enable C++ language
+# Enable C++ language support for all CMake "projects"
 enable_language(CXX)
+
+# For some reason, enabling CXX language adds `PYTHON_EXECUTABLE` variable to CACHE.
+# It must be overridden to avoid messing up with custom Python detection logics.
+if(DEFINED PYTHON_EXECUTABLE)
+    set(PYTHON_EXECUTABLE "${PYTHON_EXECUTABLE}" CACHE INTERNAL "")
+endif()
 
 # Project and library name
 project(jiminy VERSION ${BUILD_VERSION})
@@ -33,6 +39,11 @@ include(${CMAKE_SOURCE_DIR}/build_tools/cmake/docs.cmake)
 include(${CMAKE_SOURCE_DIR}/build_tools/cmake/boostPythonDocstring.cmake)
 include(${CMAKE_SOURCE_DIR}/build_tools/cmake/exportCmakeConfigFiles.cmake)
 include(${CMAKE_SOURCE_DIR}/build_tools/cmake/buildPythonWheel.cmake)
+
+option(BUILD_PYTHON_INTERFACE "Build and install the Python packages." ON)
+if(BUILD_PYTHON_INTERFACE)
+    include(${CMAKE_SOURCE_DIR}/build_tools/cmake/setupPython.cmake)
+endif()
 
 # Set the compilation flags.
 # Not using `add_compile_options` because it does not propagate to external projects.
@@ -94,10 +105,7 @@ set(CMAKE_VISIBILITY_INLINES_HIDDEN 1)
 # Sub-projects
 add_subdirectory(soup)
 add_subdirectory(core)
-
-option(BUILD_PYTHON_INTERFACE "Build and install the Python packages." ON)
 if(BUILD_PYTHON_INTERFACE)
-    include(${CMAKE_SOURCE_DIR}/build_tools/cmake/setupPython.cmake)
     add_subdirectory(python)
 endif()
 
