@@ -6,7 +6,7 @@
 
 namespace jiminy::python
 {
-    void JIMINY_DLLAPI exposeGenerators();
+    void exposeGenerators();
 }
 
 #endif  // GENERATORS_PYTHON_H

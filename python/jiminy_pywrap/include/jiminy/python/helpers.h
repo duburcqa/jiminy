@@ -6,7 +6,7 @@
 
 namespace jiminy::python
 {
-    void JIMINY_DLLAPI exposeHelpers();
+    void exposeHelpers();
 }
 
 #endif  // HELPERS_PYTHON_H

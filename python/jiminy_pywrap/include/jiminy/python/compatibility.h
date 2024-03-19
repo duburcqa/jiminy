@@ -6,7 +6,7 @@
 
 namespace jiminy::python
 {
-    void JIMINY_DLLAPI exposeCompatibility();
+    void exposeCompatibility();
 }
 
 #endif  // COMPATIBILITY_PYTHON_H
