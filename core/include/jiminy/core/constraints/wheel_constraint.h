@@ -12,6 +12,14 @@ namespace jiminy
 {
     class Model;
 
+    class WheelConstraint;
+#ifdef EXPORT_SYMBOLS
+    template<>
+    const std::string JIMINY_TEMPLATE_SPECIALIZATION_DLLEXPORT
+        AbstractConstraintTpl<WheelConstraint>::type_;
+#endif
+    template class JIMINY_TEMPLATE_INSTANTIATION_DLLAPI AbstractConstraintTpl<WheelConstraint>;
+
     /// \brief Class constraining a wheel to roll without slipping on a flat plane.
     ///
     /// \details Given a frame to represent the wheel center, this class constrains it to move
@@ -66,10 +74,6 @@ namespace jiminy
         /// \brief Stores full frame jacobian in world.
         Matrix6Xd frameJacobian_{};
     };
-
-    template<>
-    const std::string JIMINY_TEMPLATE_STATIC_MEMBER_DLLAPI
-        AbstractConstraintTpl<WheelConstraint>::type_;
 }
 
 #endif  // end of JIMINY_WHEEL_CONSTRAINT_H

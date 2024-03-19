@@ -12,6 +12,14 @@ namespace jiminy
 {
     class Model;
 
+    class SphereConstraint;
+#ifdef EXPORT_SYMBOLS
+    template<>
+    const std::string JIMINY_TEMPLATE_SPECIALIZATION_DLLEXPORT
+        AbstractConstraintTpl<SphereConstraint>::type_;
+#endif
+    template class JIMINY_TEMPLATE_INSTANTIATION_DLLAPI AbstractConstraintTpl<SphereConstraint>;
+
     /// \brief Class constraining a sphere to roll without slipping on a flat plane.
     ///
     /// \details Given a frame to represent the sphere center, this class constrains it to move
@@ -60,10 +68,6 @@ namespace jiminy
         /// \brief Stores full frame jacobian in world.
         Matrix6Xd frameJacobian_{};
     };
-
-    template<>
-    const std::string JIMINY_TEMPLATE_STATIC_MEMBER_DLLAPI
-        AbstractConstraintTpl<SphereConstraint>::type_;
 }
 
 #endif  // end of JIMINY_SPHERE_CONSTRAINT_H

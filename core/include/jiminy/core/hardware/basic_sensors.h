@@ -10,6 +10,19 @@ namespace jiminy
 {
     class Robot;
 
+    class ImuSensor;
+#ifdef EXPORT_SYMBOLS
+    template<>
+    const std::string JIMINY_TEMPLATE_SPECIALIZATION_DLLEXPORT AbstractSensorTpl<ImuSensor>::type_;
+    template<>
+    const std::vector<std::string> JIMINY_TEMPLATE_SPECIALIZATION_DLLEXPORT
+        AbstractSensorTpl<ImuSensor>::fieldnames_;
+    template<>
+    const bool JIMINY_TEMPLATE_SPECIALIZATION_DLLEXPORT
+        AbstractSensorTpl<ImuSensor>::areFieldnamesGrouped_;
+#endif
+    template class JIMINY_TEMPLATE_INSTANTIATION_DLLAPI AbstractSensorTpl<ImuSensor>;
+
     class JIMINY_DLLAPI ImuSensor final : public AbstractSensorTpl<ImuSensor>
     {
     public:
@@ -41,14 +54,19 @@ namespace jiminy
         Eigen::Matrix3d sensorRotationBiasInv_{Eigen::Matrix3d::Identity()};
     };
 
+    class ContactSensor;
+#ifdef EXPORT_SYMBOLS
     template<>
-    const std::string JIMINY_TEMPLATE_STATIC_MEMBER_DLLAPI AbstractSensorTpl<ImuSensor>::type_;
+    const std::string JIMINY_TEMPLATE_SPECIALIZATION_DLLEXPORT
+        AbstractSensorTpl<ContactSensor>::type_;
     template<>
-    const std::vector<std::string> JIMINY_TEMPLATE_STATIC_MEMBER_DLLAPI
-        AbstractSensorTpl<ImuSensor>::fieldnames_;
+    const std::vector<std::string> JIMINY_TEMPLATE_SPECIALIZATION_DLLEXPORT
+        AbstractSensorTpl<ContactSensor>::fieldnames_;
     template<>
-    const bool JIMINY_TEMPLATE_STATIC_MEMBER_DLLAPI
-        AbstractSensorTpl<ImuSensor>::areFieldnamesGrouped_;
+    const bool JIMINY_TEMPLATE_SPECIALIZATION_DLLEXPORT
+        AbstractSensorTpl<ContactSensor>::areFieldnamesGrouped_;
+#endif
+    template class JIMINY_TEMPLATE_INSTANTIATION_DLLAPI AbstractSensorTpl<ContactSensor>;
 
     class JIMINY_DLLAPI ContactSensor final : public AbstractSensorTpl<ContactSensor>
     {
@@ -79,14 +97,19 @@ namespace jiminy
         std::size_t contactIndex_{0};
     };
 
+    class ForceSensor;
+#ifdef EXPORT_SYMBOLS
     template<>
-    const std::string JIMINY_TEMPLATE_STATIC_MEMBER_DLLAPI AbstractSensorTpl<ContactSensor>::type_;
+    const std::string JIMINY_TEMPLATE_SPECIALIZATION_DLLEXPORT
+        AbstractSensorTpl<ForceSensor>::type_;
     template<>
-    const std::vector<std::string> JIMINY_TEMPLATE_STATIC_MEMBER_DLLAPI
-        AbstractSensorTpl<ContactSensor>::fieldnames_;
+    const std::vector<std::string> JIMINY_TEMPLATE_SPECIALIZATION_DLLEXPORT
+        AbstractSensorTpl<ForceSensor>::fieldnames_;
     template<>
-    const bool JIMINY_TEMPLATE_STATIC_MEMBER_DLLAPI
-        AbstractSensorTpl<ContactSensor>::areFieldnamesGrouped_;
+    const bool JIMINY_TEMPLATE_SPECIALIZATION_DLLEXPORT
+        AbstractSensorTpl<ForceSensor>::areFieldnamesGrouped_;
+#endif
+    template class JIMINY_TEMPLATE_INSTANTIATION_DLLAPI AbstractSensorTpl<ForceSensor>;
 
     class JIMINY_DLLAPI ForceSensor final : public AbstractSensorTpl<ForceSensor>
     {
@@ -120,14 +143,19 @@ namespace jiminy
         pinocchio::Force f_{};
     };
 
+    class EncoderSensor;
+#ifdef EXPORT_SYMBOLS
     template<>
-    const std::string JIMINY_TEMPLATE_STATIC_MEMBER_DLLAPI AbstractSensorTpl<ForceSensor>::type_;
+    const std::string JIMINY_TEMPLATE_SPECIALIZATION_DLLEXPORT
+        AbstractSensorTpl<EncoderSensor>::type_;
     template<>
-    const std::vector<std::string> JIMINY_TEMPLATE_STATIC_MEMBER_DLLAPI
-        AbstractSensorTpl<ForceSensor>::fieldnames_;
+    const std::vector<std::string> JIMINY_TEMPLATE_SPECIALIZATION_DLLEXPORT
+        AbstractSensorTpl<EncoderSensor>::fieldnames_;
     template<>
-    const bool JIMINY_TEMPLATE_STATIC_MEMBER_DLLAPI
-        AbstractSensorTpl<ForceSensor>::areFieldnamesGrouped_;
+    const bool JIMINY_TEMPLATE_SPECIALIZATION_DLLEXPORT
+        AbstractSensorTpl<EncoderSensor>::areFieldnamesGrouped_;
+#endif
+    template class JIMINY_TEMPLATE_INSTANTIATION_DLLAPI AbstractSensorTpl<EncoderSensor>;
 
     class JIMINY_DLLAPI EncoderSensor final : public AbstractSensorTpl<EncoderSensor>
     {
@@ -159,14 +187,19 @@ namespace jiminy
         JointModelType jointType_{JointModelType::UNSUPPORTED};
     };
 
+    class EffortSensor;
+#ifdef EXPORT_SYMBOLS
     template<>
-    const std::string JIMINY_TEMPLATE_STATIC_MEMBER_DLLAPI AbstractSensorTpl<EncoderSensor>::type_;
+    const std::string JIMINY_TEMPLATE_SPECIALIZATION_DLLEXPORT
+        AbstractSensorTpl<EffortSensor>::type_;
     template<>
-    const std::vector<std::string> JIMINY_TEMPLATE_STATIC_MEMBER_DLLAPI
-        AbstractSensorTpl<EncoderSensor>::fieldnames_;
+    const std::vector<std::string> JIMINY_TEMPLATE_SPECIALIZATION_DLLEXPORT
+        AbstractSensorTpl<EffortSensor>::fieldnames_;
     template<>
-    const bool JIMINY_TEMPLATE_STATIC_MEMBER_DLLAPI
-        AbstractSensorTpl<EncoderSensor>::areFieldnamesGrouped_;
+    const bool JIMINY_TEMPLATE_SPECIALIZATION_DLLEXPORT
+        AbstractSensorTpl<EffortSensor>::areFieldnamesGrouped_;
+#endif
+    template class JIMINY_TEMPLATE_INSTANTIATION_DLLAPI AbstractSensorTpl<EffortSensor>;
 
     class JIMINY_DLLAPI EffortSensor final : public AbstractSensorTpl<EffortSensor>
     {
@@ -195,15 +228,6 @@ namespace jiminy
         std::string motorName_{};
         std::size_t motorIndex_{0};
     };
-
-    template<>
-    const std::string JIMINY_TEMPLATE_STATIC_MEMBER_DLLAPI AbstractSensorTpl<EffortSensor>::type_;
-    template<>
-    const std::vector<std::string> JIMINY_TEMPLATE_STATIC_MEMBER_DLLAPI
-        AbstractSensorTpl<EffortSensor>::fieldnames_;
-    template<>
-    const bool JIMINY_TEMPLATE_STATIC_MEMBER_DLLAPI
-        AbstractSensorTpl<EffortSensor>::areFieldnamesGrouped_;
 }
 
 #endif  // end of JIMINY_BASIC_SENSORS_H

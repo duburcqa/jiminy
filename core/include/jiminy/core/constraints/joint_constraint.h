@@ -12,6 +12,14 @@ namespace jiminy
 {
     class Model;
 
+    class JointConstraint;
+#ifdef EXPORT_SYMBOLS
+    template<>
+    const std::string JIMINY_TEMPLATE_SPECIALIZATION_DLLEXPORT
+        AbstractConstraintTpl<JointConstraint>::type_;
+#endif
+    template class JIMINY_TEMPLATE_INSTANTIATION_DLLAPI AbstractConstraintTpl<JointConstraint>;
+
     class JIMINY_DLLAPI JointConstraint : public AbstractConstraintTpl<JointConstraint>
     {
     public:
@@ -48,10 +56,6 @@ namespace jiminy
         /// \brief Whether to reverse the sign of the constraint.
         bool isReversed_{false};
     };
-
-    template<>
-    const std::string JIMINY_TEMPLATE_STATIC_MEMBER_DLLAPI
-        AbstractConstraintTpl<JointConstraint>::type_;
 }
 
 #endif  // end of JIMINY_JOINT_CONSTRAINT_H

@@ -11,6 +11,14 @@ namespace jiminy
 {
     class Model;
 
+    class FrameConstraint;
+#ifdef EXPORT_SYMBOLS
+    template<>
+    const std::string JIMINY_TEMPLATE_SPECIALIZATION_DLLEXPORT
+        AbstractConstraintTpl<FrameConstraint>::type_;
+#endif
+    template class JIMINY_TEMPLATE_INSTANTIATION_DLLAPI AbstractConstraintTpl<FrameConstraint>;
+
     /// \brief This class implements the constraint for fixing a given frame wrt
     /// world.
     class JIMINY_DLLAPI FrameConstraint : public AbstractConstraintTpl<FrameConstraint>
@@ -62,10 +70,6 @@ namespace jiminy
         /// \brief Stores full frame drift in reference frame.
         pinocchio::Motion frameDrift_{};
     };
-
-    template<>
-    const std::string JIMINY_TEMPLATE_STATIC_MEMBER_DLLAPI
-        AbstractConstraintTpl<FrameConstraint>::type_;
 }
 
 #endif  // end of JIMINY_ABSTRACT_MOTOR_H

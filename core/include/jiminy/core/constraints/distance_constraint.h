@@ -12,6 +12,14 @@ namespace jiminy
 {
     class Model;
 
+    class DistanceConstraint;
+#ifdef EXPORT_SYMBOLS
+    template<>
+    const std::string JIMINY_TEMPLATE_SPECIALIZATION_DLLEXPORT
+        AbstractConstraintTpl<DistanceConstraint>::type_;
+#endif
+    template class JIMINY_TEMPLATE_INSTANTIATION_DLLAPI AbstractConstraintTpl<DistanceConstraint>;
+
     class JIMINY_DLLAPI DistanceConstraint : public AbstractConstraintTpl<DistanceConstraint>
     {
     public:
@@ -45,10 +53,6 @@ namespace jiminy
         /// \brief Stores frame jacobians in world.
         std::array<Matrix6Xd, 2> frameJacobians_{};
     };
-
-    template<>
-    const std::string JIMINY_TEMPLATE_STATIC_MEMBER_DLLAPI
-        AbstractConstraintTpl<DistanceConstraint>::type_;
 }
 
 #endif  // end of JIMINY_TRANSMISSION_CONSTRAINT_H
