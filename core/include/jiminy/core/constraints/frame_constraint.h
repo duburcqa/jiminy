@@ -64,7 +64,8 @@ namespace jiminy
     };
 
     template<>
-    const std::string AbstractConstraintTpl<FrameConstraint>::type_;
+    const std::string JIMINY_TEMPLATE_STATIC_MEMBER_DLLAPI
+        AbstractConstraintTpl<FrameConstraint>::type_;
 }
 
 #endif  // end of JIMINY_ABSTRACT_MOTOR_H

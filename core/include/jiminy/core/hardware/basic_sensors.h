@@ -42,11 +42,13 @@ namespace jiminy
     };
 
     template<>
-    const std::string AbstractSensorTpl<ImuSensor>::type_;
+    const std::string JIMINY_TEMPLATE_STATIC_MEMBER_DLLAPI AbstractSensorTpl<ImuSensor>::type_;
     template<>
-    const std::vector<std::string> AbstractSensorTpl<ImuSensor>::fieldnames_;
+    const std::vector<std::string> JIMINY_TEMPLATE_STATIC_MEMBER_DLLAPI
+        AbstractSensorTpl<ImuSensor>::fieldnames_;
     template<>
-    const bool AbstractSensorTpl<ImuSensor>::areFieldnamesGrouped_;
+    const bool JIMINY_TEMPLATE_STATIC_MEMBER_DLLAPI
+        AbstractSensorTpl<ImuSensor>::areFieldnamesGrouped_;
 
     class JIMINY_DLLAPI ContactSensor final : public AbstractSensorTpl<ContactSensor>
     {
@@ -78,11 +80,13 @@ namespace jiminy
     };
 
     template<>
-    const std::string AbstractSensorTpl<ContactSensor>::type_;
+    const std::string JIMINY_TEMPLATE_STATIC_MEMBER_DLLAPI AbstractSensorTpl<ContactSensor>::type_;
     template<>
-    const std::vector<std::string> AbstractSensorTpl<ContactSensor>::fieldnames_;
+    const std::vector<std::string> JIMINY_TEMPLATE_STATIC_MEMBER_DLLAPI
+        AbstractSensorTpl<ContactSensor>::fieldnames_;
     template<>
-    const bool AbstractSensorTpl<ContactSensor>::areFieldnamesGrouped_;
+    const bool JIMINY_TEMPLATE_STATIC_MEMBER_DLLAPI
+        AbstractSensorTpl<ContactSensor>::areFieldnamesGrouped_;
 
     class JIMINY_DLLAPI ForceSensor final : public AbstractSensorTpl<ForceSensor>
     {
@@ -117,11 +121,13 @@ namespace jiminy
     };
 
     template<>
-    const std::string AbstractSensorTpl<ForceSensor>::type_;
+    const std::string JIMINY_TEMPLATE_STATIC_MEMBER_DLLAPI AbstractSensorTpl<ForceSensor>::type_;
     template<>
-    const std::vector<std::string> AbstractSensorTpl<ForceSensor>::fieldnames_;
+    const std::vector<std::string> JIMINY_TEMPLATE_STATIC_MEMBER_DLLAPI
+        AbstractSensorTpl<ForceSensor>::fieldnames_;
     template<>
-    const bool AbstractSensorTpl<ForceSensor>::areFieldnamesGrouped_;
+    const bool JIMINY_TEMPLATE_STATIC_MEMBER_DLLAPI
+        AbstractSensorTpl<ForceSensor>::areFieldnamesGrouped_;
 
     class JIMINY_DLLAPI EncoderSensor final : public AbstractSensorTpl<EncoderSensor>
     {
@@ -154,11 +160,13 @@ namespace jiminy
     };
 
     template<>
-    const std::string AbstractSensorTpl<EncoderSensor>::type_;
+    const std::string JIMINY_TEMPLATE_STATIC_MEMBER_DLLAPI AbstractSensorTpl<EncoderSensor>::type_;
     template<>
-    const std::vector<std::string> AbstractSensorTpl<EncoderSensor>::fieldnames_;
+    const std::vector<std::string> JIMINY_TEMPLATE_STATIC_MEMBER_DLLAPI
+        AbstractSensorTpl<EncoderSensor>::fieldnames_;
     template<>
-    const bool AbstractSensorTpl<EncoderSensor>::areFieldnamesGrouped_;
+    const bool JIMINY_TEMPLATE_STATIC_MEMBER_DLLAPI
+        AbstractSensorTpl<EncoderSensor>::areFieldnamesGrouped_;
 
     class JIMINY_DLLAPI EffortSensor final : public AbstractSensorTpl<EffortSensor>
     {
@@ -189,11 +197,13 @@ namespace jiminy
     };
 
     template<>
-    const std::string AbstractSensorTpl<EffortSensor>::type_;
+    const std::string JIMINY_TEMPLATE_STATIC_MEMBER_DLLAPI AbstractSensorTpl<EffortSensor>::type_;
     template<>
-    const std::vector<std::string> AbstractSensorTpl<EffortSensor>::fieldnames_;
+    const std::vector<std::string> JIMINY_TEMPLATE_STATIC_MEMBER_DLLAPI
+        AbstractSensorTpl<EffortSensor>::fieldnames_;
     template<>
-    const bool AbstractSensorTpl<EffortSensor>::areFieldnamesGrouped_;
+    const bool JIMINY_TEMPLATE_STATIC_MEMBER_DLLAPI
+        AbstractSensorTpl<EffortSensor>::areFieldnamesGrouped_;
 }
 
 #endif  // end of JIMINY_BASIC_SENSORS_H
