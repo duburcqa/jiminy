@@ -62,9 +62,8 @@ namespace jiminy
     };
 
     template<>
-    const std::string JIMINY_EXPL_TPL_INST_DLLEXPORT
+    const std::string JIMINY_TEMPLATE_STATIC_MEMBER_DLLAPI
         AbstractConstraintTpl<SphereConstraint>::type_;
-    extern template class JIMINY_EXPL_TPL_INST_DLLIMPORT AbstractConstraintTpl<SphereConstraint>;
 }
 
 #endif  // end of JIMINY_SPHERE_CONSTRAINT_H

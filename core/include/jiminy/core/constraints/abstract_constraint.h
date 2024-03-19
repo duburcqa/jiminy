@@ -99,7 +99,7 @@ namespace jiminy
     };
 
     template<class T>
-    class JIMINY_DLLEXPORT AbstractConstraintTpl : public AbstractConstraintBase
+    class JIMINY_TEMPLATE_DLLAPI AbstractConstraintTpl : public AbstractConstraintBase
     {
     public:
         auto shared_from_this() { return shared_from(this); }

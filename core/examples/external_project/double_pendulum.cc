@@ -78,6 +78,9 @@ int main(int argc, char * argv[])
     robot->attachSensor(sensor);
     sensor->initialize("SecondPendulumJoint");
 
+    // Print encoder sensor index
+    std::cout << "Encoder sensor index: " << sensor->getIndex() << std::endl;
+
     // Instantiate the controller
     auto controller = std::make_shared<FunctionalController<>>(computeCommand, internalDynamics);
     robot->setController(controller);

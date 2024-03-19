@@ -68,8 +68,8 @@ namespace jiminy
     };
 
     template<>
-    const std::string JIMINY_EXPL_TPL_INST_DLLEXPORT AbstractConstraintTpl<WheelConstraint>::type_;
-    extern template class JIMINY_EXPL_TPL_INST_DLLIMPORT AbstractConstraintTpl<WheelConstraint>;
+    const std::string JIMINY_TEMPLATE_STATIC_MEMBER_DLLAPI
+        AbstractConstraintTpl<WheelConstraint>::type_;
 }
 
 #endif  // end of JIMINY_WHEEL_CONSTRAINT_H

@@ -50,8 +50,8 @@ namespace jiminy
     };
 
     template<>
-    const std::string JIMINY_EXPL_TPL_INST_DLLEXPORT AbstractConstraintTpl<JointConstraint>::type_;
-    extern template class JIMINY_EXPL_TPL_INST_DLLIMPORT AbstractConstraintTpl<JointConstraint>;
+    const std::string JIMINY_TEMPLATE_STATIC_MEMBER_DLLAPI
+        AbstractConstraintTpl<JointConstraint>::type_;
 }
 
 #endif  // end of JIMINY_JOINT_CONSTRAINT_H

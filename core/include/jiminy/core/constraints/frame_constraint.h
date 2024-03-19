@@ -64,8 +64,8 @@ namespace jiminy
     };
 
     template<>
-    const std::string JIMINY_EXPL_TPL_INST_DLLEXPORT AbstractConstraintTpl<FrameConstraint>::type_;
-    extern template class JIMINY_EXPL_TPL_INST_DLLIMPORT AbstractConstraintTpl<FrameConstraint>;
+    const std::string JIMINY_TEMPLATE_STATIC_MEMBER_DLLAPI
+        AbstractConstraintTpl<FrameConstraint>::type_;
 }
 
 #endif  // end of JIMINY_ABSTRACT_MOTOR_H

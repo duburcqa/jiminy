@@ -42,13 +42,13 @@ namespace jiminy
     };
 
     template<>
-    const std::string JIMINY_EXPL_TPL_INST_DLLEXPORT AbstractSensorTpl<ImuSensor>::type_;
+    const std::string JIMINY_TEMPLATE_STATIC_MEMBER_DLLAPI AbstractSensorTpl<ImuSensor>::type_;
     template<>
-    const std::vector<std::string> JIMINY_EXPL_TPL_INST_DLLEXPORT
+    const std::vector<std::string> JIMINY_TEMPLATE_STATIC_MEMBER_DLLAPI
         AbstractSensorTpl<ImuSensor>::fieldnames_;
     template<>
-    const bool JIMINY_EXPL_TPL_INST_DLLEXPORT AbstractSensorTpl<ImuSensor>::areFieldnamesGrouped_;
-    extern template class JIMINY_EXPL_TPL_INST_DLLIMPORT AbstractSensorTpl<ImuSensor>;
+    const bool JIMINY_TEMPLATE_STATIC_MEMBER_DLLAPI
+        AbstractSensorTpl<ImuSensor>::areFieldnamesGrouped_;
 
     class JIMINY_DLLAPI ContactSensor final : public AbstractSensorTpl<ContactSensor>
     {
@@ -80,14 +80,13 @@ namespace jiminy
     };
 
     template<>
-    const std::string JIMINY_EXPL_TPL_INST_DLLEXPORT AbstractSensorTpl<ContactSensor>::type_;
+    const std::string JIMINY_TEMPLATE_STATIC_MEMBER_DLLAPI AbstractSensorTpl<ContactSensor>::type_;
     template<>
-    const std::vector<std::string> JIMINY_EXPL_TPL_INST_DLLEXPORT
+    const std::vector<std::string> JIMINY_TEMPLATE_STATIC_MEMBER_DLLAPI
         AbstractSensorTpl<ContactSensor>::fieldnames_;
     template<>
-    const bool JIMINY_EXPL_TPL_INST_DLLEXPORT
+    const bool JIMINY_TEMPLATE_STATIC_MEMBER_DLLAPI
         AbstractSensorTpl<ContactSensor>::areFieldnamesGrouped_;
-    extern template class JIMINY_EXPL_TPL_INST_DLLIMPORT AbstractSensorTpl<ContactSensor>;
 
     class JIMINY_DLLAPI ForceSensor final : public AbstractSensorTpl<ForceSensor>
     {
@@ -122,14 +121,13 @@ namespace jiminy
     };
 
     template<>
-    const std::string JIMINY_EXPL_TPL_INST_DLLEXPORT AbstractSensorTpl<ForceSensor>::type_;
+    const std::string JIMINY_TEMPLATE_STATIC_MEMBER_DLLAPI AbstractSensorTpl<ForceSensor>::type_;
     template<>
-    const std::vector<std::string> JIMINY_EXPL_TPL_INST_DLLEXPORT
+    const std::vector<std::string> JIMINY_TEMPLATE_STATIC_MEMBER_DLLAPI
         AbstractSensorTpl<ForceSensor>::fieldnames_;
     template<>
-    const bool JIMINY_EXPL_TPL_INST_DLLEXPORT
+    const bool JIMINY_TEMPLATE_STATIC_MEMBER_DLLAPI
         AbstractSensorTpl<ForceSensor>::areFieldnamesGrouped_;
-    extern template class JIMINY_EXPL_TPL_INST_DLLIMPORT AbstractSensorTpl<ForceSensor>;
 
     class JIMINY_DLLAPI EncoderSensor final : public AbstractSensorTpl<EncoderSensor>
     {
@@ -162,14 +160,13 @@ namespace jiminy
     };
 
     template<>
-    const std::string JIMINY_EXPL_TPL_INST_DLLEXPORT AbstractSensorTpl<EncoderSensor>::type_;
+    const std::string JIMINY_TEMPLATE_STATIC_MEMBER_DLLAPI AbstractSensorTpl<EncoderSensor>::type_;
     template<>
-    const std::vector<std::string> JIMINY_EXPL_TPL_INST_DLLEXPORT
+    const std::vector<std::string> JIMINY_TEMPLATE_STATIC_MEMBER_DLLAPI
         AbstractSensorTpl<EncoderSensor>::fieldnames_;
     template<>
-    const bool JIMINY_EXPL_TPL_INST_DLLEXPORT
+    const bool JIMINY_TEMPLATE_STATIC_MEMBER_DLLAPI
         AbstractSensorTpl<EncoderSensor>::areFieldnamesGrouped_;
-    extern template class JIMINY_EXPL_TPL_INST_DLLIMPORT AbstractSensorTpl<EncoderSensor>;
 
     class JIMINY_DLLAPI EffortSensor final : public AbstractSensorTpl<EffortSensor>
     {
@@ -200,14 +197,13 @@ namespace jiminy
     };
 
     template<>
-    const std::string JIMINY_EXPL_TPL_INST_DLLEXPORT AbstractSensorTpl<EffortSensor>::type_;
+    const std::string JIMINY_TEMPLATE_STATIC_MEMBER_DLLAPI AbstractSensorTpl<EffortSensor>::type_;
     template<>
-    const std::vector<std::string> JIMINY_EXPL_TPL_INST_DLLEXPORT
+    const std::vector<std::string> JIMINY_TEMPLATE_STATIC_MEMBER_DLLAPI
         AbstractSensorTpl<EffortSensor>::fieldnames_;
     template<>
-    const bool JIMINY_EXPL_TPL_INST_DLLEXPORT
+    const bool JIMINY_TEMPLATE_STATIC_MEMBER_DLLAPI
         AbstractSensorTpl<EffortSensor>::areFieldnamesGrouped_;
-    extern template class JIMINY_EXPL_TPL_INST_DLLIMPORT AbstractSensorTpl<EffortSensor>;
 }
 
 #endif  // end of JIMINY_BASIC_SENSORS_H
