@@ -68,8 +68,7 @@ namespace jiminy
     };
 
     template<>
-    const std::string JIMINY_TEMPLATE_STATIC_MEMBER_DLLAPI
-        AbstractConstraintTpl<WheelConstraint>::type_;
+    const std::string AbstractConstraintTpl<WheelConstraint>::type_;
 }
 
 #endif  // end of JIMINY_WHEEL_CONSTRAINT_H

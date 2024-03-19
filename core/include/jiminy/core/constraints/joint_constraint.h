@@ -50,8 +50,7 @@ namespace jiminy
     };
 
     template<>
-    const std::string JIMINY_TEMPLATE_STATIC_MEMBER_DLLAPI
-        AbstractConstraintTpl<JointConstraint>::type_;
+    const std::string AbstractConstraintTpl<JointConstraint>::type_;
 }
 
 #endif  // end of JIMINY_JOINT_CONSTRAINT_H

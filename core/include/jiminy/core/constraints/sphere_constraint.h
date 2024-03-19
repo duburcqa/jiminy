@@ -62,8 +62,7 @@ namespace jiminy
     };
 
     template<>
-    const std::string JIMINY_TEMPLATE_STATIC_MEMBER_DLLAPI
-        AbstractConstraintTpl<SphereConstraint>::type_;
+    const std::string AbstractConstraintTpl<SphereConstraint>::type_;
 }
 
 #endif  // end of JIMINY_SPHERE_CONSTRAINT_H

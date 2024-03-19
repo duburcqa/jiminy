@@ -47,8 +47,7 @@ namespace jiminy
     };
 
     template<>
-    const std::string JIMINY_TEMPLATE_STATIC_MEMBER_DLLAPI
-        AbstractConstraintTpl<DistanceConstraint>::type_;
+    const std::string AbstractConstraintTpl<DistanceConstraint>::type_;
 }
 
 #endif  // end of JIMINY_TRANSMISSION_CONSTRAINT_H
