@@ -108,12 +108,12 @@ namespace jiminy
                 "to all sensor signal.\n"
                 "  - the next six are respectively gyroscope and accelerometer additive bias.");
         }
-        if (noiseStd.size() && noiseStd.size() != 6)
+        if (noiseStd.size() && static_cast<std::size_t>(noiseStd.size()) != getSize())
         {
             THROW_ERROR(
                 std::invalid_argument,
                 "Wrong noise std vector. It must contain 6 values corresponding respectively to "
-                "gyroscope and accelerometer additive bias.");
+                "gyroscope and accelerometer additive noise.");
         }
 
         // Set options now that sanity check were made
@@ -232,11 +232,11 @@ namespace jiminy
         const Eigen::VectorXd & bias = boost::get<Eigen::VectorXd>(sensorOptions.at("bias"));
         const Eigen::VectorXd & noiseStd =
             boost::get<Eigen::VectorXd>(sensorOptions.at("noiseStd"));
-        if (bias.size() && bias.size() != 3)
+        if (bias.size() && static_cast<std::size_t>(bias.size()) != getSize())
         {
             THROW_ERROR(std::invalid_argument, "Wrong bias vector size.");
         }
-        if (noiseStd.size() && noiseStd.size() != 3)
+        if (noiseStd.size() && static_cast<std::size_t>(noiseStd.size()) != getSize())
         {
             THROW_ERROR(std::invalid_argument, "Wrong noise std vector size.");
         }
@@ -329,11 +329,11 @@ namespace jiminy
         const Eigen::VectorXd & bias = boost::get<Eigen::VectorXd>(sensorOptions.at("bias"));
         const Eigen::VectorXd & noiseStd =
             boost::get<Eigen::VectorXd>(sensorOptions.at("noiseStd"));
-        if (bias.size() && bias.size() != 6)
+        if (bias.size() && static_cast<std::size_t>(bias.size()) != getSize())
         {
             THROW_ERROR(std::invalid_argument, "Wrong bias vector size.");
         }
-        if (noiseStd.size() && noiseStd.size() != 6)
+        if (noiseStd.size() && static_cast<std::size_t>(noiseStd.size()) != getSize())
         {
             THROW_ERROR(std::invalid_argument, "Wrong noise std vector size.");
         }
@@ -444,11 +444,11 @@ namespace jiminy
         const Eigen::VectorXd & bias = boost::get<Eigen::VectorXd>(sensorOptions.at("bias"));
         const Eigen::VectorXd & noiseStd =
             boost::get<Eigen::VectorXd>(sensorOptions.at("noiseStd"));
-        if (bias.size() && bias.size() != 1)
+        if (bias.size() && static_cast<std::size_t>(bias.size()) != getSize())
         {
             THROW_ERROR(std::invalid_argument, "Wrong bias vector size.");
         }
-        if (noiseStd.size() && noiseStd.size() != 1)
+        if (noiseStd.size() && static_cast<std::size_t>(noiseStd.size()) != getSize())
         {
             THROW_ERROR(std::invalid_argument, "Wrong noise std vector size.");
         }
@@ -557,11 +557,11 @@ namespace jiminy
         const Eigen::VectorXd & bias = boost::get<Eigen::VectorXd>(sensorOptions.at("bias"));
         const Eigen::VectorXd & noiseStd =
             boost::get<Eigen::VectorXd>(sensorOptions.at("noiseStd"));
-        if (bias.size() && bias.size() != 1)
+        if (bias.size() && static_cast<std::size_t>(bias.size()) != getSize())
         {
             THROW_ERROR(std::invalid_argument, "Wrong bias vector size.");
         }
-        if (noiseStd.size() && noiseStd.size() != 1)
+        if (noiseStd.size() && static_cast<std::size_t>(noiseStd.size()) != getSize())
         {
             THROW_ERROR(std::invalid_argument, "Wrong noise std vector size.");
         }
