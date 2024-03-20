@@ -108,7 +108,7 @@ namespace jiminy
         const std::string & getType() const { return type_; }
 
     public:
-        static const std::string type_;
+        static const std::string JIMINY_TEMPLATE_SPECIALIZATION_DLLAPI type_;
     };
 }
 

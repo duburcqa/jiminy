@@ -13,9 +13,9 @@ namespace jiminy
     class Model;
 
     class DistanceConstraint;
-#ifdef EXPORT_SYMBOLS
+#if defined EXPORT_SYMBOLS || !defined _WIN32
     template<>
-    const std::string JIMINY_TEMPLATE_SPECIALIZATION_DLLEXPORT
+    const std::string JIMINY_TEMPLATE_SPECIALIZATION_DLLAPI
         AbstractConstraintTpl<DistanceConstraint>::type_;
 #endif
     template class JIMINY_TEMPLATE_INSTANTIATION_DLLAPI AbstractConstraintTpl<DistanceConstraint>;
