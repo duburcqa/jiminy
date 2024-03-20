@@ -358,9 +358,9 @@ namespace jiminy
     public:
         /* Be careful, the static variables must be const since the 'static' keyword binds all the
            sensors together, even if they are associated to complete separated robots. */
-        static const std::string JIMINY_TEMPLATE_SPECIALIZATION_DLLAPI type_;
-        static const std::vector<std::string> JIMINY_TEMPLATE_SPECIALIZATION_DLLAPI fieldnames_;
-        static const bool JIMINY_TEMPLATE_SPECIALIZATION_DLLAPI areFieldnamesGrouped_;
+        static const std::string JIMINY_STATIC_MEMBER_DLLAPI type_;
+        static const std::vector<std::string> JIMINY_STATIC_MEMBER_DLLAPI fieldnames_;
+        static const bool JIMINY_STATIC_MEMBER_DLLAPI areFieldnamesGrouped_;
 
     protected:
         std::size_t sensorIndex_{0};
