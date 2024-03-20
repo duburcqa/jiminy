@@ -99,7 +99,7 @@ namespace jiminy
     };
 
     template<class T>
-    class JIMINY_DLLAPI AbstractConstraintTpl : public AbstractConstraintBase
+    class JIMINY_TEMPLATE_DLLAPI AbstractConstraintTpl : public AbstractConstraintBase
     {
     public:
         auto shared_from_this() { return shared_from(this); }
@@ -108,7 +108,7 @@ namespace jiminy
         const std::string & getType() const { return type_; }
 
     public:
-        static const std::string type_;
+        static const std::string JIMINY_STATIC_MEMBER_DLLAPI type_;
     };
 }
 

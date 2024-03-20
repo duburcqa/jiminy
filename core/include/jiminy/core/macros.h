@@ -22,17 +22,35 @@
 // On Microsoft Windows, use dllimport and dllexport to tag symbols
 #    define JIMINY_DLLIMPORT __declspec(dllimport)
 #    define JIMINY_DLLEXPORT __declspec(dllexport)
+#    define JIMINY_TEMPLATE_DLLIMPORT
+#    define JIMINY_TEMPLATE_DLLEXPORT
+#    define JIMINY_STATIC_MEMBER_DLLIMPORT
+#    define JIMINY_STATIC_MEMBER_DLLEXPORT JIMINY_DLLEXPORT
+#    define JIMINY_TEMPLATE_INSTANTIATION_DLLIMPORT JIMINY_DLLIMPORT
+#    define JIMINY_TEMPLATE_INSTANTIATION_DLLEXPORT JIMINY_DLLEXPORT
 #else
-// On Linux, for GCC >= 4, tag symbols using GCC extension
+// On Linux, tag symbols using de-facto standard visibility attribute extension
 #    define JIMINY_DLLIMPORT __attribute__((visibility("default")))
 #    define JIMINY_DLLEXPORT __attribute__((visibility("default")))
+#    define JIMINY_TEMPLATE_DLLIMPORT JIMINY_DLLIMPORT
+#    define JIMINY_TEMPLATE_DLLEXPORT JIMINY_DLLEXPORT
+#    define JIMINY_STATIC_MEMBER_DLLIMPORT
+#    define JIMINY_STATIC_MEMBER_DLLEXPORT
+#    define JIMINY_TEMPLATE_INSTANTIATION_DLLIMPORT
+#    define JIMINY_TEMPLATE_INSTANTIATION_DLLEXPORT
 #endif
 
 // Define DLLAPI to import or export depending on whether one is building or using the library
 #ifdef EXPORT_SYMBOLS
 #    define JIMINY_DLLAPI JIMINY_DLLEXPORT
+#    define JIMINY_TEMPLATE_DLLAPI JIMINY_TEMPLATE_DLLEXPORT
+#    define JIMINY_STATIC_MEMBER_DLLAPI JIMINY_STATIC_MEMBER_DLLEXPORT
+#    define JIMINY_TEMPLATE_INSTANTIATION_DLLAPI JIMINY_TEMPLATE_INSTANTIATION_DLLEXPORT
 #else
 #    define JIMINY_DLLAPI JIMINY_DLLIMPORT
+#    define JIMINY_TEMPLATE_DLLAPI JIMINY_TEMPLATE_DLLIMPORT
+#    define JIMINY_STATIC_MEMBER_DLLAPI JIMINY_STATIC_MEMBER_DLLIMPORT
+#    define JIMINY_TEMPLATE_INSTANTIATION_DLLAPI JIMINY_TEMPLATE_INSTANTIATION_DLLIMPORT
 #endif
 
 // ******************************* Error and warnings utilities ******************************** //

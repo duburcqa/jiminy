@@ -6,8 +6,8 @@
 
 namespace jiminy::python
 {
-    void JIMINY_DLLAPI exposeModel();
-    void JIMINY_DLLAPI exposeRobot();
+    void exposeModel();
+    void exposeRobot();
 }
 
 #endif  // ROBOT_PYTHON_H

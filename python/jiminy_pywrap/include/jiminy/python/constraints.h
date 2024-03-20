@@ -6,8 +6,8 @@
 
 namespace jiminy::python
 {
-    void JIMINY_DLLAPI exposeConstraints();
-    void JIMINY_DLLAPI exposeConstraintTree();
+    void exposeConstraints();
+    void exposeConstraintTree();
 }
 
 #endif  // CONSTRAINTS_PYTHON_H

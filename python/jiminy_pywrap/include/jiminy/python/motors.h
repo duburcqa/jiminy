@@ -6,8 +6,8 @@
 
 namespace jiminy::python
 {
-    void JIMINY_DLLAPI exposeAbstractMotor();
-    void JIMINY_DLLAPI exposeBasicMotors();
+    void exposeAbstractMotor();
+    void exposeBasicMotors();
 }
 
 #endif  // MOTORS_PYTHON_H
