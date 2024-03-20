@@ -17,7 +17,6 @@ namespace jiminy
     template<>
     const std::string JIMINY_DLLAPI AbstractConstraintTpl<JointConstraint>::type_;
 #endif
-    template class JIMINY_TEMPLATE_INSTANTIATION_DLLAPI AbstractConstraintTpl<JointConstraint>;
 
     class JIMINY_DLLAPI JointConstraint : public AbstractConstraintTpl<JointConstraint>
     {

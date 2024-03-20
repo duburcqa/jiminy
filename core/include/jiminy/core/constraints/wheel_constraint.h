@@ -17,7 +17,6 @@ namespace jiminy
     template<>
     const std::string JIMINY_DLLAPI AbstractConstraintTpl<WheelConstraint>::type_;
 #endif
-    template class JIMINY_TEMPLATE_INSTANTIATION_DLLAPI AbstractConstraintTpl<WheelConstraint>;
 
     /// \brief Class constraining a wheel to roll without slipping on a flat plane.
     ///

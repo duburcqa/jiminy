@@ -16,7 +16,6 @@ namespace jiminy
     template<>
     const std::string JIMINY_DLLAPI AbstractConstraintTpl<FrameConstraint>::type_;
 #endif
-    template class JIMINY_TEMPLATE_INSTANTIATION_DLLAPI AbstractConstraintTpl<FrameConstraint>;
 
     /// \brief This class implements the constraint for fixing a given frame wrt
     /// world.

@@ -17,7 +17,6 @@ namespace jiminy
     template<>
     const std::string JIMINY_DLLAPI AbstractConstraintTpl<SphereConstraint>::type_;
 #endif
-    template class JIMINY_TEMPLATE_INSTANTIATION_DLLAPI AbstractConstraintTpl<SphereConstraint>;
 
     /// \brief Class constraining a sphere to roll without slipping on a flat plane.
     ///

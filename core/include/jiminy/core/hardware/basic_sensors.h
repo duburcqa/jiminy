@@ -19,7 +19,6 @@ namespace jiminy
     template<>
     const bool JIMINY_DLLAPI AbstractSensorTpl<ImuSensor>::areFieldnamesGrouped_;
 #endif
-    template class JIMINY_TEMPLATE_INSTANTIATION_DLLAPI AbstractSensorTpl<ImuSensor>;
 
     class JIMINY_DLLAPI ImuSensor final : public AbstractSensorTpl<ImuSensor>
     {
@@ -61,7 +60,6 @@ namespace jiminy
     template<>
     const bool JIMINY_DLLAPI AbstractSensorTpl<ContactSensor>::areFieldnamesGrouped_;
 #endif
-    template class JIMINY_TEMPLATE_INSTANTIATION_DLLAPI AbstractSensorTpl<ContactSensor>;
 
     class JIMINY_DLLAPI ContactSensor final : public AbstractSensorTpl<ContactSensor>
     {
@@ -101,7 +99,6 @@ namespace jiminy
     template<>
     const bool JIMINY_DLLAPI AbstractSensorTpl<ForceSensor>::areFieldnamesGrouped_;
 #endif
-    template class JIMINY_TEMPLATE_INSTANTIATION_DLLAPI AbstractSensorTpl<ForceSensor>;
 
     class JIMINY_DLLAPI ForceSensor final : public AbstractSensorTpl<ForceSensor>
     {
@@ -144,7 +141,6 @@ namespace jiminy
     template<>
     const bool JIMINY_DLLAPI AbstractSensorTpl<EncoderSensor>::areFieldnamesGrouped_;
 #endif
-    template class JIMINY_TEMPLATE_INSTANTIATION_DLLAPI AbstractSensorTpl<EncoderSensor>;
 
     class JIMINY_DLLAPI EncoderSensor final : public AbstractSensorTpl<EncoderSensor>
     {
@@ -185,7 +181,6 @@ namespace jiminy
     template<>
     const bool JIMINY_DLLAPI AbstractSensorTpl<EffortSensor>::areFieldnamesGrouped_;
 #endif
-    template class JIMINY_TEMPLATE_INSTANTIATION_DLLAPI AbstractSensorTpl<EffortSensor>;
 
     class JIMINY_DLLAPI EffortSensor final : public AbstractSensorTpl<EffortSensor>
     {
