@@ -10,3 +10,4 @@ install
 build
 build_tools/cmake/*cppad*
 **/log
+**/*.trace

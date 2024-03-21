@@ -68,17 +68,19 @@ jobs:
         echo "InstallDir=${GITHUB_WORKSPACE}/install" >> $GITHUB_ENV
 
         "${PYTHON_EXECUTABLE}" -m pip install setuptools wheel "pip>=20.3"
-        "${PYTHON_EXECUTABLE}" -m pip install "numpy>=1.23,<2.0"
         "${PYTHON_EXECUTABLE}" -m pip install delocate twine
-    - name: Build jiminy dependencies
-      run: |
-        OSX_DEPLOYMENT_TARGET=${OSX_DEPLOYMENT_TARGET} OSX_ARCHITECTURES=${OSX_ARCHITECTURES} \
-          BUILD_TYPE="${{ matrix.BUILD_TYPE }}" ./build_tools/build_install_deps_unix.sh
     - name: Install pre-compiled binaries for additional gym-jiminy dependencies
       if: matrix.PYTHON_VERSION != '3.13'
       run: |
         "${PYTHON_EXECUTABLE}" -m pip install "torch" -f https://download.pytorch.org/whl/torch
         "${PYTHON_EXECUTABLE}" -m pip install "gymnasium>=0.28,<1.0" "stable_baselines3>=2.0"
+    - name: Install latest numpy version at build-time for run-time binary compatibility
+      run: |
+        "${PYTHON_EXECUTABLE}" -m pip install --upgrade "numpy>=1.23,<2.0"
+    - name: Build jiminy dependencies
+      run: |
+        OSX_DEPLOYMENT_TARGET=${OSX_DEPLOYMENT_TARGET} OSX_ARCHITECTURES=${OSX_ARCHITECTURES} \
+          BUILD_TYPE="${{ matrix.BUILD_TYPE }}" ./build_tools/build_install_deps_unix.sh
 
     #####################################################################################
 

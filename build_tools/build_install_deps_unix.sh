@@ -127,7 +127,7 @@ rm -rf "${RootDir}/eigenpy/build"
 mkdir -p "${RootDir}/eigenpy/build"
 cd "${RootDir}/eigenpy"
 git reset --hard
-git fetch origin "v3.3.0" && git checkout --force FETCH_HEAD || true
+git fetch origin "v3.4.0" && git checkout --force FETCH_HEAD || true
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --depth 1 --jobs 8
 git apply --reject --whitespace=fix "${RootDir}/build_tools/patch_deps_unix/eigenpy.patch"
@@ -207,13 +207,12 @@ git fetch origin "v5.2.5" && git checkout --force FETCH_HEAD || true
 ### Checkout hpp-fcl
 if [ ! -d "${RootDir}/hpp-fcl" ]; then
   git clone --depth 1 https://github.com/humanoid-path-planner/hpp-fcl.git "${RootDir}/hpp-fcl"
-  git config --global url."https://".insteadOf git://
 fi
 rm -rf "${RootDir}/hpp-fcl/build"
 mkdir -p "${RootDir}/hpp-fcl/build"
 cd "${RootDir}/hpp-fcl"
 git reset --hard
-git fetch origin "v2.4.1" && git checkout --force FETCH_HEAD || true
+git fetch origin "v2.4.4" && git checkout --force FETCH_HEAD || true
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --depth 1 --jobs 8
 git apply --reject --whitespace=fix "${RootDir}/build_tools/patch_deps_unix/hppfcl.patch"
@@ -224,7 +223,6 @@ git fetch origin "v8.0.2" && git checkout --force FETCH_HEAD || true
 ### Checkout pinocchio and its submodules
 if [ ! -d "${RootDir}/pinocchio" ]; then
   git clone --depth 1 https://github.com/stack-of-tasks/pinocchio.git "${RootDir}/pinocchio"
-  git config --global url."https://".insteadOf git://
 fi
 rm -rf "${RootDir}/pinocchio/build"
 mkdir -p "${RootDir}/pinocchio/build"

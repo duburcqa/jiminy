@@ -1,4 +1,5 @@
 from glob import glob
+from importlib.metadata import version
 from setuptools import setup, dist, find_namespace_packages
 from setuptools.command.install import install
 
@@ -18,6 +19,28 @@ class InstallPlatlib(install):
         super().finalize_options()
         if self.distribution.has_ext_modules():
             self.install_lib = self.install_platlib
+
+
+# Determine the supported range of numpy versions, assuming that the version
+# currently available was used to compile all C++ extension modules bundled
+# with Jiminy.
+# * Numpy API as limited backward compatibility range based on some complex
+#   logics not following a predefined pattern (since 1.25). See documentation:
+#   https://numpy.org/devdocs/dev/depending_on_numpy.html#build-time-dependency
+# * Numpy API is only minor-version forward compatible
+np_ver = tuple(map(int, version('numpy').split(".", 3)[:2]))
+if np_ver < (1, 25):
+    np_req = f"numpy>={np_ver[0]}.{np_ver[1]}.0"
+    if np_ver < (1, 20):
+        np_req += ",<1.20.0"
+    elif np_ver < (1, 22):
+        np_req += ",!=1.21.0,!=1.21.1,!=1.21.2,!=1.21.3,!=1.21.4"
+else:
+    if np_ver < (2, 1):
+        np_req = "numpy>=1.19"
+    else:
+        raise ImportError("'numpy>2.0' not supported at built-time for now.")
+    np_req += f",<{np_ver[0]}.{np_ver[1] + 1}"
 
 
 setup(
@@ -77,7 +100,7 @@ setup(
         # - 1.22 breaks API for compiled libs.
         # - 2.0 is backward compatible up to 1.23, but not forward compatible.
         #   see: https://numpy.org/devdocs/dev/depending_on_numpy.html
-        "numpy>=1.23,<2.0",
+        np_req,
         # Parser for Jiminy's hardware description file.
         "toml",
         # Standalone cross-platform mesh visualizer used as Viewer's backend.
