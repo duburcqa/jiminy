@@ -25,7 +25,7 @@ namespace jiminy
 
     using ConstraintMap = static_map_t<std::string, std::shared_ptr<AbstractConstraintBase>>;
 
-    enum class JIMINY_DLLAPI ConstraintNodeType : uint8_t
+    enum class ConstraintNodeType : uint8_t
     {
         BOUNDS_JOINTS = 0,
         CONTACT_FRAMES = 1,

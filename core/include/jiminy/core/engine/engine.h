@@ -14,14 +14,14 @@ namespace jiminy
 {
     inline constexpr std::string_view ENGINE_TELEMETRY_NAMESPACE{"HighLevelController"};
 
-    enum class JIMINY_DLLAPI ContactModelType : uint8_t
+    enum class ContactModelType : uint8_t
     {
         UNSUPPORTED = 0,
         SPRING_DAMPER = 1,
         CONSTRAINT = 2
     };
 
-    enum class JIMINY_DLLAPI ConstraintSolverType : uint8_t
+    enum class ConstraintSolverType : uint8_t
     {
         UNSUPPORTED = 0,
         PGS = 1  // Projected Gauss-Seidel

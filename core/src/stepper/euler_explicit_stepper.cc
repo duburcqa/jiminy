@@ -12,10 +12,11 @@ namespace jiminy
         // Compute the next state derivative
         stateDerivative = f(t, state);
 
-        // By default INF is returned in case of fixed timestep. It must be managed externally.
+        /* By default INF is returned no matter what for fixed-timestep integrators.
+           The user is responsible for managing it externally. */
         dt = INF;
 
-        // Scheme never considers failure.
+        // Scheme never considers failure
         return true;
     }
 }

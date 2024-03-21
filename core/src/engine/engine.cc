@@ -1804,7 +1804,7 @@ namespace jiminy
         // Monitor iteration failure
         uint32_t successiveIterFailed = 0;
         std::vector<uint32_t> successiveSolveFailedAll(robots_.size(), 0U);
-        bool isNan = false;
+        stepper::StatusInfo status{stepper::ReturnCode::IS_SUCCESS, {}};
 
         /* Flag monitoring if the current time step depends of a breakpoint or the integration
            tolerance. It will be used by the restoration mechanism, if dt gets very small to reach
@@ -2108,17 +2108,8 @@ namespace jiminy
                     dtLargest = dt;
 
                     // Try doing one integration step
-                    bool isStepSuccessful =
-                        stepper_->tryStep(qSplit, vSplit, aSplit, t, dtLargest);
-
-                    /* Check if the integrator failed miserably even if successfully.
-                       It would happen the timestep is fixed and too large, causing the integrator
-                       to fail miserably returning nan. */
-                    isNan = std::isnan(dtLargest);
-                    if (isNan)
-                    {
-                        break;
-                    }
+                    status = stepper_->tryStep(qSplit, vSplit, aSplit, t, dtLargest);
+                    bool isStepSuccessful = status.returnCode == stepper::ReturnCode::IS_SUCCESS;
 
                     // Update buffer if really successful
                     if (isStepSuccessful)
@@ -2175,6 +2166,17 @@ namespace jiminy
                     }
                     else
                     {
+                        /* Check if the integrator raised an exception. This typically happens
+                           when the timestep is fixed and too large, causing the integrator to
+                           fail miserably returning nan. In such a case, adjust the timestep
+                           manually as a recovery mechanism based on a simple heuristic.
+                           Note that it has no effect for fixed-timestep integrator since
+                           `dtLargest` should be INF already. */
+                        if (status.returnCode == stepper::ReturnCode::IS_ERROR)
+                        {
+                            dtLargest *= 0.1;
+                        }
+
                         // Increment the failed iteration counters
                         ++successiveIterFailed;
                         ++stepperState_.iterFailed;
@@ -2207,9 +2209,6 @@ namespace jiminy
                 bool isStepSuccessful = false;
                 while (!isStepSuccessful)
                 {
-                    // Set the timestep to be tried by the stepper
-                    dtLargest = dt;
-
                     // Break the loop in case of too many successive failed inner iteration
                     if (successiveIterFailed > engineOptions_->stepper.successiveIterFailedMax)
                     {
@@ -2236,15 +2235,12 @@ namespace jiminy
                         }
                     }
 
-                    // Try to do a step
-                    isStepSuccessful = stepper_->tryStep(qSplit, vSplit, aSplit, t, dtLargest);
+                    // Set the timestep to be tried by the stepper
+                    dtLargest = dt;
 
-                    // Check if the integrator failed miserably even if successfully
-                    isNan = std::isnan(dtLargest);
-                    if (isNan)
-                    {
-                        break;
-                    }
+                    // Try to do a step
+                    status = stepper_->tryStep(qSplit, vSplit, aSplit, t, dtLargest);
+                    isStepSuccessful = status.returnCode == stepper::ReturnCode::IS_SUCCESS;
 
                     if (isStepSuccessful)
                     {
@@ -2285,6 +2281,12 @@ namespace jiminy
                     }
                     else
                     {
+                        // Adjust timestep manually if necessary
+                        if (status.returnCode == stepper::ReturnCode::IS_ERROR)
+                        {
+                            dtLargest *= 0.1;
+                        }
+
                         // Increment the failed iteration counter
                         ++successiveIterFailed;
                         ++stepperState_.iterFailed;
@@ -2305,16 +2307,26 @@ namespace jiminy
             }
 
             // Exception handling
-            if (isNan)
-            {
-                THROW_ERROR(std::runtime_error,
-                            "Something is wrong with the physics. Aborting integration.");
-            }
             if (successiveIterFailed > engineOptions_->stepper.successiveIterFailedMax)
             {
+                if (status.exception)
+                {
+                    try
+                    {
+                        std::rethrow_exception(status.exception);
+                    }
+                    catch (const std::exception & e)
+                    {
+                        // TODO: Try using `std::throw_with_nested` instead
+                        std::runtime_error(toString(
+                            "Something is wrong with the physics. Try using an adaptive stepper. "
+                            "Aborting integration.\nRaised from exception: ",
+                            e.what()));
+                    }
+                }
                 THROW_ERROR(std::runtime_error,
-                            "Too many successive iteration failures. Probably something "
-                            "is going wrong with the physics. Aborting integration.");
+                            "Too many successive iteration failures. Probably something is wrong "
+                            "with the physics. Aborting integration.");
             }
             for (uint32_t successiveSolveFailed : successiveSolveFailedAll)
             {

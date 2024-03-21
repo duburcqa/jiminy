@@ -1,13 +1,31 @@
 #ifndef JIMINY_ABSTRACT_STEPPER_H
 #define JIMINY_ABSTRACT_STEPPER_H
 
+#include <optional>
 #include <functional>
+#include <exception>
 
 #include "jiminy/core/fwd.h"
 #include "jiminy/core/stepper/lie_group.h"
 
 namespace jiminy
 {
+    namespace stepper
+    {
+        enum class ReturnCode : uint8_t
+        {
+            IS_SUCCESS = 0,
+            IS_FAILURE = 1,
+            IS_ERROR = 2
+        };
+
+        struct JIMINY_DLLAPI StatusInfo
+        {
+            ReturnCode returnCode;
+            std::exception_ptr exception;
+        };
+    }
+
     using systemDynamics = std::function<void(double /*t*/,
                                               const std::vector<Eigen::VectorXd> & /*qSplit*/,
                                               const std::vector<Eigen::VectorXd> & /*vSplit*/,
@@ -47,11 +65,11 @@ namespace jiminy
         ///                    unmodified.
         ///
         /// \return Whether integration was successful. If not, (q, v, a) are not updated.
-        bool tryStep(std::vector<Eigen::VectorXd> & q,
-                     std::vector<Eigen::VectorXd> & v,
-                     std::vector<Eigen::VectorXd> & a,
-                     double & t,
-                     double & dt);
+        stepper::StatusInfo tryStep(std::vector<Eigen::VectorXd> & q,
+                                    std::vector<Eigen::VectorXd> & v,
+                                    std::vector<Eigen::VectorXd> & a,
+                                    double & t,
+                                    double & dt);
 
     protected:
         /// \brief Internal tryStep method wrapping the arguments as State and
