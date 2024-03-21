@@ -108,7 +108,7 @@ if (-not (Test-Path -PathType Container "$RootDir/eigenpy")) {
 }
 Push-Location -Path "$RootDir/eigenpy"
 git reset --hard
-git fetch origin "v3.3.0"
+git fetch origin "v3.4.0"
 git checkout --force FETCH_HEAD
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --depth 1 --jobs 8
@@ -191,11 +191,10 @@ Pop-Location
 ### Checkout hpp-fcl, then apply some patches
 if (-not (Test-Path -PathType Container "$RootDir/hpp-fcl")) {
   git clone --depth=1 https://github.com/humanoid-path-planner/hpp-fcl.git "$RootDir/hpp-fcl"
-  git config --global url."https://".insteadOf git://
 }
 Push-Location -Path "$RootDir/hpp-fcl"
 git reset --hard
-git fetch origin "v2.4.1"
+git fetch origin "v2.4.4"
 git checkout --force FETCH_HEAD
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --depth 1 --jobs 8
@@ -210,7 +209,6 @@ Pop-Location
 ### Checkout pinocchio and its submodules, then apply some patches
 if (-not (Test-Path -PathType Container "$RootDir/pinocchio")) {
   git clone --depth=1 https://github.com/stack-of-tasks/pinocchio.git "$RootDir/pinocchio"
-  git config --global url."https://".insteadOf git://
 }
 Push-Location -Path "$RootDir/pinocchio"
 git reset --hard
