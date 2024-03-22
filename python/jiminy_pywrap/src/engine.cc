@@ -6,7 +6,7 @@
 #include "jiminy/core/control/abstract_controller.h"
 #include "jiminy/core/robot/robot.h"
 #include "jiminy/core/engine/engine.h"
-#include "jiminy/core/engine/engine.h"
+#include "jiminy/core/stepper/abstract_stepper.h"
 
 #include "pinocchio/bindings/python/fwd.hpp"
 #include <boost/python/raw_function.hpp>

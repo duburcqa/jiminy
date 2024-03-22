@@ -61,7 +61,11 @@ namespace jiminy
                                         double tolAbs) noexcept;
 
     protected:
+
         /// \brief Determine if step has succeeded or failed, and adjust dt.
+        ///
+        /// \details Scale timestep based on normalized error wrt prescribed absolute and relative
+        ///          tolerances.
         ///
         /// \param[in] intialState Starting state used to compute alternative estimates of the
         ///                        solution.
@@ -81,9 +85,6 @@ namespace jiminy
         ///
         /// \returns Normalized error, >1 indicates step failure.
         double computeError(const State & initialState, const State & solution, double dt);
-
-        /// \brief Scale timestep based on normalized error value.
-        bool adjustStepImpl(double error, double & dt);
 
     private:
         /// \brief Relative tolerance.
