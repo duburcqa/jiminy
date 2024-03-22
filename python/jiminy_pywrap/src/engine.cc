@@ -771,6 +771,12 @@ namespace jiminy::python
 
             .DEF_READONLY_WITH_POLICY(
                 "robots", &Engine::robots_, bp::return_value_policy<result_converter<true>>())
+            .def("get_robot", &Engine::getRobot, (bp::arg("self"), "robot_name"))
+            .def("get_robot_index", &Engine::getRobotIndex, (bp::arg("self"), "robot_name"))
+            .def("get_robot_state",
+                 &Engine::getRobotState,
+                 (bp::arg("self"), "robot_name"),
+                 bp::return_value_policy<result_converter<false>>())
 
             .ADD_PROPERTY_GET("robot_states", &internal::engine::getRobotStates)
             .ADD_PROPERTY_GET_WITH_POLICY("stepper_state",

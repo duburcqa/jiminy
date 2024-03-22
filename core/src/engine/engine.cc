@@ -2317,11 +2317,12 @@ namespace jiminy
                     }
                     catch (const std::exception & e)
                     {
-                        // TODO: Try using `std::throw_with_nested` instead
-                        std::runtime_error(toString(
+                        // TODO: Support `std::throw_with_nested` in THROW_ERROR instead
+                        THROW_ERROR(
+                            std::runtime_error,
                             "Something is wrong with the physics. Try using an adaptive stepper. "
                             "Aborting integration.\nRaised from exception: ",
-                            e.what()));
+                            e.what());
                     }
                 }
                 THROW_ERROR(std::runtime_error,
@@ -2776,7 +2777,7 @@ namespace jiminy
         return std::distance(robots_.begin(), robotIt);
     }
 
-    std::shared_ptr<Robot> & Engine::getRobot(const std::string & robotName)
+    std::shared_ptr<Robot> Engine::getRobot(const std::string & robotName)
     {
         std::ptrdiff_t robotIndex = getRobotIndex(robotName);
         return robots_[robotIndex];

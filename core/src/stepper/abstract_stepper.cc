@@ -49,7 +49,6 @@ namespace jiminy
         }
         catch (...)
         {
-
             return {stepper::ReturnCode::IS_ERROR, std::current_exception()};
         }
 
