@@ -16,7 +16,7 @@ diff --git a/CMakeLists.txt b/CMakeLists.txt
 +  ADD_PROJECT_DEPENDENCY(Boost REQUIRED system)
 -  find_package(Boost REQUIRED COMPONENTS system)
  endif(BUILD_PYTHON_INTERFACE)
-  
+ 
  if(Boost_VERSION_STRING VERSION_LESS 1.81)
    # Default C++ version should be C++11
    CHECK_MINIMAL_CXX_STANDARD(11 ENFORCE)
@@ -51,7 +51,7 @@ diff --git a/CMakeLists.txt b/CMakeLists.txt
 @@ -283,7 +274,6 @@
    include/hpp/fcl/timings.h
    )
-
+ 
 -add_subdirectory(doc)
  add_subdirectory(src)
  if (BUILD_PYTHON_INTERFACE)
@@ -70,7 +70,7 @@ diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
 @@ -179,6 +178,7 @@
  ADD_SOURCE_GROUP(${LIBRARY_NAME}_SOURCES)
  ADD_HEADER_GROUP(PROJECT_HEADERS_FULL_PATH)
-
+ 
 +ADD_PROJECT_DEPENDENCY(assimp REQUIRED)
  MODERNIZE_TARGET_LINK_LIBRARIES(${LIBRARY_NAME} SCOPE PRIVATE
    TARGETS assimp::assimp
@@ -101,7 +101,7 @@ diff --git a/cmake/boost.cmake b/cmake/boost.cmake
 +  endif()
 +  set(Boost_USE_STATIC_LIBS ON)
    string(TOUPPER ${BOOST_PYTHON_NAME} UPPERCOMPONENT)
-
+ 
    list(APPEND LOGGING_WATCHED_VARIABLES Boost_${UPPERCOMPONENT}_FOUND
 @@ -192,7 +200,6 @@
    string(REPLACE "_" "." Boost_SHORT_VERSION ${Boost_LIB_VERSION})

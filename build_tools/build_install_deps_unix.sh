@@ -18,7 +18,7 @@ if [ "$(uname -s)" = "Darwin" ]; then
 
   ### Set the build architecture if undefined
   if [ -z ${OSX_ARCHITECTURES} ]; then
-    OSX_ARCHITECTURES="arm64"
+    OSX_ARCHITECTURES="x86_64;arm64"
     echo "OSX_ARCHITECTURES is unset. Defaulting to '${OSX_ARCHITECTURES}'."
   fi
 fi

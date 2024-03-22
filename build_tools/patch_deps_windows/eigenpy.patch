@@ -4,7 +4,7 @@ diff --git a/CMakeLists.txt b/CMakeLists.txt
 @@ -206,7 +206,7 @@
      src/optional.cpp
      src/version.cpp)
-
+ 
 -add_library(${PROJECT_NAME} SHARED ${${PROJECT_NAME}_SOURCES}
 +add_library(${PROJECT_NAME} ${${PROJECT_NAME}_SOURCES}
                                     ${${PROJECT_NAME}_HEADERS})
@@ -27,7 +27,7 @@ diff --git a/cmake/boost.cmake b/cmake/boost.cmake
 +  endif()
 +  set(Boost_USE_STATIC_LIBS ON)
    string(TOUPPER ${BOOST_PYTHON_NAME} UPPERCOMPONENT)
-
+ 
    list(APPEND LOGGING_WATCHED_VARIABLES Boost_${UPPERCOMPONENT}_FOUND
 @@ -192,7 +200,6 @@
    string(REPLACE "_" "." Boost_SHORT_VERSION ${Boost_LIB_VERSION})

@@ -688,6 +688,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
 
         # Re-initialize some shared memories.
         # It is necessary because the robot may have changed.
+        self.robot = self.simulator.robot
         self.robot_state = self.simulator.robot_state
         self.sensor_measurements = OrderedDict(self.robot.sensor_measurements)
 
