@@ -649,10 +649,12 @@ namespace jiminy
                             double orientation,
                             uint32_t seed)
     {
-        if ((0.01 <= interpDelta.array()).all() &&
-            (interpDelta.array() <= size.array() / 2.0).all())
+        if ((0.01 < interpDelta.array()).any() || (interpDelta.array() > size.array() / 2.0).any())
         {
-            PRINT_WARNING("'interpDelta' must be in range [0.01, 'size'/2.0].");
+            PRINT_WARNING(
+                "All components of 'interpDelta' must be in range [0.01, 'size'/2.0]. Value: ",
+                interpDelta.transpose(),
+                "'.");
         }
 
         Eigen::Vector2d interpThr = interpDelta.cwiseMax(0.01).cwiseMin(size / 2.0);
@@ -682,7 +684,7 @@ namespace jiminy
                 double dheight_x;
                 std::tie(height, dheight_x) = tile2dInterp1d(
                     posIndices, posRel, 0, size, sparsity, heightMax, interpThr, seed);
-                double const norm_inv = 1.0 / std::sqrt(dheight_x * dheight_x + 1.0);
+                const double norm_inv = 1.0 / std::sqrt(dheight_x * dheight_x + 1.0);
                 normal << -dheight_x * norm_inv, 0.0, norm_inv;
             }
             else if (!is_edge[0] && is_edge[1])
@@ -690,23 +692,23 @@ namespace jiminy
                 double dheight_y;
                 std::tie(height, dheight_y) = tile2dInterp1d(
                     posIndices, posRel, 1, size, sparsity, heightMax, interpThr, seed);
-                double const norm_inv = 1.0 / std::sqrt(dheight_y * dheight_y + 1.0);
+                const double norm_inv = 1.0 / std::sqrt(dheight_y * dheight_y + 1.0);
                 normal << 0.0, -dheight_y * norm_inv, norm_inv;
             }
             else if (is_edge[0] && is_edge[1])
             {
-                auto const [height_0, dheight_x_0] = tile2dInterp1d(
+                const auto [height_0, dheight_x_0] = tile2dInterp1d(
                     posIndices, posRel, 0, size, sparsity, heightMax, interpThr, seed);
                 if (posRel[1] < interpThr[1])
                 {
                     posIndices[1] -= 1;
-                    auto const [height_m, dheight_x_m] = tile2dInterp1d(
+                    const auto [height_m, dheight_x_m] = tile2dInterp1d(
                         posIndices, posRel, 0, size, sparsity, heightMax, interpThr, seed);
 
-                    double const ratio = (1.0 - posRel[1] / interpThr[1]) / 2.0;
+                    const double ratio = (1.0 - posRel[1] / interpThr[1]) / 2.0;
                     height = height_0 + (height_m - height_0) * ratio;
-                    double const dheight_x = dheight_x_0 + (dheight_x_m - dheight_x_0) * ratio;
-                    double const dheight_y =
+                    const double dheight_x = dheight_x_0 + (dheight_x_m - dheight_x_0) * ratio;
+                    const double dheight_y =
                         (height_0 - height_m) / (2.0 * size[1] * interpThr[1]);
                     normal << -dheight_x, -dheight_y, 1.0;
                     normal.normalize();
@@ -714,13 +716,13 @@ namespace jiminy
                 else
                 {
                     posIndices[1] += 1;
-                    auto const [height_p, dheight_x_p] = tile2dInterp1d(
+                    const auto [height_p, dheight_x_p] = tile2dInterp1d(
                         posIndices, posRel, 0, size, sparsity, heightMax, interpThr, seed);
 
-                    double const ratio = (1.0 + (posRel[1] - 1.0) / interpThr[1]) / 2.0;
+                    const double ratio = (1.0 + (posRel[1] - 1.0) / interpThr[1]) / 2.0;
                     height = height_0 + (height_p - height_0) * ratio;
-                    double const dheight_x = dheight_x_0 + (dheight_x_p - dheight_x_0) * ratio;
-                    double const dheight_y =
+                    const double dheight_x = dheight_x_0 + (dheight_x_p - dheight_x_0) * ratio;
+                    const double dheight_y =
                         (height_p - height_0) / (2.0 * size[1] * interpThr[1]);
                     normal << -dheight_x, -dheight_y, 1.0;
                     normal.normalize();

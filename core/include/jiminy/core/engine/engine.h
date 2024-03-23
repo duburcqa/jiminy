@@ -664,7 +664,7 @@ namespace jiminy
         GenericConfig getOptions() const noexcept;
         void setOptions(const GenericConfig & engineOptions);
         bool getIsTelemetryConfigured() const;
-        std::shared_ptr<Robot> & getRobot(const std::string & robotName);
+        std::shared_ptr<Robot> getRobot(const std::string & robotName);
         std::ptrdiff_t getRobotIndex(const std::string & robotName) const;
         const RobotState & getRobotState(const std::string & robotName) const;
         const StepperState & getStepperState() const;
