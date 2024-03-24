@@ -1422,7 +1422,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         avoid redundant computations.
 
         .. note::
-            This method is called at `reset`, right after
+            This method is called at every `reset`, right after
             `self.simulator.start`. At this point, the simulation is running
             but `refresh_observation` has never been called, so that it can be
             used to initialize buffers involving the engine state but required
