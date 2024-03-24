@@ -38,7 +38,7 @@ class Quantities(unittest.TestCase):
         assert quantities["zmp"].requirements["com"]._is_initialized
 
         env.step(env.action)
-        zmp_1 = quantity_manager.zmp.copy()
+        zmp_1 = quantity_manager["zmp"].copy()
         assert np.all(zmp_0 == zmp_1)
         quantity_manager.clear()
         assert quantities["zmp"].requirements["com"]._is_initialized
