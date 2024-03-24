@@ -1,8 +1,7 @@
 from abc import ABC, abstractmethod
+from functools import partial
 from collections.abc import Mapping
-from itertools import chain
-from typing import (
-    Any, Dict, Tuple, Iterator, Iterable, Optional, Generic, TypeVar)
+from typing import Any, Dict, Tuple, Iterator, Optional, Generic, TypeVar
 
 from jiminy_py.simulator import Simulator
 
@@ -15,32 +14,35 @@ QuantityCreator = Tuple["AbstractQuantity", Dict[str, Any]]
 class OptionalValue(Generic[ValueT]):
     """ TODO: Write documentation.
     """
-    __slots__ = ("_value",)
+    __slots__ = ("_value", "_has_value")
 
     def __init__(self) -> None:
         """ TODO: Write documentation.
         """
         self._value: Optional[ValueT] = None
+        self._has_value: bool = False
 
     def reset(self):
         """ TODO: Write documentation.
         """
         self._value = None
+        self._has_value = False
 
     def has_value(self) -> bool:
         """ TODO: Write documentation.
         """
-        return self._value is not None
+        return self._has_value
 
     def set(self, value: ValueT) -> None:
         """ TODO: Write documentation.
         """
         self._value = value
+        self._has_value = True
 
     def get(self) -> ValueT:
         """ TODO: Write documentation.
         """
-        if self.has_value():
+        if self._has_value:
             return self._value
         raise ValueError("No value.")
 
@@ -78,26 +80,19 @@ class AbstractQuantity(ABC, Generic[ValueT]):
         self.requirements: Dict[str, AbstractQuantity] = {
             name: cls(simulator, **kwargs)
             for name, (cls, kwargs) in requirements.items()}
+
+        # Add getter of all intermediary quantities dynamically.
+        # This approach is kind of hacky but much faster than any of other
+        # official approach, ie implementing custom `__getattribute__` or
+        # even slower custom `__getattr__`.
+        def get_value(name: str, manager: AbstractQuantity) -> Any:
+            return self.requirements[name].get()
+
+        for name in self.requirements.keys():
+            setattr(type(self), name, property(partial(get_value, name)))
+
         self._cache: Optional[OptionalValue] = None
         self._is_initialized: bool = False
-
-    def __getattr__(self, name: str) -> Any:
-        """Fallback attribute getter.
-
-        It enables to get access to intermediary quantities as first-class
-        properties, without having to do it through `requirements`.
-
-        :param name: Name of the requested quantity.
-        """
-        return self.__getattribute__('requirements')[name].get()
-
-    def __dir__(self) -> Iterable[str]:
-        """Attribute lookup.
-
-        It is mainly used by autocomplete feature of Ipython. It is overloaded
-        to get consistent autocompletion wrt `getattr`.
-        """
-        return chain(super().__dir__(), self.requirements.keys())
 
     def set_cache(self, cache: OptionalValue) -> None:
         """Set optional cache variable. When specified, it is used to store
@@ -120,9 +115,10 @@ class AbstractQuantity(ABC, Generic[ValueT]):
             This method is not meant to be overloaded.
         """
         # Get value in cache if available
-        is_cache_enabled = self._cache is not None
-        if is_cache_enabled and self._cache.has_value():
+        try:
             return self._cache.get()
+        except (AttributeError, ValueError):
+            pass
 
         # Evaluate quantity
         try:
@@ -133,11 +129,9 @@ class AbstractQuantity(ABC, Generic[ValueT]):
         except RecursionError as e:
             raise LookupError(
                 "Mutual dependency between quantities is disallowed.") from e
-        if value is None:
-            raise ValueError("Evaluated quantity must not be none.")
 
         # Return value after storing in cache if enabled
-        if is_cache_enabled:
+        if self._cache is not None:
             self._cache.set(value)
         return value
 
@@ -191,6 +185,13 @@ class QuantityManager(Mapping):
             name: cls(simulator, **kwargs)
             for name, (cls, kwargs) in quantity_creators.items()}
 
+        # Add getter of all top-level quantities dynamically
+        def get_quantity(name: str, manager: QuantityManager) -> Any:
+            return self.quantities[name].get()
+
+        for name in self.quantities.keys():
+            setattr(type(self), name, property(partial(get_quantity, name)))
+
         # Get the complete list of all quantities involved in computations
         i = 0
         self._quantities_all = list(self.quantities.values())
@@ -223,28 +224,11 @@ class QuantityManager(Mapping):
         for cache in self._caches.values():
             cache.reset()
 
-    def __getattr__(self, name: str) -> Any:
-        """Fallback attribute getter.
-
-        It enables to get access managed quantities as first-class properties.
-
-        :param name: Name of the requested quantity.
-        """
-        return self.__getattribute__('quantities')[name].get()
-
-    def __dir__(self) -> Iterable[str]:
-        """Attribute lookup.
-
-        It is mainly used by autocomplete feature of Ipython. It is overloaded
-        to get consistent autocompletion wrt `getattr`.
-        """
-        return chain(super().__dir__(), self.quantities.keys())
-
     def __getitem__(self, name: str) -> Any:
         """Get cached value of requested quantity if available, otherwise
         evaluate it and store it in cache.
         """
-        return getattr(self, name)
+        return self.quantities[name].get()
 
     def __iter__(self) -> Iterator[str]:
         """Iterate over names of managed quantities.
