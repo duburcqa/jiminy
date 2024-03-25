@@ -1,10 +1,8 @@
 import numpy as np
 from dataclasses import dataclass
 
-from jiminy_py.simulator import Simulator
-
 from .generic import CenterOfMass
-from ..bases import AbstractQuantity
+from ..bases import InterfaceJiminyEnv, AbstractQuantity
 from ..utils import fill
 
 
@@ -12,10 +10,10 @@ from ..utils import fill
 class ZeroMomentPoint(AbstractQuantity[np.ndarray]):
     """ TODO: Write documentation.
     """
-    def __init__(self, simulator: Simulator) -> None:
+    def __init__(self, env: InterfaceJiminyEnv) -> None:
         """ TODO: Write documentation.
         """
-        super().__init__(simulator, requirements={"com": (CenterOfMass, {})})
+        super().__init__(env, requirements={"com": (CenterOfMass, {})})
         self.dhg = np.ndarray([])
         self._zmp = np.zeros(2)
 

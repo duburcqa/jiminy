@@ -3,7 +3,7 @@ from functools import partial
 from collections.abc import Mapping
 from typing import Any, Dict, Tuple, Iterator, Optional, Generic, TypeVar
 
-from jiminy_py.simulator import Simulator
+from .interfaces import InterfaceJiminyEnv
 
 
 ValueT = TypeVar('ValueT')
@@ -68,17 +68,16 @@ class AbstractQuantity(ABC, Generic[ValueT]):
         can also be done manually.
     """
     def __init__(self,
-                 simulator: Simulator,
+                 env: InterfaceJiminyEnv,
                  requirements: Dict[str, QuantityCreator]) -> None:
         """
-        :param simulator: Simulator already fully initialized with up-to-date
-                          robot (model, controller, and hardware) and options.
+        :param env: Base or wrapped jiminy environment.
         :param requirements: Intermediary quantities on which the current
                              quantity depends for its evaluation.
         """
-        self.simulator = simulator
+        self.env = env
         self.requirements: Dict[str, AbstractQuantity] = {
-            name: cls(simulator, **kwargs)
+            name: cls(env, **kwargs)
             for name, (cls, kwargs) in requirements.items()}
 
         # Add getter of all intermediary quantities dynamically.
@@ -154,8 +153,8 @@ class AbstractQuantity(ABC, Generic[ValueT]):
             never be the case if cache is shared between multiple identical
             instances of the same quantity.
         """
-        self.pinocchio_model = self.simulator.pinocchio_model
-        self.pinocchio_data = self.simulator.pinocchio_data
+        self.pinocchio_model = self.env.pinocchio_model
+        self.pinocchio_data = self.env.pinocchio_data
         self._is_initialized = True
 
     @abstractmethod
@@ -170,19 +169,18 @@ class QuantityManager(Mapping):
     computations.
 
     It is responsible for making sure all quantities are evaluated on the same
-    simulator, and internal buffers are re-initialized whenever necessary.
+    environment, and internal buffers are re-initialized whenever necessary.
     """
     def __init__(self,
-                 simulator: Simulator,
+                 env: InterfaceJiminyEnv,
                  quantity_creators: Dict[str, QuantityCreator]) -> None:
         """ TODO: Write documentation.
 
-        :param simulator: Simulator already fully initialized with up-to-date
-                          robot (model, controller, and hardware) and options.
+        :param env: Base or wrapped jiminy environment.
         """
         # Instantiate and store all top-level quantities to manage
         self.quantities: Dict[str, AbstractQuantity] = {
-            name: cls(simulator, **kwargs)
+            name: cls(env, **kwargs)
             for name, (cls, kwargs) in quantity_creators.items()}
 
         # Add getter of all top-level quantities dynamically

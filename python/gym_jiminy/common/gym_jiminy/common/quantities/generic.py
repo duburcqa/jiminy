@@ -1,13 +1,13 @@
+from functools import partial
 from dataclasses import dataclass
 
 import numpy as np
 
 from jiminy_py.core import array_copyto
-from jiminy_py.simulator import Simulator
 import pinocchio as pin
 
-from ..bases import AbstractQuantity
-from ..utils import fill, transforms_to_vector
+from ..bases import InterfaceJiminyEnv, AbstractQuantity
+from ..utils import fill, transforms_to_vector, quat_multiply
 
 
 @dataclass(unsafe_hash=True)
@@ -21,12 +21,12 @@ class CenterOfMass(AbstractQuantity[np.ndarray]):
 
     def __init__(
             self,
-            simulator: Simulator,
+            env: InterfaceJiminyEnv,
             kinematic_level: pin.KinematicLevel = pin.KinematicLevel.POSITION
             ) -> None:
         """ TODO: Write documentation.
         """
-        super().__init__(simulator, requirements={})
+        super().__init__(env, requirements={})
         self.kinematic_level = kinematic_level
         self._value: np.ndarray = np.array([])
 
@@ -53,7 +53,7 @@ class CenterOfMass(AbstractQuantity[np.ndarray]):
 
 
 @dataclass(unsafe_hash=True)
-class AverageFrameVelocity(AbstractQuantity[np.ndarray]):
+class AverageVelocityFrame(AbstractQuantity[np.ndarray]):
     """ TODO: Write documentation.
     """
 
@@ -66,7 +66,7 @@ class AverageFrameVelocity(AbstractQuantity[np.ndarray]):
     """
 
     def __init__(self,
-                 simulator: Simulator,
+                 env: InterfaceJiminyEnv,
                  frame_name: str,
                  reference_frame: pin.ReferenceFrame = pin.ReferenceFrame.LOCAL
                  ) -> None:
@@ -76,11 +76,20 @@ class AverageFrameVelocity(AbstractQuantity[np.ndarray]):
         self.frame_name = frame_name
         self.reference_frame = reference_frame
 
+        # Make sure at requested reference frame is supported
+        if reference_frame not in (pin.ReferenceFrame.LOCAL,
+                                   pin.ReferenceFrame.LOCAL_WORLD_ALIGNED):
+            raise ValueError(
+                "Reference frame must be 'LOCAL' or 'LOCAL_WORLD_ALIGNED'.")
+
         # Call base implementation
-        super().__init__(simulator, requirements={})
+        super().__init__(env, requirements={})
 
         # Define specialize difference operator on SE3 Lie group
         self._se3_diff = partial(pin.LieGroup.difference, pin.liegroups.SE3())
+
+        # Inverse step size
+        self._inv_step_dt = 0.0
 
         # Pre-allocate memory to store current and previous frame pose
         self._xyzquat_prev, self._xyzquat = (
@@ -90,11 +99,17 @@ class AverageFrameVelocity(AbstractQuantity[np.ndarray]):
         # Pre-allocate memory for return value
         self._value: np.ndarray = np.zeros(6)
 
+        # Reshape linear plus angular velocity vector to vectorize rotation
+        self._v_lin_ang = np.reshape(self._value, (2, 3)).T
+
     def initialize(self) -> None:
         """ TODO: Write documentation.
         """
         # Call base implementation
         super().initialize()
+
+        # Compute inverse step size
+        self._inv_step_dt = 1.0 / self.env.step_dt
 
         # Extract proxy to current frame pose for efficiency
         frame_index = self.pinocchio_model.getFrameIdx(self.frame_name)
@@ -114,9 +129,13 @@ class AverageFrameVelocity(AbstractQuantity[np.ndarray]):
 
         # Compute average frame velocity in local frame since previous step
         self._value[:] = self._se3_diff(self._xyzquat_prev, self._xyzquat)
-        self._value /= self.step_dt  # FIXME: `step_dt` not available
+        self._value *= self._inv_step_dt
 
-        # FIXME: `reference_frame` is ignored for now
+        # Translate local velocity to world frame
+        if pin.ReferenceFrame.LOCAL_WORLD_ALIGNED:
+            # TODO: x2 speedup can be expected using `np.dot` with  `nb.jit`
+            _, rot_mat = self._pose
+            self._v_lin_ang[:] = rot_mat @ self._v_lin_ang
 
         # Backup current frame pose
         array_copyto(self._xyzquat_prev, self._xyzquat)
