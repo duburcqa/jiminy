@@ -186,7 +186,8 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         self._robot_state_q = np.array([])
         self._robot_state_v = np.array([])
         self._robot_state_a = np.array([])
-        self.sensor_measurements: SensorMeasurementStackMap = OrderedDict()
+        self.sensor_measurements: SensorMeasurementStackMap = OrderedDict(
+            self.robot.sensor_measurements)
 
         # Top-most block of the pipeline to which the environment is part of
         self._env_derived: InterfaceJiminyEnv = self
