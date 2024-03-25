@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from functools import partial
 from collections.abc import Mapping
-from typing import Any, Dict, Tuple, Iterator, Optional, Generic, TypeVar
+from typing import Any, Dict, List, Optional, Tuple, Iterator, Generic, TypeVar
 
 from .interfaces import InterfaceJiminyEnv
 
@@ -11,40 +11,64 @@ ValueT = TypeVar('ValueT')
 QuantityCreator = Tuple["AbstractQuantity", Dict[str, Any]]
 
 
-class OptionalValue(Generic[ValueT]):
-    """ TODO: Write documentation.
+class ThreadLocalSharedCache(Generic[ValueT]):
+    """Basic thread local shared cache.
+
+    Its API mimics `std::optional` from the Standard C++ library. All it does
+    is encapsulating any Python object as a mutable variable, plus exposing a
+    simple mechanism for keeping track of all "owners" of the cache.
+
+    .. warning::
+        This implementation is not thread safe.
     """
-    __slots__ = ("_value", "_has_value")
+    __slots__ = ("_value", "_has_value", "owners")
 
     def __init__(self) -> None:
-        """ TODO: Write documentation.
         """
+        """
+        # Cached value if any
         self._value: Optional[ValueT] = None
+
+        # Whether a value is stored in cached
         self._has_value: bool = False
 
+        # Keep track of all "owners" of the shared buffer. This information may
+        # be useful for determining the most efficient computation path. It is
+        # up to user to update this list accordingly.
+        # Note that 'set' cannot be used because owners are all objects having
+        # the same hash, eg "identical" quantities.
+        self.owners: List["AbstractQuantity"] = []
+
     def reset(self):
-        """ TODO: Write documentation.
+        """Clear value stored in cache if any.
         """
         self._value = None
         self._has_value = False
 
-    def has_value(self) -> bool:
-        """ TODO: Write documentation.
-        """
-        return self._has_value
-
     def set(self, value: ValueT) -> None:
-        """ TODO: Write documentation.
+        """Set value in cache if none, otherwise raises an exception.
+
+        .. warning:
+            Beware the value is stored by reference for efficiency. It is up to
+            the user to copy it if necessary.
+
+        :param value: Value to store in cache.
         """
+        if self._has_value:
+            raise ValueError(
+                "A value is already stored. Please call 'reset' before 'set'.")
         self._value = value
         self._has_value = True
 
     def get(self) -> ValueT:
-        """ TODO: Write documentation.
+        """Return cached value if any, otherwise raises an exception.
         """
         if self._has_value:
+            # Assert(s) for type checker
+            # assert self._value is not None
             return self._value
-        raise ValueError("No value.")
+        raise ValueError(
+            "No value has been stored. Please call 'set' before 'get'.")
 
 
 class AbstractQuantity(ABC, Generic[ValueT]):
@@ -72,10 +96,16 @@ class AbstractQuantity(ABC, Generic[ValueT]):
                  requirements: Dict[str, QuantityCreator]) -> None:
         """
         :param env: Base or wrapped jiminy environment.
-        :param requirements: Intermediary quantities on which the current
-                             quantity depends for its evaluation.
+        :param requirements: Intermediary quantities on which this quantity
+                             depends for its evaluation, as a dictionary
+                             whose keys are tuple gathering their respective
+                             class and all their constructor keyword-arguments
+                             except the environment 'env'.
         """
+        # Backup some of user argument(s)
         self.env = env
+
+        # Instantiate intermediary quantities if any
         self.requirements: Dict[str, AbstractQuantity] = {
             name: cls(env, **kwargs)
             for name, (cls, kwargs) in requirements.items()}
@@ -90,10 +120,30 @@ class AbstractQuantity(ABC, Generic[ValueT]):
         for name in self.requirements.keys():
             setattr(type(self), name, property(partial(get_value, name)))
 
-        self._cache: Optional[OptionalValue] = None
+        # Shared cache handling
+        self._cache: Optional[ThreadLocalSharedCache[ValueT]] = None
+        self._has_cache = False
+
+        # Whether the quantity must be re-initialized
         self._is_initialized: bool = False
 
-    def set_cache(self, cache: OptionalValue) -> None:
+    @property
+    def cache(self) -> ThreadLocalSharedCache[ValueT]:
+        """Get shared cache if available, otherwise raises an exception.
+
+        .. warning::
+            This method is not meant to be overloaded.
+        """
+        if not self._has_cache:
+            raise AttributeError(
+                "No shared cache has been set for this quantity. Make sure it "
+                "is managed by some `QuantityManager` instance.")
+        # Assert(s) for type checker
+        # assert self._cache is not None
+        return self._cache
+
+    @cache.setter
+    def cache(self, cache: ThreadLocalSharedCache[ValueT]) -> None:
         """Set optional cache variable. When specified, it is used to store
         evaluated quantity and retrieve its value later one.
 
@@ -104,7 +154,16 @@ class AbstractQuantity(ABC, Generic[ValueT]):
         .. warning::
             This method is not meant to be overloaded.
         """
+        # Withdraw this quantity from the owners of its current cache if any
+        if self._cache is not None:
+            self._cache.owners.remove(self)
+
+        # Declare this quantity as owner of the cache
+        cache.owners.append(self)
+
+        # Update internal cache attribute
         self._cache = cache
+        self._has_cache = True
 
     def get(self) -> ValueT:
         """Get cached value of requested quantity if available, otherwise
@@ -113,11 +172,14 @@ class AbstractQuantity(ABC, Generic[ValueT]):
         .. warning::
             This method is not meant to be overloaded.
         """
-        # Get value in cache if available
-        try:
-            return self._cache.get()
-        except (AttributeError, ValueError):
-            pass
+        # Get value in cache if available.
+        # Note that asking for forgiven rather than permission should be faster
+        # if the user hits the cache at least 2 or 3 times.
+        if self._has_cache:
+            try:
+                return self.cache.get()
+            except ValueError:
+                pass
 
         # Evaluate quantity
         try:
@@ -130,8 +192,8 @@ class AbstractQuantity(ABC, Generic[ValueT]):
                 "Mutual dependency between quantities is disallowed.") from e
 
         # Return value after storing in cache if enabled
-        if self._cache is not None:
-            self._cache.set(value)
+        if self._has_cache:
+            self.cache.set(value)
         return value
 
     def reset(self) -> None:
@@ -170,13 +232,22 @@ class QuantityManager(Mapping):
 
     It is responsible for making sure all quantities are evaluated on the same
     environment, and internal buffers are re-initialized whenever necessary.
+
+    .. note::
+        Individual quantities can be accessed either as instance properties or
+        items of a dictionary. Choosing one or the other is only a matter of
+        taste since both options have been heavily optimized to  minimize
+        overhead and should be equally efficient.
     """
     def __init__(self,
                  env: InterfaceJiminyEnv,
                  quantity_creators: Dict[str, QuantityCreator]) -> None:
-        """ TODO: Write documentation.
-
+        """
         :param env: Base or wrapped jiminy environment.
+        :param quantity_creators:
+            All quantities to jointly manage, as a dictionary whose keys are
+            tuple gathering their respective class and all their constructor
+            keyword-arguments except the environment 'env'.
         """
         # Instantiate and store all top-level quantities to manage
         self.quantities: Dict[str, AbstractQuantity] = {
@@ -199,14 +270,14 @@ class QuantityManager(Mapping):
             i += 1
 
         # Set a shared cache entry for all quantities
-        self._caches: Dict[AbstractQuantity, OptionalValue] = {}
+        self._caches: Dict[AbstractQuantity, ThreadLocalSharedCache] = {}
         for quantity in self._quantities_all:
-            cache = self._caches.setdefault(quantity, OptionalValue())
-            quantity.set_cache(cache)
+            cache = self._caches.setdefault(quantity, ThreadLocalSharedCache())
+            quantity.cache = cache
 
     def reset(self) -> None:
         """Consider that all managed quantity must be re-initialized before
-        being able to evaluate them once again
+        being able to evaluate them once again.
         """
         for quantity in self._quantities_all[::-1]:
             quantity.reset()

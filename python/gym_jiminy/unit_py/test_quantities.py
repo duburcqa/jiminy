@@ -32,8 +32,8 @@ class Quantities(unittest.TestCase):
         assert len(quantity_manager._quantities_all) == 4
 
         zmp_0 = quantity_manager.zmp.copy()
-        assert quantities["com"]._cache.has_value()
-        assert not quantities["acom"]._cache.has_value()
+        assert quantities["com"]._cache._has_value
+        assert not quantities["acom"]._cache._has_value
         assert not quantities["com"]._is_initialized
         assert quantities["zmp"].requirements["com"]._is_initialized
 
@@ -42,7 +42,7 @@ class Quantities(unittest.TestCase):
         assert np.all(zmp_0 == zmp_1)
         quantity_manager.clear()
         assert quantities["zmp"].requirements["com"]._is_initialized
-        assert not quantities["com"]._cache.has_value()
+        assert not quantities["com"]._cache._has_value
         zmp_1 = quantity_manager.zmp.copy()
         assert np.any(zmp_0 != zmp_1)
 
