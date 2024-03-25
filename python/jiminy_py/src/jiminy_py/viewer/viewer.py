@@ -1797,11 +1797,22 @@ class Viewer:
                                with the ground profile. It renders a flat tile
                                ground if not specified.
                                Optional: None by default.
-        :param grid_size: X and Y dimension of the ground profile to render.
-                          Optional: 20m by default.
-        :param grid_unit: X and Y discretization step of the ground profile.
+        :param x_range: Tuple gathering min and max limits along x-axis for
+                        which the heightmap mesh associated with the ground
+                        profile will be procedurally generated.
+                        Optional: (-10.0, 10.0) by default.
+        :param y_range: Tuple gathering min and max limits along y-axis.
+                        Optional: (-10.0, 10.0) by default.
+        :param grid_unit: Tuple gathering X and Y discretization steps for the
+                          generation of the heightmap mesh.
                           Optional: 4cm by default.
-        :param show_meshes: Whether to highlight the meshes.
+        :param simplify_meshes: Whether the generated heightmap mesh should be
+                                decimated before final rendering. This option
+                                must be enabled for the ratio between grid size
+                                and unit is very large to avoid a prohibitive
+                                slowdown of the viewer.
+                                Optional: False by default
+        :param show_meshes: Whether to highlight the mesh vertices.
                             Optional: disabled by default.
         """
         # pylint: disable=import-outside-toplevel
