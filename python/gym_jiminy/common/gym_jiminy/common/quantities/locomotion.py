@@ -1,5 +1,5 @@
 import numpy as np
-from attrs import define
+from dataclasses import dataclass
 
 from jiminy_py.simulator import Simulator
 
@@ -8,7 +8,7 @@ from ..bases import AbstractQuantity
 from ..utils import fill
 
 
-@define(unsafe_hash=True)
+@dataclass(unsafe_hash=True)
 class ZeroMomentPoint(AbstractQuantity[np.ndarray]):
     """ TODO: Write documentation.
     """

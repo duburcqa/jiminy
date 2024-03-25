@@ -64,8 +64,8 @@ class AbstractQuantity(ABC, Generic[ValueT]):
         The user is responsible for implementing the dunder method `__hash__`
         that uniquely define identical quantities as it is used internally by
         `QuantityManager` to synchronize cache between them. It is advised to
-        use decorator `attrs.define(frozen=True)` for convenience, but it can
-        also be done manually.
+        use decorator `@dataclass(unsafe_hash=True)` for convenience, but it
+        can also be done manually.
     """
     def __init__(self,
                  simulator: Simulator,
