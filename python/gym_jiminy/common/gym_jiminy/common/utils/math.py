@@ -216,6 +216,27 @@ def matrices_to_quat(mat_list: Tuple[np.ndarray, ...],
 
 
 @nb.jit(nopython=True, cache=True)
+def transforms_to_vector(
+        transform_list: Tuple[Tuple[np.ndarray, np.ndarray], ...],
+        out: Optional[np.ndarray] = None) -> np.ndarray:
+    """ TODO: Write documentation.
+    """
+    if out is None:
+        out_ = np.empty((7, len(transform_list)))
+    else:
+        out2d = out[:, np.newaxis] if out.ndim == 1 else out
+        assert out2d.shape == (7, len(transform_list))
+        out_ = out2d
+    rotation_list = [rotation for _, rotation in transform_list]
+    for i, (translation, _) in enumerate(transform_list):
+        out_[:3, i] = translation
+    matrices_to_quat(rotation_list, out_[-4:])
+    if out.ndim == 1:
+        return out_[:, 0]
+    return out_
+
+
+@nb.jit(nopython=True, cache=True)
 def rpy_to_matrix(rpy: np.ndarray,
                   out: Optional[np.ndarray] = None) -> np.ndarray:
     """Compute the Rotation Matrix representation of a single or a
