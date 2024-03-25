@@ -64,7 +64,7 @@ jobs:
         python -m pip install "gymnasium>=0.28,<1.0" "stable_baselines3>=2.0"
     - name: Install latest numpy version at build-time for run-time binary compatibility
       run: |
-        python -m pip install --upgrade "numpy>=1.23,<2.0"
+        python -m pip install --upgrade "numpy>=1.24,<2.0"
     - name: Build jiminy dependencies
       run: |
         ${env:BUILD_TYPE} = "${{ matrix.BUILD_TYPE }}"

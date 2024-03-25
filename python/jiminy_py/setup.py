@@ -37,7 +37,7 @@ if np_ver < (1, 25):
         np_req += ",!=1.21.0,!=1.21.1,!=1.21.2,!=1.21.3,!=1.21.4"
 else:
     if np_ver < (2, 1):
-        np_req = "numpy>=1.19"
+        np_req = "numpy>=1.24"  # All version down to 1.19 are supported
     else:
         raise ImportError("'numpy>2.0' not supported at built-time for now.")
     np_req += f",<{np_ver[0]}.{np_ver[1] + 1}"
@@ -98,6 +98,7 @@ setup(
         # - >=1.21,<1.21.5 is causing segfault with boost::python.
         #   See issue: https://github.com/boostorg/python/issues/376
         # - 1.22 breaks API for compiled libs.
+        # - 1.24 adds `dtype` optional argument to `np.stack`
         # - 2.0 is backward compatible up to 1.23, but not forward compatible.
         #   see: https://numpy.org/devdocs/dev/depending_on_numpy.html
         np_req,
