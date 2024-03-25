@@ -1,4 +1,4 @@
-""" TODO: Write documentation
+"""Quantities mainly relevant for locomotion tasks on floating-base robots.
 """
 from typing import Optional, Tuple
 from dataclasses import dataclass
