@@ -18,15 +18,13 @@ import threading
 import multiprocessing as mp
 import xml.etree.ElementTree as ET
 from functools import wraps
-from itertools import chain
 from datetime import datetime
 from types import TracebackType
 from traceback import TracebackException
 from pathlib import PureWindowsPath
 from contextlib import AbstractContextManager
 from typing import (
-    Dict, Any, Callable, Optional, Tuple, Union, Sequence, Iterable, Literal,
-    Type)
+    Dict, Any, List, Callable, Optional, Tuple, Union, Sequence, Literal, Type)
 
 import numpy as np
 
@@ -1772,13 +1770,13 @@ class Panda3dProxy(mp.Process):
         """
         self.__dict__.update(state)
 
-    def __dir__(self) -> Iterable[str]:
+    def __dir__(self) -> List[str]:
         """Attribute lookup.
 
         It is mainly used by autocomplete feature of Ipython. It is overloaded
         to get consistent autocompletion wrt `getattr`.
         """
-        return chain(super().__dir__(), dir(Panda3dApp))
+        return [*super().__dir__(), *dir(Panda3dApp)]
 
     def async_mode(self) -> AbstractContextManager:
         """Context specifically designed for executing methods asynchronously.
@@ -1964,13 +1962,13 @@ class Panda3dViewer:
         """
         return getattr(self.__getattribute__('_app'), name)
 
-    def __dir__(self) -> Iterable[str]:
+    def __dir__(self) -> List[str]:
         """Attribute lookup.
 
         It is mainly used by autocomplete feature of Ipython. It is overloaded
         to get consistent autocompletion wrt `getattr`.
         """
-        return chain(super().__dir__(), dir(self._app))
+        return [*super().__dir__(), *dir(self._app)]
 
 
 def convert_bvh_collision_geometry_to_primitive(geom: hppfcl.CollisionGeometry

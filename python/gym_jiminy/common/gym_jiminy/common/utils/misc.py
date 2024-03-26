@@ -26,8 +26,8 @@ FieldNestedList = List[Union[FieldNestedSequence, str]]
 
 
 class RandomDistribution(Protocol):
-    """Protocol to be satisfied when passing generic statistical distribution
-    callable to `sample` method.
+    """Protocol that must be satisfied for passing a generic callable as
+    custom statistical distribution to `sample` method.
     """
     def __call__(self, rg: np.random.Generator, *args: Any, **kwargs: Any
                  ) -> ArrayOrScalar:

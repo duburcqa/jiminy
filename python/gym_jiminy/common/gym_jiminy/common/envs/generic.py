@@ -10,11 +10,10 @@ import tempfile
 from copy import deepcopy
 from collections import OrderedDict
 from collections.abc import Mapping
-from itertools import chain
 from functools import partial
 from typing import (
-    Dict, Any, List, cast, no_type_check, Optional, Tuple, Callable, Iterable,
-    Union, SupportsFloat, Iterator,  Generic, Sequence, Mapping as MappingT,
+    Dict, Any, List, cast, no_type_check, Optional, Tuple, Callable, Union,
+    SupportsFloat, Iterator,  Generic, Sequence, Mapping as MappingT,
     MutableMapping as MutableMappingT)
 
 import numpy as np
@@ -187,7 +186,8 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         self._robot_state_q = np.array([])
         self._robot_state_v = np.array([])
         self._robot_state_a = np.array([])
-        self.sensor_measurements: SensorMeasurementStackMap = OrderedDict()
+        self.sensor_measurements: SensorMeasurementStackMap = OrderedDict(
+            self.robot.sensor_measurements)
 
         # Top-most block of the pipeline to which the environment is part of
         self._env_derived: InterfaceJiminyEnv = self
@@ -290,13 +290,13 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         """
         return getattr(self.__getattribute__('simulator'), name)
 
-    def __dir__(self) -> Iterable[str]:
+    def __dir__(self) -> List[str]:
         """Attribute lookup.
 
         It is mainly used by autocomplete feature of Ipython. It is overloaded
         to get consistent autocompletion wrt `getattr`.
         """
-        return chain(super().__dir__(), dir(self.simulator))
+        return [*super().__dir__(), *dir(self.simulator)]
 
     def __del__(self) -> None:
         try:
@@ -1422,7 +1422,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         avoid redundant computations.
 
         .. note::
-            This method is called at `reset`, right after
+            This method is called at every `reset`, right after
             `self.simulator.start`. At this point, the simulation is running
             but `refresh_observation` has never been called, so that it can be
             used to initialize buffers involving the engine state but required

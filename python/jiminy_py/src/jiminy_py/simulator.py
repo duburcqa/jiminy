@@ -11,10 +11,8 @@ import logging
 import pathlib
 import tempfile
 from copy import deepcopy
-from itertools import chain
 from functools import partial
-from typing import (
-    Any, List, Dict, Optional, Union, Sequence, Iterable, Callable)
+from typing import Any, List, Dict, Optional, Union, Sequence, Callable
 
 import toml
 import numpy as np
@@ -230,13 +228,13 @@ class Simulator:
         """
         return getattr(self.__getattribute__('engine'), name)
 
-    def __dir__(self) -> Iterable[str]:
+    def __dir__(self) -> List[str]:
         """Attribute lookup.
 
         It is mainly used by autocomplete feature of Ipython. It is overloaded
         to get consistent autocompletion wrt `getattr`.
         """
-        return chain(super().__dir__(), dir(self.engine))
+        return [*super().__dir__(), *dir(self.engine)]
 
     @property
     def robot(self) -> jiminy.Robot:
