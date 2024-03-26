@@ -244,11 +244,11 @@ def update_quantities(robot: jiminy.Model,
 
         if update_com:
             if velocity is None:
-                kinematic_level = pin.KinematicLevel.POSITION
+                kinematic_level = pin.POSITION
             elif acceleration is None:
-                kinematic_level = pin.KinematicLevel.VELOCITY
+                kinematic_level = pin.VELOCITY
             else:
-                kinematic_level = pin.KinematicLevel.ACCELERATION
+                kinematic_level = pin.ACCELERATION
             pin.centerOfMass(model, data, kinematic_level, False)
 
         if update_jacobian:

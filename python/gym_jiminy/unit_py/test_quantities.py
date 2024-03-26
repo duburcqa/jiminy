@@ -21,8 +21,7 @@ class Quantities(unittest.TestCase):
         quantity_manager = QuantityManager(
             env.simulator,
             {
-                "acom": (CenterOfMass, dict(
-                    kinematic_level=pin.KinematicLevel.ACCELERATION)),
+                "acom": (CenterOfMass, dict(kinematic_level=pin.ACCELERATION)),
                 "com": (CenterOfMass, {}),
                 "zmp": (ZeroMomentPoint, {}),
             })

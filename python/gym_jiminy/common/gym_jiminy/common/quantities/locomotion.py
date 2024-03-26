@@ -13,8 +13,13 @@ class ZeroMomentPoint(AbstractQuantity[np.ndarray]):
     def __init__(self, env: InterfaceJiminyEnv) -> None:
         """ TODO: Write documentation.
         """
+        # Call base implementation
         super().__init__(env, requirements={"com": (CenterOfMass, {})})
+
+        # Proxy for the derivative of the spatial centroidal momentum
         self.dhg = np.ndarray([])
+
+        # Pre-allocate memory for the ZMP
         self._zmp = np.zeros(2)
 
     def initialize(self) -> None:
