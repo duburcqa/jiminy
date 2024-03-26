@@ -8,18 +8,29 @@ from ..utils import fill
 
 @dataclass(unsafe_hash=True)
 class ZeroMomentPoint(AbstractQuantity[np.ndarray]):
-    """ TODO: Write documentation.
+    """Zero Moment Point (ZMP), also called Divergent Component of Motion
+    (DCM).
+
+    This quantity only makes sense for legged robots whose the inverted
+    pendulum is a relevant approximate dynamic model. It is involved in various
+    dynamic stability metrics (usually only on flat ground), such as N-steps
+    capturability. More precisely, the robot will keep balance if the ZMP is
+    maintained inside the support polygon.
     """
     def __init__(self, env: InterfaceJiminyEnv) -> None:
-        """ TODO: Write documentation.
         """
+        :param env: Base or wrapped jiminy environment.
+        """
+        # Call base implementation
         super().__init__(env, requirements={"com": (CenterOfMass, {})})
+
+        # Proxy for the derivative of the spatial centroidal momentum
         self.dhg = np.ndarray([])
+
+        # Pre-allocate memory for the ZMP
         self._zmp = np.zeros(2)
 
     def initialize(self) -> None:
-        """ TODO: Write documentation.
-        """
         super().initialize()
         self._gravity = abs(self.pinocchio_model.gravity.linear[2])
         self._robot_mass = self.pinocchio_data.mass[0]
@@ -28,8 +39,6 @@ class ZeroMomentPoint(AbstractQuantity[np.ndarray]):
         fill(self._zmp, 0)
 
     def refresh(self) -> np.ndarray:
-        """ TODO: Write documentation.
-        """
         dhg, com = self.dhg, self.com
         f_z = dhg.linear[2] + self._robot_weight
         self._zmp[:] = com[:2] * (self._robot_weight / f_z)
