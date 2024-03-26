@@ -1145,7 +1145,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         head_geom.add_geom(head)
         head_node = NodePath(head_geom)
         head_node.reparent_to(arrow_node.attach_new_node("head"))
-        head_node.set_scale(1.75, 1.75, 3.5 * radius)
+        head_node.set_scale(1.75, 1.75, 3.5 * np.sign(radius))
         head_node.set_pos(0.0, 0.0, length)
         body = geometry.make_cylinder()
         body_geom = GeomNode("body")
