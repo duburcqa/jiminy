@@ -16,6 +16,7 @@ from typing import Optional, Dict, Any, Sequence, Literal, Set, List, get_args
 import toml
 import numpy as np
 import trimesh
+import trimesh.parent
 
 import hppfcl
 import pinocchio as pin
@@ -679,14 +680,20 @@ def load_hardware_description_file(
                     if os.path.exists(mesh_path):
                         break
 
-            # Compute the minimal volume bounding box, then add new frames to
-            # the robot model at its vertices and register contact points at
-            # their location.
+            # Compute the minimal volume bounding box, then
             try:
                 mesh = trimesh.load(mesh_path)
             except ValueError:  # Mesh file is not available
                 continue
+
+            # Assert(s) for type checker
+            assert isinstance(mesh, trimesh.parent.Geometry)
+
+            # Extract oriented bounding box
             box = mesh.bounding_box_oriented
+
+            # Add new frames to the robot model at its vertices and register
+            # contact points at their respective location.
             for i in range(8):
                 frame_name = "_".join((mesh_name, "BoundingBox", str(i)))
                 frame_transform_rel = pin.SE3(
@@ -696,16 +703,16 @@ def load_hardware_description_file(
                 contact_frame_names.append(frame_name)
 
     # Add the collision bodies and contact points.
-    # Note that it must be done before adding the sensors because
-    # Contact sensors requires contact points to be defined.
-    # Mesh collisions is not numerically stable for now, so disabling it.
-    # Note: Be careful, the order of the contact points is important, it
-    # changes the computation of the external forces, which is an iterative
-    # algorithm for impulse model, resulting in different simulation
-    # results. The order of the element of the set depends of the `hash`
-    # method of python, whose seed is randomly generated when starting the
-    # interpreter for security reason. As a result, the set must be sorted
-    # manually to ensure consistent results.
+    # * It must be done before adding the sensors because Contact sensors
+    # requires contact points to be defined.
+    # * Mesh collisions is not numerically stable for now, so disabling it.
+    # * Be careful, the order of the contact points is important, it changes
+    # the computation of the external forces, which is an iterative algorithm
+    # for impulse model, resulting in different simulation results. The order
+    # of the element of the set depends of the `hash` method of python, whose
+    # seed is randomly generated when starting the interpreter for security
+    # reason. As a result, the set must be sorted manually to ensure consistent
+    # results.
     robot.add_collision_bodies(
         collision_body_names, ignore_meshes=avoid_instable_collisions)
     robot.add_contact_points(sorted(list(set(contact_frame_names))))

@@ -197,8 +197,13 @@ class AbstractQuantity(ABC, Generic[ValueT]):
         return value
 
     def reset(self) -> None:
-        """Consider that the quantity must be re-initialized before being able
-        to evaluate them once again
+        """Consider that the quantity must be re-initialized before being
+        evaluated once again.
+
+        .. note::
+            This method must be called right before performing agent steps,
+            otherwise this quantity will not be refreshed if it was evaluated
+            previously.
 
         .. warning::
             This method is not meant to be overloaded.
@@ -206,8 +211,13 @@ class AbstractQuantity(ABC, Generic[ValueT]):
         self._is_initialized = False
 
     def initialize(self) -> None:
-        """Initialize internal buffers for fast access to shared memory or to
-        avoid redundant computations.
+        """Initialize internal buffers.
+
+        This is typically useful to refresh shared memory proxies or to
+        re-initialize pre-allocated buffers.
+
+        .. note::
+            This method must be called before starting a new episode.
 
         .. note::
             Lazy-initialization is used for efficiency, ie `initialize` will be
@@ -221,7 +231,8 @@ class AbstractQuantity(ABC, Generic[ValueT]):
 
     @abstractmethod
     def refresh(self) -> ValueT:
-        """Evaluate quantity at the current simulation state.
+        """Evaluate this quantity based on the agent state at the end of the
+        current agent step.
         """
 
 
