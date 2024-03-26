@@ -1138,6 +1138,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
             The arrow is aligned with z-axis in world frame, and the tip is at
             position (0.0, 0.0, 0.0) in world frame.
         """
+        direction = -1.0 if anchor_top else 1.0
         arrow_geom = GeomNode("arrow")
         arrow_node = NodePath(arrow_geom)
         head = make_cone()
@@ -1145,15 +1146,16 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         head_geom.add_geom(head)
         head_node = NodePath(head_geom)
         head_node.reparent_to(arrow_node.attach_new_node("head"))
-        head_node.set_scale(1.75, 1.75, 3.5 * np.sign(radius))
-        head_node.set_pos(0.0, 0.0, length)
+        head_node.set_scale(
+            1.75, 1.75, 3.5 * radius * direction * np.sign(length))
+        head_node.set_pos(0.0, 0.0, direction * length)
         body = geometry.make_cylinder()
         body_geom = GeomNode("body")
         body_geom.add_geom(body)
         body_node = NodePath(body_geom)
         body_node.reparent_to(arrow_node.attach_new_node("body"))
         body_node.set_scale(1.0, 1.0, length)
-        body_node.set_pos(0.0, 0.0, (-0.5 if anchor_top else 0.5) * length)
+        body_node.set_pos(0.0, 0.0, 0.5 * direction * length)
         arrow_node.set_scale(radius, radius, 1.0)
         self.append_node(root_path, name, arrow_node, frame)
 
