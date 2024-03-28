@@ -53,7 +53,7 @@ def toeplitz(col: np.ndarray, row: np.ndarray) -> np.ndarray:
                       strides=(-stride, stride))
 
 
-@nb.jit(nopython=True, cache=True, inline='always', fastmath=True)
+#@nb.jit(nopython=True, cache=True, inline='always', fastmath=True)
 def integrate_zoh(state_prev: np.ndarray,
                   state_min: np.ndarray,
                   state_max: np.ndarray,
@@ -81,29 +81,47 @@ def integrate_zoh(state_prev: np.ndarray,
     if abs(dt) < 1e-9:
         return state_prev.copy()
 
-    # Compute integration matrix
+    # Propagate derivative bounds to compute highest-order derivative bounds
+    state_min_stack = [state_min.copy() for _ in range(100, 0, -1)]
+    state_max_stack = [state_max.copy() for _ in range(100, 0, -1)]
     dim, size = state_prev.shape
+    deriv_min, deriv_max = np.full((size,), -np.inf), np.full((size,), np.inf)
+    for j in range(dim):
+        for i in range(100, 0, -1):
+            # Compute i-step ahead integration problem
+            integ_coeffs = np.array([
+                pow(i * dt, k) * INV_FACTORIAL_TABLE[k]
+                for k in range(dim - j)])
+            integ_zero = integ_coeffs[:-1].dot(state_prev[j:-1])
+            integ_drift = integ_coeffs[-1]
+
+            # Propagate derivative bounds at a given order only
+            deriv_min_j = (state_min_stack[i-1][j] - integ_zero) / integ_drift
+            deriv_max_j = (state_max_stack[i-1][j] - integ_zero) / integ_drift
+            for k in range(size):
+                if deriv_min[k] < deriv_min_j[k] <= deriv_max[k]:
+                    deriv_min[k] = deriv_min_j[k]
+                if deriv_min[k] <= deriv_max_j[k] < deriv_max[k]:
+                    deriv_max[k] = deriv_max_j[k]
+                if deriv_max_j[k] <= state_prev[-1, k]:
+                    print(f"{i}: state_max_tmp")
+                    breakpoint()
+                    state_max_stack[i-1][(j + 1):, k] = 0.0
+                if state_prev[-1, k] <= deriv_min_j[k]:
+                    print(f"{i}: state_min_tmp")
+                    breakpoint()
+                    state_min_stack[i-1][(j + 1):, k] = 0.0
+
+    # Clip highest-order derivative to ensure every derivative are within
+    # bounds if possible, lowest orders in priority otherwise.
+    deriv = np.minimum(np.maximum(state_prev[-1], deriv_min), deriv_max)
+
+    # Compute 1-step ahead integration matrix
     integ_coeffs = np.array([
         pow(dt, k) * INV_FACTORIAL_TABLE[k] for k in range(dim)])
     integ_matrix = toeplitz(integ_coeffs, np.zeros(dim)).T
     integ_zero = integ_matrix[:, :-1].copy() @ state_prev[:-1]
     integ_drift = integ_matrix[:, -1:]
-
-    # Propagate derivative bounds to compute highest-order derivative bounds
-    deriv_min_stack = (state_min - integ_zero) / integ_drift
-    deriv_max_stack = (state_max - integ_zero) / integ_drift
-    deriv_min, deriv_max = np.full((size,), -np.inf), np.full((size,), np.inf)
-    for deriv_min_i, deriv_max_i in zip(deriv_min_stack, deriv_max_stack):
-        for k, (deriv_min_k, deriv_max_k) in enumerate(zip(
-                deriv_min, deriv_max)):
-            if deriv_min_k < deriv_min_i[k] < deriv_max_k:
-                deriv_min[k] = deriv_min_i[k]
-            if deriv_min_k < deriv_max_i[k] < deriv_max_k:
-                deriv_max[k] = deriv_max_i[k]
-
-    # Clip highest-order derivative to ensure every derivative are within
-    # bounds if possible, lowest orders in priority otherwise.
-    deriv = np.minimum(np.maximum(state_prev[-1], deriv_min), deriv_max)
 
     # Integrate, taking into account clipped highest derivative
     return integ_zero + integ_drift * deriv
