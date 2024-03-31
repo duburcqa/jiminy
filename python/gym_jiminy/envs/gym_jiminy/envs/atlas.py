@@ -29,15 +29,12 @@ NEUTRAL_SAGITTAL_HIP_ANGLE = 0.2
 # Default simulation duration (:float [s])
 SIMULATION_DURATION = 20.0
 
-# Ratio between the High-level neural network PID target update and Low-level
-# PID torque update (:int [NA])
-HLC_TO_LLC_RATIO = 1
-
 # Stepper update period (:float [s])
 STEP_DT = 0.04
 
 MOTOR_POSITION_MARGIN = 0.02
 MOTOR_VELOCITY_MAX = 3.0
+MOTOR_ACCELERATION_MAX = 40.0
 
 # PID proportional gains (one per actuated joint)
 PD_REDUCED_KP = (
@@ -255,12 +252,13 @@ AtlasPDControlJiminyEnv = build_pipeline(
             block=dict(
                 cls=PDController,
                 kwargs=dict(
-                    update_ratio=HLC_TO_LLC_RATIO,
+                    update_ratio=1,
                     order=1,
                     kp=PD_FULL_KP,
                     kd=PD_FULL_KD,
                     target_position_margin=0.0,
                     target_velocity_limit=MOTOR_VELOCITY_MAX,
+                    target_acceleration_limit=MOTOR_ACCELERATION_MAX
                 )
             ),
             wrapper=dict(
@@ -293,19 +291,20 @@ AtlasReducedPDControlJiminyEnv = build_pipeline(
                     kp=1.0 / MOTOR_POSITION_MARGIN,
                     kd=1.0 / MOTOR_VELOCITY_MAX,
                     soft_position_margin=0.0,
-                    soft_velocity_max=MOTOR_VELOCITY_MAX,
+                    soft_velocity_max=MOTOR_VELOCITY_MAX
                 )
             ),
         ), dict(
             block=dict(
                 cls=PDController,
                 kwargs=dict(
-                    update_ratio=HLC_TO_LLC_RATIO,
+                    update_ratio=1,
                     order=1,
                     kp=PD_REDUCED_KP,
                     kd=PD_REDUCED_KD,
                     target_position_margin=0.0,
                     target_velocity_limit=MOTOR_VELOCITY_MAX,
+                    target_acceleration_limit=MOTOR_ACCELERATION_MAX
                 )
             ),
             wrapper=dict(
