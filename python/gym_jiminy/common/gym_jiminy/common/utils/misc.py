@@ -95,7 +95,7 @@ def get_fieldnames(structure: Union[gym.Space[DataNested], DataNested],
         else:
             # Tensor: basic numbering
             fieldname = np.array([
-                ".".join(map(str, filter(None, (*fieldname_path, i))))
+                ".".join(map(str, (*filter(None, fieldname_path), i)))
                 for i in range(data.size)]).reshape(data.shape).tolist()
         fieldnames.append(fieldname)
 

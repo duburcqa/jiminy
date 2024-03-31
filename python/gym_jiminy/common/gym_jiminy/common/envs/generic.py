@@ -1009,12 +1009,18 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         return self.simulator.render(  # type: ignore[return-value]
             return_rgb_array=self.render_mode == 'rgb_array')
 
-    def plot(self, **kwargs: Any) -> TabbedFigure:
+    def plot(self,
+             enable_block_states: bool = False,
+             **kwargs: Any) -> TabbedFigure:
         """Display common simulation data and action over time.
 
         .. Note:
-            It adds "Action" tab on top of original `Simulator.plot`.
+            It adds tabs for the base environment action plus all blocks
+            ((state, action) for controllers and (state, features) for
+            observers) on top of original `Simulator.plot`.
 
+        :param enable_block_states: Whether to display the internal state of
+                                    all blocks.
         :param kwargs: Extra keyword arguments to forward to `simulator.plot`.
         """
         # Call base implementation
@@ -1027,35 +1033,36 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
                 "Nothing to plot. Please run a simulation before calling "
                 "`plot` method.")
 
-        # Extract action.
-        # If telemetry action fieldnames is a dictionary, it cannot be nested.
-        # In such a case, keys corresponds to subplots, and values are
-        # individual scalar data over time to be displayed to the same subplot.
-        t = log_vars["Global.Time"]
-        tab_data: Dict[str, Union[np.ndarray, Dict[str, np.ndarray]]] = {}
-        action_fieldnames = self.log_fieldnames.get("action")
-        if action_fieldnames is None:
-            # It was impossible to register the action to the telemetry, likely
-            # because of incompatible dtype. Early return without adding tab.
-            return figure
-        if isinstance(action_fieldnames, dict):
-            for group, fieldnames in action_fieldnames.items():
-                if not isinstance(fieldnames, list):
-                    LOGGER.error(
-                        "Action space not supported by this method.")
-                    return figure
-                tab_data[group] = {
+        # Plot all registered variables
+        for key, fielnames in self.log_fieldnames.items():
+            # Filter state if requested
+            if not enable_block_states and key.endswith(".state"):
+                continue
+
+            # Extract action hierarchical time series.
+            # Fieldnames stored in a dictionary cannot be nested. In such a
+            # case, keys corresponds to subplots, and values are individual
+            # scalar data over time to be displayed to the same subplot.
+            t = log_vars["Global.Time"]
+            tab_data: Dict[str, Union[np.ndarray, Dict[str, np.ndarray]]] = {}
+            if isinstance(fielnames, dict):
+                for group, fieldnames in fielnames.items():
+                    if not isinstance(fieldnames, list):
+                        LOGGER.error(
+                            "Action space not supported by this method.")
+                        return figure
+                    tab_data[group] = {
+                        key.split(".", 2)[2]: value
+                        for key, value in extract_variables_from_log(
+                            log_vars, fieldnames, as_dict=True).items()}
+            elif isinstance(fielnames, list):
+                tab_data.update({
                     key.split(".", 2)[2]: value
                     for key, value in extract_variables_from_log(
-                        log_vars, fieldnames, as_dict=True).items()}
-        elif isinstance(action_fieldnames, list):
-            tab_data.update({
-                key.split(".", 2)[2]: value
-                for key, value in extract_variables_from_log(
-                    log_vars, action_fieldnames, as_dict=True).items()})
+                        log_vars, fielnames, as_dict=True).items()})
 
-        # Add action tab
-        figure.add_tab(" ".join(("Env", "Action")), t, tab_data)
+            # Add action tab
+            figure.add_tab(key.replace(".", " "), t, tab_data)
 
         # Return figure for convenience and consistency with Matplotlib
         return figure

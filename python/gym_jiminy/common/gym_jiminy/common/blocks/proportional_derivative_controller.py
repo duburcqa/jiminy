@@ -62,7 +62,6 @@ def integrate_zoh(state: np.ndarray,
     state[0] += dt * state[1]
 
 
-
 @nb.jit(nopython=True, cache=True, fastmath=True)
 def pd_controller(q_measured: np.ndarray,
                   v_measured: np.ndarray,
@@ -423,7 +422,7 @@ class PDController(
         # Update the target motor accelerations based on the provided action
         self._command_accel[:] = (
             (action - self._command_state[1]) / self.control_dt
-            if self.order == 2 else action)
+            if self.order == 1 else action)
 
         # Dead band to avoid slow drift of target at rest for evaluation only
         if not self.env.is_training:

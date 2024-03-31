@@ -80,6 +80,7 @@ def apply_safety_limits(command: np.ndarray,
 
     return out
 
+
 class MotorSafetyLimit(
         BaseControllerBlock[np.ndarray, np.ndarray, BaseObsT, np.ndarray]):
     """Safety mechanism primarily designed to prevent hardware damage and
