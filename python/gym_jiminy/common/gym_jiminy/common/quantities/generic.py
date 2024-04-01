@@ -1,5 +1,6 @@
 from functools import partial
 from dataclasses import dataclass
+from typing import List, Dict, Set, Optional
 
 import numpy as np
 
@@ -7,7 +8,7 @@ from jiminy_py.core import array_copyto
 import pinocchio as pin
 
 from ..bases import InterfaceJiminyEnv, AbstractQuantity
-from ..utils import fill, transforms_to_vector
+from ..utils import fill, transforms_to_vector, matrix_to_rpy
 
 
 @dataclass(unsafe_hash=True)
@@ -23,10 +24,13 @@ class CenterOfMass(AbstractQuantity[np.ndarray]):
     def __init__(
             self,
             env: InterfaceJiminyEnv,
+            parent: Optional[AbstractQuantity],
             kinematic_level: pin.KinematicLevel = pin.POSITION
             ) -> None:
         """
         :param env: Base or wrapped jiminy environment.
+        :param parent: Higher-level quantity from which this quantity is a
+                       requirement if any, `None` otherwise.
         :para kinematic_level: Desired kinematic level, ie position, velocity
                                or acceleration.
         """
@@ -34,7 +38,7 @@ class CenterOfMass(AbstractQuantity[np.ndarray]):
         self.kinematic_level = kinematic_level
 
         # Call base implementation
-        super().__init__(env, requirements={})
+        super().__init__(env, parent, requirements={})
 
         # Pre-allocate memory for the CoM quantity
         self._com_data: np.ndarray = np.array([])
@@ -87,11 +91,14 @@ class AverageSpatialVelocityFrame(AbstractQuantity[np.ndarray]):
 
     def __init__(self,
                  env: InterfaceJiminyEnv,
+                 parent: Optional[AbstractQuantity],
                  frame_name: str,
                  reference_frame: pin.ReferenceFrame = pin.LOCAL
                  ) -> None:
         """
         :param env: Base or wrapped jiminy environment.
+        :param parent: Higher-level quantity from which this quantity is a
+                       requirement if any, `None` otherwise.
         :param frame_name: Name of the frame on which to operate.
         :param reference_frame:
             Whether the spatial velocity must be computed in local reference
@@ -108,7 +115,7 @@ class AverageSpatialVelocityFrame(AbstractQuantity[np.ndarray]):
         self.reference_frame = reference_frame
 
         # Call base implementation
-        super().__init__(env, requirements={})
+        super().__init__(env, parent, requirements={})
 
         # Define specialize difference operator on SE3 Lie group
         self._se3_diff = partial(pin.LieGroup.difference, pin.liegroups.SE3())
@@ -116,9 +123,11 @@ class AverageSpatialVelocityFrame(AbstractQuantity[np.ndarray]):
         # Inverse step size
         self._inv_step_dt = 0.0
 
-        # Pre-allocate memory to store current and previous frame pose
+        # Pre-allocate memory to store current and previous frame pose vector
         self._xyzquat_prev, self._xyzquat = (
             np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]) for _ in range(2))
+
+        # Define proxy to the current frame pose (translation, rotation matrix)
         self._pose = (np.zeros(3), np.eye(3))
 
         # Pre-allocate memory for the spatial velocity
@@ -134,8 +143,8 @@ class AverageSpatialVelocityFrame(AbstractQuantity[np.ndarray]):
         # Compute inverse step size
         self._inv_step_dt = 1.0 / self.env.step_dt
 
-        # Extract proxy to current frame pose for efficiency
-        frame_index = self.pinocchio_model.getFrameIdx(self.frame_name)
+        # Refresh proxy to current frame pose
+        frame_index = self.pinocchio_model.getFrameId(self.frame_name)
         oMf = self.pinocchio_data.oMf[frame_index]
         self._pose = (oMf.translation, oMf.rotation)
 
@@ -162,3 +171,137 @@ class AverageSpatialVelocityFrame(AbstractQuantity[np.ndarray]):
         array_copyto(self._xyzquat_prev, self._xyzquat)
 
         return self._v_spatial
+
+
+@dataclass(unsafe_hash=True)
+class _BatchEulerAnglesFrame(AbstractQuantity[Dict[str, np.ndarray]]):
+    """Euler angles (Roll-Pitch-Yaw) representation of the orientation of all
+    frames involved in quantities relying on it and are active since last reset
+    of computation tracking if shared cache is available, its parent otherwise.
+
+    This quantity only provides a performance benefit when managed by some
+    `QuantityManager`. It is not supposed to be instantiated manually but use
+    internally by `EulerAnglesFrame` as a requirement for vectorization of
+    computations for all frames at once.
+
+    The orientation of all frames is exposed to the user as a dictionary whose
+    keys are the individual frame names. Internally, data are stored in batched
+    2D contiguous array for efficiency. The first dimension are the 3 Euler
+    angles (roll, pitch, yaw) components, while the second one are individual
+    frames with the same ordering as 'self.frame_names'.
+
+    .. note::
+        This quantity does not allow for specifying frames directly. There is no
+        official way to get the orientation of multiple frames at once for now.
+    """
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 parent: Optional[AbstractQuantity]) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param parent: Higher-level quantity from which this quantity is a
+                       requirement if any, `None` otherwise.
+        :param frame_name: Name of the frame on which to operate.
+        """
+        # Call base implementation
+        super().__init__(env, parent, requirements={})
+
+        # Initialize the ordered list of frame names
+        self.frame_names: Set[str] = set()
+
+        # Define proxies for all frame rotations
+        self._rot_matrices: List[np.ndarray] = []
+
+        # Buffer for Roll-Pitch-Yaw of all frames at once
+        self._rpy_batch: np.ndarray = np.array([])
+
+        # Mapping from frame name to individual Roll-Pitch-Yaw slices
+        self._rpy_map: Dict[str, np.ndarray] = {}
+
+    def initialize(self) -> None:
+        # Call base implementation
+        super().initialize()
+
+        # Update the list of frame names based on its cache owner list.
+        # Note that only active quantities are shared for efficiency. The list
+        # of active quantity may change dynamically. Re-initializing the class
+        # to take into account changes of the active set must be decided by
+        # `EulerAnglesFrame`.
+        assert isinstance(self.parent, EulerAnglesFrame)
+        self.frame_names = {self.parent.frame_name}
+        if self.cache:
+            for owner in self.cache.owners:
+                parent = owner.parent
+                assert isinstance(parent, EulerAnglesFrame)
+                if parent.is_active:
+                    self.frame_names.add(parent.frame_name)
+
+        # Refresh proxies
+        self._rot_matrices.clear()
+        for frame_name in self.frame_names:
+            frame_index = self.pinocchio_model.getFrameId(frame_name)
+            rot_matrix = self.pinocchio_data.oMf[frame_index].rotation
+            self._rot_matrices.append(rot_matrix)
+
+        # Re-allocate memory since the number of frames is not known in advance
+        self._rpy_batch = np.zeros((3, len(self.frame_names)))
+
+        # Re-assign mapping from frame name to their corresponding data
+        self._rpy_map = dict(zip(self.frame_names, self._rpy_batch.T))
+
+    def refresh(self) -> np.ndarray:
+        # Convert all rotation matrices at once to Roll-Pitch-Yaw
+        # TODO: Check if it is faster to loop over matrices for to first copy
+        # in large buffer than compute all at once.
+        for i in range(len(self.frame_names)):
+            matrix_to_rpy(self._rot_matrices[i], self._rpy_batch[:, i])
+
+        # Return proxy directly without copy
+        return self._rpy_map
+
+
+@dataclass(unsafe_hash=True)
+class EulerAnglesFrame(AbstractQuantity[np.ndarray]):
+    """Euler angles (Roll-Pitch-Yaw) representation of the orientation of a
+    given frame at the end of an agent step.
+    """
+
+    frame_name: str
+    """Name of the frame on which to operate.
+    """
+
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 parent: Optional[AbstractQuantity],
+                 frame_name: str,
+                 ) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param parent: Higher-level quantity from which this quantity is a
+                       requirement if any, `None` otherwise.
+        :param frame_name: Name of the frame on which to operate.
+        """
+        # Backup some user argument(s)
+        self.frame_name = frame_name
+
+        # Call base implementation
+        super().__init__(
+            env, parent, requirements={"data": (_BatchEulerAnglesFrame, {})})
+
+    def initialize(self) -> None:
+        # Check if the quantity is already active
+        was_active = self._is_active
+
+        # Call base implementation.
+        # The quantity is now considered active at this point.
+        super().initialize()
+
+        # Force re-initializing shared data if the active set has changed
+        if not was_active:
+            self.requirements["data"].reset()
+
+    def refresh(self) -> np.ndarray:
+        # Return a slice of batched data.
+        # Note that mapping from frame name to frame index in batched data
+        # cannot be pre-computed as it may changed dynamically.
+        return self.data[self.frame_name]

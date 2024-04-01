@@ -1,11 +1,14 @@
 # pylint: disable=missing-module-docstring
 
-from .generic import CenterOfMass, AverageSpatialVelocityFrame
+from .generic import (CenterOfMass,
+                      AverageSpatialVelocityFrame,
+                      EulerAnglesFrame)
 from .locomotion import ZeroMomentPoint
 
 
 __all__ = [
     'CenterOfMass',
-    'ZeroMomentPoint',
     'AverageSpatialVelocityFrame',
+    'EulerAnglesFrame',
+    'ZeroMomentPoint',
 ]

@@ -1,4 +1,5 @@
 import numpy as np
+from typing import Optional
 from dataclasses import dataclass
 
 from .generic import CenterOfMass
@@ -17,12 +18,14 @@ class ZeroMomentPoint(AbstractQuantity[np.ndarray]):
     capturability. More precisely, the robot will keep balance if the ZMP is
     maintained inside the support polygon.
     """
-    def __init__(self, env: InterfaceJiminyEnv) -> None:
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 parent: Optional[AbstractQuantity]) -> None:
         """
         :param env: Base or wrapped jiminy environment.
         """
         # Call base implementation
-        super().__init__(env, requirements={"com": (CenterOfMass, {})})
+        super().__init__(env, parent, requirements={"com": (CenterOfMass, {})})
 
         # Proxy for the derivative of the spatial centroidal momentum
         self.dhg = np.ndarray([])
