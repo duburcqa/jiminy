@@ -191,8 +191,8 @@ class _BatchEulerAnglesFrame(AbstractQuantity[Dict[str, np.ndarray]]):
     frames with the same ordering as 'self.frame_names'.
 
     .. note::
-        This quantity does not allow for specifying frames directly. There is no
-        official way to get the orientation of multiple frames at once for now.
+        This quantity does not allow for specifying frames directly. There is
+        no way to get the orientation of multiple frames at once for now.
     """
     def __init__(self,
                  env: InterfaceJiminyEnv,
@@ -249,7 +249,7 @@ class _BatchEulerAnglesFrame(AbstractQuantity[Dict[str, np.ndarray]]):
         # Re-assign mapping from frame name to their corresponding data
         self._rpy_map = dict(zip(self.frame_names, self._rpy_batch.T))
 
-    def refresh(self) -> np.ndarray:
+    def refresh(self) -> Dict[str, np.ndarray]:
         # Convert all rotation matrices at once to Roll-Pitch-Yaw
         # TODO: Check if it is faster to loop over matrices for to first copy
         # in large buffer than compute all at once.

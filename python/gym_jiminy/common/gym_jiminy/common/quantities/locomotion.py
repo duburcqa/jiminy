@@ -1,5 +1,5 @@
 import numpy as np
-from typing import Optional
+from typing import Optional, Tuple
 from dataclasses import dataclass
 
 from .generic import CenterOfMass
@@ -28,7 +28,7 @@ class ZeroMomentPoint(AbstractQuantity[np.ndarray]):
         super().__init__(env, parent, requirements={"com": (CenterOfMass, {})})
 
         # Proxy for the derivative of the spatial centroidal momentum
-        self.dhg = np.ndarray([])
+        self.dhg: Tuple[np.ndarray, np.ndarray] = (np.ndarray([]),) * 2
 
         # Pre-allocate memory for the ZMP
         self._zmp = np.zeros(2)
@@ -38,14 +38,14 @@ class ZeroMomentPoint(AbstractQuantity[np.ndarray]):
         self._gravity = abs(self.pinocchio_model.gravity.linear[2])
         self._robot_mass = self.pinocchio_data.mass[0]
         self._robot_weight = self._robot_mass * self._gravity
-        self.dhg = self.pinocchio_data.dhg
+        self.dhg = ((dhg := self.pinocchio_data.dhg).linear, dhg.angular)
         fill(self._zmp, 0)
 
     def refresh(self) -> np.ndarray:
-        dhg, com = self.dhg, self.com
-        f_z = dhg.linear[2] + self._robot_weight
+        (dhg_linear, dhg_angular), com = self.dhg, self.com
+        f_z = dhg_linear[2] + self._robot_weight
         self._zmp[:] = com[:2] * (self._robot_weight / f_z)
         if abs(f_z) > np.finfo(np.float32).eps:
-            self._zmp[0] -= (dhg.angular[1] + dhg.linear[0] * com[2]) / f_z
-            self._zmp[1] += (dhg.angular[0] - dhg.linear[1] * com[2]) / f_z
+            self._zmp[0] -= (dhg_angular[1] + dhg_linear[0] * com[2]) / f_z
+            self._zmp[1] += (dhg_angular[0] - dhg_linear[1] * com[2]) / f_z
         return self._zmp

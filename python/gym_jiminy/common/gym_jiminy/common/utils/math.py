@@ -249,7 +249,7 @@ def transforms_to_vector(
     matrices_to_quat(rotation_list, out_[-4:])
 
     # Revel extra dimension before returning if not present initially
-    if out.ndim == 1:
+    if out is not None and out.ndim == 1:
         return out_[:, 0]
     return out_
 

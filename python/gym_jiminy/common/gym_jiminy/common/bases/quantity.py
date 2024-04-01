@@ -1,8 +1,7 @@
 from abc import ABC, abstractmethod
 from collections.abc import Mapping
 from typing import (
-    Any, Dict, List, Optional, Tuple, Iterator, Generic, TypeVar, Protocol,
-    Callable)
+    Any, Dict, List, Optional, Tuple, Iterator, Generic, TypeVar, Type, cast)
 
 from .interfaces import InterfaceJiminyEnv
 
@@ -10,7 +9,7 @@ from .interfaces import InterfaceJiminyEnv
 ValueT = TypeVar('ValueT')
 OtherT = TypeVar('OtherT')
 
-QuantityCreator = Tuple["AbstractQuantity", Dict[str, Any]]
+QuantityCreator = Tuple[Type["AbstractQuantity"], Dict[str, Any]]
 
 
 # Forces `SharedCache.has_value` to always return `False`.
@@ -62,7 +61,7 @@ class SharedCache(Generic[ValueT]):
         """
         return not DISABLE_CACHING and self._has_value
 
-    def reset(self):
+    def reset(self) -> None:
         """Clear value stored in cache if any.
         """
         self._value = None
@@ -87,9 +86,7 @@ class SharedCache(Generic[ValueT]):
         """Return cached value if any, otherwise raises an exception.
         """
         if self._has_value:
-            # Assert(s) for type checker
-            # assert self._value is not None
-            return self._value
+            return cast(ValueT, self._value)
         raise ValueError(
             "No value has been stored. Please call 'set' before 'get'.")
 
@@ -180,9 +177,7 @@ class AbstractQuantity(ABC, Generic[ValueT]):
             raise AttributeError(
                 "No shared cache has been set for this quantity. Make sure it "
                 "is managed by some `QuantityManager` instance.")
-        # Assert(s) for type checker
-        # assert self._cache is not None
-        return self._cache
+        return cast(SharedCache[ValueT], self._cache)
 
     @cache.setter
     def cache(self, cache: SharedCache[ValueT]) -> None:
@@ -240,7 +235,8 @@ class AbstractQuantity(ABC, Generic[ValueT]):
         try:
             if not self._is_initialized:
                 self.initialize()
-                assert self._is_initialized and self._is_active
+                assert (self._is_initialized and
+                        self._is_active)  # type: ignore[unreachable]
             value = self.refresh()
         except RecursionError as e:
             raise LookupError(
@@ -317,8 +313,8 @@ class AbstractQuantity(ABC, Generic[ValueT]):
             instances of the same quantity.
         """
         # Refresh some proxies
-        self.pinocchio_model = self.env.pinocchio_model
-        self.pinocchio_data = self.env.pinocchio_data
+        self.pinocchio_model = self.env.robot.pinocchio_model
+        self.pinocchio_data = self.env.robot.pinocchio_data
 
         # The quantity is now considered initialized and active unconditionally
         self._is_initialized = True
