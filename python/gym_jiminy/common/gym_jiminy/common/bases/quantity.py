@@ -12,11 +12,6 @@ OtherT = TypeVar('OtherT')
 QuantityCreator = Tuple[Type["AbstractQuantity"], Dict[str, Any]]
 
 
-# Forces `SharedCache.has_value` to always return `False`.
-# Overriding this value is mainly useful for profiling.
-DISABLE_CACHING = False
-
-
 class SharedCache(Generic[ValueT]):
     """Basic thread local shared cache.
 
@@ -27,7 +22,6 @@ class SharedCache(Generic[ValueT]):
     .. warning::
         This implementation is not thread safe.
     """
-    __slots__ = ("_value", "_has_value", "owners")
 
     owners: List["AbstractQuantity"]
     """Owners of the shared buffer, ie quantities relying on it to store the
@@ -43,7 +37,7 @@ class SharedCache(Generic[ValueT]):
         hash, eg "identical" quantities.
     """
 
-    def __init__(self, debug: bool = False) -> None:
+    def __init__(self) -> None:
         """
         """
         # Cached value if any
@@ -59,7 +53,7 @@ class SharedCache(Generic[ValueT]):
     def has_value(self) -> bool:
         """Whether a value is stored in cache.
         """
-        return not DISABLE_CACHING and self._has_value
+        return self._has_value
 
     def reset(self) -> None:
         """Clear value stored in cache if any.
@@ -68,7 +62,7 @@ class SharedCache(Generic[ValueT]):
         self._has_value = False
 
     def set(self, value: ValueT) -> None:
-        """Set value in cache if none, otherwise raises an exception.
+        """Set value in cache, silently overriding the existing value if any.
 
         .. warning:
             Beware the value is stored by reference for efficiency. It is up to
@@ -76,9 +70,6 @@ class SharedCache(Generic[ValueT]):
 
         :param value: Value to store in cache.
         """
-        if self._has_value:
-            raise ValueError(
-                "A value is already stored. Please call 'reset' before 'set'.")
         self._value = value
         self._has_value = True
 
@@ -226,10 +217,14 @@ class AbstractQuantity(ABC, Generic[ValueT]):
         .. warning::
             This method is not meant to be overloaded.
         """
-        # Get value in cache if available
-        if self._has_cache and self.cache.has_value:
+        # Get value in cache if available.
+        # Note that direct access to internal `_value` attribute is preferred
+        # over the public API `get` for speedup. The same cannot be done for
+        # `has_value` as it would prevent mocking it during running unit tests
+        # or benchmarks.
+        if self._has_cache and self._cache.has_value:
             self._is_active = True
-            return self.cache.get()
+            return self._cache._value
 
         # Evaluate quantity
         try:
@@ -244,7 +239,7 @@ class AbstractQuantity(ABC, Generic[ValueT]):
 
         # Return value after storing it in shared cache if available
         if self._has_cache:
-            self.cache.set(value)
+            self._cache.set(value)
         return value
 
     def reset(self, reset_tracking: bool = False) -> None:

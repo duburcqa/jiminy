@@ -1,6 +1,6 @@
 from functools import partial
 from dataclasses import dataclass
-from typing import List, Dict, Set, Optional
+from typing import List, Dict, Set, Tuple, Optional
 
 import numpy as np
 
@@ -209,10 +209,13 @@ class _BatchEulerAnglesFrame(AbstractQuantity[Dict[str, np.ndarray]]):
         # Initialize the ordered list of frame names
         self.frame_names: Set[str] = set()
 
-        # Define proxies for all frame rotations
-        self._rot_matrices: List[np.ndarray] = []
+        # Store all rotation matrices at once
+        self._rot_mat_batch: np.ndarray = np.array([])
 
-        # Buffer for Roll-Pitch-Yaw of all frames at once
+        # Define all pairs of tuple (original rot matrix, batched buffer slice)
+        self._rot_matrices_pairs: List[Tuple[np.ndarray, np.ndarray]] = []
+
+        # Store Roll-Pitch-Yaw of all frames at once
         self._rpy_batch: np.ndarray = np.array([])
 
         # Mapping from frame name to individual Roll-Pitch-Yaw slices
@@ -236,25 +239,32 @@ class _BatchEulerAnglesFrame(AbstractQuantity[Dict[str, np.ndarray]]):
                 if parent.is_active:
                     self.frame_names.add(parent.frame_name)
 
+        # Re-allocate memory as the number of frames is not known in advance.
+        # Note that Fortran memory layout (column-major) is used for speed up
+        # because it preserves contiguity when copying frame data.
+        self._rot_mat_batch = np.zeros(
+            (3, 3, len(self.frame_names)), order='F')
+        self._rpy_batch = np.zeros((3, len(self.frame_names)))
+
         # Refresh proxies
-        self._rot_matrices.clear()
-        for frame_name in self.frame_names:
+        self._rot_matrices_pairs.clear()
+        for i, frame_name in enumerate(self.frame_names):
             frame_index = self.pinocchio_model.getFrameId(frame_name)
             rot_matrix = self.pinocchio_data.oMf[frame_index].rotation
-            self._rot_matrices.append(rot_matrix)
-
-        # Re-allocate memory since the number of frames is not known in advance
-        self._rpy_batch = np.zeros((3, len(self.frame_names)))
+            rot_matrix_pair = (self._rot_mat_batch[..., i], rot_matrix)
+            self._rot_matrices_pairs.append(rot_matrix_pair)
 
         # Re-assign mapping from frame name to their corresponding data
         self._rpy_map = dict(zip(self.frame_names, self._rpy_batch.T))
 
     def refresh(self) -> Dict[str, np.ndarray]:
+        # Copy all rotation matrices in contiguous buffer.
+        # This operation is by far the main bottleneck of the whole method.
+        for dst, src in self._rot_matrices_pairs:
+            array_copyto(dst, src)
+
         # Convert all rotation matrices at once to Roll-Pitch-Yaw
-        # TODO: Check if it is faster to loop over matrices for to first copy
-        # in large buffer than compute all at once.
-        for i in range(len(self.frame_names)):
-            matrix_to_rpy(self._rot_matrices[i], self._rpy_batch[:, i])
+        matrix_to_rpy(self._rot_mat_batch, self._rpy_batch)
 
         # Return proxy directly without copy
         return self._rpy_map
