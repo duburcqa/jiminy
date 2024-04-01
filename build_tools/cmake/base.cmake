@@ -15,17 +15,14 @@ endif()
 
 # Check if network is available before compiling external projects
 if(WIN32)
-    find_program(HAS_PING "ping")
-endif()
-if(HAS_PING)
+    set(BUILD_OFFLINE 0)
+else()
     unset(BUILD_OFFLINE)
     unset(BUILD_OFFLINE CACHE)
     execute_process(COMMAND bash -c
                             "if ping -q -c 1 -W 1 8.8.8.8 ; then echo 0; else echo 1; fi"
                     OUTPUT_STRIP_TRAILING_WHITESPACE
                     OUTPUT_VARIABLE BUILD_OFFLINE)
-else()
-    set(BUILD_OFFLINE 0)
 endif()
 if(${BUILD_OFFLINE})
     message(WARNING "No internet connection. Not building external projects.")
