@@ -570,7 +570,8 @@ namespace jiminy::python
                         "' was expected.");
         }
 
-        // Check array number of dimensions
+        // Pick the right mapping depending on dimensionality and memory layout
+        int32_t flags = PyArray_FLAGS(arrayPy);
         T * dataPtr = static_cast<T *>(PyArray_DATA(arrayPy));
         switch (PyArray_NDIM(arrayPy))
         {
@@ -584,7 +585,6 @@ namespace jiminy::python
             THROW_ERROR(std::invalid_argument, "Numpy array must be contiguous.");
         case 2:
         {
-            int32_t flags = PyArray_FLAGS(arrayPy);
             npy_intp * arrayPyShape = PyArray_SHAPE(arrayPy);
             if (flags & NPY_ARRAY_C_CONTIGUOUS)
             {
@@ -1160,8 +1160,8 @@ namespace jiminy::python
     };
 
     template<typename R, typename... Args>
-    ConvertGeneratorFromPythonAndInvoke(R (*)(Args...))
-        -> ConvertGeneratorFromPythonAndInvoke<R(Args...), void>;
+    ConvertGeneratorFromPythonAndInvoke(
+        R (*)(Args...)) -> ConvertGeneratorFromPythonAndInvoke<R(Args...), void>;
 
     template<typename T, typename R, typename Generator, typename... Args>
     class ConvertGeneratorFromPythonAndInvoke<R(Generator, Args...), T>
@@ -1187,8 +1187,8 @@ namespace jiminy::python
     };
 
     template<typename T, typename R, typename... Args>
-    ConvertGeneratorFromPythonAndInvoke(R (T::*)(Args...))
-        -> ConvertGeneratorFromPythonAndInvoke<R(Args...), T>;
+    ConvertGeneratorFromPythonAndInvoke(
+        R (T::*)(Args...)) -> ConvertGeneratorFromPythonAndInvoke<R(Args...), T>;
 
     // **************************** Automatic From Python converter **************************** //
 

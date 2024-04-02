@@ -72,7 +72,10 @@ if [ -z ${PYTHON_EXECUTABLE} ]; then
 fi
 
 ### Configure site-packages pythonic "symlink" pointing to install directory
-PYTHON_USER_SITELIB="$("${PYTHON_EXECUTABLE}" -c 'import sysconfig; print(sysconfig.get_path("purelib"))')" || true
+PYTHON_USER_SITELIB="$("${PYTHON_EXECUTABLE}" -c 'import sysconfig; print(sysconfig.get_path("purelib"))')"
+if [ ! -w "$PYTHON_USER_SITELIB" ]; then
+    PYTHON_USER_SITELIB="$("${PYTHON_EXECUTABLE}" -m site --user-site)"
+fi
 PYTHON_VERSION="$(${PYTHON_EXECUTABLE} -c "import sysconfig; print(sysconfig.get_config_var('py_version_short'))")"
 mkdir -p "${PYTHON_USER_SITELIB}"
 echo "${InstallDir}/lib/python${PYTHON_VERSION}/site-packages" > "${PYTHON_USER_SITELIB}/install_site.pth"

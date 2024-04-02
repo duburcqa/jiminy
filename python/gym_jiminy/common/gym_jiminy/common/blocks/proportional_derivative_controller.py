@@ -19,9 +19,6 @@ from ..utils import fill
 # Name of the n-th position derivative
 N_ORDER_DERIVATIVE_NAMES = ("Position", "Velocity", "Acceleration")
 
-# Command velocity deadband to reduce vibrations and internal efforts
-EVAL_DEADBAND = 5.0e-3
-
 
 @nb.jit(nopython=True, cache=True, inline='always', fastmath=True)
 def integrate_zoh(state: np.ndarray,
@@ -65,6 +62,8 @@ def integrate_zoh(state: np.ndarray,
 @nb.jit(nopython=True, cache=True, fastmath=True)
 def pd_controller(q_measured: np.ndarray,
                   v_measured: np.ndarray,
+                  action: np.ndarray,
+                  order: int,
                   command_state: np.ndarray,
                   command_state_lower: np.ndarray,
                   command_state_upper: np.ndarray,
@@ -97,6 +96,9 @@ def pd_controller(q_measured: np.ndarray,
 
     :param q_measured: Current position of the actuators.
     :param v_measured: Current velocity of the actuators.
+    :param action: Desired value of the n-th derivative of the command motor
+                   positions at the end of the controller update.
+    :param order: Derivative order of the position associated with the action.
     :param command_state: Current command state, namely, all the derivatives of
                           the target motors positions up to order N. The order
                           must be larger than 1 but can be arbitrarily large.
@@ -114,19 +116,38 @@ def pd_controller(q_measured: np.ndarray,
     :param horizon: Horizon length to start slowing down before hitting bounds.
     :param out: Pre-allocated memory to store the command motor torques.
     """
+    # Update command accelerations based on the action and its derivative order
+    if order == 2:
+        # The action corresponds to the command motor accelerations
+        acceleration = action
+    else:
+        if order == 0:
+            # Compute command velocity
+            velocity = (action - command_state[0]) / control_dt
+
+            # Clip command velocity
+            velocity = np.minimum(np.maximum(
+                velocity, command_state_lower[1]), command_state_upper[1])
+        else:
+            # The action corresponds to the command motor velocities
+            velocity = action
+
+        # Compute command acceleration
+        acceleration = (velocity - command_state[1]) / control_dt
+
+    # Clip command acceleration
+    command_state[2] = np.minimum(np.maximum(
+        acceleration, command_state_lower[2]), command_state_upper[2])
+
+    # Integrate command velocity
+    command_state[1] += command_state[2] * control_dt
+
     # Compute slowdown horizon.
     # It must be as short as possible to avoid altering the user-specified
     # command if not strictly necessary, but long enough to avoid violation of
     # acceleration bounds when hitting bounds.
-    horizon = np.ceil(
-        command_state_upper[1] / (command_state_upper[2] * control_dt))
-
-    # Clip command acceleration
-    np.minimum(np.maximum(
-        command_state[2], command_state_lower[2]), command_state_upper[2])
-
-    # Integrate command velocity
-    command_state[1] += command_state[2] * control_dt
+    horizon = np.maximum(np.abs(command_state[1]) / (
+        command_state_upper[2] * max(control_dt, 1-9)), 1.0)
 
     # Integrate command position, clipping velocity to satisfy state bounds
     integrate_zoh(command_state,
@@ -238,8 +259,9 @@ class PDController(
         :param update_ratio: Ratio between the update period of the controller
                              and the one of the subsequent controller. -1 to
                              match the simulation timestep of the environment.
-        :param order: Derivative order of the action. It accepts 1 (velocity)
-                      or 2 (acceleration). Optional: 1 by default.
+        :param order: Derivative order of the action. It accepts position,
+                      velocity or acceleration (respectively 0, 1 and 2).
+                      Optional: 1 by default.
         :param kp: PD controller position-proportional gains in motor order.
         :param kd: PD controller velocity-proportional gains in motor order.
         :param target_position_margin: Minimum distance of the motor target
@@ -254,7 +276,7 @@ class PDController(
             Optional: "inf" by default.
         """
         # Make sure that the specified derivative order is valid
-        assert (0 < order < 3), "Derivative order of command out-of-bounds"
+        assert (0 <= order < 3), "Derivative order of command out-of-bounds"
 
         # Make sure the action space of the environment has not been altered
         if env.action_space is not env.unwrapped.action_space:
@@ -340,8 +362,10 @@ class PDController(
         # Initialize the controller
         super().__init__(name, env, update_ratio)
 
-        # Reference to command acceleration for fast access
-        self._command_accel = self._command_state[2]
+        # References to command position, velocity and acceleration
+        (self._command_position,
+         self._command_velocity,
+         self._command_accel) = self._command_state
 
         # Command motor torques buffer for efficiency
         self._u_command = np.array([])
@@ -419,16 +443,6 @@ class PDController(
                         self._command_state_upper[i],
                         out=self._command_state[i])
 
-        # Update the target motor accelerations based on the provided action
-        self._command_accel[:] = (
-            (action - self._command_state[1]) / self.control_dt
-            if self.order == 1 else action)
-
-        # Dead band to avoid slow drift of target at rest for evaluation only
-        if not self.env.is_training:
-            self._command_accel[
-                np.abs(self._command_accel) > EVAL_DEADBAND] = 0.0
-
         # Extract motor positions and velocity from encoder data
         q_measured, v_measured = self.q_measured, self.v_measured
         if not self._is_same_order:
@@ -440,6 +454,8 @@ class PDController(
         return pd_controller(
             q_measured,
             v_measured,
+            action,
+            self.order,
             self._command_state,
             self._command_state_lower,
             self._command_state_upper,

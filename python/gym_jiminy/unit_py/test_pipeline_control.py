@@ -183,14 +183,22 @@ class PipelineControl(unittest.TestCase):
         """
         # Instantiate the environment and run a simulation with random action
         env = AtlasPDControlJiminyEnv()
+
+        # Make sure that a PD controller is plugged to the robot
+        controller = env.controller
+        assert isinstance(controller, PDController) and controller.order == 1
+
+        # Disable acceleration limits of PD controller
+        controller._command_state_lower[2] = float("-inf")
+        controller._command_state_upper[2] = float("inf")
+
+        # Run a few environment steps
         env.reset(seed=0)
         env.unwrapped._height_neutral = float("-inf")
         while env.stepper_state.t < 2.0:
             env.step(0.2 * env.action_space.sample())
 
         # Extract the target position and velocity of a single motor
-        controller = env.env.controller
-        assert isinstance(controller, PDController) and controller.order == 1
         ctrl_name = controller.name
         n_motors = len(controller.fieldnames)
         pos = env.log_data["variables"][".".join((
@@ -202,12 +210,13 @@ class PipelineControl(unittest.TestCase):
         np.testing.assert_allclose(
             np.diff(pos) / controller.control_dt, vel[1:], atol=TOLERANCE)
 
-        # Make sure that the position targets are within bounds.
-        # No such guarantee exists for higher-order derivatives.
+        # Make sure that the position and velocity targets are within bounds
         robot = env.robot
         pos_min = robot.position_limit_lower[robot.motor_position_indices[-1]]
         pos_max = robot.position_limit_upper[robot.motor_position_indices[-1]]
-        self.assertTrue(np.all(np.logical_and(pos_min < pos, pos < pos_max)))
+        vel_limit = robot.velocity_limit[robot.motor_velocity_indices[-1]]
+        self.assertTrue(np.all(np.logical_and(pos_min <= pos, pos <= pos_max)))
+        self.assertTrue(np.all(np.abs(vel) <= vel_limit))
 
     def test_repeatability(self):
         # Instantiate the environment
