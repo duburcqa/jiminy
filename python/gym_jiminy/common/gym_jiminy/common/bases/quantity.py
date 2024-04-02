@@ -1,3 +1,5 @@
+""" TODO: Write documentation
+"""
 from abc import ABC, abstractmethod
 from collections.abc import Mapping
 from typing import (
@@ -125,6 +127,10 @@ class AbstractQuantity(ABC, Generic[ValueT]):
             name: cls(env, self, **kwargs)
             for name, (cls, kwargs) in requirements.items()}
 
+        # Define some proxies for fast access
+        self.pinocchio_model = env.robot.pinocchio_model
+        self.pinocchio_data = env.robot.pinocchio_data
+
         # Shared cache handling
         self._cache: Optional[SharedCache[ValueT]] = None
         self._has_cache = False
@@ -222,9 +228,10 @@ class AbstractQuantity(ABC, Generic[ValueT]):
         # over the public API `get` for speedup. The same cannot be done for
         # `has_value` as it would prevent mocking it during running unit tests
         # or benchmarks.
-        if self._has_cache and self._cache.has_value:
+        if (self._has_cache and
+                self._cache.has_value):  # type: ignore[union-attr]
             self._is_active = True
-            return self._cache._value
+            return self._cache._value  # type: ignore[union-attr,return-value]
 
         # Evaluate quantity
         try:
@@ -239,7 +246,7 @@ class AbstractQuantity(ABC, Generic[ValueT]):
 
         # Return value after storing it in shared cache if available
         if self._has_cache:
-            self._cache.set(value)
+            self._cache.set(value)  # type: ignore[union-attr]
         return value
 
     def reset(self, reset_tracking: bool = False) -> None:

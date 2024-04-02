@@ -1,69 +1,16 @@
+""" TODO: Write documentation
+"""
 from functools import partial
 from dataclasses import dataclass
 from typing import List, Dict, Set, Tuple, Optional
 
 import numpy as np
 
-from jiminy_py.core import array_copyto
+from jiminy_py.core import array_copyto  # pylint: disable=no-name-in-module
 import pinocchio as pin
 
 from ..bases import InterfaceJiminyEnv, AbstractQuantity
 from ..utils import fill, transforms_to_vector, matrix_to_rpy
-
-
-@dataclass(unsafe_hash=True)
-class CenterOfMass(AbstractQuantity[np.ndarray]):
-    """Position, Velocity or Acceleration of the center of mass of the robot as
-    a whole.
-    """
-
-    kinematic_level: pin.KinematicLevel
-    """Kinematic level to compute, ie position, velocity or acceleration.
-    """
-
-    def __init__(
-            self,
-            env: InterfaceJiminyEnv,
-            parent: Optional[AbstractQuantity],
-            kinematic_level: pin.KinematicLevel = pin.POSITION
-            ) -> None:
-        """
-        :param env: Base or wrapped jiminy environment.
-        :param parent: Higher-level quantity from which this quantity is a
-                       requirement if any, `None` otherwise.
-        :para kinematic_level: Desired kinematic level, ie position, velocity
-                               or acceleration.
-        """
-        # Backup some user argument(s)
-        self.kinematic_level = kinematic_level
-
-        # Call base implementation
-        super().__init__(env, parent, requirements={})
-
-        # Pre-allocate memory for the CoM quantity
-        self._com_data: np.ndarray = np.array([])
-
-    def initialize(self) -> None:
-        # Call base implementation
-        super().initialize()
-
-        # Refresh CoM quantity proxy based on kinematic level
-        if self.kinematic_level == pin.POSITION:
-            self._com_data = self.pinocchio_data.com[0]
-        elif self.kinematic_level == pin.VELOCITY:
-            self._com_data = self.pinocchio_data.vcom[0]
-        else:
-            self._com_data = self.pinocchio_data.acom[0]
-
-    def refresh(self) -> np.ndarray:
-        # Jiminy does not compute the CoM acceleration automatically
-        if self.kinematic_level == pin.ACCELERATION:
-            pin.centerOfMass(self.pinocchio_model,
-                             self.pinocchio_data,
-                             self.kinematic_level)
-
-        # Return proxy directly without copy
-        return self._com_data
 
 
 @dataclass(unsafe_hash=True)
@@ -118,7 +65,9 @@ class AverageSpatialVelocityFrame(AbstractQuantity[np.ndarray]):
         super().__init__(env, parent, requirements={})
 
         # Define specialize difference operator on SE3 Lie group
-        self._se3_diff = partial(pin.LieGroup.difference, pin.liegroups.SE3())
+        self._se3_diff = partial(
+            pin.LieGroup.difference,
+            pin.liegroups.SE3())  # pylint: disable=no-member
 
         # Inverse step size
         self._inv_step_dt = 0.0
@@ -145,8 +94,8 @@ class AverageSpatialVelocityFrame(AbstractQuantity[np.ndarray]):
 
         # Refresh proxy to current frame pose
         frame_index = self.pinocchio_model.getFrameId(self.frame_name)
-        oMf = self.pinocchio_data.oMf[frame_index]
-        self._pose = (oMf.translation, oMf.rotation)
+        transform = self.pinocchio_data.oMf[frame_index]
+        self._pose = (transform.translation, transform.rotation)
 
         # Re-initialize pre-allocated buffers
         transforms_to_vector((self._pose,), self._xyzquat)
