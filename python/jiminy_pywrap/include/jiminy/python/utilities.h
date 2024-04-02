@@ -577,7 +577,11 @@ namespace jiminy::python
         case 0:
             return {dataPtr, 1, 1, {1, 1}};
         case 1:
-            return {dataPtr, PyArray_SIZE(arrayPy), 1, {PyArray_SIZE(arrayPy), 1}};
+            if (flags & (NPY_ARRAY_C_CONTIGUOUS | NPY_ARRAY_F_CONTIGUOUS))
+            {
+                return {dataPtr, PyArray_SIZE(arrayPy), 1, {PyArray_SIZE(arrayPy), 1}};
+            }
+            THROW_ERROR(std::invalid_argument, "Numpy array must be contiguous.");
         case 2:
         {
             int32_t flags = PyArray_FLAGS(arrayPy);
@@ -591,7 +595,7 @@ namespace jiminy::python
                 return {dataPtr, arrayPyShape[0], arrayPyShape[1], {arrayPyShape[0], 1}};
             }
             THROW_ERROR(std::invalid_argument,
-                        "Numpy arrays must be either row or column contiguous.");
+                        "Numpy array must be either row or column contiguous.");
         }
         default:
             THROW_ERROR(not_implemented_error, "Only 1D and 2D 'np.ndarray' are supported.");
@@ -936,14 +940,22 @@ namespace jiminy::python
         }
         catch (const bp::error_already_set &)
         {
-            PyErr_Clear();
-            if constexpr (is_eigen_vector_v<T>)
+            if constexpr (is_eigen_plain_v<T>)
             {
-                return listPyToEigenVector<Scalar>(bp::extract<bp::list>(dataPy));
+                PyErr_Clear();
+                if constexpr (is_eigen_vector_v<T>)
+                {
+                    return listPyToEigenVector<Scalar>(bp::extract<bp::list>(dataPy));
+                }
+                else
+                {
+                    return listPyToEigenMatrix<Scalar>(bp::extract<bp::list>(dataPy));
+                }
             }
             else
             {
-                return listPyToEigenMatrix<Scalar>(bp::extract<bp::list>(dataPy));
+                bp::throw_error_already_set();
+                throw;
             }
         }
     }
