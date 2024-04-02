@@ -216,6 +216,45 @@ def matrices_to_quat(mat_list: Tuple[np.ndarray, ...],
 
 
 @nb.jit(nopython=True, cache=True)
+def transforms_to_vector(
+        transform_list: Tuple[Tuple[np.ndarray, np.ndarray], ...],
+        out: Optional[np.ndarray] = None) -> np.ndarray:
+    """Stack the translation vector [x, y, z] and the quaternion representation
+    [qx, qy, qz, qw] of the orientation of multiple transform tuples.
+
+    .. note::
+        Internally, it copies the translation unaffected and convert rotation
+        matrices to quaternions using `matrices_to_quat`.
+
+    :param transform_list: Tuple of N transforms, each of which represented as
+                           pairs gathering the translation as a vector and the
+                           orientation as a 3D rotation matrix.
+    :param out: A pre-allocated array into which the result is stored. If not
+                provided, a new array is freshly-allocated, which is slower.
+    """
+    # Allocate memory if necessart
+    if out is None:
+        out_ = np.empty((7, len(transform_list)))
+    else:
+        out2d = out[:, np.newaxis] if out.ndim == 1 else out
+        assert out2d.shape == (7, len(transform_list))
+        out_ = out2d
+
+    # Simply copy the translation
+    for i, (translation, _) in enumerate(transform_list):
+        out_[:3, i] = translation
+
+    # Convert all rotation matrices to quaternions at once
+    rotation_list = [rotation for _, rotation in transform_list]
+    matrices_to_quat(rotation_list, out_[-4:])
+
+    # Revel extra dimension before returning if not present initially
+    if out is not None and out.ndim == 1:
+        return out_[:, 0]
+    return out_
+
+
+@nb.jit(nopython=True, cache=True)
 def rpy_to_matrix(rpy: np.ndarray,
                   out: Optional[np.ndarray] = None) -> np.ndarray:
     """Compute the Rotation Matrix representation of a single or a

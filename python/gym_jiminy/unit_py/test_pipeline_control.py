@@ -199,8 +199,8 @@ class PipelineControl(unittest.TestCase):
             "HighLevelController", ctrl_name, controller.fieldnames[-1]))]
 
         # Make sure that the position and velocity targets are consistent
-        self.assertTrue(np.allclose(
-            np.diff(pos) / controller.control_dt, vel[1:], atol=TOLERANCE))
+        np.testing.assert_allclose(
+            np.diff(pos) / controller.control_dt, vel[1:], atol=TOLERANCE)
 
         # Make sure that the position targets are within bounds.
         # No such guarantee exists for higher-order derivatives.

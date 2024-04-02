@@ -14,10 +14,9 @@ from weakref import ref
 from copy import deepcopy
 from abc import abstractmethod
 from collections import OrderedDict
-from itertools import chain
 from typing import (
-    Dict, Any, List, Optional, Tuple, Union, Iterable, Generic, TypeVar,
-    SupportsFloat, Callable, cast)
+    Dict, Any, List, Optional, Tuple, Union, Generic, TypeVar, SupportsFloat,
+    Callable, cast)
 
 import numpy as np
 import gymnasium as gym
@@ -100,13 +99,13 @@ class BasePipelineWrapper(
         """
         return getattr(self.__getattribute__('env'), name)
 
-    def __dir__(self) -> Iterable[str]:
+    def __dir__(self) -> List[str]:
         """Attribute lookup.
 
         It is mainly used by autocomplete feature of Ipython. It is overloaded
         to get consistent autocompletion wrt `getattr`.
         """
-        return chain(super().__dir__(), dir(self.env))
+        return [*super().__dir__(), *dir(self.env)]
 
     @property
     def spec(self) -> Optional[EnvSpec]:
