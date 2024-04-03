@@ -28,8 +28,8 @@ def apply_safety_limits(command: np.ndarray,
                         motors_soft_position_lower: np.ndarray,
                         motors_soft_position_upper: np.ndarray,
                         motors_velocity_limit: np.ndarray,
-                        motors_effort_limit: np.ndarray
-                        ) -> np.ndarray:
+                        motors_effort_limit: np.ndarray,
+                        out: np.ndarray) -> np.ndarray:
     """Clip the command torque to ensure safe operation.
 
     It acts on each actuator independently and only activate close to the
@@ -60,6 +60,7 @@ def apply_safety_limits(command: np.ndarray,
     :param motors_effort_limit: Maximum effort that the actuators can output.
                                 The command torque cannot exceed this limits,
                                 not even if needed to enforce safe operation.
+    :param out: Pre-allocated memory to store the command motor torques.
     """
     # Computes velocity bounds based on margin from soft joint limit if any
     safe_velocity_lower = motors_velocity_limit * np.minimum(np.maximum(
@@ -74,8 +75,10 @@ def apply_safety_limits(command: np.ndarray,
         -kd * (v_measured - safe_velocity_upper), -1.0), 1.0)
 
     # Clip command according to safe effort bounds
-    return np.minimum(np.maximum(
+    out[:] = np.minimum(np.maximum(
         command, safe_effort_lower), safe_effort_upper)
+
+    return out
 
 
 class MotorSafetyLimit(
@@ -168,7 +171,10 @@ class MotorSafetyLimit(
         self.q_measured, self.v_measured = np.array([]), np.array([])
 
         # Initialize the controller
-        super().__init__(name, env, 1)
+        super().__init__(name, env, update_ratio=1)
+
+        # Command motor torques buffer for efficiency
+        self._u_command = np.array([])
 
     def _initialize_action_space(self) -> None:
         """Configure the action space of the controller.
@@ -184,6 +190,9 @@ class MotorSafetyLimit(
         # Refresh measured motor positions and velocities proxies
         self.q_measured, self.v_measured = (
             self.env.sensor_measurements[encoder.type])
+
+        # Re-initialize pre-allocated memory for command motor torques
+        self._u_command = np.zeros((self.env.robot.nmotors,))
 
     @property
     def fieldnames(self) -> List[str]:
@@ -212,4 +221,5 @@ class MotorSafetyLimit(
                                    self.motors_position_lower,
                                    self.motors_position_upper,
                                    self.motors_velocity_limit,
-                                   self.motors_effort_limit)
+                                   self.motors_effort_limit,
+                                   self._u_command)

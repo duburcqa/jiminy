@@ -75,7 +75,7 @@ jobs:
         "${PYTHON_EXECUTABLE}" -m pip install "gymnasium>=0.28,<1.0" "stable_baselines3>=2.0"
     - name: Install latest numpy version at build-time for run-time binary compatibility
       run: |
-        "${PYTHON_EXECUTABLE}" -m pip install --upgrade "numpy>=1.23,<2.0"
+        "${PYTHON_EXECUTABLE}" -m pip install --upgrade "numpy>=1.24,<2.0"
     - name: Build jiminy dependencies
       run: |
         BUILD_TYPE="${{ matrix.BUILD_TYPE }}" ./build_tools/build_install_deps_unix.sh

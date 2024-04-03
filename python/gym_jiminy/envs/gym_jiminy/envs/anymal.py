@@ -91,7 +91,8 @@ ANYmalPDControlJiminyEnv = build_pipeline(
                     kp=PD_KP,
                     kd=PD_KD,
                     target_position_margin=0.0,
-                    target_velocity_limit=float("inf")
+                    target_velocity_limit=float("inf"),
+                    target_acceleration_limit=float("inf")
                 )
             ),
             wrapper=dict(

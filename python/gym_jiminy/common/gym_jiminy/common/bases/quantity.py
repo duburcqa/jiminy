@@ -1,4 +1,16 @@
-""" TODO: Write documentation
+"""This module promotes quantities as first-class objects.
+
+Defining quantities this way allows for standardization of common intermediary
+metrics for computation of reward components and and termination conditions, eg
+the center of pressure or the average spatial velocity of a frame. Overall, it
+greatly reduces code duplication and bugs.
+
+Apart from that, it offers a dedicated quantity manager that is responsible for
+optimizing the computation path, which is expected to significantly increase
+the step collection throughput. This speedup is achieved by caching already
+computed that did not changed since then, computing redundant intermediary
+quantities only once per step, and gathering similar quantities in a large
+batch to leverage vectorization of math instructions.
 """
 from abc import ABC, abstractmethod
 from collections.abc import Mapping

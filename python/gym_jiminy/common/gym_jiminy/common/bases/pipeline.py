@@ -70,6 +70,7 @@ class BasePipelineWrapper(
                  env: InterfaceJiminyEnv[BaseObsT, BaseActT],
                  **kwargs: Any) -> None:
         """
+        :param env: Base or already wrapped jiminy environment.
         :param kwargs: Extra keyword arguments for multiple inheritance.
         """
         # Initialize some proxies for fast lookup

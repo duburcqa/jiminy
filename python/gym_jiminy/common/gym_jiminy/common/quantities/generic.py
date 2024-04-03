@@ -1,4 +1,6 @@
-""" TODO: Write documentation
+"""Generic quantities that may be relevant for any kind of robot, regardless
+its topology (multiple or single branch, fixed or floating base...) and the
+application (locomotion, grasping...).
 """
 from functools import partial
 from dataclasses import dataclass
@@ -222,7 +224,7 @@ class _BatchEulerAnglesFrame(AbstractQuantity[Dict[str, np.ndarray]]):
 @dataclass(unsafe_hash=True)
 class EulerAnglesFrame(AbstractQuantity[np.ndarray]):
     """Euler angles (Roll-Pitch-Yaw) representation of the orientation of a
-    given frame at the end of an agent step.
+    given frame in world reference frame at the end of an agent step.
     """
 
     frame_name: str

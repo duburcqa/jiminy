@@ -170,7 +170,7 @@ class BaseObserverBlock(InterfaceObserver[ObsT, BaseObsT],
             "environment simulation timestep.")
 
     @property
-    def get_fieldnames(self) -> FieldNested:
+    def fieldnames(self) -> FieldNested:
         """Get mapping between each scalar element of the observation space of
         the observer block and the associated fieldname for logging.
 
@@ -234,7 +234,7 @@ class BaseControllerBlock(
             "environment simulation timestep.")
 
     @property
-    def get_fieldnames(self) -> FieldNested:
+    def fieldnames(self) -> FieldNested:
         """Get mapping between each scalar element of the action space of
         the controller block and the associated fieldname for logging.
 

@@ -24,6 +24,24 @@ namespace jiminy::python
 
     // *********************************** HeightmapFunction *********************************** //
 
+    void queryHeightMap(HeightmapFunction & heightmap,
+                        np::ndarray positionsPy,
+                        np::ndarray heightsPy)
+    {
+        auto const positions = convertFromPython<
+            Eigen::Map<Eigen::MatrixXd, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>>
+            >(positionsPy);
+        auto heights = convertFromPython<
+            Eigen::Map<Eigen::MatrixXd, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>>
+            >(heightsPy).col(0);
+
+        for (Eigen::Index i = 0; i < positions.cols() ; ++i)
+        {
+            Eigen::Vector3d normal;
+            heightmap(positions.col(i), heights[i], normal);
+        }
+    }
+
     namespace internal::heightmap_function
     {
         static bp::tuple eval(HeightmapFunction & self, const Eigen::Vector2d & position)
@@ -64,5 +82,9 @@ namespace jiminy::python
             .ADD_PROPERTY_GET_WITH_POLICY("py_function",
                                           &internal::heightmap_function::getPyFun,
                                           bp::return_value_policy<bp::return_by_value>());
+
+        bp::def("query_heightmap",
+                &queryHeightMap,
+                (bp::args("heightmap"), "positions", "heights"));
     }
 }
