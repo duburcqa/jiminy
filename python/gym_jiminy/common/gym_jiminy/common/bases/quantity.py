@@ -214,13 +214,16 @@ class AbstractQuantity(ABC, Generic[ValueT]):
         self._cache = cache
         self._has_cache = True
 
-    @property
-    def is_active(self) -> bool:
+    def is_active(self, any_cache_owner: bool = False) -> bool:
         """Whether this quantity is considered active, namely `initialize` has
-        been called at least once since previous tracking reset, either by this
-        exact instance or any identical quantity if shared cache is available.
+        been called at least once since previous tracking reset.
+
+        :param any_owner: False to check only if this exact instance is active,
+                          True if any of the identical quantities (sharing the
+                          same cache) is considered sufficient.
+                          Optional: False by default.
         """
-        if self._cache is None:
+        if not any_cache_owner or self._cache is None:
             return self._is_active
         return any(owner._is_active for owner in self._cache.owners)
 
@@ -229,8 +232,8 @@ class AbstractQuantity(ABC, Generic[ValueT]):
         evaluate it and store it in cache.
 
         This quantity is considered active as soon as this method has been
-        called at least once since previous tracking reset. The corresponding
-        property `is_active` will be true even before calling `initialize`.
+        called at least once since previous tracking reset. The method
+        `is_active` will be return true even before calling `initialize`.
 
         .. warning::
             This method is not meant to be overloaded.
@@ -289,7 +292,7 @@ class AbstractQuantity(ABC, Generic[ValueT]):
 
         # Reset all requirements first
         for quantity in self.requirements.values():
-            quantity.reset()
+            quantity.reset(reset_tracking)
 
         # More work has to be done if shared cache is available and has value
         if self._has_cache:
