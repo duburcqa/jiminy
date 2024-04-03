@@ -5,11 +5,13 @@ wrapper on top of the lower-level Jiminy Robot for loading them.
 """
 import os
 import re
+import atexit
 import logging
 import pathlib
 import tempfile
 import xml.etree.ElementTree as ET
 from collections import OrderedDict, defaultdict
+from functools import partial
 from types import ModuleType
 from typing import Optional, Dict, Any, Sequence, Literal, Set, List, get_args
 
@@ -847,6 +849,75 @@ def load_hardware_description_file(
     return extra_info
 
 
+def build_robot(name: str,
+                urdf_path: str,
+                hardware_path: Optional[str] = None,
+                mesh_path_dir: Optional[str] = None,
+                has_freeflyer: bool = True,
+                avoid_instable_collisions: bool = True,
+                debug: bool = False) -> None:
+    """
+    Build a BaseJiminyRobot from urdf.
+
+    :param urdf_path: Path of the urdf model to be used for the simulation.
+    :param hardware_path: Path of Jiminy hardware description toml file.
+                            Optional: Looking for '\*_hardware.toml' file in
+                            the same folder and with the same name.
+    :param mesh_path_dir: Path to the folder containing all the meshes.
+                            Optional: Env variable 'JIMINY_DATA_PATH' will be
+                            used if available.
+    :param has_freeflyer: Whether the robot is fixed-based wrt its root
+                            link, or can move freely in the world.
+                            Optional: True by default.
+    :param config_path: Configuration toml file to import. It will be
+                        imported AFTER loading the hardware description
+                        file. It can be automatically generated from an
+                        instance by calling `export_config_file` method.
+                        Optional: Looking for '\*_options.toml' file in the
+                        same folder and with the same name. If not found,
+                        using default configuration.
+    :param avoid_instable_collisions: Prevent numerical instabilities by
+                                        replacing collision mesh by vertices
+                                        of associated minimal volume bounding
+                                        box, and replacing primitive box by
+                                        its vertices.
+    :param debug: Whether the debug mode must be activated. Doing it
+                    enables temporary files automatic deletion.
+    """
+    # Generate a temporary Hardware Description File if necessary
+    if hardware_path is None:
+        hardware_path = str(pathlib.Path(
+            urdf_path).with_suffix('')) + '_hardware.toml'
+        if not os.path.exists(hardware_path):
+            # Create a file that will be closed (thus deleted) at exit
+            urdf_name = os.path.splitext(os.path.basename(urdf_path))[0]
+            fd, hardware_path = tempfile.mkstemp(
+                prefix=f"{urdf_name}_", suffix="_hardware.toml")
+            os.close(fd)
+
+            if not debug:
+                def remove_file_at_exit(file_path: str) -> None:
+                    try:
+                        os.remove(file_path)
+                    except (PermissionError, FileNotFoundError):
+                        pass
+
+                atexit.register(partial(
+                    remove_file_at_exit, hardware_path))
+
+            # Generate default Hardware Description File
+            generate_default_hardware_description_file(
+                urdf_path, hardware_path, verbose=debug)
+
+    # Build the robot
+    robot = BaseJiminyRobot(name)
+    robot.initialize(
+        urdf_path, hardware_path, mesh_path_dir, (), has_freeflyer,
+        avoid_instable_collisions, load_visual_meshes=debug, verbose=debug)
+
+    return robot
+
+
 class BaseJiminyRobot(jiminy.Robot):
     """Base class to instantiate a Jiminy robot based on a standard URDF file
     and Jiminy-specific hardware description file.
@@ -866,11 +937,11 @@ class BaseJiminyRobot(jiminy.Robot):
         name than the URDF file will be detected automatically without
         requiring to manually specify its path.
     """
-    def __init__(self) -> None:
+    def __init__(self, name : Optional[str] = "") -> None:
         self.extra_info: Dict[str, Any] = {}
         self.hardware_path: Optional[str] = None
         self._urdf_path_orig: Optional[str] = None
-        super().__init__()
+        super().__init__(name)
 
     def initialize(self,
                    urdf_path: str,

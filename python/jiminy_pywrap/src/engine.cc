@@ -277,16 +277,24 @@ namespace jiminy::python
             {
                 aInit.emplace(convertFromPython<std::map<std::string, Eigen::VectorXd>>(aInitPy));
             }
-            std::optional<AbortSimulationFunction> callback;
+            AbortSimulationFunction callback;
             if (!callbackPy.is_none())
             {
-                callback.emplace(callbackPy);
+                callback = callbackPy;
+            }
+            else
+            {
+                callback = []()
+                {
+                    return true;
+                };
             }
             return self.simulate(
                 endTime,
                 convertFromPython<std::map<std::string, Eigen::VectorXd>>(qInitPy),
                 convertFromPython<std::map<std::string, Eigen::VectorXd>>(vInitPy),
-                aInit);
+                aInit,
+                callback);
         }
 
         static void simulate(Engine & self,

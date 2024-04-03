@@ -4,7 +4,8 @@ from .viewer import (CameraPoseType,
                      Viewer,
                      sleep,
                      is_display_available,
-                     get_default_backend)
+                     get_default_backend,
+                     COLORS)
 from .replay import (extract_replay_data_from_log,
                      play_trajectories,
                      play_logs_data,
@@ -25,5 +26,6 @@ __all__ = [
     'play_trajectories',
     'play_logs_data',
     'play_logs_files',
-    'async_play_and_record_logs_files'
+    'async_play_and_record_logs_files',
+    'COLORS'
 ]
