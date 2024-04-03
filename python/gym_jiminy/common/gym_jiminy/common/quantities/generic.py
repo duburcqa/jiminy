@@ -185,10 +185,15 @@ class _BatchEulerAnglesFrame(AbstractQuantity[Dict[str, np.ndarray]]):
         self.frame_names = {self.parent.frame_name}
         if self.cache:
             for owner in self.cache.owners:
-                parent = owner.parent
-                assert isinstance(parent, EulerAnglesFrame)
-                if parent.is_active:
-                    self.frame_names.add(parent.frame_name)
+                # We only consider active instances of `_BatchEulerAnglesFrame`
+                # instead of their corresponding parent `EulerAnglesFrame`.
+                # This is necessary because a derived quantity may feature
+                # `_BatchEulerAnglesFrame` as a requirement without actually
+                # relying on it depending on whether it is part of the optimal
+                # computation path at the time being or not.
+                if owner.is_active(any_cache_owner=False):
+                    assert isinstance(owner.parent, EulerAnglesFrame)
+                    self.frame_names.add(owner.parent.frame_name)
 
         # Re-allocate memory as the number of frames is not known in advance.
         # Note that Fortran memory layout (column-major) is used for speed up
