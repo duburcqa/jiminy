@@ -1,5 +1,6 @@
 import timeit
 
+import numpy as np
 import matplotlib.pyplot as plt
 import gymnasium as gym
 
@@ -8,7 +9,7 @@ from gym_jiminy.common.bases import QuantityManager
 from gym_jiminy.common.quantities import EulerAnglesFrame
 
 # Define number of samples for benchmarking
-N_SAMPLES = 20000
+N_SAMPLES = 50000
 
 # Disable caching by forcing `SharedCache.has_value` to always return `False`
 setattr(gym_jiminy.common.bases.quantity.SharedCache,
@@ -48,12 +49,14 @@ for i in range(1, nframes):
     duration = timeit.timeit(
         'shared_data.get()', number=N_SAMPLES, globals={
             "shared_data": shared_data
-        })
-    time_per_frame_all.append(duration / N_SAMPLES / i * 1e9)
+        }) / N_SAMPLES
+    time_per_frame_all.append(duration)
+    print(f"Computation time (ns) for {i} frames: {duration * 1e9}")
 
-# Plot the result
-plt.figure()
-plt.plot(time_per_frame_all)
-plt.xlabel("Number of frames")
-plt.ylabel("Average computation time per frame (ns)")
-plt.show()
+# Plot the result if enough data is available
+if len(time_per_frame_all) > 1:
+    plt.figure()
+    plt.plot(np.diff(time_per_frame_all) * 1e9)
+    plt.xlabel("Number of frames")
+    plt.ylabel("Average computation time per frame (ns)")
+    plt.show()

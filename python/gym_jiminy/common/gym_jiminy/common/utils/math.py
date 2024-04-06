@@ -24,7 +24,9 @@ def squared_norm_2(array: np.ndarray) -> float:
 
 
 @nb.jit(nopython=True, cache=True)
-def matrix_to_yaw(mat: np.ndarray) -> float:
+def matrix_to_yaw(mat: np.ndarray,
+                  out: Optional[np.ndarray] = None
+                  ) -> Union[float, np.ndarray]:
     """Compute the yaw from Yaw-Pitch-Roll Euler angles representation of a
     rotation matrix in 3D Euclidean space.
 
@@ -32,7 +34,17 @@ def matrix_to_yaw(mat: np.ndarray) -> float:
                 the 3-by-3 rotation matrix elements.
     """
     assert mat.ndim >= 2
-    return np.arctan2(mat[1, 0], mat[0, 0])
+
+    # Allocate memory for the output array
+    if out is None:
+        out_ = np.empty(mat.shape[2:])
+    else:
+        assert out.shape == mat.shape[2:]
+        out_ = out
+
+    out_[:] = np.arctan2(mat[1, 0], mat[0, 0])
+
+    return out_
 
 
 @nb.jit(nopython=True, cache=True, inline='always')
