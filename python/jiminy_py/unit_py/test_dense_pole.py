@@ -95,7 +95,7 @@ class SimulateDensePole(unittest.TestCase):
 
             # Specify flexibility options
             model_options = self.robot.get_model_options()
-            model_options['dynamics']['enableFlexibleModel'] = True
+            model_options['dynamics']['enableFlexibility'] = True
             flex_options = [{
                 'frameName': self.flex_joint_name,
                 'stiffness': np.full((3,), self.flex_stiffness),
@@ -129,7 +129,7 @@ class SimulateDensePole(unittest.TestCase):
 
         assert np.allclose(*twist_flex_all, atol=1e-7)
 
-        # Extract parameters of theoretical dynamics equation
+        # Extract parameters of rigid-body dynamics equation
         update_quantities(
             self.robot, q_init, v_init, use_theoretical_model=True)
         inertia = self.robot.pinocchio_data.Ycrb[2]
@@ -138,7 +138,7 @@ class SimulateDensePole(unittest.TestCase):
         l = inertia.lever[0]
         I_equiv = inertia.inertia[2, 2] + m * l ** 2
 
-        # Integrate theoretical model
+        # Integrate rigid-body model
         theta_all, dtheta = [0.0,], 0.0
         for _ in range(int(np.round(t_end / step_dt))):
             theta = theta_all[-1]

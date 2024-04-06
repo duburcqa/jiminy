@@ -463,11 +463,13 @@ class Viewer:
                  **kwargs: Any):
         """
         :param robot: Jiminy.Model to display.
-        :param use_theoretical_model: Whether to use the theoretical (rigid)
-                                      model or the actual (flexible) model of
-                                      this robot. Note that using the actual
-                                      model is more efficient since update of
-                                      the frames placements can be skipped.
+        :param use_theoretical_model: Whether to use the theoretical rigid or
+                                      extended simulation model of this robot.
+                                      Note that using the extended model if
+                                      possible is more efficient since update
+                                      of the frames placements can be skipped
+                                      as it is already synchronized with the
+                                      simulation state.
                                       Optional: Actual model by default.
         :param robot_color: Color of the robot. It will override the original
                             color of the meshes if not `None`. It supports both

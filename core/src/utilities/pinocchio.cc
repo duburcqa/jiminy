@@ -468,7 +468,7 @@ namespace jiminy
         // Flexible joint is placed at the same position as the child joint, in its parent frame
         const SE3 & jointPlacement = model.jointPlacements[childJointIndex];
 
-        // Create flexible joint
+        // Create flexibility joint
         const pinocchio::JointIndex newJointIndex = model.addJoint(
             model.parents[childJointIndex], JointModelSpherical(), jointPlacement, newJointName);
 
@@ -578,7 +578,7 @@ namespace jiminy
                                           Symmetric3(-childBodyInertia.inertia().data()));
         model.inertias[parentJointIndex] += childBodyInertiaInv;
 
-        // Create flexible joint
+        // Create flexibility joint
         const pinocchio::JointIndex newJointIndex =
             model.addJoint(parentJointIndex, JointModelSpherical(), frame.placement, frame.name);
         model.inertias[newJointIndex] = childBodyInertia.se3Action(frame.placement.inverse());

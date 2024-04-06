@@ -234,11 +234,9 @@ class InterfaceJiminyEnv(
             This method is not supposed to be called manually nor overloaded.
 
         :param t: Current simulation time.
-        :param q: Current actual configuration of the robot. Note that it is
-                  not the one of the theoretical model even if
-                  'use_theoretical_model' is enabled for the backend Python
-                  `Simulator`.
-        :param v: Current actual velocity vector.
+        :param q: Current extended configuration of the robot, no matter if
+                  'Simulator.use_theoretical_model' is enabled.
+        :param v: Current extended velocity vector.
         :param sensor_measurements: Current sensor data.
         """
         # Refresh the observation if not already done but only if a simulation
@@ -281,10 +279,8 @@ class InterfaceJiminyEnv(
             command motor torques directly to the robot.
 
         :param t: Current simulation time.
-        :param q: Current actual configuration of the robot. Note that it is
-                  not the one of the theoretical model even if
-                  'use_theoretical_model' is enabled for the backend Python
-                  `Simulator`.
+        :param q: Current extended configuration of the robot, no matter if
+                  'simulator.use_theoretical_model' is enabled.
         :param v: Current actual velocity vector.
         :param sensor_measurements: Current sensor measurements.
         :param command: Output argument corresponding to motors torques to

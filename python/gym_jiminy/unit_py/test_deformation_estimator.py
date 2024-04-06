@@ -37,17 +37,17 @@ class DeformationEstimatorBlock(unittest.TestCase):
 
         # Check that deformation estimates from DeformationEstimator are valid
         model_options = env.robot.get_model_options()
-        flexible_frame_names = [
+        flexibility_frame_names = [
             flex_options["frameName"]
             for flex_options in model_options["dynamics"]["flexibilityConfig"]
         ]
         est_flex_quats = env.observation['features']['deformation_estimator']
         est_flex_quats[:] *= np.sign(est_flex_quats[-1])
         for frame_name, joint_index in zip(
-                flexible_frame_names, env.robot.flexible_joint_indices):
+                flexibility_frame_names, env.robot.flexibility_joint_indices):
             idx_q = env.robot.pinocchio_model.joints[joint_index].idx_q
             true_flex_quat = env.robot_state.q[idx_q:(idx_q + 4)]
-            flex_index = env.observer.flexible_frame_names.index(frame_name)
+            flex_index = env.observer.flexibility_frame_names.index(frame_name)
             est_flex_quat = est_flex_quats[:, flex_index]
             np.testing.assert_allclose(
                 true_flex_quat, est_flex_quat, atol=flex_atol)
@@ -131,7 +131,7 @@ class DeformationEstimatorBlock(unittest.TestCase):
             "deformation_estimator",
             env,
             imu_frame_names=robot.sensor_names['ImuSensor'],
-            flex_frame_names=robot.flexible_joint_names,
+            flex_frame_names=robot.flexibility_joint_names,
             ignore_twist=True,
             update_ratio=-1)
         env = ObservedJiminyEnv(env, deformation_estimator)
@@ -200,7 +200,7 @@ class DeformationEstimatorBlock(unittest.TestCase):
                             "inertia": np.array([0.01, 0.01, 0.01]),
                         }
                     )
-                model_options["dynamics"]["enableFlexibleModel"] = True
+                model_options["dynamics"]["enableFlexibility"] = True
                 self.robot.set_model_options(model_options)
 
         # Create pipeline with Mahony filter and DeformationObserver blocks

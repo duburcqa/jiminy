@@ -1075,7 +1075,7 @@ namespace jiminy
         for (; robotIt != robots_.end(); ++robotIt, ++robotDataIt)
         {
             // Propagate the user-defined gravity at robot level
-            (*robotIt)->pinocchioModelOrig_.gravity = engineOptions_->world.gravity;
+            (*robotIt)->pinocchioModelTh_.gravity = engineOptions_->world.gravity;
             (*robotIt)->pinocchioModel_.gravity = engineOptions_->world.gravity;
 
             /* Reinitialize the robot state buffers, since the robot kinematic may have changed.
@@ -1545,10 +1545,10 @@ namespace jiminy
 
         // Process initial configuration
         std::map<std::string, Eigen::VectorXd> qInitMap;
-        if (isStateTheoretical && robot->modelOptions_->dynamics.enableFlexibleModel)
+        if (isStateTheoretical)
         {
             Eigen::VectorXd q0;
-            robot->getFlexiblePositionFromRigid(qInit, q0);
+            robot->getExtendedPositionFromTheoretical(qInit, q0);
             qInitMap.emplace(robotName, std::move(q0));
         }
         else
@@ -1558,10 +1558,10 @@ namespace jiminy
 
         // Process initial velocity
         std::map<std::string, Eigen::VectorXd> vInitMap;
-        if (isStateTheoretical && robot->modelOptions_->dynamics.enableFlexibleModel)
+        if (isStateTheoretical)
         {
             Eigen::VectorXd v0;
-            robot->getFlexibleVelocityFromRigid(vInit, v0);
+            robot->getExtendedVelocityFromTheoretical(vInit, v0);
             vInitMap.emplace(robotName, std::move(v0));
         }
         else
@@ -1574,10 +1574,10 @@ namespace jiminy
         if (aInit)
         {
             aInitMap.emplace();
-            if (isStateTheoretical && robot->modelOptions_->dynamics.enableFlexibleModel)
+            if (isStateTheoretical)
             {
                 Eigen::VectorXd a0;
-                robot->getFlexibleVelocityFromRigid(*aInit, a0);
+                robot->getExtendedVelocityFromTheoretical(*aInit, a0);
                 aInitMap->emplace(robotName, std::move(a0));
             }
             else
@@ -3425,18 +3425,18 @@ namespace jiminy
         const pinocchio::Data & data = robot->pinocchioData_;
         const ConstraintTree & constraints = robot->getConstraints();
 
-        // Enforce the position limit (rigid joints only)
+        // Enforce the position limit (mechanical joints only)
         if (robot->modelOptions_->joints.enablePositionLimit)
         {
             const Eigen::VectorXd & positionLimitMin = robot->getPositionLimitMin();
             const Eigen::VectorXd & positionLimitMax = robot->getPositionLimitMax();
-            const std::vector<pinocchio::JointIndex> & rigidJointIndices =
-                robot->getRigidJointIndices();
-            for (std::size_t i = 0; i < rigidJointIndices.size(); ++i)
+            const std::vector<pinocchio::JointIndex> & mechanicalJointIndices =
+                robot->getMechanicalJointIndices();
+            for (std::size_t i = 0; i < mechanicalJointIndices.size(); ++i)
             {
                 auto & constraint = constraints.boundJoints[i].second;
                 computePositionLimitsForcesAlgo::run(
-                    model.joints[rigidJointIndices[i]],
+                    model.joints[mechanicalJointIndices[i]],
                     typename computePositionLimitsForcesAlgo::ArgsType(data,
                                                                        q,
                                                                        v,
@@ -3449,14 +3449,14 @@ namespace jiminy
             }
         }
 
-        // Enforce the velocity limit (rigid joints only)
+        // Enforce the velocity limit (mechanical joints only)
         if (robot->modelOptions_->joints.enableVelocityLimit)
         {
             const Eigen::VectorXd & velocityLimitMax = robot->getVelocityLimit();
-            for (pinocchio::JointIndex rigidJointIndex : robot->getRigidJointIndices())
+            for (pinocchio::JointIndex mechanicalJointIndex : robot->getMechanicalJointIndices())
             {
                 computeVelocityLimitsForcesAlgo::run(
-                    model.joints[rigidJointIndex],
+                    model.joints[mechanicalJointIndex],
                     typename computeVelocityLimitsForcesAlgo::ArgsType(
                         data, v, velocityLimitMax, engineOptions_, contactModel_, uInternal));
             }
@@ -3467,7 +3467,7 @@ namespace jiminy
         Eigen::Matrix3d rotJlog3;
         const Robot::DynamicsOptions & modelDynOptions = robot->modelOptions_->dynamics;
         const std::vector<pinocchio::JointIndex> & flexibilityJointIndices =
-            robot->getFlexibleJointIndices();
+            robot->getFlexibilityJointIndices();
         for (std::size_t i = 0; i < flexibilityJointIndices.size(); ++i)
         {
             const pinocchio::JointIndex jointIndex = flexibilityJointIndices[i];

@@ -324,8 +324,8 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         space as a whole.
 
         :param use_theoretical_model: Whether to compute the state space
-                                      corresponding to the theoretical model to
-                                      the actual one. `None` to use internal
+                                      corresponding to the theoretical or the
+                                      extended one. `None` to use internal
                                       value 'simulator.use_theoretical_model'.
                                       Optional: `None` by default.
         """
@@ -335,8 +335,8 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
 
         # Define some proxies for convenience
         model_options = self.robot.get_model_options()
-        joint_position_indices = self.robot.rigid_joint_position_indices
-        joint_velocity_indices = self.robot.rigid_joint_velocity_indices
+        joint_position_indices = self.robot.mechanical_joint_position_indices
+        joint_velocity_indices = self.robot.mechanical_joint_velocity_indices
         position_limit_upper = self.robot.position_limit_upper
         position_limit_lower = self.robot.position_limit_lower
         velocity_limit = self.robot.velocity_limit
@@ -349,7 +349,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
                 velocity_limit[:3] = FREEFLYER_VEL_LIN_MAX
                 velocity_limit[3:6] = FREEFLYER_VEL_ANG_MAX
 
-            for joint_index in self.robot.flexible_joint_indices:
+            for joint_index in self.robot.flexibility_joint_indices:
                 joint_velocity_index = (
                     self.robot.pinocchio_model.joints[joint_index].idx_v)
                 velocity_limit[
@@ -1382,9 +1382,9 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
             if hi < val or val < lo:
                 q[idx] = 0.5 * (lo + hi)
 
-        # Return rigid/flexible configuration
+        # Return theoretical or extended configuration
         if self.simulator.use_theoretical_model:
-            return q[self.robot.rigid_joint_position_indices]
+            return q[self.robot.mechanical_joint_position_indices]
         return q
 
     def _sample_state(self) -> Tuple[np.ndarray, np.ndarray]:

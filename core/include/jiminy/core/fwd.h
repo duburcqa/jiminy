@@ -194,10 +194,10 @@ namespace jiminy
         const Eigen::Vector2d & /* xy */, double & /* height */, Eigen::Vector3d & /* normal */)>;
 
     // Flexible joints
-    struct FlexibleJointData
+    struct FlexibilityJointConfig
     {
         // FIXME: Replace by default spaceship operator `<=>` when moving to C++20.
-        inline bool operator==(const FlexibleJointData & other) const noexcept
+        inline bool operator==(const FlexibilityJointConfig & other) const noexcept
         {
             return (this->frameName == other.frameName && this->stiffness == other.stiffness &&
                     this->damping == other.damping && this->inertia == other.inertia);
@@ -209,7 +209,7 @@ namespace jiminy
         Eigen::Vector3d inertia{};
     };
 
-    using FlexibilityConfig = std::vector<FlexibleJointData>;
+    using FlexibilityConfig = std::vector<FlexibilityJointConfig>;
 
     using GenericConfig =
         std::unordered_map<std::string,

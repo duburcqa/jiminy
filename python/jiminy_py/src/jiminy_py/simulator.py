@@ -66,7 +66,7 @@ class Simulator:
         :param robot: Jiminy robot already initialized.
         :param use_theoretical_model: Whether the state corresponds to the
                                       theoretical model when updating and
-                                      fetching the robot's state.
+                                      fetching the state of the robot.
         :param viewer_kwargs: Keyword arguments to override default arguments
                               whenever a viewer must be instantiated, eg when
                               `render` method is first called. Specifically,
@@ -265,7 +265,7 @@ class Simulator:
            'self.use_theoretical_model'.
         """
         # property is used in place of attribute for extra safety
-        if self.use_theoretical_model and self.robot.is_flexible:
+        if self.use_theoretical_model and self.robot.is_flexibility_enabled:
             return self.robot.pinocchio_model_th
         return self.robot.pinocchio_model
 
@@ -275,7 +275,7 @@ class Simulator:
            'self.use_theoretical_model'.
         """
         # property is used in place of attribute for extra safety
-        if self.use_theoretical_model and self.robot.is_flexible:
+        if self.use_theoretical_model and self.robot.is_flexibility_enabled:
             return self.robot.pinocchio_data_th
         return self.robot.pinocchio_data
 
@@ -716,7 +716,7 @@ class Simulator:
           - Subplots with raw sensor data (one tab for each type of sensor)
 
         :param enable_flexiblity_data:
-            Enable display of flexible joints in robot's configuration,
+            Enable display of flexibility joints in robot's configuration,
             velocity and acceleration subplots.
             Optional: False by default.
         :param block: Whether to wait for the figure to be closed before

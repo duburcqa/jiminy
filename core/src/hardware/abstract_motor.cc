@@ -236,9 +236,9 @@ namespace jiminy
         // Get the motor effort limits from the URDF or the user options.
         if (baseMotorOptions_->commandLimitFromUrdf)
         {
-            const Eigen::Index jointVelocityOrigIndex =
-                getJointVelocityFirstIndex(robot->pinocchioModelOrig_, jointName_);
-            commandLimit_ = robot->pinocchioModelOrig_.effortLimit[jointVelocityOrigIndex] /
+            const Eigen::Index mechanicalJointVelocityIndex =
+                getJointVelocityFirstIndex(robot->pinocchioModelTh_, jointName_);
+            commandLimit_ = robot->pinocchioModelTh_.effortLimit[mechanicalJointVelocityIndex] /
                             baseMotorOptions_->mechanicalReduction;
         }
         else

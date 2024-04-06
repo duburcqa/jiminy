@@ -49,7 +49,7 @@ namespace jiminy
     }
 
     template<>
-    Json::Value convertToJson<FlexibleJointData>(const FlexibleJointData & value);
+    Json::Value convertToJson<FlexibilityJointConfig>(const FlexibilityJointConfig & value);
 
     template<>
     Json::Value convertToJson<HeightmapFunction>(const HeightmapFunction & value);
@@ -76,8 +76,8 @@ namespace jiminy
     }
 
     template<>
-    constexpr const char *
-    getJsonVectorType<FlexibleJointData>(const std::vector<FlexibleJointData> & /* value */)
+    constexpr const char * getJsonVectorType<FlexibilityJointConfig>(
+        const std::vector<FlexibilityJointConfig> & /* value */)
     {
         return "list(flexibility)";
     }
@@ -139,7 +139,7 @@ namespace jiminy
     Eigen::MatrixXd convertFromJson<Eigen::MatrixXd>(const Json::Value & value);
 
     template<>
-    FlexibleJointData convertFromJson<FlexibleJointData>(const Json::Value & value);
+    FlexibilityJointConfig convertFromJson<FlexibilityJointConfig>(const Json::Value & value);
 
     template<>
     HeightmapFunction convertFromJson<HeightmapFunction>(const Json::Value & value);
