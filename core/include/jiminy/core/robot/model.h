@@ -372,15 +372,16 @@ namespace jiminy
 
     protected:
         void generateModelExtended(const uniform_random_bit_generator_ref<uint32_t> & g);
-        void generateModelBiased(const uniform_random_bit_generator_ref<uint32_t> & g);
 
         void addFlexibilityJointsToExtendedModel();
+        void addBiasedToExtendedModel(const uniform_random_bit_generator_ref<uint32_t> & g);
 
         void addFrame(const std::string & frameName,
                       const std::string & parentBodyName,
                       const pinocchio::SE3 & framePlacement,
                       const pinocchio::FrameType & frameType);
-        void removeFrames(const std::vector<std::string> & frameNames);
+        void removeFrames(const std::vector<std::string> & frameNames,
+                          const std::vector<pinocchio::FrameType> & filter);
 
         void addConstraint(const std::string & constraintName,
                            const std::shared_ptr<AbstractConstraintBase> & constraint,

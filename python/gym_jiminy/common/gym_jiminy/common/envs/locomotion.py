@@ -179,8 +179,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                 debug=debug,
                 viewer_kwargs=viewer_kwargs,
                 **{**dict(
-                    has_freeflyer=True,
-                    use_theoretical_model=False),
+                    has_freeflyer=True),
                     **kwargs})
         else:
             # Instantiate a simulator and load the options

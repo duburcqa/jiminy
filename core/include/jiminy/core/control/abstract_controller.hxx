@@ -23,7 +23,7 @@ namespace jiminy
                                        { return element.first == name; });
         if (variableIt != variableRegistry_.end())
         {
-            THROW_ERROR(bad_control_flow, "Variable already registered.");
+            THROW_ERROR(bad_control_flow, "Variable '", name, "' already registered.");
         }
         variableRegistry_.emplace_back(name, &value);
     }

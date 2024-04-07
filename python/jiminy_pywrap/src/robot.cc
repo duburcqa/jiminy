@@ -59,6 +59,12 @@ namespace jiminy::python
 
     namespace internal::model
     {
+        static void removeFrames(Model & self, const bp::object & frameNamesPy)
+        {
+            auto frameNames = convertFromPython<std::vector<std::string>>(frameNamesPy);
+            return self.removeFrames(frameNames);
+        }
+
         static void addCollisionBodies(
             Model & self, const bp::object & linkNamesPy, bool ignoreMeshes)
         {
@@ -187,7 +193,8 @@ namespace jiminy::python
                      const std::string &, const std::string &, const pinocchio::SE3 &)>(
                      &Model::addFrame),
                  (bp::arg("self"), "frame_name", "parent_body_name", "frame_placement"))
-            .def("remove_frame", &Model::removeFrame, (bp::arg("self"), "frame_name"))
+            .def("remove_frames", &internal::model::removeFrames, (bp::arg("self"), "frame_names"))
+
             .def("add_collision_bodies",
                  &internal::model::addCollisionBodies,
                  (bp::arg("self"),

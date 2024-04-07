@@ -44,8 +44,7 @@ class AntJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         # Configure the backend simulator
         simulator = Simulator.build(
             urdf_path, hardware_path, data_dir,
-            has_freeflyer=True, use_theoretical_model=False,
-            config_path=config_path, debug=debug, **kwargs)
+            has_freeflyer=True, config_path=config_path, debug=debug, **kwargs)
 
         # Get the list of independent bodies (not connected via fixed joint)
         self.body_indices = [0]  # World is part of bodies list

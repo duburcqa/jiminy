@@ -17,7 +17,6 @@ from typing import Any, List, Dict, Optional, Union, Sequence, Callable
 import toml
 import numpy as np
 
-import pinocchio as pin
 from . import core as jiminy
 from .robot import (generate_default_hardware_description_file,
                     BaseJiminyRobot)
@@ -59,14 +58,10 @@ class Simulator:
     """
     def __init__(self,  # pylint: disable=unused-argument
                  robot: jiminy.Robot,
-                 use_theoretical_model: bool = False,
                  viewer_kwargs: Optional[Dict[str, Any]] = None,
                  **kwargs: Any) -> None:
         """
         :param robot: Jiminy robot already initialized.
-        :param use_theoretical_model: Whether the state corresponds to the
-                                      theoretical model when updating and
-                                      fetching the state of the robot.
         :param viewer_kwargs: Keyword arguments to override default arguments
                               whenever a viewer must be instantiated, eg when
                               `render` method is first called. Specifically,
@@ -76,7 +71,6 @@ class Simulator:
                        generation.
         """
         # Backup the user arguments
-        self.use_theoretical_model = use_theoretical_model
         self.viewer_kwargs = deepcopy(viewer_kwargs or {})
 
         # Handling of default argument(s)
@@ -258,26 +252,6 @@ class Simulator:
         """
         # property is used in place of attribute for extra safety
         return self.engine.robot_states[0]
-
-    @property
-    def pinocchio_model(self) -> pin.Model:
-        """Get the appropraite pinocchio model, depending on the value of
-           'self.use_theoretical_model'.
-        """
-        # property is used in place of attribute for extra safety
-        if self.use_theoretical_model and self.robot.is_flexibility_enabled:
-            return self.robot.pinocchio_model_th
-        return self.robot.pinocchio_model
-
-    @property
-    def pinocchio_data(self) -> pin.Data:
-        """Get the appropriate pinocchio data, depending on the value of
-           'self.use_theoretical_model'.
-        """
-        # property is used in place of attribute for extra safety
-        if self.use_theoretical_model and self.robot.is_flexibility_enabled:
-            return self.robot.pinocchio_data_th
-        return self.robot.pinocchio_data
 
     @property
     def is_viewer_available(self) -> bool:

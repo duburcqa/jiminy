@@ -544,12 +544,16 @@ class DeformationEstimator(
         # Backup some of the user-argument(s)
         self.ignore_twist = ignore_twist
 
+        # Define proxies for fast access
+        self.pinocchio_model_th = env.robot.pinocchio_model_th.copy()
+        self.pinocchio_data_th = env.robot.pinocchio_data_th.copy()
+
         # Create flexible dynamic model.
         # Dummy physical parameters are specified as they have no effect on
         # kinematic computations.
-        self.model = jiminy.Model()
-        self.model.initialize(env.robot.pinocchio_model_th)
-        options = self.model.get_options()
+        model = jiminy.Model()
+        model.initialize(env.robot.pinocchio_model_th)
+        options = model.get_options()
         for frame_name in flex_frame_names:
             options["dynamics"]["flexibilityConfig"].append(
                 {
@@ -559,19 +563,15 @@ class DeformationEstimator(
                     "inertia": np.ones(3),
                 }
             )
-        self.model.set_options(options)
-
-        # Define proxies for fast access
-        self.pinocchio_model_th = self.model.pinocchio_model_th
-        self.pinocchio_data_th = self.model.pinocchio_data_th
+        model.set_options(options)
 
         # Extract contiguous chains of flexibility and IMU frames for which
         # computations can be vectorized. It also stores the information of
         # whether or not the sign of the deformation must be reversed to be
         # consistent with standard convention.
-        flexibility_joint_names = self.model.flexibility_joint_names
+        flexibility_joint_names = model.flexibility_joint_names
         flex_imu_frame_names_chains = get_flexibility_imu_frame_chains(
-            self.model.pinocchio_model, flexibility_joint_names, imu_frame_names)
+            model.pinocchio_model, flexibility_joint_names, imu_frame_names)
 
         # Replace actual flex joint name by corresponding rigid frame
         self.flex_imu_frame_names_chains = []
@@ -584,7 +584,7 @@ class DeformationEstimator(
                 (flex_frame_names_, imu_frame_names_, is_flipped))
 
         # Check if a freeflyer estimator is required
-        if self.model.has_freeflyer:
+        if model.has_freeflyer:
             for _, imu_frame_names_, _ in self.flex_imu_frame_names_chains:
                 if None in imu_frame_names_:
                     raise NotImplementedError(
@@ -643,7 +643,7 @@ class DeformationEstimator(
 
         # Make sure that the robot has one encoder per mechanical joint
         encoder_sensor_names = env.robot.sensor_names[encoder.type]
-        if len(encoder_sensor_names) < len(self.model.mechanical_joint_indices):
+        if len(encoder_sensor_names) < len(model.mechanical_joint_indices):
             raise ValueError(
                 "The robot must have one encoder per mechanical joints.")
 
@@ -698,6 +698,12 @@ class DeformationEstimator(
     def _setup(self) -> None:
         # Call base implementation
         super()._setup()
+
+        # Refresh the theoretical model of the robot.
+        # Even if the robot may change, the theoretical model of the robot is
+        # not supposed to change in a way that would break this observer.
+        self.pinocchio_model_th = self.env.robot.pinocchio_model_th
+        self.pinocchio_data_th = self.env.robot.pinocchio_data_th
 
         # Fix initialization of the observation to be valid quaternions
         self.observation[-1] = 1.0

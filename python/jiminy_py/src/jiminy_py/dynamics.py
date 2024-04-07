@@ -722,7 +722,8 @@ def compute_inverse_dynamics(robot: jiminy.Model,
     if use_theoretical_model and robot.is_flexibility_enabled:
         position = robot.get_extended_position_from_theoretical(position)
         velocity = robot.get_extended_velocity_from_theoretical(velocity)
-        acceleration = robot.get_extended_velocity_from_theoretical(acceleration)
+        acceleration = (
+            robot.get_extended_velocity_from_theoretical(acceleration))
 
     # Define some proxies for convenience
     model = robot.pinocchio_model
@@ -730,8 +731,7 @@ def compute_inverse_dynamics(robot: jiminy.Model,
     motor_velocity_indices = robot.motor_velocity_indices
 
     # Updating kinematics quantities
-    pin.forwardKinematics(
-        model, data, position, velocity, acceleration)
+    pin.forwardKinematics(model, data, position, velocity, acceleration)
     pin.updateFramePlacements(model, data)
 
     # Compute constraint jacobian and drift

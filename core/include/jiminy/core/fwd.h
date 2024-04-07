@@ -234,20 +234,20 @@ namespace jiminy
     std::string toString(Args &&... args)
     {
         std::ostringstream sstr;
-        auto format = [](auto && var)
+        auto format = [&sstr](auto && var)
         {
             if constexpr (is_eigen_any_v<decltype(var)>)
             {
                 static const Eigen::IOFormat k_heavy_fmt(
                     Eigen::FullPrecision, 0, ", ", ";\n", "[", "]", "[", "]");
-                return var.format(k_heavy_fmt);
+                sstr << var.format(k_heavy_fmt);
             }
             else
             {
-                return var;
+                sstr << var;
             }
         };
-        ((sstr << format(std::forward<Args>(args))), ...);
+        (format(std::forward<Args>(args)), ...);
         return sstr.str();
     }
 }

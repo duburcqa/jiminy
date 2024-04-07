@@ -130,8 +130,10 @@ class SimulateDensePole(unittest.TestCase):
         assert np.allclose(*twist_flex_all, atol=1e-7)
 
         # Extract parameters of rigid-body dynamics equation
+        q_flex_init = self.robot.get_extended_position_from_theoretical(q_init)
+        v_flex_init = self.robot.get_extended_velocity_from_theoretical(v_init)
         update_quantities(
-            self.robot, q_init, v_init, use_theoretical_model=True)
+            self.robot, q_flex_init, v_flex_init, use_theoretical_model=False)
         inertia = self.robot.pinocchio_data.Ycrb[2]
         m = inertia.mass
         g = - self.robot.pinocchio_model.gravity.linear[2]

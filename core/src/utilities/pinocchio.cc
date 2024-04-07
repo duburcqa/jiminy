@@ -457,9 +457,9 @@ namespace jiminy
         }
     }
 
-    void insertFlexibilityBeforeJointInModel(pinocchio::Model & model,
-                                             const std::string & childJointName,
-                                             const std::string & newJointName)
+    void addFlexibilityJointBeforeMechanicalJoint(pinocchio::Model & model,
+                                                  const std::string & childJointName,
+                                                  const std::string & newJointName)
     {
         using namespace pinocchio;
 
@@ -503,8 +503,7 @@ namespace jiminy
         }
     }
 
-    void insertFlexibilityAtFixedFrameInModel(pinocchio::Model & model,
-                                              const std::string & frameName)
+    void addFlexibilityJointAtFixedFrame(pinocchio::Model & model, const std::string & frameName)
     {
         using namespace pinocchio;
 

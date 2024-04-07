@@ -313,26 +313,14 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
                           shape=(),
                           dtype=np.float64)
 
-    def _get_agent_state_space(self,
-                               use_theoretical_model: Optional[bool] = None
-                               ) -> spaces.Dict:
+    def _get_agent_state_space(self) -> spaces.Dict:
         """Get state space.
 
         This method is not meant to be overloaded in general since the
         definition of the state space is mostly consensual. One must rather
         overload `_initialize_observation_space` to customize the observation
         space as a whole.
-
-        :param use_theoretical_model: Whether to compute the state space
-                                      corresponding to the theoretical or the
-                                      extended one. `None` to use internal
-                                      value 'simulator.use_theoretical_model'.
-                                      Optional: `None` by default.
         """
-        # Handling of default argument
-        if use_theoretical_model is None:
-            use_theoretical_model = self.simulator.use_theoretical_model
-
         # Define some proxies for convenience
         model_options = self.robot.get_model_options()
         joint_position_indices = self.robot.mechanical_joint_position_indices
@@ -362,12 +350,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
             if not model_options['joints']['enableVelocityLimit']:
                 velocity_limit[joint_velocity_indices] = JOINT_VEL_MAX
 
-        # Define bounds of the state space
-        if use_theoretical_model:
-            position_limit_lower = position_limit_lower[joint_position_indices]
-            position_limit_upper = position_limit_upper[joint_position_indices]
-            velocity_limit = velocity_limit[joint_velocity_indices]
-
+        # Aggregate position and velocity bounds to define state space
         return spaces.Dict(OrderedDict(
             q=spaces.Box(low=position_limit_lower,
                          high=position_limit_upper,
@@ -408,8 +391,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         # Define some proxies for convenience
         sensor_measurements = self.robot.sensor_measurements
         command_limit = self.robot.command_limit
-        position_space, velocity_space = self._get_agent_state_space(
-            use_theoretical_model=False).values()
+        position_space, velocity_space = self._get_agent_state_space().values()
         assert isinstance(position_space, spaces.Box)
         assert isinstance(velocity_space, spaces.Box)
 
@@ -744,8 +726,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
 
         # Sample the initial state and reset the low-level engine
         q_init, v_init = self._sample_state()
-        if not jiminy.is_position_valid(
-                self.simulator.pinocchio_model, q_init):
+        if not jiminy.is_position_valid(self.robot.pinocchio_model, q_init):
             raise RuntimeError(
                 "The initial state provided by `_sample_state` is "
                 "inconsistent with the dimension or types of joints of the "
@@ -792,8 +773,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
             register_variables(self.robot.controller, header, value)
 
         # Start the engine
-        self.simulator.start(
-            q_init, v_init, None, self.simulator.use_theoretical_model)
+        self.simulator.start(q_init, v_init)
 
         # Refresh robot_state proxies. It must be done here because memory is
         # only allocated by the engine when starting a simulation.
@@ -1374,17 +1354,13 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         # Get the neutral configuration of the actual model
         q = pin.neutral(self.robot.pinocchio_model)
 
-        # Make sure it is not out-of-bounds
+        # Make sure it is not out-of-bounds before returning
         position_limit_lower = self.robot.position_limit_lower
         position_limit_upper = self.robot.position_limit_upper
         for idx, val in enumerate(q):
             lo, hi = position_limit_lower[idx], position_limit_upper[idx]
             if hi < val or val < lo:
                 q[idx] = 0.5 * (lo + hi)
-
-        # Return theoretical or extended configuration
-        if self.simulator.use_theoretical_model:
-            return q[self.robot.mechanical_joint_position_indices]
         return q
 
     def _sample_state(self) -> Tuple[np.ndarray, np.ndarray]:

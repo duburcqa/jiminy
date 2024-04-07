@@ -191,6 +191,19 @@ namespace jiminy
         setOptions(getDefaultModelOptions());
     }
 
+    void initializePinocchioData(const pinocchio::Model & model, pinocchio::Data & data)
+    {
+        // Re-allocate Pinocchio Data from scratch
+        data = pinocchio::Data(model);
+
+        /* Initialize Pinocchio data internal state.
+           This includes "basic" attributes such as the mass of each body. */
+        const Eigen::VectorXd qNeutral = pinocchio::neutral(model);
+        pinocchio::forwardKinematics(model, data, qNeutral, Eigen::VectorXd::Zero(model.nv));
+        pinocchio::updateFramePlacements(model, data);
+        pinocchio::centerOfMass(model, data, qNeutral);
+    }
+
     void Model::initialize(const pinocchio::Model & pinocchioModel,
                            const std::optional<pinocchio::GeometryModel> & collisionModel,
                            const std::optional<pinocchio::GeometryModel> & visualModel)
@@ -241,34 +254,24 @@ namespace jiminy
            Note that the theoretical model is not used anywhere for simulation but is exposed
            nonetheless to make life easier for end-users willing to perform computations on it
            rather than the actual simulation model, which is supposed to be unknown. */
-        pinocchioDataTh_ = pinocchio::Data(pinocchioModelTh_);
+        initializePinocchioData(pinocchioModelTh_, pinocchioDataTh_);
 
-        /* Initialize Pinocchio data internal state.
-           This includes "basic" attributes such as the mass of each body. */
-        const Eigen::VectorXd qNeutralOrig = pinocchio::neutral(pinocchioModelTh_);
-        pinocchio::forwardKinematics(pinocchioModelTh_,
-                                     pinocchioDataTh_,
-                                     qNeutralOrig,
-                                     Eigen::VectorXd::Zero(pinocchioModelTh_.nv));
-        pinocchio::updateFramePlacements(pinocchioModelTh_, pinocchioDataTh_);
-        pinocchio::centerOfMass(pinocchioModelTh_, pinocchioDataTh_, qNeutralOrig);
-
-        /* Get the list of joint names of the rigid model and remove the 'universe' and
-           'root_joint' if any, since they are not actual joints. */
-        rigidJointNames_ = pinocchioModelTh_.names;
-        rigidJointNames_.erase(rigidJointNames_.begin());  // remove 'universe'
+        /* Get the list of joint names of the theoretical model, the 'universe' and
+           'root_joint' excluded if any, since they are not mechanical joints. */
+        mechanicalJointNames_ = pinocchioModelTh_.names;
+        mechanicalJointNames_.erase(mechanicalJointNames_.begin());  // remove 'universe'
         if (hasFreeflyer_)
         {
-            rigidJointNames_.erase(rigidJointNames_.begin());  // remove 'root_joint'
+            mechanicalJointNames_.erase(mechanicalJointNames_.begin());  // remove 'root_joint'
         }
-
-        // Create the "extended" model
-        generateModelExtended();
 
         // Assuming the model is fully initialized at this point
         isInitialized_ = true;
         try
         {
+            // Create the "extended" model
+            generateModelExtended(std::random_device{});
+
             /* Add joint constraints.
                It will be used later to enforce bounds limits if requested. */
             ConstraintMap jointConstraintsMap;
@@ -329,7 +332,7 @@ namespace jiminy
                properties of the model.
                Note that re-generating the unbiased extended model is necessary since the
                theoretical model may have been manually modified by the user. */
-            generateModelExtended();
+            generateModelExtended(g);
         }
     }
 
@@ -360,8 +363,9 @@ namespace jiminy
             const pinocchio::Frame frame(
                 frameName, parentJointIndex, parentFrameIndex, jointFramePlacement, frameType);
             pinocchioModelTh_.addFrame(frame);
+
             // TODO: Do NOT re-allocate from scratch but update existing data for efficiency
-            pinocchioDataTh_ = pinocchio::Data(pinocchioModelTh_);
+            initializePinocchioData(pinocchioModelTh_, pinocchioDataTh_);
         }
 
         /* Add frame to extended model.
@@ -375,42 +379,39 @@ namespace jiminy
             const pinocchio::SE3 & parentFramePlacement =
                 pinocchioModel_.frames[parentFrameIndex].placement;
             const pinocchio::SE3 jointFramePlacement = parentFramePlacement.act(framePlacement);
-            const pinocchio::Frame frame(
-                frameName, parentJointIndex, parentFrameIndex, jointFramePlacement, frameType);
-            pncModelExtended_.addFrame(frame);
+            const pinocchio::Frame frame(frameName,
+                                         parentJointIndex,
+                                         parentFrameIndex,
+                                         jointFramePlacement,
+                                         pinocchio::FrameType::OP_FRAME);
+            pinocchioModel_.addFrame(frame);
+
+            // TODO: Do NOT re-allocate from scratch but update existing data for efficiency
+            initializePinocchioData(pinocchioModel_, pinocchioData_);
         }
-
-        /* Backup the current rotor inertias and effort limits to restore them.
-           Note that it is only necessary because 'reset' is not called for efficiency. It is
-           reasonable to assume that no other fields have been overriden by derived classes
-           such as Robot. */
-        Eigen::VectorXd rotorInertia = pinocchioModel_.rotorInertia;
-        Eigen::VectorXd effortLimit = pinocchioModel_.effortLimit;
-
-        // Restore the current rotor inertias and effort limits
-        pinocchioModel_.rotorInertia.swap(rotorInertia);
-        pinocchioModel_.effortLimit.swap(effortLimit);
     }
 
-    void Model::addFrame(const std::string & frameName,
-                         const std::string & parentBodyName,
-                         const pinocchio::SE3 & framePlacement)
-    {
-        const pinocchio::FrameType frameType = pinocchio::FrameType::OP_FRAME;
-        return addFrame(frameName, parentBodyName, framePlacement, frameType);
-    }
-
-    void Model::removeFrames(const std::vector<std::string> & frameNames)
+    void Model::removeFrames(const std::vector<std::string> & frameNames,
+                             const std::vector<pinocchio::FrameType> & filter)
     {
         /* Check that the frame can be safely removed from the theoretical model.
            If so, then it holds true for the extended model. */
-        for (const std::string & frameName : frameNames)
+        if (!filter.empty())
         {
-            const pinocchio::FrameType frameType = pinocchio::FrameType::OP_FRAME;
-            pinocchio::FrameIndex frameIndex = getFrameIndex(pinocchioModelTh_, frameName);
-            if (pinocchioModelTh_.frames[frameIndex].type != frameType)
+            for (const std::string & frameName : frameNames)
             {
-                THROW_ERROR(std::logic_error, "Only frames manually added can be removed.");
+                const pinocchio::FrameIndex frameIndex =
+                    getFrameIndex(pinocchioModelTh_, frameName);
+                const pinocchio::FrameType frameType = pinocchioModelTh_.frames[frameIndex].type;
+                if (std::find(filter.begin(), filter.end(), frameType) != filter.end())
+                {
+                    THROW_ERROR(std::logic_error,
+                                "Not allowed to remove frame '",
+                                frameName,
+                                "' of type '",
+                                frameType,
+                                "'.");
+                }
             }
         }
 
@@ -420,8 +421,8 @@ namespace jiminy
             {
                 const pinocchio::FrameIndex frameIndex =
                     getFrameIndex(pinocchioModelTh_, frameName);
-                pinocchioModelTh_.frames.erase(std::next(pinocchioModelTh_.frames.begin(),
-                                                         static_cast<uint32_t>(frameIndex)));
+                pinocchioModelTh_.frames.erase(
+                    std::next(pinocchioModelTh_.frames.begin(), frameIndex));
                 pinocchioModelTh_.nframes--;
             }
 
@@ -435,15 +436,20 @@ namespace jiminy
         }
 
         // TODO: Do NOT re-allocate from scratch but update existing data for efficiency
-        pinocchioDataOrig_ = pinocchio::Data(pinocchioModelOrig_);
-
-        // One must reset the model after removing a frame
-        reset(std::random_device{});
+        initializePinocchioData(pinocchioModel_, pinocchioData_);
+        initializePinocchioData(pinocchioModelTh_, pinocchioDataTh_);
     }
 
-    void Model::removeFrame(const std::string & frameName)
+    void Model::addFrame(const std::string & frameName,
+                         const std::string & parentBodyName,
+                         const pinocchio::SE3 & framePlacement)
     {
-        return removeFrames({frameName});
+        return addFrame(frameName, parentBodyName, framePlacement, pinocchio::FrameType::OP_FRAME);
+    }
+
+    void Model::removeFrames(const std::vector<std::string> & frameNames)
+    {
+        removeFrames(frameNames, {pinocchio::FrameType::OP_FRAME});
     }
 
     void Model::addCollisionBodies(const std::vector<std::string> & bodyNames, bool ignoreMeshes)
@@ -541,9 +547,9 @@ namespace jiminy
                         collisionModelTh_.addCollisionPair(collisionPair);
 
                         /* Add dedicated frame.
-                           Note that 'BODY' type is used instead of default 'OP_FRAME' to it
-                           clear it is not consider as manually added to the model, and
-                           therefore cannot be deleted by the user. */
+                           Note that 'FIXED_JOINT' type is used instead of default 'OP_FRAME' to
+                           avoid considering it as manually added to the model, and therefore
+                           prevent its deletion by the user. */
                         const pinocchio::FrameType frameType = pinocchio::FrameType::FIXED_JOINT;
                         addFrame(geom.name, frameName, geom.placement, frameType);
 
@@ -634,7 +640,7 @@ namespace jiminy
 
         // Remove the constraints and associated frames
         removeConstraints(collisionConstraintNames, ConstraintNodeType::COLLISION_BODIES);
-        removeFrames(collisionConstraintNames);
+        removeFrames(collisionConstraintNames, {pinocchio::FrameType::FIXED_JOINT});
 
         // Refresh proxies associated with the collisions only
         refreshGeometryProxies();
@@ -874,6 +880,12 @@ namespace jiminy
 
     void Model::generateModelExtended(const uniform_random_bit_generator_ref<uint32_t> & g)
     {
+        // Make sure the model is initialized
+        if (!isInitialized_)
+        {
+            THROW_ERROR(bad_control_flow, "Model not initialized.");
+        }
+
         // Initialize the extended model from the theoretical one
         pinocchioModel_ = pinocchioModelTh_;
 
@@ -885,7 +897,7 @@ namespace jiminy
 
         /* Add biases to the dynamics properties of the model.
            Note that is also refresh all proxies automatically. */
-        generateModelBiased(g);
+        addBiasedToExtendedModel(g);
     }
 
     void Model::addFlexibilityJointsToExtendedModel()
@@ -967,14 +979,8 @@ namespace jiminy
         }
     }
 
-    void Model::generateModelBiased(const uniform_random_bit_generator_ref<uint32_t> & g)
+    void Model::addBiasedToExtendedModel(const uniform_random_bit_generator_ref<uint32_t> & g)
     {
-        // Make sure the model is initialized
-        if (!isInitialized_)
-        {
-            THROW_ERROR(bad_control_flow, "Model not initialized.");
-        }
-
         // Initially set effortLimit to zero systematically
         pinocchioModel_.effortLimit.setZero();
 
@@ -1044,15 +1050,8 @@ namespace jiminy
             }
         }
 
-        // Re-allocate rigid data from scratch
-        pinocchioData_ = pinocchio::Data(pinocchioModel_);
-
-        // Initialize Pinocchio Data internal state
-        const Eigen::VectorXd qNeutral = pinocchio::neutral(pinocchioModel_);
-        pinocchio::forwardKinematics(
-            pinocchioModel_, pinocchioData_, qNeutral, Eigen::VectorXd::Zero(pinocchioModel_.nv));
-        pinocchio::updateFramePlacements(pinocchioModel_, pinocchioData_);
-        pinocchio::centerOfMass(pinocchioModel_, pinocchioData_, qNeutral);
+        // Re-allocate data to be consistent with new extended model
+        initializePinocchioData(pinocchioModel_, pinocchioData_);
 
         // Refresh internal proxies
         refreshProxies();
@@ -1273,48 +1272,42 @@ namespace jiminy
         }
 
         // Restore collision and visual models
-        collisionModel_ = collisionModelOrig_;
-        visualModel_ = visualModelOrig_;
+        collisionModel_ = collisionModelTh_;
+        visualModel_ = visualModelTh_;
 
-        // Update joint/frame fix for every geometry objects
-        if (modelOptions_->dynamics.enableFlexibleModel &&
-            !modelOptions_->dynamics.flexibilityConfig.empty())
+        // Update joint/frame for every geometry objects
+        for (pinocchio::GeometryModel * model : std::array{&collisionModel_, &visualModel_})
         {
-            for (pinocchio::GeometryModel * model : std::array{&collisionModel_, &visualModel_})
+            for (pinocchio::GeometryObject & geom : model->geometryObjects)
             {
-                for (pinocchio::GeometryObject & geom : model->geometryObjects)
+                // Only the frame name remains unchanged no matter what
+                const pinocchio::Frame & frameOrig = pinocchioModelTh_.frames[geom.parentFrame];
+                const std::string parentJointName = pinocchioModelTh_.names[frameOrig.parent];
+                pinocchio::FrameType frameType =
+                    static_cast<pinocchio::FrameType>(pinocchio::FIXED_JOINT | pinocchio::BODY);
+                const pinocchio::FrameIndex frameIndex =
+                    getFrameIndex(pinocchioModel_, frameOrig.name, frameType);
+                const pinocchio::Frame & frame = pinocchioModel_.frames[frameIndex];
+                const pinocchio::JointIndex newParentModelIndex = frame.parent;
+                const pinocchio::JointIndex oldParentModelIndex =
+                    pinocchioModel_.getJointId(parentJointName);
+
+                geom.parentFrame = frameIndex;
+                geom.parentJoint = newParentModelIndex;
+
+                /* Compute the relative displacement between the new and old joint
+                   placement wrt their common parent joint. */
+                pinocchio::SE3 geomPlacementRef = pinocchio::SE3::Identity();
+                for (pinocchio::JointIndex i = newParentModelIndex; i > oldParentModelIndex;
+                     i = pinocchioModel_.parents[i])
                 {
-                    // Only the frame name remains unchanged no matter what
-                    const pinocchio::Frame & frameOrig =
-                        pinocchioModelOrig_.frames[geom.parentFrame];
-                    const std::string parentJointName =
-                        pinocchioModelOrig_.names[frameOrig.parent];
-                    pinocchio::FrameType frameType = static_cast<pinocchio::FrameType>(
-                        pinocchio::FIXED_JOINT | pinocchio::BODY);
-                    const pinocchio::FrameIndex frameIndex =
-                        getFrameIndex(pinocchioModel_, frameOrig.name, frameType);
-                    const pinocchio::Frame & frame = pinocchioModel_.frames[frameIndex];
-                    const pinocchio::JointIndex newParentModelIndex = frame.parent;
-                    const pinocchio::JointIndex oldParentModelIndex =
-                        pinocchioModel_.getJointId(parentJointName);
-
-                    geom.parentFrame = frameIndex;
-                    geom.parentJoint = newParentModelIndex;
-
-                    /* Compute the relative displacement between the new and old joint
-                       placement wrt their common parent joint. */
-                    pinocchio::SE3 geomPlacementRef = pinocchio::SE3::Identity();
-                    for (pinocchio::JointIndex i = newParentModelIndex; i > oldParentModelIndex;
-                         i = pinocchioModel_.parents[i])
-                    {
-                        geomPlacementRef = pinocchioModel_.jointPlacements[i] * geomPlacementRef;
-                    }
-                    geom.placement = geomPlacementRef.actInv(geom.placement);
+                    geomPlacementRef = pinocchioModel_.jointPlacements[i] * geomPlacementRef;
                 }
+                geom.placement = geomPlacementRef.actInv(geom.placement);
             }
         }
 
-        /* Update geometry data object after changing the collision pairs
+        /* Update geometry data object after changing the collision pairs.
            Note that copy assignment is used to avoid changing memory pointers, which would
            result in dangling reference at Python-side. */
         collisionData_ = pinocchio::GeometryData(collisionModel_);
