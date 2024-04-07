@@ -22,12 +22,12 @@ env.reset()
 env.step(env.action)
 
 # Define quantity manager and add quantities to benchmark
-nframes = len(env.pinocchio_model.frames)
+nframes = len(env.robot.pinocchio_model.frames)
 quantity_manager = QuantityManager(
     env.simulator,
     {
         f"rpy_{i}": (EulerAnglesFrame, dict(frame_name=frame.name))
-        for i, frame in enumerate(env.pinocchio_model.frames)
+        for i, frame in enumerate(env.robot.pinocchio_model.frames)
     })
 
 # Run the benchmark for all batch size

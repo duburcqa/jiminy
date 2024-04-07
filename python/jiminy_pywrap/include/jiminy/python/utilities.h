@@ -638,7 +638,7 @@ namespace jiminy::python
                          !std::is_same_v<std::decay_t<T>, GenericConfig> &&
                          !std::is_same_v<std::decay_t<T>, SensorMeasurementTree::value_type> &&
                          !std::is_same_v<std::decay_t<T>, std::string_view> &&
-                         !std::is_same_v<std::decay_t<T>, FlexibleJointData>,
+                         !std::is_same_v<std::decay_t<T>, FlexibilityJointConfig>,
                      bp::object>
     convertToPython(T && data, const bool & copy = true)
     {
@@ -695,22 +695,22 @@ namespace jiminy::python
     }
 
     template<typename T>
-    std::enable_if_t<std::is_same_v<std::decay_t<T>, FlexibleJointData>, bp::object>
-    convertToPython(T && flexibleJointData, const bool & copy)
+    std::enable_if_t<std::is_same_v<std::decay_t<T>, FlexibilityJointConfig>, bp::object>
+    convertToPython(T && flexibilityJointConfig, const bool & copy)
     {
         if (!copy)
         {
-            THROW_ERROR(
-                not_implemented_error,
-                "Passing 'FlexibleJointData' object to python by reference is not supported.");
+            THROW_ERROR(not_implemented_error,
+                        "Passing 'FlexibilityJointConfig' object to python by reference is not "
+                        "supported.");
         }
-        bp::dict flexibilityJointDataPy;
-        flexibilityJointDataPy["frameName"] = flexibleJointData.frameName;
-        flexibilityJointDataPy["stiffness"] = flexibleJointData.stiffness;
-        flexibilityJointDataPy["damping"] = flexibleJointData.damping;
-        flexibilityJointDataPy["inertia"] = flexibleJointData.inertia;
+        bp::dict flexibilityJointConfigPy;
+        flexibilityJointConfigPy["frameName"] = flexibilityJointConfig.frameName;
+        flexibilityJointConfigPy["stiffness"] = flexibilityJointConfig.stiffness;
+        flexibilityJointConfigPy["damping"] = flexibilityJointConfig.damping;
+        flexibilityJointConfigPy["inertia"] = flexibilityJointConfig.inertia;
         // FIXME: Remove explicit and redundant move when moving to C++20
-        return std::move(flexibilityJointDataPy);
+        return std::move(flexibilityJointConfigPy);
     }
 
     template<typename T>
@@ -782,7 +782,7 @@ namespace jiminy::python
                 return &PyList_Type;
             }
             else if constexpr (std::is_same_v<std::decay_t<T>, GenericConfig> ||
-                               std::is_same_v<std::decay_t<T>, FlexibleJointData>)
+                               std::is_same_v<std::decay_t<T>, FlexibilityJointConfig>)
             {
                 return &PyDict_Type;
             }
@@ -961,9 +961,10 @@ namespace jiminy::python
     }
 
     template<>
-    inline FlexibleJointData convertFromPython<FlexibleJointData>(const bp::object & dataPy)
+    inline FlexibilityJointConfig
+    convertFromPython<FlexibilityJointConfig>(const bp::object & dataPy)
     {
-        FlexibleJointData flexData;
+        FlexibilityJointConfig flexData;
         const bp::dict flexDataPy = bp::extract<bp::dict>(dataPy);
         flexData.frameName = convertFromPython<std::string>(flexDataPy["frameName"]);
         flexData.stiffness = convertFromPython<Eigen::VectorXd>(flexDataPy["stiffness"]);

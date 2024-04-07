@@ -109,11 +109,8 @@ namespace jiminy
         bool isIncluded = (
             [&valueMin](double value)
             {
-                if (value < EPS)
-                {
-                    return true;
-                }
-                return std::fmod(value, valueMin) < EPS;
+                // No need to be more accurate than the minimum stepper update period
+                return std::fmod(value, valueMin) < STEPPER_MIN_TIMESTEP;
             }(values) && ...);
         return {isIncluded, valueMin};
     }

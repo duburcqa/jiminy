@@ -179,8 +179,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                 debug=debug,
                 viewer_kwargs=viewer_kwargs,
                 **{**dict(
-                    has_freeflyer=True,
-                    use_theoretical_model=False),
+                    has_freeflyer=True),
                     **kwargs})
         else:
             # Instantiate a simulator and load the options
@@ -272,7 +271,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
 
         # Randomize the flexibility parameters
         if 'model' in self.std_ratio.keys():
-            if self.robot.is_flexible:
+            if self.robot.is_flexibility_enabled:
                 dynamics_options = robot_options["model"]["dynamics"]
                 for flexibility in dynamics_options["flexibilityConfig"]:
                     flexibility['stiffness'] += FLEX_STIFFNESS_SCALE * sample(

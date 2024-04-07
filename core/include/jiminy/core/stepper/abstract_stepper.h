@@ -33,7 +33,7 @@ namespace jiminy
 
     /// \brief Generic interface for steppers used to integrate the dynamic equations of motion.
     ///
-    /// \details The generalized position of a mechanical system evolves not in a vector space, but
+    /// \details The generalized position of a dynamical system evolves not in a vector space, but
     ///          in a Lie group: this is visible for instance in the fact that quaternions have 4
     ///          components, but only 3 are degrees of freedom, as quaternion must remain unitary
     ///          to represent a rotation. As such, the velocity vector v is not the term-by-term

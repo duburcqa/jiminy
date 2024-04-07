@@ -145,11 +145,11 @@ class TrajectoryDataType(TypedDict, total=False):
     """Basic data structure storing the required information about a trajectory
     to later replay it using `jiminy_py.viewer.play_trajectories`.
     """
-    # List of State objects of increasing time.
+    # List of State objects of increasing time
     evolution_robot: Sequence[State]
-    # Jiminy robot. None if omitted.
+    # Optional Jiminy robot
     robot: Optional[jiminy.Robot]
-    # Whether to use theoretical or actual model
+    # Whether to use the theoretical model or the extended simulation model
     use_theoretical_model: bool
 
 
@@ -219,7 +219,7 @@ def update_quantities(robot: jiminy.Model,
                             Optional: False by default.
     :param use_theoretical_model: Whether the state corresponds to the
                                   theoretical model when updating and fetching
-                                  the robot's state.
+                                  the state of the robot.
                                   Optional: True by default.
     """
     if use_theoretical_model:
@@ -295,8 +295,7 @@ def get_body_world_transform(robot: jiminy.Model,
     :param body_name: Name of the body.
     :param use_theoretical_model: Whether the state corresponds to the
                                   theoretical model when updating and fetching
-                                  the robot's state.
-                                  Optional: True by default.
+                                  the state of the robot.
     :param copy: Whether to return the internal buffers (which could be
                  altered) or copy them.
                  Optional: True by default. It is less efficient but safer.
@@ -335,7 +334,7 @@ def get_body_world_velocity(robot: jiminy.Model,
     :param body_name: Name of the body.
     :param use_theoretical_model: Whether the state corresponds to the
                                   theoretical model when updating and fetching
-                                  the robot's state.
+                                  the state of the robot.
                                   Optional: True by default.
 
     :returns: Spatial velocity.
@@ -370,7 +369,7 @@ def get_body_world_acceleration(robot: jiminy.Model,
     :param body_name: Name of the body.
     :param use_theoretical_model: Whether the state corresponds to the
                                   theoretical model when updating and fetching
-                                  the robot's state.
+                                  the state of the robot.
                                   Optional: True by default.
 
     :returns: Spatial acceleration.
@@ -571,8 +570,8 @@ def compute_freeflyer_state_from_fixed_body(
     :param ground_profile: Ground profile callback.
     :param use_theoretical_model:
         Whether the state corresponds to the theoretical model when updating
-        and fetching the robot's state. Must be False if `fixed_body_name` is
-        not speficied.
+        and fetching the state of the robot. Must be False if `fixed_body_name`
+        is not specified.
         Optional: True by default if `fixed_body_name` is specified, False
         otherwise.
 
@@ -607,7 +606,7 @@ def compute_freeflyer_state_from_fixed_body(
     if fixed_body_name is None:
         if use_theoretical_model:
             raise RuntimeError(
-                "Cannot infer contact transform for theoretical model.")
+                "Cannot infer contact transform for the theoretical model.")
         w_M_ff = compute_transform_contact(robot, ground_profile)
     else:
         ff_M_fixed_body = get_body_world_transform(
@@ -657,7 +656,7 @@ def compute_efforts_from_fixed_body(
     :param fixed_body_name: Name of the body frame.
     :param use_theoretical_model: Whether the state corresponds to the
                                   theoretical model when updating and fetching
-                                  the robot's state.
+                                  the state of the robot.
                                   Optional: True by default.
 
     :returns: articular efforts and external forces.
@@ -708,10 +707,10 @@ def compute_inverse_dynamics(robot: jiminy.Model,
     :param position: Robot configuration vector.
     :param velocity: Robot velocity vector.
     :param acceleration: Robot acceleration vector.
-    :param use_theoretical_model: Whether the position, velocity and
-                                  acceleration are associated with the
-                                  theoretical model instead of the actual one.
-                                  Optional: False by default.
+    :param use_theoretical_model:
+        Whether the position, velocity and acceleration are associated with the
+        theoretical model instead of the extended one.
+        Optional: False by default.
 
     :returns: motor torques.
     """
@@ -720,10 +719,11 @@ def compute_inverse_dynamics(robot: jiminy.Model,
             "Robot without active constraints is not supported for now.")
 
     # Convert theoretical position, velocity and acceleration if necessary
-    if use_theoretical_model and robot.is_flexible:
-        position = robot.get_flexible_position_from_rigid(position)
-        velocity = robot.get_flexible_velocity_from_rigid(velocity)
-        acceleration = robot.get_flexible_velocity_from_rigid(acceleration)
+    if use_theoretical_model and robot.is_flexibility_enabled:
+        position = robot.get_extended_position_from_theoretical(position)
+        velocity = robot.get_extended_velocity_from_theoretical(velocity)
+        acceleration = (
+            robot.get_extended_velocity_from_theoretical(acceleration))
 
     # Define some proxies for convenience
     model = robot.pinocchio_model
@@ -731,8 +731,7 @@ def compute_inverse_dynamics(robot: jiminy.Model,
     motor_velocity_indices = robot.motor_velocity_indices
 
     # Updating kinematics quantities
-    pin.forwardKinematics(
-        model, data, position, velocity, acceleration)
+    pin.forwardKinematics(model, data, position, velocity, acceleration)
     pin.updateFramePlacements(model, data)
 
     # Compute constraint jacobian and drift

@@ -191,6 +191,19 @@ namespace jiminy
         setOptions(getDefaultModelOptions());
     }
 
+    void initializePinocchioData(const pinocchio::Model & model, pinocchio::Data & data)
+    {
+        // Re-allocate Pinocchio Data from scratch
+        data = pinocchio::Data(model);
+
+        /* Initialize Pinocchio data internal state.
+           This includes "basic" attributes such as the mass of each body. */
+        const Eigen::VectorXd qNeutral = pinocchio::neutral(model);
+        pinocchio::forwardKinematics(model, data, qNeutral, Eigen::VectorXd::Zero(model.nv));
+        pinocchio::updateFramePlacements(model, data);
+        pinocchio::centerOfMass(model, data, qNeutral);
+    }
+
     void Model::initialize(const pinocchio::Model & pinocchioModel,
                            const std::optional<pinocchio::GeometryModel> & collisionModel,
                            const std::optional<pinocchio::GeometryModel> & visualModel)
@@ -212,12 +225,12 @@ namespace jiminy
         meshPackageDirs_.clear();
 
         // Set the models
-        pinocchioModelOrig_ = pinocchioModel;
-        collisionModelOrig_ = collisionModel.value_or(pinocchio::GeometryModel());
-        visualModelOrig_ = visualModel.value_or(pinocchio::GeometryModel());
+        pinocchioModelTh_ = pinocchioModel;
+        collisionModelTh_ = collisionModel.value_or(pinocchio::GeometryModel());
+        visualModelTh_ = visualModel.value_or(pinocchio::GeometryModel());
 
         // Add ground geometry object to collision model is not already available
-        if (!collisionModelOrig_.existGeometryName("ground"))
+        if (!collisionModelTh_.existGeometryName("ground"))
         {
             // Instantiate ground FCL box geometry, wrapped as a pinocchio collision geometry.
             // Note that half-space cannot be used for Shape-Shape collision because it has no
@@ -234,50 +247,36 @@ namespace jiminy
             pinocchio::GeometryObject groundPlane("ground", 0, 0, groudBox, groundPose);
 
             // Add the ground plane pinocchio to the robot model
-            collisionModelOrig_.addGeometryObject(groundPlane, pinocchioModelOrig_);
+            collisionModelTh_.addGeometryObject(groundPlane, pinocchioModelTh_);
         }
 
-        /* Re-allocate rigid data from scratch for the original rigid model.
-           Note that the original rigid model is not used anywhere for simulation but is
-           provided nonetheless to make life easier for end-users willing to perform
-           computations on it rather than the actual simulation model. */
-        pinocchioDataOrig_ = pinocchio::Data(pinocchioModelOrig_);
+        /* Re-allocate data from scratch for the theoretical model.
+           Note that the theoretical model is not used anywhere for simulation but is exposed
+           nonetheless to make life easier for end-users willing to perform computations on it
+           rather than the actual simulation model, which is supposed to be unknown. */
+        initializePinocchioData(pinocchioModelTh_, pinocchioDataTh_);
 
-        /* Initialize Pinocchio data internal state.
-           This includes "basic" attributes such as the mass of each body. */
-        const Eigen::VectorXd qNeutralOrig = pinocchio::neutral(pinocchioModelOrig_);
-        pinocchio::forwardKinematics(pinocchioModelOrig_,
-                                     pinocchioDataOrig_,
-                                     qNeutralOrig,
-                                     Eigen::VectorXd::Zero(pinocchioModelOrig_.nv));
-        pinocchio::updateFramePlacements(pinocchioModelOrig_, pinocchioDataOrig_);
-        pinocchio::centerOfMass(pinocchioModelOrig_, pinocchioDataOrig_, qNeutralOrig);
-
-        /* Get the list of joint names of the rigid model and remove the 'universe' and
-           'root_joint' if any, since they are not actual joints. */
-        rigidJointNames_ = pinocchioModelOrig_.names;
-        rigidJointNames_.erase(rigidJointNames_.begin());  // remove 'universe'
+        /* Get the list of joint names of the theoretical model, the 'universe' and
+           'root_joint' excluded if any, since they are not mechanical joints. */
+        mechanicalJointNames_ = pinocchioModelTh_.names;
+        mechanicalJointNames_.erase(mechanicalJointNames_.begin());  // remove 'universe'
         if (hasFreeflyer_)
         {
-            rigidJointNames_.erase(rigidJointNames_.begin());  // remove 'root_joint'
+            mechanicalJointNames_.erase(mechanicalJointNames_.begin());  // remove 'root_joint'
         }
-
-        // Create the flexible model
-        generateModelFlexible();
 
         // Assuming the model is fully initialized at this point
         isInitialized_ = true;
         try
         {
-            /* Add biases to the dynamics properties of the model.
-            Note that is also refresh all proxies automatically. */
-            generateModelBiased(std::random_device{});
+            // Create the "extended" model
+            generateModelExtended(std::random_device{});
 
             /* Add joint constraints.
-            It will be used later to enforce bounds limits eventually. */
+               It will be used later to enforce bounds limits if requested. */
             ConstraintMap jointConstraintsMap;
-            jointConstraintsMap.reserve(rigidJointNames_.size());
-            for (const std::string & jointName : rigidJointNames_)
+            jointConstraintsMap.reserve(mechanicalJointNames_.size());
+            for (const std::string & jointName : mechanicalJointNames_)
             {
                 jointConstraintsMap.emplace_back(jointName,
                                                  std::make_shared<JointConstraint>(jointName));
@@ -329,12 +328,11 @@ namespace jiminy
 
         if (isInitialized_)
         {
-            /* Re-generate the true flexible model in case the original rigid model has been
-               manually modified by the user. */
-            generateModelFlexible();
-
-            // Update the biases added to the dynamics properties of the model
-            generateModelBiased(g);
+            /* Re-generate the unbiased extended model and update bias added to the dynamics
+               properties of the model.
+               Note that re-generating the unbiased extended model is necessary since the
+               theoretical model may have been manually modified by the user. */
+            generateModelExtended(g);
         }
     }
 
@@ -348,111 +346,110 @@ namespace jiminy
            parent joint must be computed. */
 
         // Check that no frame with the same name already exists
-        if (pinocchioModelOrig_.existFrame(frameName))
+        if (pinocchioModelTh_.existFrame(frameName))
         {
             THROW_ERROR(std::invalid_argument, "Frame with same name already exists.");
         }
 
-        // Add frame to original rigid model
+        // Add frame to theoretical model
         {
             const pinocchio::FrameIndex parentFrameIndex =
-                getFrameIndex(pinocchioModelOrig_, parentBodyName);
+                getFrameIndex(pinocchioModelTh_, parentBodyName);
             pinocchio::JointIndex parentJointIndex =
-                pinocchioModelOrig_.frames[parentFrameIndex].parent;
+                pinocchioModelTh_.frames[parentFrameIndex].parent;
             const pinocchio::SE3 & parentFramePlacement =
-                pinocchioModelOrig_.frames[parentFrameIndex].placement;
+                pinocchioModelTh_.frames[parentFrameIndex].placement;
             const pinocchio::SE3 jointFramePlacement = parentFramePlacement.act(framePlacement);
             const pinocchio::Frame frame(
                 frameName, parentJointIndex, parentFrameIndex, jointFramePlacement, frameType);
-            pinocchioModelOrig_.addFrame(frame);
+            pinocchioModelTh_.addFrame(frame);
+
             // TODO: Do NOT re-allocate from scratch but update existing data for efficiency
-            pinocchioDataOrig_ = pinocchio::Data(pinocchioModelOrig_);
+            initializePinocchioData(pinocchioModelTh_, pinocchioDataTh_);
         }
 
-        // Add frame to original flexible model
+        /* Add frame to extended model.
+           Note that, appending a frame to the model does not invalid proxies, and therefore it is
+           unecessary to call 'reset'. */
         {
             const pinocchio::FrameIndex parentFrameIndex =
-                getFrameIndex(pncModelFlexibleOrig_, parentBodyName);
+                getFrameIndex(pinocchioModel_, parentBodyName);
             pinocchio::JointIndex parentJointIndex =
-                pncModelFlexibleOrig_.frames[parentFrameIndex].parent;
+                pinocchioModel_.frames[parentFrameIndex].parent;
             const pinocchio::SE3 & parentFramePlacement =
-                pncModelFlexibleOrig_.frames[parentFrameIndex].placement;
+                pinocchioModel_.frames[parentFrameIndex].placement;
             const pinocchio::SE3 jointFramePlacement = parentFramePlacement.act(framePlacement);
-            const pinocchio::Frame frame(
-                frameName, parentJointIndex, parentFrameIndex, jointFramePlacement, frameType);
-            pncModelFlexibleOrig_.addFrame(frame);
+            const pinocchio::Frame frame(frameName,
+                                         parentJointIndex,
+                                         parentFrameIndex,
+                                         jointFramePlacement,
+                                         pinocchio::FrameType::OP_FRAME);
+            pinocchioModel_.addFrame(frame);
+
+            // TODO: Do NOT re-allocate from scratch but update existing data for efficiency
+            initializePinocchioData(pinocchioModel_, pinocchioData_);
+        }
+    }
+
+    void Model::removeFrames(const std::vector<std::string> & frameNames,
+                             const std::vector<pinocchio::FrameType> & filter)
+    {
+        /* Check that the frame can be safely removed from the theoretical model.
+           If so, then it holds true for the extended model. */
+        if (!filter.empty())
+        {
+            for (const std::string & frameName : frameNames)
+            {
+                const pinocchio::FrameIndex frameIndex =
+                    getFrameIndex(pinocchioModelTh_, frameName);
+                const pinocchio::FrameType frameType = pinocchioModelTh_.frames[frameIndex].type;
+                if (std::find(filter.begin(), filter.end(), frameType) != filter.end())
+                {
+                    THROW_ERROR(std::logic_error,
+                                "Not allowed to remove frame '",
+                                frameName,
+                                "' of type '",
+                                frameType,
+                                "'.");
+                }
+            }
         }
 
-        /* Backup the current rotor inertias and effort limits to restore them.
-           Note that it is only necessary because 'reset' is not called for efficiency. It is
-           reasonable to assume that no other fields have been overriden by derived classes
-           such as Robot. */
-        Eigen::VectorXd rotorInertia = pinocchioModel_.rotorInertia;
-        Eigen::VectorXd effortLimit = pinocchioModel_.effortLimit;
+        for (const std::string & frameName : frameNames)
+        {
+            // Remove frame from the theoretical model
+            {
+                const pinocchio::FrameIndex frameIndex =
+                    getFrameIndex(pinocchioModelTh_, frameName);
+                pinocchioModelTh_.frames.erase(
+                    std::next(pinocchioModelTh_.frames.begin(), frameIndex));
+                pinocchioModelTh_.nframes--;
+            }
 
-        /* One must re-generate the model after adding a frame.
-           Note that, since the added frame being the "last" of the model, the proxies are
-           still up-to-date and therefore it is unecessary to call 'reset'. */
-        generateModelBiased(std::random_device{});
+            // Remove frame from the extended model
+            {
+                const pinocchio::FrameIndex frameIndex = getFrameIndex(pinocchioModel_, frameName);
+                pinocchioModel_.frames.erase(
+                    std::next(pinocchioModel_.frames.begin(), frameIndex));
+                pinocchioModel_.nframes--;
+            }
+        }
 
-        // Restore the current rotor inertias and effort limits
-        pinocchioModel_.rotorInertia.swap(rotorInertia);
-        pinocchioModel_.effortLimit.swap(effortLimit);
+        // TODO: Do NOT re-allocate from scratch but update existing data for efficiency
+        initializePinocchioData(pinocchioModel_, pinocchioData_);
+        initializePinocchioData(pinocchioModelTh_, pinocchioDataTh_);
     }
 
     void Model::addFrame(const std::string & frameName,
                          const std::string & parentBodyName,
                          const pinocchio::SE3 & framePlacement)
     {
-        const pinocchio::FrameType frameType = pinocchio::FrameType::OP_FRAME;
-        return addFrame(frameName, parentBodyName, framePlacement, frameType);
+        return addFrame(frameName, parentBodyName, framePlacement, pinocchio::FrameType::OP_FRAME);
     }
 
     void Model::removeFrames(const std::vector<std::string> & frameNames)
     {
-        /* Check that the frame can be safely removed from the original rigid model.
-           If so, it is also the case for the original flexible models. */
-        for (const std::string & frameName : frameNames)
-        {
-            const pinocchio::FrameType frameType = pinocchio::FrameType::OP_FRAME;
-            pinocchio::FrameIndex frameIndex = getFrameIndex(pinocchioModelOrig_, frameName);
-            if (pinocchioModelOrig_.frames[frameIndex].type != frameType)
-            {
-                THROW_ERROR(std::logic_error, "Only frames manually added can be removed.");
-            }
-        }
-
-        for (const std::string & frameName : frameNames)
-        {
-            // Remove frame from original rigid model
-            {
-                const pinocchio::FrameIndex frameIndex =
-                    getFrameIndex(pinocchioModelOrig_, frameName);
-                pinocchioModelOrig_.frames.erase(std::next(pinocchioModelOrig_.frames.begin(),
-                                                           static_cast<uint32_t>(frameIndex)));
-                pinocchioModelOrig_.nframes--;
-            }
-
-            // Remove frame from original flexible model
-            {
-                const pinocchio::FrameIndex frameIndex =
-                    getFrameIndex(pncModelFlexibleOrig_, frameName);
-                pncModelFlexibleOrig_.frames.erase(
-                    std::next(pncModelFlexibleOrig_.frames.begin(), frameIndex));
-                pncModelFlexibleOrig_.nframes--;
-            }
-        }
-
-        // TODO: Do NOT re-allocate from scratch but update existing data for efficiency
-        pinocchioDataOrig_ = pinocchio::Data(pinocchioModelOrig_);
-
-        // One must reset the model after removing a frame
-        reset(std::random_device{});
-    }
-
-    void Model::removeFrame(const std::string & frameName)
-    {
-        return removeFrames({frameName});
+        removeFrames(frameNames, {pinocchio::FrameType::OP_FRAME});
     }
 
     void Model::addCollisionBodies(const std::vector<std::string> & bodyNames, bool ignoreMeshes)
@@ -469,7 +466,7 @@ namespace jiminy
         }
 
         // If successfully loaded, the ground should be available
-        if (collisionModelOrig_.ngeoms == 0)
+        if (collisionModelTh_.ngeoms == 0)
         {
             THROW_ERROR(std::runtime_error,
                         "Collision geometry not available. Some collision meshes were "
@@ -502,7 +499,7 @@ namespace jiminy
         for (const std::string & name : bodyNames)
         {
             bool hasGeometry = false;
-            for (const pinocchio::GeometryObject & geom : collisionModelOrig_.geometryObjects)
+            for (const pinocchio::GeometryObject & geom : collisionModelTh_.geometryObjects)
             {
                 const bool isGeomMesh = (geom.meshPath.find('/') != std::string::npos ||
                                          geom.meshPath.find('\\') != std::string::npos);
@@ -526,14 +523,14 @@ namespace jiminy
         collisionBodyNames_.insert(collisionBodyNames_.end(), bodyNames.begin(), bodyNames.end());
 
         // Create the collision pairs and add them to the geometry model of the robot
-        const pinocchio::GeomIndex & groundIndex = collisionModelOrig_.getGeometryId("ground");
+        const pinocchio::GeomIndex & groundIndex = collisionModelTh_.getGeometryId("ground");
         for (const std::string & name : bodyNames)
         {
             // Add a collision pair for all geometries having the body as parent
             ConstraintMap collisionConstraintsMap;
-            for (std::size_t i = 0; i < collisionModelOrig_.geometryObjects.size(); ++i)
+            for (std::size_t i = 0; i < collisionModelTh_.geometryObjects.size(); ++i)
             {
-                const pinocchio::GeometryObject & geom = collisionModelOrig_.geometryObjects[i];
+                const pinocchio::GeometryObject & geom = collisionModelTh_.geometryObjects[i];
                 const bool isGeomMesh = (geom.meshPath.find('/') != std::string::npos ||
                                          geom.meshPath.find('\\') != std::string::npos);
                 const std::string & frameName = pinocchioModel_.frames[geom.parentFrame].name;
@@ -547,12 +544,12 @@ namespace jiminy
                            Note that the ground always comes second for the normal to be
                            consistently compute wrt the ground instead of the body. */
                         const pinocchio::CollisionPair collisionPair(i, groundIndex);
-                        collisionModelOrig_.addCollisionPair(collisionPair);
+                        collisionModelTh_.addCollisionPair(collisionPair);
 
                         /* Add dedicated frame.
-                           Note that 'BODY' type is used instead of default 'OP_FRAME' to it
-                           clear it is not consider as manually added to the model, and
-                           therefore cannot be deleted by the user. */
+                           Note that 'FIXED_JOINT' type is used instead of default 'OP_FRAME' to
+                           avoid considering it as manually added to the model, and therefore
+                           prevent its deletion by the user. */
                         const pinocchio::FrameType frameType = pinocchio::FrameType::FIXED_JOINT;
                         addFrame(geom.name, frameName, geom.placement, frameType);
 
@@ -619,18 +616,18 @@ namespace jiminy
 
         // Get indices of corresponding collision pairs in geometry model of robot and remove them
         std::vector<std::string> collisionConstraintNames;
-        const pinocchio::GeomIndex & groundIndex = collisionModelOrig_.getGeometryId("ground");
+        const pinocchio::GeomIndex & groundIndex = collisionModelTh_.getGeometryId("ground");
         for (const std::string & name : bodyNames)
         {
             // Remove the collision pair for all the geometries having the body as parent
-            for (std::size_t i = 0; i < collisionModelOrig_.geometryObjects.size(); ++i)
+            for (std::size_t i = 0; i < collisionModelTh_.geometryObjects.size(); ++i)
             {
-                const pinocchio::GeometryObject & geom = collisionModelOrig_.geometryObjects[i];
+                const pinocchio::GeometryObject & geom = collisionModelTh_.geometryObjects[i];
                 if (pinocchioModel_.frames[geom.parentFrame].name == name)
                 {
                     // Remove the collision pair with the ground
                     const pinocchio::CollisionPair collisionPair(i, groundIndex);
-                    collisionModelOrig_.removeCollisionPair(collisionPair);
+                    collisionModelTh_.removeCollisionPair(collisionPair);
 
                     // Append collision geometry to the list of constraints to remove
                     if (constraints_.exist(geom.name, ConstraintNodeType::COLLISION_BODIES))
@@ -643,7 +640,7 @@ namespace jiminy
 
         // Remove the constraints and associated frames
         removeConstraints(collisionConstraintNames, ConstraintNodeType::COLLISION_BODIES);
-        removeFrames(collisionConstraintNames);
+        removeFrames(collisionConstraintNames, {pinocchio::FrameType::FIXED_JOINT});
 
         // Refresh proxies associated with the collisions only
         refreshGeometryProxies();
@@ -881,89 +878,7 @@ namespace jiminy
                                 ConstraintNodeType /* node */) { constraint->disable(); });
     }
 
-    void Model::generateModelFlexible()
-    {
-        // Copy the original model
-        pncModelFlexibleOrig_ = pinocchioModelOrig_;
-
-        // Check that the frames exist
-        for (const FlexibleJointData & flexibleJoint : modelOptions_->dynamics.flexibilityConfig)
-        {
-            const std::string & frameName = flexibleJoint.frameName;
-            if (!pinocchioModelOrig_.existFrame(frameName))
-            {
-                THROW_ERROR(std::logic_error,
-                            "Frame '",
-                            frameName,
-                            "' does not exists. Impossible to insert flexible joint on it.");
-            }
-        }
-
-        // Add all the flexible joints
-        flexibleJointNames_.clear();
-        for (const FlexibleJointData & flexibleJoint : modelOptions_->dynamics.flexibilityConfig)
-        {
-            // Extract some proxies
-            const std::string & frameName = flexibleJoint.frameName;
-            std::string flexName = frameName;
-            const pinocchio::FrameIndex frameIndex =
-                getFrameIndex(pncModelFlexibleOrig_, frameName);
-            const pinocchio::Frame & frame = pncModelFlexibleOrig_.frames[frameIndex];
-
-            // Add joint to model, differently depending on its type
-            if (frame.type == pinocchio::FrameType::FIXED_JOINT)
-            {
-                // Insert flexible joint at fixed frame, splitting "composite" body inertia
-                insertFlexibilityAtFixedFrameInModel(pncModelFlexibleOrig_, frameName);
-            }
-            else if (frame.type == pinocchio::FrameType::JOINT)
-            {
-                flexName += FLEXIBLE_JOINT_SUFFIX;
-                insertFlexibilityBeforeJointInModel(pncModelFlexibleOrig_, frameName, flexName);
-            }
-            else
-            {
-                THROW_ERROR(std::logic_error,
-                            "Flexible joint can only be inserted at fixed or joint frames.");
-            }
-            flexibleJointNames_.push_back(flexName);
-        }
-
-        // Compute flexible joint indices
-        flexibleJointIndices_ = getJointIndices(pncModelFlexibleOrig_, flexibleJointNames_);
-
-        // Add flexibility armature-like inertia to the model
-        for (std::size_t i = 0; i < flexibleJointIndices_.size(); ++i)
-        {
-            const FlexibleJointData & flexibleJoint = modelOptions_->dynamics.flexibilityConfig[i];
-            const pinocchio::JointModel & jmodel =
-                pncModelFlexibleOrig_.joints[flexibleJointIndices_[i]];
-            jmodel.jointVelocitySelector(pncModelFlexibleOrig_.rotorInertia) =
-                flexibleJoint.inertia;
-        }
-
-        // Check that the armature inertia is valid
-        for (pinocchio::JointIndex flexibleJointIndex : flexibleJointIndices_)
-        {
-            const pinocchio::Inertia & flexibleInertia =
-                pncModelFlexibleOrig_.inertias[flexibleJointIndex];
-            const pinocchio::JointModel & jmodel =
-                pncModelFlexibleOrig_.joints[flexibleJointIndex];
-            const Eigen::Vector3d inertiaDiag =
-                jmodel.jointVelocitySelector(pncModelFlexibleOrig_.rotorInertia) +
-                flexibleInertia.inertia().matrix().diagonal();
-            if ((inertiaDiag.array() < 1e-5).any())
-            {
-                THROW_ERROR(std::runtime_error,
-                            "The subtree diagonal inertia for flexibility joint ",
-                            flexibleJointIndex,
-                            " must be larger than 1e-5 for numerical stability: ",
-                            inertiaDiag.transpose());
-            }
-        }
-    }
-
-    void Model::generateModelBiased(const uniform_random_bit_generator_ref<uint32_t> & g)
+    void Model::generateModelExtended(const uniform_random_bit_generator_ref<uint32_t> & g)
     {
         // Make sure the model is initialized
         if (!isInitialized_)
@@ -971,20 +886,105 @@ namespace jiminy
             THROW_ERROR(bad_control_flow, "Model not initialized.");
         }
 
-        // Reset the robot either with the original rigid or flexible model
-        if (modelOptions_->dynamics.enableFlexibleModel)
+        // Initialize the extended model from the theoretical one
+        pinocchioModel_ = pinocchioModelTh_;
+
+        // Add flexibility joints to the extended model if requested
+        if (modelOptions_->dynamics.enableFlexibility)
         {
-            pinocchioModel_ = pncModelFlexibleOrig_;
-        }
-        else
-        {
-            pinocchioModel_ = pinocchioModelOrig_;
+            addFlexibilityJointsToExtendedModel();
         }
 
+        /* Add biases to the dynamics properties of the model.
+           Note that is also refresh all proxies automatically. */
+        addBiasedToExtendedModel(g);
+    }
+
+    void Model::addFlexibilityJointsToExtendedModel()
+    {
+        // Check that the frames exist
+        for (const FlexibilityJointConfig & flexibilityJoint :
+             modelOptions_->dynamics.flexibilityConfig)
+        {
+            const std::string & frameName = flexibilityJoint.frameName;
+            if (!pinocchioModelTh_.existFrame(frameName))
+            {
+                THROW_ERROR(std::logic_error,
+                            "Frame '",
+                            frameName,
+                            "' does not exists. Impossible to insert flexibility joint on it.");
+            }
+        }
+
+        // Add all the flexibility joints
+        flexibilityJointNames_.clear();
+        for (const FlexibilityJointConfig & flexibilityJoint :
+             modelOptions_->dynamics.flexibilityConfig)
+        {
+            // Extract some proxies
+            const std::string & frameName = flexibilityJoint.frameName;
+            std::string flexName = frameName;
+            const pinocchio::FrameIndex frameIndex = getFrameIndex(pinocchioModel_, frameName);
+            const pinocchio::Frame & frame = pinocchioModel_.frames[frameIndex];
+
+            // Add joint to model, differently depending on its type
+            if (frame.type == pinocchio::FrameType::FIXED_JOINT)
+            {
+                // Insert flexibility joint at fixed frame, splitting "composite" body inertia
+                addFlexibilityJointAtFixedFrame(pinocchioModel_, frameName);
+            }
+            else if (frame.type == pinocchio::FrameType::JOINT)
+            {
+                flexName += FLEXIBLE_JOINT_SUFFIX;
+                addFlexibilityJointBeforeMechanicalJoint(pinocchioModel_, frameName, flexName);
+            }
+            else
+            {
+                THROW_ERROR(std::logic_error,
+                            "Flexible joint can only be inserted at fixed or joint frames.");
+            }
+            flexibilityJointNames_.push_back(flexName);
+        }
+
+        // Compute flexibility joint indices
+        flexibilityJointIndices_ = getJointIndices(pinocchioModel_, flexibilityJointNames_);
+
+        // Add flexibility armature-like inertia to the model
+        for (std::size_t i = 0; i < flexibilityJointIndices_.size(); ++i)
+        {
+            const FlexibilityJointConfig & flexibilityJoint =
+                modelOptions_->dynamics.flexibilityConfig[i];
+            const pinocchio::JointModel & jmodel =
+                pinocchioModel_.joints[flexibilityJointIndices_[i]];
+            jmodel.jointVelocitySelector(pinocchioModel_.rotorInertia) = flexibilityJoint.inertia;
+        }
+
+        // Check that the armature inertia is valid
+        for (pinocchio::JointIndex flexibilityJointIndex : flexibilityJointIndices_)
+        {
+            const pinocchio::Inertia & flexibilityInertia =
+                pinocchioModel_.inertias[flexibilityJointIndex];
+            const pinocchio::JointModel & jmodel = pinocchioModel_.joints[flexibilityJointIndex];
+            const Eigen::Vector3d inertiaDiag =
+                jmodel.jointVelocitySelector(pinocchioModel_.rotorInertia) +
+                flexibilityInertia.inertia().matrix().diagonal();
+            if ((inertiaDiag.array() < 1e-5).any())
+            {
+                THROW_ERROR(std::runtime_error,
+                            "The subtree diagonal inertia for flexibility joint ",
+                            flexibilityJointIndex,
+                            " must be larger than 1e-5 for numerical stability: ",
+                            inertiaDiag.transpose());
+            }
+        }
+    }
+
+    void Model::addBiasedToExtendedModel(const uniform_random_bit_generator_ref<uint32_t> & g)
+    {
         // Initially set effortLimit to zero systematically
         pinocchioModel_.effortLimit.setZero();
 
-        for (const std::string & jointName : rigidJointNames_)
+        for (const std::string & jointName : mechanicalJointNames_)
         {
             const pinocchio::JointIndex jointIndex =
                 ::jiminy::getJointIndex(pinocchioModel_, jointName);
@@ -1050,15 +1050,8 @@ namespace jiminy
             }
         }
 
-        // Re-allocate rigid data from scratch
-        pinocchioData_ = pinocchio::Data(pinocchioModel_);
-
-        // Initialize Pinocchio Data internal state
-        const Eigen::VectorXd qNeutral = pinocchio::neutral(pinocchioModel_);
-        pinocchio::forwardKinematics(
-            pinocchioModel_, pinocchioData_, qNeutral, Eigen::VectorXd::Zero(pinocchioModel_.nv));
-        pinocchio::updateFramePlacements(pinocchioModel_, pinocchioData_);
-        pinocchio::centerOfMass(pinocchioModel_, pinocchioData_, qNeutral);
+        // Re-allocate data to be consistent with new extended model
+        initializePinocchioData(pinocchioModel_, pinocchioData_);
 
         // Refresh internal proxies
         refreshProxies();
@@ -1127,12 +1120,12 @@ namespace jiminy
         nv_ = pinocchioModel_.nv;
         nx_ = nq_ + nv_;
 
-        // Extract some rigid joints indices in the model
-        rigidJointIndices_ = getJointIndices(pinocchioModel_, rigidJointNames_);
-        rigidJointPositionIndices_ =
-            getJointsPositionIndices(pinocchioModel_, rigidJointNames_, false);
-        rigidJointVelocityIndices_ =
-            getJointsVelocityIndices(pinocchioModel_, rigidJointNames_, false);
+        // Extract some mechanical joints indices in the model
+        mechanicalJointIndices_ = getJointIndices(pinocchioModel_, mechanicalJointNames_);
+        mechanicalJointPositionIndices_ =
+            getJointsPositionIndices(pinocchioModel_, mechanicalJointNames_, false);
+        mechanicalJointVelocityIndices_ =
+            getJointsVelocityIndices(pinocchioModel_, mechanicalJointNames_, false);
 
         /* Generate the fieldnames associated with the configuration vector, velocity,
            acceleration and external force vectors. */
@@ -1198,7 +1191,7 @@ namespace jiminy
         {
             if (modelOptions_->joints.positionLimitFromUrdf)
             {
-                for (Eigen::Index positionIndex : rigidJointPositionIndices_)
+                for (Eigen::Index positionIndex : mechanicalJointPositionIndices_)
                 {
                     positionLimitMin_[positionIndex] =
                         pinocchioModel_.lowerPositionLimit[positionIndex];
@@ -1208,9 +1201,9 @@ namespace jiminy
             }
             else
             {
-                for (std::size_t i = 0; i < rigidJointPositionIndices_.size(); ++i)
+                for (std::size_t i = 0; i < mechanicalJointPositionIndices_.size(); ++i)
                 {
-                    Eigen::Index positionIndex = rigidJointPositionIndices_[i];
+                    Eigen::Index positionIndex = mechanicalJointPositionIndices_[i];
                     positionLimitMin_[positionIndex] = modelOptions_->joints.positionLimitMin[i];
                     positionLimitMax_[positionIndex] = modelOptions_->joints.positionLimitMax[i];
                 }
@@ -1251,16 +1244,16 @@ namespace jiminy
         {
             if (modelOptions_->joints.velocityLimitFromUrdf)
             {
-                for (Eigen::Index & velocityIndex : rigidJointVelocityIndices_)
+                for (Eigen::Index & velocityIndex : mechanicalJointVelocityIndices_)
                 {
                     velocityLimit_[velocityIndex] = pinocchioModel_.velocityLimit[velocityIndex];
                 }
             }
             else
             {
-                for (std::size_t i = 0; i < rigidJointVelocityIndices_.size(); ++i)
+                for (std::size_t i = 0; i < mechanicalJointVelocityIndices_.size(); ++i)
                 {
-                    Eigen::Index velocityIndex = rigidJointVelocityIndices_[i];
+                    Eigen::Index velocityIndex = mechanicalJointVelocityIndices_[i];
                     velocityLimit_[velocityIndex] = modelOptions_->joints.velocityLimit[i];
                 }
             }
@@ -1279,48 +1272,42 @@ namespace jiminy
         }
 
         // Restore collision and visual models
-        collisionModel_ = collisionModelOrig_;
-        visualModel_ = visualModelOrig_;
+        collisionModel_ = collisionModelTh_;
+        visualModel_ = visualModelTh_;
 
-        // Update joint/frame fix for every geometry objects
-        if (modelOptions_->dynamics.enableFlexibleModel &&
-            !modelOptions_->dynamics.flexibilityConfig.empty())
+        // Update joint/frame for every geometry objects
+        for (pinocchio::GeometryModel * model : std::array{&collisionModel_, &visualModel_})
         {
-            for (pinocchio::GeometryModel * model : std::array{&collisionModel_, &visualModel_})
+            for (pinocchio::GeometryObject & geom : model->geometryObjects)
             {
-                for (pinocchio::GeometryObject & geom : model->geometryObjects)
+                // Only the frame name remains unchanged no matter what
+                const pinocchio::Frame & frameOrig = pinocchioModelTh_.frames[geom.parentFrame];
+                const std::string parentJointName = pinocchioModelTh_.names[frameOrig.parent];
+                pinocchio::FrameType frameType =
+                    static_cast<pinocchio::FrameType>(pinocchio::FIXED_JOINT | pinocchio::BODY);
+                const pinocchio::FrameIndex frameIndex =
+                    getFrameIndex(pinocchioModel_, frameOrig.name, frameType);
+                const pinocchio::Frame & frame = pinocchioModel_.frames[frameIndex];
+                const pinocchio::JointIndex newParentModelIndex = frame.parent;
+                const pinocchio::JointIndex oldParentModelIndex =
+                    pinocchioModel_.getJointId(parentJointName);
+
+                geom.parentFrame = frameIndex;
+                geom.parentJoint = newParentModelIndex;
+
+                /* Compute the relative displacement between the new and old joint
+                   placement wrt their common parent joint. */
+                pinocchio::SE3 geomPlacementRef = pinocchio::SE3::Identity();
+                for (pinocchio::JointIndex i = newParentModelIndex; i > oldParentModelIndex;
+                     i = pinocchioModel_.parents[i])
                 {
-                    // Only the frame name remains unchanged no matter what
-                    const pinocchio::Frame & frameOrig =
-                        pinocchioModelOrig_.frames[geom.parentFrame];
-                    const std::string parentJointName =
-                        pinocchioModelOrig_.names[frameOrig.parent];
-                    pinocchio::FrameType frameType = static_cast<pinocchio::FrameType>(
-                        pinocchio::FIXED_JOINT | pinocchio::BODY);
-                    const pinocchio::FrameIndex frameIndex =
-                        getFrameIndex(pinocchioModel_, frameOrig.name, frameType);
-                    const pinocchio::Frame & frame = pinocchioModel_.frames[frameIndex];
-                    const pinocchio::JointIndex newParentModelIndex = frame.parent;
-                    const pinocchio::JointIndex oldParentModelIndex =
-                        pinocchioModel_.getJointId(parentJointName);
-
-                    geom.parentFrame = frameIndex;
-                    geom.parentJoint = newParentModelIndex;
-
-                    /* Compute the relative displacement between the new and old joint
-                       placement wrt their common parent joint. */
-                    pinocchio::SE3 geomPlacementRef = pinocchio::SE3::Identity();
-                    for (pinocchio::JointIndex i = newParentModelIndex; i > oldParentModelIndex;
-                         i = pinocchioModel_.parents[i])
-                    {
-                        geomPlacementRef = pinocchioModel_.jointPlacements[i] * geomPlacementRef;
-                    }
-                    geom.placement = geomPlacementRef.actInv(geom.placement);
+                    geomPlacementRef = pinocchioModel_.jointPlacements[i] * geomPlacementRef;
                 }
+                geom.placement = geomPlacementRef.actInv(geom.placement);
             }
         }
 
-        /* Update geometry data object after changing the collision pairs
+        /* Update geometry data object after changing the collision pairs.
            Note that copy assignment is used to avoid changing memory pointers, which would
            result in dangling reference at Python-side. */
         collisionData_ = pinocchio::GeometryData(collisionModel_);
@@ -1400,7 +1387,7 @@ namespace jiminy
     void Model::setOptions(GenericConfig modelOptions)
     {
         bool internalBuffersMustBeUpdated = false;
-        bool areModelsInvalid = false;
+        bool isExtendedModelInvalid = false;
         bool isCollisionDataInvalid = false;
         if (isInitialized_)
         {
@@ -1414,7 +1401,7 @@ namespace jiminy
             {
                 Eigen::VectorXd & jointsPositionLimitMin =
                     boost::get<Eigen::VectorXd>(jointOptionsHolder.at("positionLimitMin"));
-                if (rigidJointPositionIndices_.size() !=
+                if (mechanicalJointPositionIndices_.size() !=
                     static_cast<uint32_t>(jointsPositionLimitMin.size()))
                 {
                     THROW_ERROR(std::invalid_argument,
@@ -1422,13 +1409,13 @@ namespace jiminy
                 }
                 Eigen::VectorXd & jointsPositionLimitMax =
                     boost::get<Eigen::VectorXd>(jointOptionsHolder.at("positionLimitMax"));
-                if (rigidJointPositionIndices_.size() !=
+                if (mechanicalJointPositionIndices_.size() !=
                     static_cast<uint32_t>(jointsPositionLimitMax.size()))
                 {
                     THROW_ERROR(std::invalid_argument,
                                 "Wrong vector size for 'positionLimitMax'.");
                 }
-                if (rigidJointPositionIndices_.size() ==
+                if (mechanicalJointPositionIndices_.size() ==
                     static_cast<uint32_t>(modelOptions_->joints.positionLimitMin.size()))
                 {
                     auto jointsPositionLimitMinDiff =
@@ -1451,12 +1438,12 @@ namespace jiminy
             {
                 Eigen::VectorXd & jointsVelocityLimit =
                     boost::get<Eigen::VectorXd>(jointOptionsHolder.at("velocityLimit"));
-                if (rigidJointVelocityIndices_.size() !=
+                if (mechanicalJointVelocityIndices_.size() !=
                     static_cast<uint32_t>(jointsVelocityLimit.size()))
                 {
                     THROW_ERROR(std::invalid_argument, "Wrong vector size for 'velocityLimit'.");
                 }
-                if (rigidJointVelocityIndices_.size() ==
+                if (mechanicalJointVelocityIndices_.size() ==
                     static_cast<uint32_t>(modelOptions_->joints.velocityLimit.size()))
                 {
                     auto jointsVelocityLimitDiff =
@@ -1479,8 +1466,8 @@ namespace jiminy
             std::transform(flexibilityConfig.begin(),
                            flexibilityConfig.end(),
                            std::inserter(flexibilityNames, flexibilityNames.begin()),
-                           [](const FlexibleJointData & flexiblePoint) -> std::string
-                           { return flexiblePoint.frameName; });
+                           [](const FlexibilityJointConfig & flexibilityJoint) -> std::string
+                           { return flexibilityJoint.frameName; });
             if (flexibilityNames.size() != flexibilityConfig.size())
             {
                 THROW_ERROR(
@@ -1491,16 +1478,16 @@ namespace jiminy
                 flexibilityNames.end())
             {
                 THROW_ERROR(std::invalid_argument,
-                            "No one can make the universe itself flexible.");
+                            "No one can make the universe itself flexibility.");
             }
-            for (const FlexibleJointData & flexibleJoint : flexibilityConfig)
+            for (const FlexibilityJointConfig & flexibilityJoint : flexibilityConfig)
             {
-                if ((flexibleJoint.stiffness.array() < 0.0).any() ||
-                    (flexibleJoint.damping.array() < 0.0).any() ||
-                    (flexibleJoint.inertia.array() < 0.0).any())
+                if ((flexibilityJoint.stiffness.array() < 0.0).any() ||
+                    (flexibilityJoint.damping.array() < 0.0).any() ||
+                    (flexibilityJoint.inertia.array() < 0.0).any())
                 {
                     THROW_ERROR(std::invalid_argument,
-                                "All stiffness, damping and inertia parameters of flexible "
+                                "All stiffness, damping and inertia parameters of flexibility "
                                 "joints must be positive.");
                 }
             }
@@ -1529,17 +1516,18 @@ namespace jiminy
                 internalBuffersMustBeUpdated = true;
             }
 
-            // Check if the flexible model and its proxies must be regenerated
-            bool enableFlexibleModel =
-                boost::get<bool>(dynOptionsHolder.at("enableFlexibleModel"));
+            // Check if the flexibility model and its proxies must be regenerated
+            bool enableFlexibility = boost::get<bool>(dynOptionsHolder.at("enableFlexibility"));
             if (modelOptions_ &&
-                (flexibilityConfig.size() != modelOptions_->dynamics.flexibilityConfig.size() ||
-                 !std::equal(flexibilityConfig.begin(),
-                             flexibilityConfig.end(),
-                             modelOptions_->dynamics.flexibilityConfig.begin()) ||
-                 enableFlexibleModel != modelOptions_->dynamics.enableFlexibleModel))
+                ((enableFlexibility != modelOptions_->dynamics.enableFlexibility) ||
+                 (enableFlexibility &&
+                  ((flexibilityConfig.size() !=
+                    modelOptions_->dynamics.flexibilityConfig.size()) ||
+                   !std::equal(flexibilityConfig.begin(),
+                               flexibilityConfig.end(),
+                               modelOptions_->dynamics.flexibilityConfig.begin())))))
             {
-                areModelsInvalid = true;
+                isExtendedModelInvalid = true;
             }
         }
 
@@ -1583,7 +1571,7 @@ namespace jiminy
         // Create a fast struct accessor
         modelOptions_ = std::make_unique<const ModelOptions>(modelOptionsGeneric_);
 
-        if (areModelsInvalid)
+        if (isExtendedModelInvalid)
         {
             // Trigger models regeneration
             reset(std::random_device{});
@@ -1612,7 +1600,7 @@ namespace jiminy
 
     const std::string & Model::getName() const
     {
-        return pinocchioModelOrig_.name;
+        return pinocchioModelTh_.name;
     }
 
     const std::string & Model::getUrdfPath() const
@@ -1635,151 +1623,139 @@ namespace jiminy
         return hasFreeflyer_;
     }
 
-    void Model::getFlexiblePositionFromRigid(const Eigen::VectorXd & qRigid,
-                                             Eigen::VectorXd & qFlex) const
+    void Model::getExtendedPositionFromTheoretical(const Eigen::VectorXd & qTheoretical,
+                                                   Eigen::VectorXd & qExtended) const
     {
-        // Define some proxies
-        int nqRigid = pinocchioModelOrig_.nq;
-
         // Check the size of the input state
-        if (qRigid.size() != nqRigid)
+        if (qTheoretical.size() != pinocchioModelTh_.nq)
         {
-            THROW_ERROR(std::invalid_argument,
-                        "Size of qRigid inconsistent with theoretical model.");
+            THROW_ERROR(std::invalid_argument, "Input size inconsistent with theoretical model.");
         }
 
-        // Initialize the flexible state
-        qFlex = pinocchio::neutral(pncModelFlexibleOrig_);
+        // Initialize the returned extended configuration
+        qExtended = pinocchio::neutral(pinocchioModel_);
 
-        // Compute the flexible state based on the rigid state
-        int idxRigid = 0;
-        int idxFlex = 0;
-        for (; idxRigid < pinocchioModelOrig_.njoints; ++idxFlex)
+        // Compute extended configuration from theoretical
+        int theoreticalJointIndex = 1;
+        int extendedJointIndex = 1;
+        for (; theoreticalJointIndex < pinocchioModelTh_.njoints; ++extendedJointIndex)
         {
-            const std::string & jointRigidName = pinocchioModelOrig_.names[idxRigid];
-            const std::string & jointFlexName = pncModelFlexibleOrig_.names[idxFlex];
-            if (jointRigidName == jointFlexName)
+            const std::string & jointTheoreticalName =
+                pinocchioModelTh_.names[theoreticalJointIndex];
+            const std::string & jointExtendedName = pinocchioModel_.names[extendedJointIndex];
+            if (jointTheoreticalName == jointExtendedName)
             {
-                const auto & jointRigid = pinocchioModelOrig_.joints[idxRigid];
-                const auto & jointFlex = pncModelFlexibleOrig_.joints[idxFlex];
-                if (jointRigid.idx_q() >= 0)
+                const auto & jointTheoretical = pinocchioModelTh_.joints[theoreticalJointIndex];
+                const auto & jointExtended = pinocchioModel_.joints[extendedJointIndex];
+                if (jointTheoretical.idx_q() >= 0)
                 {
-                    qFlex.segment(jointFlex.idx_q(), jointFlex.nq()) =
-                        qRigid.segment(jointRigid.idx_q(), jointRigid.nq());
+                    qExtended.segment(jointExtended.idx_q(), jointExtended.nq()) =
+                        qTheoretical.segment(jointTheoretical.idx_q(), jointTheoretical.nq());
                 }
-                ++idxRigid;
+                ++theoreticalJointIndex;
             }
         }
     }
 
 
-    void Model::getFlexibleVelocityFromRigid(const Eigen::VectorXd & vRigid,
-                                             Eigen::VectorXd & vFlex) const
+    void Model::getExtendedVelocityFromTheoretical(const Eigen::VectorXd & vTheoretical,
+                                                   Eigen::VectorXd & vExtended) const
     {
-        // Define some proxies
-        uint32_t nvRigid = pinocchioModelOrig_.nv;
-        uint32_t nvFlex = pncModelFlexibleOrig_.nv;
-
         // Check the size of the input state
-        if (vRigid.size() != nvRigid)
+        if (vTheoretical.size() != pinocchioModelTh_.nv)
         {
-            THROW_ERROR(std::invalid_argument,
-                        "Size of vRigid inconsistent with theoretical model.");
+            THROW_ERROR(std::invalid_argument, "Input size inconsistent with theoretical model.");
         }
 
-        // Initialize the flexible state
-        vFlex.setZero(nvFlex);
+        // Initialize the returned extended velocity
+        vExtended.setZero(pinocchioModel_.nv);
 
-        // Compute the flexible state based on the rigid state
-        int32_t idxRigid = 0;
-        int32_t idxFlex = 0;
-        for (; idxRigid < pinocchioModelOrig_.njoints; ++idxFlex)
+        // Compute extended velocity from theoretical
+        int32_t theoreticalJointIndex = 1;
+        int32_t extendedJointIndex = 1;
+        for (; theoreticalJointIndex < pinocchioModelTh_.njoints; ++extendedJointIndex)
         {
-            const std::string & jointRigidName = pinocchioModelOrig_.names[idxRigid];
-            const std::string & jointFlexName = pncModelFlexibleOrig_.names[idxFlex];
-            if (jointRigidName == jointFlexName)
+            const std::string & jointTheoreticalName =
+                pinocchioModelTh_.names[theoreticalJointIndex];
+            const std::string & jointExtendedName = pinocchioModel_.names[extendedJointIndex];
+            if (jointTheoreticalName == jointExtendedName)
             {
-                const auto & jointRigid = pinocchioModelOrig_.joints[idxRigid];
-                const auto & jointFlex = pncModelFlexibleOrig_.joints[idxFlex];
-                if (jointRigid.idx_q() >= 0)
+                const auto & jointTheoretical = pinocchioModelTh_.joints[theoreticalJointIndex];
+                const auto & jointExtended = pinocchioModel_.joints[extendedJointIndex];
+                if (jointTheoretical.idx_q() >= 0)
                 {
-                    vFlex.segment(jointFlex.idx_v(), jointFlex.nv()) =
-                        vRigid.segment(jointRigid.idx_v(), jointRigid.nv());
+                    vExtended.segment(jointExtended.idx_v(), jointExtended.nv()) =
+                        vTheoretical.segment(jointTheoretical.idx_v(), jointTheoretical.nv());
                 }
-                ++idxRigid;
+                ++theoreticalJointIndex;
             }
         }
     }
 
-    void Model::getRigidPositionFromFlexible(const Eigen::VectorXd & qFlex,
-                                             Eigen::VectorXd & qRigid) const
+    void Model::getTheoreticalPositionFromExtended(const Eigen::VectorXd & qExtended,
+                                                   Eigen::VectorXd & qTheoretical) const
     {
-        // Define some proxies
-        uint32_t nqFlex = pncModelFlexibleOrig_.nq;
-
         // Check the size of the input state
-        if (qFlex.size() != nqFlex)
+        if (qExtended.size() != pinocchioModel_.nq)
         {
-            THROW_ERROR(std::invalid_argument, "Size of qFlex inconsistent with flexible model.");
+            THROW_ERROR(std::invalid_argument, "Input size inconsistent with extended model.");
         }
 
-        // Initialize the rigid state
-        qRigid = pinocchio::neutral(pinocchioModelOrig_);
+        // Initialize the returned theoretical configuration
+        qTheoretical = pinocchio::neutral(pinocchioModelTh_);
 
-        // Compute the rigid state based on the flexible state
-        int32_t idxRigid = 0;
-        int32_t idxFlex = 0;
-        for (; idxRigid < pinocchioModelOrig_.njoints; ++idxFlex)
+        // Compute theoretical configuration from extended
+        int32_t theoreticalJointIndex = 1;
+        int32_t extendedJointIndex = 1;
+        for (; theoreticalJointIndex < pinocchioModelTh_.njoints; ++extendedJointIndex)
         {
-            const std::string & jointRigidName = pinocchioModelOrig_.names[idxRigid];
-            const std::string & jointFlexName = pncModelFlexibleOrig_.names[idxFlex];
-            if (jointRigidName == jointFlexName)
+            const std::string & jointTheoreticalName =
+                pinocchioModelTh_.names[theoreticalJointIndex];
+            const std::string & jointExtendedName = pinocchioModel_.names[extendedJointIndex];
+            if (jointTheoreticalName == jointExtendedName)
             {
-                const auto & jointRigid = pinocchioModelOrig_.joints[idxRigid];
-                const auto & jointFlex = pncModelFlexibleOrig_.joints[idxFlex];
-                if (jointRigid.idx_q() >= 0)
+                const auto & jointTheoretical = pinocchioModelTh_.joints[theoreticalJointIndex];
+                const auto & jointExtended = pinocchioModel_.joints[extendedJointIndex];
+                if (jointTheoretical.idx_q() >= 0)
                 {
-                    qRigid.segment(jointRigid.idx_q(), jointRigid.nq()) =
-                        qFlex.segment(jointFlex.idx_q(), jointFlex.nq());
+                    qTheoretical.segment(jointTheoretical.idx_q(), jointTheoretical.nq()) =
+                        qExtended.segment(jointExtended.idx_q(), jointExtended.nq());
                 }
-                ++idxRigid;
+                ++theoreticalJointIndex;
             }
         }
     }
 
-    void Model::getRigidVelocityFromFlexible(const Eigen::VectorXd & vFlex,
-                                             Eigen::VectorXd & vRigid) const
+    void Model::getTheoreticalVelocityFromExtended(const Eigen::VectorXd & vExtended,
+                                                   Eigen::VectorXd & vTheoretical) const
     {
-        // Define some proxies
-        uint32_t nvRigid = pinocchioModelOrig_.nv;
-        uint32_t nvFlex = pncModelFlexibleOrig_.nv;
-
         // Check the size of the input state
-        if (vFlex.size() != nvFlex)
+        if (vExtended.size() != pinocchioModel_.nv)
         {
-            THROW_ERROR(std::invalid_argument, "Size of vFlex inconsistent with flexible model.");
+            THROW_ERROR(std::invalid_argument, "Input size inconsistent with extended model.");
         }
 
-        // Initialize the rigid state
-        vRigid.setZero(nvRigid);
+        // Initialize the returned theoretical velocity
+        vTheoretical.setZero(pinocchioModelTh_.nv);
 
-        // Compute the rigid state based on the flexible state
-        int32_t idxRigid = 0;
-        int32_t idxFlex = 0;
-        for (; idxRigid < pinocchioModelOrig_.njoints; ++idxFlex)
+        // Compute theoretical velocity from extended
+        int32_t theoreticalJointIndex = 1;
+        int32_t extendedJointIndex = 1;
+        for (; theoreticalJointIndex < pinocchioModelTh_.njoints; ++extendedJointIndex)
         {
-            const std::string & jointRigidName = pinocchioModelOrig_.names[idxRigid];
-            const std::string & jointFlexName = pncModelFlexibleOrig_.names[idxFlex];
-            if (jointRigidName == jointFlexName)
+            const std::string & jointTheoreticalName =
+                pinocchioModelTh_.names[theoreticalJointIndex];
+            const std::string & jointExtendedName = pinocchioModel_.names[extendedJointIndex];
+            if (jointTheoreticalName == jointExtendedName)
             {
-                const auto & jointRigid = pinocchioModelOrig_.joints[idxRigid];
-                const auto & jointFlex = pncModelFlexibleOrig_.joints[idxFlex];
-                if (jointRigid.idx_q() >= 0)
+                const auto & jointTheoretical = pinocchioModelTh_.joints[theoreticalJointIndex];
+                const auto & jointExtended = pinocchioModel_.joints[extendedJointIndex];
+                if (jointTheoretical.idx_q() >= 0)
                 {
-                    vRigid.segment(jointRigid.idx_v(), jointRigid.nv()) =
-                        vFlex.segment(jointFlex.idx_v(), jointFlex.nv());
+                    vTheoretical.segment(jointTheoretical.idx_v(), jointTheoretical.nv()) =
+                        vExtended.segment(jointExtended.idx_v(), jointExtended.nv());
                 }
-                ++idxRigid;
+                ++theoreticalJointIndex;
             }
         }
     }
@@ -1844,50 +1820,34 @@ namespace jiminy
         return logForceExternalFieldnames_;
     }
 
-    const std::vector<std::string> & Model::getRigidJointNames() const
+    const std::vector<std::string> & Model::getMechanicalJointNames() const
     {
-        return rigidJointNames_;
+        return mechanicalJointNames_;
     }
 
-    const std::vector<pinocchio::JointIndex> & Model::getRigidJointIndices() const
+    const std::vector<pinocchio::JointIndex> & Model::getMechanicalJointIndices() const
     {
-        return rigidJointIndices_;
+        return mechanicalJointIndices_;
     }
 
-    const std::vector<Eigen::Index> & Model::getRigidJointPositionIndices() const
+    const std::vector<Eigen::Index> & Model::getMechanicalJointPositionIndices() const
     {
-        return rigidJointPositionIndices_;
+        return mechanicalJointPositionIndices_;
     }
 
-    const std::vector<Eigen::Index> & Model::getRigidJointVelocityIndices() const
+    const std::vector<Eigen::Index> & Model::getMechanicalJointVelocityIndices() const
     {
-        return rigidJointVelocityIndices_;
+        return mechanicalJointVelocityIndices_;
     }
 
-    const std::vector<std::string> & Model::getFlexibleJointNames() const
+    const std::vector<std::string> & Model::getFlexibilityJointNames() const
     {
-        static const std::vector<std::string> flexibleJointsNamesEmpty{};
-        if (modelOptions_->dynamics.enableFlexibleModel)
-        {
-            return flexibleJointNames_;
-        }
-        else
-        {
-            return flexibleJointsNamesEmpty;
-        }
+        return flexibilityJointNames_;
     }
 
-    const std::vector<pinocchio::JointIndex> & Model::getFlexibleJointIndices() const
+    const std::vector<pinocchio::JointIndex> & Model::getFlexibilityJointIndices() const
     {
-        static const std::vector<pinocchio::JointIndex> flexibleJointsModelIndexEmpty{};
-        if (modelOptions_->dynamics.enableFlexibleModel)
-        {
-            return flexibleJointIndices_;
-        }
-        else
-        {
-            return flexibleJointsModelIndexEmpty;
-        }
+        return flexibilityJointIndices_;
     }
 
     /// \brief Returns true if at least one constraint is active on the robot.

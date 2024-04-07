@@ -606,7 +606,7 @@ def plot_log(log_data: Dict[str, Any],
                   Optional: None by default. If None, then it will be
                   reconstructed from 'log_data' using `build_robot_from_log`.
     :param enable_flexiblity_data:
-        Enable display of flexible joints in robot's configuration,
+        Enable display of flexibility joints in robot's configuration,
         velocity and acceleration subplots.
         Optional: False by default.
     :param block: Whether to wait for the figure to be closed before
@@ -642,7 +642,7 @@ def plot_log(log_data: Dict[str, Any],
             fieldnames = list(filter(
                 lambda field: not any(
                     name in field
-                    for name in robot.flexible_joint_names),
+                    for name in robot.flexibility_joint_names),
                 fieldnames))
         try:
             values = extract_variables_from_log(

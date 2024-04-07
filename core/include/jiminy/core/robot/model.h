@@ -154,7 +154,7 @@ namespace jiminy
             config["massBodiesBiasStd"] = 0.0;
             config["centerOfMassPositionBodiesBiasStd"] = 0.0;
             config["relativePositionBodiesBiasStd"] = 0.0;
-            config["enableFlexibleModel"] = true;
+            config["enableFlexibility"] = true;
             config["flexibilityConfig"] = FlexibilityConfig{};
 
             return config;
@@ -184,8 +184,7 @@ namespace jiminy
         {
             const bool enablePositionLimit;
             const bool positionLimitFromUrdf;
-            /// \brief Min position limit of all the rigid joints, ie without freeflyer and
-            ///        flexibility joints if any.
+            /// \brief Min position limit of all the mechanical joints of the theoretical model.
             const Eigen::VectorXd positionLimitMin;
             const Eigen::VectorXd positionLimitMax;
             const bool enableVelocityLimit;
@@ -210,7 +209,7 @@ namespace jiminy
             const double massBodiesBiasStd;
             const double centerOfMassPositionBodiesBiasStd;
             const double relativePositionBodiesBiasStd;
-            const bool enableFlexibleModel;
+            const bool enableFlexibility;
             const FlexibilityConfig flexibilityConfig;
 
             DynamicsOptions(const GenericConfig & options) :
@@ -220,7 +219,7 @@ namespace jiminy
                 boost::get<double>(options.at("centerOfMassPositionBodiesBiasStd"))},
             relativePositionBodiesBiasStd{
                 boost::get<double>(options.at("relativePositionBodiesBiasStd"))},
-            enableFlexibleModel{boost::get<bool>(options.at("enableFlexibleModel"))},
+            enableFlexibility{boost::get<bool>(options.at("enableFlexibility"))},
             flexibilityConfig{boost::get<FlexibilityConfig>(options.at("flexibilityConfig"))}
             {
             }
@@ -274,7 +273,8 @@ namespace jiminy
         void addFrame(const std::string & frameName,
                       const std::string & parentBodyName,
                       const pinocchio::SE3 & framePlacement);
-        void removeFrame(const std::string & frameName);
+        void removeFrames(const std::vector<std::string> & frameNames);
+
         void addCollisionBodies(const std::vector<std::string> & bodyNames,
                                 bool ignoreMeshes = false);
         void removeCollisionBodies(std::vector<std::string> frameNames = {});  // Copy on purpose
@@ -345,12 +345,12 @@ namespace jiminy
         const std::vector<std::vector<pinocchio::PairIndex>> & getCollisionPairIndices() const;
         const std::vector<pinocchio::FrameIndex> & getContactFrameIndices() const;
 
-        const std::vector<std::string> & getRigidJointNames() const;
-        const std::vector<pinocchio::JointIndex> & getRigidJointIndices() const;
-        const std::vector<Eigen::Index> & getRigidJointPositionIndices() const;
-        const std::vector<Eigen::Index> & getRigidJointVelocityIndices() const;
-        const std::vector<std::string> & getFlexibleJointNames() const;
-        const std::vector<pinocchio::JointIndex> & getFlexibleJointIndices() const;
+        const std::vector<std::string> & getMechanicalJointNames() const;
+        const std::vector<pinocchio::JointIndex> & getMechanicalJointIndices() const;
+        const std::vector<Eigen::Index> & getMechanicalJointPositionIndices() const;
+        const std::vector<Eigen::Index> & getMechanicalJointVelocityIndices() const;
+        const std::vector<std::string> & getFlexibilityJointNames() const;
+        const std::vector<pinocchio::JointIndex> & getFlexibilityJointIndices() const;
 
         const Eigen::VectorXd & getPositionLimitMin() const;
         const Eigen::VectorXd & getPositionLimitMax() const;
@@ -361,24 +361,27 @@ namespace jiminy
         const std::vector<std::string> & getLogAccelerationFieldnames() const;
         const std::vector<std::string> & getLogForceExternalFieldnames() const;
 
-        void getFlexiblePositionFromRigid(const Eigen::VectorXd & qRigid,
-                                          Eigen::VectorXd & qFlex) const;
-        void getRigidPositionFromFlexible(const Eigen::VectorXd & qFlex,
-                                          Eigen::VectorXd & qRigid) const;
-        void getFlexibleVelocityFromRigid(const Eigen::VectorXd & vRigid,
-                                          Eigen::VectorXd & vFlex) const;
-        void getRigidVelocityFromFlexible(const Eigen::VectorXd & vFlex,
-                                          Eigen::VectorXd & vRigid) const;
+        void getExtendedPositionFromTheoretical(const Eigen::VectorXd & qTheoretical,
+                                                Eigen::VectorXd & qExtended) const;
+        void getExtendedVelocityFromTheoretical(const Eigen::VectorXd & vTheoretical,
+                                                Eigen::VectorXd & vExtended) const;
+        void getTheoreticalPositionFromExtended(const Eigen::VectorXd & qExtended,
+                                                Eigen::VectorXd & qTheoretical) const;
+        void getTheoreticalVelocityFromExtended(const Eigen::VectorXd & vExtended,
+                                                Eigen::VectorXd & vTheoretical) const;
 
     protected:
-        void generateModelFlexible();
-        void generateModelBiased(const uniform_random_bit_generator_ref<uint32_t> & g);
+        void generateModelExtended(const uniform_random_bit_generator_ref<uint32_t> & g);
+
+        void addFlexibilityJointsToExtendedModel();
+        void addBiasedToExtendedModel(const uniform_random_bit_generator_ref<uint32_t> & g);
 
         void addFrame(const std::string & frameName,
                       const std::string & parentBodyName,
                       const pinocchio::SE3 & framePlacement,
                       const pinocchio::FrameType & frameType);
-        void removeFrames(const std::vector<std::string> & frameNames);
+        void removeFrames(const std::vector<std::string> & frameNames,
+                          const std::vector<pinocchio::FrameType> & filter);
 
         void addConstraint(const std::string & constraintName,
                            const std::shared_ptr<AbstractConstraintBase> & constraint,
@@ -395,13 +398,13 @@ namespace jiminy
         virtual void refreshProxies();
 
     public:
-        pinocchio::Model pinocchioModelOrig_{};
+        pinocchio::Model pinocchioModelTh_{};
         pinocchio::Model pinocchioModel_{};
-        pinocchio::GeometryModel collisionModelOrig_{};
+        pinocchio::GeometryModel collisionModelTh_{};
         pinocchio::GeometryModel collisionModel_{};
-        pinocchio::GeometryModel visualModelOrig_{};
+        pinocchio::GeometryModel visualModelTh_{};
         pinocchio::GeometryModel visualModel_{};
-        mutable pinocchio::Data pinocchioDataOrig_{};
+        mutable pinocchio::Data pinocchioDataTh_{};
         mutable pinocchio::Data pinocchioData_{};
         mutable pinocchio::GeometryData collisionData_{};
         mutable pinocchio::GeometryData visualData_{};
@@ -427,22 +430,23 @@ namespace jiminy
         std::vector<std::vector<pinocchio::PairIndex>> collisionPairIndices_{};
         /// \brief Indices of the contact frames in the frame list of the robot.
         std::vector<pinocchio::FrameIndex> contactFrameIndices_{};
-        /// \brief Name of the actual joints of the robot, not taking into account the freeflyer.
-        std::vector<std::string> rigidJointNames_{};
-        /// \brief Index of the actual joints in the pinocchio robot.
-        std::vector<pinocchio::JointIndex> rigidJointIndices_{};
-        /// \brief All the indices of the actual joints in the configuration vector of the robot
-        ///        (ie including all the degrees of freedom).
-        std::vector<Eigen::Index> rigidJointPositionIndices_{};
-        /// \brief All the indices of the actual joints in the velocity vector of the robot (ie
-        ///        including all the degrees of freedom).
-        std::vector<Eigen::Index> rigidJointVelocityIndices_{};
+        /// \brief Name of the mechanical joints of the robot, ie all joints of the theoretical
+        ///        excluding freeflyer if any.
+        std::vector<std::string> mechanicalJointNames_{};
+        /// \brief Index of the mechanical joints in the pinocchio robot.
+        std::vector<pinocchio::JointIndex> mechanicalJointIndices_{};
+        /// \brief All the indices of the mechanical joints in the configuration vector of the
+        ///        robot, ie including all their respective degrees of freedom.
+        std::vector<Eigen::Index> mechanicalJointPositionIndices_{};
+        /// \brief All the indices of the mechanical joints in the velocity vector of the robot,
+        ///        ie including all their respective degrees of freedom.
+        std::vector<Eigen::Index> mechanicalJointVelocityIndices_{};
         /// \brief Name of the flexibility joints of the robot regardless of whether the
         ///        flexibilities are enabled.
-        std::vector<std::string> flexibleJointNames_{};
+        std::vector<std::string> flexibilityJointNames_{};
         /// \brief Index of the flexibility joints in the pinocchio robot regardless of whether the
         ///        flexibilities are enabled.
-        std::vector<pinocchio::JointIndex> flexibleJointIndices_{};
+        std::vector<pinocchio::JointIndex> flexibilityJointIndices_{};
 
         /// \brief Store constraints.
         ConstraintTree constraints_{};
@@ -466,9 +470,8 @@ namespace jiminy
         std::vector<std::string> logForceExternalFieldnames_{};
 
     private:
-        pinocchio::Model pncModelFlexibleOrig_{};
-        /// \brief Vector of joints acceleration corresponding to a copy of data.a - temporary
-        ///        buffer for computing constraints.
+        /// \brief Vector of joints acceleration corresponding to a copy of data.a.
+        //         Used for computing constraints as a temporary buffer.
         MotionVector jointSpatialAccelerations_{};
 
         Eigen::Index nq_{0};

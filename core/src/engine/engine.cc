@@ -890,6 +890,37 @@ namespace jiminy
         }
     }
 
+    template<typename T>
+    static std::string serialize(T && value)
+    {
+        if constexpr (std::is_same_v<std::string, std::decay_t<T>>)
+        {
+            return value;
+        }
+        else if constexpr (is_vector_v<T>)
+        {
+            std::ostringstream sstr;
+            const std::size_t size = value.size();
+            for (std::size_t i = 0; i < size; ++i)
+            {
+                serialize(value[i]);
+                if (i < size)
+                {
+                    sstr << ";";
+                }
+            }
+            return sstr.str();
+        }
+        else if constexpr (std::is_arithmetic_v<std::decay_t<T>>)
+        {
+            return toString(value);
+        }
+        else
+        {
+            return ::jiminy::saveToBinary(value);
+        }
+    };
+
     void Engine::start(const std::map<std::string, Eigen::VectorXd> & qInit,
                        const std::map<std::string, Eigen::VectorXd> & vInit,
                        const std::optional<std::map<std::string, Eigen::VectorXd>> & aInit)
@@ -1075,7 +1106,7 @@ namespace jiminy
         for (; robotIt != robots_.end(); ++robotIt, ++robotDataIt)
         {
             // Propagate the user-defined gravity at robot level
-            (*robotIt)->pinocchioModelOrig_.gravity = engineOptions_->world.gravity;
+            (*robotIt)->pinocchioModelTh_.gravity = engineOptions_->world.gravity;
             (*robotIt)->pinocchioModel_.gravity = engineOptions_->world.gravity;
 
             /* Reinitialize the robot state buffers, since the robot kinematic may have changed.
@@ -1442,66 +1473,56 @@ namespace jiminy
         // Log robots data
         for (const auto & robot : robots_)
         {
+            // Define helper to make it easy to register a robot member as a constant
+            auto registerRobotMember = [&](const std::string & name, auto && member)
+            {
+                // Prepend robot name to variable name
+                const std::string key =
+                    addCircumfix(name, robot->getName(), {}, TELEMETRY_FIELDNAME_DELIMITER);
+
+                // Dump serialized constant
+                if constexpr (std::is_member_function_pointer_v<std::decay_t<decltype(member)>>)
+                {
+                    telemetrySender_->registerConstant(key, serialize((robot.get()->*member)()));
+                }
+                else
+                {
+                    telemetrySender_->registerConstant(key, serialize(robot.get()->*member));
+                }
+            };
+
             // Backup URDF file
-            const std::string telemetryUrdfFile =
-                addCircumfix("urdf_file", robot->getName(), {}, TELEMETRY_FIELDNAME_DELIMITER);
-            const std::string & urdfFileString = robot->getUrdfAsString();
-            telemetrySender_->registerConstant(telemetryUrdfFile, urdfFileString);
+            registerRobotMember("urdf_file", &Robot::getUrdfAsString);
 
             // Backup 'has_freeflyer' option
-            const std::string telemetrHasFreeflyer =
-                addCircumfix("has_freeflyer", robot->getName(), {}, TELEMETRY_FIELDNAME_DELIMITER);
-            telemetrySender_->registerConstant(telemetrHasFreeflyer,
-                                               toString(robot->getHasFreeflyer()));
+            registerRobotMember("has_freeflyer", &Robot::getHasFreeflyer);
 
             // Backup mesh package lookup directories
-            const std::string telemetryMeshPackageDirs = addCircumfix(
-                "mesh_package_dirs", robot->getName(), {}, TELEMETRY_FIELDNAME_DELIMITER);
-            std::string meshPackageDirsString;
-            std::stringstream meshPackageDirsStream;
-            const std::vector<std::string> & meshPackageDirs = robot->getMeshPackageDirs();
-            copy(meshPackageDirs.begin(),
-                 meshPackageDirs.end(),
-                 std::ostream_iterator<std::string>(meshPackageDirsStream, ";"));
-            if (meshPackageDirsStream.peek() !=
-                decltype(meshPackageDirsStream)::traits_type::eof())
-            {
-                meshPackageDirsString = meshPackageDirsStream.str();
-                meshPackageDirsString.pop_back();
-            }
-            telemetrySender_->registerConstant(telemetryMeshPackageDirs, meshPackageDirsString);
+            registerRobotMember("mesh_package_dirs", &Robot::getMeshPackageDirs);
 
-            // Backup the true and theoretical Pinocchio::Model
-            std::string key = addCircumfix(
-                "pinocchio_model", robot->getName(), {}, TELEMETRY_FIELDNAME_DELIMITER);
-            std::string value = saveToBinary(robot->pinocchioModel_);
-            telemetrySender_->registerConstant(key, value);
+            // Backup the theoretical model and current extended model
+            registerRobotMember("pinocchio_model_th", &Robot::pinocchioModelTh_);
+            registerRobotMember("pinocchio_model", &Robot::pinocchioModel_);
 
             /* Backup the Pinocchio GeometryModel for collisions and visuals.
                It may fail because of missing serialization methods for convex, or because it
-               cannot fit into memory (return code). Persistent mode is automatically enforced
-               if no URDF is associated with the robot.*/
-            if (engineOptions_->telemetry.isPersistent || urdfFileString.empty())
+               cannot fit into memory.
+               Persistent mode is automatically enabled if no URDF is associated with the robot. */
+            const bool hasUrdfFile = !robot->getUrdfAsString().empty();
+            if (engineOptions_->telemetry.isPersistent || !hasUrdfFile)
             {
                 try
                 {
-                    key = addCircumfix(
-                        "collision_model", robot->getName(), {}, TELEMETRY_FIELDNAME_DELIMITER);
-                    value = saveToBinary(robot->collisionModel_);
-                    telemetrySender_->registerConstant(key, value);
-
-                    key = addCircumfix(
-                        "visual_model", robot->getName(), {}, TELEMETRY_FIELDNAME_DELIMITER);
-                    value = saveToBinary(robot->visualModel_);
-                    telemetrySender_->registerConstant(key, value);
+                    registerRobotMember("collision_model", &Robot::collisionModel_);
+                    registerRobotMember("visual_model", &Robot::visualModel_);
                 }
                 catch (const std::exception & e)
                 {
                     std::string msg{"Failed to log the collision and/or visual model."};
-                    if (urdfFileString.empty())
+                    if (!hasUrdfFile)
                     {
-                        msg += " It will be impossible to replay log files because no URDF "
-                               "file is available as fallback.";
+                        msg += "\nIt will be impossible to replay log files because no URDF file "
+                               "is available as fallback.";
                     }
                     msg += "\nRaised from exception: ";
                     PRINT_WARNING(msg, e.what());
@@ -1545,10 +1566,10 @@ namespace jiminy
 
         // Process initial configuration
         std::map<std::string, Eigen::VectorXd> qInitMap;
-        if (isStateTheoretical && robot->modelOptions_->dynamics.enableFlexibleModel)
+        if (isStateTheoretical)
         {
             Eigen::VectorXd q0;
-            robot->getFlexiblePositionFromRigid(qInit, q0);
+            robot->getExtendedPositionFromTheoretical(qInit, q0);
             qInitMap.emplace(robotName, std::move(q0));
         }
         else
@@ -1558,10 +1579,10 @@ namespace jiminy
 
         // Process initial velocity
         std::map<std::string, Eigen::VectorXd> vInitMap;
-        if (isStateTheoretical && robot->modelOptions_->dynamics.enableFlexibleModel)
+        if (isStateTheoretical)
         {
             Eigen::VectorXd v0;
-            robot->getFlexibleVelocityFromRigid(vInit, v0);
+            robot->getExtendedVelocityFromTheoretical(vInit, v0);
             vInitMap.emplace(robotName, std::move(v0));
         }
         else
@@ -1574,10 +1595,10 @@ namespace jiminy
         if (aInit)
         {
             aInitMap.emplace();
-            if (isStateTheoretical && robot->modelOptions_->dynamics.enableFlexibleModel)
+            if (isStateTheoretical)
             {
                 Eigen::VectorXd a0;
-                robot->getFlexibleVelocityFromRigid(*aInit, a0);
+                robot->getExtendedVelocityFromTheoretical(*aInit, a0);
                 aInitMap->emplace(robotName, std::move(a0));
             }
             else
@@ -3425,18 +3446,18 @@ namespace jiminy
         const pinocchio::Data & data = robot->pinocchioData_;
         const ConstraintTree & constraints = robot->getConstraints();
 
-        // Enforce the position limit (rigid joints only)
+        // Enforce the position limit (mechanical joints only)
         if (robot->modelOptions_->joints.enablePositionLimit)
         {
             const Eigen::VectorXd & positionLimitMin = robot->getPositionLimitMin();
             const Eigen::VectorXd & positionLimitMax = robot->getPositionLimitMax();
-            const std::vector<pinocchio::JointIndex> & rigidJointIndices =
-                robot->getRigidJointIndices();
-            for (std::size_t i = 0; i < rigidJointIndices.size(); ++i)
+            const std::vector<pinocchio::JointIndex> & mechanicalJointIndices =
+                robot->getMechanicalJointIndices();
+            for (std::size_t i = 0; i < mechanicalJointIndices.size(); ++i)
             {
                 auto & constraint = constraints.boundJoints[i].second;
                 computePositionLimitsForcesAlgo::run(
-                    model.joints[rigidJointIndices[i]],
+                    model.joints[mechanicalJointIndices[i]],
                     typename computePositionLimitsForcesAlgo::ArgsType(data,
                                                                        q,
                                                                        v,
@@ -3449,14 +3470,14 @@ namespace jiminy
             }
         }
 
-        // Enforce the velocity limit (rigid joints only)
+        // Enforce the velocity limit (mechanical joints only)
         if (robot->modelOptions_->joints.enableVelocityLimit)
         {
             const Eigen::VectorXd & velocityLimitMax = robot->getVelocityLimit();
-            for (pinocchio::JointIndex rigidJointIndex : robot->getRigidJointIndices())
+            for (pinocchio::JointIndex mechanicalJointIndex : robot->getMechanicalJointIndices())
             {
                 computeVelocityLimitsForcesAlgo::run(
-                    model.joints[rigidJointIndex],
+                    model.joints[mechanicalJointIndex],
                     typename computeVelocityLimitsForcesAlgo::ArgsType(
                         data, v, velocityLimitMax, engineOptions_, contactModel_, uInternal));
             }
@@ -3467,7 +3488,7 @@ namespace jiminy
         Eigen::Matrix3d rotJlog3;
         const Robot::DynamicsOptions & modelDynOptions = robot->modelOptions_->dynamics;
         const std::vector<pinocchio::JointIndex> & flexibilityJointIndices =
-            robot->getFlexibleJointIndices();
+            robot->getFlexibilityJointIndices();
         for (std::size_t i = 0; i < flexibilityJointIndices.size(); ++i)
         {
             const pinocchio::JointIndex jointIndex = flexibilityJointIndices[i];

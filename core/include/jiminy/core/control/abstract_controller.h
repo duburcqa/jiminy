@@ -60,6 +60,15 @@ namespace jiminy
         /// \param[in] robot Robot
         virtual void initialize(std::weak_ptr<const Robot> robot);
 
+        /// \brief Register a constant (so-called invariant) to the telemetry.
+        ///
+        /// \details The user is responsible to convert it as a byte array (eg `std::string`),
+        ///          either using `toString` for arithmetic types or `saveToBinary` complex types.
+        ///
+        /// \param[in] name Name of the constant.
+        /// \param[in] value Constant to add to the telemetry.
+        void registerConstant(const std::string_view & name, const std::string & value);
+
         /// \brief Dynamically registered a scalar variable to the telemetry. It is the main entry
         ///        point for a user to log custom variables.
         ///
@@ -87,13 +96,6 @@ namespace jiminy
             const std::vector<std::string> & fieldnames,
             const Eigen::Ref<VectorX<int64_t>, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>> &
                 values);
-
-        /// \brief Register a constant float64 to the telemetry.
-        ///
-        /// \param[in] name Name of the variable.
-        /// \param[in] values Variable to add to the telemetry
-        template<typename T>
-        void registerConstant(const std::string_view & name, const T & value);
 
         /// \brief Remove all variables dynamically registered to the telemetry.
         ///

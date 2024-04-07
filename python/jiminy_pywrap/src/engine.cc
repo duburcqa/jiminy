@@ -381,7 +381,7 @@ namespace jiminy::python
                     jsonLoad(robotOptions, device);
                     constants[key] = robotOptions;
                 }
-                else if (endsWith(key, ".pinocchio_model"))
+                else if (key.find(".pinocchio_model") != std::string::npos)
                 {
                     try
                     {

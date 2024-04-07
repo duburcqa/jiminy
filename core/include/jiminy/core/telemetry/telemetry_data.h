@@ -28,10 +28,12 @@ namespace jiminy
         template<typename T>
         T * registerVariable(const std::string & name);
 
-        /// \brief Register a constant for the telemetry.
+        /// \brief Register a constant (so-called invariant) to the telemetry.
         ///
-        /// \param[in] name Name of the invariant.
-        /// \param[in] value Value of the invariant.
+        /// \details The user is responsible to convert it as a byte array (eg `std::string`).
+        ///
+        /// \param[in] name Name of the constant.
+        /// \param[in] value Value of the constant.
         void registerConstant(const std::string & name, const std::string & value);
 
         /// \brief Format the telemetry header with the current recorded informations.

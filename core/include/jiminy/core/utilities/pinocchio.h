@@ -72,12 +72,11 @@ namespace jiminy
                     pinocchio::JointIndex jointIndex1,
                     pinocchio::JointIndex jointIndex2);
 
-    void insertFlexibilityBeforeJointInModel(pinocchio::Model & model,
-                                             const std::string & childJointName,
-                                             const std::string & newJointName);
+    void addFlexibilityJointBeforeMechanicalJoint(pinocchio::Model & model,
+                                                  const std::string & childJointName,
+                                                  const std::string & newJointName);
 
-    void insertFlexibilityAtFixedFrameInModel(pinocchio::Model & model,
-                                              const std::string & frameName);
+    void addFlexibilityJointAtFixedFrame(pinocchio::Model & model, const std::string & frameName);
 
     Eigen::MatrixXd JIMINY_DLLAPI interpolatePositions(const pinocchio::Model & model,
                                                        const Eigen::VectorXd & timesIn,

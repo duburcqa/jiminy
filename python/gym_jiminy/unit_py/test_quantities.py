@@ -61,11 +61,11 @@ class Quantities(unittest.TestCase):
             env.simulator,
             {
                 "rpy_0": (EulerAnglesFrame, dict(
-                    frame_name=env.pinocchio_model.frames[1].name)),
+                    frame_name=env.robot.pinocchio_model.frames[1].name)),
                 "rpy_1": (EulerAnglesFrame, dict(
-                    frame_name=env.pinocchio_model.frames[1].name)),
+                    frame_name=env.robot.pinocchio_model.frames[1].name)),
                 "rpy_2": (EulerAnglesFrame, dict(
-                    frame_name=env.pinocchio_model.frames[-1].name)),
+                    frame_name=env.robot.pinocchio_model.frames[-1].name)),
             })
         quantities = quantity_manager.quantities
 

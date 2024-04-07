@@ -200,10 +200,10 @@ namespace jiminy
             }
 
             // Update rotor inertia and effort limit of pinocchio model
-            const Eigen::Index jointVelocityOrigIndex =
-                getJointVelocityFirstIndex(robot->pinocchioModelOrig_, motorIn.getJointName());
+            const Eigen::Index mechanicalJointVelocityIndex =
+                getJointVelocityFirstIndex(robot->pinocchioModelTh_, motorIn.getJointName());
             robot->pinocchioModel_.rotorInertia[motorIn.getJointVelocityIndex()] =
-                robot->pinocchioModelOrig_.rotorInertia[jointVelocityOrigIndex] +
+                robot->pinocchioModelTh_.rotorInertia[mechanicalJointVelocityIndex] +
                 motorIn.getArmature();
             robot->pinocchioModel_.effortLimit[motorIn.getJointVelocityIndex()] =
                 motorIn.getCommandLimit();
@@ -246,10 +246,10 @@ namespace jiminy
 
         // Reset effortLimit and rotorInertia
         const std::shared_ptr<AbstractMotorBase> & motor = *motorIt;
-        const Eigen::Index jointVelocityOrigIndex =
-            ::jiminy::getJointVelocityFirstIndex(pinocchioModelOrig_, motor->getJointName());
+        const Eigen::Index mechanicalJointVelocityIndex =
+            ::jiminy::getJointVelocityFirstIndex(pinocchioModelTh_, motor->getJointName());
         pinocchioModel_.rotorInertia[motor->getJointVelocityIndex()] =
-            pinocchioModelOrig_.rotorInertia[jointVelocityOrigIndex];
+            pinocchioModelTh_.rotorInertia[mechanicalJointVelocityIndex];
         pinocchioModel_.effortLimit[motor->getJointVelocityIndex()] = 0.0;
 
         // Detach the motor

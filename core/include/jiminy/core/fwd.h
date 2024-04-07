@@ -194,10 +194,10 @@ namespace jiminy
         const Eigen::Vector2d & /* xy */, double & /* height */, Eigen::Vector3d & /* normal */)>;
 
     // Flexible joints
-    struct FlexibleJointData
+    struct FlexibilityJointConfig
     {
         // FIXME: Replace by default spaceship operator `<=>` when moving to C++20.
-        inline bool operator==(const FlexibleJointData & other) const noexcept
+        inline bool operator==(const FlexibilityJointConfig & other) const noexcept
         {
             return (this->frameName == other.frameName && this->stiffness == other.stiffness &&
                     this->damping == other.damping && this->inertia == other.inertia);
@@ -209,7 +209,7 @@ namespace jiminy
         Eigen::Vector3d inertia{};
     };
 
-    using FlexibilityConfig = std::vector<FlexibleJointData>;
+    using FlexibilityConfig = std::vector<FlexibilityJointConfig>;
 
     using GenericConfig =
         std::unordered_map<std::string,
@@ -234,20 +234,20 @@ namespace jiminy
     std::string toString(Args &&... args)
     {
         std::ostringstream sstr;
-        auto format = [](auto && var)
+        auto format = [&sstr](auto && var)
         {
             if constexpr (is_eigen_any_v<decltype(var)>)
             {
                 static const Eigen::IOFormat k_heavy_fmt(
                     Eigen::FullPrecision, 0, ", ", ";\n", "[", "]", "[", "]");
-                return var.format(k_heavy_fmt);
+                sstr << var.format(k_heavy_fmt);
             }
             else
             {
-                return var;
+                sstr << var;
             }
         };
-        ((sstr << format(std::forward<Args>(args))), ...);
+        (format(std::forward<Args>(args)), ...);
         return sstr.str();
     }
 }
