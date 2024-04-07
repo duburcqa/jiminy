@@ -209,6 +209,31 @@ namespace jiminy
         }
     }
 
+    void AbstractController::registerConstant(const std::string_view & name,
+                                              const std::string & value)
+    {
+        // Delayed variable registration (Taken into account by 'configureTelemetry')
+
+        if (isTelemetryConfigured_)
+        {
+            THROW_ERROR(bad_control_flow,
+                        "Telemetry already initialized. Impossible to register new variables.");
+        }
+
+        // Check in local cache before.
+        auto constantIt = std::find_if(constantRegistry_.begin(),
+                                       constantRegistry_.end(),
+                                       [&name](const auto & element)
+                                       { return element.first == name; });
+        if (constantIt != constantRegistry_.end())
+        {
+            THROW_ERROR(bad_control_flow, "Constant '", name, "' already registered.");
+        }
+
+        // Register serialized constant
+        constantRegistry_.emplace_back(name, value);
+    }
+
     void AbstractController::registerVariable(
         const std::vector<std::string> & fieldnames,
         const Eigen::Ref<VectorX<double>, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>> &

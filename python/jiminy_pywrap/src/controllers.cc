@@ -89,7 +89,7 @@ namespace jiminy::python
         }
 
         static void registerVariable(
-            AbstractController & self, const std::string & fieldname, PyObject * dataPy)
+            AbstractController & self, const std::string & name, PyObject * dataPy)
         {
             // Note that const qualifier is not supported by PyArray_DATA
 
@@ -109,12 +109,12 @@ namespace jiminy::python
             if (PyArray_TYPE(dataPyArray) == NPY_FLOAT64)
             {
                 auto data = static_cast<double *>(PyArray_DATA(dataPyArray));
-                return self.registerVariable(fieldname, *data);
+                return self.registerVariable(name, *data);
             }
             if (PyArray_TYPE(dataPyArray) == NPY_INT64)
             {
                 auto data = static_cast<int64_t *>(PyArray_DATA(dataPyArray));
-                return self.registerVariable(fieldname, *data);
+                return self.registerVariable(name, *data);
             }
             THROW_ERROR(not_implemented_error,
                         "'value' input array must have dtype 'np.float64' or 'np.int64'.");
@@ -182,31 +182,17 @@ namespace jiminy::python
         }
 
         static void registerConstant(
-            AbstractController & self, const std::string & fieldname, PyObject * dataPy)
+            AbstractController & self, const std::string & name, PyObject * dataPy)
         {
-            if (PyArray_Check(dataPy))
+            if (PyBytes_Check(dataPy))
             {
-                return std::visit([&](auto && arg)
-                                  { return self.registerConstant(fieldname, arg); },
-                                  getEigenReference(dataPy));
-            }
-            if (PyFloat_Check(dataPy))
-            {
-                return self.registerConstant(fieldname, PyFloat_AsDouble(dataPy));
-            }
-            if (PyLong_Check(dataPy))
-            {
-                return self.registerConstant(fieldname, PyLong_AsLong(dataPy));
+                return self.registerConstant(name, PyBytes_AsString(dataPy));
             }
             if (PyBytes_Check(dataPy))
             {
-                return self.registerConstant(fieldname, PyBytes_AsString(dataPy));
+                return self.registerConstant(name, PyBytes_AsString(dataPy));
             }
-            if (PyUnicode_Check(dataPy))
-            {
-                return self.registerConstant(fieldname, PyUnicode_AsUTF8(dataPy));
-            }
-            THROW_ERROR(not_implemented_error, "'value' type is unsupported.");
+            THROW_ERROR(not_implemented_error, "'value' must have type 'bytes' or 'str'.");
         }
 
         static void setOptions(AbstractController & self, const bp::dict & configPy)
@@ -242,15 +228,15 @@ namespace jiminy::python
             .ADD_PROPERTY_GET_WITH_POLICY("is_initialized",
                                           &AbstractController::getIsInitialized,
                                           bp::return_value_policy<bp::return_by_value>())
+            .def("register_constant",
+                 &internal::abstract_controller::registerConstant,
+                 (bp::arg("self"), "name", "value"))
             .def("register_variable",
                  &internal::abstract_controller::registerVariable,
-                 (bp::arg("self"), "fieldname", "value"),
+                 (bp::arg("self"), "name", "value"),
                  "@copydoc AbstractController::registerVariable")
             .def("register_variables",
                  &internal::abstract_controller::registerVariableArray,
-                 (bp::arg("self"), "fieldnames", "values"))
-            .def("register_constants",
-                 &internal::abstract_controller::registerConstant,
                  (bp::arg("self"), "fieldnames", "values"))
             .def("remove_entries", &AbstractController::removeEntries)
             .def("set_options",

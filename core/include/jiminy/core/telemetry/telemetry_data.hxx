@@ -26,7 +26,9 @@ namespace jiminy
         if (!isRegisteringAvailable_)
         {
             THROW_ERROR(std::invalid_argument,
-                        "Entry not found and registration is not available.");
+                        "Entry '",
+                        name,
+                        "' not found and registration is not available.");
         }
 
         // Create new variable in registry
