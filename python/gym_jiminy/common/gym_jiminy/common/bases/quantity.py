@@ -14,6 +14,7 @@ batch to leverage vectorization of math instructions.
 """
 from abc import ABC, abstractmethod
 from collections.abc import Mapping
+from functools import partial
 from typing import (
     Any, Dict, List, Optional, Tuple, Iterator, Generic, TypeVar, Type, cast)
 
@@ -116,6 +117,13 @@ class AbstractQuantity(ABC, Generic[ValueT]):
         them. It is advised to use decorator `@dataclass(unsafe_hash=True)` for
         convenience, but it can also be done manually.
     """
+
+    requirements: Dict[str, "AbstractQuantity"]
+    """Intermediary quantities on which this quantity may rely on for its
+    evaluation at some point, depending on the optimal computation path at
+    runtime. There values will be exposed to the user as usual properties.
+    """
+
     def __init__(self,
                  env: InterfaceJiminyEnv,
                  parent: Optional["AbstractQuantity"],
@@ -153,15 +161,25 @@ class AbstractQuantity(ABC, Generic[ValueT]):
         # Whether the quantity must be re-initialized
         self._is_initialized: bool = False
 
+        # Add getter of all intermediary quantities dynamically.
+        # This approach is hacky but much faster than any of other official
+        # approach, ie implementing custom a `__getattribute__` method or even
+        # worst a custom `__getattr__` method.
+        def get_value(name: str, quantity: AbstractQuantity) -> Any:
+            return quantity.requirements[name].get()
+
+        for name in self.requirements.keys():
+            setattr(type(self), name, property(partial(get_value, name)))
+
     def __getattr__(self, name: str) -> Any:
         """Get access to intermediary quantities as first-class properties,
         without having to do it through `requirements`.
 
         .. warning::
-            Getting quantities this way is convenient but unfortunately much
-            slower than do it through `requirements` manually. It takes 40ns on
-            Python 3.12 and a whooping 180ns on Python 3.11. As a result, this
-            approach is mainly intended for ease of use while prototyping.
+            Accessing quantities this way is convenient, but unfortunately
+            much slower than do it through `requirements` manually. As a
+            result, this approach is mainly intended for ease of use while
+            prototyping.
 
         :param name: Name of the requested quantity.
         """
@@ -413,12 +431,15 @@ class QuantityManager(Mapping):
             cache.reset()
 
     def __getattr__(self, name: str) -> Any:
-        """Get access managed quantities as first-class properties.
+        """Get access managed quantities as first-class properties, rather than
+        dictionary-like values through `__getitem__`.
 
         .. warning::
             Getting quantities this way is convenient but unfortunately much
-            slower than do it through `__getitem__`. Using this method is not
-            recommend in production, especially on Python<3.12.
+            slower than doing it through `__getitem__`. It takes 40ns on
+            Python 3.12 and a whooping 180ns on Python 3.11. As a result, this
+            approach is mainly intended for ease of use while prototyping and
+            is not recommended in production, especially on Python<3.12.
 
         :param name: Name of the requested quantity.
         """
