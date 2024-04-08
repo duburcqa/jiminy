@@ -23,8 +23,8 @@ namespace jiminy
         if (!robot || robot->getIsLocked())
         {
             JIMINY_THROW(bad_control_flow,
-                        "Robot is locked, probably because a simulation is running. "
-                        "Please stop it before setting sensor value manually.");
+                         "Robot is locked, probably because a simulation is running. "
+                         "Please stop it before setting sensor value manually.");
         }
 
         get() = value;
@@ -154,11 +154,11 @@ namespace jiminy
             if (!sensor->isAttached_)
             {
                 JIMINY_THROW(bad_control_flow,
-                            "Sensor '",
-                            sensor->name_,
-                            "' of type '",
-                            type_,
-                            "' not attached to any robot.");
+                             "Sensor '",
+                             sensor->name_,
+                             "' of type '",
+                             type_,
+                             "' not attached to any robot.");
             }
         }
 
@@ -173,8 +173,8 @@ namespace jiminy
         if (robot && robot->getIsLocked())
         {
             JIMINY_THROW(bad_control_flow,
-                        "Robot already locked, probably because a simulation is running. "
-                        "Please stop it before resetting sensors.");
+                         "Robot already locked, probably because a simulation is running. "
+                         "Please stop it before resetting sensors.");
         }
 
         // Clear the shared data buffers
@@ -390,7 +390,7 @@ namespace jiminy
             else
             {
                 JIMINY_THROW(not_implemented_error,
-                            "`delayInterpolationOrder` must be either 0 or 1.");
+                             "`delayInterpolationOrder` must be either 0 or 1.");
             }
         }
         else

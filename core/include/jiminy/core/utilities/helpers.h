@@ -103,15 +103,16 @@ namespace jiminy
                                            const std::string_view & prefix = {},
                                            const std::string_view & suffix = {},
                                            const std::string_view & delimiter = {});
-    std::vector<std::string> JIMINY_DLLAPI addCircumfix(const std::vector<std::string> & fieldnames,
-                                                        const std::string_view & prefix = {},
-                                                        const std::string_view & suffix = {},
-                                                        const std::string_view & delimiter = {});
+    std::vector<std::string> JIMINY_DLLAPI addCircumfix(
+        const std::vector<std::string> & fieldnames,
+        const std::string_view & prefix = {},
+        const std::string_view & suffix = {},
+        const std::string_view & delimiter = {});
 
     std::string JIMINY_DLLAPI removeSuffix(std::string fieldname,  // Make a copy
                                            const std::string & suffix);
-    std::vector<std::string> JIMINY_DLLAPI removeSuffix(const std::vector<std::string> & fieldnames,
-                                                        const std::string & suffix);
+    std::vector<std::string> JIMINY_DLLAPI removeSuffix(
+        const std::vector<std::string> & fieldnames, const std::string & suffix);
 
     /// \brief Value of a single logged variable (by copy).
     ///

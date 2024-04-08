@@ -53,8 +53,8 @@ namespace jiminy::python
             {                                                                                     \
                 return convertFromPython<Eigen::Ref<const MatrixX<double>>>(array).cast<float>(); \
             }                                                                                     \
-            JIMINY_THROW(std::invalid_argument,                                                    \
-                        "Matrix arguments must have dtype 'np.float32' or 'np.float64'.");        \
+            JIMINY_THROW(std::invalid_argument,                                                   \
+                         "Matrix arguments must have dtype 'np.float32' or 'np.float64'.");       \
         };                                                                                        \
         return dist(generator, cast(arg1), cast(arg2)).cast<double>();                            \
     }                                                                                             \
@@ -83,7 +83,7 @@ namespace jiminy::python
         case 0:                                                                                   \
             break;                                                                                \
         default:                                                                                  \
-            JIMINY_THROW(std::invalid_argument, "'size' must have at most 2 dimensions.");         \
+            JIMINY_THROW(std::invalid_argument, "'size' must have at most 2 dimensions.");        \
         }                                                                                         \
         return convertToPython(dist(nrows, ncols, generator, arg1, arg2).cast<double>(), true);   \
     }

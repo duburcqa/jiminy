@@ -406,11 +406,11 @@ namespace jiminy
                 if (std::find(filter.begin(), filter.end(), frameType) != filter.end())
                 {
                     JIMINY_THROW(std::logic_error,
-                                "Not allowed to remove frame '",
-                                frameName,
-                                "' of type '",
-                                frameType,
-                                "'.");
+                                 "Not allowed to remove frame '",
+                                 frameName,
+                                 "' of type '",
+                                 frameType,
+                                 "'.");
                 }
             }
         }
@@ -469,8 +469,8 @@ namespace jiminy
         if (collisionModelTh_.ngeoms == 0)
         {
             JIMINY_THROW(std::runtime_error,
-                        "Collision geometry not available. Some collision meshes were "
-                        "probably not found.");
+                         "Collision geometry not available. Some collision meshes were "
+                         "probably not found.");
         }
 
         // Make sure that no body are duplicates
@@ -483,7 +483,7 @@ namespace jiminy
         if (checkIntersection(collisionBodyNames_, bodyNames))
         {
             JIMINY_THROW(std::invalid_argument,
-                        "At least one of the bodies already associated with a collision.");
+                         "At least one of the bodies already associated with a collision.");
         }
 
         // Make sure that all the bodies exist
@@ -514,8 +514,8 @@ namespace jiminy
             if (!hasGeometry)
             {
                 JIMINY_THROW(std::invalid_argument,
-                            "At least one of the bodies not associated with any collision "
-                            "geometry of requested type.");
+                             "At least one of the bodies not associated with any collision "
+                             "geometry of requested type.");
             }
         }
 
@@ -594,7 +594,7 @@ namespace jiminy
         if (!checkInclusion(collisionBodyNames_, bodyNames))
         {
             JIMINY_THROW(std::invalid_argument,
-                        "At least one of the bodies not associated with any collision.");
+                         "At least one of the bodies not associated with any collision.");
         }
 
         /* Remove the list of bodies from the set of collision bodies, then remove the associated
@@ -663,7 +663,7 @@ namespace jiminy
         if (checkIntersection(contactFrameNames_, frameNames))
         {
             JIMINY_THROW(std::invalid_argument,
-                        "At least one of the frames already associated with a contact.");
+                         "At least one of the frames already associated with a contact.");
         }
 
         // Make sure that all the frames exist
@@ -711,7 +711,7 @@ namespace jiminy
         if (!checkInclusion(contactFrameNames_, frameNames))
         {
             JIMINY_THROW(std::invalid_argument,
-                        "At least one of the frames not associated with a contact.");
+                         "At least one of the frames not associated with a contact.");
         }
 
         /* Remove the constraint associated with contact frame, then remove the list of frames from
@@ -739,16 +739,16 @@ namespace jiminy
             if (!constraintPtr)
             {
                 JIMINY_THROW(std::invalid_argument,
-                            "Constraint named '",
-                            constraintName,
-                            "' is undefined.");
+                             "Constraint named '",
+                             constraintName,
+                             "' is undefined.");
             }
             if (constraints_.exist(constraintName))
             {
                 JIMINY_THROW(std::invalid_argument,
-                            "A constraint named '",
-                            constraintName,
-                            "' already exists.");
+                             "A constraint named '",
+                             constraintName,
+                             "' already exists.");
             }
         }
 
@@ -795,14 +795,14 @@ namespace jiminy
                 if (node == ConstraintNodeType::USER)
                 {
                     JIMINY_THROW(std::invalid_argument,
-                                "No user-registered constraint with name '",
-                                constraintName,
-                                "' exists.");
+                                 "No user-registered constraint with name '",
+                                 constraintName,
+                                 "' exists.");
                 }
                 JIMINY_THROW(std::invalid_argument,
-                            "No internal constraint with name '",
-                            constraintName,
-                            "' exists.");
+                             "No internal constraint with name '",
+                             constraintName,
+                             "' exists.");
             }
         }
 
@@ -910,9 +910,9 @@ namespace jiminy
             if (!pinocchioModelTh_.existFrame(frameName))
             {
                 JIMINY_THROW(std::logic_error,
-                            "Frame '",
-                            frameName,
-                            "' does not exists. Impossible to insert flexibility joint on it.");
+                             "Frame '",
+                             frameName,
+                             "' does not exists. Impossible to insert flexibility joint on it.");
             }
         }
 
@@ -941,7 +941,7 @@ namespace jiminy
             else
             {
                 JIMINY_THROW(std::logic_error,
-                            "Flexible joint can only be inserted at fixed or joint frames.");
+                             "Flexible joint can only be inserted at fixed or joint frames.");
             }
             flexibilityJointNames_.push_back(flexName);
         }
@@ -971,10 +971,10 @@ namespace jiminy
             if ((inertiaDiag.array() < 1e-5).any())
             {
                 JIMINY_THROW(std::runtime_error,
-                            "The subtree diagonal inertia for flexibility joint ",
-                            flexibilityJointIndex,
-                            " must be larger than 1e-5 for numerical stability: ",
-                            inertiaDiag.transpose());
+                             "The subtree diagonal inertia for flexibility joint ",
+                             flexibilityJointIndex,
+                             " must be larger than 1e-5 for numerical stability: ",
+                             inertiaDiag.transpose());
             }
         }
     }
@@ -1378,8 +1378,9 @@ namespace jiminy
                 // Check dimensions consistency
                 if (J.cols() != pinocchioModel_.nv)
                 {
-                    JIMINY_THROW(std::logic_error,
-                                "Constraint has inconsistent jacobian and drift (size mismatch).");
+                    JIMINY_THROW(
+                        std::logic_error,
+                        "Constraint has inconsistent jacobian and drift (size mismatch).");
                 }
             });
     }
@@ -1405,7 +1406,7 @@ namespace jiminy
                     static_cast<uint32_t>(jointsPositionLimitMin.size()))
                 {
                     JIMINY_THROW(std::invalid_argument,
-                                "Wrong vector size for 'positionLimitMin'.");
+                                 "Wrong vector size for 'positionLimitMin'.");
                 }
                 Eigen::VectorXd & jointsPositionLimitMax =
                     boost::get<Eigen::VectorXd>(jointOptionsHolder.at("positionLimitMax"));
@@ -1413,7 +1414,7 @@ namespace jiminy
                     static_cast<uint32_t>(jointsPositionLimitMax.size()))
                 {
                     JIMINY_THROW(std::invalid_argument,
-                                "Wrong vector size for 'positionLimitMax'.");
+                                 "Wrong vector size for 'positionLimitMax'.");
                 }
                 if (mechanicalJointPositionIndices_.size() ==
                     static_cast<uint32_t>(modelOptions_->joints.positionLimitMin.size()))
@@ -1478,7 +1479,7 @@ namespace jiminy
                 flexibilityNames.end())
             {
                 JIMINY_THROW(std::invalid_argument,
-                            "No one can make the universe itself flexibility.");
+                             "No one can make the universe itself flexibility.");
             }
             for (const FlexibilityJointConfig & flexibilityJoint : flexibilityConfig)
             {
@@ -1487,8 +1488,8 @@ namespace jiminy
                     (flexibilityJoint.inertia.array() < 0.0).any())
                 {
                     JIMINY_THROW(std::invalid_argument,
-                                "All stiffness, damping and inertia parameters of flexibility "
-                                "joints must be positive.");
+                                 "All stiffness, damping and inertia parameters of flexibility "
+                                 "joints must be positive.");
                 }
             }
 
@@ -1539,8 +1540,8 @@ namespace jiminy
         if (contactPointsPerBodyMax < 1)
         {
             JIMINY_THROW(std::invalid_argument,
-                        "Number of contact points by collision pair "
-                        "'contactPointsPerBodyMax' must be strictly larger than 0.");
+                         "Number of contact points by collision pair "
+                         "'contactPointsPerBodyMax' must be strictly larger than 0.");
         }
         if (modelOptions_ &&
             contactPointsPerBodyMax != modelOptions_->collisions.contactPointsPerBodyMax)
@@ -1559,9 +1560,9 @@ namespace jiminy
             if (0.9 < value || value < 0.0)
             {
                 JIMINY_THROW(std::invalid_argument,
-                            "'",
-                            field,
-                            "' must be positive, and lower than 0.9 to avoid physics issues.");
+                             "'",
+                             field,
+                             "' must be positive, and lower than 0.9 to avoid physics issues.");
             }
         }
 

@@ -570,7 +570,7 @@ namespace jiminy
         if (model.inertias[parentJointIndex].mass() - childBodyInertia.mass() < 0.0)
         {
             JIMINY_THROW(std::runtime_error,
-                        "Child body mass too large to be subtracted to joint mass.");
+                         "Child body mass too large to be subtracted to joint mass.");
         }
         const Inertia childBodyInertiaInv(-childBodyInertia.mass(),
                                           childBodyInertia.lever(),
@@ -661,8 +661,8 @@ namespace jiminy
         if (timesIn.size() != positionsIn.cols() || model.nq != positionsIn.rows())
         {
             JIMINY_THROW(std::invalid_argument,
-                        "Input position matrix not consistent with model and/or "
-                        "time sequence. Time expected as second dimension.");
+                         "Input position matrix not consistent with model and/or "
+                         "time sequence. Time expected as second dimension.");
         }
 
         // Nothing to do. Return early.
@@ -771,9 +771,9 @@ namespace jiminy
         catch (const std::exception & e)
         {
             JIMINY_THROW(std::ios_base::failure,
-                        "Something is wrong with the URDF. Impossible to load the collision "
-                        "geometries.\nRaised from exception: ",
-                        e.what());
+                         "Something is wrong with the URDF. Impossible to load the collision "
+                         "geometries.\nRaised from exception: ",
+                         e.what());
         }
 
         // Replace the mesh geometry object by its convex representation if necessary
@@ -834,9 +834,9 @@ namespace jiminy
         catch (const std::exception & e)
         {
             JIMINY_THROW(std::ios_base::failure,
-                        "Something is wrong with the URDF. Impossible to build a model from "
-                        "it.\nRaised from exception: ",
-                        e.what());
+                         "Something is wrong with the URDF. Impossible to build a model from "
+                         "it.\nRaised from exception: ",
+                         e.what());
         }
 
         // Build collision model

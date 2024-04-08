@@ -154,8 +154,8 @@ namespace jiminy
         if (!myFile.isOpen())
         {
             JIMINY_THROW(std::ios_base::failure,
-                        "Impossible to create the log file. Check if root folder "
-                        "exists and if you have writing permissions.");
+                         "Impossible to create the log file. Check if root folder "
+                         "exists and if you have writing permissions.");
         }
 
         for (auto & flow : flows_)
@@ -354,8 +354,8 @@ namespace jiminy
         if (!file.is_open())
         {
             JIMINY_THROW(std::ios_base::failure,
-                        "Impossible to open the log file. Check that the file "
-                        "exists and that you have reading permissions.");
+                         "Impossible to open the log file. Check that the file "
+                         "exists and that you have reading permissions.");
         }
 
         // Make sure the log file is not corrupted

@@ -19,17 +19,14 @@
 #include <boost/python/suite/indexing/vector_indexing_suite.hpp>
 
 
-#define EXPECTED_PYTYPE_FOR_ARG_IS_ARRAY(type)       \
-    namespace boost::python::converter               \
-    {                                                \
-        template<>                                   \
-        struct expected_pytype_for_arg<type>         \
-        {                                            \
-            static const PyTypeObject * get_pytype() \
-            {                                        \
-                return &PyArray_Type;                \
-            }                                        \
-        };                                           \
+#define EXPECTED_PYTYPE_FOR_ARG_IS_ARRAY(type)                                 \
+    namespace boost::python::converter                                         \
+    {                                                                          \
+        template<>                                                             \
+        struct expected_pytype_for_arg<type>                                   \
+        {                                                                      \
+            static const PyTypeObject * get_pytype() { return &PyArray_Type; } \
+        };                                                                     \
     }
 
 EXPECTED_PYTYPE_FOR_ARG_IS_ARRAY(numpy::ndarray)
@@ -238,7 +235,7 @@ namespace jiminy::python
             doc, std::pair{"fget", getMemberFuncPtr}, std::pair{"fset", setMemberFuncPtr});
     }
 
-    // clang-format off
+// clang-format off
     #define DEF_READONLY3(namePy, memberFuncPtr, doc) \
         def_readonly(namePy, \
                      memberFuncPtr, \
@@ -563,11 +560,11 @@ namespace jiminy::python
         if (PyArray_EquivTypenums(PyArray_TYPE(arrayPy), getPyType<T>()) == NPY_FALSE)
         {
             JIMINY_THROW(std::invalid_argument,
-                        "'values' input array has dtype '",
-                        PyArray_TYPE(arrayPy),
-                        "' but '",
-                        getPyType<T>(),
-                        "' was expected.");
+                         "'values' input array has dtype '",
+                         PyArray_TYPE(arrayPy),
+                         "' but '",
+                         getPyType<T>(),
+                         "' was expected.");
         }
 
         // Pick the right mapping depending on dimensionality and memory layout
@@ -595,7 +592,7 @@ namespace jiminy::python
                 return {dataPtr, arrayPyShape[0], arrayPyShape[1], {arrayPyShape[0], 1}};
             }
             JIMINY_THROW(std::invalid_argument,
-                        "Numpy array must be either row or column contiguous.");
+                         "Numpy array must be either row or column contiguous.");
         }
         default:
             JIMINY_THROW(not_implemented_error, "Only 1D and 2D 'np.ndarray' are supported.");
@@ -628,7 +625,7 @@ namespace jiminy::python
             return getEigenReferenceImpl<int64_t>(arrayPy);
         }
         JIMINY_THROW(not_implemented_error,
-                    "'values' input array must have dtype 'np.float64' or 'np.int64'.");
+                     "'values' input array must have dtype 'np.float64' or 'np.int64'.");
     }
 
     /// Convert most C++ objects into Python objects by value
@@ -701,8 +698,8 @@ namespace jiminy::python
         if (!copy)
         {
             JIMINY_THROW(not_implemented_error,
-                        "Passing 'FlexibilityJointConfig' object to python by reference is not "
-                        "supported.");
+                         "Passing 'FlexibilityJointConfig' object to python by reference is not "
+                         "supported.");
         }
         bp::dict flexibilityJointConfigPy;
         flexibilityJointConfigPy["frameName"] = flexibilityJointConfig.frameName;
@@ -934,7 +931,7 @@ namespace jiminy::python
             if (dataNumpy.get_dtype() != np::dtype::get_builtin<Scalar>())
             {
                 JIMINY_THROW(std::invalid_argument,
-                            "Scalar type of eigen object does not match dtype of numpy object.");
+                             "Scalar type of eigen object does not match dtype of numpy object.");
             }
             return getEigenReferenceImpl<Scalar>(reinterpret_cast<PyArrayObject *>(dataPy.ptr()));
         }
@@ -1161,8 +1158,8 @@ namespace jiminy::python
     };
 
     template<typename R, typename... Args>
-    ConvertGeneratorFromPythonAndInvoke(
-        R (*)(Args...)) -> ConvertGeneratorFromPythonAndInvoke<R(Args...), void>;
+    ConvertGeneratorFromPythonAndInvoke(R (*)(Args...))
+        -> ConvertGeneratorFromPythonAndInvoke<R(Args...), void>;
 
     template<typename T, typename R, typename Generator, typename... Args>
     class ConvertGeneratorFromPythonAndInvoke<R(Generator, Args...), T>
@@ -1188,8 +1185,8 @@ namespace jiminy::python
     };
 
     template<typename T, typename R, typename... Args>
-    ConvertGeneratorFromPythonAndInvoke(
-        R (T::*)(Args...)) -> ConvertGeneratorFromPythonAndInvoke<R(Args...), T>;
+    ConvertGeneratorFromPythonAndInvoke(R (T::*)(Args...))
+        -> ConvertGeneratorFromPythonAndInvoke<R(Args...), T>;
 
     // **************************** Automatic From Python converter **************************** //
 

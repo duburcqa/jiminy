@@ -28,17 +28,17 @@ namespace jiminy
         if (!isInitialized_)
         {
             JIMINY_THROW(bad_control_flow,
-                        "Sensor '",
-                        name_,
-                        "' of type '",
-                        getType(),
-                        "' is not initialized.");
+                         "Sensor '",
+                         name_,
+                         "' of type '",
+                         getType(),
+                         "' is not initialized.");
         }
 
         if (!telemetryData)
         {
             JIMINY_THROW(bad_control_flow,
-                        "Telemetry not initialized. Impossible to log sensor data.");
+                         "Telemetry not initialized. Impossible to log sensor data.");
         }
 
         std::string name = getTelemetryName();
@@ -82,8 +82,8 @@ namespace jiminy
         if (robot && robot->getIsLocked())
         {
             JIMINY_THROW(bad_control_flow,
-                        "Robot already locked, probably because a simulation is running. "
-                        "Please stop it before setting sensor options.");
+                         "Robot already locked, probably because a simulation is running. "
+                         "Please stop it before setting sensor options.");
         }
 
         // Set sensor options

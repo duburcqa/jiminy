@@ -243,9 +243,9 @@ namespace jiminy
                     else
                     {
                         JIMINY_THROW(std::invalid_argument,
-                                    "Unknown data type: std::vector<",
-                                    it->type(),
-                                    ">");
+                                     "Unknown data type: std::vector<",
+                                     it->type(),
+                                     ">");
                     }
                 }
                 else

@@ -96,14 +96,14 @@ namespace jiminy::python
             if (!PyArray_Check(dataPy))
             {
                 JIMINY_THROW(std::invalid_argument,
-                            "'value' input must have type 'numpy.ndarray'.");
+                             "'value' input must have type 'numpy.ndarray'.");
             }
 
             PyArrayObject * dataPyArray = reinterpret_cast<PyArrayObject *>(dataPy);
             if (PyArray_SIZE(dataPyArray) > 1U)
             {
                 JIMINY_THROW(std::invalid_argument,
-                            "'value' input array must have a single element.");
+                             "'value' input array must have a single element.");
             }
 
             if (PyArray_TYPE(dataPyArray) == NPY_FLOAT64)
@@ -117,7 +117,7 @@ namespace jiminy::python
                 return self.registerVariable(name, *data);
             }
             JIMINY_THROW(not_implemented_error,
-                        "'value' input array must have dtype 'np.float64' or 'np.int64'.");
+                         "'value' input array must have dtype 'np.float64' or 'np.int64'.");
         }
 
         template<typename Scalar>
@@ -136,7 +136,7 @@ namespace jiminy::python
                 if (static_cast<std::size_t>(data.size()) != fieldnames.size())
                 {
                     JIMINY_THROW(std::invalid_argument,
-                                "'values' input array must have same length than 'fieldnames'.");
+                                 "'values' input array must have same length than 'fieldnames'.");
                 }
 
                 // Register all variables at once
@@ -162,7 +162,7 @@ namespace jiminy::python
                 if (!are_fieldnames_valid)
                 {
                     JIMINY_THROW(std::invalid_argument,
-                                "'fieldnames' must be nested list with same shape than 'value'.");
+                                 "'fieldnames' must be nested list with same shape than 'value'.");
                 }
 
                 // Register rows sequentially

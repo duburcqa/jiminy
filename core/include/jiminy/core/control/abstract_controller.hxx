@@ -13,7 +13,7 @@ namespace jiminy
         if (isTelemetryConfigured_)
         {
             JIMINY_THROW(bad_control_flow,
-                        "Telemetry already initialized. Impossible to register new variables.");
+                         "Telemetry already initialized. Impossible to register new variables.");
         }
 
         // Check in local cache before.

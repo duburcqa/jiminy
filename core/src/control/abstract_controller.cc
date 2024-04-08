@@ -28,8 +28,8 @@ namespace jiminy
         if (robotOld && robotOld->getIsLocked())
         {
             JIMINY_THROW(bad_control_flow,
-                        "Robot already locked, probably because a simulation is running. "
-                        "Please stop it before re-initializing its controller.");
+                         "Robot already locked, probably because a simulation is running. "
+                         "Please stop it before re-initializing its controller.");
         }
 
         // Make sure the robot is valid
@@ -53,8 +53,8 @@ namespace jiminy
                 if (controllerOld && controllerOld.get() == this)
                 {
                     JIMINY_THROW(bad_control_flow,
-                                "Controller already bound to another robot. Please unbind it "
-                                "first before re-initializing it.");
+                                 "Controller already bound to another robot. Please unbind it "
+                                 "first before re-initializing it.");
                 }
             }
         }
@@ -92,13 +92,13 @@ namespace jiminy
         if (command.size() != robot->nmotors())
         {
             JIMINY_THROW(std::invalid_argument,
-                        "'computeCommand' returns command with wrong size.");
+                         "'computeCommand' returns command with wrong size.");
         }
         internalDynamics(t, q, v, uCustom);
         if (uCustom.size() != robot->nv())
         {
             JIMINY_THROW(std::invalid_argument,
-                        "'internalDynamics' returns command with wrong size.");
+                         "'internalDynamics' returns command with wrong size.");
         }
     }
 
@@ -114,8 +114,8 @@ namespace jiminy
         if (robot && robot->getIsLocked())
         {
             JIMINY_THROW(bad_control_flow,
-                        "Robot already locked, probably because a simulation is running. "
-                        "Please stop it before re-initializing its controller.");
+                         "Robot already locked, probably because a simulation is running. "
+                         "Please stop it before re-initializing its controller.");
         }
 
         // Reset the telemetry buffer of dynamically registered quantities
@@ -151,7 +151,7 @@ namespace jiminy
             if (!telemetryData)
             {
                 JIMINY_THROW(bad_control_flow,
-                            "Telemetry not initialized. Impossible to log controller data.");
+                             "Telemetry not initialized. Impossible to log controller data.");
             }
 
             std::string telemetryName{CONTROLLER_TELEMETRY_NAMESPACE};
@@ -190,7 +190,7 @@ namespace jiminy
         if (isTelemetryConfigured)
         {
             JIMINY_THROW(bad_control_flow,
-                        "Telemetry already initialized. Impossible to register new variables.");
+                         "Telemetry already initialized. Impossible to register new variables.");
         }
 
         std::vector<std::string>::const_iterator fieldIt = fieldnames.begin();
@@ -217,7 +217,7 @@ namespace jiminy
         if (isTelemetryConfigured_)
         {
             JIMINY_THROW(bad_control_flow,
-                        "Telemetry already initialized. Impossible to register new variables.");
+                         "Telemetry already initialized. Impossible to register new variables.");
         }
 
         // Check in local cache before.
@@ -278,8 +278,8 @@ namespace jiminy
         if (robot && robot->getIsLocked())
         {
             JIMINY_THROW(bad_control_flow,
-                        "Robot already locked, probably because a simulation is running. "
-                        "Please stop it before re-initializing its controller.");
+                         "Robot already locked, probably because a simulation is running. "
+                         "Please stop it before re-initializing its controller.");
         }
 
         // Set controller options

@@ -43,7 +43,8 @@ namespace jiminy
             {
                 if ((a.array() != a.array()).any())
                 {
-                    JIMINY_THROW(std::runtime_error, "The integrated acceleration contains 'nan'.");
+                    JIMINY_THROW(std::runtime_error,
+                                 "The integrated acceleration contains 'nan'.");
                 }
             }
         }

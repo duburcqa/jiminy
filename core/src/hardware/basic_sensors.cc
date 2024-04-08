@@ -14,48 +14,48 @@
 #include "jiminy/core/hardware/basic_sensors.h"
 
 
-#define GET_ROBOT_AND_CHECK_SENSOR_INTEGRITY()                                                  \
-    if (!isAttached_)                                                                           \
-    {                                                                                           \
+#define GET_ROBOT_AND_CHECK_SENSOR_INTEGRITY()                                                   \
+    if (!isAttached_)                                                                            \
+    {                                                                                            \
         JIMINY_THROW(bad_control_flow,                                                           \
-                    "Sensor not attached to any robot. Impossible to refresh sensor proxies."); \
-    }                                                                                           \
-                                                                                                \
-    auto robot = robot_.lock();                                                                 \
-    if (!robot)                                                                                 \
-    {                                                                                           \
+                     "Sensor not attached to any robot. Impossible to refresh sensor proxies."); \
+    }                                                                                            \
+                                                                                                 \
+    auto robot = robot_.lock();                                                                  \
+    if (!robot)                                                                                  \
+    {                                                                                            \
         JIMINY_THROW(bad_control_flow,                                                           \
-                    "Robot has been deleted. Impossible to refresh sensor proxies.");           \
-    }                                                                                           \
-                                                                                                \
-    if (!robot->getIsInitialized())                                                             \
-    {                                                                                           \
+                     "Robot has been deleted. Impossible to refresh sensor proxies.");           \
+    }                                                                                            \
+                                                                                                 \
+    if (!robot->getIsInitialized())                                                              \
+    {                                                                                            \
         JIMINY_THROW(bad_control_flow,                                                           \
-                    "Robot not initialized. Impossible to refresh sensor proxies.");            \
-    }                                                                                           \
-                                                                                                \
-    if (!isInitialized_)                                                                        \
-    {                                                                                           \
+                     "Robot not initialized. Impossible to refresh sensor proxies.");            \
+    }                                                                                            \
+                                                                                                 \
+    if (!isInitialized_)                                                                         \
+    {                                                                                            \
         JIMINY_THROW(bad_control_flow,                                                           \
-                    "Sensor not initialized. Impossible to refresh sensor proxies.");           \
+                     "Sensor not initialized. Impossible to refresh sensor proxies.");           \
     }
 
 
-#define GET_ROBOT_IF_INITIALIZED()                                                             \
-    if (!isInitialized_)                                                                       \
-    {                                                                                          \
+#define GET_ROBOT_IF_INITIALIZED()                                                              \
+    if (!isInitialized_)                                                                        \
+    {                                                                                           \
         JIMINY_THROW(bad_control_flow, "Sensor not initialized. Impossible to update sensor."); \
-    }                                                                                          \
-                                                                                               \
+    }                                                                                           \
+                                                                                                \
     auto robot = robot_.lock();
 
-#define CHECK_SIMULATION_NOT_RUNNING()                                                 \
-    auto robot = robot_.lock();                                                        \
-    if (robot && robot->getIsLocked())                                                 \
-    {                                                                                  \
+#define CHECK_SIMULATION_NOT_RUNNING()                                                  \
+    auto robot = robot_.lock();                                                         \
+    if (robot && robot->getIsLocked())                                                  \
+    {                                                                                   \
         JIMINY_THROW(bad_control_flow,                                                  \
-                    "Robot already locked, probably because a simulation is running. " \
-                    "Please stop it before refreshing sensor proxies.");               \
+                     "Robot already locked, probably because a simulation is running. " \
+                     "Please stop it before refreshing sensor proxies.");               \
     }
 
 namespace jiminy
@@ -255,8 +255,8 @@ namespace jiminy
         if (contactFrameNameIt == contactFrameNames.end())
         {
             JIMINY_THROW(std::logic_error,
-                        "Sensor frame not associated with any contact point of the robot. "
-                        "Impossible to refresh sensor proxies.");
+                         "Sensor frame not associated with any contact point of the robot. "
+                         "Impossible to refresh sensor proxies.");
         }
 
         frameIndex_ = ::jiminy::getFrameIndex(robot->pinocchioModel_, frameName_);
@@ -598,7 +598,7 @@ namespace jiminy
         if (!isInitialized_)
         {
             JIMINY_THROW(bad_control_flow,
-                        "Sensor not initialized. Impossible to set sensor data.");
+                         "Sensor not initialized. Impossible to set sensor data.");
         }
 
         data()[0] = uMotor[motorIndex_];

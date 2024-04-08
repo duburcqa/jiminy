@@ -23,8 +23,8 @@ namespace jiminy
         if (robot && robot->getIsLocked())
         {
             JIMINY_THROW(bad_control_flow,
-                        "Robot already locked, probably because a simulation is running. "
-                        "Please stop it before refreshing motor proxies.");
+                         "Robot already locked, probably because a simulation is running. "
+                         "Please stop it before refreshing motor proxies.");
         }
 
         // Update joint name
@@ -83,7 +83,7 @@ namespace jiminy
         if (!isInitialized_)
         {
             JIMINY_THROW(bad_control_flow,
-                        "Motor not initialized. Impossible to compute actual motor effort.");
+                         "Motor not initialized. Impossible to compute actual motor effort.");
         }
 
         /* Compute the motor effort, taking into account the limit, if any.

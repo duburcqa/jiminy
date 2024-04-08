@@ -111,7 +111,7 @@ namespace jiminy
         if (rc < 0)
         {
             JIMINY_THROW(std::ios_base::failure,
-                        "Impossible to open the file using the desired mode.");
+                         "Impossible to open the file using the desired mode.");
         }
         fileDescriptor_ = rc;
     }
@@ -132,9 +132,9 @@ namespace jiminy
         if (rc < 0)
         {
             JIMINY_THROW(std::ios_base::failure,
-                        "File not open, or requested position '",
-                        pos,
-                        "' is out of scope.");
+                         "File not open, or requested position '",
+                         pos,
+                         "' is out of scope.");
         }
     }
 
@@ -144,7 +144,7 @@ namespace jiminy
         if (pos_cur < 0)
         {
             JIMINY_THROW(std::ios_base::failure,
-                        "File not open, or position would be negative or beyond the end.");
+                         "File not open, or position would be negative or beyond the end.");
         }
         return pos_cur;
     }
@@ -175,7 +175,7 @@ namespace jiminy
         if (readBytes < 0)
         {
             JIMINY_THROW(std::ios_base::failure,
-                        "File not open, or data buffer is outside accessible address space.");
+                         "File not open, or data buffer is outside accessible address space.");
         }
         return static_cast<std::ptrdiff_t>(readBytes);
     }
@@ -186,7 +186,7 @@ namespace jiminy
         if (writtenBytes < 0)
         {
             JIMINY_THROW(std::ios_base::failure,
-                        "File not open, or data buffer is outside accessible address space.");
+                         "File not open, or data buffer is outside accessible address space.");
         }
         return writtenBytes;
     }

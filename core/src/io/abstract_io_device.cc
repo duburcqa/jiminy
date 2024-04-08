@@ -44,7 +44,7 @@ namespace jiminy
         if ((modes & supportedModes_) != modes)
         {
             JIMINY_THROW(std::invalid_argument,
-                        "At least one of the selected modes is not supported by the device.");
+                         "At least one of the selected modes is not supported by the device.");
         }
 
         doOpen(modes);
