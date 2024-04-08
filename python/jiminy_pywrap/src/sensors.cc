@@ -32,7 +32,7 @@ namespace jiminy::python
                 auto sensorDataIt = SensorMeasurementTreeByName.find(sensorName);
                 if (sensorDataIt == SensorMeasurementTreeByName.end())
                 {
-                    THROW_ERROR(std::runtime_error, "");
+                    JIMINY_THROW(std::runtime_error, "");
                 }
                 return sensorDataIt->value;
             }

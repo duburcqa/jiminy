@@ -24,7 +24,7 @@ namespace jiminy
         // Make sure the error is well defined, otherwise throw an exception
         if (std::isnan(error))
         {
-            THROW_ERROR(std::runtime_error, "The estimated integration error contains 'nan'.");
+            JIMINY_THROW(std::runtime_error, "The estimated integration error contains 'nan'.");
         }
 
         /* Adjustment algorithm from boost implementation.

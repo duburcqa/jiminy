@@ -159,7 +159,7 @@ namespace jiminy
     struct JIMINY_DLLAPI RobotData
     {
     public:
-        DISABLE_COPY(RobotData)
+        JIMINY_DISABLE_COPY(RobotData)
 
         /* Must move all definitions in source files to avoid compilation failure due to incomplete
            destructor for objects managed by `unique_ptr` member variable with MSVC compiler.
@@ -497,7 +497,7 @@ namespace jiminy
         };
 
     public:
-        DISABLE_COPY(Engine)
+        JIMINY_DISABLE_COPY(Engine)
 
     public:
         explicit Engine() noexcept;

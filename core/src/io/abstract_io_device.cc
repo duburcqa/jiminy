@@ -38,12 +38,12 @@ namespace jiminy
     {
         if (isOpen())
         {
-            THROW_ERROR(bad_control_flow, "Device already open.");
+            JIMINY_THROW(bad_control_flow, "Device already open.");
         }
 
         if ((modes & supportedModes_) != modes)
         {
-            THROW_ERROR(std::invalid_argument,
+            JIMINY_THROW(std::invalid_argument,
                         "At least one of the selected modes is not supported by the device.");
         }
 
@@ -55,7 +55,7 @@ namespace jiminy
     {
         if (!isOpen())
         {
-            THROW_ERROR(bad_control_flow, "Device not open.");
+            JIMINY_THROW(bad_control_flow, "Device not open.");
         }
 
         doClose();
@@ -99,12 +99,12 @@ namespace jiminy
 
     void AbstractIODevice::resize(std::size_t /* size */)
     {
-        THROW_ERROR(not_implemented_error, "Method not available.");
+        JIMINY_THROW(not_implemented_error, "Method not available.");
     }
 
     void AbstractIODevice::seek(std::ptrdiff_t /* pos */)
     {
-        THROW_ERROR(not_implemented_error, "Method not available.");
+        JIMINY_THROW(not_implemented_error, "Method not available.");
     }
 
     std::ptrdiff_t AbstractIODevice::pos()
@@ -127,7 +127,7 @@ namespace jiminy
             std::ptrdiff_t writtenBytes = writeData(bufferPos + (dataSize - toWrite), toWrite);
             if (writtenBytes <= 0)
             {
-                THROW_ERROR(std::ios_base::failure, "No data was written. Device probably full.");
+                JIMINY_THROW(std::ios_base::failure, "No data was written. Device probably full.");
             }
             toWrite -= writtenBytes;
         }
@@ -143,7 +143,7 @@ namespace jiminy
             std::ptrdiff_t readBytes = readData(bufferPos + (dataSize - toRead), toRead);
             if (readBytes <= 0)
             {
-                THROW_ERROR(std::ios_base::failure, "No data was read. Device probably empty.");
+                JIMINY_THROW(std::ios_base::failure, "No data was read. Device probably empty.");
             }
             toRead -= readBytes;
         }

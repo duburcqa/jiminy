@@ -21,7 +21,7 @@ namespace jiminy
         friend LockGuardLocal;
 
     public:
-        DISABLE_COPY(MutexLocal)
+        JIMINY_DISABLE_COPY(MutexLocal)
 
     public:
         explicit MutexLocal() = default;
@@ -38,7 +38,7 @@ namespace jiminy
     class JIMINY_DLLAPI LockGuardLocal
     {
     public:
-        DISABLE_COPY(LockGuardLocal)
+        JIMINY_DISABLE_COPY(LockGuardLocal)
 
     public:
         explicit LockGuardLocal(MutexLocal & mutexLocal) noexcept;

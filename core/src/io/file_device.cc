@@ -110,7 +110,7 @@ namespace jiminy
         const int32_t rc = ::open(filename_.c_str(), openFlags, S_IRUSR | S_IWUSR);
         if (rc < 0)
         {
-            THROW_ERROR(std::ios_base::failure,
+            JIMINY_THROW(std::ios_base::failure,
                         "Impossible to open the file using the desired mode.");
         }
         fileDescriptor_ = rc;
@@ -121,7 +121,7 @@ namespace jiminy
         const int32_t rc = ::close(fileDescriptor_);
         if (rc < 0)
         {
-            THROW_ERROR(std::ios_base::failure, "Impossible to close the file.");
+            JIMINY_THROW(std::ios_base::failure, "Impossible to close the file.");
         }
         fileDescriptor_ = -1;
     }
@@ -131,7 +131,7 @@ namespace jiminy
         const ssize_t rc = ::lseek(fileDescriptor_, pos, SEEK_SET);
         if (rc < 0)
         {
-            THROW_ERROR(std::ios_base::failure,
+            JIMINY_THROW(std::ios_base::failure,
                         "File not open, or requested position '",
                         pos,
                         "' is out of scope.");
@@ -143,7 +143,7 @@ namespace jiminy
         const ssize_t pos_cur = ::lseek(fileDescriptor_, 0, SEEK_CUR);
         if (pos_cur < 0)
         {
-            THROW_ERROR(std::ios_base::failure,
+            JIMINY_THROW(std::ios_base::failure,
                         "File not open, or position would be negative or beyond the end.");
         }
         return pos_cur;
@@ -155,7 +155,7 @@ namespace jiminy
         int32_t rc = ::fstat(fileDescriptor_, &st);
         if (rc < 0)
         {
-            THROW_ERROR(std::ios_base::failure, "Impossible to access the file.");
+            JIMINY_THROW(std::ios_base::failure, "Impossible to access the file.");
         }
         return st.st_size;
     }
@@ -174,7 +174,7 @@ namespace jiminy
         const ssize_t readBytes = ::read(fileDescriptor_, data, dataSize);
         if (readBytes < 0)
         {
-            THROW_ERROR(std::ios_base::failure,
+            JIMINY_THROW(std::ios_base::failure,
                         "File not open, or data buffer is outside accessible address space.");
         }
         return static_cast<std::ptrdiff_t>(readBytes);
@@ -185,7 +185,7 @@ namespace jiminy
         const ssize_t writtenBytes = ::write(fileDescriptor_, data, dataSize);
         if (writtenBytes < 0)
         {
-            THROW_ERROR(std::ios_base::failure,
+            JIMINY_THROW(std::ios_base::failure,
                         "File not open, or data buffer is outside accessible address space.");
         }
         return writtenBytes;
@@ -201,7 +201,7 @@ namespace jiminy
         const int rc = ::ftruncate(fileDescriptor_, size);
         if (rc < 0)
         {
-            THROW_ERROR(std::ios_base::failure, "File not open.");
+            JIMINY_THROW(std::ios_base::failure, "File not open.");
         }
     }
 }

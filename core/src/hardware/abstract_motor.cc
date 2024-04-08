@@ -29,7 +29,7 @@ namespace jiminy
         // Make sure the motor is not already attached
         if (isAttached_)
         {
-            THROW_ERROR(
+            JIMINY_THROW(
                 std::logic_error,
                 "Motor already attached to a robot. Please 'detach' method before attaching it.");
         }
@@ -37,7 +37,7 @@ namespace jiminy
         // Make sure the robot still exists
         if (robot.expired())
         {
-            THROW_ERROR(std::runtime_error, "Robot pointer expired or unset.");
+            JIMINY_THROW(std::runtime_error, "Robot pointer expired or unset.");
         }
 
         // Copy references to the robot and shared data
@@ -66,7 +66,7 @@ namespace jiminy
 
         if (!isAttached_)
         {
-            THROW_ERROR(bad_control_flow, "Motor not attached to any robot.");
+            JIMINY_THROW(bad_control_flow, "Motor not attached to any robot.");
         }
 
         // Remove associated col in the global data buffer
@@ -106,20 +106,20 @@ namespace jiminy
         // Make sure the motor is attached to a robot
         if (!isAttached_)
         {
-            THROW_ERROR(bad_control_flow, "Motor not attached to any robot.");
+            JIMINY_THROW(bad_control_flow, "Motor not attached to any robot.");
         }
 
         // Make sure the robot still exists
         if (robot_.expired())
         {
-            THROW_ERROR(std::runtime_error, "Robot has been deleted. Impossible to reset motors.");
+            JIMINY_THROW(std::runtime_error, "Robot has been deleted. Impossible to reset motors.");
         }
 
         // Make sure that no simulation is already running
         auto robot = robot_.lock();
         if (robot && robot->getIsLocked())
         {
-            THROW_ERROR(bad_control_flow,
+            JIMINY_THROW(bad_control_flow,
                         "Robot already locked, probably because a simulation is running. "
                         "Please stop it before resetting motors.");
         }
@@ -141,7 +141,7 @@ namespace jiminy
         auto robot = robot_.lock();
         if (robot && robot->getIsLocked())
         {
-            THROW_ERROR(bad_control_flow,
+            JIMINY_THROW(bad_control_flow,
                         "Robot already locked, probably because a simulation is running. "
                         "Please stop it before setting motor options.");
         }
@@ -196,26 +196,26 @@ namespace jiminy
     {
         if (!isAttached_)
         {
-            THROW_ERROR(bad_control_flow,
+            JIMINY_THROW(bad_control_flow,
                         "Motor not attached to any robot. Impossible to refresh motor proxies.");
         }
 
         auto robot = robot_.lock();
         if (!robot)
         {
-            THROW_ERROR(std::runtime_error,
+            JIMINY_THROW(std::runtime_error,
                         "Robot has been deleted. Impossible to refresh motor proxies.");
         }
 
         if (!isInitialized_)
         {
-            THROW_ERROR(bad_control_flow,
+            JIMINY_THROW(bad_control_flow,
                         "Motor not initialized. Impossible to refresh motor proxies.");
         }
 
         if (!robot->getIsInitialized())
         {
-            THROW_ERROR(bad_control_flow,
+            JIMINY_THROW(bad_control_flow,
                         "Robot not initialized. Impossible to refresh motor proxies.");
         }
 
@@ -226,7 +226,7 @@ namespace jiminy
         if (jointType_ != JointModelType::LINEAR && jointType_ != JointModelType::ROTARY &&
             jointType_ != JointModelType::ROTARY_UNBOUNDED)
         {
-            THROW_ERROR(std::logic_error,
+            JIMINY_THROW(std::logic_error,
                         "A motor can only be associated with a 1-dof linear or rotary joint.");
         }
 
@@ -293,7 +293,7 @@ namespace jiminy
         // Make sure the motor is attached to a robot
         if (!isAttached_)
         {
-            THROW_ERROR(bad_control_flow, "Motor not attached to any robot.");
+            JIMINY_THROW(bad_control_flow, "Motor not attached to any robot.");
         }
 
         for (AbstractMotorBase * motor : sharedStorage_->motors_)
@@ -361,7 +361,7 @@ namespace jiminy
         // Make sure the motor is attached to a robot
         if (!isAttached_)
         {
-            THROW_ERROR(bad_control_flow, "Motor not attached to any robot.");
+            JIMINY_THROW(bad_control_flow, "Motor not attached to any robot.");
         }
 
         // Compute the actual effort of every motor

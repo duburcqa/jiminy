@@ -391,7 +391,7 @@ namespace jiminy::python
                     }
                     catch (const std::exception & e)
                     {
-                        THROW_ERROR(std::ios_base::failure,
+                        JIMINY_THROW(std::ios_base::failure,
                                     "Failed to load pinocchio model from log: ",
                                     e.what());
                     }
@@ -406,7 +406,7 @@ namespace jiminy::python
                     }
                     catch (const std::exception & e)
                     {
-                        THROW_ERROR(std::ios_base::failure,
+                        JIMINY_THROW(std::ios_base::failure,
                                     "Failed to load collision and/or visual model from log: ",
                                     e.what());
                     }
@@ -573,7 +573,7 @@ namespace jiminy::python
                 }
                 else
                 {
-                    THROW_ERROR(std::runtime_error,
+                    JIMINY_THROW(std::runtime_error,
                                 "Impossible to determine the file format "
                                 "automatically. Please specify it manually.");
                 }

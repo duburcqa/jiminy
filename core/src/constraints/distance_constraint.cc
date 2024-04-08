@@ -33,7 +33,7 @@ namespace jiminy
     {
         if (distanceRef < 0.0)
         {
-            THROW_ERROR(std::invalid_argument, "Reference distance must be positive.");
+            JIMINY_THROW(std::invalid_argument, "Reference distance must be positive.");
         }
         distanceRef_ = distanceRef;
     }
@@ -50,7 +50,7 @@ namespace jiminy
         auto model = model_.lock();
         if (!model)
         {
-            THROW_ERROR(bad_control_flow, "Model pointer expired or unset.");
+            JIMINY_THROW(bad_control_flow, "Model pointer expired or unset.");
         }
 
         // Get frames indices
@@ -82,7 +82,7 @@ namespace jiminy
     {
         if (!isAttached_)
         {
-            THROW_ERROR(bad_control_flow, "Constraint not attached to a model.");
+            JIMINY_THROW(bad_control_flow, "Constraint not attached to a model.");
         }
 
         // Assuming model still exists.

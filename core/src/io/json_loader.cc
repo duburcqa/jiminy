@@ -26,7 +26,7 @@ namespace jiminy
             (payload_.data()), payload_.data() + payload_.size(), rootJson_.get(), &errs);
         if (!isParsingOk)
         {
-            THROW_ERROR(std::ios_base::failure, "Impossible to parse JSON content.");
+            JIMINY_THROW(std::ios_base::failure, "Impossible to parse JSON content.");
         }
 
         device_->close();

@@ -210,7 +210,7 @@ namespace jiminy
     {
         if (pinocchioModel.nq == 0)
         {
-            THROW_ERROR(std::invalid_argument, "Pinocchio model must not be empty.");
+            JIMINY_THROW(std::invalid_argument, "Pinocchio model must not be empty.");
         }
 
         // Clear existing constraints
@@ -348,7 +348,7 @@ namespace jiminy
         // Check that no frame with the same name already exists
         if (pinocchioModelTh_.existFrame(frameName))
         {
-            THROW_ERROR(std::invalid_argument, "Frame with same name already exists.");
+            JIMINY_THROW(std::invalid_argument, "Frame with same name already exists.");
         }
 
         // Add frame to theoretical model
@@ -405,7 +405,7 @@ namespace jiminy
                 const pinocchio::FrameType frameType = pinocchioModelTh_.frames[frameIndex].type;
                 if (std::find(filter.begin(), filter.end(), frameType) != filter.end())
                 {
-                    THROW_ERROR(std::logic_error,
+                    JIMINY_THROW(std::logic_error,
                                 "Not allowed to remove frame '",
                                 frameName,
                                 "' of type '",
@@ -456,7 +456,7 @@ namespace jiminy
     {
         if (!isInitialized_)
         {
-            THROW_ERROR(bad_control_flow, "Model not initialized.");
+            JIMINY_THROW(bad_control_flow, "Model not initialized.");
         }
 
         // Returning early if nothing to do
@@ -468,7 +468,7 @@ namespace jiminy
         // If successfully loaded, the ground should be available
         if (collisionModelTh_.ngeoms == 0)
         {
-            THROW_ERROR(std::runtime_error,
+            JIMINY_THROW(std::runtime_error,
                         "Collision geometry not available. Some collision meshes were "
                         "probably not found.");
         }
@@ -476,13 +476,13 @@ namespace jiminy
         // Make sure that no body are duplicates
         if (checkDuplicates(bodyNames))
         {
-            THROW_ERROR(std::invalid_argument, "Duplicated bodies found.");
+            JIMINY_THROW(std::invalid_argument, "Duplicated bodies found.");
         }
 
         // Make sure there is no collision already associated with any of the bodies in the list
         if (checkIntersection(collisionBodyNames_, bodyNames))
         {
-            THROW_ERROR(std::invalid_argument,
+            JIMINY_THROW(std::invalid_argument,
                         "At least one of the bodies already associated with a collision.");
         }
 
@@ -491,7 +491,7 @@ namespace jiminy
         {
             if (!pinocchioModel_.existBodyName(name))
             {
-                THROW_ERROR(std::invalid_argument, "At least one of the bodies does not exist.");
+                JIMINY_THROW(std::invalid_argument, "At least one of the bodies does not exist.");
             }
         }
 
@@ -513,7 +513,7 @@ namespace jiminy
             }
             if (!hasGeometry)
             {
-                THROW_ERROR(std::invalid_argument,
+                JIMINY_THROW(std::invalid_argument,
                             "At least one of the bodies not associated with any collision "
                             "geometry of requested type.");
             }
@@ -581,19 +581,19 @@ namespace jiminy
     {
         if (!isInitialized_)
         {
-            THROW_ERROR(bad_control_flow, "Model not initialized.");
+            JIMINY_THROW(bad_control_flow, "Model not initialized.");
         }
 
         // Make sure that no body are duplicates
         if (checkDuplicates(bodyNames))
         {
-            THROW_ERROR(std::invalid_argument, "Duplicated bodies found.");
+            JIMINY_THROW(std::invalid_argument, "Duplicated bodies found.");
         }
 
         // Make sure that every body in the list is associated with a collision
         if (!checkInclusion(collisionBodyNames_, bodyNames))
         {
-            THROW_ERROR(std::invalid_argument,
+            JIMINY_THROW(std::invalid_argument,
                         "At least one of the bodies not associated with any collision.");
         }
 
@@ -650,19 +650,19 @@ namespace jiminy
     {
         if (!isInitialized_)
         {
-            THROW_ERROR(bad_control_flow, "Model not initialized.");
+            JIMINY_THROW(bad_control_flow, "Model not initialized.");
         }
 
         // Make sure that no frame are duplicates
         if (checkDuplicates(frameNames))
         {
-            THROW_ERROR(std::invalid_argument, "Duplicated frames found.");
+            JIMINY_THROW(std::invalid_argument, "Duplicated frames found.");
         }
 
         // Make sure that there is no contact already associated with any of the frames in the list
         if (checkIntersection(contactFrameNames_, frameNames))
         {
-            THROW_ERROR(std::invalid_argument,
+            JIMINY_THROW(std::invalid_argument,
                         "At least one of the frames already associated with a contact.");
         }
 
@@ -671,7 +671,7 @@ namespace jiminy
         {
             if (!pinocchioModel_.existFrame(name))
             {
-                THROW_ERROR(std::invalid_argument, "At least one of the frames does not exist.");
+                JIMINY_THROW(std::invalid_argument, "At least one of the frames does not exist.");
             }
         }
 
@@ -698,19 +698,19 @@ namespace jiminy
     {
         if (!isInitialized_)
         {
-            THROW_ERROR(bad_control_flow, "Model not initialized.");
+            JIMINY_THROW(bad_control_flow, "Model not initialized.");
         }
 
         // Make sure that no frame are duplicates
         if (checkDuplicates(frameNames))
         {
-            THROW_ERROR(std::invalid_argument, "Duplicated frames found.");
+            JIMINY_THROW(std::invalid_argument, "Duplicated frames found.");
         }
 
         // Make sure that every frame in the list is associated with a contact
         if (!checkInclusion(contactFrameNames_, frameNames))
         {
-            THROW_ERROR(std::invalid_argument,
+            JIMINY_THROW(std::invalid_argument,
                         "At least one of the frames not associated with a contact.");
         }
 
@@ -738,14 +738,14 @@ namespace jiminy
         {
             if (!constraintPtr)
             {
-                THROW_ERROR(std::invalid_argument,
+                JIMINY_THROW(std::invalid_argument,
                             "Constraint named '",
                             constraintName,
                             "' is undefined.");
             }
             if (constraints_.exist(constraintName))
             {
-                THROW_ERROR(std::invalid_argument,
+                JIMINY_THROW(std::invalid_argument,
                             "A constraint named '",
                             constraintName,
                             "' already exists.");
@@ -794,12 +794,12 @@ namespace jiminy
             {
                 if (node == ConstraintNodeType::USER)
                 {
-                    THROW_ERROR(std::invalid_argument,
+                    JIMINY_THROW(std::invalid_argument,
                                 "No user-registered constraint with name '",
                                 constraintName,
                                 "' exists.");
                 }
-                THROW_ERROR(std::invalid_argument,
+                JIMINY_THROW(std::invalid_argument,
                             "No internal constraint with name '",
                             constraintName,
                             "' exists.");
@@ -836,7 +836,7 @@ namespace jiminy
         std::shared_ptr<AbstractConstraintBase> constraint = constraints_.get(constraintName);
         if (!constraint)
         {
-            THROW_ERROR(
+            JIMINY_THROW(
                 std::invalid_argument, "No constraint with name '", constraintName, "' exists.");
         }
         return constraint;
@@ -850,7 +850,7 @@ namespace jiminy
                 const_cast<ConstraintTree &>(constraints_).get(constraintName));
         if (!constraint.lock())
         {
-            THROW_ERROR(
+            JIMINY_THROW(
                 std::invalid_argument, "No constraint with name '", constraintName, "' exists.");
         }
         return constraint;
@@ -883,7 +883,7 @@ namespace jiminy
         // Make sure the model is initialized
         if (!isInitialized_)
         {
-            THROW_ERROR(bad_control_flow, "Model not initialized.");
+            JIMINY_THROW(bad_control_flow, "Model not initialized.");
         }
 
         // Initialize the extended model from the theoretical one
@@ -909,7 +909,7 @@ namespace jiminy
             const std::string & frameName = flexibilityJoint.frameName;
             if (!pinocchioModelTh_.existFrame(frameName))
             {
-                THROW_ERROR(std::logic_error,
+                JIMINY_THROW(std::logic_error,
                             "Frame '",
                             frameName,
                             "' does not exists. Impossible to insert flexibility joint on it.");
@@ -940,7 +940,7 @@ namespace jiminy
             }
             else
             {
-                THROW_ERROR(std::logic_error,
+                JIMINY_THROW(std::logic_error,
                             "Flexible joint can only be inserted at fixed or joint frames.");
             }
             flexibilityJointNames_.push_back(flexName);
@@ -970,7 +970,7 @@ namespace jiminy
                 flexibilityInertia.inertia().matrix().diagonal();
             if ((inertiaDiag.array() < 1e-5).any())
             {
-                THROW_ERROR(std::runtime_error,
+                JIMINY_THROW(std::runtime_error,
                             "The subtree diagonal inertia for flexibility joint ",
                             flexibilityJointIndex,
                             " must be larger than 1e-5 for numerical stability: ",
@@ -1112,7 +1112,7 @@ namespace jiminy
     {
         if (!isInitialized_)
         {
-            THROW_ERROR(bad_control_flow, "Model not initialized.");
+            JIMINY_THROW(bad_control_flow, "Model not initialized.");
         }
 
         // Extract the dimensions of the configuration and velocity vectors
@@ -1268,7 +1268,7 @@ namespace jiminy
     {
         if (!isInitialized_)
         {
-            THROW_ERROR(bad_control_flow, "Model not initialized.");
+            JIMINY_THROW(bad_control_flow, "Model not initialized.");
         }
 
         // Restore collision and visual models
@@ -1349,7 +1349,7 @@ namespace jiminy
     {
         if (!isInitialized_)
         {
-            THROW_ERROR(bad_control_flow, "Model not initialized.");
+            JIMINY_THROW(bad_control_flow, "Model not initialized.");
         }
 
         // Reset the contact force internal buffer
@@ -1378,7 +1378,7 @@ namespace jiminy
                 // Check dimensions consistency
                 if (J.cols() != pinocchioModel_.nv)
                 {
-                    THROW_ERROR(std::logic_error,
+                    JIMINY_THROW(std::logic_error,
                                 "Constraint has inconsistent jacobian and drift (size mismatch).");
                 }
             });
@@ -1404,7 +1404,7 @@ namespace jiminy
                 if (mechanicalJointPositionIndices_.size() !=
                     static_cast<uint32_t>(jointsPositionLimitMin.size()))
                 {
-                    THROW_ERROR(std::invalid_argument,
+                    JIMINY_THROW(std::invalid_argument,
                                 "Wrong vector size for 'positionLimitMin'.");
                 }
                 Eigen::VectorXd & jointsPositionLimitMax =
@@ -1412,7 +1412,7 @@ namespace jiminy
                 if (mechanicalJointPositionIndices_.size() !=
                     static_cast<uint32_t>(jointsPositionLimitMax.size()))
                 {
-                    THROW_ERROR(std::invalid_argument,
+                    JIMINY_THROW(std::invalid_argument,
                                 "Wrong vector size for 'positionLimitMax'.");
                 }
                 if (mechanicalJointPositionIndices_.size() ==
@@ -1441,7 +1441,7 @@ namespace jiminy
                 if (mechanicalJointVelocityIndices_.size() !=
                     static_cast<uint32_t>(jointsVelocityLimit.size()))
                 {
-                    THROW_ERROR(std::invalid_argument, "Wrong vector size for 'velocityLimit'.");
+                    JIMINY_THROW(std::invalid_argument, "Wrong vector size for 'velocityLimit'.");
                 }
                 if (mechanicalJointVelocityIndices_.size() ==
                     static_cast<uint32_t>(modelOptions_->joints.velocityLimit.size()))
@@ -1470,14 +1470,14 @@ namespace jiminy
                            { return flexibilityJoint.frameName; });
             if (flexibilityNames.size() != flexibilityConfig.size())
             {
-                THROW_ERROR(
+                JIMINY_THROW(
                     std::invalid_argument,
                     "All joint or frame names in flexibility configuration must be unique.");
             }
             if (std::find(flexibilityNames.begin(), flexibilityNames.end(), "universe") !=
                 flexibilityNames.end())
             {
-                THROW_ERROR(std::invalid_argument,
+                JIMINY_THROW(std::invalid_argument,
                             "No one can make the universe itself flexibility.");
             }
             for (const FlexibilityJointConfig & flexibilityJoint : flexibilityConfig)
@@ -1486,7 +1486,7 @@ namespace jiminy
                     (flexibilityJoint.damping.array() < 0.0).any() ||
                     (flexibilityJoint.inertia.array() < 0.0).any())
                 {
-                    THROW_ERROR(std::invalid_argument,
+                    JIMINY_THROW(std::invalid_argument,
                                 "All stiffness, damping and inertia parameters of flexibility "
                                 "joints must be positive.");
                 }
@@ -1538,7 +1538,7 @@ namespace jiminy
             boost::get<uint32_t>(collisionOptionsHolder.at("contactPointsPerBodyMax"));
         if (contactPointsPerBodyMax < 1)
         {
-            THROW_ERROR(std::invalid_argument,
+            JIMINY_THROW(std::invalid_argument,
                         "Number of contact points by collision pair "
                         "'contactPointsPerBodyMax' must be strictly larger than 0.");
         }
@@ -1558,7 +1558,7 @@ namespace jiminy
             const double value = boost::get<double>(dynOptionsHolder.at(field));
             if (0.9 < value || value < 0.0)
             {
-                THROW_ERROR(std::invalid_argument,
+                JIMINY_THROW(std::invalid_argument,
                             "'",
                             field,
                             "' must be positive, and lower than 0.9 to avoid physics issues.");
@@ -1629,7 +1629,7 @@ namespace jiminy
         // Check the size of the input state
         if (qTheoretical.size() != pinocchioModelTh_.nq)
         {
-            THROW_ERROR(std::invalid_argument, "Input size inconsistent with theoretical model.");
+            JIMINY_THROW(std::invalid_argument, "Input size inconsistent with theoretical model.");
         }
 
         // Initialize the returned extended configuration
@@ -1664,7 +1664,7 @@ namespace jiminy
         // Check the size of the input state
         if (vTheoretical.size() != pinocchioModelTh_.nv)
         {
-            THROW_ERROR(std::invalid_argument, "Input size inconsistent with theoretical model.");
+            JIMINY_THROW(std::invalid_argument, "Input size inconsistent with theoretical model.");
         }
 
         // Initialize the returned extended velocity
@@ -1698,7 +1698,7 @@ namespace jiminy
         // Check the size of the input state
         if (qExtended.size() != pinocchioModel_.nq)
         {
-            THROW_ERROR(std::invalid_argument, "Input size inconsistent with extended model.");
+            JIMINY_THROW(std::invalid_argument, "Input size inconsistent with extended model.");
         }
 
         // Initialize the returned theoretical configuration
@@ -1732,7 +1732,7 @@ namespace jiminy
         // Check the size of the input state
         if (vExtended.size() != pinocchioModel_.nv)
         {
-            THROW_ERROR(std::invalid_argument, "Input size inconsistent with extended model.");
+            JIMINY_THROW(std::invalid_argument, "Input size inconsistent with extended model.");
         }
 
         // Initialize the returned theoretical velocity

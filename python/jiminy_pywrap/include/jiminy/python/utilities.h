@@ -335,7 +335,7 @@ namespace jiminy::python
         [[noreturn]] static bool contains(Container & /* container */,
                                           const typename Container::value_type & /* key */)
         {
-            THROW_ERROR(not_implemented_error, "Contains method not supported.");
+            JIMINY_THROW(not_implemented_error, "Contains method not supported.");
         }
     };
 
@@ -562,7 +562,7 @@ namespace jiminy::python
         // Check array dtype
         if (PyArray_EquivTypenums(PyArray_TYPE(arrayPy), getPyType<T>()) == NPY_FALSE)
         {
-            THROW_ERROR(std::invalid_argument,
+            JIMINY_THROW(std::invalid_argument,
                         "'values' input array has dtype '",
                         PyArray_TYPE(arrayPy),
                         "' but '",
@@ -582,7 +582,7 @@ namespace jiminy::python
             {
                 return {dataPtr, PyArray_SIZE(arrayPy), 1, {PyArray_SIZE(arrayPy), 1}};
             }
-            THROW_ERROR(std::invalid_argument, "Numpy array must be contiguous.");
+            JIMINY_THROW(std::invalid_argument, "Numpy array must be contiguous.");
         case 2:
         {
             npy_intp * arrayPyShape = PyArray_SHAPE(arrayPy);
@@ -594,11 +594,11 @@ namespace jiminy::python
             {
                 return {dataPtr, arrayPyShape[0], arrayPyShape[1], {arrayPyShape[0], 1}};
             }
-            THROW_ERROR(std::invalid_argument,
+            JIMINY_THROW(std::invalid_argument,
                         "Numpy array must be either row or column contiguous.");
         }
         default:
-            THROW_ERROR(not_implemented_error, "Only 1D and 2D 'np.ndarray' are supported.");
+            JIMINY_THROW(not_implemented_error, "Only 1D and 2D 'np.ndarray' are supported.");
         }
     }
 
@@ -611,7 +611,7 @@ namespace jiminy::python
         // Check if raw Python object pointer is actually a numpy array
         if (!PyArray_Check(dataPy))
         {
-            THROW_ERROR(std::invalid_argument, "'values' must have type 'np.ndarray'.");
+            JIMINY_THROW(std::invalid_argument, "'values' must have type 'np.ndarray'.");
         }
 
         /* Cast raw Python object pointer to numpy array.
@@ -627,7 +627,7 @@ namespace jiminy::python
         {
             return getEigenReferenceImpl<int64_t>(arrayPy);
         }
-        THROW_ERROR(not_implemented_error,
+        JIMINY_THROW(not_implemented_error,
                     "'values' input array must have dtype 'np.float64' or 'np.int64'.");
     }
 
@@ -700,7 +700,7 @@ namespace jiminy::python
     {
         if (!copy)
         {
-            THROW_ERROR(not_implemented_error,
+            JIMINY_THROW(not_implemented_error,
                         "Passing 'FlexibilityJointConfig' object to python by reference is not "
                         "supported.");
         }
@@ -933,7 +933,7 @@ namespace jiminy::python
             np::ndarray dataNumpy = bp::extract<np::ndarray>(dataPy);
             if (dataNumpy.get_dtype() != np::dtype::get_builtin<Scalar>())
             {
-                THROW_ERROR(std::invalid_argument,
+                JIMINY_THROW(std::invalid_argument,
                             "Scalar type of eigen object does not match dtype of numpy object.");
             }
             return getEigenReferenceImpl<Scalar>(reinterpret_cast<PyArrayObject *>(dataPy.ptr()));
@@ -1019,7 +1019,7 @@ namespace jiminy::python
         const bp::list listPy = bp::extract<bp::list>(dataPy);
         if (bp::len(listPy) != N)
         {
-            THROW_ERROR(std::invalid_argument, "Consistent number of elements");
+            JIMINY_THROW(std::invalid_argument, "Consistent number of elements");
         }
         return internal::BuildArrayFromCallable<typename T::value_type>(
             std::make_index_sequence<N>{},

@@ -12,7 +12,7 @@
 
 // ************************************* Generic utilities ************************************* //
 
-#define DISABLE_COPY(className)                  \
+#define JIMINY_DISABLE_COPY(className)                  \
     className(const className & other) = delete; \
     className & operator=(const className & other) = delete;
 
@@ -81,7 +81,7 @@ namespace jiminy::internal
 /* ANSI escape codes is used here as a cross-platform way to color text. For reference, see:
    https://solarianprogrammer.com/2019/04/08/c-programming-ansi-escape-codes-windows-macos-linux-terminals/
 */
-#define THROW_ERROR(exception, ...)                                                       \
+#define JIMINY_THROW(exception, ...)                                                       \
     throw exception(                                                                      \
         toString(jiminy::internal::extractFunctionName(__func__, BOOST_CURRENT_FUNCTION), \
                  "(" FILE_LINE "):\n",                                                    \

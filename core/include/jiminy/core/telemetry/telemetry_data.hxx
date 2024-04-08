@@ -25,7 +25,7 @@ namespace jiminy
         // Check if registration is possible
         if (!isRegisteringAvailable_)
         {
-            THROW_ERROR(std::invalid_argument,
+            JIMINY_THROW(std::invalid_argument,
                         "Entry '",
                         name,
                         "' not found and registration is not available.");

@@ -27,7 +27,7 @@ namespace jiminy
     class FunctionalController : public AbstractController
     {
     public:
-        DISABLE_COPY(FunctionalController)
+        JIMINY_DISABLE_COPY(FunctionalController)
 
     public:
         /// \remark A valid 'callable' is a function pointer, functor or lambda with signature:

@@ -46,7 +46,7 @@ namespace jiminy
     {
         if ((pos < 0) || static_cast<std::size_t>(pos) > size())
         {
-            THROW_ERROR(std::invalid_argument, "Requested position '", pos, "' out of bound.");
+            JIMINY_THROW(std::invalid_argument, "Requested position '", pos, "' out of bound.");
         }
         currentPos_ = pos;
     }

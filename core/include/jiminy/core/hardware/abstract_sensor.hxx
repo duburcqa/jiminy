@@ -16,13 +16,13 @@ namespace jiminy
     {
         if (!isAttached_)
         {
-            THROW_ERROR(bad_control_flow, "Sensor not attached to any robot.");
+            JIMINY_THROW(bad_control_flow, "Sensor not attached to any robot.");
         }
 
         auto robot = robot_.lock();
         if (!robot || robot->getIsLocked())
         {
-            THROW_ERROR(bad_control_flow,
+            JIMINY_THROW(bad_control_flow,
                         "Robot is locked, probably because a simulation is running. "
                         "Please stop it before setting sensor value manually.");
         }
@@ -49,7 +49,7 @@ namespace jiminy
         // Make sure the sensor is not already attached
         if (isAttached_)
         {
-            THROW_ERROR(
+            JIMINY_THROW(
                 bad_control_flow,
                 "Sensor already attached to a robot. Please 'detach' method before attaching it.");
         }
@@ -57,7 +57,7 @@ namespace jiminy
         // Make sure the robot still exists
         if (robot.expired())
         {
-            THROW_ERROR(bad_control_flow, "Robot pointer expired or unset.");
+            JIMINY_THROW(bad_control_flow, "Robot pointer expired or unset.");
         }
 
         // Copy references to the robot and shared data
@@ -98,7 +98,7 @@ namespace jiminy
 
         if (!isAttached_)
         {
-            THROW_ERROR(bad_control_flow, "Sensor not attached to any robot.");
+            JIMINY_THROW(bad_control_flow, "Sensor not attached to any robot.");
         }
 
         // Remove associated col in the shared data buffers
@@ -153,7 +153,7 @@ namespace jiminy
         {
             if (!sensor->isAttached_)
             {
-                THROW_ERROR(bad_control_flow,
+                JIMINY_THROW(bad_control_flow,
                             "Sensor '",
                             sensor->name_,
                             "' of type '",
@@ -165,14 +165,14 @@ namespace jiminy
         // Make sure the robot still exists
         if (robot_.expired())
         {
-            THROW_ERROR(bad_control_flow, "Robot has been deleted. Impossible to reset sensors.");
+            JIMINY_THROW(bad_control_flow, "Robot has been deleted. Impossible to reset sensors.");
         }
 
         // Make sure that no simulation is already running
         auto robot = robot_.lock();
         if (robot && robot->getIsLocked())
         {
-            THROW_ERROR(bad_control_flow,
+            JIMINY_THROW(bad_control_flow,
                         "Robot already locked, probably because a simulation is running. "
                         "Please stop it before resetting sensors.");
         }
@@ -223,7 +223,7 @@ namespace jiminy
     {
         if (!isAttached_)
         {
-            THROW_ERROR(bad_control_flow, "Sensor not attached to any robot.");
+            JIMINY_THROW(bad_control_flow, "Sensor not attached to any robot.");
         }
 
         for (AbstractSensorBase * sensor : sharedStorage_->sensors_)
@@ -371,7 +371,7 @@ namespace jiminy
         {
             if (idxLeft < 0)
             {
-                THROW_ERROR(std::runtime_error, "No data old enough is available.");
+                JIMINY_THROW(std::runtime_error, "No data old enough is available.");
             }
             else if (baseSensorOptions_->delayInterpolationOrder == 0)
             {
@@ -389,7 +389,7 @@ namespace jiminy
             }
             else
             {
-                THROW_ERROR(not_implemented_error,
+                JIMINY_THROW(not_implemented_error,
                             "`delayInterpolationOrder` must be either 0 or 1.");
             }
         }
@@ -443,7 +443,7 @@ namespace jiminy
     {
         if (!isAttached_)
         {
-            THROW_ERROR(bad_control_flow, "Sensor not attached to any robot.");
+            JIMINY_THROW(bad_control_flow, "Sensor not attached to any robot.");
         }
 
         /* Make sure at least the requested delay plus the maximum time step is available to handle

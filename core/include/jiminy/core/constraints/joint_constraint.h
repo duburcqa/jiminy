@@ -22,7 +22,7 @@ namespace jiminy
     class JIMINY_DLLAPI JointConstraint : public AbstractConstraintTpl<JointConstraint>
     {
     public:
-        DISABLE_COPY(JointConstraint)
+        JIMINY_DISABLE_COPY(JointConstraint)
 
         auto shared_from_this() { return shared_from(this); }
 

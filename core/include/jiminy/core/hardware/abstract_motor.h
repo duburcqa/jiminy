@@ -74,7 +74,7 @@ namespace jiminy
         };
 
     public:
-        DISABLE_COPY(AbstractMotorBase)
+        JIMINY_DISABLE_COPY(AbstractMotorBase)
 
     public:
         /// \param[in] name Name of the motor.

@@ -12,7 +12,7 @@ namespace jiminy
     {
         if (isTelemetryConfigured_)
         {
-            THROW_ERROR(bad_control_flow,
+            JIMINY_THROW(bad_control_flow,
                         "Telemetry already initialized. Impossible to register new variables.");
         }
 
@@ -23,7 +23,7 @@ namespace jiminy
                                        { return element.first == name; });
         if (variableIt != variableRegistry_.end())
         {
-            THROW_ERROR(bad_control_flow, "Variable '", name, "' already registered.");
+            JIMINY_THROW(bad_control_flow, "Variable '", name, "' already registered.");
         }
         variableRegistry_.emplace_back(name, &value);
     }

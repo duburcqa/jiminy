@@ -23,7 +23,7 @@ namespace jiminy
     {
         if (isInitialized_)
         {
-            THROW_ERROR(bad_control_flow, "TelemetryRecorder already initialized.");
+            JIMINY_THROW(bad_control_flow, "TelemetryRecorder already initialized.");
         }
 
         // Log the time unit as constant
@@ -153,7 +153,7 @@ namespace jiminy
         myFile.open(OpenMode::WRITE_ONLY | OpenMode::TRUNCATE);
         if (!myFile.isOpen())
         {
-            THROW_ERROR(std::ios_base::failure,
+            JIMINY_THROW(std::ios_base::failure,
                         "Impossible to create the log file. Check if root folder "
                         "exists and if you have writing permissions.");
         }
@@ -207,7 +207,7 @@ namespace jiminy
                     flow->read(version);
                     if (version != TELEMETRY_VERSION)
                     {
-                        THROW_ERROR(
+                        JIMINY_THROW(
                             std::runtime_error,
                             "Log telemetry version not supported. Impossible to read log.");
                     }
@@ -353,7 +353,7 @@ namespace jiminy
         std::ifstream file = std::ifstream(filename, std::ios::in | std::ifstream::binary);
         if (!file.is_open())
         {
-            THROW_ERROR(std::ios_base::failure,
+            JIMINY_THROW(std::ios_base::failure,
                         "Impossible to open the log file. Check that the file "
                         "exists and that you have reading permissions.");
         }
@@ -361,7 +361,7 @@ namespace jiminy
         // Make sure the log file is not corrupted
         if (!file.good())
         {
-            THROW_ERROR(std::ios_base::failure, "Corrupted log file.");
+            JIMINY_THROW(std::ios_base::failure, "Corrupted log file.");
         }
 
         // Skip the version flag

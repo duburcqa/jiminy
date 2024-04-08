@@ -320,7 +320,7 @@ namespace jiminy
     class JIMINY_DLLAPI PeriodicGaussianProcess
     {
     public:
-        DISABLE_COPY(PeriodicGaussianProcess)
+        JIMINY_DISABLE_COPY(PeriodicGaussianProcess)
 
     public:
         explicit PeriodicGaussianProcess(double wavelength, double period) noexcept;
@@ -364,7 +364,7 @@ namespace jiminy
     class JIMINY_DLLAPI PeriodicFourierProcess
     {
     public:
-        DISABLE_COPY(PeriodicFourierProcess)
+        JIMINY_DISABLE_COPY(PeriodicFourierProcess)
 
     public:
         explicit PeriodicFourierProcess(double wavelength, double period) noexcept;
@@ -487,7 +487,7 @@ namespace jiminy
     class JIMINY_DLLAPI AbstractPerlinProcess
     {
     public:
-        DISABLE_COPY(AbstractPerlinProcess)
+        JIMINY_DISABLE_COPY(AbstractPerlinProcess)
 
         using OctaveScalePair =
             std::pair<std::unique_ptr<AbstractPerlinNoiseOctave>, const double>;
