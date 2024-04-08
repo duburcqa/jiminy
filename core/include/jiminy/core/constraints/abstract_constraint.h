@@ -19,7 +19,7 @@ namespace jiminy
         friend Model;
 
     public:
-        DISABLE_COPY(AbstractConstraintBase)
+        JIMINY_DISABLE_COPY(AbstractConstraintBase)
 
     public:
         explicit AbstractConstraintBase() = default;

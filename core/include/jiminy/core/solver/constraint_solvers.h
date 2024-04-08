@@ -48,7 +48,7 @@ namespace jiminy
     class JIMINY_DLLAPI PGSSolver : public AbstractConstraintSolver
     {
     public:
-        DISABLE_COPY(PGSSolver)
+        JIMINY_DISABLE_COPY(PGSSolver)
 
     public:
         explicit PGSSolver(const pinocchio::Model * model,

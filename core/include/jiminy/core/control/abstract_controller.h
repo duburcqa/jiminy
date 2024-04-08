@@ -46,7 +46,7 @@ namespace jiminy
         };
 
     public:
-        DISABLE_COPY(AbstractController)
+        JIMINY_DISABLE_COPY(AbstractController)
 
     public:
         explicit AbstractController() noexcept;

@@ -22,7 +22,7 @@ namespace jiminy
     class JIMINY_DLLAPI DistanceConstraint : public AbstractConstraintTpl<DistanceConstraint>
     {
     public:
-        DISABLE_COPY(DistanceConstraint)
+        JIMINY_DISABLE_COPY(DistanceConstraint)
 
         auto shared_from_this() { return shared_from(this); }
 

@@ -17,7 +17,7 @@ namespace jiminy
     class JIMINY_DLLAPI TelemetrySender
     {
     public:
-        DISABLE_COPY(TelemetrySender)
+        JIMINY_DISABLE_COPY(TelemetrySender)
 
     public:
         template<typename T>

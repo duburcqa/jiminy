@@ -114,14 +114,14 @@ namespace jiminy::python
         // Make sure that 'dst' is a valid array and is writable, raises an exception otherwise
         if (!PyArray_Check(dstPy))
         {
-            THROW_ERROR(std::invalid_argument, "'dst' must have type 'np.ndarray'.");
+            JIMINY_THROW(std::invalid_argument, "'dst' must have type 'np.ndarray'.");
         }
 
         // Make sure that 'dst' is writable
         const int dstPyFlags = PyArray_FLAGS(dstPyArray);
         if (!(dstPyFlags & NPY_ARRAY_WRITEABLE))
         {
-            THROW_ERROR(std::invalid_argument, "'dst' must be writable.");
+            JIMINY_THROW(std::invalid_argument, "'dst' must be writable.");
         }
 
         // Return early if destination is empty
@@ -264,7 +264,7 @@ namespace jiminy::python
             // Too complicated to deal with it manually. Falling back to default routine.
             if (PyArray_FillWithScalar(dstPyArray, srcPy) < 0)
             {
-                THROW_ERROR(std::runtime_error, "Impossible to copy from 'src' to 'dst'.");
+                JIMINY_THROW(std::runtime_error, "Impossible to copy from 'src' to 'dst'.");
             }
             return;
         }
@@ -272,7 +272,7 @@ namespace jiminy::python
         // Falling back to default routine if too complicated to deal with it manually
         if (PyArray_CopyInto(dstPyArray, srcPyArray) < 0)
         {
-            THROW_ERROR(std::runtime_error, "Impossible to copy from 'src' to 'dst'.");
+            JIMINY_THROW(std::runtime_error, "Impossible to copy from 'src' to 'dst'.");
         }
         return;
     }
@@ -285,7 +285,7 @@ namespace jiminy::python
         const Py_ssize_t srcSize = PySequence_Fast_GET_SIZE(srcSeqPy);
         if (dstSize != srcSize)
         {
-            THROW_ERROR(std::runtime_error, "Length mismatch between 'src' and 'dst'.");
+            JIMINY_THROW(std::runtime_error, "Length mismatch between 'src' and 'dst'.");
         }
 
         PyObject ** dstItemsPy = PySequence_Fast_ITEMS(dstPy);

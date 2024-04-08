@@ -111,7 +111,7 @@ namespace jiminy
     {
         if (model.njoints < static_cast<int>(jointIndex) - 1)
         {
-            THROW_ERROR(lookup_error, "Joint index '", jointIndex, "' is out of range.");
+            JIMINY_THROW(lookup_error, "Joint index '", jointIndex, "' is out of range.");
         }
 
         return getJointType(model.joints[jointIndex]);
@@ -135,7 +135,7 @@ namespace jiminy
             }
         }
 
-        THROW_ERROR(lookup_error, "Position index out of range.");
+        JIMINY_THROW(lookup_error, "Position index out of range.");
     }
 
     std::string getJointNameFromVelocityIndex(const pinocchio::Model & model,
@@ -156,7 +156,7 @@ namespace jiminy
             }
         }
 
-        THROW_ERROR(lookup_error, "Velocity index out of range.");
+        JIMINY_THROW(lookup_error, "Velocity index out of range.");
     }
 
     std::vector<std::string_view> getJointTypePositionSuffixes(JointModelType jointType)
@@ -178,7 +178,7 @@ namespace jiminy
             return {"TransX", "TransY", "TransZ", "QuatX", "QuatY", "QuatZ", "QuatW"};
         case JointModelType::UNSUPPORTED:
         default:
-            THROW_ERROR(lookup_error, "Joints of type 'UNSUPPORTED' do not have fieldnames.");
+            JIMINY_THROW(lookup_error, "Joints of type 'UNSUPPORTED' do not have fieldnames.");
         }
     }
 
@@ -200,7 +200,7 @@ namespace jiminy
             return {"LinX", "LinY", "LinZ", "AngX", "AngY", "AngZ"};
         case JointModelType::UNSUPPORTED:
         default:
-            THROW_ERROR(lookup_error, "Joints of type 'UNSUPPORTED' do not have fieldnames.");
+            JIMINY_THROW(lookup_error, "Joints of type 'UNSUPPORTED' do not have fieldnames.");
         }
     }
 
@@ -210,7 +210,7 @@ namespace jiminy
     {
         if (!model.existFrame(frameName, frameType))
         {
-            THROW_ERROR(lookup_error, "Frame '", frameName, "' not found in robot model.");
+            JIMINY_THROW(lookup_error, "Frame '", frameName, "' not found in robot model.");
         }
         return model.getFrameId(frameName, frameType);
     }
@@ -232,7 +232,7 @@ namespace jiminy
     {
         if (!model.existJointName(jointName))
         {
-            THROW_ERROR(lookup_error, "Joint '", jointName, "' not found in robot model.");
+            JIMINY_THROW(lookup_error, "Joint '", jointName, "' not found in robot model.");
         }
 
         return model.getJointId(jointName);
@@ -510,13 +510,13 @@ namespace jiminy
         // Make sure the frame exists and is fixed
         if (!model.existFrame(frameName))
         {
-            THROW_ERROR(lookup_error, "No frame with name '", frameName, "' found in model.");
+            JIMINY_THROW(lookup_error, "No frame with name '", frameName, "' found in model.");
         }
         const pinocchio::FrameIndex frameIndex = getFrameIndex(model, frameName);
         Model::Frame & frame = model.frames[frameIndex];
         if (frame.type != pinocchio::FrameType::FIXED_JOINT)
         {
-            THROW_ERROR(std::logic_error, "Frame must be associated with fixed joint.");
+            JIMINY_THROW(std::logic_error, "Frame must be associated with fixed joint.");
         }
 
         /* Get the parent and child actual joints.
@@ -565,12 +565,12 @@ namespace jiminy
         // Remove inertia of child body from composite body
         if (childBodyInertia.mass() < 0.0)
         {
-            THROW_ERROR(std::runtime_error, "Child body mass must be positive.");
+            JIMINY_THROW(std::runtime_error, "Child body mass must be positive.");
         }
         if (model.inertias[parentJointIndex].mass() - childBodyInertia.mass() < 0.0)
         {
-            THROW_ERROR(std::runtime_error,
-                        "Child body mass too large to be subtracted to joint mass.");
+            JIMINY_THROW(std::runtime_error,
+                         "Child body mass too large to be subtracted to joint mass.");
         }
         const Inertia childBodyInertiaInv(-childBodyInertia.mass(),
                                           childBodyInertia.lever(),
@@ -655,14 +655,14 @@ namespace jiminy
         if (!std::is_sorted(timesIn.data(), timesIn.data() + timesIn.size()) ||
             !std::is_sorted(timesOut.data(), timesOut.data() + timesOut.size()))
         {
-            THROW_ERROR(std::invalid_argument, "Input and output time sequences must be sorted.");
+            JIMINY_THROW(std::invalid_argument, "Input and output time sequences must be sorted.");
         }
 
         if (timesIn.size() != positionsIn.cols() || model.nq != positionsIn.rows())
         {
-            THROW_ERROR(std::invalid_argument,
-                        "Input position matrix not consistent with model and/or "
-                        "time sequence. Time expected as second dimension.");
+            JIMINY_THROW(std::invalid_argument,
+                         "Input position matrix not consistent with model and/or "
+                         "time sequence. Time expected as second dimension.");
         }
 
         // Nothing to do. Return early.
@@ -770,10 +770,10 @@ namespace jiminy
         }
         catch (const std::exception & e)
         {
-            THROW_ERROR(std::ios_base::failure,
-                        "Something is wrong with the URDF. Impossible to load the collision "
-                        "geometries.\nRaised from exception: ",
-                        e.what());
+            JIMINY_THROW(std::ios_base::failure,
+                         "Something is wrong with the URDF. Impossible to load the collision "
+                         "geometries.\nRaised from exception: ",
+                         e.what());
         }
 
         // Replace the mesh geometry object by its convex representation if necessary
@@ -815,7 +815,7 @@ namespace jiminy
         // Make sure the URDF file exists
         if (!std::ifstream(urdfPath).good())
         {
-            THROW_ERROR(std::ios_base::failure, "The URDF file '", urdfPath, "' is invalid.");
+            JIMINY_THROW(std::ios_base::failure, "The URDF file '", urdfPath, "' is invalid.");
         }
 
         // Build physics model
@@ -833,10 +833,10 @@ namespace jiminy
         }
         catch (const std::exception & e)
         {
-            THROW_ERROR(std::ios_base::failure,
-                        "Something is wrong with the URDF. Impossible to build a model from "
-                        "it.\nRaised from exception: ",
-                        e.what());
+            JIMINY_THROW(std::ios_base::failure,
+                         "Something is wrong with the URDF. Impossible to build a model from "
+                         "it.\nRaised from exception: ",
+                         e.what());
         }
 
         // Build collision model
