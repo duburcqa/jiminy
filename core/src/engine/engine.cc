@@ -919,7 +919,7 @@ namespace jiminy
         {
             return ::jiminy::saveToBinary(value);
         }
-    };
+    }
 
     void Engine::start(const std::map<std::string, Eigen::VectorXd> & qInit,
                        const std::map<std::string, Eigen::VectorXd> & vInit,
