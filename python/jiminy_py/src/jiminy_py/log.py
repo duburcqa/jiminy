@@ -117,8 +117,11 @@ def build_robot_from_log(
         log_data: Dict[str, Any],
         mesh_path_dir: Optional[str] = None,
         mesh_package_dirs: Sequence[str] = (),
+        *, robot_name: str = ""
         ) -> jiminy.Robot:
-    """Build robot from log.
+    """Build robot from log. This function can only be used for logs of
+    single-robot simulations. For multi-robot simulations, you have to use
+    `build_robots_from_log`.
 
     .. note::
         model options and `robot.pinocchio_model` will be the same as during
@@ -147,27 +150,107 @@ def build_robot_from_log(
     :returns: Reconstructed robot, and parsed log data as returned by
               `jiminy_py.log.read_log` method.
     """
-    return build_robots_from_log(log_data, mesh_path_dir, mesh_package_dirs)[0]
+    # Prepare robot namespace
+    if robot_name == "":
+        ROBOT_NAMESPACE = ENGINE_NAMESPACE
+    else:
+        ROBOT_NAMESPACE = ".".join((ENGINE_NAMESPACE, robot_name))
+
+    # Instantiate empty robot
+    robot = jiminy.Robot(robot_name)
+
+    # Extract log constants
+    log_constants = log_data["constants"]
+
+    # Extract common info
+    pinocchio_model = log_constants[
+        ".".join((ROBOT_NAMESPACE, "pinocchio_model"))]
+
+    try:
+        # Extract geometry models
+        collision_model = log_constants[
+            ".".join((ROBOT_NAMESPACE, "collision_model"))]
+        visual_model = log_constants[
+            ".".join((ROBOT_NAMESPACE, "visual_model"))]
+
+        # Initialize the model
+        robot.initialize(pinocchio_model, collision_model, visual_model)
+    except KeyError as e:
+        # Extract initialization arguments
+        urdf_data = log_constants[
+            ".".join((ROBOT_NAMESPACE, "urdf_file"))]
+        has_freeflyer = int(log_constants[
+            ".".join((ROBOT_NAMESPACE, "has_freeflyer"))])
+        mesh_package_dirs = [*mesh_package_dirs, *log_constants.get(
+            ".".join((ROBOT_NAMESPACE, "mesh_package_dirs")), ())]
+
+        # Make sure urdf data is available
+        if len(urdf_data) <= 1:
+            raise RuntimeError(
+                "Impossible to build robot. The log is not persistent and the "
+                "robot was not associated with a valid URDF file.") from e
+
+        # Write urdf data in temporary file
+        urdf_path = os.path.join(
+            tempfile.gettempdir(),
+            f"{next(tempfile._get_candidate_names())}.urdf")
+        with open(urdf_path, "xb") as f:
+            f.write(urdf_data.encode())
+
+        # Fix the mesh paths in the URDF model if requested
+        if mesh_path_dir is not None:
+            fixed_urdf_path = _fix_urdf_mesh_path(urdf_path, mesh_path_dir)
+            os.remove(urdf_path)
+            urdf_path = fixed_urdf_path
+
+        # Initialize model
+        robot.initialize(urdf_path, has_freeflyer, mesh_package_dirs)
+
+        # Delete temporary file
+        os.remove(urdf_path)
+
+        # Load the options
+        all_options = log_constants[".".join((ENGINE_NAMESPACE, "options"))]
+        # Load the options
+        if robot_name == "":
+            robot.set_options(all_options["robot"])
+        else:
+            robot.set_options(all_options[".".join((robot_name, "robot"))])
+
+        # Update model in-place.
+        # Note that `__setstate__` re-allocates memory instead of just calling
+        # the copy assignment operator. Although this is undesirable, there is
+        # no better way on Python side. Anyway, this is not an issue in this
+        # particular case since the robot has just been created, so nobody got
+        # references to pre-allocated data at this point.
+        robot.pinocchio_model.__setstate__(pinocchio_model.__getstate__())
+
+        # Allocate corresponding pinocchio data manually
+        pinocchio_data = pinocchio_model.createData()
+        robot.pinocchio_data.__setstate__(pinocchio_data.__getstate__())
+
+    return robot
 
 def build_robots_from_log(
         log_data: Dict[str, Any],
         mesh_path_dir: Optional[str] = None,
         mesh_package_dirs: Sequence[str] = (),
         ) -> Sequence[jiminy.Robot]:
-    """Build robots from log.
+    """Build robots from log. For mulit-robot simulations, build all the robots
+    in the log of the simulation.
 
     .. note::
         model options and `robot.pinocchio_model` will be the same as during
         the simulation until the next call to `reset` method unless the options
-        of the robot that has been restored are overwritten manually.
+        of the robots that has been restored are overwritten manually.
 
     .. note::
-        It returns a valid and fully initialized robot, that can be used to
-        perform new simulation if added to a Jiminy Engine, but the original
-        controller is lost.
+        It returns a sequence of valid and fully initialized robots, that can
+        be used to perform new simulation if added to a Jiminy Engine, but the
+        original controller is lost.
 
     .. warning::
-        It does ot require the original URDF file to exist, but the original
+        It does ot require the original URDF files to exist, but the original
         mesh paths (if any) must be valid since they are not bundle in the log
         archive for now.
 
@@ -180,13 +263,10 @@ def build_robots_from_log(
                               may be necessary to specify it to read log
                               generated on a different environment.
 
-    :returns: Reconstructed robot, and parsed log data as returned by
-              `jiminy_py.log.read_log` method.
+    :returns: Sequence of reconstructed robots.
     """
     # Extract log constants
     log_constants = log_data["constants"]
-
-    all_options = log_constants[".".join((ENGINE_NAMESPACE, "options"))]
 
     robots_names = []
     
@@ -201,77 +281,8 @@ def build_robots_from_log(
     robots = []
 
     for robot_name in robots_names:
-        if robot_name == "":
-            ROBOT_NAMESPACE = ENGINE_NAMESPACE
-        else:
-            ROBOT_NAMESPACE = ".".join((ENGINE_NAMESPACE, robot_name))
-        # Instantiate empty robot
-        robot = jiminy.Robot(robot_name)
-
-        # Extract common info
-        pinocchio_model = log_constants[
-            ".".join((ROBOT_NAMESPACE, "pinocchio_model"))]
-
-        try:
-            # Extract geometry models
-            collision_model = log_constants[
-                ".".join((ROBOT_NAMESPACE, "collision_model"))]
-            visual_model = log_constants[
-                ".".join((ROBOT_NAMESPACE, "visual_model"))]
-
-            # Initialize the model
-            robot.initialize(pinocchio_model, collision_model, visual_model)
-        except KeyError as e:
-            # Extract initialization arguments
-            urdf_data = log_constants[
-                ".".join((ROBOT_NAMESPACE, "urdf_file"))]
-            has_freeflyer = int(log_constants[
-                ".".join((ROBOT_NAMESPACE, "has_freeflyer"))])
-            mesh_package_dirs = [*mesh_package_dirs, *log_constants.get(
-                ".".join((ROBOT_NAMESPACE, "mesh_package_dirs")), ())]
-
-            # Make sure urdf data is available
-            if len(urdf_data) <= 1:
-                raise RuntimeError(
-                    "Impossible to build robot. The log is not persistent and the "
-                    "robot was not associated with a valid URDF file.") from e
-
-            # Write urdf data in temporary file
-            urdf_path = os.path.join(
-                tempfile.gettempdir(),
-                f"{next(tempfile._get_candidate_names())}.urdf")
-            with open(urdf_path, "xb") as f:
-                f.write(urdf_data.encode())
-
-            # Fix the mesh paths in the URDF model if requested
-            if mesh_path_dir is not None:
-                fixed_urdf_path = _fix_urdf_mesh_path(urdf_path, mesh_path_dir)
-                os.remove(urdf_path)
-                urdf_path = fixed_urdf_path
-
-            # Initialize model
-            robot.initialize(urdf_path, has_freeflyer, mesh_package_dirs)
-
-            # Delete temporary file
-            os.remove(urdf_path)
-
-            # Load the options
-            if robot_name == "":
-                robot.set_options(all_options["robot"])
-            else:
-                robot.set_options(all_options[".".join((robot_name, "robot"))])
-
-            # Update model in-place.
-            # Note that `__setstate__` re-allocates memory instead of just calling
-            # the copy assignment operator. Although this is undesirable, there is
-            # no better way on Python side. Anyway, this is not an issue in this
-            # particular case since the robot has just been created, so nobody got
-            # references to pre-allocated data at this point.
-            robot.pinocchio_model.__setstate__(pinocchio_model.__getstate__())
-
-            # Allocate corresponding pinocchio data manually
-            pinocchio_data = pinocchio_model.createData()
-            robot.pinocchio_data.__setstate__(pinocchio_data.__getstate__())
+        robot = build_robot_from_log(log_data, mesh_path_dir,
+                                     mesh_package_dirs, robot_name=robot_name)
 
         robots.append(robot)
 
@@ -279,7 +290,8 @@ def build_robots_from_log(
 
 
 def extract_trajectory_from_log(log_data: Dict[str, Any],
-                                robot: Optional[jiminy.Model] = None
+                                robot: Optional[jiminy.Model] = None,
+                                *, robot_name: str = ""
                                 ) -> TrajectoryDataType:
     """Extract the minimal required information from raw log data in order to
     replay the simulation in a viewer.
@@ -299,8 +311,51 @@ def extract_trajectory_from_log(log_data: Dict[str, Any],
               field "evolution_robot" and it is a list of State object. The
               other fields are additional information.
     """
-    return extract_trajectories_from_log(log_data, [robot])[robot.name]
-                                
+    # Prepare robot namespace
+    if robot.name == "":
+        ROBOT_NAMESPACE = ENGINE_NAMESPACE
+    else:
+        ROBOT_NAMESPACE = ".".join((ENGINE_NAMESPACE, robot.name))
+    # Handling of default argument(s)
+    if robot is None:
+        robot = build_robot_from_log(log_data)
+
+    # Define some proxies for convenience
+    log_vars = log_data["variables"]
+
+    # Extract the joint positions, velocities and external forces over time
+    positions = np.stack([
+        log_vars.get(".".join((ROBOT_NAMESPACE, field)), [])
+        for field in robot.log_position_fieldnames], axis=-1)
+    velocities = np.stack([
+        log_vars.get(".".join((ROBOT_NAMESPACE, field)), [])
+        for field in robot.log_velocity_fieldnames], axis=-1)
+    forces = np.stack([
+        log_vars.get(".".join((ROBOT_NAMESPACE, field)), [])
+        for field in robot.log_f_external_fieldnames], axis=-1)
+
+    # Determine which optional data are available
+    has_positions = len(positions) > 0
+    has_velocities = len(velocities) > 0
+    has_forces = len(forces) > 0
+
+    # Create state sequence
+    evolution_robot = []
+    q, v, f_ext = None, None, None
+    for i, t in enumerate(log_vars["Global.Time"]):
+        if has_positions:
+            q = positions[i]
+        if has_velocities:
+            v = velocities[i]
+        if has_forces:
+            f_ext = [forces[i, (6 * (j - 1)):(6 * j)]
+                     for j in range(1, robot.pinocchio_model.njoints)]
+        evolution_robot.append(State(
+            t=t, q=q, v=v, f_ext=f_ext))  # type: ignore[arg-type]
+
+    return {"evolution_robot": evolution_robot,
+            "robot": robot,
+            "use_theoretical_model": False}                  
 
 def extract_trajectories_from_log(log_data: Dict[str, Any],
                                 robots: Optional[Sequence[jiminy.Model]] = None
@@ -329,47 +384,10 @@ def extract_trajectories_from_log(log_data: Dict[str, Any],
     if robots is None:
         robots = build_robots_from_log(log_data)
 
-    # Define some proxies for convenience
-    log_vars = log_data["variables"]
-
     for robot in robots:
-        if robot.name == "":
-            ROBOT_NAMESPACE = ENGINE_NAMESPACE
-        else:
-            ROBOT_NAMESPACE = ".".join((ENGINE_NAMESPACE, robot.name))
-        # Extract the joint positions, velocities and external forces over time
-        positions = np.stack([
-            log_vars.get(".".join((ROBOT_NAMESPACE, field)), [])
-            for field in robot.log_position_fieldnames], axis=-1)
-        velocities = np.stack([
-            log_vars.get(".".join((ROBOT_NAMESPACE, field)), [])
-            for field in robot.log_velocity_fieldnames], axis=-1)
-        forces = np.stack([
-            log_vars.get(".".join((ROBOT_NAMESPACE, field)), [])
-            for field in robot.log_f_external_fieldnames], axis=-1)
+        trajectory = extract_trajectory_from_log(log_data, robot, robot_name=robot.name)
 
-        # Determine which optional data are available
-        has_positions = len(positions) > 0
-        has_velocities = len(velocities) > 0
-        has_forces = len(forces) > 0
-
-        # Create state sequence
-        evolution_robot = []
-        q, v, f_ext = None, None, None
-        for i, t in enumerate(log_vars["Global.Time"]):
-            if has_positions:
-                q = positions[i]
-            if has_velocities:
-                v = velocities[i]
-            if has_forces:
-                f_ext = [forces[i, (6 * (j - 1)):(6 * j)]
-                        for j in range(1, robot.pinocchio_model.njoints)]
-            evolution_robot.append(State(
-                t=t, q=q, v=v, f_ext=f_ext))  # type: ignore[arg-type]
-
-        trajectories[robot.name] = {"evolution_robot": evolution_robot,
-                                    "robot": robot,
-                                    "use_theoretical_model": False}
+        trajectories[robot.name] = trajectory
     
     return trajectories
 

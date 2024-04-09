@@ -1,11 +1,11 @@
 # pylint: disable=missing-module-docstring
-from .viewer import (CameraPoseType,
+from .viewer import (COLORS,
+                     CameraPoseType,
                      ViewerClosedError,
                      Viewer,
                      sleep,
                      is_display_available,
-                     get_default_backend,
-                     COLORS)
+                     get_default_backend)
 from .replay import (extract_replay_data_from_log,
                      play_trajectories,
                      play_logs_data,
@@ -15,6 +15,7 @@ from .meshcat.utilities import interactive_mode
 
 
 __all__ = [
+    'COLORS',
     'CameraPoseType',
     'ViewerClosedError',
     'sleep',
@@ -26,6 +27,5 @@ __all__ = [
     'play_trajectories',
     'play_logs_data',
     'play_logs_files',
-    'async_play_and_record_logs_files',
-    'COLORS'
+    'async_play_and_record_logs_files'
 ]

@@ -18,9 +18,8 @@ from jiminy_py.viewer.replay import play_logs_data
 
 class SimulatorTest(unittest.TestCase):
     def test_single_robot_simulation(self):
-        '''
-        Test simulation with a single robot.
-        '''
+        """Test simulation with a single robot.
+        """
         # Set initial condition and simulation duration
         np.random.seed(0)
         q0, v0 = np.random.rand(2), np.random.rand(2)
@@ -80,9 +79,8 @@ class SimulatorTest(unittest.TestCase):
         self.assertTrue(os.path.isfile(video_path))
 
     def test_double_robot_simulation(self):
-        '''
-        Test simulation with two robots.
-        '''
+        """Test simulation with two robots.
+        """
         robot1_name = "robot1"
         robot2_name = "robot2"
         # Set initial condition and simulation duration
@@ -133,10 +131,15 @@ class SimulatorTest(unittest.TestCase):
         log_data = read_log(log_path)
         trajectories = extract_trajectories_from_log(log_data)
 
-        np.testing.assert_array_almost_equal(simulator.robot_states[0].q, trajectories[simulator.robots[0].name]['evolution_robot'][-1].q, decimal=10)
-        np.testing.assert_array_almost_equal(simulator.robot_states[0].v, trajectories[simulator.robots[0].name]['evolution_robot'][-1].v, decimal=10)
-        np.testing.assert_array_almost_equal(simulator.robot_states[1].q, trajectories[simulator.robots[1].name]['evolution_robot'][-1].q, decimal=10)
-        np.testing.assert_array_almost_equal(simulator.robot_states[1].v, trajectories[simulator.robots[1].name]['evolution_robot'][-1].v, decimal=10)
+        trajectory_1, trajectory_2 = (
+            trajectories[robot.name]['evolution_robot'][-1] 
+            for robot in simulator.robots)
+        robot_states_1, robot_states_2 = simulator.robot_states
+
+        np.testing.assert_array_almost_equal(robot_states_1.q, trajectory_1.q, decimal=10)
+        np.testing.assert_array_almost_equal(robot_states_1.v, trajectory_1.v, decimal=10)
+        np.testing.assert_array_almost_equal(robot_states_2.q, trajectory_2.q, decimal=10)
+        np.testing.assert_array_almost_equal(robot_states_2.v, trajectory_2.v, decimal=10)
 
 
 if __name__ == '__main__':
