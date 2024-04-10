@@ -191,7 +191,7 @@ namespace jiminy
                     }
                     else
                     {
-                        THROW_ERROR(
+                        JIMINY_THROW(
                             std::invalid_argument, "Unknown data type: std::vector<", type, ">");
                     }
                 }
@@ -242,10 +242,10 @@ namespace jiminy
                     }
                     else
                     {
-                        THROW_ERROR(std::invalid_argument,
-                                    "Unknown data type: std::vector<",
-                                    it->type(),
-                                    ">");
+                        JIMINY_THROW(std::invalid_argument,
+                                     "Unknown data type: std::vector<",
+                                     it->type(),
+                                     ">");
                     }
                 }
                 else
@@ -255,7 +255,7 @@ namespace jiminy
             }
             else
             {
-                THROW_ERROR(std::invalid_argument, "Unknown data type: ", root->type());
+                JIMINY_THROW(std::invalid_argument, "Unknown data type: ", root->type());
             }
 
             config[root.key().asString()] = field;

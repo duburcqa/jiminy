@@ -59,7 +59,7 @@ namespace jiminy
         auto model = model_.lock();
         if (!model)
         {
-            THROW_ERROR(bad_control_flow, "Model pointer expired or unset.");
+            JIMINY_THROW(bad_control_flow, "Model pointer expired or unset.");
         }
 
         // Get joint index

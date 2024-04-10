@@ -509,7 +509,7 @@ namespace jiminy::pinocchio_overload
            It is always the case in theory but not sure in practice because of rounding errors. */
         if ((data.Dinv.array() < 0.0).any())
         {
-            THROW_ERROR(std::runtime_error, "Inertia matrix not positive definite.");
+            JIMINY_THROW(std::runtime_error, "Inertia matrix not positive definite.");
         }
 
         /* Compute sDUiJt := sqrt(D)^-1 * U^-1 * J.T

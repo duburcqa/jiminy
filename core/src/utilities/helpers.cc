@@ -143,7 +143,7 @@ namespace jiminy
         auto fieldnameIt = std::find(firstFieldnameIt, logData.variableNames.end(), fieldname);
         if (fieldnameIt == logData.variableNames.end())
         {
-            THROW_ERROR(lookup_error, "Variable '", fieldname, "' does not exist.");
+            JIMINY_THROW(lookup_error, "Variable '", fieldname, "' does not exist.");
         }
         const int64_t varIndex = std::distance(firstFieldnameIt, fieldnameIt);
         const Eigen::Index numInt = logData.integerValues.rows();

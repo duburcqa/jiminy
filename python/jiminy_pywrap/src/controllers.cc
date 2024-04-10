@@ -95,15 +95,15 @@ namespace jiminy::python
 
             if (!PyArray_Check(dataPy))
             {
-                THROW_ERROR(std::invalid_argument,
-                            "'value' input must have type 'numpy.ndarray'.");
+                JIMINY_THROW(std::invalid_argument,
+                             "'value' input must have type 'numpy.ndarray'.");
             }
 
             PyArrayObject * dataPyArray = reinterpret_cast<PyArrayObject *>(dataPy);
             if (PyArray_SIZE(dataPyArray) > 1U)
             {
-                THROW_ERROR(std::invalid_argument,
-                            "'value' input array must have a single element.");
+                JIMINY_THROW(std::invalid_argument,
+                             "'value' input array must have a single element.");
             }
 
             if (PyArray_TYPE(dataPyArray) == NPY_FLOAT64)
@@ -116,8 +116,8 @@ namespace jiminy::python
                 auto data = static_cast<int64_t *>(PyArray_DATA(dataPyArray));
                 return self.registerVariable(name, *data);
             }
-            THROW_ERROR(not_implemented_error,
-                        "'value' input array must have dtype 'np.float64' or 'np.int64'.");
+            JIMINY_THROW(not_implemented_error,
+                         "'value' input array must have dtype 'np.float64' or 'np.int64'.");
         }
 
         template<typename Scalar>
@@ -135,8 +135,8 @@ namespace jiminy::python
                 // Check fieldnames and array have same length
                 if (static_cast<std::size_t>(data.size()) != fieldnames.size())
                 {
-                    THROW_ERROR(std::invalid_argument,
-                                "'values' input array must have same length than 'fieldnames'.");
+                    JIMINY_THROW(std::invalid_argument,
+                                 "'values' input array must have same length than 'fieldnames'.");
                 }
 
                 // Register all variables at once
@@ -161,8 +161,8 @@ namespace jiminy::python
                 }
                 if (!are_fieldnames_valid)
                 {
-                    THROW_ERROR(std::invalid_argument,
-                                "'fieldnames' must be nested list with same shape than 'value'.");
+                    JIMINY_THROW(std::invalid_argument,
+                                 "'fieldnames' must be nested list with same shape than 'value'.");
                 }
 
                 // Register rows sequentially
@@ -192,7 +192,7 @@ namespace jiminy::python
             {
                 return self.registerConstant(name, PyBytes_AsString(dataPy));
             }
-            THROW_ERROR(not_implemented_error, "'value' must have type 'bytes' or 'str'.");
+            JIMINY_THROW(not_implemented_error, "'value' must have type 'bytes' or 'str'.");
         }
 
         static void setOptions(AbstractController & self, const bp::dict & configPy)

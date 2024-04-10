@@ -14,48 +14,48 @@
 #include "jiminy/core/hardware/basic_sensors.h"
 
 
-#define GET_ROBOT_AND_CHECK_SENSOR_INTEGRITY()                                                  \
-    if (!isAttached_)                                                                           \
-    {                                                                                           \
-        THROW_ERROR(bad_control_flow,                                                           \
-                    "Sensor not attached to any robot. Impossible to refresh sensor proxies."); \
-    }                                                                                           \
-                                                                                                \
-    auto robot = robot_.lock();                                                                 \
-    if (!robot)                                                                                 \
-    {                                                                                           \
-        THROW_ERROR(bad_control_flow,                                                           \
-                    "Robot has been deleted. Impossible to refresh sensor proxies.");           \
-    }                                                                                           \
-                                                                                                \
-    if (!robot->getIsInitialized())                                                             \
-    {                                                                                           \
-        THROW_ERROR(bad_control_flow,                                                           \
-                    "Robot not initialized. Impossible to refresh sensor proxies.");            \
-    }                                                                                           \
-                                                                                                \
-    if (!isInitialized_)                                                                        \
-    {                                                                                           \
-        THROW_ERROR(bad_control_flow,                                                           \
-                    "Sensor not initialized. Impossible to refresh sensor proxies.");           \
+#define GET_ROBOT_AND_CHECK_SENSOR_INTEGRITY()                                                   \
+    if (!isAttached_)                                                                            \
+    {                                                                                            \
+        JIMINY_THROW(bad_control_flow,                                                           \
+                     "Sensor not attached to any robot. Impossible to refresh sensor proxies."); \
+    }                                                                                            \
+                                                                                                 \
+    auto robot = robot_.lock();                                                                  \
+    if (!robot)                                                                                  \
+    {                                                                                            \
+        JIMINY_THROW(bad_control_flow,                                                           \
+                     "Robot has been deleted. Impossible to refresh sensor proxies.");           \
+    }                                                                                            \
+                                                                                                 \
+    if (!robot->getIsInitialized())                                                              \
+    {                                                                                            \
+        JIMINY_THROW(bad_control_flow,                                                           \
+                     "Robot not initialized. Impossible to refresh sensor proxies.");            \
+    }                                                                                            \
+                                                                                                 \
+    if (!isInitialized_)                                                                         \
+    {                                                                                            \
+        JIMINY_THROW(bad_control_flow,                                                           \
+                     "Sensor not initialized. Impossible to refresh sensor proxies.");           \
     }
 
 
-#define GET_ROBOT_IF_INITIALIZED()                                                             \
-    if (!isInitialized_)                                                                       \
-    {                                                                                          \
-        THROW_ERROR(bad_control_flow, "Sensor not initialized. Impossible to update sensor."); \
-    }                                                                                          \
-                                                                                               \
+#define GET_ROBOT_IF_INITIALIZED()                                                              \
+    if (!isInitialized_)                                                                        \
+    {                                                                                           \
+        JIMINY_THROW(bad_control_flow, "Sensor not initialized. Impossible to update sensor."); \
+    }                                                                                           \
+                                                                                                \
     auto robot = robot_.lock();
 
-#define CHECK_SIMULATION_NOT_RUNNING()                                                 \
-    auto robot = robot_.lock();                                                        \
-    if (robot && robot->getIsLocked())                                                 \
-    {                                                                                  \
-        THROW_ERROR(bad_control_flow,                                                  \
-                    "Robot already locked, probably because a simulation is running. " \
-                    "Please stop it before refreshing sensor proxies.");               \
+#define CHECK_SIMULATION_NOT_RUNNING()                                                  \
+    auto robot = robot_.lock();                                                         \
+    if (robot && robot->getIsLocked())                                                  \
+    {                                                                                   \
+        JIMINY_THROW(bad_control_flow,                                                  \
+                     "Robot already locked, probably because a simulation is running. " \
+                     "Please stop it before refreshing sensor proxies.");               \
     }
 
 namespace jiminy
@@ -101,7 +101,7 @@ namespace jiminy
             boost::get<Eigen::VectorXd>(sensorOptions.at("noiseStd"));
         if (bias.size() && bias.size() != 9)
         {
-            THROW_ERROR(
+            JIMINY_THROW(
                 std::invalid_argument,
                 "Wrong bias vector. It must contain 9 values:\n"
                 "  - the first three are the angle-axis representation of a rotation bias applied "
@@ -110,7 +110,7 @@ namespace jiminy
         }
         if (noiseStd.size() && static_cast<std::size_t>(noiseStd.size()) != getSize())
         {
-            THROW_ERROR(
+            JIMINY_THROW(
                 std::invalid_argument,
                 "Wrong noise std vector. It must contain 6 values corresponding respectively to "
                 "gyroscope and accelerometer additive noise.");
@@ -234,11 +234,11 @@ namespace jiminy
             boost::get<Eigen::VectorXd>(sensorOptions.at("noiseStd"));
         if (bias.size() && static_cast<std::size_t>(bias.size()) != getSize())
         {
-            THROW_ERROR(std::invalid_argument, "Wrong bias vector size.");
+            JIMINY_THROW(std::invalid_argument, "Wrong bias vector size.");
         }
         if (noiseStd.size() && static_cast<std::size_t>(noiseStd.size()) != getSize())
         {
-            THROW_ERROR(std::invalid_argument, "Wrong noise std vector size.");
+            JIMINY_THROW(std::invalid_argument, "Wrong noise std vector size.");
         }
 
         // Set options now that sanity check were made
@@ -254,9 +254,9 @@ namespace jiminy
             std::find(contactFrameNames.begin(), contactFrameNames.end(), frameName_);
         if (contactFrameNameIt == contactFrameNames.end())
         {
-            THROW_ERROR(std::logic_error,
-                        "Sensor frame not associated with any contact point of the robot. "
-                        "Impossible to refresh sensor proxies.");
+            JIMINY_THROW(std::logic_error,
+                         "Sensor frame not associated with any contact point of the robot. "
+                         "Impossible to refresh sensor proxies.");
         }
 
         frameIndex_ = ::jiminy::getFrameIndex(robot->pinocchioModel_, frameName_);
@@ -331,11 +331,11 @@ namespace jiminy
             boost::get<Eigen::VectorXd>(sensorOptions.at("noiseStd"));
         if (bias.size() && static_cast<std::size_t>(bias.size()) != getSize())
         {
-            THROW_ERROR(std::invalid_argument, "Wrong bias vector size.");
+            JIMINY_THROW(std::invalid_argument, "Wrong bias vector size.");
         }
         if (noiseStd.size() && static_cast<std::size_t>(noiseStd.size()) != getSize())
         {
-            THROW_ERROR(std::invalid_argument, "Wrong noise std vector size.");
+            JIMINY_THROW(std::invalid_argument, "Wrong noise std vector size.");
         }
 
         // Set options now that sanity check were made
@@ -446,11 +446,11 @@ namespace jiminy
             boost::get<Eigen::VectorXd>(sensorOptions.at("noiseStd"));
         if (bias.size() && static_cast<std::size_t>(bias.size()) != getSize())
         {
-            THROW_ERROR(std::invalid_argument, "Wrong bias vector size.");
+            JIMINY_THROW(std::invalid_argument, "Wrong bias vector size.");
         }
         if (noiseStd.size() && static_cast<std::size_t>(noiseStd.size()) != getSize())
         {
-            THROW_ERROR(std::invalid_argument, "Wrong noise std vector size.");
+            JIMINY_THROW(std::invalid_argument, "Wrong noise std vector size.");
         }
 
         // Set options now that sanity check were made
@@ -463,7 +463,7 @@ namespace jiminy
 
         if (!robot->pinocchioModel_.existJointName(jointName_))
         {
-            THROW_ERROR(std::runtime_error, "Sensor attached to a joint that does not exist.");
+            JIMINY_THROW(std::runtime_error, "Sensor attached to a joint that does not exist.");
         }
 
         jointIndex_ = ::jiminy::getJointIndex(robot->pinocchioModel_, jointName_);
@@ -473,7 +473,7 @@ namespace jiminy
         if (jointType_ != JointModelType::LINEAR && jointType_ != JointModelType::ROTARY &&
             jointType_ != JointModelType::ROTARY_UNBOUNDED)
         {
-            THROW_ERROR(
+            JIMINY_THROW(
                 std::runtime_error,
                 "Encoder sensors can only be associated with a 1-dof linear or rotary joint.");
         }
@@ -559,11 +559,11 @@ namespace jiminy
             boost::get<Eigen::VectorXd>(sensorOptions.at("noiseStd"));
         if (bias.size() && static_cast<std::size_t>(bias.size()) != getSize())
         {
-            THROW_ERROR(std::invalid_argument, "Wrong bias vector size.");
+            JIMINY_THROW(std::invalid_argument, "Wrong bias vector size.");
         }
         if (noiseStd.size() && static_cast<std::size_t>(noiseStd.size()) != getSize())
         {
-            THROW_ERROR(std::invalid_argument, "Wrong noise std vector size.");
+            JIMINY_THROW(std::invalid_argument, "Wrong noise std vector size.");
         }
 
         // Set options now that sanity check were made
@@ -597,8 +597,8 @@ namespace jiminy
     {
         if (!isInitialized_)
         {
-            THROW_ERROR(bad_control_flow,
-                        "Sensor not initialized. Impossible to set sensor data.");
+            JIMINY_THROW(bad_control_flow,
+                         "Sensor not initialized. Impossible to set sensor data.");
         }
 
         data()[0] = uMotor[motorIndex_];

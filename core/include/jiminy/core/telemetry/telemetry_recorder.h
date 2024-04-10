@@ -14,7 +14,7 @@ namespace jiminy
     class JIMINY_DLLAPI TelemetryRecorder
     {
     public:
-        DISABLE_COPY(TelemetryRecorder)
+        JIMINY_DISABLE_COPY(TelemetryRecorder)
 
     public:
         explicit TelemetryRecorder() = default;

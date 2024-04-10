@@ -10,7 +10,7 @@ namespace jiminy
     class JIMINY_DLLAPI TelemetryData
     {
     public:
-        DISABLE_COPY(TelemetryData)
+        JIMINY_DISABLE_COPY(TelemetryData)
 
     public:
         explicit TelemetryData() = default;

@@ -23,7 +23,7 @@ namespace jiminy
     class JIMINY_DLLAPI FrameConstraint : public AbstractConstraintTpl<FrameConstraint>
     {
     public:
-        DISABLE_COPY(FrameConstraint)
+        JIMINY_DISABLE_COPY(FrameConstraint)
 
         auto shared_from_this() { return shared_from(this); }
 

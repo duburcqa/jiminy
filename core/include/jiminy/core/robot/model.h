@@ -250,7 +250,7 @@ namespace jiminy
         };
 
     public:
-        DISABLE_COPY(Model)
+        JIMINY_DISABLE_COPY(Model)
 
     public:
         explicit Model() noexcept;

@@ -399,9 +399,9 @@ namespace jiminy::python
                     }
                     catch (const std::exception & e)
                     {
-                        THROW_ERROR(std::ios_base::failure,
-                                    "Failed to load pinocchio model from log: ",
-                                    e.what());
+                        JIMINY_THROW(std::ios_base::failure,
+                                     "Failed to load pinocchio model from log: ",
+                                     e.what());
                     }
                 }
                 else if (endsWith(key, ".visual_model") || endsWith(key, ".collision_model"))
@@ -414,9 +414,9 @@ namespace jiminy::python
                     }
                     catch (const std::exception & e)
                     {
-                        THROW_ERROR(std::ios_base::failure,
-                                    "Failed to load collision and/or visual model from log: ",
-                                    e.what());
+                        JIMINY_THROW(std::ios_base::failure,
+                                     "Failed to load collision and/or visual model from log: ",
+                                     e.what());
                     }
                 }
                 else if (endsWith(key, ".mesh_package_dirs"))
@@ -581,9 +581,9 @@ namespace jiminy::python
                 }
                 else
                 {
-                    THROW_ERROR(std::runtime_error,
-                                "Impossible to determine the file format "
-                                "automatically. Please specify it manually.");
+                    JIMINY_THROW(std::runtime_error,
+                                 "Impossible to determine the file format "
+                                 "automatically. Please specify it manually.");
                 }
             }
             const LogData logData = Engine::readLog(filename, format);

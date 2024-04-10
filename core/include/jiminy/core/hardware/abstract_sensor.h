@@ -103,7 +103,7 @@ namespace jiminy
         };
 
     public:
-        DISABLE_COPY(AbstractSensorBase)
+        JIMINY_DISABLE_COPY(AbstractSensorBase)
 
     public:
         /// \param[in] name Name of the sensor
@@ -317,7 +317,7 @@ namespace jiminy
     class JIMINY_TEMPLATE_DLLAPI AbstractSensorTpl : public AbstractSensorBase
     {
     public:
-        DISABLE_COPY(AbstractSensorTpl)
+        JIMINY_DISABLE_COPY(AbstractSensorTpl)
 
     public:
         using AbstractSensorBase::AbstractSensorBase;

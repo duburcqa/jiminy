@@ -26,7 +26,7 @@ namespace jiminy
     class JIMINY_DLLAPI WheelConstraint : public AbstractConstraintTpl<WheelConstraint>
     {
     public:
-        DISABLE_COPY(WheelConstraint)
+        JIMINY_DISABLE_COPY(WheelConstraint)
 
         auto shared_from_this() { return shared_from(this); }
 

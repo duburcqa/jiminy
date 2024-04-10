@@ -26,7 +26,7 @@ namespace jiminy
         using SensorTree = std::unordered_map<std::string, SensorVector>;
 
     public:
-        DISABLE_COPY(Robot)
+        JIMINY_DISABLE_COPY(Robot)
 
     public:
         /// \param[in] name Name of the Robot.

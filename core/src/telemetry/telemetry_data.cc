@@ -18,7 +18,7 @@ namespace jiminy
         // Check if registration is possible
         if (!isRegisteringAvailable_)
         {
-            THROW_ERROR(bad_control_flow, "Registration already locked.");
+            JIMINY_THROW(bad_control_flow, "Registration already locked.");
         }
 
         // Check if already in memory
@@ -29,7 +29,7 @@ namespace jiminy
                          { return element.first == name; });
         if (variableIt != constantRegistry_.end())
         {
-            THROW_ERROR(bad_control_flow, "Entry '", name, "' already exists.");
+            JIMINY_THROW(bad_control_flow, "Entry '", name, "' already exists.");
         }
 
         // Register new constant
