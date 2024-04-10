@@ -65,7 +65,7 @@ class SimulatorTest(unittest.TestCase):
 
         # Test: log reading
         log_data = read_log(log_path)
-        trajectory = extract_trajectory_from_log(log_data, robot)
+        trajectory = extract_trajectory_from_log(log_data)
 
         final_log_states = trajectory['evolution_robot'][-1]
 
@@ -85,8 +85,7 @@ class SimulatorTest(unittest.TestCase):
     def test_double_robot_simulation(self):
         """Test simulation with two robots.
         """
-        robot1_name = "robot1"
-        robot2_name = "robot2"
+        robot1_name, robot2_name = "robot1", "robot2"
         # Set initial condition and simulation duration
         np.random.seed(0)
         q0 = {robot1_name : np.random.rand(2), robot2_name : np.random.rand(2)}

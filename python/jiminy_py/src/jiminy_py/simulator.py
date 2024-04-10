@@ -62,7 +62,8 @@ def _build_robot_from_urdf(name: str,
                            avoid_instable_collisions: bool = True,
                            debug: bool = False) -> jiminy.Robot:
     r"""Create and initialize a new robot from scratch, based on configuration
-    files only. Create a temporary harware file if needed.
+    files only. Create a default harware file if none is provided. See
+    `generate_default_hardware_description_file` for details.
 
     :param urdf_path: Path of the urdf model to be used for the simulation.
     :param hardware_path: Path of Jiminy hardware description toml file.
@@ -130,28 +131,37 @@ def _build_robot_from_urdf(name: str,
 class Simulator:
     """Simulation wrapper providing a unified user-API on top of the low-level
     jiminy C++ core library and Python-native modules for 3D rendering and log
-    data visualization. The simulation can now be multi-robot but it has been
-    design to remain as easy of use as possible for single-robot simulation.
-    which are just multi-robot simulations with only one robot.
+    data visualization.
+
+    The simulation can now be multi-robot but it has been design to remain as
+    easy of use as possible for single-robot simulation which are just
+    multi-robot simulations with only one robot.
+
     For single-robot simulations: The name of the robot is an empty string by
     default but can be specified. It will then appear in the log if specified.
+
     For multi-robots simulations: The name of the first robot is an empty
     string by default but it is advised to specify one. You can add robots to
     the simulation with the method `add_robot`, robot names have to be
     specified. The initial configurations have to be specified via
-    dictionnaries in `start` and `simulate`. `is_state_theoretical` cannot be
-    specified. Some proxy and methods are not compatible with multi-robot
-    simulations: the proxies `viewer`, `robot`, `robot_state`,
-    `is_viewer_available` systematically return information associated with the
-    first robot. `robot`, `robot_state`, `is_viewer_available` can not be call
-    in multi-robot simulations and `viewer` should not. Instead, use
-    `Simulator._viewers`, `Simulator.engine.robots`,
-    `Simulator.engine.robot_states`, `Simulator.are_viewers_available`.
-    The methods `register_profile_force` and `register_impulse_force` can not
-    be call in multi robot Simulator. Instead, use
-    `Simulator.engine.register_profile_force`,
-    `Simulator.engine.register_impulse_force` and specify the name of the robot
-    it is applied to.
+    dictionnaries in `start` and `simulate`. `is_state_theoretical` can not be
+    specified.
+
+    Some proxy and methods are not compatible with multi-robot simulations:
+
+         Single-robot simulations     |    Multi-robot simulations
+    ---------------------------------------------------------------------------
+                 Simulator.viewer   --->   Simulator._viewers
+                  Simulator.robot   --->   Simulator.engine.robots
+            Simulator.robot_state   --->   Simulator.engine.robot_states
+    Simulator.is_viewer_available   --->   Simulator.are_viewers_available
+    Simulator.register_profile_force -> Simulator.engine.register_profile_force
+    Simulator.register_impulse_force -> Simulator.engine.register_impulse_force
+
+    The single-robot proxies systematically return information associated with
+    the first robot.
+    To register a force, the name of the robot it is applied to needs to be
+    specified.
     """
     def __init__(self,  # pylint: disable=unused-argument
                  robot: jiminy.Robot,
@@ -283,8 +293,8 @@ class Simulator:
                   has_freeflyer: bool = True,
                   avoid_instable_collisions: bool = True,
                   debug: bool = False) -> None:
-        r"""Create and add a new robot to the simulator from scratch, based on
-        configuration files only.
+        r"""Create a new robot from scratch based on configuration files only
+        and add it to the simulator.
 
         :param urdf_path: Path of the urdf model to be used for the simulation.
         :param hardware_path: Path of Jiminy hardware description toml file.
@@ -366,7 +376,7 @@ class Simulator:
                        robot_color: Optional[
                            Tuple[float, float, float, float]],
                        **viewer_kwargs: Any) -> None:
-        """Helper method to create a viewer associated to robot i.
+        """Helper method to create a viewer associated with a given robot.
 
         :param robot: The robot of which the viewer will be created.
         :param robot_state: The state associated to the robot.
@@ -924,7 +934,7 @@ class Simulator:
     def close(self) -> None:
         """Close the connection with the renderer.
         """
-        if hasattr(self, "_viewers") and len(self._viewers) > 0:
+        if hasattr(self, "_viewers"):
             for viewer in self._viewers:
                 viewer.close()
             self._viewers.clear()

@@ -119,7 +119,7 @@ def build_robot_from_log(
         mesh_package_dirs: Sequence[str] = (),
         *, robot_name: str = ""
         ) -> jiminy.Robot:
-    """Build a robot from log. Create and initialize a robot from a single or
+    """Create and initialize a robot from a single or
     multi robot simulation. If the robot to be built is from a multi-robot
     simulation, its name needs to be provided.
     
@@ -164,11 +164,11 @@ def build_robot_from_log(
     try:
         pinocchio_model = log_constants[
             ".".join((robot_namespace, "pinocchio_model"))]
-    except KeyError as exc:
+    except KeyError as e:
         if robot_name == "":
             raise ValueError(
                 "No robot with empty name has been found. Specify a name or "
-                "call `build_robots_from_log` to build the robot.") from exc
+                "call `build_robots_from_log`.") from e
 
     try:
         # Extract geometry models
@@ -259,7 +259,6 @@ def build_robots_from_log(
     log_constants = log_data["constants"]
 
     robots_names = []
-
     for key in log_constants.keys():
         if key == "HighLevelController.has_freeflyer":
             robots_names.append("")
@@ -269,10 +268,9 @@ def build_robots_from_log(
                 robots_names.append(m[0])
 
     robots = []
-
     for robot_name in robots_names:
-        robot = build_robot_from_log(log_data, mesh_path_dir,
-                                     mesh_package_dirs, robot_name=robot_name)
+        robot = build_robot_from_log(
+            log_data, mesh_path_dir, mesh_package_dirs, robot_name=robot_name)
 
         robots.append(robot)
 
@@ -373,9 +371,7 @@ def extract_trajectories_from_log(log_data: Dict[str, Any],
                    Optional: None by default. If None, then it will be
                    reconstructed from 'log_data' using `build_robots_from_log`.
 
-    :returns: Trajectory dictionary. The actual trajectory corresponds to the
-              field "evolution_robot" and it is a list of State object. The
-              other fields are additional information.
+    :returns: Dictonary mapping each robot name to its corresponding trajectory.
     """
     trajectories = {}
 
@@ -388,7 +384,6 @@ def extract_trajectories_from_log(log_data: Dict[str, Any],
             log_data, robot, robot_name=robot.name)
 
         trajectories[robot.name] = trajectory
-
     return trajectories
 
 def update_sensor_measurements_from_log(
