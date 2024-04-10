@@ -865,6 +865,8 @@ class BaseJiminyRobot(jiminy.Robot):
         Hardware description files within the same directory and having the
         name than the URDF file will be detected automatically without
         requiring to manually specify its path.
+
+    :param name: Name of the robot to be created, empty string by default.
     """
     def __init__(self, name : Optional[str] = "") -> None:
         self.extra_info: Dict[str, Any] = {}

@@ -61,20 +61,19 @@ def _build_robot_from_urdf(name: str,
                            has_freeflyer: bool = True,
                            avoid_instable_collisions: bool = True,
                            debug: bool = False) -> jiminy.Robot:
-    """
-    Create and initialize a new robot from scratch, based on configuration
+    r"""Create and initialize a new robot from scratch, based on configuration
     files only. Create a temporary harware file if needed.
 
     :param urdf_path: Path of the urdf model to be used for the simulation.
     :param hardware_path: Path of Jiminy hardware description toml file.
-                            Optional: Looking for '\*_hardware.toml' file in
-                            the same folder and with the same name.
+                          Optional: Looking for '\*_hardware.toml' file in
+                          the same folder and with the same name.
     :param mesh_path_dir: Path to the folder containing all the meshes.
-                            Optional: Env variable 'JIMINY_DATA_PATH' will be
-                            used if available.
+                          Optional: Env variable 'JIMINY_DATA_PATH' will be
+                          used if available.
     :param has_freeflyer: Whether the robot is fixed-based wrt its root
-                            link, or can move freely in the world.
-                            Optional: True by default.
+                          link, or can move freely in the world.
+                          Optional: True by default.
     :param config_path: Configuration toml file to import. It will be
                         imported AFTER loading the hardware description
                         file. It can be automatically generated from an
@@ -83,16 +82,16 @@ def _build_robot_from_urdf(name: str,
                         same folder and with the same name. If not found,
                         using default configuration.
     :param avoid_instable_collisions: Prevent numerical instabilities by
-                                        replacing collision mesh by vertices
-                                        of associated minimal volume bounding
-                                        box, and replacing primitive box by
-                                        its vertices.
+                                      replacing collision mesh by vertices
+                                      of associated minimal volume bounding
+                                      box, and replacing primitive box by
+                                      its vertices.
     :param debug: Whether the debug mode must be activated. Doing it
-                    enables temporary files automatic deletion.
+                  enables temporary files automatic deletion.
     """
     # Check if robot name is valid
     if name != re.sub('[^A-Za-z0-9_]', '_', name):
-        raise Exception("The name of the robot should be case-insensitive "
+        raise ValueError("The name of the robot should be case-insensitive "
                         "ASCII alphanumeric characters plus underscore.")
 
     # Generate a temporary Hardware Description File if necessary
@@ -129,11 +128,30 @@ def _build_robot_from_urdf(name: str,
     return robot
 
 class Simulator:
-    """Simulation wrapper providing a unified user-API on top of
-    the low-level jiminy C++ core library and Python-native modules for 3D
-    rendering and log data visualization. The simulation can now be multi-robot
-    but it has been design to remain as easy of use as possible for 
-    single-robot simulation.
+    """Simulation wrapper providing a unified user-API on top of the low-level
+    jiminy C++ core library and Python-native modules for 3D rendering and log
+    data visualization. The simulation can now be multi-robot but it has been
+    design to remain as easy of use as possible for single-robot simulation.
+    which are just multi-robot simulations with only one robot.
+    For single-robot simulations: The name of the robot is an empty string by
+    default but can be specified. It will then appear in the log if specified.
+    For multi-robots simulations: The name of the first robot is an empty
+    string by default but it is advised to specify one. You can add robots to
+    the simulation with the method `add_robot`, robot names have to be
+    specified. The initial configurations have to be specified via
+    dictionnaries in `start` and `simulate`. `is_state_theoretical` cannot be
+    specified. Some proxy and methods are not compatible with multi-robot
+    simulations: the proxies `viewer`, `robot`, `robot_state`,
+    `is_viewer_available` systematically return information associated with the
+    first robot. `robot`, `robot_state`, `is_viewer_available` can not be call
+    in multi-robot simulations and `viewer` should not. Instead, use
+    `Simulator._viewers`, `Simulator.engine.robots`,
+    `Simulator.engine.robot_states`, `Simulator.are_viewers_available`.
+    The methods `register_profile_force` and `register_impulse_force` can not
+    be call in multi robot Simulator. Instead, use
+    `Simulator.engine.register_profile_force`,
+    `Simulator.engine.register_impulse_force` and specify the name of the robot
+    it is applied to.
     """
     def __init__(self,  # pylint: disable=unused-argument
                  robot: jiminy.Robot,
@@ -154,8 +172,8 @@ class Simulator:
 
         # Check if robot name is valid
         if robot.name != re.sub('[^A-Za-z0-9_]', '_', robot.name):
-            raise Exception("The name of the robot should be case-insensitive "
-                            "ASCII alphanumeric characters plus underscore.")
+            raise ValueError("The name of the robot should be case-insensitive"
+                            " ASCII alphanumeric characters plus underscore.")
 
         # Instantiate the low-level Jiminy engine, then initialize it
         self.engine = jiminy.Engine()
@@ -188,7 +206,7 @@ class Simulator:
               debug: bool = False,
               name : str = "",
               **kwargs: Any) -> 'Simulator':
-        """Create a new simulator instance from scratch, based on
+        r"""Create a new simulator instance from scratch, based on
         configuration files only.
 
         :param urdf_path: Path of the urdf model to be used for the simulation.
@@ -216,7 +234,7 @@ class Simulator:
         :param debug: Whether the debug mode must be activated. Doing it
                       enables temporary files automatic deletion.
         :param kwargs: Keyword arguments to forward to class constructor.
-        """       
+        """
         # Instantiate and initialize the robot
         robot = _build_robot_from_urdf(name, urdf_path, hardware_path,
                                        mesh_path_dir, has_freeflyer,
@@ -265,7 +283,7 @@ class Simulator:
                   has_freeflyer: bool = True,
                   avoid_instable_collisions: bool = True,
                   debug: bool = False) -> None:
-        """Create and add a new robot to the simulator from scratch, based on
+        r"""Create and add a new robot to the simulator from scratch, based on
         configuration files only.
 
         :param urdf_path: Path of the urdf model to be used for the simulation.
@@ -300,18 +318,18 @@ class Simulator:
         # Get engine options
         engine_options = self.engine.get_options()
 
-        for hardware_path, option_nested_path in (
-            ('groundStiffness', ('contacts', 'stiffness')), 
+        for extra_info_key, option_nested_path in (
+            ('groundStiffness', ('contacts', 'stiffness')),
             ('groundDamping', ('contacts', 'damping')),
             ('controllerUpdatePeriod', ('stepper', 'controllerUpdatePeriod')),
             ('sensorsUpdatePeriod', ('stepper', 'sensorsUpdatePeriod'))):
-            if hardware_path in robot.extra_info.keys():
+            if extra_info_key in robot.extra_info.keys():
                 option = engine_options
                 for option_path in option_nested_path:
                     option = option[option_path]
-                if robot.extra_info[hardware_path] != option:
+                if robot.extra_info[extra_info_key] != option:
                     warnings.warn(
-                        f"You have speficied a different {hardware_path} then "
+                        f"You have speficied a different {extra_info_key} then "
                         f"the one of the engine, the simulation will run with "
                         f"{option}.")
 
@@ -341,12 +359,13 @@ class Simulator:
         to get consistent autocompletion wrt `getattr`.
         """
         return [*super().__dir__(), *dir(self.engine)]
-    
+
     def _create_viewer(self,
                        robot: jiminy.Robot,
                        robot_state: jiminy.RobotState,
-                       robot_color: Dict[str, Tuple[float]],
-                       **viewer_kwargs: Dict[str, Any]) -> None:
+                       robot_color: Optional[
+                           Tuple[float, float, float, float]],
+                       **viewer_kwargs: Any) -> None:
         """Helper method to create a viewer associated to robot i.
 
         :param robot: The robot of which the viewer will be created.
@@ -399,9 +418,9 @@ class Simulator:
                 for i in force_frames:
                     visibility[i - 1] = True
                 self._viewers[-1].display_external_forces(visibility)
-    
+
     @property
-    def viewer(self) -> Viewer:
+    def viewer(self) -> Optional[Viewer]:
         """Convenience proxy to get the viewer in single-robot simulations.
 
         .. warning::
@@ -414,7 +433,7 @@ class Simulator:
                 "`self._viewers` in multi-robot simulations.")
         if len(self._viewers) == 0:
             return None
-        
+
         return self._viewers[0]
 
     @property
@@ -448,7 +467,8 @@ class Simulator:
             `self.engine.robot_states` in multi-robot simulations.
         """
         # property is used in place of attribute for extra safety
-        return self.engine.robot_states[0]
+        robot_state, = self.engine.robot_states
+        return robot_state
 
     @property
     def is_viewer_available(self) -> bool:
@@ -460,14 +480,16 @@ class Simulator:
         """
         return (self.viewer is not None and
                 self.viewer.is_open())  # type: ignore[misc]
-    
+
     @property
     def are_viewers_available(self) -> bool:
         """Returns whether there are viewer instances associated with the
         ongoing multi-robot simulation.
         """
-        return (len(self._viewers) > 0 and
-                all([viewer.is_open() for viewer in self._viewers]))
+        if not self._viewers:
+            return False
+        return all(
+            viewer.is_open() for viewer in self._viewers)  # type: ignore[misc]
 
     def register_profile_force(self,
                                frame_name: str,
@@ -586,9 +608,9 @@ class Simulator:
         :param a_init: Initial acceleration (by robot if it is a dictionnary).
                        It is only used by acceleration dependent sensors and
                        controllers, such as IMU and force sensors.
-        :param is_state_theoretical: In single robot simulations, whether the initial state is associated
-                                     with the actual or theoretical model of
-                                     the robot.
+        :param is_state_theoretical: In single robot simulations, whether the
+                                     initial state is associated with the
+                                     actual or theoretical model of the robot.
         """
         # Call base implementation
         # Single-robot simulations with `np.ndarray`, `is_state_theoretical` is
@@ -601,9 +623,10 @@ class Simulator:
         # dictionnaries, `is_state_theoretical` is not supported.
         else:
             if is_state_theoretical is not None:
-                raise Exception(
+                raise NotImplementedError(
                     "`is_state_theoretical` is only supported for single-"
-                    "robot simulations with `np.ndarray` initial configurations.")
+                    "robot simulations with `np.ndarray` initial"
+                    "configurations.")
             self.engine.start(q_init, v_init, a_init)
 
         # Share the external force buffer of the viewer with the engine.
@@ -616,7 +639,8 @@ class Simulator:
                  t_end: float,
                  q_init: Union[np.ndarray, Dict[str, np.ndarray]],
                  v_init: Union[np.ndarray, Dict[str, np.ndarray]],
-                 a_init: Optional[Union[np.ndarray, Dict[str, np.ndarray]]] = None,
+                 a_init: Optional[
+                     Union[np.ndarray, Dict[str, np.ndarray]]] = None,
                  is_state_theoretical: Optional[bool] = None,
                  callback: Optional[Callable[[], bool]] = None,
                  log_path: Optional[str] = None,
@@ -680,20 +704,22 @@ class Simulator:
         err = None
         try:
             # Call base implementation
-            # Single-robot simulations with `np.ndarray`, `is_state_theoretical` is
-            # supported.
+            # Single-robot simulations with `np.ndarray`,
+            # `is_state_theoretical` is supported.
             if isinstance(q_init, np.ndarray):
                 if is_state_theoretical is None:
                     is_state_theoretical = False
                 self.engine.simulate(
-                    t_end, q_init, v_init, a_init, is_state_theoretical, callback)
+                    t_end, q_init, v_init, a_init, is_state_theoretical,
+                    callback)
             # Multi-robot simulations or single-robot simulations with
             # dictionnaries, `is_state_theoretical` is not supported.
             else:
                 if is_state_theoretical is not None:
-                    raise Exception(
+                    raise NotImplementedError(
                         "`is_state_theoretical` is only supported for single-"
-                        "robot simulations with `np.ndarray` initial configurations.")
+                        "robot simulations with `np.ndarray` initial "
+                        "configurations.")
                 self.engine.simulate(t_end, q_init, v_init, a_init, callback)
 
         except Exception as e:  # pylint: disable=broad-exception-caught
@@ -773,23 +799,23 @@ class Simulator:
         # Instantiate the robot and viewer client if necessary.
         # A new dedicated scene and window will be created.
         for i, viewer in enumerate(self._viewers):
-            if not viewer.is_open():
+            if not viewer.is_open():  # type: ignore[misc]
                 viewer.close()
                 self._viewers.pop(i)
 
-        camera_pose_need_initialization = True if len(self._viewers) == 0 else False
-        
+        camera_pose_need_init = len(self._viewers) == 0
+
         # Cycle the colors if needed
-        COLORS = ROBOTS_COLORS * (len(self.robots) // len(ROBOTS_COLORS) + 1)
+        colors = ROBOTS_COLORS * (len(self.robots) // len(ROBOTS_COLORS) + 1)
 
         for robot, robot_state, color in zip(
-            self.robots, self.engine.robot_states, COLORS):
+            self.robots, self.engine.robot_states, colors):
 
             # Create new viewer instance if needed or use the existing one.
             if robot.name not in Viewer._backend_robot_names:
                 self._create_viewer(robot, robot_state, color, **viewer_kwargs)
-        
-        if camera_pose_need_initialization:
+
+        if camera_pose_need_init:
             # Initialize camera pose
             if self._viewers[-1].is_backend_parent and camera_pose is None:
                 camera_pose = viewer_kwargs.get("camera_pose", (
