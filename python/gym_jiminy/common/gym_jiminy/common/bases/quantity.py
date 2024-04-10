@@ -12,19 +12,96 @@ computed that did not changed since then, computing redundant intermediary
 quantities only once per step, and gathering similar quantities in a large
 batch to leverage vectorization of math instructions.
 """
+import weakref
+from weakref import ReferenceType
 from abc import ABC, abstractmethod
-from collections.abc import Mapping
+from collections.abc import MutableSet
 from functools import partial
 from typing import (
-    Any, Dict, List, Optional, Tuple, Iterator, Generic, TypeVar, Type, cast)
+    Any, Dict, List, Optional, Tuple, Generic, TypeVar, Type, Iterator,
+    Callable, cast)
 
 from .interfaces import InterfaceJiminyEnv
 
 
 ValueT = TypeVar('ValueT')
-OtherT = TypeVar('OtherT')
 
 QuantityCreator = Tuple[Type["AbstractQuantity"], Dict[str, Any]]
+
+
+class WeakMutableCollection(MutableSet, Generic[ValueT]):
+    """Mutable unordered list container storing weak reference to objects.
+    Elements will be discarded when no strong reference to the value exists
+    anymore, and a user-specified callback will be triggered if any.
+
+    Internally, it is implemented as a set for which uniqueness is
+    characterized by identity instead of equality operator.
+    """
+    def __init__(self, callback: Optional[Callable[[
+            "WeakMutableCollection[ValueT]", ReferenceType
+            ], None]] = None) -> None:
+        """
+        :param callback: Callback that will be triggered every time an element
+                         is discarded from the container.
+                         Optional: None by default.
+        """
+        self._callback = callback
+        self._ref_list: List[ReferenceType] = []
+
+    def __callback__(self, ref: ReferenceType) -> None:
+        """Internal method that will be called every time an element must be
+        discarded from the containers, either because it was requested by the
+        user or because no strong reference to the value exists anymore.
+
+        If a callback has been specified by the user, it will be triggered
+        after removing the weak reference from the container.
+        """
+        self._ref_list.remove(ref)
+        if self._callback is not None:
+            self._callback(self, ref)
+
+    def __contains__(self, obj: Any) -> bool:
+        """Dunder method to check if a weak reference to a given object is
+        already stored in the container, which is characterized by identity
+        instead of equality operator.
+
+        :param obj: Object to look for in the container.
+        """
+        return any(ref() is obj for ref in self._ref_list)
+
+    def __iter__(self) -> Iterator[ValueT]:
+        """Dunder method that returns an iterator over the objects of the
+        container for which a string reference still exist.
+        """
+        for ref in self._ref_list:
+            obj = ref()
+            if obj is not None:
+                yield obj
+
+    def __len__(self) -> int:
+        """Dunder method that returns the length of the container.
+        """
+        return len(self._ref_list)
+
+    def add(self, value: ValueT) -> None:
+        """Add a new element to the container if not already contained.
+
+        This has no effect if the element is already present.
+
+        :param obj: Object to add to the container.
+        """
+        if value not in self:
+            self._ref_list.append(weakref.ref(value, self.__callback__))
+
+    def discard(self, value: ValueT) -> None:
+        """Remove an element from the container if stored in it.
+
+        This method does not raise an exception when the element is missing.
+
+        :param obj: Object to remove from the container.
+        """
+        if value not in self:
+            self.__callback__(weakref.ref(value))
 
 
 class SharedCache(Generic[ValueT]):
@@ -38,7 +115,7 @@ class SharedCache(Generic[ValueT]):
         This implementation is not thread safe.
     """
 
-    owners: List["AbstractQuantity"]
+    owners: WeakMutableCollection["AbstractQuantity"]
     """Owners of the shared buffer, ie quantities relying on it to store the
     result of their evaluation. This information may be useful for determining
     the most efficient computation path overall.
@@ -48,8 +125,10 @@ class SharedCache(Generic[ValueT]):
         cache instance.
 
     .. note::
-        A set cannot be used because owners are all objects having the same
-        hash, eg "identical" quantities.
+        Internally, it stores weak references to avoid holding alive quantities
+        that could be garbage collected otherwise. `WeakSet` cannot be used
+        because owners are objects all having the same hash, eg "identical"
+        quantities.
     """
 
     def __init__(self) -> None:
@@ -61,8 +140,20 @@ class SharedCache(Generic[ValueT]):
         # Whether a value is stored in cached
         self._has_value: bool = False
 
-        # Initialize "owners" of the shared buffer
-        self.owners: List["AbstractQuantity"] = []
+        # Initialize "owners" of the shared buffer.
+        # Define callback to reset part of the computation graph whenever a
+        # quantity owning the cache gets garbage collected, namely all
+        # quantities that may assume at some point the existence of this
+        # deleted owner to find the adjust their computation path.
+        def _callback(self: WeakMutableCollection["AbstractQuantity"],
+                      ref: ReferenceType   # pylint: disable=unused-argument
+                      ) -> None:
+            for owner in self:
+                while owner.parent is not None:
+                    owner = owner.parent
+                owner.reset(reset_tracking=True)
+
+        self.owners = WeakMutableCollection(_callback)
 
     @property
     def has_value(self) -> bool:
@@ -201,13 +292,13 @@ class AbstractQuantity(ABC, Generic[ValueT]):
             This method is not meant to be overloaded.
         """
         if not self._has_cache:
-            raise AttributeError(
+            raise RuntimeError(
                 "No shared cache has been set for this quantity. Make sure it "
                 "is managed by some `QuantityManager` instance.")
         return cast(SharedCache[ValueT], self._cache)
 
     @cache.setter
-    def cache(self, cache: SharedCache[ValueT]) -> None:
+    def cache(self, cache: Optional[SharedCache[ValueT]]) -> None:
         """Set optional cache variable. When specified, it is used to store
         evaluated quantity and retrieve its value later one.
 
@@ -223,14 +314,15 @@ class AbstractQuantity(ABC, Generic[ValueT]):
         """
         # Withdraw this quantity from the owners of its current cache if any
         if self._cache is not None:
-            self._cache.owners.remove(self)
+            self._cache.owners.discard(self)
 
-        # Declare this quantity as owner of the cache
-        cache.owners.append(self)
+        # Declare this quantity as owner of the cache if specified
+        if cache is not None:
+            cache.owners.add(self)
 
         # Update internal cache attribute
         self._cache = cache
-        self._has_cache = True
+        self._has_cache = cache is not None
 
     def is_active(self, any_cache_owner: bool = False) -> bool:
         """Whether this quantity is considered active, namely `initialize` has
@@ -360,111 +452,3 @@ class AbstractQuantity(ABC, Generic[ValueT]):
         """Evaluate this quantity based on the agent state at the end of the
         current agent step.
         """
-
-
-class QuantityManager(Mapping):
-    """This class centralizes the evaluation of all quantities involved in
-    reward or termination conditions evaluation to redundant and unnecessary
-    computations.
-
-    It is responsible for making sure all quantities are evaluated on the same
-    environment, and internal buffers are re-initialized whenever necessary.
-
-    .. note::
-        Individual quantities can be accessed either as instance properties or
-        items of a dictionary. Choosing one or the other is only a matter of
-        taste since both options have been heavily optimized to  minimize
-        overhead and should be equally efficient.
-    """
-    def __init__(self,
-                 env: InterfaceJiminyEnv,
-                 quantity_creators: Dict[str, QuantityCreator]) -> None:
-        """
-        :param env: Base or wrapped jiminy environment.
-        :param parent: Higher-level quantity from which this quantity is a
-                       requirement if any, `None` otherwise.
-        :param quantity_creators:
-            All quantities to jointly manage, as a dictionary whose keys are
-            tuple gathering their respective class and all their constructor
-            keyword-arguments except the environment 'env'.
-        """
-        # Instantiate and store all top-level quantities to manage
-        self.quantities: Dict[str, AbstractQuantity] = {
-            name: cls(env, None, **kwargs)
-            for name, (cls, kwargs) in quantity_creators.items()}
-
-        # Get the complete list of all quantities involved in computations
-        i = 0
-        self._quantities_all = list(self.quantities.values())
-        while i < len(self._quantities_all):
-            quantity = self._quantities_all[i]
-            self._quantities_all += quantity.requirements.values()
-            i += 1
-
-        # Set a shared cache entry for all quantities
-        self._caches: Dict[AbstractQuantity, SharedCache] = {}
-        for quantity in self._quantities_all:
-            cache = self._caches.setdefault(quantity, SharedCache())
-            quantity.cache = cache
-
-    def reset(self, reset_tracking: bool = False) -> None:
-        """Consider that all managed quantity must be re-initialized before
-        being able to evaluate them once again.
-
-        .. note::
-            The cache is cleared automatically by the quantities themselves.
-
-        :param reset_tracking: Do not consider any quantity as active anymore.
-                               Optional: False by default.
-        """
-        for quantity in self.quantities.values():
-            quantity.reset(reset_tracking)
-
-    def clear(self) -> None:
-        """Clear internal cache storing already evaluated quantities.
-
-        .. note::
-            This method is supposed to be called right calling `step` of
-            `BaseJiminyEnv`.
-        """
-        for cache in self._caches.values():
-            cache.reset()
-
-    def __getattr__(self, name: str) -> Any:
-        """Get access managed quantities as first-class properties, rather than
-        dictionary-like values through `__getitem__`.
-
-        .. warning::
-            Getting quantities this way is convenient but unfortunately much
-            slower than doing it through `__getitem__`. It takes 40ns on
-            Python 3.12 and a whooping 180ns on Python 3.11. As a result, this
-            approach is mainly intended for ease of use while prototyping and
-            is not recommended in production, especially on Python<3.12.
-
-        :param name: Name of the requested quantity.
-        """
-        return self[name]
-
-    def __dir__(self) -> List[str]:
-        """Attribute lookup.
-
-        It is mainly used by autocomplete feature of Ipython. It is overloaded
-        to get consistent autocompletion wrt `getattr`.
-        """
-        return [*super().__dir__(), *self.quantities.keys()]
-
-    def __getitem__(self, name: str) -> Any:
-        """Get cached value of requested quantity if available, otherwise
-        evaluate it and store it in cache.
-        """
-        return self.quantities[name].get()
-
-    def __iter__(self) -> Iterator[str]:
-        """Iterate over names of managed quantities.
-        """
-        return iter(self.quantities)
-
-    def __len__(self) -> int:
-        """Number of quantities being managed.
-        """
-        return len(self.quantities)
