@@ -27,7 +27,7 @@ from .viewer import (CameraPoseType,
                      get_default_backend,
                      extract_replay_data_from_log,
                      play_trajectories,
-                     Viewer
+                     Viewer)
 
 if interactive_mode() >= 2:
     from tqdm.notebook import tqdm
