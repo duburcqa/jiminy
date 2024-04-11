@@ -152,6 +152,11 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
                        environments with multiple inheritance, and to allow
                        automatic pipeline wrapper generation.
         """
+        # Make sure that the simulator is single-robot
+        if tuple(robot.name for robot in simulator.robots) != ("",):
+            raise ValueError(
+                "`BaseJiminyEnv` only supports single-robot simulators.")
+
         # Handling of default rendering mode
         viewer_backend = (simulator.viewer or Viewer).backend
         if render_mode is None:
@@ -1180,7 +1185,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
 
         # Stop the simulation to unlock the robot.
         # It will enable to display contact forces for replay.
-        if self.simulator.is_simulation_running:
+        if self.engine.is_simulation_running:
             self.simulator.stop()
 
         # Disable play interactive mode flag and restore training flag

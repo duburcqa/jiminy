@@ -146,8 +146,7 @@ def build_robot_from_log(
                               directories to the ones provided by log file. It
                               may be necessary to specify it to read log
                               generated on a different environment.
-    :param robot_name: Name of the robot to be constructed in the log. If it
-                       is not known, call `build_robots_from_log`.
+    :param robot_name: Name of the robot to build from log.
 
     :returns: Reconstructed robot, and parsed log data as returned by
               `jiminy_py.log.read_log` method.

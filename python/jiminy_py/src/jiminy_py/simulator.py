@@ -13,7 +13,7 @@ import tempfile
 import warnings
 from copy import deepcopy
 from functools import partial
-from typing import Any, List, Dict, Optional, Union, Sequence, Callable, Tuple
+from typing import Any, List, Dict, Optional, Union, Sequence, Callable
 
 import toml
 import numpy as np
@@ -59,10 +59,10 @@ def _build_robot_from_urdf(name: str,
                            avoid_instable_collisions: bool = True,
                            debug: bool = False) -> jiminy.Robot:
     r"""Create and initialize a new robot from scratch, based on configuration
-    files only. Create a default harware file if none is provided. See
+    files only. It creates a default hardware file if none is provided. See
     `generate_default_hardware_description_file` for details.
 
-    :param urdf_path: Path of the urdf model to be used for the simulation.
+    :param urdf_path: Path of the URDF of the robot.
     :param hardware_path: Path of Jiminy hardware description toml file.
                           Optional: Looking for '\*_hardware.toml' file in
                           the same folder and with the same name.
@@ -72,13 +72,6 @@ def _build_robot_from_urdf(name: str,
     :param has_freeflyer: Whether the robot is fixed-based wrt its root
                           link, or can move freely in the world.
                           Optional: True by default.
-    :param config_path: Configuration toml file to import. It will be
-                        imported AFTER loading the hardware description
-                        file. It can be automatically generated from an
-                        instance by calling `export_config_file` method.
-                        Optional: Looking for '\*_options.toml' file in the
-                        same folder and with the same name. If not found,
-                        using default configuration.
     :param avoid_instable_collisions: Prevent numerical instabilities by
                                       replacing collision mesh by vertices
                                       of associated minimal volume bounding
@@ -137,8 +130,8 @@ class Simulator:
 
     * Single-robot simulations: The name of the robot is an empty string by
     default but can be specified. It will then appear in the log if specified.
-    * Multi-robots simulations: The name of the first robot is an empty string 
-    by default but it is advised to specify one. You can add robots to the 
+    * Multi-robots simulations: The name of the first robot is an empty string
+    by default but it is advised to specify one. You can add robots to the
     simulation with the method `add_robot`, robot names have to be specified.
 
     Some proxy and methods are not compatible with multi-robot simulations:
@@ -151,10 +144,10 @@ class Simulator:
     Simulator.register_profile_force -> Simulator.engine.register_profile_force
     Simulator.register_impulse_force -> Simulator.engine.register_impulse_force
 
-    The methods `replay` and `plot` are not supported for multi-robot 
+    The methods `replay` and `plot` are not supported for multi-robot
     simulations at the time being.
 
-    In case of multi-robot simulations, single-robot proxies either return 
+    In case of multi-robot simulations, single-robot proxies either return
     information associated with the first robot or raise an exception.
     """
     def __init__(self,  # pylint: disable=unused-argument
@@ -208,9 +201,9 @@ class Simulator:
               config_path: Optional[str] = None,
               avoid_instable_collisions: bool = True,
               debug: bool = False,
-              name: str = "",
+              *, robot_name: str = "",
               **kwargs: Any) -> 'Simulator':
-        r"""Create a new simulator instance from scratch, based on
+        r"""Create a new single-robot simulator instance from scratch based on
         configuration files only.
 
         :param urdf_path: Path of the urdf model to be used for the simulation.
@@ -227,9 +220,11 @@ class Simulator:
                             imported AFTER loading the hardware description
                             file. It can be automatically generated from an
                             instance by calling `export_config_file` method.
-                            Optional: Looking for '\*_options.toml' file in the
-                            same folder and with the same name. If not found,
-                            using default configuration.
+                            One can specify `None` for loading for the file
+                            having the same full path as the URDF file but
+                            suffix '_options.toml' if any. Passing an empty
+                            string "" will force skipping import completely.
+                            Optional: Empty by default
         :param avoid_instable_collisions: Prevent numerical instabilities by
                                           replacing collision mesh by vertices
                                           of associated minimal volume bounding
@@ -237,12 +232,21 @@ class Simulator:
                                           its vertices.
         :param debug: Whether the debug mode must be activated. Doing it
                       enables temporary files automatic deletion.
+        :param robot_name: Desired name of the robot.
+                           Optional: Empty string by default.
         :param kwargs: Keyword arguments to forward to class constructor.
         """
+        # Handling of default argument(s)
+        if config_path is None:
+            config_path = str(
+                pathlib.Path(urdf_path).with_suffix('')) + '_options.toml'
+            if not os.path.exists(config_path):
+                config_path = ""
+
         # Instantiate and initialize the robot
-        robot = _build_robot_from_urdf(name, urdf_path, hardware_path,
-                                       mesh_path_dir, has_freeflyer,
-                                       avoid_instable_collisions, debug)
+        robot = _build_robot_from_urdf(
+            robot_name, urdf_path, hardware_path, mesh_path_dir, has_freeflyer,
+            avoid_instable_collisions, debug)
 
         # Instantiate and initialize the engine
         simulator = Simulator.__new__(cls)
@@ -301,13 +305,6 @@ class Simulator:
         :param has_freeflyer: Whether the robot is fixed-based wrt its root
                               link, or can move freely in the world.
                               Optional: True by default.
-        :param config_path: Configuration toml file to import. It will be
-                            imported AFTER loading the hardware description
-                            file. It can be automatically generated from an
-                            instance by calling `export_config_file` method.
-                            Optional: Looking for '\*_options.toml' file in the
-                            same folder and with the same name. If not found,
-                            using default configuration.
         :param avoid_instable_collisions: Prevent numerical instabilities by
                                           replacing collision mesh by vertices
                                           of associated minimal volume bounding
@@ -318,7 +315,7 @@ class Simulator:
         """
         # Instantiate the robot
         robot = _build_robot_from_urdf(
-            name, urdf_path, hardware_path, mesh_path_dir, has_freeflyer, 
+            name, urdf_path, hardware_path, mesh_path_dir, has_freeflyer,
             avoid_instable_collisions, debug)
 
         # Check if some unsupported objects have been specified
@@ -377,7 +374,7 @@ class Simulator:
 
     @property
     def viewers(self) -> Optional[Viewer]:
-        """Convenience proxy to get all the viewers associated with the ongoing 
+        """Convenience proxy to get all the viewers associated with the ongoing
         simulation.
         """
         return self._viewers[:len(self.engine.robots)]
@@ -418,7 +415,7 @@ class Simulator:
 
     @property
     def is_viewer_available(self) -> bool:
-        """Returns whether some viewer instances associated with the ongoing 
+        """Returns whether some viewer instances associated with the ongoing
         simulation is currently opened.
 
         .. warning::
@@ -690,7 +687,7 @@ class Simulator:
                camera_pose: Optional[CameraPoseType] = None,
                update_ground_profile: Optional[bool] = None,
                **kwargs: Any) -> Optional[np.ndarray]:
-        """Render the current state of the simulation. One can display it or 
+        """Render the current state of the simulation. One can display it or
         return an RGB array instead.
 
         :param return_rgb_array: Whether to return the current frame as an rgb
@@ -734,7 +731,7 @@ class Simulator:
             for viewer in self._viewers:
                 viewer.close()
             self._viewers.clear()
-            
+
             # Create new viewer instances
             for robot, robot_state in zip(
                     self.engine.robots, self.engine.robot_states):
@@ -747,11 +744,11 @@ class Simulator:
                     **viewer_kwargs)
                 assert viewer.backend is not None
                 self._viewers.append(viewer)
-        
+
                 # Share the external force buffer of the viewer with the engine
-                if self.simulator.is_simulation_running:
+                if self.engine.is_simulation_running:
                     viewer.f_external = [*robot_state.f_external][1:]
-                
+
                 if viewer.backend.startswith('panda3d'):
                     # Enable display of COM, DCM and contact markers by default
                     # if the robot has freeflyer.
@@ -762,7 +759,7 @@ class Simulator:
                             viewer.display_capture_point(True)
                         if "display_contacts" not in viewer_kwargs:
                             viewer.display_contact_forces(True)
-        
+
                     # Enable display of external forces by default only for
                     # the joints having an external force registered to it.
                     if "display_f_external" not in viewer_kwargs:
@@ -817,8 +814,8 @@ class Simulator:
         """Replay the current episode until now.
 
         .. warning::
-            Method only supported for single-robot simulations. 
-      
+            Method only supported for single-robot simulations.
+
         :param kwargs: Extra keyword arguments for delegation to
                        `replay.play_trajectories` method.
         """
@@ -833,8 +830,8 @@ class Simulator:
             viewer.close()
 
         # Extract log data and robot from extra log files
-        robots = list(*self.engine.robots)
-        logs_data = [self.log_data]
+        robots = [self.robot]
+        logs_data = [self.engine.log_data]
         for log_file in extra_logs_files:
             log_data = read_log(log_file)
             robot = build_robot_from_log(
@@ -914,8 +911,8 @@ class Simulator:
           - Subplots with raw sensor data (one tab for each type of sensor)
 
         .. warning::
-            Method only supported for single-robot simulations. 
-            
+            Method only supported for single-robot simulations.
+
         :param enable_flexiblity_data:
             Enable display of flexibility joints in robot's configuration,
             velocity and acceleration subplots.
@@ -946,11 +943,11 @@ class Simulator:
         return self._figure
 
     def get_options(self) -> Dict[str, Dict[str, Dict[str, Any]]]:
-        """Get the options of the engine and all the robots (including their 
+        """Get the options of the engine and all the robots (including their
         respective controllers).
         """
         return {'engine': self.engine.get_options(), **{
-            '.'.join(('robot', robot.name)): robot.get_options() 
+            robot.name or 'robot': robot.get_options()
             for robot in self.engine.robots}}
 
     def set_options(self,
@@ -959,18 +956,18 @@ class Simulator:
         """
         self.engine.set_options(options['engine'])
         for robot in self.engine.robots:
-            robot.set_options(options['.'.join(('robot', robot.name))])
+            robot.set_options(options[robot.name or 'robot'])
 
     def export_options(self, config_path: Union[str, os.PathLike]) -> None:
-        """Export the full configuration, ie the options of the engine and all 
+        """Export the full configuration, ie the options of the engine and all
         the robots (including their respective controllers).
 
         .. note::
-            The generated configuration file can be imported thereafter using 
+            The generated configuration file can be imported thereafter using
             `import_options` method.
 
-        :param config_path: Full path of the location where to store the 
-                            generated file. The extension '.toml' will be 
+        :param config_path: Full path of the location where to store the
+                            generated file. The extension '.toml' will be
                             enforced.
         """
         config_path = pathlib.Path(config_path).with_suffix('.toml')
@@ -983,7 +980,7 @@ class Simulator:
         including controller), and the engine.
 
         .. note::
-            A full configuration file can be exported beforehand using 
+            A full configuration file can be exported beforehand using
             `export_options` method.
         """
         def deep_update(original: Dict[str, Any],
