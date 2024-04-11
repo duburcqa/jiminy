@@ -91,7 +91,7 @@ def _build_robot_from_urdf(name: str,
                   enables temporary files automatic deletion.
     """
     # Check if robot name is valid
-    if name != re.sub('[^A-Za-z0-9_]', '_', name):
+    if re.match('[^A-Za-z0-9_]', name):
         raise ValueError("The name of the robot should be case-insensitive "
                          "ASCII alphanumeric characters plus underscore.")
 
@@ -181,7 +181,7 @@ class Simulator:
         self.viewer_kwargs = deepcopy(viewer_kwargs or {})
 
         # Check if robot name is valid
-        if robot.name != re.sub('[^A-Za-z0-9_]', '_', robot.name):
+        if re.match('[^A-Za-z0-9_]', robot.name):
             raise ValueError("The name of the robot should be case-insensitive"
                              " ASCII alphanumeric characters plus underscore.")
 
@@ -726,15 +726,9 @@ class Simulator:
         if kwargs.get("backend", Viewer.backend) != Viewer.backend:
             Viewer.close()
 
-        # Define the default backend
-        if self.is_viewer_available:
-            backend = self.viewer.backend
-        else:
-            backend = Viewer.backend
-
         # Update viewer_kwargs with provided kwargs
         viewer_kwargs: Dict[str, Any] = {**dict(
-            backend=backend,
+            backend=(self.viewer or Viewer).backend,
             delete_robot_on_close=True),
             **self.viewer_kwargs,
             **kwargs}
@@ -753,15 +747,15 @@ class Simulator:
                 # Create a single viewer instance
                 viewer = Viewer(
                     robot,
-                    robot_name=re.sub('[^A-Za-z0-9_]', '_', robot.name),
+                    robot_name=robot.name,
                     use_theoretical_model=False,
                     open_gui_if_parent=False,
                     **viewer_kwargs)
-                self._viewers.append(viewer)
                 assert viewer.backend is not None
+                self._viewers.append(viewer)
         
                 # Share the external force buffer of the viewer with the engine
-                if self.is_simulation_running:
+                if self.simulator.is_simulation_running:
                     viewer.f_external = [*robot_state.f_external][1:]
                 
                 if viewer.backend.startswith('panda3d'):
@@ -798,7 +792,7 @@ class Simulator:
                     (9.0, 0.0, 2e-5), (np.pi/2, 0.0, np.pi/2), None))
 
         # Enable the ground profile is requested and available
-        assert self._viewers and Viewer.backend is not None
+        assert self.viewer is not None and self.viewer.backend is not None
         if update_ground_profile:
             engine_options = self.engine.get_options()
             ground_profile = engine_options["world"]["groundProfile"]
@@ -809,12 +803,11 @@ class Simulator:
             self.viewer.set_camera_transform(*camera_pose)
 
         # Make sure the graphical window is open if required
-        if not return_rgb_array and Viewer.backend != "panda3d-sync":
+        if not return_rgb_array and self.viewer.backend != "panda3d-sync":
             Viewer.open_gui()
 
         # Try refreshing the viewer
-        for viewer in self._viewers:
-            viewer.refresh()
+        self.viewer.refresh()
 
         # Compute and return rgb array if needed
         if return_rgb_array:
