@@ -13,7 +13,6 @@ import tempfile
 import warnings
 from copy import deepcopy
 from functools import partial
-from itertools import cycle, islice
 from typing import Any, List, Dict, Optional, Union, Sequence, Callable, Tuple
 
 import toml
@@ -381,7 +380,7 @@ class Simulator:
         """Convenience proxy to get all the viewers associated with the ongoing 
         simulation.
         """
-        return self.viewers[:len(self.engine.robots)]
+        return self._viewers[:len(self.engine.robots)]
 
     @property
     def robot(self) -> jiminy.Robot:
@@ -570,7 +569,7 @@ class Simulator:
         # Share the external force buffer of the viewer with the engine.
         # Note that the force vector must be converted to pain list to avoid
         # copy with external sub-vector.
-        for robot_state, viewer in zip(self.robot_states, self.viewers):
+        for robot_state, viewer in zip(self.engine.robot_states, self.viewers):
             viewer.f_external = [*robot_state.f_external][1:]
 
     def simulate(self,
