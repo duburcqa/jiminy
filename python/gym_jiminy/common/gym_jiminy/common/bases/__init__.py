@@ -2,8 +2,7 @@
 
 from .quantity import (SharedCache,
                        QuantityCreator,
-                       AbstractQuantity,
-                       QuantityManager)
+                       AbstractQuantity)
 from .interfaces import (DT_EPS,
                          ObsT,
                          ActT,
@@ -30,7 +29,6 @@ __all__ = [
     'SharedCache',
     'QuantityCreator',
     'AbstractQuantity',
-    'QuantityManager',
     'DT_EPS',
     'ObsT',
     'ActT',

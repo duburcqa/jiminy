@@ -4,7 +4,7 @@ observer/controller block must inherit and implement those interfaces.
 """
 from abc import abstractmethod, ABC
 from collections import OrderedDict
-from typing import Dict, Any, TypeVar, Generic, no_type_check
+from typing import Dict, Any, TypeVar, Generic, no_type_check, TYPE_CHECKING
 from typing_extensions import TypeAlias
 
 import numpy as np
@@ -17,6 +17,8 @@ from jiminy_py.simulator import Simulator
 from jiminy_py.viewer.viewer import is_display_available
 
 from ..utils import DataNested
+if TYPE_CHECKING:
+    from ..quantities import QuantityManager
 
 
 # Temporal resolution of simulator steps
@@ -184,6 +186,8 @@ class InterfaceJiminyEnv(
     sensor_measurements: SensorMeasurementStackMap
     is_simulation_running: npt.NDArray[np.bool_]
 
+    quantities: "QuantityManager"
+
     action: ActT
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -269,6 +273,10 @@ class InterfaceJiminyEnv(
         """Thin wrapper around user-specified `refresh_observation` and
         `compute_command` methods.
 
+        .. note::
+            The internal cache of managed quantities is cleared right away
+            systematically, before anything else.
+
         .. warning::
             This method is not supposed to be called manually nor overloaded.
             It will be used by the base environment to instantiate a
@@ -287,6 +295,19 @@ class InterfaceJiminyEnv(
 
         :returns: Motors torques to apply on the robot.
         """
+        # Reset the quantity manager.
+        # In principle, the internal cache of quantities should be cleared not
+        # each time the state of the robot and/or its derivative changes. This
+        # is hard to do because there is no way to detect this specifically at
+        # the time being. However, `_controller_handle` is never called twice
+        # in the exact same state by the engine, so resetting quantities at the
+        # beginning of the method should cover most cases. Yet, quantities
+        # cannot be used reliably in the definition of profile forces because
+        # they are always updated before the controller gets called, no matter
+        # if either one or the other is time-continuous. Hacking the internal
+        # dynamics to clear quantities does not address this issue either.
+        self.quantities.clear()
+
         # Refresh the observation
         self._observer_handle(t, q, v, sensor_measurements)
 

@@ -344,10 +344,11 @@ def play_trajectories(
             backend = get_default_backend()
     assert backend is not None
 
-    # Always close viewer if gui is open if necessary for efficiency
+    # Always close viewers if gui is open if necessary for efficiency
     if (backend.startswith("panda3d") and record_video_path is not None and
             Viewer.has_gui()):
         Viewer.close()
+        viewers = None
 
     # Create a temporary video if the backend is 'panda3d-sync', no
     # 'record_video_path' is provided, and running in interactive mode

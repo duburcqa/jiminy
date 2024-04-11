@@ -55,6 +55,7 @@ from ..bases import (ObsT,
                      SensorMeasurementStackMap,
                      EngineObsType,
                      InterfaceJiminyEnv)
+from ..quantities import QuantityManager
 
 from .internal import loop_interactive
 
@@ -236,6 +237,9 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
             raise NotImplementedError(
                 "`BaseJiminyEnv.compute_command` must be overloaded in case "
                 "of custom action spaces.")
+
+        # Initialize a quantity manager for later use
+        self.quantities = QuantityManager(self)
 
         # Define specialized operators for efficiency.
         # Note that a partial view of observation corresponding to measurement
@@ -745,6 +749,12 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         f_external = [pin.Force.Zero(),] * self.robot.pinocchio_model.njoints
         self.robot.compute_sensor_measurements(
             0.0, q_init, v_init, a_init, u_motor, f_external)
+
+        # Re-initialize the quantity manager.
+        # Note that computation graph tracking is never reset automatically.
+        # It is the responsibility of the practitioner implementing a derived
+        # environment whenever it makes sense for its specific use-case.
+        self.quantities.reset(reset_tracking=False)
 
         # Run the reset hook if any.
         # Note that the reset hook must be called after `_setup` because it
@@ -1484,10 +1494,10 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
     def compute_command(self, action: ActT) -> np.ndarray:
         """Compute the motors efforts to apply on the robot.
 
-        By default, it is forward the input action as is, without performing
-        any processing. One is responsible of overloading this method if the
-        action space has been customized, or just to clip the action to make
-        sure it is never out-of-bounds if necessary.
+        By default, all it does is forwarding the input action as is, without
+        performing any processing. One is responsible of overloading this
+        method if the action space has been customized, or just to clip the
+        action to make sure it is never out-of-bounds if necessary.
 
         .. warning::
             There is not good place to initialize buffers that are necessary to
