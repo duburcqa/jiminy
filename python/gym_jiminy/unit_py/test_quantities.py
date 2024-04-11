@@ -1,5 +1,6 @@
 """ TODO: Write documentation
 """
+import gc
 import unittest
 
 import numpy as np
@@ -7,9 +8,8 @@ import gymnasium as gym
 import jiminy_py
 import pinocchio as pin
 
-from gym_jiminy.common.bases import QuantityManager
 from gym_jiminy.common.quantities import (
-    EulerAnglesFrame, CenterOfMass, ZeroMomentPoint)
+    QuantityManager, EulerAnglesFrame, CenterOfMass, ZeroMomentPoint)
 
 
 class Quantities(unittest.TestCase):
@@ -19,21 +19,21 @@ class Quantities(unittest.TestCase):
         env = gym.make("gym_jiminy.envs:atlas")
         env.reset()
 
-        quantity_manager = QuantityManager(
-            env.simulator,
-            {
-                "acom": (CenterOfMass, dict(kinematic_level=pin.ACCELERATION)),
-                "com": (CenterOfMass, {}),
-                "zmp": (ZeroMomentPoint, {}),
-            })
-        quantities = quantity_manager.quantities
+        quantity_manager = QuantityManager(env)
+        for name, cls, kwargs in (
+                ("acom", CenterOfMass, dict(kinematic_level=pin.ACCELERATION)),
+                ("com", CenterOfMass, {}),
+                ("zmp", ZeroMomentPoint, {})):
+            quantity_manager[name] = (cls, kwargs)
+        quantities = quantity_manager._quantities
 
-        assert len(quantity_manager._caches)
-        assert len(quantity_manager._quantities_all) == 4
+        assert len(quantity_manager) == 3
+        assert len(quantities["zmp"].cache.owners) == 1
+        assert len(quantities["com"].cache.owners) == 2
 
         zmp_0 = quantity_manager.zmp.copy()
-        assert quantities["com"]._cache._has_value
-        assert not quantities["acom"]._cache._has_value
+        assert quantities["com"].cache.has_value
+        assert not quantities["acom"].cache.has_value
         assert not quantities["com"]._is_initialized
         assert quantities["zmp"].requirements["com"]._is_initialized
 
@@ -42,7 +42,7 @@ class Quantities(unittest.TestCase):
         assert np.all(zmp_0 == zmp_1)
         quantity_manager.clear()
         assert quantities["zmp"].requirements["com"]._is_initialized
-        assert not quantities["com"]._cache._has_value
+        assert not quantities["com"].cache.has_value
         zmp_1 = quantity_manager.zmp.copy()
         assert np.any(zmp_0 != zmp_1)
 
@@ -57,17 +57,16 @@ class Quantities(unittest.TestCase):
         env.reset()
         env.step(env.action)
 
-        quantity_manager = QuantityManager(
-            env.simulator,
-            {
-                "rpy_0": (EulerAnglesFrame, dict(
+        quantity_manager = QuantityManager(env)
+        for name, cls, kwargs in (
+                ("rpy_0", EulerAnglesFrame, dict(
                     frame_name=env.robot.pinocchio_model.frames[1].name)),
-                "rpy_1": (EulerAnglesFrame, dict(
+                ("rpy_1", EulerAnglesFrame, dict(
                     frame_name=env.robot.pinocchio_model.frames[1].name)),
-                "rpy_2": (EulerAnglesFrame, dict(
-                    frame_name=env.robot.pinocchio_model.frames[-1].name)),
-            })
-        quantities = quantity_manager.quantities
+                ("rpy_2", EulerAnglesFrame, dict(
+                    frame_name=env.robot.pinocchio_model.frames[-1].name))):
+            quantity_manager[name] = (cls, kwargs)
+        quantities = quantity_manager._quantities
 
         rpy_0 = quantity_manager.rpy_0.copy()
         assert len(quantities['rpy_0'].requirements['data'].frame_names) == 1
@@ -82,6 +81,57 @@ class Quantities(unittest.TestCase):
         assert np.any(rpy_0 != rpy_0_next)
         assert len(quantities['rpy_2'].requirements['data'].frame_names) == 2
 
+        assert len(quantities['rpy_1'].requirements['data'].cache.owners) == 3
+        del quantity_manager['rpy_2']
+        gc.collect()
+        assert len(quantities['rpy_1'].requirements['data'].cache.owners) == 2
+        quantity_manager.rpy_1
+        assert len(quantities['rpy_1'].requirements['data'].frame_names) == 1
+
         quantity_manager.reset(reset_tracking=True)
         assert np.all(rpy_0_next == quantity_manager.rpy_0)
         assert len(quantities['rpy_0'].requirements['data'].frame_names) == 1
+
+    def test_discard(self):
+        env = gym.make("gym_jiminy.envs:atlas")
+        env.reset()
+
+        quantity_manager = QuantityManager(env)
+        for name, cls, kwargs in (
+                ("rpy_0", EulerAnglesFrame, dict(
+                    frame_name=env.robot.pinocchio_model.frames[1].name)),
+                ("rpy_1", EulerAnglesFrame, dict(
+                    frame_name=env.robot.pinocchio_model.frames[1].name)),
+                ("rpy_2", EulerAnglesFrame, dict(
+                    frame_name=env.robot.pinocchio_model.frames[-1].name))):
+            quantity_manager[name] = (cls, kwargs)
+        quantities = quantity_manager._quantities
+
+        assert len(quantities['rpy_1'].cache.owners) == 2
+        assert len(quantities['rpy_2'].requirements['data'].cache.owners) == 3
+
+        del quantity_manager['rpy_0']
+        gc.collect()
+        assert len(quantities['rpy_1'].cache.owners) == 1
+        assert len(quantities['rpy_2'].requirements['data'].cache.owners) == 2
+
+        del quantity_manager['rpy_1']
+        gc.collect()
+        assert len(quantities['rpy_2'].requirements['data'].cache.owners) == 1
+
+        del quantity_manager['rpy_2']
+        gc.collect()
+        for cache in quantity_manager._caches.values():
+            assert len(cache.owners) == 0
+
+    def test_env(self):
+        env = gym.make("gym_jiminy.envs:atlas")
+
+        env.quantities["com"] = (CenterOfMass, {})
+
+        env.reset(seed=0)
+        com_0 = env.quantities["com"].copy()
+        env.step(env.action)
+        assert np.all(com_0 != env.quantities["com"])
+        env.reset(seed=0)
+        assert np.all(com_0 == env.quantities["com"])

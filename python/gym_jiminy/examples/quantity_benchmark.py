@@ -5,8 +5,7 @@ import matplotlib.pyplot as plt
 import gymnasium as gym
 
 import gym_jiminy.common.bases.quantity
-from gym_jiminy.common.bases import QuantityManager
-from gym_jiminy.common.quantities import EulerAnglesFrame
+from gym_jiminy.common.quantities import QuantityManager, EulerAnglesFrame
 
 # Define number of samples for benchmarking
 N_SAMPLES = 50000
@@ -37,7 +36,7 @@ for i in range(1, nframes):
     quantity_manager.reset(reset_tracking=True)
 
     # Fetch all quantities once to update dynamic computation graph
-    for j, quantity in enumerate(quantity_manager.quantities.values()):
+    for j, quantity in enumerate(quantity_manager._quantities.values()):
         quantity.get()
         if i == j + 1:
             break
