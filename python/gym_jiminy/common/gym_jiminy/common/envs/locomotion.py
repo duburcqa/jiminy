@@ -1,6 +1,7 @@
 """Generic environment to learn locomotion skills for legged robots using
 Jiminy simulator as physics engine.
 """
+import os
 import pathlib
 from typing import Optional, Dict, Union, Any, Type, Sequence, Tuple
 

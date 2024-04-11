@@ -373,7 +373,7 @@ class Simulator:
         return None
 
     @property
-    def viewers(self) -> Optional[Viewer]:
+    def viewers(self) -> Sequence[Viewer]:
         """Convenience proxy to get all the viewers associated with the ongoing
         simulation.
         """
@@ -421,8 +421,8 @@ class Simulator:
         .. warning::
             Method only supported for single-robot simulations.
         """
-        return (
-            self._viewers and self._viewers[0].is_open())  # type: ignore[misc]
+        return (len(self._viewers) > 0 and
+                self._viewers[0].is_open())  # type: ignore[misc]
 
     def register_profile_force(self,
                                frame_name: str,
@@ -778,7 +778,8 @@ class Simulator:
                         viewer.display_external_forces(visibility)
 
             # Initialize camera pose
-            if self.viewer.is_backend_parent and camera_pose is None:
+            assert self.viewer is not None
+            if viewer.is_backend_parent and camera_pose is None:
                 camera_pose = viewer_kwargs.get("camera_pose", (
                     (9.0, 0.0, 2e-5), (np.pi/2, 0.0, np.pi/2), None))
 
