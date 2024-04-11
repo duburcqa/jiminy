@@ -28,8 +28,7 @@ from .viewer import (CameraPoseType,
                      get_default_backend,
                      extract_replay_data_from_log,
                      play_trajectories,
-                     Viewer,
-                     COLORS)
+                     Viewer
 
 if interactive_mode() >= 2:
     from tqdm.notebook import tqdm
@@ -49,7 +48,6 @@ DEFAULT_UPDATE_PERIOD = 1.0e-3  # 0.0 for time continuous update
 DEFAULT_GROUND_STIFFNESS = 4.0e6
 DEFAULT_GROUND_DAMPING = 2.0e3
 
-ROBOTS_COLORS = list(islice(cycle(COLORS.values()), len(COLORS)))
 
 ProfileForceFunc = Callable[[float, np.ndarray, np.ndarray, np.ndarray], None]
 
@@ -138,15 +136,11 @@ class Simulator:
     easy of use as possible for single-robot simulation which are just
     multi-robot simulations with only one robot.
 
-    For single-robot simulations: The name of the robot is an empty string by
+    * Single-robot simulations: The name of the robot is an empty string by
     default but can be specified. It will then appear in the log if specified.
-
-    For multi-robots simulations: The name of the first robot is an empty
-    string by default but it is advised to specify one. You can add robots to
-    the simulation with the method `add_robot`, robot names have to be
-    specified. The initial configurations have to be specified via
-    dictionnaries in `start` and `simulate`. `is_state_theoretical` can not be
-    specified.
+    * Multi-robots simulations: The name of the first robot is an empty string 
+    by default but it is advised to specify one. You can add robots to the 
+    simulation with the method `add_robot`, robot names have to be specified.
 
     Some proxy and methods are not compatible with multi-robot simulations:
 
@@ -158,10 +152,11 @@ class Simulator:
     Simulator.register_profile_force -> Simulator.engine.register_profile_force
     Simulator.register_impulse_force -> Simulator.engine.register_impulse_force
 
-    The single-robot proxies systematically return information associated with
-    the first robot.
-    To register a force, the name of the robot it is applied to needs to be
-    specified.
+    The methods `replay` and `plot` are not supported for multi-robot 
+    simulations at the time being.
+
+    In case of multi-robot simulations, single-robot proxies either return 
+    information associated with the first robot or raise an exception.
     """
     def __init__(self,  # pylint: disable=unused-argument
                  robot: jiminy.Robot,
@@ -277,6 +272,7 @@ class Simulator:
         engine_options['contacts']['damping'] = \
             robot.extra_info.pop('groundDamping', DEFAULT_GROUND_DAMPING)
 
+        # Set engine options
         simulator.engine.set_options(engine_options)
 
         # Override the default options by the one in the configuration file
@@ -321,29 +317,28 @@ class Simulator:
         :param debug: Whether the debug mode must be activated. Doing it
                       enables temporary files automatic deletion.
         """
-        robot = _build_robot_from_urdf(name, urdf_path, hardware_path,
-                                       mesh_path_dir, has_freeflyer,
-                                       avoid_instable_collisions, debug)
+        # Instantiate the robot
+        robot = _build_robot_from_urdf(
+            name, urdf_path, hardware_path, mesh_path_dir, has_freeflyer, 
+            avoid_instable_collisions, debug)
 
-        # Get engine options
-        engine_options = self.engine.get_options()
-
-        nested_paths = (
+        # Check if some unsupported objects have been specified
+        unsupported_nested_paths = (
             ('groundStiffness', ('contacts', 'stiffness')),
             ('groundDamping', ('contacts', 'damping')),
             ('controllerUpdatePeriod', ('stepper', 'controllerUpdatePeriod')),
             ('sensorsUpdatePeriod', ('stepper', 'sensorsUpdatePeriod')))
-
-        for extra_info_key, option_nested_path in nested_paths:
+        engine_options = self.engine.get_options()
+        for extra_info_key, option_nested_path in unsupported_nested_paths:
             if extra_info_key in robot.extra_info.keys():
                 option = engine_options
                 for option_path in option_nested_path:
                     option = option[option_path]
                 if robot.extra_info[extra_info_key] != option:
                     warnings.warn(
-                        f"You have speficied a different {extra_info_key} then"
-                        f" the one of the engine, the simulation will run with"
-                        f" {option}.")
+                        f"You have specified a different {extra_info_key} "
+                        "than the one of the engine, the simulation will run "
+                        f"with {option}.")
 
         # Add the new robot to the engine
         self.engine.add_robot(robot)
@@ -386,7 +381,7 @@ class Simulator:
         """Convenience proxy to get all the viewers associated with the ongoing 
         simulation.
         """
-        return self.viewers[:len(self.robots)]
+        return self.viewers[:len(self.engine.robots)]
 
     @property
     def robot(self) -> jiminy.Robot:
@@ -696,8 +691,8 @@ class Simulator:
                camera_pose: Optional[CameraPoseType] = None,
                update_ground_profile: Optional[bool] = None,
                **kwargs: Any) -> Optional[np.ndarray]:
-        """Render the current state of the simulation. One can display it
-               or return an RGB array instead.
+        """Render the current state of the simulation. One can display it or 
+        return an RGB array instead.
 
         :param return_rgb_array: Whether to return the current frame as an rgb
                                  array or render it directly.
@@ -743,7 +738,7 @@ class Simulator:
             
             # Create new viewer instances
             for robot, robot_state in zip(
-                    self.robots, self.engine.robot_states):
+                    self.engine.robots, self.engine.robot_states):
                 # Create a single viewer instance
                 viewer = Viewer(
                     robot,
@@ -822,10 +817,14 @@ class Simulator:
                **kwargs: Any) -> None:
         """Replay the current episode until now.
 
+        .. warning::
+            Method only supported for single-robot simulations. 
+      
         :param kwargs: Extra keyword arguments for delegation to
                        `replay.play_trajectories` method.
         """
-        if len(self.robots) > 1:
+        # Make sure that the simulation is single-robot
+        if len(self.engine.robots) > 1:
             raise NotImplementedError(
                 "This method is only supported for single-robot simulations.")
 
@@ -835,7 +834,7 @@ class Simulator:
             viewer.close()
 
         # Extract log data and robot from extra log files
-        robots = [self.robot]
+        robots = list(*self.engine.robots)
         logs_data = [self.log_data]
         for log_file in extra_logs_files:
             log_data = read_log(log_file)
@@ -915,6 +914,9 @@ class Simulator:
           - Subplots with motors torques
           - Subplots with raw sensor data (one tab for each type of sensor)
 
+        .. warning::
+            Method only supported for single-robot simulations. 
+            
         :param enable_flexiblity_data:
             Enable display of flexibility joints in robot's configuration,
             velocity and acceleration subplots.
@@ -924,6 +926,11 @@ class Simulator:
                       Optional: False in interactive mode, True otherwise.
         :param kwargs: Extra keyword arguments to forward to `TabbedFigure`.
         """
+        # Make sure that the simulation is single-robot
+        if len(self.engine.robots) > 1:
+            raise NotImplementedError(
+                "This method is only supported for single-robot simulations.")
+
         # Make sure plot submodule is available
         try:
             # pylint: disable=import-outside-toplevel
@@ -940,52 +947,45 @@ class Simulator:
         return self._figure
 
     def get_options(self) -> Dict[str, Dict[str, Dict[str, Any]]]:
-        """Get the options of the engine plus the robot (including controller).
+        """Get the options of the engine and all the robots (including their 
+        respective controllers).
         """
-        return {'engine': self.engine.get_options(),
-                'robot': self.robot.get_options()}
+        return {'engine': self.engine.get_options(), **{
+            '.'.join(('robot', robot.name)): robot.get_options() 
+            for robot in self.engine.robots}}
 
     def set_options(self,
                     options: Dict[str, Dict[str, Dict[str, Any]]]) -> None:
-        """Set the options of robot (including controller), and engine.
+        """Set the options of the engine and all the robots.
         """
         self.engine.set_options(options['engine'])
-        self.robot.set_options(options['robot'])
+        for robot in self.engine.robots:
+            robot.set_options(options['.'.join(('robot', robot.name))])
 
-    def export_options(self,
-                       config_path: Optional[Union[str, os.PathLike]] = None
-                       ) -> None:
-        """Export the full configuration, ie the options of the robot (
-        including controller), and the engine.
+    def export_options(self, config_path: Union[str, os.PathLike]) -> None:
+        """Export the full configuration, ie the options of the engine and all 
+        the robots (including their respective controllers).
 
         .. note::
-            the configuration can be imported thereafter using `import_options`
-            method.
+            The generated configuration file can be imported thereafter using 
+            `import_options` method.
+
+        :param config_path: Full path of the location where to store the 
+                            generated file. The extension '.toml' will be 
+                            enforced.
         """
-        if config_path is None:
-            if isinstance(self.robot, BaseJiminyRobot):
-                urdf_path = self.robot._urdf_path_orig
-            else:
-                urdf_path = self.robot.urdf_path
-            if not urdf_path:
-                raise ValueError(
-                    "'config_path' must be provided if the robot is not "
-                    "associated with any URDF.")
-            config_path = str(pathlib.Path(
-                urdf_path).with_suffix('')) + '_options.toml'
+        config_path = pathlib.Path(config_path).with_suffix('.toml')
         with open(config_path, 'w') as f:
             toml.dump(
                 self.get_options(), f, encoder=toml.TomlNumpyEncoder())
 
-    def import_options(self,
-                       config_path: Optional[Union[str, os.PathLike]] = None
-                       ) -> None:
+    def import_options(self, config_path: Union[str, os.PathLike]) -> None:
         """Import the full configuration, ie the options of the robot (
         including controller), and the engine.
 
         .. note::
-            Configuration can be exported beforehand using `export_options`
-            method.
+            A full configuration file can be exported beforehand using 
+            `export_options` method.
         """
         def deep_update(original: Dict[str, Any],
                         new_dict: Dict[str, Any],
@@ -1011,20 +1011,6 @@ class Simulator:
                 else:
                     original[key] = new_dict[key]
             return original
-
-        if config_path is None:
-            if isinstance(self.robot, BaseJiminyRobot):
-                urdf_path = self.robot._urdf_path_orig
-            else:
-                urdf_path = self.robot.urdf_path
-            if not urdf_path:
-                raise ValueError(
-                    "'config_path' must be provided if the robot is not "
-                    "associated with any URDF.")
-            config_path = str(pathlib.Path(
-                urdf_path).with_suffix('')) + '_options.toml'
-            if not os.path.exists(config_path):
-                return
 
         options = deep_update(self.get_options(), toml.load(str(config_path)))
         self.set_options(options)
