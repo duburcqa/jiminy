@@ -152,10 +152,9 @@ class Simulator:
 
          Single-robot simulations     |    Multi-robot simulations
     ---------------------------------------------------------------------------
-                 Simulator.viewer   --->   Simulator._viewers
+                 Simulator.viewer   --->   Simulator.viewers
                   Simulator.robot   --->   Simulator.engine.robots
             Simulator.robot_state   --->   Simulator.engine.robot_states
-    Simulator.is_viewer_available   --->   Simulator.are_viewers_available
     Simulator.register_profile_force -> Simulator.engine.register_profile_force
     Simulator.register_impulse_force -> Simulator.engine.register_impulse_force
 
@@ -373,81 +372,21 @@ class Simulator:
         """
         return [*super().__dir__(), *dir(self.engine)]
 
-    def _create_viewer(self,
-                       robot: jiminy.Robot,
-                       robot_state: jiminy.RobotState,
-                       robot_color: Optional[
-                           Tuple[float, float, float, float]],
-                       **viewer_kwargs: Any) -> None:
-        """Helper method to create a viewer associated with a given robot.
-
-        :param robot: The robot of which the viewer will be created.
-        :param robot_state: The state associated to the robot.
-        :param color: the color the robot will be in the viewer.
-        :param viewer_kwargs: Extra keyword arguments to forward at `Viewer`
-                              initialization.
-        """
-
-        if len(self.robots) == 1:
-            robot_color = None
-
-        self._viewers.append(Viewer(
-            robot,
-            robot_name=re.sub('[^A-Za-z0-9_]', '_', robot.name),
-            use_theoretical_model=False,
-            open_gui_if_parent=False,
-            robot_color=robot_color,
-            **viewer_kwargs))
-
-        assert self._viewers[-1].backend is not None
-
-        # Share the external force buffer of the viewer with the engine
-        if self.is_simulation_running:
-            self._viewers[-1].f_external = [*robot_state.f_external][1:]
-        if self._viewers[-1].backend.startswith('panda3d'):
-            # Enable display of COM, DCM and contact markers by default if
-            # the robot has freeflyer.
-            if robot.has_freeflyer:
-                if "display_com" not in viewer_kwargs:
-                    self._viewers[-1].display_center_of_mass(True)
-                if "display_dcm" not in viewer_kwargs:
-                    self._viewers[-1].display_capture_point(True)
-                if "display_contacts" not in viewer_kwargs:
-                    self._viewers[-1].display_contact_forces(True)
-
-            # Enable display of external forces by default only for
-            # the joints having an external force registered to it.
-            if "display_f_external" not in viewer_kwargs:
-                profile_forces, *_ = self.engine.profile_forces.values()
-                force_frames = set(
-                    robot.pinocchio_model.frames[f.frame_index].parent
-                    for f in profile_forces)
-                impulse_forces, *_ = self.engine.impulse_forces.values()
-                force_frames |= set(
-                    robot.pinocchio_model.frames[f.frame_index].parent
-                    for f in impulse_forces)
-                visibility = self._viewers[-1]._display_f_external
-                assert isinstance(visibility, list)
-                for i in force_frames:
-                    visibility[i - 1] = True
-                self._viewers[-1].display_external_forces(visibility)
-
     @property
     def viewer(self) -> Optional[Viewer]:
-        """Convenience proxy to get the viewer in single-robot simulations.
-
-        .. warning::
-            Method only supported for single-robot simulations. Call
-            `self._viewers` in multi-robot simulations.
+        """Convenience proxy to get the viewer associated with the robot that
+        was first added if any.
         """
-        if len(self.robots) != 1:
-            raise NotImplementedError(
-                "Method only supported for single-robot simulations. Call"
-                "`self._viewers` in multi-robot simulations.")
-        if len(self._viewers) == 0:
-            return None
+        if self.is_viewer_available:
+            return self._viewers[0]
+        return None
 
-        return self._viewers[0]
+    @property
+    def viewers(self) -> Optional[Viewer]:
+        """Convenience proxy to get all the viewers associated with the ongoing 
+        simulation.
+        """
+        return self.viewers[:len(self.robots)]
 
     @property
     def robot(self) -> jiminy.Robot:
@@ -485,24 +424,14 @@ class Simulator:
 
     @property
     def is_viewer_available(self) -> bool:
-        """Returns whether a viewer instance associated with the ongoing
-        single-robot simulation.
+        """Returns whether some viewer instances associated with the ongoing 
+        simulation is currently opened.
 
         .. warning::
             Method only supported for single-robot simulations.
         """
-        return (self.viewer is not None and
-                self.viewer.is_open())  # type: ignore[misc]
-
-    @property
-    def are_viewers_available(self) -> bool:
-        """Returns whether there are viewer instances associated with the
-        ongoing multi-robot simulation.
-        """
-        if not self._viewers:
-            return False
-        return all(
-            viewer.is_open() for viewer in self._viewers)  # type: ignore[misc]
+        return (
+            self._viewers and self._viewers[0].is_open())  # type: ignore[misc]
 
     def register_profile_force(self,
                                frame_name: str,
@@ -639,15 +568,14 @@ class Simulator:
         else:
             if is_state_theoretical is not None:
                 raise NotImplementedError(
-                    "`is_state_theoretical` is only supported for single-"
-                    "robot simulations with `np.ndarray` initial"
-                    "configurations.")
+                    "Optional argument 'is_state_theoretical' is only "
+                    "supported for single-robot simulations.")
             self.engine.start(q_init, v_init, a_init)
 
         # Share the external force buffer of the viewer with the engine.
         # Note that the force vector must be converted to pain list to avoid
         # copy with external sub-vector.
-        for robot_state, viewer in zip(self.robot_states, self._viewers):
+        for robot_state, viewer in zip(self.robot_states, self.viewers):
             viewer.f_external = [*robot_state.f_external][1:]
 
     def simulate(self,
@@ -732,9 +660,8 @@ class Simulator:
             else:
                 if is_state_theoretical is not None:
                     raise NotImplementedError(
-                        "`is_state_theoretical` is only supported for single-"
-                        "robot simulations with `np.ndarray` initial "
-                        "configurations.")
+                        "Optional argument 'is_state_theoretical' is only "
+                        "supported for single-robot simulations.")
                 self.engine.simulate(t_end, q_init, v_init, a_init, callback)
 
         except Exception as e:  # pylint: disable=broad-exception-caught
@@ -793,14 +720,15 @@ class Simulator:
         """
         # Handle default arguments
         if update_ground_profile is None:
-            update_ground_profile = not self.are_viewers_available
+            update_ground_profile = not self.is_viewer_available
 
         # Close the current viewer backend if not suitable
         if kwargs.get("backend", Viewer.backend) != Viewer.backend:
             Viewer.close()
 
-        if self.are_viewers_available:
-            backend = self._viewers[0].backend
+        # Define the default backend
+        if self.is_viewer_available:
+            backend = self.viewer.backend
         else:
             backend = Viewer.backend
 
@@ -813,26 +741,59 @@ class Simulator:
 
         # Instantiate the robot and viewer client if necessary.
         # A new dedicated scene and window will be created.
-        for i, viewer in enumerate(self._viewers):
-            if not viewer.is_open():  # type: ignore[misc]
+        if not self.is_viewer_available:
+            # Make sure that the current viewers are properly closed if any
+            for viewer in self._viewers:
                 viewer.close()
-                self._viewers.pop(i)
+            self._viewers.clear()
+            
+            # Create new viewer instances
+            for robot, robot_state in zip(
+                    self.robots, self.engine.robot_states):
+                # Create a single viewer instance
+                viewer = Viewer(
+                    robot,
+                    robot_name=re.sub('[^A-Za-z0-9_]', '_', robot.name),
+                    use_theoretical_model=False,
+                    open_gui_if_parent=False,
+                    **viewer_kwargs)
+                self._viewers.append(viewer)
+                assert viewer.backend is not None
+        
+                # Share the external force buffer of the viewer with the engine
+                if self.is_simulation_running:
+                    viewer.f_external = [*robot_state.f_external][1:]
+                
+                if viewer.backend.startswith('panda3d'):
+                    # Enable display of COM, DCM and contact markers by default
+                    # if the robot has freeflyer.
+                    if robot.has_freeflyer:
+                        if "display_com" not in viewer_kwargs:
+                            viewer.display_center_of_mass(True)
+                        if "display_dcm" not in viewer_kwargs:
+                            viewer.display_capture_point(True)
+                        if "display_contacts" not in viewer_kwargs:
+                            viewer.display_contact_forces(True)
+        
+                    # Enable display of external forces by default only for
+                    # the joints having an external force registered to it.
+                    if "display_f_external" not in viewer_kwargs:
+                        profile_forces = self.engine.profile_forces[robot.name]
+                        force_frames = set(
+                            robot.pinocchio_model.frames[f.frame_index].parent
+                            for f in profile_forces)
+                        impulse_forces = self.engine.impulse_forces[robot.name]
+                        force_frames |= set(
+                            robot.pinocchio_model.frames[f.frame_index].parent
+                            for f in impulse_forces)
+                        visibility = viewer._display_f_external
+                        assert isinstance(visibility, list)
+                        for i in force_frames:
+                            visibility[i - 1] = True
+                        viewer.display_external_forces(visibility)
 
-        camera_pose_need_init = len(self._viewers) == 0
-
-        # Cycle the colors if needed
-        colors = ROBOTS_COLORS * (len(self.robots) // len(ROBOTS_COLORS) + 1)
-
-        for robot, robot_state, color in zip(
-                self.robots, self.engine.robot_states, colors):
-
-            # Create new viewer instance if needed or use the existing one.
-            if robot.name not in Viewer._backend_robot_names:
-                self._create_viewer(robot, robot_state, color, **viewer_kwargs)
-
-        if camera_pose_need_init:
             # Initialize camera pose
-            if self._viewers[-1].is_backend_parent and camera_pose is None:
+            if self.viewer.is_backend_parent and camera_pose is None:
                 camera_pose = viewer_kwargs.get("camera_pose", (
                     (9.0, 0.0, 2e-5), (np.pi/2, 0.0, np.pi/2), None))
 
@@ -845,7 +806,7 @@ class Simulator:
 
         # Set the camera pose if requested
         if camera_pose is not None:
-            self._viewers[0].set_camera_transform(*camera_pose)
+            self.viewer.set_camera_transform(*camera_pose)
 
         # Make sure the graphical window is open if required
         if not return_rgb_array and Viewer.backend != "panda3d-sync":
@@ -872,8 +833,8 @@ class Simulator:
                        `replay.play_trajectories` method.
         """
         if len(self.robots) > 1:
-            raise NotImplementedError("Simulator.replay() is only supported "
-                                      "for single-robot simulations.")
+            raise NotImplementedError(
+                "This method is only supported for single-robot simulations.")
 
         # Close extra viewer instances if any
         for viewer in self._viewers[1:]:
