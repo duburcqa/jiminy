@@ -93,7 +93,7 @@ def _build_robot_from_urdf(name: str,
     # Check if robot name is valid
     if name != re.sub('[^A-Za-z0-9_]', '_', name):
         raise ValueError("The name of the robot should be case-insensitive "
-                        "ASCII alphanumeric characters plus underscore.")
+                         "ASCII alphanumeric characters plus underscore.")
 
     # Generate a temporary Hardware Description File if necessary
     if hardware_path is None:
@@ -127,6 +127,7 @@ def _build_robot_from_urdf(name: str,
         avoid_instable_collisions, load_visual_meshes=debug, verbose=debug)
 
     return robot
+
 
 class Simulator:
     """Simulation wrapper providing a unified user-API on top of the low-level
@@ -183,7 +184,7 @@ class Simulator:
         # Check if robot name is valid
         if robot.name != re.sub('[^A-Za-z0-9_]', '_', robot.name):
             raise ValueError("The name of the robot should be case-insensitive"
-                            " ASCII alphanumeric characters plus underscore.")
+                             " ASCII alphanumeric characters plus underscore.")
 
         # Instantiate the low-level Jiminy engine, then initialize it
         self.engine = jiminy.Engine()
@@ -214,7 +215,7 @@ class Simulator:
               config_path: Optional[str] = None,
               avoid_instable_collisions: bool = True,
               debug: bool = False,
-              name : str = "",
+              name: str = "",
               **kwargs: Any) -> 'Simulator':
         r"""Create a new simulator instance from scratch, based on
         configuration files only.
@@ -328,20 +329,22 @@ class Simulator:
         # Get engine options
         engine_options = self.engine.get_options()
 
-        for extra_info_key, option_nested_path in (
+        nested_paths = (
             ('groundStiffness', ('contacts', 'stiffness')),
             ('groundDamping', ('contacts', 'damping')),
             ('controllerUpdatePeriod', ('stepper', 'controllerUpdatePeriod')),
-            ('sensorsUpdatePeriod', ('stepper', 'sensorsUpdatePeriod'))):
+            ('sensorsUpdatePeriod', ('stepper', 'sensorsUpdatePeriod')))
+
+        for extra_info_key, option_nested_path in nested_paths:
             if extra_info_key in robot.extra_info.keys():
                 option = engine_options
                 for option_path in option_nested_path:
                     option = option[option_path]
                 if robot.extra_info[extra_info_key] != option:
                     warnings.warn(
-                        f"You have speficied a different {extra_info_key} then "
-                        f"the one of the engine, the simulation will run with "
-                        f"{option}.")
+                        f"You have speficied a different {extra_info_key} then"
+                        f" the one of the engine, the simulation will run with"
+                        f" {option}.")
 
         # Add the new robot to the engine
         self.engine.add_robot(robot)
@@ -467,7 +470,7 @@ class Simulator:
     @property
     def robot_state(self) -> jiminy.RobotState:
         """Convenience proxy to get the state of the robot in single-robot
-        simulations. 
+        simulations.
 
         Internally, all it does is returning `self.engine.robot_states[0]`
         without any additional processing.
@@ -482,7 +485,7 @@ class Simulator:
 
     @property
     def is_viewer_available(self) -> bool:
-        """Returns whether a viewer instance associated with the ongoing 
+        """Returns whether a viewer instance associated with the ongoing
         single-robot simulation.
 
         .. warning::
@@ -606,11 +609,13 @@ class Simulator:
         # Reset the backend engine
         self.engine.reset(False, remove_all_forces)
 
-    def start(self,
-              q_init: Union[np.ndarray, Dict[str, np.ndarray]],
-              v_init: Union[np.ndarray, Dict[str, np.ndarray]],
-              a_init: Optional[Union[np.ndarray, Dict[str, np.ndarray]]] = None,
-              is_state_theoretical: Optional[bool] = None) -> None:
+    def start(
+            self,
+            q_init: Union[np.ndarray, Dict[str, np.ndarray]],
+            v_init: Union[np.ndarray, Dict[str, np.ndarray]],
+            a_init: Optional[Union[np.ndarray, Dict[str, np.ndarray]]] = None,
+            is_state_theoretical: Optional[bool] = None
+            ) -> None:
         """Initialize a simulation, starting from (q_init, v_init) at t=0.
 
         :param q_init: Initial configuration (by robot if it is a dictionnary).
@@ -819,7 +824,7 @@ class Simulator:
         colors = ROBOTS_COLORS * (len(self.robots) // len(ROBOTS_COLORS) + 1)
 
         for robot, robot_state, color in zip(
-            self.robots, self.engine.robot_states, colors):
+                self.robots, self.engine.robot_states, colors):
 
             # Create new viewer instance if needed or use the existing one.
             if robot.name not in Viewer._backend_robot_names:

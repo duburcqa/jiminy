@@ -122,7 +122,7 @@ def build_robot_from_log(
     """Create and initialize a robot from a single or
     multi robot simulation. If the robot to be built is from a multi-robot
     simulation, its name needs to be provided.
-    
+
     .. note::
         model options and `robot.pinocchio_model` will be the same as during
         the simulation until the next call to `reset` method unless the options
@@ -146,7 +146,7 @@ def build_robot_from_log(
                               directories to the ones provided by log file. It
                               may be necessary to specify it to read log
                               generated on a different environment.
-    :param robot_name: Name of the robot to be constructed in the log. If it 
+    :param robot_name: Name of the robot to be constructed in the log. If it
                        is not known, call `build_robots_from_log`.
 
     :returns: Reconstructed robot, and parsed log data as returned by
@@ -233,6 +233,7 @@ def build_robot_from_log(
 
     return robot
 
+
 def build_robots_from_log(
         log_data: Dict[str, Any],
         mesh_path_dir: Optional[str] = None,
@@ -241,7 +242,7 @@ def build_robots_from_log(
     """Build all the robots in the log of the simulation.
 
     .. note::
-        This function calls `build_robot_from_log` to build each robot. 
+        This function calls `build_robot_from_log` to build each robot.
         Refer to `build_robot_from_log` for more information.
 
     :param log_data: Logged data (constants and variables) as a dictionary.
@@ -294,7 +295,7 @@ def extract_trajectory_from_log(log_data: Dict[str, Any],
     :param robot: Jiminy robot associated with the logged trajectory.
                   Optional: None by default. If None, then it will be
                   reconstructed from 'log_data' using `build_robot_from_log`.
-    :param robot_name: Name of the robot to be constructed in the log. If it 
+    :param robot_name: Name of the robot to be constructed in the log. If it
                        is not known, call `build_robot_from_log`.
 
     :returns: Trajectory dictionary. The actual trajectory corresponds to the
@@ -352,11 +353,13 @@ def extract_trajectory_from_log(log_data: Dict[str, Any],
 
     return {"evolution_robot": evolution_robot,
             "robot": robot,
-            "use_theoretical_model": False}                  
+            "use_theoretical_model": False}
 
-def extract_trajectories_from_log(log_data: Dict[str, Any],
-                                robots: Optional[Sequence[jiminy.Model]] = None
-                                ) -> Dict[str, TrajectoryDataType]:
+
+def extract_trajectories_from_log(
+        log_data: Dict[str, Any],
+        robots: Optional[Sequence[jiminy.Model]] = None
+        ) -> Dict[str, TrajectoryDataType]:
     """Extract the minimal required information from raw log data in order to
     replay the simulation in a viewer.
 
@@ -371,7 +374,8 @@ def extract_trajectories_from_log(log_data: Dict[str, Any],
                    Optional: None by default. If None, then it will be
                    reconstructed from 'log_data' using `build_robots_from_log`.
 
-    :returns: Dictonary mapping each robot name to its corresponding trajectory.
+    :returns: Dictonary mapping each robot name to its corresponding
+              trajectory.
     """
     trajectories = {}
 
@@ -385,6 +389,7 @@ def extract_trajectories_from_log(log_data: Dict[str, Any],
 
         trajectories[robot.name] = trajectory
     return trajectories
+
 
 def update_sensor_measurements_from_log(
         log_data: Dict[str, Any],
