@@ -99,10 +99,10 @@ class DeformationEstimatorBlock(unittest.TestCase):
         simulator = Simulator(robot)
 
         # Configure the controller and sensor update periods
-        engine_options = simulator.engine.get_options()
+        engine_options = simulator.get_options()
         engine_options['stepper']['controllerUpdatePeriod'] = 0.0001
         engine_options['stepper']['sensorsUpdatePeriod'] = 0.0001
-        simulator.engine.set_options(engine_options)
+        simulator.set_options(engine_options)
 
         # Instantiate the environment
         env = BaseJiminyEnv(simulator, step_dt=0.01, debug=DEBUG)
@@ -183,10 +183,10 @@ class DeformationEstimatorBlock(unittest.TestCase):
                 super()._setup()
 
                 # Configure the controller and sensor update periods
-                engine_options = self.engine.get_options()
+                engine_options = self.simulator.get_options()
                 engine_options['stepper']['controllerUpdatePeriod'] = 0.0001
                 engine_options['stepper']['sensorsUpdatePeriod'] = 0.0001
-                self.engine.set_options(engine_options)
+                self.simulator.set_options(engine_options)
 
                 # Add flexibility frames
                 model_options = self.robot.get_model_options()

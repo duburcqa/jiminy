@@ -150,10 +150,10 @@ class AcrobotJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
 
         # Enforce fixed-timestep integrator.
         # It ensures calling 'step' always takes the same amount of time.
-        engine_options = self.simulator.engine.get_options()
+        engine_options = self.simulator.get_options()
         engine_options["stepper"]["odeSolver"] = "runge_kutta_4"
         engine_options["stepper"]["dtMax"] = CONTROL_DT
-        self.simulator.engine.set_options(engine_options)
+        self.simulator.set_options(engine_options)
 
     def _initialize_observation_space(self) -> None:
         """Configure the observation of the environment.

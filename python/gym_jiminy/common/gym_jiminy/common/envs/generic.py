@@ -709,7 +709,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         # Extract the observer/controller update period.
         # The controller update period is used by default for the observer if
         # it was not specify by the user in `_setup`.
-        engine_options = self.simulator.engine.get_options()
+        engine_options = self.simulator.get_options()
         self.control_dt = float(
             engine_options['stepper']['controllerUpdatePeriod'])
         if self.observe_dt < 0.0:
@@ -1318,7 +1318,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         super()._setup()
 
         # Configure the low-level integrator
-        engine_options = self.simulator.engine.get_options()
+        engine_options = self.simulator.get_options()
         engine_options["stepper"]["iterMax"] = 0
         if self.debug:
             engine_options["stepper"]["verbose"] = True
@@ -1334,7 +1334,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
             engine_options["telemetry"]["isPersistent"] = False
 
         # Update engine options
-        self.simulator.engine.set_options(engine_options)
+        self.simulator.set_options(engine_options)
 
     def _initialize_observation_space(self) -> None:
         """Configure the observation of the environment.
@@ -1410,7 +1410,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
 
         # Make sure the robot impacts the ground
         if self.robot.has_freeflyer:
-            engine_options = self.simulator.engine.get_options()
+            engine_options = self.simulator.get_options()
             ground_fun = engine_options['world']['groundProfile']
             compute_freeflyer_state_from_fixed_body(
                 self.robot, q, ground_profile=ground_fun)

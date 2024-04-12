@@ -152,9 +152,9 @@ class SimulateFlexibleArm(unittest.TestCase):
         """Check if reading/writing standalone log file is working.
         """
         # Configure log file to be standalone
-        engine_options = self.simulator.engine.get_options()
+        engine_options = self.simulator.get_options()
         engine_options['telemetry']['isPersistent'] = True
-        self.simulator.engine.set_options(engine_options)
+        self.simulator.set_options(engine_options)
 
         # Specify joint flexibility parameters
         model_options = self.simulator.robot.get_model_options()

@@ -20,7 +20,7 @@ if __name__ == '__main__':
         urdf_path, has_freeflyer=True, hardware_path="")
 
     # Disable constraint solver regularization
-    engine_options = simulator.engine.get_options()
+    engine_options = simulator.get_options()
     engine_options["constraints"]["regularization"] = 0.0
 
     # Continuous sensor and controller update
@@ -30,7 +30,7 @@ if __name__ == '__main__':
     # Configure integrator
     engine_options['stepper']['odeSolver'] = 'runge_kutta_dopri5'
     engine_options['stepper']['dtMax'] = 1.0e-3
-    simulator.engine.set_options(engine_options)
+    simulator.set_options(engine_options)
 
     # Add fixed frame constraint
     constraint = jiminy.WheelConstraint(

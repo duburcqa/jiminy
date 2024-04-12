@@ -596,6 +596,13 @@ namespace jiminy::python
             convertFromPython(configPy, config);
             return self.setOptions(config);
         }
+
+        static void setAllOptions(Engine & self, const bp::dict & configPy)
+        {
+            GenericConfig config = self.getAllOptions();
+            convertFromPython(configPy, config);
+            return self.setAllOptions(config);
+        }
     }
 
     void exposeEngine()
@@ -776,6 +783,8 @@ namespace jiminy::python
 
             .def("set_options", &internal::engine::setOptions)
             .def("get_options", &Engine::getOptions)
+            .def("set_all_options", &internal::engine::setAllOptions)
+            .def("get_all_options", &Engine::getAllOptions)
 
             .DEF_READONLY_WITH_POLICY(
                 "robots", &Engine::robots_, bp::return_value_policy<result_converter<true>>())

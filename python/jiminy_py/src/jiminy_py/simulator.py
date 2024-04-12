@@ -944,31 +944,9 @@ class Simulator:
 
         return self._figure
 
-    def get_options(self) -> Dict[str, Dict[str, Dict[str, Any]]]:
-        """Get the options of the engine and all the robots.
-
-        The key 'engine' maps to the engine options, whereas `robot.name` maps
-        to the invididual options of each robot for multi-robot simulations,
-        'robot' for single-robot simulations.
-        """
-        return {'engine': self.engine.get_options(), **{
-            robot.name or 'robot': robot.get_options()
-            for robot in self.engine.robots}}
-
-    def set_options(self,
-                    options: Dict[str, Dict[str, Dict[str, Any]]]) -> None:
-        """Set the options of the engine and all the robots.
-
-        :param options: Dictionary gathering all the options. See `get_options`
-                        for details about the hierarchy.
-        """
-        self.engine.set_options(options['engine'])
-        for robot in self.engine.robots:
-            robot.set_options(options[robot.name or 'robot'])
-
     def export_options(self, config_path: Union[str, os.PathLike]) -> None:
-        """Export the complete configuration of the simulator, ie the options
-        of the engine and all the robots.
+        """Export in a single configuration file all the options of the
+        simulator, ie the engine and all the robots.
 
         .. note::
             The generated configuration file can be imported thereafter using
@@ -981,11 +959,11 @@ class Simulator:
         config_path = pathlib.Path(config_path).with_suffix('.toml')
         with open(config_path, 'w') as f:
             toml.dump(
-                self.get_options(), f, encoder=toml.TomlNumpyEncoder())
+                self.get_all_options(), f, encoder=toml.TomlNumpyEncoder())
 
     def import_options(self, config_path: Union[str, os.PathLike]) -> None:
-        """Import the complete configuration of the simulator, ie the options
-        of the engine and all the robots.
+        """Import all the options of the simulator at once, ie the engine
+        and all the robots.
 
         .. note::
             A full configuration file can be exported beforehand using
@@ -1018,5 +996,6 @@ class Simulator:
                     original[key] = new_dict[key]
             return original
 
-        options = deep_update(self.get_options(), toml.load(str(config_path)))
-        self.set_options(options)
+        options = deep_update(
+            self.get_all_options(), toml.load(str(config_path)))
+        self.set_all_options(options)

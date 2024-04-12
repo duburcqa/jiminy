@@ -247,7 +247,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
 
         # Get the options of robot and engine
         robot_options = self.robot.get_options()
-        engine_options = self.simulator.engine.get_options()
+        engine_options = self.simulator.get_options()
 
         # Make sure to log at least the required data for terminal reward
         # computation and log replay.
@@ -334,7 +334,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
 
         # Set the options, finally
         self.robot.set_options(robot_options)
-        self.simulator.engine.set_options(engine_options)
+        self.simulator.set_options(engine_options)
 
     def _force_external_profile(self,
                                 t: float,

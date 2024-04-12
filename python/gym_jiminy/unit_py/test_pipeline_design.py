@@ -206,10 +206,10 @@ class PipelineDesign(unittest.TestCase):
         env = self.ANYmalPipelineEnv()
 
         def configure_telemetry() -> InterfaceJiminyEnv:
-            engine_options = env.simulator.engine.get_options()
+            engine_options = env.simulator.get_options()
             engine_options['telemetry']['enableCommand'] = True
             engine_options['stepper']['logInternalStepperSteps'] = False
-            env.simulator.engine.set_options(engine_options)
+            env.simulator.set_options(engine_options)
             return env
 
         env.reset(seed=0, options=dict(reset_hook=configure_telemetry))

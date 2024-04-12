@@ -158,7 +158,7 @@ class AntJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
     def _initialize_buffers(self) -> None:
         # Extract observation from the robot state.
         # Note that this is only reliable with using a fixed step integrator.
-        engine_options = self.simulator.engine.get_options()
+        engine_options = self.simulator.get_options()
         if engine_options['stepper']['odeSolver'] in ('runge_kutta_dopri5',):
             raise ValueError(
                 "This environment does not support adaptive step integrators. "

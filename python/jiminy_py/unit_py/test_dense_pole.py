@@ -46,12 +46,12 @@ class SimulateDensePole(unittest.TestCase):
         self.robot.set_model_options(model_options)
 
         # Configure the integrator
-        engine_options = self.simulator.engine.get_options()
+        engine_options = self.simulator.get_options()
         engine_options['stepper']['tolAbs'] = 1e-9
         engine_options['stepper']['tolRel'] = 1e-8
         engine_options['constraints']['regularization'] = 0.0
         engine_options['contacts']['transitionEps'] = self.transition_eps
-        self.simulator.engine.set_options(engine_options)
+        self.simulator.set_options(engine_options)
 
     def test_flex_model(self):
         """Test if the result is the same with true and virtual inertia in
@@ -67,9 +67,9 @@ class SimulateDensePole(unittest.TestCase):
         self.robot.add_constraint("fixed_joint", const)
 
         # Configure the engine
-        engine_options = self.simulator.engine.get_options()
+        engine_options = self.simulator.get_options()
         engine_options['stepper']['sensorsUpdatePeriod'] = step_dt
-        self.simulator.engine.set_options(engine_options)
+        self.simulator.set_options(engine_options)
 
         # Extract some proxies for convenience
         pinocchio_model_th = self.robot.pinocchio_model_th
@@ -165,11 +165,11 @@ class SimulateDensePole(unittest.TestCase):
         theta_all = []
         for contact_model in ('constraint', 'spring_damper'):
             # Configure the engine
-            engine_options = self.simulator.engine.get_options()
+            engine_options = self.simulator.get_options()
             engine_options['stepper']['odeSolver'] = 'euler_explicit'
             engine_options['stepper']['dtMax'] = step_dt
             engine_options['contacts']['model'] = contact_model
-            self.simulator.engine.set_options(engine_options)
+            self.simulator.set_options(engine_options)
 
             # Start the simulation
             self.simulator.start(np.array((0.0,)), np.array((1.0,)))

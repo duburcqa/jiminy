@@ -663,6 +663,18 @@ namespace jiminy
 
         GenericConfig getOptions() const noexcept;
         void setOptions(const GenericConfig & engineOptions);
+        /// \brief Get the options of the engine and all the robots.
+        ///
+        /// \details The key 'engine' maps to the engine options, whereas `robot.name` maps to the
+        ///          invididual options of each robot for multi-robot simulations, 'robot' for
+        ///          single-robot simulations.
+        GenericConfig getAllOptions() const noexcept;
+        /// \brief Set the options of the engine and all the robots.
+        ///
+        /// \param[in] allOptions Dictionary gathering all the options. See `getAllOptions` for
+        ///                       details about the hierarchy.
+        void setAllOptions(const GenericConfig & allOptions);
+
         bool getIsTelemetryConfigured() const;
         std::shared_ptr<Robot> getRobot(const std::string & robotName);
         std::ptrdiff_t getRobotIndex(const std::string & robotName) const;
