@@ -525,22 +525,20 @@ namespace jiminy
         // Generate the fieldnames associated with command
         logCommandFieldnames_.clear();
         logCommandFieldnames_.reserve(nmotors_);
-        std::transform(
-            motors_.begin(),
-            motors_.end(),
-            std::back_inserter(logCommandFieldnames_),
-            [](const auto & elem) -> std::string
-            { return addCircumfix(elem->getName(), toString(JOINT_PREFIX_BASE, "Command")); });
+        std::transform(motors_.begin(),
+                       motors_.end(),
+                       std::back_inserter(logCommandFieldnames_),
+                       [](const auto & elem) -> std::string
+                       { return toString(JOINT_PREFIX_BASE, "Command", elem->getName()); });
 
         // Generate the fieldnames associated with motor efforts
         logMotorEffortFieldnames_.clear();
         logMotorEffortFieldnames_.reserve(nmotors_);
-        std::transform(
-            motors_.begin(),
-            motors_.end(),
-            std::back_inserter(logMotorEffortFieldnames_),
-            [](const auto & elem) -> std::string
-            { return addCircumfix(elem->getName(), toString(JOINT_PREFIX_BASE, "Effort")); });
+        std::transform(motors_.begin(),
+                       motors_.end(),
+                       std::back_inserter(logMotorEffortFieldnames_),
+                       [](const auto & elem) -> std::string
+                       { return toString(JOINT_PREFIX_BASE, "Effort", elem->getName()); });
     }
 
     void Robot::refreshSensorProxies()

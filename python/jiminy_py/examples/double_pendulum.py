@@ -102,7 +102,7 @@ if __name__ == '__main__':
 
     # Plot some data using standard tools only
     plt.figure()
-    plt.plot(log_vars['Global.Time'], log_vars['HighLevelController.energy'])
+    plt.plot(log_vars['Global.Time'], log_vars['energy'])
     plt.title('Double pendulum energy')
     plt.grid()
     plt.show()

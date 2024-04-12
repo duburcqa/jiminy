@@ -12,7 +12,7 @@
 
 namespace jiminy
 {
-    inline constexpr std::string_view ENGINE_TELEMETRY_NAMESPACE{"HighLevelController"};
+    inline constexpr std::string_view ENGINE_TELEMETRY_NAMESPACE{""};
 
     enum class ContactModelType : uint8_t
     {

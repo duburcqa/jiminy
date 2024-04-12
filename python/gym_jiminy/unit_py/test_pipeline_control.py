@@ -92,16 +92,15 @@ class PipelineControl(unittest.TestCase):
         # Check that the joint velocity target is zero
         time = log_vars["Global.Time"]
         velocity_target = np.stack([
-            log_vars['.'.join((
-                'HighLevelController', self.env.controller.name, name))]
+            log_vars['.'.join(("controller", self.env.controller.name, name))]
             for name in self.env.controller.fieldnames], axis=-1)
         self.assertTrue(np.all(
             np.abs(velocity_target[time > time[-1] - 1.0]) < 1.0e-9))
 
         # Check that the whole-body robot velocity is close to zero at the end
         velocity_mes = np.stack([
-            log_vars['.'.join(('HighLevelController', name))]
-            for name in self.env.robot.log_velocity_fieldnames], axis=-1)
+            log_vars[name] for name in self.env.robot.log_velocity_fieldnames
+            ], axis=-1)
         self.assertTrue(np.all(
             np.abs(velocity_mes[time > time[-1] - 1.0]) < 1.0e-3))
 
@@ -202,9 +201,9 @@ class PipelineControl(unittest.TestCase):
         ctrl_name = controller.name
         n_motors = len(controller.fieldnames)
         pos = env.log_data["variables"][".".join((
-            "HighLevelController", ctrl_name, "state", str(n_motors - 1)))]
+            "controller", ctrl_name, "state", str(n_motors - 1)))]
         vel = env.log_data["variables"][".".join((
-            "HighLevelController", ctrl_name, controller.fieldnames[-1]))]
+            "controller", ctrl_name, controller.fieldnames[-1]))]
 
         # Make sure that the position and velocity targets are consistent
         np.testing.assert_allclose(

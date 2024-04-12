@@ -571,39 +571,42 @@ namespace jiminy
             auto energyIt = energy_.begin();
             for (; robotIt != robots_.end(); ++robotIt, ++robotDataIt, ++energyIt)
             {
+                // Define proxy for convenience
+                const std::string & robotName = (*robotIt)->getName();
+
                 // Generate the log fieldnames
                 robotDataIt->logPositionFieldnames =
                     addCircumfix((*robotIt)->getLogPositionFieldnames(),
-                                 (*robotIt)->getName(),
+                                 robotName,
                                  {},
                                  TELEMETRY_FIELDNAME_DELIMITER);
                 robotDataIt->logVelocityFieldnames =
                     addCircumfix((*robotIt)->getLogVelocityFieldnames(),
-                                 (*robotIt)->getName(),
+                                 robotName,
                                  {},
                                  TELEMETRY_FIELDNAME_DELIMITER);
                 robotDataIt->logAccelerationFieldnames =
                     addCircumfix((*robotIt)->getLogAccelerationFieldnames(),
-                                 (*robotIt)->getName(),
+                                 robotName,
                                  {},
                                  TELEMETRY_FIELDNAME_DELIMITER);
                 robotDataIt->logForceExternalFieldnames =
                     addCircumfix((*robotIt)->getLogForceExternalFieldnames(),
-                                 (*robotIt)->getName(),
+                                 robotName,
                                  {},
                                  TELEMETRY_FIELDNAME_DELIMITER);
                 robotDataIt->logCommandFieldnames =
                     addCircumfix((*robotIt)->getLogCommandFieldnames(),
-                                 (*robotIt)->getName(),
+                                 robotName,
                                  {},
                                  TELEMETRY_FIELDNAME_DELIMITER);
                 robotDataIt->logMotorEffortFieldnames =
                     addCircumfix((*robotIt)->getLogMotorEffortFieldnames(),
-                                 (*robotIt)->getName(),
+                                 robotName,
                                  {},
                                  TELEMETRY_FIELDNAME_DELIMITER);
-                robotDataIt->logEnergyFieldname = addCircumfix(
-                    "energy", (*robotIt)->getName(), {}, TELEMETRY_FIELDNAME_DELIMITER);
+                robotDataIt->logEnergyFieldname =
+                    addCircumfix("energy", robotName, {}, TELEMETRY_FIELDNAME_DELIMITER);
 
                 // Register variables to the telemetry senders
                 if (engineOptions_->telemetry.enableConfiguration)

@@ -194,7 +194,8 @@ def simulate_and_get_state_evolution(
     """
     # Run simulation
     if isinstance(x0, np.ndarray):
-        q0, v0 = x0[:engine.robots[0].nq], x0[-engine.robots[0].nv:]
+        robot, = engine.robots
+        q0, v0 = x0[:robot.nq], x0[-robot.nv:]
     else:
         q0, v0 = {}, {}
         for robot in engine.robots:
@@ -208,29 +209,33 @@ def simulate_and_get_state_evolution(
     # Extract state evolution over time
     time = log_vars['Global.Time']
     if isinstance(x0, np.ndarray):
+        robot, = engine.robots
+
         q_jiminy = np.stack([
-            log_vars['.'.join(['HighLevelController', s])]
-            for s in engine.robots[0].log_position_fieldnames], axis=-1)
+            log_vars[field] for field in robot.log_position_fieldnames
+            ], axis=-1)
         v_jiminy = np.stack([
-            log_vars['.'.join(['HighLevelController', s])]
-            for s in engine.robots[0].log_velocity_fieldnames], axis=-1)
+            log_vars[field] for field in robot.log_velocity_fieldnames
+            ], axis=-1)
+
         if split:
             return time, q_jiminy, v_jiminy
-        else:
-            x_jiminy = np.concatenate((q_jiminy, v_jiminy), axis=-1)
-            return time, x_jiminy
+
+        x_jiminy = np.concatenate((q_jiminy, v_jiminy), axis=-1)
+        return time, x_jiminy
     else:
         q_jiminy = [np.stack([
-            log_vars['.'.join(['HighLevelController', robot.name, s])]
-            for s in robot.log_position_fieldnames
+            log_vars['.'.join((robot.name, field))]
+            for field in robot.log_position_fieldnames
         ], axis=-1) for robot in engine.robots]
         v_jiminy = [np.stack([
-            log_vars['.'.join(['HighLevelController', robot.name, s])]
-            for s in robot.log_velocity_fieldnames
+            log_vars['.'.join((robot.name, field))]
+            for field in robot.log_velocity_fieldnames
         ], axis=-1) for robot in engine.robots]
+
         if split:
             return time, q_jiminy, v_jiminy
-        else:
-            x_jiminy = [np.concatenate((q, v), axis=-1)
-                        for q, v in zip(q_jiminy, v_jiminy)]
-            return time, x_jiminy
+
+        x_jiminy = [np.concatenate((q, v), axis=-1)
+                    for q, v in zip(q_jiminy, v_jiminy)]
+        return time, x_jiminy

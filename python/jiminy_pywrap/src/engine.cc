@@ -380,7 +380,7 @@ namespace jiminy::python
             // Get constants
             for (const auto & [key, value] : logData.constants)
             {
-                if (endsWith(key, ".options"))
+                if (endsWith(key, "options"))
                 {
                     std::vector<uint8_t> jsonStringVec(value.begin(), value.end());
                     std::shared_ptr<AbstractIODevice> device =
@@ -389,7 +389,7 @@ namespace jiminy::python
                     jsonLoad(robotOptions, device);
                     constants[key] = robotOptions;
                 }
-                else if (key.find(".pinocchio_model") != std::string::npos)
+                else if (key.find("pinocchio_model") != std::string::npos)
                 {
                     try
                     {
@@ -404,7 +404,7 @@ namespace jiminy::python
                                      e.what());
                     }
                 }
-                else if (endsWith(key, ".visual_model") || endsWith(key, ".collision_model"))
+                else if (endsWith(key, "visual_model") || endsWith(key, "collision_model"))
                 {
                     try
                     {
@@ -419,7 +419,7 @@ namespace jiminy::python
                                      e.what());
                     }
                 }
-                else if (endsWith(key, ".mesh_package_dirs"))
+                else if (endsWith(key, "mesh_package_dirs"))
                 {
                     bp::list meshPackageDirs;
                     std::stringstream ss(value);

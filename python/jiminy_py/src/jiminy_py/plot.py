@@ -627,6 +627,11 @@ def plot_log(log_data: Dict[str, Any],
     if robot is None:
         robot = build_robot_from_log(log_data)
 
+    # Make sure tha the simulation was single-robot
+    if robot.name:
+        raise NotImplementedError(
+            "This method only support single-robot simulations.")
+
     # Figures data structure as a dictionary
     tabs_data: Dict[
         str, Dict[str, Union[np.ndarray, Dict[str, np.ndarray]]]
@@ -648,7 +653,7 @@ def plot_log(log_data: Dict[str, Any],
             values = extract_variables_from_log(
                 log_vars, fieldnames, as_dict=True)
             tabs_data[' '.join(("State", fields_type))] = OrderedDict(
-                (field.split(".", 1)[1][7:].replace(fields_type, ""), elem)
+                (field[7:].replace(fields_type, ""), elem)
                 for field, elem in values.items())
         except ValueError:
             # Variable has not been recorded and is missing in log file

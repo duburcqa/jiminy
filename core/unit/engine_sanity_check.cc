@@ -112,7 +112,7 @@ TEST(EngineSanity, EnergyConservation)
     std::shared_ptr<const LogData> logDataPtr = engine.getLog();
     const Eigen::VectorXd timesCont = getLogVariable(*logDataPtr, "Global.Time");
     ASSERT_DOUBLE_EQ(timesCont[timesCont.size() - 1], tf);
-    const Eigen::VectorXd energyCont = getLogVariable(*logDataPtr, "HighLevelController.energy");
+    const Eigen::VectorXd energyCont = getLogVariable(*logDataPtr, "energy");
     ASSERT_GT(energyCont.size(), 0);
 
     // Check that energy is constant
@@ -140,7 +140,7 @@ TEST(EngineSanity, EnergyConservation)
     logDataPtr = engine.getLog();
     const Eigen::VectorXd timesDisc = getLogVariable(*logDataPtr, "Global.Time");
     ASSERT_DOUBLE_EQ(timesDisc[timesDisc.size() - 1], tf);
-    const Eigen::VectorXd energyDisc = getLogVariable(*logDataPtr, "HighLevelController.energy");
+    const Eigen::VectorXd energyDisc = getLogVariable(*logDataPtr, "energy");
     ASSERT_GT(energyDisc.size(), 0);
 
     // Check that energy is constant

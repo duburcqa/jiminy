@@ -123,7 +123,7 @@ class SimulateDensePole(unittest.TestCase):
             q_flex = np.stack(extract_variables_from_log(log_vars, [
                 f"currentPosition{self.flex_joint_name}Quat{e}"
                 for e in ('X', 'Y', 'Z', 'W')
-                ], 'HighLevelController'), axis=0)
+                ]), axis=0)
             twist_flex = 2 * np.arctan2(q_flex[2], q_flex[3])
             twist_flex_all.append(twist_flex)
 
@@ -209,8 +209,7 @@ class SimulateDensePole(unittest.TestCase):
             log_vars = self.simulator.log_data["variables"]
             (theta,) = extract_variables_from_log(
                 log_vars,
-                (f"currentPosition{self.robot.pinocchio_model.names[-1]}",),
-                'HighLevelController')
+                (f"currentPosition{self.robot.pinocchio_model.names[-1]}",))
             theta_all.append(theta)
 
         assert np.allclose(*theta_all, atol=1e-4)

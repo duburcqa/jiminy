@@ -424,8 +424,8 @@ class WalkerJiminyEnv(BaseJiminyEnv):
             # Y-axis. It is equal to 0.0 if the frontal displacement is
             # perfectly symmetric wrt Y-axis over the whole trajectory.
             if 'direction' in reward_mixture_keys:
-                frontal_displacement = abs(np.mean(self.log_data[
-                    'HighLevelController.currentFreeflyerPositionTransY']))
+                frontal_displacement = abs(np.mean(
+                    self.log_data['currentFreeflyerPositionTransY']))
                 reward_dict['direction'] = - frontal_displacement
 
         # Compute the total reward
