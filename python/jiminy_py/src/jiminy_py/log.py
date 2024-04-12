@@ -214,9 +214,7 @@ def build_robot_from_log(
 
         # Load the options
         all_options = log_constants[".".join((ENGINE_NAMESPACE, "options"))]
-        # Load the options
-        robot.set_options(
-            all_options[".".join(filter(None, (robot_name, "robot")))])
+        robot.set_options(all_options[robot_name or "robot"])
 
         # Update model in-place.
         # Note that `__setstate__` re-allocates memory instead of just calling
