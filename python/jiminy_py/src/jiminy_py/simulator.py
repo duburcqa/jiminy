@@ -62,6 +62,7 @@ def _build_robot_from_urdf(name: str,
     files only. It creates a default hardware file if none is provided. See
     `generate_default_hardware_description_file` for details.
 
+    :param name: Name of the robot to build from URDF.
     :param urdf_path: Path of the URDF of the robot.
     :param hardware_path: Path of Jiminy hardware description toml file.
                           Optional: Looking for '\*_hardware.toml' file in
@@ -944,8 +945,11 @@ class Simulator:
         return self._figure
 
     def get_options(self) -> Dict[str, Dict[str, Dict[str, Any]]]:
-        """Get the options of the engine and all the robots (including their
-        respective controllers).
+        """Get the options of the engine and all the robots.
+
+        The key 'engine' maps to the engine options, whereas `robot.name` maps
+        to the invididual options of each robot for multi-robot simulations,
+        'robot' for single-robot simulations.
         """
         return {'engine': self.engine.get_options(), **{
             robot.name or 'robot': robot.get_options()
@@ -954,14 +958,17 @@ class Simulator:
     def set_options(self,
                     options: Dict[str, Dict[str, Dict[str, Any]]]) -> None:
         """Set the options of the engine and all the robots.
+
+        :param options: Dictionary gathering all the options. See `get_options`
+                        for details about the hierarchy.
         """
         self.engine.set_options(options['engine'])
         for robot in self.engine.robots:
             robot.set_options(options[robot.name or 'robot'])
 
     def export_options(self, config_path: Union[str, os.PathLike]) -> None:
-        """Export the full configuration, ie the options of the engine and all
-        the robots (including their respective controllers).
+        """Export the complete configuration of the simulator, ie the options
+        of the engine and all the robots.
 
         .. note::
             The generated configuration file can be imported thereafter using
@@ -977,12 +984,14 @@ class Simulator:
                 self.get_options(), f, encoder=toml.TomlNumpyEncoder())
 
     def import_options(self, config_path: Union[str, os.PathLike]) -> None:
-        """Import the full configuration, ie the options of the robot (
-        including controller), and the engine.
+        """Import the complete configuration of the simulator, ie the options
+        of the engine and all the robots.
 
         .. note::
             A full configuration file can be exported beforehand using
             `export_options` method.
+
+        :param config_path: Full path of the configuration file to load.
         """
         def deep_update(original: Dict[str, Any],
                         new_dict: Dict[str, Any],

@@ -189,11 +189,14 @@ namespace jiminy
            engine is allowed to have no name. In such a case, no prefix will be added to telemetry
            variables for this specific robot. This does not prevent adding other robots with
            qualified names later on. This branching adds complexity internally, but simplifies
-           single-robot simulation for the end-user, which is by far the most common use-case. */
+           single-robot simulation for the end-user, which is by far the most common use-case.
+           Similarly, the name 'robot' is reserved for the first robot only. */
         const std::string & robotName = robotIn->getName();
-        if (!robots_.empty() && robotName == "")
+        if (!robots_.empty() && (robotName == "" || robotName == "robot"))
         {
-            JIMINY_THROW(std::invalid_argument, "All robots but the first one must have a name.");
+            JIMINY_THROW(std::invalid_argument,
+                         "All robots, except the first, must have a non-empty name other than "
+                         "'robot'.");
         }
 
         // Check if a robot with the same name already exists
@@ -1534,8 +1537,11 @@ namespace jiminy
         GenericConfig allOptions;
         for (const auto & robot : robots_)
         {
-            const std::string telemetryRobotOptions =
-                addCircumfix("robot", robot->getName(), {}, TELEMETRY_FIELDNAME_DELIMITER);
+            std::string telemetryRobotOptions = robot->getName();
+            if (telemetryRobotOptions.empty())
+            {
+                telemetryRobotOptions = "robot";
+            }
             allOptions[telemetryRobotOptions] = robot->getOptions();
         }
         allOptions["engine"] = engineOptionsGeneric_;
