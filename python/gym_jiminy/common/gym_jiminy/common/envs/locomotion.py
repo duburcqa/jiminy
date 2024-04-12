@@ -1,6 +1,8 @@
 """Generic environment to learn locomotion skills for legged robots using
 Jiminy simulator as physics engine.
 """
+import os
+import pathlib
 from typing import Optional, Dict, Union, Any, Type, Sequence, Tuple
 
 import numpy as np
@@ -13,6 +15,7 @@ from jiminy_py.core import (  # pylint: disable=no-name-in-module
     ImuSensor as imu,
     PeriodicGaussianProcess,
     Robot)
+from jiminy_py.robot import BaseJiminyRobot
 from jiminy_py.simulator import Simulator
 
 import pinocchio as pin
@@ -182,8 +185,24 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                     has_freeflyer=True),
                     **kwargs})
         else:
-            # Instantiate a simulator and load the options
+            # Instantiate a simulator
             simulator = Simulator(robot, viewer_kwargs=viewer_kwargs, **kwargs)
+
+            # Load engine and robot options
+            if config_path is None:
+                if isinstance(robot, BaseJiminyRobot):
+                    urdf_path = (
+                        robot._urdf_path_orig)  # type: ignore[attr-defined]
+                else:
+                    urdf_path = robot.urdf_path
+                if not urdf_path:
+                    raise ValueError(
+                        "'config_path' must be provided if the robot is not "
+                        "associated with any URDF.")
+                config_path = str(pathlib.Path(
+                    urdf_path).with_suffix('')) + '_options.toml'
+                if not os.path.exists(config_path):
+                    config_path = ""
             simulator.import_options(config_path)
 
         # Initialize base class

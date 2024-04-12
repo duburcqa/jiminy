@@ -152,6 +152,11 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
                        environments with multiple inheritance, and to allow
                        automatic pipeline wrapper generation.
         """
+        # Make sure that the simulator is single-robot
+        if tuple(robot.name for robot in simulator.robots) != ("",):
+            raise ValueError(
+                "`BaseJiminyEnv` only supports single-robot simulators.")
+
         # Handling of default rendering mode
         viewer_backend = (simulator.viewer or Viewer).backend
         if render_mode is None:
@@ -837,9 +842,11 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         # Note that the viewer must be reset if available, otherwise it would
         # keep using the old robot model for display, which must be avoided.
         if self.simulator.is_viewer_available:
-            self.simulator.viewer._setup(self.robot)
-            if self.simulator.viewer.has_gui():
-                self.simulator.viewer.refresh()
+            viewer = self.simulator.viewer
+            assert viewer is not None  # Assert(s) for type checker
+            viewer._setup(self.robot)  # type: ignore[attr-defined]
+            if viewer.has_gui():
+                viewer.refresh()
 
         return obs, deepcopy(self._info)
 
@@ -1130,8 +1137,8 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
 
         # Make sure viewer gui is open, so that the viewer will shared external
         # forces with the robot automatically.
-        if not (self.simulator.is_viewer_available and
-                self.simulator.viewer.has_gui()):
+        viewer = self.simulator.viewer
+        if viewer is None or not viewer.has_gui():
             self.simulator.render(update_ground_profile=False)
 
         # Reset the environnement
@@ -1141,15 +1148,18 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
 
         # Refresh the ground profile
         self.simulator.render(update_ground_profile=True)
+        viewer = self.simulator.viewer
+        assert viewer is not None  # Assert(s) for type checker
 
         # Enable travelling
         if enable_travelling is None:
-            enable_travelling = \
-                self.simulator.viewer.backend.startswith('panda3d')
+            backend = viewer.backend
+            assert backend is not None  # Assert(s) for type checker
+            enable_travelling = backend.startswith('panda3d')
         enable_travelling = enable_travelling and self.robot.has_freeflyer
         if enable_travelling:
             tracked_frame = self.robot.pinocchio_model.frames[2].name
-            self.simulator.viewer.attach_camera(tracked_frame)
+            viewer.attach_camera(tracked_frame)
 
         # Refresh the scene once again to update camera placement
         self.render()
@@ -1176,7 +1186,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
 
         # Disable travelling if it enabled
         if enable_travelling:
-            self.simulator.viewer.detach_camera()
+            viewer.detach_camera()
 
         # Stop the simulation to unlock the robot.
         # It will enable to display contact forces for replay.

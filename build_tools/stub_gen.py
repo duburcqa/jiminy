@@ -30,7 +30,7 @@ def _issubclass(cls, class_or_tuple, /):
 
 
 def extract_boost_python_signature(args: str) -> str:
-    find_optional_args = re.search('\[(.*?)\]$', args)
+    find_optional_args = re.search(r'\[(.*?)\]$', args)
     if find_optional_args:
         optional_args = find_optional_args.group(1)
         nominal_args = args.replace("[" + optional_args + "]", "")
@@ -53,7 +53,7 @@ def extract_boost_python_signature(args: str) -> str:
 
     if nominal_args:
         for k, arg in enumerate(nominal_args):
-            type_name = re.search('\((.*?)\)', arg).group(1)
+            type_name = re.search(r'\((.*?)\)', arg).group(1)
             # `bp::object` can be basically anything, so switching to 'Any'.
             if type_name == "object":
                 type_name = "typing.Any"
@@ -70,7 +70,7 @@ def extract_boost_python_signature(args: str) -> str:
     if optional_args and True:
         for k, arg in enumerate(optional_args):
             main_arg, *optional_args = map(str.strip, arg.split('=', 1))
-            type_name = re.search('\((.*?)\)', main_arg).group(1)
+            type_name = re.search(r'\((.*?)\)', main_arg).group(1)
             if type_name == "object":
                 type_name = "typing.Any"
 

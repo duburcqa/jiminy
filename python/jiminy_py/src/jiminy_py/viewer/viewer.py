@@ -1057,8 +1057,7 @@ class Viewer:
         return Viewer._backend_proc is not None and \
             Viewer._backend_proc.is_alive()
 
-    def is_open(
-            self: Optional[Union["Viewer", Type["Viewer"]]] = None) -> bool:
+    def is_open(self: Optional["Viewer"] = None) -> bool:
         """Check if a given viewer instance is open, or if the backend server
         is running if no instance is specified.
         """
@@ -1068,7 +1067,7 @@ class Viewer:
         return is_open_
 
     @_with_lock
-    def close(self: Optional[Union["Viewer", Type["Viewer"]]] = None) -> None:
+    def close(self: Optional["Viewer"] = None) -> None:
         """Close a given viewer instance, or all of them if no instance is
         specified.
 
@@ -1081,13 +1080,8 @@ class Viewer:
             than calling this method without specifying any viewer instance.
         """
         # pylint: disable=unsubscriptable-object
+
         if self is None:
-            self = Viewer  # pylint: disable=self-cls-assignment
-
-        # Assert for type checker
-        assert self is not None
-
-        if self is Viewer:
             # NEVER closing backend automatically if closing instances,
             # even for the parent. It will be closed at Python exit
             # automatically. One must call `Viewer.close` to do otherwise.
@@ -1161,8 +1155,8 @@ class Viewer:
                 except FileNotFoundError:
                     pass
 
-        # At this point, consider the viewer has been closed, no matter what
-        self.__is_open = False
+            # At this point, consider the viewer has been closed no matter what
+            self.__is_open = False
 
     @staticmethod
     @_with_lock
@@ -1471,8 +1465,7 @@ class Viewer:
 
     @_with_lock
     @_must_be_open
-    def set_camera_transform(self: Optional[
-                                 Union["Viewer", Type["Viewer"]]] = None,
+    def set_camera_transform(self: Optional["Viewer"] = None,
                              position: Optional[Tuple3FType] = None,
                              rotation: Optional[Tuple3FType] = None,
                              relative: Optional[Union[str, int]] = None,

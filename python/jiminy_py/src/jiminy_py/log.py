@@ -3,6 +3,7 @@
 reconstructing the robot to reading telemetry variables.
 """
 import os
+import re
 import tempfile
 from bisect import bisect_right
 from collections import OrderedDict
@@ -116,8 +117,11 @@ def build_robot_from_log(
         log_data: Dict[str, Any],
         mesh_path_dir: Optional[str] = None,
         mesh_package_dirs: Sequence[str] = (),
+        *, robot_name: str = ""
         ) -> jiminy.Robot:
-    """Build robot from log.
+    """Create and initialize a robot from a single or
+    multi robot simulation. If the robot to be built is from a multi-robot
+    simulation, its name needs to be provided.
 
     .. note::
         model options and `robot.pinocchio_model` will be the same as during
@@ -142,37 +146,46 @@ def build_robot_from_log(
                               directories to the ones provided by log file. It
                               may be necessary to specify it to read log
                               generated on a different environment.
+    :param robot_name: Name of the robot to build from log.
 
     :returns: Reconstructed robot, and parsed log data as returned by
               `jiminy_py.log.read_log` method.
     """
+    # Prepare robot namespace
+    robot_namespace = ".".join(filter(None, (ENGINE_NAMESPACE, robot_name)))
+
     # Instantiate empty robot
-    robot = jiminy.Robot()
+    robot = jiminy.Robot(robot_name)
 
     # Extract log constants
     log_constants = log_data["constants"]
 
-    # Extract common info
-    pinocchio_model = log_constants[
-        ".".join((ENGINE_NAMESPACE, "pinocchio_model"))]
+    try:
+        pinocchio_model = log_constants[
+            ".".join((robot_namespace, "pinocchio_model"))]
+    except KeyError as e:
+        if robot_name == "":
+            raise ValueError(
+                "No robot with empty name has been found. Specify a name or "
+                "call `build_robots_from_log`.") from e
 
     try:
         # Extract geometry models
         collision_model = log_constants[
-            ".".join((ENGINE_NAMESPACE, "collision_model"))]
+            ".".join((robot_namespace, "collision_model"))]
         visual_model = log_constants[
-            ".".join((ENGINE_NAMESPACE, "visual_model"))]
+            ".".join((robot_namespace, "visual_model"))]
 
         # Initialize the model
         robot.initialize(pinocchio_model, collision_model, visual_model)
     except KeyError as e:
         # Extract initialization arguments
         urdf_data = log_constants[
-            ".".join((ENGINE_NAMESPACE, "urdf_file"))]
+            ".".join((robot_namespace, "urdf_file"))]
         has_freeflyer = int(log_constants[
-            ".".join((ENGINE_NAMESPACE, "has_freeflyer"))])
+            ".".join((robot_namespace, "has_freeflyer"))])
         mesh_package_dirs = [*mesh_package_dirs, *log_constants.get(
-            ".".join((ENGINE_NAMESPACE, "mesh_package_dirs")), ())]
+            ".".join((robot_namespace, "mesh_package_dirs")), ())]
 
         # Make sure urdf data is available
         if len(urdf_data) <= 1:
@@ -201,7 +214,9 @@ def build_robot_from_log(
 
         # Load the options
         all_options = log_constants[".".join((ENGINE_NAMESPACE, "options"))]
-        robot.set_options(all_options["robot"])
+        # Load the options
+        robot.set_options(
+            all_options[".".join(filter(None, (robot_name, "robot")))])
 
         # Update model in-place.
         # Note that `__setstate__` re-allocates memory instead of just calling
@@ -218,8 +233,53 @@ def build_robot_from_log(
     return robot
 
 
+def build_robots_from_log(
+        log_data: Dict[str, Any],
+        mesh_path_dir: Optional[str] = None,
+        mesh_package_dirs: Sequence[str] = (),
+        ) -> Sequence[jiminy.Robot]:
+    """Build all the robots in the log of the simulation.
+
+    .. note::
+        This function calls `build_robot_from_log` to build each robot.
+        Refer to `build_robot_from_log` for more information.
+
+    :param log_data: Logged data (constants and variables) as a dictionary.
+    :param mesh_path_dir: Overwrite the common root of all absolute mesh paths.
+                          It which may be necessary to read log generated on a
+                          different environment.
+    :param mesh_package_dirs: Prepend custom mesh package search path
+                              directories to the ones provided by log file. It
+                              may be necessary to specify it to read log
+                              generated on a different environment.
+
+    :returns: Sequence of reconstructed robots.
+    """
+    # Extract log constants
+    log_constants = log_data["constants"]
+
+    robots_names = []
+    for key in log_constants.keys():
+        if key == "HighLevelController.has_freeflyer":
+            robots_names.append("")
+        else:
+            m = re.findall(r"HighLevelController.(\w+).has_freeflyer", key)
+            if len(m) == 1:
+                robots_names.append(m[0])
+
+    robots = []
+    for robot_name in robots_names:
+        robot = build_robot_from_log(
+            log_data, mesh_path_dir, mesh_package_dirs, robot_name=robot_name)
+
+        robots.append(robot)
+
+    return robots
+
+
 def extract_trajectory_from_log(log_data: Dict[str, Any],
-                                robot: Optional[jiminy.Model] = None
+                                robot: Optional[jiminy.Model] = None,
+                                *, robot_name: Optional[str] = None
                                 ) -> TrajectoryDataType:
     """Extract the minimal required information from raw log data in order to
     replay the simulation in a viewer.
@@ -234,27 +294,41 @@ def extract_trajectory_from_log(log_data: Dict[str, Any],
     :param robot: Jiminy robot associated with the logged trajectory.
                   Optional: None by default. If None, then it will be
                   reconstructed from 'log_data' using `build_robot_from_log`.
+    :param robot_name: Name of the robot to be constructed in the log. If it
+                       is not known, call `build_robot_from_log`.
 
     :returns: Trajectory dictionary. The actual trajectory corresponds to the
               field "evolution_robot" and it is a list of State object. The
               other fields are additional information.
     """
+    # Prepare robot namespace
+    if robot is not None:
+        if robot_name is None:
+            robot_name = robot.name
+        elif robot_name != robot.name:
+            raise ValueError(
+                "The name specified in `robot_name` and the name of the robot "
+                "are differents.")
+    elif robot_name is None:
+        robot_name = ""
+
+    robot_namespace = ".".join(filter(None, (ENGINE_NAMESPACE, robot_name)))
     # Handling of default argument(s)
     if robot is None:
-        robot = build_robot_from_log(log_data)
+        robot = build_robot_from_log(log_data, robot_name=robot_name)
 
     # Define some proxies for convenience
     log_vars = log_data["variables"]
 
     # Extract the joint positions, velocities and external forces over time
     positions = np.stack([
-        log_vars.get(".".join((ENGINE_NAMESPACE, field)), [])
+        log_vars.get(".".join((robot_namespace, field)), [])
         for field in robot.log_position_fieldnames], axis=-1)
     velocities = np.stack([
-        log_vars.get(".".join((ENGINE_NAMESPACE, field)), [])
+        log_vars.get(".".join((robot_namespace, field)), [])
         for field in robot.log_velocity_fieldnames], axis=-1)
     forces = np.stack([
-        log_vars.get(".".join((ENGINE_NAMESPACE, field)), [])
+        log_vars.get(".".join((robot_namespace, field)), [])
         for field in robot.log_f_external_fieldnames], axis=-1)
 
     # Determine which optional data are available
@@ -279,6 +353,41 @@ def extract_trajectory_from_log(log_data: Dict[str, Any],
     return {"evolution_robot": evolution_robot,
             "robot": robot,
             "use_theoretical_model": False}
+
+
+def extract_trajectories_from_log(
+        log_data: Dict[str, Any],
+        robots: Optional[Sequence[jiminy.Model]] = None
+        ) -> Dict[str, TrajectoryDataType]:
+    """Extract the minimal required information from raw log data in order to
+    replay the simulation in a viewer.
+
+    .. note::
+        This function calls `extract_trajectory_from_log` to extract each
+        robot's trajectory. Refer to `extract_trajectory_from_log` for more
+        information.
+
+    :param log_data: Logged data (constants and variables) as a dictionary.
+    :param robots: Sequend of Jiminy robots associated with the logged
+                   trajectory.
+                   Optional: None by default. If None, then it will be
+                   reconstructed from 'log_data' using `build_robots_from_log`.
+
+    :returns: Dictonary mapping each robot name to its corresponding
+              trajectory.
+    """
+    trajectories = {}
+
+    # Handling of default argument(s)
+    if robots is None:
+        robots = build_robots_from_log(log_data)
+
+    for robot in robots:
+        trajectory = extract_trajectory_from_log(
+            log_data, robot, robot_name=robot.name)
+
+        trajectories[robot.name] = trajectory
+    return trajectories
 
 
 def update_sensor_measurements_from_log(
