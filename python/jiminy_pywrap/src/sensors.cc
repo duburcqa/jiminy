@@ -291,7 +291,6 @@ namespace jiminy::python
             // clang-format off
             cl
                 .def_readonly("type", &DerivedSensor::type_)
-                .def_readonly("has_prefix", &DerivedSensor::areFieldnamesGrouped_)
                 .add_static_property("fieldnames", bp::make_getter(&DerivedSensor::fieldnames_,
                                                    bp::return_value_policy<result_converter<true>>()))
                 ;

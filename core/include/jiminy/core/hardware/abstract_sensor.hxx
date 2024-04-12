@@ -259,14 +259,7 @@ namespace jiminy
     template<typename T>
     std::string AbstractSensorTpl<T>::getTelemetryName() const
     {
-        if (areFieldnamesGrouped_)
-        {
-            return addCircumfix(name_, getType(), {}, TELEMETRY_FIELDNAME_DELIMITER);
-        }
-        else
-        {
-            return name_;
-        }
+        return addCircumfix(name_, getType(), {}, TELEMETRY_FIELDNAME_DELIMITER);
     }
 
     template<typename T>

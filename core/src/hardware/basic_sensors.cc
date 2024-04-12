@@ -66,9 +66,7 @@ namespace jiminy
     const std::string AbstractSensorTpl<ImuSensor>::type_{"ImuSensor"};
     template<>
     const std::vector<std::string> AbstractSensorTpl<ImuSensor>::fieldnames_{
-        "Gyrox", "Gyroy", "Gyroz", "Accelx", "Accely", "Accelz"};
-    template<>
-    const bool AbstractSensorTpl<ImuSensor>::areFieldnamesGrouped_{false};
+        "GyroX", "GyroY", "GyroZ", "AccelX", "AccelY", "AccelZ"};
 
     void ImuSensor::initialize(const std::string & frameName)
     {
@@ -200,8 +198,6 @@ namespace jiminy
     const std::string AbstractSensorTpl<ContactSensor>::type_{"ContactSensor"};
     template<>
     const std::vector<std::string> AbstractSensorTpl<ContactSensor>::fieldnames_{"FX", "FY", "FZ"};
-    template<>
-    const bool AbstractSensorTpl<ContactSensor>::areFieldnamesGrouped_{false};
 
     void ContactSensor::initialize(const std::string & frameName)
     {
@@ -297,8 +293,6 @@ namespace jiminy
     template<>
     const std::vector<std::string> AbstractSensorTpl<ForceSensor>::fieldnames_{
         "FX", "FY", "FZ", "MX", "MY", "MZ"};
-    template<>
-    const bool AbstractSensorTpl<ForceSensor>::areFieldnamesGrouped_{false};
 
     void ForceSensor::initialize(const std::string & frameName)
     {
@@ -412,8 +406,6 @@ namespace jiminy
     const std::string AbstractSensorTpl<EncoderSensor>::type_{"EncoderSensor"};
     template<>
     const std::vector<std::string> AbstractSensorTpl<EncoderSensor>::fieldnames_{"Q", "V"};
-    template<>
-    const bool AbstractSensorTpl<EncoderSensor>::areFieldnamesGrouped_{true};
 
     void EncoderSensor::initialize(const std::string & jointName)
     {
@@ -525,8 +517,6 @@ namespace jiminy
     const std::string AbstractSensorTpl<EffortSensor>::type_{"EffortSensor"};
     template<>
     const std::vector<std::string> AbstractSensorTpl<EffortSensor>::fieldnames_{"U"};
-    template<>
-    const bool AbstractSensorTpl<EffortSensor>::areFieldnamesGrouped_{true};
 
     void EffortSensor::initialize(const std::string & motorName)
     {

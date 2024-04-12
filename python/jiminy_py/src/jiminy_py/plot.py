@@ -679,7 +679,6 @@ def plot_log(log_data: Dict[str, Any],
         sensor_names = robot.sensor_names.get(sensors_type, [])
         if not sensor_names:
             continue
-        namespace = sensors_type if sensors_class.has_prefix else None
         if isinstance(sensors_fields, dict):
             for fields_prefix, fieldnames in sensors_fields.items():
                 try:
@@ -687,7 +686,7 @@ def plot_log(log_data: Dict[str, Any],
                     data_nested = [
                         extract_variables_from_log(log_vars, [
                             '.'.join((name, fields_prefix + field))
-                            for name in sensor_names], namespace)
+                            for name in sensor_names], sensors_type)
                         for field in fieldnames]
                     tabs_data[type_name] = OrderedDict(
                         (field, OrderedDict(zip(sensor_names, data)))
@@ -701,7 +700,7 @@ def plot_log(log_data: Dict[str, Any],
                     type_name = ' '.join((sensors_type, field))
                     data = extract_variables_from_log(log_vars, [
                         '.'.join((name, field)) for name in sensor_names
-                        ], namespace)
+                        ], sensors_type)
                     tabs_data[type_name] = OrderedDict(zip(
                         sensor_names, data))
                 except ValueError:
