@@ -844,7 +844,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         if self.simulator.is_viewer_available:
             viewer = self.simulator.viewer
             assert viewer is not None  # Assert(s) for type checker
-            viewer._setup(self.robot)
+            viewer._setup(self.robot)  # type: ignore[attr-defined]
             if viewer.has_gui():
                 viewer.refresh()
 
@@ -1190,7 +1190,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
 
         # Stop the simulation to unlock the robot.
         # It will enable to display contact forces for replay.
-        if self.engine.is_simulation_running:
+        if self.simulator.is_simulation_running:
             self.simulator.stop()
 
         # Disable play interactive mode flag and restore training flag

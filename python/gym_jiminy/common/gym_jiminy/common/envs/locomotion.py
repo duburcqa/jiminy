@@ -191,7 +191,8 @@ class WalkerJiminyEnv(BaseJiminyEnv):
             # Load engine and robot options
             if config_path is None:
                 if isinstance(robot, BaseJiminyRobot):
-                    urdf_path = robot._urdf_path_orig
+                    urdf_path = (
+                        robot._urdf_path_orig)  # type: ignore[attr-defined]
                 else:
                     urdf_path = robot.urdf_path
                 if not urdf_path:
