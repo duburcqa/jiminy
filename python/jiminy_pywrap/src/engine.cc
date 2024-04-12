@@ -440,7 +440,8 @@ namespace jiminy::python
                 }
                 else
                 {
-                    constants[key] = value;  // convertToPython(value, false);
+                    constants[key] = bp::object(
+                        bp::handle<>(PyBytes_FromStringAndSize(value.c_str(), value.size())));
                 }
             }
 
