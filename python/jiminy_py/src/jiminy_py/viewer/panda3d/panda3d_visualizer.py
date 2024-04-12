@@ -925,7 +925,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
 
     def _make_floor(self,
                     geom: Optional[Geom] = None,
-                    show_meshes: bool = False) -> NodePath:
+                    show_vertices: bool = False) -> NodePath:
         model = GeomNode('floor')
         node = self.render.attach_new_node(model)
 
@@ -943,7 +943,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         else:
             model.add_geom(geom)
             node.set_color((0.75, 0.75, 0.85, 1.0))
-            if show_meshes:
+            if show_vertices:
                 render_attrib = node.get_state().get_attrib_def(
                     RenderModeAttrib.get_class_slot())
                 node.set_attrib(RenderModeAttrib.make(
@@ -982,7 +982,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
 
     def update_floor(self,
                      geom: Optional[Geom] = None,
-                     show_meshes: bool = False) -> NodePath:
+                     show_vertices: bool = False) -> NodePath:
         """Update the floor.
 
         :param geom: Ground profile as a generic geometry object. If None, then
@@ -994,7 +994,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
 
         # Remove existing floor and create a new one
         self._floor.remove_node()
-        self._floor = self._make_floor(geom, show_meshes)
+        self._floor = self._make_floor(geom, show_vertices)
 
         # Hide the floor if is was previously hidden
         if is_hidden:
@@ -1985,14 +1985,17 @@ def convert_bvh_collision_geometry_to_primitive(geom: hppfcl.CollisionGeometry
     if len(faces) == 0:
         return None
 
-    # Define normal to vertices as the average normal of adjacent triangles
+    # Define normal to vertices as the average normal of adjacent triangles,
+    # weigthed by their surface area: https://iquilezles.org/articles/normals/
     fnormals = np.cross(vertices[faces[:, 2]] - vertices[faces[:, 1]],
                         vertices[faces[:, 0]] - vertices[faces[:, 1]])
-    fnormals /= np.linalg.norm(fnormals, axis=0)
     normals = np.zeros((len(vertices), 3), dtype=np.float32)
     for i in range(3):
-        normals[faces[:, i]] += fnormals
-    normals /= np.linalg.norm(normals, axis=0)
+        # Must use `np.add.at` which is unbuffered unlike `+=`, otherwise
+        # accumulation will not work properly as there are repeated indices.
+        np.add.at(normals, faces[:, i], fnormals)
+    scale = np.linalg.norm(normals, axis=1)
+    normals[scale > 0.0] /= scale[scale > 0.0, np.newaxis]
 
     # Create primitive triangle geometry
     vformat = GeomVertexFormat()

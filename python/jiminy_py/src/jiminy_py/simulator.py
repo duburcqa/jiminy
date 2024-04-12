@@ -789,7 +789,8 @@ class Simulator:
         if update_ground_profile:
             engine_options = self.engine.get_options()
             ground_profile = engine_options["world"]["groundProfile"]
-            Viewer.update_floor(ground_profile, show_meshes=False)
+            Viewer.update_floor(
+                ground_profile, simplify_mesh=True, show_vertices=False)
 
         # Set the camera pose if requested
         if camera_pose is not None:
