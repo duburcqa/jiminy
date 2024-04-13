@@ -194,8 +194,8 @@ def update_floor(viewer: meshcat.Visualizer,
     # Convert provided geometry in Meshcat-specific triangle-based geometry
     vertices, faces = extract_vertices_and_faces_from_geometry(geom)
     obj = TriangularMeshGeometry(vertices, faces)
-    material = meshcat.geometry.MeshLambertMaterial()
-    material.color = (255 << 16) + (255 << 8) + 255
+    material = meshcat.geometry.MeshPhongMaterial()
+    material.color = (155 << 16) + (155 << 8) + 180
 
     # Disable newly created custom ground profile and hide original flat ground
     viewer["Ground"].set_object(obj, material)

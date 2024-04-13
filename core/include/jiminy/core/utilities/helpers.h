@@ -100,14 +100,14 @@ namespace jiminy
     bool JIMINY_DLLAPI endsWith(const std::string & str, const std::string & substr);
 
     std::string JIMINY_DLLAPI addCircumfix(std::string fieldname,  // Make a copy
-                                           const std::string_view & prefix = {},
-                                           const std::string_view & suffix = {},
-                                           const std::string_view & delimiter = {});
+                                           const std::string_view & prefix,
+                                           const std::string_view & suffix,
+                                           const std::string_view & delimiter);
     std::vector<std::string> JIMINY_DLLAPI addCircumfix(
         const std::vector<std::string> & fieldnames,
-        const std::string_view & prefix = {},
-        const std::string_view & suffix = {},
-        const std::string_view & delimiter = {});
+        const std::string_view & prefix,
+        const std::string_view & suffix,
+        const std::string_view & delimiter);
 
     std::string JIMINY_DLLAPI removeSuffix(std::string fieldname,  // Make a copy
                                            const std::string & suffix);

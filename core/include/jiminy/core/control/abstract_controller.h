@@ -11,7 +11,7 @@
 namespace jiminy
 {
     /// \brief Namespace of the telemetry object.
-    inline constexpr std::string_view CONTROLLER_TELEMETRY_NAMESPACE{"HighLevelController"};
+    inline constexpr std::string_view CONTROLLER_TELEMETRY_NAMESPACE{"controller"};
 
     class TelemetrySender;
     class TelemetryData;

@@ -627,6 +627,11 @@ def plot_log(log_data: Dict[str, Any],
     if robot is None:
         robot = build_robot_from_log(log_data)
 
+    # Make sure tha the simulation was single-robot
+    if robot.name:
+        raise NotImplementedError(
+            "This method only support single-robot simulations.")
+
     # Figures data structure as a dictionary
     tabs_data: Dict[
         str, Dict[str, Union[np.ndarray, Dict[str, np.ndarray]]]
@@ -648,7 +653,7 @@ def plot_log(log_data: Dict[str, Any],
             values = extract_variables_from_log(
                 log_vars, fieldnames, as_dict=True)
             tabs_data[' '.join(("State", fields_type))] = OrderedDict(
-                (field.split(".", 1)[1][7:].replace(fields_type, ""), elem)
+                (field[7:].replace(fields_type, ""), elem)
                 for field, elem in values.items())
         except ValueError:
             # Variable has not been recorded and is missing in log file
@@ -679,7 +684,6 @@ def plot_log(log_data: Dict[str, Any],
         sensor_names = robot.sensor_names.get(sensors_type, [])
         if not sensor_names:
             continue
-        namespace = sensors_type if sensors_class.has_prefix else None
         if isinstance(sensors_fields, dict):
             for fields_prefix, fieldnames in sensors_fields.items():
                 try:
@@ -687,7 +691,7 @@ def plot_log(log_data: Dict[str, Any],
                     data_nested = [
                         extract_variables_from_log(log_vars, [
                             '.'.join((name, fields_prefix + field))
-                            for name in sensor_names], namespace)
+                            for name in sensor_names], sensors_type)
                         for field in fieldnames]
                     tabs_data[type_name] = OrderedDict(
                         (field, OrderedDict(zip(sensor_names, data)))
@@ -701,7 +705,7 @@ def plot_log(log_data: Dict[str, Any],
                     type_name = ' '.join((sensors_type, field))
                     data = extract_variables_from_log(log_vars, [
                         '.'.join((name, field)) for name in sensor_names
-                        ], namespace)
+                        ], sensors_type)
                     tabs_data[type_name] = OrderedDict(zip(
                         sensor_names, data))
                 except ValueError:

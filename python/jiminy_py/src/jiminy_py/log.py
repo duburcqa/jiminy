@@ -25,7 +25,6 @@ from .robot import _fix_urdf_mesh_path
 from .dynamics import State, TrajectoryDataType
 
 
-ENGINE_NAMESPACE = "HighLevelController"
 SENSORS_FIELDS: Dict[
         Type[jiminy.AbstractSensor], Union[List[str], Dict[str, List[str]]]
         ] = {
@@ -52,8 +51,8 @@ read_log = jiminy.core.Engine.read_log
 @overload
 def extract_variables_from_log(log_vars: Dict[str, np.ndarray],
                                fieldnames: FieldNested,
-                               namespace: Optional[str] = ENGINE_NAMESPACE, *,
-                               as_dict: Literal[False] = False
+                               namespace: str = "",
+                               *, as_dict: Literal[False] = False
                                ) -> List[np.ndarray]:
     ...
 
@@ -61,24 +60,25 @@ def extract_variables_from_log(log_vars: Dict[str, np.ndarray],
 @overload
 def extract_variables_from_log(log_vars: Dict[str, np.ndarray],
                                fieldnames: FieldNested,
-                               namespace: Optional[str] = ENGINE_NAMESPACE, *,
-                               as_dict: Literal[True]
+                               namespace: str = "",
+                               *, as_dict: Literal[True]
                                ) -> Dict[str, np.ndarray]:
     ...
 
 
 def extract_variables_from_log(log_vars: Dict[str, np.ndarray],
                                fieldnames: FieldNested,
-                               namespace: Optional[str] = ENGINE_NAMESPACE, *,
-                               as_dict: bool = False) -> Union[
+                               namespace: str = "",
+                               *, as_dict: bool = False
+                               ) -> Union[
                                    List[np.ndarray], Dict[str, np.ndarray]]:
     """Extract values associated with a set of variables in a specific
     namespace.
 
     :param log_vars: Logged variables as a dictionary.
     :param fieldnames: Structured fieldnames.
-    :param namespace: Namespace of the fieldnames. None to disable.
-                      Optional: ENGINE_TELEMETRY_NAMESPACE by default.
+    :param namespace: Namespace of the fieldnames. Empty string to disable.
+                      Optional: Empty by default.
     :param keep_structure: Whether to return a dictionary mapping flattened
                            fieldnames to values.
                            Optional: True by default.
@@ -93,9 +93,9 @@ def extract_variables_from_log(log_vars: Dict[str, np.ndarray],
     values: List[np.ndarray] = []
     for fieldname_path, fieldname in tree.flatten_with_path(fieldnames):
         # A key is the concatenation of namespace and full path of fieldname
-        key = ".".join(map(str, filter(
-            lambda key: isinstance(key, str),
-            (namespace, *fieldname_path, fieldname))))
+        key = ".".join(filter(
+            lambda key: isinstance(key, str) and key,
+            (namespace, *fieldname_path, fieldname)))
 
         # Raise an exception if the key does not exists and not fail safe
         if key not in log_vars:
@@ -151,9 +151,6 @@ def build_robot_from_log(
     :returns: Reconstructed robot, and parsed log data as returned by
               `jiminy_py.log.read_log` method.
     """
-    # Prepare robot namespace
-    robot_namespace = ".".join(filter(None, (ENGINE_NAMESPACE, robot_name)))
-
     # Instantiate empty robot
     robot = jiminy.Robot(robot_name)
 
@@ -162,7 +159,7 @@ def build_robot_from_log(
 
     try:
         pinocchio_model = log_constants[
-            ".".join((robot_namespace, "pinocchio_model"))]
+            ".".join(filter(None, (robot_name, "pinocchio_model")))]
     except KeyError as e:
         if robot_name == "":
             raise ValueError(
@@ -172,20 +169,20 @@ def build_robot_from_log(
     try:
         # Extract geometry models
         collision_model = log_constants[
-            ".".join((robot_namespace, "collision_model"))]
+            ".".join(filter(None, (robot_name, "collision_model")))]
         visual_model = log_constants[
-            ".".join((robot_namespace, "visual_model"))]
+            ".".join(filter(None, (robot_name, "visual_model")))]
 
         # Initialize the model
         robot.initialize(pinocchio_model, collision_model, visual_model)
     except KeyError as e:
         # Extract initialization arguments
         urdf_data = log_constants[
-            ".".join((robot_namespace, "urdf_file"))]
+            ".".join(filter(None, (robot_name, "urdf_file")))]
         has_freeflyer = int(log_constants[
-            ".".join((robot_namespace, "has_freeflyer"))])
+            ".".join(filter(None, (robot_name, "has_freeflyer")))])
         mesh_package_dirs = [*mesh_package_dirs, *log_constants.get(
-            ".".join((robot_namespace, "mesh_package_dirs")), ())]
+            ".".join(filter(None, (robot_name, "mesh_package_dirs"))), ())]
 
         # Make sure urdf data is available
         if len(urdf_data) <= 1:
@@ -198,7 +195,7 @@ def build_robot_from_log(
             tempfile.gettempdir(),
             f"{next(tempfile._get_candidate_names())}.urdf")
         with open(urdf_path, "xb") as f:
-            f.write(urdf_data.encode())
+            f.write(urdf_data)
 
         # Fix the mesh paths in the URDF model if requested
         if mesh_path_dir is not None:
@@ -213,7 +210,7 @@ def build_robot_from_log(
         os.remove(urdf_path)
 
         # Load the options
-        all_options = log_constants[".".join((ENGINE_NAMESPACE, "options"))]
+        all_options = log_constants["options"]
         robot.set_options(all_options[robot_name or "robot"])
 
         # Update model in-place.
@@ -253,23 +250,20 @@ def build_robots_from_log(
 
     :returns: Sequence of reconstructed robots.
     """
-    # Extract log constants
-    log_constants = log_data["constants"]
+    # Try to infer robot names from log constants
+    robot_names = []
+    for key in log_data["constants"].keys():
+        try:
+            groups = re.match(r"^(\w*?)\.?has_freeflyer$", key)
+            robot_names.append(groups[1])
+        except TypeError:
+            pass
 
-    robots_names = []
-    for key in log_constants.keys():
-        if key == "HighLevelController.has_freeflyer":
-            robots_names.append("")
-        else:
-            m = re.findall(r"HighLevelController.(\w+).has_freeflyer", key)
-            if len(m) == 1:
-                robots_names.append(m[0])
-
+    # Build all the robots sequentially
     robots = []
-    for robot_name in robots_names:
+    for robot_name in robot_names:
         robot = build_robot_from_log(
             log_data, mesh_path_dir, mesh_package_dirs, robot_name=robot_name)
-
         robots.append(robot)
 
     return robots
@@ -310,7 +304,6 @@ def extract_trajectory_from_log(log_data: Dict[str, Any],
     elif robot_name is None:
         robot_name = ""
 
-    robot_namespace = ".".join(filter(None, (ENGINE_NAMESPACE, robot_name)))
     # Handling of default argument(s)
     if robot is None:
         robot = build_robot_from_log(log_data, robot_name=robot_name)
@@ -320,13 +313,13 @@ def extract_trajectory_from_log(log_data: Dict[str, Any],
 
     # Extract the joint positions, velocities and external forces over time
     positions = np.stack([
-        log_vars.get(".".join((robot_namespace, field)), [])
+        log_vars.get(".".join(filter(None, (robot_name, field))), [])
         for field in robot.log_position_fieldnames], axis=-1)
     velocities = np.stack([
-        log_vars.get(".".join((robot_namespace, field)), [])
+        log_vars.get(".".join(filter(None, (robot_name, field))), [])
         for field in robot.log_velocity_fieldnames], axis=-1)
     forces = np.stack([
-        log_vars.get(".".join((robot_namespace, field)), [])
+        log_vars.get(".".join(filter(None, (robot_name, field))), [])
         for field in robot.log_f_external_fieldnames], axis=-1)
 
     # Determine which optional data are available

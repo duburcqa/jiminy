@@ -83,19 +83,16 @@ class SimulateSimplePendulum(unittest.TestCase):
 
         # Extract state evolution over time
         time = log_vars['Global.Time']
+        imu_jiminy = np.stack([
+            log_vars['.'.join((jiminy.ImuSensor.type, 'PendulumLink', field))]
+            for field in jiminy.ImuSensor.fieldnames], axis=-1)
+
+        # Split IMU data if requested
         if split:
-            gyro_jiminy = np.stack([
-                log_vars['PendulumLink.Gyro' + s] for s in ['x', 'y', 'z']
-            ], axis=-1)
-            accel_jiminy = np.stack([
-                log_vars['PendulumLink.Accel' + s] for s in ['x', 'y', 'z']
-            ], axis=-1)
+            gyro_jiminy, accel_jiminy = np.split(imu_jiminy, 2, axis=-1)
             return time, gyro_jiminy, accel_jiminy
-        else:
-            imu_jiminy = np.stack([
-                log_vars['PendulumLink.' + f]
-                for f in jiminy.ImuSensor.fieldnames], axis=-1)
-            return time, imu_jiminy
+
+        return time, imu_jiminy
 
     def test_armature(self):
         """Verify the dynamics of the system when adding rotor inertia.

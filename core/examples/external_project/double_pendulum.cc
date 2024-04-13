@@ -53,6 +53,7 @@ int main(int argc, char * argv[])
     const std::filesystem::path filePath(__FILE__);
     const auto urdfPath = filePath.parent_path() / "double_pendulum.urdf";
     const auto outputDirPath = std::filesystem::temp_directory_path();
+    std::cout << "Output directory: " << outputDirPath << std::endl;
 
     // =====================================================================
     // ============ Instantiate and configure the simulation ===============

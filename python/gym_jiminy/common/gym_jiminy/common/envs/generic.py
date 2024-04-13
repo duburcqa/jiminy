@@ -709,7 +709,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         # Extract the observer/controller update period.
         # The controller update period is used by default for the observer if
         # it was not specify by the user in `_setup`.
-        engine_options = self.simulator.engine.get_options()
+        engine_options = self.simulator.get_options()
         self.control_dt = float(
             engine_options['stepper']['controllerUpdatePeriod'])
         if self.observe_dt < 0.0:
@@ -1031,7 +1031,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
                 "`plot` method.")
 
         # Plot all registered variables
-        for key, fielnames in self.log_fieldnames.items():
+        for key, fieldnames in self.log_fieldnames.items():
             # Filter state if requested
             if not enable_block_states and key.endswith(".state"):
                 continue
@@ -1042,21 +1042,23 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
             # scalar data over time to be displayed to the same subplot.
             t = log_vars["Global.Time"]
             tab_data: Dict[str, Union[np.ndarray, Dict[str, np.ndarray]]] = {}
-            if isinstance(fielnames, dict):
-                for group, fieldnames in fielnames.items():
-                    if not isinstance(fieldnames, list):
+            if isinstance(fieldnames, dict):
+                for group, subfieldnames in fieldnames.items():
+                    if not isinstance(subfieldnames, list):
                         LOGGER.error(
                             "Action space not supported by this method.")
                         return figure
+                    value_map = extract_variables_from_log(
+                        log_vars, subfieldnames, "controller", as_dict=True)
                     tab_data[group] = {
                         key.split(".", 2)[2]: value
-                        for key, value in extract_variables_from_log(
-                            log_vars, fieldnames, as_dict=True).items()}
-            elif isinstance(fielnames, list):
+                        for key, value in value_map.items()}
+            elif isinstance(fieldnames, list):
+                value_map = extract_variables_from_log(
+                    log_vars, fieldnames, "controller", as_dict=True)
                 tab_data.update({
                     key.split(".", 2)[2]: value
-                    for key, value in extract_variables_from_log(
-                        log_vars, fielnames, as_dict=True).items()})
+                    for key, value in value_map.items()})
 
             # Add action tab
             figure.add_tab(key.replace(".", " "), t, tab_data)
@@ -1318,7 +1320,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         super()._setup()
 
         # Configure the low-level integrator
-        engine_options = self.simulator.engine.get_options()
+        engine_options = self.simulator.get_options()
         engine_options["stepper"]["iterMax"] = 0
         if self.debug:
             engine_options["stepper"]["verbose"] = True
@@ -1334,7 +1336,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
             engine_options["telemetry"]["isPersistent"] = False
 
         # Update engine options
-        self.simulator.engine.set_options(engine_options)
+        self.simulator.set_options(engine_options)
 
     def _initialize_observation_space(self) -> None:
         """Configure the observation of the environment.
@@ -1410,7 +1412,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
 
         # Make sure the robot impacts the ground
         if self.robot.has_freeflyer:
-            engine_options = self.simulator.engine.get_options()
+            engine_options = self.simulator.get_options()
             ground_fun = engine_options['world']['groundProfile']
             compute_freeflyer_state_from_fixed_body(
                 self.robot, q, ground_profile=ground_fun)

@@ -21,15 +21,15 @@ if __name__ == '__main__':
     robot = simulator.robot
 
     # Disable constraint solver regularization
-    engine_options = simulator.engine.get_options()
+    engine_options = simulator.get_options()
     engine_options["constraints"]["regularization"] = 0.0
-    simulator.engine.set_options(engine_options)
+    simulator.set_options(engine_options)
 
     # Continuous sensor and controller update
-    engine_options = simulator.engine.get_options()
+    engine_options = simulator.get_options()
     engine_options["stepper"]["controllerUpdatePeriod"] = 0.0
     engine_options["stepper"]["sensorsUpdatePeriod"] = 0.0
-    simulator.engine.set_options(engine_options)
+    simulator.set_options(engine_options)
 
     # Add fixed frame constraint
     constraint = jiminy.FrameConstraint(

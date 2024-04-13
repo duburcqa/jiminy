@@ -571,39 +571,42 @@ namespace jiminy
             auto energyIt = energy_.begin();
             for (; robotIt != robots_.end(); ++robotIt, ++robotDataIt, ++energyIt)
             {
+                // Define proxy for convenience
+                const std::string & robotName = (*robotIt)->getName();
+
                 // Generate the log fieldnames
                 robotDataIt->logPositionFieldnames =
                     addCircumfix((*robotIt)->getLogPositionFieldnames(),
-                                 (*robotIt)->getName(),
+                                 robotName,
                                  {},
                                  TELEMETRY_FIELDNAME_DELIMITER);
                 robotDataIt->logVelocityFieldnames =
                     addCircumfix((*robotIt)->getLogVelocityFieldnames(),
-                                 (*robotIt)->getName(),
+                                 robotName,
                                  {},
                                  TELEMETRY_FIELDNAME_DELIMITER);
                 robotDataIt->logAccelerationFieldnames =
                     addCircumfix((*robotIt)->getLogAccelerationFieldnames(),
-                                 (*robotIt)->getName(),
+                                 robotName,
                                  {},
                                  TELEMETRY_FIELDNAME_DELIMITER);
                 robotDataIt->logForceExternalFieldnames =
                     addCircumfix((*robotIt)->getLogForceExternalFieldnames(),
-                                 (*robotIt)->getName(),
+                                 robotName,
                                  {},
                                  TELEMETRY_FIELDNAME_DELIMITER);
                 robotDataIt->logCommandFieldnames =
                     addCircumfix((*robotIt)->getLogCommandFieldnames(),
-                                 (*robotIt)->getName(),
+                                 robotName,
                                  {},
                                  TELEMETRY_FIELDNAME_DELIMITER);
                 robotDataIt->logMotorEffortFieldnames =
                     addCircumfix((*robotIt)->getLogMotorEffortFieldnames(),
-                                 (*robotIt)->getName(),
+                                 robotName,
                                  {},
                                  TELEMETRY_FIELDNAME_DELIMITER);
-                robotDataIt->logEnergyFieldname = addCircumfix(
-                    "energy", (*robotIt)->getName(), {}, TELEMETRY_FIELDNAME_DELIMITER);
+                robotDataIt->logEnergyFieldname =
+                    addCircumfix("energy", robotName, {}, TELEMETRY_FIELDNAME_DELIMITER);
 
                 // Register variables to the telemetry senders
                 if (engineOptions_->telemetry.enableConfiguration)
@@ -1534,18 +1537,7 @@ namespace jiminy
         }
 
         // Log all options
-        GenericConfig allOptions;
-        for (const auto & robot : robots_)
-        {
-            std::string telemetryRobotOptions = robot->getName();
-            if (telemetryRobotOptions.empty())
-            {
-                telemetryRobotOptions = "robot";
-            }
-            allOptions[telemetryRobotOptions] = robot->getOptions();
-        }
-        allOptions["engine"] = engineOptionsGeneric_;
-        Json::Value allOptionsJson = convertToJson(allOptions);
+        Json::Value allOptionsJson = convertToJson(getAllOptions());
         Json::StreamWriterBuilder jsonWriter;
         jsonWriter["indentation"] = "";
         const std::string allOptionsString = Json::writeString(jsonWriter, allOptionsJson);
@@ -2788,6 +2780,36 @@ namespace jiminy
 
         // Set breakpoint period during the integration loop
         stepperUpdatePeriod_ = updatePeriodMin;
+    }
+
+    GenericConfig Engine::getAllOptions() const noexcept
+    {
+        GenericConfig allOptions;
+        allOptions["engine"] = engineOptionsGeneric_;
+        for (const auto & robot : robots_)
+        {
+            std::string robotOptionName = robot->getName();
+            if (robotOptionName.empty())
+            {
+                robotOptionName = "robot";
+            }
+            allOptions[robotOptionName] = robot->getOptions();
+        }
+        return allOptions;
+    }
+
+    void Engine::setAllOptions(const GenericConfig & allOptions)
+    {
+        setOptions(boost::get<const GenericConfig>(allOptions.at("engine")));
+        for (auto & robot : robots_)
+        {
+            std::string robotOptionName = robot->getName();
+            if (robotOptionName.empty())
+            {
+                robotOptionName = "robot";
+            }
+            robot->setOptions(boost::get<const GenericConfig>(allOptions.at(robotOptionName)));
+        }
     }
 
     std::ptrdiff_t Engine::getRobotIndex(const std::string & robotName) const

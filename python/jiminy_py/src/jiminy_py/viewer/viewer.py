@@ -1783,8 +1783,8 @@ class Viewer:
                      x_range: Tuple[float, float] = (-10.0, 10.0),
                      y_range: Tuple[float, float] = (-10.0, 10.0),
                      grid_unit:  Tuple[float, float] = (0.04, 0.04),
-                     simplify_meshes: bool = False,
-                     show_meshes: bool = False) -> None:
+                     simplify_mesh: bool = False,
+                     show_vertices: bool = False) -> None:
         """Display a custom ground profile as a height map or the original tile
         ground floor.
 
@@ -1801,14 +1801,14 @@ class Viewer:
         :param grid_unit: Tuple gathering X and Y discretization steps for the
                           generation of the heightmap mesh.
                           Optional: 4cm by default.
-        :param simplify_meshes: Whether the generated heightmap mesh should be
-                                decimated before final rendering. This option
-                                must be enabled for the ratio between grid size
-                                and unit is very large to avoid a prohibitive
-                                slowdown of the viewer.
-                                Optional: False by default
-        :param show_meshes: Whether to highlight the mesh vertices.
-                            Optional: disabled by default.
+        :param simplify_mesh: Whether the generated heightmap mesh should be
+                              decimated before final rendering. This option
+                              must be enabled for the ratio between grid size
+                              and unit is very large to avoid a prohibitive
+                              slowdown of the viewer.
+                              Optional: False by default
+        :param show_vertices: Whether to highlight the mesh vertices.
+                              Optional: disabled by default.
         """
         # pylint: disable=import-outside-toplevel
 
@@ -1821,7 +1821,7 @@ class Viewer:
         if ground_profile is not None:
             geom = discretize_heightmap(
                 ground_profile, *x_range, grid_unit[0], *y_range, grid_unit[1],
-                must_simplify=simplify_meshes)
+                must_simplify=simplify_mesh)
 
         # Render original flat tile ground if possible.
         # TODO: Improve this check using LocalAABB box geometry instead.
@@ -1836,7 +1836,7 @@ class Viewer:
             obj = None
             if geom is not None:
                 obj = convert_bvh_collision_geometry_to_primitive(geom)
-            Viewer._backend_obj.gui.update_floor(obj, show_meshes)
+            Viewer._backend_obj.gui.update_floor(obj, show_vertices)
         else:
             from .meshcat.meshcat_visualizer import (
                 update_floor as meshcat_update_floor)

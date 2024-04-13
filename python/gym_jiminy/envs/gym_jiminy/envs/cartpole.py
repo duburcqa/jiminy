@@ -155,10 +155,10 @@ class CartPoleJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         super()._setup()
 
         # OpenAI Gym implementation uses euler explicit integration scheme
-        engine_options = self.simulator.engine.get_options()
+        engine_options = self.simulator.get_options()
         engine_options["stepper"]["odeSolver"] = "euler_explicit"
         engine_options["stepper"]["dtMax"] = CONTROL_DT
-        self.simulator.engine.set_options(engine_options)
+        self.simulator.set_options(engine_options)
 
     def _initialize_observation_space(self) -> None:
         """Configure the observation of the environment.

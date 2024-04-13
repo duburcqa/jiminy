@@ -380,7 +380,7 @@ namespace jiminy::python
             // Get constants
             for (const auto & [key, value] : logData.constants)
             {
-                if (endsWith(key, ".options"))
+                if (endsWith(key, "options"))
                 {
                     std::vector<uint8_t> jsonStringVec(value.begin(), value.end());
                     std::shared_ptr<AbstractIODevice> device =
@@ -389,7 +389,7 @@ namespace jiminy::python
                     jsonLoad(robotOptions, device);
                     constants[key] = robotOptions;
                 }
-                else if (key.find(".pinocchio_model") != std::string::npos)
+                else if (key.find("pinocchio_model") != std::string::npos)
                 {
                     try
                     {
@@ -404,7 +404,7 @@ namespace jiminy::python
                                      e.what());
                     }
                 }
-                else if (endsWith(key, ".visual_model") || endsWith(key, ".collision_model"))
+                else if (endsWith(key, "visual_model") || endsWith(key, "collision_model"))
                 {
                     try
                     {
@@ -419,7 +419,7 @@ namespace jiminy::python
                                      e.what());
                     }
                 }
-                else if (endsWith(key, ".mesh_package_dirs"))
+                else if (endsWith(key, "mesh_package_dirs"))
                 {
                     bp::list meshPackageDirs;
                     std::stringstream ss(value);
@@ -440,7 +440,8 @@ namespace jiminy::python
                 }
                 else
                 {
-                    constants[key] = value;  // convertToPython(value, false);
+                    constants[key] = bp::object(
+                        bp::handle<>(PyBytes_FromStringAndSize(value.c_str(), value.size())));
                 }
             }
 
@@ -595,6 +596,13 @@ namespace jiminy::python
             GenericConfig config = self.getOptions();
             convertFromPython(configPy, config);
             return self.setOptions(config);
+        }
+
+        static void setAllOptions(Engine & self, const bp::dict & configPy)
+        {
+            GenericConfig config = self.getAllOptions();
+            convertFromPython(configPy, config);
+            return self.setAllOptions(config);
         }
     }
 
@@ -776,6 +784,8 @@ namespace jiminy::python
 
             .def("set_options", &internal::engine::setOptions)
             .def("get_options", &Engine::getOptions)
+            .def("set_all_options", &internal::engine::setAllOptions)
+            .def("get_all_options", &Engine::getAllOptions)
 
             .DEF_READONLY_WITH_POLICY(
                 "robots", &Engine::robots_, bp::return_value_policy<result_converter<true>>())

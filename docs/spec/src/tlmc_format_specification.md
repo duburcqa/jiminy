@@ -58,7 +58,7 @@ GROUP "/" {
          (0): 1
          }
       }
-      DATASET "HighLevelController.controlOffsetTimestamp" {
+      DATASET "controlOffsetTimestamp" {
          DATATYPE  H5T_STRING {
             STRSIZE 8;
             STRPAD H5T_STR_NULLPAD;
@@ -73,7 +73,7 @@ GROUP "/" {
       ...
    }
    GROUP "variables" {
-      GROUP "HighLevelController.currentPositionLeftSagittalHip" {
+      GROUP "currentPositionLeftSagittalHip" {
          DATASET "time" {
             DATATYPE  H5T_STD_I64LE
             DATASPACE  SIMPLE { ( 338623 ) / ( 338623 ) }
