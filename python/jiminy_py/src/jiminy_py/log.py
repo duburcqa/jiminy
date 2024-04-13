@@ -94,7 +94,7 @@ def extract_variables_from_log(log_vars: Dict[str, np.ndarray],
     for fieldname_path, fieldname in tree.flatten_with_path(fieldnames):
         # A key is the concatenation of namespace and full path of fieldname
         key = ".".join(filter(
-            lambda key: isinstance(key, str) and key,
+            lambda key: isinstance(key, str) and key,  # type: ignore[arg-type]
             (namespace, *fieldname_path, fieldname)))
 
         # Raise an exception if the key does not exists and not fail safe
@@ -253,11 +253,9 @@ def build_robots_from_log(
     # Try to infer robot names from log constants
     robot_names = []
     for key in log_data["constants"].keys():
-        try:
-            groups = re.match(r"^(\w*?)\.?has_freeflyer$", key)
-            robot_names.append(groups[1])
-        except TypeError:
-            pass
+        robot_name_match = re.match(r"^(\w*?)\.?has_freeflyer$", key)
+        if robot_name_match is not None:
+            robot_names.append(robot_name_match.group(1))
 
     # Build all the robots sequentially
     robots = []
