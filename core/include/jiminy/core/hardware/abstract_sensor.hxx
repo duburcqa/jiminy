@@ -148,7 +148,13 @@ namespace jiminy
     template<typename T>
     void AbstractSensorTpl<T>::resetAll(uint32_t seed)
     {
-        // Make sure all the sensors are attached to a robot
+        // Make sure the sensor is attached to a robot
+        if (!isAttached_)
+        {
+            JIMINY_THROW(bad_control_flow, "Sensor not attached to any robot.");
+        }
+
+        // Make sure all the sensors are attached to a robot and initialized
         for (AbstractSensorBase * sensor : sharedStorage_->sensors_)
         {
             if (!sensor->isAttached_)
@@ -159,6 +165,15 @@ namespace jiminy
                              "' of type '",
                              type_,
                              "' not attached to any robot.");
+            }
+            if (!sensor->isInitialized_)
+            {
+                JIMINY_THROW(bad_control_flow,
+                             "Sensor '",
+                             sensor->name_,
+                             "' of type '",
+                             type_,
+                             "' not initialized.");
             }
         }
 

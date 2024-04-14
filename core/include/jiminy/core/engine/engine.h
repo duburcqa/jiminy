@@ -661,19 +661,19 @@ namespace jiminy
         const ImpulseForceVector & getImpulseForces(const std::string & robotName) const;
         const ProfileForceVector & getProfileForces(const std::string & robotName) const;
 
-        GenericConfig getOptions() const noexcept;
         void setOptions(const GenericConfig & engineOptions);
+        const GenericConfig & getOptions() const noexcept;
+        /// \brief Set the options of the engine and all the robots.
+        ///
+        /// \param[in] simulationOptions Dictionary gathering all the options. See
+        ///                              `getSimulationOptions` for details about the hierarchy.
+        void setSimulationOptions(const GenericConfig & simulationOptions);
         /// \brief Get the options of the engine and all the robots.
         ///
         /// \details The key 'engine' maps to the engine options, whereas `robot.name` maps to the
-        ///          invididual options of each robot for multi-robot simulations, 'robot' for
+        ///          individual options of each robot for multi-robot simulations, 'robot' for
         ///          single-robot simulations.
-        GenericConfig getAllOptions() const noexcept;
-        /// \brief Set the options of the engine and all the robots.
-        ///
-        /// \param[in] allOptions Dictionary gathering all the options. See `getAllOptions` for
-        ///                       details about the hierarchy.
-        void setAllOptions(const GenericConfig & allOptions);
+        GenericConfig getSimulationOptions() const noexcept;
 
         bool getIsTelemetryConfigured() const;
         std::shared_ptr<Robot> getRobot(const std::string & robotName);
@@ -841,7 +841,8 @@ namespace jiminy
     protected:
         bool isTelemetryConfigured_{false};
         bool isSimulationRunning_{false};
-        GenericConfig engineOptionsGeneric_{};
+        mutable bool areSimulationOptionsRefreshed_{false};
+        mutable GenericConfig simulationOptionsGeneric_{};
         PCG32 generator_;
 
     private:

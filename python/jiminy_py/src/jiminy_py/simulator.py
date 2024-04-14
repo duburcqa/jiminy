@@ -960,7 +960,7 @@ class Simulator:
         config_path = pathlib.Path(config_path).with_suffix('.toml')
         with open(config_path, 'w') as f:
             toml.dump(
-                self.get_all_options(), f, encoder=toml.TomlNumpyEncoder())
+                self.get_simulation_options(), f, toml.TomlNumpyEncoder())
 
     def import_options(self, config_path: Union[str, os.PathLike]) -> None:
         """Import all the options of the simulator at once, ie the engine
@@ -998,5 +998,5 @@ class Simulator:
             return original
 
         options = deep_update(
-            self.get_all_options(), toml.load(str(config_path)))
-        self.set_all_options(options)
+            self.get_simulation_options(), toml.load(str(config_path)))
+        self.set_simulation_options(options)

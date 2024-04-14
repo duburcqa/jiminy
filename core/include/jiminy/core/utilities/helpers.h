@@ -95,6 +95,22 @@ namespace jiminy
 
     std::string JIMINY_DLLAPI getUserDirectory();
 
+    // ********************************* GenericConfig helpers ********************************* //
+
+    /// \brief Partially update destination configuration with values from source configuration
+    ///        recursively.
+    ///
+    /// \details The destination must be pre-allocated. No keys are allowed to be added and value
+    ///          types are not allowed to change. Moreover, not all destination keys have to be
+    ///          specified in source.
+    ///
+    /// \param[out] dst Destination configuration.
+    /// \param[in] src Source configuration.
+    /// \param[in] strict If set to 'true', then an exception will be thrown if a source key is
+    ///                   missing from destination, otherwise any missing key will be silently
+    ///                   ignored. Value type mismatch will raise an exception no matter what.
+    void deepUpdate(GenericConfig & dst, const GenericConfig & src, bool strict = false);
+
     // ********************************** Telemetry utilities ********************************** //
 
     bool JIMINY_DLLAPI endsWith(const std::string & str, const std::string & substr);
@@ -149,25 +165,6 @@ namespace jiminy
                      std::tuple<bool, const double &>>
     isGcdIncluded(InputIt first, InputIt last, const UnaryFunction & func, const Args &... values);
 
-    // ********************************** Std::vector helpers ********************************** //
-
-    template<typename T>
-    std::enable_if_t<is_vector_v<T>, bool> checkDuplicates(const T & vect);
-
-    template<typename T1, typename T2>
-    std::enable_if_t<is_vector_v<T1> && is_vector_v<T2>, bool> checkIntersection(const T1 & vec1,
-                                                                                 const T2 & vec2);
-
-    template<typename T1, typename T2>
-    std::enable_if_t<is_vector_v<T1> && is_vector_v<T2>, bool> checkInclusion(const T1 & vec1,
-                                                                              const T2 & vec2);
-
-    template<typename T1, typename T2>
-    std::enable_if_t<is_vector_v<T1> && is_vector_v<T2>, void> eraseVector(const T1 & vec1,
-                                                                           const T2 & vec2);
-
-    // ************************************* Miscellaneous ************************************* //
-
     /// \brief Swap two disjoint row-blocks of data in a matrix.
     ///
     /// \details Let b1, b2 be two row-blocks of arbitrary sizes of a matrix B s.t.
@@ -186,6 +183,24 @@ namespace jiminy
                         Eigen::Index firstBlockSize,
                         Eigen::Index secondBlockStart,
                         Eigen::Index secondBlockSize);
+
+    // ********************************** std::vector helpers ********************************** //
+
+    template<typename T>
+    std::enable_if_t<is_vector_v<T>, bool> checkDuplicates(const T & vect);
+
+    template<typename T1, typename T2>
+    std::enable_if_t<is_vector_v<T1> && is_vector_v<T2>, bool> checkIntersection(const T1 & vec1,
+                                                                                 const T2 & vec2);
+
+    template<typename T1, typename T2>
+    std::enable_if_t<is_vector_v<T1> && is_vector_v<T2>, bool> checkInclusion(const T1 & vec1,
+                                                                              const T2 & vec2);
+
+    template<typename T1, typename T2>
+    std::enable_if_t<is_vector_v<T1> && is_vector_v<T2>, void> eraseVector(const T1 & vec1,
+                                                                           const T2 & vec2);
+
 }
 
 #include "jiminy/core/utilities/helpers.hxx"

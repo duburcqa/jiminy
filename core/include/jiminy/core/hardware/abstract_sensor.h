@@ -165,7 +165,7 @@ namespace jiminy
         virtual void setOptionsAll(const GenericConfig & sensorOptions) = 0;
 
         /// \brief Configuration options of the sensor.
-        GenericConfig getOptions() const noexcept;
+        const GenericConfig & getOptions() const noexcept;
 
         template<typename DerivedType>
         void set(const Eigen::MatrixBase<DerivedType> & value);

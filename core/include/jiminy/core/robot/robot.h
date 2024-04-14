@@ -21,6 +21,19 @@ namespace jiminy
     class JIMINY_DLLAPI Robot : public Model
     {
     public:
+        virtual GenericConfig getDefaultRobotOptions()
+        {
+            GenericConfig config;
+            config["model"] = getDefaultModelOptions();
+            config["motors"] = GenericConfig{};
+            config["sensors"] = GenericConfig{};
+            config["controller"] = GenericConfig{};
+            config["telemetry"] = GenericConfig{};
+
+            return config;
+        };
+
+    public:
         using MotorVector = std::vector<std::shared_ptr<AbstractMotorBase>>;
         using SensorVector = std::vector<std::shared_ptr<AbstractSensorBase>>;
         using SensorTree = std::unordered_map<std::string, SensorVector>;
@@ -89,20 +102,9 @@ namespace jiminy
             const std::string & sensorType, const std::string & sensorName) const;
 
         void setOptions(const GenericConfig & robotOptions);
-        GenericConfig getOptions() const noexcept;
+        const GenericConfig & getOptions() const;  // noexcept;
         void setModelOptions(const GenericConfig & modelOptions);
-        GenericConfig getModelOptions() const;
-        void setMotorsOptions(const GenericConfig & motorsOptions);
-        GenericConfig getMotorsOptions() const;
-        void setSensorsOptions(const GenericConfig & sensorsOptions);
-        GenericConfig getSensorsOptions() const;
-        void setControllerOptions(const GenericConfig & controllerOptions);
-        GenericConfig getControllerOptions() const;
-        void setTelemetryOptions(const GenericConfig & telemetryOptions);
-        GenericConfig getTelemetryOptions() const;
-
-        void dumpOptions(const std::string & filepath) const;
-        void loadOptions(const std::string & filepath);
+        const GenericConfig & getModelOptions() const noexcept;
 
         /// \remark This method does not have to be called manually before running a simulation.
         ///         The Engine is taking care of it.
@@ -141,7 +143,10 @@ namespace jiminy
         MotorVector motors_{};
         /// \brief Sensors attached to the robot.
         SensorTree sensors_{};
-        std::unordered_map<std::string, bool> telemetryOptions_{};
+        /// \brief Whether the robot options are guaranteed to be up-to-date.
+        mutable bool areRobotOptionsRefreshed_{false};
+        /// \brief Dictionary with the parameters of the robot.
+        mutable GenericConfig robotOptionsGeneric_{};
         /// \brief Name of the motors.
         std::vector<std::string> motorNames_{};
         /// \brief Name of the sensors.

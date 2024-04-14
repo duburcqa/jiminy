@@ -99,10 +99,10 @@ class SimulateSimplePendulum(unittest.TestCase):
         """
         # Configure the robot: set rotor inertia
         J = 0.1
-        motor_options = self.robot.get_motors_options()
-        motor_options["PendulumJoint"]['enableArmature'] = True
-        motor_options["PendulumJoint"]['armature'] = J
-        self.robot.set_motors_options(motor_options)
+        robot_options = self.robot.get_options()
+        robot_options["motors"]["PendulumJoint"]['enableArmature'] = True
+        robot_options["motors"]["PendulumJoint"]['armature'] = J
+        self.robot.set_options(robot_options)
 
         # Dynamics: simulate a spring of stiffness k
         k_spring = 500.0
@@ -493,10 +493,10 @@ class SimulateSimplePendulum(unittest.TestCase):
         self.robot.set_model_options(model_options)
 
         # Enable rotor inertia
-        motor_options = self.robot.get_motors_options()
-        motor_options["PendulumJoint"]['enableArmature'] = True
-        motor_options["PendulumJoint"]['armature'] = J
-        self.robot.set_motors_options(motor_options)
+        robot_options = self.robot.get_options()
+        robot_options["motors"]["PendulumJoint"]['enableArmature'] = True
+        robot_options["motors"]["PendulumJoint"]['armature'] = J
+        self.robot.set_options(robot_options)
 
         # Create an engine: PD controller on motor and no internal dynamics
         k_control, nu_control = 100.0, 1.0
@@ -565,10 +565,10 @@ class SimulateSimplePendulum(unittest.TestCase):
 
         # Enable rotor inertia
         J = 0.1
-        motor_options = robot.get_motors_options()
-        motor_options["PendulumJoint"]['enableArmature'] = True
-        motor_options["PendulumJoint"]['armature'] = J
-        robot.set_motors_options(motor_options)
+        robot_options = robot.get_options()
+        robot_options["motors"]["PendulumJoint"]['enableArmature'] = True
+        robot_options["motors"]["PendulumJoint"]['armature'] = J
+        robot.set_options(robot_options)
 
         # Set fixed body constraint.
         freeflyer_constraint = jiminy.FrameConstraint("world")

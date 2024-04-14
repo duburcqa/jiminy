@@ -128,15 +128,15 @@ namespace jiminy
                                       const Eigen::VectorXd & v,
                                       Eigen::VectorXd & uCustom) = 0;
 
-        /// \brief Dictionary with the parameters of the controller.
-        GenericConfig getOptions() const noexcept;
-
         /// \brief Set the configuration options of the controller.
         ///
         /// \details Note that one must reset Jiminy Engine for this to take effect.
         ///
         /// \param[in] controllerOptions Dictionary with the parameters of the controller.
         void setOptions(const GenericConfig & controllerOptions);
+
+        /// \brief Dictionary with the parameters of the controller.
+        const GenericConfig & getOptions() const noexcept;
 
         /// \brief Configure the telemetry of the controller.
         ///

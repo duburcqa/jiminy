@@ -157,7 +157,8 @@ namespace jiminy
     telemetryRecorder_{std::make_unique<TelemetryRecorder>()}
     {
         // Initialize the configuration options to the default.
-        setOptions(getDefaultEngineOptions());
+        simulationOptionsGeneric_["engine"] = getDefaultEngineOptions();
+        setOptions(getOptions());
     }
 
     // ************************************ Engine *********************************** //
@@ -248,6 +249,14 @@ namespace jiminy
         // Remove the robot from the list
         robots_.erase(robots_.begin() + robotIndex);
         robotDataVec_.erase(robotDataVec_.begin() + robotIndex);
+
+        // Remove robot from generic options
+        std::string robotOptionsKey = robotName;
+        if (robotOptionsKey.empty())
+        {
+            robotOptionsKey = "robot";
+        }
+        simulationOptionsGeneric_.erase(robotOptionsKey);
     }
 
     void Engine::registerCouplingForce(const std::string & robotName1,
@@ -1537,14 +1546,18 @@ namespace jiminy
         }
 
         // Log all options
-        Json::Value allOptionsJson = convertToJson(getAllOptions());
+        Json::Value simulationOptionsJson = convertToJson(getSimulationOptions());
         Json::StreamWriterBuilder jsonWriter;
         jsonWriter["indentation"] = "";
-        const std::string allOptionsString = Json::writeString(jsonWriter, allOptionsJson);
-        telemetrySender_->registerConstant("options", allOptionsString);
+        const std::string simulationOptionsString =
+            Json::writeString(jsonWriter, simulationOptionsJson);
+        telemetrySender_->registerConstant("options", simulationOptionsString);
 
         // Write the header: this locks the registration of new variables
         telemetryRecorder_->initialize(telemetryData_.get(), getTelemetryTimeUnit());
+
+        // Make sure tha the simulation options are not considered refreshed anymore
+        areSimulationOptionsRefreshed_ = false;
 
         // At this point, consider that the simulation is running
         isSimulationRunning_ = true;
@@ -2637,11 +2650,6 @@ namespace jiminy
         return robotData.profileForces;
     }
 
-    GenericConfig Engine::getOptions() const noexcept
-    {
-        return engineOptionsGeneric_;
-    }
-
     void Engine::setOptions(const GenericConfig & engineOptions)
     {
         if (isSimulationRunning_)
@@ -2652,7 +2660,8 @@ namespace jiminy
         }
 
         // Make sure the dtMax is not out of range
-        GenericConfig stepperOptions = boost::get<GenericConfig>(engineOptions.at("stepper"));
+        const GenericConfig & stepperOptions =
+            boost::get<GenericConfig>(engineOptions.at("stepper"));
         const double dtMax = boost::get<double>(stepperOptions.at("dtMax"));
         if (SIMULATION_MAX_TIMESTEP + EPS < dtMax || dtMax < SIMULATION_MIN_TIMESTEP)
         {
@@ -2725,7 +2734,8 @@ namespace jiminy
         }
 
         // Make sure the contacts options are fine
-        GenericConfig contactOptions = boost::get<GenericConfig>(engineOptions.at("contacts"));
+        const GenericConfig & contactOptions =
+            boost::get<GenericConfig>(engineOptions.at("contacts"));
         const std::string & contactModel = boost::get<std::string>(contactOptions.at("model"));
         const auto contactModelIt = CONTACT_MODELS_MAP.find(contactModel);
         if (contactModelIt == CONTACT_MODELS_MAP.end())
@@ -2752,7 +2762,7 @@ namespace jiminy
         }
 
         // Make sure the user-defined gravity force has the right dimension
-        GenericConfig worldOptions = boost::get<GenericConfig>(engineOptions.at("world"));
+        const GenericConfig & worldOptions = boost::get<GenericConfig>(engineOptions.at("world"));
         Eigen::VectorXd gravity = boost::get<Eigen::VectorXd>(worldOptions.at("gravity"));
         if (gravity.size() != 6)
         {
@@ -2769,11 +2779,12 @@ namespace jiminy
             generator_.seed(std::seed_seq(seedSeq.data(), seedSeq.data() + seedSeq.size()));
         }
 
-        // Update the internal options
-        engineOptionsGeneric_ = engineOptions;
+        // Update class-specific "strongly typed" accessor for fast and convenient access
+        engineOptions_ = std::make_unique<const EngineOptions>(engineOptions);
 
-        // Create a fast struct accessor
-        engineOptions_ = std::make_unique<const EngineOptions>(engineOptionsGeneric_);
+        // Update inherited polymorphic accessor
+        deepUpdate(boost::get<GenericConfig>(simulationOptionsGeneric_.at("engine")),
+                   engineOptions);
 
         // Backup contact model as enum for fast check
         contactModel_ = contactModelIt->second;
@@ -2782,34 +2793,65 @@ namespace jiminy
         stepperUpdatePeriod_ = updatePeriodMin;
     }
 
-    GenericConfig Engine::getAllOptions() const noexcept
+    const GenericConfig & Engine::getOptions() const noexcept
     {
-        GenericConfig allOptions;
-        allOptions["engine"] = engineOptionsGeneric_;
-        for (const auto & robot : robots_)
-        {
-            std::string robotOptionName = robot->getName();
-            if (robotOptionName.empty())
-            {
-                robotOptionName = "robot";
-            }
-            allOptions[robotOptionName] = robot->getOptions();
-        }
-        return allOptions;
+        return boost::get<GenericConfig>(simulationOptionsGeneric_.at("engine"));
     }
 
-    void Engine::setAllOptions(const GenericConfig & allOptions)
+    void Engine::setSimulationOptions(const GenericConfig & simulationOptions)
     {
-        setOptions(boost::get<const GenericConfig>(allOptions.at("engine")));
+        // Set engine options
+        GenericConfig::const_iterator engineOptionsIt = simulationOptions.find("engine");
+        if (engineOptionsIt == simulationOptions.end())
+        {
+            JIMINY_THROW(std::invalid_argument, "Engine options key 'engine' is missing.");
+        }
+        setOptions(boost::get<GenericConfig>(engineOptionsIt->second));
+
+        // Set options for each robot sequentially
         for (auto & robot : robots_)
         {
-            std::string robotOptionName = robot->getName();
-            if (robotOptionName.empty())
+            std::string robotOptionsKey = robot->getName();
+            if (robotOptionsKey.empty())
             {
-                robotOptionName = "robot";
+                robotOptionsKey = "robot";
             }
-            robot->setOptions(boost::get<const GenericConfig>(allOptions.at(robotOptionName)));
+            GenericConfig::const_iterator robotOptionsIt = simulationOptions.find(robotOptionsKey);
+            if (robotOptionsIt == simulationOptions.end())
+            {
+                JIMINY_THROW(std::invalid_argument,
+                             "Robot options key '",
+                             robotOptionsKey,
+                             "' is missing.");
+            }
+            robot->setOptions(boost::get<GenericConfig>(robotOptionsIt->second));
         }
+    }
+
+    GenericConfig Engine::getSimulationOptions() const noexcept
+    {
+        /* Return options without refreshing all options if and only if the same simulation is
+           still running since the last time they were considered valid. */
+        if (areSimulationOptionsRefreshed_ && isSimulationRunning_)
+        {
+            return simulationOptionsGeneric_;
+        }
+
+        // Refresh robot options
+        for (const auto & robot : robots_)
+        {
+            std::string robotOptionsKey = robot->getName();
+            if (robotOptionsKey.empty())
+            {
+                robotOptionsKey = "robot";
+            }
+            simulationOptionsGeneric_[robotOptionsKey] = robot->getOptions();
+        }
+
+        // Options are now considered "valid"
+        areSimulationOptionsRefreshed_ = true;
+
+        return simulationOptionsGeneric_;
     }
 
     std::ptrdiff_t Engine::getRobotIndex(const std::string & robotName) const

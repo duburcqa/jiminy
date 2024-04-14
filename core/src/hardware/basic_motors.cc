@@ -12,7 +12,8 @@ namespace jiminy
         /* AbstractMotorBase constructor calls the base implementations of the virtual methods
            since the derived class is not available at this point. Thus it must be called
            explicitly in the constructor. */
-        setOptions(getDefaultMotorOptions());
+        motorOptionsGeneric_ = getDefaultMotorOptions();
+        setOptions(getOptions());
     }
 
     void SimpleMotor::initialize(const std::string & jointName)
@@ -46,8 +47,6 @@ namespace jiminy
 
     void SimpleMotor::setOptions(const GenericConfig & motorOptions)
     {
-        AbstractMotorBase::setOptions(motorOptions);
-
         // Check if the friction parameters make sense
         // Make sure the user-defined position limit has the right dimension
         if (boost::get<double>(motorOptions.at("frictionViscousPositive")) > 0.0)
@@ -71,7 +70,11 @@ namespace jiminy
             JIMINY_THROW(std::invalid_argument, "'frictionDrySlope' must be positive.");
         }
 
+        // Update class-specific "strongly typed" accessor for fast and convenient access
         motorOptions_ = std::make_unique<const SimpleMotorOptions>(motorOptions);
+
+        // Update base "strongly typed" option accessor and inherited polymorphic accessor
+        AbstractMotorBase::setOptions(motorOptions);
     }
 
     void SimpleMotor::computeEffort(double /* t */,
