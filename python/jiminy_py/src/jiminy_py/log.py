@@ -119,12 +119,15 @@ def build_robot_from_log(
         mesh_package_dirs: Sequence[str] = (),
         *, robot_name: str = ""
         ) -> jiminy.Robot:
-    """Create and initialize a robot from a single or
-    multi robot simulation. If the robot to be built is from a multi-robot
-    simulation, its name needs to be provided.
+    """Create and initialize a robot from a single- or multi- robot simulation.
+
+    .. warning::
+        If the robot to be built is from a multi-robot simulation, then its
+        name needs to be specified explicitly. Alternatively, one can load all
+        robots simultaneously in log file using `build_robots_from_log`.
 
     .. note::
-        model options and `robot.pinocchio_model` will be the same as during
+        Model options and `robot.pinocchio_model` will be the same as during
         the simulation until the next call to `reset` method unless the options
         of the robot that has been restored are overwritten manually.
 

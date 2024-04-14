@@ -242,7 +242,9 @@ namespace jiminy::python
             .def("set_options",
                  &internal::abstract_controller::setOptions,
                  (bp::arg("self"), "options"))
-            .def("get_options", &AbstractController::getOptions)
+            .def("get_options",
+                 &AbstractController::getOptions,
+                 bp::return_value_policy<bp::return_by_value>())
             .ADD_PROPERTY_GET("robot", &internal::abstract_controller::getRobot)
             .DEF_READONLY("sensor_measurements", &AbstractController::sensorMeasurements_);
 

@@ -58,7 +58,9 @@ namespace jiminy::python
                                           bp::return_value_policy<bp::return_by_value>())
 
             .def("set_options", &internal::abstract_motor::setOptions)
-            .def("get_options", &AbstractMotorBase::getOptions);
+            .def("get_options",
+                 &AbstractMotorBase::getOptions,
+                 bp::return_value_policy<bp::return_by_value>());
     }
 
     // ************************************** BasicMotors ************************************** //

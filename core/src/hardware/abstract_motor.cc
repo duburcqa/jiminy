@@ -9,8 +9,9 @@ namespace jiminy
     AbstractMotorBase::AbstractMotorBase(const std::string & name) noexcept :
     name_{name}
     {
-        // Initialize the options
-        setOptions(getDefaultMotorOptions());
+        // Initialize options
+        motorOptionsGeneric_ = getDefaultMotorOptions();
+        setOptions(getOptions());
     }
 
     AbstractMotorBase::~AbstractMotorBase()
@@ -109,6 +110,20 @@ namespace jiminy
             JIMINY_THROW(bad_control_flow, "Motor not attached to any robot.");
         }
 
+        // Make sure all the motors are attached to a robot and initialized
+        for (AbstractMotorBase * motor : sharedStorage_->motors_)
+        {
+            if (!motor->isAttached_)
+            {
+                JIMINY_THROW(
+                    bad_control_flow, "Motor '", motor->name_, "' not attached to any robot.");
+            }
+            if (!motor->isInitialized_)
+            {
+                JIMINY_THROW(bad_control_flow, "Motor '", motor->name_, "' not initialized.");
+            }
+        }
+
         // Make sure the robot still exists
         if (robot_.expired())
         {
@@ -174,9 +189,11 @@ namespace jiminy
             }
         }
 
-        // Update the motor's options
-        motorOptionsGeneric_ = motorOptions;
-        baseMotorOptions_ = std::make_unique<const AbstractMotorOptions>(motorOptionsGeneric_);
+        // Update class-specific "strongly typed" accessor for fast and convenient access
+        baseMotorOptions_ = std::make_unique<const AbstractMotorOptions>(motorOptions);
+
+        // Update inherited polymorphic accessor
+        deepUpdate(motorOptionsGeneric_, motorOptions);
 
         // Refresh the proxies if the robot is initialized if available
         if (robot)
@@ -188,7 +205,7 @@ namespace jiminy
         }
     }
 
-    GenericConfig AbstractMotorBase::getOptions() const noexcept
+    const GenericConfig & AbstractMotorBase::getOptions() const noexcept
     {
         return motorOptionsGeneric_;
     }

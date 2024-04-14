@@ -96,7 +96,7 @@ namespace jiminy
         virtual void resetAll();
 
         /// \brief Configuration options of the motor.
-        GenericConfig getOptions() const noexcept;
+        const GenericConfig & getOptions() const noexcept;
 
         /// \brief Actual effort of the motor at the current time.
         double get() const;

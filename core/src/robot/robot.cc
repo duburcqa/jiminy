@@ -19,6 +19,9 @@ namespace jiminy
     name_{name},
     motorSharedStorage_{std::make_shared<MotorSharedStorage>()}
     {
+        // Initialize options
+        robotOptionsGeneric_ = getDefaultRobotOptions();
+        setOptions(getOptions());
     }
 
     Robot::~Robot()
@@ -26,22 +29,6 @@ namespace jiminy
         // Detach all the motors and sensors
         detachSensors();
         detachMotors();
-    }
-
-    std::shared_ptr<AbstractController> MakeDefaultController(const std::shared_ptr<Robot> & robot)
-    {
-        auto noop = [](double /* t */,
-                       const Eigen::VectorXd & /* q */,
-                       const Eigen::VectorXd & /* v */,
-                       const SensorMeasurementTree & /* sensorMeasurements */,
-                       Eigen::VectorXd & /* out */)
-        {
-            // Empty on purpose
-        };
-        std::shared_ptr<AbstractController> controller =
-            std::make_shared<FunctionalController<>>(noop, noop);
-        controller->initialize(robot);
-        return controller;
     }
 
     template<typename... Args>
@@ -92,6 +79,12 @@ namespace jiminy
         // Reset telemetry flag
         isTelemetryConfigured_ = false;
 
+        // Make sure that the robot is initialized
+        if (!isInitialized_)
+        {
+            JIMINY_THROW(bad_control_flow, "Robot not initialized.");
+        }
+
         // Make sure that the robot is not locked
         if (getIsLocked())
         {
@@ -134,11 +127,13 @@ namespace jiminy
         try
         {
             // Configure hardware telemetry
+            const GenericConfig & telemetryOptions =
+                boost::get<GenericConfig>(robotOptionsGeneric_.at("telemetry"));
             for (const auto & [sensorType, sensorGroup] : sensors_)
             {
                 for (const auto & sensor : sensorGroup)
                 {
-                    if (telemetryOptions_[sensorType])
+                    if (boost::get<bool>(telemetryOptions.at(sensorType)))
                     {
                         sensor->configureTelemetry(telemetryData_, name_);
                     }
@@ -330,10 +325,12 @@ namespace jiminy
         }
 
         // Create a new sensor data holder if necessary
+        GenericConfig & telemetryOptions =
+            boost::get<GenericConfig>(robotOptionsGeneric_.at("telemetry"));
         if (sensorGroupIt == sensors_.end())
         {
             sensorSharedStorageMap_.emplace(sensorType, std::make_shared<SensorSharedStorage>());
-            telemetryOptions_.emplace(sensorType, true);  // Enable telemetry by default
+            telemetryOptions[sensorType] = true;  // Enable telemetry by default
         }
 
         // Attach the sensor
@@ -394,11 +391,13 @@ namespace jiminy
         sensorGroupIt->second.erase(sensorIt);
 
         // Remove the sensor group if there is no more sensors left
+        GenericConfig & telemetryOptions =
+            boost::get<GenericConfig>(robotOptionsGeneric_.at("telemetry"));
         if (sensorGroupIt->second.empty())
         {
             sensors_.erase(sensorType);
             sensorSharedStorageMap_.erase(sensorType);
-            telemetryOptions_.erase(sensorType);
+            telemetryOptions.erase(sensorType);
         }
 
         // Refresh the sensors proxies
@@ -459,7 +458,16 @@ namespace jiminy
         // Reset controller to default if none was specified
         if (!controller)
         {
-            controller_ = MakeDefaultController(shared_from_this());
+            auto noop = [](double /* t */,
+                           const Eigen::VectorXd & /* q */,
+                           const Eigen::VectorXd & /* v */,
+                           const SensorMeasurementTree & /* sensorMeasurements */,
+                           Eigen::VectorXd & /* out */)
+            {
+                // Empty on purpose
+            };
+            controller_ = std::make_shared<FunctionalController<>>(noop, noop);
+            controller_->initialize(shared_from_this());
             return;
         }
 
@@ -681,137 +689,42 @@ namespace jiminy
 
     void Robot::setOptions(const GenericConfig & robotOptions)
     {
-        // Set model options
-        GenericConfig::const_iterator modelOptionsIt;
-        modelOptionsIt = robotOptions.find("model");
-        if (modelOptionsIt == robotOptions.end())
+        // Make sure that no simulation is running
+        if (getIsLocked())
         {
-            JIMINY_THROW(std::invalid_argument, "'model' options are missing.");
+            JIMINY_THROW(bad_control_flow,
+                         "Robot already locked, probably because a simulation is running. "
+                         "Please stop it setting options.");
         }
 
-        const GenericConfig & modelOptions = boost::get<GenericConfig>(modelOptionsIt->second);
+        // Set base model options
+        const GenericConfig & modelOptions = boost::get<GenericConfig>(robotOptions.at("model"));
         setModelOptions(modelOptions);
 
-        // Set motors options
-        GenericConfig::const_iterator motorsOptionsIt;
-        motorsOptionsIt = robotOptions.find("motors");
-        if (motorsOptionsIt == robotOptions.end())
-        {
-            JIMINY_THROW(std::invalid_argument, "'motors' options are missing.");
-        }
-
-        const GenericConfig & motorsOptions = boost::get<GenericConfig>(motorsOptionsIt->second);
-        setMotorsOptions(motorsOptions);
-
-        // Set sensor options
-        GenericConfig::const_iterator sensorOptionsIt = robotOptions.find("sensors");
-        if (sensorOptionsIt == robotOptions.end())
-        {
-            JIMINY_THROW(std::invalid_argument, "'sensors' options are missing.");
-        }
-
-        const GenericConfig & sensorOptions = boost::get<GenericConfig>(sensorOptionsIt->second);
-        setSensorsOptions(sensorOptions);
-
-        // Set controller options
-        GenericConfig::const_iterator controllerOptionsIt;
-        controllerOptionsIt = robotOptions.find("controller");
-        if (controllerOptionsIt == robotOptions.end())
-        {
-            JIMINY_THROW(std::invalid_argument, "'model' options are missing.");
-        }
-
-        const GenericConfig & controllerOptions =
-            boost::get<GenericConfig>(controllerOptionsIt->second);
-        setControllerOptions(controllerOptions);
-
-        // Set telemetry options
-        GenericConfig::const_iterator telemetryOptionsIt = robotOptions.find("telemetry");
-        if (telemetryOptionsIt == robotOptions.end())
-        {
-            JIMINY_THROW(std::invalid_argument, "'telemetry' options are missing.");
-        }
-
-        const GenericConfig & telemetryOptions =
-            boost::get<GenericConfig>(telemetryOptionsIt->second);
-        setTelemetryOptions(telemetryOptions);
-    }
-
-    GenericConfig Robot::getOptions() const noexcept
-    {
-        GenericConfig robotOptions;
-        robotOptions["model"] = getModelOptions();
-        GenericConfig motorsOptions;
-        robotOptions["motors"] = getMotorsOptions();
-        GenericConfig sensorOptions;
-        robotOptions["sensors"] = getSensorsOptions();
-        GenericConfig controllerOptions;
-        robotOptions["controller"] = getControllerOptions();
-        GenericConfig telemetryOptions;
-        robotOptions["telemetry"] = getTelemetryOptions();
-        return robotOptions;
-    }
-
-    void Robot::setModelOptions(const GenericConfig & modelOptions)
-    {
-        if (getIsLocked())
-        {
-            JIMINY_THROW(bad_control_flow,
-                         "Robot already locked, probably because a simulation is running. "
-                         "Please stop it before removing motors.");
-        }
-
-        return Model::setOptions(modelOptions);
-    }
-
-    GenericConfig Robot::getModelOptions() const
-    {
-        return Model::getOptions();
-    }
-
-    void Robot::setMotorsOptions(const GenericConfig & motorsOptions)
-    {
-        if (getIsLocked())
-        {
-            JIMINY_THROW(bad_control_flow,
-                         "Robot already locked, probably because a simulation is running. "
-                         "Please stop it before removing motors.");
-        }
-
+        // Set motor options
+        bool areMotorsOptionsShared{true};
+        const GenericConfig & motorsOptions = boost::get<GenericConfig>(robotOptions.at("motors"));
         for (const auto & motor : motors_)
         {
-            auto motorOptionIt = motorsOptions.find(motor->getName());
-            if (motorOptionIt != motorsOptions.end())
+            auto motorOptionsIt = motorsOptions.find(motor->getName());
+            if (motorOptionsIt == motorsOptions.end())
             {
-                motor->setOptions(boost::get<GenericConfig>(motorOptionIt->second));
+                if (areMotorsOptionsShared)
+                {
+                    motor->setOptionsAll(motorsOptions);
+                    break;
+                }
             }
             else
             {
-                motor->setOptionsAll(motorsOptions);
-                break;
+                motor->setOptions(boost::get<GenericConfig>(motorOptionsIt->second));
+                areMotorsOptionsShared = false;
             }
         }
-    }
 
-    GenericConfig Robot::getMotorsOptions() const
-    {
-        GenericConfig motorsOptions;
-        for (const auto & motor : motors_)
-        {
-            motorsOptions[motor->getName()] = motor->getOptions();
-        }
-        return motorsOptions;
-    }
-
-    void Robot::setSensorsOptions(const GenericConfig & sensorsOptions)
-    {
-        if (getIsLocked())
-        {
-            JIMINY_THROW(bad_control_flow,
-                         "Robot already locked, probably because a simulation is running. "
-                         "Please stop it before removing motors.");
-        }
-
+        // Set sensor options
+        const GenericConfig & sensorsOptions =
+            boost::get<GenericConfig>(robotOptions.at("sensors"));
         for (const auto & [sensorType, sensorGroup] : sensors_)
         {
             // FIXME: remove explicit conversion to `std::string` when moving to C++20
@@ -820,11 +733,9 @@ namespace jiminy
             {
                 const GenericConfig & sensorGroupOptions =
                     boost::get<GenericConfig>(sensorGroupOptionsIt->second);
-
                 for (const auto & sensor : sensorGroup)
                 {
                     const std::string & sensorName = sensor->getName();
-
                     auto sensorOptionsIt = sensorGroupOptions.find(sensorName);
                     if (sensorOptionsIt != sensorGroupOptions.end())
                     {
@@ -849,11 +760,43 @@ namespace jiminy
                              "'.");
             }
         }
+
+        // Set controller options if any
+        if (controller_)
+        {
+            const GenericConfig & controllerOptions =
+                boost::get<GenericConfig>(robotOptions.at("controller"));
+            controller_->setOptions(controllerOptions);
+        }
+
+        // Update inherited polymorphic accessor
+        deepUpdate(robotOptionsGeneric_, robotOptions);
     }
 
-    GenericConfig Robot::getSensorsOptions() const
+    const GenericConfig & Robot::getOptions() const  // noexcept
     {
-        GenericConfig sensorsOptions;
+        /* Return options without refreshing all options if and only if the robot has not been
+           unlock since the last time they were considered valid. */
+        if (areRobotOptionsRefreshed_ && getIsLocked())
+        {
+            return robotOptionsGeneric_;
+        }
+
+        // Refresh model options
+        robotOptionsGeneric_["model"] = getModelOptions();
+
+        // Refresh motors options
+        GenericConfig & motorsOptions = boost::get<GenericConfig>(robotOptionsGeneric_["motors"]);
+        motorsOptions.clear();
+        for (const auto & motor : motors_)
+        {
+            motorsOptions[motor->getName()] = motor->getOptions();
+        }
+
+        // Refresh sensor options
+        GenericConfig & sensorsOptions =
+            boost::get<GenericConfig>(robotOptionsGeneric_["sensors"]);
+        sensorsOptions.clear();
         for (const auto & [sensorType, sensorGroup] : sensors_)
         {
             GenericConfig sensorGroupOptions;
@@ -863,71 +806,29 @@ namespace jiminy
             }
             sensorsOptions[sensorType] = sensorGroupOptions;
         }
-        return sensorsOptions;
-    }
 
-    void Robot::setControllerOptions(const GenericConfig & controllerOptions)
-    {
-        if (getIsLocked())
+        // Refresh controller options
+        GenericConfig & controllerOptions =
+            boost::get<GenericConfig>(robotOptionsGeneric_["controller"]);
+        controllerOptions.clear();
+        if (controller_)
         {
-            JIMINY_THROW(bad_control_flow,
-                         "Robot already locked, probably because a simulation is running. "
-                         "Please stop it before removing motors.");
+            controllerOptions = controller_->getOptions();
         }
 
-        return controller_->setOptions(controllerOptions);
+        // Options are now considered "valid"
+        areRobotOptionsRefreshed_ = true;
+
+        return robotOptionsGeneric_;
     }
 
-    GenericConfig Robot::getControllerOptions() const
+    void Robot::setModelOptions(const GenericConfig & modelOptions)
     {
-        return controller_->getOptions();
+        Model::setOptions(modelOptions);
     }
-
-    void Robot::setTelemetryOptions(const GenericConfig & telemetryOptions)
+    const GenericConfig & Robot::getModelOptions() const noexcept
     {
-        if (getIsLocked())
-        {
-            JIMINY_THROW(bad_control_flow,
-                         "Robot already locked, probably because a simulation is running. "
-                         "Please stop it before removing motors.");
-        }
-
-        for (auto & [sensorType, sensorGroupTelemetryOption] : telemetryOptions_)
-        {
-            const std::string optionTelemetryName = toString("enable", sensorType, "s");
-            auto sensorTelemetryOptionIt = telemetryOptions.find(optionTelemetryName);
-            if (sensorTelemetryOptionIt == telemetryOptions.end())
-            {
-                JIMINY_THROW(std::invalid_argument, "Missing field '", optionTelemetryName, "'.");
-            }
-            sensorGroupTelemetryOption = boost::get<bool>(sensorTelemetryOptionIt->second);
-        }
-    }
-
-    GenericConfig Robot::getTelemetryOptions() const
-    {
-        GenericConfig telemetryOptions;
-        for (const auto & [sensorType, sensorGroupTelemetryOption] : telemetryOptions_)
-        {
-            const std::string optionTelemetryName = toString("enable", sensorType, "s");
-            telemetryOptions[optionTelemetryName] = sensorGroupTelemetryOption;
-        }
-        return telemetryOptions;
-    }
-
-    void Robot::dumpOptions(const std::string & filepath) const
-    {
-        std::shared_ptr<AbstractIODevice> device = std::make_shared<FileDevice>(filepath);
-        return jsonDump(getOptions(), device);
-    }
-
-    void Robot::loadOptions(const std::string & filepath)
-    {
-        std::shared_ptr<AbstractIODevice> device = std::make_shared<FileDevice>(filepath);
-        GenericConfig robotOptions;
-        jsonLoad(robotOptions, device);
-
-        setOptions(robotOptions);
+        return Model::getOptions();
     }
 
     bool Robot::getIsTelemetryConfigured() const
@@ -1074,12 +975,18 @@ namespace jiminy
 
     std::unique_ptr<LockGuardLocal> Robot::getLock()
     {
+        // Make sure that the robot is not already locked
         if (mutexLocal_->isLocked())
         {
             JIMINY_THROW(bad_control_flow,
                          "Robot already locked. Please release it first prior requesting lock.");
         }
 
+        // Make sure that the options are not already considered valid as it was impossible to
+        // guarantee it before locking the robot.
+        areRobotOptionsRefreshed_ = false;
+
+        // Return lock
         return std::make_unique<LockGuardLocal>(*mutexLocal_);
     }
 

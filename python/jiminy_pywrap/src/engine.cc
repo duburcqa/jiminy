@@ -598,11 +598,11 @@ namespace jiminy::python
             return self.setOptions(config);
         }
 
-        static void setAllOptions(Engine & self, const bp::dict & configPy)
+        static void setSimulationOptions(Engine & self, const bp::dict & configPy)
         {
-            GenericConfig config = self.getAllOptions();
+            GenericConfig config = self.getSimulationOptions();
             convertFromPython(configPy, config);
-            return self.setAllOptions(config);
+            return self.setSimulationOptions(config);
         }
     }
 
@@ -783,9 +783,10 @@ namespace jiminy::python
             .def("remove_all_forces", &Engine::removeAllForces)
 
             .def("set_options", &internal::engine::setOptions)
-            .def("get_options", &Engine::getOptions)
-            .def("set_all_options", &internal::engine::setAllOptions)
-            .def("get_all_options", &Engine::getAllOptions)
+            .def(
+                "get_options", &Engine::getOptions, bp::return_value_policy<bp::return_by_value>())
+            .def("set_simulation_options", &internal::engine::setSimulationOptions)
+            .def("get_simulation_options", &Engine::getSimulationOptions)
 
             .DEF_READONLY_WITH_POLICY(
                 "robots", &Engine::robots_, bp::return_value_policy<result_converter<true>>())

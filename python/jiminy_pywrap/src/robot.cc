@@ -186,7 +186,7 @@ namespace jiminy::python
                               (bp::arg("self"), "generator")))
 
             .def("set_options", &setOptions<Model>, (bp::arg("self"), "options"))
-            .def("get_options", &Model::getOptions)
+            .def("get_options", &Model::getOptions, bp::return_value_policy<bp::return_by_value>())
 
             .def("add_frame",
                  static_cast<void (Model::*)(
@@ -373,34 +373,6 @@ namespace jiminy::python
             convertFromPython(configPy, config);
             return self.setModelOptions(config);
         }
-
-        static void setMotorsOptions(Robot & self, const bp::dict & configPy)
-        {
-            GenericConfig config = self.getMotorsOptions();
-            convertFromPython(configPy, config);
-            return self.setMotorsOptions(config);
-        }
-
-        static void setSensorsOptions(Robot & self, const bp::dict & configPy)
-        {
-            GenericConfig config = self.getSensorsOptions();
-            convertFromPython(configPy, config);
-            return self.setSensorsOptions(config);
-        }
-
-        static void setControllerOptions(Robot & self, const bp::dict & configPy)
-        {
-            GenericConfig config = self.getControllerOptions();
-            convertFromPython(configPy, config);
-            return self.setControllerOptions(config);
-        }
-
-        static void setTelemetryOptions(Robot & self, const bp::dict & configPy)
-        {
-            GenericConfig config = self.getTelemetryOptions();
-            convertFromPython(configPy, config);
-            return self.setTelemetryOptions(config);
-        }
     }
 
     void exposeRobot()
@@ -426,9 +398,6 @@ namespace jiminy::python
 
             .ADD_PROPERTY_GET_WITH_POLICY(
                 "name", &Robot::getName, bp::return_value_policy<bp::return_by_value>())
-
-            .def("dump_options", &Robot::dumpOptions, (bp::arg("self"), "json_filename"))
-            .def("load_options", &Robot::loadOptions, (bp::arg("self"), "json_filename"))
 
             .def("attach_motor", &Robot::attachMotor, (bp::arg("self"), "motor"))
             .def("get_motor",
@@ -462,27 +431,13 @@ namespace jiminy::python
             .ADD_PROPERTY_GET("sensor_measurements", &internal::robot::getSensorMeasurements)
 
             .def("set_options", &setOptions<Robot>, (bp::arg("self"), "robot_options"))
-            .def("get_options", &Robot::getOptions)
+            .def("get_options", &Robot::getOptions, bp::return_value_policy<bp::return_by_value>())
             .def("set_model_options",
                  &internal::robot::setModelOptions,
                  (bp::arg("self"), "model_options"))
-            .def("get_model_options", &Robot::getModelOptions)
-            .def("set_motors_options",
-                 &internal::robot::setMotorsOptions,
-                 (bp::arg("self"), "motors_options"))
-            .def("get_motors_options", &Robot::getMotorsOptions)
-            .def("set_sensors_options",
-                 &internal::robot::setSensorsOptions,
-                 (bp::arg("self"), "sensors_options"))
-            .def("get_sensors_options", &Robot::getSensorsOptions)
-            .def("set_controller_options",
-                 &internal::robot::setControllerOptions,
-                 (bp::arg("self"), "controller_options"))
-            .def("get_controller_options", &Robot::getControllerOptions)
-            .def("set_telemetry_options",
-                 &internal::robot::setTelemetryOptions,
-                 (bp::arg("self"), "telemetry_options"))
-            .def("get_telemetry_options", &Robot::getTelemetryOptions)
+            .def("get_model_options",
+                 &Robot::getModelOptions,
+                 bp::return_value_policy<bp::return_by_value>())
 
             .ADD_PROPERTY_GET("nmotors", &Robot::nmotors)
             .ADD_PROPERTY_GET_WITH_POLICY("motor_names",

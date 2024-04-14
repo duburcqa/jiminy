@@ -273,7 +273,9 @@ namespace jiminy::python
                     const Eigen::MatrixBase<Eigen::VectorXd> &)>(&AbstractSensorBase::set))
 
             .def("set_options", &internal::abstract_sensor::setOptions)
-            .def("get_options", &AbstractSensorBase::getOptions)
+            .def("get_options",
+                 &AbstractSensorBase::getOptions,
+                 bp::return_value_policy<bp::return_by_value>())
 
             .def("__repr__", &internal::abstract_sensor::repr);
     }

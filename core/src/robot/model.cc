@@ -188,7 +188,9 @@ namespace jiminy
 
     Model::Model() noexcept
     {
-        setOptions(getDefaultModelOptions());
+        // Initialize options
+        modelOptionsGeneric_ = getDefaultModelOptions();
+        setOptions(getOptions());
     }
 
     void initializePinocchioData(const pinocchio::Model & model, pinocchio::Data & data)
@@ -326,14 +328,17 @@ namespace jiminy
            constraints, at least for baumgarte stabilization. Indeed, the current frame position
            must be stored. */
 
-        if (isInitialized_)
+        // Make sure that the model is initialized
+        if (!isInitialized_)
         {
-            /* Re-generate the unbiased extended model and update bias added to the dynamics
-               properties of the model.
-               Note that re-generating the unbiased extended model is necessary since the
-               theoretical model may have been manually modified by the user. */
-            generateModelExtended(g);
+            JIMINY_THROW(bad_control_flow, "Model not initialized.");
         }
+
+        /* Re-generate the unbiased extended model and update bias added to the dynamics
+            properties of the model.
+            Note that re-generating the unbiased extended model is necessary since the
+            theoretical model may have been manually modified by the user. */
+        generateModelExtended(g);
     }
 
     void Model::addFrame(const std::string & frameName,
@@ -1385,7 +1390,7 @@ namespace jiminy
             });
     }
 
-    void Model::setOptions(GenericConfig modelOptions)
+    void Model::setOptions(const GenericConfig & modelOptions)
     {
         bool internalBuffersMustBeUpdated = false;
         bool isExtendedModelInvalid = false;
@@ -1394,13 +1399,13 @@ namespace jiminy
         {
             /* Check that the following user parameters has the right dimension, then update the
                required internal buffers to reflect changes, if any. */
-            GenericConfig & jointOptionsHolder =
+            const GenericConfig & jointOptionsHolder =
                 boost::get<GenericConfig>(modelOptions.at("joints"));
             bool positionLimitFromUrdf =
                 boost::get<bool>(jointOptionsHolder.at("positionLimitFromUrdf"));
             if (!positionLimitFromUrdf)
             {
-                Eigen::VectorXd & jointsPositionLimitMin =
+                const Eigen::VectorXd & jointsPositionLimitMin =
                     boost::get<Eigen::VectorXd>(jointOptionsHolder.at("positionLimitMin"));
                 if (mechanicalJointPositionIndices_.size() !=
                     static_cast<uint32_t>(jointsPositionLimitMin.size()))
@@ -1408,7 +1413,7 @@ namespace jiminy
                     JIMINY_THROW(std::invalid_argument,
                                  "Wrong vector size for 'positionLimitMin'.");
                 }
-                Eigen::VectorXd & jointsPositionLimitMax =
+                const Eigen::VectorXd & jointsPositionLimitMax =
                     boost::get<Eigen::VectorXd>(jointOptionsHolder.at("positionLimitMax"));
                 if (mechanicalJointPositionIndices_.size() !=
                     static_cast<uint32_t>(jointsPositionLimitMax.size()))
@@ -1437,7 +1442,7 @@ namespace jiminy
                 boost::get<bool>(jointOptionsHolder.at("velocityLimitFromUrdf"));
             if (!velocityLimitFromUrdf)
             {
-                Eigen::VectorXd & jointsVelocityLimit =
+                const Eigen::VectorXd & jointsVelocityLimit =
                     boost::get<Eigen::VectorXd>(jointOptionsHolder.at("velocityLimit"));
                 if (mechanicalJointVelocityIndices_.size() !=
                     static_cast<uint32_t>(jointsVelocityLimit.size()))
@@ -1459,7 +1464,7 @@ namespace jiminy
             }
 
             // Check if deformation points are all associated with different joints/frames
-            GenericConfig & dynOptionsHolder =
+            const GenericConfig & dynOptionsHolder =
                 boost::get<GenericConfig>(modelOptions.at("dynamics"));
             const FlexibilityConfig & flexibilityConfig =
                 boost::get<FlexibilityConfig>(dynOptionsHolder.at("flexibilityConfig"));
@@ -1533,7 +1538,7 @@ namespace jiminy
         }
 
         // Check that the collisions options are valid
-        GenericConfig & collisionOptionsHolder =
+        const GenericConfig & collisionOptionsHolder =
             boost::get<GenericConfig>(modelOptions.at("collisions"));
         uint32_t contactPointsPerBodyMax =
             boost::get<uint32_t>(collisionOptionsHolder.at("contactPointsPerBodyMax"));
@@ -1550,7 +1555,8 @@ namespace jiminy
         }
 
         // Check that the model randomization parameters are valid
-        GenericConfig & dynOptionsHolder = boost::get<GenericConfig>(modelOptions.at("dynamics"));
+        const GenericConfig & dynOptionsHolder =
+            boost::get<GenericConfig>(modelOptions.at("dynamics"));
         for (auto && field : std::array{"inertiaBodiesBiasStd",
                                         "massBodiesBiasStd",
                                         "centerOfMassPositionBodiesBiasStd",
@@ -1566,11 +1572,11 @@ namespace jiminy
             }
         }
 
-        // Update the internal options
-        modelOptionsGeneric_ = modelOptions;
+        // Update class-specific "strongly typed" accessor for fast and convenient access
+        modelOptions_ = std::make_unique<const ModelOptions>(modelOptions);
 
-        // Create a fast struct accessor
-        modelOptions_ = std::make_unique<const ModelOptions>(modelOptionsGeneric_);
+        // Update inherited polymorphic accessor
+        deepUpdate(modelOptionsGeneric_, modelOptions);
 
         if (isExtendedModelInvalid)
         {
@@ -1589,7 +1595,7 @@ namespace jiminy
         }
     }
 
-    GenericConfig Model::getOptions() const noexcept
+    const GenericConfig & Model::getOptions() const noexcept
     {
         return modelOptionsGeneric_;
     }

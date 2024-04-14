@@ -320,9 +320,8 @@ namespace jiminy
         /// \param[in] v Joint velocity.
         void computeConstraints(const Eigen::VectorXd & q, const Eigen::VectorXd & v);
 
-        // Copy on purpose
-        void setOptions(GenericConfig modelOptions);
-        GenericConfig getOptions() const noexcept;
+        void setOptions(const GenericConfig & modelOptions);
+        const GenericConfig & getOptions() const noexcept;
 
         /// \remark This method does not have to be called manually before running a simulation.
         ///         The Engine is taking care of it.

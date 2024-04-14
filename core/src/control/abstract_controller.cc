@@ -11,8 +11,9 @@ namespace jiminy
     AbstractController::AbstractController() noexcept :
     telemetrySender_{std::make_unique<TelemetrySender>()}
     {
-        // Clarify that the base implementation is called
-        AbstractController::setOptions(getDefaultControllerOptions());
+        // The base implementation is called
+        controllerOptionsGeneric_ = AbstractController::getDefaultControllerOptions();
+        AbstractController::setOptions(getOptions());
     }
 
     AbstractController::~AbstractController() = default;
@@ -104,9 +105,10 @@ namespace jiminy
 
     void AbstractController::reset(bool resetDynamicTelemetry)
     {
+        // Make sure that the controller is initialized
         if (!isInitialized_)
         {
-            JIMINY_THROW(bad_control_flow, "The controller is not initialized.");
+            JIMINY_THROW(bad_control_flow, "Controller not initialized.");
         }
 
         // Make sure that no simulation is already running
@@ -266,7 +268,7 @@ namespace jiminy
         }
     }
 
-    GenericConfig AbstractController::getOptions() const noexcept
+    const GenericConfig & AbstractController::getOptions() const noexcept
     {
         return controllerOptionsGeneric_;
     }
