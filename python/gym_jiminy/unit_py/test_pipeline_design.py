@@ -10,6 +10,7 @@ import numpy as np
 from jiminy_py.robot import _gcd
 from gym_jiminy.common.utils import build_pipeline, load_pipeline
 from gym_jiminy.common.bases import InterfaceJiminyEnv
+from gym_jiminy.common.blocks import PDController
 
 
 TOLERANCE = 1.0e-6
@@ -40,7 +41,6 @@ class PipelineDesign(unittest.TestCase):
                         cls='gym_jiminy.common.blocks.PDController',
                         kwargs=dict(
                             update_ratio=2,
-                            order=1,
                             kp=self.pid_kp,
                             kd=self.pid_kd,
                             target_position_margin=0.0,
@@ -51,6 +51,19 @@ class PipelineDesign(unittest.TestCase):
                     wrapper=dict(
                         kwargs=dict(
                             augment_observation=True
+                        )
+                    )
+                ), dict(
+                    block=dict(
+                        cls='gym_jiminy.common.blocks.PDAdapter',
+                        kwargs=dict(
+                            update_ratio=-1,
+                            order=1,
+                        )
+                    ),
+                    wrapper=dict(
+                        kwargs=dict(
+                            augment_observation=False
                         )
                     )
                 ), dict(
@@ -168,9 +181,12 @@ class PipelineDesign(unittest.TestCase):
         # Perform a single step
         env = self.ANYmalPipelineEnv()
         env.reset(seed=0)
-        action = env.env.observation['actions']['pd_controller'].copy()
-        action += 1.0e-3
+        action = env.action + 1.0e-3
         obs, *_ = env.step(action)
+
+        # Extract PD controller wrapper env
+        env_ctrl = env.env.env.env
+        assert isinstance(env_ctrl.controller, PDController)
 
         # Observation stacking is skipping the required number of frames
         stack_dt = (self.skip_frames_ratio + 1) * env.observe_dt
@@ -181,7 +197,7 @@ class PipelineDesign(unittest.TestCase):
 
         # Initial observation is consistent with internal simulator state
         controller_target_obs = obs['actions']['pd_controller']
-        self.assertTrue(np.all(controller_target_obs[-1] == action))
+        self.assertTrue(np.all(controller_target_obs[-1] == env_ctrl.action))
         imu_data_ref = env.simulator.robot.sensor_measurements['ImuSensor']
         imu_data_obs = obs['measurements']['ImuSensor'][-1]
         self.assertFalse(np.all(imu_data_ref == imu_data_obs))
@@ -215,10 +231,13 @@ class PipelineDesign(unittest.TestCase):
         env.reset(seed=0, options=dict(reset_hook=configure_telemetry))
         env.step(env.action)
 
-        # Check that the command is updated 1/2 low-level controller update
+        controller = env.env.env.env.controller
+        assert isinstance(controller, PDController)
+
+        # Check that the PD command is updated 1/2 low-level controller update
         log_vars = env.log_data['variables']
         u_log = log_vars['currentCommandLF_HAA']
-        self.assertEqual(env.control_dt, 2 * env.unwrapped.control_dt)
+        self.assertEqual(controller.control_dt, 2 * env.unwrapped.control_dt)
         self.assertTrue(np.all(u_log[:2] == 0.0))
         self.assertNotEqual(u_log[1], u_log[2])
         self.assertEqual(u_log[2], u_log[3])

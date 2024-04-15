@@ -102,7 +102,7 @@ namespace jiminy
             const std::string & sensorType, const std::string & sensorName) const;
 
         void setOptions(const GenericConfig & robotOptions);
-        const GenericConfig & getOptions() const;  // noexcept;
+        const GenericConfig & getOptions() const noexcept;
         void setModelOptions(const GenericConfig & modelOptions);
         const GenericConfig & getModelOptions() const noexcept;
 

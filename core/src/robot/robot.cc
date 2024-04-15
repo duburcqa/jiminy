@@ -773,7 +773,7 @@ namespace jiminy
         deepUpdate(robotOptionsGeneric_, robotOptions);
     }
 
-    const GenericConfig & Robot::getOptions() const  // noexcept
+    const GenericConfig & Robot::getOptions() const noexcept
     {
         /* Return options without refreshing all options if and only if the robot has not been
            unlock since the last time they were considered valid. */

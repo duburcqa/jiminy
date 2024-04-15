@@ -7,7 +7,6 @@ step_dt = 0.04
 block.cls = "gym_jiminy.common.blocks.PDController"
 [layers_config.block.kwargs]
 update_ratio = 2
-order = 1
 kp = [1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0]
 kd = [0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01]
 target_position_margin = 0.0
@@ -15,6 +14,14 @@ target_velocity_limit = 100.0
 target_acceleration_limit = 10000.0
 [layers_config.wrapper.kwargs]
 augment_observation = true
+
+[[layers_config]]
+block.cls = "gym_jiminy.common.blocks.PDAdapter"
+[layers_config.block.kwargs]
+update_ratio = -1
+order = 1
+[layers_config.wrapper.kwargs]
+augment_observation = false
 
 [[layers_config]]
 block.cls = "gym_jiminy.common.blocks.MahonyFilter"
