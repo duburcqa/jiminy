@@ -899,6 +899,11 @@ namespace jiminy
         {
             addFlexibilityJointsToExtendedModel();
         }
+        else
+        {
+            flexibilityJointIndices_.clear();
+            flexibilityJointNames_.clear();
+        }
 
         /* Add biases to the dynamics properties of the model.
            Note that is also refresh all proxies automatically. */
