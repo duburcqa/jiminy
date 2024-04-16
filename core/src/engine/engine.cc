@@ -977,7 +977,7 @@ namespace jiminy
                 JIMINY_THROW(std::invalid_argument,
                              "Robot '",
                              robotName,
-                             "'does not have an initial configuration or velocity.");
+                             "' does not have an initial configuration or velocity.");
             }
 
             const Eigen::VectorXd & q = qInitIt->second;

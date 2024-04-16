@@ -619,5 +619,66 @@ class SimulateSimplePendulum(unittest.TestCase):
             v_jiminy[:, -1], x_analytical[:, 1], atol=TOLERANCE))
 
 
+    def test_flexibility_api(self):
+        """
+        @brief Test the addition and disabling of a flexibility in the system.
+ 
+        @details This function only tests that the flexibility API works, but
+                 performs no validation of the physics behind it.
+        """
+
+        # Enable flexibility
+        model_options = self.robot.get_model_options()
+        model_options["dynamics"]["enableFlexibility"] = True
+        model_options["dynamics"]["flexibilityConfig"] = [{
+            'frameName': "PendulumJoint",
+            'stiffness': np.ones(3),
+            'damping': np.ones(3),
+            'inertia': np.ones(3)
+        }]
+        self.robot.set_model_options(model_options)
+        self.assertTrue(self.robot.flexibility_joint_indices == [1])
+
+        engine = jiminy.Engine()
+        engine.add_robot(self.robot)
+
+        x0 = np.array([0.0, 0.0, 0.0, 1.0, 0.0, 0.0])
+        tf = 0.1
+        simulate_and_get_state_evolution(engine, tf, x0, split=False)
+
+        self.assertTrue(self.robot.flexibility_joint_indices == [1])
+
+        # Disable flexibility
+        model_options = self.robot.get_model_options()
+        model_options["dynamics"]["enableFlexibility"] = False
+        self.robot.set_model_options(model_options)
+        self.assertTrue(self.robot.flexibility_joint_indices == [])
+        x0 = np.array([0.0, 0.0])
+        simulate_and_get_state_evolution(engine, tf, x0, split=False)
+        self.assertTrue(self.robot.flexibility_joint_indices == [])
+
+        # Re-enable flexibility
+        model_options = self.robot.get_model_options()
+        model_options["dynamics"]["enableFlexibility"] = True
+        self.robot.set_model_options(model_options)
+        self.assertTrue(self.robot.flexibility_joint_indices == [1])
+
+        x0 = np.array([0.0, 0.0, 0.0, 1.0, 0.0, 0.0])
+        simulate_and_get_state_evolution(engine, tf, x0, split=False)
+
+        self.assertTrue(self.robot.flexibility_joint_indices == [1])
+
+        # Test empty flexibility list
+        model_options = self.robot.get_model_options()
+        model_options["dynamics"]["enableFlexibility"] = True
+        model_options["dynamics"]["flexibilityConfig"] = []
+        self.robot.set_model_options(model_options)
+        self.assertTrue(self.robot.flexibility_joint_indices == [])
+
+        x0 = np.array([0.0, 0.0])
+        simulate_and_get_state_evolution(engine, tf, x0, split=False)
+
+        self.assertTrue(self.robot.flexibility_joint_indices == [])
+
 if __name__ == '__main__':
     unittest.main()
