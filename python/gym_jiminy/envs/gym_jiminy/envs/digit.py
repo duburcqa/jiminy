@@ -15,7 +15,7 @@ from jiminy_py.robot import load_hardware_description_file, BaseJiminyRobot
 from pinocchio import neutral, SE3, buildReducedModel
 
 from gym_jiminy.common.envs import WalkerJiminyEnv
-from gym_jiminy.common.blocks import PDController, MahonyFilter
+from gym_jiminy.common.blocks import PDController, PDAdapter, MahonyFilter
 from gym_jiminy.common.utils import build_pipeline
 
 if sys.version_info < (3, 9):

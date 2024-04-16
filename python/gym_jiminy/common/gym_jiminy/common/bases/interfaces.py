@@ -12,7 +12,6 @@ import numpy.typing as npt
 import gymnasium as gym
 
 import jiminy_py.core as jiminy
-from jiminy_py.core import array_copyto  # pylint: disable=no-name-in-module
 from jiminy_py.simulator import Simulator
 from jiminy_py.viewer.viewer import is_display_available
 
@@ -111,7 +110,7 @@ class InterfaceController(ABC, Generic[ActT, BaseActT]):
         """
 
     @abstractmethod
-    def compute_command(self, action: ActT) -> BaseActT:
+    def compute_command(self, action: ActT, command: BaseActT) -> None:
         """Compute the command to send to the subsequent block, based on the
         action and current observation of the environment.
 
@@ -120,11 +119,11 @@ class InterfaceController(ABC, Generic[ActT, BaseActT]):
             automatically prior to calling this method.
 
         :param action: High-level target to achieve by means of the command.
-
-        :returns: Command to send to the subsequent block. It corresponds to
-                  the target features of another lower-level controller if any,
-                  the target motors efforts of the environment to ultimately
-                  control otherwise.
+        :param command: Command to send to the subsequent block. It corresponds
+                        to the target features of another lower-level
+                        controller if any, the target motors efforts of the
+                        environment to ultimately control otherwise. It must be
+                        updated in-place.
         """
 
     def compute_reward(self,
@@ -313,7 +312,7 @@ class InterfaceJiminyEnv(
 
         # No need to check for breakpoints of the controller because it already
         # matches the update period by design.
-        array_copyto(command, self.compute_command(self.action))
+        self.compute_command(self.action, command)
 
         # Always consider that the observation must be refreshed after calling
         # '_controller_handle' as it is never called more often than necessary.

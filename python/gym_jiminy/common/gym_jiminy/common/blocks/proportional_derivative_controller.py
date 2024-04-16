@@ -97,7 +97,7 @@ def pd_controller(q_measured: np.ndarray,
                   kd: np.ndarray,
                   motors_effort_limit: np.ndarray,
                   control_dt: float,
-                  out: np.ndarray) -> np.ndarray:
+                  out: np.ndarray) -> None:
     """Compute command torques under discrete-time proportional-derivative
     feedback control.
 
@@ -155,7 +155,6 @@ def pd_controller(q_measured: np.ndarray,
     out[:] = np.minimum(np.maximum(
         out, -motors_effort_limit), motors_effort_limit)
 
-    return out
 
 @nb.jit(nopython=True, cache=True, fastmath=True)
 def pd_adapter(action: np.ndarray,
@@ -430,8 +429,8 @@ class PDController(
     def get_state(self) -> np.ndarray:
         return self._command_state[:2]
 
-    def compute_command(self, action: np.ndarray) -> np.ndarray:
-        """Compute the motor torques using a PD controller.
+    def compute_command(self, action: np.ndarray, command: np.ndarray) -> None:
+        """Compute the target motor torques using a PD controller.
 
         It is proportional to the error between the observed motors positions/
         velocities and the target ones.
@@ -441,6 +440,7 @@ class PDController(
             forbidden, because it would mess with the controller update period.
 
         :param action: Desired target motor acceleration.
+        :param command: Current motor torques that will be updated in-place.
         """
         # Re-initialize the command state to the current motor state if the
         # simulation is not running. This must be done here because the
@@ -465,7 +465,7 @@ class PDController(
 
         # Compute the motor efforts using PD control.
         # The command state must not be updated if no simulation is running.
-        return pd_controller(
+        pd_controller(
             q_measured,
             v_measured,
             self._command_state,
@@ -475,7 +475,7 @@ class PDController(
             self.kd,
             self.motors_effort_limit,
             self.control_dt if is_simulation_running else 0.0,
-            self._u_command)
+            command)
 
 
 class PDAdapter(
@@ -521,8 +521,8 @@ class PDAdapter(
         # Make sure that the specified derivative order is valid
         assert order in (0, 1), "Derivative order out-of-bounds"
 
-        # Make sure the action space of the environment has not been altered
-        controller = env.controller
+        # Make sure that a PD controller block is already connected
+        controller = env.controller  # type: ignore[attr-defined]
         if not isinstance(controller, PDController):
             raise RuntimeError(
                 "This block must be directly connected to a lower-level "
@@ -563,18 +563,18 @@ class PDAdapter(
         return [f"nextTarget{N_ORDER_DERIVATIVE_NAMES[self.order]}{name}"
                 for name in self.env.robot.motor_names]
 
-    def compute_command(self, action: np.ndarray) -> np.ndarray:
+    def compute_command(self, action: np.ndarray, command: np.ndarray) -> None:
         """Compute the target motor accelerations from the desired value of
         some derivative of the target motor positions.
 
         :param action: Desired target motor acceleration.
         :param command: Current motor torques that will be updated in-place.
         """
-        return pd_adapter(
+        pd_adapter(
             action,
             self.order,
             self._pd_controller._command_state,
             self._pd_controller._command_state_lower,
             self._pd_controller._command_state_upper,
             self.control_dt,
-            self._target_accelerations)
+            command)

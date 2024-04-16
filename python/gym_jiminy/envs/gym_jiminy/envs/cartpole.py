@@ -207,16 +207,14 @@ class CartPoleJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         copyto(self.__state_view, measurement[
             'states']['agent'].values())  # type: ignore[index,union-attr]
 
-    def compute_command(self, action: np.ndarray) -> np.ndarray:
+    def compute_command(self, action: np.ndarray, command: np.ndarray) -> None:
         """Compute the motors efforts to apply on the robot.
 
         Convert a discrete action into its actual value if necessary.
 
         :param action: Desired motors efforts.
         """
-        if not self.continuous:
-            action = self.AVAIL_CTRL[action]
-        return action
+        command[:] = action if self.continuous else self.AVAIL_CTRL[action]
 
     def compute_reward(self,
                        terminated: bool,

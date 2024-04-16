@@ -222,7 +222,7 @@ class AcrobotJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
 
         return terminated, truncated
 
-    def compute_command(self, action: np.ndarray) -> np.ndarray:
+    def compute_command(self, action: np.ndarray, command: np.ndarray) -> None:
         """Compute the motors efforts to apply on the robot.
 
         Convert a discrete action into its actual value if necessary, then add
@@ -230,11 +230,9 @@ class AcrobotJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
 
         :param action: Desired motors efforts.
         """
-        if not self.continuous:
-            action = self.AVAIL_CTRL[action]
+        command[:] = action if self.continuous else self.AVAIL_CTRL[action]
         if ACTION_NOISE > 0.0:
-            action += sample(scale=ACTION_NOISE, rg=self.np_random)
-        return action
+            command += sample(scale=ACTION_NOISE, rg=self.np_random)
 
     def compute_reward(self,
                        terminated: bool,

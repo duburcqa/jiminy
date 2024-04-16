@@ -29,7 +29,7 @@ def apply_safety_limits(command: np.ndarray,
                         motors_soft_position_upper: np.ndarray,
                         motors_velocity_limit: np.ndarray,
                         motors_effort_limit: np.ndarray,
-                        out: np.ndarray) -> np.ndarray:
+                        out: np.ndarray) -> None:
     """Clip the command torque to ensure safe operation.
 
     It acts on each actuator independently and only activate close to the
@@ -77,8 +77,6 @@ def apply_safety_limits(command: np.ndarray,
     # Clip command according to safe effort bounds
     out[:] = np.minimum(np.maximum(
         command, safe_effort_lower), safe_effort_upper)
-
-    return out
 
 
 class MotorSafetyLimit(
@@ -173,9 +171,6 @@ class MotorSafetyLimit(
         # Initialize the controller
         super().__init__(name, env, update_ratio=1)
 
-        # Command motor torques buffer for efficiency
-        self._u_command = np.array([])
-
     def _initialize_action_space(self) -> None:
         """Configure the action space of the controller.
 
@@ -191,20 +186,20 @@ class MotorSafetyLimit(
         self.q_measured, self.v_measured = (
             self.env.sensor_measurements[encoder.type])
 
-        # Re-initialize pre-allocated memory for command motor torques
-        self._u_command = np.zeros((self.env.robot.nmotors,))
-
     @property
     def fieldnames(self) -> List[str]:
         return [f"currentMotorTorque{name}"
                 for name in self.env.robot.motor_names]
 
-    def compute_command(self, action: np.ndarray) -> np.ndarray:
+    def compute_command(self,
+                        action: np.ndarray,
+                        command: np.ndarray) -> None:
         """Apply safety limits to the desired motor torques right before
         sending it to the robot so as to avoid exceeded prescribed position
         and velocity limits.
 
         :param action: Desired motor torques to apply on the robot.
+        :param command: Current motor torques that will be updated in-place.
         """
         # Extract motor positions and velocity from encoder data
         q_measured, v_measured = self.q_measured, self.v_measured
@@ -213,13 +208,13 @@ class MotorSafetyLimit(
             v_measured = v_measured[self.encoder_to_motor]
 
         # Clip command according to safe effort bounds
-        return apply_safety_limits(action,
-                                   q_measured,
-                                   v_measured,
-                                   self.kp,
-                                   self.kd,
-                                   self.motors_position_lower,
-                                   self.motors_position_upper,
-                                   self.motors_velocity_limit,
-                                   self.motors_effort_limit,
-                                   self._u_command)
+        apply_safety_limits(action,
+                            q_measured,
+                            v_measured,
+                            self.kp,
+                            self.kd,
+                            self.motors_position_lower,
+                            self.motors_position_upper,
+                            self.motors_velocity_limit,
+                            self.motors_effort_limit,
+                            command)

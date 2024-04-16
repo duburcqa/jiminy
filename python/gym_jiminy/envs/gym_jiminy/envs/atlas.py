@@ -13,6 +13,7 @@ from pinocchio import neutral, buildReducedModel
 from gym_jiminy.common.envs import WalkerJiminyEnv
 from gym_jiminy.common.blocks import (MotorSafetyLimit,
                                       PDController,
+                                      PDAdapter,
                                       MahonyFilter)
 from gym_jiminy.common.utils import build_pipeline
 from gym_jiminy.toolbox.math import ConvexHull
