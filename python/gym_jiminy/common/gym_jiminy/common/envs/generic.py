@@ -1503,7 +1503,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         for sensor_type in self._sensors_types:
             array_copyto(sensors_out[sensor_type], sensors_in[sensor_type])
 
-    def compute_command(self, action: ActT) -> np.ndarray:
+    def compute_command(self, action: ActT, command: np.ndarray) -> None:
         """Compute the motors efforts to apply on the robot.
 
         By default, all it does is forwarding the input action as is, without
@@ -1524,7 +1524,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
             LOGGER.warning("The action is out-of-bounds.")
 
         assert isinstance(action, np.ndarray)
-        return action
+        array_copyto(command, action)
 
     def has_terminated(self) -> Tuple[bool, bool]:
         """Determine whether the episode is over, because a terminal state of

@@ -895,14 +895,11 @@ namespace jiminy
         pinocchioModel_ = pinocchioModelTh_;
 
         // Add flexibility joints to the extended model if requested
+        flexibilityJointIndices_.clear();
+        flexibilityJointNames_.clear();
         if (modelOptions_->dynamics.enableFlexibility)
         {
             addFlexibilityJointsToExtendedModel();
-        }
-        else
-        {
-            flexibilityJointIndices_.clear();
-            flexibilityJointNames_.clear();
         }
 
         /* Add biases to the dynamics properties of the model.
@@ -927,7 +924,6 @@ namespace jiminy
         }
 
         // Add all the flexibility joints
-        flexibilityJointNames_.clear();
         for (const FlexibilityJointConfig & flexibilityJoint :
              modelOptions_->dynamics.flexibilityConfig)
         {

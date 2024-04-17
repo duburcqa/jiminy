@@ -15,7 +15,7 @@ from jiminy_py.robot import load_hardware_description_file, BaseJiminyRobot
 from pinocchio import neutral, SE3, buildReducedModel
 
 from gym_jiminy.common.envs import WalkerJiminyEnv
-from gym_jiminy.common.blocks import PDController, MahonyFilter
+from gym_jiminy.common.blocks import PDController, PDAdapter, MahonyFilter
 from gym_jiminy.common.utils import build_pipeline
 
 if sys.version_info < (3, 9):
@@ -193,12 +193,24 @@ CassiePDControlJiminyEnv = build_pipeline(
                 cls=PDController,
                 kwargs=dict(
                     update_ratio=HLC_TO_LLC_RATIO,
-                    order=1,
                     kp=PD_KP,
                     kd=PD_KD,
                     target_position_margin=0.0,
                     target_velocity_limit=float("inf"),
                     target_acceleration_limit=float("inf")
+                )
+            ),
+            wrapper=dict(
+                kwargs=dict(
+                    augment_observation=False
+                )
+            )
+        ), dict(
+            block=dict(
+                cls=PDAdapter,
+                kwargs=dict(
+                    update_ratio=-1,
+                    order=1,
                 )
             ),
             wrapper=dict(

@@ -10,7 +10,8 @@ import jiminy_py.core as jiminy
 from jiminy_py.simulator import Simulator
 
 from gym_jiminy.common.envs import BaseJiminyEnv
-from gym_jiminy.common.blocks import PDController, MahonyFilter, DeformationEstimator
+from gym_jiminy.common.blocks import (
+    PDController, PDAdapter, MahonyFilter, DeformationEstimator)
 from gym_jiminy.common.bases import ObservedJiminyEnv, ControlledJiminyEnv
 from gym_jiminy.common.utils import matrices_to_quat, build_pipeline
 from gym_jiminy.envs import AntJiminyEnv
@@ -113,9 +114,15 @@ class DeformationEstimatorBlock(unittest.TestCase):
             env,
             kp=150.0,
             kd=0.03,
-            order=1,
             update_ratio=1)
         env = ControlledJiminyEnv(env, pd_controller)
+
+        pd_adapter = PDAdapter(
+            "pd_adapter",
+            env,
+            order=1,
+            update_ratio=-1)
+        env = ControlledJiminyEnv(env, pd_adapter)
 
         mahony_filter = MahonyFilter(
             "mahony_filter",
@@ -215,8 +222,16 @@ class DeformationEstimatorBlock(unittest.TestCase):
                         kwargs=dict(
                             kp=150.0,
                             kd=0.03,
-                            order=1,
                             update_ratio=1,
+                        )
+                    )
+                ),
+                dict(
+                    block=dict(
+                        cls=PDAdapter,
+                        kwargs=dict(
+                            order=1,
+                            update_ratio=-1,
                         )
                     )
                 ),

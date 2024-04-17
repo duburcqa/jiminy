@@ -13,6 +13,7 @@ from pinocchio import neutral, buildReducedModel
 from gym_jiminy.common.envs import WalkerJiminyEnv
 from gym_jiminy.common.blocks import (MotorSafetyLimit,
                                       PDController,
+                                      PDAdapter,
                                       MahonyFilter)
 from gym_jiminy.common.utils import build_pipeline
 from gym_jiminy.toolbox.math import ConvexHull
@@ -253,12 +254,24 @@ AtlasPDControlJiminyEnv = build_pipeline(
                 cls=PDController,
                 kwargs=dict(
                     update_ratio=1,
-                    order=1,
                     kp=PD_FULL_KP,
                     kd=PD_FULL_KD,
                     target_position_margin=0.0,
                     target_velocity_limit=MOTOR_VELOCITY_MAX,
                     target_acceleration_limit=MOTOR_ACCELERATION_MAX
+                )
+            ),
+            wrapper=dict(
+                kwargs=dict(
+                    augment_observation=False
+                )
+            )
+        ), dict(
+            block=dict(
+                cls=PDAdapter,
+                kwargs=dict(
+                    update_ratio=-1,
+                    order=1,
                 )
             ),
             wrapper=dict(
@@ -299,12 +312,24 @@ AtlasReducedPDControlJiminyEnv = build_pipeline(
                 cls=PDController,
                 kwargs=dict(
                     update_ratio=1,
-                    order=1,
                     kp=PD_REDUCED_KP,
                     kd=PD_REDUCED_KD,
                     target_position_margin=0.0,
                     target_velocity_limit=MOTOR_VELOCITY_MAX,
                     target_acceleration_limit=MOTOR_ACCELERATION_MAX
+                )
+            ),
+            wrapper=dict(
+                kwargs=dict(
+                    augment_observation=False
+                )
+            )
+        ), dict(
+            block=dict(
+                cls=PDAdapter,
+                kwargs=dict(
+                    update_ratio=-1,
+                    order=1,
                 )
             ),
             wrapper=dict(

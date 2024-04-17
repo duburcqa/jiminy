@@ -479,15 +479,16 @@ class ObservedJiminyEnv(
         if is_breakpoint(self.stepper_state.t, self.observe_dt, DT_EPS):
             self.observer.refresh_observation(self.env.observation)
 
-    def compute_command(self, action: ActT) -> np.ndarray:
+    def compute_command(self, action: ActT, command: np.ndarray) -> None:
         """Compute the motors efforts to apply on the robot.
 
         It simply forwards the command computed by the wrapped environment
         without any processing.
 
         :param action: High-level target to achieve by means of the command.
+        :param command: Lower-level command to updated in-place.
         """
-        return self.env.compute_command(action)
+        self.env.compute_command(action, command)
 
 
 class ControlledJiminyEnv(
@@ -596,9 +597,6 @@ class ControlledJiminyEnv(
         # Initialize base wrapper
         super().__init__(env, **kwargs)
 
-        # Define specialized operator(s) for efficiency
-        self._copyto_env_action = build_copyto(self.env.action)
-
         # Allocate action buffer
         self.action: ActT = zeros(self.action_space)
 
@@ -702,7 +700,7 @@ class ControlledJiminyEnv(
         """
         self.env.refresh_observation(measurement)
 
-    def compute_command(self, action: ActT) -> np.ndarray:
+    def compute_command(self, action: ActT, command: np.ndarray) -> None:
         """Compute the motors efforts to apply on the robot.
 
         In practice, it updates whenever necessary:
@@ -712,21 +710,21 @@ class ControlledJiminyEnv(
               subsequent block
 
         :param action: High-level target to achieve by means of the command.
+        :param command: Lower-level command to update in-place.
         """
         # Update the target to send to the subsequent block if necessary.
         # Note that `observation` buffer has already been updated right before
         # calling this method by `_controller_handle`, so it can be used as
         # measure argument without issue.
         if is_breakpoint(self.stepper_state.t, self.control_dt, DT_EPS):
-            target = self.controller.compute_command(action)
-            self._copyto_env_action(target)
+            self.controller.compute_command(action, self.env.action)
 
         # Update the command to send to the actuators of the robot.
         # Note that the environment itself is responsible of making sure to
         # update the command at the right period. Ultimately, this is done
         # automatically by the engine, which is calling `_controller_handle` at
         # the right period.
-        return self.env.compute_command(self.env.action)
+        self.env.compute_command(self.env.action, command)
 
     def compute_reward(self,
                        terminated: bool,
@@ -795,15 +793,16 @@ class BaseTransformObservation(
         """
         self.action_space = self.env.action_space
 
-    def compute_command(self, action: ActT) -> np.ndarray:
+    def compute_command(self, action: ActT, command: np.ndarray) -> None:
         """Compute the motors efforts to apply on the robot.
 
         It simply forwards the command computed by the wrapped environment
         without any processing.
 
         :param action: High-level target to achieve by means of the command.
+        :param command: Lower-level command to update in-place.
         """
-        return self.env.compute_command(action)
+        self.env.compute_command(action, command)
 
     def refresh_observation(self, measurement: EngineObsType) -> None:
         """Compute high-level features based on the current wrapped
@@ -913,7 +912,9 @@ class BaseTransformAction(
         """
         self.env.refresh_observation(measurement)
 
-    def compute_command(self, action: TransformedActT) -> np.ndarray:
+    def compute_command(self,
+                        action: TransformedActT,
+                        command: np.ndarray) -> None:
         """Compute the motors efforts to apply on the robot.
 
         It calls `transform_action` at `step_dt` update period, which will
@@ -925,13 +926,14 @@ class BaseTransformAction(
             user prior to calling this method.
 
         :param action: High-level target to achieve by means of the command.
+        :param command: Lower-level command to update in-place.
         """
         # Transform action at the beginning of the step only
         if is_breakpoint(self.stepper_state.t, self._step_dt, DT_EPS):
             self.transform_action(action)
 
         # Delegate command computation to wrapped environment
-        return self.env.compute_command(self.env.action)
+        self.env.compute_command(self.env.action, command)
 
     @abstractmethod
     def transform_action(self, action: TransformedActT) -> None:

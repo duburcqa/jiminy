@@ -10,6 +10,7 @@ import gymnasium as gym
 
 import jiminy_py.core as jiminy
 from jiminy_py.core import (  # pylint: disable=no-name-in-module
+    array_copyto,
     EncoderSensor as encoder)
 
 from ..bases import BaseObsT, InterfaceJiminyEnv, BaseControllerBlock
@@ -24,46 +25,71 @@ N_ORDER_DERIVATIVE_NAMES = ("Position", "Velocity", "Acceleration")
 def integrate_zoh(state: np.ndarray,
                   state_min: np.ndarray,
                   state_max: np.ndarray,
-                  dt: float,
-                  horizon: np.ndarray) -> None:
-    """First order exact integration scheme assuming Zero-Order-Hold for the
-    velocity, taking state bounds into account.
+                  dt: float) -> None:
+    """Second order approximate integration scheme assuming Zero-Order-Hold for
+    the acceleration, taking position, velocity and acceleration bounds into
+    account.
+
+    Internally, it simply chains two first-order integrators in cascade. The
+    acceleration will be updated in-place if clipping is necessary to satisfy
+    bounds.
 
     :param state: Current state, ordered from lowest to highest derivative
-                  order, ie: s[i](t) = s[i](t-1) + integ_{t-1}^{t}(s[i+1](t)).
-                  It will be updated in place.
-    :param state_min: Lower bounds of the state.
-    :param state_max: Upper bounds of the state.
+                  order, ie: s[i](t) = s[i](t-1) + integ_{t-1}^{t}(s[i+1](t)),
+                  as a 2D array whose first dimension gathers the 3 derivative
+                  orders. It will be updated in-place.
+    :param state_min: Lower bounds of the state as a 2D array.
+    :param state_max: Upper bounds of the state as a 2D array.
     :param dt: Integration delta of time since previous state update.
-    :param horizon: Horizon length to start slowing down before hitting bounds.
     """
     # Make sure that dt is not negative
-    assert dt >= 0.0, "The integration timestep 'dt' must be positive."
+    assert dt >= 0.0, "Integration backward in time is not supported."
 
     # Early return if timestep is too small
     if abs(dt) < 1e-9:
         return
 
+    # Split position, velocity and acceleration orders for convenience
+    position, velocity, acceleration = state
+    position_min, velocity_min, acceleration_min = state_min
+    position_max, velocity_max, acceleration_max = state_max
+
+    # Backup the initial velocity to later compute the clipped acceleration
+    velocity_prev = velocity.copy()
+
+    # Clip acceleration
+    acceleration = np.minimum(
+        np.maximum(acceleration, acceleration_min), acceleration_max)
+
+    # Integrate acceleration 1-step ahead
+    velocity += acceleration * dt
+
     # Make sure that velocity bounds are satisfied
-    state[1] = np.minimum(np.maximum(state[1], state_min[1]), state_max[1])
+    velocity[:] = np.minimum(np.maximum(velocity, velocity_min), velocity_max)
 
-    # Deduce velocity bounds from position bounds
-    velocity_min = (state_min[0] - state[0]) / (horizon * dt)
-    velocity_max = (state_max[0] - state[0]) / (horizon * dt)
+    # Compute slowdown horizon.
+    # It must be as short as possible to avoid altering the user-specified
+    # acceleration if not strictly necessary, but long enough to avoid
+    # violation of acceleration bounds when hitting position bounds.
+    horizon = np.maximum(np.abs(velocity) / acceleration_max, dt)
 
-    # Clip velocity to ensure than position bounds are always satisfied.
-    # Note that it may cause velocity bounds to be violated.
-    state[1] = np.minimum(np.maximum(state[1], velocity_min), velocity_max)
+    # Refine velocity bounds to take into account position bounds
+    velocity_min = (position_min - position) / horizon
+    velocity_max = (position_max - position) / horizon
 
-    # Integrate 1-step ahead, taking into account clipped velocity
-    state[0] += dt * state[1]
+    # Clip velocity to ensure than position bounds are always satisfied
+    velocity[:] = np.minimum(np.maximum(velocity, velocity_min), velocity_max)
+
+    # Back-propagate velocity clipping at the acceleration-level
+    acceleration[:] = (velocity - velocity_prev) / dt
+
+    # Integrate position 1-step ahead
+    position += dt * velocity
 
 
 @nb.jit(nopython=True, cache=True, fastmath=True)
 def pd_controller(q_measured: np.ndarray,
                   v_measured: np.ndarray,
-                  action: np.ndarray,
-                  order: int,
                   command_state: np.ndarray,
                   command_state_lower: np.ndarray,
                   command_state_upper: np.ndarray,
@@ -71,7 +97,7 @@ def pd_controller(q_measured: np.ndarray,
                   kd: np.ndarray,
                   motors_effort_limit: np.ndarray,
                   control_dt: float,
-                  out: np.ndarray) -> np.ndarray:
+                  out: np.ndarray) -> None:
     """Compute command torques under discrete-time proportional-derivative
     feedback control.
 
@@ -96,18 +122,12 @@ def pd_controller(q_measured: np.ndarray,
 
     :param q_measured: Current position of the actuators.
     :param v_measured: Current velocity of the actuators.
-    :param action: Desired value of the n-th derivative of the command motor
-                   positions at the end of the controller update.
-    :param order: Derivative order of the position associated with the action.
     :param command_state: Current command state, namely, all the derivatives of
-                          the target motors positions up to order N. The order
-                          must be larger than 1 but can be arbitrarily large.
-    :param command_state_lower: Lower bound of the command state that should be
-                                satisfied if possible, prioritizing lower order
-                                derivatives.
-    :param command_state_upper: Upper bound of the command state that should be
-                                satisfied if possible, prioritizing lower order
-                                derivatives.
+                          the target motors positions up to acceleration order.
+    :param command_state_lower: Lower bound of the command state that must be
+                                satisfied at all cost.
+    :param command_state_upper: Upper bound of the command state that must be
+                                satisfied at all cost.
     :param kp: PD controller position-proportional gain in motor order.
     :param kd: PD controller velocity-proportional gain in motor order.
     :param motors_effort_limit: Maximum effort that the actuators can output.
@@ -116,48 +136,14 @@ def pd_controller(q_measured: np.ndarray,
     :param horizon: Horizon length to start slowing down before hitting bounds.
     :param out: Pre-allocated memory to store the command motor torques.
     """
-    # Update command accelerations based on the action and its derivative order
-    if order == 2:
-        # The action corresponds to the command motor accelerations
-        acceleration = action
-    else:
-        if order == 0:
-            # Compute command velocity
-            velocity = (action - command_state[0]) / control_dt
-
-            # Clip command velocity
-            velocity = np.minimum(np.maximum(
-                velocity, command_state_lower[1]), command_state_upper[1])
-        else:
-            # The action corresponds to the command motor velocities
-            velocity = action
-
-        # Compute command acceleration
-        acceleration = (velocity - command_state[1]) / control_dt
-
-    # Clip command acceleration
-    command_state[2] = np.minimum(np.maximum(
-        acceleration, command_state_lower[2]), command_state_upper[2])
-
-    # Integrate command velocity
-    command_state[1] += command_state[2] * control_dt
-
-    # Compute slowdown horizon.
-    # It must be as short as possible to avoid altering the user-specified
-    # command if not strictly necessary, but long enough to avoid violation of
-    # acceleration bounds when hitting bounds.
-    horizon = np.maximum(np.abs(command_state[1]) / (
-        command_state_upper[2] * max(control_dt, 1-9)), 1.0)
-
-    # Integrate command position, clipping velocity to satisfy state bounds
+    # Integrate target motor positions and velocities
     integrate_zoh(command_state,
                   command_state_lower,
                   command_state_upper,
-                  control_dt,
-                  horizon)
+                  control_dt)
 
     # Extract targets motors positions and velocities from command state
-    q_target, v_target = command_state[:2]
+    q_target, v_target, _ = command_state
 
     # Compute the joint tracking error
     q_error, v_error = q_target - q_measured, v_target - v_measured
@@ -169,7 +155,56 @@ def pd_controller(q_measured: np.ndarray,
     out[:] = np.minimum(np.maximum(
         out, -motors_effort_limit), motors_effort_limit)
 
-    return out
+
+@nb.jit(nopython=True, cache=True, fastmath=True)
+def pd_adapter(action: np.ndarray,
+               order: int,
+               command_state: np.ndarray,
+               command_state_lower: np.ndarray,
+               command_state_upper: np.ndarray,
+               dt: float,
+               out: np.ndarray) -> None:
+    """Compute the target motor accelerations that must be held constant for a
+    given time interval in order to reach the desired value of some derivative
+    of the target motor positions at the end of that interval if possible.
+
+    Internally, it applies backward in time the same integration scheme as the
+    PD controller. Knowing the initial and final value of the derivative over
+    the time interval, constant target motor accelerations can be uniquely
+    deduced. In practice, it consists in successive clipped finite difference
+    of that derivative up to acceleration-level.
+
+    :param action: Desired value of the n-th derivative of the command motor
+                   positions at the end of the controller update.
+    :param order: Derivative order of the position associated with the action.
+    :param command_state: Current command state, namely, all the derivatives of
+                          the target motors positions up to acceleration order.
+    :param command_state_lower: Lower bound of the command state that must be
+                                satisfied at all cost.
+    :param command_state_upper: Upper bound of the command state that must be
+                                satisfied at all cost.
+    :param dt: Time interval during which the target motor accelerations will
+               be held constant.
+    :param out: Pre-allocated memory to store the target motor accelerations.
+    """
+    # Update command accelerations based on the action and its derivative order
+    if order == 2:
+        # The action corresponds to the command motor accelerations
+        out[:] = action
+    else:
+        if order == 0:
+            # Compute command velocity
+            velocity = (action - command_state[0]) / dt
+
+            # Clip command velocity
+            velocity = np.minimum(np.maximum(
+                velocity, command_state_lower[1]), command_state_upper[1])
+        else:
+            # The action corresponds to the command motor velocities
+            velocity = action
+
+        # Compute command acceleration
+        out[:] = (velocity - command_state[1]) / dt
 
 
 def get_encoder_to_motor_map(robot: jiminy.Robot) -> Union[slice, List[int]]:
@@ -214,21 +249,12 @@ class PDController(
         BaseControllerBlock[np.ndarray, np.ndarray, BaseObsT, np.ndarray]):
     """Low-level Proportional-Derivative controller.
 
-    The action is a given derivative of the target motors positions, from
-    which the target acceleration will be deduced. The latter is then
-    integrated twice using two first-order integrator in cascade, considering
-    that the acceleration is constant until the next controller update:
+    The action are the target motors accelerations. The latter are integrated
+    twice using two first-order integrators in cascade, considering that the
+    acceleration is constant until the next controller update:
 
         v_{t+1} = v_{t} + dt * a_{t}
         q_{t+1} = q_{t} + dt * v_{t+1}
-
-    .. note::
-        The higher the derivative order of the action, the smoother the command
-        motor torques. Thus, a high order is generally beneficial for robotic
-        applications. However, it introduces some kind of delay between the
-        action and its effects. This phenomenon makes learning more difficult
-        but most importantly, it limits the responsiveness of the agent
-        and therefore impedes its optimal performance.
 
     .. note::
         The position and velocity bounds on the command corresponds to the
@@ -247,7 +273,6 @@ class PDController(
                  env: InterfaceJiminyEnv[BaseObsT, np.ndarray],
                  *,
                  update_ratio: int = 1,
-                 order: int = 1,
                  kp: Union[float, List[float], np.ndarray],
                  kd: Union[float, List[float], np.ndarray],
                  target_position_margin: float = 0.0,
@@ -259,9 +284,7 @@ class PDController(
         :param update_ratio: Ratio between the update period of the controller
                              and the one of the subsequent controller. -1 to
                              match the simulation timestep of the environment.
-        :param order: Derivative order of the action. It accepts position,
-                      velocity or acceleration (respectively 0, 1 and 2).
-                      Optional: 1 by default.
+                             Optional: 1 by default.
         :param kp: PD controller position-proportional gains in motor order.
         :param kd: PD controller velocity-proportional gains in motor order.
         :param target_position_margin: Minimum distance of the motor target
@@ -275,9 +298,6 @@ class PDController(
             specifications.
             Optional: "inf" by default.
         """
-        # Make sure that the specified derivative order is valid
-        assert (0 <= order < 3), "Derivative order of command out-of-bounds"
-
         # Make sure the action space of the environment has not been altered
         if env.action_space is not env.unwrapped.action_space:
             raise RuntimeError(
@@ -293,7 +313,6 @@ class PDController(
                 "PD gains inconsistent with number of motors.") from e
 
         # Backup some user argument(s)
-        self.order = order
         self.kp = kp
         self.kd = kd
 
@@ -362,19 +381,14 @@ class PDController(
         # Initialize the controller
         super().__init__(name, env, update_ratio)
 
-        # References to command position, velocity and acceleration
-        (self._command_position,
-         self._command_velocity,
-         self._command_accel) = self._command_state
-
-        # Command motor torques buffer for efficiency
-        self._u_command = np.array([])
+        # References to command acceleration for fast access
+        self._command_acceleration = self._command_state[2]
 
     def _initialize_state_space(self) -> None:
         """Configure the state space of the controller.
 
-        The state spaces corresponds to all the derivatives of the target
-        motors positions up to order N-1.
+        The state spaces corresponds to the target motors positions and
+        velocities.
         """
         self.state_space = gym.spaces.Box(
             low=self._command_state_lower[:2],
@@ -384,12 +398,11 @@ class PDController(
     def _initialize_action_space(self) -> None:
         """Configure the action space of the controller.
 
-        The action spaces corresponds to the N-th order derivative of the
-        target motors positions.
+        The action spaces corresponds to the target motors accelerations.
         """
         self.action_space = gym.spaces.Box(
-            low=self._command_state_lower[self.order],
-            high=self._command_state_upper[self.order],
+            low=self._command_state_lower[2],
+            high=self._command_state_upper[2],
             dtype=np.float64)
 
     def _setup(self) -> None:
@@ -401,9 +414,6 @@ class PDController(
             raise ValueError(
                 "This block does not support time-continuous update.")
 
-        # Re-initialize pre-allocated memory for command motor torques
-        self._u_command = np.zeros((self.env.robot.nmotors,))
-
         # Refresh measured motor positions and velocities proxies
         self.q_measured, self.v_measured = (
             self.env.sensor_measurements[encoder.type])
@@ -413,14 +423,14 @@ class PDController(
 
     @property
     def fieldnames(self) -> List[str]:
-        return [f"target{N_ORDER_DERIVATIVE_NAMES[self.order]}{name}"
+        return [f"currentTarget{N_ORDER_DERIVATIVE_NAMES[2]}{name}"
                 for name in self.env.robot.motor_names]
 
     def get_state(self) -> np.ndarray:
         return self._command_state[:2]
 
-    def compute_command(self, action: np.ndarray) -> np.ndarray:
-        """Compute the motor torques using a PD controller.
+    def compute_command(self, action: np.ndarray, command: np.ndarray) -> None:
+        """Compute the target motor torques using a PD controller.
 
         It is proportional to the error between the observed motors positions/
         velocities and the target ones.
@@ -429,7 +439,8 @@ class PDController(
             Calling this method manually while a simulation is running is
             forbidden, because it would mess with the controller update period.
 
-        :param action: Desired N-th order deriv. of the target motor positions.
+        :param action: Desired target motor acceleration.
+        :param command: Current motor torques that will be updated in-place.
         """
         # Re-initialize the command state to the current motor state if the
         # simulation is not running. This must be done here because the
@@ -449,13 +460,14 @@ class PDController(
             q_measured = q_measured[self.encoder_to_motor]
             v_measured = v_measured[self.encoder_to_motor]
 
+        # Update target motor accelerations
+        array_copyto(self._command_acceleration, action)
+
         # Compute the motor efforts using PD control.
         # The command state must not be updated if no simulation is running.
-        return pd_controller(
+        pd_controller(
             q_measured,
             v_measured,
-            action,
-            self.order,
             self._command_state,
             self._command_state_lower,
             self._command_state_upper,
@@ -463,4 +475,106 @@ class PDController(
             self.kd,
             self.motors_effort_limit,
             self.control_dt if is_simulation_running else 0.0,
-            self._u_command)
+            command)
+
+
+class PDAdapter(
+        BaseControllerBlock[np.ndarray, np.ndarray, BaseObsT, np.ndarray]):
+    """Adapt the action of a lower-level Proportional-Derivative controller
+    to be the target motor positions or velocities rather than accelerations.
+
+    The action is the desired value of some derivative of the target motor
+    positions. The target motor accelerations are then deduced so as to reach
+    this value by the next update of this controller if possible without
+    exceeding the position, velocity and acceleration bounds. Finally, these
+    target position accelerations are passed to a lower-level PD controller,
+    usually running at a higher frequency.
+
+    .. note::
+        The higher the derivative order of the action, the smoother the command
+        motor torques. Thus, a high order is generally beneficial for robotic
+        applications. However, it introduces some kind of delay between the
+        action and its effects. This phenomenon limits the responsiveness of
+        the agent and therefore impedes its optimal performance. Besides, it
+        introduces addition layer of indirection between the action and its
+        effect which may be difficult to grasp for the agent. Finally,
+        exploration usually consists in addition temporally uncorrelated
+        gaussian random process at action-level. The effect of such random
+        processes tends to vanish when integrated, making exploration very
+        inefficient.
+    """
+    def __init__(self,
+                 name: str,
+                 env: InterfaceJiminyEnv[BaseObsT, np.ndarray],
+                 *,
+                 update_ratio: int = -1,
+                 order: int = 1) -> None:
+        """
+        :param update_ratio: Ratio between the update period of the controller
+                             and the one of the subsequent controller. -1 to
+                             match the simulation timestep of the environment.
+                             Optional: -1 by default.
+        :param order: Derivative order of the action. It accepts position or
+                      velocity (respectively 0 or 1).
+                      Optional: 1 by default.
+        """
+        # Make sure that the specified derivative order is valid
+        assert order in (0, 1), "Derivative order out-of-bounds"
+
+        # Make sure that a PD controller block is already connected
+        controller = env.controller  # type: ignore[attr-defined]
+        if not isinstance(controller, PDController):
+            raise RuntimeError(
+                "This block must be directly connected to a lower-level "
+                "`PDController` block.")
+
+        # Backup some user argument(s)
+        self.order = order
+
+        # Define some proxies for convenience
+        self._pd_controller = controller
+
+        # Allocate memory for the target motor accelerations
+        self._target_accelerations = np.zeros((env.robot.nmotors,))
+
+        # Initialize the controller
+        super().__init__(name, env, update_ratio)
+
+    def _initialize_action_space(self) -> None:
+        """Configure the action space of the controller.
+
+        The action spaces corresponds to the N-th order derivative of the
+        target motors positions.
+        """
+        self.action_space = gym.spaces.Box(
+            low=self._pd_controller._command_state_lower[self.order],
+            high=self._pd_controller._command_state_upper[self.order],
+            dtype=np.float64)
+
+    def _setup(self) -> None:
+        # Call base implementation
+        super()._setup()
+
+        # Reset the target motor accelerations
+        fill(self._target_accelerations, 0)
+
+    @property
+    def fieldnames(self) -> List[str]:
+        return [f"nextTarget{N_ORDER_DERIVATIVE_NAMES[self.order]}{name}"
+                for name in self.env.robot.motor_names]
+
+    def compute_command(self, action: np.ndarray, command: np.ndarray) -> None:
+        """Compute the target motor accelerations from the desired value of
+        some derivative of the target motor positions.
+
+        :param action: Desired target motor acceleration.
+        :param command: Current motor torques that will be updated in-place.
+        """
+        pd_adapter(
+            action,
+            self.order,
+            self._pd_controller._command_state,
+            self._pd_controller._command_state_lower,
+            self._pd_controller._command_state_upper,
+            self.control_dt,
+            command)

@@ -11,7 +11,6 @@
         "cls": "gym_jiminy.common.blocks.PDController",
         "kwargs": {
           "update_ratio": 2,
-          "order": 1,
           "kp": [1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0],
           "kd": [0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01],
           "target_position_margin": 0.0,
@@ -22,6 +21,20 @@
       "wrapper": {
         "kwargs": {
           "augment_observation": true
+        }
+      }
+    },
+    {
+      "block": {
+        "cls": "gym_jiminy.common.blocks.PDAdapter",
+        "kwargs": {
+          "update_ratio": -1,
+          "order": 1
+        }
+      },
+      "wrapper": {
+        "kwargs": {
+          "augment_observation": false
         }
       }
     },

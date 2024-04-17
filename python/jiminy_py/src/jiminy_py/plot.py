@@ -627,11 +627,6 @@ def plot_log(log_data: Dict[str, Any],
     if robot is None:
         robot = build_robot_from_log(log_data)
 
-    # Make sure tha the simulation was single-robot
-    if robot.name:
-        raise NotImplementedError(
-            "This method only support single-robot simulations.")
-
     # Figures data structure as a dictionary
     tabs_data: Dict[
         str, Dict[str, Union[np.ndarray, Dict[str, np.ndarray]]]
@@ -639,7 +634,7 @@ def plot_log(log_data: Dict[str, Any],
 
     # Get time and robot positions, velocities, and acceleration
     time = log_vars["Global.Time"]
-    for fields_type in ["Position", "Velocity", "Acceleration"]:
+    for fields_type in ("Position", "Velocity", "Acceleration"):
         fieldnames = getattr(robot, "_".join((
             "log", fields_type.lower(), "fieldnames")))
         if not enable_flexiblity_data:
@@ -651,7 +646,7 @@ def plot_log(log_data: Dict[str, Any],
                 fieldnames))
         try:
             values = extract_variables_from_log(
-                log_vars, fieldnames, as_dict=True)
+                log_vars, fieldnames, namespace=robot.name, as_dict=True)
             tabs_data[' '.join(("State", fields_type))] = OrderedDict(
                 (field[7:].replace(fields_type, ""), elem)
                 for field, elem in values.items())
@@ -662,7 +657,7 @@ def plot_log(log_data: Dict[str, Any],
     # Get motors efforts information
     try:
         motors_efforts = extract_variables_from_log(
-            log_vars, robot.log_motor_effort_fieldnames)
+            log_vars, robot.log_motor_effort_fieldnames, namespace=robot.name)
         tabs_data['MotorEffort'] = OrderedDict(zip(
             robot.motor_names, motors_efforts))
     except ValueError:
@@ -672,7 +667,7 @@ def plot_log(log_data: Dict[str, Any],
     # Get command information
     try:
         command = extract_variables_from_log(
-            log_vars, robot.log_command_fieldnames)
+            log_vars, robot.log_command_fieldnames, namespace=robot.name)
         tabs_data['Command'] = OrderedDict(zip(robot.motor_names, command))
     except ValueError:
         # Variable has not been recorded and is missing in log file
@@ -689,9 +684,9 @@ def plot_log(log_data: Dict[str, Any],
                 try:
                     type_name = ' '.join((sensors_type, fields_prefix))
                     data_nested = [
-                        extract_variables_from_log(log_vars, [
-                            '.'.join((name, fields_prefix + field))
-                            for name in sensor_names], sensors_type)
+                        extract_variables_from_log(log_vars, ['.'.join(
+                            (sensors_type, name, fields_prefix + field))
+                            for name in sensor_names], robot.name)
                         for field in fieldnames]
                     tabs_data[type_name] = OrderedDict(
                         (field, OrderedDict(zip(sensor_names, data)))
@@ -704,8 +699,8 @@ def plot_log(log_data: Dict[str, Any],
                 try:
                     type_name = ' '.join((sensors_type, field))
                     data = extract_variables_from_log(log_vars, [
-                        '.'.join((name, field)) for name in sensor_names
-                        ], sensors_type)
+                        '.'.join((sensors_type, name, field))
+                        for name in sensor_names], robot.name)
                     tabs_data[type_name] = OrderedDict(zip(
                         sensor_names, data))
                 except ValueError:

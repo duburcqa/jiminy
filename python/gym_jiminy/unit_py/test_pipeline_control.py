@@ -20,7 +20,7 @@ import pinocchio as pin
 
 from gym_jiminy.envs import (
     AtlasPDControlJiminyEnv, CassiePDControlJiminyEnv, DigitPDControlJiminyEnv)
-from gym_jiminy.common.blocks import PDController, MahonyFilter
+from gym_jiminy.common.blocks import PDController, PDAdapter, MahonyFilter
 from gym_jiminy.common.utils import (
     quat_to_rpy, matrix_to_rpy, matrix_to_quat, remove_twist_from_quat)
 
@@ -184,8 +184,10 @@ class PipelineControl(unittest.TestCase):
         env = AtlasPDControlJiminyEnv()
 
         # Make sure that a PD controller is plugged to the robot
-        controller = env.controller
-        assert isinstance(controller, PDController) and controller.order == 1
+        adapter = env.controller
+        assert isinstance(adapter, PDAdapter) and adapter.order == 1
+        controller = env.env.env.controller
+        assert isinstance(controller, PDController)
 
         # Disable acceleration limits of PD controller
         controller._command_state_lower[2] = float("-inf")
@@ -198,24 +200,35 @@ class PipelineControl(unittest.TestCase):
             env.step(0.2 * env.action_space.sample())
 
         # Extract the target position and velocity of a single motor
-        ctrl_name = controller.name
+        adapter_name, controller_name = adapter.name, controller.name
         n_motors = len(controller.fieldnames)
-        pos = env.log_data["variables"][".".join((
-            "controller", ctrl_name, "state", str(n_motors - 1)))]
-        vel = env.log_data["variables"][".".join((
-            "controller", ctrl_name, controller.fieldnames[-1]))]
+        target_pos = env.log_data["variables"][".".join((
+            "controller", controller_name, "state", str(n_motors - 1)))]
+        target_vel = env.log_data["variables"][".".join((
+            "controller", controller_name, "state", str(2 * n_motors - 1)))]
+        target_accel = env.log_data["variables"][".".join((
+            "controller", controller_name, controller.fieldnames[-1]))]
+        command_vel = env.log_data["variables"][".".join((
+            "controller", adapter_name, adapter.fieldnames[-1]))]
 
         # Make sure that the position and velocity targets are consistent
-        np.testing.assert_allclose(
-            np.diff(pos) / controller.control_dt, vel[1:], atol=TOLERANCE)
+        target_vel_diff = np.diff(target_pos) / controller.control_dt
+        target_accel_diff = np.diff(target_vel) / controller.control_dt
+        update_ratio = round(adapter.control_dt / controller.control_dt)
+        np.testing.assert_allclose(target_vel[(update_ratio-1)::update_ratio],
+                                   command_vel[(update_ratio-1)::update_ratio],
+                                   atol=TOLERANCE)
+        np.testing.assert_allclose(target_accel_diff, target_accel[1:], atol=TOLERANCE)
+        np.testing.assert_allclose(target_vel_diff, target_vel[1:], atol=TOLERANCE)
 
         # Make sure that the position and velocity targets are within bounds
         robot = env.robot
         pos_min = robot.position_limit_lower[robot.motor_position_indices[-1]]
         pos_max = robot.position_limit_upper[robot.motor_position_indices[-1]]
         vel_limit = robot.velocity_limit[robot.motor_velocity_indices[-1]]
-        self.assertTrue(np.all(np.logical_and(pos_min <= pos, pos <= pos_max)))
-        self.assertTrue(np.all(np.abs(vel) <= vel_limit))
+        self.assertTrue(np.all(np.logical_and(
+            pos_min <= target_pos, target_pos <= pos_max)))
+        self.assertTrue(np.all(np.abs(target_vel) <= vel_limit))
 
     def test_repeatability(self):
         # Instantiate the environment
