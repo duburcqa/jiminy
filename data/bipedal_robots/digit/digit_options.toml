@@ -25,5 +25,4 @@ friction = 0.5
 # ======== Joints bounds configuration ========
 
 [robot.model.joints]
-enablePositionLimit = true
 enableVelocityLimit = true

@@ -23,9 +23,10 @@ namespace jiminy
         }
     }
 
-    void AbstractMotorBase::attach(std::weak_ptr<const Robot> robot,
-                                   std::function<void(AbstractMotorBase & /*motor*/)> notifyRobot,
-                                   MotorSharedStorage * sharedStorage)
+    void AbstractMotorBase::attach(
+        std::weak_ptr<const Robot> robot,
+        std::function<void(AbstractMotorBase & /*motor*/, bool /*hasChanged*/)> notifyRobot,
+        MotorSharedStorage * sharedStorage)
     {
         // Make sure the motor is not already attached
         if (isAttached_)
@@ -163,28 +164,37 @@ namespace jiminy
         }
 
         // Check if the internal buffers must be updated
-        bool internalBuffersMustBeUpdated = false;
         if (isInitialized_)
         {
             // Check if armature has changed
             const bool enableArmature = boost::get<bool>(motorOptions.at("enableArmature"));
-            internalBuffersMustBeUpdated |= (baseMotorOptions_->enableArmature != enableArmature);
+            mustNotifyRobot_ |= (baseMotorOptions_->enableArmature != enableArmature);
             if (enableArmature)
             {
                 const double armature = boost::get<double>(motorOptions.at("armature"));
-                internalBuffersMustBeUpdated |=  //
+                mustNotifyRobot_ |=  //
                     std::abs(armature - baseMotorOptions_->armature) > EPS;
+            }
+
+            // Check if backlash has changed
+            const bool enableBacklash = boost::get<bool>(motorOptions.at("enableBacklash"));
+            mustNotifyRobot_ |= (baseMotorOptions_->enableBacklash != enableBacklash);
+            if (enableBacklash)
+            {
+                const double backlash = boost::get<double>(motorOptions.at("backlash"));
+                mustNotifyRobot_ |=  //
+                    std::abs(backlash - baseMotorOptions_->backlash) > EPS;
             }
 
             // Check if command limit has changed
             const bool commandLimitFromUrdf =
                 boost::get<bool>(motorOptions.at("commandLimitFromUrdf"));
-            internalBuffersMustBeUpdated |=
+            mustNotifyRobot_ |=
                 (baseMotorOptions_->commandLimitFromUrdf != commandLimitFromUrdf);
             if (!commandLimitFromUrdf)
             {
                 const double commandLimit = boost::get<double>(motorOptions.at("commandLimit"));
-                internalBuffersMustBeUpdated |=
+                mustNotifyRobot_ |=
                     std::abs(commandLimit - baseMotorOptions_->commandLimit) > EPS;
             }
         }
@@ -198,7 +208,7 @@ namespace jiminy
         // Refresh the proxies if the robot is initialized if available
         if (robot)
         {
-            if (internalBuffersMustBeUpdated && robot->getIsInitialized() && isAttached_)
+            if (mustNotifyRobot_ && robot->getIsInitialized() && isAttached_)
             {
                 refreshProxies();
             }
@@ -274,10 +284,22 @@ namespace jiminy
             armature_ = 0.0;
         }
 
+        // Get the transmission backlash
+        if (baseMotorOptions_->enableBacklash)
+        {
+            backlash_ = baseMotorOptions_->backlash;
+        }
+        else
+        {
+            backlash_ = 0.0;
+        }
+
         // Propagate the user-defined motor inertia at Pinocchio model level
         if (notifyRobot_)
         {
-            notifyRobot_(*this);
+            const bool mustNotifyRobot = mustNotifyRobot_;
+            mustNotifyRobot_ = false;
+            notifyRobot_(*this, mustNotifyRobot);
         }
     }
 
@@ -368,6 +390,11 @@ namespace jiminy
     double AbstractMotorBase::getArmature() const
     {
         return armature_;
+    }
+
+    double AbstractMotorBase::getBacklash() const
+    {
+        return backlash_;
     }
 
     void AbstractMotorBase::computeEffortAll(double t,

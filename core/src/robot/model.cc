@@ -210,9 +210,20 @@ namespace jiminy
                            const std::optional<pinocchio::GeometryModel> & collisionModel,
                            const std::optional<pinocchio::GeometryModel> & visualModel)
     {
+        // Make sure that the pinocchio model is valid
         if (pinocchioModel.nq == 0)
         {
             JIMINY_THROW(std::invalid_argument, "Pinocchio model must not be empty.");
+        }
+
+        // Make sure that the model is actually managed by a shared ptr
+        try
+        {
+            (void)shared_from_this();
+        }
+        catch (std::bad_weak_ptr & e)
+        {
+            JIMINY_THROW(bad_control_flow, "Model must be managed by a std::shared_ptr.");
         }
 
         // Clear existing constraints
@@ -891,20 +902,35 @@ namespace jiminy
             JIMINY_THROW(bad_control_flow, "Model not initialized.");
         }
 
-        // Initialize the extended model from the theoretical one
-        pinocchioModel_ = pinocchioModelTh_;
+        // Initialize the extended model
+        initializeExtendedModel();
 
         // Add flexibility joints to the extended model if requested
-        flexibilityJointIndices_.clear();
-        flexibilityJointNames_.clear();
         if (modelOptions_->dynamics.enableFlexibility)
         {
             addFlexibilityJointsToExtendedModel();
         }
 
-        /* Add biases to the dynamics properties of the model.
-           Note that is also refresh all proxies automatically. */
+        // Add biases to the dynamics properties of the model
         addBiasedToExtendedModel(g);
+
+        // Refresh internal proxies
+        refreshProxies();
+    }
+
+    void Model::initializeExtendedModel()
+    {
+        // Clear some proxies
+        backlashJointIndices_.clear();
+        backlashJointNames_.clear();
+        flexibilityJointIndices_.clear();
+        flexibilityJointNames_.clear();
+
+        // Simply copy the theoretical model by default
+        pinocchioModel_ = pinocchioModelTh_;
+
+        // Initially set effortLimit to zero systematically
+        pinocchioModel_.effortLimit.setZero();
     }
 
     void Model::addFlexibilityJointsToExtendedModel()
@@ -987,9 +1013,6 @@ namespace jiminy
 
     void Model::addBiasedToExtendedModel(const uniform_random_bit_generator_ref<uint32_t> & g)
     {
-        // Initially set effortLimit to zero systematically
-        pinocchioModel_.effortLimit.setZero();
-
         for (const std::string & jointName : mechanicalJointNames_)
         {
             const pinocchio::JointIndex jointIndex =
@@ -1058,9 +1081,6 @@ namespace jiminy
 
         // Re-allocate data to be consistent with new extended model
         initializePinocchioData(pinocchioModel_, pinocchioData_);
-
-        // Refresh internal proxies
-        refreshProxies();
     }
 
     void Model::computeConstraints(const Eigen::VectorXd & q, const Eigen::VectorXd & v)
@@ -1116,6 +1136,7 @@ namespace jiminy
 
     void Model::refreshProxies()
     {
+        // Make sure that the model is initialized
         if (!isInitialized_)
         {
             JIMINY_THROW(bad_control_flow, "Model not initialized.");
@@ -1188,32 +1209,36 @@ namespace jiminy
             }
         }
 
-        /* Get the joint position limits from the URDF or the user options.
-           Do NOT use robot_->pinocchioModel_.(lower|upper)PositionLimit. */
+        // Get mechanical joint position limits from the URDF or user options
         positionLimitMin_.setConstant(pinocchioModel_.nq, -INF);
         positionLimitMax_.setConstant(pinocchioModel_.nq, +INF);
 
-        if (modelOptions_->joints.enablePositionLimit)
+        if (modelOptions_->joints.positionLimitFromUrdf)
         {
-            if (modelOptions_->joints.positionLimitFromUrdf)
+            for (Eigen::Index positionIndex : mechanicalJointPositionIndices_)
             {
-                for (Eigen::Index positionIndex : mechanicalJointPositionIndices_)
-                {
-                    positionLimitMin_[positionIndex] =
-                        pinocchioModel_.lowerPositionLimit[positionIndex];
-                    positionLimitMax_[positionIndex] =
-                        pinocchioModel_.upperPositionLimit[positionIndex];
-                }
+                positionLimitMin_[positionIndex] =
+                    pinocchioModel_.lowerPositionLimit[positionIndex];
+                positionLimitMax_[positionIndex] =
+                    pinocchioModel_.upperPositionLimit[positionIndex];
             }
-            else
+        }
+        else
+        {
+            for (std::size_t i = 0; i < mechanicalJointPositionIndices_.size(); ++i)
             {
-                for (std::size_t i = 0; i < mechanicalJointPositionIndices_.size(); ++i)
-                {
-                    Eigen::Index positionIndex = mechanicalJointPositionIndices_[i];
-                    positionLimitMin_[positionIndex] = modelOptions_->joints.positionLimitMin[i];
-                    positionLimitMax_[positionIndex] = modelOptions_->joints.positionLimitMax[i];
-                }
+                Eigen::Index positionIndex = mechanicalJointPositionIndices_[i];
+                positionLimitMin_[positionIndex] = modelOptions_->joints.positionLimitMin[i];
+                positionLimitMax_[positionIndex] = modelOptions_->joints.positionLimitMax[i];
             }
+        }
+
+        // Get the backlash joint position limits
+        for (pinocchio::JointIndex jointIndex : backlashJointIndices_)
+        {
+            const Eigen::Index positionIndex = pinocchioModel_.idx_qs[jointIndex];
+            positionLimitMin_[positionIndex] = pinocchioModel_.lowerPositionLimit[positionIndex];
+            positionLimitMax_[positionIndex] = pinocchioModel_.upperPositionLimit[positionIndex];
         }
 
         /* Overwrite the position bounds for some specific joint type, mainly due to quaternion
@@ -1232,11 +1257,11 @@ namespace jiminy
                 idx_q = joint.idx_q() + 3;
                 nq = 4;
                 break;
-            case JointModelType::UNSUPPORTED:
             case JointModelType::LINEAR:
             case JointModelType::ROTARY:
             case JointModelType::PLANAR:
             case JointModelType::TRANSLATION:
+            case JointModelType::UNSUPPORTED:
             default:
                 continue;
             }
@@ -1500,16 +1525,9 @@ namespace jiminy
             }
 
             // Check if the position or velocity limits have changed, and refresh proxies if so
-            bool enablePositionLimit =
-                boost::get<bool>(jointOptionsHolder.at("enablePositionLimit"));
             bool enableVelocityLimit =
                 boost::get<bool>(jointOptionsHolder.at("enableVelocityLimit"));
-            if (enablePositionLimit != modelOptions_->joints.enablePositionLimit)
-            {
-                internalBuffersMustBeUpdated = true;
-            }
-            else if (enablePositionLimit &&
-                     (positionLimitFromUrdf != modelOptions_->joints.positionLimitFromUrdf))
+            if (positionLimitFromUrdf != modelOptions_->joints.positionLimitFromUrdf)
             {
                 internalBuffersMustBeUpdated = true;
             }
@@ -1523,7 +1541,7 @@ namespace jiminy
                 internalBuffersMustBeUpdated = true;
             }
 
-            // Check if the flexibility model and its proxies must be regenerated
+            // Check if the extended model must be regenerated
             bool enableFlexibility = boost::get<bool>(dynOptionsHolder.at("enableFlexibility"));
             if (modelOptions_ &&
                 ((enableFlexibility != modelOptions_->dynamics.enableFlexibility) ||
@@ -1581,7 +1599,7 @@ namespace jiminy
 
         if (isExtendedModelInvalid)
         {
-            // Trigger models regeneration
+            // Trigger extended regeneration
             reset(std::random_device{});
         }
         else if (internalBuffersMustBeUpdated)
@@ -1856,6 +1874,16 @@ namespace jiminy
     const std::vector<pinocchio::JointIndex> & Model::getFlexibilityJointIndices() const
     {
         return flexibilityJointIndices_;
+    }
+
+    const std::vector<std::string> & Model::getBacklashJointNames() const
+    {
+        return backlashJointNames_;
+    }
+
+    const std::vector<pinocchio::JointIndex> & Model::getBacklashJointIndices() const
+    {
+        return backlashJointIndices_;
     }
 
     /// \brief Returns true if at least one constraint is active on the robot.

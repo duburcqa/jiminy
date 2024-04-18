@@ -78,6 +78,10 @@ namespace jiminy
 
     void addFlexibilityJointAtFixedFrame(pinocchio::Model & model, const std::string & frameName);
 
+    void addBacklashJointAfterMechanicalJoint(pinocchio::Model & model,
+                                              const std::string & parentJointName,
+                                              const std::string & newJointName);
+
     Eigen::MatrixXd JIMINY_DLLAPI interpolatePositions(const pinocchio::Model & model,
                                                        const Eigen::VectorXd & timesIn,
                                                        const Eigen::MatrixXd & positionsIn,

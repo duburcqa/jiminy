@@ -211,6 +211,7 @@ namespace jiminy
 
     using FlexibilityConfig = std::vector<FlexibilityJointConfig>;
 
+    // Generic configuration holder
     using GenericConfig =
         std::unordered_map<std::string,
                            boost::make_recursive_variant<

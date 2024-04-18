@@ -332,7 +332,6 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         """
         # Define some proxies for convenience
         model_options = self.robot.get_model_options()
-        joint_position_indices = self.robot.mechanical_joint_position_indices
         joint_velocity_indices = self.robot.mechanical_joint_velocity_indices
         position_limit_upper = self.robot.position_limit_upper
         position_limit_lower = self.robot.position_limit_lower
@@ -351,10 +350,6 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
                     self.robot.pinocchio_model.joints[joint_index].idx_v)
                 velocity_limit[
                     joint_velocity_index + np.arange(3)] = FLEX_VEL_ANG_MAX
-
-            if not model_options['joints']['enablePositionLimit']:
-                position_limit_lower[joint_position_indices] = -JOINT_POS_MAX
-                position_limit_upper[joint_position_indices] = JOINT_POS_MAX
 
             if not model_options['joints']['enableVelocityLimit']:
                 velocity_limit[joint_velocity_indices] = JOINT_VEL_MAX
