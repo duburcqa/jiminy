@@ -55,7 +55,7 @@ def integrate_zoh(state: np.ndarray,
     position_max, velocity_max, acceleration_max = state_max
 
     # Clip acceleration
-    acceleration = np.minimum(
+    acceleration[:] = np.minimum(
         np.maximum(acceleration, acceleration_min), acceleration_max)
 
     # Backup the initial velocity to later compute the clipped acceleration
@@ -142,7 +142,6 @@ def pd_controller(q_measured: np.ndarray,
     :param motors_effort_limit: Maximum effort that the actuators can output.
     :param control_dt: Controller update period. It will be involved in the
                        integration of the command state.
-    :param horizon: Horizon length to start slowing down before hitting bounds.
     :param out: Pre-allocated memory to store the command motor torques.
     """
     # Integrate target motor positions and velocities
