@@ -801,7 +801,8 @@ class Simulator:
             Viewer.open_gui()
 
         # Try refreshing the viewer
-        self.viewer.refresh()
+        for viewer in self._viewers:
+            viewer.refresh()
 
         # Compute and return rgb array if needed
         if return_rgb_array:
