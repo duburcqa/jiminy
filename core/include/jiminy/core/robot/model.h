@@ -16,6 +16,7 @@ namespace jiminy
     inline constexpr std::string_view JOINT_PREFIX_BASE{"current"};
     inline constexpr std::string_view FREE_FLYER_NAME{"Freeflyer"};
     inline constexpr std::string_view FLEXIBLE_JOINT_SUFFIX{"Flexibility"};
+    inline constexpr std::string_view BACKLASH_JOINT_SUFFIX{"Backlash"};
 
     class AbstractConstraintBase;
     class FrameConstraint;
@@ -135,7 +136,6 @@ namespace jiminy
         virtual GenericConfig getDefaultJointOptions()
         {
             GenericConfig config;
-            config["enablePositionLimit"] = true;
             config["positionLimitFromUrdf"] = true;
             config["positionLimitMin"] = Eigen::VectorXd{};
             config["positionLimitMax"] = Eigen::VectorXd{};
@@ -182,7 +182,6 @@ namespace jiminy
 
         struct JointOptions
         {
-            const bool enablePositionLimit;
             const bool positionLimitFromUrdf;
             /// \brief Min position limit of all the mechanical joints of the theoretical model.
             const Eigen::VectorXd positionLimitMin;
@@ -192,7 +191,6 @@ namespace jiminy
             const Eigen::VectorXd velocityLimit;
 
             JointOptions(const GenericConfig & options) :
-            enablePositionLimit{boost::get<bool>(options.at("enablePositionLimit"))},
             positionLimitFromUrdf{boost::get<bool>(options.at("positionLimitFromUrdf"))},
             positionLimitMin{boost::get<Eigen::VectorXd>(options.at("positionLimitMin"))},
             positionLimitMax{boost::get<Eigen::VectorXd>(options.at("positionLimitMax"))},
@@ -350,6 +348,8 @@ namespace jiminy
         const std::vector<Eigen::Index> & getMechanicalJointVelocityIndices() const;
         const std::vector<std::string> & getFlexibilityJointNames() const;
         const std::vector<pinocchio::JointIndex> & getFlexibilityJointIndices() const;
+        const std::vector<std::string> & getBacklashJointNames() const;
+        const std::vector<pinocchio::JointIndex> & getBacklashJointIndices() const;
 
         const Eigen::VectorXd & getPositionLimitMin() const;
         const Eigen::VectorXd & getPositionLimitMax() const;
@@ -372,6 +372,7 @@ namespace jiminy
     protected:
         void generateModelExtended(const uniform_random_bit_generator_ref<uint32_t> & g);
 
+        virtual void initializeExtendedModel();
         void addFlexibilityJointsToExtendedModel();
         void addBiasedToExtendedModel(const uniform_random_bit_generator_ref<uint32_t> & g);
 
@@ -440,12 +441,14 @@ namespace jiminy
         /// \brief All the indices of the mechanical joints in the velocity vector of the robot,
         ///        ie including all their respective degrees of freedom.
         std::vector<Eigen::Index> mechanicalJointVelocityIndices_{};
-        /// \brief Name of the flexibility joints of the robot regardless of whether the
-        ///        flexibilities are enabled.
+        /// \brief Name of the flexibility joints of the robot if enabled.
         std::vector<std::string> flexibilityJointNames_{};
-        /// \brief Index of the flexibility joints in the pinocchio robot regardless of whether the
-        ///        flexibilities are enabled.
+        /// \brief Index of the flexibility joints in the pinocchio robot  if enabled.
         std::vector<pinocchio::JointIndex> flexibilityJointIndices_{};
+        /// \brief Name of the backlash joints of the robot  if enabled.
+        std::vector<std::string> backlashJointNames_{};
+        /// \brief Index of the backlash joints in the pinocchio robot if enabled.
+        std::vector<pinocchio::JointIndex> backlashJointIndices_{};
 
         /// \brief Store constraints.
         ConstraintTree constraints_{};

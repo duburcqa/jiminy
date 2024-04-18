@@ -67,7 +67,6 @@ TEST(EngineSanity, EnergyConservation)
     // Disable velocity and position limits
     GenericConfig & modelOptions = boost::get<GenericConfig>(robotOptions.at("model"));
     GenericConfig & jointsOptions = boost::get<GenericConfig>(modelOptions.at("joints"));
-    boost::get<bool>(jointsOptions.at("enablePositionLimit")) = false;
     boost::get<bool>(jointsOptions.at("enableVelocityLimit")) = false;
 
     // Disable torque limits

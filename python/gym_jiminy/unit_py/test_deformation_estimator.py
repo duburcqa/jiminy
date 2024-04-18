@@ -92,7 +92,6 @@ class DeformationEstimatorBlock(unittest.TestCase):
             'inertia': np.array([1.0, 1.0, 0.0])
         } for i in range(1, 5)
         ]
-        model_options['joints']['enablePositionLimit'] = False
         model_options['joints']['enableVelocityLimit'] = False
         robot.set_model_options(model_options)
 

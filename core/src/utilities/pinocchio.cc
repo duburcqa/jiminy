@@ -461,16 +461,14 @@ namespace jiminy
                                                   const std::string & childJointName,
                                                   const std::string & newJointName)
     {
-        using namespace pinocchio;
-
-        const pinocchio::JointIndex childJointIndex = getJointIndex(model, childJointName);
-
         // Flexible joint is placed at the same position as the child joint, in its parent frame
-        const SE3 & jointPlacement = model.jointPlacements[childJointIndex];
+        const pinocchio::JointIndex childJointIndex = getJointIndex(model, childJointName);
+        const pinocchio::SE3 & jointPlacement = model.jointPlacements[childJointIndex];
 
-        // Create flexibility joint
+        // Add new joint before the original joint
+        pinocchio::JointModel newJointModel = pinocchio::JointModelSpherical();
         const pinocchio::JointIndex newJointIndex = model.addJoint(
-            model.parents[childJointIndex], JointModelSpherical(), jointPlacement, newJointName);
+            model.parents[childJointIndex], newJointModel, jointPlacement, newJointName);
 
         // Set child joint to be a child of the new joint, at the origin
         model.parents[childJointIndex] = newJointIndex;
@@ -485,19 +483,63 @@ namespace jiminy
         model.frames[childFrameIndex].previousFrame = newFrameIndex;
         model.frames[childFrameIndex].placement.setIdentity();
 
-        // Update new joint subtree to include all the joints below it
-        for (std::size_t i = 0; i < model.subtrees[childJointIndex].size(); ++i)
-        {
-            model.subtrees[newJointIndex].push_back(model.subtrees[childJointIndex][i]);
-        }
+        // Update new joint subtree to append all the joints below it
+        const std::vector<pinocchio::Index> & childSubtree = model.subtrees[childJointIndex];
+        std::vector<pinocchio::Index> & newSubtree = model.subtrees[newJointIndex];
+        newSubtree.insert(newSubtree.end(), childSubtree.begin(), childSubtree.end());
 
         // Add weightless body
-        model.appendBodyToJoint(newJointIndex, pinocchio::Inertia::Zero(), SE3::Identity());
+        model.appendBodyToJoint(
+            newJointIndex, pinocchio::Inertia::Zero(), pinocchio::SE3::Identity());
 
-        /* Pinocchio requires that joints are in increasing order as we move to the leaves of the
-           kinematic tree. Here this is no longer the case, as an intermediate joint was appended
-           at the end. We put the joint back in order by doing successive permutations. */
+        /* Pinocchio expects joint indices to be sorted as we move from the root to the leaves of
+           the kinematic tree. This is no longer the case, as an intermediate joint was appended at
+           the end. Therefore, we put the joints back in order by doing successive permutations. */
         for (pinocchio::JointIndex i = childJointIndex; i < newJointIndex; ++i)
+        {
+            swapJoints(model, i, newJointIndex);
+        }
+    }
+
+    void addBacklashJointAfterMechanicalJoint(pinocchio::Model & model,
+                                              const std::string & parentJointName,
+                                              const std::string & newJointName)
+    {
+        // Get parent joint model
+        const pinocchio::JointIndex parentJointIndex = getJointIndex(model, parentJointName);
+        const pinocchio::JointModel & parentJointModel = model.joints[parentJointIndex];
+
+        // Backlash are only supported for 1DoF joints (same as motors)
+        const JointModelType parentJointType = getJointType(parentJointModel);
+        if (parentJointType != JointModelType::LINEAR &&
+            parentJointType != JointModelType::ROTARY &&
+            parentJointType != JointModelType::ROTARY_UNBOUNDED)
+        {
+            JIMINY_THROW(std::logic_error,
+                         "Backlash can only be associated with a 1-dof linear or rotary joint.");
+        }
+
+        // Add new joint after the original joint
+        const pinocchio::JointIndex newJointIndex = model.addJoint(
+            parentJointIndex, parentJointModel, pinocchio::SE3::Identity(), newJointName);
+
+        // Add new joint to frame list
+        const pinocchio::FrameIndex parentFrameIndex = getFrameIndex(model, parentJointName);
+        model.addJointFrame(newJointIndex, static_cast<int>(parentFrameIndex));
+
+        // Update original joint subtree to include the new joint
+        std::vector<pinocchio::Index> & parentSubtree = model.subtrees[parentJointIndex];
+        std::vector<pinocchio::Index> & newSubtree = model.subtrees[newJointIndex];
+        newSubtree.insert(newSubtree.end(), parentSubtree.begin() + 1, parentSubtree.end());
+        parentSubtree.insert(parentSubtree.begin() + 1, newJointIndex);
+
+        // Move the inertia of the orginal joint to the new joint, which is now weightless
+        model.appendBodyToJoint(
+            newJointIndex, model.inertias[parentJointIndex], pinocchio::SE3::Identity());
+        model.inertias[parentJointIndex].setZero();
+
+        // Putting the joints back in order
+        for (pinocchio::JointIndex i = parentJointIndex + 1; i < newJointIndex; ++i)
         {
             swapJoints(model, i, newJointIndex);
         }

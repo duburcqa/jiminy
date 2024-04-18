@@ -316,6 +316,12 @@ namespace jiminy::python
             .ADD_PROPERTY_GET_WITH_POLICY("flexibility_joint_indices",
                                           &Model::getFlexibilityJointIndices,
                                           bp::return_value_policy<result_converter<true>>())
+            .ADD_PROPERTY_GET_WITH_POLICY("backlash_joint_names",
+                                          &Model::getBacklashJointNames,
+                                          bp::return_value_policy<result_converter<true>>())
+            .ADD_PROPERTY_GET_WITH_POLICY("backlash_joint_indices",
+                                          &Model::getBacklashJointIndices,
+                                          bp::return_value_policy<result_converter<true>>())
 
             .ADD_PROPERTY_GET_WITH_POLICY("position_limit_lower",
                                           &Model::getPositionLimitMin,
@@ -404,7 +410,9 @@ namespace jiminy::python
                  static_cast<std::shared_ptr<AbstractMotorBase> (Robot::*)(const std::string &)>(
                      &Robot::getMotor),
                  (bp::arg("self"), "motor_name"))
-            .def("detach_motor", &Robot::detachMotor, (bp::arg("self"), "joint_name"))
+            .def("detach_motor",
+                 static_cast<void (Robot::*)(const std::string &)>(&Robot::detachMotor),
+                 (bp::arg("self"), "joint_name"))
             .def("detach_motors",
                  &internal::robot::detachMotors,
                  (bp::arg("self"), bp::arg("joints_names") = bp::list()))

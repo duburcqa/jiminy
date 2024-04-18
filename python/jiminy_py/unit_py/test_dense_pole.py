@@ -41,7 +41,6 @@ class SimulateDensePole(unittest.TestCase):
         model_options['joints']['positionLimitMin'] = [-self.joint_limit]
         model_options['joints']['positionLimitMax'] = [self.joint_limit]
         model_options['joints']['positionLimitFromUrdf'] = False
-        model_options['joints']['enablePositionLimit'] = True
         model_options['joints']['enableVelocityLimit'] = False
         self.robot.set_model_options(model_options)
 

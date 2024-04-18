@@ -1005,8 +1005,7 @@ namespace jiminy
             /* Check that the initial configuration is not out-of-bounds if appropriate.
                Note that EPS allows to be very slightly out-of-bounds, which may occurs because of
                rounding errors. */
-            if ((robot->modelOptions_->joints.enablePositionLimit &&
-                 (contactModel_ == ContactModelType::CONSTRAINT) &&
+            if (((contactModel_ == ContactModelType::CONSTRAINT) &&
                  ((EPS < q.array() - robot->getPositionLimitMax().array()).any() ||
                   (EPS < robot->getPositionLimitMin().array() - q.array()).any())))
             {
@@ -1264,7 +1263,6 @@ namespace jiminy
             const ConstraintTree & constraints = (*robotIt)->getConstraints();
             constraints.foreach(
                 [&contactModel = contactModel_,
-                 &enablePositionLimit = (*robotIt)->modelOptions_->joints.enablePositionLimit,
                  &freq = engineOptions_->contacts.stabilizationFreq](
                     const std::shared_ptr<AbstractConstraintBase> & constraint,
                     ConstraintNodeType node)
@@ -1281,15 +1279,11 @@ namespace jiminy
                         switch (node)
                         {
                         case ConstraintNodeType::BOUNDS_JOINTS:
-                            if (!enablePositionLimit)
-                            {
-                                return;
-                            }
-                            {
-                                auto & jointConstraint =
-                                    static_cast<JointConstraint &>(*constraint.get());
-                                jointConstraint.setRotationDir(false);
-                            }
+                        {
+                            auto & jointConstraint =
+                                static_cast<JointConstraint &>(*constraint.get());
+                            jointConstraint.setRotationDir(false);
+                        }
                             [[fallthrough]];
                         case ConstraintNodeType::CONTACT_FRAMES:
                         case ConstraintNodeType::COLLISION_BODIES:
@@ -3519,38 +3513,39 @@ namespace jiminy
         const pinocchio::Data & data = robot->pinocchioData_;
         const ConstraintTree & constraints = robot->getConstraints();
 
-        // Enforce the position limit (mechanical joints only)
-        if (robot->modelOptions_->joints.enablePositionLimit)
+        /* Enforce position limits for all joints having bounds constraints, ie mechanical and
+           backlash joints. */
+        const Eigen::VectorXd & positionLimitMin = robot->getPositionLimitMin();
+        const Eigen::VectorXd & positionLimitMax = robot->getPositionLimitMax();
+        for (auto & constraintItem : constraints.boundJoints)
         {
-            const Eigen::VectorXd & positionLimitMin = robot->getPositionLimitMin();
-            const Eigen::VectorXd & positionLimitMax = robot->getPositionLimitMax();
-            const std::vector<pinocchio::JointIndex> & mechanicalJointIndices =
-                robot->getMechanicalJointIndices();
-            for (std::size_t i = 0; i < mechanicalJointIndices.size(); ++i)
-            {
-                auto & constraint = constraints.boundJoints[i].second;
-                computePositionLimitsForcesAlgo::run(
-                    model.joints[mechanicalJointIndices[i]],
-                    typename computePositionLimitsForcesAlgo::ArgsType(data,
-                                                                       q,
-                                                                       v,
-                                                                       positionLimitMin,
-                                                                       positionLimitMax,
-                                                                       engineOptions_,
-                                                                       contactModel_,
-                                                                       constraint,
-                                                                       uInternal));
-            }
+            auto & constraint = constraintItem.second;
+            const auto jointConstraint = std::static_pointer_cast<JointConstraint>(constraint);
+            const pinocchio::JointIndex jointIndex = jointConstraint->getJointIndex();
+            computePositionLimitsForcesAlgo::run(
+                model.joints[jointIndex],
+                typename computePositionLimitsForcesAlgo::ArgsType(data,
+                                                                   q,
+                                                                   v,
+                                                                   positionLimitMin,
+                                                                   positionLimitMax,
+                                                                   engineOptions_,
+                                                                   contactModel_,
+                                                                   constraint,
+                                                                   uInternal));
         }
 
-        // Enforce the velocity limit (mechanical joints only)
+        // Enforce velocity limits for all joints having bounds constraints if requested
         if (robot->modelOptions_->joints.enableVelocityLimit)
         {
             const Eigen::VectorXd & velocityLimitMax = robot->getVelocityLimit();
-            for (pinocchio::JointIndex mechanicalJointIndex : robot->getMechanicalJointIndices())
+            for (auto & constraintItem : constraints.boundJoints)
             {
+                auto & constraint = constraintItem.second;
+                const auto jointConstraint = std::static_pointer_cast<JointConstraint>(constraint);
+                const pinocchio::JointIndex jointIndex = jointConstraint->getJointIndex();
                 computeVelocityLimitsForcesAlgo::run(
-                    model.joints[mechanicalJointIndex],
+                    model.joints[jointIndex],
                     typename computeVelocityLimitsForcesAlgo::ArgsType(
                         data, v, velocityLimitMax, engineOptions_, contactModel_, uInternal));
             }

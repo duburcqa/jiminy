@@ -9,6 +9,8 @@
 #include "jiminy/core/hardware/abstract_sensor.h"
 #include "jiminy/core/control/abstract_controller.h"
 #include "jiminy/core/control/controller_functor.h"
+#include "jiminy/core/constraints/abstract_constraint.h"
+#include "jiminy/core/constraints/joint_constraint.h"
 
 #include "jiminy/core/robot/robot.h"
 
@@ -183,8 +185,8 @@ namespace jiminy
 
         // Define robot notification method, responsible for updating the robot if
         // necessary after changing the motor parameters, for example the armature.
-        auto notifyRobot =
-            [robot_ = std::weak_ptr<Robot>(shared_from_this())](AbstractMotorBase & motorIn)
+        auto notifyRobot = [robot_ = std::weak_ptr<Robot>(shared_from_this())](
+                               AbstractMotorBase & motorIn, bool hasChanged) mutable
         {
             // Make sure the robot still exists
             auto robot = robot_.lock();
@@ -194,14 +196,23 @@ namespace jiminy
                              "Robot has been deleted. Impossible to notify motor update.");
             }
 
-            // Update rotor inertia and effort limit of pinocchio model
-            const Eigen::Index mechanicalJointVelocityIndex =
-                getJointVelocityFirstIndex(robot->pinocchioModelTh_, motorIn.getJointName());
-            robot->pinocchioModel_.rotorInertia[motorIn.getJointVelocityIndex()] =
-                robot->pinocchioModelTh_.rotorInertia[mechanicalJointVelocityIndex] +
-                motorIn.getArmature();
-            robot->pinocchioModel_.effortLimit[motorIn.getJointVelocityIndex()] =
-                motorIn.getCommandLimit();
+            /* Trigger extended model regeneration.
+               * The whole robot must be reset as joint and frame indices would be corrupted.
+               * Skip reset if nothing has changed from this motor point of view. This is necessary
+                 to prevent infinite recursive reset loop. */
+            if (hasChanged)
+            {
+                robot->reset(std::random_device{});
+            }
+
+            // Update rotor inertia
+            const std::string & mechanicaljointName = motorIn.getJointName();
+            std::string inertiaJointName = mechanicaljointName;
+            const Eigen::Index motorVelocityIndex = motorIn.getJointVelocityIndex();
+            robot->pinocchioModel_.rotorInertia[motorVelocityIndex] += motorIn.getArmature();
+
+            // Update effort limit
+            robot->pinocchioModel_.effortLimit[motorVelocityIndex] = motorIn.getCommandLimit();
         };
 
         // Attach the motor
@@ -214,7 +225,7 @@ namespace jiminy
         refreshMotorProxies();
     }
 
-    void Robot::detachMotor(const std::string & motorName)
+    void Robot::detachMotor(const std::string & motorName, bool triggerReset)
     {
         // The robot must be initialized
         if (!isInitialized_)
@@ -230,36 +241,55 @@ namespace jiminy
                          "Please stop it before removing motors.");
         }
 
-        auto motorIt = std::find_if(motors_.cbegin(),
-                                    motors_.cend(),
+        // Get motor if it exists
+        auto motorIt = std::find_if(motors_.begin(),
+                                    motors_.end(),
                                     [&motorName](const auto & elem)
                                     { return (elem->getName() == motorName); });
-        if (motorIt == motors_.cend())
+        if (motorIt == motors_.end())
         {
             JIMINY_THROW(std::logic_error, "No motor with name '", motorName, "' is attached.");
         }
 
-        // Reset effortLimit and rotorInertia
-        const std::shared_ptr<AbstractMotorBase> & motor = *motorIt;
-        const Eigen::Index mechanicalJointVelocityIndex =
-            ::jiminy::getJointVelocityFirstIndex(pinocchioModelTh_, motor->getJointName());
-        pinocchioModel_.rotorInertia[motor->getJointVelocityIndex()] =
-            pinocchioModelTh_.rotorInertia[mechanicalJointVelocityIndex];
-        pinocchioModel_.effortLimit[motor->getJointVelocityIndex()] = 0.0;
-
-        // Detach the motor
-        motor->detach();
+        // Hold the motor alive before removing it
+        std::shared_ptr<AbstractMotorBase> motor = *motorIt;
 
         // Remove the motor from the holder
         motors_.erase(motorIt);
 
-        // Refresh the motors proxies
-        refreshMotorProxies();
+        // Detach the motor
+        motor->detach();
+
+        // Skip reset and refresh if postponed
+        if (triggerReset)
+        {
+            // Early return if the model has been deleted already
+            try
+            {
+                (void)shared_from_this();
+            }
+            catch (std::bad_weak_ptr & e)
+            {
+                return;
+            }
+
+            // Trigger extended model regeneration
+            reset(std::random_device{});
+
+            // Refresh the motors proxies
+            refreshMotorProxies();
+        }
     }
 
-    void Robot::detachMotors(std::vector<std::string> motorsNames)
+    void Robot::detachMotor(const std::string & motorName)
     {
-        if (motorsNames.empty())
+        // Detach motor
+        detachMotor(motorName, true);
+    }
+
+    void Robot::detachMotors(std::vector<std::string> motorNames)
+    {
+        if (motorNames.empty())
         {
             // Remove all sensors if none is specified
             if (!motorNames_.empty())
@@ -270,22 +300,25 @@ namespace jiminy
         else
         {
             // Make sure that no motor names are duplicates
-            if (checkDuplicates(motorsNames))
+            if (checkDuplicates(motorNames))
             {
                 JIMINY_THROW(std::invalid_argument, "Duplicated motor names found.");
             }
 
             // Make sure that every motor name exist
-            if (!checkInclusion(motorNames_, motorsNames))
+            if (!checkInclusion(motorNames_, motorNames))
             {
                 JIMINY_THROW(std::invalid_argument,
                              "At least one of the motor names does not exist.");
             }
 
-            // Detach motors one-by-one
-            for (const std::string & name : motorsNames)
+            /* Detach motors one-by-one, and reset proxies at the very end only.
+               Beware the motor names must be stored locally because the list
+               of motors will be updated in-place. */
+            const std::size_t nMotors = motorNames.size();
+            for (std::size_t i = 0; i < nMotors; ++i)
             {
-                detachMotor(name);
+                detachMotor(motorNames[i], i == (nMotors - 1));
             }
         }
     }
@@ -569,6 +602,59 @@ namespace jiminy
                            [](const auto & elem) -> std::string { return elem->getName(); });
             sensorNames_.emplace(sensorType, std::move(sensorGroupNames));
         }
+    }
+
+    void Robot::initializeExtendedModel()
+    {
+        // Call base implementation
+        Model::initializeExtendedModel();
+
+        // Add backlash joint for each motor
+        for (const auto & motor : motors_)
+        {
+            // Extract some proxies
+            const std::string & jointName = motor->getJointName();
+            std::string backlashName = jointName;
+            backlashName += BACKLASH_JOINT_SUFFIX;
+
+            // Check if constraint a joint bounds constraint exist
+            const bool hasConstraint =
+                constraints_.exist(backlashName, ConstraintNodeType::BOUNDS_JOINTS);
+
+            // Skip adding joint if no backlash
+            const double backlash = motor->getBacklash();
+            if (backlash < EPS)
+            {
+                // Remove joint bounds constraint if any
+                if (hasConstraint)
+                {
+                    removeConstraint(backlashName, ConstraintNodeType::BOUNDS_JOINTS);
+                }
+
+                continue;
+            }
+
+            // Add joint bounds constraint if necessary
+            if (!hasConstraint)
+            {
+                std::shared_ptr<AbstractConstraintBase> constraint =
+                    std::make_shared<JointConstraint>(backlashName);
+                addConstraint(backlashName, constraint, ConstraintNodeType::BOUNDS_JOINTS);
+            }
+
+            // Add backlash joint to the model
+            addBacklashJointAfterMechanicalJoint(pinocchioModel_, jointName, backlashName);
+            backlashJointNames_.push_back(backlashName);
+
+            // Update position limits in model
+            const Eigen::Index positionIndex =
+                getJointPositionFirstIndex(pinocchioModel_, backlashName);
+            pinocchioModel_.lowerPositionLimit[positionIndex] = -backlash / 2.0;
+            pinocchioModel_.upperPositionLimit[positionIndex] = backlash / 2.0;
+        }
+
+        // Compute backlash joint indices
+        backlashJointIndices_ = getJointIndices(pinocchioModel_, backlashJointNames_);
     }
 
     std::shared_ptr<AbstractMotorBase> Robot::getMotor(const std::string & motorName)

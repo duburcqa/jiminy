@@ -65,7 +65,7 @@ namespace jiminy
         std::weak_ptr<const AbstractMotorBase> getMotor(const std::string & motorName) const;
         const MotorVector & getMotors() const;
         void detachMotor(const std::string & motorName);
-        void detachMotors(std::vector<std::string> motorsNames = {});
+        void detachMotors(std::vector<std::string> motorNames = {});
         void attachSensor(std::shared_ptr<AbstractSensorBase> sensor);
         std::shared_ptr<AbstractSensorBase> getSensor(const std::string & sensorType,
                                                       const std::string & sensorName);
@@ -134,7 +134,12 @@ namespace jiminy
     protected:
         void refreshMotorProxies();
         void refreshSensorProxies();
-        virtual void refreshProxies() override;
+        void refreshProxies() override;
+
+        void initializeExtendedModel() override;
+
+    private:
+        void detachMotor(const std::string & motorName, bool triggerReset);
 
     protected:
         bool isTelemetryConfigured_{false};
