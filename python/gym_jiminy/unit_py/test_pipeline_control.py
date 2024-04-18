@@ -21,6 +21,8 @@ import pinocchio as pin
 from gym_jiminy.envs import (
     AtlasPDControlJiminyEnv, CassiePDControlJiminyEnv, DigitPDControlJiminyEnv)
 from gym_jiminy.common.blocks import PDController, PDAdapter, MahonyFilter
+from gym_jiminy.common.blocks.proportional_derivative_controller import (
+    integrate_zoh)
 from gym_jiminy.common.utils import (
     quat_to_rpy, matrix_to_rpy, matrix_to_quat, remove_twist_from_quat)
 
@@ -177,7 +179,74 @@ class PipelineControl(unittest.TestCase):
 
                 np.testing.assert_allclose(rpy_true, rpy_est, atol=5e-3)
 
-    def test_pid_controller(self):
+    def test_zoh_integrator(self):
+        """Make sure that low-level state integrator of the PD controller
+        acceleration is working as expected.
+        """
+        SIZE = 2
+        T_END = 100.0
+        HLC_DT = 0.01
+        HLC_TO_LLC_RATIO = 10
+        TOL = 1e-8
+
+        # np.random.seed(0)
+        state_min = np.tile(np.array([-0.8, -2.0, -20.0]), (2, 1)).T
+        state_max = np.tile(np.array([+0.8, +2.0, +20.0]), (2, 1)).T
+        llc_dt = HLC_DT / HLC_TO_LLC_RATIO
+
+        state = np.zeros((3, SIZE))
+        position, velocity, acceleration = state
+        position_min, velocity_min, acceleration_min = state_min
+        position_max, velocity_max, acceleration_max = state_max
+
+        for _ in np.arange(T_END // HLC_DT) * HLC_DT:
+            accel_target = acceleration_max * (
+                np.random.randint(2, size=SIZE) - 0.5)
+            for i in range(HLC_TO_LLC_RATIO):
+                # Update acceleration
+                acceleration[:] = accel_target
+
+                # Integration state
+                integrate_zoh(state, state_min, state_max, llc_dt)
+
+                # The position, velocity and acceleration bounds are satisfied
+                assert np.all(np.logical_and(
+                    state_min - TOL < state, state < state_max + TOL))
+
+                # FIXME: The acceleration is maxed out when hitting bounds
+                is_position_min = np.isclose(
+                    position, position_min, atol=TOL, rtol=0.0)
+                is_position_max = np.isclose(
+                    position, position_max, atol=TOL, rtol=0.0)
+                # assert np.all(
+                #     (acceleration == acceleration_max)[is_position_min])
+                # assert np.all(
+                #     (acceleration == acceleration_min)[is_position_max])
+
+                # It is still possible to stop without hitting bounds
+                assert np.all((
+                    velocity >= - acceleration_max * llc_dt - TOL
+                    )[is_position_min])
+                assert np.all((
+                    velocity <= acceleration_max * llc_dt + TOL
+                    )[is_position_max])
+
+                # FIXME: The velocity is zero-ed at the velocity limits
+                # is_velocity_min = np.isclose(
+                #     np.abs(velocity), velocity_min, atol=TOL, rtol=0.0)
+                # is_velocity_max = np.isclose(
+                #     np.abs(velocity), velocity_max, atol=TOL, rtol=0.0)
+                # assert np.all(acceleration[is_velocity_min] >= - TOL)
+                # assert np.all(acceleration[is_velocity_max] <= TOL)
+
+                # FIXME: The acceleration is altered only if necessary
+                # is_position_limit = is_position_min | is_position_max
+                # is_velocity_limit = is_velocity_min | is_velocity_max
+                # assert np.all(np.isclose(
+                #     np.abs(acceleration), 0.5 * acceleration_max, atol=TOL,
+                #     rtol=0.0)[~(is_position_limit | is_velocity_limit)])
+
+    def test_pd_controller(self):
         """ TODO: Write documentation.
         """
         # Instantiate the environment and run a simulation with random action

@@ -54,31 +54,40 @@ def integrate_zoh(state: np.ndarray,
     position_min, velocity_min, acceleration_min = state_min
     position_max, velocity_max, acceleration_max = state_max
 
-    # Backup the initial velocity to later compute the clipped acceleration
-    velocity_prev = velocity.copy()
-
     # Clip acceleration
     acceleration = np.minimum(
         np.maximum(acceleration, acceleration_min), acceleration_max)
 
+    # Backup the initial velocity to later compute the clipped acceleration
+    velocity_prev = velocity.copy()
+
     # Integrate acceleration 1-step ahead
     velocity += acceleration * dt
 
-    # Make sure that velocity bounds are satisfied
+    # Make sure that "true" velocity bounds are satisfied
     velocity[:] = np.minimum(np.maximum(velocity, velocity_min), velocity_max)
 
-    # Compute slowdown horizon.
-    # It must be as short as possible to avoid altering the user-specified
-    # acceleration if not strictly necessary, but long enough to avoid
-    # violation of acceleration bounds when hitting position bounds.
-    horizon = np.maximum(np.abs(velocity) / acceleration_max, dt)
-
-    # Refine velocity bounds to take into account position bounds
-    velocity_min = (position_min - position) / horizon
-    velocity_max = (position_max - position) / horizon
-
-    # Clip velocity to ensure than position bounds are always satisfied
+    # Force slowing down early enough to avoid violating acceleration limits
+    # when hitting position bounds.
+    horizon = np.maximum(
+        np.floor(np.abs(velocity_prev) / acceleration_max / dt) * dt, dt)
+    drift = (horizon * (horizon - dt)) / 2.0
+    position_min_delta = position_min - (position + drift * acceleration_max)
+    position_max_delta = position_max - (position - drift * acceleration_max)
+    velocity_min = position_min_delta / horizon
+    velocity_max = position_max_delta / horizon
     velocity[:] = np.minimum(np.maximum(velocity, velocity_min), velocity_max)
+
+    # Velocity after hitting bounds must be cancellable in a single time step
+    velocity_mask = np.abs(velocity) > dt * acceleration_max
+    velocity_min = - np.maximum(
+        position_min_delta[velocity_mask] / velocity[velocity_mask], dt
+        ) * acceleration_max[velocity_mask]
+    velocity_max = np.maximum(
+        position_max_delta[velocity_mask] / velocity[velocity_mask], dt
+        ) * acceleration_max[velocity_mask]
+    velocity[velocity_mask] = np.minimum(
+        np.maximum(velocity[velocity_mask], velocity_min), velocity_max)
 
     # Back-propagate velocity clipping at the acceleration-level
     acceleration[:] = (velocity - velocity_prev) / dt
