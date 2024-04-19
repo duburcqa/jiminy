@@ -2,7 +2,7 @@
 cmake_minimum_required(VERSION 3.12.4)
 
 # Set the build version (specify a tweak version to indicated post-release if needed)
-set(BUILD_VERSION 1.8.3)
+set(BUILD_VERSION 1.8.4)
 
 # MSVC runtime library flags are defined by 'CMAKE_MSVC_RUNTIME_LIBRARY'
 if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.15.7)
