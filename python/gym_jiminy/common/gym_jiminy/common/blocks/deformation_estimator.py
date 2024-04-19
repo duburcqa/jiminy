@@ -31,8 +31,8 @@ def _compute_orientation_error(obs_imu_quats: np.ndarray,
                                kin_imu_quats: np.ndarray,
                                dev_imu_quats: np.ndarray,
                                ignore_twist: bool) -> None:
-    """Compute total deviation of observed IMU data wrt to rigid model in world
-    frame.
+    """Compute total deviation of observed IMU data wrt to theoretical model in
+    world frame.
     """
     # Re-order IMU data
     for i, imu_index in enumerate(obs_imu_indices):
@@ -51,9 +51,9 @@ def _compute_orientation_error(obs_imu_quats: np.ndarray,
         # Extract observed tilt: w_R_obs.T @ e_z
         obs_imu_tilts = np.stack(compute_tilt_from_quat(inv_obs_imu_quats), 1)
 
-        # Apply rigid kinematic IMU rotation on observed tilt.
+        # Apply theoretical kinematic IMU rotation on observed tilt.
         # The result can be interpreted as the tilt error between observed
-        # and rigid kinematic IMU orientation in world frame, ie:
+        # and theoretical kinematic IMU orientation in world frame, ie:
         # w_tilt_err = (w_R_kin @ w_R_obs.T) @ e_z
         for i, kin_imu_rot in enumerate(kin_imu_rots):
             obs_imu_tilts[i] = kin_imu_rot @ obs_imu_tilts[i]
@@ -70,7 +70,7 @@ def _compute_orientation_error(obs_imu_quats: np.ndarray,
         # Conjugate quaternion of IMU orientation
         inv_obs_imu_quats[-1] *= -1
 
-        # Compute one-by-one difference between observed and rigid
+        # Compute one-by-one difference between observed and theoretical
         # kinematic IMU orientations.
         quat_multiply(kin_imu_quats,
                       inv_obs_imu_quats,
@@ -158,7 +158,7 @@ def flexibility_estimator(obs_imu_quats: np.ndarray,
     .. warning::
         The local deformation at each flexibility frame must be observable, ie
         the flexibility and IMU frames interleave with each others in a unique
-        and contiguous sub-chain in the rigid kinematic tree of the robot.
+        and contiguous sub-chain in theoretical kinematic tree of the robot.
 
     :param obs_imu_quats: Orientation estimates of an unordered arbitrary set
                           of IMUs as a 2D array whose first dimension gathers
@@ -172,8 +172,7 @@ def flexibility_estimator(obs_imu_quats: np.ndarray,
                               `obs_imu_indices`.
     :param kin_imu_rots: Tuple of M kinematic frame orientations corresponding
                          to the ordered subset of IMUs `obs_imu_indices`, for
-                         the rigid configuration of the theoretical model of
-                         the robot.
+                         the configuration of the theoretical robot model.
     :param kin_imu_quats: Pre-allocated memory for storing the kinematic frame
                           orientations of the ordered subset of IMUs of
                           interest as a 2D array whose first dimension gathers
@@ -194,11 +193,11 @@ def flexibility_estimator(obs_imu_quats: np.ndarray,
     :param is_chain_orphan: 2-Tuple stating whether first and last flexibility
                             point is orphan respectively, ie only a single IMU
                             is available for estimating its local deformation.
-    :param dev_imu_quats: Total deviation observed IMU data wrt to rigid model
-                          in world frame for the ordered subset of IMUs of
-                          interest as a 2D array whose first dimension gathers
-                          the 4 quaternion coordinates while the second
-                          corresponds to the M independent IMUs.
+    :param dev_imu_quats: Total deviation of th observed IMU data wrt to the
+                          theoretical model in world frame for the ordered
+                          subset of IMUs of interest, as a 2D array whose first
+                          dimension gathers the 4 quaternion coordinates while
+                          the second corresponds to the M independent IMUs.
     :param inv_child_dev_imu_quats:
         Total deviation observed IMU data in child flexibility frame as a 2D
         array whose first dimension gathers the 4 quaternion coordinates while
@@ -217,7 +216,7 @@ def flexibility_estimator(obs_imu_quats: np.ndarray,
                          and incidentally the twist of deformation at the
                          flexibility points.
     """
-    # Compute error between observed and rigid kinematic IMU orientation
+    # Compute error between observed and theoretical kinematic IMU orientation
     _compute_orientation_error(obs_imu_quats,
                                obs_imu_indices,
                                inv_obs_imu_quats,
@@ -242,11 +241,10 @@ def get_flexibility_imu_frame_chains(
         flex_joint_names: Sequence[str],
         imu_frame_names: Sequence[str]) -> Sequence[Tuple[
             Sequence[str], Sequence[Optional[str]], Sequence[bool]]]:
-    """Extract the minimal set of contiguous sub-chains in the kinematic tree
-    of a given flexible model that goes through all the specified flexibility
-    and IMU frames.
+    """Extract the minimal set of contiguous sub-chains in kinematic tree of a
+    given model that goes through all the specified flexibility and IMU frames.
 
-    :param pinocchio_model: Model for which to extract sub-chains.
+    :param pinocchio_model: Model from which to extract sub-chains.
     :param flex_joint_names: Unordered sequence of joint names that must be
                              considered as associated with flexibility frames.
     :param imu_frame_names: Unordered sequence of frame names that must be
@@ -420,73 +418,73 @@ class DeformationEstimator(
     that are presumably responsible for most of the whole deformation of the
     mechanical structure.
 
-    .. details::
-        The number of IMU sensors and flexibility frames must be consistent:
-            * If the robot has no freeflyer, there must be as many IMU sensors
-              as flexibility frames (0), ie
+    The number of IMU sensors and flexibility frames must be consistent:
+        * If the robot has no freeflyer, there must be as many IMU sensors as
+          flexibility frames (0), ie
 
-              *---o---x---o---x---o---x
-                          |
-                          |
-                          x---o---x
+            *---o---x---o---x---o---x
+                        |
+                        |
+                        x---o---x
 
-            * Otherwise, it can either have one more IMU than flexibility
-              frames (1), the same number (2), or up to one less IMU per
-              branch in the kinematic tree (3).
+        * Otherwise, it can either have one more IMU than flexibility frames
+          (1), the same number (2), or up to one less IMU per branch in the
+          kinematic tree (3).
 
-              (1) x---o---x---o---x---o---x
-                              |
-                              |
-                              x---o---x
+            (1) x---o---x---o---x---o---x
+                            |
+                            |
+                            x---o---x
 
-              (2) +---o---x---o---x---o---x
-                              |
-                              |
-                              x---o---x
+            (2) +---o---x---o---x---o---x
+                            |
+                            |
+                            x---o---x
 
-              (3) +---o---x---o---x---o---+
-                              |
-                              |
-                              x---o---+
+            (3) +---o---x---o---x---o---+
+                            |
+                            |
+                            x---o---+
 
-        *: Fixed base, +: leaf frame, x: IMU frame, o: flexibility frame
+    *: Fixed base, +: leaf frame, x: IMU frame, o: flexibility frame
 
-        (1): The pose of the freeflyer is ignored when estimating the
-        deformation at the flexibility frames in local frame. Mathematically,
-        it is the same as (0) when considering a virtual IMU with fixed
-        orientation to identity for the root joint.
+    (1): The pose of the freeflyer is ignored when estimating the deformation
+         at the flexibility frames in local frame. Mathematically, it is the
+         same as (0) when considering a virtual IMU with fixed orientation to
+         identity for the root joint.
 
-        (2): One has to compensate for the missing IMU by providing the
-        configuration of the freeflyer. More precisely, one should ensure that
-        the orientation of the parent frame of the orphan flexibility frame
-        matches the reality for the rigid configuration. This usually requires
-        making some assumptions to guess to pose of the frame that is not
-        directly observable. Any discrepancy will be aggregated to the
-        estimated deformation for the orphan flexibility frame specifically
-        since both cannot be distinguished. This issue typically happens when
-        there is no IMUs in the feet of a legged robot. In such a case, there
-        is no better option than assuming that one of the active contact bodies
-        remains flat on the ground. If the twist of the IMUs are ignored, then
-        the twist of the contact body does not matter either, otherwise it must
-        be set appropriately by the user to get a meaningless estimate for the
-        twist of the deformation. If it cannot be observed by some
-        exteroceptive sensor such as vision, then the most reasonable
-        assumption is to suppose that it matches the twist of the IMU coming
-        right after in the kinematic tree. This way, they will cancel out each
-        other without adding bias to the twist of the orphan flexibility frame.
+    (2): One has to compensate for the missing IMU by providing instead the
+         configuration of the freeflyer. More precisely, one should ensure that
+         the orientation of the parent frame of the orphan flexibility frame
+         matches the reality for the theoretical configuration. This usually
+         requires making some assumptions to guess to pose of the frame that is
+         not directly observable. Any discrepancy will be aggregated to the
+         estimated deformation for the orphan flexibility frame specifically
+         since both cannot be distinguished. This issue typically happens when
+         there is no IMUs in the feet of a legged robot. In such a case, there
+         is no better option than assuming that one of the active contact
+         bodies remains flat on the ground. If the twist of the IMUs are
+         ignored, then the twist of the contact body does not matter either,
+         otherwise it must be set appropriately by the user to get a
+         meaningless estimate for the twist of the deformation. If it cannot be
+         observed by some exteroceptive sensor such as vision, then the most
+         reasonable assumption is to suppose that it matches the twist of the
+         IMU coming right after in the kinematic tree. This way, they will
+         cancel out each other without adding bias to the twist of the orphan
+         flexibility frame.
 
-        (3): This case is basically the same as (2), with the addition that
-        only the deformation of one of the orphan flexibility frames can
-        be estimated at once, namely the one whose parent frame is declared as
-        having known orientation. The other ones will be set to identity. For a
-        legged robot, this corresponds to one of the contact bodies, usually
-        the one holding most of the total weight.
+    (3): This case is basically the same as (2), with the addition that only
+         the deformation of one of the orphan flexibility frames can be
+         estimated at once, namely the one whose parent frame is declared as
+         having known orientation. The other ones will be set to identity. For
+         a legged robot, this corresponds to one of the contact bodies, usually
+         the one holding most of the total weight.
 
     .. warning::
         (2) and (3) are not supported for now, as it requires using one
-        additional observation layer responsible for estimating the rigid
-        configuration of the robot including its freeflyer, along with the
-        name of the reference frame, ie the one having known orientation.
+        additional observation layer responsible for estimating the theoretical
+        configuration of the robot including its freeflyer, along with the name
+        of the reference frame, ie the one having known orientation.
 
     .. seealso::
         Matthieu Vigne, Antonio El Khoury, Marine Pétriaux, Florent Di Meglio,
@@ -546,19 +544,16 @@ class DeformationEstimator(
         # Backup some of the user-argument(s)
         self.ignore_twist = ignore_twist
 
-        # Initialize jiminy model
-        self.model = jiminy.Model()
-        self.model.initialize(env.robot.pinocchio_model_th)
-
         # Define proxies for fast access
-        self.pinocchio_model_th = self.model.pinocchio_model_th
-        self.pinocchio_data_th = self.model.pinocchio_data_th
+        self.pinocchio_model_th = env.robot.pinocchio_model_th.copy()
+        self.pinocchio_data_th = env.robot.pinocchio_data_th.copy()
 
-        # Create flexible dynamical model.
+        # Create flexible dynamic model.
         # Dummy physical parameters are specified as they have no effect on
-        # kinematic computations. It is only used for computing the flexible
-        # configuration if requested.
-        options = self.model.get_options()
+        # kinematic computations.
+        model = jiminy.Model()
+        model.initialize(env.robot.pinocchio_model_th)
+        options = model.get_options()
         for frame_name in flex_frame_names:
             options["dynamics"]["flexibilityConfig"].append(
                 {
@@ -568,35 +563,35 @@ class DeformationEstimator(
                     "inertia": np.ones(3),
                 }
             )
-        self.model.set_options(options)
+        model.set_options(options)
 
         # Extract contiguous chains of flexibility and IMU frames for which
         # computations can be vectorized. It also stores the information of
         # whether or not the sign of the deformation must be reversed to be
         # consistent with standard convention.
-        flexible_joint_names = self.model.flexible_joint_names
+        flexibility_joint_names = model.flexibility_joint_names
         flex_imu_frame_names_chains = get_flexibility_imu_frame_chains(
-            self.model.pinocchio_model, flexible_joint_names, imu_frame_names)
+            model.pinocchio_model, flexibility_joint_names, imu_frame_names)
 
         # Replace actual flex joint name by corresponding rigid frame
         self.flex_imu_frame_names_chains = []
         for flex_frame_names_, imu_frame_names_, is_flipped in (
                 flex_imu_frame_names_chains):
             flex_frame_names_ = [
-                flex_frame_names[flexible_joint_names.index(name)]
+                flex_frame_names[flexibility_joint_names.index(name)]
                 for name in flex_frame_names_]
             self.flex_imu_frame_names_chains.append(
                 (flex_frame_names_, imu_frame_names_, is_flipped))
 
         # Check if a freeflyer estimator is required
-        if self.model.has_freeflyer:
+        if model.has_freeflyer:
             for _, imu_frame_names_, _ in self.flex_imu_frame_names_chains:
                 if None in imu_frame_names_:
                     raise NotImplementedError(
                         "Freeflyer estimator is not supported for now.")
 
         # Backup flexibility frame names
-        self.flexible_frame_names = [
+        self.flexibility_frame_names = [
             name for flex_frame_names, _, _ in self.flex_imu_frame_names_chains
             for name in flex_frame_names]
 
@@ -646,14 +641,13 @@ class DeformationEstimator(
             assert isinstance(sensor, imu)
             imu_frame_map[sensor.frame_name] = sensor.index
 
-        # Make sure that the robot has one encoder per rigid joint
+        # Make sure that the robot has one encoder per mechanical joint
         encoder_sensor_names = env.robot.sensor_names[encoder.type]
-        if len(encoder_sensor_names) < len(self.model.rigid_joint_indices):
+        if len(encoder_sensor_names) < len(model.mechanical_joint_indices):
             raise ValueError(
-                "The robot must have one encoder per joint in theoretical "
-                "model (excluding floating base if any).")
+                "The robot must have one encoder per mechanical joints.")
 
-        # Extract mapping from encoders to rigid configuration.
+        # Extract mapping from encoders to theoretical configuration.
         # Note that revolute unbounded joints are not supported for now.
         self.encoder_to_config = [-1 for _ in range(env.robot.nmotors)]
         for i, sensor_name in enumerate(encoder_sensor_names):
@@ -669,8 +663,8 @@ class DeformationEstimator(
         # Note that they will be initialized in `_setup` method.
         self.encoder_data = np.array([])
 
-        # Buffer storing the rigid configuration.
-        self._q_rigid = pin.neutral(self.pinocchio_model_th)
+        # Buffer storing the theoretical configuration.
+        self._q_th = pin.neutral(self.pinocchio_model_th)
 
         # Whether the observer has been compiled already
         self._is_compiled = False
@@ -705,6 +699,12 @@ class DeformationEstimator(
         # Call base implementation
         super()._setup()
 
+        # Refresh the theoretical model of the robot.
+        # Even if the robot may change, the theoretical model of the robot is
+        # not supposed to change in a way that would break this observer.
+        self.pinocchio_model_th = self.env.robot.pinocchio_model_th
+        self.pinocchio_data_th = self.env.robot.pinocchio_data_th
+
         # Fix initialization of the observation to be valid quaternions
         self.observation[-1] = 1.0
 
@@ -732,16 +732,16 @@ class DeformationEstimator(
 
     @property
     def fieldnames(self) -> List[List[str]]:
-        return [[f"{name}.Quat{e}" for name in self.flexible_frame_names]
+        return [[f"{name}.Quat{e}" for name in self.flexibility_frame_names]
                 for e in ("x", "y", "z", "w")]
 
     def refresh_observation(self, measurement: BaseObsT) -> None:
-        # Estimate the rigid configuration of the robot from encoder data
-        self._q_rigid[self.encoder_to_config] = self.encoder_data
+        # Estimate the theoretical configuration of the robot from encoder data
+        self._q_th[self.encoder_to_config] = self.encoder_data
 
-        # Update kinematic quantities according to estimate rigid configuration
+        # Update kinematic quantities according to the estimated configuration
         pin.framesForwardKinematics(
-            self.pinocchio_model_th, self.pinocchio_data_th, self._q_rigid)
+            self.pinocchio_model_th, self.pinocchio_data_th, self._q_th)
 
         # Estimate all the deformations in their local frame.
         # It loops over each flexibility-imu chain independently.

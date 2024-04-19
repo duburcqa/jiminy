@@ -55,6 +55,7 @@ int main(int /* argc */, char * /* argv */[])
     const auto dataPath = jiminySrcPath / "data/toys_models";
     const auto urdfPath = dataPath / "double_pendulum/double_pendulum.urdf";
     const auto outputDirPath = std::filesystem::temp_directory_path();
+    std::cout << "Output directory: " << outputDirPath << std::endl;
 
     // =====================================================================
     // ============ Instantiate and configure the simulation ===============

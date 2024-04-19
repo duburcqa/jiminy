@@ -32,13 +32,10 @@ setup(
     install_requires=[
         f"gym-jiminy~={gym_jiminy_version}",
         # Highly efficient distributed computation library used for RL
-        # - <1.6.0: GPU detection must be patched to work
-        # - 1.11.0: Breaking changes
-        "ray[default,rllib]~=2.5.0",
-        # Missing dependency of ray dashboard
-        "async-timeout",
-        # Internal dependency of Ray that must be pinned
-        "pydantic<2.0.0",
+        # * <1.6.0: GPU detection must be patched to work
+        # * > 2.5.0: multi-GPU support
+        # * 1.11.0 / 2.2.0 / 2.5.0 / 2.9.0: Breaking changes
+        "ray[rllib]~=2.9.0",
         # Used for monitoring (logging and publishing) learning progress
         "tensorboardX",
         # Plot data directly in terminal to monitor stats without X-server

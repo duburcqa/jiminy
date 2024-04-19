@@ -17,7 +17,7 @@ namespace jiminy
     class JIMINY_DLLAPI TelemetrySender
     {
     public:
-        DISABLE_COPY(TelemetrySender)
+        JIMINY_DISABLE_COPY(TelemetrySender)
 
     public:
         template<typename T>
@@ -42,7 +42,7 @@ namespace jiminy
         /// \brief Register a new variable to the telemetry.
         ///
         /// \details A variable must be registered to be taken into account by the telemetry. The
-        ///          user is responsible for  managing its lifetime and updating it in-place. The
+        ///          user is responsible for managing its lifetime and updating it in-place. The
         ///          telemetry sender will fetch its value when calling 'updateValues'.
         ///
         /// \param[in] name Name of the field to record in the telemetry.
@@ -55,10 +55,12 @@ namespace jiminy
         void registerVariable(const std::vector<KeyType> & fieldnames,
                               const Eigen::MatrixBase<Derived> & values);
 
-        /// \brief Add an invariant header entry in the log file.
+        /// \brief Register a constant (so-called invariant) to the telemetry.
         ///
-        /// \param[in] name Name of the invariant.
-        /// \param[in] value Value of the invariant.
+        /// \details The user is responsible to convert it as a byte array (eg `std::string`).
+        ///
+        /// \param[in] name Name of the constant.
+        /// \param[in] value Value of the constant.
         void registerConstant(const std::string & name, const std::string & value);
 
         /// \brief Update all registered variables in the telemetry buffer.

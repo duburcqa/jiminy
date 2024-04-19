@@ -10,6 +10,15 @@ namespace jiminy
 {
     class Robot;
 
+    class ImuSensor;
+#if defined EXPORT_SYMBOLS || (!defined _WIN32 && !defined __CYGWIN__)
+    template<>
+    const std::string JIMINY_DLLAPI AbstractSensorTpl<ImuSensor>::type_;
+    template<>
+    const std::vector<std::string> JIMINY_DLLAPI AbstractSensorTpl<ImuSensor>::fieldnames_;
+#endif
+    template class JIMINY_TEMPLATE_INSTANTIATION_DLLAPI AbstractSensorTpl<ImuSensor>;
+
     class JIMINY_DLLAPI ImuSensor final : public AbstractSensorTpl<ImuSensor>
     {
     public:
@@ -41,12 +50,14 @@ namespace jiminy
         Eigen::Matrix3d sensorRotationBiasInv_{Eigen::Matrix3d::Identity()};
     };
 
+    class ContactSensor;
+#if defined EXPORT_SYMBOLS || (!defined _WIN32 && !defined __CYGWIN__)
     template<>
-    const std::string AbstractSensorTpl<ImuSensor>::type_;
+    const std::string JIMINY_DLLAPI AbstractSensorTpl<ContactSensor>::type_;
     template<>
-    const std::vector<std::string> AbstractSensorTpl<ImuSensor>::fieldnames_;
-    template<>
-    const bool AbstractSensorTpl<ImuSensor>::areFieldnamesGrouped_;
+    const std::vector<std::string> JIMINY_DLLAPI AbstractSensorTpl<ContactSensor>::fieldnames_;
+#endif
+    template class JIMINY_TEMPLATE_INSTANTIATION_DLLAPI AbstractSensorTpl<ContactSensor>;
 
     class JIMINY_DLLAPI ContactSensor final : public AbstractSensorTpl<ContactSensor>
     {
@@ -77,12 +88,14 @@ namespace jiminy
         std::size_t contactIndex_{0};
     };
 
+    class ForceSensor;
+#if defined EXPORT_SYMBOLS || (!defined _WIN32 && !defined __CYGWIN__)
     template<>
-    const std::string AbstractSensorTpl<ContactSensor>::type_;
+    const std::string JIMINY_DLLAPI AbstractSensorTpl<ForceSensor>::type_;
     template<>
-    const std::vector<std::string> AbstractSensorTpl<ContactSensor>::fieldnames_;
-    template<>
-    const bool AbstractSensorTpl<ContactSensor>::areFieldnamesGrouped_;
+    const std::vector<std::string> JIMINY_DLLAPI AbstractSensorTpl<ForceSensor>::fieldnames_;
+#endif
+    template class JIMINY_TEMPLATE_INSTANTIATION_DLLAPI AbstractSensorTpl<ForceSensor>;
 
     class JIMINY_DLLAPI ForceSensor final : public AbstractSensorTpl<ForceSensor>
     {
@@ -116,12 +129,14 @@ namespace jiminy
         pinocchio::Force f_{};
     };
 
+    class EncoderSensor;
+#if defined EXPORT_SYMBOLS || (!defined _WIN32 && !defined __CYGWIN__)
     template<>
-    const std::string AbstractSensorTpl<ForceSensor>::type_;
+    const std::string JIMINY_DLLAPI AbstractSensorTpl<EncoderSensor>::type_;
     template<>
-    const std::vector<std::string> AbstractSensorTpl<ForceSensor>::fieldnames_;
-    template<>
-    const bool AbstractSensorTpl<ForceSensor>::areFieldnamesGrouped_;
+    const std::vector<std::string> JIMINY_DLLAPI AbstractSensorTpl<EncoderSensor>::fieldnames_;
+#endif
+    template class JIMINY_TEMPLATE_INSTANTIATION_DLLAPI AbstractSensorTpl<EncoderSensor>;
 
     class JIMINY_DLLAPI EncoderSensor final : public AbstractSensorTpl<EncoderSensor>
     {
@@ -153,12 +168,14 @@ namespace jiminy
         JointModelType jointType_{JointModelType::UNSUPPORTED};
     };
 
+    class EffortSensor;
+#if defined EXPORT_SYMBOLS || (!defined _WIN32 && !defined __CYGWIN__)
     template<>
-    const std::string AbstractSensorTpl<EncoderSensor>::type_;
+    const std::string JIMINY_DLLAPI AbstractSensorTpl<EffortSensor>::type_;
     template<>
-    const std::vector<std::string> AbstractSensorTpl<EncoderSensor>::fieldnames_;
-    template<>
-    const bool AbstractSensorTpl<EncoderSensor>::areFieldnamesGrouped_;
+    const std::vector<std::string> JIMINY_DLLAPI AbstractSensorTpl<EffortSensor>::fieldnames_;
+#endif
+    template class JIMINY_TEMPLATE_INSTANTIATION_DLLAPI AbstractSensorTpl<EffortSensor>;
 
     class JIMINY_DLLAPI EffortSensor final : public AbstractSensorTpl<EffortSensor>
     {
@@ -187,13 +204,6 @@ namespace jiminy
         std::string motorName_{};
         std::size_t motorIndex_{0};
     };
-
-    template<>
-    const std::string AbstractSensorTpl<EffortSensor>::type_;
-    template<>
-    const std::vector<std::string> AbstractSensorTpl<EffortSensor>::fieldnames_;
-    template<>
-    const bool AbstractSensorTpl<EffortSensor>::areFieldnamesGrouped_;
 }
 
 #endif  // end of JIMINY_BASIC_SENSORS_H

@@ -1,16 +1,6 @@
 # Minimum version required
 cmake_minimum_required(VERSION 3.12.4)
 
-# MSVC runtime library flags are defined by 'CMAKE_MSVC_RUNTIME_LIBRARY'
-if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.15.7)
-    cmake_policy(SET CMP0091 NEW)
-endif()
-
-# Set find_package strategy to look for both upper-case and case-preserved variables
-if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.27.0)
-    cmake_policy(SET CMP0144 NEW)
-endif()
-
 # Forces GCC/Clang compilers to enable color diagnostics.
 # CMake versions 3.24 and below do not support this option, so we have
 # to invoke the color diagnostics flags manually.
@@ -25,17 +15,14 @@ endif()
 
 # Check if network is available before compiling external projects
 if(WIN32)
-    find_program(HAS_PING "ping")
-endif()
-if(HAS_PING)
+    set(BUILD_OFFLINE 0)
+else()
     unset(BUILD_OFFLINE)
     unset(BUILD_OFFLINE CACHE)
     execute_process(COMMAND bash -c
                             "if ping -q -c 1 -W 1 8.8.8.8 ; then echo 0; else echo 1; fi"
                     OUTPUT_STRIP_TRAILING_WHITESPACE
                     OUTPUT_VARIABLE BUILD_OFFLINE)
-else()
-    set(BUILD_OFFLINE 0)
 endif()
 if(${BUILD_OFFLINE})
     message(WARNING "No internet connection. Not building external projects.")

@@ -4,7 +4,7 @@ observer/controller block must inherit and implement those interfaces.
 """
 from abc import abstractmethod, ABC
 from collections import OrderedDict
-from typing import Dict, Any, TypeVar, Generic, no_type_check
+from typing import Dict, Any, TypeVar, Generic, no_type_check, TYPE_CHECKING
 from typing_extensions import TypeAlias
 
 import numpy as np
@@ -12,11 +12,12 @@ import numpy.typing as npt
 import gymnasium as gym
 
 import jiminy_py.core as jiminy
-from jiminy_py.core import array_copyto  # pylint: disable=no-name-in-module
 from jiminy_py.simulator import Simulator
 from jiminy_py.viewer.viewer import is_display_available
 
 from ..utils import DataNested
+if TYPE_CHECKING:
+    from ..quantities import QuantityManager
 
 
 # Temporal resolution of simulator steps
@@ -109,7 +110,7 @@ class InterfaceController(ABC, Generic[ActT, BaseActT]):
         """
 
     @abstractmethod
-    def compute_command(self, action: ActT) -> BaseActT:
+    def compute_command(self, action: ActT, command: BaseActT) -> None:
         """Compute the command to send to the subsequent block, based on the
         action and current observation of the environment.
 
@@ -118,11 +119,11 @@ class InterfaceController(ABC, Generic[ActT, BaseActT]):
             automatically prior to calling this method.
 
         :param action: High-level target to achieve by means of the command.
-
-        :returns: Command to send to the subsequent block. It corresponds to
-                  the target features of another lower-level controller if any,
-                  the target motors efforts of the environment to ultimately
-                  control otherwise.
+        :param command: Command to send to the subsequent block. It corresponds
+                        to the target features of another lower-level
+                        controller if any, the target motors efforts of the
+                        environment to ultimately control otherwise. It must be
+                        updated in-place.
         """
 
     def compute_reward(self,
@@ -184,6 +185,8 @@ class InterfaceJiminyEnv(
     sensor_measurements: SensorMeasurementStackMap
     is_simulation_running: npt.NDArray[np.bool_]
 
+    quantities: "QuantityManager"
+
     action: ActT
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -234,11 +237,8 @@ class InterfaceJiminyEnv(
             This method is not supposed to be called manually nor overloaded.
 
         :param t: Current simulation time.
-        :param q: Current actual configuration of the robot. Note that it is
-                  not the one of the theoretical model even if
-                  'use_theoretical_model' is enabled for the backend Python
-                  `Simulator`.
-        :param v: Current actual velocity vector.
+        :param q: Current extended configuration vector of the robot.
+        :param v: Current extended velocity vector of the robot.
         :param sensor_measurements: Current sensor data.
         """
         # Refresh the observation if not already done but only if a simulation
@@ -272,6 +272,10 @@ class InterfaceJiminyEnv(
         """Thin wrapper around user-specified `refresh_observation` and
         `compute_command` methods.
 
+        .. note::
+            The internal cache of managed quantities is cleared right away
+            systematically, before anything else.
+
         .. warning::
             This method is not supposed to be called manually nor overloaded.
             It will be used by the base environment to instantiate a
@@ -281,11 +285,8 @@ class InterfaceJiminyEnv(
             command motor torques directly to the robot.
 
         :param t: Current simulation time.
-        :param q: Current actual configuration of the robot. Note that it is
-                  not the one of the theoretical model even if
-                  'use_theoretical_model' is enabled for the backend Python
-                  `Simulator`.
-        :param v: Current actual velocity vector.
+        :param q: Current extended configuration vector of the robot.
+        :param v: Current actual velocity vector of the robot.
         :param sensor_measurements: Current sensor measurements.
         :param command: Output argument corresponding to motors torques to
                         apply on the robot. It must be updated by reference
@@ -293,12 +294,25 @@ class InterfaceJiminyEnv(
 
         :returns: Motors torques to apply on the robot.
         """
+        # Reset the quantity manager.
+        # In principle, the internal cache of quantities should be cleared not
+        # each time the state of the robot and/or its derivative changes. This
+        # is hard to do because there is no way to detect this specifically at
+        # the time being. However, `_controller_handle` is never called twice
+        # in the exact same state by the engine, so resetting quantities at the
+        # beginning of the method should cover most cases. Yet, quantities
+        # cannot be used reliably in the definition of profile forces because
+        # they are always updated before the controller gets called, no matter
+        # if either one or the other is time-continuous. Hacking the internal
+        # dynamics to clear quantities does not address this issue either.
+        self.quantities.clear()
+
         # Refresh the observation
         self._observer_handle(t, q, v, sensor_measurements)
 
         # No need to check for breakpoints of the controller because it already
         # matches the update period by design.
-        array_copyto(command, self.compute_command(self.action))
+        self.compute_command(self.action, command)
 
         # Always consider that the observation must be refreshed after calling
         # '_controller_handle' as it is never called more often than necessary.

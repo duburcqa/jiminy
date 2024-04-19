@@ -1,6 +1,8 @@
 """Generic environment to learn locomotion skills for legged robots using
 Jiminy simulator as physics engine.
 """
+import os
+import pathlib
 from typing import Optional, Dict, Union, Any, Type, Sequence, Tuple
 
 import numpy as np
@@ -13,6 +15,7 @@ from jiminy_py.core import (  # pylint: disable=no-name-in-module
     ImuSensor as imu,
     PeriodicGaussianProcess,
     Robot)
+from jiminy_py.robot import BaseJiminyRobot
 from jiminy_py.simulator import Simulator
 
 import pinocchio as pin
@@ -179,12 +182,27 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                 debug=debug,
                 viewer_kwargs=viewer_kwargs,
                 **{**dict(
-                    has_freeflyer=True,
-                    use_theoretical_model=False),
+                    has_freeflyer=True),
                     **kwargs})
         else:
-            # Instantiate a simulator and load the options
+            # Instantiate a simulator
             simulator = Simulator(robot, viewer_kwargs=viewer_kwargs, **kwargs)
+
+            # Load engine and robot options
+            if config_path is None:
+                if isinstance(robot, BaseJiminyRobot):
+                    urdf_path = (
+                        robot._urdf_path_orig)  # type: ignore[attr-defined]
+                else:
+                    urdf_path = robot.urdf_path
+                if not urdf_path:
+                    raise ValueError(
+                        "'config_path' must be provided if the robot is not "
+                        "associated with any URDF.")
+                config_path = str(pathlib.Path(
+                    urdf_path).with_suffix('')) + '_options.toml'
+                if not os.path.exists(config_path):
+                    config_path = ""
             simulator.import_options(config_path)
 
         # Initialize base class
@@ -229,7 +247,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
 
         # Get the options of robot and engine
         robot_options = self.robot.get_options()
-        engine_options = self.simulator.engine.get_options()
+        engine_options = self.simulator.get_options()
 
         # Make sure to log at least the required data for terminal reward
         # computation and log replay.
@@ -272,7 +290,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
 
         # Randomize the flexibility parameters
         if 'model' in self.std_ratio.keys():
-            if self.robot.is_flexible:
+            if self.robot.is_flexibility_enabled:
                 dynamics_options = robot_options["model"]["dynamics"]
                 for flexibility in dynamics_options["flexibilityConfig"]:
                     flexibility['stiffness'] += FLEX_STIFFNESS_SCALE * sample(
@@ -316,7 +334,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
 
         # Set the options, finally
         self.robot.set_options(robot_options)
-        self.simulator.engine.set_options(engine_options)
+        self.simulator.set_options(engine_options)
 
     def _force_external_profile(self,
                                 t: float,
@@ -406,8 +424,8 @@ class WalkerJiminyEnv(BaseJiminyEnv):
             # Y-axis. It is equal to 0.0 if the frontal displacement is
             # perfectly symmetric wrt Y-axis over the whole trajectory.
             if 'direction' in reward_mixture_keys:
-                frontal_displacement = abs(np.mean(self.log_data[
-                    'HighLevelController.currentFreeflyerPositionTransY']))
+                frontal_displacement = abs(np.mean(
+                    self.log_data['currentFreeflyerPositionTransY']))
                 reward_dict['direction'] = - frontal_displacement
 
         # Compute the total reward

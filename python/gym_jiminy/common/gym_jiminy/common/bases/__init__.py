@@ -1,5 +1,8 @@
 # pylint: disable=missing-module-docstring
 
+from .quantity import (SharedCache,
+                       QuantityCreator,
+                       AbstractQuantity)
 from .interfaces import (DT_EPS,
                          ObsT,
                          ActT,
@@ -23,6 +26,9 @@ from .pipeline import (BasePipelineWrapper,
 
 
 __all__ = [
+    'SharedCache',
+    'QuantityCreator',
+    'AbstractQuantity',
     'DT_EPS',
     'ObsT',
     'ActT',

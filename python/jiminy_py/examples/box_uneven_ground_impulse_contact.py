@@ -30,7 +30,7 @@ if __name__ == '__main__':
     simulator = Simulator.build(urdf_path, has_freeflyer=True)
 
     # Enable constraint contact model
-    engine_options = simulator.engine.get_options()
+    engine_options = simulator.get_options()
     engine_options['contacts']['model'] = 'constraint'
     engine_options['contacts']['stabilizationFreq'] = 20.0
     engine_options["constraints"]['regularization'] = 0.0
@@ -43,7 +43,7 @@ if __name__ == '__main__':
     # Set the ground contact options
     engine_options['contacts']['friction'] = 1.0
     engine_options['contacts']['torsion'] = 0.0
-    simulator.engine.set_options(engine_options)
+    simulator.set_options(engine_options)
 
     # Generate random ground profile
     ground_params = list(starmap(random_tile_ground, zip(
@@ -51,7 +51,7 @@ if __name__ == '__main__':
         TILE_ORIENTATION, TILE_SEED)))
     engine_options["world"]["groundProfile"] = sum_heightmaps([
         ground_params[0], merge_heightmaps(ground_params[1:])])
-    simulator.engine.set_options(engine_options)
+    simulator.set_options(engine_options)
 
     # Sample the initial state
     qpos = pin.neutral(simulator.robot.pinocchio_model)

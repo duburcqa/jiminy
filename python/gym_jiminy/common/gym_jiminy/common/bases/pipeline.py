@@ -14,10 +14,9 @@ from weakref import ref
 from copy import deepcopy
 from abc import abstractmethod
 from collections import OrderedDict
-from itertools import chain
 from typing import (
-    Dict, Any, List, Optional, Tuple, Union, Iterable, Generic, TypeVar,
-    SupportsFloat, Callable, cast)
+    Dict, Any, List, Optional, Tuple, Union, Generic, TypeVar, SupportsFloat,
+    Callable, cast)
 
 import numpy as np
 import gymnasium as gym
@@ -71,6 +70,7 @@ class BasePipelineWrapper(
                  env: InterfaceJiminyEnv[BaseObsT, BaseActT],
                  **kwargs: Any) -> None:
         """
+        :param env: Base or already wrapped jiminy environment.
         :param kwargs: Extra keyword arguments for multiple inheritance.
         """
         # Initialize some proxies for fast lookup
@@ -100,13 +100,13 @@ class BasePipelineWrapper(
         """
         return getattr(self.__getattribute__('env'), name)
 
-    def __dir__(self) -> Iterable[str]:
+    def __dir__(self) -> List[str]:
         """Attribute lookup.
 
         It is mainly used by autocomplete feature of Ipython. It is overloaded
         to get consistent autocompletion wrt `getattr`.
         """
-        return chain(super().__dir__(), dir(self.env))
+        return [*super().__dir__(), *dir(self.env)]
 
     @property
     def spec(self) -> Optional[EnvSpec]:
@@ -397,12 +397,12 @@ class ObservedJiminyEnv(
         else:
             observation['measurement'] = base_observation
         if (state := self.observer.get_state()) is not None:
-            observation.setdefault(
-                'states', OrderedDict())[  # type: ignore[index]
-                    self.observer.name] = state
-        observation.setdefault(
-            'features', OrderedDict())[  # type: ignore[index]
-                self.observer.name] = self.observer.observation
+            states = observation.setdefault('states', OrderedDict())
+            assert isinstance(states, OrderedDict)
+            states[self.observer.name] = state
+        features = observation.setdefault('features', OrderedDict())
+        assert isinstance(features, OrderedDict)
+        features[self.observer.name] = self.observer.observation
         self.observation = cast(NestedObsT, observation)
 
         # Register the observer's internal state and feature to the telemetry
@@ -447,12 +447,14 @@ class ObservedJiminyEnv(
         else:
             observation_space['measurement'] = base_observation_space
         if self.observer.state_space is not None:
-            observation_space.setdefault(  # type: ignore[index]
-                'states', gym.spaces.Dict())[
-                    self.observer.name] = self.observer.state_space
-        observation_space.setdefault(  # type: ignore[index]
-            'features', gym.spaces.Dict())[
-                self.observer.name] = self.observer.observation_space
+            state_spaces = observation_space.setdefault(
+                'states', gym.spaces.Dict())
+            assert isinstance(state_spaces, gym.spaces.Dict)
+            state_spaces[self.observer.name] = self.observer.state_space
+        feature_spaces = observation_space.setdefault(
+            'features', gym.spaces.Dict())
+        assert isinstance(feature_spaces, gym.spaces.Dict)
+        feature_spaces[self.observer.name] = self.observer.observation_space
         self.observation_space = gym.spaces.Dict(observation_space)
 
     def refresh_observation(self, measurement: EngineObsType) -> None:
@@ -477,15 +479,16 @@ class ObservedJiminyEnv(
         if is_breakpoint(self.stepper_state.t, self.observe_dt, DT_EPS):
             self.observer.refresh_observation(self.env.observation)
 
-    def compute_command(self, action: ActT) -> np.ndarray:
+    def compute_command(self, action: ActT, command: np.ndarray) -> None:
         """Compute the motors efforts to apply on the robot.
 
         It simply forwards the command computed by the wrapped environment
         without any processing.
 
         :param action: High-level target to achieve by means of the command.
+        :param command: Lower-level command to updated in-place.
         """
-        return self.env.compute_command(action)
+        self.env.compute_command(action, command)
 
 
 class ControlledJiminyEnv(
@@ -594,9 +597,6 @@ class ControlledJiminyEnv(
         # Initialize base wrapper
         super().__init__(env, **kwargs)
 
-        # Define specialized operator(s) for efficiency
-        self._copyto_env_action = build_copyto(self.env.action)
-
         # Allocate action buffer
         self.action: ActT = zeros(self.action_space)
 
@@ -614,13 +614,13 @@ class ControlledJiminyEnv(
         else:
             observation['measurement'] = base_observation
         if (state := self.controller.get_state()) is not None:
-            observation.setdefault(
-                'states', OrderedDict())[  # type: ignore[index]
-                    self.controller.name] = state
+            states = observation.setdefault('states', OrderedDict())
+            assert isinstance(states, OrderedDict)
+            states[self.controller.name] = state
         if self.augment_observation:
-            observation.setdefault(
-                'actions', OrderedDict())[  # type: ignore[index]
-                    self.controller.name] = self.action
+            actions = observation.setdefault('actions', OrderedDict())
+            assert isinstance(actions, OrderedDict)
+            actions[self.controller.name] = self.action
         self.observation = cast(NestedObsT, observation)
 
         # Register the controller's internal state and target to the telemetry
@@ -671,13 +671,15 @@ class ControlledJiminyEnv(
         else:
             observation_space['measurement'] = base_observation_space
         if self.controller.state_space is not None:
-            observation_space.setdefault(  # type: ignore[index]
-                'states', gym.spaces.Dict())[
-                    self.controller.name] = self.controller.state_space
+            state_spaces = observation_space.setdefault(
+                'states', gym.spaces.Dict())
+            assert isinstance(state_spaces, gym.spaces.Dict)
+            state_spaces[self.controller.name] = self.controller.state_space
         if self.augment_observation:
-            observation_space.setdefault(  # type: ignore[index]
-                'actions', gym.spaces.Dict())[
-                    self.controller.name] = self.controller.action_space
+            action_spaces = observation_space.setdefault(
+                'actions', gym.spaces.Dict())
+            assert isinstance(action_spaces, gym.spaces.Dict)
+            action_spaces[self.controller.name] = self.controller.action_space
         self.observation_space = gym.spaces.Dict(observation_space)
 
     def refresh_observation(self, measurement: EngineObsType) -> None:
@@ -698,7 +700,7 @@ class ControlledJiminyEnv(
         """
         self.env.refresh_observation(measurement)
 
-    def compute_command(self, action: ActT) -> np.ndarray:
+    def compute_command(self, action: ActT, command: np.ndarray) -> None:
         """Compute the motors efforts to apply on the robot.
 
         In practice, it updates whenever necessary:
@@ -708,21 +710,21 @@ class ControlledJiminyEnv(
               subsequent block
 
         :param action: High-level target to achieve by means of the command.
+        :param command: Lower-level command to update in-place.
         """
         # Update the target to send to the subsequent block if necessary.
         # Note that `observation` buffer has already been updated right before
         # calling this method by `_controller_handle`, so it can be used as
         # measure argument without issue.
         if is_breakpoint(self.stepper_state.t, self.control_dt, DT_EPS):
-            target = self.controller.compute_command(action)
-            self._copyto_env_action(target)
+            self.controller.compute_command(action, self.env.action)
 
         # Update the command to send to the actuators of the robot.
         # Note that the environment itself is responsible of making sure to
         # update the command at the right period. Ultimately, this is done
         # automatically by the engine, which is calling `_controller_handle` at
         # the right period.
-        return self.env.compute_command(self.env.action)
+        self.env.compute_command(self.env.action, command)
 
     def compute_reward(self,
                        terminated: bool,
@@ -791,15 +793,16 @@ class BaseTransformObservation(
         """
         self.action_space = self.env.action_space
 
-    def compute_command(self, action: ActT) -> np.ndarray:
+    def compute_command(self, action: ActT, command: np.ndarray) -> None:
         """Compute the motors efforts to apply on the robot.
 
         It simply forwards the command computed by the wrapped environment
         without any processing.
 
         :param action: High-level target to achieve by means of the command.
+        :param command: Lower-level command to update in-place.
         """
-        return self.env.compute_command(action)
+        self.env.compute_command(action, command)
 
     def refresh_observation(self, measurement: EngineObsType) -> None:
         """Compute high-level features based on the current wrapped
@@ -909,7 +912,9 @@ class BaseTransformAction(
         """
         self.env.refresh_observation(measurement)
 
-    def compute_command(self, action: TransformedActT) -> np.ndarray:
+    def compute_command(self,
+                        action: TransformedActT,
+                        command: np.ndarray) -> None:
         """Compute the motors efforts to apply on the robot.
 
         It calls `transform_action` at `step_dt` update period, which will
@@ -921,13 +926,14 @@ class BaseTransformAction(
             user prior to calling this method.
 
         :param action: High-level target to achieve by means of the command.
+        :param command: Lower-level command to update in-place.
         """
         # Transform action at the beginning of the step only
         if is_breakpoint(self.stepper_state.t, self._step_dt, DT_EPS):
             self.transform_action(action)
 
         # Delegate command computation to wrapped environment
-        return self.env.compute_command(self.env.action)
+        self.env.compute_command(self.env.action, command)
 
     @abstractmethod
     def transform_action(self, action: TransformedActT) -> None:

@@ -23,6 +23,17 @@ if (-not (Test-Path env:BUILD_TYPE)) {
   ${BUILD_TYPE} = "${env:BUILD_TYPE}"
 }
 
+### Set the CPU architecture
+$ARCHITECTURE = ( & "${PYTHON_EXECUTABLE}" -c "import platform ; print(platform.machine(), end='')" )
+if (("x86_64", "AMD64").contains(${ARCHITECTURE})) {
+  $ARCHITECTURE = "x64"
+} elseif (${ARCHITECTURE} -eq "ARM64") {
+  $ARCHITECTURE = "ARM64"
+} else {
+  Write-Error "Architecture '${ARCHITECTURE}' not supported." -ErrorAction:Stop
+}
+Write-Output "Architecture: ${ARCHITECTURE}"
+
 ### Set the default generate if undefined.
 #   The appropriate toolset will be selected automatically by cmake.
 if (-not (Test-Path env:GENERATOR)) {
@@ -81,6 +92,10 @@ if (Test-Path env:Boost_ROOT) {
 if (-not (Test-Path -PathType Container "$RootDir/boost")) {
   git clone --depth=1 https://github.com/boostorg/boost.git "$RootDir/boost"
 }
+if (Test-Path -PathType Container "$RootDir/boost/build") {
+  Remove-Item -Recurse -Force -Path "$RootDir/boost/build"
+}
+New-Item -ItemType "directory" -Force -Path "$RootDir/boost/build"
 Push-Location -Path "$RootDir/boost"
 git reset --hard
 git fetch origin "boost-1.78.0"
@@ -96,6 +111,10 @@ Pop-Location
 if (-not (Test-Path -PathType Container "$RootDir/eigen3")) {
   git clone --depth=1 https://gitlab.com/libeigen/eigen.git "$RootDir/eigen3"
 }
+if (Test-Path -PathType Container "$RootDir/eigen3/build") {
+  Remove-Item -Recurse -Force -Path "$RootDir/eigen3/build"
+}
+New-Item -ItemType "directory" -Force -Path "$RootDir/eigen3/build"
 Push-Location -Path "$RootDir/eigen3"
 git fetch origin eeacbd26c8838869a491ee89ab5cf0fe7dac016f
 git checkout --force FETCH_HEAD
@@ -106,13 +125,16 @@ Pop-Location
 if (-not (Test-Path -PathType Container "$RootDir/eigenpy")) {
   git clone --depth=1 https://github.com/stack-of-tasks/eigenpy.git "$RootDir/eigenpy"
 }
+if (Test-Path -PathType Container "$RootDir/eigenpy/build") {
+  Remove-Item -Recurse -Force -Path "$RootDir/eigenpy/build"
+}
+New-Item -ItemType "directory" -Force -Path "$RootDir/eigenpy/build"
 Push-Location -Path "$RootDir/eigenpy"
 git reset --hard
-git fetch origin "v3.3.0"
+git fetch origin "v3.4.0"
 git checkout --force FETCH_HEAD
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --depth 1 --jobs 8
-dos2unix "$RootDir/build_tools/patch_deps_windows/eigenpy.patch"
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_windows/eigenpy.patch"
 Pop-Location
 
@@ -120,6 +142,10 @@ Pop-Location
 if (-not (Test-Path -PathType Container "$RootDir/tinyxml")) {
   git clone --depth=1 https://github.com/robotology-dependencies/tinyxml.git "$RootDir/tinyxml"
 }
+if (Test-Path -PathType Container "$RootDir/tinyxml/build") {
+  Remove-Item -Recurse -Force -Path "$RootDir/tinyxml/build"
+}
+New-Item -ItemType "directory" -Force -Path "$RootDir/tinyxml/build"
 Push-Location -Path "$RootDir/tinyxml"
 git reset --hard
 git fetch origin "master"
@@ -130,6 +156,10 @@ Pop-Location
 if (-not (Test-Path -PathType Container "$RootDir/console_bridge")) {
   git clone --depth=1 https://github.com/ros/console_bridge.git "$RootDir/console_bridge"
 }
+if (Test-Path -PathType Container "$RootDir/console_bridge/build") {
+  Remove-Item -Recurse -Force -Path "$RootDir/console_bridge/build"
+}
+New-Item -ItemType "directory" -Force -Path "$RootDir/console_bridge/build"
 Push-Location -Path "$RootDir/console_bridge"
 git reset --hard
 git fetch origin "1.0.2"
@@ -140,6 +170,10 @@ Pop-Location
 if (-not (Test-Path -PathType Container "$RootDir/urdfdom_headers")) {
   git clone --depth=1 https://github.com/ros/urdfdom_headers.git "$RootDir/urdfdom_headers"
 }
+if (Test-Path -PathType Container "$RootDir/urdfdom_headers/build") {
+  Remove-Item -Recurse -Force -Path "$RootDir/urdfdom_headers/build"
+}
+New-Item -ItemType "directory" -Force -Path "$RootDir/urdfdom_headers/build"
 Push-Location -Path "$RootDir/urdfdom_headers"
 git reset --hard
 git fetch origin "1.0.5"
@@ -150,11 +184,14 @@ Pop-Location
 if (-not (Test-Path -PathType Container "$RootDir/urdfdom")) {
   git clone --depth=1 https://github.com/ros/urdfdom.git "$RootDir/urdfdom"
 }
+if (Test-Path -PathType Container "$RootDir/urdfdom/build") {
+  Remove-Item -Recurse -Force -Path "$RootDir/urdfdom/build"
+}
+New-Item -ItemType "directory" -Force -Path "$RootDir/urdfdom/build"
 Push-Location -Path "$RootDir/urdfdom"
 git reset --hard
 git fetch origin "3.0.0"
 git checkout --force FETCH_HEAD
-dos2unix "$RootDir/build_tools/patch_deps_windows/urdfdom.patch"
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_windows/urdfdom.patch"
 Pop-Location
 
@@ -162,6 +199,10 @@ Pop-Location
 if (-not (Test-Path -PathType Container "$RootDir/cppad")) {
   git clone --depth=1 https://github.com/coin-or/CppAD.git "$RootDir/cppad"
 }
+if (Test-Path -PathType Container "$RootDir/cppad/build") {
+  Remove-Item -Recurse -Force -Path "$RootDir/cppad/build"
+}
+New-Item -ItemType "directory" -Force -Path "$RootDir/cppad/build"
 Push-Location -Path "$RootDir/cppad"
 git reset --hard
 git fetch origin "20240000.2"
@@ -172,6 +213,10 @@ Pop-Location
 if (-not (Test-Path -PathType Container "$RootDir/cppadcodegen")) {
   git clone --depth=1 https://github.com/joaoleal/CppADCodeGen.git "$RootDir/cppadcodegen"
 }
+if (Test-Path -PathType Container "$RootDir/cppadcodegen/build") {
+  Remove-Item -Recurse -Force -Path "$RootDir/cppadcodegen/build"
+}
+New-Item -ItemType "directory" -Force -Path "$RootDir/cppadcodegen/build"
 Push-Location -Path "$RootDir/cppadcodegen"
 git reset --hard
 git fetch origin "v2.4.3"
@@ -182,6 +227,10 @@ Pop-Location
 if (-not (Test-Path -PathType Container "$RootDir/assimp")) {
   git clone --depth=1 https://github.com/assimp/assimp.git "$RootDir/assimp"
 }
+if (Test-Path -PathType Container "$RootDir/assimp/build") {
+  Remove-Item -Recurse -Force -Path "$RootDir/assimp/build"
+}
+New-Item -ItemType "directory" -Force -Path "$RootDir/assimp/build"
 Push-Location -Path "$RootDir/assimp"
 git reset --hard
 git fetch origin "v5.2.5"
@@ -191,17 +240,23 @@ Pop-Location
 ### Checkout hpp-fcl, then apply some patches
 if (-not (Test-Path -PathType Container "$RootDir/hpp-fcl")) {
   git clone --depth=1 https://github.com/humanoid-path-planner/hpp-fcl.git "$RootDir/hpp-fcl"
-  git config --global url."https://".insteadOf git://
 }
+if (Test-Path -PathType Container "$RootDir/hpp-fcl/build") {
+  Remove-Item -Recurse -Force -Path "$RootDir/hpp-fcl/build"
+}
+New-Item -ItemType "directory" -Force -Path "$RootDir/hpp-fcl/build"
 Push-Location -Path "$RootDir/hpp-fcl"
 git reset --hard
-git fetch origin "v2.4.1"
+git fetch origin "v2.4.4"
 git checkout --force FETCH_HEAD
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --depth 1 --jobs 8
-dos2unix "$RootDir/build_tools/patch_deps_windows/hppfcl.patch"
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_windows/hppfcl.patch"
 Pop-Location
+if (Test-Path -PathType Container "$RootDir/hpp-fcl/third-parties/qhull/build") {
+  Remove-Item -Recurse -Force -Path "$RootDir/hpp-fcl/third-parties/qhull/build"
+}
+New-Item -ItemType "directory" -Force -Path "$RootDir/hpp-fcl/third-parties/qhull/build"
 Push-Location -Path "$RootDir/hpp-fcl/third-parties/qhull"
 git fetch origin "v8.0.2"
 git checkout --force FETCH_HEAD
@@ -210,15 +265,17 @@ Pop-Location
 ### Checkout pinocchio and its submodules, then apply some patches
 if (-not (Test-Path -PathType Container "$RootDir/pinocchio")) {
   git clone --depth=1 https://github.com/stack-of-tasks/pinocchio.git "$RootDir/pinocchio"
-  git config --global url."https://".insteadOf git://
 }
+if (Test-Path -PathType Container "$RootDir/pinocchio/build") {
+  Remove-Item -Recurse -Force -Path "$RootDir/pinocchio/build"
+}
+New-Item -ItemType "directory" -Force -Path "$RootDir/pinocchio/build"
 Push-Location -Path "$RootDir/pinocchio"
 git reset --hard
 git fetch origin "v2.7.0"
 git checkout --force FETCH_HEAD
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --depth 1 --jobs 8
-dos2unix "$RootDir/build_tools/patch_deps_windows/pinocchio.patch"
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_windows/pinocchio.patch"
 Pop-Location
 
@@ -259,36 +316,38 @@ if (${BUILD_TYPE} -eq "Release") {
 } else {
   Write-Error "Build type '${BUILD_TYPE}' not supported." -ErrorAction:Stop
 }
-if (-not (Test-Path -PathType Container "$RootDir/boost/build")) {
-  New-Item -ItemType "directory" -Force -Path "$RootDir/boost/build"
+
+if (${ARCHITECTURE} -eq "x64") {
+  $ArchiB2 = "x86"
+} elseif (${ARCHITECTURE} -eq "ARM64") {
+  $ArchiB2 = "arm"
 }
 
 # Compiling everything with static linkage except Boost::Python
 ./b2.exe --prefix="$InstallDir" --build-dir="$RootDir/boost/build" `
          --with-chrono --with-timer --with-date_time --with-system --with-test `
          --with-filesystem --with-atomic --with-serialization --with-thread `
-         --build-type=minimal architecture=x86 address-model=64 `
-         threading=single @DebugOptionsB2 --layout=system --lto=off `
-         link=static runtime-link=shared `
-         cxxflags="-std=c++11 ${CMAKE_CXX_FLAGS}" linkflags="${CMAKE_SHARED_LINKER_FLAGS}" `
+         --build-type=minimal --layout=system --lto=off `
+         architecture=${ArchiB2} address-model=64 @DebugOptionsB2 `
+         threading=single link=static runtime-link=shared `
+         cxxflags="-std=c++11 ${CMAKE_CXX_FLAGS}" `
+         linkflags="${CMAKE_SHARED_LINKER_FLAGS}" `
          variant="$BuildTypeB2" install -q -d0 -j2
 
 ./b2.exe --prefix="$InstallDir" --build-dir="$RootDir/boost/build" `
          --with-python `
-         --build-type=minimal architecture=x86 address-model=64 `
-         threading=single @DebugOptionsB2 --layout=system --lto=off `
-         link=shared runtime-link=shared `
-         cxxflags="-std=c++11 ${CMAKE_CXX_FLAGS}" linkflags="${CMAKE_SHARED_LINKER_FLAGS}" `
+         --build-type=minimal --layout=system --lto=off `
+         architecture=${ArchiB2} address-model=64 @DebugOptionsB2 `
+         threading=single link=shared runtime-link=shared `
+         cxxflags="-std=c++11 ${CMAKE_CXX_FLAGS}" `
+         linkflags="${CMAKE_SHARED_LINKER_FLAGS}" `
          variant="$BuildTypeB2" install -q -d0 -j2
 Pop-Location
 
 #################################### Build and install eigen3 ##########################################
 
-if (-not (Test-Path -PathType Container "$RootDir/eigen3/build")) {
-  New-Item -ItemType "directory" -Force -Path "$RootDir/eigen3/build"
-}
 Push-Location -Path "$RootDir/eigen3/build"
-cmake "$RootDir/eigen3" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM=x64 `
+cmake "$RootDir/eigen3" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM="${ARCHITECTURE}" `
       -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" `
       -DBUILD_TESTING=OFF -DEIGEN_BUILD_PKGCONFIG=OFF
 cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 2
@@ -296,11 +355,8 @@ Pop-Location
 
 ################################### Build and install eigenpy ##########################################
 
-if (-not (Test-Path -PathType Container "$RootDir/eigenpy/build")) {
-  New-Item -ItemType "directory" -Force -Path "$RootDir/eigenpy/build"
-}
 Push-Location -Path "$RootDir/eigenpy/build"
-cmake "$RootDir/eigenpy" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM=x64 `
+cmake "$RootDir/eigenpy" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM="${ARCHITECTURE}" `
       -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
       -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" `
       -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" `
@@ -315,11 +371,8 @@ Pop-Location
 
 ################################## Build and install tinyxml ###########################################
 
-if (-not (Test-Path -PathType Container "$RootDir/tinyxml/build")) {
-  New-Item -ItemType "directory" -Force -Path "$RootDir/tinyxml/build"
-}
 Push-Location -Path "$RootDir/tinyxml/build"
-cmake "$RootDir/tinyxml" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM=x64 `
+cmake "$RootDir/tinyxml" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM="${ARCHITECTURE}" `
       -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
       -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" `
       -DBUILD_SHARED_LIBS=OFF -DCMAKE_SHARED_LINKER_FLAGS="${CMAKE_SHARED_LINKER_FLAGS}" `
@@ -329,11 +382,8 @@ Pop-Location
 
 ############################## Build and install console_bridge ########################################
 
-if (-not (Test-Path -PathType Container "$RootDir/console_bridge/build")) {
-  New-Item -ItemType "directory" -Force -Path "$RootDir/console_bridge/build"
-}
 Push-Location -Path "$RootDir/console_bridge/build"
-cmake "$RootDir/console_bridge" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM=x64 `
+cmake "$RootDir/console_bridge" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM="${ARCHITECTURE}" `
       -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
       -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" `
       -DBUILD_SHARED_LIBS=OFF -DCMAKE_SHARED_LINKER_FLAGS="${CMAKE_SHARED_LINKER_FLAGS}" `
@@ -343,22 +393,16 @@ Pop-Location
 
 ############################### Build and install urdfdom_headers ######################################
 
-if (-not (Test-Path -PathType Container "$RootDir/urdfdom_headers/build")) {
-  New-Item -ItemType "directory" -Force -Path "$RootDir/urdfdom_headers/build"
-}
 Push-Location -Path "$RootDir/urdfdom_headers/build"
-cmake "$RootDir/urdfdom_headers" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM=x64 `
+cmake "$RootDir/urdfdom_headers" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM="${ARCHITECTURE}" `
       -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir"
 cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 2
 Pop-Location
 
 ################################## Build and install urdfdom ###########################################
 
-if (-not (Test-Path -PathType Container "$RootDir/urdfdom/build")) {
-  New-Item -ItemType "directory" -Force -Path "$RootDir/urdfdom/build"
-}
 Push-Location -Path "$RootDir/urdfdom/build"
-cmake "$RootDir/urdfdom" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM=x64 `
+cmake "$RootDir/urdfdom" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM="${ARCHITECTURE}" `
       -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
       -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" `
       -DCMAKE_FIND_PACKAGE_PREFER_CONFIG=ON -DBUILD_TESTING=OFF -DBUILD_SHARED_LIBS=OFF `
@@ -369,11 +413,8 @@ Pop-Location
 
 ################################### Build and install CppAD ##########################################
 
-if (-not (Test-Path -PathType Container "$RootDir/cppad/build")) {
-  New-Item -ItemType "directory" -Force -Path "$RootDir/cppad/build"
-}
 Push-Location -Path "$RootDir/cppad/build"
-cmake "$RootDir/cppad" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM=x64 `
+cmake "$RootDir/cppad" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM="${ARCHITECTURE}" `
       -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
       -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" `
       -DCMAKE_SHARED_LINKER_FLAGS="${CMAKE_SHARED_LINKER_FLAGS}" -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}"
@@ -382,11 +423,8 @@ Pop-Location
 
 ################################### Build and install CppADCodeGen ##########################################
 
-if (-not (Test-Path -PathType Container "$RootDir/cppadcodegen/build")) {
-  New-Item -ItemType "directory" -Force -Path "$RootDir/cppadcodegen/build"
-}
 Push-Location -Path "$RootDir/cppadcodegen/build"
-cmake "$RootDir/cppadcodegen" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM=x64 `
+cmake "$RootDir/cppadcodegen" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM="${ARCHITECTURE}" `
       -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
       -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" `
       -DGOOGLETEST_GIT=ON -DCMAKE_SHARED_LINKER_FLAGS="${CMAKE_SHARED_LINKER_FLAGS}" `
@@ -396,11 +434,8 @@ Pop-Location
 
 ###################################### Build and install assimp ########################################
 
-if (-not (Test-Path -PathType Container "$RootDir/assimp/build")) {
-  New-Item -ItemType "directory" -Force -Path "$RootDir/assimp/build"
-}
 Push-Location -Path "$RootDir/assimp/build"
-cmake "$RootDir/assimp" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM=x64 `
+cmake "$RootDir/assimp" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM="${ARCHITECTURE}" `
       -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
       -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" `
       -DASSIMP_BUILD_ASSIMP_TOOLS=OFF -DASSIMP_BUILD_ZLIB=OFF -DASSIMP_BUILD_TESTS=OFF `
@@ -417,7 +452,7 @@ Pop-Location
 #   add the desired flag at the end of CMAKE_CXX_FLAGS ("/MT", "/MD"...). It will take precedence over
 #   any existing flag if any.
 Push-Location -Path "$RootDir/hpp-fcl/third-parties/qhull/build"
-cmake "$RootDir/hpp-fcl/third-parties/qhull" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM=x64 `
+cmake "$RootDir/hpp-fcl/third-parties/qhull" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM="${ARCHITECTURE}" `
       -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" `
       -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON `
       -DCMAKE_SHARED_LINKER_FLAGS="${CMAKE_SHARED_LINKER_FLAGS}" `
@@ -426,11 +461,8 @@ cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 2
 Pop-Location
 
 ### Build hpp-fcl
-if (-not (Test-Path -PathType Container "$RootDir/hpp-fcl/build")) {
-  New-Item -ItemType "directory" -Force -Path "$RootDir/hpp-fcl/build"
-}
 Push-Location -Path "$RootDir/hpp-fcl/build"
-cmake "$RootDir/hpp-fcl" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM=x64 `
+cmake "$RootDir/hpp-fcl" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM="${ARCHITECTURE}" `
       -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
       -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" `
       -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" `
@@ -447,11 +479,8 @@ Pop-Location
 ################################ Build and install Pinocchio ##########################################
 
 ### Build and install pinocchio, finally !
-if (-not (Test-Path -PathType Container "$RootDir/pinocchio/build")) {
-  New-Item -ItemType "directory" -Force -Path "$RootDir/pinocchio/build"
-}
 Push-Location -Path "$RootDir/pinocchio/build"
-cmake "$RootDir/pinocchio" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM=x64 `
+cmake "$RootDir/pinocchio" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM="${ARCHITECTURE}" `
       -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
       -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" `
       -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" `

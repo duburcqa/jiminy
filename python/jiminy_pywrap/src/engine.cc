@@ -6,7 +6,7 @@
 #include "jiminy/core/control/abstract_controller.h"
 #include "jiminy/core/robot/robot.h"
 #include "jiminy/core/engine/engine.h"
-#include "jiminy/core/engine/engine.h"
+#include "jiminy/core/stepper/abstract_stepper.h"
 
 #include "pinocchio/bindings/python/fwd.hpp"
 #include <boost/python/raw_function.hpp>
@@ -277,16 +277,24 @@ namespace jiminy::python
             {
                 aInit.emplace(convertFromPython<std::map<std::string, Eigen::VectorXd>>(aInitPy));
             }
-            std::optional<AbortSimulationFunction> callback;
+            AbortSimulationFunction callback;
             if (!callbackPy.is_none())
             {
-                callback.emplace(callbackPy);
+                callback = callbackPy;
+            }
+            else
+            {
+                callback = []()
+                {
+                    return true;
+                };
             }
             return self.simulate(
                 endTime,
                 convertFromPython<std::map<std::string, Eigen::VectorXd>>(qInitPy),
                 convertFromPython<std::map<std::string, Eigen::VectorXd>>(vInitPy),
-                aInit);
+                aInit,
+                callback);
         }
 
         static void simulate(Engine & self,
@@ -372,7 +380,7 @@ namespace jiminy::python
             // Get constants
             for (const auto & [key, value] : logData.constants)
             {
-                if (endsWith(key, ".options"))
+                if (endsWith(key, "options"))
                 {
                     std::vector<uint8_t> jsonStringVec(value.begin(), value.end());
                     std::shared_ptr<AbstractIODevice> device =
@@ -381,7 +389,7 @@ namespace jiminy::python
                     jsonLoad(robotOptions, device);
                     constants[key] = robotOptions;
                 }
-                else if (endsWith(key, ".pinocchio_model"))
+                else if (key.find("pinocchio_model") != std::string::npos)
                 {
                     try
                     {
@@ -391,12 +399,12 @@ namespace jiminy::python
                     }
                     catch (const std::exception & e)
                     {
-                        THROW_ERROR(std::ios_base::failure,
-                                    "Failed to load pinocchio model from log: ",
-                                    e.what());
+                        JIMINY_THROW(std::ios_base::failure,
+                                     "Failed to load pinocchio model from log: ",
+                                     e.what());
                     }
                 }
-                else if (endsWith(key, ".visual_model") || endsWith(key, ".collision_model"))
+                else if (endsWith(key, "visual_model") || endsWith(key, "collision_model"))
                 {
                     try
                     {
@@ -406,12 +414,12 @@ namespace jiminy::python
                     }
                     catch (const std::exception & e)
                     {
-                        THROW_ERROR(std::ios_base::failure,
-                                    "Failed to load collision and/or visual model from log: ",
-                                    e.what());
+                        JIMINY_THROW(std::ios_base::failure,
+                                     "Failed to load collision and/or visual model from log: ",
+                                     e.what());
                     }
                 }
-                else if (endsWith(key, ".mesh_package_dirs"))
+                else if (endsWith(key, "mesh_package_dirs"))
                 {
                     bp::list meshPackageDirs;
                     std::stringstream ss(value);
@@ -432,7 +440,8 @@ namespace jiminy::python
                 }
                 else
                 {
-                    constants[key] = value;  // convertToPython(value, false);
+                    constants[key] = bp::object(
+                        bp::handle<>(PyBytes_FromStringAndSize(value.c_str(), value.size())));
                 }
             }
 
@@ -573,9 +582,9 @@ namespace jiminy::python
                 }
                 else
                 {
-                    THROW_ERROR(std::runtime_error,
-                                "Impossible to determine the file format "
-                                "automatically. Please specify it manually.");
+                    JIMINY_THROW(std::runtime_error,
+                                 "Impossible to determine the file format "
+                                 "automatically. Please specify it manually.");
                 }
             }
             const LogData logData = Engine::readLog(filename, format);
@@ -587,6 +596,13 @@ namespace jiminy::python
             GenericConfig config = self.getOptions();
             convertFromPython(configPy, config);
             return self.setOptions(config);
+        }
+
+        static void setSimulationOptions(Engine & self, const bp::dict & configPy)
+        {
+            GenericConfig config = self.getSimulationOptions();
+            convertFromPython(configPy, config);
+            return self.setSimulationOptions(config);
         }
     }
 
@@ -767,10 +783,19 @@ namespace jiminy::python
             .def("remove_all_forces", &Engine::removeAllForces)
 
             .def("set_options", &internal::engine::setOptions)
-            .def("get_options", &Engine::getOptions)
+            .def(
+                "get_options", &Engine::getOptions, bp::return_value_policy<bp::return_by_value>())
+            .def("set_simulation_options", &internal::engine::setSimulationOptions)
+            .def("get_simulation_options", &Engine::getSimulationOptions)
 
             .DEF_READONLY_WITH_POLICY(
                 "robots", &Engine::robots_, bp::return_value_policy<result_converter<true>>())
+            .def("get_robot", &Engine::getRobot, (bp::arg("self"), "robot_name"))
+            .def("get_robot_index", &Engine::getRobotIndex, (bp::arg("self"), "robot_name"))
+            .def("get_robot_state",
+                 &Engine::getRobotState,
+                 (bp::arg("self"), "robot_name"),
+                 bp::return_value_policy<result_converter<false>>())
 
             .ADD_PROPERTY_GET("robot_states", &internal::engine::getRobotStates)
             .ADD_PROPERTY_GET_WITH_POLICY("stepper_state",

@@ -250,7 +250,7 @@ class StackedJiminyEnv(
             self.__n_last_stack = -1
             self.wrapper.refresh_observation(self.env.observation)
 
-    def compute_command(self, action: ActT) -> np.ndarray:
+    def compute_command(self, action: ActT, command: np.ndarray) -> None:
         """Compute the motors efforts to apply on the robot.
 
         It simply forwards the command computed by the wrapped environment
@@ -258,4 +258,4 @@ class StackedJiminyEnv(
 
         :param action: High-level target to achieve by means of the command.
         """
-        return self.env.compute_command(action)
+        self.env.compute_command(action, command)

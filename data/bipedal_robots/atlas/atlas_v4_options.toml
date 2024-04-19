@@ -26,5 +26,4 @@ torsion = 0.0
 # ======== Joints bounds configuration ========
 
 [robot.model.joints]
-enablePositionLimit = true
 enableVelocityLimit = true

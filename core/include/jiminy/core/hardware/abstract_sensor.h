@@ -103,7 +103,7 @@ namespace jiminy
         };
 
     public:
-        DISABLE_COPY(AbstractSensorBase)
+        JIMINY_DISABLE_COPY(AbstractSensorBase)
 
     public:
         /// \param[in] name Name of the sensor
@@ -165,7 +165,7 @@ namespace jiminy
         virtual void setOptionsAll(const GenericConfig & sensorOptions) = 0;
 
         /// \brief Configuration options of the sensor.
-        GenericConfig getOptions() const noexcept;
+        const GenericConfig & getOptions() const noexcept;
 
         template<typename DerivedType>
         void set(const Eigen::MatrixBase<DerivedType> & value);
@@ -314,10 +314,10 @@ namespace jiminy
     };
 
     template<typename T>
-    class AbstractSensorTpl : public AbstractSensorBase
+    class JIMINY_TEMPLATE_DLLAPI AbstractSensorTpl : public AbstractSensorBase
     {
     public:
-        DISABLE_COPY(AbstractSensorTpl)
+        JIMINY_DISABLE_COPY(AbstractSensorTpl)
 
     public:
         using AbstractSensorBase::AbstractSensorBase;
@@ -358,9 +358,8 @@ namespace jiminy
     public:
         /* Be careful, the static variables must be const since the 'static' keyword binds all the
            sensors together, even if they are associated to complete separated robots. */
-        static const std::string type_;
-        static const std::vector<std::string> fieldnames_;
-        static const bool areFieldnamesGrouped_;
+        static const std::string JIMINY_STATIC_MEMBER_DLLAPI type_;
+        static const std::vector<std::string> JIMINY_STATIC_MEMBER_DLLAPI fieldnames_;
 
     protected:
         std::size_t sensorIndex_{0};

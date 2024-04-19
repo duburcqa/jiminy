@@ -12,7 +12,8 @@ namespace jiminy
         /* AbstractMotorBase constructor calls the base implementations of the virtual methods
            since the derived class is not available at this point. Thus it must be called
            explicitly in the constructor. */
-        setOptions(getDefaultMotorOptions());
+        motorOptionsGeneric_ = getDefaultMotorOptions();
+        setOptions(getOptions());
     }
 
     void SimpleMotor::initialize(const std::string & jointName)
@@ -22,9 +23,9 @@ namespace jiminy
         auto robot = robot_.lock();
         if (robot && robot->getIsLocked())
         {
-            THROW_ERROR(bad_control_flow,
-                        "Robot already locked, probably because a simulation is running. "
-                        "Please stop it before refreshing motor proxies.");
+            JIMINY_THROW(bad_control_flow,
+                         "Robot already locked, probably because a simulation is running. "
+                         "Please stop it before refreshing motor proxies.");
         }
 
         // Update joint name
@@ -46,32 +47,34 @@ namespace jiminy
 
     void SimpleMotor::setOptions(const GenericConfig & motorOptions)
     {
-        AbstractMotorBase::setOptions(motorOptions);
-
         // Check if the friction parameters make sense
         // Make sure the user-defined position limit has the right dimension
         if (boost::get<double>(motorOptions.at("frictionViscousPositive")) > 0.0)
         {
-            THROW_ERROR(std::invalid_argument, "'frictionViscousPositive' must be negative.");
+            JIMINY_THROW(std::invalid_argument, "'frictionViscousPositive' must be negative.");
         }
         if (boost::get<double>(motorOptions.at("frictionViscousNegative")) > 0.0)
         {
-            THROW_ERROR(std::invalid_argument, "'frictionViscousNegative' must be negative.");
+            JIMINY_THROW(std::invalid_argument, "'frictionViscousNegative' must be negative.");
         }
         if (boost::get<double>(motorOptions.at("frictionDryPositive")) > 0.0)
         {
-            THROW_ERROR(std::invalid_argument, "'frictionDryPositive' must be negative.");
+            JIMINY_THROW(std::invalid_argument, "'frictionDryPositive' must be negative.");
         }
         if (boost::get<double>(motorOptions.at("frictionDryNegative")) > 0.0)
         {
-            THROW_ERROR(std::invalid_argument, "'frictionDryNegative' must be negative.");
+            JIMINY_THROW(std::invalid_argument, "'frictionDryNegative' must be negative.");
         }
         if (boost::get<double>(motorOptions.at("frictionDrySlope")) < 0.0)
         {
-            THROW_ERROR(std::invalid_argument, "'frictionDrySlope' must be positive.");
+            JIMINY_THROW(std::invalid_argument, "'frictionDrySlope' must be positive.");
         }
 
+        // Update class-specific "strongly typed" accessor for fast and convenient access
         motorOptions_ = std::make_unique<const SimpleMotorOptions>(motorOptions);
+
+        // Update base "strongly typed" option accessor and inherited polymorphic accessor
+        AbstractMotorBase::setOptions(motorOptions);
     }
 
     void SimpleMotor::computeEffort(double /* t */,
@@ -82,8 +85,8 @@ namespace jiminy
     {
         if (!isInitialized_)
         {
-            THROW_ERROR(bad_control_flow,
-                        "Motor not initialized. Impossible to compute actual motor effort.");
+            JIMINY_THROW(bad_control_flow,
+                         "Motor not initialized. Impossible to compute actual motor effort.");
         }
 
         /* Compute the motor effort, taking into account the limit, if any.

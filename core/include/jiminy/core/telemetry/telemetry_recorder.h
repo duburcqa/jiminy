@@ -14,7 +14,7 @@ namespace jiminy
     class JIMINY_DLLAPI TelemetryRecorder
     {
     public:
-        DISABLE_COPY(TelemetryRecorder)
+        JIMINY_DISABLE_COPY(TelemetryRecorder)
 
     public:
         explicit TelemetryRecorder() = default;
@@ -71,7 +71,7 @@ namespace jiminy
         int64_t floatSectionSize_{-1};
 
         /// \brief Precision to use when logging the time.
-        double timeUnitInv_{NAN};
+        double timeUnitInv_{qNAN};
     };
 }
 

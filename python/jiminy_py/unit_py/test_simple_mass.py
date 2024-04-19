@@ -128,7 +128,7 @@ class SimulateSimpleMass(unittest.TestCase):
         # Set some extra options of the engine, to avoid assertion failure
         # because of problem regularization and outliers
         engine_options = engine.get_options()
-        engine_options['contacts']['transitionEps'] = 1.0e-6
+        engine_options["contacts"]["transitionEps"] = 1.0e-6
         engine_options["stepper"]["controllerUpdatePeriod"] = self.dtMax
         engine.set_options(engine_options)
 
@@ -144,7 +144,7 @@ class SimulateSimpleMass(unittest.TestCase):
 
         # Total energy and derivative
         log_vars = engine.log_data["variables"]
-        E_robot = log_vars['HighLevelController.energy']
+        E_robot = log_vars["energy"]
         E_contact = 1 / 2 * self.k_contact * penetration_depth ** 2
         E_tot = E_robot + E_contact
         E_diff_robot = np.concatenate((
@@ -278,8 +278,7 @@ class SimulateSimpleMass(unittest.TestCase):
         # Validate the stiction model: check the transition between dry and
         # viscous friction because of stiction phenomena.
         log_vars = engine.log_data["variables"]
-        acceleration = log_vars[
-            'HighLevelController.currentFreeflyerAccelerationLinX']
+        acceleration = log_vars["currentFreeflyerAccelerationLinX"]
         jerk = np.diff(acceleration) / np.diff(time)
         snap = np.diff(jerk) / np.diff(time[1:])
         snap_rel = np.abs(snap / np.max(snap))
@@ -303,7 +302,7 @@ class SimulateSimpleMass(unittest.TestCase):
         # Check that the energy increases only when the force is applied
         tolerance_E = 1e-9
 
-        E_robot = log_vars['HighLevelController.energy']
+        E_robot = log_vars["energy"]
         E_diff_robot = np.concatenate((
             np.diff(E_robot) / np.diff(time),
             np.zeros((1,), dtype=E_robot.dtype)))

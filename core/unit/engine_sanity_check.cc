@@ -61,21 +61,24 @@ TEST(EngineSanity, EnergyConservation)
         motor->initialize(jointName);
     }
 
+    // Get all robot options
+    GenericConfig robotOptions = robot->getOptions();
+
     // Disable velocity and position limits
-    GenericConfig modelOptions = robot->getModelOptions();
+    GenericConfig & modelOptions = boost::get<GenericConfig>(robotOptions.at("model"));
     GenericConfig & jointsOptions = boost::get<GenericConfig>(modelOptions.at("joints"));
-    boost::get<bool>(jointsOptions.at("enablePositionLimit")) = false;
     boost::get<bool>(jointsOptions.at("enableVelocityLimit")) = false;
-    robot->setModelOptions(modelOptions);
 
     // Disable torque limits
-    GenericConfig motorsOptions = robot->getMotorsOptions();
-    for (auto & options : motorsOptions)
+    GenericConfig & motorsOptions = boost::get<GenericConfig>(robotOptions.at("motors"));
+    for (auto & motorOptionsItem : motorsOptions)
     {
-        GenericConfig & motorOptions = boost::get<GenericConfig>(options.second);
+        GenericConfig & motorOptions = boost::get<GenericConfig>(motorOptionsItem.second);
         boost::get<bool>(motorOptions.at("enableCommandLimit")) = false;
     }
-    robot->setMotorsOptions(motorsOptions);
+
+    // Set all robot options
+    robot->setOptions(robotOptions);
 
     // Instantiate the controller
     robot->setController(
@@ -112,7 +115,7 @@ TEST(EngineSanity, EnergyConservation)
     std::shared_ptr<const LogData> logDataPtr = engine.getLog();
     const Eigen::VectorXd timesCont = getLogVariable(*logDataPtr, "Global.Time");
     ASSERT_DOUBLE_EQ(timesCont[timesCont.size() - 1], tf);
-    const Eigen::VectorXd energyCont = getLogVariable(*logDataPtr, "HighLevelController.energy");
+    const Eigen::VectorXd energyCont = getLogVariable(*logDataPtr, "energy");
     ASSERT_GT(energyCont.size(), 0);
 
     // Check that energy is constant
@@ -140,7 +143,7 @@ TEST(EngineSanity, EnergyConservation)
     logDataPtr = engine.getLog();
     const Eigen::VectorXd timesDisc = getLogVariable(*logDataPtr, "Global.Time");
     ASSERT_DOUBLE_EQ(timesDisc[timesDisc.size() - 1], tf);
-    const Eigen::VectorXd energyDisc = getLogVariable(*logDataPtr, "HighLevelController.energy");
+    const Eigen::VectorXd energyDisc = getLogVariable(*logDataPtr, "energy");
     ASSERT_GT(energyDisc.size(), 0);
 
     // Check that energy is constant

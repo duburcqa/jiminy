@@ -11,8 +11,11 @@ namespace jiminy
     name_{name},
     telemetrySender_{std::make_unique<TelemetrySender>()}
     {
-        // Initialize the options
-        setOptions(getDefaultSensorOptions());
+        /* Initialize options.
+           Note that the base implementation is called even if derived. This is a limitation of the
+           C++ language specification which is not going to disappear anytime soon. */
+        sensorOptionsGeneric_ = getDefaultSensorOptions();
+        setOptions(getOptions());
     }
 
     AbstractSensorBase::~AbstractSensorBase() = default;
@@ -27,18 +30,18 @@ namespace jiminy
 
         if (!isInitialized_)
         {
-            THROW_ERROR(bad_control_flow,
-                        "Sensor '",
-                        name_,
-                        "' of type '",
-                        getType(),
-                        "' is not initialized.");
+            JIMINY_THROW(bad_control_flow,
+                         "Sensor '",
+                         name_,
+                         "' of type '",
+                         getType(),
+                         "' is not initialized.");
         }
 
         if (!telemetryData)
         {
-            THROW_ERROR(bad_control_flow,
-                        "Telemetry not initialized. Impossible to log sensor data.");
+            JIMINY_THROW(bad_control_flow,
+                         "Telemetry not initialized. Impossible to log sensor data.");
         }
 
         std::string name = getTelemetryName();
@@ -81,17 +84,19 @@ namespace jiminy
         auto robot = robot_.lock();
         if (robot && robot->getIsLocked())
         {
-            THROW_ERROR(bad_control_flow,
-                        "Robot already locked, probably because a simulation is running. "
-                        "Please stop it before setting sensor options.");
+            JIMINY_THROW(bad_control_flow,
+                         "Robot already locked, probably because a simulation is running. "
+                         "Please stop it before setting sensor options.");
         }
 
-        // Set sensor options
-        sensorOptionsGeneric_ = sensorOptions;
-        baseSensorOptions_ = std::make_unique<const AbstractSensorOptions>(sensorOptionsGeneric_);
+        // Update class-specific "strongly typed" accessor for fast and convenient access
+        baseSensorOptions_ = std::make_unique<const AbstractSensorOptions>(sensorOptions);
+
+        // Update inherited polymorphic accessor
+        deepUpdate(sensorOptionsGeneric_, sensorOptions);
     }
 
-    GenericConfig AbstractSensorBase::getOptions() const noexcept
+    const GenericConfig & AbstractSensorBase::getOptions() const noexcept
     {
         return sensorOptionsGeneric_;
     }

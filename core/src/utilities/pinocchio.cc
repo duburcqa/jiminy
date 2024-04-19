@@ -111,7 +111,7 @@ namespace jiminy
     {
         if (model.njoints < static_cast<int>(jointIndex) - 1)
         {
-            THROW_ERROR(lookup_error, "Joint index '", jointIndex, "' is out of range.");
+            JIMINY_THROW(lookup_error, "Joint index '", jointIndex, "' is out of range.");
         }
 
         return getJointType(model.joints[jointIndex]);
@@ -135,7 +135,7 @@ namespace jiminy
             }
         }
 
-        THROW_ERROR(lookup_error, "Position index out of range.");
+        JIMINY_THROW(lookup_error, "Position index out of range.");
     }
 
     std::string getJointNameFromVelocityIndex(const pinocchio::Model & model,
@@ -156,7 +156,7 @@ namespace jiminy
             }
         }
 
-        THROW_ERROR(lookup_error, "Velocity index out of range.");
+        JIMINY_THROW(lookup_error, "Velocity index out of range.");
     }
 
     std::vector<std::string_view> getJointTypePositionSuffixes(JointModelType jointType)
@@ -178,7 +178,7 @@ namespace jiminy
             return {"TransX", "TransY", "TransZ", "QuatX", "QuatY", "QuatZ", "QuatW"};
         case JointModelType::UNSUPPORTED:
         default:
-            THROW_ERROR(lookup_error, "Joints of type 'UNSUPPORTED' do not have fieldnames.");
+            JIMINY_THROW(lookup_error, "Joints of type 'UNSUPPORTED' do not have fieldnames.");
         }
     }
 
@@ -200,7 +200,7 @@ namespace jiminy
             return {"LinX", "LinY", "LinZ", "AngX", "AngY", "AngZ"};
         case JointModelType::UNSUPPORTED:
         default:
-            THROW_ERROR(lookup_error, "Joints of type 'UNSUPPORTED' do not have fieldnames.");
+            JIMINY_THROW(lookup_error, "Joints of type 'UNSUPPORTED' do not have fieldnames.");
         }
     }
 
@@ -210,7 +210,7 @@ namespace jiminy
     {
         if (!model.existFrame(frameName, frameType))
         {
-            THROW_ERROR(lookup_error, "Frame '", frameName, "' not found in robot model.");
+            JIMINY_THROW(lookup_error, "Frame '", frameName, "' not found in robot model.");
         }
         return model.getFrameId(frameName, frameType);
     }
@@ -232,7 +232,7 @@ namespace jiminy
     {
         if (!model.existJointName(jointName))
         {
-            THROW_ERROR(lookup_error, "Joint '", jointName, "' not found in robot model.");
+            JIMINY_THROW(lookup_error, "Joint '", jointName, "' not found in robot model.");
         }
 
         return model.getJointId(jointName);
@@ -351,7 +351,7 @@ namespace jiminy
         return pinocchio::isNormalized(model, q, tolAbs);
     }
 
-    void swapJoints(pinocchio::Model & model,
+    void swapJointIndices(pinocchio::Model & model,
                     pinocchio::JointIndex jointIndex1,
                     pinocchio::JointIndex jointIndex2)
     {
@@ -364,7 +364,7 @@ namespace jiminy
         // Enforce that the second joint index always comes after the first one
         if (jointIndex1 > jointIndex2)
         {
-            return swapJoints(model, jointIndex2, jointIndex1);
+            return swapJointIndices(model, jointIndex2, jointIndex1);
         }
 
         // Swap references to the joint indices themself
@@ -457,20 +457,18 @@ namespace jiminy
         }
     }
 
-    void insertFlexibilityBeforeJointInModel(pinocchio::Model & model,
-                                             const std::string & childJointName,
-                                             const std::string & newJointName)
+    void addFlexibilityJointBeforeMechanicalJoint(pinocchio::Model & model,
+                                                  const std::string & childJointName,
+                                                  const std::string & newJointName)
     {
-        using namespace pinocchio;
-
-        const pinocchio::JointIndex childJointIndex = getJointIndex(model, childJointName);
-
         // Flexible joint is placed at the same position as the child joint, in its parent frame
-        const SE3 & jointPlacement = model.jointPlacements[childJointIndex];
+        const pinocchio::JointIndex childJointIndex = getJointIndex(model, childJointName);
+        const pinocchio::SE3 & jointPlacement = model.jointPlacements[childJointIndex];
 
-        // Create flexible joint
+        // Add new joint before the original joint
+        pinocchio::JointModel newJointModel = pinocchio::JointModelSpherical();
         const pinocchio::JointIndex newJointIndex = model.addJoint(
-            model.parents[childJointIndex], JointModelSpherical(), jointPlacement, newJointName);
+            model.parents[childJointIndex], newJointModel, jointPlacement, newJointName);
 
         // Set child joint to be a child of the new joint, at the origin
         model.parents[childJointIndex] = newJointIndex;
@@ -485,39 +483,111 @@ namespace jiminy
         model.frames[childFrameIndex].previousFrame = newFrameIndex;
         model.frames[childFrameIndex].placement.setIdentity();
 
-        // Update new joint subtree to include all the joints below it
-        for (std::size_t i = 0; i < model.subtrees[childJointIndex].size(); ++i)
-        {
-            model.subtrees[newJointIndex].push_back(model.subtrees[childJointIndex][i]);
-        }
+        // Update new joint subtree to append all the joints below it
+        const std::vector<pinocchio::Index> & childSubtree = model.subtrees[childJointIndex];
+        std::vector<pinocchio::Index> & newSubtree = model.subtrees[newJointIndex];
+        newSubtree.insert(newSubtree.end(), childSubtree.begin(), childSubtree.end());
 
         // Add weightless body
-        model.appendBodyToJoint(newJointIndex, pinocchio::Inertia::Zero(), SE3::Identity());
+        model.appendBodyToJoint(
+            newJointIndex, pinocchio::Inertia::Zero(), pinocchio::SE3::Identity());
 
-        /* Pinocchio requires that joints are in increasing order as we move to the leaves of the
-           kinematic tree. Here this is no longer the case, as an intermediate joint was appended
-           at the end. We put the joint back in order by doing successive permutations. */
+        /* Pinocchio expects joint indices to be sorted as we move from the root to the leaves of
+           the kinematic tree. This is no longer the case, as an intermediate joint was appended at
+           the end. Therefore, we put the joints back in order by doing successive permutations. */
         for (pinocchio::JointIndex i = childJointIndex; i < newJointIndex; ++i)
         {
-            swapJoints(model, i, newJointIndex);
+            swapJointIndices(model, i, newJointIndex);
         }
     }
 
-    void insertFlexibilityAtFixedFrameInModel(pinocchio::Model & model,
-                                              const std::string & frameName)
+    void addBacklashJointAfterMechanicalJoint(pinocchio::Model & model,
+                                              const std::string & parentJointName,
+                                              const std::string & newJointName)
+    {
+        // Get parent joint model
+        const pinocchio::JointIndex parentJointIndex = getJointIndex(model, parentJointName);
+        const pinocchio::JointModel & parentJointModel = model.joints[parentJointIndex];
+
+        // Backlash are only supported for 1DoF joints (same as motors)
+        const JointModelType parentJointType = getJointType(parentJointModel);
+        if (parentJointType != JointModelType::LINEAR &&
+            parentJointType != JointModelType::ROTARY &&
+            parentJointType != JointModelType::ROTARY_UNBOUNDED)
+        {
+            JIMINY_THROW(std::logic_error,
+                         "Backlash can only be associated with a 1-dof linear or rotary joint.");
+        }
+
+        // Add new joint after the original joint
+        pinocchio::JointIndex newJointIndex = model.addJoint(
+            parentJointIndex, parentJointModel, pinocchio::SE3::Identity(), newJointName);
+
+        // Add new joint to frame list
+        const pinocchio::FrameIndex parentFrameIndex = getFrameIndex(model, parentJointName);
+        model.addJointFrame(newJointIndex, static_cast<int>(parentFrameIndex));
+
+        // Update original joint subtree to include the new joint
+        std::vector<pinocchio::Index> & parentSubtree = model.subtrees[parentJointIndex];
+        std::vector<pinocchio::Index> & newSubtree = model.subtrees[newJointIndex];
+        newSubtree.insert(newSubtree.end(), parentSubtree.begin() + 1, parentSubtree.end());
+        parentSubtree.insert(parentSubtree.begin() + 1, newJointIndex);
+
+        // Move the inertia of the orginal joint to the new joint, which is now weightless
+        model.appendBodyToJoint(
+            newJointIndex, model.inertias[parentJointIndex], pinocchio::SE3::Identity());
+        model.inertias[parentJointIndex].setZero();
+
+        /* Set child joint to be a child of the new joint, at the origin.
+           Loop over joints starting from universe (1) to new joint excluded (njoints - 1). */
+        for (pinocchio::JointIndex i = 1 ;
+             i < static_cast<pinocchio::JointIndex>(model.njoints -1) ; ++i)
+        {
+            if (model.parents[i] == parentJointIndex)
+            {
+                model.parents[i] = newJointIndex;
+            }
+        }
+
+        // Putting the joints back in order
+        for (pinocchio::JointIndex i = parentJointIndex + 1; i < newJointIndex; ++i)
+        {
+            swapJointIndices(model, i, newJointIndex);
+        }
+
+        // Reparent non-joint frames having the original joint as parent in favor of the new joint
+        newJointIndex = getJointIndex(model, newJointName);
+        const pinocchio::FrameIndex newFrameIndex = getFrameIndex(model, newJointName);
+        for (auto & frame : model.frames)
+        {
+            if (frame.type != pinocchio::FrameType::JOINT)
+            {
+                if (frame.parent == parentJointIndex)
+                {
+                    frame.parent = newJointIndex;
+                }
+                if (frame.previousFrame == parentFrameIndex)
+                {
+                    frame.previousFrame = newFrameIndex;
+                }
+            }
+        }
+    }
+
+    void addFlexibilityJointAtFixedFrame(pinocchio::Model & model, const std::string & frameName)
     {
         using namespace pinocchio;
 
         // Make sure the frame exists and is fixed
         if (!model.existFrame(frameName))
         {
-            THROW_ERROR(lookup_error, "No frame with name '", frameName, "' found in model.");
+            JIMINY_THROW(lookup_error, "No frame with name '", frameName, "' found in model.");
         }
         const pinocchio::FrameIndex frameIndex = getFrameIndex(model, frameName);
         Model::Frame & frame = model.frames[frameIndex];
         if (frame.type != pinocchio::FrameType::FIXED_JOINT)
         {
-            THROW_ERROR(std::logic_error, "Frame must be associated with fixed joint.");
+            JIMINY_THROW(std::logic_error, "Frame must be associated with fixed joint.");
         }
 
         /* Get the parent and child actual joints.
@@ -566,19 +636,19 @@ namespace jiminy
         // Remove inertia of child body from composite body
         if (childBodyInertia.mass() < 0.0)
         {
-            THROW_ERROR(std::runtime_error, "Child body mass must be positive.");
+            JIMINY_THROW(std::runtime_error, "Child body mass must be positive.");
         }
         if (model.inertias[parentJointIndex].mass() - childBodyInertia.mass() < 0.0)
         {
-            THROW_ERROR(std::runtime_error,
-                        "Child body mass too large to be subtracted to joint mass.");
+            JIMINY_THROW(std::runtime_error,
+                         "Child body mass too large to be subtracted to joint mass.");
         }
         const Inertia childBodyInertiaInv(-childBodyInertia.mass(),
                                           childBodyInertia.lever(),
                                           Symmetric3(-childBodyInertia.inertia().data()));
         model.inertias[parentJointIndex] += childBodyInertiaInv;
 
-        // Create flexible joint
+        // Create flexibility joint
         const pinocchio::JointIndex newJointIndex =
             model.addJoint(parentJointIndex, JointModelSpherical(), frame.placement, frame.name);
         model.inertias[newJointIndex] = childBodyInertia.se3Action(frame.placement.inverse());
@@ -642,7 +712,7 @@ namespace jiminy
            We move it back this at the correct place by doing successive permutations. */
         for (pinocchio::JointIndex i = childJointIndexMin; i < newJointIndex; ++i)
         {
-            swapJoints(model, i, newJointIndex);
+            swapJointIndices(model, i, newJointIndex);
         }
     }
 
@@ -656,14 +726,14 @@ namespace jiminy
         if (!std::is_sorted(timesIn.data(), timesIn.data() + timesIn.size()) ||
             !std::is_sorted(timesOut.data(), timesOut.data() + timesOut.size()))
         {
-            THROW_ERROR(std::invalid_argument, "Input and output time sequences must be sorted.");
+            JIMINY_THROW(std::invalid_argument, "Input and output time sequences must be sorted.");
         }
 
         if (timesIn.size() != positionsIn.cols() || model.nq != positionsIn.rows())
         {
-            THROW_ERROR(std::invalid_argument,
-                        "Input position matrix not consistent with model and/or "
-                        "time sequence. Time expected as second dimension.");
+            JIMINY_THROW(std::invalid_argument,
+                         "Input position matrix not consistent with model and/or "
+                         "time sequence. Time expected as second dimension.");
         }
 
         // Nothing to do. Return early.
@@ -771,10 +841,10 @@ namespace jiminy
         }
         catch (const std::exception & e)
         {
-            THROW_ERROR(std::ios_base::failure,
-                        "Something is wrong with the URDF. Impossible to load the collision "
-                        "geometries.\nRaised from exception: ",
-                        e.what());
+            JIMINY_THROW(std::ios_base::failure,
+                         "Something is wrong with the URDF. Impossible to load the collision "
+                         "geometries.\nRaised from exception: ",
+                         e.what());
         }
 
         // Replace the mesh geometry object by its convex representation if necessary
@@ -816,7 +886,7 @@ namespace jiminy
         // Make sure the URDF file exists
         if (!std::ifstream(urdfPath).good())
         {
-            THROW_ERROR(std::ios_base::failure, "The URDF file '", urdfPath, "' is invalid.");
+            JIMINY_THROW(std::ios_base::failure, "The URDF file '", urdfPath, "' is invalid.");
         }
 
         // Build physics model
@@ -834,10 +904,10 @@ namespace jiminy
         }
         catch (const std::exception & e)
         {
-            THROW_ERROR(std::ios_base::failure,
-                        "Something is wrong with the URDF. Impossible to build a model from "
-                        "it.\nRaised from exception: ",
-                        e.what());
+            JIMINY_THROW(std::ios_base::failure,
+                         "Something is wrong with the URDF. Impossible to build a model from "
+                         "it.\nRaised from exception: ",
+                         e.what());
         }
 
         // Build collision model

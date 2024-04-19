@@ -344,10 +344,11 @@ def play_trajectories(
             backend = get_default_backend()
     assert backend is not None
 
-    # Always close viewer if gui is open if necessary for efficiency
+    # Always close viewers if gui is open if necessary for efficiency
     if (backend.startswith("panda3d") and record_video_path is not None and
             Viewer.has_gui()):
         Viewer.close()
+        viewers = None
 
     # Create a temporary video if the backend is 'panda3d-sync', no
     # 'record_video_path' is provided, and running in interactive mode
@@ -678,7 +679,8 @@ def play_trajectories(
                     # of the whole recording process (~75% on discrete gpu).
                     buffer = Viewer.capture_frame(
                         *record_video_size, raw_data=True)
-                    memoryview(frame.planes[0])[:] = buffer
+                    memoryview(
+                        frame.planes[0])[:] = buffer  # type: ignore[arg-type]
 
                     # Write frame
                     for packet in stream.encode(frame):
@@ -869,8 +871,8 @@ def play_logs_files(logs_files: Union[str, Sequence[str]],
                     **kwargs: Any) -> Sequence[Viewer]:
     """Play the content of a logfile in a viewer.
 
-    This method reconstruct the exact model used during the simulation
-    corresponding to the logfile, including random biases or flexible joints.
+    This method reconstruct the exact extended model used during the simulation
+    associated with the logfile, including random biases or flexibility joints.
 
     :param logs_files: Either a single simulation log files in any format, or
                        a list.

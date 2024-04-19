@@ -9,8 +9,9 @@ namespace jiminy
     AbstractMotorBase::AbstractMotorBase(const std::string & name) noexcept :
     name_{name}
     {
-        // Initialize the options
-        setOptions(getDefaultMotorOptions());
+        // Initialize options
+        motorOptionsGeneric_ = getDefaultMotorOptions();
+        setOptions(getOptions());
     }
 
     AbstractMotorBase::~AbstractMotorBase()
@@ -22,14 +23,15 @@ namespace jiminy
         }
     }
 
-    void AbstractMotorBase::attach(std::weak_ptr<const Robot> robot,
-                                   std::function<void(AbstractMotorBase & /*motor*/)> notifyRobot,
-                                   MotorSharedStorage * sharedStorage)
+    void AbstractMotorBase::attach(
+        std::weak_ptr<const Robot> robot,
+        std::function<void(AbstractMotorBase & /*motor*/, bool /*hasChanged*/)> notifyRobot,
+        MotorSharedStorage * sharedStorage)
     {
         // Make sure the motor is not already attached
         if (isAttached_)
         {
-            THROW_ERROR(
+            JIMINY_THROW(
                 std::logic_error,
                 "Motor already attached to a robot. Please 'detach' method before attaching it.");
         }
@@ -37,7 +39,7 @@ namespace jiminy
         // Make sure the robot still exists
         if (robot.expired())
         {
-            THROW_ERROR(std::runtime_error, "Robot pointer expired or unset.");
+            JIMINY_THROW(std::runtime_error, "Robot pointer expired or unset.");
         }
 
         // Copy references to the robot and shared data
@@ -66,7 +68,7 @@ namespace jiminy
 
         if (!isAttached_)
         {
-            THROW_ERROR(bad_control_flow, "Motor not attached to any robot.");
+            JIMINY_THROW(bad_control_flow, "Motor not attached to any robot.");
         }
 
         // Remove associated col in the global data buffer
@@ -106,22 +108,37 @@ namespace jiminy
         // Make sure the motor is attached to a robot
         if (!isAttached_)
         {
-            THROW_ERROR(bad_control_flow, "Motor not attached to any robot.");
+            JIMINY_THROW(bad_control_flow, "Motor not attached to any robot.");
+        }
+
+        // Make sure all the motors are attached to a robot and initialized
+        for (AbstractMotorBase * motor : sharedStorage_->motors_)
+        {
+            if (!motor->isAttached_)
+            {
+                JIMINY_THROW(
+                    bad_control_flow, "Motor '", motor->name_, "' not attached to any robot.");
+            }
+            if (!motor->isInitialized_)
+            {
+                JIMINY_THROW(bad_control_flow, "Motor '", motor->name_, "' not initialized.");
+            }
         }
 
         // Make sure the robot still exists
         if (robot_.expired())
         {
-            THROW_ERROR(std::runtime_error, "Robot has been deleted. Impossible to reset motors.");
+            JIMINY_THROW(std::runtime_error,
+                         "Robot has been deleted. Impossible to reset motors.");
         }
 
         // Make sure that no simulation is already running
         auto robot = robot_.lock();
         if (robot && robot->getIsLocked())
         {
-            THROW_ERROR(bad_control_flow,
-                        "Robot already locked, probably because a simulation is running. "
-                        "Please stop it before resetting motors.");
+            JIMINY_THROW(bad_control_flow,
+                         "Robot already locked, probably because a simulation is running. "
+                         "Please stop it before resetting motors.");
         }
 
         // Clear the shared data buffer
@@ -141,53 +158,64 @@ namespace jiminy
         auto robot = robot_.lock();
         if (robot && robot->getIsLocked())
         {
-            THROW_ERROR(bad_control_flow,
-                        "Robot already locked, probably because a simulation is running. "
-                        "Please stop it before setting motor options.");
+            JIMINY_THROW(bad_control_flow,
+                         "Robot already locked, probably because a simulation is running. "
+                         "Please stop it before setting motor options.");
         }
 
         // Check if the internal buffers must be updated
-        bool internalBuffersMustBeUpdated = false;
         if (isInitialized_)
         {
             // Check if armature has changed
             const bool enableArmature = boost::get<bool>(motorOptions.at("enableArmature"));
-            internalBuffersMustBeUpdated |= (baseMotorOptions_->enableArmature != enableArmature);
+            mustNotifyRobot_ |= (baseMotorOptions_->enableArmature != enableArmature);
             if (enableArmature)
             {
                 const double armature = boost::get<double>(motorOptions.at("armature"));
-                internalBuffersMustBeUpdated |=  //
+                mustNotifyRobot_ |=  //
                     std::abs(armature - baseMotorOptions_->armature) > EPS;
+            }
+
+            // Check if backlash has changed
+            const bool enableBacklash = boost::get<bool>(motorOptions.at("enableBacklash"));
+            mustNotifyRobot_ |= (baseMotorOptions_->enableBacklash != enableBacklash);
+            if (enableBacklash)
+            {
+                const double backlash = boost::get<double>(motorOptions.at("backlash"));
+                mustNotifyRobot_ |=  //
+                    std::abs(backlash - baseMotorOptions_->backlash) > EPS;
             }
 
             // Check if command limit has changed
             const bool commandLimitFromUrdf =
                 boost::get<bool>(motorOptions.at("commandLimitFromUrdf"));
-            internalBuffersMustBeUpdated |=
+            mustNotifyRobot_ |=
                 (baseMotorOptions_->commandLimitFromUrdf != commandLimitFromUrdf);
             if (!commandLimitFromUrdf)
             {
                 const double commandLimit = boost::get<double>(motorOptions.at("commandLimit"));
-                internalBuffersMustBeUpdated |=
+                mustNotifyRobot_ |=
                     std::abs(commandLimit - baseMotorOptions_->commandLimit) > EPS;
             }
         }
 
-        // Update the motor's options
-        motorOptionsGeneric_ = motorOptions;
-        baseMotorOptions_ = std::make_unique<const AbstractMotorOptions>(motorOptionsGeneric_);
+        // Update class-specific "strongly typed" accessor for fast and convenient access
+        baseMotorOptions_ = std::make_unique<const AbstractMotorOptions>(motorOptions);
+
+        // Update inherited polymorphic accessor
+        deepUpdate(motorOptionsGeneric_, motorOptions);
 
         // Refresh the proxies if the robot is initialized if available
         if (robot)
         {
-            if (internalBuffersMustBeUpdated && robot->getIsInitialized() && isAttached_)
+            if (mustNotifyRobot_ && robot->getIsInitialized() && isAttached_)
             {
                 refreshProxies();
             }
         }
     }
 
-    GenericConfig AbstractMotorBase::getOptions() const noexcept
+    const GenericConfig & AbstractMotorBase::getOptions() const noexcept
     {
         return motorOptionsGeneric_;
     }
@@ -196,27 +224,27 @@ namespace jiminy
     {
         if (!isAttached_)
         {
-            THROW_ERROR(bad_control_flow,
-                        "Motor not attached to any robot. Impossible to refresh motor proxies.");
+            JIMINY_THROW(bad_control_flow,
+                         "Motor not attached to any robot. Impossible to refresh motor proxies.");
         }
 
         auto robot = robot_.lock();
         if (!robot)
         {
-            THROW_ERROR(std::runtime_error,
-                        "Robot has been deleted. Impossible to refresh motor proxies.");
+            JIMINY_THROW(std::runtime_error,
+                         "Robot has been deleted. Impossible to refresh motor proxies.");
         }
 
         if (!isInitialized_)
         {
-            THROW_ERROR(bad_control_flow,
-                        "Motor not initialized. Impossible to refresh motor proxies.");
+            JIMINY_THROW(bad_control_flow,
+                         "Motor not initialized. Impossible to refresh motor proxies.");
         }
 
         if (!robot->getIsInitialized())
         {
-            THROW_ERROR(bad_control_flow,
-                        "Robot not initialized. Impossible to refresh motor proxies.");
+            JIMINY_THROW(bad_control_flow,
+                         "Robot not initialized. Impossible to refresh motor proxies.");
         }
 
         jointIndex_ = ::jiminy::getJointIndex(robot->pinocchioModel_, jointName_);
@@ -226,8 +254,8 @@ namespace jiminy
         if (jointType_ != JointModelType::LINEAR && jointType_ != JointModelType::ROTARY &&
             jointType_ != JointModelType::ROTARY_UNBOUNDED)
         {
-            THROW_ERROR(std::logic_error,
-                        "A motor can only be associated with a 1-dof linear or rotary joint.");
+            JIMINY_THROW(std::logic_error,
+                         "A motor can only be associated with a 1-dof linear or rotary joint.");
         }
 
         jointPositionIndex_ = getJointPositionFirstIndex(robot->pinocchioModel_, jointName_);
@@ -236,9 +264,9 @@ namespace jiminy
         // Get the motor effort limits from the URDF or the user options.
         if (baseMotorOptions_->commandLimitFromUrdf)
         {
-            const Eigen::Index jointVelocityOrigIndex =
-                getJointVelocityFirstIndex(robot->pinocchioModelOrig_, jointName_);
-            commandLimit_ = robot->pinocchioModelOrig_.effortLimit[jointVelocityOrigIndex] /
+            const Eigen::Index mechanicalJointVelocityIndex =
+                getJointVelocityFirstIndex(robot->pinocchioModelTh_, jointName_);
+            commandLimit_ = robot->pinocchioModelTh_.effortLimit[mechanicalJointVelocityIndex] /
                             baseMotorOptions_->mechanicalReduction;
         }
         else
@@ -256,10 +284,22 @@ namespace jiminy
             armature_ = 0.0;
         }
 
+        // Get the transmission backlash
+        if (baseMotorOptions_->enableBacklash)
+        {
+            backlash_ = baseMotorOptions_->backlash;
+        }
+        else
+        {
+            backlash_ = 0.0;
+        }
+
         // Propagate the user-defined motor inertia at Pinocchio model level
         if (notifyRobot_)
         {
-            notifyRobot_(*this);
+            const bool mustNotifyRobot = mustNotifyRobot_;
+            mustNotifyRobot_ = false;
+            notifyRobot_(*this, mustNotifyRobot);
         }
     }
 
@@ -293,7 +333,7 @@ namespace jiminy
         // Make sure the motor is attached to a robot
         if (!isAttached_)
         {
-            THROW_ERROR(bad_control_flow, "Motor not attached to any robot.");
+            JIMINY_THROW(bad_control_flow, "Motor not attached to any robot.");
         }
 
         for (AbstractMotorBase * motor : sharedStorage_->motors_)
@@ -352,6 +392,11 @@ namespace jiminy
         return armature_;
     }
 
+    double AbstractMotorBase::getBacklash() const
+    {
+        return backlash_;
+    }
+
     void AbstractMotorBase::computeEffortAll(double t,
                                              const Eigen::VectorXd & q,
                                              const Eigen::VectorXd & v,
@@ -361,7 +406,7 @@ namespace jiminy
         // Make sure the motor is attached to a robot
         if (!isAttached_)
         {
-            THROW_ERROR(bad_control_flow, "Motor not attached to any robot.");
+            JIMINY_THROW(bad_control_flow, "Motor not attached to any robot.");
         }
 
         // Compute the actual effort of every motor

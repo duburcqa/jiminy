@@ -44,8 +44,7 @@ class AntJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         # Configure the backend simulator
         simulator = Simulator.build(
             urdf_path, hardware_path, data_dir,
-            has_freeflyer=True, use_theoretical_model=False,
-            config_path=config_path, debug=debug, **kwargs)
+            has_freeflyer=True, config_path=config_path, debug=debug, **kwargs)
 
         # Get the list of independent bodies (not connected via fixed joint)
         self.body_indices = [0]  # World is part of bodies list
@@ -63,13 +62,13 @@ class AntJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         # Note that they will be initialized in `_initialize_buffers`.
         self._obs_slices: Tuple[np.ndarray, ...] = ()
 
-        # Define base orientation and external forces proxies for fast access.
+        # Define base orientation and external forces proxies for fast access
         self._base_rot = np.array([])
         self._f_external: Tuple[np.ndarray, ...] = ()
 
-        # Rigid configuration and velocity of the robot.
-        self._q_rigid = np.array([])
-        self._v_rigid = np.array([])
+        # Theoretical state of the robot
+        self._q_th = np.array([])
+        self._v_th = np.array([])
 
         # Initialize base class
         super().__init__(
@@ -132,8 +131,8 @@ class AntJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
 
         The observation space comprises:
 
-            * rigid configuration (absolute position (x, y) excluded),
-            * rigid velocity (with base linear velocity in world frame),
+            * theoretical configuration (absolute position (x, y) excluded),
+            * theoretical velocity (with base linear velocity in world frame),
             * flattened external forces applied on each body in local frame,
               ie centered at their respective center of mass.
         """
@@ -159,7 +158,7 @@ class AntJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
     def _initialize_buffers(self) -> None:
         # Extract observation from the robot state.
         # Note that this is only reliable with using a fixed step integrator.
-        engine_options = self.simulator.engine.get_options()
+        engine_options = self.simulator.get_options()
         if engine_options['stepper']['odeSolver'] in ('runge_kutta_dopri5',):
             raise ValueError(
                 "This environment does not support adaptive step integrators. "
@@ -171,7 +170,7 @@ class AntJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         # Initialize vector of external forces
         self._f_external = tuple(
             self.robot_state.f_external[joint_index].vector
-            for joint_index in self.robot.rigid_joint_indices)
+            for joint_index in self.robot.mechanical_joint_indices)
 
         # Refresh buffers manually to initialize them early
         self._refresh_buffers()
@@ -182,9 +181,9 @@ class AntJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         obs_slices = []
         obs_index_first = 0
         for data in (
-                self._q_rigid[2:],
-                self._v_rigid[:3],
-                self._v_rigid[3:],
+                self._q_th[2:],
+                self._v_th[:3],
+                self._v_th[3:],
                 *self._f_external):
             obs_index_last = obs_index_first + len(data)
             obs_slices.append(self.observation[obs_index_first:obs_index_last])
@@ -195,15 +194,15 @@ class AntJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         self._xpos_prev = self._robot_state_q[0]
 
     def _refresh_buffers(self) -> None:
-        self._q_rigid = self.robot.get_rigid_position_from_flexible(
+        self._q_th = self.robot.get_theoretical_position_from_extended(
             self._robot_state_q)
-        self._v_rigid = self.robot.get_rigid_velocity_from_flexible(
+        self._v_th = self.robot.get_theoretical_velocity_from_extended(
             self._robot_state_v)
 
     def refresh_observation(self, measurement: EngineObsType) -> None:
         # Update observation
         copyto(self._obs_slices[:-1], (
-            self._q_rigid[2:], self._v_rigid[3:], *self._f_external))
+            self._q_th[2:], self._v_th[3:], *self._f_external))
 
         # Transform observed linear velocity to be in world frame
         self._obs_slices[-1][:] = self._base_rot @ self._robot_state_v[:3]

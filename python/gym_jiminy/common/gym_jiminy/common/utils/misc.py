@@ -26,8 +26,8 @@ FieldNestedList = List[Union[FieldNestedSequence, str]]
 
 
 class RandomDistribution(Protocol):
-    """Protocol to be satisfied when passing generic statistical distribution
-    callable to `sample` method.
+    """Protocol that must be satisfied for passing a generic callable as
+    custom statistical distribution to `sample` method.
     """
     def __call__(self, rg: np.random.Generator, *args: Any, **kwargs: Any
                  ) -> ArrayOrScalar:
@@ -95,7 +95,7 @@ def get_fieldnames(structure: Union[gym.Space[DataNested], DataNested],
         else:
             # Tensor: basic numbering
             fieldname = np.array([
-                ".".join(map(str, filter(None, (*fieldname_path, i))))
+                ".".join(map(str, (*filter(None, fieldname_path), i)))
                 for i in range(data.size)]).reshape(data.shape).tolist()
         fieldnames.append(fieldname)
 

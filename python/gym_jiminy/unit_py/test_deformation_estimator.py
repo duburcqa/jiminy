@@ -10,10 +10,14 @@ import jiminy_py.core as jiminy
 from jiminy_py.simulator import Simulator
 
 from gym_jiminy.common.envs import BaseJiminyEnv
-from gym_jiminy.common.blocks import PDController, MahonyFilter, DeformationEstimator
+from gym_jiminy.common.blocks import (
+    PDController, PDAdapter, MahonyFilter, DeformationEstimator)
 from gym_jiminy.common.bases import ObservedJiminyEnv, ControlledJiminyEnv
 from gym_jiminy.common.utils import matrices_to_quat, build_pipeline
 from gym_jiminy.envs import AntJiminyEnv
+
+
+DEBUG = "JIMINY_BUILD_DEBUG" in os.environ
 
 
 class DeformationEstimatorBlock(unittest.TestCase):
@@ -34,17 +38,17 @@ class DeformationEstimatorBlock(unittest.TestCase):
 
         # Check that deformation estimates from DeformationEstimator are valid
         model_options = env.robot.get_model_options()
-        flexible_frame_names = [
+        flexibility_frame_names = [
             flex_options["frameName"]
             for flex_options in model_options["dynamics"]["flexibilityConfig"]
         ]
         est_flex_quats = env.observation['features']['deformation_estimator']
         est_flex_quats[:] *= np.sign(est_flex_quats[-1])
         for frame_name, joint_index in zip(
-                flexible_frame_names, env.robot.flexible_joint_indices):
+                flexibility_frame_names, env.robot.flexibility_joint_indices):
             idx_q = env.robot.pinocchio_model.joints[joint_index].idx_q
             true_flex_quat = env.robot_state.q[idx_q:(idx_q + 4)]
-            flex_index = env.observer.flexible_frame_names.index(frame_name)
+            flex_index = env.observer.flexibility_frame_names.index(frame_name)
             est_flex_quat = est_flex_quats[:, flex_index]
             np.testing.assert_allclose(
                 true_flex_quat, est_flex_quat, atol=flex_atol)
@@ -88,7 +92,6 @@ class DeformationEstimatorBlock(unittest.TestCase):
             'inertia': np.array([1.0, 1.0, 0.0])
         } for i in range(1, 5)
         ]
-        model_options['joints']['enablePositionLimit'] = False
         model_options['joints']['enableVelocityLimit'] = False
         robot.set_model_options(model_options)
 
@@ -96,13 +99,13 @@ class DeformationEstimatorBlock(unittest.TestCase):
         simulator = Simulator(robot)
 
         # Configure the controller and sensor update periods
-        engine_options = simulator.engine.get_options()
+        engine_options = simulator.get_options()
         engine_options['stepper']['controllerUpdatePeriod'] = 0.0001
         engine_options['stepper']['sensorsUpdatePeriod'] = 0.0001
-        simulator.engine.set_options(engine_options)
+        simulator.set_options(engine_options)
 
         # Instantiate the environment
-        env = BaseJiminyEnv(simulator, step_dt=0.01)
+        env = BaseJiminyEnv(simulator, step_dt=0.01, debug=DEBUG)
 
         # Add controller and observer blocks
         pd_controller = PDController(
@@ -110,9 +113,15 @@ class DeformationEstimatorBlock(unittest.TestCase):
             env,
             kp=150.0,
             kd=0.03,
-            order=1,
             update_ratio=1)
         env = ControlledJiminyEnv(env, pd_controller)
+
+        pd_adapter = PDAdapter(
+            "pd_adapter",
+            env,
+            order=1,
+            update_ratio=-1)
+        env = ControlledJiminyEnv(env, pd_adapter)
 
         mahony_filter = MahonyFilter(
             "mahony_filter",
@@ -128,7 +137,7 @@ class DeformationEstimatorBlock(unittest.TestCase):
             "deformation_estimator",
             env,
             imu_frame_names=robot.sensor_names['ImuSensor'],
-            flex_frame_names=robot.flexible_joint_names,
+            flex_frame_names=robot.flexibility_joint_names,
             ignore_twist=True,
             update_ratio=-1)
         env = ObservedJiminyEnv(env, deformation_estimator)
@@ -180,10 +189,10 @@ class DeformationEstimatorBlock(unittest.TestCase):
                 super()._setup()
 
                 # Configure the controller and sensor update periods
-                engine_options = self.engine.get_options()
+                engine_options = self.simulator.get_options()
                 engine_options['stepper']['controllerUpdatePeriod'] = 0.0001
                 engine_options['stepper']['sensorsUpdatePeriod'] = 0.0001
-                self.engine.set_options(engine_options)
+                self.simulator.set_options(engine_options)
 
                 # Add flexibility frames
                 model_options = self.robot.get_model_options()
@@ -197,7 +206,7 @@ class DeformationEstimatorBlock(unittest.TestCase):
                             "inertia": np.array([0.01, 0.01, 0.01]),
                         }
                     )
-                model_options["dynamics"]["enableFlexibleModel"] = True
+                model_options["dynamics"]["enableFlexibility"] = True
                 self.robot.set_model_options(model_options)
 
         # Create pipeline with Mahony filter and DeformationObserver blocks
@@ -212,8 +221,16 @@ class DeformationEstimatorBlock(unittest.TestCase):
                         kwargs=dict(
                             kp=150.0,
                             kd=0.03,
-                            order=1,
                             update_ratio=1,
+                        )
+                    )
+                ),
+                dict(
+                    block=dict(
+                        cls=PDAdapter,
+                        kwargs=dict(
+                            order=1,
+                            update_ratio=-1,
                         )
                     )
                 ),
@@ -243,7 +260,7 @@ class DeformationEstimatorBlock(unittest.TestCase):
         )
 
         # Instantiate the environment
-        env = PipelineEnv()
+        env = PipelineEnv(debug=DEBUG)
 
         # Run a simulation
         env.reset(seed=0)

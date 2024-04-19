@@ -606,7 +606,7 @@ def plot_log(log_data: Dict[str, Any],
                   Optional: None by default. If None, then it will be
                   reconstructed from 'log_data' using `build_robot_from_log`.
     :param enable_flexiblity_data:
-        Enable display of flexible joints in robot's configuration,
+        Enable display of flexibility joints in robot's configuration,
         velocity and acceleration subplots.
         Optional: False by default.
     :param block: Whether to wait for the figure to be closed before
@@ -634,7 +634,7 @@ def plot_log(log_data: Dict[str, Any],
 
     # Get time and robot positions, velocities, and acceleration
     time = log_vars["Global.Time"]
-    for fields_type in ["Position", "Velocity", "Acceleration"]:
+    for fields_type in ("Position", "Velocity", "Acceleration"):
         fieldnames = getattr(robot, "_".join((
             "log", fields_type.lower(), "fieldnames")))
         if not enable_flexiblity_data:
@@ -642,13 +642,13 @@ def plot_log(log_data: Dict[str, Any],
             fieldnames = list(filter(
                 lambda field: not any(
                     name in field
-                    for name in robot.flexible_joint_names),
+                    for name in robot.flexibility_joint_names),
                 fieldnames))
         try:
             values = extract_variables_from_log(
-                log_vars, fieldnames, as_dict=True)
+                log_vars, fieldnames, namespace=robot.name, as_dict=True)
             tabs_data[' '.join(("State", fields_type))] = OrderedDict(
-                (field.split(".", 1)[1][7:].replace(fields_type, ""), elem)
+                (field[7:].replace(fields_type, ""), elem)
                 for field, elem in values.items())
         except ValueError:
             # Variable has not been recorded and is missing in log file
@@ -657,7 +657,7 @@ def plot_log(log_data: Dict[str, Any],
     # Get motors efforts information
     try:
         motors_efforts = extract_variables_from_log(
-            log_vars, robot.log_motor_effort_fieldnames)
+            log_vars, robot.log_motor_effort_fieldnames, namespace=robot.name)
         tabs_data['MotorEffort'] = OrderedDict(zip(
             robot.motor_names, motors_efforts))
     except ValueError:
@@ -667,7 +667,7 @@ def plot_log(log_data: Dict[str, Any],
     # Get command information
     try:
         command = extract_variables_from_log(
-            log_vars, robot.log_command_fieldnames)
+            log_vars, robot.log_command_fieldnames, namespace=robot.name)
         tabs_data['Command'] = OrderedDict(zip(robot.motor_names, command))
     except ValueError:
         # Variable has not been recorded and is missing in log file
@@ -679,15 +679,14 @@ def plot_log(log_data: Dict[str, Any],
         sensor_names = robot.sensor_names.get(sensors_type, [])
         if not sensor_names:
             continue
-        namespace = sensors_type if sensors_class.has_prefix else None
         if isinstance(sensors_fields, dict):
             for fields_prefix, fieldnames in sensors_fields.items():
                 try:
                     type_name = ' '.join((sensors_type, fields_prefix))
                     data_nested = [
-                        extract_variables_from_log(log_vars, [
-                            '.'.join((name, fields_prefix + field))
-                            for name in sensor_names], namespace)
+                        extract_variables_from_log(log_vars, ['.'.join(
+                            (sensors_type, name, fields_prefix + field))
+                            for name in sensor_names], robot.name)
                         for field in fieldnames]
                     tabs_data[type_name] = OrderedDict(
                         (field, OrderedDict(zip(sensor_names, data)))
@@ -700,8 +699,8 @@ def plot_log(log_data: Dict[str, Any],
                 try:
                     type_name = ' '.join((sensors_type, field))
                     data = extract_variables_from_log(log_vars, [
-                        '.'.join((name, field)) for name in sensor_names
-                        ], namespace)
+                        '.'.join((sensors_type, name, field))
+                        for name in sensor_names], robot.name)
                     tabs_data[type_name] = OrderedDict(zip(
                         sensor_names, data))
                 except ValueError:

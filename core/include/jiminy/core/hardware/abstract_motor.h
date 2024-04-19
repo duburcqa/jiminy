@@ -48,6 +48,8 @@ namespace jiminy
             config["commandLimit"] = 0.0;
             config["enableArmature"] = false;
             config["armature"] = 0.0;
+            config["enableBacklash"] = false;
+            config["backlash"] = 0.0;
 
             return config;
         };
@@ -61,6 +63,8 @@ namespace jiminy
             const double commandLimit;
             const bool enableArmature;
             const double armature;
+            const bool enableBacklash;
+            const double backlash;
 
             AbstractMotorOptions(const GenericConfig & options) :
             mechanicalReduction(boost::get<double>(options.at("mechanicalReduction"))),
@@ -68,13 +72,15 @@ namespace jiminy
             commandLimitFromUrdf(boost::get<bool>(options.at("commandLimitFromUrdf"))),
             commandLimit(boost::get<double>(options.at("commandLimit"))),
             enableArmature(boost::get<bool>(options.at("enableArmature"))),
-            armature(boost::get<double>(options.at("armature")))
+            armature(boost::get<double>(options.at("armature"))),
+            enableBacklash(boost::get<bool>(options.at("enableBacklash"))),
+            backlash(boost::get<double>(options.at("backlash")))
             {
             }
         };
 
     public:
-        DISABLE_COPY(AbstractMotorBase)
+        JIMINY_DISABLE_COPY(AbstractMotorBase)
 
     public:
         /// \param[in] name Name of the motor.
@@ -96,7 +102,7 @@ namespace jiminy
         virtual void resetAll();
 
         /// \brief Configuration options of the motor.
-        GenericConfig getOptions() const noexcept;
+        const GenericConfig & getOptions() const noexcept;
 
         /// \brief Actual effort of the motor at the current time.
         double get() const;
@@ -144,6 +150,9 @@ namespace jiminy
         /// \brief Rotor inertia of the motor.
         double getArmature() const;
 
+        /// \brief Backlash of the transmission.
+        double getBacklash() const;
+
         /// \brief Request the motor to update its actual effort based of the input data.
         ///
         /// \details It assumes that the internal state of the robot is consistent with the input
@@ -190,7 +199,8 @@ namespace jiminy
         ///
         /// \details This method must be called before initializing the sensor.
         void attach(std::weak_ptr<const Robot> robot,
-                    std::function<void(AbstractMotorBase & /*motor*/)> notifyRobot,
+                    std::function<void(
+                        AbstractMotorBase & /*motor*/, bool /*hasChanged*/)> notifyRobot,
                     MotorSharedStorage * sharedStorage);
 
         /// \brief Detach the sensor from the robot.
@@ -216,14 +226,17 @@ namespace jiminy
         Eigen::Index jointVelocityIndex_{0};
         double commandLimit_{0.0};
         double armature_{0.0};
+        double backlash_{0.0};
 
     private:
         /// \brief Name of the motor.
         std::string name_;
         /// \brief Flag to determine whether the motor is attached to a robot.
         bool isAttached_{false};
-        /// \brief Notify the robot that the configuration of the sensors have changed.
-        std::function<void(AbstractMotorBase &)> notifyRobot_{};
+        /// \brief Whether the robot must be notified.
+        bool mustNotifyRobot_{false};
+        /// \brief Notify the robot that the configuration of the motor have changed.
+        std::function<void(AbstractMotorBase &, bool)> notifyRobot_{};
         /// \brief Shared data between every motors associated with the robot.
         MotorSharedStorage * sharedStorage_{nullptr};
     };

@@ -12,7 +12,7 @@ namespace jiminy
     // *************** Convertion to JSON utilities *****************
 
     template<>
-    Json::Value convertToJson<FlexibleJointData>(const FlexibleJointData & value)
+    Json::Value convertToJson<FlexibilityJointConfig>(const FlexibilityJointConfig & value)
     {
         Json::Value flex;
         flex["frameName"] = convertToJson(value.frameName);
@@ -134,7 +134,7 @@ namespace jiminy
     }
 
     template<>
-    FlexibleJointData convertFromJson<FlexibleJointData>(const Json::Value & value)
+    FlexibilityJointConfig convertFromJson<FlexibilityJointConfig>(const Json::Value & value)
     {
         return {convertFromJson<std::string>(value["frameName"]),
                 convertFromJson<Eigen::VectorXd>(value["stiffness"]),
@@ -191,7 +191,7 @@ namespace jiminy
                     }
                     else
                     {
-                        THROW_ERROR(
+                        JIMINY_THROW(
                             std::invalid_argument, "Unknown data type: std::vector<", type, ">");
                     }
                 }
@@ -242,10 +242,10 @@ namespace jiminy
                     }
                     else
                     {
-                        THROW_ERROR(std::invalid_argument,
-                                    "Unknown data type: std::vector<",
-                                    it->type(),
-                                    ">");
+                        JIMINY_THROW(std::invalid_argument,
+                                     "Unknown data type: std::vector<",
+                                     it->type(),
+                                     ">");
                     }
                 }
                 else
@@ -255,7 +255,7 @@ namespace jiminy
             }
             else
             {
-                THROW_ERROR(std::invalid_argument, "Unknown data type: ", root->type());
+                JIMINY_THROW(std::invalid_argument, "Unknown data type: ", root->type());
             }
 
             config[root.key().asString()] = field;

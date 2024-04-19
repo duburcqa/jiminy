@@ -41,17 +41,16 @@ class SimulateDensePole(unittest.TestCase):
         model_options['joints']['positionLimitMin'] = [-self.joint_limit]
         model_options['joints']['positionLimitMax'] = [self.joint_limit]
         model_options['joints']['positionLimitFromUrdf'] = False
-        model_options['joints']['enablePositionLimit'] = True
         model_options['joints']['enableVelocityLimit'] = False
         self.robot.set_model_options(model_options)
 
         # Configure the integrator
-        engine_options = self.simulator.engine.get_options()
+        engine_options = self.simulator.get_options()
         engine_options['stepper']['tolAbs'] = 1e-9
         engine_options['stepper']['tolRel'] = 1e-8
         engine_options['constraints']['regularization'] = 0.0
         engine_options['contacts']['transitionEps'] = self.transition_eps
-        self.simulator.engine.set_options(engine_options)
+        self.simulator.set_options(engine_options)
 
     def test_flex_model(self):
         """Test if the result is the same with true and virtual inertia in
@@ -67,9 +66,9 @@ class SimulateDensePole(unittest.TestCase):
         self.robot.add_constraint("fixed_joint", const)
 
         # Configure the engine
-        engine_options = self.simulator.engine.get_options()
+        engine_options = self.simulator.get_options()
         engine_options['stepper']['sensorsUpdatePeriod'] = step_dt
-        self.simulator.engine.set_options(engine_options)
+        self.simulator.set_options(engine_options)
 
         # Extract some proxies for convenience
         pinocchio_model_th = self.robot.pinocchio_model_th
@@ -95,7 +94,7 @@ class SimulateDensePole(unittest.TestCase):
 
             # Specify flexibility options
             model_options = self.robot.get_model_options()
-            model_options['dynamics']['enableFlexibleModel'] = True
+            model_options['dynamics']['enableFlexibility'] = True
             flex_options = [{
                 'frameName': self.flex_joint_name,
                 'stiffness': np.full((3,), self.flex_stiffness),
@@ -123,22 +122,24 @@ class SimulateDensePole(unittest.TestCase):
             q_flex = np.stack(extract_variables_from_log(log_vars, [
                 f"currentPosition{self.flex_joint_name}Quat{e}"
                 for e in ('X', 'Y', 'Z', 'W')
-                ], 'HighLevelController'), axis=0)
+                ]), axis=0)
             twist_flex = 2 * np.arctan2(q_flex[2], q_flex[3])
             twist_flex_all.append(twist_flex)
 
         assert np.allclose(*twist_flex_all, atol=1e-7)
 
-        # Extract parameters of theoretical dynamics equation
+        # Extract parameters of rigid-body dynamics equation
+        q_flex_init = self.robot.get_extended_position_from_theoretical(q_init)
+        v_flex_init = self.robot.get_extended_velocity_from_theoretical(v_init)
         update_quantities(
-            self.robot, q_init, v_init, use_theoretical_model=True)
+            self.robot, q_flex_init, v_flex_init, use_theoretical_model=False)
         inertia = self.robot.pinocchio_data.Ycrb[2]
         m = inertia.mass
         g = - self.robot.pinocchio_model.gravity.linear[2]
         l = inertia.lever[0]
         I_equiv = inertia.inertia[2, 2] + m * l ** 2
 
-        # Integrate theoretical model
+        # Integrate rigid-body model
         theta_all, dtheta = [0.0,], 0.0
         for _ in range(int(np.round(t_end / step_dt))):
             theta = theta_all[-1]
@@ -163,11 +164,11 @@ class SimulateDensePole(unittest.TestCase):
         theta_all = []
         for contact_model in ('constraint', 'spring_damper'):
             # Configure the engine
-            engine_options = self.simulator.engine.get_options()
+            engine_options = self.simulator.get_options()
             engine_options['stepper']['odeSolver'] = 'euler_explicit'
             engine_options['stepper']['dtMax'] = step_dt
             engine_options['contacts']['model'] = contact_model
-            self.simulator.engine.set_options(engine_options)
+            self.simulator.set_options(engine_options)
 
             # Start the simulation
             self.simulator.start(np.array((0.0,)), np.array((1.0,)))
@@ -207,8 +208,7 @@ class SimulateDensePole(unittest.TestCase):
             log_vars = self.simulator.log_data["variables"]
             (theta,) = extract_variables_from_log(
                 log_vars,
-                (f"currentPosition{self.robot.pinocchio_model.names[-1]}",),
-                'HighLevelController')
+                (f"currentPosition{self.robot.pinocchio_model.names[-1]}",))
             theta_all.append(theta)
 
         assert np.allclose(*theta_all, atol=1e-4)

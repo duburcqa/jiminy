@@ -10,19 +10,16 @@ import atexit
 import logging
 import pathlib
 import tempfile
+import warnings
 from copy import deepcopy
-from itertools import chain
 from functools import partial
-from typing import (
-    Any, List, Dict, Optional, Union, Sequence, Iterable, Callable)
+from typing import Any, List, Dict, Optional, Union, Sequence, Callable
 
 import toml
 import numpy as np
 
-import pinocchio as pin
 from . import core as jiminy
-from .robot import (generate_default_hardware_description_file,
-                    BaseJiminyRobot)
+from .robot import BaseJiminyRobot, generate_default_hardware_description_file
 from .dynamics import TrajectoryDataType
 from .log import read_log, build_robot_from_log
 from .viewer import (CameraPoseType,
@@ -54,21 +51,112 @@ DEFAULT_GROUND_DAMPING = 2.0e3
 ProfileForceFunc = Callable[[float, np.ndarray, np.ndarray, np.ndarray], None]
 
 
+def _build_robot_from_urdf(name: str,
+                           urdf_path: str,
+                           hardware_path: Optional[str] = None,
+                           mesh_path_dir: Optional[str] = None,
+                           has_freeflyer: bool = True,
+                           avoid_instable_collisions: bool = True,
+                           debug: bool = False) -> jiminy.Robot:
+    r"""Create and initialize a new robot from scratch, based on configuration
+    files only. It creates a default hardware file if none is provided. See
+    `generate_default_hardware_description_file` for details.
+
+    :param name: Name of the robot to build from URDF.
+    :param urdf_path: Path of the URDF of the robot.
+    :param hardware_path: Path of Jiminy hardware description toml file.
+                          Optional: Looking for '\*_hardware.toml' file in
+                          the same folder and with the same name.
+    :param mesh_path_dir: Path to the folder containing all the meshes.
+                          Optional: Env variable 'JIMINY_DATA_PATH' will be
+                          used if available.
+    :param has_freeflyer: Whether the robot is fixed-based wrt its root
+                          link, or can move freely in the world.
+                          Optional: True by default.
+    :param avoid_instable_collisions: Prevent numerical instabilities by
+                                      replacing collision mesh by vertices
+                                      of associated minimal volume bounding
+                                      box, and replacing primitive box by
+                                      its vertices.
+    :param debug: Whether the debug mode must be activated. Doing it
+                  enables temporary files automatic deletion.
+    """
+    # Check if robot name is valid
+    if re.match('[^A-Za-z0-9_]', name):
+        raise ValueError("The name of the robot should be case-insensitive "
+                         "ASCII alphanumeric characters plus underscore.")
+
+    # Generate a temporary Hardware Description File if necessary
+    if hardware_path is None:
+        hardware_path = str(pathlib.Path(
+            urdf_path).with_suffix('')) + '_hardware.toml'
+        if not os.path.exists(hardware_path):
+            # Create a file that will be closed (thus deleted) at exit
+            urdf_name = os.path.splitext(os.path.basename(urdf_path))[0]
+            fd, hardware_path = tempfile.mkstemp(
+                prefix=f"{urdf_name}_", suffix="_hardware.toml")
+            os.close(fd)
+
+            if not debug:
+                def remove_file_at_exit(file_path: str) -> None:
+                    try:
+                        os.remove(file_path)
+                    except (PermissionError, FileNotFoundError):
+                        pass
+
+                atexit.register(partial(
+                    remove_file_at_exit, hardware_path))
+
+            # Generate default Hardware Description File
+            generate_default_hardware_description_file(
+                urdf_path, hardware_path, verbose=debug)
+
+    # Build the robot
+    robot = BaseJiminyRobot(name)
+    robot.initialize(
+        urdf_path, hardware_path, mesh_path_dir, (), has_freeflyer,
+        avoid_instable_collisions, load_visual_meshes=debug, verbose=debug)
+
+    return robot
+
+
 class Simulator:
-    """Single-robot simulation wrapper providing a unified user-API on top of
-    the low-level jiminy C++ core library and Python-native modules for 3D
-    rendering and log data visualization.
+    """Simulation wrapper providing a unified user-API on top of the low-level
+    jiminy C++ core library and Python-native modules for 3D rendering and log
+    data visualization.
+
+    The simulation can now be multi-robot but it has been design to remain as
+    easy of use as possible for single-robot simulation which are just
+    multi-robot simulations with only one robot.
+
+    * Single-robot simulations: The name of the robot is an empty string by
+    default but can be specified. It will then appear in the log if specified.
+    * Multi-robots simulations: The name of the first robot is an empty string
+    by default but it is advised to specify one. You can add robots to the
+    simulation with the method `add_robot`, robot names have to be specified.
+
+    Some proxy and methods are not compatible with multi-robot simulations:
+
+         Single-robot simulations     |    Multi-robot simulations
+    ---------------------------------------------------------------------------
+                 Simulator.viewer   --->   Simulator.viewers
+                  Simulator.robot   --->   Simulator.engine.robots
+            Simulator.robot_state   --->   Simulator.engine.robot_states
+    Simulator.register_profile_force -> Simulator.engine.register_profile_force
+    Simulator.register_impulse_force -> Simulator.engine.register_impulse_force
+
+    The methods `replay` and `plot` are not supported for multi-robot
+    simulations at the time being.
+
+    In case of multi-robot simulations, single-robot proxies either return
+    information associated with the first robot or raise an exception.
     """
     def __init__(self,  # pylint: disable=unused-argument
                  robot: jiminy.Robot,
-                 use_theoretical_model: bool = False,
                  viewer_kwargs: Optional[Dict[str, Any]] = None,
                  **kwargs: Any) -> None:
         """
         :param robot: Jiminy robot already initialized.
-        :param use_theoretical_model: Whether the state corresponds to the
-                                      theoretical model when updating and
-                                      fetching the robot's state.
         :param viewer_kwargs: Keyword arguments to override default arguments
                               whenever a viewer must be instantiated, eg when
                               `render` method is first called. Specifically,
@@ -78,15 +166,12 @@ class Simulator:
                        generation.
         """
         # Backup the user arguments
-        self.use_theoretical_model = use_theoretical_model
         self.viewer_kwargs = deepcopy(viewer_kwargs or {})
 
-        # Handling of default argument(s)
-        if "robot_name" not in self.viewer_kwargs:
-            model_name = robot.pinocchio_model.name
-            base_name = re.sub('[^A-Za-z0-9_]', '_', model_name)
-            robot_name = f"{base_name}_{next(tempfile._get_candidate_names())}"
-            self.viewer_kwargs["robot_name"] = robot_name
+        # Check if robot name is valid
+        if re.match('[^A-Za-z0-9_]', robot.name):
+            raise ValueError("The name of the robot should be case-insensitive"
+                             " ASCII alphanumeric characters plus underscore.")
 
         # Instantiate the low-level Jiminy engine, then initialize it
         self.engine = jiminy.Engine()
@@ -97,7 +182,6 @@ class Simulator:
         self.is_simulation_running = self.engine.is_simulation_running
 
         # Viewer management
-        self.viewer: Optional[Viewer] = None
         self._viewers: Sequence[Viewer] = []
 
         # Internal buffer for progress bar management
@@ -118,8 +202,9 @@ class Simulator:
               config_path: Optional[str] = None,
               avoid_instable_collisions: bool = True,
               debug: bool = False,
+              *, robot_name: str = "",
               **kwargs: Any) -> 'Simulator':
-        r"""Create a new simulator instance from scratch, based on
+        r"""Create a new single-robot simulator instance from scratch based on
         configuration files only.
 
         :param urdf_path: Path of the urdf model to be used for the simulation.
@@ -136,9 +221,11 @@ class Simulator:
                             imported AFTER loading the hardware description
                             file. It can be automatically generated from an
                             instance by calling `export_config_file` method.
-                            Optional: Looking for '\*_options.toml' file in the
-                            same folder and with the same name. If not found,
-                            using default configuration.
+                            One can specify `None` for loading for the file
+                            having the same full path as the URDF file but
+                            suffix '_options.toml' if any. Passing an empty
+                            string "" will force skipping import completely.
+                            Optional: Empty by default
         :param avoid_instable_collisions: Prevent numerical instabilities by
                                           replacing collision mesh by vertices
                                           of associated minimal volume bounding
@@ -146,38 +233,21 @@ class Simulator:
                                           its vertices.
         :param debug: Whether the debug mode must be activated. Doing it
                       enables temporary files automatic deletion.
+        :param robot_name: Desired name of the robot.
+                           Optional: Empty string by default.
         :param kwargs: Keyword arguments to forward to class constructor.
         """
-        # Generate a temporary Hardware Description File if necessary
-        if hardware_path is None:
-            hardware_path = str(pathlib.Path(
-                urdf_path).with_suffix('')) + '_hardware.toml'
-            if not os.path.exists(hardware_path):
-                # Create a file that will be closed (thus deleted) at exit
-                urdf_name = os.path.splitext(os.path.basename(urdf_path))[0]
-                fd, hardware_path = tempfile.mkstemp(
-                    prefix=f"{urdf_name}_", suffix="_hardware.toml")
-                os.close(fd)
-
-                if not debug:
-                    def remove_file_at_exit(file_path: str) -> None:
-                        try:
-                            os.remove(file_path)
-                        except (PermissionError, FileNotFoundError):
-                            pass
-
-                    atexit.register(partial(
-                        remove_file_at_exit, hardware_path))
-
-                # Generate default Hardware Description File
-                generate_default_hardware_description_file(
-                    urdf_path, hardware_path, verbose=debug)
+        # Handling of default argument(s)
+        if config_path is None:
+            config_path = str(
+                pathlib.Path(urdf_path).with_suffix('')) + '_options.toml'
+            if not os.path.exists(config_path):
+                config_path = ""
 
         # Instantiate and initialize the robot
-        robot = BaseJiminyRobot()
-        robot.initialize(
-            urdf_path, hardware_path, mesh_path_dir, (), has_freeflyer,
-            avoid_instable_collisions, load_visual_meshes=debug, verbose=debug)
+        robot = _build_robot_from_urdf(
+            robot_name, urdf_path, hardware_path, mesh_path_dir, has_freeflyer,
+            avoid_instable_collisions, debug)
 
         # Instantiate and initialize the engine
         simulator = Simulator.__new__(cls)
@@ -206,6 +276,7 @@ class Simulator:
         engine_options['contacts']['damping'] = \
             robot.extra_info.pop('groundDamping', DEFAULT_GROUND_DAMPING)
 
+        # Set engine options
         simulator.engine.set_options(engine_options)
 
         # Override the default options by the one in the configuration file
@@ -213,6 +284,61 @@ class Simulator:
             simulator.import_options(config_path)
 
         return simulator
+
+    def add_robot(self,
+                  name: str,
+                  urdf_path: str,
+                  hardware_path: Optional[str] = None,
+                  mesh_path_dir: Optional[str] = None,
+                  has_freeflyer: bool = True,
+                  avoid_instable_collisions: bool = True,
+                  debug: bool = False) -> None:
+        r"""Create a new robot from scratch based on configuration files only
+        and add it to the simulator.
+
+        :param urdf_path: Path of the urdf model to be used for the simulation.
+        :param hardware_path: Path of Jiminy hardware description toml file.
+                              Optional: Looking for '\*_hardware.toml' file in
+                              the same folder and with the same name.
+        :param mesh_path_dir: Path to the folder containing all the meshes.
+                              Optional: Env variable 'JIMINY_DATA_PATH' will be
+                              used if available.
+        :param has_freeflyer: Whether the robot is fixed-based wrt its root
+                              link, or can move freely in the world.
+                              Optional: True by default.
+        :param avoid_instable_collisions: Prevent numerical instabilities by
+                                          replacing collision mesh by vertices
+                                          of associated minimal volume bounding
+                                          box, and replacing primitive box by
+                                          its vertices.
+        :param debug: Whether the debug mode must be activated. Doing it
+                      enables temporary files automatic deletion.
+        """
+        # Instantiate the robot
+        robot = _build_robot_from_urdf(
+            name, urdf_path, hardware_path, mesh_path_dir, has_freeflyer,
+            avoid_instable_collisions, debug)
+
+        # Check if some unsupported objects have been specified
+        unsupported_nested_paths = (
+            ('groundStiffness', ('contacts', 'stiffness')),
+            ('groundDamping', ('contacts', 'damping')),
+            ('controllerUpdatePeriod', ('stepper', 'controllerUpdatePeriod')),
+            ('sensorsUpdatePeriod', ('stepper', 'sensorsUpdatePeriod')))
+        engine_options = self.engine.get_options()
+        for extra_info_key, option_nested_path in unsupported_nested_paths:
+            if extra_info_key in robot.extra_info.keys():
+                option = engine_options
+                for option_path in option_nested_path:
+                    option = option[option_path]
+                if robot.extra_info[extra_info_key] != option:
+                    warnings.warn(
+                        f"You have specified a different {extra_info_key} "
+                        "than the one of the engine, the simulation will run "
+                        f"with {option}.")
+
+        # Add the new robot to the engine
+        self.engine.add_robot(robot)
 
     def __del__(self) -> None:
         """Custom deleter to make sure the close is properly closed at exit.
@@ -230,64 +356,74 @@ class Simulator:
         """
         return getattr(self.__getattribute__('engine'), name)
 
-    def __dir__(self) -> Iterable[str]:
+    def __dir__(self) -> List[str]:
         """Attribute lookup.
 
         It is mainly used by autocomplete feature of Ipython. It is overloaded
         to get consistent autocompletion wrt `getattr`.
         """
-        return chain(super().__dir__(), dir(self.engine))
+        return [*super().__dir__(), *dir(self.engine)]
+
+    @property
+    def viewer(self) -> Optional[Viewer]:
+        """Convenience proxy to get the viewer associated with the robot that
+        was first added if any.
+        """
+        if self.is_viewer_available:
+            return self._viewers[0]
+        return None
+
+    @property
+    def viewers(self) -> Sequence[Viewer]:
+        """Convenience proxy to get all the viewers associated with the ongoing
+        simulation.
+        """
+        return self._viewers[:len(self.engine.robots)]
 
     @property
     def robot(self) -> jiminy.Robot:
-        """Convenience proxy to get the robot.
+        """Convenience proxy to get the robot in single-robot simulations.
 
         Internally, all it does is returning `self.engine.robots[0]` without
         any additional processing.
+
+        .. warning::
+            Method only supported for single-robot simulations. Call
+        `self.engine.robots` in multi-robot simulations.
         """
         # A property is used in place of an instance attribute to keep pointing
         # to the right robot if the latter has been replaced by the user. Doing
         # so is dodgy and rarely necessary. For this reason, this capability is
         # not advertised but supported nonetheless.
-        return self.engine.robots[0]
+        robot, = self.engine.robots
+        return robot
 
     @property
     def robot_state(self) -> jiminy.RobotState:
-        """Convenience proxy to get the state of the robot.
+        """Convenience proxy to get the state of the robot in single-robot
+        simulations.
 
         Internally, all it does is returning `self.engine.robot_states[0]`
         without any additional processing.
-        """
-        # property is used in place of attribute for extra safety
-        return self.engine.robot_states[0]
 
-    @property
-    def pinocchio_model(self) -> pin.Model:
-        """Get the appropraite pinocchio model, depending on the value of
-           'self.use_theoretical_model'.
+        .. warning::
+            Method only supported for single-robot simulations. Call
+            `self.engine.robot_states` in multi-robot simulations.
         """
         # property is used in place of attribute for extra safety
-        if self.use_theoretical_model and self.robot.is_flexible:
-            return self.robot.pinocchio_model_th
-        return self.robot.pinocchio_model
-
-    @property
-    def pinocchio_data(self) -> pin.Data:
-        """Get the appropriate pinocchio data, depending on the value of
-           'self.use_theoretical_model'.
-        """
-        # property is used in place of attribute for extra safety
-        if self.use_theoretical_model and self.robot.is_flexible:
-            return self.robot.pinocchio_data_th
-        return self.robot.pinocchio_data
+        robot_state, = self.engine.robot_states
+        return robot_state
 
     @property
     def is_viewer_available(self) -> bool:
-        """Returns whether a viewer instance associated with the robot
-        is available.
+        """Returns whether some viewer instances associated with the ongoing
+        simulation is currently opened.
+
+        .. warning::
+            Method only supported for single-robot simulations.
         """
-        return (self.viewer is not None and
-                self.viewer.is_open())  # type: ignore[misc]
+        return (len(self._viewers) > 0 and
+                self._viewers[0].is_open())  # type: ignore[misc]
 
     def register_profile_force(self,
                                frame_name: str,
@@ -322,6 +458,11 @@ class Simulator:
                               the whole simulation. There is no issue for C++
                               bindings such as `jiminy.RandomPerlinProcess`.
         """
+        if len(self.engine.robots) > 1:
+            raise NotImplementedError(
+                "To register a force in multirobot simulation, you should use "
+                "`simulation.engine.register_profile_force` and specify the "
+                "name of the robot you want the force applied to.")
         return self.engine.register_profile_force(
             "", frame_name, force_func, update_period)
 
@@ -344,6 +485,11 @@ class Simulator:
                            is aligned with world frame. It is represented as a
                            `np.ndarray` (Fx, Fy, Fz, Mx, My, Mz).
         """
+        if len(self.engine.robots) > 1:
+            raise NotImplementedError(
+                "To register a force in multirobot simulation, you should use "
+                "`simulation.engine.register_profile_force` and specify the "
+                "name of the robot you want the force applied to.")
         return self.engine.register_impulse_force("", frame_name, t, dt, force)
 
     def seed(self, seed: Union[np.uint32, np.ndarray]) -> None:
@@ -384,37 +530,53 @@ class Simulator:
         # Reset the backend engine
         self.engine.reset(False, remove_all_forces)
 
-    def start(self,
-              q_init: np.ndarray,
-              v_init: np.ndarray,
-              a_init: Optional[np.ndarray] = None,
-              is_state_theoretical: bool = False) -> None:
+    def start(
+            self,
+            q_init: Union[np.ndarray, Dict[str, np.ndarray]],
+            v_init: Union[np.ndarray, Dict[str, np.ndarray]],
+            a_init: Optional[Union[np.ndarray, Dict[str, np.ndarray]]] = None,
+            is_state_theoretical: Optional[bool] = None
+            ) -> None:
         """Initialize a simulation, starting from (q_init, v_init) at t=0.
 
-        :param q_init: Initial configuration.
-        :param v_init: Initial velocity.
-        :param a_init: Initial acceleration. It is only used by acceleration
-                       dependent sensors and controllers, such as IMU and force
-                       sensors.
-        :param is_state_theoretical: Whether the initial state is associated
-                                     with the actual or theoretical model of
-                                     the robot.
+        :param q_init: Initial configuration (by robot if it is a dictionnary).
+        :param v_init: Initial velocity (by robot if it is a dictionnary).
+        :param a_init: Initial acceleration (by robot if it is a dictionnary).
+                       It is only used by acceleration dependent sensors and
+                       controllers, such as IMU and force sensors.
+        :param is_state_theoretical: In single robot simulations, whether the
+                                     initial state is associated with the
+                                     actual or theoretical model of the robot.
         """
         # Call base implementation
-        self.engine.start(q_init, v_init, a_init, is_state_theoretical)
+        # Single-robot simulations with `np.ndarray`, `is_state_theoretical` is
+        # supported.
+        if isinstance(q_init, np.ndarray):
+            if is_state_theoretical is None:
+                is_state_theoretical = False
+            self.engine.start(q_init, v_init, a_init, is_state_theoretical)
+        # Multi-robot simulations or single-robot simulations with
+        # dictionnaries, `is_state_theoretical` is not supported.
+        else:
+            if is_state_theoretical is not None:
+                raise NotImplementedError(
+                    "Optional argument 'is_state_theoretical' is only "
+                    "supported for single-robot simulations.")
+            self.engine.start(q_init, v_init, a_init)
 
         # Share the external force buffer of the viewer with the engine.
         # Note that the force vector must be converted to pain list to avoid
         # copy with external sub-vector.
-        if self.viewer is not None:
-            self.viewer.f_external = [*self.robot_state.f_external][1:]
+        for robot_state, viewer in zip(self.engine.robot_states, self.viewers):
+            viewer.f_external = [*robot_state.f_external][1:]
 
     def simulate(self,
                  t_end: float,
-                 q_init: np.ndarray,
-                 v_init: np.ndarray,
-                 a_init: Optional[np.ndarray] = None,
-                 is_state_theoretical: bool = True,
+                 q_init: Union[np.ndarray, Dict[str, np.ndarray]],
+                 v_init: Union[np.ndarray, Dict[str, np.ndarray]],
+                 a_init: Optional[
+                     Union[np.ndarray, Dict[str, np.ndarray]]] = None,
+                 is_state_theoretical: Optional[bool] = None,
                  callback: Optional[Callable[[], bool]] = None,
                  log_path: Optional[str] = None,
                  show_progress_bar: bool = True) -> None:
@@ -424,12 +586,14 @@ class Simulator:
             Optionally, log the result of the simulation.
 
         :param t_end: Simulation duration.
-        :param q_init: Initial configuration.
-        :param v_init: Initial velocity.
-        :param a_init: Initial acceleration.
-        :param is_state_theoretical: Whether the initial state is associated
-                                     with the actual or theoretical model of
-                                     the robot.
+        :param q_init: Initial configuration (by robot if it is a dictionnary).
+        :param v_init: Initial velocity (by robot if it is a dictionnary).
+        :param a_init: Initial acceleration (by robot if it is a dictionnary).
+                       It is only used by acceleration dependent sensors and
+                       controllers, such as IMU and force sensors.
+        :param is_state_theoretical: In single robot simulations, whether the
+                                     initial state is associated with the
+                                     actual or theoretical model of the robot.
         :param callback: Callable that can be specified to abort simulation. It
                          will be evaluated after every simulation step. Abort
                          if false is returned.
@@ -474,8 +638,24 @@ class Simulator:
         # Run the simulation
         err = None
         try:
-            self.engine.simulate(
-                t_end, q_init, v_init, a_init, is_state_theoretical, callback)
+            # Call base implementation
+            # Single-robot simulations with `np.ndarray`,
+            # `is_state_theoretical` is supported.
+            if isinstance(q_init, np.ndarray):
+                if is_state_theoretical is None:
+                    is_state_theoretical = False
+                self.engine.simulate(
+                    t_end, q_init, v_init, a_init, is_state_theoretical,
+                    callback)
+            # Multi-robot simulations or single-robot simulations with
+            # dictionnaries, `is_state_theoretical` is not supported.
+            else:
+                if is_state_theoretical is not None:
+                    raise NotImplementedError(
+                        "Optional argument 'is_state_theoretical' is only "
+                        "supported for single-robot simulations.")
+                self.engine.simulate(t_end, q_init, v_init, a_init, callback)
+
         except Exception as e:  # pylint: disable=broad-exception-caught
             err = e
 
@@ -508,8 +688,8 @@ class Simulator:
                camera_pose: Optional[CameraPoseType] = None,
                update_ground_profile: Optional[bool] = None,
                **kwargs: Any) -> Optional[np.ndarray]:
-        """Render the current state of the simulation. One can display it
-               or return an RGB array instead.
+        """Render the current state of the simulation. One can display it or
+        return an RGB array instead.
 
         :param return_rgb_array: Whether to return the current frame as an rgb
                                  array or render it directly.
@@ -548,53 +728,59 @@ class Simulator:
         # Instantiate the robot and viewer client if necessary.
         # A new dedicated scene and window will be created.
         if not self.is_viewer_available:
-            # Make sure that the current viewer is properly closed if any
-            if self.viewer is not None:
-                self.viewer.close()
-                self.viewer = None
+            # Make sure that the current viewers are properly closed if any
+            for viewer in self._viewers:
+                viewer.close()
+            self._viewers.clear()
 
-            # Create new viewer instance
-            self.viewer = Viewer(
-                self.robot,
-                use_theoretical_model=False,
-                open_gui_if_parent=False,
-                **viewer_kwargs)
-            assert self.viewer is not None and self.viewer.backend is not None
+            # Create new viewer instances
+            for robot, robot_state in zip(
+                    self.engine.robots, self.engine.robot_states):
+                # Create a single viewer instance
+                viewer = Viewer(
+                    robot,
+                    robot_name=robot.name,
+                    use_theoretical_model=False,
+                    open_gui_if_parent=False,
+                    **viewer_kwargs)
+                assert viewer.backend is not None
+                self._viewers.append(viewer)
 
-            # Share the external force buffer of the viewer with the engine
-            if self.is_simulation_running:
-                self.viewer.f_external = [*self.robot_state.f_external][1:]
+                # Share the external force buffer of the viewer with the engine
+                if self.engine.is_simulation_running:
+                    viewer.f_external = [*robot_state.f_external][1:]
 
-            if self.viewer.backend.startswith('panda3d'):
-                # Enable display of COM, DCM and contact markers by default if
-                # the robot has freeflyer.
-                if self.robot.has_freeflyer:
-                    if "display_com" not in viewer_kwargs:
-                        self.viewer.display_center_of_mass(True)
-                    if "display_dcm" not in viewer_kwargs:
-                        self.viewer.display_capture_point(True)
-                    if "display_contacts" not in viewer_kwargs:
-                        self.viewer.display_contact_forces(True)
+                if viewer.backend.startswith('panda3d'):
+                    # Enable display of COM, DCM and contact markers by default
+                    # if the robot has freeflyer.
+                    if robot.has_freeflyer:
+                        if "display_com" not in viewer_kwargs:
+                            viewer.display_center_of_mass(True)
+                        if "display_dcm" not in viewer_kwargs:
+                            viewer.display_capture_point(True)
+                        if "display_contacts" not in viewer_kwargs:
+                            viewer.display_contact_forces(True)
 
-                # Enable display of external forces by default only for
-                # the joints having an external force registered to it.
-                if "display_f_external" not in viewer_kwargs:
-                    profile_forces, *_ = self.engine.profile_forces.values()
-                    force_frames = set(
-                        self.robot.pinocchio_model.frames[f.frame_index].parent
-                        for f in profile_forces)
-                    impulse_forces, *_ = self.engine.impulse_forces.values()
-                    force_frames |= set(
-                        self.robot.pinocchio_model.frames[f.frame_index].parent
-                        for f in impulse_forces)
-                    visibility = self.viewer._display_f_external
-                    assert isinstance(visibility, list)
-                    for i in force_frames:
-                        visibility[i - 1] = True
-                    self.viewer.display_external_forces(visibility)
+                    # Enable display of external forces by default only for
+                    # the joints having an external force registered to it.
+                    if "display_f_external" not in viewer_kwargs:
+                        profile_forces = self.engine.profile_forces[robot.name]
+                        force_frames = set(
+                            robot.pinocchio_model.frames[f.frame_index].parent
+                            for f in profile_forces)
+                        impulse_forces = self.engine.impulse_forces[robot.name]
+                        force_frames |= set(
+                            robot.pinocchio_model.frames[f.frame_index].parent
+                            for f in impulse_forces)
+                        visibility = viewer._display_f_external
+                        assert isinstance(visibility, list)
+                        for i in force_frames:
+                            visibility[i - 1] = True
+                        viewer.display_external_forces(visibility)
 
             # Initialize camera pose
-            if self.viewer.is_backend_parent and camera_pose is None:
+            assert self.viewer is not None
+            if viewer.is_backend_parent and camera_pose is None:
                 camera_pose = viewer_kwargs.get("camera_pose", (
                     (9.0, 0.0, 2e-5), (np.pi/2, 0.0, np.pi/2), None))
 
@@ -603,7 +789,8 @@ class Simulator:
         if update_ground_profile:
             engine_options = self.engine.get_options()
             ground_profile = engine_options["world"]["groundProfile"]
-            Viewer.update_floor(ground_profile, show_meshes=False)
+            Viewer.update_floor(
+                ground_profile, simplify_mesh=True, show_vertices=False)
 
         # Set the camera pose if requested
         if camera_pose is not None:
@@ -614,7 +801,8 @@ class Simulator:
             Viewer.open_gui()
 
         # Try refreshing the viewer
-        self.viewer.refresh()
+        for viewer in self._viewers:
+            viewer.refresh()
 
         # Compute and return rgb array if needed
         if return_rgb_array:
@@ -629,9 +817,17 @@ class Simulator:
                **kwargs: Any) -> None:
         """Replay the current episode until now.
 
+        .. warning::
+            Method only supported for single-robot simulations.
+
         :param kwargs: Extra keyword arguments for delegation to
                        `replay.play_trajectories` method.
         """
+        # Make sure that the simulation is single-robot
+        if len(self.engine.robots) > 1:
+            raise NotImplementedError(
+                "This method is only supported for single-robot simulations.")
+
         # Close extra viewer instances if any
         for viewer in self._viewers[1:]:
             viewer.delete_robot_on_close = True
@@ -639,7 +835,7 @@ class Simulator:
 
         # Extract log data and robot from extra log files
         robots = [self.robot]
-        logs_data = [self.log_data]
+        logs_data = [self.engine.log_data]
         for log_file in extra_logs_files:
             log_data = read_log(log_file)
             robot = build_robot_from_log(
@@ -696,9 +892,10 @@ class Simulator:
     def close(self) -> None:
         """Close the connection with the renderer.
         """
-        if hasattr(self, "viewer") and self.viewer is not None:
-            self.viewer.close()
-            self.viewer = None
+        if hasattr(self, "_viewers"):
+            for viewer in self._viewers:
+                viewer.close()
+            self._viewers.clear()
         if hasattr(self, "figure") and self._figure is not None:
             self._figure.close()
             self._figure = None
@@ -717,8 +914,11 @@ class Simulator:
           - Subplots with motors torques
           - Subplots with raw sensor data (one tab for each type of sensor)
 
+        .. warning::
+            Method only supported for single-robot simulations.
+
         :param enable_flexiblity_data:
-            Enable display of flexible joints in robot's configuration,
+            Enable display of flexibility joints in robot's configuration,
             velocity and acceleration subplots.
             Optional: False by default.
         :param block: Whether to wait for the figure to be closed before
@@ -726,6 +926,11 @@ class Simulator:
                       Optional: False in interactive mode, True otherwise.
         :param kwargs: Extra keyword arguments to forward to `TabbedFigure`.
         """
+        # Make sure that the simulation is single-robot
+        if len(self.engine.robots) > 1:
+            raise NotImplementedError(
+                "This method is only supported for single-robot simulations.")
+
         # Make sure plot submodule is available
         try:
             # pylint: disable=import-outside-toplevel
@@ -741,53 +946,32 @@ class Simulator:
 
         return self._figure
 
-    def get_options(self) -> Dict[str, Dict[str, Dict[str, Any]]]:
-        """Get the options of the engine plus the robot (including controller).
-        """
-        return {'engine': self.engine.get_options(),
-                'robot': self.robot.get_options()}
-
-    def set_options(self,
-                    options: Dict[str, Dict[str, Dict[str, Any]]]) -> None:
-        """Set the options of robot (including controller), and engine.
-        """
-        self.engine.set_options(options['engine'])
-        self.robot.set_options(options['robot'])
-
-    def export_options(self,
-                       config_path: Optional[Union[str, os.PathLike]] = None
-                       ) -> None:
-        """Export the full configuration, ie the options of the robot (
-        including controller), and the engine.
+    def export_options(self, config_path: Union[str, os.PathLike]) -> None:
+        """Export in a single configuration file all the options of the
+        simulator, ie the engine and all the robots.
 
         .. note::
-            the configuration can be imported thereafter using `import_options`
-            method.
+            The generated configuration file can be imported thereafter using
+            `import_options` method.
+
+        :param config_path: Full path of the location where to store the
+                            generated file. The extension '.toml' will be
+                            enforced.
         """
-        if config_path is None:
-            if isinstance(self.robot, BaseJiminyRobot):
-                urdf_path = self.robot._urdf_path_orig
-            else:
-                urdf_path = self.robot.urdf_path
-            if not urdf_path:
-                raise ValueError(
-                    "'config_path' must be provided if the robot is not "
-                    "associated with any URDF.")
-            config_path = str(pathlib.Path(
-                urdf_path).with_suffix('')) + '_options.toml'
+        config_path = pathlib.Path(config_path).with_suffix('.toml')
         with open(config_path, 'w') as f:
             toml.dump(
-                self.get_options(), f, encoder=toml.TomlNumpyEncoder())
+                self.get_simulation_options(), f, toml.TomlNumpyEncoder())
 
-    def import_options(self,
-                       config_path: Optional[Union[str, os.PathLike]] = None
-                       ) -> None:
-        """Import the full configuration, ie the options of the robot (
-        including controller), and the engine.
+    def import_options(self, config_path: Union[str, os.PathLike]) -> None:
+        """Import all the options of the simulator at once, ie the engine
+        and all the robots.
 
         .. note::
-            Configuration can be exported beforehand using `export_options`
-            method.
+            A full configuration file can be exported beforehand using
+            `export_options` method.
+
+        :param config_path: Full path of the configuration file to load.
         """
         def deep_update(original: Dict[str, Any],
                         new_dict: Dict[str, Any],
@@ -814,19 +998,6 @@ class Simulator:
                     original[key] = new_dict[key]
             return original
 
-        if config_path is None:
-            if isinstance(self.robot, BaseJiminyRobot):
-                urdf_path = self.robot._urdf_path_orig
-            else:
-                urdf_path = self.robot.urdf_path
-            if not urdf_path:
-                raise ValueError(
-                    "'config_path' must be provided if the robot is not "
-                    "associated with any URDF.")
-            config_path = str(pathlib.Path(
-                urdf_path).with_suffix('')) + '_options.toml'
-            if not os.path.exists(config_path):
-                return
-
-        options = deep_update(self.get_options(), toml.load(str(config_path)))
-        self.set_options(options)
+        options = deep_update(
+            self.get_simulation_options(), toml.load(str(config_path)))
+        self.set_simulation_options(options)

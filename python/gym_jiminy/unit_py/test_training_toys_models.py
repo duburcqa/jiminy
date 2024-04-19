@@ -2,6 +2,7 @@
 low-level Jiminy engine, to the Gym environment integration. However, it does
 not assessed that the viewer is working properly.
 """
+import os
 import unittest
 from typing import Optional, Dict, Any
 
@@ -14,8 +15,12 @@ from stable_baselines3.common.env_util import make_vec_env
 from utilities import train
 
 
+# Fix the seed and number of threads for CI stability
 SEED = 0
 N_THREADS = 5
+
+# Skip some tests if Jiminy has been compiled in debug
+DEBUG = "JIMINY_BUILD_DEBUG" in os.environ
 
 
 class ToysModelsStableBaselinesPPO(unittest.TestCase):
@@ -89,6 +94,7 @@ class ToysModelsStableBaselinesPPO(unittest.TestCase):
         # Run the learning process
         return train(train_agent, test_env, max_timesteps=200000)
 
+    @unittest.skipIf(DEBUG, "skipping when compiled in debug")
     def test_acrobot_stable_baselines(self):
         """Solve acrobot for both continuous and discrete action spaces.
         """
@@ -97,6 +103,7 @@ class ToysModelsStableBaselinesPPO(unittest.TestCase):
         self.assertTrue(self._ppo_training(
             "gym_jiminy.envs:acrobot", {'continuous': False}))
 
+    @unittest.skipIf(DEBUG, "skipping when compiled in debug")
     def test_cartpole_stable_baselines(self):
         """Solve cartpole for both continuous and discrete action spaces.
         """

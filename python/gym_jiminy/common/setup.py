@@ -58,7 +58,7 @@ setup(
         # - `gym` has been replaced by `gymnasium` for 0.26.0+
         # - 0.28.0: fully typed
         # - bound version for resilience to recurrent API breakage
-        "gymnasium>=0.26,<0.29",
+        "gymnasium>=0.28,<1.0",
         # For backward compatibility of latest Python typing features
         # - TypeAlias has been added with Python 3.10
         "typing_extensions"

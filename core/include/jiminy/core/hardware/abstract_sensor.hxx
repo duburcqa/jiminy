@@ -16,15 +16,15 @@ namespace jiminy
     {
         if (!isAttached_)
         {
-            THROW_ERROR(bad_control_flow, "Sensor not attached to any robot.");
+            JIMINY_THROW(bad_control_flow, "Sensor not attached to any robot.");
         }
 
         auto robot = robot_.lock();
         if (!robot || robot->getIsLocked())
         {
-            THROW_ERROR(bad_control_flow,
-                        "Robot is locked, probably because a simulation is running. "
-                        "Please stop it before setting sensor value manually.");
+            JIMINY_THROW(bad_control_flow,
+                         "Robot is locked, probably because a simulation is running. "
+                         "Please stop it before setting sensor value manually.");
         }
 
         get() = value;
@@ -49,7 +49,7 @@ namespace jiminy
         // Make sure the sensor is not already attached
         if (isAttached_)
         {
-            THROW_ERROR(
+            JIMINY_THROW(
                 bad_control_flow,
                 "Sensor already attached to a robot. Please 'detach' method before attaching it.");
         }
@@ -57,7 +57,7 @@ namespace jiminy
         // Make sure the robot still exists
         if (robot.expired())
         {
-            THROW_ERROR(bad_control_flow, "Robot pointer expired or unset.");
+            JIMINY_THROW(bad_control_flow, "Robot pointer expired or unset.");
         }
 
         // Copy references to the robot and shared data
@@ -98,7 +98,7 @@ namespace jiminy
 
         if (!isAttached_)
         {
-            THROW_ERROR(bad_control_flow, "Sensor not attached to any robot.");
+            JIMINY_THROW(bad_control_flow, "Sensor not attached to any robot.");
         }
 
         // Remove associated col in the shared data buffers
@@ -148,33 +148,48 @@ namespace jiminy
     template<typename T>
     void AbstractSensorTpl<T>::resetAll(uint32_t seed)
     {
-        // Make sure all the sensors are attached to a robot
+        // Make sure the sensor is attached to a robot
+        if (!isAttached_)
+        {
+            JIMINY_THROW(bad_control_flow, "Sensor not attached to any robot.");
+        }
+
+        // Make sure all the sensors are attached to a robot and initialized
         for (AbstractSensorBase * sensor : sharedStorage_->sensors_)
         {
             if (!sensor->isAttached_)
             {
-                THROW_ERROR(bad_control_flow,
-                            "Sensor '",
-                            sensor->name_,
-                            "' of type '",
-                            type_,
-                            "' not attached to any robot.");
+                JIMINY_THROW(bad_control_flow,
+                             "Sensor '",
+                             sensor->name_,
+                             "' of type '",
+                             type_,
+                             "' not attached to any robot.");
+            }
+            if (!sensor->isInitialized_)
+            {
+                JIMINY_THROW(bad_control_flow,
+                             "Sensor '",
+                             sensor->name_,
+                             "' of type '",
+                             type_,
+                             "' not initialized.");
             }
         }
 
         // Make sure the robot still exists
         if (robot_.expired())
         {
-            THROW_ERROR(bad_control_flow, "Robot has been deleted. Impossible to reset sensors.");
+            JIMINY_THROW(bad_control_flow, "Robot has been deleted. Impossible to reset sensors.");
         }
 
         // Make sure that no simulation is already running
         auto robot = robot_.lock();
         if (robot && robot->getIsLocked())
         {
-            THROW_ERROR(bad_control_flow,
-                        "Robot already locked, probably because a simulation is running. "
-                        "Please stop it before resetting sensors.");
+            JIMINY_THROW(bad_control_flow,
+                         "Robot already locked, probably because a simulation is running. "
+                         "Please stop it before resetting sensors.");
         }
 
         // Clear the shared data buffers
@@ -223,7 +238,7 @@ namespace jiminy
     {
         if (!isAttached_)
         {
-            THROW_ERROR(bad_control_flow, "Sensor not attached to any robot.");
+            JIMINY_THROW(bad_control_flow, "Sensor not attached to any robot.");
         }
 
         for (AbstractSensorBase * sensor : sharedStorage_->sensors_)
@@ -259,14 +274,7 @@ namespace jiminy
     template<typename T>
     std::string AbstractSensorTpl<T>::getTelemetryName() const
     {
-        if (areFieldnamesGrouped_)
-        {
-            return addCircumfix(name_, getType(), {}, TELEMETRY_FIELDNAME_DELIMITER);
-        }
-        else
-        {
-            return name_;
-        }
+        return addCircumfix(name_, getType(), {}, TELEMETRY_FIELDNAME_DELIMITER);
     }
 
     template<typename T>
@@ -371,7 +379,7 @@ namespace jiminy
         {
             if (idxLeft < 0)
             {
-                THROW_ERROR(std::runtime_error, "No data old enough is available.");
+                JIMINY_THROW(std::runtime_error, "No data old enough is available.");
             }
             else if (baseSensorOptions_->delayInterpolationOrder == 0)
             {
@@ -389,8 +397,8 @@ namespace jiminy
             }
             else
             {
-                THROW_ERROR(not_implemented_error,
-                            "`delayInterpolationOrder` must be either 0 or 1.");
+                JIMINY_THROW(not_implemented_error,
+                             "`delayInterpolationOrder` must be either 0 or 1.");
             }
         }
         else
@@ -443,7 +451,7 @@ namespace jiminy
     {
         if (!isAttached_)
         {
-            THROW_ERROR(bad_control_flow, "Sensor not attached to any robot.");
+            JIMINY_THROW(bad_control_flow, "Sensor not attached to any robot.");
         }
 
         /* Make sure at least the requested delay plus the maximum time step is available to handle

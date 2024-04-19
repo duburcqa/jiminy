@@ -19,13 +19,13 @@ namespace jiminy
         // Make sure the constraint is not already attached
         if (isAttached_)
         {
-            THROW_ERROR(bad_control_flow, "Constraint already attached to a model.");
+            JIMINY_THROW(bad_control_flow, "Constraint already attached to a model.");
         }
 
         // Make sure the model still exists
         if (model.expired())
         {
-            THROW_ERROR(bad_control_flow, "Model pointer expired or unset.");
+            JIMINY_THROW(bad_control_flow, "Model pointer expired or unset.");
         }
 
         // Consider the constraint is attached at this point
@@ -62,7 +62,7 @@ namespace jiminy
     {
         if (kp < 0.0)
         {
-            THROW_ERROR(std::invalid_argument, "Position gain must be positive.");
+            JIMINY_THROW(std::invalid_argument, "Position gain must be positive.");
         }
         kp_ = kp;
     }
@@ -76,7 +76,7 @@ namespace jiminy
     {
         if (kd < 0.0)
         {
-            THROW_ERROR(std::invalid_argument, "Velocity gain must be positive.");
+            JIMINY_THROW(std::invalid_argument, "Velocity gain must be positive.");
         }
         kd_ = kd;
     }
@@ -90,7 +90,7 @@ namespace jiminy
     {
         if (freq < 0.0)
         {
-            THROW_ERROR(std::invalid_argument, "Natural frequency must be positive.");
+            JIMINY_THROW(std::invalid_argument, "Natural frequency must be positive.");
         }
 
         // Critically damped position/velocity gains

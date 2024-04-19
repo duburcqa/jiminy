@@ -11,12 +11,19 @@ namespace jiminy
 {
     class Model;
 
+    class FrameConstraint;
+#if defined EXPORT_SYMBOLS || (!defined _WIN32 && !defined __CYGWIN__)
+    template<>
+    const std::string JIMINY_DLLAPI AbstractConstraintTpl<FrameConstraint>::type_;
+#endif
+    template class JIMINY_TEMPLATE_INSTANTIATION_DLLAPI AbstractConstraintTpl<FrameConstraint>;
+
     /// \brief This class implements the constraint for fixing a given frame wrt
     /// world.
     class JIMINY_DLLAPI FrameConstraint : public AbstractConstraintTpl<FrameConstraint>
     {
     public:
-        DISABLE_COPY(FrameConstraint)
+        JIMINY_DISABLE_COPY(FrameConstraint)
 
         auto shared_from_this() { return shared_from(this); }
 

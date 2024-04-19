@@ -12,16 +12,16 @@
 
 namespace jiminy
 {
-    inline constexpr std::string_view ENGINE_TELEMETRY_NAMESPACE{"HighLevelController"};
+    inline constexpr std::string_view ENGINE_TELEMETRY_NAMESPACE{""};
 
-    enum class JIMINY_DLLAPI ContactModelType : uint8_t
+    enum class ContactModelType : uint8_t
     {
         UNSUPPORTED = 0,
         SPRING_DAMPER = 1,
         CONSTRAINT = 2
     };
 
-    enum class JIMINY_DLLAPI ConstraintSolverType : uint8_t
+    enum class ConstraintSolverType : uint8_t
     {
         UNSUPPORTED = 0,
         PGS = 1  // Projected Gauss-Seidel
@@ -159,7 +159,7 @@ namespace jiminy
     struct JIMINY_DLLAPI RobotData
     {
     public:
-        DISABLE_COPY(RobotData)
+        JIMINY_DISABLE_COPY(RobotData)
 
         /* Must move all definitions in source files to avoid compilation failure due to incomplete
            destructor for objects managed by `unique_ptr` member variable with MSVC compiler.
@@ -497,7 +497,7 @@ namespace jiminy
         };
 
     public:
-        DISABLE_COPY(Engine)
+        JIMINY_DISABLE_COPY(Engine)
 
     public:
         explicit Engine() noexcept;
@@ -661,10 +661,22 @@ namespace jiminy
         const ImpulseForceVector & getImpulseForces(const std::string & robotName) const;
         const ProfileForceVector & getProfileForces(const std::string & robotName) const;
 
-        GenericConfig getOptions() const noexcept;
         void setOptions(const GenericConfig & engineOptions);
+        const GenericConfig & getOptions() const noexcept;
+        /// \brief Set the options of the engine and all the robots.
+        ///
+        /// \param[in] simulationOptions Dictionary gathering all the options. See
+        ///                              `getSimulationOptions` for details about the hierarchy.
+        void setSimulationOptions(const GenericConfig & simulationOptions);
+        /// \brief Get the options of the engine and all the robots.
+        ///
+        /// \details The key 'engine' maps to the engine options, whereas `robot.name` maps to the
+        ///          individual options of each robot for multi-robot simulations, 'robot' for
+        ///          single-robot simulations.
+        GenericConfig getSimulationOptions() const noexcept;
+
         bool getIsTelemetryConfigured() const;
-        std::shared_ptr<Robot> & getRobot(const std::string & robotName);
+        std::shared_ptr<Robot> getRobot(const std::string & robotName);
         std::ptrdiff_t getRobotIndex(const std::string & robotName) const;
         const RobotState & getRobotState(const std::string & robotName) const;
         const StepperState & getStepperState() const;
@@ -829,7 +841,8 @@ namespace jiminy
     protected:
         bool isTelemetryConfigured_{false};
         bool isSimulationRunning_{false};
-        GenericConfig engineOptionsGeneric_{};
+        mutable bool areSimulationOptionsRefreshed_{false};
+        mutable GenericConfig simulationOptionsGeneric_{};
         PCG32 generator_;
 
     private:

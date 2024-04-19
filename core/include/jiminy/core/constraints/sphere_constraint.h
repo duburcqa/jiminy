@@ -12,6 +12,13 @@ namespace jiminy
 {
     class Model;
 
+    class SphereConstraint;
+#if defined EXPORT_SYMBOLS || (!defined _WIN32 && !defined __CYGWIN__)
+    template<>
+    const std::string JIMINY_DLLAPI AbstractConstraintTpl<SphereConstraint>::type_;
+#endif
+    template class JIMINY_TEMPLATE_INSTANTIATION_DLLAPI AbstractConstraintTpl<SphereConstraint>;
+
     /// \brief Class constraining a sphere to roll without slipping on a flat plane.
     ///
     /// \details Given a frame to represent the sphere center, this class constrains it to move
@@ -19,7 +26,7 @@ namespace jiminy
     class JIMINY_DLLAPI SphereConstraint : public AbstractConstraintTpl<SphereConstraint>
     {
     public:
-        DISABLE_COPY(SphereConstraint)
+        JIMINY_DISABLE_COPY(SphereConstraint)
 
         auto shared_from_this() { return shared_from(this); }
 

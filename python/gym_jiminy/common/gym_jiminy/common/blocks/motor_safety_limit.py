@@ -28,8 +28,8 @@ def apply_safety_limits(command: np.ndarray,
                         motors_soft_position_lower: np.ndarray,
                         motors_soft_position_upper: np.ndarray,
                         motors_velocity_limit: np.ndarray,
-                        motors_effort_limit: np.ndarray
-                        ) -> np.ndarray:
+                        motors_effort_limit: np.ndarray,
+                        out: np.ndarray) -> None:
     """Clip the command torque to ensure safe operation.
 
     It acts on each actuator independently and only activate close to the
@@ -60,6 +60,7 @@ def apply_safety_limits(command: np.ndarray,
     :param motors_effort_limit: Maximum effort that the actuators can output.
                                 The command torque cannot exceed this limits,
                                 not even if needed to enforce safe operation.
+    :param out: Pre-allocated memory to store the command motor torques.
     """
     # Computes velocity bounds based on margin from soft joint limit if any
     safe_velocity_lower = motors_velocity_limit * np.minimum(np.maximum(
@@ -74,7 +75,7 @@ def apply_safety_limits(command: np.ndarray,
         -kd * (v_measured - safe_velocity_upper), -1.0), 1.0)
 
     # Clip command according to safe effort bounds
-    return np.minimum(np.maximum(
+    out[:] = np.minimum(np.maximum(
         command, safe_effort_lower), safe_effort_upper)
 
 
@@ -168,7 +169,7 @@ class MotorSafetyLimit(
         self.q_measured, self.v_measured = np.array([]), np.array([])
 
         # Initialize the controller
-        super().__init__(name, env, 1)
+        super().__init__(name, env, update_ratio=1)
 
     def _initialize_action_space(self) -> None:
         """Configure the action space of the controller.
@@ -190,12 +191,15 @@ class MotorSafetyLimit(
         return [f"currentMotorTorque{name}"
                 for name in self.env.robot.motor_names]
 
-    def compute_command(self, action: np.ndarray) -> np.ndarray:
+    def compute_command(self,
+                        action: np.ndarray,
+                        command: np.ndarray) -> None:
         """Apply safety limits to the desired motor torques right before
         sending it to the robot so as to avoid exceeded prescribed position
         and velocity limits.
 
         :param action: Desired motor torques to apply on the robot.
+        :param command: Current motor torques that will be updated in-place.
         """
         # Extract motor positions and velocity from encoder data
         q_measured, v_measured = self.q_measured, self.v_measured
@@ -204,12 +208,13 @@ class MotorSafetyLimit(
             v_measured = v_measured[self.encoder_to_motor]
 
         # Clip command according to safe effort bounds
-        return apply_safety_limits(action,
-                                   q_measured,
-                                   v_measured,
-                                   self.kp,
-                                   self.kd,
-                                   self.motors_position_lower,
-                                   self.motors_position_upper,
-                                   self.motors_velocity_limit,
-                                   self.motors_effort_limit)
+        apply_safety_limits(action,
+                            q_measured,
+                            v_measured,
+                            self.kp,
+                            self.kd,
+                            self.motors_position_lower,
+                            self.motors_position_upper,
+                            self.motors_velocity_limit,
+                            self.motors_effort_limit,
+                            command)

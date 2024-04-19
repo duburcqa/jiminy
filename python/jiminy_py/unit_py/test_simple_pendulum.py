@@ -83,29 +83,26 @@ class SimulateSimplePendulum(unittest.TestCase):
 
         # Extract state evolution over time
         time = log_vars['Global.Time']
+        imu_jiminy = np.stack([
+            log_vars['.'.join((jiminy.ImuSensor.type, 'PendulumLink', field))]
+            for field in jiminy.ImuSensor.fieldnames], axis=-1)
+
+        # Split IMU data if requested
         if split:
-            gyro_jiminy = np.stack([
-                log_vars['PendulumLink.Gyro' + s] for s in ['x', 'y', 'z']
-            ], axis=-1)
-            accel_jiminy = np.stack([
-                log_vars['PendulumLink.Accel' + s] for s in ['x', 'y', 'z']
-            ], axis=-1)
+            gyro_jiminy, accel_jiminy = np.split(imu_jiminy, 2, axis=-1)
             return time, gyro_jiminy, accel_jiminy
-        else:
-            imu_jiminy = np.stack([
-                log_vars['PendulumLink.' + f]
-                for f in jiminy.ImuSensor.fieldnames], axis=-1)
-            return time, imu_jiminy
+
+        return time, imu_jiminy
 
     def test_armature(self):
         """Verify the dynamics of the system when adding rotor inertia.
         """
         # Configure the robot: set rotor inertia
         J = 0.1
-        motor_options = self.robot.get_motors_options()
-        motor_options["PendulumJoint"]['enableArmature'] = True
-        motor_options["PendulumJoint"]['armature'] = J
-        self.robot.set_motors_options(motor_options)
+        robot_options = self.robot.get_options()
+        robot_options["motors"]["PendulumJoint"]['enableArmature'] = True
+        robot_options["motors"]["PendulumJoint"]['armature'] = J
+        self.robot.set_options(robot_options)
 
         # Dynamics: simulate a spring of stiffness k
         k_spring = 500.0
@@ -168,6 +165,99 @@ class SimulateSimplePendulum(unittest.TestCase):
         # Compare the numerical and numerical integration of analytical model
         # using Scipy
         self.assertTrue(np.allclose(x_jiminy, x_rk_python, atol=TOLERANCE))
+
+    def test_backlash(self):
+        """Test adding a backlash to a pendulum, and make sure that:
+        - while 'inside' the backlash, the pendulum behaves like no motor is
+          present
+        - once the backlash limit is reached, the pendulum behaves like a
+          single body, with rotor and body inertia summed up.
+        """
+        # Configure the robot: add rotor inertia and backlash
+        J = 1.0
+        BACKLASH = 1.1
+        robot_options = self.robot.get_options()
+        robot_options["motors"]["PendulumJoint"]['enableArmature'] = True
+        robot_options["motors"]["PendulumJoint"]['armature'] = J
+        robot_options["motors"]["PendulumJoint"]["enableBacklash"] = True
+        robot_options["motors"]["PendulumJoint"]["backlash"] = 2 * BACKLASH
+        self.robot.set_options(robot_options)
+
+        TAU = 5.0
+        def ControllerConstant(t, q, v, sensor_measurements, command):
+            command[:] = - TAU
+
+        engine = jiminy.Engine()
+        setup_controller_and_engine(
+            engine, self.robot, compute_command=ControllerConstant)
+
+        engine_options = engine.get_options()
+        engine_options["constraints"]["regularization"] = 0.0
+        engine.set_options(engine_options)
+
+        # Run simulation and extract log data
+        x0 = np.array([0.0, 0.1, 0.0, 0.0])
+        tf = 5.0
+        time, x_jiminy = simulate_and_get_state_evolution(
+            engine, tf, x0, split=False)
+
+        # Now we compare the two phases of the motion:
+        #  - first phase: before impact: both bodies move independently
+        #  - second phase: after impact: both bodies move as one (a tolerance
+        #    of 0.4s is applied to make sure all rebounds are gone)
+        t_impact = np.sqrt(BACKLASH / (TAU / J) * 2)
+        t1, t2 = np.searchsorted(time, [t_impact - 0.02, t_impact + 0.4])
+        time_phase_1 = time[:t1]
+        x_jiminy_phase_1 = x_jiminy[:t1]
+        def dynamics(t, x):
+            # The angle of the pendulum mass is actually x[0] + x[1], not x[1]
+            return np.array([x[2],
+                             x[3],
+                             -TAU / J,
+                             self.g / self.l * np.sin(x[0] + x[1]) + TAU / J])
+        x_rk_python = integrate_dynamics(time_phase_1, x0, dynamics)
+        self.assertTrue(np.allclose(
+            x_jiminy_phase_1, x_rk_python, atol=TOLERANCE))
+
+        time_phase_2 = time[t2:] - time[t2]
+        x_jiminy_phase_2 = x_jiminy[t2:]
+
+        I_total = self.m * self.l ** 2 + J
+        G = self.m * self.g * self.l / I_total
+        def dynamics(t, x):
+            acc = G * np.sin(x[0] + x[1]) - TAU / I_total
+            return np.array([x[2], x[3], acc, 0.0])
+        x_rk_python = integrate_dynamics(
+            time_phase_2, x_jiminy_phase_2[0], dynamics)
+        self.assertTrue(np.allclose(
+            x_jiminy_phase_2, x_rk_python, atol=TOLERANCE))
+
+        # Simulate with more damping on the constraint to prevent bouncing.
+        # Note that this needs to be changed after the simulation start.
+        engine_options["stepper"]["dtMax"] = 0.001
+        engine.set_options(engine_options)
+        engine.start(x0[:self.robot.nq], x0[-self.robot.nv:])
+        self.robot.constraints.bounds_joints["PendulumJointBacklash"].kp = 1e5
+        self.robot.constraints.bounds_joints["PendulumJointBacklash"].kd = 1e3
+        engine.step(t_impact + 1.0)
+        log_vars = engine.log_data["variables"]
+        time = log_vars['Global.Time']
+        q_jiminy = np.stack([
+            log_vars[field] for field in self.robot.log_position_fieldnames
+            ], axis=-1)
+        v_jiminy = np.stack([
+            log_vars[field] for field in self.robot.log_velocity_fieldnames
+            ], axis=-1)
+        x_jiminy = np.concatenate((q_jiminy, v_jiminy), axis=-1)
+
+        # Ignoring some uncertainty at impact time due to the pendulum motion
+        t2 = np.searchsorted(time, t_impact + 0.20)
+        time_phase_2 = time[t2:] - time[t2]
+        x_jiminy_phase_2 = x_jiminy[t2:]
+        x_rk_python = integrate_dynamics(
+            time_phase_2, x_jiminy_phase_2[0], dynamics)
+        self.assertTrue(np.allclose(
+            x_jiminy_phase_2, x_rk_python, atol=TOLERANCE))
 
     def test_imu_sensor(self):
         """Test IMU sensor on pendulum motion.
@@ -486,7 +576,7 @@ class SimulateSimplePendulum(unittest.TestCase):
 
         # Enable flexibility
         model_options = self.robot.get_model_options()
-        model_options["dynamics"]["enableFlexibleModel"] = True
+        model_options["dynamics"]["enableFlexibility"] = True
         model_options["dynamics"]["flexibilityConfig"] = [{
             'frameName': "PendulumJoint",
             'stiffness': k * np.ones(3),
@@ -496,19 +586,19 @@ class SimulateSimplePendulum(unittest.TestCase):
         self.robot.set_model_options(model_options)
 
         # Enable rotor inertia
-        motor_options = self.robot.get_motors_options()
-        motor_options["PendulumJoint"]['enableArmature'] = True
-        motor_options["PendulumJoint"]['armature'] = J
-        self.robot.set_motors_options(motor_options)
+        robot_options = self.robot.get_options()
+        robot_options["motors"]["PendulumJoint"]['enableArmature'] = True
+        robot_options["motors"]["PendulumJoint"]['armature'] = J
+        self.robot.set_options(robot_options)
 
         # Create an engine: PD controller on motor and no internal dynamics
         k_control, nu_control = 100.0, 1.0
-        def ControllerPD(t, q, v, sensor_measurements, command):
+        def compute_command(t, q, v, sensor_measurements, command):
             command[:] = - k_control * q[4] - nu_control * v[3]
 
         engine = jiminy.Engine()
         setup_controller_and_engine(
-            engine, self.robot, compute_command=ControllerPD)
+            engine, self.robot, compute_command=compute_command)
 
         # Configure the engine
         engine_options = engine.get_options()
@@ -568,10 +658,10 @@ class SimulateSimplePendulum(unittest.TestCase):
 
         # Enable rotor inertia
         J = 0.1
-        motor_options = robot.get_motors_options()
-        motor_options["PendulumJoint"]['enableArmature'] = True
-        motor_options["PendulumJoint"]['armature'] = J
-        robot.set_motors_options(motor_options)
+        robot_options = robot.get_options()
+        robot_options["motors"]["PendulumJoint"]['enableArmature'] = True
+        robot_options["motors"]["PendulumJoint"]['armature'] = J
+        robot.set_options(robot_options)
 
         # Set fixed body constraint.
         freeflyer_constraint = jiminy.FrameConstraint("world")
@@ -621,6 +711,67 @@ class SimulateSimplePendulum(unittest.TestCase):
         self.assertTrue(np.allclose(
             v_jiminy[:, -1], x_analytical[:, 1], atol=TOLERANCE))
 
+
+    def test_flexibility_api(self):
+        """
+        @brief Test the addition and disabling of a flexibility in the system.
+
+        @details This function only tests that the flexibility API works, but
+                 performs no validation of the physics behind it.
+        """
+
+        # Enable flexibility
+        model_options = self.robot.get_model_options()
+        model_options["dynamics"]["enableFlexibility"] = True
+        model_options["dynamics"]["flexibilityConfig"] = [{
+            'frameName': "PendulumJoint",
+            'stiffness': np.ones(3),
+            'damping': np.ones(3),
+            'inertia': np.ones(3)
+        }]
+        self.robot.set_model_options(model_options)
+        self.assertTrue(self.robot.flexibility_joint_indices == [1])
+
+        engine = jiminy.Engine()
+        engine.add_robot(self.robot)
+
+        x0 = np.array([0.0, 0.0, 0.0, 1.0, 0.0, 0.0])
+        tf = 0.1
+        simulate_and_get_state_evolution(engine, tf, x0, split=False)
+
+        self.assertTrue(self.robot.flexibility_joint_indices == [1])
+
+        # Disable flexibility
+        model_options = self.robot.get_model_options()
+        model_options["dynamics"]["enableFlexibility"] = False
+        self.robot.set_model_options(model_options)
+        self.assertTrue(self.robot.flexibility_joint_indices == [])
+        x0 = np.array([0.0, 0.0])
+        simulate_and_get_state_evolution(engine, tf, x0, split=False)
+        self.assertTrue(self.robot.flexibility_joint_indices == [])
+
+        # Re-enable flexibility
+        model_options = self.robot.get_model_options()
+        model_options["dynamics"]["enableFlexibility"] = True
+        self.robot.set_model_options(model_options)
+        self.assertTrue(self.robot.flexibility_joint_indices == [1])
+
+        x0 = np.array([0.0, 0.0, 0.0, 1.0, 0.0, 0.0])
+        simulate_and_get_state_evolution(engine, tf, x0, split=False)
+
+        self.assertTrue(self.robot.flexibility_joint_indices == [1])
+
+        # Test empty flexibility list
+        model_options = self.robot.get_model_options()
+        model_options["dynamics"]["enableFlexibility"] = True
+        model_options["dynamics"]["flexibilityConfig"] = []
+        self.robot.set_model_options(model_options)
+        self.assertTrue(self.robot.flexibility_joint_indices == [])
+
+        x0 = np.array([0.0, 0.0])
+        simulate_and_get_state_evolution(engine, tf, x0, split=False)
+
+        self.assertTrue(self.robot.flexibility_joint_indices == [])
 
 if __name__ == '__main__':
     unittest.main()

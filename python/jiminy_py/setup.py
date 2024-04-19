@@ -21,18 +21,26 @@ class InstallPlatlib(install):
             self.install_lib = self.install_platlib
 
 
-# Enforce the right numpy version. It assumes the version currently available
-# was used to compile all the C++ extension modules shipping with Jiminy.
-# - Numpy API is not backward compatible but is forward compatible
-# - For some reason, forward compatibility from 1.19 to 1.20+ seems broken
-# - A few versions must be blacklisted because of Boost::Python incompatibility
-# - Numpy >= 1.21.0 is required for full typing support
+# Determine the supported range of numpy versions, assuming that the version
+# currently available was used to compile all C++ extension modules bundled
+# with Jiminy.
+# * Numpy API as limited backward compatibility range based on some complex
+#   logics not following a predefined pattern (since 1.25). See documentation:
+#   https://numpy.org/devdocs/dev/depending_on_numpy.html#build-time-dependency
+# * Numpy API is only minor-version forward compatible
 np_ver = tuple(map(int, version('numpy').split(".", 3)[:2]))
-np_req = f"numpy>={np_ver[0]}.{np_ver[1]}.0"
-if np_ver < (1, 20):
-    np_req += ",<1.20.0"
-elif np_ver < (1, 22):
-    np_req += ",!=1.21.0,!=1.21.1,!=1.21.2,!=1.21.3,!=1.21.4"
+if np_ver < (1, 25):
+    np_req = f"numpy>={np_ver[0]}.{np_ver[1]}.0"
+    if np_ver < (1, 20):
+        np_req += ",<1.20.0"
+    elif np_ver < (1, 22):
+        np_req += ",!=1.21.0,!=1.21.1,!=1.21.2,!=1.21.3,!=1.21.4"
+else:
+    if np_ver < (2, 1):
+        np_req = "numpy>=1.24"  # All version down to 1.19 are supported
+    else:
+        raise ImportError("'numpy>2.0' not supported at built-time for now.")
+    np_req += f",<{np_ver[0]}.{np_ver[1] + 1}"
 
 
 setup(
@@ -85,24 +93,22 @@ setup(
         "jiminy_replay=jiminy_py.viewer.replay:_play_logs_files_entrypoint"
     ]},
     install_requires=[
-        # Display elegant and versatile process bar.
-        "tqdm",
         # Standard library for matrix algebra.
         # - 1.20 breaks ABI
         # - >=1.21,<1.21.5 is causing segfault with boost::python.
         #   See issue: https://github.com/boostorg/python/issues/376
         # - 1.22 breaks API for compiled libs.
+        # - 1.24 adds `dtype` optional argument to `np.stack`
+        # - 2.0 is backward compatible up to 1.23, but not forward compatible.
+        #   see: https://numpy.org/devdocs/dev/depending_on_numpy.html
         np_req,
         # Parser for Jiminy's hardware description file.
         "toml",
-        # Used internally by Robot to replace meshes by associated minimal
-        # volume bounding box.
-        "trimesh",
         # Standalone cross-platform mesh visualizer used as Viewer's backend.
         # Panda3d is NOT supported by PyPy even if built from source.
         # - 1.10.12 fixes numerous bugs
         # - 1.10.13 crashes when generating wheels on MacOS
-        "panda3d>=1.10.14",
+        "panda3d>=1.10.13",
         # Photo-realistic shader for Panda3d to improve rendering of meshes.
         # - 0.11.X is not backward compatible.
         "panda3d-simplepbr==0.11.2",
@@ -111,7 +117,12 @@ setup(
         # Used internally by Viewer to record video programmatically when
         # Panda3d is used as rendering backend.
         # - >= 8.0.0 provides cross-platform precompiled binary wheels
-        "av>=8.0.0"
+        "av>=8.0.0",
+        # Used internally by Robot to replace meshes by associated minimal
+        # volume bounding box.
+        "trimesh",
+        # Display elegant and versatile process bar.
+        "tqdm"
     ],
     extras_require={
         "plot": [
@@ -132,7 +143,8 @@ setup(
             "pillow",
             # Used internally by Viewer to enable recording video
             # programmatically with Meshcat as backend.
-            "playwright"
+            # - 1.43 is broken
+            "playwright!=1.43"
         ],
         "dev": [
             # Generate Python type hints files (aka. stubs) for C extensions.

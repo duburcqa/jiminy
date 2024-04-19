@@ -152,13 +152,13 @@ class SimulateFlexibleArm(unittest.TestCase):
         """Check if reading/writing standalone log file is working.
         """
         # Configure log file to be standalone
-        engine_options = self.simulator.engine.get_options()
+        engine_options = self.simulator.get_options()
         engine_options['telemetry']['isPersistent'] = True
-        self.simulator.engine.set_options(engine_options)
+        self.simulator.set_options(engine_options)
 
         # Specify joint flexibility parameters
         model_options = self.simulator.robot.get_model_options()
-        model_options['dynamics']['enableFlexibleModel'] = True
+        model_options['dynamics']['enableFlexibility'] = True
         model_options['dynamics']['flexibilityConfig'] = [{
             'frameName': f"link{i}_to_link{i+1}",
             'stiffness': 10.0 * np.ones(3),
@@ -197,7 +197,7 @@ class SimulateFlexibleArm(unittest.TestCase):
         for order in (range(N_FLEXIBILITY), range(N_FLEXIBILITY)[::-1]):
             # Specify joint flexibility parameters
             model_options = self.simulator.robot.get_model_options()
-            model_options['dynamics']['enableFlexibleModel'] = True
+            model_options['dynamics']['enableFlexibility'] = True
             model_options['dynamics']['flexibilityConfig'] = [{
                 'frameName': f"link{i}_to_link{i+1}",
                 'stiffness': np.zeros(3),
@@ -219,7 +219,7 @@ class SimulateFlexibleArm(unittest.TestCase):
 
             # Extract the final configuration
             q_flex.append(
-                self.simulator.robot.get_rigid_position_from_flexible(
+                self.simulator.robot.get_theoretical_position_from_extended(
                     self.simulator.robot_state.q))
 
             # Render the scene

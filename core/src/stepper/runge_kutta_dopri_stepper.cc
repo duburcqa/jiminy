@@ -18,43 +18,13 @@ namespace jiminy
     bool RungeKuttaDOPRIStepper::adjustStep(
         const State & initialState, const State & solution, double & dt)
     {
+        // Estimate the integration error
         const double error = computeError(initialState, solution, dt);
-        return adjustStepImpl(error, dt);
-    }
 
-    double RungeKuttaDOPRIStepper::computeError(
-        const State & initialState, const State & solution, double dt)
-    {
-        // Compute error scale given absolute and relative tolerance
-        otherSolution_.setZero();
-        initialState.difference(otherSolution_, scale_);
-        scale_.absInPlace();
-        scale_ *= tolRel_;
-        scale_ += tolAbs_;
-
-        // Compute alternative solution
-        stateIncrement_.setZero();
-        for (std::size_t i = 0; i < ki_.size(); ++i)
-        {
-            stateIncrement_.sumInPlace(ki_[i], dt * DOPRI::e[i]);
-        }
-        initialState.sum(stateIncrement_, otherSolution_);
-
-        // Evaluate error between both states to adjust step
-        solution.difference(otherSolution_, error_);
-
-        // Return element-wise maximum rescaled error
-        error_ /= scale_;
-        return error_.normInf();
-    }
-
-    bool RungeKuttaDOPRIStepper::adjustStepImpl(double error, double & dt)
-    {
-        // Make sure the error is defined, otherwise rely on simple heuristic
+        // Make sure the error is well defined, otherwise throw an exception
         if (std::isnan(error))
         {
-            dt *= 0.1;
-            return false;
+            JIMINY_THROW(std::runtime_error, "The estimated integration error contains 'nan'.");
         }
 
         /* Adjustment algorithm from boost implementation.
@@ -83,5 +53,31 @@ namespace jiminy
                            DOPRI::MIN_FACTOR);
             return false;
         }
+    }
+
+    double RungeKuttaDOPRIStepper::computeError(
+        const State & initialState, const State & solution, double dt)
+    {
+        // Compute error scale given absolute and relative tolerance
+        otherSolution_.setZero();
+        initialState.difference(otherSolution_, scale_);
+        scale_.absInPlace();
+        scale_ *= tolRel_;
+        scale_ += tolAbs_;
+
+        // Compute alternative solution
+        stateIncrement_.setZero();
+        for (std::size_t i = 0; i < ki_.size(); ++i)
+        {
+            stateIncrement_.sumInPlace(ki_[i], dt * DOPRI::e[i]);
+        }
+        initialState.sum(stateIncrement_, otherSolution_);
+
+        // Evaluate error between both states to adjust step
+        solution.difference(otherSolution_, error_);
+
+        // Return element-wise maximum rescaled error
+        error_ /= scale_;
+        return error_.normInf();
     }
 }

@@ -31,7 +31,7 @@ namespace jiminy
     {
         if (!getIsInitialized())
         {
-            THROW_ERROR(bad_control_flow, "Controller not initialized.");
+            JIMINY_THROW(bad_control_flow, "Controller not initialized.");
         }
 
         commandFun_(t, q, v, sensorMeasurements_, command);
@@ -43,7 +43,7 @@ namespace jiminy
     {
         if (!getIsInitialized())
         {
-            THROW_ERROR(bad_control_flow, "Controller not initialized.");
+            JIMINY_THROW(bad_control_flow, "Controller not initialized.");
         }
 
         // Sensor data are already up-to-date

@@ -6,10 +6,10 @@
 
 namespace jiminy::python
 {
-    void JIMINY_DLLAPI exposeForces();
-    void JIMINY_DLLAPI exposeStepperState();
-    void JIMINY_DLLAPI exposeRobotState();
-    void JIMINY_DLLAPI exposeEngine();
+    void exposeForces();
+    void exposeStepperState();
+    void exposeRobotState();
+    void exposeEngine();
 }
 
 #endif  // SIMULATOR_PYTHON_H

@@ -19,17 +19,14 @@
 #include <boost/python/suite/indexing/vector_indexing_suite.hpp>
 
 
-#define EXPECTED_PYTYPE_FOR_ARG_IS_ARRAY(type)       \
-    namespace boost::python::converter               \
-    {                                                \
-        template<>                                   \
-        struct expected_pytype_for_arg<type>         \
-        {                                            \
-            static const PyTypeObject * get_pytype() \
-            {                                        \
-                return &PyArray_Type;                \
-            }                                        \
-        };                                           \
+#define EXPECTED_PYTYPE_FOR_ARG_IS_ARRAY(type)                                 \
+    namespace boost::python::converter                                         \
+    {                                                                          \
+        template<>                                                             \
+        struct expected_pytype_for_arg<type>                                   \
+        {                                                                      \
+            static const PyTypeObject * get_pytype() { return &PyArray_Type; } \
+        };                                                                     \
     }
 
 EXPECTED_PYTYPE_FOR_ARG_IS_ARRAY(numpy::ndarray)
@@ -238,7 +235,7 @@ namespace jiminy::python
             doc, std::pair{"fget", getMemberFuncPtr}, std::pair{"fset", setMemberFuncPtr});
     }
 
-    // clang-format off
+// clang-format off
     #define DEF_READONLY3(namePy, memberFuncPtr, doc) \
         def_readonly(namePy, \
                      memberFuncPtr, \
@@ -335,7 +332,7 @@ namespace jiminy::python
         [[noreturn]] static bool contains(Container & /* container */,
                                           const typename Container::value_type & /* key */)
         {
-            THROW_ERROR(not_implemented_error, "Contains method not supported.");
+            JIMINY_THROW(not_implemented_error, "Contains method not supported.");
         }
     };
 
@@ -562,25 +559,29 @@ namespace jiminy::python
         // Check array dtype
         if (PyArray_EquivTypenums(PyArray_TYPE(arrayPy), getPyType<T>()) == NPY_FALSE)
         {
-            THROW_ERROR(std::invalid_argument,
-                        "'values' input array has dtype '",
-                        PyArray_TYPE(arrayPy),
-                        "' but '",
-                        getPyType<T>(),
-                        "' was expected.");
+            JIMINY_THROW(std::invalid_argument,
+                         "'values' input array has dtype '",
+                         PyArray_TYPE(arrayPy),
+                         "' but '",
+                         getPyType<T>(),
+                         "' was expected.");
         }
 
-        // Check array number of dimensions
+        // Pick the right mapping depending on dimensionality and memory layout
+        int32_t flags = PyArray_FLAGS(arrayPy);
         T * dataPtr = static_cast<T *>(PyArray_DATA(arrayPy));
         switch (PyArray_NDIM(arrayPy))
         {
         case 0:
             return {dataPtr, 1, 1, {1, 1}};
         case 1:
-            return {dataPtr, PyArray_SIZE(arrayPy), 1, {PyArray_SIZE(arrayPy), 1}};
+            if (flags & (NPY_ARRAY_C_CONTIGUOUS | NPY_ARRAY_F_CONTIGUOUS))
+            {
+                return {dataPtr, PyArray_SIZE(arrayPy), 1, {PyArray_SIZE(arrayPy), 1}};
+            }
+            JIMINY_THROW(std::invalid_argument, "Numpy array must be contiguous.");
         case 2:
         {
-            int32_t flags = PyArray_FLAGS(arrayPy);
             npy_intp * arrayPyShape = PyArray_SHAPE(arrayPy);
             if (flags & NPY_ARRAY_C_CONTIGUOUS)
             {
@@ -590,11 +591,11 @@ namespace jiminy::python
             {
                 return {dataPtr, arrayPyShape[0], arrayPyShape[1], {arrayPyShape[0], 1}};
             }
-            THROW_ERROR(std::invalid_argument,
-                        "Numpy arrays must be either row or column contiguous.");
+            JIMINY_THROW(std::invalid_argument,
+                         "Numpy array must be either row or column contiguous.");
         }
         default:
-            THROW_ERROR(not_implemented_error, "Only 1D and 2D 'np.ndarray' are supported.");
+            JIMINY_THROW(not_implemented_error, "Only 1D and 2D 'np.ndarray' are supported.");
         }
     }
 
@@ -607,7 +608,7 @@ namespace jiminy::python
         // Check if raw Python object pointer is actually a numpy array
         if (!PyArray_Check(dataPy))
         {
-            THROW_ERROR(std::invalid_argument, "'values' must have type 'np.ndarray'.");
+            JIMINY_THROW(std::invalid_argument, "'values' must have type 'np.ndarray'.");
         }
 
         /* Cast raw Python object pointer to numpy array.
@@ -623,8 +624,8 @@ namespace jiminy::python
         {
             return getEigenReferenceImpl<int64_t>(arrayPy);
         }
-        THROW_ERROR(not_implemented_error,
-                    "'values' input array must have dtype 'np.float64' or 'np.int64'.");
+        JIMINY_THROW(not_implemented_error,
+                     "'values' input array must have dtype 'np.float64' or 'np.int64'.");
     }
 
     /// Convert most C++ objects into Python objects by value
@@ -634,7 +635,7 @@ namespace jiminy::python
                          !std::is_same_v<std::decay_t<T>, GenericConfig> &&
                          !std::is_same_v<std::decay_t<T>, SensorMeasurementTree::value_type> &&
                          !std::is_same_v<std::decay_t<T>, std::string_view> &&
-                         !std::is_same_v<std::decay_t<T>, FlexibleJointData>,
+                         !std::is_same_v<std::decay_t<T>, FlexibilityJointConfig>,
                      bp::object>
     convertToPython(T && data, const bool & copy = true)
     {
@@ -691,22 +692,22 @@ namespace jiminy::python
     }
 
     template<typename T>
-    std::enable_if_t<std::is_same_v<std::decay_t<T>, FlexibleJointData>, bp::object>
-    convertToPython(T && flexibleJointData, const bool & copy)
+    std::enable_if_t<std::is_same_v<std::decay_t<T>, FlexibilityJointConfig>, bp::object>
+    convertToPython(T && flexibilityJointConfig, const bool & copy)
     {
         if (!copy)
         {
-            THROW_ERROR(
-                not_implemented_error,
-                "Passing 'FlexibleJointData' object to python by reference is not supported.");
+            JIMINY_THROW(not_implemented_error,
+                         "Passing 'FlexibilityJointConfig' object to python by reference is not "
+                         "supported.");
         }
-        bp::dict flexibilityJointDataPy;
-        flexibilityJointDataPy["frameName"] = flexibleJointData.frameName;
-        flexibilityJointDataPy["stiffness"] = flexibleJointData.stiffness;
-        flexibilityJointDataPy["damping"] = flexibleJointData.damping;
-        flexibilityJointDataPy["inertia"] = flexibleJointData.inertia;
+        bp::dict flexibilityJointConfigPy;
+        flexibilityJointConfigPy["frameName"] = flexibilityJointConfig.frameName;
+        flexibilityJointConfigPy["stiffness"] = flexibilityJointConfig.stiffness;
+        flexibilityJointConfigPy["damping"] = flexibilityJointConfig.damping;
+        flexibilityJointConfigPy["inertia"] = flexibilityJointConfig.inertia;
         // FIXME: Remove explicit and redundant move when moving to C++20
-        return std::move(flexibilityJointDataPy);
+        return std::move(flexibilityJointConfigPy);
     }
 
     template<typename T>
@@ -778,7 +779,7 @@ namespace jiminy::python
                 return &PyList_Type;
             }
             else if constexpr (std::is_same_v<std::decay_t<T>, GenericConfig> ||
-                               std::is_same_v<std::decay_t<T>, FlexibleJointData>)
+                               std::is_same_v<std::decay_t<T>, FlexibilityJointConfig>)
             {
                 return &PyDict_Type;
             }
@@ -929,29 +930,38 @@ namespace jiminy::python
             np::ndarray dataNumpy = bp::extract<np::ndarray>(dataPy);
             if (dataNumpy.get_dtype() != np::dtype::get_builtin<Scalar>())
             {
-                THROW_ERROR(std::invalid_argument,
-                            "Scalar type of eigen object does not match dtype of numpy object.");
+                JIMINY_THROW(std::invalid_argument,
+                             "Scalar type of eigen object does not match dtype of numpy object.");
             }
             return getEigenReferenceImpl<Scalar>(reinterpret_cast<PyArrayObject *>(dataPy.ptr()));
         }
         catch (const bp::error_already_set &)
         {
-            PyErr_Clear();
-            if constexpr (is_eigen_vector_v<T>)
+            if constexpr (is_eigen_plain_v<T>)
             {
-                return listPyToEigenVector<Scalar>(bp::extract<bp::list>(dataPy));
+                PyErr_Clear();
+                if constexpr (is_eigen_vector_v<T>)
+                {
+                    return listPyToEigenVector<Scalar>(bp::extract<bp::list>(dataPy));
+                }
+                else
+                {
+                    return listPyToEigenMatrix<Scalar>(bp::extract<bp::list>(dataPy));
+                }
             }
             else
             {
-                return listPyToEigenMatrix<Scalar>(bp::extract<bp::list>(dataPy));
+                bp::throw_error_already_set();
+                throw;
             }
         }
     }
 
     template<>
-    inline FlexibleJointData convertFromPython<FlexibleJointData>(const bp::object & dataPy)
+    inline FlexibilityJointConfig
+    convertFromPython<FlexibilityJointConfig>(const bp::object & dataPy)
     {
-        FlexibleJointData flexData;
+        FlexibilityJointConfig flexData;
         const bp::dict flexDataPy = bp::extract<bp::dict>(dataPy);
         flexData.frameName = convertFromPython<std::string>(flexDataPy["frameName"]);
         flexData.stiffness = convertFromPython<Eigen::VectorXd>(flexDataPy["stiffness"]);
@@ -1006,7 +1016,7 @@ namespace jiminy::python
         const bp::list listPy = bp::extract<bp::list>(dataPy);
         if (bp::len(listPy) != N)
         {
-            THROW_ERROR(std::invalid_argument, "Consistent number of elements");
+            JIMINY_THROW(std::invalid_argument, "Consistent number of elements");
         }
         return internal::BuildArrayFromCallable<typename T::value_type>(
             std::make_index_sequence<N>{},

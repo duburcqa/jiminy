@@ -68,17 +68,19 @@ jobs:
         echo "InstallDir=${GITHUB_WORKSPACE}/install" >> $GITHUB_ENV
 
         "${PYTHON_EXECUTABLE}" -m pip install setuptools wheel "pip>=20.3"
-        "${PYTHON_EXECUTABLE}" -m pip install "numpy>=1.21,<2.0"
         "${PYTHON_EXECUTABLE}" -m pip install delocate twine
+    - name: Install pre-compiled binaries for additional gym-jiminy dependencies
+      if: matrix.PYTHON_VERSION != '3.13'
+      run: |
+        "${PYTHON_EXECUTABLE}" -m pip install "torch" -f https://download.pytorch.org/whl/torch
+        "${PYTHON_EXECUTABLE}" -m pip install "gymnasium>=0.28,<1.0" "stable_baselines3>=2.0"
+    - name: Install latest numpy version at build-time for run-time binary compatibility
+      run: |
+        "${PYTHON_EXECUTABLE}" -m pip install --upgrade "numpy>=1.24,<2.0"
     - name: Build jiminy dependencies
       run: |
         OSX_DEPLOYMENT_TARGET=${OSX_DEPLOYMENT_TARGET} OSX_ARCHITECTURES=${OSX_ARCHITECTURES} \
           BUILD_TYPE="${{ matrix.BUILD_TYPE }}" ./build_tools/build_install_deps_unix.sh
-    - name: Install pre-compiled binaries for additional gym-jiminy dependencies
-      if: matrix.PYTHON_VERSION != '3.12'
-      run: |
-        "${PYTHON_EXECUTABLE}" -m pip install "torch" -f https://download.pytorch.org/whl/torch
-        "${PYTHON_EXECUTABLE}" -m pip install "gymnasium>=0.26,<0.29" "importlib-metadata>=3.3.0"
 
     #####################################################################################
 
@@ -90,7 +92,8 @@ jobs:
         mkdir "${RootDir}/build"
         cd "${RootDir}/build"
         export LD_LIBRARY_PATH="${InstallDir}/lib/:/usr/local/lib"
-        cmake "${RootDir}" -DCMAKE_INSTALL_PREFIX="${InstallDir}" -DCMAKE_PREFIX_PATH="${InstallDir}" \
+        cmake "${RootDir}" -Wdev \
+              -DCMAKE_INSTALL_PREFIX="${InstallDir}" -DCMAKE_PREFIX_PATH="${InstallDir}" \
               -DCMAKE_C_COMPILER="${CMAKE_C_COMPILER}" -DCMAKE_CXX_COMPILER="${CMAKE_CXX_COMPILER}" \
               -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" \
               -DCMAKE_OSX_DEPLOYMENT_TARGET="${OSX_DEPLOYMENT_TARGET}" \
@@ -99,7 +102,7 @@ jobs:
               -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
               -DBoost_USE_STATIC_LIBS=ON -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
               -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON \
-              -DINSTALL_GYM_JIMINY=${{ (matrix.PYTHON_VERSION == '3.12' && 'OFF') || 'ON' }} \
+              -DINSTALL_GYM_JIMINY=${{ (matrix.PYTHON_VERSION == '3.13' && 'OFF') || 'ON' }} \
               -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}" -DCMAKE_BUILD_TYPE="${{ matrix.BUILD_TYPE }}"
         make -j2
 
@@ -140,7 +143,7 @@ jobs:
             -p "macosx_${OSX_DEPLOYMENT_TARGET//./_}_${WHEEL_ARCH}" "${RootDir}/build/wheelhouse/"*.whl
         "${PYTHON_EXECUTABLE}" -m pip install --force-reinstall --no-deps "${RootDir}/build/wheelhouse/"*.whl
     - name: Upload the wheel for Linux of jiminy_py
-      if: matrix.BUILD_TYPE == 'Release'
+      if: matrix.BUILD_TYPE != 'Debug'
       uses: actions/upload-artifact@v4
       with:
         name: wheelhouse-${{ matrix.PYTHON_VERSION }}
@@ -175,27 +178,24 @@ jobs:
         cd "${RootDir}/python/jiminy_py/unit_py"
         "${PYTHON_EXECUTABLE}" -m unittest discover -v
 
-    - name: Run unit tests for gym_jiminy
-      if: matrix.BUILD_TYPE != 'Release'
-      run: |
-        # Disabling `test_pipeline_control.py` on MacOS because `test_pid_standing` is failing
-        # for 'panda3d-sync' backend due to meshes still loading at screenshot time.
-        cd "${RootDir}/python/gym_jiminy/unit_py"
-        "${PYTHON_EXECUTABLE}" -m unittest test_pipeline_design.py -v
-
-    - name: Run unit tests for gym jiminy
-      if: matrix.BUILD_TYPE == 'Release' && matrix.PYTHON_VERSION != '3.12'
+    - name: Run unit tests for gym jiminy base module
       run: |
         export LD_LIBRARY_PATH="${InstallDir}/lib/:/usr/local/lib"
 
-        cd "${RootDir}/python/gym_jiminy/examples/reinforcement_learning/rllib"
-        "${PYTHON_EXECUTABLE}" acrobot_ppo.py
-
-        # FIXME: Must install stable_baselines3 after running rllib test
-        # because they require a different version of `gymnasium`.
-        "${PYTHON_EXECUTABLE}" -m pip install "stable_baselines3>=2.0"
-
+        # FIXME: Disabling `test_pipeline_control.py` on MacOS because `test_pid_standing` is
+        # failing for 'panda3d-sync' backend due to meshes still loading at screenshot time.
+        if [[ "${{ matrix.BUILD_TYPE }}" == 'Debug' ]] ; then
+          export JIMINY_BUILD_DEBUG=
+        fi
         "${PYTHON_EXECUTABLE}" -m unittest discover -s "${RootDir}/python/gym_jiminy/unit_py" -v
+
+    - name: Run examples for gym jiminy add-on modules
+      if: matrix.BUILD_TYPE != 'Debug' && matrix.PYTHON_VERSION != '3.12'
+      run: |
+        export LD_LIBRARY_PATH="${InstallDir}/lib/:/usr/local/lib"
+
+        cd "${RootDir}/python/gym_jiminy/examples/rllib"
+        "${PYTHON_EXECUTABLE}" acrobot_ppo.py
 
 #########################################################################################
 

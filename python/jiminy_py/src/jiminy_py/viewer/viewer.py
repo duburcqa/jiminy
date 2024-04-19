@@ -463,11 +463,13 @@ class Viewer:
                  **kwargs: Any):
         """
         :param robot: Jiminy.Model to display.
-        :param use_theoretical_model: Whether to use the theoretical (rigid)
-                                      model or the actual (flexible) model of
-                                      this robot. Note that using the actual
-                                      model is more efficient since update of
-                                      the frames placements can be skipped.
+        :param use_theoretical_model: Whether to use the theoretical rigid or
+                                      extended simulation model of this robot.
+                                      Note that using the extended model if
+                                      possible is more efficient since update
+                                      of the frames placements can be skipped
+                                      as it is already synchronized with the
+                                      simulation state.
                                       Optional: Actual model by default.
         :param robot_color: Color of the robot. It will override the original
                             color of the meshes if not `None`. It supports both
@@ -1055,8 +1057,7 @@ class Viewer:
         return Viewer._backend_proc is not None and \
             Viewer._backend_proc.is_alive()
 
-    def is_open(
-            self: Optional[Union["Viewer", Type["Viewer"]]] = None) -> bool:
+    def is_open(self: Optional["Viewer"] = None) -> bool:
         """Check if a given viewer instance is open, or if the backend server
         is running if no instance is specified.
         """
@@ -1066,7 +1067,7 @@ class Viewer:
         return is_open_
 
     @_with_lock
-    def close(self: Optional[Union["Viewer", Type["Viewer"]]] = None) -> None:
+    def close(self: Optional["Viewer"] = None) -> None:
         """Close a given viewer instance, or all of them if no instance is
         specified.
 
@@ -1079,13 +1080,8 @@ class Viewer:
             than calling this method without specifying any viewer instance.
         """
         # pylint: disable=unsubscriptable-object
+
         if self is None:
-            self = Viewer  # pylint: disable=self-cls-assignment
-
-        # Assert for type checker
-        assert self is not None
-
-        if self is Viewer:
             # NEVER closing backend automatically if closing instances,
             # even for the parent. It will be closed at Python exit
             # automatically. One must call `Viewer.close` to do otherwise.
@@ -1159,8 +1155,8 @@ class Viewer:
                 except FileNotFoundError:
                     pass
 
-        # At this point, consider the viewer has been closed, no matter what
-        self.__is_open = False
+            # At this point, consider the viewer has been closed no matter what
+            self.__is_open = False
 
     @staticmethod
     @_with_lock
@@ -1469,8 +1465,7 @@ class Viewer:
 
     @_with_lock
     @_must_be_open
-    def set_camera_transform(self: Optional[
-                                 Union["Viewer", Type["Viewer"]]] = None,
+    def set_camera_transform(self: Optional["Viewer"] = None,
                              position: Optional[Tuple3FType] = None,
                              rotation: Optional[Tuple3FType] = None,
                              relative: Optional[Union[str, int]] = None,
@@ -1788,8 +1783,8 @@ class Viewer:
                      x_range: Tuple[float, float] = (-10.0, 10.0),
                      y_range: Tuple[float, float] = (-10.0, 10.0),
                      grid_unit:  Tuple[float, float] = (0.04, 0.04),
-                     simplify_meshes: bool = False,
-                     show_meshes: bool = False) -> None:
+                     simplify_mesh: bool = False,
+                     show_vertices: bool = False) -> None:
         """Display a custom ground profile as a height map or the original tile
         ground floor.
 
@@ -1797,12 +1792,23 @@ class Viewer:
                                with the ground profile. It renders a flat tile
                                ground if not specified.
                                Optional: None by default.
-        :param grid_size: X and Y dimension of the ground profile to render.
-                          Optional: 20m by default.
-        :param grid_unit: X and Y discretization step of the ground profile.
+        :param x_range: Tuple gathering min and max limits along x-axis for
+                        which the heightmap mesh associated with the ground
+                        profile will be procedurally generated.
+                        Optional: (-10.0, 10.0) by default.
+        :param y_range: Tuple gathering min and max limits along y-axis.
+                        Optional: (-10.0, 10.0) by default.
+        :param grid_unit: Tuple gathering X and Y discretization steps for the
+                          generation of the heightmap mesh.
                           Optional: 4cm by default.
-        :param show_meshes: Whether to highlight the meshes.
-                            Optional: disabled by default.
+        :param simplify_mesh: Whether the generated heightmap mesh should be
+                              decimated before final rendering. This option
+                              must be enabled for the ratio between grid size
+                              and unit is very large to avoid a prohibitive
+                              slowdown of the viewer.
+                              Optional: False by default
+        :param show_vertices: Whether to highlight the mesh vertices.
+                              Optional: disabled by default.
         """
         # pylint: disable=import-outside-toplevel
 
@@ -1815,7 +1821,7 @@ class Viewer:
         if ground_profile is not None:
             geom = discretize_heightmap(
                 ground_profile, *x_range, grid_unit[0], *y_range, grid_unit[1],
-                must_simplify=simplify_meshes)
+                must_simplify=simplify_mesh)
 
         # Render original flat tile ground if possible.
         # TODO: Improve this check using LocalAABB box geometry instead.
@@ -1830,7 +1836,7 @@ class Viewer:
             obj = None
             if geom is not None:
                 obj = convert_bvh_collision_geometry_to_primitive(geom)
-            Viewer._backend_obj.gui.update_floor(obj, show_meshes)
+            Viewer._backend_obj.gui.update_floor(obj, show_vertices)
         else:
             from .meshcat.meshcat_visualizer import (
                 update_floor as meshcat_update_floor)

@@ -68,16 +68,19 @@ namespace jiminy
         const Eigen::VectorXd & q,
         double tolAbs = Eigen::NumTraits<double>::dummy_precision());
 
-    void swapJoints(pinocchio::Model & model,
+    void swapJointIndices(pinocchio::Model & model,
                     pinocchio::JointIndex jointIndex1,
                     pinocchio::JointIndex jointIndex2);
 
-    void insertFlexibilityBeforeJointInModel(pinocchio::Model & model,
-                                             const std::string & childJointName,
-                                             const std::string & newJointName);
+    void addFlexibilityJointBeforeMechanicalJoint(pinocchio::Model & model,
+                                                  const std::string & childJointName,
+                                                  const std::string & newJointName);
 
-    void insertFlexibilityAtFixedFrameInModel(pinocchio::Model & model,
-                                              const std::string & frameName);
+    void addFlexibilityJointAtFixedFrame(pinocchio::Model & model, const std::string & frameName);
+
+    void addBacklashJointAfterMechanicalJoint(pinocchio::Model & model,
+                                              const std::string & parentJointName,
+                                              const std::string & newJointName);
 
     Eigen::MatrixXd JIMINY_DLLAPI interpolatePositions(const pinocchio::Model & model,
                                                        const Eigen::VectorXd & timesIn,

@@ -64,6 +64,70 @@ namespace jiminy
 #endif
     }
 
+    // ********************************* GenericConfig helpers ********************************* //
+
+    struct DeepUpdateVisitor : public boost::static_visitor<>
+    {
+        explicit DeepUpdateVisitor(bool strict) noexcept :
+        strict_{strict}
+        {
+        }
+
+        template<typename T1, typename T2>
+        std::enable_if_t<std::is_same_v<T1, T2> && std::is_same_v<T1, GenericConfig>, void>
+        operator()(T1 & dst, const T2 & src) const
+        {
+            deepUpdate(dst, src, strict_);
+        }
+
+        template<typename T1, typename T2>
+        std::enable_if_t<std::is_same_v<T1, T2> && !std::is_same_v<T1, GenericConfig>, void>
+        operator()(T1 & dst, const T2 & src) const
+        {
+            // Simply copy-assign source to destination
+            dst = src;
+        }
+
+        template<typename T1, typename T2>
+        [[noreturn]] std::enable_if_t<!std::is_same_v<T1, T2>, void>
+        operator()(T1 & /* dst */, const T2 & /* src */) const
+        {
+            JIMINY_THROW(std::invalid_argument,
+                         "Value type mismatch between source and destination.");
+        }
+
+    private:
+        bool strict_;
+    };
+
+    void deepUpdate(GenericConfig & dst, const GenericConfig & src, bool strict)
+    {
+        // Define visitor
+        auto visitor = DeepUpdateVisitor{strict};
+        auto visit = boost::apply_visitor(visitor);
+
+        // Loop over all top-level source items
+        for (const auto & [key, srcValue] : src)
+        {
+            // Get destination value
+            auto dstValueIt = dst.find(key);
+            if (dstValueIt == dst.end())
+            {
+                // Move to the next key if missing from destination and strict not enforced
+                if (!strict)
+                {
+                    continue;
+                }
+
+                // Throw missing key exception
+                JIMINY_THROW(std::invalid_argument, "Missing destination key '", key, "'.");
+            }
+
+            // Copy source to destination recursively
+            visit(dstValueIt->second, srcValue);
+        }
+    }
+
     // ********************************** Telemetry utilities ********************************** //
 
     bool endsWith(const std::string & str, const std::string & substr)
@@ -143,7 +207,7 @@ namespace jiminy
         auto fieldnameIt = std::find(firstFieldnameIt, logData.variableNames.end(), fieldname);
         if (fieldnameIt == logData.variableNames.end())
         {
-            THROW_ERROR(lookup_error, "Variable '", fieldname, "' does not exist.");
+            JIMINY_THROW(lookup_error, "Variable '", fieldname, "' does not exist.");
         }
         const int64_t varIndex = std::distance(firstFieldnameIt, fieldnameIt);
         const Eigen::Index numInt = logData.integerValues.rows();

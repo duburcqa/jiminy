@@ -39,9 +39,9 @@ TEST_P(ModelTestFixture, CreateFlexible)
     pinocchio::framesForwardKinematics(model->pinocchioModel_, pinocchioData, q);
 
     // Model is rigid, so configuration should not change
-    Eigen::VectorXd qflex;
-    model->getFlexiblePositionFromRigid(q, qflex);
-    ASSERT_TRUE(qflex.isApprox(q));
+    Eigen::VectorXd qExtended;
+    model->getExtendedPositionFromTheoretical(q, qExtended);
+    ASSERT_TRUE(qExtended.isApprox(q));
 
     auto visualData = pinocchio::GeometryData(model->visualModel_);
     pinocchio::updateGeometryPlacements(
@@ -61,12 +61,12 @@ TEST_P(ModelTestFixture, CreateFlexible)
     boost::get<FlexibilityConfig>(dynamicsOptions.at("flexibilityConfig")) = flexConfig;
     model->setOptions(options);
 
-    model->getFlexiblePositionFromRigid(q, qflex);
-    ASSERT_EQ(qflex.size(),
+    model->getExtendedPositionFromTheoretical(q, qExtended);
+    ASSERT_EQ(qExtended.size(),
               q.size() + Eigen::Quaterniond::Coefficients::RowsAtCompileTime * flexConfig.size());
 
     // Recompute frame, geometry and collision pose, and check that nothing has moved.
-    pinocchio::framesForwardKinematics(model->pinocchioModel_, model->pinocchioData_, qflex);
+    pinocchio::framesForwardKinematics(model->pinocchioModel_, model->pinocchioData_, qExtended);
     pinocchio::updateGeometryPlacements(
         model->pinocchioModel_, model->pinocchioData_, model->visualModel_, model->visualData_);
     pinocchio::updateGeometryPlacements(model->pinocchioModel_,
@@ -74,9 +74,9 @@ TEST_P(ModelTestFixture, CreateFlexible)
                                         model->collisionModel_,
                                         model->collisionData_);
 
-    for (uint32_t i = 0; i < model->pinocchioModelOrig_.frames.size(); i++)
+    for (uint32_t i = 0; i < model->pinocchioModelTh_.frames.size(); i++)
     {
-        const pinocchio::Frame & frame = model->pinocchioModelOrig_.frames[i];
+        const pinocchio::Frame & frame = model->pinocchioModelTh_.frames[i];
         const pinocchio::FrameIndex flexIndex = model->pinocchioModel_.getFrameId(frame.name);
         ASSERT_TRUE(pinocchioData.oMf[i].isApprox(model->pinocchioData_.oMf[flexIndex]));
     }

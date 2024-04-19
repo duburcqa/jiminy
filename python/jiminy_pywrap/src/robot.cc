@@ -59,6 +59,12 @@ namespace jiminy::python
 
     namespace internal::model
     {
+        static void removeFrames(Model & self, const bp::object & frameNamesPy)
+        {
+            auto frameNames = convertFromPython<std::vector<std::string>>(frameNamesPy);
+            return self.removeFrames(frameNames);
+        }
+
         static void addCollisionBodies(
             Model & self, const bp::object & linkNamesPy, bool ignoreMeshes)
         {
@@ -119,41 +125,41 @@ namespace jiminy::python
             return bp::make_tuple(J, gamma);
         }
 
-        static Eigen::VectorXd getFlexiblePositionFromRigid(Model & self,
-                                                            const Eigen::VectorXd & qRigid)
+        static Eigen::VectorXd getExtendedPositionFromTheoretical(
+            Model & self, const Eigen::VectorXd & qTheoretical)
         {
-            Eigen::VectorXd qFlexible;
-            self.getFlexiblePositionFromRigid(qRigid, qFlexible);
-            return qFlexible;
+            Eigen::VectorXd qExtended;
+            self.getExtendedPositionFromTheoretical(qTheoretical, qExtended);
+            return qExtended;
         }
 
-        static Eigen::VectorXd getFlexibleVelocityFromRigid(Model & self,
-                                                            const Eigen::VectorXd & vRigid)
+        static Eigen::VectorXd getExtendedVelocityFromTheoretical(
+            Model & self, const Eigen::VectorXd & vTheoretical)
         {
-            Eigen::VectorXd vFlexible;
-            self.getFlexibleVelocityFromRigid(vRigid, vFlexible);
-            return vFlexible;
+            Eigen::VectorXd vExtended;
+            self.getExtendedVelocityFromTheoretical(vTheoretical, vExtended);
+            return vExtended;
         }
 
-        static Eigen::VectorXd getRigidPositionFromFlexible(Model & self,
-                                                            const Eigen::VectorXd & qFlexible)
+        static Eigen::VectorXd getTheoreticalPositionFromExtended(
+            Model & self, const Eigen::VectorXd & qExtended)
         {
-            Eigen::VectorXd qRigid;
-            self.getRigidPositionFromFlexible(qFlexible, qRigid);
-            return qRigid;
+            Eigen::VectorXd qTheoretical;
+            self.getTheoreticalPositionFromExtended(qExtended, qTheoretical);
+            return qTheoretical;
         }
 
-        static Eigen::VectorXd getRigidVelocityFromFlexible(Model & self,
-                                                            const Eigen::VectorXd & vFlexible)
+        static Eigen::VectorXd getTheoreticalVelocityFromExtended(
+            Model & self, const Eigen::VectorXd & vExtended)
         {
-            Eigen::VectorXd vRigid;
-            self.getRigidVelocityFromFlexible(vFlexible, vRigid);
-            return vRigid;
+            Eigen::VectorXd vTheoretical;
+            self.getTheoreticalVelocityFromExtended(vExtended, vTheoretical);
+            return vTheoretical;
         }
 
-        static bool isFlexibleModelEnabled(Model & self)
+        static bool isFlexibilityEnabled(Model & self)
         {
-            return self.modelOptions_->dynamics.enableFlexibleModel;
+            return self.modelOptions_->dynamics.enableFlexibility;
         }
     }
 
@@ -180,14 +186,15 @@ namespace jiminy::python
                               (bp::arg("self"), "generator")))
 
             .def("set_options", &setOptions<Model>, (bp::arg("self"), "options"))
-            .def("get_options", &Model::getOptions)
+            .def("get_options", &Model::getOptions, bp::return_value_policy<bp::return_by_value>())
 
             .def("add_frame",
                  static_cast<void (Model::*)(
                      const std::string &, const std::string &, const pinocchio::SE3 &)>(
                      &Model::addFrame),
                  (bp::arg("self"), "frame_name", "parent_body_name", "frame_placement"))
-            .def("remove_frame", &Model::removeFrame, (bp::arg("self"), "frame_name"))
+            .def("remove_frames", &internal::model::removeFrames, (bp::arg("self"), "frame_names"))
+
             .def("add_collision_bodies",
                  &internal::model::addCollisionBodies,
                  (bp::arg("self"),
@@ -224,34 +231,34 @@ namespace jiminy::python
                  &internal::model::getConstraintsJacobianAndDrift)
             .def("compute_constraints", &Model::computeConstraints, (bp::arg("self"), "q", "v"))
 
-            .def("get_flexible_position_from_rigid",
-                 &internal::model::getFlexiblePositionFromRigid,
-                 (bp::arg("self"), "rigid_position"))
-            .def("get_flexible_velocity_from_rigid",
-                 &internal::model::getFlexibleVelocityFromRigid,
-                 (bp::arg("self"), "rigid_velocity"))
-            .def("get_rigid_position_from_flexible",
-                 &internal::model::getRigidPositionFromFlexible,
-                 (bp::arg("self"), "flexible_position"))
-            .def("get_rigid_velocity_from_flexible",
-                 &internal::model::getRigidVelocityFromFlexible,
-                 (bp::arg("self"), "flexible_velocity"))
+            .def("get_extended_position_from_theoretical",
+                 &internal::model::getExtendedPositionFromTheoretical,
+                 (bp::arg("self"), "mechanical_position"))
+            .def("get_extended_velocity_from_theoretical",
+                 &internal::model::getExtendedVelocityFromTheoretical,
+                 (bp::arg("self"), "mechanical_velocity"))
+            .def("get_theoretical_position_from_extended",
+                 &internal::model::getTheoreticalPositionFromExtended,
+                 (bp::arg("self"), "flexibility_position"))
+            .def("get_theoretical_velocity_from_extended",
+                 &internal::model::getTheoreticalVelocityFromExtended,
+                 (bp::arg("self"), "flexibility_velocity"))
 
             // FIXME: Disable automatic typing because typename returned by 'py_type_str' is
             // missing module prefix, which makes it impossible to distinguish 'pinocchio.Model'
             // from 'jiminy.Model' classes.
             .def_readonly("pinocchio_model_th",
-                          &Model::pinocchioModelOrig_,
+                          &Model::pinocchioModelTh_,
                           "fget( (Model)self) -> pinocchio.Model")
             .def_readonly("pinocchio_model",
                           &Model::pinocchioModel_,
                           "fget( (Model)self) -> pinocchio.Model")
-            .DEF_READONLY("collision_model_th", &Model::collisionModelOrig_)
+            .DEF_READONLY("collision_model_th", &Model::collisionModelTh_)
             .DEF_READONLY("collision_model", &Model::collisionModel_)
-            .DEF_READONLY("visual_model_th", &Model::visualModelOrig_)
+            .DEF_READONLY("visual_model_th", &Model::visualModelTh_)
             .DEF_READONLY("visual_model", &Model::visualModel_)
             .DEF_READONLY("visual_data", &Model::visualData_)
-            .DEF_READONLY("pinocchio_data_th", &Model::pinocchioDataOrig_)
+            .DEF_READONLY("pinocchio_data_th", &Model::pinocchioDataTh_)
             .DEF_READONLY("pinocchio_data", &Model::pinocchioData_)
             .DEF_READONLY("collision_data", &Model::collisionData_)
 
@@ -268,7 +275,7 @@ namespace jiminy::python
             .ADD_PROPERTY_GET_WITH_POLICY("has_freeflyer",
                                           &Model::getHasFreeflyer,
                                           bp::return_value_policy<bp::return_by_value>())
-            .ADD_PROPERTY_GET("is_flexible", &internal::model::isFlexibleModelEnabled)
+            .ADD_PROPERTY_GET("is_flexibility_enabled", &internal::model::isFlexibilityEnabled)
             .ADD_PROPERTY_GET_WITH_POLICY(
                 "nq", &Model::nq, bp::return_value_policy<bp::return_by_value>())
             .ADD_PROPERTY_GET_WITH_POLICY(
@@ -291,23 +298,29 @@ namespace jiminy::python
             .ADD_PROPERTY_GET_WITH_POLICY("contact_frame_indices",
                                           &Model::getContactFrameIndices,
                                           bp::return_value_policy<result_converter<true>>())
-            .ADD_PROPERTY_GET_WITH_POLICY("rigid_joint_names",
-                                          &Model::getRigidJointNames,
+            .ADD_PROPERTY_GET_WITH_POLICY("mechanical_joint_names",
+                                          &Model::getMechanicalJointNames,
                                           bp::return_value_policy<result_converter<true>>())
-            .ADD_PROPERTY_GET_WITH_POLICY("rigid_joint_indices",
-                                          &Model::getRigidJointIndices,
+            .ADD_PROPERTY_GET_WITH_POLICY("mechanical_joint_indices",
+                                          &Model::getMechanicalJointIndices,
                                           bp::return_value_policy<result_converter<true>>())
-            .ADD_PROPERTY_GET_WITH_POLICY("rigid_joint_position_indices",
-                                          &Model::getRigidJointPositionIndices,
+            .ADD_PROPERTY_GET_WITH_POLICY("mechanical_joint_position_indices",
+                                          &Model::getMechanicalJointPositionIndices,
                                           bp::return_value_policy<result_converter<true>>())
-            .ADD_PROPERTY_GET_WITH_POLICY("rigid_joint_velocity_indices",
-                                          &Model::getRigidJointVelocityIndices,
+            .ADD_PROPERTY_GET_WITH_POLICY("mechanical_joint_velocity_indices",
+                                          &Model::getMechanicalJointVelocityIndices,
                                           bp::return_value_policy<result_converter<true>>())
-            .ADD_PROPERTY_GET_WITH_POLICY("flexible_joint_names",
-                                          &Model::getFlexibleJointNames,
+            .ADD_PROPERTY_GET_WITH_POLICY("flexibility_joint_names",
+                                          &Model::getFlexibilityJointNames,
                                           bp::return_value_policy<result_converter<true>>())
-            .ADD_PROPERTY_GET_WITH_POLICY("flexible_joint_indices",
-                                          &Model::getFlexibleJointIndices,
+            .ADD_PROPERTY_GET_WITH_POLICY("flexibility_joint_indices",
+                                          &Model::getFlexibilityJointIndices,
+                                          bp::return_value_policy<result_converter<true>>())
+            .ADD_PROPERTY_GET_WITH_POLICY("backlash_joint_names",
+                                          &Model::getBacklashJointNames,
+                                          bp::return_value_policy<result_converter<true>>())
+            .ADD_PROPERTY_GET_WITH_POLICY("backlash_joint_indices",
+                                          &Model::getBacklashJointIndices,
                                           bp::return_value_policy<result_converter<true>>())
 
             .ADD_PROPERTY_GET_WITH_POLICY("position_limit_lower",
@@ -366,34 +379,6 @@ namespace jiminy::python
             convertFromPython(configPy, config);
             return self.setModelOptions(config);
         }
-
-        static void setMotorsOptions(Robot & self, const bp::dict & configPy)
-        {
-            GenericConfig config = self.getMotorsOptions();
-            convertFromPython(configPy, config);
-            return self.setMotorsOptions(config);
-        }
-
-        static void setSensorsOptions(Robot & self, const bp::dict & configPy)
-        {
-            GenericConfig config = self.getSensorsOptions();
-            convertFromPython(configPy, config);
-            return self.setSensorsOptions(config);
-        }
-
-        static void setControllerOptions(Robot & self, const bp::dict & configPy)
-        {
-            GenericConfig config = self.getControllerOptions();
-            convertFromPython(configPy, config);
-            return self.setControllerOptions(config);
-        }
-
-        static void setTelemetryOptions(Robot & self, const bp::dict & configPy)
-        {
-            GenericConfig config = self.getTelemetryOptions();
-            convertFromPython(configPy, config);
-            return self.setTelemetryOptions(config);
-        }
     }
 
     void exposeRobot()
@@ -420,15 +405,14 @@ namespace jiminy::python
             .ADD_PROPERTY_GET_WITH_POLICY(
                 "name", &Robot::getName, bp::return_value_policy<bp::return_by_value>())
 
-            .def("dump_options", &Robot::dumpOptions, (bp::arg("self"), "json_filename"))
-            .def("load_options", &Robot::loadOptions, (bp::arg("self"), "json_filename"))
-
             .def("attach_motor", &Robot::attachMotor, (bp::arg("self"), "motor"))
             .def("get_motor",
                  static_cast<std::shared_ptr<AbstractMotorBase> (Robot::*)(const std::string &)>(
                      &Robot::getMotor),
                  (bp::arg("self"), "motor_name"))
-            .def("detach_motor", &Robot::detachMotor, (bp::arg("self"), "joint_name"))
+            .def("detach_motor",
+                 static_cast<void (Robot::*)(const std::string &)>(&Robot::detachMotor),
+                 (bp::arg("self"), "joint_name"))
             .def("detach_motors",
                  &internal::robot::detachMotors,
                  (bp::arg("self"), bp::arg("joints_names") = bp::list()))
@@ -455,27 +439,13 @@ namespace jiminy::python
             .ADD_PROPERTY_GET("sensor_measurements", &internal::robot::getSensorMeasurements)
 
             .def("set_options", &setOptions<Robot>, (bp::arg("self"), "robot_options"))
-            .def("get_options", &Robot::getOptions)
+            .def("get_options", &Robot::getOptions, bp::return_value_policy<bp::return_by_value>())
             .def("set_model_options",
                  &internal::robot::setModelOptions,
                  (bp::arg("self"), "model_options"))
-            .def("get_model_options", &Robot::getModelOptions)
-            .def("set_motors_options",
-                 &internal::robot::setMotorsOptions,
-                 (bp::arg("self"), "motors_options"))
-            .def("get_motors_options", &Robot::getMotorsOptions)
-            .def("set_sensors_options",
-                 &internal::robot::setSensorsOptions,
-                 (bp::arg("self"), "sensors_options"))
-            .def("get_sensors_options", &Robot::getSensorsOptions)
-            .def("set_controller_options",
-                 &internal::robot::setControllerOptions,
-                 (bp::arg("self"), "controller_options"))
-            .def("get_controller_options", &Robot::getControllerOptions)
-            .def("set_telemetry_options",
-                 &internal::robot::setTelemetryOptions,
-                 (bp::arg("self"), "telemetry_options"))
-            .def("get_telemetry_options", &Robot::getTelemetryOptions)
+            .def("get_model_options",
+                 &Robot::getModelOptions,
+                 bp::return_value_policy<bp::return_by_value>())
 
             .ADD_PROPERTY_GET("nmotors", &Robot::nmotors)
             .ADD_PROPERTY_GET_WITH_POLICY("motor_names",

@@ -32,7 +32,7 @@ namespace jiminy::python
                 auto sensorDataIt = SensorMeasurementTreeByName.find(sensorName);
                 if (sensorDataIt == SensorMeasurementTreeByName.end())
                 {
-                    THROW_ERROR(std::runtime_error, "");
+                    JIMINY_THROW(std::runtime_error, "");
                 }
                 return sensorDataIt->value;
             }
@@ -273,7 +273,9 @@ namespace jiminy::python
                     const Eigen::MatrixBase<Eigen::VectorXd> &)>(&AbstractSensorBase::set))
 
             .def("set_options", &internal::abstract_sensor::setOptions)
-            .def("get_options", &AbstractSensorBase::getOptions)
+            .def("get_options",
+                 &AbstractSensorBase::getOptions,
+                 bp::return_value_policy<bp::return_by_value>())
 
             .def("__repr__", &internal::abstract_sensor::repr);
     }
@@ -291,7 +293,6 @@ namespace jiminy::python
             // clang-format off
             cl
                 .def_readonly("type", &DerivedSensor::type_)
-                .def_readonly("has_prefix", &DerivedSensor::areFieldnamesGrouped_)
                 .add_static_property("fieldnames", bp::make_getter(&DerivedSensor::fieldnames_,
                                                    bp::return_value_policy<result_converter<true>>()))
                 ;

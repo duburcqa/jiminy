@@ -9,6 +9,8 @@
 #include "jiminy/core/hardware/abstract_sensor.h"
 #include "jiminy/core/control/abstract_controller.h"
 #include "jiminy/core/control/controller_functor.h"
+#include "jiminy/core/constraints/abstract_constraint.h"
+#include "jiminy/core/constraints/joint_constraint.h"
 
 #include "jiminy/core/robot/robot.h"
 
@@ -19,6 +21,9 @@ namespace jiminy
     name_{name},
     motorSharedStorage_{std::make_shared<MotorSharedStorage>()}
     {
+        // Initialize options
+        robotOptionsGeneric_ = getDefaultRobotOptions();
+        setOptions(getOptions());
     }
 
     Robot::~Robot()
@@ -28,31 +33,15 @@ namespace jiminy
         detachMotors();
     }
 
-    std::shared_ptr<AbstractController> MakeDefaultController(const std::shared_ptr<Robot> & robot)
-    {
-        auto noop = [](double /* t */,
-                       const Eigen::VectorXd & /* q */,
-                       const Eigen::VectorXd & /* v */,
-                       const SensorMeasurementTree & /* sensorMeasurements */,
-                       Eigen::VectorXd & /* out */)
-        {
-            // Empty on purpose
-        };
-        std::shared_ptr<AbstractController> controller =
-            std::make_shared<FunctionalController<>>(noop, noop);
-        controller->initialize(robot);
-        return controller;
-    }
-
     template<typename... Args>
     static void initializeImpl(Robot & robot, Args... args)
     {
         // Make sure that no simulation is already running
         if (robot.getIsLocked())
         {
-            THROW_ERROR(bad_control_flow,
-                        "Robot already locked, probably because a simulation is running. "
-                        "Please stop it before calling 'initialize'.");
+            JIMINY_THROW(bad_control_flow,
+                         "Robot already locked, probably because a simulation is running. "
+                         "Please stop it before calling 'initialize'.");
         }
 
         // Detach all the motors and sensors
@@ -92,12 +81,18 @@ namespace jiminy
         // Reset telemetry flag
         isTelemetryConfigured_ = false;
 
+        // Make sure that the robot is initialized
+        if (!isInitialized_)
+        {
+            JIMINY_THROW(bad_control_flow, "Robot not initialized.");
+        }
+
         // Make sure that the robot is not locked
         if (getIsLocked())
         {
-            THROW_ERROR(bad_control_flow,
-                        "Robot already locked, probably because a simulation is running. "
-                        "Please stop it before calling 'reset'.");
+            JIMINY_THROW(bad_control_flow,
+                         "Robot already locked, probably because a simulation is running. "
+                         "Please stop it before calling 'reset'.");
         }
 
         // Reset model
@@ -126,7 +121,7 @@ namespace jiminy
     {
         if (!isInitialized_)
         {
-            THROW_ERROR(bad_control_flow, "Robot is initialized.");
+            JIMINY_THROW(bad_control_flow, "Robot is initialized.");
         }
 
         isTelemetryConfigured_ = false;
@@ -134,11 +129,13 @@ namespace jiminy
         try
         {
             // Configure hardware telemetry
+            const GenericConfig & telemetryOptions =
+                boost::get<GenericConfig>(robotOptionsGeneric_.at("telemetry"));
             for (const auto & [sensorType, sensorGroup] : sensors_)
             {
                 for (const auto & sensor : sensorGroup)
                 {
-                    if (telemetryOptions_[sensorType])
+                    if (boost::get<bool>(telemetryOptions.at(sensorType)))
                     {
                         sensor->configureTelemetry(telemetryData_, name_);
                     }
@@ -162,15 +159,15 @@ namespace jiminy
         // The robot must be initialized
         if (!isInitialized_)
         {
-            THROW_ERROR(bad_control_flow, "Robot not initialized.");
+            JIMINY_THROW(bad_control_flow, "Robot not initialized.");
         }
 
         // No simulation must be running
         if (getIsLocked())
         {
-            THROW_ERROR(bad_control_flow,
-                        "Robot already locked, probably because a simulation is running. "
-                        "Please stop it before adding motors.");
+            JIMINY_THROW(bad_control_flow,
+                         "Robot already locked, probably because a simulation is running. "
+                         "Please stop it before adding motors.");
         }
 
         const std::string & motorName = motor->getName();
@@ -180,33 +177,42 @@ namespace jiminy
                                     { return (elem->getName() == motorName); });
         if (motorIt != motors_.end())
         {
-            THROW_ERROR(std::logic_error,
-                        "Another motor with name '",
-                        motorName,
-                        "' is already attached.");
+            JIMINY_THROW(std::logic_error,
+                         "Another motor with name '",
+                         motorName,
+                         "' is already attached.");
         }
 
         // Define robot notification method, responsible for updating the robot if
         // necessary after changing the motor parameters, for example the armature.
-        auto notifyRobot =
-            [robot_ = std::weak_ptr<Robot>(shared_from_this())](AbstractMotorBase & motorIn)
+        auto notifyRobot = [robot_ = std::weak_ptr<Robot>(shared_from_this())](
+                               AbstractMotorBase & motorIn, bool hasChanged) mutable
         {
             // Make sure the robot still exists
             auto robot = robot_.lock();
             if (!robot)
             {
-                THROW_ERROR(std::runtime_error,
-                            "Robot has been deleted. Impossible to notify motor update.");
+                JIMINY_THROW(std::runtime_error,
+                             "Robot has been deleted. Impossible to notify motor update.");
             }
 
-            // Update rotor inertia and effort limit of pinocchio model
-            const Eigen::Index jointVelocityOrigIndex =
-                getJointVelocityFirstIndex(robot->pinocchioModelOrig_, motorIn.getJointName());
-            robot->pinocchioModel_.rotorInertia[motorIn.getJointVelocityIndex()] =
-                robot->pinocchioModelOrig_.rotorInertia[jointVelocityOrigIndex] +
-                motorIn.getArmature();
-            robot->pinocchioModel_.effortLimit[motorIn.getJointVelocityIndex()] =
-                motorIn.getCommandLimit();
+            /* Trigger extended model regeneration.
+               * The whole robot must be reset as joint and frame indices would be corrupted.
+               * Skip reset if nothing has changed from this motor point of view. This is necessary
+                 to prevent infinite recursive reset loop. */
+            if (hasChanged)
+            {
+                robot->reset(std::random_device{});
+            }
+
+            // Update rotor inertia
+            const std::string & mechanicaljointName = motorIn.getJointName();
+            std::string inertiaJointName = mechanicaljointName;
+            const Eigen::Index motorVelocityIndex = motorIn.getJointVelocityIndex();
+            robot->pinocchioModel_.rotorInertia[motorVelocityIndex] += motorIn.getArmature();
+
+            // Update effort limit
+            robot->pinocchioModel_.effortLimit[motorVelocityIndex] = motorIn.getCommandLimit();
         };
 
         // Attach the motor
@@ -219,52 +225,71 @@ namespace jiminy
         refreshMotorProxies();
     }
 
-    void Robot::detachMotor(const std::string & motorName)
+    void Robot::detachMotor(const std::string & motorName, bool triggerReset)
     {
         // The robot must be initialized
         if (!isInitialized_)
         {
-            THROW_ERROR(bad_control_flow, "Robot not initialized.");
+            JIMINY_THROW(bad_control_flow, "Robot not initialized.");
         }
 
         // No simulation must be running
         if (getIsLocked())
         {
-            THROW_ERROR(bad_control_flow,
-                        "Robot already locked, probably because a simulation is running. "
-                        "Please stop it before removing motors.");
+            JIMINY_THROW(bad_control_flow,
+                         "Robot already locked, probably because a simulation is running. "
+                         "Please stop it before removing motors.");
         }
 
-        auto motorIt = std::find_if(motors_.cbegin(),
-                                    motors_.cend(),
+        // Get motor if it exists
+        auto motorIt = std::find_if(motors_.begin(),
+                                    motors_.end(),
                                     [&motorName](const auto & elem)
                                     { return (elem->getName() == motorName); });
-        if (motorIt == motors_.cend())
+        if (motorIt == motors_.end())
         {
-            THROW_ERROR(std::logic_error, "No motor with name '", motorName, "' is attached.");
+            JIMINY_THROW(std::logic_error, "No motor with name '", motorName, "' is attached.");
         }
 
-        // Reset effortLimit and rotorInertia
-        const std::shared_ptr<AbstractMotorBase> & motor = *motorIt;
-        const Eigen::Index jointVelocityOrigIndex =
-            ::jiminy::getJointVelocityFirstIndex(pinocchioModelOrig_, motor->getJointName());
-        pinocchioModel_.rotorInertia[motor->getJointVelocityIndex()] =
-            pinocchioModelOrig_.rotorInertia[jointVelocityOrigIndex];
-        pinocchioModel_.effortLimit[motor->getJointVelocityIndex()] = 0.0;
-
-        // Detach the motor
-        motor->detach();
+        // Hold the motor alive before removing it
+        std::shared_ptr<AbstractMotorBase> motor = *motorIt;
 
         // Remove the motor from the holder
         motors_.erase(motorIt);
 
-        // Refresh the motors proxies
-        refreshMotorProxies();
+        // Detach the motor
+        motor->detach();
+
+        // Skip reset and refresh if postponed
+        if (triggerReset)
+        {
+            // Early return if the model has been deleted already
+            try
+            {
+                (void)shared_from_this();
+            }
+            catch (std::bad_weak_ptr & e)
+            {
+                return;
+            }
+
+            // Trigger extended model regeneration
+            reset(std::random_device{});
+
+            // Refresh the motors proxies
+            refreshMotorProxies();
+        }
     }
 
-    void Robot::detachMotors(std::vector<std::string> motorsNames)
+    void Robot::detachMotor(const std::string & motorName)
     {
-        if (motorsNames.empty())
+        // Detach motor
+        detachMotor(motorName, true);
+    }
+
+    void Robot::detachMotors(std::vector<std::string> motorNames)
+    {
+        if (motorNames.empty())
         {
             // Remove all sensors if none is specified
             if (!motorNames_.empty())
@@ -275,22 +300,25 @@ namespace jiminy
         else
         {
             // Make sure that no motor names are duplicates
-            if (checkDuplicates(motorsNames))
+            if (checkDuplicates(motorNames))
             {
-                THROW_ERROR(std::invalid_argument, "Duplicated motor names found.");
+                JIMINY_THROW(std::invalid_argument, "Duplicated motor names found.");
             }
 
             // Make sure that every motor name exist
-            if (!checkInclusion(motorNames_, motorsNames))
+            if (!checkInclusion(motorNames_, motorNames))
             {
-                THROW_ERROR(std::invalid_argument,
-                            "At least one of the motor names does not exist.");
+                JIMINY_THROW(std::invalid_argument,
+                             "At least one of the motor names does not exist.");
             }
 
-            // Detach motors one-by-one
-            for (const std::string & name : motorsNames)
+            /* Detach motors one-by-one, and reset proxies at the very end only.
+               Beware the motor names must be stored locally because the list
+               of motors will be updated in-place. */
+            const std::size_t nMotors = motorNames.size();
+            for (std::size_t i = 0; i < nMotors; ++i)
             {
-                detachMotor(name);
+                detachMotor(motorNames[i], i == (nMotors - 1));
             }
         }
     }
@@ -300,15 +328,15 @@ namespace jiminy
         // The robot must be initialized
         if (!isInitialized_)
         {
-            THROW_ERROR(bad_control_flow, "Robot not initialized.");
+            JIMINY_THROW(bad_control_flow, "Robot not initialized.");
         }
 
         // No simulation must be running
         if (getIsLocked())
         {
-            THROW_ERROR(bad_control_flow,
-                        "Robot already locked, probably because a simulation is running. "
-                        "Please stop it before removing motors.");
+            JIMINY_THROW(bad_control_flow,
+                         "Robot already locked, probably because a simulation is running. "
+                         "Please stop it before removing motors.");
         }
 
         // Attached sensors' names must be unique, even if their type is different.
@@ -324,16 +352,18 @@ namespace jiminy
                                          { return (elem->getName() == sensorName); });
             if (sensorIt != sensorGroupIt->second.end())
             {
-                THROW_ERROR(std::invalid_argument,
-                            "A sensor with the same type and name already exists.");
+                JIMINY_THROW(std::invalid_argument,
+                             "A sensor with the same type and name already exists.");
             }
         }
 
         // Create a new sensor data holder if necessary
+        GenericConfig & telemetryOptions =
+            boost::get<GenericConfig>(robotOptionsGeneric_.at("telemetry"));
         if (sensorGroupIt == sensors_.end())
         {
             sensorSharedStorageMap_.emplace(sensorType, std::make_shared<SensorSharedStorage>());
-            telemetryOptions_.emplace(sensorType, true);  // Enable telemetry by default
+            telemetryOptions[sensorType] = true;  // Enable telemetry by default
         }
 
         // Attach the sensor
@@ -351,25 +381,25 @@ namespace jiminy
         // The robot must be initialized
         if (!isInitialized_)
         {
-            THROW_ERROR(bad_control_flow, "Robot not initialized.");
+            JIMINY_THROW(bad_control_flow, "Robot not initialized.");
         }
 
         // No simulation must be running
         if (getIsLocked())
         {
-            THROW_ERROR(bad_control_flow,
-                        "Robot already locked, probably because a simulation is running. "
-                        "Please stop it before removing motors.");
+            JIMINY_THROW(bad_control_flow,
+                         "Robot already locked, probably because a simulation is running. "
+                         "Please stop it before removing motors.");
         }
 
         // FIXME: remove explicit conversion to `std::string` when moving to C++20
         auto sensorGroupIt = sensors_.find(std::string{sensorType});
         if (sensorGroupIt == sensors_.end())
         {
-            THROW_ERROR(std::invalid_argument,
-                        "None of the attached sensors has type '",
-                        sensorType,
-                        "'.");
+            JIMINY_THROW(std::invalid_argument,
+                         "None of the attached sensors has type '",
+                         sensorType,
+                         "'.");
         }
 
         SensorVector::iterator sensorIt;
@@ -379,12 +409,12 @@ namespace jiminy
                                 { return (elem->getName() == sensorName); });
         if (sensorIt == sensorGroupIt->second.end())
         {
-            THROW_ERROR(std::invalid_argument,
-                        "None of the attached sensors of type '",
-                        sensorType,
-                        "' has name '",
-                        sensorName,
-                        "'.");
+            JIMINY_THROW(std::invalid_argument,
+                         "None of the attached sensors of type '",
+                         sensorType,
+                         "' has name '",
+                         sensorName,
+                         "'.");
         }
 
         // Detach the sensor
@@ -394,11 +424,13 @@ namespace jiminy
         sensorGroupIt->second.erase(sensorIt);
 
         // Remove the sensor group if there is no more sensors left
+        GenericConfig & telemetryOptions =
+            boost::get<GenericConfig>(robotOptionsGeneric_.at("telemetry"));
         if (sensorGroupIt->second.empty())
         {
             sensors_.erase(sensorType);
             sensorSharedStorageMap_.erase(sensorType);
-            telemetryOptions_.erase(sensorType);
+            telemetryOptions.erase(sensorType);
         }
 
         // Refresh the sensors proxies
@@ -412,10 +444,10 @@ namespace jiminy
             auto sensorGroupIt = sensors_.find(sensorType);
             if (sensorGroupIt == sensors_.end())
             {
-                THROW_ERROR(std::invalid_argument,
-                            "None of the attached sensors has type '",
-                            sensorType,
-                            "'.");
+                JIMINY_THROW(std::invalid_argument,
+                             "None of the attached sensors has type '",
+                             sensorType,
+                             "'.");
             }
 
             std::vector<std::string> sensorGroupNames =
@@ -445,21 +477,30 @@ namespace jiminy
         // The robot must be initialized
         if (!isInitialized_)
         {
-            THROW_ERROR(bad_control_flow, "Robot not initialized.");
+            JIMINY_THROW(bad_control_flow, "Robot not initialized.");
         }
 
         // No simulation must be running
         if (getIsLocked())
         {
-            THROW_ERROR(bad_control_flow,
-                        "Robot already locked, probably because a simulation is running. "
-                        "Please stop it before removing motors.");
+            JIMINY_THROW(bad_control_flow,
+                         "Robot already locked, probably because a simulation is running. "
+                         "Please stop it before removing motors.");
         }
 
         // Reset controller to default if none was specified
         if (!controller)
         {
-            controller_ = MakeDefaultController(shared_from_this());
+            auto noop = [](double /* t */,
+                           const Eigen::VectorXd & /* q */,
+                           const Eigen::VectorXd & /* v */,
+                           const SensorMeasurementTree & /* sensorMeasurements */,
+                           Eigen::VectorXd & /* out */)
+            {
+                // Empty on purpose
+            };
+            controller_ = std::make_shared<FunctionalController<>>(noop, noop);
+            controller_->initialize(shared_from_this());
             return;
         }
 
@@ -496,7 +537,7 @@ namespace jiminy
     {
         if (!isInitialized_)
         {
-            THROW_ERROR(bad_control_flow, "Robot not initialized.");
+            JIMINY_THROW(bad_control_flow, "Robot not initialized.");
         }
 
         Model::refreshProxies();
@@ -508,7 +549,7 @@ namespace jiminy
     {
         if (!isInitialized_)
         {
-            THROW_ERROR(bad_control_flow, "Robot not initialized.");
+            JIMINY_THROW(bad_control_flow, "Robot not initialized.");
         }
 
         // Determine the number of motors
@@ -525,29 +566,27 @@ namespace jiminy
         // Generate the fieldnames associated with command
         logCommandFieldnames_.clear();
         logCommandFieldnames_.reserve(nmotors_);
-        std::transform(
-            motors_.begin(),
-            motors_.end(),
-            std::back_inserter(logCommandFieldnames_),
-            [](const auto & elem) -> std::string
-            { return addCircumfix(elem->getName(), toString(JOINT_PREFIX_BASE, "Command")); });
+        std::transform(motors_.begin(),
+                       motors_.end(),
+                       std::back_inserter(logCommandFieldnames_),
+                       [](const auto & elem) -> std::string
+                       { return toString(JOINT_PREFIX_BASE, "Command", elem->getName()); });
 
         // Generate the fieldnames associated with motor efforts
         logMotorEffortFieldnames_.clear();
         logMotorEffortFieldnames_.reserve(nmotors_);
-        std::transform(
-            motors_.begin(),
-            motors_.end(),
-            std::back_inserter(logMotorEffortFieldnames_),
-            [](const auto & elem) -> std::string
-            { return addCircumfix(elem->getName(), toString(JOINT_PREFIX_BASE, "Effort")); });
+        std::transform(motors_.begin(),
+                       motors_.end(),
+                       std::back_inserter(logMotorEffortFieldnames_),
+                       [](const auto & elem) -> std::string
+                       { return toString(JOINT_PREFIX_BASE, "Effort", elem->getName()); });
     }
 
     void Robot::refreshSensorProxies()
     {
         if (!isInitialized_)
         {
-            THROW_ERROR(bad_control_flow, "Robot not initialized.");
+            JIMINY_THROW(bad_control_flow, "Robot not initialized.");
         }
 
         // Extract the motor names
@@ -565,11 +604,61 @@ namespace jiminy
         }
     }
 
+    void Robot::initializeExtendedModel()
+    {
+        // Call base implementation
+        Model::initializeExtendedModel();
+
+        // Add backlash joint for each motor
+        for (const auto & motor : motors_)
+        {
+            // Extract some proxies
+            const std::string & jointName = motor->getJointName();
+            std::string backlashName = jointName;
+            backlashName += BACKLASH_JOINT_SUFFIX;
+
+            // Check if constraint a joint bounds constraint exist
+            const bool hasConstraint =
+                constraints_.exist(backlashName, ConstraintNodeType::BOUNDS_JOINTS);
+
+            // Skip adding joint if no backlash
+            const double backlash = motor->getBacklash();
+            if (backlash < EPS)
+            {
+                // Remove joint bounds constraint if any
+                if (hasConstraint)
+                {
+                    removeConstraint(backlashName, ConstraintNodeType::BOUNDS_JOINTS);
+                }
+
+                continue;
+            }
+
+            // Add joint bounds constraint if necessary
+            if (!hasConstraint)
+            {
+                std::shared_ptr<AbstractConstraintBase> constraint =
+                    std::make_shared<JointConstraint>(backlashName);
+                addConstraint(backlashName, constraint, ConstraintNodeType::BOUNDS_JOINTS);
+            }
+
+            // Add backlash joint to the model
+            addBacklashJointAfterMechanicalJoint(pinocchioModel_, jointName, backlashName);
+            backlashJointNames_.push_back(backlashName);
+
+            // Update position limits in model
+            const Eigen::Index positionIndex =
+                getJointPositionFirstIndex(pinocchioModel_, backlashName);
+            pinocchioModel_.lowerPositionLimit[positionIndex] = -backlash / 2.0;
+            pinocchioModel_.upperPositionLimit[positionIndex] = backlash / 2.0;
+        }
+    }
+
     std::shared_ptr<AbstractMotorBase> Robot::getMotor(const std::string & motorName)
     {
         if (!isInitialized_)
         {
-            THROW_ERROR(bad_control_flow, "Robot not initialized.");
+            JIMINY_THROW(bad_control_flow, "Robot not initialized.");
         }
 
         auto motorIt = std::find_if(motors_.begin(),
@@ -578,7 +667,7 @@ namespace jiminy
                                     { return (elem->getName() == motorName); });
         if (motorIt == motors_.end())
         {
-            THROW_ERROR(
+            JIMINY_THROW(
                 std::invalid_argument, "None of the attached motors has name '", motorName, "'.");
         }
         return *motorIt;
@@ -588,7 +677,7 @@ namespace jiminy
     {
         if (!isInitialized_)
         {
-            THROW_ERROR(bad_control_flow, "Robot not initialized.");
+            JIMINY_THROW(bad_control_flow, "Robot not initialized.");
         }
 
         auto motorIt = std::find_if(motors_.begin(),
@@ -597,7 +686,7 @@ namespace jiminy
                                     { return (elem->getName() == motorName); });
         if (motorIt == motors_.end())
         {
-            THROW_ERROR(
+            JIMINY_THROW(
                 std::invalid_argument, "None of the attached motors has name '", motorName, "'.");
         }
         return std::const_pointer_cast<const AbstractMotorBase>(*motorIt);
@@ -613,16 +702,16 @@ namespace jiminy
     {
         if (!isInitialized_)
         {
-            THROW_ERROR(bad_control_flow, "Robot not initialized.");
+            JIMINY_THROW(bad_control_flow, "Robot not initialized.");
         }
 
         auto sensorGroupIt = sensors_.find(sensorType);
         if (sensorGroupIt == sensors_.end())
         {
-            THROW_ERROR(std::invalid_argument,
-                        "None of the attached sensors has type '",
-                        sensorType,
-                        "'.");
+            JIMINY_THROW(std::invalid_argument,
+                         "None of the attached sensors has type '",
+                         sensorType,
+                         "'.");
         }
 
         auto sensorIt = std::find_if(sensorGroupIt->second.begin(),
@@ -631,12 +720,12 @@ namespace jiminy
                                      { return (elem->getName() == sensorName); });
         if (sensorIt == sensorGroupIt->second.end())
         {
-            THROW_ERROR(std::invalid_argument,
-                        "None of the attached sensors of type '",
-                        sensorType,
-                        "' has name '",
-                        sensorName,
-                        "'.");
+            JIMINY_THROW(std::invalid_argument,
+                         "None of the attached sensors of type '",
+                         sensorType,
+                         "' has name '",
+                         sensorName,
+                         "'.");
         }
 
         return *sensorIt;
@@ -647,16 +736,16 @@ namespace jiminy
     {
         if (!isInitialized_)
         {
-            THROW_ERROR(bad_control_flow, "Robot not initialized.");
+            JIMINY_THROW(bad_control_flow, "Robot not initialized.");
         }
 
         auto sensorGroupIt = sensors_.find(sensorType);
         if (sensorGroupIt == sensors_.end())
         {
-            THROW_ERROR(std::invalid_argument,
-                        "None of the attached sensors has type '",
-                        sensorType,
-                        "'.");
+            JIMINY_THROW(std::invalid_argument,
+                         "None of the attached sensors has type '",
+                         sensorType,
+                         "'.");
         }
 
         auto sensorIt = std::find_if(sensorGroupIt->second.begin(),
@@ -665,12 +754,12 @@ namespace jiminy
                                      { return (elem->getName() == sensorName); });
         if (sensorIt == sensorGroupIt->second.end())
         {
-            THROW_ERROR(std::invalid_argument,
-                        "None of the attached sensors of type '",
-                        sensorType,
-                        "' has name '",
-                        sensorName,
-                        "'.");
+            JIMINY_THROW(std::invalid_argument,
+                         "None of the attached sensors of type '",
+                         sensorType,
+                         "' has name '",
+                         sensorName,
+                         "'.");
         }
 
         return std::const_pointer_cast<const AbstractSensorBase>(*sensorIt);
@@ -683,137 +772,42 @@ namespace jiminy
 
     void Robot::setOptions(const GenericConfig & robotOptions)
     {
-        // Set model options
-        GenericConfig::const_iterator modelOptionsIt;
-        modelOptionsIt = robotOptions.find("model");
-        if (modelOptionsIt == robotOptions.end())
+        // Make sure that no simulation is running
+        if (getIsLocked())
         {
-            THROW_ERROR(std::invalid_argument, "'model' options are missing.");
+            JIMINY_THROW(bad_control_flow,
+                         "Robot already locked, probably because a simulation is running. "
+                         "Please stop it setting options.");
         }
 
-        const GenericConfig & modelOptions = boost::get<GenericConfig>(modelOptionsIt->second);
+        // Set base model options
+        const GenericConfig & modelOptions = boost::get<GenericConfig>(robotOptions.at("model"));
         setModelOptions(modelOptions);
 
-        // Set motors options
-        GenericConfig::const_iterator motorsOptionsIt;
-        motorsOptionsIt = robotOptions.find("motors");
-        if (motorsOptionsIt == robotOptions.end())
-        {
-            THROW_ERROR(std::invalid_argument, "'motors' options are missing.");
-        }
-
-        const GenericConfig & motorsOptions = boost::get<GenericConfig>(motorsOptionsIt->second);
-        setMotorsOptions(motorsOptions);
-
-        // Set sensor options
-        GenericConfig::const_iterator sensorOptionsIt = robotOptions.find("sensors");
-        if (sensorOptionsIt == robotOptions.end())
-        {
-            THROW_ERROR(std::invalid_argument, "'sensors' options are missing.");
-        }
-
-        const GenericConfig & sensorOptions = boost::get<GenericConfig>(sensorOptionsIt->second);
-        setSensorsOptions(sensorOptions);
-
-        // Set controller options
-        GenericConfig::const_iterator controllerOptionsIt;
-        controllerOptionsIt = robotOptions.find("controller");
-        if (controllerOptionsIt == robotOptions.end())
-        {
-            THROW_ERROR(std::invalid_argument, "'model' options are missing.");
-        }
-
-        const GenericConfig & controllerOptions =
-            boost::get<GenericConfig>(controllerOptionsIt->second);
-        setControllerOptions(controllerOptions);
-
-        // Set telemetry options
-        GenericConfig::const_iterator telemetryOptionsIt = robotOptions.find("telemetry");
-        if (telemetryOptionsIt == robotOptions.end())
-        {
-            THROW_ERROR(std::invalid_argument, "'telemetry' options are missing.");
-        }
-
-        const GenericConfig & telemetryOptions =
-            boost::get<GenericConfig>(telemetryOptionsIt->second);
-        setTelemetryOptions(telemetryOptions);
-    }
-
-    GenericConfig Robot::getOptions() const noexcept
-    {
-        GenericConfig robotOptions;
-        robotOptions["model"] = getModelOptions();
-        GenericConfig motorsOptions;
-        robotOptions["motors"] = getMotorsOptions();
-        GenericConfig sensorOptions;
-        robotOptions["sensors"] = getSensorsOptions();
-        GenericConfig controllerOptions;
-        robotOptions["controller"] = getControllerOptions();
-        GenericConfig telemetryOptions;
-        robotOptions["telemetry"] = getTelemetryOptions();
-        return robotOptions;
-    }
-
-    void Robot::setModelOptions(const GenericConfig & modelOptions)
-    {
-        if (getIsLocked())
-        {
-            THROW_ERROR(bad_control_flow,
-                        "Robot already locked, probably because a simulation is running. "
-                        "Please stop it before removing motors.");
-        }
-
-        return Model::setOptions(modelOptions);
-    }
-
-    GenericConfig Robot::getModelOptions() const
-    {
-        return Model::getOptions();
-    }
-
-    void Robot::setMotorsOptions(const GenericConfig & motorsOptions)
-    {
-        if (getIsLocked())
-        {
-            THROW_ERROR(bad_control_flow,
-                        "Robot already locked, probably because a simulation is running. "
-                        "Please stop it before removing motors.");
-        }
-
+        // Set motor options
+        bool areMotorsOptionsShared{true};
+        const GenericConfig & motorsOptions = boost::get<GenericConfig>(robotOptions.at("motors"));
         for (const auto & motor : motors_)
         {
-            auto motorOptionIt = motorsOptions.find(motor->getName());
-            if (motorOptionIt != motorsOptions.end())
+            auto motorOptionsIt = motorsOptions.find(motor->getName());
+            if (motorOptionsIt == motorsOptions.end())
             {
-                motor->setOptions(boost::get<GenericConfig>(motorOptionIt->second));
+                if (areMotorsOptionsShared)
+                {
+                    motor->setOptionsAll(motorsOptions);
+                    break;
+                }
             }
             else
             {
-                motor->setOptionsAll(motorsOptions);
-                break;
+                motor->setOptions(boost::get<GenericConfig>(motorOptionsIt->second));
+                areMotorsOptionsShared = false;
             }
         }
-    }
 
-    GenericConfig Robot::getMotorsOptions() const
-    {
-        GenericConfig motorsOptions;
-        for (const auto & motor : motors_)
-        {
-            motorsOptions[motor->getName()] = motor->getOptions();
-        }
-        return motorsOptions;
-    }
-
-    void Robot::setSensorsOptions(const GenericConfig & sensorsOptions)
-    {
-        if (getIsLocked())
-        {
-            THROW_ERROR(bad_control_flow,
-                        "Robot already locked, probably because a simulation is running. "
-                        "Please stop it before removing motors.");
-        }
-
+        // Set sensor options
+        const GenericConfig & sensorsOptions =
+            boost::get<GenericConfig>(robotOptions.at("sensors"));
         for (const auto & [sensorType, sensorGroup] : sensors_)
         {
             // FIXME: remove explicit conversion to `std::string` when moving to C++20
@@ -822,11 +816,9 @@ namespace jiminy
             {
                 const GenericConfig & sensorGroupOptions =
                     boost::get<GenericConfig>(sensorGroupOptionsIt->second);
-
                 for (const auto & sensor : sensorGroup)
                 {
                     const std::string & sensorName = sensor->getName();
-
                     auto sensorOptionsIt = sensorGroupOptions.find(sensorName);
                     if (sensorOptionsIt != sensorGroupOptions.end())
                     {
@@ -834,28 +826,60 @@ namespace jiminy
                     }
                     else
                     {
-                        THROW_ERROR(std::invalid_argument,
-                                    "None of the attached sensors of type '",
-                                    sensorType,
-                                    "' has name '",
-                                    sensorName,
-                                    "'.");
+                        JIMINY_THROW(std::invalid_argument,
+                                     "None of the attached sensors of type '",
+                                     sensorType,
+                                     "' has name '",
+                                     sensorName,
+                                     "'.");
                     }
                 }
             }
             else
             {
-                THROW_ERROR(std::invalid_argument,
-                            "None of the attached sensors has type '",
-                            sensorType,
-                            "'.");
+                JIMINY_THROW(std::invalid_argument,
+                             "None of the attached sensors has type '",
+                             sensorType,
+                             "'.");
             }
         }
+
+        // Set controller options if any
+        if (controller_)
+        {
+            const GenericConfig & controllerOptions =
+                boost::get<GenericConfig>(robotOptions.at("controller"));
+            controller_->setOptions(controllerOptions);
+        }
+
+        // Update inherited polymorphic accessor
+        deepUpdate(robotOptionsGeneric_, robotOptions);
     }
 
-    GenericConfig Robot::getSensorsOptions() const
+    const GenericConfig & Robot::getOptions() const noexcept
     {
-        GenericConfig sensorsOptions;
+        /* Return options without refreshing all options if and only if the robot has not been
+           unlock since the last time they were considered valid. */
+        if (areRobotOptionsRefreshed_ && getIsLocked())
+        {
+            return robotOptionsGeneric_;
+        }
+
+        // Refresh model options
+        robotOptionsGeneric_["model"] = getModelOptions();
+
+        // Refresh motors options
+        GenericConfig & motorsOptions = boost::get<GenericConfig>(robotOptionsGeneric_["motors"]);
+        motorsOptions.clear();
+        for (const auto & motor : motors_)
+        {
+            motorsOptions[motor->getName()] = motor->getOptions();
+        }
+
+        // Refresh sensor options
+        GenericConfig & sensorsOptions =
+            boost::get<GenericConfig>(robotOptionsGeneric_["sensors"]);
+        sensorsOptions.clear();
         for (const auto & [sensorType, sensorGroup] : sensors_)
         {
             GenericConfig sensorGroupOptions;
@@ -865,71 +889,29 @@ namespace jiminy
             }
             sensorsOptions[sensorType] = sensorGroupOptions;
         }
-        return sensorsOptions;
-    }
 
-    void Robot::setControllerOptions(const GenericConfig & controllerOptions)
-    {
-        if (getIsLocked())
+        // Refresh controller options
+        GenericConfig & controllerOptions =
+            boost::get<GenericConfig>(robotOptionsGeneric_["controller"]);
+        controllerOptions.clear();
+        if (controller_)
         {
-            THROW_ERROR(bad_control_flow,
-                        "Robot already locked, probably because a simulation is running. "
-                        "Please stop it before removing motors.");
+            controllerOptions = controller_->getOptions();
         }
 
-        return controller_->setOptions(controllerOptions);
+        // Options are now considered "valid"
+        areRobotOptionsRefreshed_ = true;
+
+        return robotOptionsGeneric_;
     }
 
-    GenericConfig Robot::getControllerOptions() const
+    void Robot::setModelOptions(const GenericConfig & modelOptions)
     {
-        return controller_->getOptions();
+        Model::setOptions(modelOptions);
     }
-
-    void Robot::setTelemetryOptions(const GenericConfig & telemetryOptions)
+    const GenericConfig & Robot::getModelOptions() const noexcept
     {
-        if (getIsLocked())
-        {
-            THROW_ERROR(bad_control_flow,
-                        "Robot already locked, probably because a simulation is running. "
-                        "Please stop it before removing motors.");
-        }
-
-        for (auto & [sensorType, sensorGroupTelemetryOption] : telemetryOptions_)
-        {
-            const std::string optionTelemetryName = toString("enable", sensorType, "s");
-            auto sensorTelemetryOptionIt = telemetryOptions.find(optionTelemetryName);
-            if (sensorTelemetryOptionIt == telemetryOptions.end())
-            {
-                THROW_ERROR(std::invalid_argument, "Missing field '", optionTelemetryName, "'.");
-            }
-            sensorGroupTelemetryOption = boost::get<bool>(sensorTelemetryOptionIt->second);
-        }
-    }
-
-    GenericConfig Robot::getTelemetryOptions() const
-    {
-        GenericConfig telemetryOptions;
-        for (const auto & [sensorType, sensorGroupTelemetryOption] : telemetryOptions_)
-        {
-            const std::string optionTelemetryName = toString("enable", sensorType, "s");
-            telemetryOptions[optionTelemetryName] = sensorGroupTelemetryOption;
-        }
-        return telemetryOptions;
-    }
-
-    void Robot::dumpOptions(const std::string & filepath) const
-    {
-        std::shared_ptr<AbstractIODevice> device = std::make_shared<FileDevice>(filepath);
-        return jsonDump(getOptions(), device);
-    }
-
-    void Robot::loadOptions(const std::string & filepath)
-    {
-        std::shared_ptr<AbstractIODevice> device = std::make_shared<FileDevice>(filepath);
-        GenericConfig robotOptions;
-        jsonLoad(robotOptions, device);
-
-        setOptions(robotOptions);
+        return Model::getOptions();
     }
 
     bool Robot::getIsTelemetryConfigured() const
@@ -965,7 +947,7 @@ namespace jiminy
     {
         if (!isInitialized_)
         {
-            THROW_ERROR(bad_control_flow, "Robot not initialized.");
+            JIMINY_THROW(bad_control_flow, "Robot not initialized.");
         }
 
         auto motorIt = std::find_if(motors_.begin(),
@@ -974,7 +956,7 @@ namespace jiminy
                                     { return (elem->getName() == motorName); });
         if (motorIt == motors_.end())
         {
-            THROW_ERROR(
+            JIMINY_THROW(
                 std::logic_error, "No motor with name '", motorName, "' attached to the robot.");
         }
 
@@ -990,7 +972,7 @@ namespace jiminy
     {
         if (!isInitialized_)
         {
-            THROW_ERROR(bad_control_flow, "Robot not initialized.");
+            JIMINY_THROW(bad_control_flow, "Robot not initialized.");
         }
 
         for (const auto & sensorGroupItem : sensors_)
@@ -1006,7 +988,7 @@ namespace jiminy
     {
         if (!isInitialized_)
         {
-            THROW_ERROR(bad_control_flow, "Robot not initialized.");
+            JIMINY_THROW(bad_control_flow, "Robot not initialized.");
         }
 
         SensorMeasurementTree data;
@@ -1032,13 +1014,13 @@ namespace jiminy
     {
         if (!isInitialized_)
         {
-            THROW_ERROR(bad_control_flow, "Robot not initialized.");
+            JIMINY_THROW(bad_control_flow, "Robot not initialized.");
         }
 
         auto sensorGroupIt = sensors_.find(sensorType);
         if (sensorGroupIt == sensors_.end())
         {
-            THROW_ERROR(
+            JIMINY_THROW(
                 std::logic_error, "No sensor of type '", sensorType, "' attached to the robot.");
         }
 
@@ -1048,12 +1030,12 @@ namespace jiminy
                                      { return (elem->getName() == sensorName); });
         if (sensorIt == sensorGroupIt->second.end())
         {
-            THROW_ERROR(std::logic_error,
-                        "No sensor of type '",
-                        sensorType,
-                        "' with name '",
-                        sensorName,
-                        "' attached to the robot.");
+            JIMINY_THROW(std::logic_error,
+                         "No sensor of type '",
+                         sensorType,
+                         "' with name '",
+                         sensorName,
+                         "' attached to the robot.");
         }
 
         return (*sensorIt)->get();
@@ -1076,12 +1058,18 @@ namespace jiminy
 
     std::unique_ptr<LockGuardLocal> Robot::getLock()
     {
+        // Make sure that the robot is not already locked
         if (mutexLocal_->isLocked())
         {
-            THROW_ERROR(bad_control_flow,
-                        "Robot already locked. Please release it first prior requesting lock.");
+            JIMINY_THROW(bad_control_flow,
+                         "Robot already locked. Please release it first prior requesting lock.");
         }
 
+        // Make sure that the options are not already considered valid as it was impossible to
+        // guarantee it before locking the robot.
+        areRobotOptionsRefreshed_ = false;
+
+        // Return lock
         return std::make_unique<LockGuardLocal>(*mutexLocal_);
     }
 

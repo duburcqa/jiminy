@@ -109,7 +109,7 @@ namespace jiminy
     {
         if (!robot.getIsInitialized())
         {
-            THROW_ERROR(bad_control_flow, "Robot not initialized.");
+            JIMINY_THROW(bad_control_flow, "Robot not initialized.");
         }
 
         Eigen::Index nv = robot.nv();
@@ -157,7 +157,8 @@ namespace jiminy
     telemetryRecorder_{std::make_unique<TelemetryRecorder>()}
     {
         // Initialize the configuration options to the default.
-        setOptions(getDefaultEngineOptions());
+        simulationOptionsGeneric_["engine"] = getDefaultEngineOptions();
+        setOptions(getOptions());
     }
 
     // ************************************ Engine *********************************** //
@@ -170,18 +171,18 @@ namespace jiminy
         // Make sure that no simulation is running
         if (isSimulationRunning_)
         {
-            THROW_ERROR(bad_control_flow,
-                        "Simulation already running. Stop it before adding new robot.");
+            JIMINY_THROW(bad_control_flow,
+                         "Simulation already running. Stop it before adding new robot.");
         }
 
         if (!robotIn)
         {
-            THROW_ERROR(std::invalid_argument, "No robot specified.");
+            JIMINY_THROW(std::invalid_argument, "No robot specified.");
         }
 
         if (!robotIn->getIsInitialized())
         {
-            THROW_ERROR(bad_control_flow, "Robot not initialized.");
+            JIMINY_THROW(bad_control_flow, "Robot not initialized.");
         }
 
         /* All the robots must have a unique name. The latter will be used as prefix of telemetry
@@ -189,11 +190,14 @@ namespace jiminy
            engine is allowed to have no name. In such a case, no prefix will be added to telemetry
            variables for this specific robot. This does not prevent adding other robots with
            qualified names later on. This branching adds complexity internally, but simplifies
-           single-robot simulation for the end-user, which is by far the most common use-case. */
+           single-robot simulation for the end-user, which is by far the most common use-case.
+           Similarly, the name 'robot' is reserved for the first robot only. */
         const std::string & robotName = robotIn->getName();
-        if (!robots_.empty() && robotName == "")
+        if (!robots_.empty() && (robotName == "" || robotName == "robot"))
         {
-            THROW_ERROR(std::invalid_argument, "All robots but the first one must have a name.");
+            JIMINY_THROW(std::invalid_argument,
+                         "All robots, except the first, must have a non-empty name other than "
+                         "'robot'.");
         }
 
         // Check if a robot with the same name already exists
@@ -203,10 +207,10 @@ namespace jiminy
                                     { return (robot->getName() == robotName); });
         if (robotIt != robots_.end())
         {
-            THROW_ERROR(std::invalid_argument,
-                        "Robot with name '",
-                        robotName,
-                        "' already added to the engine.");
+            JIMINY_THROW(std::invalid_argument,
+                         "Robot with name '",
+                         robotName,
+                         "' already added to the engine.");
         }
 
         robots_.push_back(std::move(robotIn));
@@ -218,8 +222,8 @@ namespace jiminy
         // Make sure that no simulation is running
         if (isSimulationRunning_)
         {
-            THROW_ERROR(bad_control_flow,
-                        "Simulation already running. Stop it before removing a robot.");
+            JIMINY_THROW(bad_control_flow,
+                         "Simulation already running. Stop it before removing a robot.");
         }
 
         /* Remove every coupling forces involving the robot.
@@ -245,6 +249,14 @@ namespace jiminy
         // Remove the robot from the list
         robots_.erase(robots_.begin() + robotIndex);
         robotDataVec_.erase(robotDataVec_.begin() + robotIndex);
+
+        // Remove robot from generic options
+        std::string robotOptionsKey = robotName;
+        if (robotOptionsKey.empty())
+        {
+            robotOptionsKey = "robot";
+        }
+        simulationOptionsGeneric_.erase(robotOptionsKey);
     }
 
     void Engine::registerCouplingForce(const std::string & robotName1,
@@ -256,8 +268,8 @@ namespace jiminy
         // Make sure that no simulation is running
         if (isSimulationRunning_)
         {
-            THROW_ERROR(bad_control_flow,
-                        "Simulation already running. Stop it before adding coupling forces.");
+            JIMINY_THROW(bad_control_flow,
+                         "Simulation already running. Stop it before adding coupling forces.");
         }
 
         // Get robot and frame indices
@@ -271,8 +283,8 @@ namespace jiminy
         // Make sure it is not coupling the exact same frame
         if (robotIndex1 == robotIndex2 && frameIndex1 == frameIndex2)
         {
-            THROW_ERROR(std::invalid_argument,
-                        "A coupling force must involve two different frames.");
+            JIMINY_THROW(std::invalid_argument,
+                         "A coupling force must involve two different frames.");
         }
 
         couplingForces_.emplace_back(robotName1,
@@ -297,8 +309,8 @@ namespace jiminy
         // Make sure that the input arguments are valid
         if ((stiffness.array() < 0.0).any() || (damping.array() < 0.0).any())
         {
-            THROW_ERROR(std::invalid_argument,
-                        "Stiffness and damping parameters must be positive.");
+            JIMINY_THROW(std::invalid_argument,
+                         "Stiffness and damping parameters must be positive.");
         }
 
         // Get robot and frame indices
@@ -347,9 +359,9 @@ namespace jiminy
             rotLog12 = pinocchio::log3(rot12, angle);
             if (angle > 0.95 * M_PI)
             {
-                THROW_ERROR(std::runtime_error,
-                            "Relative angle between reference frames of viscoelastic "
-                            "coupling must be smaller than 0.95 * pi.");
+                JIMINY_THROW(std::runtime_error,
+                             "Relative angle between reference frames of viscoelastic "
+                             "coupling must be smaller than 0.95 * pi.");
             }
             pinocchio::Jlog3(angle, rotLog12, rotJLog12);
             fAng = stiffness.tail<3>().array() * rotLog12.array();
@@ -411,8 +423,8 @@ namespace jiminy
         // Make sure that the input arguments are valid
         if (stiffness < 0.0 || damping < 0.0)
         {
-            THROW_ERROR(std::invalid_argument,
-                        "The stiffness and damping parameters must be positive.");
+            JIMINY_THROW(std::invalid_argument,
+                         "The stiffness and damping parameters must be positive.");
         }
 
         // Get robot and frame indices
@@ -487,8 +499,8 @@ namespace jiminy
         // Make sure that no simulation is running
         if (isSimulationRunning_)
         {
-            THROW_ERROR(bad_control_flow,
-                        "Simulation already running. Stop it before removing coupling forces.");
+            JIMINY_THROW(bad_control_flow,
+                         "Simulation already running. Stop it before removing coupling forces.");
         }
 
         // Make sure that the robots exist
@@ -510,8 +522,8 @@ namespace jiminy
         // Make sure that no simulation is running
         if (isSimulationRunning_)
         {
-            THROW_ERROR(bad_control_flow,
-                        "Simulation already running. Stop it before removing coupling forces.");
+            JIMINY_THROW(bad_control_flow,
+                         "Simulation already running. Stop it before removing coupling forces.");
         }
 
         // Make sure that the robot exists
@@ -532,8 +544,8 @@ namespace jiminy
         // Make sure that no simulation is running
         if (isSimulationRunning_)
         {
-            THROW_ERROR(bad_control_flow,
-                        "Simulation already running. Stop it before removing coupling forces.");
+            JIMINY_THROW(bad_control_flow,
+                         "Simulation already running. Stop it before removing coupling forces.");
         }
 
         couplingForces_.clear();
@@ -555,7 +567,7 @@ namespace jiminy
     {
         if (robots_.empty())
         {
-            THROW_ERROR(bad_control_flow, "No robot added to the engine.");
+            JIMINY_THROW(bad_control_flow, "No robot added to the engine.");
         }
 
         if (!isTelemetryConfigured_)
@@ -568,39 +580,42 @@ namespace jiminy
             auto energyIt = energy_.begin();
             for (; robotIt != robots_.end(); ++robotIt, ++robotDataIt, ++energyIt)
             {
+                // Define proxy for convenience
+                const std::string & robotName = (*robotIt)->getName();
+
                 // Generate the log fieldnames
                 robotDataIt->logPositionFieldnames =
                     addCircumfix((*robotIt)->getLogPositionFieldnames(),
-                                 (*robotIt)->getName(),
+                                 robotName,
                                  {},
                                  TELEMETRY_FIELDNAME_DELIMITER);
                 robotDataIt->logVelocityFieldnames =
                     addCircumfix((*robotIt)->getLogVelocityFieldnames(),
-                                 (*robotIt)->getName(),
+                                 robotName,
                                  {},
                                  TELEMETRY_FIELDNAME_DELIMITER);
                 robotDataIt->logAccelerationFieldnames =
                     addCircumfix((*robotIt)->getLogAccelerationFieldnames(),
-                                 (*robotIt)->getName(),
+                                 robotName,
                                  {},
                                  TELEMETRY_FIELDNAME_DELIMITER);
                 robotDataIt->logForceExternalFieldnames =
                     addCircumfix((*robotIt)->getLogForceExternalFieldnames(),
-                                 (*robotIt)->getName(),
+                                 robotName,
                                  {},
                                  TELEMETRY_FIELDNAME_DELIMITER);
                 robotDataIt->logCommandFieldnames =
                     addCircumfix((*robotIt)->getLogCommandFieldnames(),
-                                 (*robotIt)->getName(),
+                                 robotName,
                                  {},
                                  TELEMETRY_FIELDNAME_DELIMITER);
                 robotDataIt->logMotorEffortFieldnames =
                     addCircumfix((*robotIt)->getLogMotorEffortFieldnames(),
-                                 (*robotIt)->getName(),
+                                 robotName,
                                  {},
                                  TELEMETRY_FIELDNAME_DELIMITER);
-                robotDataIt->logEnergyFieldname = addCircumfix(
-                    "energy", (*robotIt)->getName(), {}, TELEMETRY_FIELDNAME_DELIMITER);
+                robotDataIt->logEnergyFieldname =
+                    addCircumfix("energy", robotName, {}, TELEMETRY_FIELDNAME_DELIMITER);
 
                 // Register variables to the telemetry senders
                 if (engineOptions_->telemetry.enableConfiguration)
@@ -890,6 +905,37 @@ namespace jiminy
         }
     }
 
+    template<typename T>
+    static std::string serialize(T && value)
+    {
+        if constexpr (std::is_same_v<std::string, std::decay_t<T>>)
+        {
+            return value;
+        }
+        else if constexpr (is_vector_v<T>)
+        {
+            std::ostringstream sstr;
+            const std::size_t size = value.size();
+            for (std::size_t i = 0; i < size; ++i)
+            {
+                serialize(value[i]);
+                if (i < size)
+                {
+                    sstr << ";";
+                }
+            }
+            return sstr.str();
+        }
+        else if constexpr (std::is_arithmetic_v<std::decay_t<T>>)
+        {
+            return toString(value);
+        }
+        else
+        {
+            return ::jiminy::saveToBinary(value);
+        }
+    }
+
     void Engine::start(const std::map<std::string, Eigen::VectorXd> & qInit,
                        const std::map<std::string, Eigen::VectorXd> & vInit,
                        const std::optional<std::map<std::string, Eigen::VectorXd>> & aInit)
@@ -897,20 +943,20 @@ namespace jiminy
         // Make sure that no simulation is running
         if (isSimulationRunning_)
         {
-            THROW_ERROR(bad_control_flow,
-                        "Simulation already running. Please stop it before starting a new one.");
+            JIMINY_THROW(bad_control_flow,
+                         "Simulation already running. Please stop it before starting a new one.");
         }
 
         if (robots_.empty())
         {
-            THROW_ERROR(bad_control_flow,
-                        "No robot to simulate. Please add one before starting a simulation.");
+            JIMINY_THROW(bad_control_flow,
+                         "No robot to simulate. Please add one before starting a simulation.");
         }
 
         const std::size_t nRobots = robots_.size();
         if (qInit.size() != nRobots || vInit.size() != nRobots)
         {
-            THROW_ERROR(
+            JIMINY_THROW(
                 std::invalid_argument,
                 "Mismatching between number of robots and initial configurations or velocities.");
         }
@@ -928,21 +974,21 @@ namespace jiminy
             auto vInitIt = vInit.find(robotName);
             if (qInitIt == qInit.end() || vInitIt == vInit.end())
             {
-                THROW_ERROR(std::invalid_argument,
-                            "Robot '",
-                            robotName,
-                            "'does not have an initial configuration or velocity.");
+                JIMINY_THROW(std::invalid_argument,
+                             "Robot '",
+                             robotName,
+                             "' does not have an initial configuration or velocity.");
             }
 
             const Eigen::VectorXd & q = qInitIt->second;
             const Eigen::VectorXd & v = vInitIt->second;
             if (q.rows() != robot->nq() || v.rows() != robot->nv())
             {
-                THROW_ERROR(std::invalid_argument,
-                            "The dimension of the initial configuration or velocity is "
-                            "inconsistent with model size for robot '",
-                            robotName,
-                            "'.");
+                JIMINY_THROW(std::invalid_argument,
+                             "The dimension of the initial configuration or velocity is "
+                             "inconsistent with model size for robot '",
+                             robotName,
+                             "'.");
             }
 
             // Make sure the initial state is normalized
@@ -950,34 +996,33 @@ namespace jiminy
                 isPositionValid(robot->pinocchioModel_, q, std::numeric_limits<float>::epsilon());
             if (!isValid)
             {
-                THROW_ERROR(std::invalid_argument,
-                            "Initial configuration not consistent with model for robot '",
-                            robotName,
-                            "'.");
+                JIMINY_THROW(std::invalid_argument,
+                             "Initial configuration not consistent with model for robot '",
+                             robotName,
+                             "'.");
             }
 
             /* Check that the initial configuration is not out-of-bounds if appropriate.
                Note that EPS allows to be very slightly out-of-bounds, which may occurs because of
                rounding errors. */
-            if ((robot->modelOptions_->joints.enablePositionLimit &&
-                 (contactModel_ == ContactModelType::CONSTRAINT) &&
+            if (((contactModel_ == ContactModelType::CONSTRAINT) &&
                  ((EPS < q.array() - robot->getPositionLimitMax().array()).any() ||
                   (EPS < robot->getPositionLimitMin().array() - q.array()).any())))
             {
-                THROW_ERROR(std::invalid_argument,
-                            "Initial configuration out-of-bounds for robot '",
-                            robotName,
-                            "'.");
+                JIMINY_THROW(std::invalid_argument,
+                             "Initial configuration out-of-bounds for robot '",
+                             robotName,
+                             "'.");
             }
 
             // Check that the initial velocity is not out-of-bounds
             if ((robot->modelOptions_->joints.enableVelocityLimit &&
                  (robot->getVelocityLimit().array() < v.array().abs()).any()))
             {
-                THROW_ERROR(std::invalid_argument,
-                            "Initial velocity out-of-bounds for robot '",
-                            robotName,
-                            "'.");
+                JIMINY_THROW(std::invalid_argument,
+                             "Initial velocity out-of-bounds for robot '",
+                             robotName,
+                             "'.");
             }
 
             /* Make sure the configuration is normalized (as double), since normalization is
@@ -997,9 +1042,9 @@ namespace jiminy
             // Check the dimension of the initial acceleration associated with every robot
             if (aInit->size() != nRobots)
             {
-                THROW_ERROR(std::invalid_argument,
-                            "If specified, the number of initial accelerations must match the "
-                            "number of robots.");
+                JIMINY_THROW(std::invalid_argument,
+                             "If specified, the number of initial accelerations must match the "
+                             "number of robots.");
             }
 
             for (const auto & robot : robots_)
@@ -1007,16 +1052,16 @@ namespace jiminy
                 auto aInitIt = aInit->find(robot->getName());
                 if (aInitIt == aInit->end())
                 {
-                    THROW_ERROR(std::invalid_argument,
-                                "Robot '",
-                                robot->getName(),
-                                "'does not have an initial acceleration.");
+                    JIMINY_THROW(std::invalid_argument,
+                                 "Robot '",
+                                 robot->getName(),
+                                 "'does not have an initial acceleration.");
                 }
 
                 const Eigen::VectorXd & a = aInitIt->second;
                 if (a.rows() != robot->nv())
                 {
-                    THROW_ERROR(
+                    JIMINY_THROW(
                         std::invalid_argument,
                         "Dimension of initial acceleration inconsistent with model for robot '",
                         robot->getName(),
@@ -1044,8 +1089,8 @@ namespace jiminy
                 {
                     if (!sensor->getIsInitialized())
                     {
-                        THROW_ERROR(bad_control_flow,
-                                    "At least a sensor of a robot is not initialized.");
+                        JIMINY_THROW(bad_control_flow,
+                                     "At least a sensor of a robot is not initialized.");
                     }
                 }
             }
@@ -1054,8 +1099,8 @@ namespace jiminy
             {
                 if (!motor->getIsInitialized())
                 {
-                    THROW_ERROR(bad_control_flow,
-                                "At least a motor of a robot is not initialized.");
+                    JIMINY_THROW(bad_control_flow,
+                                 "At least a motor of a robot is not initialized.");
                 }
             }
         }
@@ -1075,7 +1120,7 @@ namespace jiminy
         for (; robotIt != robots_.end(); ++robotIt, ++robotDataIt)
         {
             // Propagate the user-defined gravity at robot level
-            (*robotIt)->pinocchioModelOrig_.gravity = engineOptions_->world.gravity;
+            (*robotIt)->pinocchioModelTh_.gravity = engineOptions_->world.gravity;
             (*robotIt)->pinocchioModel_.gravity = engineOptions_->world.gravity;
 
             /* Reinitialize the robot state buffers, since the robot kinematic may have changed.
@@ -1218,7 +1263,6 @@ namespace jiminy
             const ConstraintTree & constraints = (*robotIt)->getConstraints();
             constraints.foreach(
                 [&contactModel = contactModel_,
-                 &enablePositionLimit = (*robotIt)->modelOptions_->joints.enablePositionLimit,
                  &freq = engineOptions_->contacts.stabilizationFreq](
                     const std::shared_ptr<AbstractConstraintBase> & constraint,
                     ConstraintNodeType node)
@@ -1235,15 +1279,11 @@ namespace jiminy
                         switch (node)
                         {
                         case ConstraintNodeType::BOUNDS_JOINTS:
-                            if (!enablePositionLimit)
-                            {
-                                return;
-                            }
-                            {
-                                auto & jointConstraint =
-                                    static_cast<JointConstraint &>(*constraint.get());
-                                jointConstraint.setRotationDir(false);
-                            }
+                        {
+                            auto & jointConstraint =
+                                static_cast<JointConstraint &>(*constraint.get());
+                            jointConstraint.setRotationDir(false);
+                        }
                             [[fallthrough]];
                         case ConstraintNodeType::CONTACT_FRAMES:
                         case ConstraintNodeType::COLLISION_BODIES:
@@ -1286,7 +1326,7 @@ namespace jiminy
 
                 if (forceMax > 1e5)
                 {
-                    THROW_ERROR(
+                    JIMINY_THROW(
                         std::invalid_argument,
                         "The initial force exceeds 1e5 for at least one contact point, which is "
                         "forbidden for the sake of numerical stability. Please update the initial "
@@ -1377,9 +1417,9 @@ namespace jiminy
                 // Make sure there is no nan at this point
                 if ((a.array() != a.array()).any())
                 {
-                    THROW_ERROR(std::runtime_error,
-                                "Impossible to compute the acceleration. Probably a "
-                                "subtree has zero inertia along an articulated axis.");
+                    JIMINY_THROW(std::runtime_error,
+                                 "Impossible to compute the acceleration. Probably a "
+                                 "subtree has zero inertia along an articulated axis.");
                 }
 
                 // Compute all external terms including joints accelerations and forces
@@ -1442,66 +1482,56 @@ namespace jiminy
         // Log robots data
         for (const auto & robot : robots_)
         {
+            // Define helper to make it easy to register a robot member as a constant
+            auto registerRobotMember = [&](const std::string & name, auto && member)
+            {
+                // Prepend robot name to variable name
+                const std::string key =
+                    addCircumfix(name, robot->getName(), {}, TELEMETRY_FIELDNAME_DELIMITER);
+
+                // Dump serialized constant
+                if constexpr (std::is_member_function_pointer_v<std::decay_t<decltype(member)>>)
+                {
+                    telemetrySender_->registerConstant(key, serialize((robot.get()->*member)()));
+                }
+                else
+                {
+                    telemetrySender_->registerConstant(key, serialize(robot.get()->*member));
+                }
+            };
+
             // Backup URDF file
-            const std::string telemetryUrdfFile =
-                addCircumfix("urdf_file", robot->getName(), {}, TELEMETRY_FIELDNAME_DELIMITER);
-            const std::string & urdfFileString = robot->getUrdfAsString();
-            telemetrySender_->registerConstant(telemetryUrdfFile, urdfFileString);
+            registerRobotMember("urdf_file", &Robot::getUrdfAsString);
 
             // Backup 'has_freeflyer' option
-            const std::string telemetrHasFreeflyer =
-                addCircumfix("has_freeflyer", robot->getName(), {}, TELEMETRY_FIELDNAME_DELIMITER);
-            telemetrySender_->registerConstant(telemetrHasFreeflyer,
-                                               toString(robot->getHasFreeflyer()));
+            registerRobotMember("has_freeflyer", &Robot::getHasFreeflyer);
 
             // Backup mesh package lookup directories
-            const std::string telemetryMeshPackageDirs = addCircumfix(
-                "mesh_package_dirs", robot->getName(), {}, TELEMETRY_FIELDNAME_DELIMITER);
-            std::string meshPackageDirsString;
-            std::stringstream meshPackageDirsStream;
-            const std::vector<std::string> & meshPackageDirs = robot->getMeshPackageDirs();
-            copy(meshPackageDirs.begin(),
-                 meshPackageDirs.end(),
-                 std::ostream_iterator<std::string>(meshPackageDirsStream, ";"));
-            if (meshPackageDirsStream.peek() !=
-                decltype(meshPackageDirsStream)::traits_type::eof())
-            {
-                meshPackageDirsString = meshPackageDirsStream.str();
-                meshPackageDirsString.pop_back();
-            }
-            telemetrySender_->registerConstant(telemetryMeshPackageDirs, meshPackageDirsString);
+            registerRobotMember("mesh_package_dirs", &Robot::getMeshPackageDirs);
 
-            // Backup the true and theoretical Pinocchio::Model
-            std::string key = addCircumfix(
-                "pinocchio_model", robot->getName(), {}, TELEMETRY_FIELDNAME_DELIMITER);
-            std::string value = saveToBinary(robot->pinocchioModel_);
-            telemetrySender_->registerConstant(key, value);
+            // Backup the theoretical model and current extended model
+            registerRobotMember("pinocchio_model_th", &Robot::pinocchioModelTh_);
+            registerRobotMember("pinocchio_model", &Robot::pinocchioModel_);
 
             /* Backup the Pinocchio GeometryModel for collisions and visuals.
                It may fail because of missing serialization methods for convex, or because it
-               cannot fit into memory (return code). Persistent mode is automatically enforced
-               if no URDF is associated with the robot.*/
-            if (engineOptions_->telemetry.isPersistent || urdfFileString.empty())
+               cannot fit into memory.
+               Persistent mode is automatically enabled if no URDF is associated with the robot. */
+            const bool hasUrdfFile = !robot->getUrdfAsString().empty();
+            if (engineOptions_->telemetry.isPersistent || !hasUrdfFile)
             {
                 try
                 {
-                    key = addCircumfix(
-                        "collision_model", robot->getName(), {}, TELEMETRY_FIELDNAME_DELIMITER);
-                    value = saveToBinary(robot->collisionModel_);
-                    telemetrySender_->registerConstant(key, value);
-
-                    key = addCircumfix(
-                        "visual_model", robot->getName(), {}, TELEMETRY_FIELDNAME_DELIMITER);
-                    value = saveToBinary(robot->visualModel_);
-                    telemetrySender_->registerConstant(key, value);
+                    registerRobotMember("collision_model", &Robot::collisionModel_);
+                    registerRobotMember("visual_model", &Robot::visualModel_);
                 }
                 catch (const std::exception & e)
                 {
                     std::string msg{"Failed to log the collision and/or visual model."};
-                    if (urdfFileString.empty())
+                    if (!hasUrdfFile)
                     {
-                        msg += " It will be impossible to replay log files because no URDF "
-                               "file is available as fallback.";
+                        msg += "\nIt will be impossible to replay log files because no URDF file "
+                               "is available as fallback.";
                     }
                     msg += "\nRaised from exception: ";
                     PRINT_WARNING(msg, e.what());
@@ -1510,22 +1540,18 @@ namespace jiminy
         }
 
         // Log all options
-        GenericConfig allOptions;
-        for (const auto & robot : robots_)
-        {
-            const std::string telemetryRobotOptions =
-                addCircumfix("robot", robot->getName(), {}, TELEMETRY_FIELDNAME_DELIMITER);
-            allOptions[telemetryRobotOptions] = robot->getOptions();
-        }
-        allOptions["engine"] = engineOptionsGeneric_;
-        Json::Value allOptionsJson = convertToJson(allOptions);
+        Json::Value simulationOptionsJson = convertToJson(getSimulationOptions());
         Json::StreamWriterBuilder jsonWriter;
         jsonWriter["indentation"] = "";
-        const std::string allOptionsString = Json::writeString(jsonWriter, allOptionsJson);
-        telemetrySender_->registerConstant("options", allOptionsString);
+        const std::string simulationOptionsString =
+            Json::writeString(jsonWriter, simulationOptionsJson);
+        telemetrySender_->registerConstant("options", simulationOptionsString);
 
         // Write the header: this locks the registration of new variables
         telemetryRecorder_->initialize(telemetryData_.get(), getTelemetryTimeUnit());
+
+        // Make sure tha the simulation options are not considered refreshed anymore
+        areSimulationOptionsRefreshed_ = false;
 
         // At this point, consider that the simulation is running
         isSimulationRunning_ = true;
@@ -1545,10 +1571,10 @@ namespace jiminy
 
         // Process initial configuration
         std::map<std::string, Eigen::VectorXd> qInitMap;
-        if (isStateTheoretical && robot->modelOptions_->dynamics.enableFlexibleModel)
+        if (isStateTheoretical)
         {
             Eigen::VectorXd q0;
-            robot->getFlexiblePositionFromRigid(qInit, q0);
+            robot->getExtendedPositionFromTheoretical(qInit, q0);
             qInitMap.emplace(robotName, std::move(q0));
         }
         else
@@ -1558,10 +1584,10 @@ namespace jiminy
 
         // Process initial velocity
         std::map<std::string, Eigen::VectorXd> vInitMap;
-        if (isStateTheoretical && robot->modelOptions_->dynamics.enableFlexibleModel)
+        if (isStateTheoretical)
         {
             Eigen::VectorXd v0;
-            robot->getFlexibleVelocityFromRigid(vInit, v0);
+            robot->getExtendedVelocityFromTheoretical(vInit, v0);
             vInitMap.emplace(robotName, std::move(v0));
         }
         else
@@ -1574,10 +1600,10 @@ namespace jiminy
         if (aInit)
         {
             aInitMap.emplace();
-            if (isStateTheoretical && robot->modelOptions_->dynamics.enableFlexibleModel)
+            if (isStateTheoretical)
             {
                 Eigen::VectorXd a0;
-                robot->getFlexibleVelocityFromRigid(*aInit, a0);
+                robot->getExtendedVelocityFromTheoretical(*aInit, a0);
                 aInitMap->emplace(robotName, std::move(a0));
             }
             else
@@ -1597,9 +1623,9 @@ namespace jiminy
         // Make sure that a single robot has been added to the engine
         if (robots_.size() != 1)
         {
-            THROW_ERROR(bad_control_flow,
-                        "Multi-robot simulation requires specifying the initial state of each "
-                        "robot individually.");
+            JIMINY_THROW(bad_control_flow,
+                         "Multi-robot simulation requires specifying the initial state of each "
+                         "robot individually.");
         }
 
         // Pre-process initial state
@@ -1619,14 +1645,14 @@ namespace jiminy
         // Make sure that no simulation is already running
         if (robots_.empty())
         {
-            THROW_ERROR(bad_control_flow,
-                        "No robot to simulate. Please add one before starting simulation.");
+            JIMINY_THROW(bad_control_flow,
+                         "No robot to simulate. Please add one before starting simulation.");
         }
 
         // Make sure that the user-specified simulation duration is long enough
         if (tEnd < 5e-3)
         {
-            THROW_ERROR(std::invalid_argument, "Simulation duration cannot be shorter than 5ms.");
+            JIMINY_THROW(std::invalid_argument, "Simulation duration cannot be shorter than 5ms.");
         }
 
         // Reset the engine and all the robots
@@ -1638,11 +1664,11 @@ namespace jiminy
         // Now that telemetry has been initialized, check simulation duration
         if (tEnd > telemetryRecorder_->getLogDurationMax())
         {
-            THROW_ERROR(std::runtime_error,
-                        "Time overflow: with the current precision the maximum value that can be "
-                        "logged is ",
-                        telemetryRecorder_->getLogDurationMax(),
-                        "s. Decrease logger precision to simulate for longer than that.");
+            JIMINY_THROW(std::runtime_error,
+                         "Time overflow: with the current precision the maximum value that can be "
+                         "logged is ",
+                         telemetryRecorder_->getLogDurationMax(),
+                         "s. Decrease logger precision to simulate for longer than that.");
         }
 
         // Integration loop based on boost::numeric::odeint::detail::integrate_times
@@ -1707,9 +1733,9 @@ namespace jiminy
         // Make sure that a single robot has been added to the engine
         if (robots_.size() != 1)
         {
-            THROW_ERROR(bad_control_flow,
-                        "Multi-robot simulation requires specifying the initial state of each "
-                        "robot individually.");
+            JIMINY_THROW(bad_control_flow,
+                         "Multi-robot simulation requires specifying the initial state of each "
+                         "robot individually.");
         }
 
         // Pre-process initial state
@@ -1725,8 +1751,8 @@ namespace jiminy
         // Check if the simulation has started
         if (!isSimulationRunning_)
         {
-            THROW_ERROR(bad_control_flow,
-                        "No simulation running. Please start one before using step method.");
+            JIMINY_THROW(bad_control_flow,
+                         "No simulation running. Please start one before using step method.");
         }
 
         // Clear log data buffer
@@ -1740,15 +1766,15 @@ namespace jiminy
         {
             if (qIt->hasNaN() || vIt->hasNaN() || aIt->hasNaN())
             {
-                THROW_ERROR(std::runtime_error,
-                            "Low-level ode solver failed. Consider increasing stepper accuracy.");
+                JIMINY_THROW(std::runtime_error,
+                             "Low-level ode solver failed. Consider increasing stepper accuracy.");
             }
         }
 
         // Check if the desired step size is suitable
         if (stepSize > EPS && stepSize < SIMULATION_MIN_TIMESTEP)
         {
-            THROW_ERROR(std::invalid_argument, "Step size out of bounds.");
+            JIMINY_THROW(std::invalid_argument, "Step size out of bounds.");
         }
 
         /* Set end time: The default step size is equal to the controller update period if
@@ -1779,11 +1805,11 @@ namespace jiminy
            integration. */
         if (stepperState_.t + stepSize > telemetryRecorder_->getLogDurationMax())
         {
-            THROW_ERROR(std::runtime_error,
-                        "Time overflow: with the current precision the maximum value that can be "
-                        "logged is ",
-                        telemetryRecorder_->getLogDurationMax(),
-                        "s. Decrease logger precision to simulate for longer than that.");
+            JIMINY_THROW(std::runtime_error,
+                         "Time overflow: with the current precision the maximum value that can be "
+                         "logged is ",
+                         telemetryRecorder_->getLogDurationMax(),
+                         "s. Decrease logger precision to simulate for longer than that.");
         }
 
         /* Avoid compounding of error using Kahan algorithm. It consists in keeping track of the
@@ -1804,7 +1830,7 @@ namespace jiminy
         // Monitor iteration failure
         uint32_t successiveIterFailed = 0;
         std::vector<uint32_t> successiveSolveFailedAll(robots_.size(), 0U);
-        bool isNan = false;
+        stepper::StatusInfo status{stepper::ReturnCode::IS_SUCCESS, {}};
 
         /* Flag monitoring if the current time step depends of a breakpoint or the integration
            tolerance. It will be used by the restoration mechanism, if dt gets very small to reach
@@ -2108,17 +2134,8 @@ namespace jiminy
                     dtLargest = dt;
 
                     // Try doing one integration step
-                    bool isStepSuccessful =
-                        stepper_->tryStep(qSplit, vSplit, aSplit, t, dtLargest);
-
-                    /* Check if the integrator failed miserably even if successfully.
-                       It would happen the timestep is fixed and too large, causing the integrator
-                       to fail miserably returning nan. */
-                    isNan = std::isnan(dtLargest);
-                    if (isNan)
-                    {
-                        break;
-                    }
+                    status = stepper_->tryStep(qSplit, vSplit, aSplit, t, dtLargest);
+                    bool isStepSuccessful = status.returnCode == stepper::ReturnCode::IS_SUCCESS;
 
                     // Update buffer if really successful
                     if (isStepSuccessful)
@@ -2175,6 +2192,17 @@ namespace jiminy
                     }
                     else
                     {
+                        /* Check if the integrator raised an exception. This typically happens
+                           when the timestep is fixed and too large, causing the integrator to
+                           fail miserably returning nan. In such a case, adjust the timestep
+                           manually as a recovery mechanism based on a simple heuristic.
+                           Note that it has no effect for fixed-timestep integrator since
+                           `dtLargest` should be INF already. */
+                        if (status.returnCode == stepper::ReturnCode::IS_ERROR)
+                        {
+                            dtLargest *= 0.1;
+                        }
+
                         // Increment the failed iteration counters
                         ++successiveIterFailed;
                         ++stepperState_.iterFailed;
@@ -2207,9 +2235,6 @@ namespace jiminy
                 bool isStepSuccessful = false;
                 while (!isStepSuccessful)
                 {
-                    // Set the timestep to be tried by the stepper
-                    dtLargest = dt;
-
                     // Break the loop in case of too many successive failed inner iteration
                     if (successiveIterFailed > engineOptions_->stepper.successiveIterFailedMax)
                     {
@@ -2236,15 +2261,12 @@ namespace jiminy
                         }
                     }
 
-                    // Try to do a step
-                    isStepSuccessful = stepper_->tryStep(qSplit, vSplit, aSplit, t, dtLargest);
+                    // Set the timestep to be tried by the stepper
+                    dtLargest = dt;
 
-                    // Check if the integrator failed miserably even if successfully
-                    isNan = std::isnan(dtLargest);
-                    if (isNan)
-                    {
-                        break;
-                    }
+                    // Try to do a step
+                    status = stepper_->tryStep(qSplit, vSplit, aSplit, t, dtLargest);
+                    isStepSuccessful = status.returnCode == stepper::ReturnCode::IS_SUCCESS;
 
                     if (isStepSuccessful)
                     {
@@ -2285,6 +2307,12 @@ namespace jiminy
                     }
                     else
                     {
+                        // Adjust timestep manually if necessary
+                        if (status.returnCode == stepper::ReturnCode::IS_ERROR)
+                        {
+                            dtLargest *= 0.1;
+                        }
+
                         // Increment the failed iteration counter
                         ++successiveIterFailed;
                         ++stepperState_.iterFailed;
@@ -2305,22 +2333,33 @@ namespace jiminy
             }
 
             // Exception handling
-            if (isNan)
-            {
-                THROW_ERROR(std::runtime_error,
-                            "Something is wrong with the physics. Aborting integration.");
-            }
             if (successiveIterFailed > engineOptions_->stepper.successiveIterFailedMax)
             {
-                THROW_ERROR(std::runtime_error,
-                            "Too many successive iteration failures. Probably something "
-                            "is going wrong with the physics. Aborting integration.");
+                if (status.exception)
+                {
+                    try
+                    {
+                        std::rethrow_exception(status.exception);
+                    }
+                    catch (const std::exception & e)
+                    {
+                        // TODO: Support `std::throw_with_nested` in JIMINY_THROW instead
+                        JIMINY_THROW(
+                            std::runtime_error,
+                            "Something is wrong with the physics. Try using an adaptive stepper. "
+                            "Aborting integration.\nRaised from exception: ",
+                            e.what());
+                    }
+                }
+                JIMINY_THROW(std::runtime_error,
+                             "Too many successive iteration failures. Probably something is wrong "
+                             "with the physics. Aborting integration.");
             }
             for (uint32_t successiveSolveFailed : successiveSolveFailedAll)
             {
                 if (successiveSolveFailed > engineOptions_->stepper.successiveIterFailedMax)
                 {
-                    THROW_ERROR(
+                    JIMINY_THROW(
                         std::runtime_error,
                         "Too many successive constraint solving failures. Try increasing the "
                         "regularization factor. Aborting integration.");
@@ -2328,14 +2367,15 @@ namespace jiminy
             }
             if (dt < STEPPER_MIN_TIMESTEP)
             {
-                THROW_ERROR(std::runtime_error,
-                            "The internal time step is getting too small. Impossible to "
-                            "integrate physics further in time. Aborting integration.");
+                JIMINY_THROW(std::runtime_error,
+                             "The internal time step is getting too small. Impossible to "
+                             "integrate physics further in time. Aborting integration.");
             }
             if (EPS < engineOptions_->stepper.timeout &&
                 engineOptions_->stepper.timeout < timer_.toc())
             {
-                THROW_ERROR(std::runtime_error, "Step computation timeout. Aborting integration.");
+                JIMINY_THROW(std::runtime_error,
+                             "Step computation timeout. Aborting integration.");
             }
 
             // Update sensors data if necessary, namely if time-continuous or breakpoint
@@ -2410,28 +2450,28 @@ namespace jiminy
     {
         if (isSimulationRunning_)
         {
-            THROW_ERROR(
+            JIMINY_THROW(
                 bad_control_flow,
                 "Simulation already running. Please stop it before registering new forces.");
         }
 
         if (dt < STEPPER_MIN_TIMESTEP)
         {
-            THROW_ERROR(std::invalid_argument,
-                        "Force duration cannot be smaller than ",
-                        STEPPER_MIN_TIMESTEP,
-                        "s.");
+            JIMINY_THROW(std::invalid_argument,
+                         "Force duration cannot be smaller than ",
+                         STEPPER_MIN_TIMESTEP,
+                         "s.");
         }
 
         if (t < 0.0)
         {
-            THROW_ERROR(std::invalid_argument, "Force application time must be positive.");
+            JIMINY_THROW(std::invalid_argument, "Force application time must be positive.");
         }
 
         if (frameName == "universe")
         {
-            THROW_ERROR(std::invalid_argument,
-                        "Impossible to apply external forces to the universe itself!");
+            JIMINY_THROW(std::invalid_argument,
+                         "Impossible to apply external forces to the universe itself!");
         }
 
         // TODO: Make sure that the forces do NOT overlap while taking into account dt.
@@ -2479,15 +2519,15 @@ namespace jiminy
     {
         if (isSimulationRunning_)
         {
-            THROW_ERROR(
+            JIMINY_THROW(
                 bad_control_flow,
                 "Simulation already running. Please stop it before registering new forces.");
         }
 
         if (frameName == "universe")
         {
-            THROW_ERROR(std::invalid_argument,
-                        "Impossible to apply external forces to the universe itself!");
+            JIMINY_THROW(std::invalid_argument,
+                         "Impossible to apply external forces to the universe itself!");
         }
 
         // Get robot and frame indices
@@ -2498,7 +2538,7 @@ namespace jiminy
         // Make sure the update period is valid
         if (EPS < updatePeriod && updatePeriod < SIMULATION_MIN_TIMESTEP)
         {
-            THROW_ERROR(
+            JIMINY_THROW(
                 std::invalid_argument,
                 "Cannot register external force profile with update period smaller than ",
                 SIMULATION_MIN_TIMESTEP,
@@ -2509,10 +2549,10 @@ namespace jiminy
             isGcdIncluded(robotDataVec_, stepperUpdatePeriod_, updatePeriod);
         if (!isIncluded)
         {
-            THROW_ERROR(std::invalid_argument,
-                        "In discrete mode, the update period of force profiles and the "
-                        "stepper update period (min of controller and sensor update "
-                        "periods) must be multiple of each other.");
+            JIMINY_THROW(std::invalid_argument,
+                         "In discrete mode, the update period of force profiles and the "
+                         "stepper update period (min of controller and sensor update "
+                         "periods) must be multiple of each other.");
         }
 
         // Set breakpoint period during the integration loop
@@ -2528,8 +2568,8 @@ namespace jiminy
         // Make sure that no simulation is running
         if (isSimulationRunning_)
         {
-            THROW_ERROR(bad_control_flow,
-                        "Simulation already running. Stop it before removing coupling forces.");
+            JIMINY_THROW(bad_control_flow,
+                         "Simulation already running. Stop it before removing coupling forces.");
         }
 
         std::ptrdiff_t robotIndex = getRobotIndex(robotName);
@@ -2542,8 +2582,8 @@ namespace jiminy
         // Make sure that no simulation is running
         if (isSimulationRunning_)
         {
-            THROW_ERROR(bad_control_flow,
-                        "simulation already running. Stop it before removing coupling forces.");
+            JIMINY_THROW(bad_control_flow,
+                         "simulation already running. Stop it before removing coupling forces.");
         }
 
         for (auto & robotData : robotDataVec_)
@@ -2557,8 +2597,8 @@ namespace jiminy
         // Make sure that no simulation is running
         if (isSimulationRunning_)
         {
-            THROW_ERROR(bad_control_flow,
-                        "Simulation already running. Stop it before removing coupling forces.");
+            JIMINY_THROW(bad_control_flow,
+                         "Simulation already running. Stop it before removing coupling forces.");
         }
 
 
@@ -2580,8 +2620,8 @@ namespace jiminy
         // Make sure that no simulation is running
         if (isSimulationRunning_)
         {
-            THROW_ERROR(bad_control_flow,
-                        "Simulation already running. Stop it before removing coupling forces.");
+            JIMINY_THROW(bad_control_flow,
+                         "Simulation already running. Stop it before removing coupling forces.");
         }
 
         for (auto & robotData : robotDataVec_)
@@ -2604,30 +2644,27 @@ namespace jiminy
         return robotData.profileForces;
     }
 
-    GenericConfig Engine::getOptions() const noexcept
-    {
-        return engineOptionsGeneric_;
-    }
-
     void Engine::setOptions(const GenericConfig & engineOptions)
     {
         if (isSimulationRunning_)
         {
-            THROW_ERROR(bad_control_flow,
-                        "Simulation already running. Please stop it before updating the options.");
+            JIMINY_THROW(
+                bad_control_flow,
+                "Simulation already running. Please stop it before updating the options.");
         }
 
         // Make sure the dtMax is not out of range
-        GenericConfig stepperOptions = boost::get<GenericConfig>(engineOptions.at("stepper"));
+        const GenericConfig & stepperOptions =
+            boost::get<GenericConfig>(engineOptions.at("stepper"));
         const double dtMax = boost::get<double>(stepperOptions.at("dtMax"));
         if (SIMULATION_MAX_TIMESTEP + EPS < dtMax || dtMax < SIMULATION_MIN_TIMESTEP)
         {
-            THROW_ERROR(std::invalid_argument,
-                        "'dtMax' option must bge in range [",
-                        SIMULATION_MIN_TIMESTEP,
-                        ", ",
-                        SIMULATION_MAX_TIMESTEP,
-                        "].");
+            JIMINY_THROW(std::invalid_argument,
+                         "'dtMax' option must bge in range [",
+                         SIMULATION_MIN_TIMESTEP,
+                         ", ",
+                         SIMULATION_MAX_TIMESTEP,
+                         "].");
         }
 
         // Make sure successiveIterFailedMax is strictly positive
@@ -2635,15 +2672,15 @@ namespace jiminy
             boost::get<uint32_t>(stepperOptions.at("successiveIterFailedMax"));
         if (successiveIterFailedMax < 1)
         {
-            THROW_ERROR(std::invalid_argument,
-                        "'successiveIterFailedMax' must be strictly positive.");
+            JIMINY_THROW(std::invalid_argument,
+                         "'successiveIterFailedMax' must be strictly positive.");
         }
 
         // Make sure the selected ode solver is available and instantiate it
         const std::string & odeSolver = boost::get<std::string>(stepperOptions.at("odeSolver"));
         if (STEPPERS.find(odeSolver) == STEPPERS.end())
         {
-            THROW_ERROR(
+            JIMINY_THROW(
                 std::invalid_argument, "Requested ODE solver '", odeSolver, "' not available.");
         }
 
@@ -2657,7 +2694,7 @@ namespace jiminy
         if ((EPS < sensorsUpdatePeriod && sensorsUpdatePeriod < SIMULATION_MIN_TIMESTEP) ||
             (EPS < controllerUpdatePeriod && controllerUpdatePeriod < SIMULATION_MIN_TIMESTEP))
         {
-            THROW_ERROR(
+            JIMINY_THROW(
                 std::invalid_argument,
                 "Cannot simulate a discrete robot with update period smaller than ",
                 SIMULATION_MIN_TIMESTEP,
@@ -2665,9 +2702,9 @@ namespace jiminy
         }
         else if (!isIncluded)
         {
-            THROW_ERROR(std::invalid_argument,
-                        "In discrete mode, the controller and sensor update "
-                        "periods must be multiple of each other.");
+            JIMINY_THROW(std::invalid_argument,
+                         "In discrete mode, the controller and sensor update "
+                         "periods must be multiple of each other.");
         }
 
         // Make sure the contacts options are fine
@@ -2678,50 +2715,52 @@ namespace jiminy
         const auto constraintSolverIt = CONSTRAINT_SOLVERS_MAP.find(constraintSolverType);
         if (constraintSolverIt == CONSTRAINT_SOLVERS_MAP.end())
         {
-            THROW_ERROR(std::invalid_argument,
-                        "Requested constraint solver '",
-                        constraintSolverType,
-                        "' not available.");
+            JIMINY_THROW(std::invalid_argument,
+                         "Requested constraint solver '",
+                         constraintSolverType,
+                         "' not available.");
         }
         double regularization = boost::get<double>(constraintsOptions.at("regularization"));
         if (regularization < 0.0)
         {
-            THROW_ERROR(std::invalid_argument,
-                        "Constraint option 'regularization' must be positive.");
+            JIMINY_THROW(std::invalid_argument,
+                         "Constraint option 'regularization' must be positive.");
         }
 
         // Make sure the contacts options are fine
-        GenericConfig contactOptions = boost::get<GenericConfig>(engineOptions.at("contacts"));
+        const GenericConfig & contactOptions =
+            boost::get<GenericConfig>(engineOptions.at("contacts"));
         const std::string & contactModel = boost::get<std::string>(contactOptions.at("model"));
         const auto contactModelIt = CONTACT_MODELS_MAP.find(contactModel);
         if (contactModelIt == CONTACT_MODELS_MAP.end())
         {
-            THROW_ERROR(std::invalid_argument, "Requested contact model not available.");
+            JIMINY_THROW(std::invalid_argument, "Requested contact model not available.");
         }
         double contactsTransitionEps = boost::get<double>(contactOptions.at("transitionEps"));
         if (contactsTransitionEps < 0.0)
         {
-            THROW_ERROR(std::invalid_argument, "Contact option 'transitionEps' must be positive.");
+            JIMINY_THROW(std::invalid_argument,
+                         "Contact option 'transitionEps' must be positive.");
         }
         double transitionVelocity = boost::get<double>(contactOptions.at("transitionVelocity"));
         if (transitionVelocity < EPS)
         {
-            THROW_ERROR(std::invalid_argument,
-                        "Contact option 'transitionVelocity' must be strictly positive.");
+            JIMINY_THROW(std::invalid_argument,
+                         "Contact option 'transitionVelocity' must be strictly positive.");
         }
         double stabilizationFreq = boost::get<double>(contactOptions.at("stabilizationFreq"));
         if (stabilizationFreq < 0.0)
         {
-            THROW_ERROR(std::invalid_argument,
-                        "Contact option 'stabilizationFreq' must be positive.");
+            JIMINY_THROW(std::invalid_argument,
+                         "Contact option 'stabilizationFreq' must be positive.");
         }
 
         // Make sure the user-defined gravity force has the right dimension
-        GenericConfig worldOptions = boost::get<GenericConfig>(engineOptions.at("world"));
+        const GenericConfig & worldOptions = boost::get<GenericConfig>(engineOptions.at("world"));
         Eigen::VectorXd gravity = boost::get<Eigen::VectorXd>(worldOptions.at("gravity"));
         if (gravity.size() != 6)
         {
-            THROW_ERROR(std::invalid_argument, "The size of the gravity force vector must be 6.");
+            JIMINY_THROW(std::invalid_argument, "The size of the gravity force vector must be 6.");
         }
 
         /* Reset random number generators if setOptions is called for the first time, or if the
@@ -2734,17 +2773,79 @@ namespace jiminy
             generator_.seed(std::seed_seq(seedSeq.data(), seedSeq.data() + seedSeq.size()));
         }
 
-        // Update the internal options
-        engineOptionsGeneric_ = engineOptions;
+        // Update class-specific "strongly typed" accessor for fast and convenient access
+        engineOptions_ = std::make_unique<const EngineOptions>(engineOptions);
 
-        // Create a fast struct accessor
-        engineOptions_ = std::make_unique<const EngineOptions>(engineOptionsGeneric_);
+        // Update inherited polymorphic accessor
+        deepUpdate(boost::get<GenericConfig>(simulationOptionsGeneric_.at("engine")),
+                   engineOptions);
 
         // Backup contact model as enum for fast check
         contactModel_ = contactModelIt->second;
 
         // Set breakpoint period during the integration loop
         stepperUpdatePeriod_ = updatePeriodMin;
+    }
+
+    const GenericConfig & Engine::getOptions() const noexcept
+    {
+        return boost::get<GenericConfig>(simulationOptionsGeneric_.at("engine"));
+    }
+
+    void Engine::setSimulationOptions(const GenericConfig & simulationOptions)
+    {
+        // Set engine options
+        GenericConfig::const_iterator engineOptionsIt = simulationOptions.find("engine");
+        if (engineOptionsIt == simulationOptions.end())
+        {
+            JIMINY_THROW(std::invalid_argument, "Engine options key 'engine' is missing.");
+        }
+        setOptions(boost::get<GenericConfig>(engineOptionsIt->second));
+
+        // Set options for each robot sequentially
+        for (auto & robot : robots_)
+        {
+            std::string robotOptionsKey = robot->getName();
+            if (robotOptionsKey.empty())
+            {
+                robotOptionsKey = "robot";
+            }
+            GenericConfig::const_iterator robotOptionsIt = simulationOptions.find(robotOptionsKey);
+            if (robotOptionsIt == simulationOptions.end())
+            {
+                JIMINY_THROW(std::invalid_argument,
+                             "Robot options key '",
+                             robotOptionsKey,
+                             "' is missing.");
+            }
+            robot->setOptions(boost::get<GenericConfig>(robotOptionsIt->second));
+        }
+    }
+
+    GenericConfig Engine::getSimulationOptions() const noexcept
+    {
+        /* Return options without refreshing all options if and only if the same simulation is
+           still running since the last time they were considered valid. */
+        if (areSimulationOptionsRefreshed_ && isSimulationRunning_)
+        {
+            return simulationOptionsGeneric_;
+        }
+
+        // Refresh robot options
+        for (const auto & robot : robots_)
+        {
+            std::string robotOptionsKey = robot->getName();
+            if (robotOptionsKey.empty())
+            {
+                robotOptionsKey = "robot";
+            }
+            simulationOptionsGeneric_[robotOptionsKey] = robot->getOptions();
+        }
+
+        // Options are now considered "valid"
+        areSimulationOptionsRefreshed_ = true;
+
+        return simulationOptionsGeneric_;
     }
 
     std::ptrdiff_t Engine::getRobotIndex(const std::string & robotName) const
@@ -2755,16 +2856,16 @@ namespace jiminy
                                     { return (robot->getName() == robotName); });
         if (robotIt == robots_.end())
         {
-            THROW_ERROR(std::invalid_argument,
-                        "No robot with name '",
-                        robotName,
-                        "' has been added to the engine.");
+            JIMINY_THROW(std::invalid_argument,
+                         "No robot with name '",
+                         robotName,
+                         "' has been added to the engine.");
         }
 
         return std::distance(robots_.begin(), robotIt);
     }
 
-    std::shared_ptr<Robot> & Engine::getRobot(const std::string & robotName)
+    std::shared_ptr<Robot> Engine::getRobot(const std::string & robotName)
     {
         std::ptrdiff_t robotIndex = getRobotIndex(robotName);
         return robots_[robotIndex];
@@ -3412,38 +3513,39 @@ namespace jiminy
         const pinocchio::Data & data = robot->pinocchioData_;
         const ConstraintTree & constraints = robot->getConstraints();
 
-        // Enforce the position limit (rigid joints only)
-        if (robot->modelOptions_->joints.enablePositionLimit)
+        /* Enforce position limits for all joints having bounds constraints, ie mechanical and
+           backlash joints. */
+        const Eigen::VectorXd & positionLimitMin = robot->getPositionLimitMin();
+        const Eigen::VectorXd & positionLimitMax = robot->getPositionLimitMax();
+        for (auto & constraintItem : constraints.boundJoints)
         {
-            const Eigen::VectorXd & positionLimitMin = robot->getPositionLimitMin();
-            const Eigen::VectorXd & positionLimitMax = robot->getPositionLimitMax();
-            const std::vector<pinocchio::JointIndex> & rigidJointIndices =
-                robot->getRigidJointIndices();
-            for (std::size_t i = 0; i < rigidJointIndices.size(); ++i)
-            {
-                auto & constraint = constraints.boundJoints[i].second;
-                computePositionLimitsForcesAlgo::run(
-                    model.joints[rigidJointIndices[i]],
-                    typename computePositionLimitsForcesAlgo::ArgsType(data,
-                                                                       q,
-                                                                       v,
-                                                                       positionLimitMin,
-                                                                       positionLimitMax,
-                                                                       engineOptions_,
-                                                                       contactModel_,
-                                                                       constraint,
-                                                                       uInternal));
-            }
+            auto & constraint = constraintItem.second;
+            const auto jointConstraint = std::static_pointer_cast<JointConstraint>(constraint);
+            const pinocchio::JointIndex jointIndex = jointConstraint->getJointIndex();
+            computePositionLimitsForcesAlgo::run(
+                model.joints[jointIndex],
+                typename computePositionLimitsForcesAlgo::ArgsType(data,
+                                                                   q,
+                                                                   v,
+                                                                   positionLimitMin,
+                                                                   positionLimitMax,
+                                                                   engineOptions_,
+                                                                   contactModel_,
+                                                                   constraint,
+                                                                   uInternal));
         }
 
-        // Enforce the velocity limit (rigid joints only)
+        // Enforce velocity limits for all joints having bounds constraints if requested
         if (robot->modelOptions_->joints.enableVelocityLimit)
         {
             const Eigen::VectorXd & velocityLimitMax = robot->getVelocityLimit();
-            for (pinocchio::JointIndex rigidJointIndex : robot->getRigidJointIndices())
+            for (auto & constraintItem : constraints.boundJoints)
             {
+                auto & constraint = constraintItem.second;
+                const auto jointConstraint = std::static_pointer_cast<JointConstraint>(constraint);
+                const pinocchio::JointIndex jointIndex = jointConstraint->getJointIndex();
                 computeVelocityLimitsForcesAlgo::run(
-                    model.joints[rigidJointIndex],
+                    model.joints[jointIndex],
                     typename computeVelocityLimitsForcesAlgo::ArgsType(
                         data, v, velocityLimitMax, engineOptions_, contactModel_, uInternal));
             }
@@ -3454,7 +3556,7 @@ namespace jiminy
         Eigen::Matrix3d rotJlog3;
         const Robot::DynamicsOptions & modelDynOptions = robot->modelOptions_->dynamics;
         const std::vector<pinocchio::JointIndex> & flexibilityJointIndices =
-            robot->getFlexibleJointIndices();
+            robot->getFlexibilityJointIndices();
         for (std::size_t i = 0; i < flexibilityJointIndices.size(); ++i)
         {
             const pinocchio::JointIndex jointIndex = flexibilityJointIndices[i];
@@ -3467,8 +3569,8 @@ namespace jiminy
             const Eigen::Vector3d angleAxis = pinocchio::quaternion::log3(quat, angle);
             if (angle > 0.95 * M_PI)  // Angle is always positive
             {
-                THROW_ERROR(std::runtime_error,
-                            "Flexible joint angle must be smaller than 0.95 * pi.");
+                JIMINY_THROW(std::runtime_error,
+                             "Flexible joint angle must be smaller than 0.95 * pi.");
             }
             pinocchio::Jlog3(angle, angleAxis, rotJlog3);
             uInternal.segment<3>(velocityIndex) -=
@@ -3682,8 +3784,8 @@ namespace jiminy
         // Make sure that a simulation is running
         if (!isSimulationRunning_)
         {
-            THROW_ERROR(bad_control_flow,
-                        "No simulation running. Please start one before calling this method.");
+            JIMINY_THROW(bad_control_flow,
+                         "No simulation running. Please start one before calling this method.");
         }
 
         // Make sure memory has been allocated for the output acceleration
@@ -3984,9 +4086,9 @@ namespace jiminy
         }
         catch (const H5::FileIException &)
         {
-            THROW_ERROR(std::runtime_error,
-                        "Impossible to open the log file. Make sure it exists and "
-                        "you have reading permissions.");
+            JIMINY_THROW(std::runtime_error,
+                         "Impossible to open the log file. Make sure it exists and "
+                         "you have reading permissions.");
         }
 
         // Extract all constants. There is no ordering among them, unlike variables.
@@ -4106,10 +4208,10 @@ namespace jiminy
         {
             return readLogHdf5(filename);
         }
-        THROW_ERROR(std::invalid_argument,
-                    "Format '",
-                    format,
-                    "' not recognized. It must be either 'binary' or 'hdf5'.");
+        JIMINY_THROW(std::invalid_argument,
+                     "Format '",
+                     format,
+                     "' not recognized. It must be either 'binary' or 'hdf5'.");
     }
 
     static void writeLogHdf5(const std::string & filename,
@@ -4126,9 +4228,9 @@ namespace jiminy
         }
         catch (const H5::FileIException & open_file)
         {
-            THROW_ERROR(std::runtime_error,
-                        "Impossible to create the log file. Make sure the root folder "
-                        "exists and you have writing permissions.");
+            JIMINY_THROW(std::runtime_error,
+                         "Impossible to create the log file. Make sure the root folder "
+                         "exists and you have writing permissions.");
         }
 
         // Add "VERSION" attribute
@@ -4257,8 +4359,9 @@ namespace jiminy
         // Make sure there is something to write
         if (!isTelemetryConfigured_)
         {
-            THROW_ERROR(bad_control_flow,
-                        "Telemetry not configured. Please start a simulation before writing log.");
+            JIMINY_THROW(
+                bad_control_flow,
+                "Telemetry not configured. Please start a simulation before writing log.");
         }
 
         // Pick the appropriate format
@@ -4276,10 +4379,10 @@ namespace jiminy
         }
         else
         {
-            THROW_ERROR(std::invalid_argument,
-                        "Format '",
-                        format,
-                        "' not recognized. It must be either 'binary' or 'hdf5'.");
+            JIMINY_THROW(std::invalid_argument,
+                         "Format '",
+                         format,
+                         "' not recognized. It must be either 'binary' or 'hdf5'.");
         }
     }
 }

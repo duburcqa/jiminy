@@ -56,9 +56,14 @@ namespace jiminy::python
             .ADD_PROPERTY_GET_WITH_POLICY("armature",
                                           &AbstractMotorBase::getArmature,
                                           bp::return_value_policy<bp::return_by_value>())
+            .ADD_PROPERTY_GET_WITH_POLICY("backlash",
+                                          &AbstractMotorBase::getBacklash,
+                                          bp::return_value_policy<bp::return_by_value>())
 
             .def("set_options", &internal::abstract_motor::setOptions)
-            .def("get_options", &AbstractMotorBase::getOptions);
+            .def("get_options",
+                 &AbstractMotorBase::getOptions,
+                 bp::return_value_policy<bp::return_by_value>());
     }
 
     // ************************************** BasicMotors ************************************** //
