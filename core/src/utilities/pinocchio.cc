@@ -351,7 +351,7 @@ namespace jiminy
         return pinocchio::isNormalized(model, q, tolAbs);
     }
 
-    void swapJoints(pinocchio::Model & model,
+    void swapJointIndices(pinocchio::Model & model,
                     pinocchio::JointIndex jointIndex1,
                     pinocchio::JointIndex jointIndex2)
     {
@@ -364,7 +364,7 @@ namespace jiminy
         // Enforce that the second joint index always comes after the first one
         if (jointIndex1 > jointIndex2)
         {
-            return swapJoints(model, jointIndex2, jointIndex1);
+            return swapJointIndices(model, jointIndex2, jointIndex1);
         }
 
         // Swap references to the joint indices themself
@@ -497,7 +497,7 @@ namespace jiminy
            the end. Therefore, we put the joints back in order by doing successive permutations. */
         for (pinocchio::JointIndex i = childJointIndex; i < newJointIndex; ++i)
         {
-            swapJoints(model, i, newJointIndex);
+            swapJointIndices(model, i, newJointIndex);
         }
     }
 
@@ -520,7 +520,7 @@ namespace jiminy
         }
 
         // Add new joint after the original joint
-        const pinocchio::JointIndex newJointIndex = model.addJoint(
+        pinocchio::JointIndex newJointIndex = model.addJoint(
             parentJointIndex, parentJointModel, pinocchio::SE3::Identity(), newJointName);
 
         // Add new joint to frame list
@@ -538,10 +538,39 @@ namespace jiminy
             newJointIndex, model.inertias[parentJointIndex], pinocchio::SE3::Identity());
         model.inertias[parentJointIndex].setZero();
 
+        /* Set child joint to be a child of the new joint, at the origin.
+           Loop over joints starting from universe (1) to new joint excluded (njoints - 1). */
+        for (pinocchio::JointIndex i = 1 ;
+             i < static_cast<pinocchio::JointIndex>(model.njoints -1) ; ++i)
+        {
+            if (model.parents[i] == parentJointIndex)
+            {
+                model.parents[i] = newJointIndex;
+            }
+        }
+
         // Putting the joints back in order
         for (pinocchio::JointIndex i = parentJointIndex + 1; i < newJointIndex; ++i)
         {
-            swapJoints(model, i, newJointIndex);
+            swapJointIndices(model, i, newJointIndex);
+        }
+
+        // Reparent non-joint frames having the original joint as parent in favor of the new joint
+        newJointIndex = getJointIndex(model, newJointName);
+        const pinocchio::FrameIndex newFrameIndex = getFrameIndex(model, newJointName);
+        for (auto & frame : model.frames)
+        {
+            if (frame.type != pinocchio::FrameType::JOINT)
+            {
+                if (frame.parent == parentJointIndex)
+                {
+                    frame.parent = newJointIndex;
+                }
+                if (frame.previousFrame == parentFrameIndex)
+                {
+                    frame.previousFrame = newFrameIndex;
+                }
+            }
         }
     }
 
@@ -683,7 +712,7 @@ namespace jiminy
            We move it back this at the correct place by doing successive permutations. */
         for (pinocchio::JointIndex i = childJointIndexMin; i < newJointIndex; ++i)
         {
-            swapJoints(model, i, newJointIndex);
+            swapJointIndices(model, i, newJointIndex);
         }
     }
 

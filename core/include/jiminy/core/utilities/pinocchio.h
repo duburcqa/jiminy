@@ -68,7 +68,7 @@ namespace jiminy
         const Eigen::VectorXd & q,
         double tolAbs = Eigen::NumTraits<double>::dummy_precision());
 
-    void swapJoints(pinocchio::Model & model,
+    void swapJointIndices(pinocchio::Model & model,
                     pinocchio::JointIndex jointIndex1,
                     pinocchio::JointIndex jointIndex2);
 

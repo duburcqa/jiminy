@@ -979,20 +979,21 @@ namespace jiminy
         }
 
         // Compute flexibility joint indices
-        flexibilityJointIndices_ = getJointIndices(pinocchioModel_, flexibilityJointNames_);
+        std::vector<pinocchio::JointIndex> flexibilityJointIndices =
+            getJointIndices(pinocchioModel_, flexibilityJointNames_);
 
         // Add flexibility armature-like inertia to the model
-        for (std::size_t i = 0; i < flexibilityJointIndices_.size(); ++i)
+        for (std::size_t i = 0; i < flexibilityJointIndices.size(); ++i)
         {
             const FlexibilityJointConfig & flexibilityJoint =
                 modelOptions_->dynamics.flexibilityConfig[i];
             const pinocchio::JointModel & jmodel =
-                pinocchioModel_.joints[flexibilityJointIndices_[i]];
+                pinocchioModel_.joints[flexibilityJointIndices[i]];
             jmodel.jointVelocitySelector(pinocchioModel_.rotorInertia) = flexibilityJoint.inertia;
         }
 
         // Check that the armature inertia is valid
-        for (pinocchio::JointIndex flexibilityJointIndex : flexibilityJointIndices_)
+        for (pinocchio::JointIndex flexibilityJointIndex : flexibilityJointIndices)
         {
             const pinocchio::Inertia & flexibilityInertia =
                 pinocchioModel_.inertias[flexibilityJointIndex];
@@ -1154,6 +1155,10 @@ namespace jiminy
         mechanicalJointVelocityIndices_ =
             getJointsVelocityIndices(pinocchioModel_, mechanicalJointNames_, false);
 
+        // Compute flexibility and backlash joint indices
+        backlashJointIndices_ = getJointIndices(pinocchioModel_, backlashJointNames_);
+        flexibilityJointIndices_ = getJointIndices(pinocchioModel_, flexibilityJointNames_);
+
         /* Generate the fieldnames associated with the configuration vector, velocity,
            acceleration and external force vectors. */
         logPositionFieldnames_.clear();
@@ -1212,7 +1217,6 @@ namespace jiminy
         // Get mechanical joint position limits from the URDF or user options
         positionLimitMin_.setConstant(pinocchioModel_.nq, -INF);
         positionLimitMax_.setConstant(pinocchioModel_.nq, +INF);
-
         if (modelOptions_->joints.positionLimitFromUrdf)
         {
             for (Eigen::Index positionIndex : mechanicalJointPositionIndices_)

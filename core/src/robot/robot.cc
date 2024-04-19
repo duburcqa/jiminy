@@ -652,9 +652,6 @@ namespace jiminy
             pinocchioModel_.lowerPositionLimit[positionIndex] = -backlash / 2.0;
             pinocchioModel_.upperPositionLimit[positionIndex] = backlash / 2.0;
         }
-
-        // Compute backlash joint indices
-        backlashJointIndices_ = getJointIndices(pinocchioModel_, backlashJointNames_);
     }
 
     std::shared_ptr<AbstractMotorBase> Robot::getMotor(const std::string & motorName)
