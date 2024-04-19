@@ -16,8 +16,6 @@ from PIL import Image
 from jiminy_py.core import ImuSensor as imu
 from jiminy_py.viewer import Viewer
 
-import pinocchio as pin
-
 from gym_jiminy.envs import (
     AtlasPDControlJiminyEnv, CassiePDControlJiminyEnv, DigitPDControlJiminyEnv)
 from gym_jiminy.common.blocks import PDController, PDAdapter, MahonyFilter
@@ -187,7 +185,7 @@ class PipelineControl(unittest.TestCase):
         T_END = 100.0
         HLC_DT = 0.01
         HLC_TO_LLC_RATIO = 10
-        TOL = 1e-8
+        TOL = 1e-9
 
         # np.random.seed(0)
         state_min = np.tile(np.array([-0.8, -2.0, -20.0]), (2, 1)).T
@@ -196,8 +194,8 @@ class PipelineControl(unittest.TestCase):
 
         state = np.zeros((3, SIZE))
         position, velocity, acceleration = state
-        position_min, velocity_min, acceleration_min = state_min
-        position_max, velocity_max, acceleration_max = state_max
+        position_min, _, _ = state_min
+        position_max, _, acceleration_max = state_max
 
         for _ in np.arange(T_END // HLC_DT) * HLC_DT:
             accel_target = acceleration_max * (
@@ -213,15 +211,13 @@ class PipelineControl(unittest.TestCase):
                 assert np.all(np.logical_and(
                     state_min - TOL < state, state < state_max + TOL))
 
-                # FIXME: The acceleration is maxed out when hitting bounds
-                is_position_min = np.isclose(
-                    position, position_min, atol=TOL, rtol=0.0)
-                is_position_max = np.isclose(
-                    position, position_max, atol=TOL, rtol=0.0)
-                # assert np.all(
-                #     (acceleration == acceleration_max)[is_position_min])
-                # assert np.all(
-                #     (acceleration == acceleration_min)[is_position_max])
+                # FIXME: The acceleration is maxed out when slowing down
+                is_position_min = position == position_min
+                is_position_max = position == position_max
+                # assert np.all((acceleration > acceleration_max - TOL)[
+                #     is_position_min & (velocity + TOL < 0.0)])
+                # assert np.all((acceleration < acceleration_min + TOL)[
+                #     is_position_max & (velocity - TOL > 0.0)])
 
                 # It is still possible to stop without hitting bounds
                 assert np.all((
