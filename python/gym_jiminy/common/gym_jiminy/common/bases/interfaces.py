@@ -35,8 +35,8 @@ InfoType = Dict[str, Any]
 
 # class EngineObsType(TypedDict):
 #     t: np.ndarray
-#     state:  DataNested
-#     features: DataNested
+#     state: DataNested
+#     measurements: DataNested
 
 
 EngineObsType: TypeAlias = DataNested
@@ -260,7 +260,7 @@ class InterfaceJiminyEnv(
                 self.refresh_observation(measurement)
             except RuntimeError as e:
                 raise RuntimeError(
-                    "The observation space must be constant.") from e
+                    "The observation space must be invariant.") from e
             self.__is_observation_refreshed = True
 
     def _controller_handle(self,

@@ -7,11 +7,12 @@ import gymnasium as gym
 from gymnasium.spaces import flatten_space
 
 import jiminy_py.core as jiminy
+from jiminy_py.core import array_copyto  # pylint: disable=no-name-in-module
 from jiminy_py.simulator import Simulator
 
 from gym_jiminy.common.bases import InfoType, EngineObsType
 from gym_jiminy.common.envs import BaseJiminyEnv
-from gym_jiminy.common.utils import sample, copyto
+from gym_jiminy.common.utils import sample, build_copyto
 
 if sys.version_info < (3, 9):
     from importlib_resources import files
@@ -131,10 +132,6 @@ class AcrobotJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
                          step_dt=STEP_DT,
                          debug=debug)
 
-        # Create some proxies for fast access
-        self._state_view = (self.observation[:self.robot.nq],
-                            self.observation[-self.robot.nv:])
-
     def _setup(self) -> None:
         """Configure the environment.
 
@@ -161,20 +158,14 @@ class AcrobotJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         Only the state is observable, while by default, the current time,
         state, and sensors data are available.
         """
-        self.observation_space = flatten_space(self._get_agent_state_space())
+        self.observation_space = flatten_space(
+            self._get_agent_state_space(use_theoretical_model=True))
 
     def refresh_observation(self, measurement: EngineObsType) -> None:
-        """Update the observation based on the current simulation state.
-
-        Only the state is observable, while by default, the current time,
-        state, and sensors data are available.
-
-        .. note::
-            For goal env, in addition of the current robot state, both the
-            desired and achieved goals are observable.
-        """
-        copyto(self._state_view, measurement[
-            'states']['agent'].values())  # type: ignore[index,union-attr]
+        angles, velocities = measurement['measurements']['EncoderSensor']
+        self.observation[[0, 2]] = np.cos(angles)
+        self.observation[[1, 3]] = np.sin(angles)
+        self.observation[4:] = velocities
 
     def _initialize_action_space(self) -> None:
         """Configure the action space of the environment.

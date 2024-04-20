@@ -322,7 +322,8 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
                           shape=(),
                           dtype=np.float64)
 
-    def _get_agent_state_space(self) -> spaces.Dict:
+    def _get_agent_state_space(
+            self, use_theoretical_model: bool = False) -> spaces.Dict:
         """Get state space.
 
         This method is not meant to be overloaded in general since the
@@ -353,6 +354,14 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
 
             if not model_options['joints']['enableVelocityLimit']:
                 velocity_limit[joint_velocity_indices] = JOINT_VEL_MAX
+
+        # Deduce bounds associated the theoretical model from the extended one
+        if use_theoretical_model:
+            position_limit_lower, position_limit_upper = map(
+                self.robot.get_theoretical_position_from_extended,
+                (position_limit_lower, position_limit_upper))
+            velocity_limit = self.robot.get_theoretical_velocity_from_extended(
+                velocity_limit)
 
         # Aggregate position and velocity bounds to define state space
         return spaces.Dict(OrderedDict(
@@ -1445,7 +1454,10 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         .. note::
             This method is called after every internal `engine.step` and before
             refreshing the observation one last time. As such, it is the right
-            place to update shared data between `is_done` and `compute_reward`.
+            place to update shared data between `has_terminated` and
+            `compute_reward`. However, it is not appropriate for quantities
+            involved in `refresh_observation` not `compute_command`, which may
+            be called more often than once per step.
 
         .. note::
             `_initialize_buffers` method can be used to initialize buffers that

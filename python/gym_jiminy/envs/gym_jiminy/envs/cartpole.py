@@ -9,11 +9,12 @@ import numpy as np
 from gymnasium import spaces
 
 import jiminy_py.core as jiminy
+from jiminy_py.core import array_copyto  # pylint: disable=no-name-in-module
 from jiminy_py.simulator import Simulator
 
 from gym_jiminy.common.bases import InfoType, EngineObsType
 from gym_jiminy.common.envs import BaseJiminyEnv
-from gym_jiminy.common.utils import sample, copyto
+from gym_jiminy.common.utils import sample
 
 if sys.version_info < (3, 9):
     from importlib_resources import files
@@ -129,6 +130,7 @@ class CartPoleJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
 
         # Instantiate simulator
         simulator = Simulator(robot, viewer_kwargs=viewer_kwargs)
+        model = simulator.robot.pinocchio_model_th
 
         # OpenAI Gym implementation of Cartpole has no velocity limit
         model_options = simulator.robot.get_model_options()
@@ -143,14 +145,7 @@ class CartPoleJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         # Configure the learning environment
         super().__init__(simulator, step_dt=STEP_DT, debug=debug)
 
-        # Create some proxies for fast access
-        self.__state_view = (
-            self.observation[:self.robot.nq],
-            self.observation[self.robot.nq:(self.robot.nq+self.robot.nv)])
-
     def _setup(self) -> None:
-        """ TODO: Write documentation.
-        """
         # Call base implementation
         super()._setup()
 
@@ -163,12 +158,9 @@ class CartPoleJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
     def _initialize_observation_space(self) -> None:
         """Configure the observation of the environment.
 
-        Implement the official Gym cartpole-v1 action space. Only the state is
-        observable, while by default, the current time, state, and sensors data
-        are available.
-
-        The Angle limit set to 2 times the failure thresholds, so that
-        observations of failure are still within bounds.
+        Implement the official Gym cartpole-v1 observation space. Only the
+        theoretical state of the pendulum is observed, namely the position and
+        velocity of the cart plus the pole angle and its angular velocity.
 
         See documentation: https://gym.openai.com/envs/CartPole-v1/.
         """
@@ -204,8 +196,8 @@ class CartPoleJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         return qpos, qvel
 
     def refresh_observation(self, measurement: EngineObsType) -> None:
-        copyto(self.__state_view, measurement[
-            'states']['agent'].values())  # type: ignore[index,union-attr]
+        obs = measurement['measurements']['EncoderSensor'].reshape((-1,))
+        array_copyto(self.observation, obs)
 
     def compute_command(self, action: np.ndarray, command: np.ndarray) -> None:
         """Compute the motors efforts to apply on the robot.
@@ -220,10 +212,10 @@ class CartPoleJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
                        terminated: bool,
                        truncated: bool,
                        info: InfoType) -> float:
-        """ TODO: Write documentation.
+        """Compute reward at current episode state.
 
-        Add a small positive reward as long as a terminal condition has
-        never been reached during the current episode.
+        Constant positive reward equal to 1.0 as long as no termination
+        condition has been triggered.
         """
         return 1.0 if not terminated else 0.0
 
@@ -232,8 +224,6 @@ class CartPoleJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
                        obs: np.ndarray,
                        reward: Optional[float],
                        **kwargs: Any) -> Optional[np.ndarray]:
-        """ TODO: Write documentation.
-        """
         if key == "Left":
             return np.array(1)
         if key == "Right":

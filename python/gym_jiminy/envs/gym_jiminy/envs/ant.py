@@ -4,16 +4,17 @@
 
 import os
 import sys
-from typing import Any, Tuple
+from typing import Any, Tuple, Sequence
 
 import gymnasium as gym
 import numpy as np
 import pinocchio as pin
 
+from jiminy_py.core import array_copyto  # pylint: disable=no-name-in-module
 from jiminy_py.simulator import Simulator
 from gym_jiminy.common.bases import InfoType, EngineObsType
 from gym_jiminy.common.envs import BaseJiminyEnv
-from gym_jiminy.common.utils import sample, copyto, squared_norm_2
+from gym_jiminy.common.utils import sample, build_copyto, squared_norm_2
 
 if sys.version_info < (3, 9):
     from importlib_resources import files
@@ -26,7 +27,13 @@ STEP_DT = 0.05
 
 
 class AntJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
-    """ TODO: Write documentation.
+    """The agent is a 3D quadruped consisting of a torso (freeflyer) with 4
+    legs attached to it, where each leg has two body parts. The goal is to move
+    forward as fast as possible by applying torque to the 8 joints.
+
+    .. seealso::
+        See original `ant` environment implementation in Gymnasium:
+        https://github.com/Farama-Foundation/Gymnasium/blob/main/gymnasium/envs/mujoco/ant.py
     """
     def __init__(self, debug: bool = False, **kwargs: Any) -> None:
         """
@@ -45,30 +52,14 @@ class AntJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         simulator = Simulator.build(
             urdf_path, hardware_path, data_dir,
             has_freeflyer=True, config_path=config_path, debug=debug, **kwargs)
-
-        # Get the list of independent bodies (not connected via fixed joint)
-        self.body_indices = [0]  # World is part of bodies list
-        for i, frame in enumerate(simulator.robot.pinocchio_model.frames):
-            if frame.type == pin.FrameType.BODY:
-                frame_prev = simulator.robot.pinocchio_model.frames[
-                    frame.previousFrame]
-                if frame_prev.type != pin.FrameType.FIXED_JOINT:
-                    self.body_indices.append(i)
+        model = simulator.robot.pinocchio_model_th
 
         # Previous torso position along x-axis in world frame
         self._xpos_prev = 0.0
 
-        # Define observation slices proxy for fast access.
-        # Note that they will be initialized in `_initialize_buffers`.
-        self._obs_slices: Tuple[np.ndarray, ...] = ()
-
         # Define base orientation and external forces proxies for fast access
         self._base_rot = np.array([])
-        self._f_external: Tuple[np.ndarray, ...] = ()
-
-        # Theoretical state of the robot
-        self._q_th = np.array([])
-        self._v_th = np.array([])
+        self._f_external: Sequence[np.ndarray] = ()
 
         # Initialize base class
         super().__init__(
@@ -78,6 +69,20 @@ class AntJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
                 step_dt=STEP_DT,
                 enforce_bounded_spaces=False),
                 **kwargs})
+
+        # Define observation and measurement pair slices proxy for fast access.
+        # Note that it is impossible to extract expected observation data from
+        # true sensor measurements. Indeed, the total external forces applied
+        # on each joint cannot be measured by any type of sensor that Jiminy
+        # provides since such sensor does not exit in reality. Because of this
+        # limitation, the observation will be based on the current robot state,
+        # which is only available once a simulation is running.
+        model = self.robot.pinocchio_model_th
+        obs_slice_indices = (0, *np.cumsum((
+            model.nq - 2, 3, model.nv - 3, *((6,) * (model.njoints - 1)))))
+        self._obs_slices: Tuple[np.ndarray] = tuple(
+            self.observation[obs_slice_indices[i]:obs_slice_indices[i + 1]]
+            for i in range(len(obs_slice_indices) - 1))
 
     def _neutral(self) -> np.ndarray:
         """Returns a neutral valid configuration for the agent.
@@ -145,24 +150,24 @@ class AntJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         low = np.concatenate([
             np.full_like(position_space.low[2:], -np.inf),
             np.full_like(velocity_space.low, -np.inf),
-            np.full(len(self.body_indices) * 6, -1.0)
+            np.full(self.robot.pinocchio_model_th.njoints * 6, -1.0)
         ])
         high = np.concatenate([
             np.full_like(position_space.high[2:], np.inf),
             np.full_like(velocity_space.high, np.inf),
-            np.full(len(self.body_indices) * 6, 1.0)
+            np.full(self.robot.pinocchio_model_th.njoints * 6, 1.0)
         ])
         self.observation_space = gym.spaces.Box(
             low=low, high=high, dtype=np.float64)
 
     def _initialize_buffers(self) -> None:
-        # Extract observation from the robot state.
-        # Note that this is only reliable with using a fixed step integrator.
-        engine_options = self.simulator.get_options()
-        if engine_options['stepper']['odeSolver'] in ('runge_kutta_dopri5',):
+        # Make sure observe update is discrete-time
+        if self.observe_dt <= 0.0:
             raise ValueError(
-                "This environment does not support adaptive step integrators. "
-                "Please use either 'euler_explicit' or 'runge_kutta_4'.")
+                "This environment does not support time-continuous update.")
+
+        # Initialize previous torso position along x-axis
+        self._xpos_prev = self._robot_state_q[0]
 
         # Initialize the base orientation as a rotation matrix
         self._base_rot = self.robot.pinocchio_data.oMf[1].rotation
@@ -170,42 +175,28 @@ class AntJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         # Initialize vector of external forces
         self._f_external = tuple(
             self.robot_state.f_external[joint_index].vector
-            for joint_index in self.robot.mechanical_joint_indices)
-
-        # Refresh buffers manually to initialize them early
-        self._refresh_buffers()
-
-        # Re-initialize observation slices.
-        # Note that the base linear velocity is isolated as it will be computed
-        # on the fly and therefore updated separately.
-        obs_slices = []
-        obs_index_first = 0
-        for data in (
-                self._q_th[2:],
-                self._v_th[:3],
-                self._v_th[3:],
-                *self._f_external):
-            obs_index_last = obs_index_first + len(data)
-            obs_slices.append(self.observation[obs_index_first:obs_index_last])
-            obs_index_first = obs_index_last
-        self._obs_slices = (obs_slices[0], *obs_slices[2:], obs_slices[1])
-
-        # Initialize previous torso position along x-axis
-        self._xpos_prev = self._robot_state_q[0]
-
-    def _refresh_buffers(self) -> None:
-        self._q_th = self.robot.get_theoretical_position_from_extended(
-            self._robot_state_q)
-        self._v_th = self.robot.get_theoretical_velocity_from_extended(
-            self._robot_state_v)
+            for joint_index in (1, *self.robot.mechanical_joint_indices))
 
     def refresh_observation(self, measurement: EngineObsType) -> None:
-        # Update observation
-        copyto(self._obs_slices[:-1], (
-            self._q_th[2:], self._v_th[3:], *self._f_external))
+        # Define some proxies for convenience
+        q, v = self._robot_state_q, self._robot_state_v
 
-        # Transform observed linear velocity to be in world frame
-        self._obs_slices[-1][:] = self._base_rot @ self._robot_state_v[:3]
+        # Compute the theoretical state of the robot
+        q_th = self.robot.get_theoretical_position_from_extended(q)
+        v_th = self.robot.get_theoretical_velocity_from_extended(v)
+
+        # Linear velocity of the freeflyer in world frame
+        ff_vel_lin_world = self._base_rot @ v_th[:3]
+
+        # Update observation from robot state
+        array_copyto(self._obs_slices[0], q_th[2:])
+        array_copyto(self._obs_slices[1], ff_vel_lin_world)
+        array_copyto(self._obs_slices[2], v_th[3:])
+        for i, obs_slice in enumerate(self._obs_slices[3:]):
+            try:
+                array_copyto(obs_slice, self._f_external[i])
+            except:
+                breakpoint()
 
         # Clip observation in-place to make sure it is not out of bounds
         assert isinstance(self.observation_space, gym.spaces.Box)
@@ -235,30 +226,44 @@ class AntJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
                        terminated: bool,
                        truncated: bool,
                        info: InfoType) -> float:
-        """Compute the reward related to a specific control block.
+        """Compute reward at current episode state.
 
-        # TODO: Write documentation.
+        The reward is defined as the sum of several individual components:
+            * forward_reward: Positive reward corresponding to the crow-fly
+              velocity of the torso along x-axis, ie the difference between the
+              initial and final position of the torso over the current step
+              divided by its duration.
+            * survive_reward: Constant positive reward equal to 1.0 as long as
+              no termination condition has been triggered.
+            * ctrl_cost: Negative reward to penalize power consumption, defined
+              as the L2-norm of the action vector weighted by 0.5.
+            * contact_cost: Negative reward to penalize jerky, violent motions,
+              defined as the aggregated L2-norm of the external forces applied
+              on all bodies weighted by 5e-4.
+
+        The value of each individual reward is added to `info` for monitoring.
+
+        :returns: Aggregated reward.
         """
         # Initialize total reward
         reward = 0.0
 
-        # Compute forward velocity reward
+        # Compute all reward components
         xpos = self._robot_state_q[0]
         forward_reward = (xpos - self._xpos_prev) / self.step_dt
-
-        ctrl_cost = 0.5 * np.square(self.action).sum()
-
-        contact_cost = 0.5 * 1e-3 * sum(map(squared_norm_2, self._f_external))
-
         survive_reward = 1.0 if not terminated else 0.0
+        ctrl_cost = 0.5 * np.square(self.action).sum()
+        contact_cost = 5e-4 * sum(map(squared_norm_2, self._f_external))
 
-        reward = forward_reward - ctrl_cost - contact_cost + survive_reward
+        # Compute total reward
+        reward = forward_reward + survive_reward - ctrl_cost - contact_cost
 
+        # Keep track of all individual review components for monitoring
         info.update({
+            'reward_survive': survive_reward,
             'reward_forward': forward_reward,
             'reward_ctrl': -ctrl_cost,
             'reward_contact': -contact_cost,
-            'reward_survive': survive_reward
         })
 
         # Update previous torso forward position buffer
