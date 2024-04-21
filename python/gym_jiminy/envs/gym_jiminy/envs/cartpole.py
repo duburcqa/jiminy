@@ -130,7 +130,6 @@ class CartPoleJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
 
         # Instantiate simulator
         simulator = Simulator(robot, viewer_kwargs=viewer_kwargs)
-        model = simulator.robot.pinocchio_model_th
 
         # OpenAI Gym implementation of Cartpole has no velocity limit
         model_options = simulator.robot.get_model_options()
@@ -196,8 +195,8 @@ class CartPoleJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         return qpos, qvel
 
     def refresh_observation(self, measurement: EngineObsType) -> None:
-        obs = measurement['measurements']['EncoderSensor'].reshape((-1,))
-        array_copyto(self.observation, obs)
+        obs = measurement['measurements']['EncoderSensor']
+        array_copyto(self.observation, obs.reshape((-1,)))
 
     def compute_command(self, action: np.ndarray, command: np.ndarray) -> None:
         """Compute the motors efforts to apply on the robot.

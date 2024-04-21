@@ -2,22 +2,24 @@
 keys of the observation space of an environment that may be arbitrarily nested.
 """
 from collections import OrderedDict
-from typing import Sequence, Union, Generic
+from typing import Sequence, Union, Generic, Dict
 from typing_extensions import TypeAlias
 
 import gymnasium as gym
 
-from ..bases import (ObsT,
+from ..bases import (NestedObsT,
                      ActT,
                      InterfaceJiminyEnv,
                      BaseTransformObservation)
+from ..utils import DataNested
 
 
-FilteredObsType: TypeAlias = ObsT
+FilteredObsT: TypeAlias = NestedObsT
 
 
-class FilterObservation(BaseTransformObservation[FilteredObsType, ObsT, ActT],
-                        Generic[ObsT, ActT]):
+class FilterObservation(
+        BaseTransformObservation[FilteredObsT, NestedObsT, ActT],
+        Generic[NestedObsT, ActT]):
     """Filter nested observation space.
 
     This wrapper does not nothing but providing an observation only exposing
@@ -26,7 +28,7 @@ class FilterObservation(BaseTransformObservation[FilteredObsType, ObsT, ActT],
     environment with `FlattenObservation` as yet another layer.
     """
     def __init__(self,
-                 env: InterfaceJiminyEnv[ObsT, ActT],
+                 env: InterfaceJiminyEnv[NestedObsT, ActT],
                  nested_filter_keys: Sequence[Union[Sequence[str], str]]
                  ) -> None:
         # Make sure that the observation space derives from 'gym.spaces.Dict'
@@ -54,14 +56,16 @@ class FilterObservation(BaseTransformObservation[FilteredObsType, ObsT, ActT],
         # Bind observation of the environment for all filtered keys
         self.observation = OrderedDict()
         for key_nested in self.nested_filter_keys:
-            observation_filtered = self.observation
-            observation = self.env.observation
+            observation_filtered: DataNested = self.observation
+            observation: DataNested = self.env.observation
             for key in key_nested[:-1]:
                 assert isinstance(observation, dict)
+                assert isinstance(observation_filtered, dict)
                 observation = observation[key]
                 observation_filtered = observation_filtered.setdefault(
                     key, OrderedDict())
             assert isinstance(observation, dict)
+            assert isinstance(observation_filtered, dict)
             observation_filtered[key_nested[-1]] = observation[key_nested[-1]]
 
     def _initialize_observation_space(self) -> None:

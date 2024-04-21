@@ -14,7 +14,7 @@ from jiminy_py.core import array_copyto  # pylint: disable=no-name-in-module
 from jiminy_py.simulator import Simulator
 from gym_jiminy.common.bases import InfoType, EngineObsType
 from gym_jiminy.common.envs import BaseJiminyEnv
-from gym_jiminy.common.utils import sample, build_copyto, squared_norm_2
+from gym_jiminy.common.utils import sample, squared_norm_2
 
 if sys.version_info < (3, 9):
     from importlib_resources import files
@@ -80,7 +80,7 @@ class AntJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         model = self.robot.pinocchio_model_th
         obs_slice_indices = (0, *np.cumsum((
             model.nq - 2, 3, model.nv - 3, *((6,) * (model.njoints - 1)))))
-        self._obs_slices: Tuple[np.ndarray] = tuple(
+        self._obs_slices: Tuple[np.ndarray, ...] = tuple(
             self.observation[obs_slice_indices[i]:obs_slice_indices[i + 1]]
             for i in range(len(obs_slice_indices) - 1))
 
@@ -193,10 +193,7 @@ class AntJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         array_copyto(self._obs_slices[1], ff_vel_lin_world)
         array_copyto(self._obs_slices[2], v_th[3:])
         for i, obs_slice in enumerate(self._obs_slices[3:]):
-            try:
-                array_copyto(obs_slice, self._f_external[i])
-            except:
-                breakpoint()
+            array_copyto(obs_slice, self._f_external[i])
 
         # Clip observation in-place to make sure it is not out of bounds
         assert isinstance(self.observation_space, gym.spaces.Box)

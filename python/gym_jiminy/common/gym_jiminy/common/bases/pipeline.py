@@ -440,7 +440,7 @@ class ObservedJiminyEnv(
     def _initialize_observation_space(self) -> None:
         """Configure the observation space.
         """
-        observation_space: Dict[str, gym.Space[Any]] = OrderedDict()
+        observation_space: Dict[str, gym.Space[DataNested]] = OrderedDict()
         base_observation_space = deepcopy(self.env.observation_space)
         if isinstance(base_observation_space, gym.spaces.Dict):
             observation_space.update(base_observation_space)
@@ -664,7 +664,7 @@ class ControlledJiminyEnv(
         by the controller if requested.
         """
         # Append the controller's target to the observation if requested
-        observation_space: Dict[str, gym.Space[Any]] = OrderedDict()
+        observation_space: Dict[str, gym.Space[DataNested]] = OrderedDict()
         base_observation_space = deepcopy(self.env.observation_space)
         if isinstance(base_observation_space, gym.spaces.Dict):
             observation_space.update(base_observation_space)
@@ -764,7 +764,7 @@ class BaseTransformObservation(
         self._step_dt = self.env.step_dt
 
         # Pre-allocated memory for the observation
-        self.observation: TransformedObsT = zeros(self.observation_space)
+        self.observation = zeros(self.observation_space)
 
         # Bind action of the base environment
         assert self.action_space.contains(self.env.action)

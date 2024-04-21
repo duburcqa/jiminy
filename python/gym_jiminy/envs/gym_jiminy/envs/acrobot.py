@@ -7,12 +7,11 @@ import gymnasium as gym
 from gymnasium.spaces import flatten_space
 
 import jiminy_py.core as jiminy
-from jiminy_py.core import array_copyto  # pylint: disable=no-name-in-module
 from jiminy_py.simulator import Simulator
 
 from gym_jiminy.common.bases import InfoType, EngineObsType
 from gym_jiminy.common.envs import BaseJiminyEnv
-from gym_jiminy.common.utils import sample, build_copyto
+from gym_jiminy.common.utils import sample
 
 if sys.version_info < (3, 9):
     from importlib_resources import files

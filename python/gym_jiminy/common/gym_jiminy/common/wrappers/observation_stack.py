@@ -62,14 +62,14 @@ class PartialObservationStack(
         # pylint: disable=unused-argument
 
         # Sanitize user arguments if necessary
-        assert isinstance(env.observation_space, gym.spaces.Dict)
+        observation_space: gym.Space = env.observation_space
+        assert isinstance(observation_space, gym.spaces.Dict)
         if nested_filter_keys is None:
-            nested_filter_keys = list(
-                env.observation_space.keys())  # type: ignore[attr-defined]
+            nested_filter_keys = (list(observation_space.keys()),)
 
         # Backup user argument(s)
         self.nested_filter_keys: List[List[str]] = list(
-            list(fields) for fields in nested_filter_keys)
+            map(list, nested_filter_keys))
         self.num_stack = num_stack
 
         # Initialize base wrapper.
