@@ -358,6 +358,26 @@ namespace jiminy::python
             return self.registerProfileForce(robotName, frameName, forceFunc, updatePeriod);
         }
 
+        template<typename T>
+        static void populatePythonDictFromBinary(
+            const std::string & key, const std::string & data, bp::dict & dict)
+        {
+            T obj;
+            try
+            {
+                ::jiminy::loadFromBinary(obj, data);
+            }
+            catch (const std::exception & e)
+            {
+                JIMINY_THROW(std::ios_base::failure,
+                             "Failed to deserialize constant '",
+                             key,
+                             "' from log: ",
+                             e.what());
+            }
+            dict[key] = convertToPython(obj, true);
+        }
+
         static bp::dict formatLogData(const LogData & logData)
         {
             // Early return if empty
@@ -380,7 +400,15 @@ namespace jiminy::python
             // Get constants
             for (const auto & [key, value] : logData.constants)
             {
-                if (endsWith(key, "options"))
+                // Skip all constant that has been registered by the user from a controller
+                bool isUnknown = false;
+                if (key.find(CONTROLLER_TELEMETRY_NAMESPACE) != std::string::npos)
+                {
+                    isUnknown = true;
+                }
+
+                // Loop over all "special" constant that will be used to build the robot
+                else if (endsWith(key, "options"))
                 {
                     std::vector<uint8_t> jsonStringVec(value.begin(), value.end());
                     std::shared_ptr<AbstractIODevice> device =
@@ -391,44 +419,15 @@ namespace jiminy::python
                 }
                 else if (key.find("pinocchio_model") != std::string::npos)
                 {
-                    try
-                    {
-                        pinocchio::Model model;
-                        ::jiminy::loadFromBinary<pinocchio::Model>(model, value);
-                        constants[key] = model;
-                    }
-                    catch (const std::exception & e)
-                    {
-                        JIMINY_THROW(std::ios_base::failure,
-                                     "Failed to load pinocchio model from log: ",
-                                     e.what());
-                    }
+                    populatePythonDictFromBinary<pinocchio::Model>(key, value, constants);
                 }
                 else if (endsWith(key, "visual_model") || endsWith(key, "collision_model"))
                 {
-                    try
-                    {
-                        pinocchio::GeometryModel geometryModel;
-                        ::jiminy::loadFromBinary<pinocchio::GeometryModel>(geometryModel, value);
-                        constants[key] = geometryModel;
-                    }
-                    catch (const std::exception & e)
-                    {
-                        JIMINY_THROW(std::ios_base::failure,
-                                     "Failed to load collision and/or visual model from log: ",
-                                     e.what());
-                    }
+                    populatePythonDictFromBinary<pinocchio::GeometryModel>(key, value, constants);
                 }
                 else if (endsWith(key, "mesh_package_dirs"))
                 {
-                    bp::list meshPackageDirs;
-                    std::stringstream ss(value);
-                    std::string item;
-                    while (getline(ss, item, ';'))
-                    {
-                        meshPackageDirs.append(item);
-                    }
-                    constants[key] = meshPackageDirs;
+                    populatePythonDictFromBinary<std::vector<std::string>>(key, value, constants);
                 }
                 else if (key == NUM_INTS || key == NUM_FLOATS)
                 {
@@ -439,6 +438,12 @@ namespace jiminy::python
                     constants[key] = std::stod(value);
                 }
                 else
+                {
+                    isUnknown = true;
+                }
+
+                // Fallback to simple forwarding the constant to Python as a bytes array
+                if (isUnknown)
                 {
                     constants[key] = bp::object(
                         bp::handle<>(PyBytes_FromStringAndSize(value.c_str(), value.size())));

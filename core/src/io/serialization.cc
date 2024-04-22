@@ -8,6 +8,9 @@
 #    pragma warning(disable : 4267) /* conversion from 'size_t' to 'unsigned int' */
 #endif
 
+#include <boost/serialization/export.hpp>
+
+
 // Explicit template instantiation for serialization
 #define EXPL_TPL_INST_SERIALIZE_IMPL(A, ...) \
     template void serialize(A &, __VA_ARGS__ &, const unsigned int);
@@ -19,6 +22,8 @@
 
 namespace boost::serialization
 {
+    // *************************************** pinocchio *************************************** //
+
     template<class Archive>
     void
     serialize(Archive & ar, pinocchio::GeometryObject & geom, const unsigned int /* version */)
@@ -89,3 +94,21 @@ namespace boost::serialization
 
     EXPLICIT_TEMPLATE_INSTANTIATION_SERIALIZE(pinocchio::GeometryObject)
 }
+
+BOOST_CLASS_EXPORT(pinocchio::GeometryObject)
+
+namespace boost::serialization
+{
+    template<class Archive>
+    void
+    serialize(Archive & ar, pinocchio::GeometryModel & model, const unsigned int /* version */)
+    {
+        ar & make_nvp("ngeoms", model.ngeoms);
+        ar & make_nvp("geometryObjects", model.geometryObjects);
+        ar & make_nvp("collisionPairs", model.collisionPairs);
+    }
+
+    EXPLICIT_TEMPLATE_INSTANTIATION_SERIALIZE(pinocchio::GeometryModel)
+}
+
+BOOST_CLASS_EXPORT(pinocchio::GeometryModel)
