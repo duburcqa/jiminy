@@ -175,7 +175,7 @@ class PipelineDesign(unittest.TestCase):
         self.assertTrue(np.all(state_ref['q'] == state_obs['q']))
         self.assertTrue(np.all(state_ref['v'] == state_obs['v']))
 
-    def test_step_state(self):
+    def test_stacked_obs(self):
         """ TODO: Write documentation
         """
         # Perform a single step
@@ -191,16 +191,18 @@ class PipelineDesign(unittest.TestCase):
         # Observation stacking is skipping the required number of frames
         stack_dt = (self.skip_frames_ratio + 1) * env.observe_dt
         t_obs_last = env.step_dt - env.step_dt % stack_dt
-        for i in range(self.num_stack):
+        self.assertTrue(np.isclose(
+            obs['t'][-1], env.stepper_state.t, TOLERANCE))
+        for i in range(1, self.num_stack):
             self.assertTrue(np.isclose(
-                obs['t'][::-1][i], t_obs_last - i * stack_dt, TOLERANCE))
+                obs['t'][::-1][i], t_obs_last - (i - 1) * stack_dt, TOLERANCE))
 
         # Initial observation is consistent with internal simulator state
         controller_target_obs = obs['actions']['pd_controller']
         self.assertTrue(np.all(controller_target_obs[-1] == env_ctrl.action))
         imu_data_ref = env.simulator.robot.sensor_measurements['ImuSensor']
         imu_data_obs = obs['measurements']['ImuSensor'][-1]
-        self.assertFalse(np.all(imu_data_ref == imu_data_obs))
+        self.assertTrue(np.all(imu_data_ref == imu_data_obs))
         state_ref = {'q': env.robot_state.q, 'v': env.robot_state.v}
         state_obs = obs['states']['agent']
         self.assertTrue(np.all(state_ref['q'] == state_obs['q']))

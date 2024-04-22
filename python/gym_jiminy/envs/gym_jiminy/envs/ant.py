@@ -70,7 +70,7 @@ class AntJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
                 enforce_bounded_spaces=False),
                 **kwargs})
 
-        # Define observation and measurement pair slices proxy for fast access.
+        # Define observation slices proxy for fast access.
         # Note that it is impossible to extract expected observation data from
         # true sensor measurements. Indeed, the total external forces applied
         # on each joint cannot be measured by any type of sensor that Jiminy
@@ -150,12 +150,12 @@ class AntJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         low = np.concatenate([
             np.full_like(position_space.low[2:], -np.inf),
             np.full_like(velocity_space.low, -np.inf),
-            np.full(self.robot.pinocchio_model_th.njoints * 6, -1.0)
+            np.full((self.robot.pinocchio_model_th.njoints - 1) * 6, -1.0)
         ])
         high = np.concatenate([
             np.full_like(position_space.high[2:], np.inf),
             np.full_like(velocity_space.high, np.inf),
-            np.full(self.robot.pinocchio_model_th.njoints * 6, 1.0)
+            np.full((self.robot.pinocchio_model_th.njoints - 1) * 6, 1.0)
         ])
         self.observation_space = gym.spaces.Box(
             low=low, high=high, dtype=np.float64)

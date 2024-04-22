@@ -31,7 +31,7 @@ StructNested = Union[MappingT[str, 'StructNested[ValueT]'],
 
 
 @lru_cache(maxsize=None)
-def _issubclass_mapping(cls: Type[Any]) -> bool:
+def issubclass_mapping(cls: Type[Any]) -> bool:
     """Determine whether a given class is a mapping, ie its derives from
     'collections.abc.Mapping'.
 
@@ -44,7 +44,7 @@ def _issubclass_mapping(cls: Type[Any]) -> bool:
 
 
 @lru_cache(maxsize=None)
-def _issubclass_sequence(cls: Type[Any]) -> bool:
+def issubclass_sequence(cls: Type[Any]) -> bool:
     """Determine whether a given class is a sequence, ie its derives from
     'itertools.chain', 'collections.abc.Sequence', 'collections.abc.Set', or
     'collections.abc.MappingView' but not from 'str'.
@@ -67,11 +67,11 @@ def _flatten_with_path_up_to(
     itself recursively on each top-level nodes that are not leaves.
     """
     ref_type = type(ref)
-    if _issubclass_mapping(ref_type):  # type: ignore[arg-type]
+    if issubclass_mapping(ref_type):  # type: ignore[arg-type]
         ref_keys, ref_values = zip(*ref.items())
         sub_paths = ((*path, key) for key in ref_keys)
         nodes = zip(ref_values, data.values(), sub_paths)
-    elif _issubclass_sequence(ref_type):  # type: ignore[arg-type]
+    elif issubclass_sequence(ref_type):  # type: ignore[arg-type]
         sub_paths = ((*path, i) for i in range(len(ref)))
         nodes = zip(ref, data, sub_paths)
     else:
@@ -115,9 +115,9 @@ def _flatten_up_to(ref: Any, data: Any) -> Union[chain, Iterable]:
     itself recursively on each top-level nodes that are not leaves.
     """
     ref_type = type(ref)
-    if _issubclass_mapping(ref_type):  # type: ignore[arg-type]
+    if issubclass_mapping(ref_type):  # type: ignore[arg-type]
         nodes = zip(ref.values(), data.values())
-    elif _issubclass_sequence(ref_type):  # type: ignore[arg-type]
+    elif issubclass_sequence(ref_type):  # type: ignore[arg-type]
         nodes = zip(ref, data)
     else:
         return (data,)
@@ -145,9 +145,9 @@ def _flatten(data: Any) -> Union[chain, Iterable]:
     """
     # Specialized implementation for speed-up
     data_type = type(data)
-    if _issubclass_mapping(data_type):  # type: ignore[arg-type]
+    if issubclass_mapping(data_type):  # type: ignore[arg-type]
         nodes = data.values()
-    elif _issubclass_sequence(data_type):  # type: ignore[arg-type]
+    elif issubclass_sequence(data_type):  # type: ignore[arg-type]
         nodes = data
     else:
         return (data,)
@@ -172,12 +172,12 @@ def _unflatten_as(data: StructNested[Any],
     fetching the next leaf value otherwise.
     """
     data_type = type(data)
-    if _issubclass_mapping(data_type):  # type: ignore[arg-type]
+    if issubclass_mapping(data_type):  # type: ignore[arg-type]
         return data_type({  # type: ignore[call-arg]
             key: _unflatten_as(value, data_leaf_it)
             for key, value in data.items()  # type: ignore[union-attr]
         })
-    if _issubclass_sequence(data_type):  # type: ignore[arg-type]
+    if issubclass_sequence(data_type):  # type: ignore[arg-type]
         return data_type(tuple(  # type: ignore[call-arg]
             _unflatten_as(value, data_leaf_it) for value in data
         ))
@@ -185,7 +185,7 @@ def _unflatten_as(data: StructNested[Any],
 
 
 def unflatten_as(data_nested: StructNested[Any],
-                 data_leaves: Union[Sequence, Iterator]
+                 data_leaves: Union[Sequence, Iterator, MappingView]
                  ) -> StructNested[Any]:
     """Un-flatten a given sequence of leaf nodes according to some reference
     nested data structure.
@@ -193,7 +193,7 @@ def unflatten_as(data_nested: StructNested[Any],
     .. warning::
         All nodes must be constructible from standard `dict` or `tuple`
         objects, depending on whether they derive from `collection.abc.Mapping`
-        or `(collections_abc.Sequence, collections_abc.Set)` respectively.
+        or `(collections.abc.Sequence, collections.abc.Set)` respectively.
 
     :param data_nested: Possibly nested data structure.
     :param data_leaves: Flat sequence of leaves to un-flatten.

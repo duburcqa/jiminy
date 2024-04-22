@@ -223,7 +223,7 @@ class BasePipelineWrapper(
 
             # Make sure that the pipeline has not change since last reset
             env_derived = (
-                self.unwrapped._env_derived)  # type: ignore[attr-defined]
+                self.unwrapped.derived)  # type: ignore[attr-defined]
             if env_derived is not self:
                 raise RuntimeError(
                     "Pipeline environment has changed. Please call 'reset' "
@@ -472,7 +472,7 @@ class ObservedJiminyEnv(
         :param measurement: Low-level measure from the environment to process
                             to get higher-level observation.
         """
-        # Get environment observation
+        # Refresh environment observation
         self.env.refresh_observation(measurement)
 
         # Update observed features if necessary

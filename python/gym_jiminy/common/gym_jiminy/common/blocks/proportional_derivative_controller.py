@@ -525,7 +525,7 @@ class PDAdapter(
         """
         :param update_ratio: Ratio between the update period of the controller
                              and the one of the subsequent controller. -1 to
-                             match the simulation timestep of the environment.
+                             match the environment step `env.step_dt`.
                              Optional: -1 by default.
         :param order: Derivative order of the action. It accepts position or
                       velocity (respectively 0 or 1).
