@@ -17,7 +17,7 @@ from functools import partial
 from collections import OrderedDict
 from weakref import WeakKeyDictionary
 from typing import (
-    Dict, Optional, Any, Tuple, List, Union, Callable, TypedDict)
+    Dict, Optional, Any, Tuple, List, Union, Callable, TypedDict, cast)
 
 import numpy as np
 try:
@@ -40,7 +40,7 @@ from matplotlib.transforms import Bbox
 from matplotlib.backend_bases import Event, LocationEvent
 from matplotlib.backends.backend_pdf import PdfPages
 
-from .core import Model  # pylint: disable=no-name-in-module
+import jiminy_py.core as jiminy
 from .log import (SENSORS_FIELDS,
                   read_log,
                   extract_variables_from_log,
@@ -587,7 +587,7 @@ class TabbedFigure:
 
 
 def plot_log(log_data: Dict[str, Any],
-             robot: Optional[Model] = None,
+             robot: Optional[jiminy.Robot] = None,
              enable_flexiblity_data: bool = False,
              block: Optional[bool] = None,
              **kwargs: Any) -> TabbedFigure:
@@ -621,7 +621,7 @@ def plot_log(log_data: Dict[str, Any],
     # Extract log data
     if not log_data:
         raise RuntimeError("No data to plot.")
-    log_vars = log_data["variables"]
+    log_vars: Dict[str, np.ndarray] = log_data["variables"]
 
     # Build robot from log if necessary
     if robot is None:
@@ -635,7 +635,7 @@ def plot_log(log_data: Dict[str, Any],
     # Get time and robot positions, velocities, and acceleration
     time = log_vars["Global.Time"]
     for fields_type in ("Position", "Velocity", "Acceleration"):
-        fieldnames = getattr(robot, "_".join((
+        fieldnames: List[str] = getattr(robot, "_".join((
             "log", fields_type.lower(), "fieldnames")))
         if not enable_flexiblity_data:
             # Filter out flexibility data
@@ -675,7 +675,7 @@ def plot_log(log_data: Dict[str, Any],
 
     # Get sensors information
     for sensors_class, sensors_fields in SENSORS_FIELDS.items():
-        sensors_type = sensors_class.type
+        sensors_type: str = cast(str, sensors_class.type)
         sensor_names = robot.sensor_names.get(sensors_type, [])
         if not sensor_names:
             continue

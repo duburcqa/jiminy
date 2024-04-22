@@ -552,10 +552,14 @@ class Simulator:
         """
         # Call base implementation
         if isinstance(q_init, np.ndarray):
+            assert isinstance(v_init, np.ndarray)
+            assert a_init is None or isinstance(a_init, np.ndarray)
             if is_state_theoretical is None:
                 is_state_theoretical = False
             self.engine.start(q_init, v_init, a_init, is_state_theoretical)
         else:
+            assert isinstance(v_init, dict)
+            assert a_init is None or isinstance(a_init, dict)
             if is_state_theoretical is not None:
                 raise NotImplementedError(
                     "Optional argument 'is_state_theoretical' is only "
@@ -640,20 +644,23 @@ class Simulator:
             # Single-robot simulations with `np.ndarray`,
             # `is_state_theoretical` is supported.
             if isinstance(q_init, np.ndarray):
+                assert isinstance(v_init, np.ndarray)
+                assert a_init is None or isinstance(a_init, np.ndarray)
                 if is_state_theoretical is None:
                     is_state_theoretical = False
                 self.engine.simulate(
                     t_end, q_init, v_init, a_init, is_state_theoretical,
                     callback)
             # Multi-robot simulations or single-robot simulations with
-            # dictionnaries, `is_state_theoretical` is not supported.
+            # dictionaries, `is_state_theoretical` is not supported.
             else:
+                assert isinstance(v_init, dict)
+                assert a_init is None or isinstance(a_init, dict)
                 if is_state_theoretical is not None:
                     raise NotImplementedError(
                         "Optional argument 'is_state_theoretical' is only "
                         "supported for single-robot simulations.")
                 self.engine.simulate(t_end, q_init, v_init, a_init, callback)
-
         except Exception as e:  # pylint: disable=broad-exception-caught
             err = e
 
@@ -810,7 +817,7 @@ class Simulator:
         return None
 
     def replay(self,
-               extra_logs_files: Sequence[Dict[str, np.ndarray]] = (),
+               extra_logs_files: Sequence[str] = (),
                extra_trajectories: Sequence[TrajectoryDataType] = (),
                **kwargs: Any) -> None:
         """Replay the current episode until now.

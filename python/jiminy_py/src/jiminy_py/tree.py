@@ -18,10 +18,10 @@ of use and versatility rather with optimal performance.
 """
 from functools import lru_cache
 from itertools import chain, starmap
-from collections.abc import (Mapping, MappingView, Sequence, Set)
+from collections.abc import (Mapping, ValuesView, Sequence, Set)
 from typing import (
-    Any, Union, Mapping as MappingT, Iterable, Iterator, Tuple, TypeVar,
-    Callable, Type)
+    Any, Union, Mapping as MappingT, Iterable, Iterator as Iterator, Tuple,
+    TypeVar, Callable, Type)
 
 
 ValueT = TypeVar('ValueT')
@@ -47,7 +47,7 @@ def issubclass_mapping(cls: Type[Any]) -> bool:
 def issubclass_sequence(cls: Type[Any]) -> bool:
     """Determine whether a given class is a sequence, ie its derives from
     'itertools.chain', 'collections.abc.Sequence', 'collections.abc.Set', or
-    'collections.abc.MappingView' but not from 'str'.
+    'collections.abc.ValuesView' but not from 'str'.
 
     Specialization of `issubclass` builtin function leveraging LRU cache for
     speed-up.
@@ -55,7 +55,7 @@ def issubclass_sequence(cls: Type[Any]) -> bool:
     :param cls: candidate class.
     """
     return issubclass(cls, (
-        chain, Sequence, Set, MappingView)) and not issubclass(cls, str)
+        chain, Sequence, Set, ValuesView)) and not issubclass(cls, str)
 
 
 def _flatten_with_path_up_to(
@@ -185,7 +185,7 @@ def _unflatten_as(data: StructNested[Any],
 
 
 def unflatten_as(data_nested: StructNested[Any],
-                 data_leaves: Union[Sequence, Iterator, MappingView]
+                 data_leaves: Union[Sequence, Iterable, ValuesView]
                  ) -> StructNested[Any]:
     """Un-flatten a given sequence of leaf nodes according to some reference
     nested data structure.
@@ -203,7 +203,7 @@ def unflatten_as(data_nested: StructNested[Any],
     return _unflatten_as(data_nested, iter(data_leaves))
 
 
-def map_structure(fn: Callable,  *data_nested: StructNested[Any]
+def map_structure(fn: Callable, *data_nested: StructNested[Any]
                   ) -> StructNested[Any]:
     """Jointly apply a given transform on all leaves of a set of possibly
     nested data structure.
