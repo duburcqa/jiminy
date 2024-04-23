@@ -28,18 +28,18 @@ namespace jiminy
 
     enum class ConstraintNodeType : uint8_t
     {
-        BOUNDS_JOINTS = 0,
-        CONTACT_FRAMES = 1,
-        COLLISION_BODIES = 2,
+        CONTACT_FRAMES = 0,
+        COLLISION_BODIES = 1,
+        BOUNDS_JOINTS = 2,
         USER = 3
     };
 
-    /* Note that following ordering plays a critical role as it determines in which order `foreach`
-       iterates over all the constraints. This has a directly effect on the solution found by 'PGS'
-       constraint solvers. */
-    inline constexpr std::array constraintNodeTypesAll{ConstraintNodeType::BOUNDS_JOINTS,
-                                                       ConstraintNodeType::CONTACT_FRAMES,
+    /* Note that the following ordering plays a critical role as it determines in which order
+       `foreach` iterates over all the constraints. This has a directly effect on the solution
+       found by 'PGS' constraint solvers. */
+    inline constexpr std::array constraintNodeTypesAll{ConstraintNodeType::CONTACT_FRAMES,
                                                        ConstraintNodeType::COLLISION_BODIES,
+                                                       ConstraintNodeType::BOUNDS_JOINTS,
                                                        ConstraintNodeType::USER};
 
     struct JIMINY_DLLAPI ConstraintTree

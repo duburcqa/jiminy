@@ -41,9 +41,10 @@ namespace jiminy
     }
 }
 
-
 namespace boost::serialization
 {
+    // *************************************** pinocchio *************************************** //
+
     template<class Archive>
     void load_construct_data(
         Archive & /* ar */, pinocchio::GeometryObject * geomPtr, const unsigned int /* version */)
@@ -57,12 +58,7 @@ namespace boost::serialization
 
     template<class Archive>
     void
-    serialize(Archive & ar, pinocchio::GeometryModel & model, const unsigned int /* version */)
-    {
-        ar & make_nvp("ngeoms", model.ngeoms);
-        ar & make_nvp("geometryObjects", model.geometryObjects);
-        ar & make_nvp("collisionPairs", model.collisionPairs);
-    }
+    serialize(Archive & ar, pinocchio::GeometryModel & model, const unsigned int /* version */);
 }
 
 #endif  // JIMINY_SERIALIZATION_HXX

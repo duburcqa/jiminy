@@ -912,26 +912,14 @@ namespace jiminy
         {
             return value;
         }
-        else if constexpr (is_vector_v<T>)
-        {
-            std::ostringstream sstr;
-            const std::size_t size = value.size();
-            for (std::size_t i = 0; i < size; ++i)
-            {
-                serialize(value[i]);
-                if (i < size)
-                {
-                    sstr << ";";
-                }
-            }
-            return sstr.str();
-        }
         else if constexpr (std::is_arithmetic_v<std::decay_t<T>>)
         {
             return toString(value);
         }
         else
         {
+            /* Note that boost::serialization module natively supports passing raw pointers,
+               `std::shard_ptr`, and `std::vector`. */
             return ::jiminy::saveToBinary(value);
         }
     }

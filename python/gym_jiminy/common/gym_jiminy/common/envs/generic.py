@@ -9,12 +9,12 @@ import logging
 import tempfile
 from copy import deepcopy
 from collections import OrderedDict
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from functools import partial
 from typing import (
     Dict, Any, List, cast, no_type_check, Optional, Tuple, Callable, Union,
-    SupportsFloat, Iterator,  Generic, Sequence, Mapping as MappingT,
-    MutableMapping as MutableMappingT)
+    SupportsFloat, Iterator,  Generic, Sequence as SequenceT,
+    Mapping as MappingT, MutableMapping as MutableMappingT)
 
 import numpy as np
 from gymnasium import spaces
@@ -85,7 +85,7 @@ LOGGER = logging.getLogger(__name__)
 
 class _LazyDictItemFilter(Mapping):
     def __init__(self,
-                 dict_packed: MappingT[str, Sequence[Any]],
+                 dict_packed: MappingT[str, SequenceT[Any]],
                  item_index: int) -> None:
         self.dict_packed = dict_packed
         self.item_index = item_index
@@ -153,9 +153,9 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
                        automatic pipeline wrapper generation.
         """
         # Make sure that the simulator is single-robot
-        if tuple(robot.name for robot in simulator.robots) != ("",):
-            raise ValueError(
-                "`BaseJiminyEnv` only supports single-robot simulators.")
+        if len(simulator.robots) > 1:
+            raise NotImplementedError(
+                "Multi-robot simulation is not supported for now.")
 
         # Handling of default rendering mode
         viewer_backend = (simulator.viewer or Viewer).backend
@@ -196,7 +196,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
             self.robot.sensor_measurements)
 
         # Top-most block of the pipeline to which the environment is part of
-        self._env_derived: InterfaceJiminyEnv = self
+        self.derived: InterfaceJiminyEnv = self
 
         # Store references to the variables to register to the telemetry
         self._registered_variables: MutableMappingT[
@@ -322,7 +322,8 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
                           shape=(),
                           dtype=np.float64)
 
-    def _get_agent_state_space(self) -> spaces.Dict:
+    def _get_agent_state_space(
+            self, use_theoretical_model: bool = False) -> spaces.Dict:
         """Get state space.
 
         This method is not meant to be overloaded in general since the
@@ -353,6 +354,14 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
 
             if not model_options['joints']['enableVelocityLimit']:
                 velocity_limit[joint_velocity_indices] = JOINT_VEL_MAX
+
+        # Deduce bounds associated the theoretical model from the extended one
+        if use_theoretical_model:
+            position_limit_lower, position_limit_upper = map(
+                self.robot.get_theoretical_position_from_extended,
+                (position_limit_lower, position_limit_upper))
+            velocity_limit = self.robot.get_theoretical_velocity_from_extended(
+                velocity_limit)
 
         # Aggregate position and velocity bounds to define state space
         return spaces.Dict(OrderedDict(
@@ -768,7 +777,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
             env_derived = reset_hook() or env
             assert env_derived.unwrapped is self
             env = env_derived
-        self._env_derived = env
+        self.derived = env
 
         # Instantiate the actual controller.
         # Note that a weak reference must be used to avoid circular reference.
@@ -916,7 +925,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         # Update the observer at the end of the step.
         # This is necessary because, internally, it is called at the beginning
         # of the every integration steps, during the controller update.
-        self._env_derived._observer_handle(
+        self.derived._observer_handle(
             self.stepper_state.t,
             self._robot_state_q,
             self._robot_state_v,
@@ -1017,6 +1026,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         """
         # Call base implementation
         figure = self.simulator.plot(**kwargs)
+        assert not isinstance(figure, Sequence)
 
         # Extract log data
         log_vars = self.simulator.log_data.get("variables", {})
@@ -1259,7 +1269,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         # Run the simulation
         info_episode = [info]
         try:
-            env = self._env_derived
+            env = self.derived
             while not (terminated or truncated or (
                     horizon is not None and self.num_steps > horizon)):
                 action = policy_fn(obs, reward, terminated or truncated, info)
@@ -1445,7 +1455,10 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         .. note::
             This method is called after every internal `engine.step` and before
             refreshing the observation one last time. As such, it is the right
-            place to update shared data between `is_done` and `compute_reward`.
+            place to update shared data between `has_terminated` and
+            `compute_reward`. However, it is not appropriate for quantities
+            involved in `refresh_observation` not `compute_command`, which may
+            be called more often than once per step.
 
         .. note::
             `_initialize_buffers` method can be used to initialize buffers that

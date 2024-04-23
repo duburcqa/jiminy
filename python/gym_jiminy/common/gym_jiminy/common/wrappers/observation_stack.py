@@ -1,254 +1,241 @@
 """ TODO: Write documentation.
 """
-from copy import deepcopy
-from operator import getitem
-from functools import reduce
+import logging
 from collections import deque
-from typing import (
-    List, Any, Dict, Optional, Tuple, Sequence, Iterator, Union, Generic,
-    SupportsFloat)
+from typing import List, Optional, Tuple, Set, Sequence, Union, Generic
 from typing_extensions import TypeAlias
 
 import numpy as np
-
 import gymnasium as gym
+from jiminy_py.core import (  # pylint: disable=no-name-in-module
+    array_copyto, multi_array_copyto)
+from jiminy_py.tree import flatten_with_path, unflatten_as
 
-from ..utils import is_breakpoint, zeros, copy, copyto
 from ..bases import (DT_EPS,
-                     ObsT,
+                     NestedObsT,
                      ActT,
-                     InfoType,
                      EngineObsType,
                      InterfaceJiminyEnv,
                      BasePipelineWrapper)
+from ..utils import is_breakpoint, zeros, copy
 
 
-StackedObsType: TypeAlias = ObsT
+StackedObsT: TypeAlias = NestedObsT
+
+LOGGER = logging.getLogger(__name__)
 
 
-class PartialObservationStack(
-        gym.Wrapper,  # [StackedObsType, ActT, ObsT, ActT],
-        Generic[ObsT, ActT]):
-    """Observation wrapper that partially stacks observations in a rolling
-    manner.
+class StackedJiminyEnv(
+        BasePipelineWrapper[StackedObsT, ActT, NestedObsT, ActT],
+        Generic[NestedObsT, ActT]):
+    """Partially stack observations in a rolling manner.
 
     This wrapper combines and extends OpenAI Gym wrappers `FrameStack` and
     `FilteredJiminyEnv` to support nested filter keys.
 
     It adds one extra dimension to all the leaves of the original observation
-    spaces that must be stacked. If so, the first dimension corresponds to the
-    individual timesteps (from oldest [0] to latest [-1]).
+    spaces that must be stacked. In such a case, the first dimension
+    corresponds to the individual timesteps (from oldest `0` to latest `-1`).
 
     .. note::
-        The observation space must be `gym.spaces.Dict`, while, ultimately,
-        stacked leaf fields must be `gym.spaces.Box`.
+        The standard container spaces `gym.spaces.Dict` and `gym.spaces.Tuple`
+        are both supported. All the stacked leaf spaces must have type
+        `gym.spaces.Box`.
+
+    .. note::
+        The latest frame of the stacked leaf observations corresponds to their
+        latest respective values no matter what. It will frozen when shifted to
+        the left.
     """
     def __init__(self,
-                 env: gym.Env[ObsT, ActT],
+                 env: InterfaceJiminyEnv[NestedObsT, ActT],
+                 *,
                  num_stack: int,
-                 nested_filter_keys: Optional[
-                     Sequence[Union[Sequence[str], str]]] = None,
-                 **kwargs: Any):
+                 nested_filter_keys: Optional[Sequence[
+                    Union[Sequence[Union[str, int]], Union[str, int]]]] = None,
+                 skip_frames_ratio: int = -1) -> None:
         """
         :param env: Environment to wrap.
-        :param nested_filter_keys: List of nested observation fields to stack.
-                                   Those fields does not have to be leaves. If
-                                   not, then every leaves fields from this root
-                                   will be stacked.
-        :param num_stack: Number of observation frames to partially stack.
-        :param kwargs: Extra keyword arguments to allow automatic pipeline
-                       wrapper generation.
+        :param num_stack: Number of observation frames to keep stacked.
+        :param nested_filter_keys: List of nested observation paths to stack.
+                                   If a nested path is not associated with a
+                                   leaf, then every leaves starting from this
+                                   root path will be stacked.
+                                   Optional: All leaves will be stacked by
+                                   default.
+        :param skip_frames_ratio: Number of observation refresh to skip between
+                                  each update of the stacked leaf values. -1 to
+                                  update only once per environment step.
+                                  Optional: -1 by default.
         """
-        # pylint: disable=unused-argument
-
-        # Sanitize user arguments if necessary
-        assert isinstance(env.observation_space, gym.spaces.Dict)
+        # Handling of default argument(s)
+        env_observation_space: gym.Space = env.observation_space
+        assert isinstance(env_observation_space, gym.spaces.Dict)
         if nested_filter_keys is None:
-            nested_filter_keys = list(
-                env.observation_space.keys())  # type: ignore[attr-defined]
+            nested_filter_keys = (tuple(env_observation_space.keys()),)
 
-        # Backup user argument(s)
-        self.nested_filter_keys: List[List[str]] = list(
-            list(fields) for fields in nested_filter_keys)
-        self.num_stack = num_stack
+        # Make sure all nested keys are stored in sequence
+        assert not isinstance(nested_filter_keys, str)
+        self.nested_filter_keys: Sequence[Sequence[Union[str, int]]] = []
+        for key_nested in nested_filter_keys:
+            if isinstance(key_nested, (str, int)):
+                key_nested = (key_nested,)
+            self.nested_filter_keys.append(key_nested)
 
-        # Initialize base wrapper.
-        # Note that `gym.Wrapper` automatically binds the action/observation to
-        # the one of the environment if not overridden explicitly.
-        super().__init__(env)  # Do not forward extra arguments, if any
-
-        # Get the leaf fields to stack
-        def _get_branches(root: Any) -> Iterator[List[str]]:
-            if isinstance(root, gym.spaces.Dict):
-                for field, node in root.spaces.items():
-                    if isinstance(node, gym.spaces.Dict):
-                        for path in _get_branches(node):
-                            yield [field] + path
-                    else:
-                        yield [field]
-
-        self.leaf_fields_list: List[List[str]] = []
-        for fields in self.nested_filter_keys:
-            root_field = reduce(getitem,  # type: ignore[arg-type]
-                                fields, self.env.observation_space)
-            if isinstance(root_field, gym.spaces.Dict):
-                leaf_paths = _get_branches(root_field)
-                self.leaf_fields_list += [fields + path for path in leaf_paths]
-            else:
-                self.leaf_fields_list.append(fields)
-
-        # Compute stacked observation space
-        self.observation_space = deepcopy(self.env.observation_space)
-        for fields in self.leaf_fields_list:
-            assert isinstance(self.observation_space, gym.spaces.Dict)
-            root_space = reduce(getitem,  # type: ignore[arg-type]
-                                fields[:-1],  self.observation_space)
-            space = root_space[fields[-1]]
-            if not isinstance(space, gym.spaces.Box):
-                raise TypeError(
-                    "Stacked leaf fields must be associated with "
-                    "`gym.spaces.Box` space")
-            low = np.repeat(space.low[np.newaxis], self.num_stack, axis=0)
-            high = np.repeat(space.high[np.newaxis], self.num_stack, axis=0)
-            assert space.dtype is not None
-            assert issubclass(space.dtype.type, (np.floating, np.integer))
-            root_space[fields[-1]] = gym.spaces.Box(
-                low=low, high=high, dtype=space.dtype.type)
-
-        # Bind observation of the environment for all keys but the stacked ones
-        if isinstance(self.env, InterfaceJiminyEnv):
-            self.observation = copy(self.env.observation)
-            for fields in self.leaf_fields_list:
-                assert isinstance(self.observation_space, gym.spaces.Dict)
-                root_obs = reduce(getitem, fields[:-1], self.observation)
-                space = reduce(getitem,  # type: ignore[arg-type]
-                               fields, self.observation_space)
-                root_obs[fields[-1]] = zeros(space)
-        else:
-            # Fallback to classical memory allocation
-            self.observation = zeros(self.observation_space)
-
-        # Allocate internal frames buffers
-        self._frames: List[deque] = [
-            deque(maxlen=self.num_stack) for _ in self.leaf_fields_list]
-
-    def _setup(self) -> None:
-        """ TODO: Write documentation.
-        """
-        # Reset frames to zero
-        for fields, frames in zip(self.leaf_fields_list, self._frames):
-            assert isinstance(self.env.observation_space, gym.spaces.Dict)
-            leaf_space = reduce(getitem,  # type: ignore[arg-type]
-                                fields, self.env.observation_space)
-            for _ in range(self.num_stack):
-                frames.append(zeros(leaf_space))
-
-    def refresh_observation(self, measurement: ObsT) -> None:
-        """ TODO: Write documentation.
-        """
-        # Copy measurement if impossible to bind memory in the first place
-        if not isinstance(self.env, InterfaceJiminyEnv):
-            copyto(self.observation, measurement)
-
-        # Backup the nested observation fields to stack.
-        # Leaf values are copied to ensure they do not get altered later on.
-        for fields, frames in zip(self.leaf_fields_list, self._frames):
-            leaf_obs = reduce(getitem,  # type: ignore[arg-type]
-                              fields, measurement)
-            assert isinstance(leaf_obs, np.ndarray)
-            frames.append(leaf_obs.copy())
-
-        # Update nested fields of the observation by the stacked ones
-        for fields, frames in zip(self.leaf_fields_list, self._frames):
-            leaf_obs = reduce(getitem, fields, self.observation)
-            assert isinstance(leaf_obs, np.ndarray)
-            leaf_obs[:] = frames
-
-    def step(self,
-             action: ActT
-             ) -> Tuple[StackedObsType, SupportsFloat, bool, bool, InfoType]:
-        obs, reward, terminated, truncated, info = self.env.step(action)
-        self.refresh_observation(obs)
-        return self.observation, reward, terminated, truncated, info
-
-    def reset(self,
-              *,
-              seed: Optional[int] = None,
-              options: Optional[Dict[str, Any]] = None,
-              ) -> Tuple[StackedObsType, InfoType]:
-        observation, info = self.env.reset(seed=seed, options=options)
-        self._setup()
-        self.refresh_observation(observation)
-        return self.observation, info
-
-
-class StackedJiminyEnv(
-        BasePipelineWrapper[StackedObsType, ActT, ObsT, ActT],
-        Generic[ObsT, ActT]):
-    """ TODO: Write documentation.
-    """
-    def __init__(self,
-                 env: InterfaceJiminyEnv[ObsT, ActT],
-                 skip_frames_ratio: int = 0,
-                 **kwargs: Any) -> None:
-        """ TODO: Write documentation.
-        """
         # Backup some user argument(s)
+        self.num_stack = num_stack
         self.skip_frames_ratio = skip_frames_ratio
 
-        # Initialize some internal buffers
-        self.__n_last_stack = 0
+        # Get all paths associated with leaf values that must be stacked
+        self.path_filtered_leaves: Set[Tuple[Union[str, int], ...]] = set()
+        for path, _ in flatten_with_path(env.observation_space):
+            if any(path[:len(e)] == e for e in self.nested_filter_keys):
+                self.path_filtered_leaves.add(path)
 
-        # Instantiate wrapper
-        self.wrapper = PartialObservationStack(env, **kwargs)
+        # Initialize base class
+        super().__init__(env)
 
-        # Initialize base classes
-        super().__init__(env, **kwargs)
+        # Bind observation of the environment for all non-stacked keys
+        observation = copy(self.env.observation)
+        observation_leaves = dict(flatten_with_path(observation))
+        for path, space in flatten_with_path(self.observation_space):
+            if path not in self.path_filtered_leaves:
+                continue
+            observation_leaves[path] = zeros(space)
+        self.observation = unflatten_as(
+            observation, observation_leaves.values())
 
-        # Bind the observation of the wrapper
-        self.observation = self.wrapper.observation
+        # Allocate fixed-length deque buffer for each leaf value to stack
+        self._frames_leaves: List[deque] = [
+            deque(maxlen=self.num_stack) for _ in self.path_filtered_leaves]
 
-        # Bind the action of the environment
-        assert self.action_space.contains(env.action)
-        self.action = env.action
+        # Define frame update triplet for fast access
+        self._frames_update_triplets: Sequence[
+            Tuple[deque, np.ndarray, Tuple[np.ndarray, ...]]] = []
+        frames_iterator = iter(self._frames_leaves)
+        env_observation_leaves = flatten_with_path(env.observation)
+        for path, env_observation_leaf in env_observation_leaves:
+            if path not in self.path_filtered_leaves:
+                continue
+            assert isinstance(env_observation_leaf, np.ndarray)
+            frames = next(frames_iterator)
+            observation_leaf = observation_leaves[path]
+            if observation_leaf.ndim < 2:
+                observation_leaf = observation_leaf.reshape((-1, 1))
+            self._frames_update_triplets.append((
+                frames, env_observation_leaf, tuple(observation_leaf)))
+
+        # Initialize some proxies for fast lookup
+        self._step_dt = self.env.step_dt
+
+        # Number of stack update that has been skipped since the last one
+        self._n_last_stack = -1
+
+        # Whether the stack has been shifted to the left since last update
+        self._was_stack_shifted = True
 
     def _initialize_action_space(self) -> None:
+        """Configure the action space.
+        """
         self.action_space = self.env.action_space
 
     def _initialize_observation_space(self) -> None:
-        self.observation_space = self.wrapper.observation_space
+        # Define leaf observation spaces
+        observation_space_leaves = dict(
+            flatten_with_path(self.env.observation_space))
+        for path, space in observation_space_leaves.items():
+            # Skip leaf spaces that must not be stacked
+            if path not in self.path_filtered_leaves:
+                continue
+
+            # Make sure that stacked leaf spaces derive from `gym.spaces.Box`
+            if not (isinstance(space, gym.spaces.Box) and
+                    space.dtype is not None and
+                    issubclass(space.dtype.type, (np.floating, np.integer))):
+                raise TypeError(
+                    "Stacked leaf spaces must have type `gym.spaces.Box` "
+                    "whose dtype is either `np.floating` or `np.integer`.")
+
+            # Prepend the original bounds with an additional stacking dimension
+            low = np.repeat(space.low[np.newaxis], self.num_stack, axis=0)
+            high = np.repeat(space.high[np.newaxis], self.num_stack, axis=0)
+            observation_space_leaves[path] = gym.spaces.Box(
+                low=low, high=high, dtype=space.dtype.type)
+
+        # Define observation space by un-flattening leaf spaces
+        self.observation_space = unflatten_as(
+            self.env.observation_space, observation_space_leaves.values())
 
     def _setup(self) -> None:
         # Call base implementation
         super()._setup()
-
-        # Setup wrapper
-        self.wrapper._setup()
 
         # Make sure observe update is discrete-time
         if self.env.observe_dt <= 0.0:
             raise ValueError(
                 "This wrapper does not support time-continuous update.")
 
+        # Check if skip frame ratio is divisor of step update ratio
+        if self.skip_frames_ratio > 0:
+            step_ratio = round(self._step_dt / self.env.observe_dt)
+            frame_ratio = self.skip_frames_ratio + 1
+            if (step_ratio // frame_ratio) * frame_ratio != step_ratio:
+                LOGGER.warning(
+                    "Beware `step_dt // observe_dt` is not a multiple of "
+                    "`skip_frame_ratio + 1`.")
+
         # Copy observe and control update periods from wrapped environment
         self.observe_dt = self.env.observe_dt
         self.control_dt = self.env.control_dt
 
-        # Re-initialize some internal buffer(s).
+        # Reset frames to zero
+        frames_iterator = iter(self._frames_leaves)
+        for path, space in flatten_with_path(self.env.observation_space):
+            if path not in self.path_filtered_leaves:
+                continue
+            frames = next(frames_iterator)
+            for _ in range(self.num_stack):
+                frames.append(zeros(space))
+
+        # Re-initialize stack state.
         # Note that the initial observation is always stored.
-        self.__n_last_stack = self.skip_frames_ratio - 1
+        self._n_last_stack = self.skip_frames_ratio - 1
+        self._was_stack_shifted = True
 
     def refresh_observation(self, measurement: EngineObsType) -> None:
-        # Get environment observation
+        # Skip update if nothing to do
+        if not is_breakpoint(self.stepper_state.t, self.observe_dt, DT_EPS):
+            return
+
+        # Refresh environment observation
         self.env.refresh_observation(measurement)
 
-        # Update observed features if necessary
-        if self.is_simulation_running and is_breakpoint(
-                self.stepper_state.t, self.env.observe_dt, DT_EPS):
-            self.__n_last_stack += 1
-        if self.__n_last_stack == self.skip_frames_ratio:
-            self.__n_last_stack = -1
-            self.wrapper.refresh_observation(self.env.observation)
+        # Update stacked observation leaf values if necessary
+        update_stack, shift_stack = False, False
+        if self.is_simulation_running:
+            self._n_last_stack += 1
+            if self.skip_frames_ratio < 0:
+                if is_breakpoint(self.stepper_state.t, self._step_dt, DT_EPS):
+                    update_stack = True
+            elif self._n_last_stack == self.skip_frames_ratio:
+                update_stack = True
+            shift_stack = self._n_last_stack == 0
+
+        # Backup the nested observation fields to stack.
+        # Leaf values are copied to ensure they do not get altered later on.
+        for frames, env_obs_leaf, obs_leaf in self._frames_update_triplets:
+            if update_stack:
+                frames[-1] = env_obs_leaf.copy()
+            if shift_stack:
+                frames.append(env_obs_leaf)
+                multi_array_copyto(obs_leaf, tuple(frames))
+            else:
+                array_copyto(obs_leaf[-1], env_obs_leaf)
+
+        # Re-initialize number of skipped stack update
+        if update_stack:
+            self._n_last_stack = -1
+            self._was_stack_shifted = True
 
     def compute_command(self, action: ActT, command: np.ndarray) -> None:
         """Compute the motors efforts to apply on the robot.
@@ -257,5 +244,6 @@ class StackedJiminyEnv(
         without any processing.
 
         :param action: High-level target to achieve by means of the command.
+        :param command: Lower-level command to updated in-place.
         """
         self.env.compute_command(action, command)

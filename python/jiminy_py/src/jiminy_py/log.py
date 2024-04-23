@@ -160,15 +160,17 @@ def build_robot_from_log(
     # Extract log constants
     log_constants = log_data["constants"]
 
+    # Extract the extended pinocchio model used in simulation
     try:
         pinocchio_model = log_constants[
             ".".join(filter(None, (robot_name, "pinocchio_model")))]
     except KeyError as e:
-        if robot_name == "":
-            raise ValueError(
-                "No robot with empty name has been found. Specify a name or "
-                "call `build_robots_from_log`.") from e
+        raise ValueError(
+            f"No robot with name '{robot_name}' found in log data. Please "
+            "specify a valid name or call `build_robots_from_log`.") from e
 
+    # Try building the robot from persistent data, otherwise fallback to
+    # initialization from URDF and loading options.
     try:
         # Extract geometry models
         collision_model = log_constants[
@@ -182,8 +184,8 @@ def build_robot_from_log(
         # Extract initialization arguments
         urdf_data = log_constants[
             ".".join(filter(None, (robot_name, "urdf_file")))]
-        has_freeflyer = int(log_constants[
-            ".".join(filter(None, (robot_name, "has_freeflyer")))])
+        has_freeflyer = bool(int(log_constants[
+            ".".join(filter(None, (robot_name, "has_freeflyer")))]))
         mesh_package_dirs = [*mesh_package_dirs, *log_constants.get(
             ".".join(filter(None, (robot_name, "mesh_package_dirs"))), ())]
 
@@ -271,7 +273,7 @@ def build_robots_from_log(
 
 
 def extract_trajectory_from_log(log_data: Dict[str, Any],
-                                robot: Optional[jiminy.Model] = None,
+                                robot: Optional[jiminy.Robot] = None,
                                 *, robot_name: Optional[str] = None
                                 ) -> TrajectoryDataType:
     """Extract the minimal required information from raw log data in order to
@@ -349,7 +351,7 @@ def extract_trajectory_from_log(log_data: Dict[str, Any],
 
 def extract_trajectories_from_log(
         log_data: Dict[str, Any],
-        robots: Optional[Sequence[jiminy.Model]] = None
+        robots: Optional[Sequence[jiminy.Robot]] = None
         ) -> Dict[str, TrajectoryDataType]:
     """Extract the minimal required information from raw log data in order to
     replay the simulation in a viewer.
@@ -368,17 +370,16 @@ def extract_trajectories_from_log(
     :returns: Dictonary mapping each robot name to its corresponding
               trajectory.
     """
-    trajectories = {}
-
     # Handling of default argument(s)
     if robots is None:
         robots = build_robots_from_log(log_data)
 
+    # Load the trajectory associated with each robot sequentially
+    trajectories = {}
     for robot in robots:
-        trajectory = extract_trajectory_from_log(
+        trajectories[robot.name] = extract_trajectory_from_log(
             log_data, robot, robot_name=robot.name)
 
-        trajectories[robot.name] = trajectory
     return trajectories
 
 
