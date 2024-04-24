@@ -247,9 +247,8 @@ namespace jiminy::python
     {
         bp::class_<AbstractSensorBase, std::shared_ptr<AbstractSensorBase>, boost::noncopyable>(
             "AbstractSensor", bp::no_init)
-            .ADD_PROPERTY_GET_WITH_POLICY("is_initialized",
-                                          &AbstractSensorBase::getIsInitialized,
-                                          bp::return_value_policy<bp::return_by_value>())
+            .ADD_PROPERTY_GET("is_attached", &AbstractSensorBase::getIsAttached)
+            .ADD_PROPERTY_GET("is_initialized", &AbstractSensorBase::getIsInitialized)
 
             .ADD_PROPERTY_GET_WITH_POLICY("type",
                                           &AbstractSensorBase::getType,
@@ -261,9 +260,7 @@ namespace jiminy::python
             .ADD_PROPERTY_GET_WITH_POLICY("name",
                                           &AbstractSensorBase::getName,
                                           bp::return_value_policy<bp::return_by_value>())
-            .ADD_PROPERTY_GET_WITH_POLICY("index",
-                                          &AbstractSensorBase::getIndex,
-                                          bp::return_value_policy<bp::return_by_value>())
+            .ADD_PROPERTY_GET("index", &AbstractSensorBase::getIndex)
             .ADD_PROPERTY_GET_SET_WITH_POLICY(
                 "data",
                 static_cast<Eigen::Ref<const Eigen::VectorXd> (AbstractSensorBase::*)(void) const>(
@@ -316,17 +313,11 @@ namespace jiminy::python
         {
             visitBasicSensors(cl);
 
-            // clang-format off
-            cl
-                .def("initialize", &DerivedSensor::initialize, (bp::arg("self"), "frame_name"))
+            cl.def("initialize", &DerivedSensor::initialize, (bp::arg("self"), "frame_name"))
                 .ADD_PROPERTY_GET_WITH_POLICY("frame_name",
                                               &DerivedSensor::getFrameName,
                                               bp::return_value_policy<bp::return_by_value>())
-                .ADD_PROPERTY_GET_WITH_POLICY("frame_index",
-                                              &DerivedSensor::getFrameIndex,
-                                              bp::return_value_policy<bp::return_by_value>())
-                ;
-            // clang-format on
+                .ADD_PROPERTY_GET("frame_index", &DerivedSensor::getFrameIndex);
         }
 
         static void expose()
@@ -351,9 +342,7 @@ namespace jiminy::python
                        boost::noncopyable>(
                 "ForceSensor", bp::init<const std::string &>((bp::arg("self"), "name")))
                 .def(PyBasicSensorsVisitor())
-                .ADD_PROPERTY_GET_WITH_POLICY("joint_index",
-                                              &ForceSensor::getJointIndex,
-                                              bp::return_value_policy<bp::return_by_value>());
+                .ADD_PROPERTY_GET("joint_index", &ForceSensor::getJointIndex);
 
             bp::class_<EncoderSensor,
                        bp::bases<AbstractSensorBase>,
@@ -365,12 +354,8 @@ namespace jiminy::python
                 .ADD_PROPERTY_GET_WITH_POLICY("joint_name",
                                               &EncoderSensor::getJointName,
                                               bp::return_value_policy<bp::return_by_value>())
-                .ADD_PROPERTY_GET_WITH_POLICY("joint_index",
-                                              &EncoderSensor::getJointIndex,
-                                              bp::return_value_policy<bp::return_by_value>())
-                .ADD_PROPERTY_GET_WITH_POLICY("joint_type",
-                                              &EncoderSensor::getJointType,
-                                              bp::return_value_policy<bp::return_by_value>());
+                .ADD_PROPERTY_GET("joint_index", &EncoderSensor::getJointIndex)
+                .ADD_PROPERTY_GET("joint_type", &EncoderSensor::getJointType);
 
             bp::class_<EffortSensor,
                        bp::bases<AbstractSensorBase>,
@@ -382,9 +367,7 @@ namespace jiminy::python
                 .ADD_PROPERTY_GET_WITH_POLICY("motor_name",
                                               &EffortSensor::getMotorName,
                                               bp::return_value_policy<bp::return_by_value>())
-                .ADD_PROPERTY_GET_WITH_POLICY("motor_index",
-                                              &EffortSensor::getMotorIndex,
-                                              bp::return_value_policy<bp::return_by_value>());
+                .ADD_PROPERTY_GET("motor_index", &EffortSensor::getMotorIndex);
         }
     };
 

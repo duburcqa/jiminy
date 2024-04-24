@@ -26,39 +26,22 @@ namespace jiminy::python
     {
         bp::class_<AbstractMotorBase, std::shared_ptr<AbstractMotorBase>, boost::noncopyable>(
             "AbstractMotor", bp::no_init)
-            .ADD_PROPERTY_GET_WITH_POLICY("is_initialized",
-                                          &AbstractMotorBase::getIsInitialized,
-                                          bp::return_value_policy<bp::return_by_value>())
+            .ADD_PROPERTY_GET("is_attached", &AbstractMotorBase::getIsAttached)
+            .ADD_PROPERTY_GET("is_initialized", &AbstractMotorBase::getIsInitialized)
             .ADD_PROPERTY_GET_WITH_POLICY("name",
                                           &AbstractMotorBase::getName,
                                           bp::return_value_policy<bp::return_by_value>())
-            .ADD_PROPERTY_GET_WITH_POLICY("index",
-                                          &AbstractMotorBase::getIndex,
-                                          bp::return_value_policy<bp::return_by_value>())
+            .ADD_PROPERTY_GET("index", &AbstractMotorBase::getIndex)
             .ADD_PROPERTY_GET_WITH_POLICY("joint_name",
                                           &AbstractMotorBase::getJointName,
                                           bp::return_value_policy<bp::return_by_value>())
-            .ADD_PROPERTY_GET_WITH_POLICY("joint_index",
-                                          &AbstractMotorBase::getJointIndex,
-                                          bp::return_value_policy<bp::return_by_value>())
-            .ADD_PROPERTY_GET_WITH_POLICY("joint_type",
-                                          &AbstractMotorBase::getJointType,
-                                          bp::return_value_policy<bp::return_by_value>())
-            .ADD_PROPERTY_GET_WITH_POLICY("joint_position_index",
-                                          &AbstractMotorBase::getJointPositionIndex,
-                                          bp::return_value_policy<bp::return_by_value>())
-            .ADD_PROPERTY_GET_WITH_POLICY("joint_velocity_index",
-                                          &AbstractMotorBase::getJointVelocityIndex,
-                                          bp::return_value_policy<bp::return_by_value>())
-            .ADD_PROPERTY_GET_WITH_POLICY("command_limit",
-                                          &AbstractMotorBase::getCommandLimit,
-                                          bp::return_value_policy<bp::return_by_value>())
-            .ADD_PROPERTY_GET_WITH_POLICY("armature",
-                                          &AbstractMotorBase::getArmature,
-                                          bp::return_value_policy<bp::return_by_value>())
-            .ADD_PROPERTY_GET_WITH_POLICY("backlash",
-                                          &AbstractMotorBase::getBacklash,
-                                          bp::return_value_policy<bp::return_by_value>())
+            .ADD_PROPERTY_GET("joint_index", &AbstractMotorBase::getJointIndex)
+            .ADD_PROPERTY_GET("joint_type", &AbstractMotorBase::getJointType)
+            .ADD_PROPERTY_GET("joint_position_index", &AbstractMotorBase::getJointPositionIndex)
+            .ADD_PROPERTY_GET("joint_velocity_index", &AbstractMotorBase::getJointVelocityIndex)
+            .ADD_PROPERTY_GET("command_limit", &AbstractMotorBase::getCommandLimit)
+            .ADD_PROPERTY_GET("armature", &AbstractMotorBase::getArmature)
+            .ADD_PROPERTY_GET("backlash", &AbstractMotorBase::getBacklash)
 
             .def("set_options", &internal::abstract_motor::setOptions)
             .def("get_options",

@@ -129,8 +129,10 @@ namespace jiminy
             std::size_t t_vertex;
         };
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#if (defined(__GNUC__) || defined(__GNUG__)) && !defined(__clang__)
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif
         /// \brief Fast mesh simplification utility.
         ///
         /// \details The original algorithm has been developed by Michael Garland and Paul
@@ -588,7 +590,9 @@ namespace jiminy
             std::vector<Ref> refs{};
         };
     }
-#pragma GCC diagnostic pop
+#if (defined(__GNUC__) || defined(__GNUG__)) && !defined(__clang__)
+#    pragma GCC diagnostic pop
+#endif
 
     hpp::fcl::CollisionGeometryPtr_t discretizeHeightmap(const HeightmapFunction & heightmap,
                                                          double xMin,

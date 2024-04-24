@@ -39,6 +39,10 @@ namespace jiminy
                         const Eigen::Vector3d & wheelAxis) noexcept;
         virtual ~WheelConstraint() = default;
 
+        double getRadius() const noexcept;
+        const Eigen::Vector3d & getNormal() const noexcept;
+        const Eigen::Vector3d & getWheelAxis() const noexcept;
+
         const std::string & getFrameName() const noexcept;
         pinocchio::FrameIndex getFrameIndex() const noexcept;
 

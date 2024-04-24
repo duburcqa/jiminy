@@ -31,6 +31,15 @@ namespace jiminy
         return frameIndex_;
     }
 
+    double SphereConstraint::getRadius() const noexcept
+    {
+        return radius_;
+    }
+    const Eigen::Vector3d & SphereConstraint::getNormal() const noexcept
+    {
+        return normal_;
+    }
+
     void SphereConstraint::setReferenceTransform(const pinocchio::SE3 & transformRef) noexcept
     {
         transformRef_ = transformRef;

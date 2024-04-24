@@ -181,14 +181,14 @@ namespace jiminy
         ///         higher dimensional tensor.
         virtual Eigen::Ref<const Eigen::VectorXd> get() const = 0;
 
+        /// \brief Whether the sensor has been attached to a robot.
+        bool getIsAttached() const;
+
         /// \brief Whether the sensor has been initialized.
         ///
         /// \remark Note that a sensor can be considered initialized even if its telemetry is not
         ///         properly configured. If not, it must be done before being ready to use.
         bool getIsInitialized() const;
-
-        /// \brief Whether the sensor has been attached to a robot.
-        bool getIsAttached() const;
 
         /// \brief Whether the telemetry of the controller has been initialized.
         bool getIsTelemetryConfigured() const;

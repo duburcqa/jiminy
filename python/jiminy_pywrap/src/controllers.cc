@@ -82,9 +82,9 @@ namespace jiminy::python
         static void initialize(AbstractController & self, const std::shared_ptr<Robot> & robot)
         {
             /* Cannot use input shared pointer because its reference counter is corrupted for some
-                reason, making it impossible to use it in conjunction with weak_ptr. The only known
-                workaround is using `enable_shared_from_this` trick:
-                https://github.com/boostorg/python/issues/189 */
+               reason, making it impossible to use it in conjunction with weak_ptr. The only known
+               workaround is using `enable_shared_from_this` trick:
+               https://github.com/boostorg/python/issues/189 */
             return self.initialize(robot->shared_from_this());
         }
 
@@ -225,9 +225,7 @@ namespace jiminy::python
             .def("internal_dynamics",
                  &AbstractController::internalDynamics,
                  (bp::arg("self"), "t", "q", "v", "u_custom"))
-            .ADD_PROPERTY_GET_WITH_POLICY("is_initialized",
-                                          &AbstractController::getIsInitialized,
-                                          bp::return_value_policy<bp::return_by_value>())
+            .ADD_PROPERTY_GET("is_initialized", &AbstractController::getIsInitialized)
             .def("register_constant",
                  &internal::abstract_controller::registerConstant,
                  (bp::arg("self"), "name", "value"))

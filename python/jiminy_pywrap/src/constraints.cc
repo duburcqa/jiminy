@@ -104,10 +104,9 @@ namespace jiminy::python
             .ADD_PROPERTY_GET_WITH_POLICY("type",
                                           &AbstractConstraintBase::getType,
                                           bp::return_value_policy<bp::return_by_value>())
-            .ADD_PROPERTY_GET_SET_WITH_POLICY("is_enabled",
-                                              &AbstractConstraintBase::getIsEnabled,
-                                              bp::return_value_policy<bp::return_by_value>(),
-                                              &internal::constraints::setIsEnable)
+            .ADD_PROPERTY_GET_SET("is_enabled",
+                                  &AbstractConstraintBase::getIsEnabled,
+                                  &internal::constraints::setIsEnable)
             .ADD_PROPERTY_GET_SET("kp",
                                   &AbstractConstraintBase::getBaumgartePositionGain,
                                   &AbstractConstraintBase::setBaumgartePositionGain)
@@ -147,17 +146,14 @@ namespace jiminy::python
             .ADD_PROPERTY_GET_WITH_POLICY("joint_name",
                                           &JointConstraint::getJointName,
                                           bp::return_value_policy<bp::return_by_value>())
-            .ADD_PROPERTY_GET_WITH_POLICY("joint_index",
-                                          &JointConstraint::getJointIndex,
-                                          bp::return_value_policy<bp::return_by_value>())
+            .ADD_PROPERTY_GET("joint_index", &JointConstraint::getJointIndex)
             .ADD_PROPERTY_GET_SET_WITH_POLICY("reference_configuration",
                                               &JointConstraint::getReferenceConfiguration,
                                               bp::return_value_policy<result_converter<false>>(),
                                               &JointConstraint::setReferenceConfiguration)
-            .ADD_PROPERTY_GET_SET_WITH_POLICY("rotation_dir",
-                                              &JointConstraint::getRotationDir,
-                                              bp::return_value_policy<bp::return_by_value>(),
-                                              &JointConstraint::setRotationDir);
+            .ADD_PROPERTY_GET_SET("rotation_dir",
+                                  &JointConstraint::getRotationDir,
+                                  &JointConstraint::setRotationDir);
 
         bp::class_<FrameConstraint,
                    bp::bases<AbstractConstraintBase>,
@@ -172,9 +168,7 @@ namespace jiminy::python
             .ADD_PROPERTY_GET_WITH_POLICY("frame_name",
                                           &FrameConstraint::getFrameName,
                                           bp::return_value_policy<bp::return_by_value>())
-            .ADD_PROPERTY_GET_WITH_POLICY("frame_index",
-                                          &FrameConstraint::getFrameIndex,
-                                          bp::return_value_policy<bp::return_by_value>())
+            .ADD_PROPERTY_GET("frame_index", &FrameConstraint::getFrameIndex)
             .ADD_PROPERTY_GET_WITH_POLICY("dofs_fixed",
                                           &FrameConstraint::getDofsFixed,
                                           bp::return_value_policy<bp::return_by_value>())
@@ -195,16 +189,15 @@ namespace jiminy::python
             bp::init<const std::string &, const std::string &>(
                 (bp::arg("self"), "first_frame_name", "second_frame_name")))
             .def_readonly("type", &DistanceConstraint::type_)
-            .ADD_PROPERTY_GET_WITH_POLICY("frames_names",
-                                          &DistanceConstraint::getFramesNames,
+            .ADD_PROPERTY_GET_WITH_POLICY("frame_names",
+                                          &DistanceConstraint::getFrameNames,
                                           bp::return_value_policy<result_converter<true>>())
             .ADD_PROPERTY_GET_WITH_POLICY("frame_indices",
                                           &DistanceConstraint::getFrameIndices,
                                           bp::return_value_policy<result_converter<true>>())
-            .ADD_PROPERTY_GET_SET_WITH_POLICY("reference_distance",
-                                              &DistanceConstraint::getReferenceDistance,
-                                              bp::return_value_policy<bp::return_by_value>(),
-                                              &DistanceConstraint::setReferenceDistance);
+            .ADD_PROPERTY_GET_SET("reference_distance",
+                                  &DistanceConstraint::getReferenceDistance,
+                                  &DistanceConstraint::setReferenceDistance);
 
         bp::class_<SphereConstraint,
                    bp::bases<AbstractConstraintBase>,
@@ -216,9 +209,11 @@ namespace jiminy::python
             .ADD_PROPERTY_GET_WITH_POLICY("frame_name",
                                           &SphereConstraint::getFrameName,
                                           bp::return_value_policy<bp::return_by_value>())
-            .ADD_PROPERTY_GET_WITH_POLICY("frame_index",
-                                          &SphereConstraint::getFrameIndex,
-                                          bp::return_value_policy<bp::return_by_value>())
+            .ADD_PROPERTY_GET("frame_index", &SphereConstraint::getFrameIndex)
+            .ADD_PROPERTY_GET("radius", &SphereConstraint::getRadius)
+            .ADD_PROPERTY_GET_WITH_POLICY("normal",
+                                          &SphereConstraint::getNormal,
+                                          bp::return_value_policy<result_converter<false>>())
             .ADD_PROPERTY_GET_SET_WITH_POLICY("reference_transform",
                                               &SphereConstraint::getReferenceTransform,
                                               bp::return_value_policy<result_converter<false>>(),
@@ -235,9 +230,14 @@ namespace jiminy::python
             .ADD_PROPERTY_GET_WITH_POLICY("frame_name",
                                           &WheelConstraint::getFrameName,
                                           bp::return_value_policy<bp::return_by_value>())
-            .ADD_PROPERTY_GET_WITH_POLICY("frame_index",
-                                          &WheelConstraint::getFrameIndex,
-                                          bp::return_value_policy<bp::return_by_value>())
+            .ADD_PROPERTY_GET("frame_index", &WheelConstraint::getFrameIndex)
+            .ADD_PROPERTY_GET("radius", &WheelConstraint::getRadius)
+            .ADD_PROPERTY_GET_WITH_POLICY("normal",
+                                          &WheelConstraint::getNormal,
+                                          bp::return_value_policy<result_converter<false>>())
+            .ADD_PROPERTY_GET_WITH_POLICY("axis",
+                                          &WheelConstraint::getWheelAxis,
+                                          bp::return_value_policy<result_converter<false>>())
             .ADD_PROPERTY_GET_SET_WITH_POLICY("reference_transform",
                                               &WheelConstraint::getReferenceTransform,
                                               bp::return_value_policy<result_converter<false>>(),

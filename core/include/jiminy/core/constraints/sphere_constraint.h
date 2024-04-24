@@ -40,6 +40,9 @@ namespace jiminy
         const std::string & getFrameName() const noexcept;
         pinocchio::FrameIndex getFrameIndex() const noexcept;
 
+        double getRadius() const noexcept;
+        const Eigen::Vector3d & getNormal() const noexcept;
+
         void setReferenceTransform(const pinocchio::SE3 & transformRef) noexcept;
         const pinocchio::SE3 & getReferenceTransform() const noexcept;
 

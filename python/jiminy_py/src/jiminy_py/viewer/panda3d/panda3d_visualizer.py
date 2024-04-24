@@ -1744,13 +1744,11 @@ class Panda3dProxy(mp.Process):
     Based on `panda3d_viewer.ViewerAppProxy`:
     https://github.com/ikalevatykh/panda3d_viewer/blob/1105e082b75943aa0a81e623e003d1d649c85a14/panda3d_viewer/viewer_proxy.py
     """  # noqa: E501  # pylint: disable=line-too-long
-    @wraps(Panda3dApp.__init__)
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
+    def __init__(self, config: Optional[ViewerConfig] = None) -> None:
         """Start an application in a sub-process.
         """
         super().__init__()
-        self._args = args
-        self._kwargs = kwargs
+        self._viewer_config = config
         self._is_async = False
         self.daemon = True
         self._host_conn, self._proc_conn = mp.Pipe()
@@ -1861,7 +1859,7 @@ class Panda3dProxy(mp.Process):
         """
         # pylint: disable=broad-exception-caught
         try:
-            app = Panda3dApp(*self._args, **self._kwargs)
+            app = Panda3dApp(self._viewer_config)
             self._proc_conn.send(None)
 
             def _execute(task: Task) -> Optional[int]:

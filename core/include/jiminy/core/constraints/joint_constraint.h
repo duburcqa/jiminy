@@ -36,7 +36,7 @@ namespace jiminy
         const Eigen::VectorXd & getReferenceConfiguration() const noexcept;
 
         void setRotationDir(bool isReversed) noexcept;
-        bool getRotationDir() noexcept;
+        bool getRotationDir() const noexcept;
 
         virtual void reset(const Eigen::VectorXd & q, const Eigen::VectorXd & v) override final;
 

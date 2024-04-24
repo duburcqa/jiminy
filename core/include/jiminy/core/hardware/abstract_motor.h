@@ -120,6 +120,9 @@ namespace jiminy
         /// \param[in] motorOptions Dictionary with the parameters used for any motor.
         void setOptionsAll(const GenericConfig & motorOptions);
 
+        /// \brief Whether the motor has been attached to a robot.
+        bool getIsAttached() const;
+
         /// \brief Whether the motor has been initialized.
         bool getIsInitialized() const;
 
@@ -191,8 +194,6 @@ namespace jiminy
     protected:
         /// \brief Reference to the last data buffer corresponding to the true effort of the motor.
         double & data();
-
-        bool isAttached() const;
 
     private:
         /// \brief Attach the sensor to a robot

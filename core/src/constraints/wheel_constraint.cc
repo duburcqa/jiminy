@@ -33,6 +33,21 @@ namespace jiminy
         return frameIndex_;
     }
 
+    double WheelConstraint::getRadius() const noexcept
+    {
+        return radius_;
+    }
+
+    const Eigen::Vector3d & WheelConstraint::getNormal() const noexcept
+    {
+        return normal_;
+    }
+
+    const Eigen::Vector3d & WheelConstraint::getWheelAxis() const noexcept
+    {
+        return axis_;
+    }
+
     void WheelConstraint::setReferenceTransform(const pinocchio::SE3 & transformRef) noexcept
     {
         transformRef_ = transformRef;

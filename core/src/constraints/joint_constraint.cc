@@ -48,7 +48,7 @@ namespace jiminy
         isReversed_ = isReversed;
     }
 
-    bool JointConstraint::getRotationDir() noexcept
+    bool JointConstraint::getRotationDir() const noexcept
     {
         return isReversed_;
     }

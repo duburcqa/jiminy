@@ -905,25 +905,6 @@ namespace jiminy
         }
     }
 
-    template<typename T>
-    static std::string serialize(T && value)
-    {
-        if constexpr (std::is_same_v<std::string, std::decay_t<T>>)
-        {
-            return value;
-        }
-        else if constexpr (std::is_arithmetic_v<std::decay_t<T>>)
-        {
-            return toString(value);
-        }
-        else
-        {
-            /* Note that boost::serialization module natively supports passing raw pointers,
-               `std::shard_ptr`, and `std::vector`. */
-            return ::jiminy::saveToBinary(value);
-        }
-    }
-
     void Engine::start(const std::map<std::string, Eigen::VectorXd> & qInit,
                        const std::map<std::string, Eigen::VectorXd> & vInit,
                        const std::optional<std::map<std::string, Eigen::VectorXd>> & aInit)
@@ -1467,64 +1448,14 @@ namespace jiminy
         // Lock the telemetry. At this point it is not possible to register new variables.
         configureTelemetry();
 
-        // Log robots data
+        // Log robots
         for (const auto & robot : robots_)
         {
-            // Define helper to make it easy to register a robot member as a constant
-            auto registerRobotMember = [&](const std::string & name, auto && member)
-            {
-                // Prepend robot name to variable name
-                const std::string key =
-                    addCircumfix(name, robot->getName(), {}, TELEMETRY_FIELDNAME_DELIMITER);
-
-                // Dump serialized constant
-                if constexpr (std::is_member_function_pointer_v<std::decay_t<decltype(member)>>)
-                {
-                    telemetrySender_->registerConstant(key, serialize((robot.get()->*member)()));
-                }
-                else
-                {
-                    telemetrySender_->registerConstant(key, serialize(robot.get()->*member));
-                }
-            };
-
-            // Backup URDF file
-            registerRobotMember("urdf_file", &Robot::getUrdfAsString);
-
-            // Backup 'has_freeflyer' option
-            registerRobotMember("has_freeflyer", &Robot::getHasFreeflyer);
-
-            // Backup mesh package lookup directories
-            registerRobotMember("mesh_package_dirs", &Robot::getMeshPackageDirs);
-
-            // Backup the theoretical model and current extended model
-            registerRobotMember("pinocchio_model_th", &Robot::pinocchioModelTh_);
-            registerRobotMember("pinocchio_model", &Robot::pinocchioModel_);
-
-            /* Backup the Pinocchio GeometryModel for collisions and visuals.
-               It may fail because of missing serialization methods for convex, or because it
-               cannot fit into memory.
-               Persistent mode is automatically enabled if no URDF is associated with the robot. */
-            const bool hasUrdfFile = !robot->getUrdfAsString().empty();
-            if (engineOptions_->telemetry.isPersistent || !hasUrdfFile)
-            {
-                try
-                {
-                    registerRobotMember("collision_model", &Robot::collisionModel_);
-                    registerRobotMember("visual_model", &Robot::visualModel_);
-                }
-                catch (const std::exception & e)
-                {
-                    std::string msg{"Failed to log the collision and/or visual model."};
-                    if (!hasUrdfFile)
-                    {
-                        msg += "\nIt will be impossible to replay log files because no URDF file "
-                               "is available as fallback.";
-                    }
-                    msg += "\nRaised from exception: ";
-                    PRINT_WARNING(msg, e.what());
-                }
-            }
+            const bool isPersistent = engineOptions_->telemetry.isPersistent ||
+                                      robot->getUrdfAsString().empty();
+            const std::string key =
+                addCircumfix("robot", robot->getName(), {}, TELEMETRY_FIELDNAME_DELIMITER);
+            telemetrySender_->registerConstant(key, saveToBinary(robot, isPersistent));
         }
 
         // Log all options

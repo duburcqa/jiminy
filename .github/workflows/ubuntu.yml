@@ -99,8 +99,8 @@ jobs:
               -DCMAKE_SHARED_LINKER_FLAGS="${{ matrix.LINKER_FLAGS }}" \
               -DCMAKE_C_COMPILER="${CMAKE_C_COMPILER}" -DCMAKE_CXX_COMPILER="${CMAKE_CXX_COMPILER}" \
               -DCMAKE_PREFIX_PATH="/opt/openrobots/" -DCMAKE_INSTALL_PREFIX="${InstallDir}" \
-              -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DBoost_NO_SYSTEM_PATHS=OFF \
-              -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
+              -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=${{ (matrix.BUILD_TYPE == 'Debug' && 'OFF') || 'ON' }} \
+              -DBoost_NO_SYSTEM_PATHS=OFF -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
               -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON \
               -DCMAKE_BUILD_TYPE="${{ matrix.BUILD_TYPE }}"
         if [[ "${{ matrix.GENERATOR }}" == 'Ninja' ]] ; then
@@ -127,8 +127,8 @@ jobs:
               -DCMAKE_SHARED_LINKER_FLAGS="${{ matrix.LINKER_FLAGS }}" \
               -DCMAKE_C_COMPILER="${CMAKE_C_COMPILER}" -DCMAKE_CXX_COMPILER="${CMAKE_CXX_COMPILER}" \
               -DCMAKE_PREFIX_PATH="/opt/openrobots/" -DCMAKE_INSTALL_PREFIX="${InstallDir}" \
-              -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
-              -DCMAKE_BUILD_TYPE="${{ matrix.BUILD_TYPE }}"
+              -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=${{ (matrix.BUILD_TYPE == 'Debug' && 'OFF') || 'ON' }} \
+              -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" -DCMAKE_BUILD_TYPE="${{ matrix.BUILD_TYPE }}"
         if [[ "${{ matrix.GENERATOR }}" == 'Ninja' ]] ; then
           ninja install
         else

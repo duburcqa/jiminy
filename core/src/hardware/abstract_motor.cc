@@ -189,13 +189,11 @@ namespace jiminy
             // Check if command limit has changed
             const bool commandLimitFromUrdf =
                 boost::get<bool>(motorOptions.at("commandLimitFromUrdf"));
-            mustNotifyRobot_ |=
-                (baseMotorOptions_->commandLimitFromUrdf != commandLimitFromUrdf);
+            mustNotifyRobot_ |= (baseMotorOptions_->commandLimitFromUrdf != commandLimitFromUrdf);
             if (!commandLimitFromUrdf)
             {
                 const double commandLimit = boost::get<double>(motorOptions.at("commandLimit"));
-                mustNotifyRobot_ |=
-                    std::abs(commandLimit - baseMotorOptions_->commandLimit) > EPS;
+                mustNotifyRobot_ |= std::abs(commandLimit - baseMotorOptions_->commandLimit) > EPS;
             }
         }
 
@@ -318,11 +316,6 @@ namespace jiminy
         return sharedStorage_->data_[motorIndex_];
     }
 
-    bool AbstractMotorBase::isAttached() const
-    {
-        return isAttached_;
-    }
-
     const Eigen::VectorXd & AbstractMotorBase::getAll() const
     {
         return sharedStorage_->data_;
@@ -340,6 +333,11 @@ namespace jiminy
         {
             motor->setOptions(motorOptions);
         }
+    }
+
+    bool AbstractMotorBase::getIsAttached() const
+    {
+        return isAttached_;
     }
 
     bool AbstractMotorBase::getIsInitialized() const
