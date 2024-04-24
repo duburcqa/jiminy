@@ -24,8 +24,6 @@ namespace jiminy
     public:
         JIMINY_DISABLE_COPY(JointConstraint)
 
-        auto shared_from_this() { return shared_from(this); }
-
     public:
         /// \param[in] jointName Name of the joint.
         explicit JointConstraint(const std::string & jointName) noexcept;

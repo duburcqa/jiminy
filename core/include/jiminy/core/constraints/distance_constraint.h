@@ -24,8 +24,6 @@ namespace jiminy
     public:
         JIMINY_DISABLE_COPY(DistanceConstraint)
 
-        auto shared_from_this() { return shared_from(this); }
-
     public:
         explicit DistanceConstraint(const std::string & firstFrameName,
                                     const std::string & secondFrameName) noexcept;

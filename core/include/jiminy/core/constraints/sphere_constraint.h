@@ -28,8 +28,6 @@ namespace jiminy
     public:
         JIMINY_DISABLE_COPY(SphereConstraint)
 
-        auto shared_from_this() { return shared_from(this); }
-
     public:
         /// \param[in] frameName Name of the frame representing the center of the sphere.
         /// \param[in] sphereRadius Radius of the sphere (in m).

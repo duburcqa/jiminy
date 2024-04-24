@@ -352,8 +352,8 @@ namespace jiminy
     }
 
     void swapJointIndices(pinocchio::Model & model,
-                    pinocchio::JointIndex jointIndex1,
-                    pinocchio::JointIndex jointIndex2)
+                          pinocchio::JointIndex jointIndex1,
+                          pinocchio::JointIndex jointIndex2)
     {
         // Early return if nothing to do
         if (jointIndex1 == jointIndex2)
@@ -540,8 +540,9 @@ namespace jiminy
 
         /* Set child joint to be a child of the new joint, at the origin.
            Loop over joints starting from universe (1) to new joint excluded (njoints - 1). */
-        for (pinocchio::JointIndex i = 1 ;
-             i < static_cast<pinocchio::JointIndex>(model.njoints -1) ; ++i)
+        for (pinocchio::JointIndex i = 1;
+             i < static_cast<pinocchio::JointIndex>(model.njoints - 1);
+             ++i)
         {
             if (model.parents[i] == parentJointIndex)
             {

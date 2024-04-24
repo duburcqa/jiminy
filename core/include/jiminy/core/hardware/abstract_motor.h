@@ -32,7 +32,7 @@ namespace jiminy
         std::size_t num_;
     };
 
-    class JIMINY_DLLAPI AbstractMotorBase : public std::enable_shared_from_this<AbstractMotorBase>
+    class JIMINY_DLLAPI AbstractMotorBase
     {
         /* AKA AbstractSensorBase */
         friend Robot;
@@ -198,10 +198,10 @@ namespace jiminy
         /// \brief Attach the sensor to a robot
         ///
         /// \details This method must be called before initializing the sensor.
-        void attach(std::weak_ptr<const Robot> robot,
-                    std::function<void(
-                        AbstractMotorBase & /*motor*/, bool /*hasChanged*/)> notifyRobot,
-                    MotorSharedStorage * sharedStorage);
+        void attach(
+            std::weak_ptr<const Robot> robot,
+            std::function<void(AbstractMotorBase & /*motor*/, bool /*hasChanged*/)> notifyRobot,
+            MotorSharedStorage * sharedStorage);
 
         /// \brief Detach the sensor from the robot.
         void detach();

@@ -28,8 +28,6 @@ namespace jiminy
     public:
         JIMINY_DISABLE_COPY(WheelConstraint)
 
-        auto shared_from_this() { return shared_from(this); }
-
     public:
         /// \param[in] frameName Name of the frame representing the center of the wheel.
         /// \param[in] wheelRadius Radius of the wheel (in m).

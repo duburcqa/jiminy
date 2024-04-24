@@ -24,8 +24,6 @@ namespace jiminy
     public:
         using AbstractSensorTpl<ImuSensor>::AbstractSensorTpl;
 
-        auto shared_from_this() { return shared_from(this); }
-
         void initialize(const std::string & frameName);
 
         void setOptions(const GenericConfig & sensorOptions) override;
@@ -64,8 +62,6 @@ namespace jiminy
     public:
         using AbstractSensorTpl<ContactSensor>::AbstractSensorTpl;
 
-        auto shared_from_this() { return shared_from(this); }
-
         void initialize(const std::string & frameName);
 
         void setOptions(const GenericConfig & sensorOptions) override;
@@ -101,8 +97,6 @@ namespace jiminy
     {
     public:
         using AbstractSensorTpl<ForceSensor>::AbstractSensorTpl;
-
-        auto shared_from_this() { return shared_from(this); }
 
         void initialize(const std::string & frameName);
 
@@ -143,8 +137,6 @@ namespace jiminy
     public:
         using AbstractSensorTpl<EncoderSensor>::AbstractSensorTpl;
 
-        auto shared_from_this() { return shared_from(this); }
-
         void initialize(const std::string & jointName);
 
         void setOptions(const GenericConfig & sensorOptions) override;
@@ -181,8 +173,6 @@ namespace jiminy
     {
     public:
         using AbstractSensorTpl<EffortSensor>::AbstractSensorTpl;
-
-        auto shared_from_this() { return shared_from(this); }
 
         void initialize(const std::string & motorName);
 
