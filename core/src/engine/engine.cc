@@ -3395,7 +3395,7 @@ namespace jiminy
              Eigen::VectorXd & /* u */)
         {
 #ifndef NDEBUG
-            PRINT_WARNING("No position bounds implemented for this type of joint.");
+            JIMINY_WARNING("No position bounds implemented for this type of joint.");
 #endif
             if (contactModel == ContactModelType::CONSTRAINT)
             {
@@ -3485,7 +3485,7 @@ namespace jiminy
              Eigen::VectorXd & /* u */)
         {
 #ifndef NDEBUG
-            PRINT_WARNING("No velocity bounds implemented for this type of joint.");
+            JIMINY_WARNING("No velocity bounds implemented for this type of joint.");
 #endif
         }
     };
@@ -3936,7 +3936,7 @@ namespace jiminy
             {
                 if (engineOptions_->stepper.verbose)
                 {
-                    PRINT_WARNING("Constraint solver failure.");
+                    JIMINY_WARNING("Constraint solver failure.");
                 }
                 ++robotData.successiveSolveFailed;
             }

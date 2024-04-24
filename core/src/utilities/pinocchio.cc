@@ -867,7 +867,7 @@ namespace jiminy
             }
             catch (const std::logic_error & e)
             {
-                PRINT_WARNING(
+                JIMINY_WARNING(
                     "hpp-fcl not built with qhull. Impossible to convert meshes to convex hulls.");
             }
         }

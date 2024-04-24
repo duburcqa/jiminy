@@ -87,7 +87,7 @@ namespace jiminy::internal
                  "(" FILE_LINE "):\n",                                                    \
                  __VA_ARGS__))
 
-#define PRINT_WARNING(...)                                                               \
+#define JIMINY_WARNING(...)                                                              \
     std::cout << "\x1b[1;93mWARNING\x1b[0m:"                                             \
               << jiminy::internal::extractFunctionName(__func__, BOOST_CURRENT_FUNCTION) \
               << "(" FILE_LINE "):\n"                                                    \
