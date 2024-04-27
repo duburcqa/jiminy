@@ -39,6 +39,7 @@ from ray.tune.logger import Logger
 from ray.tune.result import TRAINING_ITERATION, TIME_TOTAL_S, TIMESTEPS_TOTAL
 from ray.tune.utils import flatten_dict
 from ray.tune.utils.util import SafeFallbackEncoder
+from ray.train._internal.session import _TrainingResult
 from ray.rllib.connectors.connector import Connector, ConnectorContext
 from ray.rllib.connectors.registry import register_connector
 from ray.rllib.connectors.util import (
@@ -368,7 +369,7 @@ def train(algo: Algorithm,
           logdir: Optional[Logger] = None,
           checkpoint_period: int = 0,
           verbose: bool = True,
-          debug: bool = False) -> str:
+          debug: bool = False) -> _TrainingResult:
     """Train a model on a specific environment using a given algorithm.
 
     The algorithm is associated with a given reinforcement learning algorithm,
@@ -396,8 +397,10 @@ def train(algo: Algorithm,
     :param debug: Whether to monitor memory allocation to debug memory leaks.
                   Optional: Disabled by default.
 
-    :returns: Fullpath of algorithm's final state dump. This includes the
-              trained policy model.
+    :returns: Ray-specific `_TrainingResult` object, which are named tuple
+    (checkpoint: ray.train.Checkpoint, metrics: Dict[str, Any]). The fullpath
+    of algorithm's final state dump can be retrieve via `.checkpoint.path`. The
+    latter includes the trained policy model.
     """
     # Get environment's reward threshold, if any
     assert isinstance(algo.workers, WorkerSet)

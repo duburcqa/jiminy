@@ -1,7 +1,13 @@
 #include <cstdio>      // `std::remove`
 #include <filesystem>  // `std::filesystem::temp_directory_path`
+#include <regex>       // `std::regex`
 
 #include "jiminy/core/io/serialization.h"
+
+#include "pinocchio/serialization/archive.hpp"
+#include "pinocchio/serialization/model.hpp"  // `serialize<pinocchio::Model>`
+#include "pinocchio/serialization/data.hpp"   // `serialize<pinocchio::Data>`
+#include "pinocchio/serialization/geometry.hpp"  // `serialize<pinocchio::GeometryObject>`, `serialize<pinocchio::CollisionPair>`
 
 #define HPP_FCL_SKIP_EIGEN_BOOST_SERIALIZATION
 #include "hpp/fcl/serialization/geometric_shapes.h"  // `serialize<hpp::fcl::ShapeBase>`
@@ -637,8 +643,8 @@ namespace boost::serialization
             std::tie(isPersistent) = std::any_cast<std::tuple<bool &>>(ar.state_);
         }
 
-        // Backup URDF file
-        ar << make_nvp("urdf_file", model.getUrdfAsString());
+        // Backup URDF data
+        ar << make_nvp("urdf_data", model.getUrdfAsString());
 
         // Backup 'has_freeflyer' option
         bool hasFreeflyer = model.getHasFreeflyer();
@@ -770,9 +776,51 @@ namespace boost::serialization
                 ar.state_);
         }
 
-        // Load URDF file
+        // Load URDF data
         std::string urdfData;
-        ar >> make_nvp("urdf_file", urdfData);
+        ar >> make_nvp("urdf_data", urdfData);
+
+        // Overwrite the common root of all absolute mesh paths in URDF by `meshPathDir`
+        if (meshPathDir.has_value())
+        {
+            // Extract all mesh paths that are absolute path
+            constexpr std::string_view meshTag{"<mesh filename="};
+            constexpr std::string_view packagePrefix{"package://"};
+            const std::regex meshPathRegex(toString(meshTag, "\"(.*)\""));
+            auto meshPathBegin =
+                std::sregex_iterator(urdfData.begin(), urdfData.end(), meshPathRegex);
+            auto meshPathEnd = std::sregex_iterator();
+            std::vector<std::filesystem::path> meshPaths;
+            for (std::sregex_iterator meshPathIt = meshPathBegin; meshPathIt != meshPathEnd;
+                 ++meshPathIt)
+            {
+                const std::string meshPath = meshPathIt->str();
+                if (meshPath.compare(0, packagePrefix.size(), packagePrefix) != 0)
+                {
+                    meshPaths.emplace_back(meshPath);
+                }
+            }
+
+            if (!meshPaths.empty())
+            {
+                // Get the common root of all mesh paths
+                std::string meshPathDirOrig = meshPaths[0].parent_path().string();
+                for (const auto & meshPath : meshPaths)
+                {
+                    const std::string meshPathParent = meshPath.parent_path().string();
+                    const auto meshPathDirMatchEnd = std::mismatch(meshPathDirOrig.begin(),
+                                                                   meshPathDirOrig.end(),
+                                                                   meshPathParent.begin())
+                                                         .first;
+                    meshPathDirOrig = std::string(meshPathDirOrig.begin(), meshPathDirMatchEnd);
+                }
+
+                // Override the common root of all absolute mesh paths
+                const std::regex meshPathDirRegex(toString(meshTag, "\"", meshPathDirOrig));
+                urdfData = std::regex_replace(
+                    urdfData, meshPathDirRegex, toString(meshTag, "\"", meshPathDir.value()));
+            }
+        }
 
         // Load 'has_freeflyer' flag
         bool hasFreeflyer;
@@ -821,8 +869,9 @@ namespace boost::serialization
         else
         {
             // Write urdf data in temporary file
-            const std::string urdfPath = std::filesystem::temp_directory_path() /
-                                         boost::filesystem::unique_path("%%%%%%.urdf").native();
+            const std::string urdfPath = (std::filesystem::temp_directory_path() /
+                                          boost::filesystem::unique_path("%%%%%%.urdf").native())
+                                             .generic_string();
             if (!std::ofstream(urdfPath).put('a'))
             {
                 JIMINY_THROW(std::ios_base::failure,
@@ -835,9 +884,6 @@ namespace boost::serialization
             urdfFile.resize(static_cast<int64_t>(urdfData.size()));
             urdfFile.write(urdfData);
             urdfFile.close();
-
-            // TODO: Overwrite the common root of all absolute mesh paths by `meshPathDir`.
-            (void)meshPathDir;
 
             // Initialize model from URDF
             model.initialize(urdfPath, hasFreeflyer, meshPackageDirs_);
@@ -1495,6 +1541,9 @@ namespace boost::serialization
         // Load base model
         ar >> make_nvp("model", base_object<Model>(robot));
 
+        // Backup the already restored extended simulation model
+        const pinocchio::Model pinocchioModel = robot.pinocchioModel_;
+
         /* Overwrite archive state with the shared pointer managing the robot.
            Doing this will allow for attaching the motors and sensors when loading, then
            therefore finish initializing them completely. */
@@ -1573,6 +1622,9 @@ namespace boost::serialization
             }
         }
         robot.setOptions(robotOptions);
+
+        // Restore the extended simulation model once again
+        robot.pinocchioModel_ = pinocchioModel;
     }
 
     template<class Archive>

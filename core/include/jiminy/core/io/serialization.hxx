@@ -103,6 +103,18 @@ namespace jiminy
     };
 }
 
+namespace Eigen::internal
+{
+    template<>
+    struct traits<jiminy::stateful_binary_iarchive>
+    {
+        enum
+        {
+            Flags = 0
+        };
+    };
+}
+
 BOOST_SERIALIZATION_REGISTER_ARCHIVE(jiminy::stateful_binary_iarchive)
 // BOOST_SERIALIZATION_USE_ARRAY_OPTIMIZATION(jiminy::stateful_binary_iarchive)
 

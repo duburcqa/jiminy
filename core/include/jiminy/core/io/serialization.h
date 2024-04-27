@@ -6,8 +6,7 @@
 #include <vector>    // `std::vector`
 #include <memory>    // `std::shared_ptr`
 
-#include "pinocchio/serialization/model.hpp"     // `serialize<pinocchio::Model>`
-#include "pinocchio/serialization/geometry.hpp"  // `serialize<pinocchio::CollisionPair>`
+#include "jiminy/core/fwd.h"
 
 
 // Forward declarations
@@ -68,6 +67,9 @@ namespace boost::serialization
 
     template<class Archive>
     void serialize(Archive & ar, jiminy::Model & model, const unsigned int version);
+
+    template<class Archive>
+    void load_construct_data(Archive & ar, jiminy::Robot * robotPtr, const unsigned int version);
 
     template<class Archive>
     void serialize(Archive & ar, jiminy::Robot & robot, const unsigned int version);

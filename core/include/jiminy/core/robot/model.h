@@ -251,6 +251,30 @@ namespace jiminy
         JIMINY_DISABLE_COPY(Model)
 
     public:
+        /* Manually enforcing memory alignment.
+
+           Without it, head memory will not be properly allocated when de-serializing shared
+           pointers of `Model`, because fixed-size `Eigen::matrix` objects of `pinocchio::Data`
+           are not properly aligned as they should when AVX2 or higher is enabled.
+
+           Note that customizing `boost::archive::detail::heap_allocation`, the heap allocator of
+           `boost::serialization`, is not viable because the original deleter of the object will
+           still be called upon destruction of the object, so the allocator and destructor must
+           be consistent.
+
+           The proposed workaround is based on `EIGEN_MAKE_ALIGNED_OPERATOR_NEW`.
+           See: https://gitlab.com/libeigen/eigen/-/blob/master/Eigen/src/Core/util/Memory.h */
+        EIGEN_DEVICE_FUNC void * operator new(std::size_t size)
+        {
+            return Eigen::internal::aligned_malloc(size);
+        }
+
+        EIGEN_DEVICE_FUNC void operator delete(void * ptr) EIGEN_NO_THROW
+        {
+            Eigen::internal::aligned_free(ptr);
+        }
+
+    public:
         explicit Model() noexcept;
         virtual ~Model() = default;
 

@@ -53,16 +53,12 @@ else()
                    -Wno-error=uninitialized -Wno-error=deprecated \
                    -Wno-error=array-bounds -Wno-error=redundant-move")
     if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-        set(WARN_FULL "$WARN_FULL \
+        set(WARN_FULL "${WARN_FULL} \
                        -Wno-undefined-var-template -Wno-unknown-warning-option")
     elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-        set(WARN_FULL "$WARN_FULL \
+        set(WARN_FULL "${WARN_FULL} \
                        -Wno-error=maybe-uninitialized \
                        -Wno-error=suggest-attribute=noreturn")
-        if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 10.0)
-            set(WARN_FULL "$WARN_FULL \
-                           -Wno-unknown-warning ")
-        endif()
     endif()
 endif()
 
