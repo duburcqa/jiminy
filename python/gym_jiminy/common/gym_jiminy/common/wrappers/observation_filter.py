@@ -57,9 +57,9 @@ def _copy_filtered(data: SpaceOrDataT,
 
             # Convert parent container to mutable dictionary
             parent_type = type(parent)
-            if parent_type in (dict, OrderedDict):
-                continue
             type_filtered_nodes.append(parent_type)
+            if parent_type in (list, dict, OrderedDict):
+                continue
             if issubclass(parent_type, gym.Space):
                 parent = parent.spaces
             if issubclass_mapping(parent_type):
@@ -85,17 +85,21 @@ def _copy_filtered(data: SpaceOrDataT,
                    for path in path_filtered_leaves):
                 break
         *key_nested_parent, key_leaf = key_nested[:(i + 1)]
-        parent = reduce(getitem, key_nested_parent, out)
-        del parent[key_leaf]
+        try:
+            parent = reduce(getitem, key_nested_parent, out)
+            del parent[key_leaf]
+        except KeyError:
+            # Some nested keys may have been deleted previously
+            pass
 
     # Restore original parent container types
-    parent_type_it = iter(type_filtered_nodes)
-    for key_nested, _ in out_flat:
+    parent_type_it = iter(type_filtered_nodes[::-1])
+    for key_nested, _ in out_flat[::-1]:
         if key_nested not in path_filtered_leaves:
             continue
-        for i in range(1, len(key_nested) + 1):
+        for i in range(1, len(key_nested) + 1)[::-1]:
             # Extract parent container
-            *key_nested_parent, _ = key_nested
+            *key_nested_parent, _ = key_nested[:i]
             if key_nested_parent:
                 *key_nested_container, key_parent = key_nested_parent
                 container = reduce(getitem, key_nested_container, out)
@@ -104,20 +108,19 @@ def _copy_filtered(data: SpaceOrDataT,
                 parent = out
 
             # Restore original container type if not already done
-            parent_type = type(parent)
-            if parent_type in (dict, OrderedDict):
-                continue
             parent_type = next(parent_type_it)
+            if isinstance(parent, parent_type):
+                continue
             if issubclass_mapping(parent_type):
-                parent = parent_type(parent)
+                parent = parent_type(tuple(parent.items()))
             elif issubclass_sequence(parent_type):
                 parent = parent_type(tuple(parent.values()))
 
             # Re-assign output data structure
             if key_nested_parent:
-                container[key_parent] = parent_type(data)
+                container[key_parent] = parent
             else:
-                out = data
+                out = parent
     return out
 
 
@@ -169,7 +172,7 @@ class FilterObservation(
         It gathers a subset of all the leaves of the original observation space
         without any further processing.
         """
-        self.observation = _copy_filtered(
+        self.observation_space = _copy_filtered(
             self.env.observation_space, self.path_filtered_leaves)
 
     def transform_observation(self) -> None:

@@ -166,6 +166,10 @@ def zeros(space: gym.Space[DataNestedT],
         if enforce_bounds:
             value = clip(value, space)
         return value
+    if not isinstance(space, gym.Space):
+        raise ValueError(
+            "All spaces must derived from `gym.Space`, including tuple and "
+            "dict containers.")
     raise NotImplementedError(
         f"Space of type {type(space)} is not supported.")
 
