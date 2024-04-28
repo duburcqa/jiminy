@@ -239,9 +239,9 @@ namespace jiminy
         double tPrev{0.0};
         /// \brief Internal buffer used for Kahan algorithm storing the residual sum of errors.
         double tError{0.0};
-        double dt{0.0};
-        double dtLargest{0.0};
-        double dtLargestPrev{0.0};
+        double dt{INF};
+        double dtLargest{INF};
+        double dtLargestPrev{INF};
         std::vector<Eigen::VectorXd> qSplit{};
         std::vector<Eigen::VectorXd> vSplit{};
         std::vector<Eigen::VectorXd> aSplit{};

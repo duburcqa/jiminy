@@ -1747,6 +1747,7 @@ namespace jiminy
         std::vector<Eigen::VectorXd> & aSplit = stepperState_.aSplit;
 
         // Monitor iteration failure
+        uint32_t successiveIterTooLarge = 0;
         uint32_t successiveIterFailed = 0;
         std::vector<uint32_t> successiveSolveFailedAll(robots_.size(), 0U);
         stepper::StatusInfo status{stepper::ReturnCode::IS_SUCCESS, {}};
@@ -1970,27 +1971,38 @@ namespace jiminy
                         hasDynamicsChanged = false;
                     }
 
+                    /* Break the loop if the prescribed timestep 'dt' is getting too small.
+                       At this point, it corresponds to the estimated maximum timestep 'dtLargest'
+                       in case of adaptive steppers, which is equal to +INF for fixed timestep.
+                       An exception will be raised later. */
+                    if (dt < STEPPER_MIN_TIMESTEP)
+                    {
+                        break;
+                    }
+
                     /* Adjust stepsize to end up exactly at the next breakpoint if it is reasonable
                        to expect that integration will be successful, namely:
                        - If the next breakpoint is closer than the estimated maximum step size
                        OR
                        - If the next breakpoint is farther but not so far away compared to the
-                         estimated maximum step size, AND the previous integration trial was
-                         successful. This last condition is essential to prevent infinite loop of
-                         slightly increasing the step size, failing to integrate, then try again
-                         and again until triggering maximum successive iteration failure exception.
-                         The current implementation is conservative and does not check that the
-                         previous failure was due to this stepsize adjustment procedure, but it is
-                         just a performance optimization trick, so it should not be a big deal. */
-                    const double dtResidualThr =
-                        std::min(SIMULATION_MIN_TIMESTEP, 0.1 * dtLargest);
+                         estimated maximum step size, AND the previous integration trial was not
+                         a failure due to over-optimistic attempted timestep. This last condition
+                         is essential to prevent infinite loop of slightly increasing the step
+                         size, failing to integrate, then try again and again until triggering
+                         maximum successive iteration failure exception. */
+                    double dtResidualThr = STEPPER_MIN_TIMESTEP;
+                    if (successiveIterTooLarge == 0)
+                    {
+                        dtResidualThr =
+                            std::clamp(0.1 * dt, STEPPER_MIN_TIMESTEP, SIMULATION_MIN_TIMESTEP);
+                    }
                     if (tNext - t < dt ||
-                        (successiveIterFailed == 0 && tNext - t < dt + dtResidualThr))
+                        (successiveIterTooLarge <= 1 && tNext - t < dt + dtResidualThr))
                     {
                         dt = tNext - t;
                     }
 
-                    /* Trying to reach multiples of STEPPER_MIN_TIMESTEP whenever possible. The
+                    /* Trying to reach multiples of SIMULATION_MIN_TIMESTEP whenever possible. The
                        idea here is to reach only multiples of 1us, making logging easier, given
                        that, 1us can be consider an 'infinitesimal' time in robotics. This
                        arbitrary threshold many not be suited for simulating different, faster
@@ -2006,13 +2018,7 @@ namespace jiminy
                         }
                     }
 
-                    // Break the loop if dt is getting too small. The error code will be set later.
-                    if (dt < STEPPER_MIN_TIMESTEP)
-                    {
-                        break;
-                    }
-
-                    // Break the loop in case of timeout. The error code will be set later.
+                    // Break the loop in case of timeout. Exception will be raised later.
                     if (EPS < engineOptions_->stepper.timeout &&
                         engineOptions_->stepper.timeout < timer_.toc())
                     {
@@ -2060,6 +2066,7 @@ namespace jiminy
                     if (isStepSuccessful)
                     {
                         // Reset successive iteration failure counter
+                        successiveIterTooLarge = 0;
                         successiveIterFailed = 0;
 
                         // Synchronize the position, velocity and acceleration of all robots
@@ -2123,6 +2130,10 @@ namespace jiminy
                         }
 
                         // Increment the failed iteration counters
+                        if (status.returnCode == stepper::ReturnCode::IS_FAILURE)
+                        {
+                            ++successiveIterTooLarge;
+                        }
                         ++successiveIterFailed;
                         ++stepperState_.iterFailed;
 
@@ -2190,6 +2201,7 @@ namespace jiminy
                     if (isStepSuccessful)
                     {
                         // Reset successive iteration failure counter
+                        successiveIterTooLarge = 0;
                         successiveIterFailed = 0;
 
                         // Synchronize the position, velocity and acceleration of all robots
@@ -2233,6 +2245,10 @@ namespace jiminy
                         }
 
                         // Increment the failed iteration counter
+                        if (status.returnCode == stepper::ReturnCode::IS_FAILURE)
+                        {
+                            ++successiveIterTooLarge;
+                        }
                         ++successiveIterFailed;
                         ++stepperState_.iterFailed;
 
