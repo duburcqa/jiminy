@@ -36,6 +36,13 @@ def _copy_filtered(data: SpaceOrDataT,
                                  must be kept. Each path is a tuple of keys
                                  to access a given leaf recursively.
     """
+    # Special handling if no leaf to filter has been specified
+    if not path_filtered_leaves:
+        data_type = type(data)
+        if issubclass_mapping(data_type) or issubclass_sequence(data_type):
+            return data_type()
+        return data
+
     # Shallow copy the whole data structure
     out = copy(data)
 
@@ -148,13 +155,18 @@ class FilterObservation(
         for key_nested in nested_filter_keys:
             if isinstance(key_nested, (str, int)):
                 key_nested = (key_nested,)
-            self.nested_filter_keys.append(key_nested)
+            self.nested_filter_keys.append(tuple(key_nested))
 
         # Get all paths associated with leaf values that must be stacked
         self.path_filtered_leaves: Set[Tuple[Union[str, int], ...]] = set()
         for path, _ in flatten_with_path(env.observation_space):
             if any(path[:len(e)] == e for e in self.nested_filter_keys):
                 self.path_filtered_leaves.add(path)
+
+        # Make sure that some keys are preserved
+        if not self.path_filtered_leaves:
+            raise ValueError(
+                "At least one observation leaf must be preserved.")
 
         # Initialize base class
         super().__init__(env)

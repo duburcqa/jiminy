@@ -161,7 +161,7 @@ class Simulator:
                               whenever a viewer must be instantiated, eg when
                               `render` method is first called. Specifically,
                               `backend` is ignored if one is already available.
-                              Optional: Empty by default.
+                              Optional: None by default.
         :param kwargs: Used arguments to allow automatic pipeline wrapper
                        generation.
         """
@@ -742,12 +742,13 @@ class Simulator:
             for robot, robot_state in zip(
                     self.engine.robots, self.engine.robot_states):
                 # Create a single viewer instance
+                robot_name = (
+                    robot.name or robot.pinocchio_model.name or "robot")
                 viewer = Viewer(
                     robot,
-                    robot_name=robot.name,
                     use_theoretical_model=False,
                     open_gui_if_parent=False,
-                    **viewer_kwargs)
+                    **{"robot_name": robot_name, **viewer_kwargs})
                 assert viewer.backend is not None
                 self._viewers.append(viewer)
 
@@ -873,7 +874,7 @@ class Simulator:
         backend = (kwargs.get('backend', (self.viewer or Viewer).backend) or
                    get_default_backend())
         must_not_open_gui = (
-            backend.startswith("panda3d") or
+            backend == "panda3d-sync" or
             kwargs.get('record_video_path') is not None)
         self.render(**{
             'return_rgb_array': must_not_open_gui,

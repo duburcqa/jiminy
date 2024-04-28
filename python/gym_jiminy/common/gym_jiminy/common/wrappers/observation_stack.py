@@ -80,7 +80,7 @@ class StackedJiminyEnv(
         for key_nested in nested_filter_keys:
             if isinstance(key_nested, (str, int)):
                 key_nested = (key_nested,)
-            self.nested_filter_keys.append(key_nested)
+            self.nested_filter_keys.append(tuple(key_nested))
 
         # Backup some user argument(s)
         self.num_stack = num_stack
@@ -91,6 +91,11 @@ class StackedJiminyEnv(
         for path, _ in flatten_with_path(env.observation_space):
             if any(path[:len(e)] == e for e in self.nested_filter_keys):
                 self.path_filtered_leaves.add(path)
+
+        # Make sure that some keys are preserved
+        if not self.path_filtered_leaves:
+            raise ValueError(
+                "At least one observation leaf must be stacked.")
 
         # Initialize base class
         super().__init__(env)

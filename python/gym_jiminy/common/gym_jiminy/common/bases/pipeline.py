@@ -109,6 +109,16 @@ class BasePipelineWrapper(
         return [*super().__dir__(), *dir(self.env)]
 
     @property
+    def render_mode(self) -> Optional[str]:
+        """Rendering mode of the base environment.
+        """
+        return self.env.render_mode
+
+    @render_mode.setter
+    def render_mode(self, render_mode: str) -> None:
+        self.env.render_mode = render_mode
+
+    @property
     def spec(self) -> Optional[EnvSpec]:
         """Random number generator of the base environment.
         """

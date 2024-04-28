@@ -1,5 +1,4 @@
-"""
-@brief  Utility functions for unit tests.
+"""Utility functions for unit tests.
 """
 import os
 import numpy as np

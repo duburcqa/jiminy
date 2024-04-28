@@ -142,12 +142,18 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
             for the vast majority of systems.
         :param debug: Whether the debug mode must be enabled. Doing it enables
                       telemetry recording.
-        :param viewer_kwargs: Keyword arguments used to override the original
-                              default values whenever a viewer is instantiated.
-                              This is the only way to pass custom arguments to
-                              the viewer when calling `render` method, unlike
-                              `replay` which forwards extra keyword arguments.
-                              Optional: None by default.
+        :param render_mode: Desired rendering mode, ie "human" or "rgb_array".
+                            If "human" is specified, calling `render` will open
+                            a graphical window for visualization, otherwise a
+                            rgb image is returned, as a 3D numpy array whose
+                            first dimension are the 3 red, green, blue channels
+                            and the two subsequent dimensions are the pixel
+                            height and weight respectively. `None` to select
+                            automatically the most appropriate mode based on
+                            the user-specified rendering backend if any, or the
+                            machine environment. Note that "rgb_array" does not
+                            require a graphical window manager.
+                            Optional: None by default.
         :param kwargs: Extra keyword arguments that may be useful for derived
                        environments with multiple inheritance, and to allow
                        automatic pipeline wrapper generation.
@@ -158,19 +164,27 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
                 "Multi-robot simulation is not supported for now.")
 
         # Handling of default rendering mode
-        viewer_backend = (simulator.viewer or Viewer).backend
+        viewer_backend = (
+            (simulator.viewer or Viewer).backend or
+            simulator.viewer_kwargs.get('backend'))
         if render_mode is None:
             # 'rgb_array' by default if the backend is or will be
             # 'panda3d-sync', otherwise 'human' if available.
-            backend = (kwargs.get('backend') or viewer_backend or
-                       simulator.viewer_kwargs.get('backend') or
-                       get_default_backend())
+            backend = viewer_backend or get_default_backend()
             if backend == "panda3d-sync":
                 render_mode = 'rgb_array'
             elif 'human' in self.metadata['render_modes']:
                 render_mode = 'human'
             else:
                 render_mode = 'rgb_array'
+
+        # Force backend if none is specified and rendering mode is RGB array
+        if ("backend" not in simulator.viewer_kwargs and
+                render_mode == 'rgb_array'):
+            simulator.viewer_kwargs['backend'] = "panda3d-sync"
+
+        # Make sure that the robot name is unique
+        simulator.viewer_kwargs['robot_name'] = None
 
         # Make sure that rendering mode is valid
         assert render_mode in self.metadata['render_modes']
