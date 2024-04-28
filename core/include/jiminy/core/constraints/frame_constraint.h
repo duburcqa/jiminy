@@ -25,8 +25,6 @@ namespace jiminy
     public:
         JIMINY_DISABLE_COPY(FrameConstraint)
 
-        auto shared_from_this() { return shared_from(this); }
-
     public:
         /// \param[in] frameName Name of the frame on which the constraint is to be
         /// applied.

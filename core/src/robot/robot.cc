@@ -114,7 +114,10 @@ namespace jiminy
         }
 
         // Reset controller
-        controller_->reset();
+        if (controller_)
+        {
+            controller_->reset();
+        }
     }
 
     void Robot::configureTelemetry(std::shared_ptr<TelemetryData> telemetryData)

@@ -101,6 +101,11 @@ namespace jiminy
         return sensorOptionsGeneric_;
     }
 
+    bool AbstractSensorBase::getIsAttached() const
+    {
+        return isAttached_;
+    }
+
     bool AbstractSensorBase::getIsInitialized() const
     {
         return isInitialized_;

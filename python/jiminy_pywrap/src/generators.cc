@@ -148,12 +148,8 @@ namespace jiminy::python
                           ConvertGeneratorFromPythonAndInvoke(&PeriodicGaussianProcess::reset),
                           bp::default_call_policies(),
                           (bp::arg("self"), "generator")))
-            .ADD_PROPERTY_GET_WITH_POLICY("wavelength",
-                                          &PeriodicGaussianProcess::getWavelength,
-                                          bp::return_value_policy<bp::return_by_value>())
-            .ADD_PROPERTY_GET_WITH_POLICY("period",
-                                          &PeriodicGaussianProcess::getPeriod,
-                                          bp::return_value_policy<bp::return_by_value>());
+            .ADD_PROPERTY_GET("wavelength", &PeriodicGaussianProcess::getWavelength)
+            .ADD_PROPERTY_GET("period", &PeriodicGaussianProcess::getPeriod);
 
         bp::class_<PeriodicFourierProcess,
                    std::shared_ptr<PeriodicFourierProcess>,
@@ -166,12 +162,8 @@ namespace jiminy::python
                           ConvertGeneratorFromPythonAndInvoke(&PeriodicFourierProcess::reset),
                           bp::default_call_policies(),
                           (bp::arg("self"), "generator")))
-            .ADD_PROPERTY_GET_WITH_POLICY("wavelength",
-                                          &PeriodicFourierProcess::getWavelength,
-                                          bp::return_value_policy<bp::return_by_value>())
-            .ADD_PROPERTY_GET_WITH_POLICY("period",
-                                          &PeriodicFourierProcess::getPeriod,
-                                          bp::return_value_policy<bp::return_by_value>());
+            .ADD_PROPERTY_GET("wavelength", &PeriodicFourierProcess::getWavelength)
+            .ADD_PROPERTY_GET("period", &PeriodicFourierProcess::getPeriod);
 
         bp::class_<AbstractPerlinProcess,
                    std::shared_ptr<AbstractPerlinProcess>,
@@ -182,12 +174,8 @@ namespace jiminy::python
                           ConvertGeneratorFromPythonAndInvoke(&AbstractPerlinProcess::reset),
                           bp::default_call_policies(),
                           (bp::arg("self"), "generator")))
-            .ADD_PROPERTY_GET_WITH_POLICY("wavelength",
-                                          &AbstractPerlinProcess::getWavelength,
-                                          bp::return_value_policy<bp::return_by_value>())
-            .ADD_PROPERTY_GET_WITH_POLICY("num_octaves",
-                                          &AbstractPerlinProcess::getNumOctaves,
-                                          bp::return_value_policy<bp::return_by_value>());
+            .ADD_PROPERTY_GET("wavelength", &AbstractPerlinProcess::getWavelength)
+            .ADD_PROPERTY_GET("num_octaves", &AbstractPerlinProcess::getNumOctaves);
 
         bp::class_<RandomPerlinProcess, bp::bases<AbstractPerlinProcess>,
                    std::shared_ptr<RandomPerlinProcess>,
@@ -200,9 +188,7 @@ namespace jiminy::python
                    boost::noncopyable>("PeriodicPerlinProcess",
                    bp::init<double, double, uint32_t>(
                    (bp::arg("self"), "wavelength", "period", bp::arg("num_octaves") = 6U)))
-            .ADD_PROPERTY_GET_WITH_POLICY("period",
-                                          &PeriodicPerlinProcess::getPeriod,
-                                          bp::return_value_policy<bp::return_by_value>());
+            .ADD_PROPERTY_GET("period", &PeriodicPerlinProcess::getPeriod);
 
         bp::def("random_tile_ground", &tiles,
                                       (bp::arg("size"), "height_max", "interp_delta",

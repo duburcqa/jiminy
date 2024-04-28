@@ -210,12 +210,6 @@ namespace jiminy
                            const std::optional<pinocchio::GeometryModel> & collisionModel,
                            const std::optional<pinocchio::GeometryModel> & visualModel)
     {
-        // Make sure that the pinocchio model is valid
-        if (pinocchioModel.nq == 0)
-        {
-            JIMINY_THROW(std::invalid_argument, "Pinocchio model must not be empty.");
-        }
-
         // Make sure that the model is actually managed by a shared ptr
         try
         {
@@ -224,6 +218,12 @@ namespace jiminy
         catch (std::bad_weak_ptr & e)
         {
             JIMINY_THROW(bad_control_flow, "Model must be managed by a std::shared_ptr.");
+        }
+
+        // Make sure that the pinocchio model is valid
+        if (pinocchioModel.nq == 0)
+        {
+            JIMINY_THROW(std::invalid_argument, "Pinocchio model must not be empty.");
         }
 
         // Clear existing constraints

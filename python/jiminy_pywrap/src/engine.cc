@@ -358,26 +358,6 @@ namespace jiminy::python
             return self.registerProfileForce(robotName, frameName, forceFunc, updatePeriod);
         }
 
-        template<typename T>
-        static void populatePythonDictFromBinary(
-            const std::string & key, const std::string & data, bp::dict & dict)
-        {
-            T obj;
-            try
-            {
-                ::jiminy::loadFromBinary(obj, data);
-            }
-            catch (const std::exception & e)
-            {
-                JIMINY_THROW(std::ios_base::failure,
-                             "Failed to deserialize constant '",
-                             key,
-                             "' from log: ",
-                             e.what());
-            }
-            dict[key] = convertToPython(obj, true);
-        }
-
         static bp::dict formatLogData(const LogData & logData)
         {
             // Early return if empty
@@ -398,7 +378,7 @@ namespace jiminy::python
             const Eigen::Index numFloat = logData.floatValues.rows();
 
             // Get constants
-            for (const auto & [key, value] : logData.constants)
+            for (const auto & [key, data] : logData.constants)
             {
                 // Skip all constant that has been registered by the user from a controller
                 bool isUnknown = false;
@@ -407,35 +387,25 @@ namespace jiminy::python
                     isUnknown = true;
                 }
 
-                // Loop over all "special" constant that will be used to build the robot
+                /* Loop over a few "special" constants. Note that the robot is NOT automatically
+                   deserialized to speed-up log loading by default and to give the opportunity to
+                   the user to pass custom arguments. */
                 else if (endsWith(key, "options"))
                 {
-                    std::vector<uint8_t> jsonStringVec(value.begin(), value.end());
+                    std::vector<uint8_t> jsonStringVec(data.begin(), data.end());
                     std::shared_ptr<AbstractIODevice> device =
                         std::make_shared<MemoryDevice>(std::move(jsonStringVec));
                     GenericConfig robotOptions;
                     jsonLoad(robotOptions, device);
                     constants[key] = robotOptions;
                 }
-                else if (key.find("pinocchio_model") != std::string::npos)
-                {
-                    populatePythonDictFromBinary<pinocchio::Model>(key, value, constants);
-                }
-                else if (endsWith(key, "visual_model") || endsWith(key, "collision_model"))
-                {
-                    populatePythonDictFromBinary<pinocchio::GeometryModel>(key, value, constants);
-                }
-                else if (endsWith(key, "mesh_package_dirs"))
-                {
-                    populatePythonDictFromBinary<std::vector<std::string>>(key, value, constants);
-                }
                 else if (key == NUM_INTS || key == NUM_FLOATS)
                 {
-                    constants[key] = std::stol(value);
+                    constants[key] = std::stol(data);
                 }
                 else if (key == TIME_UNIT)
                 {
-                    constants[key] = std::stod(value);
+                    constants[key] = std::stod(data);
                 }
                 else
                 {
@@ -446,7 +416,7 @@ namespace jiminy::python
                 if (isUnknown)
                 {
                     constants[key] = bp::object(
-                        bp::handle<>(PyBytes_FromStringAndSize(value.c_str(), value.size())));
+                        bp::handle<>(PyBytes_FromStringAndSize(data.c_str(), data.size())));
                 }
             }
 

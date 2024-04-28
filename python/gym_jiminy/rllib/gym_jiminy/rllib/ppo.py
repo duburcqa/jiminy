@@ -155,16 +155,13 @@ def _compute_mirrored_value(value: torch.Tensor,
     """Compute mirrored value from observation space based on provided
     mirroring transformation.
     """
-    # Make sure value and mirror_mat are on the same device.
-    # This is needed for multi-GPU training.
-    mirror_mat = mirror_mat.to(value.device)
-
     def _update_flattened_slice(data: torch.Tensor,
                                 shape: Tuple[int, ...],
                                 mirror_mat: torch.Tensor) -> torch.Tensor:
         """Mirror an array of flattened tensor using provided transformation
         matrix.
         """
+        mirror_mat = mirror_mat.to(data.device)
         if len(shape) > 1:
             assert len(shape) == 2, "shape > 2 is not supported for now."
             data = data.reshape(

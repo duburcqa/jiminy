@@ -28,8 +28,6 @@ namespace jiminy
     public:
         JIMINY_DISABLE_COPY(WheelConstraint)
 
-        auto shared_from_this() { return shared_from(this); }
-
     public:
         /// \param[in] frameName Name of the frame representing the center of the wheel.
         /// \param[in] wheelRadius Radius of the wheel (in m).
@@ -40,6 +38,10 @@ namespace jiminy
                         const Eigen::Vector3d & groundNormal,
                         const Eigen::Vector3d & wheelAxis) noexcept;
         virtual ~WheelConstraint() = default;
+
+        double getRadius() const noexcept;
+        const Eigen::Vector3d & getNormal() const noexcept;
+        const Eigen::Vector3d & getWheelAxis() const noexcept;
 
         const std::string & getFrameName() const noexcept;
         pinocchio::FrameIndex getFrameIndex() const noexcept;
