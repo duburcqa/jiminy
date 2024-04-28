@@ -72,9 +72,6 @@ namespace jiminy
         explicit SimpleMotor(const std::string & name) noexcept;
         virtual ~SimpleMotor() = default;
 
-        auto shared_from_this() { return shared_from(this); }
-        auto shared_from_this() const { return shared_from(this); }
-
         void initialize(const std::string & jointName);
 
         void setOptions(const GenericConfig & motorOptions) override;

@@ -155,8 +155,8 @@ jobs:
         # Anyway, the stubs generated for eigenpy, hppfcl and pinocchio they are incomplete and
         # even partially wrong, so it is better to ignore them for now.
         # See: https://github.com/python/mypy/issues/14848.
-        cd "${RootDir}/python/jiminy_py/"
-        mypy --config-file="${RootDir}/.mypy.ini" -p src
+        cd "${RootDir}/python/jiminy_py/src"
+        mypy --config-file="${RootDir}/.mypy.ini" -p jiminy_py
         for name in "common" "envs" "toolbox" "rllib"; do
           cd "${RootDir}/python/gym_jiminy/$name"
           mypy --config-file="${RootDir}/.mypy.ini" -p gym_jiminy

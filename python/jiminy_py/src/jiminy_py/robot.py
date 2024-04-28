@@ -869,13 +869,13 @@ class BaseJiminyRobot(jiminy.Robot):
     :param name: Name of the robot to be created.
                  Optional: Empty string by default.
     """
-    def __init__(self, name: Optional[str] = "") -> None:
+    def __init__(self, name: str = "") -> None:
         self.extra_info: Dict[str, Any] = {}
         self.hardware_path: Optional[str] = None
         self._urdf_path_orig: Optional[str] = None
         super().__init__(name)
 
-    def initialize(self,
+    def initialize(self,  # type: ignore[override]
                    urdf_path: str,
                    hardware_path: Optional[str] = None,
                    mesh_path_dir: Optional[str] = None,

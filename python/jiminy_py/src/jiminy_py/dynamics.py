@@ -147,8 +147,8 @@ class TrajectoryDataType(TypedDict, total=False):
     """
     # List of State objects of increasing time
     evolution_robot: Sequence[State]
-    # Optional Jiminy robot
-    robot: Optional[jiminy.Robot]
+    # Jiminy robot
+    robot: jiminy.Robot
     # Whether to use the theoretical model or the extended simulation model
     use_theoretical_model: bool
 

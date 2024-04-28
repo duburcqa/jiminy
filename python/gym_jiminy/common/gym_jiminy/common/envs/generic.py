@@ -9,12 +9,12 @@ import logging
 import tempfile
 from copy import deepcopy
 from collections import OrderedDict
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from functools import partial
 from typing import (
     Dict, Any, List, cast, no_type_check, Optional, Tuple, Callable, Union,
-    SupportsFloat, Iterator,  Generic, Sequence, Mapping as MappingT,
-    MutableMapping as MutableMappingT)
+    SupportsFloat, Iterator,  Generic, Sequence as SequenceT,
+    Mapping as MappingT, MutableMapping as MutableMappingT)
 
 import numpy as np
 from gymnasium import spaces
@@ -85,7 +85,7 @@ LOGGER = logging.getLogger(__name__)
 
 class _LazyDictItemFilter(Mapping):
     def __init__(self,
-                 dict_packed: MappingT[str, Sequence[Any]],
+                 dict_packed: MappingT[str, SequenceT[Any]],
                  item_index: int) -> None:
         self.dict_packed = dict_packed
         self.item_index = item_index
@@ -142,35 +142,49 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
             for the vast majority of systems.
         :param debug: Whether the debug mode must be enabled. Doing it enables
                       telemetry recording.
-        :param viewer_kwargs: Keyword arguments used to override the original
-                              default values whenever a viewer is instantiated.
-                              This is the only way to pass custom arguments to
-                              the viewer when calling `render` method, unlike
-                              `replay` which forwards extra keyword arguments.
-                              Optional: None by default.
+        :param render_mode: Desired rendering mode, ie "human" or "rgb_array".
+                            If "human" is specified, calling `render` will open
+                            a graphical window for visualization, otherwise a
+                            rgb image is returned, as a 3D numpy array whose
+                            first dimension are the 3 red, green, blue channels
+                            and the two subsequent dimensions are the pixel
+                            height and weight respectively. `None` to select
+                            automatically the most appropriate mode based on
+                            the user-specified rendering backend if any, or the
+                            machine environment. Note that "rgb_array" does not
+                            require a graphical window manager.
+                            Optional: None by default.
         :param kwargs: Extra keyword arguments that may be useful for derived
                        environments with multiple inheritance, and to allow
                        automatic pipeline wrapper generation.
         """
         # Make sure that the simulator is single-robot
-        if tuple(robot.name for robot in simulator.robots) != ("",):
-            raise ValueError(
-                "`BaseJiminyEnv` only supports single-robot simulators.")
+        if len(simulator.robots) > 1:
+            raise NotImplementedError(
+                "Multi-robot simulation is not supported for now.")
 
         # Handling of default rendering mode
-        viewer_backend = (simulator.viewer or Viewer).backend
+        viewer_backend = (
+            (simulator.viewer or Viewer).backend or
+            simulator.viewer_kwargs.get('backend'))
         if render_mode is None:
             # 'rgb_array' by default if the backend is or will be
             # 'panda3d-sync', otherwise 'human' if available.
-            backend = (kwargs.get('backend') or viewer_backend or
-                       simulator.viewer_kwargs.get('backend') or
-                       get_default_backend())
+            backend = viewer_backend or get_default_backend()
             if backend == "panda3d-sync":
                 render_mode = 'rgb_array'
             elif 'human' in self.metadata['render_modes']:
                 render_mode = 'human'
             else:
                 render_mode = 'rgb_array'
+
+        # Force backend if none is specified and rendering mode is RGB array
+        if ("backend" not in simulator.viewer_kwargs and
+                render_mode == 'rgb_array'):
+            simulator.viewer_kwargs['backend'] = "panda3d-sync"
+
+        # Make sure that the robot name is unique
+        simulator.viewer_kwargs['robot_name'] = None
 
         # Make sure that rendering mode is valid
         assert render_mode in self.metadata['render_modes']
@@ -196,7 +210,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
             self.robot.sensor_measurements)
 
         # Top-most block of the pipeline to which the environment is part of
-        self._env_derived: InterfaceJiminyEnv = self
+        self.derived: InterfaceJiminyEnv = self
 
         # Store references to the variables to register to the telemetry
         self._registered_variables: MutableMappingT[
@@ -322,7 +336,8 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
                           shape=(),
                           dtype=np.float64)
 
-    def _get_agent_state_space(self) -> spaces.Dict:
+    def _get_agent_state_space(
+            self, use_theoretical_model: bool = False) -> spaces.Dict:
         """Get state space.
 
         This method is not meant to be overloaded in general since the
@@ -353,6 +368,14 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
 
             if not model_options['joints']['enableVelocityLimit']:
                 velocity_limit[joint_velocity_indices] = JOINT_VEL_MAX
+
+        # Deduce bounds associated the theoretical model from the extended one
+        if use_theoretical_model:
+            position_limit_lower, position_limit_upper = map(
+                self.robot.get_theoretical_position_from_extended,
+                (position_limit_lower, position_limit_upper))
+            velocity_limit = self.robot.get_theoretical_velocity_from_extended(
+                velocity_limit)
 
         # Aggregate position and velocity bounds to define state space
         return spaces.Dict(OrderedDict(
@@ -768,7 +791,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
             env_derived = reset_hook() or env
             assert env_derived.unwrapped is self
             env = env_derived
-        self._env_derived = env
+        self.derived = env
 
         # Instantiate the actual controller.
         # Note that a weak reference must be used to avoid circular reference.
@@ -916,7 +939,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         # Update the observer at the end of the step.
         # This is necessary because, internally, it is called at the beginning
         # of the every integration steps, during the controller update.
-        self._env_derived._observer_handle(
+        self.derived._observer_handle(
             self.stepper_state.t,
             self._robot_state_q,
             self._robot_state_v,
@@ -1017,6 +1040,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         """
         # Call base implementation
         figure = self.simulator.plot(**kwargs)
+        assert not isinstance(figure, Sequence)
 
         # Extract log data
         log_vars = self.simulator.log_data.get("variables", {})
@@ -1259,7 +1283,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         # Run the simulation
         info_episode = [info]
         try:
-            env = self._env_derived
+            env = self.derived
             while not (terminated or truncated or (
                     horizon is not None and self.num_steps > horizon)):
                 action = policy_fn(obs, reward, terminated or truncated, info)
@@ -1445,7 +1469,10 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         .. note::
             This method is called after every internal `engine.step` and before
             refreshing the observation one last time. As such, it is the right
-            place to update shared data between `is_done` and `compute_reward`.
+            place to update shared data between `has_terminated` and
+            `compute_reward`. However, it is not appropriate for quantities
+            involved in `refresh_observation` not `compute_command`, which may
+            be called more often than once per step.
 
         .. note::
             `_initialize_buffers` method can be used to initialize buffers that

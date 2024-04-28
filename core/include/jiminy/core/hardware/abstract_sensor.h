@@ -48,8 +48,7 @@ namespace jiminy
     /// \brief Generic interface for any sensor.
     ///
     /// \details Any sensor must inherit from this base class and implement its virtual methods.
-    class JIMINY_DLLAPI AbstractSensorBase :
-    public std::enable_shared_from_this<AbstractSensorBase>
+    class JIMINY_DLLAPI AbstractSensorBase
     {
         /* Using friend to avoid double delegation, which would make public the attach, whereas
            only robot is able to call it.
@@ -182,14 +181,14 @@ namespace jiminy
         ///         higher dimensional tensor.
         virtual Eigen::Ref<const Eigen::VectorXd> get() const = 0;
 
+        /// \brief Whether the sensor has been attached to a robot.
+        bool getIsAttached() const;
+
         /// \brief Whether the sensor has been initialized.
         ///
         /// \remark Note that a sensor can be considered initialized even if its telemetry is not
         ///         properly configured. If not, it must be done before being ready to use.
         bool getIsInitialized() const;
-
-        /// \brief Whether the sensor has been attached to a robot.
-        bool getIsAttached() const;
 
         /// \brief Whether the telemetry of the controller has been initialized.
         bool getIsTelemetryConfigured() const;
@@ -322,9 +321,6 @@ namespace jiminy
     public:
         using AbstractSensorBase::AbstractSensorBase;
         virtual ~AbstractSensorTpl();
-
-        auto shared_from_this() { return shared_from(this); }
-        auto shared_from_this() const { return shared_from(this); }
 
         void resetAll(uint32_t seed) override final;
         void updateTelemetryAll() override final;

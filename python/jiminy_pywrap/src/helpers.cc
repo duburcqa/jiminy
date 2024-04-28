@@ -4,6 +4,7 @@
 #include "jiminy/core/robot/robot.h"
 #include "jiminy/core/robot/pinocchio_overload_algorithms.h"
 #include "jiminy/core/io/memory_device.h"
+#include "jiminy/core/io/serialization.h"
 #include "jiminy/core/utilities/pinocchio.h"
 #include "jiminy/core/utilities/random.h"
 
@@ -65,6 +66,22 @@ namespace jiminy::python
             return bp::make_tuple(model, collisionModel, visualModel);
         }
         return bp::make_tuple(model, collisionModel);
+    }
+
+    std::shared_ptr<jiminy::Robot> buildRobotFromBinary(const std::string & data,
+                                                        const bp::object & meshPathDirPy,
+                                                        const bp::object & packageDirsPy)
+    {
+        std::optional<std::string> meshPathDir = std::nullopt;
+        if (!meshPathDirPy.is_none())
+        {
+            meshPathDir = bp::extract<std::string>(meshPathDirPy);
+        }
+        auto meshPackageDirs = convertFromPython<std::vector<std::string>>(packageDirsPy);
+
+        std::shared_ptr<jiminy::Robot> robot;
+        loadFromBinary(robot, data, meshPathDir, meshPackageDirs);
+        return robot;
     }
 
     np::ndarray solveJMinvJtv(
@@ -311,6 +328,11 @@ namespace jiminy::python
                                            bp::arg("build_visual_model") = false,
                                            bp::arg("load_visual_meshes") = false));
 
+        bp::def("build_robot_from_binary", &buildRobotFromBinary,
+                                           (bp::arg("data"),
+                                            bp::arg("mesh_path_dir") = bp::object(),
+                                            bp::arg("mesh_package_dirs") = bp::list()));
+
         bp::def("get_joint_type", &getJointTypeFromIndex,
                                   (bp::arg("pinocchio_model"), "joint_index"));
         bp::def("get_joint_indices", &getJointIndices,
@@ -318,7 +340,8 @@ namespace jiminy::python
         bp::def("get_joint_position_first_index", &getJointPositionFirstIndex,
                                           (bp::arg("pinocchio_model"), "joint_name"));
         bp::def("is_position_valid", &isPositionValid,
-                                     (bp::arg("pinocchio_model"), "position", bp::arg("tol_abs") = std::numeric_limits<float>::epsilon()));
+                                     (bp::arg("pinocchio_model"), "position",
+                                      bp::arg("tol_abs") = std::numeric_limits<float>::epsilon()));
 
         bp::def("get_frame_indices", &getFrameIndices,
                                      bp::return_value_policy<result_converter<true>>(),

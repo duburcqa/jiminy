@@ -28,15 +28,15 @@ namespace jiminy
 
     enum class ConstraintNodeType : uint8_t
     {
-        BOUNDS_JOINTS = 0,
-        CONTACT_FRAMES = 1,
-        COLLISION_BODIES = 2,
+        CONTACT_FRAMES = 0,
+        COLLISION_BODIES = 1,
+        BOUNDS_JOINTS = 2,
         USER = 3
     };
 
-    /* Note that following ordering plays a critical role as it determines in which order `foreach`
-       iterates over all the constraints. This has a directly effect on the solution found by 'PGS'
-       constraint solvers. */
+    /* Note that the following ordering plays a critical role as it determines in which order
+       `foreach` iterates over all the constraints. This has a directly effect on the solution
+       found by 'PGS' constraint solvers. */
     inline constexpr std::array constraintNodeTypesAll{ConstraintNodeType::BOUNDS_JOINTS,
                                                        ConstraintNodeType::CONTACT_FRAMES,
                                                        ConstraintNodeType::COLLISION_BODIES,
@@ -249,6 +249,30 @@ namespace jiminy
 
     public:
         JIMINY_DISABLE_COPY(Model)
+
+    public:
+        /* Manually enforcing memory alignment.
+
+           Without it, head memory will not be properly allocated when de-serializing shared
+           pointers of `Model`, because fixed-size `Eigen::matrix` objects of `pinocchio::Data`
+           are not properly aligned as they should when AVX2 or higher is enabled.
+
+           Note that customizing `boost::archive::detail::heap_allocation`, the heap allocator of
+           `boost::serialization`, is not viable because the original deleter of the object will
+           still be called upon destruction of the object, so the allocator and destructor must
+           be consistent.
+
+           The proposed workaround is based on `EIGEN_MAKE_ALIGNED_OPERATOR_NEW`.
+           See: https://gitlab.com/libeigen/eigen/-/blob/master/Eigen/src/Core/util/Memory.h */
+        EIGEN_DEVICE_FUNC void * operator new(std::size_t size)
+        {
+            return Eigen::internal::aligned_malloc(size);
+        }
+
+        EIGEN_DEVICE_FUNC void operator delete(void * ptr) EIGEN_NO_THROW
+        {
+            Eigen::internal::aligned_free(ptr);
+        }
 
     public:
         explicit Model() noexcept;

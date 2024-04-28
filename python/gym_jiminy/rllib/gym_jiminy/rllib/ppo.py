@@ -161,6 +161,7 @@ def _compute_mirrored_value(value: torch.Tensor,
         """Mirror an array of flattened tensor using provided transformation
         matrix.
         """
+        mirror_mat = mirror_mat.to(data.device)
         if len(shape) > 1:
             assert len(shape) == 2, "shape > 2 is not supported for now."
             data = data.reshape(

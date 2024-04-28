@@ -32,7 +32,7 @@ namespace jiminy
         std::size_t num_;
     };
 
-    class JIMINY_DLLAPI AbstractMotorBase : public std::enable_shared_from_this<AbstractMotorBase>
+    class JIMINY_DLLAPI AbstractMotorBase
     {
         /* AKA AbstractSensorBase */
         friend Robot;
@@ -120,6 +120,9 @@ namespace jiminy
         /// \param[in] motorOptions Dictionary with the parameters used for any motor.
         void setOptionsAll(const GenericConfig & motorOptions);
 
+        /// \brief Whether the motor has been attached to a robot.
+        bool getIsAttached() const;
+
         /// \brief Whether the motor has been initialized.
         bool getIsInitialized() const;
 
@@ -192,16 +195,14 @@ namespace jiminy
         /// \brief Reference to the last data buffer corresponding to the true effort of the motor.
         double & data();
 
-        bool isAttached() const;
-
     private:
         /// \brief Attach the sensor to a robot
         ///
         /// \details This method must be called before initializing the sensor.
-        void attach(std::weak_ptr<const Robot> robot,
-                    std::function<void(
-                        AbstractMotorBase & /*motor*/, bool /*hasChanged*/)> notifyRobot,
-                    MotorSharedStorage * sharedStorage);
+        void attach(
+            std::weak_ptr<const Robot> robot,
+            std::function<void(AbstractMotorBase & /*motor*/, bool /*hasChanged*/)> notifyRobot,
+            MotorSharedStorage * sharedStorage);
 
         /// \brief Detach the sensor from the robot.
         void detach();

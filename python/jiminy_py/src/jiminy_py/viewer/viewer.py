@@ -534,7 +534,8 @@ class Viewer:
         # Handling of default arguments
         if robot_name is None:
             uniq_id = next(tempfile._get_candidate_names())
-            robot_name = "_".join(("robot", uniq_id))
+            base_name = robot.name or robot.pinocchio_model.name or "robot"
+            robot_name = "_".join((base_name, uniq_id))
 
         # Pick the default backend if unspecified and none is already selected
         if backend is None:

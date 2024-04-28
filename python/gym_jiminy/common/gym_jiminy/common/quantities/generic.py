@@ -142,6 +142,10 @@ class _BatchEulerAnglesFrame(AbstractQuantity[Dict[str, np.ndarray]]):
     angles (roll, pitch, yaw) components, while the second one are individual
     frames with the same ordering as 'self.frame_names'.
 
+    The expected maximum speedup wrt computing Euler angles individually is
+    about x15, which is achieved asymptotically for more than 100 frames. It is
+    already x5 faster for 5 frames, x7 for 10 frames, and x9 for 20 frames.
+
     .. note::
         This quantity does not allow for specifying frames directly. There is
         no way to get the orientation of multiple frames at once for now.
@@ -267,7 +271,9 @@ class EulerAnglesFrame(AbstractQuantity[np.ndarray]):
 
         # Force re-initializing shared data if the active set has changed
         if not was_active:
-            self.requirements["data"].reset()
+            # Must reset the tracking for shared computation systematically,
+            # just in case the optimal computation path has changed.
+            self.requirements["data"].reset(reset_tracking=True)
 
     def refresh(self) -> np.ndarray:
         # Return a slice of batched data.

@@ -378,70 +378,45 @@ namespace jiminy::python
             const Eigen::Index numFloat = logData.floatValues.rows();
 
             // Get constants
-            for (const auto & [key, value] : logData.constants)
+            for (const auto & [key, data] : logData.constants)
             {
-                if (endsWith(key, "options"))
+                // Skip all constant that has been registered by the user from a controller
+                bool isUnknown = false;
+                if (key.find(CONTROLLER_TELEMETRY_NAMESPACE) != std::string::npos)
                 {
-                    std::vector<uint8_t> jsonStringVec(value.begin(), value.end());
+                    isUnknown = true;
+                }
+
+                /* Loop over a few "special" constants. Note that the robot is NOT automatically
+                   deserialized to speed-up log loading by default and to give the opportunity to
+                   the user to pass custom arguments. */
+                else if (endsWith(key, "options"))
+                {
+                    std::vector<uint8_t> jsonStringVec(data.begin(), data.end());
                     std::shared_ptr<AbstractIODevice> device =
                         std::make_shared<MemoryDevice>(std::move(jsonStringVec));
                     GenericConfig robotOptions;
                     jsonLoad(robotOptions, device);
                     constants[key] = robotOptions;
                 }
-                else if (key.find("pinocchio_model") != std::string::npos)
-                {
-                    try
-                    {
-                        pinocchio::Model model;
-                        ::jiminy::loadFromBinary<pinocchio::Model>(model, value);
-                        constants[key] = model;
-                    }
-                    catch (const std::exception & e)
-                    {
-                        JIMINY_THROW(std::ios_base::failure,
-                                     "Failed to load pinocchio model from log: ",
-                                     e.what());
-                    }
-                }
-                else if (endsWith(key, "visual_model") || endsWith(key, "collision_model"))
-                {
-                    try
-                    {
-                        pinocchio::GeometryModel geometryModel;
-                        ::jiminy::loadFromBinary<pinocchio::GeometryModel>(geometryModel, value);
-                        constants[key] = geometryModel;
-                    }
-                    catch (const std::exception & e)
-                    {
-                        JIMINY_THROW(std::ios_base::failure,
-                                     "Failed to load collision and/or visual model from log: ",
-                                     e.what());
-                    }
-                }
-                else if (endsWith(key, "mesh_package_dirs"))
-                {
-                    bp::list meshPackageDirs;
-                    std::stringstream ss(value);
-                    std::string item;
-                    while (getline(ss, item, ';'))
-                    {
-                        meshPackageDirs.append(item);
-                    }
-                    constants[key] = meshPackageDirs;
-                }
                 else if (key == NUM_INTS || key == NUM_FLOATS)
                 {
-                    constants[key] = std::stol(value);
+                    constants[key] = std::stol(data);
                 }
                 else if (key == TIME_UNIT)
                 {
-                    constants[key] = std::stod(value);
+                    constants[key] = std::stod(data);
                 }
                 else
                 {
+                    isUnknown = true;
+                }
+
+                // Fallback to simple forwarding the constant to Python as a bytes array
+                if (isUnknown)
+                {
                     constants[key] = bp::object(
-                        bp::handle<>(PyBytes_FromStringAndSize(value.c_str(), value.size())));
+                        bp::handle<>(PyBytes_FromStringAndSize(data.c_str(), data.size())));
                 }
             }
 

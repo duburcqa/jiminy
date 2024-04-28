@@ -4,8 +4,8 @@ observer/controller block must inherit and implement those interfaces.
 """
 from abc import abstractmethod, ABC
 from collections import OrderedDict
-from typing import Dict, Any, TypeVar, Generic, no_type_check, TYPE_CHECKING
-from typing_extensions import TypeAlias
+from typing import (
+    Dict, Any, TypeVar, Generic, no_type_check, TypedDict, TYPE_CHECKING)
 
 import numpy as np
 import numpy.typing as npt
@@ -33,13 +33,22 @@ SensorMeasurementStackMap = Dict[str, npt.NDArray[np.float64]]
 InfoType = Dict[str, Any]
 
 
-# class EngineObsType(TypedDict):
-#     t: np.ndarray
-#     state:  DataNested
-#     features: DataNested
-
-
-EngineObsType: TypeAlias = DataNested
+class EngineObsType(TypedDict):
+    """Raw observation provided by Jiminy Core Engine prior to any
+    post-processing.
+    """
+    t: np.ndarray
+    """Current simulation time.
+    """
+    states: Dict[str, DataNested]
+    """State of the agent.
+    """
+    measurements: SensorMeasurementStackMap
+    """Sensor measurements. Individual data for each sensor are aggregated by
+    types in 2D arrays whose first dimension gathers the measured components
+    and second dimension corresponds to individual measurements sorted by
+    sensor indices.
+    """
 
 
 class InterfaceObserver(ABC, Generic[ObsT, BaseObsT]):
@@ -197,7 +206,7 @@ class InterfaceJiminyEnv(
         self.__is_observation_refreshed = True
 
         # Store latest engine measurement for efficiency
-        self.__measurement: EngineObsType = OrderedDict(
+        self.__measurement = EngineObsType(
             t=np.array(0.0),
             states=OrderedDict(
                 agent=OrderedDict(q=np.array([]), v=np.array([]))),
@@ -260,7 +269,7 @@ class InterfaceJiminyEnv(
                 self.refresh_observation(measurement)
             except RuntimeError as e:
                 raise RuntimeError(
-                    "The observation space must be constant.") from e
+                    "The observation space must be invariant.") from e
             self.__is_observation_refreshed = True
 
     def _controller_handle(self,

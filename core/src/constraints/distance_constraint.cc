@@ -18,7 +18,7 @@ namespace jiminy
     {
     }
 
-    const std::array<std::string, 2> & DistanceConstraint::getFramesNames() const noexcept
+    const std::array<std::string, 2> & DistanceConstraint::getFrameNames() const noexcept
     {
         return frameNames_;
     }

@@ -161,7 +161,7 @@ class Simulator:
                               whenever a viewer must be instantiated, eg when
                               `render` method is first called. Specifically,
                               `backend` is ignored if one is already available.
-                              Optional: Empty by default.
+                              Optional: None by default.
         :param kwargs: Used arguments to allow automatic pipeline wrapper
                        generation.
         """
@@ -182,13 +182,13 @@ class Simulator:
         self.is_simulation_running = self.engine.is_simulation_running
 
         # Viewer management
-        self._viewers: Sequence[Viewer] = []
+        self._viewers: List[Viewer] = []
 
         # Internal buffer for progress bar management
         self._pbar: Optional[tqdm] = None
 
         # Figure holder
-        self._figure: Optional[TabbedFigure] = None
+        self._figures: List[TabbedFigure] = []
 
         # Reset the low-level jiminy engine
         self.reset()
@@ -539,25 +539,27 @@ class Simulator:
             ) -> None:
         """Initialize a simulation, starting from (q_init, v_init) at t=0.
 
-        :param q_init: Initial configuration (by robot if it is a dictionnary).
-        :param v_init: Initial velocity (by robot if it is a dictionnary).
-        :param a_init: Initial acceleration (by robot if it is a dictionnary).
+        :param q_init: Initial configuration (by robot if it is a dictionary).
+        :param v_init: Initial velocity (by robot if it is a dictionary).
+        :param a_init: Initial acceleration (by robot if it is a dictionary).
                        It is only used by acceleration dependent sensors and
                        controllers, such as IMU and force sensors.
-        :param is_state_theoretical: In single robot simulations, whether the
-                                     initial state is associated with the
-                                     actual or theoretical model of the robot.
+        :param is_state_theoretical: Whether the initial state is associated
+                                     with the actual or theoretical model of
+                                     the robot. This option is only supported
+                                     when passing `np.ndarray` for starting a
+                                     single-robot simulation.
         """
         # Call base implementation
-        # Single-robot simulations with `np.ndarray`, `is_state_theoretical` is
-        # supported.
         if isinstance(q_init, np.ndarray):
+            assert isinstance(v_init, np.ndarray)
+            assert a_init is None or isinstance(a_init, np.ndarray)
             if is_state_theoretical is None:
                 is_state_theoretical = False
             self.engine.start(q_init, v_init, a_init, is_state_theoretical)
-        # Multi-robot simulations or single-robot simulations with
-        # dictionnaries, `is_state_theoretical` is not supported.
         else:
+            assert isinstance(v_init, dict)
+            assert a_init is None or isinstance(a_init, dict)
             if is_state_theoretical is not None:
                 raise NotImplementedError(
                     "Optional argument 'is_state_theoretical' is only "
@@ -642,20 +644,23 @@ class Simulator:
             # Single-robot simulations with `np.ndarray`,
             # `is_state_theoretical` is supported.
             if isinstance(q_init, np.ndarray):
+                assert isinstance(v_init, np.ndarray)
+                assert a_init is None or isinstance(a_init, np.ndarray)
                 if is_state_theoretical is None:
                     is_state_theoretical = False
                 self.engine.simulate(
                     t_end, q_init, v_init, a_init, is_state_theoretical,
                     callback)
             # Multi-robot simulations or single-robot simulations with
-            # dictionnaries, `is_state_theoretical` is not supported.
+            # dictionaries, `is_state_theoretical` is not supported.
             else:
+                assert isinstance(v_init, dict)
+                assert a_init is None or isinstance(a_init, dict)
                 if is_state_theoretical is not None:
                     raise NotImplementedError(
                         "Optional argument 'is_state_theoretical' is only "
                         "supported for single-robot simulations.")
                 self.engine.simulate(t_end, q_init, v_init, a_init, callback)
-
         except Exception as e:  # pylint: disable=broad-exception-caught
             err = e
 
@@ -737,12 +742,13 @@ class Simulator:
             for robot, robot_state in zip(
                     self.engine.robots, self.engine.robot_states):
                 # Create a single viewer instance
+                robot_name = (
+                    robot.name or robot.pinocchio_model.name or "robot")
                 viewer = Viewer(
                     robot,
-                    robot_name=robot.name,
                     use_theoretical_model=False,
                     open_gui_if_parent=False,
-                    **viewer_kwargs)
+                    **{"robot_name": robot_name, **viewer_kwargs})
                 assert viewer.backend is not None
                 self._viewers.append(viewer)
 
@@ -812,7 +818,7 @@ class Simulator:
         return None
 
     def replay(self,
-               extra_logs_files: Sequence[Dict[str, np.ndarray]] = (),
+               extra_logs_files: Sequence[str] = (),
                extra_trajectories: Sequence[TrajectoryDataType] = (),
                **kwargs: Any) -> None:
         """Replay the current episode until now.
@@ -868,7 +874,7 @@ class Simulator:
         backend = (kwargs.get('backend', (self.viewer or Viewer).backend) or
                    get_default_backend())
         must_not_open_gui = (
-            backend.startswith("panda3d") or
+            backend == "panda3d-sync" or
             kwargs.get('record_video_path') is not None)
         self.render(**{
             'return_rgb_array': must_not_open_gui,
@@ -896,14 +902,15 @@ class Simulator:
             for viewer in self._viewers:
                 viewer.close()
             self._viewers.clear()
-        if hasattr(self, "figure") and self._figure is not None:
-            self._figure.close()
-            self._figure = None
+        if hasattr(self, "figures"):
+            for figure in self._figures:
+                figure.close()
+            self._figures.clear()
 
     def plot(self,
              enable_flexiblity_data: bool = False,
              block: Optional[bool] = None,
-             **kwargs: Any) -> TabbedFigure:
+             **kwargs: Any) -> Union[TabbedFigure, Sequence[TabbedFigure]]:
         """Display common simulation data over time.
 
         The figure features several tabs:
@@ -914,9 +921,6 @@ class Simulator:
           - Subplots with motors torques
           - Subplots with raw sensor data (one tab for each type of sensor)
 
-        .. warning::
-            Method only supported for single-robot simulations.
-
         :param enable_flexiblity_data:
             Enable display of flexibility joints in robot's configuration,
             velocity and acceleration subplots.
@@ -926,11 +930,6 @@ class Simulator:
                       Optional: False in interactive mode, True otherwise.
         :param kwargs: Extra keyword arguments to forward to `TabbedFigure`.
         """
-        # Make sure that the simulation is single-robot
-        if len(self.engine.robots) > 1:
-            raise NotImplementedError(
-                "This method is only supported for single-robot simulations.")
-
         # Make sure plot submodule is available
         try:
             # pylint: disable=import-outside-toplevel
@@ -940,11 +939,23 @@ class Simulator:
                 "Method not available. Please install 'jiminy_py[plot]'."
                 ) from e
 
-        # Create figure, without closing the existing one
-        self._figure = plot_log(
-            self.log_data, self.robot, enable_flexiblity_data, block, **kwargs)
+        # Create figure for each robot, without closing the existing one
+        figures = []
+        for robot in self.robots:
+            window_title = ".".join(filter(
+                None, (kwargs.get("window_title", "jiminy"), robot.name)))
+            figure = plot_log(
+                self.log_data, robot, enable_flexiblity_data, block, **{
+                    **kwargs, "window_title": window_title})
+            figures.append(figure)
 
-        return self._figure
+        # Keep track of all figures that has been created so far
+        self._figures += figures
+
+        # Return only figures that has just been created
+        if len(self.robots) > 1:
+            return figures
+        return figures[0]
 
     def export_options(self, config_path: Union[str, os.PathLike]) -> None:
         """Export in a single configuration file all the options of the

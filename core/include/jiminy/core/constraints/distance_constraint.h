@@ -24,14 +24,12 @@ namespace jiminy
     public:
         JIMINY_DISABLE_COPY(DistanceConstraint)
 
-        auto shared_from_this() { return shared_from(this); }
-
     public:
         explicit DistanceConstraint(const std::string & firstFrameName,
                                     const std::string & secondFrameName) noexcept;
         virtual ~DistanceConstraint() = default;
 
-        const std::array<std::string, 2> & getFramesNames() const noexcept;
+        const std::array<std::string, 2> & getFrameNames() const noexcept;
         const std::array<pinocchio::FrameIndex, 2> & getFrameIndices() const noexcept;
 
         void setReferenceDistance(double distanceRef);

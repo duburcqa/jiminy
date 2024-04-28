@@ -34,7 +34,6 @@ class RandomDistribution(Protocol):
         ...
 
 
-@nb.jit(nopython=True, cache=True, inline='always')
 def is_breakpoint(t: float, dt: float, eps: float) -> bool:
     """Check if 't' is multiple of 'dt' at a given precision 'eps'.
 

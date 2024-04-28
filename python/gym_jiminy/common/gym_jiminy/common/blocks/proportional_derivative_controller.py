@@ -49,53 +49,56 @@ def integrate_zoh(state: np.ndarray,
     if abs(dt) < 1e-9:
         return
 
-    # Split position, velocity and acceleration orders for convenience
+    # Split position, velocity and acceleration for convenience
     position, velocity, acceleration = state
-    position_min, velocity_min, acceleration_min = state_min
-    position_max, velocity_max, acceleration_max = state_max
 
-    # Clip acceleration
-    acceleration[:] = np.minimum(
-        np.maximum(acceleration, acceleration_min), acceleration_max)
+    # Loop over motors individually as it is faster than masked vectorization
+    _, dim = state.shape
+    for i in range(dim):
+        # Split position, velocity and acceleration bounds
+        position_min, velocity_min, acceleration_min = state_min[:, i]
+        position_max, velocity_max, acceleration_max = state_max[:, i]
 
-    # Backup the initial velocity to later compute the clipped acceleration
-    velocity_prev = velocity.copy()
+        # Clip acceleration
+        acceleration[i] = min(
+            max(acceleration[i], acceleration_min), acceleration_max)
 
-    # Integrate acceleration 1-step ahead
-    velocity += acceleration * dt
+        # Backup the initial velocity to later compute the clipped acceleration
+        velocity_prev = velocity[i]
 
-    # Make sure that "true" velocity bounds are satisfied
-    velocity[:] = np.minimum(np.maximum(velocity, velocity_min), velocity_max)
+        # Integrate acceleration 1-step ahead
+        velocity[i] += acceleration[i] * dt
 
-    # Force slowing down early enough to avoid violating acceleration limits
-    # when hitting position bounds.
-    horizon = np.maximum(
-        np.floor(np.abs(velocity_prev) / acceleration_max / dt) * dt, dt)
-    position_min_delta = position_min - position
-    position_max_delta = position_max - position
-    drift = 0.5 * (horizon[horizon > dt] * (horizon[horizon > dt] - dt))
-    position_min_delta[horizon > dt] -= drift * acceleration_max[horizon > dt]
-    position_max_delta[horizon > dt] += drift * acceleration_max[horizon > dt]
-    velocity_min = position_min_delta / horizon
-    velocity_max = position_max_delta / horizon
-    velocity[:] = np.minimum(np.maximum(velocity, velocity_min), velocity_max)
+        # Make sure that "true" velocity bounds are satisfied
+        velocity[i] = min(max(velocity[i], velocity_min), velocity_max)
 
-    # Velocity after hitting bounds must be cancellable in a single time step
-    velocity_mask = np.abs(velocity) > dt * acceleration_max
-    velocity_min = - np.maximum(
-        position_min_delta[velocity_mask] / velocity[velocity_mask], dt
-        ) * acceleration_max[velocity_mask]
-    velocity_max = np.maximum(
-        position_max_delta[velocity_mask] / velocity[velocity_mask], dt
-        ) * acceleration_max[velocity_mask]
-    velocity[velocity_mask] = np.minimum(
-        np.maximum(velocity[velocity_mask], velocity_min), velocity_max)
+        # Force slowing down early enough to avoid violating acceleration
+        # limits when hitting position bounds.
+        horizon = max(
+            int(abs(velocity_prev) / acceleration_max / dt) * dt, dt)
+        position_min_delta = position_min - position[i]
+        position_max_delta = position_max - position[i]
+        if horizon > dt:
+            drift = 0.5 * (horizon * (horizon - dt)) * acceleration_max
+            position_min_delta -= drift
+            position_max_delta += drift
+        velocity_min = position_min_delta / horizon
+        velocity_max = position_max_delta / horizon
+        velocity[i] = min(max(velocity[i], velocity_min), velocity_max)
 
-    # Back-propagate velocity clipping at the acceleration-level
-    acceleration[:] = (velocity - velocity_prev) / dt
+        # Velocity after hitting bounds must be cancellable in a single step
+        if np.abs(velocity[i]) > dt * acceleration_max:
+            velocity_min = - max(
+                position_min_delta / velocity[i], dt) * acceleration_max
+            velocity_max = max(
+                position_max_delta / velocity[i], dt) * acceleration_max
+            velocity[i] = min(max(velocity[i], velocity_min), velocity_max)
 
-    # Integrate position 1-step ahead
-    position += dt * velocity
+        # Back-propagate velocity clipping at the acceleration-level
+        acceleration[i] = (velocity[i] - velocity_prev) / dt
+
+        # Integrate position 1-step ahead
+        position[i] += dt * velocity[i]
 
 
 @nb.jit(nopython=True, cache=True, fastmath=True)
@@ -522,7 +525,7 @@ class PDAdapter(
         """
         :param update_ratio: Ratio between the update period of the controller
                              and the one of the subsequent controller. -1 to
-                             match the simulation timestep of the environment.
+                             match the environment step `env.step_dt`.
                              Optional: -1 by default.
         :param order: Derivative order of the action. It accepts position or
                       velocity (respectively 0 or 1).

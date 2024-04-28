@@ -166,6 +166,10 @@ def zeros(space: gym.Space[DataNestedT],
         if enforce_bounds:
             value = clip(value, space)
         return value
+    if not isinstance(space, gym.Space):
+        raise ValueError(
+            "All spaces must derived from `gym.Space`, including tuple and "
+            "dict containers.")
     raise NotImplementedError(
         f"Space of type {type(space)} is not supported.")
 
@@ -215,6 +219,7 @@ def copy(data: DataNestedT) -> DataNestedT:
     return cast(DataNestedT, tree.unflatten_as(data, tree.flatten(data)))
 
 
+@no_type_check
 def clip(data: DataNested, space: gym.Space[DataNested]) -> DataNested:
     """Clip data from `gym.Space` to make sure it is within bounds.
 
@@ -226,17 +231,19 @@ def clip(data: DataNested, space: gym.Space[DataNested]) -> DataNested:
     :param data: Data to clip.
     :param space: `gym.Space` on which to operate.
     """
-    # FIXME: Add support of `gym.spaces.Tuple`
-    if not isinstance(space, gym.spaces.Dict):
-        return _array_clip(data, *get_bounds(space))
-    assert isinstance(data, dict)
+    data_type = type(data)
+    if tree.issubclass_mapping(data_type):
+        return data_type({
+            field: clip(data[field], subspace)
+            for field, subspace in space.spaces.items()})
+    if tree.issubclass_sequence(data_type):
+        return data_type(tuple(
+            clip(data[i], subspace)
+            for i, subspace in enumerate(space.spaces)))
+    return _array_clip(data, *get_bounds(space))
 
-    out: Dict[str, DataNested] = OrderedDict()
-    for field, subspace in space.spaces.items():
-        out[field] = clip(data[field], subspace)
-    return out
 
-
+@no_type_check
 def contains(data: DataNested,
              space: gym.Space[DataNested],
              tol_abs: float = 0.0,
@@ -254,19 +261,21 @@ def contains(data: DataNested,
     :param tol_abs: Absolute tolerance.
     :param tol_rel: Relative tolerance.
     """
-    if not isinstance(space, gym.spaces.Dict):
-        return _array_contains(data, *get_bounds(space), tol_abs, tol_rel)
-    assert isinstance(data, dict)
-
-    return all(contains(data[field], subspace, tol_abs, tol_rel)
-               for field, subspace in space.spaces.items())
+    data_type = type(data)
+    if tree.issubclass_mapping(data_type):
+        return all(contains(data[field], subspace, tol_abs, tol_rel)
+                   for field, subspace in space.spaces.items())
+    if tree.issubclass_sequence(data_type):
+        return all(contains(data[i], subspace, tol_abs, tol_rel)
+                   for i, subspace in enumerate(space.spaces))
+    return _array_contains(data, *get_bounds(space), tol_abs, tol_rel)
 
 
 @no_type_check
 def build_reduce(fn: Callable[..., ValueInT],
                  op: Optional[Callable[[ValueOutT, ValueInT], ValueOutT]],
                  dataset: SequenceT[DataNested],
-                 space: Optional[gym.spaces.Dict],
+                 space: Optional[gym.Space[DataNested]],
                  arity: Optional[Literal[0, 1]],
                  *args: Any,
                  initializer: Optional[Callable[[], ValueOutT]] = None,
@@ -312,8 +321,9 @@ def build_reduce(fn: Callable[..., ValueInT],
                reduction. This is useful when apply in-place transform.
     :param data: Pre-allocated nested data structure. Optional if the space is
                  provided but hardly relevant.
-    :param space: `gym.spaces.Dict` on which to operate. Optional iif the
-                  nested data structure is provided.
+    :param space: Container space on which to operate (eg `gym.spaces.Dict` or
+                  `gym.spaces.Tuple`). Optional iif the nested data structure
+                  is provided.
     :param arity: Arity of the generated callable. `None` to indicate that it
                   must be determined at runtime, which is slower.
     :param args: Extra arguments to systematically forward as transform input

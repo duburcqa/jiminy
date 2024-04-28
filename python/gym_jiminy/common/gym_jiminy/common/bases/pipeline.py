@@ -109,6 +109,16 @@ class BasePipelineWrapper(
         return [*super().__dir__(), *dir(self.env)]
 
     @property
+    def render_mode(self) -> Optional[str]:
+        """Rendering mode of the base environment.
+        """
+        return self.env.render_mode
+
+    @render_mode.setter
+    def render_mode(self, render_mode: str) -> None:
+        self.env.render_mode = render_mode
+
+    @property
     def spec(self) -> Optional[EnvSpec]:
         """Random number generator of the base environment.
         """
@@ -223,7 +233,7 @@ class BasePipelineWrapper(
 
             # Make sure that the pipeline has not change since last reset
             env_derived = (
-                self.unwrapped._env_derived)  # type: ignore[attr-defined]
+                self.unwrapped.derived)  # type: ignore[attr-defined]
             if env_derived is not self:
                 raise RuntimeError(
                     "Pipeline environment has changed. Please call 'reset' "
@@ -440,7 +450,7 @@ class ObservedJiminyEnv(
     def _initialize_observation_space(self) -> None:
         """Configure the observation space.
         """
-        observation_space: Dict[str, gym.Space[Any]] = OrderedDict()
+        observation_space: Dict[str, gym.Space[DataNested]] = OrderedDict()
         base_observation_space = deepcopy(self.env.observation_space)
         if isinstance(base_observation_space, gym.spaces.Dict):
             observation_space.update(base_observation_space)
@@ -472,7 +482,7 @@ class ObservedJiminyEnv(
         :param measurement: Low-level measure from the environment to process
                             to get higher-level observation.
         """
-        # Get environment observation
+        # Refresh environment observation
         self.env.refresh_observation(measurement)
 
         # Update observed features if necessary
@@ -664,7 +674,7 @@ class ControlledJiminyEnv(
         by the controller if requested.
         """
         # Append the controller's target to the observation if requested
-        observation_space: Dict[str, gym.Space[Any]] = OrderedDict()
+        observation_space: Dict[str, gym.Space[DataNested]] = OrderedDict()
         base_observation_space = deepcopy(self.env.observation_space)
         if isinstance(base_observation_space, gym.spaces.Dict):
             observation_space.update(base_observation_space)
@@ -764,7 +774,7 @@ class BaseTransformObservation(
         self._step_dt = self.env.step_dt
 
         # Pre-allocated memory for the observation
-        self.observation: TransformedObsT = zeros(self.observation_space)
+        self.observation = zeros(self.observation_space)
 
         # Bind action of the base environment
         assert self.action_space.contains(self.env.action)

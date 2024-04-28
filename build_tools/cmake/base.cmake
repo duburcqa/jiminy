@@ -14,9 +14,9 @@ if(CMAKE_VERSION VERSION_LESS "3.24.0")
 endif()
 
 # Check if network is available before compiling external projects
-if(WIN32)
-    set(BUILD_OFFLINE 0)
-else()
+set(BUILD_OFFLINE 0)
+find_program(PING "ping")
+if(NOT WIN32 AND PING)
     unset(BUILD_OFFLINE)
     unset(BUILD_OFFLINE CACHE)
     execute_process(COMMAND bash -c
@@ -49,12 +49,17 @@ else()
                    -Wsequence-point -Wdeprecated -Wconversion \
                    -Wdelete-non-virtual-dtor -Wno-missing-braces \
                    -Wno-sign-conversion -Wno-non-virtual-dtor \
-                   -Wno-unknown-pragmas -Wno-unknown-warning-option \
-                   -Wno-unknown-warning -Wno-undefined-var-template \
-                   -Wno-long-long -Wno-error=maybe-uninitialized \
+                   -Wno-unknown-pragmas -Wno-long-long \
                    -Wno-error=uninitialized -Wno-error=deprecated \
-                   -Wno-error=array-bounds -Wno-error=redundant-move \
-                   -Wno-error=suggest-attribute=noreturn")
+                   -Wno-error=array-bounds -Wno-error=redundant-move")
+    if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        set(WARN_FULL "${WARN_FULL} \
+                       -Wno-undefined-var-template -Wno-unknown-warning-option")
+    elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        set(WARN_FULL "${WARN_FULL} \
+                       -Wno-error=maybe-uninitialized \
+                       -Wno-error=suggest-attribute=noreturn")
+    endif()
 endif()
 
 # Shared libraries need PIC

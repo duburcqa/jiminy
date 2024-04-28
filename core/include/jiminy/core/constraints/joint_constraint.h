@@ -24,8 +24,6 @@ namespace jiminy
     public:
         JIMINY_DISABLE_COPY(JointConstraint)
 
-        auto shared_from_this() { return shared_from(this); }
-
     public:
         /// \param[in] jointName Name of the joint.
         explicit JointConstraint(const std::string & jointName) noexcept;
@@ -38,7 +36,7 @@ namespace jiminy
         const Eigen::VectorXd & getReferenceConfiguration() const noexcept;
 
         void setRotationDir(bool isReversed) noexcept;
-        bool getRotationDir() noexcept;
+        bool getRotationDir() const noexcept;
 
         virtual void reset(const Eigen::VectorXd & q, const Eigen::VectorXd & v) override final;
 

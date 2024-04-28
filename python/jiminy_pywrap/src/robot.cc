@@ -264,24 +264,17 @@ namespace jiminy::python
 
             .DEF_READONLY("contact_forces", &Model::contactForces_)
 
-            .ADD_PROPERTY_GET_WITH_POLICY("is_initialized",
-                                          &Model::getIsInitialized,
-                                          bp::return_value_policy<bp::return_by_value>())
+            .ADD_PROPERTY_GET("is_initialized", &Model::getIsInitialized)
             .ADD_PROPERTY_GET_WITH_POLICY("mesh_package_dirs",
                                           &Model::getMeshPackageDirs,
                                           bp::return_value_policy<result_converter<true>>())
             .ADD_PROPERTY_GET_WITH_POLICY(
                 "urdf_path", &Model::getUrdfPath, bp::return_value_policy<bp::return_by_value>())
-            .ADD_PROPERTY_GET_WITH_POLICY("has_freeflyer",
-                                          &Model::getHasFreeflyer,
-                                          bp::return_value_policy<bp::return_by_value>())
+            .ADD_PROPERTY_GET("has_freeflyer", &Model::getHasFreeflyer)
             .ADD_PROPERTY_GET("is_flexibility_enabled", &internal::model::isFlexibilityEnabled)
-            .ADD_PROPERTY_GET_WITH_POLICY(
-                "nq", &Model::nq, bp::return_value_policy<bp::return_by_value>())
-            .ADD_PROPERTY_GET_WITH_POLICY(
-                "nv", &Model::nv, bp::return_value_policy<bp::return_by_value>())
-            .ADD_PROPERTY_GET_WITH_POLICY(
-                "nx", &Model::nx, bp::return_value_policy<bp::return_by_value>())
+            .ADD_PROPERTY_GET("nq", &Model::nq)
+            .ADD_PROPERTY_GET("nv", &Model::nv)
+            .ADD_PROPERTY_GET("nx", &Model::nx)
 
             .ADD_PROPERTY_GET_WITH_POLICY("collision_body_names",
                                           &Model::getCollisionBodyNames,
@@ -399,8 +392,7 @@ namespace jiminy::python
                   bp::arg("collision_model") = bp::object(),
                   bp::arg("visual_model") = bp::object()))
 
-            .ADD_PROPERTY_GET_WITH_POLICY(
-                "is_locked", &Robot::getIsLocked, bp::return_value_policy<bp::return_by_value>())
+            .ADD_PROPERTY_GET("is_locked", &Robot::getIsLocked)
 
             .ADD_PROPERTY_GET_WITH_POLICY(
                 "name", &Robot::getName, bp::return_value_policy<bp::return_by_value>())

@@ -2,9 +2,7 @@
 """Utilities for extracting structured information from log data, from
 reconstructing the robot to reading telemetry variables.
 """
-import os
 import re
-import tempfile
 from bisect import bisect_right
 from collections import OrderedDict
 from typing import (
@@ -21,7 +19,6 @@ from .core import (  # pylint: disable=no-name-in-module
     ContactSensor as contact,
     ForceSensor as force,
     ImuSensor as imu)
-from .robot import _fix_urdf_mesh_path
 from .dynamics import State, TrajectoryDataType
 
 
@@ -117,118 +114,63 @@ def build_robot_from_log(
         log_data: Dict[str, Any],
         mesh_path_dir: Optional[str] = None,
         mesh_package_dirs: Sequence[str] = (),
-        *, robot_name: str = ""
+        *, robot_name: Optional[str] = None
         ) -> jiminy.Robot:
-    """Create and initialize a robot from a single- or multi- robot simulation.
-
-    .. warning::
-        If the robot to be built is from a multi-robot simulation, then its
-        name needs to be specified explicitly. Alternatively, one can load all
-        robots simultaneously in log file using `build_robots_from_log`.
-
-    .. note::
-        Model options and `robot.pinocchio_model` will be the same as during
-        the simulation until the next call to `reset` method unless the options
-        of the robot that has been restored are overwritten manually.
+    """Create and initialize a robot from single- or multi- robot simulations.
 
     .. note::
         It returns a valid and fully initialized robot, that can be used to
         perform new simulation if added to a Jiminy Engine, but the original
         controller is lost.
 
-    .. warning::
-        It does ot require the original URDF file to exist, but the original
-        mesh paths (if any) must be valid since they are not bundle in the log
-        archive for now.
+    .. note::
+        Model options and `robot.pinocchio_model` will be the same as during
+        the simulation until the next call to `reset` or `set_options` methods.
 
-    :param log_data: Logged data (constants and variables) as a dictionary.
+    .. note::
+        In case of multi-robot simulation, one may use `build_robots_from_log`
+        for building all robots at once without having the specify explicitly
+        the name for each of them.
+
+    :param log_data: Logged data (constants plus variables) as a dictionary.
     :param mesh_path_dir: Overwrite the common root of all absolute mesh paths.
-                          It which may be necessary to read log generated on a
-                          different environment.
+                          It may be necessary to read logs generated on
+                          different environments.
     :param mesh_package_dirs: Prepend custom mesh package search path
                               directories to the ones provided by log file. It
                               may be necessary to specify it to read log
                               generated on a different environment.
-    :param robot_name: Name of the robot to build from log.
+    :param robot_name: Name of the robot to build from log. If `None`, then the
+                       name will be detected automatically in case of
+                       single-robot simulations, otherwise it will raise an
+                       exception.
 
-    :returns: Reconstructed robot, and parsed log data as returned by
-              `jiminy_py.log.read_log` method.
+    :returns: Reconstructed robot.
     """
-    # Instantiate empty robot
-    robot = jiminy.Robot(robot_name)
-
     # Extract log constants
     log_constants = log_data["constants"]
 
-    try:
-        pinocchio_model = log_constants[
-            ".".join(filter(None, (robot_name, "pinocchio_model")))]
-    except KeyError as e:
-        if robot_name == "":
+    # Try to infer robot names from log constants if not specified
+    if robot_name is None:
+        robot_names = []
+        for key in log_data["constants"].keys():
+            robot_name_match = re.match(r"^(\w*?)\.?robot$", key)
+            if robot_name_match is not None:
+                robot_names.append(robot_name_match.group(1))
+        if len(robot_names) > 1:
             raise ValueError(
-                "No robot with empty name has been found. Specify a name or "
-                "call `build_robots_from_log`.") from e
+                "In case of multi-robot simulations, the name of the robot to "
+                "build must be specified. Please call `build_robots_from_log` "
+                "to build all robots at once.")
+        assert robot_names
+        robot_name = robot_names[0]
 
-    try:
-        # Extract geometry models
-        collision_model = log_constants[
-            ".".join(filter(None, (robot_name, "collision_model")))]
-        visual_model = log_constants[
-            ".".join(filter(None, (robot_name, "visual_model")))]
+    # Get binary serialized robot data
+    robot_data = log_constants[".".join(filter(None, (robot_name, "robot")))]
 
-        # Initialize the model
-        robot.initialize(pinocchio_model, collision_model, visual_model)
-    except KeyError as e:
-        # Extract initialization arguments
-        urdf_data = log_constants[
-            ".".join(filter(None, (robot_name, "urdf_file")))]
-        has_freeflyer = int(log_constants[
-            ".".join(filter(None, (robot_name, "has_freeflyer")))])
-        mesh_package_dirs = [*mesh_package_dirs, *log_constants.get(
-            ".".join(filter(None, (robot_name, "mesh_package_dirs"))), ())]
-
-        # Make sure urdf data is available
-        if len(urdf_data) <= 1:
-            raise RuntimeError(
-                "Impossible to build robot. The log is not persistent and the "
-                "robot was not associated with a valid URDF file.") from e
-
-        # Write urdf data in temporary file
-        urdf_path = os.path.join(
-            tempfile.gettempdir(),
-            f"{next(tempfile._get_candidate_names())}.urdf")
-        with open(urdf_path, "xb") as f:
-            f.write(urdf_data)
-
-        # Fix the mesh paths in the URDF model if requested
-        if mesh_path_dir is not None:
-            fixed_urdf_path = _fix_urdf_mesh_path(urdf_path, mesh_path_dir)
-            os.remove(urdf_path)
-            urdf_path = fixed_urdf_path
-
-        # Initialize model
-        robot.initialize(urdf_path, has_freeflyer, mesh_package_dirs)
-
-        # Delete temporary file
-        os.remove(urdf_path)
-
-        # Load the options
-        all_options = log_constants["options"]
-        robot.set_options(all_options[robot_name or "robot"])
-
-        # Update model in-place.
-        # Note that `__setstate__` re-allocates memory instead of just calling
-        # the copy assignment operator. Although this is undesirable, there is
-        # no better way on Python side. Anyway, this is not an issue in this
-        # particular case since the robot has just been created, so nobody got
-        # references to pre-allocated data at this point.
-        robot.pinocchio_model.__setstate__(pinocchio_model.__getstate__())
-
-        # Allocate corresponding pinocchio data manually
-        pinocchio_data = pinocchio_model.createData()
-        robot.pinocchio_data.__setstate__(pinocchio_data.__getstate__())
-
-    return robot
+    # Load robot
+    return jiminy.build_robot_from_binary(
+        robot_data, mesh_path_dir, mesh_package_dirs)
 
 
 def build_robots_from_log(
@@ -239,8 +181,8 @@ def build_robots_from_log(
     """Build all the robots in the log of the simulation.
 
     .. note::
-        This function calls `build_robot_from_log` to build each robot.
-        Refer to `build_robot_from_log` for more information.
+        Internally, this function calls `build_robot_from_log` to build each
+        available robot. Refer to `build_robot_from_log` for more information.
 
     :param log_data: Logged data (constants and variables) as a dictionary.
     :param mesh_path_dir: Overwrite the common root of all absolute mesh paths.
@@ -256,7 +198,7 @@ def build_robots_from_log(
     # Try to infer robot names from log constants
     robot_names = []
     for key in log_data["constants"].keys():
-        robot_name_match = re.match(r"^(\w*?)\.?has_freeflyer$", key)
+        robot_name_match = re.match(r"^(\w*?)\.?robot$", key)
         if robot_name_match is not None:
             robot_names.append(robot_name_match.group(1))
 
@@ -271,7 +213,7 @@ def build_robots_from_log(
 
 
 def extract_trajectory_from_log(log_data: Dict[str, Any],
-                                robot: Optional[jiminy.Model] = None,
+                                robot: Optional[jiminy.Robot] = None,
                                 *, robot_name: Optional[str] = None
                                 ) -> TrajectoryDataType:
     """Extract the minimal required information from raw log data in order to
@@ -349,7 +291,7 @@ def extract_trajectory_from_log(log_data: Dict[str, Any],
 
 def extract_trajectories_from_log(
         log_data: Dict[str, Any],
-        robots: Optional[Sequence[jiminy.Model]] = None
+        robots: Optional[Sequence[jiminy.Robot]] = None
         ) -> Dict[str, TrajectoryDataType]:
     """Extract the minimal required information from raw log data in order to
     replay the simulation in a viewer.
@@ -368,17 +310,16 @@ def extract_trajectories_from_log(
     :returns: Dictonary mapping each robot name to its corresponding
               trajectory.
     """
-    trajectories = {}
-
     # Handling of default argument(s)
     if robots is None:
         robots = build_robots_from_log(log_data)
 
+    # Load the trajectory associated with each robot sequentially
+    trajectories = {}
     for robot in robots:
-        trajectory = extract_trajectory_from_log(
+        trajectories[robot.name] = extract_trajectory_from_log(
             log_data, robot, robot_name=robot.name)
 
-        trajectories[robot.name] = trajectory
     return trajectories
 
 

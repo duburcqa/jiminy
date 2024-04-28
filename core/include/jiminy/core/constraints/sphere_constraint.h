@@ -28,8 +28,6 @@ namespace jiminy
     public:
         JIMINY_DISABLE_COPY(SphereConstraint)
 
-        auto shared_from_this() { return shared_from(this); }
-
     public:
         /// \param[in] frameName Name of the frame representing the center of the sphere.
         /// \param[in] sphereRadius Radius of the sphere (in m).
@@ -41,6 +39,9 @@ namespace jiminy
 
         const std::string & getFrameName() const noexcept;
         pinocchio::FrameIndex getFrameIndex() const noexcept;
+
+        double getRadius() const noexcept;
+        const Eigen::Vector3d & getNormal() const noexcept;
 
         void setReferenceTransform(const pinocchio::SE3 & transformRef) noexcept;
         const pinocchio::SE3 & getReferenceTransform() const noexcept;

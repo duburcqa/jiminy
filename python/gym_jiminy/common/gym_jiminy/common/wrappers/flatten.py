@@ -20,8 +20,8 @@ from ..bases import (ObsT,
 from ..utils import get_bounds, build_flatten
 
 
-FlattenedObsT: TypeAlias = ObsT
-FlattenedActT: TypeAlias = ActT
+FlattenedObsT: TypeAlias = npt.NDArray[np.float64]
+FlattenedActT: TypeAlias = npt.NDArray[np.float64]
 
 
 class FlattenObservation(BaseTransformObservation[FlattenedObsT, ObsT, ActT],
