@@ -3671,10 +3671,7 @@ namespace jiminy
             {
                 fext_i.setZero();
             }
-            if (!isStateUpToDate)
-            {
-                robotData.state.uInternal.setZero();
-            }
+            robotData.state.uInternal.setZero();
         }
 
         // Compute the internal forces
@@ -3692,11 +3689,13 @@ namespace jiminy
             Eigen::VectorXd & uInternal = robotDataIt->state.uInternal;
 
             /* Compute internal dynamics, namely the efforts in joint space associated with
-               position/velocity bounds dynamics, and flexibility dynamics. */
-            if (!isStateUpToDate)
-            {
-                computeInternalDynamics(*robotIt, t, *qIt, *vIt, uInternal);
-            }
+               position/velocity bounds dynamics, and flexibility dynamics.
+               Note that they must be recomputed systematically, even if the state did not change
+               since the last time they were computed, because we are not tracking their value but
+               only aggregating them as part of the internal joint efforts. The latter will be
+               updated when computing the system acceleration to account for the efforts associated
+               with constraints at the joint-level no matter if the state is up to date. */
+            computeInternalDynamics(*robotIt, t, *qIt, *vIt, uInternal);
 
             /* Compute the collision forces and estimated time at which the contact state will
                changed (Take-off / Touch-down). */
