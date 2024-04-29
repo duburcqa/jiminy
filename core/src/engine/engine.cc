@@ -1886,14 +1886,18 @@ namespace jiminy
                time, and the robots state, command, and sensors data.
 
                Note that the acceleration is discontinuous. In particular, it would have different
-               values of the same timestep if the command has been updated. There is no way to log
-               both the acceleration at the end of the previous step (t-) and at the beginning of
-               the next one (t+). Logging the previous acceleration is more natural since it
-               preserves the consistency between sensors data and robot state. */
+               values of the same timestep if the command has been updated. Logging the previous
+               acceleration is more natural since it preserves the consistency between sensors data
+               and robot state. However, it is not the one that will be taken into account for
+               integrating the physics at the current step. As a result, it is necessary to log the
+               acceleration both at the end of the previous step (t-) and at the beginning of the
+               next one (t+) to make sure that no information is lost in log data. This means that
+               the same timestep will be logged twice, but this is permitted by the telemetry. */
+            bool mustUpdateTelemetry = false;
             if (!std::isfinite(stepperUpdatePeriod_) ||
                 !engineOptions_->stepper.logInternalStepperSteps)
             {
-                bool mustUpdateTelemetry = !std::isfinite(stepperUpdatePeriod_);
+                mustUpdateTelemetry = !std::isfinite(stepperUpdatePeriod_);
                 if (!mustUpdateTelemetry)
                 {
                     double dtNextStepperUpdatePeriod =
@@ -1908,13 +1912,17 @@ namespace jiminy
                 }
             }
 
-            // Fix the FSAL issue if the dynamics has changed
+            // Fix the FSAL issue if the dynamics has changed, and update the telemetry accordingly
             if (!std::isfinite(stepperUpdatePeriod_) && hasDynamicsChanged)
             {
                 computeRobotsDynamics(t, qSplit, vSplit, aSplit, true);
                 syncAllAccelerationsAndForces(robots_, contactForcesPrev_, fPrev_, aPrev_);
                 syncRobotsStateWithStepper(true);
                 hasDynamicsChanged = false;
+                if (mustUpdateTelemetry && engineOptions_->stepper.logInternalStepperSteps)
+                {
+                    updateTelemetry();
+                }
             }
 
             if (std::isfinite(stepperUpdatePeriod_))
@@ -1956,19 +1964,24 @@ namespace jiminy
                 while (tNext - t > STEPPER_MIN_TIMESTEP)
                 {
                     // Log every stepper state only if the user asked for
-                    if (successiveIterFailed == 0 &&
-                        engineOptions_->stepper.logInternalStepperSteps)
+                    mustUpdateTelemetry = successiveIterFailed == 0 &&
+                                          engineOptions_->stepper.logInternalStepperSteps;
+                    if (mustUpdateTelemetry)
                     {
                         updateTelemetry();
                     }
 
-                    // Fix the FSAL issue if the dynamics has changed
+                    // Fix the FSAL issue if the dynamics has changed and update the telemetry
                     if (hasDynamicsChanged)
                     {
                         computeRobotsDynamics(t, qSplit, vSplit, aSplit, true);
                         syncAllAccelerationsAndForces(robots_, contactForcesPrev_, fPrev_, aPrev_);
                         syncRobotsStateWithStepper(true);
                         hasDynamicsChanged = false;
+                        if (mustUpdateTelemetry)
+                        {
+                            updateTelemetry();
+                        }
                     }
 
                     /* Break the loop if the prescribed timestep 'dt' is getting too small.
