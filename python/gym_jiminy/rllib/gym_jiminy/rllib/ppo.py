@@ -291,7 +291,7 @@ class PPOTorchPolicy(_PPOTorchPolicy):
 
     More specifically, it adds:
         - CAPS regularization, which combines the spatial and temporal
-        difference between previous and current state
+        difference between previous and current state.
         - Global regularization, which is the average norm of the action
         - temporal barrier, which is exponential barrier loss when the
         normalized action is above a threshold (much like interior point
@@ -302,13 +302,24 @@ class PPOTorchPolicy(_PPOTorchPolicy):
         with the symmetric (actions, observations) spaces. As the surrogate
         loss goal is to increase the likelihood of selecting higher reward
         actions given the current state, the symmetry surrogate loss enables
-        equivalent likelihood increase for selecting the symmetric higher reward
-        actions given the symmetric state. More details can be found in the
-        reference article:
-        M. Mittal, N. Rudin, V. Klemm, A. Allshire, and M. Hutter,
+        equivalent likelihood increase for selecting the symmetric higher
+        reward actions given the symmetric state.
+        - L2 regularization of policy network weights.
+
+    More insights on the regularization losses with their emerging properties,
+    and on how to tune the parameters can be found in the reference articles:
+        - A. Duburcq, F. Schramm, G. Boeris, N. Bredeche, and Y. Chevaleyre,
+        “Reactive Stepping for Humanoid Robots using Reinforcement Learning:
+        Application to Standing Push Recovery on the Exoskeleton Atalante,” in
+        International Conference on Intelligent Robots and Systems (IROS),
+        vol. 2022-Octob. IEEE, oct 2022, pp. 9302–9309
+        - S. Mysore, B. Mabsout, R. Mancuso, and K. Saenko, “Regularizing
+        action policies for smooth control with reinforcement learning,”
+        IEEE International Conference on Robotics and Automation (ICRA),
+        pp. 1810–1816, 2021
+        - M. Mittal, N. Rudin, V. Klemm, A. Allshire, and M. Hutter,
         “Symmetry considerations for learning task symmetric robot policies,”
         arXiv preprint arXiv:2403.04359, 2024.
-        - L2 regularization of policy network weights
     """
     def __init__(self,
                  observation_space: gym.spaces.Space,
