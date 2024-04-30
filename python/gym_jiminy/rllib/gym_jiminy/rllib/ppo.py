@@ -299,12 +299,12 @@ class PPOTorchPolicy(_PPOTorchPolicy):
         - symmetry regularization, which is the error between actions and
         symmetric actions associated with symmetric observations.
         - symmetry surrogate loss, which is the surrogate loss associated
-        with the mirrored (actions, observations) spaces. As the surrogate
-        loss goal is to increase the probability of taking the higher reward
-        actions given the states, the symmetry surrogate loss allows to as
-        well increase the probability of taking the symmetric higher reward
-        actions given the symmetric states by the same amount. More details
-        can be found in the reference article:
+        with the symmetric (actions, observations) spaces. As the surrogate
+        loss goal is to increase the likelihood of selecting higher reward
+        actions given the current state, the symmetry surrogate loss enables
+        equivalent likelihood increase for selecting the symmetric higher reward
+        actions given the symmetric state. More details can be found in the
+        reference article:
         M. Mittal, N. Rudin, V. Klemm, A. Allshire, and M. Hutter,
         “Symmetry considerations for learning task symmetric robot policies,”
         arXiv preprint arXiv:2403.04359, 2024.
