@@ -203,7 +203,7 @@ class PPOConfig(_PPOConfig):
         self.temporal_barrier_threshold = float('inf')
         self.temporal_barrier_reg = 0.0
         self.symmetric_policy_reg = 0.0
-        self.enable_mirror_surrogate_loss = False
+        self.enable_symmetry_surrogate_loss = False
         self.caps_temporal_reg = 0.0
         self.caps_spatial_reg = 0.0
         self.caps_global_reg = 0.0
@@ -221,7 +221,7 @@ class PPOConfig(_PPOConfig):
         temporal_barrier_threshold: Optional[float] = None,
         temporal_barrier_reg: Optional[float] = None,
         symmetric_policy_reg: Optional[float] = None,
-        enable_mirror_surrogate_loss: Optional[bool] = None,
+        enable_symmetry_surrogate_loss: Optional[bool] = None,
         caps_temporal_reg: Optional[float] = None,
         caps_spatial_reg: Optional[float] = None,
         caps_global_reg: Optional[float] = None,
@@ -247,8 +247,9 @@ class PPOConfig(_PPOConfig):
             self.temporal_barrier_reg = temporal_barrier_reg
         if symmetric_policy_reg is not None:
             self.symmetric_policy_reg = symmetric_policy_reg
-        if enable_mirror_surrogate_loss is not None:
-            self.enable_mirror_surrogate_loss = enable_mirror_surrogate_loss
+        if enable_symmetry_surrogate_loss is not None:
+            self.enable_symmetry_surrogate_loss = \
+                enable_symmetry_surrogate_loss
         if caps_temporal_reg is not None:
             self.caps_temporal_reg = caps_temporal_reg
         if caps_spatial_reg is not None:
@@ -297,8 +298,16 @@ class PPOTorchPolicy(_PPOTorchPolicy):
         methods).
         - symmetry regularization, which is the error between actions and
         symmetric actions associated with symmetric observations.
-        - mirror surrogate loss, which is the surrogate loss associated
-        with the mirrored (actions, observations) spaces.
+        - symmetry surrogate loss, which is the surrogate loss associated
+        with the mirrored (actions, observations) spaces. As the surrogate
+        loss goal is to increase the probability of taking the higher reward
+        actions given the states, the symmetry surrogate loss allows to as
+        well increase the probability of taking the symmetric higher reward
+        actions given the symmetric states by the same amount. More details
+        can be found in the reference article:
+        M. Mittal, N. Rudin, V. Klemm, A. Allshire, and M. Hutter,
+        “Symmetry considerations for learning task symmetric robot policies,”
+        arXiv preprint arXiv:2403.04359, 2024.
         - L2 regularization of policy network weights
     """
     def __init__(self,
@@ -343,7 +352,7 @@ class PPOTorchPolicy(_PPOTorchPolicy):
         self.action_mirror_mat: Optional[Union[
             Dict[str, torch.Tensor], torch.Tensor]] = None
         if config_dict["symmetric_policy_reg"] > 0.0 or \
-                config_dict["enable_mirror_surrogate_loss"]:
+                config_dict["enable_symmetry_surrogate_loss"]:
             # Observation space
             is_obs_dict = hasattr(observation_space, "original_space")
             if is_obs_dict:
@@ -444,11 +453,11 @@ class PPOTorchPolicy(_PPOTorchPolicy):
                 # Append the training batches to the set
                 train_batches["noisy"] = train_batch_copy
             if self.config["symmetric_policy_reg"] > 0.0 or \
-                    self.config["enable_mirror_surrogate_loss"]:
+                    self.config["enable_symmetry_surrogate_loss"]:
                 # Shallow copy the original training batch
                 train_batch_copy = train_batch.copy(shallow=True)
 
-                # Compute mirrorred observation
+                # Compute mirrored observation
                 assert self.obs_mirror_mat is not None
                 assert isinstance(self.observation_space, gym.spaces.Box)
                 observation_mirror = _compute_mirrored_value(
@@ -531,7 +540,7 @@ class PPOTorchPolicy(_PPOTorchPolicy):
 
         # Compute the mirrored mean action corresponding to the mirrored action
         if self.config["symmetric_policy_reg"] > 0.0 or \
-                self.config["enable_mirror_surrogate_loss"]:
+                self.config["enable_symmetry_surrogate_loss"]:
             assert self.action_mirror_mat is not None
             assert isinstance(self.action_space, gym.spaces.Box)
             action_mirror_logits = action_logits["mirrored"]
@@ -605,27 +614,35 @@ class PPOTorchPolicy(_PPOTorchPolicy):
             total_loss += \
                 self.config["symmetric_policy_reg"] * symmetric_policy_reg
 
-        if self.config["enable_mirror_surrogate_loss"]:
+        if self.config["enable_symmetry_surrogate_loss"]:
             assert self.action_mirror_mat is not None
             assert isinstance(self.action_space, gym.spaces.Box)
+
+            # Get the mirror policy probability distribution
+            # i.e. ( x -> pi( x | mirrored observation ) )
             curr_action_mirror_dist = dist_class(action_mirror_logits, model)
 
+            # The implementation assumes, at any time t, under the policy,
+            # the probability to be in state_t is equal to the probability to
+            # be in the mirrored state_t. Otherwise, their ratio needs to be
+            # added.
             mirror_logp_ratio = torch.exp(
                 curr_action_mirror_dist.logp(
                     _compute_mirrored_value(train_batch[SampleBatch.ACTIONS],
                                             self.action_space,
                                             self.action_mirror_mat)) -
                 train_batch[SampleBatch.ACTION_LOGP])
-            mirror_surrogate_loss = torch.mean(torch.min(
+
+            symmetry_surrogate_loss = torch.mean(torch.min(
                 train_batch[Postprocessing.ADVANTAGES] * mirror_logp_ratio,
                 train_batch[Postprocessing.ADVANTAGES] * torch.clamp(
                     mirror_logp_ratio,
                     1 - self.config["clip_param"],
                     1 + self.config["clip_param"])))
 
-            # Add mirror surrogate loss to total loss
-            stats["mirror_surrogate_loss"] = mirror_surrogate_loss
-            total_loss -= mirror_surrogate_loss
+            # Add symmetry surrogate loss to total loss
+            stats["symmetry_surrogate_loss"] = symmetry_surrogate_loss
+            total_loss -= symmetry_surrogate_loss
 
         if self.config["l2_reg"] > 0.0:
             # Add actor l2-regularization loss
@@ -647,9 +664,9 @@ class PPOTorchPolicy(_PPOTorchPolicy):
         """
         stats_dict = super().stats_fn(train_batch)
 
-        if self.config["enable_mirror_surrogate_loss"]:
-            stats_dict["mirror_surrogate_loss"] = torch.mean(
-                torch.stack(self.get_tower_stats("mirror_surrogate_loss")))
+        if self.config["enable_symmetry_surrogate_loss"]:
+            stats_dict["symmetry_surrogate_loss"] = torch.mean(
+                torch.stack(self.get_tower_stats("symmetry_surrogate_loss")))
         if self.config["symmetric_policy_reg"] > 0.0:
             stats_dict["symmetry"] = torch.mean(
                 torch.stack(self.get_tower_stats("symmetric_policy_reg")))
