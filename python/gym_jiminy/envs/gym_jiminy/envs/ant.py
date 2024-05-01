@@ -219,10 +219,7 @@ class AntJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
 
         return terminated, truncated
 
-    def compute_reward(self,
-                       terminated: bool,
-                       truncated: bool,
-                       info: InfoType) -> float:
+    def compute_reward(self, terminated: bool, info: InfoType) -> float:
         """Compute reward at current episode state.
 
         The reward is defined as the sum of several individual components:

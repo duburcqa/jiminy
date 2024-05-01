@@ -385,10 +385,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
 
         return terminated, truncated
 
-    def compute_reward(self,
-                       terminated: bool,
-                       truncated: bool,
-                       info: InfoType) -> float:
+    def compute_reward(self, terminated: bool, info: InfoType) -> float:
         """Compute reward at current episode state.
 
         It computes the reward associated with each individual contribution

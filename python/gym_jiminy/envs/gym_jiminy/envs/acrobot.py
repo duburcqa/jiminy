@@ -224,10 +224,7 @@ class AcrobotJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         if ACTION_NOISE > 0.0:
             command += sample(scale=ACTION_NOISE, rg=self.np_random)
 
-    def compute_reward(self,
-                       terminated: bool,
-                       truncated: bool,
-                       info: InfoType) -> float:
+    def compute_reward(self, terminated: bool, info: InfoType) -> float:
         """Compute reward at current episode state.
 
         Get a small negative reward till success.

@@ -980,7 +980,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
             reward = float('nan')
         else:
             # Compute reward and update extra information
-            reward = self.compute_reward(terminated, truncated, self._info)
+            reward = self.compute_reward(terminated, self._info)
 
             # Make sure the reward is not 'nan'
             if math.isnan(reward):

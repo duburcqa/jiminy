@@ -137,7 +137,6 @@ class InterfaceController(ABC, Generic[ActT, BaseActT]):
 
     def compute_reward(self,
                        terminated: bool,  # pylint: disable=unused-argument
-                       truncated: bool,  # pylint: disable=unused-argument
                        info: InfoType  # pylint: disable=unused-argument
                        ) -> float:
         """Compute the reward related to a specific control block.
@@ -159,9 +158,6 @@ class InterfaceController(ABC, Generic[ActT, BaseActT]):
         :param terminated: Whether the episode has reached the terminal state
                            of the MDP at the current step. This flag can be
                            used to compute a specific terminal reward.
-        :param truncated: Whether a truncation condition outside the scope of
-                          the MDP has been satisfied at the current step. This
-                          flag can be used to adapt the reward.
         :param info: Dictionary of extra information for monitoring.
 
         :returns: Aggregated reward for the current step.
@@ -304,11 +300,11 @@ class InterfaceJiminyEnv(
         :returns: Motors torques to apply on the robot.
         """
         # Reset the quantity manager.
-        # In principle, the internal cache of quantities should be cleared not
-        # each time the state of the robot and/or its derivative changes. This
-        # is hard to do because there is no way to detect this specifically at
-        # the time being. However, `_controller_handle` is never called twice
-        # in the exact same state by the engine, so resetting quantities at the
+        # In principle, the internal cache of quantities should be cleared each
+        # time the state of the robot and/or its derivative changes. This is
+        # hard to do because there is no way to detect this specifically at the
+        # time being. However, `_controller_handle` is never called twice in
+        # the exact same state by the engine, so resetting quantities at the
         # beginning of the method should cover most cases. Yet, quantities
         # cannot be used reliably in the definition of profile forces because
         # they are always updated before the controller gets called, no matter
