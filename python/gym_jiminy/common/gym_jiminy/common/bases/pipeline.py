@@ -80,6 +80,7 @@ class BasePipelineWrapper(
         self.robot_state = env.robot_state
         self.sensor_measurements = env.sensor_measurements
         self.is_simulation_running = env.is_simulation_running
+        self.num_steps = env.num_steps
 
         # Backup the parent environment
         self.env = env

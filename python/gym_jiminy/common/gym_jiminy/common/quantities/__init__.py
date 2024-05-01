@@ -1,14 +1,17 @@
 # pylint: disable=missing-module-docstring
 
 from .manager import QuantityManager
-from .generic import AverageFrameSpatialVelocity, FrameEulerAngles
+from .generic import (FrameEulerAngles,
+                      FrameXYZQuat,
+                      AverageFrameSpatialVelocity)
 from .locomotion import CenterOfMass, ZeroMomentPoint
 
 
 __all__ = [
     'QuantityManager',
-    'AverageFrameSpatialVelocity',
     'FrameEulerAngles',
+    'FrameXYZQuat',
+    'AverageFrameSpatialVelocity',
     'CenterOfMass',
     'ZeroMomentPoint',
 ]

@@ -49,7 +49,8 @@ from ..utils import (FieldNested,
                      build_contains,
                      get_fieldnames,
                      register_variables)
-from ..bases import (ObsT,
+from ..bases import (DT_EPS,
+                     ObsT,
                      ActT,
                      InfoType,
                      SensorMeasurementStackMap,
@@ -235,7 +236,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         self.total_reward = 0.0
 
         # Number of simulation steps performed
-        self.num_steps = -1
+        self.num_steps = np.array(-1, dtype=np.int64)
         self._num_steps_beyond_terminate: Optional[int] = None
 
         # Initialize the interfaces through multiple inheritance
@@ -715,7 +716,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         self.simulator.reset(remove_all_forces=False)
 
         # Reset some internal buffers
-        self.num_steps = 0
+        self.num_steps[()] = 0
         self._num_steps_beyond_terminate = None
 
         # Create a new log file
@@ -962,7 +963,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         terminated, truncated = self.has_terminated(self._info)
         truncated = (
             truncated or not self.is_simulation_running or
-            self.stepper_state.t >= self.simulation_duration_max)
+            self.stepper_state.t + DT_EPS > self.simulation_duration_max)
 
         # Check if stepping after done and if it is an undefined behavior
         if self._num_steps_beyond_terminate is None:

@@ -26,8 +26,6 @@ from .interfaces import InterfaceJiminyEnv
 
 ValueT = TypeVar('ValueT')
 
-QuantityCreator = Tuple[Type["AbstractQuantity[ValueT]"], Dict[str, Any]]
-
 
 class WeakMutableCollection(MutableSet, Generic[ValueT]):
     """Mutable unordered list container storing weak reference to objects.
@@ -224,7 +222,7 @@ class AbstractQuantity(ABC, Generic[ValueT]):
     def __init__(self,
                  env: InterfaceJiminyEnv,
                  parent: Optional["AbstractQuantity"],
-                 requirements: Dict[str, QuantityCreator],
+                 requirements: Dict[str, "QuantityCreator"],
                  auto_refresh: bool) -> None:
         """
         :param env: Base or wrapped jiminy environment.
@@ -234,7 +232,7 @@ class AbstractQuantity(ABC, Generic[ValueT]):
                              depends for its evaluation, as a dictionary
                              whose keys are tuple gathering their respective
                              class and all their constructor keyword-arguments
-                             except the environment 'env'.
+                             except environment 'env' and parent 'parent.
         :param auto_refresh: Whether this quantity must be refreshed
                              automatically as soon as its shared cache has been
                              cleared if specified, otherwise this does nothing.
@@ -463,3 +461,6 @@ class AbstractQuantity(ABC, Generic[ValueT]):
         """Evaluate this quantity based on the agent state at the end of the
         current agent step.
         """
+
+
+QuantityCreator = Tuple[Type[AbstractQuantity[ValueT]], Dict[str, Any]]

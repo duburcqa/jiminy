@@ -9,7 +9,8 @@ import jiminy_py
 import pinocchio as pin
 
 from gym_jiminy.common.quantities import (
-    QuantityManager, FrameEulerAngles, CenterOfMass, ZeroMomentPoint)
+    QuantityManager, FrameEulerAngles, FrameXYZQuat,
+    AverageFrameSpatialVelocity, CenterOfMass, ZeroMomentPoint)
 
 
 class Quantities(unittest.TestCase):
@@ -59,6 +60,8 @@ class Quantities(unittest.TestCase):
 
         quantity_manager = QuantityManager(env)
         for name, cls, kwargs in (
+                ("xyzquat_0", FrameXYZQuat, dict(
+                    frame_name=env.robot.pinocchio_model.frames[2].name)),
                 ("rpy_0", FrameEulerAngles, dict(
                     frame_name=env.robot.pinocchio_model.frames[1].name)),
                 ("rpy_1", FrameEulerAngles, dict(
@@ -68,6 +71,7 @@ class Quantities(unittest.TestCase):
             quantity_manager[name] = (cls, kwargs)
         quantities = quantity_manager.registry
 
+        xyzquat_0 =  quantity_manager.xyzquat_0.copy()
         rpy_0 = quantity_manager.rpy_0.copy()
         assert len(quantities['rpy_0'].requirements['data'].frame_names) == 1
         assert np.all(rpy_0 == quantity_manager.rpy_1)
@@ -78,7 +82,9 @@ class Quantities(unittest.TestCase):
         env.step(env.action)
         quantity_manager.reset()
         rpy_0_next = quantity_manager.rpy_0
+        xyzquat_0_next =  quantity_manager.xyzquat_0.copy()
         assert np.any(rpy_0 != rpy_0_next)
+        assert np.any(xyzquat_0 != xyzquat_0_next)
         assert len(quantities['rpy_2'].requirements['data'].frame_names) == 2
 
         assert len(quantities['rpy_1'].requirements['data'].cache.owners) == 3
@@ -90,6 +96,7 @@ class Quantities(unittest.TestCase):
 
         quantity_manager.reset(reset_tracking=True)
         assert np.all(rpy_0_next == quantity_manager.rpy_0)
+        assert np.all(xyzquat_0_next == quantity_manager.xyzquat_0)
         assert len(quantities['rpy_0'].requirements['data'].frame_names) == 1
 
     def test_discard(self):
@@ -135,3 +142,19 @@ class Quantities(unittest.TestCase):
         assert np.all(com_0 != env.quantities["com"])
         env.reset(seed=0)
         assert np.all(com_0 == env.quantities["com"])
+
+    def test_stack(self):
+        env = gym.make("gym_jiminy.envs:atlas")
+        env.reset()
+
+        env.quantities["v_avg"] = (
+            AverageFrameSpatialVelocity,
+            dict(frame_name=env.robot.pinocchio_model.frames[1].name))
+
+        env.reset(seed=0)
+        with self.assertRaises(ValueError):
+            env.quantities["v_avg"]
+        env.step(env.action)
+        v_avg = env.quantities["v_avg"].copy()
+        env.step(env.action)
+        assert np.all(v_avg != env.quantities["v_avg"])

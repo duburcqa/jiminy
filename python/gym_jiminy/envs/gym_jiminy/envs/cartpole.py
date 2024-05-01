@@ -207,10 +207,7 @@ class CartPoleJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         """
         command[:] = action if self.continuous else self.AVAIL_CTRL[action]
 
-    def compute_reward(self,
-                       terminated: bool,
-                       truncated: bool,
-                       info: InfoType) -> float:
+    def compute_reward(self, terminated: bool, info: InfoType) -> float:
         """Compute reward at current episode state.
 
         Constant positive reward equal to 1.0 as long as no termination

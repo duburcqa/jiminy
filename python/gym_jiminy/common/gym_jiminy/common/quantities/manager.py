@@ -105,7 +105,7 @@ class QuantityManager(MutableMapping):
                      name exists.
         :param quantity_creator: Tuple gathering the class of the new quantity
                                  to manage plus its keyword-arguments except
-                                 the environment 'env' as a dictionary.
+                                 environment and parent as a dictionary.
         """
         # Make sure that no quantity with the same name is already managed to
         # avoid silently overriding quantities being managed in user's back.
