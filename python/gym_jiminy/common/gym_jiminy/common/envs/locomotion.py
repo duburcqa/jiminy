@@ -80,7 +80,6 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                  mesh_path_dir: Optional[str] = None,
                  simulation_duration_max: float = DEFAULT_SIMULATION_DURATION,
                  step_dt: float = DEFAULT_STEP_DT,
-                 enforce_bounded_spaces: bool = False,
                  reward_mixture: Optional[dict] = None,
                  std_ratio: Optional[dict] = None,
                  config_path: Optional[str] = None,
@@ -101,9 +100,6 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         :param simulation_duration_max: Maximum duration of a simulation before
                                         returning done.
         :param step_dt: Simulation timestep for learning.
-        :param enforce_bounded_spaces:
-            Whether to enforce finite bounds for the observation and action
-            spaces. If so, '\*_MAX' are used whenever it is necessary.
         :param reward_mixture: Weighting factors of selected contributions to
                                total reward.
         :param std_ratio: Relative standard deviation of selected contributions
@@ -206,8 +202,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
             simulator.import_options(config_path)
 
         # Initialize base class
-        super().__init__(
-            simulator, step_dt, enforce_bounded_spaces, debug, **kwargs)
+        super().__init__(simulator, step_dt, debug, **kwargs)
 
     def _setup(self) -> None:
         """Configure the environment.

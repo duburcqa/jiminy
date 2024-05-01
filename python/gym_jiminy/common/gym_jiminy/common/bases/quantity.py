@@ -12,6 +12,7 @@ computed that did not changed since then, computing redundant intermediary
 quantities only once per step, and gathering similar quantities in a large
 batch to leverage vectorization of math instructions.
 """
+import re
 import weakref
 from weakref import ReferenceType
 from abc import ABC, abstractmethod
@@ -242,6 +243,12 @@ class AbstractQuantity(ABC, Generic[ValueT]):
         self.parent = parent
         self.auto_refresh = auto_refresh
 
+        # Make sure that all requirement names would be valid as property
+        requirement_names = requirements.keys()
+        if any(re.match('[^A-Za-z0-9_]', name) for name in requirement_names):
+            raise ValueError("The name of all quantity requirements should be "
+                             "ASCII alphanumeric characters plus underscore.")
+
         # Instantiate intermediary quantities if any
         self.requirements: Dict[str, AbstractQuantity] = {
             name: cls(env, self, **kwargs)
@@ -268,7 +275,7 @@ class AbstractQuantity(ABC, Generic[ValueT]):
         def get_value(name: str, quantity: AbstractQuantity) -> Any:
             return quantity.requirements[name].get()
 
-        for name in self.requirements.keys():
+        for name in requirement_names:
             setattr(type(self), name, property(partial(get_value, name)))
 
     def __getattr__(self, name: str) -> Any:
@@ -283,7 +290,11 @@ class AbstractQuantity(ABC, Generic[ValueT]):
 
         :param name: Name of the requested quantity.
         """
-        return self.__getattribute__('requirements')[name].get()
+        try:
+            return self.__getattribute__('requirements')[name].get()
+        except KeyError as e:
+            raise AttributeError(
+                f"'{type(self)}' object has no attribute '{name}'") from e
 
     def __dir__(self) -> List[str]:
         """Attribute lookup.

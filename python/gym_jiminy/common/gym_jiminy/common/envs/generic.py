@@ -25,10 +25,7 @@ from jiminy_py import tree
 from jiminy_py.core import (  # pylint: disable=no-name-in-module
     array_copyto,
     EncoderSensor as encoder,
-    EffortSensor as effort,
-    ContactSensor as contact,
-    ForceSensor as force,
-    ImuSensor as imu)
+    EffortSensor as effort)
 from jiminy_py.dynamics import compute_freeflyer_state_from_fixed_body
 from jiminy_py.log import extract_variables_from_log
 from jiminy_py.simulator import Simulator, TabbedFigure
@@ -120,7 +117,6 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
     def __init__(self,
                  simulator: Simulator,
                  step_dt: float,
-                 enforce_bounded_spaces: bool = False,
                  debug: bool = False,
                  render_mode: Optional[str] = None,
                  **kwargs: Any) -> None:
@@ -136,11 +132,6 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
                      snapshot as an RGB array without showing it on the screen.
                      Optional: 'human' by default if available with the current
                      backend (or default if none), 'rgb_array' otherwise.
-        :param enforce_bounded_spaces:
-            Whether to enforce finite bounds for the observation and action
-            spaces. If so, then '\*_MAX' are used whenever it is necessary.
-            Note that whose bounds are very spread to make sure it is suitable
-            for the vast majority of systems.
         :param debug: Whether the debug mode must be enabled. Doing it enables
                       telemetry recording.
         :param render_mode: Desired rendering mode, ie "human" or "rgb_array".
@@ -194,7 +185,6 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         self.simulator: Simulator = simulator
         self._step_dt = step_dt
         self.render_mode = render_mode
-        self.enforce_bounded_spaces = enforce_bounded_spaces
         self.debug = debug
 
         # Define some proxies for fast access.
@@ -346,28 +336,9 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         space as a whole.
         """
         # Define some proxies for convenience
-        model_options = self.robot.get_model_options()
-        joint_velocity_indices = self.robot.mechanical_joint_velocity_indices
         position_limit_upper = self.robot.position_limit_upper
         position_limit_lower = self.robot.position_limit_lower
         velocity_limit = self.robot.velocity_limit
-
-        # Replace inf bounds of the state space if requested
-        if self.enforce_bounded_spaces:
-            if self.robot.has_freeflyer:
-                position_limit_lower[:3] = -FREEFLYER_POS_TRANS_MAX
-                position_limit_upper[:3] = +FREEFLYER_POS_TRANS_MAX
-                velocity_limit[:3] = FREEFLYER_VEL_LIN_MAX
-                velocity_limit[3:6] = FREEFLYER_VEL_ANG_MAX
-
-            for joint_index in self.robot.flexibility_joint_indices:
-                joint_velocity_index = (
-                    self.robot.pinocchio_model.joints[joint_index].idx_v)
-                velocity_limit[
-                    joint_velocity_index + np.arange(3)] = FLEX_VEL_ANG_MAX
-
-            if not model_options['joints']['enableVelocityLimit']:
-                velocity_limit[joint_velocity_indices] = JOINT_VEL_MAX
 
         # Deduce bounds associated the theoretical model from the extended one
         if use_theoretical_model:
@@ -479,32 +450,6 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
                 sensor_space_upper[effort.type][0, sensor_index] = (
                     command_limit[motor_velocity_index])
 
-        # Replace inf bounds of the imu sensor space
-        if self.enforce_bounded_spaces:
-            # Replace inf bounds of the contact sensor space
-            if contact.type in sensor_measurements.keys():
-                sensor_space_lower[contact.type][:] = -SENSOR_FORCE_MAX
-                sensor_space_upper[contact.type][:] = SENSOR_FORCE_MAX
-
-            # Replace inf bounds of the force sensor space
-            if force.type in sensor_measurements.keys():
-                sensor_space_lower[force.type][:3] = -SENSOR_FORCE_MAX
-                sensor_space_upper[force.type][:3] = SENSOR_FORCE_MAX
-                sensor_space_lower[force.type][3:] = -SENSOR_MOMENT_MAX
-                sensor_space_upper[force.type][3:] = SENSOR_MOMENT_MAX
-
-            # Replace inf bounds of the imu sensor space
-            if imu.type in sensor_measurements.keys():
-                gyro_index = [
-                    field.startswith('Gyro') for field in imu.fieldnames]
-                sensor_space_lower[imu.type][gyro_index] = -SENSOR_GYRO_MAX
-                sensor_space_upper[imu.type][gyro_index] = SENSOR_GYRO_MAX
-
-                accel_index = [
-                    field.startswith('Accel') for field in imu.fieldnames]
-                sensor_space_lower[imu.type][accel_index] = -SENSOR_ACCEL_MAX
-                sensor_space_upper[imu.type][accel_index] = SENSOR_ACCEL_MAX
-
         return spaces.Dict(OrderedDict(
             (key, spaces.Box(low=min_val, high=max_val, dtype=np.float64))
             for (key, min_val), max_val in zip(
@@ -523,15 +468,6 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         """
         # Get effort limit
         command_limit = self.robot.command_limit
-
-        # Replace inf bounds of the effort limit if requested
-        if self.enforce_bounded_spaces:
-            for motor_name in self.robot.motor_names:
-                motor = self.robot.get_motor(motor_name)
-                motor_options = motor.get_options()
-                if not motor_options["enableCommandLimit"]:
-                    command_limit[motor.joint_velocity_index] = \
-                        MOTOR_EFFORT_MAX
 
         # Set the action space
         action_scale = command_limit[self.robot.motor_velocity_indices]

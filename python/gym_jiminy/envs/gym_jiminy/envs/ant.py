@@ -66,8 +66,7 @@ class AntJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
             simulator=simulator,
             debug=debug,
             **{**dict(
-                step_dt=STEP_DT,
-                enforce_bounded_spaces=False),
+                step_dt=STEP_DT),
                 **kwargs})
 
         # Define observation slices proxy for fast access.

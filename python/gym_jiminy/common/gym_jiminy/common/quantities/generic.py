@@ -74,11 +74,11 @@ class _MultiFramesRotationMatrix(AbstractQuantity[np.ndarray]):
         # Make sure that a parent has been specified
         assert isinstance(parent, (FrameQuantity, MultiFrameQuantity))
 
-        # Call base implementation
-        super().__init__(env, parent, requirements={}, auto_refresh=False)
-
         # Set unique identifier based on parent type
         self.identifier = hash(type(parent))
+
+        # Call base implementation
+        super().__init__(env, parent, requirements={}, auto_refresh=False)
 
         # Initialize the ordered list of frame names
         self.frame_names: Set[str] = set()
