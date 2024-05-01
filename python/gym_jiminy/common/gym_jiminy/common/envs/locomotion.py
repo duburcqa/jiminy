@@ -361,7 +361,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         wrench[1] = F_PROFILE_SCALE * self._f_xy_profile[1](t)
         wrench[:2] *= self.std_ratio['disturbance']
 
-    def has_terminated(self) -> Tuple[bool, bool]:
+    def has_terminated(self, info: InfoType) -> Tuple[bool, bool]:
         """Determine whether the episode is over.
 
         It terminates (`terminated=True`) under the following conditions:
@@ -374,10 +374,12 @@ class WalkerJiminyEnv(BaseJiminyEnv):
             - observation out-of-bounds
             - maximum simulation duration exceeded
 
+        :param info: Dictionary of extra information for monitoring.
+
         :returns: terminated and truncated flags.
         """
         # Call base implementation
-        terminated, truncated = super().has_terminated()
+        terminated, truncated = super().has_terminated(info)
 
         # Check if the agent has successfully solved the task
         if self._robot_state_q[2] < self._height_neutral * 0.5:

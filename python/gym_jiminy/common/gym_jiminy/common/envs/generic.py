@@ -236,7 +236,6 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
 
         # Number of simulation steps performed
         self.num_steps = -1
-        self.max_steps = 0
         self._num_steps_beyond_terminate: Optional[int] = None
 
         # Initialize the interfaces through multiple inheritance
@@ -798,9 +797,6 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         self.robot.controller = jiminy.FunctionalController(
             partial(type(env)._controller_handle, weakref.proxy(env)))
 
-        # Configure the maximum number of steps
-        self.max_steps = int(self.simulation_duration_max // self.step_dt)
-
         # Register user-specified variables to the telemetry
         for header, value in self._registered_variables.values():
             register_variables(self.robot.controller, header, value)
@@ -848,8 +844,11 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
                     f"'nan' value found in observation ({obs}). Something "
                     "went wrong with `refresh_observation` method.")
 
+        # Reset the extra information buffer
+        self._info.clear()
+
         # The simulation cannot be done before doing a single step.
-        if any(self.has_terminated()):
+        if any(self.has_terminated(self._info)):
             raise RuntimeError(
                 "The simulation has already terminated at `reset`. Check the "
                 "implementation of `has_terminated` if overloaded.")
@@ -933,6 +932,15 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
             self.simulator.stop()
             raise
 
+        # Make sure there is no 'nan' value in observation
+        if is_nan(self._robot_state_a):
+            raise RuntimeError(
+                "The acceleration of the system is 'nan'. Something went "
+                "wrong with jiminy engine.")
+
+        # Update number of (successful) steps
+        self.num_steps += 1
+
         # Update shared buffers
         self._refresh_buffers()
 
@@ -945,22 +953,16 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
             self._robot_state_v,
             self.robot.sensor_measurements)
 
-        # Make sure there is no 'nan' value in observation
-        if is_nan(self._robot_state_a):
-            raise RuntimeError(
-                "The acceleration of the system is 'nan'. Something went "
-                "wrong with jiminy engine.")
-
         # Reset the extra information buffer
         self._info.clear()
 
         # Check if the simulation is over.
         # Note that 'truncated' is forced to True if the integration failed or
         # if the maximum number of steps will be exceeded next step.
-        terminated, truncated = self.has_terminated()
+        terminated, truncated = self.has_terminated(self._info)
         truncated = (
             truncated or not self.is_simulation_running or
-            self.num_steps >= self.max_steps)
+            self.stepper_state.t >= self.simulation_duration_max)
 
         # Check if stepping after done and if it is an undefined behavior
         if self._num_steps_beyond_terminate is None:
@@ -994,9 +996,6 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         # Write log file if simulation has just terminated in debug mode
         if self.debug and self._num_steps_beyond_terminate == 0:
             self.simulator.write_log(self.log_path, format="binary")
-
-        # Update number of (successful) steps
-        self.num_steps += 1
 
         # Clip (and copy) the most derived observation before returning it
         obs = self._get_clipped_env_observation()
@@ -1099,7 +1098,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
             kwargs['close_backend'] = not self.simulator.is_viewer_available
 
         # Stop any running simulation before replay if `has_terminated` is True
-        if self.is_simulation_running and any(self.has_terminated()):
+        if self.is_simulation_running and any(self.has_terminated({})):
             self.simulator.stop()
 
         with viewer_lock:
@@ -1548,7 +1547,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         assert isinstance(action, np.ndarray)
         array_copyto(command, action)
 
-    def has_terminated(self) -> Tuple[bool, bool]:
+    def has_terminated(self, info: InfoType) -> Tuple[bool, bool]:
         """Determine whether the episode is over, because a terminal state of
         the underlying MDP has been reached or an aborting condition outside
         the scope of the MDP has been triggered.
@@ -1566,6 +1565,8 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         .. note::
             This method is called after `refresh_observation`, so that the
             internal buffer 'observation' is up-to-date.
+
+        :param info: Dictionary of extra information for monitoring.
 
         :returns: terminated and truncated flags.
         """
