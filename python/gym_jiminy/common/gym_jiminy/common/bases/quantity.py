@@ -26,7 +26,7 @@ from .interfaces import InterfaceJiminyEnv
 
 ValueT = TypeVar('ValueT')
 
-QuantityCreator = Tuple[Type["AbstractQuantity"], Dict[str, Any]]
+QuantityCreator = Tuple[Type["AbstractQuantity[ValueT]"], Dict[str, Any]]
 
 
 class WeakMutableCollection(MutableSet, Generic[ValueT]):
@@ -115,7 +115,7 @@ class SharedCache(Generic[ValueT]):
         This implementation is not thread safe.
     """
 
-    owners: WeakMutableCollection["AbstractQuantity"]
+    owners: WeakMutableCollection["AbstractQuantity[ValueT]"]
     """Owners of the shared buffer, ie quantities relying on it to store the
     result of their evaluation. This information may be useful for determining
     the most efficient computation path overall.
@@ -164,8 +164,14 @@ class SharedCache(Generic[ValueT]):
     def reset(self) -> None:
         """Clear value stored in cache if any.
         """
+        # Clear cache
         self._value = None
         self._has_value = False
+
+        # Refresh all owner quantities for which auto refresh has been enabled
+        for owner in self.owners:
+            if owner.auto_refresh:
+                owner.get()
 
     def set(self, value: ValueT) -> None:
         """Set value in cache, silently overriding the existing value if any.
@@ -218,7 +224,8 @@ class AbstractQuantity(ABC, Generic[ValueT]):
     def __init__(self,
                  env: InterfaceJiminyEnv,
                  parent: Optional["AbstractQuantity"],
-                 requirements: Dict[str, QuantityCreator]) -> None:
+                 requirements: Dict[str, QuantityCreator],
+                 auto_refresh: bool) -> None:
         """
         :param env: Base or wrapped jiminy environment.
         :param parent: Higher-level quantity from which this quantity is a
@@ -228,10 +235,14 @@ class AbstractQuantity(ABC, Generic[ValueT]):
                              whose keys are tuple gathering their respective
                              class and all their constructor keyword-arguments
                              except the environment 'env'.
+        :param auto_refresh: Whether this quantity must be refreshed
+                             automatically as soon as its shared cache has been
+                             cleared if specified, otherwise this does nothing.
         """
         # Backup some of user argument(s)
         self.env = env
         self.parent = parent
+        self.auto_refresh = auto_refresh
 
         # Instantiate intermediary quantities if any
         self.requirements: Dict[str, AbstractQuantity] = {
@@ -252,7 +263,7 @@ class AbstractQuantity(ABC, Generic[ValueT]):
         # Whether the quantity must be re-initialized
         self._is_initialized: bool = False
 
-        # Add getter of all intermediary quantities dynamically.
+        # Add getter for all intermediary quantities dynamically.
         # This approach is hacky but much faster than any of other official
         # approach, ie implementing custom a `__getattribute__` method or even
         # worst a custom `__getattr__` method.

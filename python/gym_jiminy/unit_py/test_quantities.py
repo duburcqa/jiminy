@@ -9,7 +9,7 @@ import jiminy_py
 import pinocchio as pin
 
 from gym_jiminy.common.quantities import (
-    QuantityManager, EulerAnglesFrame, CenterOfMass, ZeroMomentPoint)
+    QuantityManager, FrameEulerAngles, CenterOfMass, ZeroMomentPoint)
 
 
 class Quantities(unittest.TestCase):
@@ -25,7 +25,7 @@ class Quantities(unittest.TestCase):
                 ("com", CenterOfMass, {}),
                 ("zmp", ZeroMomentPoint, {})):
             quantity_manager[name] = (cls, kwargs)
-        quantities = quantity_manager._quantities
+        quantities = quantity_manager.registry
 
         assert len(quantity_manager) == 3
         assert len(quantities["zmp"].cache.owners) == 1
@@ -59,14 +59,14 @@ class Quantities(unittest.TestCase):
 
         quantity_manager = QuantityManager(env)
         for name, cls, kwargs in (
-                ("rpy_0", EulerAnglesFrame, dict(
+                ("rpy_0", FrameEulerAngles, dict(
                     frame_name=env.robot.pinocchio_model.frames[1].name)),
-                ("rpy_1", EulerAnglesFrame, dict(
+                ("rpy_1", FrameEulerAngles, dict(
                     frame_name=env.robot.pinocchio_model.frames[1].name)),
-                ("rpy_2", EulerAnglesFrame, dict(
+                ("rpy_2", FrameEulerAngles, dict(
                     frame_name=env.robot.pinocchio_model.frames[-1].name))):
             quantity_manager[name] = (cls, kwargs)
-        quantities = quantity_manager._quantities
+        quantities = quantity_manager.registry
 
         rpy_0 = quantity_manager.rpy_0.copy()
         assert len(quantities['rpy_0'].requirements['data'].frame_names) == 1
@@ -98,14 +98,14 @@ class Quantities(unittest.TestCase):
 
         quantity_manager = QuantityManager(env)
         for name, cls, kwargs in (
-                ("rpy_0", EulerAnglesFrame, dict(
+                ("rpy_0", FrameEulerAngles, dict(
                     frame_name=env.robot.pinocchio_model.frames[1].name)),
-                ("rpy_1", EulerAnglesFrame, dict(
+                ("rpy_1", FrameEulerAngles, dict(
                     frame_name=env.robot.pinocchio_model.frames[1].name)),
-                ("rpy_2", EulerAnglesFrame, dict(
+                ("rpy_2", FrameEulerAngles, dict(
                     frame_name=env.robot.pinocchio_model.frames[-1].name))):
             quantity_manager[name] = (cls, kwargs)
-        quantities = quantity_manager._quantities
+        quantities = quantity_manager.registry
 
         assert len(quantities['rpy_1'].cache.owners) == 2
         assert len(quantities['rpy_2'].requirements['data'].cache.owners) == 3

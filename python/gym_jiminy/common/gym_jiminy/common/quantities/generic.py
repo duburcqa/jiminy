@@ -4,7 +4,8 @@ application (locomotion, grasping...).
 """
 from functools import partial
 from dataclasses import dataclass
-from typing import List, Dict, Set, Optional
+from typing import (
+    List, Dict, Set, Optional, Protocol, Sequence, Union, runtime_checkable)
 
 import numpy as np
 
@@ -16,8 +17,18 @@ from ..bases import InterfaceJiminyEnv, AbstractQuantity
 from ..utils import fill, transforms_to_vector, matrix_to_rpy
 
 
+@runtime_checkable
+class FrameQuantity(Protocol):
+    frame_name: str
+
+
+@runtime_checkable
+class MultiFrameQuantity(Protocol):
+    frame_names: Sequence[str]
+
+
 @dataclass(unsafe_hash=True)
-class AverageSpatialVelocityFrame(AbstractQuantity[np.ndarray]):
+class AverageFrameSpatialVelocity(AbstractQuantity[np.ndarray]):
     """Average spatial velocity of a given frame at the end of an agent step.
 
     The average spatial velocity is obtained by finite difference. More
@@ -65,7 +76,9 @@ class AverageSpatialVelocityFrame(AbstractQuantity[np.ndarray]):
         self.reference_frame = reference_frame
 
         # Call base implementation
-        super().__init__(env, parent, requirements={})
+        super().__init__(env,
+                         parent,
+                         auto_refresh=False)
 
         # Define specialize difference operator on SE3 Lie group
         self._se3_diff = partial(
@@ -126,41 +139,52 @@ class AverageSpatialVelocityFrame(AbstractQuantity[np.ndarray]):
 
 
 @dataclass(unsafe_hash=True)
-class _BatchEulerAnglesFrame(AbstractQuantity[Dict[str, np.ndarray]]):
-    """Euler angles (Roll-Pitch-Yaw) representation of the orientation of all
-    frames involved in quantities relying on it and are active since last reset
-    of computation tracking if shared cache is available, its parent otherwise.
+class _MultiFramesRotationMatrix(AbstractQuantity[np.ndarray]):
+    """3D rotation matrix representation of the orientation of all frames
+    involved in quantities relying on it and are active since last reset of
+    computation tracking if shared cache is available, its parent otherwise.
 
     This quantity only provides a performance benefit when managed by some
     `QuantityManager`. It is not supposed to be instantiated manually but use
-    internally by `EulerAnglesFrame` as a requirement for vectorization of
-    computations for all frames at once.
+    as requirement of some other quantity for computation vectorization on all
+    frames at once.
 
-    The orientation of all frames is exposed to the user as a dictionary whose
-    keys are the individual frame names. Internally, data are stored in batched
-    2D contiguous array for efficiency. The first dimension are the 3 Euler
-    angles (roll, pitch, yaw) components, while the second one are individual
-    frames with the same ordering as 'self.frame_names'.
-
-    The expected maximum speedup wrt computing Euler angles individually is
-    about x15, which is achieved asymptotically for more than 100 frames. It is
-    already x5 faster for 5 frames, x7 for 10 frames, and x9 for 20 frames.
+    The data associated with each frame is exposed to the user as a batched 3D
+    contiguous array. The two first dimensions are rotation matrix elements,
+    while the last one are individual frames with the same ordering as
+    'self.frame_names'.
 
     .. note::
         This quantity does not allow for specifying frames directly. There is
         no way to get the orientation of multiple frames at once for now.
     """
+
+    identifier: int
+    """Uniquely identify its parent type.
+
+    This implies that quantities specifying `_MultiFramesRotationMatrix` as a
+    requirement will shared a unique batch with all the other ones having the
+    same type but not the others. This is essential to provide data access as a
+    batched ND contiguous array.
+    """
+
     def __init__(self,
                  env: InterfaceJiminyEnv,
-                 parent: Optional[AbstractQuantity]) -> None:
+                 parent: AbstractQuantity[
+                    Union[FrameQuantity, MultiFrameQuantity]]) -> None:
         """
         :param env: Base or wrapped jiminy environment.
         :param parent: Higher-level quantity from which this quantity is a
-                       requirement if any, `None` otherwise.
-        :param frame_name: Name of the frame on which to operate.
+                       requirement.
         """
+        # Make sure that a parent has been specified
+        assert isinstance(parent, (FrameQuantity, MultiFrameQuantity))
+
         # Call base implementation
-        super().__init__(env, parent, requirements={})
+        super().__init__(env, parent, requirements={}, auto_refresh=False)
+
+        # Set unique identifier based on parent type
+        self.identifier = hash(type(parent))
 
         # Initialize the ordered list of frame names
         self.frame_names: Set[str] = set()
@@ -174,41 +198,41 @@ class _BatchEulerAnglesFrame(AbstractQuantity[Dict[str, np.ndarray]]):
         # Define proxy for the rotation matrices of all frames
         self._rot_mat_list: List[np.ndarray] = []
 
-        # Store Roll-Pitch-Yaw of all frames at once
-        self._rpy_batch: np.ndarray = np.array([])
-
-        # Mapping from frame name to individual Roll-Pitch-Yaw slices
-        self._rpy_map: Dict[str, np.ndarray] = {}
-
     def initialize(self) -> None:
         # Call base implementation
         super().initialize()
 
-        # Update the list of frame names based on its cache owner list.
-        # Note that only active quantities are shared for efficiency. The list
-        # of active quantity may change dynamically. Re-initializing the class
-        # to take into account changes of the active set must be decided by
-        # `EulerAnglesFrame`.
-        assert isinstance(self.parent, EulerAnglesFrame)
-        self.frame_names = {self.parent.frame_name}
+        # Update the frame names based on the cache owners of this quantity.
+        # Note that only active quantities are considered for efficiency, which
+        # may change dynamically. Delegating this responsibility to cache
+        # owners may be possible but difficult to implement because
+        # `frame_names` must be cleared first before re-registering themselves,
+        # just in case of optimal computation graph has changed, not only once
+        # to avoid getting rid of quantities that just registered themselves.
+        # Nevertheless, whenever re-initializing this quantity to take into
+        # account changes of the active set must be decided by cache owners.
+        if isinstance(self.parent, FrameQuantity):
+            self.frame_names = {self.parent.frame_name}
+        else:
+            self.frame_names = set(self.parent.frame_names)
         if self.cache:
             for owner in self.cache.owners:
-                # We only consider active instances of `_BatchEulerAnglesFrame`
-                # instead of their corresponding parent `EulerAnglesFrame`.
-                # This is necessary because a derived quantity may feature
-                # `_BatchEulerAnglesFrame` as a requirement without actually
-                # relying on it depending on whether it is part of the optimal
-                # computation path at the time being or not.
+                # We only consider active `_MultiFramesEulerAngles` instances
+                # instead of their parents. This is necessary because a derived
+                # quantity may feature `_MultiFramesEulerAngles` as requirement
+                # without actually relying on it depending on whether it is
+                # part of the optimal computation path at that time.
                 if owner.is_active(any_cache_owner=False):
-                    assert isinstance(owner.parent, EulerAnglesFrame)
-                    self.frame_names.add(owner.parent.frame_name)
+                    if isinstance(self.parent, FrameQuantity):
+                        self.frame_names.add(owner.parent.frame_name)
+                    else:
+                        self.frame_names.union(owner.parent.frame_names)
 
         # Re-allocate memory as the number of frames is not known in advance.
         # Note that Fortran memory layout (column-major) is used for speed up
         # because it preserves contiguity when copying frame data.
         nframes = len(self.frame_names)
         self._rot_mat_batch = np.zeros((3, 3, nframes), order='F')
-        self._rpy_batch = np.zeros((3, nframes))
 
         # Refresh proxies
         self._rot_mat_views.clear()
@@ -219,22 +243,96 @@ class _BatchEulerAnglesFrame(AbstractQuantity[Dict[str, np.ndarray]]):
             self._rot_mat_views.append(self._rot_mat_batch[..., i])
             self._rot_mat_list.append(rot_matrix)
 
+    def refresh(self) -> np.ndarray:
+        # Copy all rotation matrices in contiguous buffer
+        multi_array_copyto(self._rot_mat_views, self._rot_mat_list)
+
+        # Return proxy directly without copy
+        return self._rot_mat_batch
+
+
+@dataclass(unsafe_hash=True)
+class _MultiFramesEulerAngles(AbstractQuantity[Dict[str, np.ndarray]]):
+    """Euler angles (Roll-Pitch-Yaw) representation of the orientation of all
+    frames involved in quantities relying on it and are active since last reset
+    of computation tracking if shared cache is available, its parent otherwise.
+
+    It is not supposed to be instantiated manually but use internally by
+    `FrameEulerAngles`. See `_MultiFramesRotationMatrix` documentation.
+
+    The orientation of all frames is exposed to the user as a dictionary whose
+    keys are the individual frame names. Internally, data are stored in batched
+    2D contiguous array for efficiency. The first dimension are the 3 Euler
+    angles (roll, pitch, yaw) components, while the second one are individual
+    frames with the same ordering as 'self.frame_names'.
+
+    The expected maximum speedup wrt computing Euler angles individually is
+    about x15, which is achieved asymptotically for more than 100 frames. It is
+    already x5 faster for 5 frames, x7 for 10 frames, and x9 for 20 frames.
+    """
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 parent: "FrameEulerAngles") -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param parent: Higher-level quantity from which this quantity is a
+                       requirement if any, `None` otherwise.
+        """
+        # Make sure that a suitable parent has been provided
+        assert isinstance(parent, FrameEulerAngles)
+
+        # Initialize the ordered list of frame names.
+        # Note that this must be done BEFORE calling base `__init__`, otherwise
+        # `isinstance(..., (FrameQuantity, MultiFrameQuantity))` will fail.
+        self.frame_names: Set[str] = set()
+
+        # Call base implementation
+        super().__init__(
+            env,
+            parent,
+            requirements={"rot_mat_batch": (_MultiFramesRotationMatrix, {})},
+            auto_refresh=False)
+
+        # Store Roll-Pitch-Yaw of all frames at once
+        self._rpy_batch: np.ndarray = np.array([])
+
+        # Mapping from frame name to individual Roll-Pitch-Yaw slices
+        self._rpy_map: Dict[str, np.ndarray] = {}
+
+    def initialize(self) -> None:
+        # Call base implementation
+        super().initialize()
+
+        # Update the frame names based on the cache owners of this quantity.
+        # See `_MultiFramesRotationMatrix.initialize` implementation.
+        assert isinstance(self.parent, FrameEulerAngles)
+        self.frame_names = {self.parent.frame_name}
+        if self.cache:
+            for owner in self.cache.owners:
+                if owner.is_active(any_cache_owner=False):
+                    assert isinstance(owner.parent, FrameEulerAngles)
+                    self.frame_names.add(owner.parent.frame_name)
+
+        # Re-allocate memory as the number of frames is not known in advance.
+        # Note that Fortran memory layout (column-major) is used for speed up
+        # because it preserves contiguity when copying frame data.
+        nframes = len(self.frame_names)
+        self._rot_mat_batch = np.zeros((3, 3, nframes), order='F')
+        self._rpy_batch = np.zeros((3, nframes), order='F')
+
         # Re-assign mapping from frame name to their corresponding data
         self._rpy_map = dict(zip(self.frame_names, self._rpy_batch.T))
 
     def refresh(self) -> Dict[str, np.ndarray]:
-        # Copy all rotation matrices in contiguous buffer
-        multi_array_copyto(self._rot_mat_views, self._rot_mat_list)
-
         # Convert all rotation matrices at once to Roll-Pitch-Yaw
-        matrix_to_rpy(self._rot_mat_batch, self._rpy_batch)
+        matrix_to_rpy(self.rot_mat_batch, self._rpy_batch)
 
         # Return proxy directly without copy
         return self._rpy_map
 
 
 @dataclass(unsafe_hash=True)
-class EulerAnglesFrame(AbstractQuantity[np.ndarray]):
+class FrameEulerAngles(AbstractQuantity[np.ndarray]):
     """Euler angles (Roll-Pitch-Yaw) representation of the orientation of a
     given frame in world reference frame at the end of an agent step.
     """
@@ -258,8 +356,10 @@ class EulerAnglesFrame(AbstractQuantity[np.ndarray]):
         self.frame_name = frame_name
 
         # Call base implementation
-        super().__init__(
-            env, parent, requirements={"data": (_BatchEulerAnglesFrame, {})})
+        super().__init__(env,
+                         parent,
+                         requirements={"data": (_MultiFramesEulerAngles, {})},
+                         auto_refresh=False)
 
     def initialize(self) -> None:
         # Check if the quantity is already active
@@ -272,7 +372,8 @@ class EulerAnglesFrame(AbstractQuantity[np.ndarray]):
         # Force re-initializing shared data if the active set has changed
         if not was_active:
             # Must reset the tracking for shared computation systematically,
-            # just in case the optimal computation path has changed.
+            # just in case the optimal computation path has changed to the
+            # point that relying on batched quantity is no longer relevant.
             self.requirements["data"].reset(reset_tracking=True)
 
     def refresh(self) -> np.ndarray:

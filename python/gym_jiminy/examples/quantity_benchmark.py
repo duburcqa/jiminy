@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import gymnasium as gym
 
 import gym_jiminy.common.bases.quantity
-from gym_jiminy.common.quantities import QuantityManager, EulerAnglesFrame
+from gym_jiminy.common.quantities import QuantityManager, FrameEulerAngles
 
 # Define number of samples for benchmarking
 N_SAMPLES = 50000
@@ -25,7 +25,7 @@ nframes = len(env.robot.pinocchio_model.frames)
 quantity_manager = QuantityManager(
     env.simulator,
     {
-        f"rpy_{i}": (EulerAnglesFrame, dict(frame_name=frame.name))
+        f"rpy_{i}": (FrameEulerAngles, dict(frame_name=frame.name))
         for i, frame in enumerate(env.robot.pinocchio_model.frames)
     })
 
@@ -36,12 +36,12 @@ for i in range(1, nframes):
     quantity_manager.reset(reset_tracking=True)
 
     # Fetch all quantities once to update dynamic computation graph
-    for j, quantity in enumerate(quantity_manager._quantities.values()):
+    for j, quantity in enumerate(quantity_manager.registry.values()):
         quantity.get()
         if i == j + 1:
             break
 
-    # Extract batched data buffer of `EulerAnglesFrame` quantities
+    # Extract batched data buffer of `FrameEulerAngles` quantities
     shared_data = quantity.requirements['data']
 
     # Benchmark computation of batched data buffer

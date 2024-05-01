@@ -37,7 +37,7 @@ class CenterOfMass(AbstractQuantity[np.ndarray]):
         self.kinematic_level = kinematic_level
 
         # Call base implementation
-        super().__init__(env, parent, requirements={})
+        super().__init__(env, parent, requirements={}, auto_refresh=False)
 
         # Pre-allocate memory for the CoM quantity
         self._com_data: np.ndarray = np.array([])
@@ -83,7 +83,10 @@ class ZeroMomentPoint(AbstractQuantity[np.ndarray]):
         :param env: Base or wrapped jiminy environment.
         """
         # Call base implementation
-        super().__init__(env, parent, requirements={"com": (CenterOfMass, {})})
+        super().__init__(env,
+                         parent,
+                         requirements={"com": (CenterOfMass, {})},
+                         auto_refresh=False)
 
         # Weight of the robot
         self._robot_weight: float = -1
