@@ -1484,7 +1484,9 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         assert isinstance(action, np.ndarray)
         array_copyto(command, action)
 
-    def has_terminated(self, info: InfoType) -> Tuple[bool, bool]:
+    def has_terminated(self,
+                       info: InfoType  # pylint: disable=unused-argument
+                       ) -> Tuple[bool, bool]:
         """Determine whether the episode is over, because a terminal state of
         the underlying MDP has been reached or an aborting condition outside
         the scope of the MDP has been triggered.

@@ -7,5 +7,7 @@ Gym Jiminy API
    bases/index
    blocks/index
    envs/index
+   quantities/index
+   rewards/index
    wrappers/index
    utils/index

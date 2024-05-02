@@ -25,11 +25,27 @@ ValueT = TypeVar('ValueT')
 
 @runtime_checkable
 class FrameQuantity(Protocol):
+    """Protocol that must be satisfied by all quantities associated with one
+    particular frame.
+
+    This protocol is used when aggregating individual frame-level quantities
+    in a larger batch for computation vectorization on all frames at once.
+    Intermediate quantities managing these batches will make sure that all
+    their parents derive from one of the supported protocols, which includes
+    this one.
+    """
     frame_name: str
 
 
 @runtime_checkable
 class MultiFrameQuantity(Protocol):
+    """Protocol that must be satisfied by all quantities associated with
+    a particular set of frames for which the same batched intermediary
+    quantities must be computed.
+
+    This protocol is involved in automatic computation vectorization. See
+    `FrameQuantity` documentation for details.
+    """
     frame_names: Sequence[str]
 
 
