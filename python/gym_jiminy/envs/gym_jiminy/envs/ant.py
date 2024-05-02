@@ -66,8 +66,7 @@ class AntJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
             simulator=simulator,
             debug=debug,
             **{**dict(
-                step_dt=STEP_DT,
-                enforce_bounded_spaces=False),
+                step_dt=STEP_DT),
                 **kwargs})
 
         # Define observation slices proxy for fast access.
@@ -202,15 +201,19 @@ class AntJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
                 self.observation_space.high,
                 out=self.observation)
 
-    def has_terminated(self) -> Tuple[bool, bool]:
+    def has_terminated(self, info: InfoType) -> Tuple[bool, bool]:
         """Determine whether the episode is over.
 
         It adds one extra truncation criterion on top of the one defined in the
         base implementation. More precisely, the vertical height of the
         floating base of the robot must not exceed 0.2m.
+
+        :param info: Dictionary of extra information for monitoring.
+
+        :returns: terminated and truncated flags.
         """
         # Call base implementation
-        terminated, truncated = super().has_terminated()
+        terminated, truncated = super().has_terminated(info)
 
         # Check if the agent is jumping far too high or stuck on its back
         zpos = self._robot_state_q[2]
@@ -219,10 +222,7 @@ class AntJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
 
         return terminated, truncated
 
-    def compute_reward(self,
-                       terminated: bool,
-                       truncated: bool,
-                       info: InfoType) -> float:
+    def compute_reward(self, terminated: bool, info: InfoType) -> float:
         """Compute reward at current episode state.
 
         The reward is defined as the sum of several individual components:

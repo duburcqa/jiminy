@@ -80,7 +80,6 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                  mesh_path_dir: Optional[str] = None,
                  simulation_duration_max: float = DEFAULT_SIMULATION_DURATION,
                  step_dt: float = DEFAULT_STEP_DT,
-                 enforce_bounded_spaces: bool = False,
                  reward_mixture: Optional[dict] = None,
                  std_ratio: Optional[dict] = None,
                  config_path: Optional[str] = None,
@@ -101,9 +100,6 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         :param simulation_duration_max: Maximum duration of a simulation before
                                         returning done.
         :param step_dt: Simulation timestep for learning.
-        :param enforce_bounded_spaces:
-            Whether to enforce finite bounds for the observation and action
-            spaces. If so, '\*_MAX' are used whenever it is necessary.
         :param reward_mixture: Weighting factors of selected contributions to
                                total reward.
         :param std_ratio: Relative standard deviation of selected contributions
@@ -206,8 +202,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
             simulator.import_options(config_path)
 
         # Initialize base class
-        super().__init__(
-            simulator, step_dt, enforce_bounded_spaces, debug, **kwargs)
+        super().__init__(simulator, step_dt, debug, **kwargs)
 
     def _setup(self) -> None:
         """Configure the environment.
@@ -361,7 +356,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         wrench[1] = F_PROFILE_SCALE * self._f_xy_profile[1](t)
         wrench[:2] *= self.std_ratio['disturbance']
 
-    def has_terminated(self) -> Tuple[bool, bool]:
+    def has_terminated(self, info: InfoType) -> Tuple[bool, bool]:
         """Determine whether the episode is over.
 
         It terminates (`terminated=True`) under the following conditions:
@@ -374,10 +369,12 @@ class WalkerJiminyEnv(BaseJiminyEnv):
             - observation out-of-bounds
             - maximum simulation duration exceeded
 
+        :param info: Dictionary of extra information for monitoring.
+
         :returns: terminated and truncated flags.
         """
         # Call base implementation
-        terminated, truncated = super().has_terminated()
+        terminated, truncated = super().has_terminated(info)
 
         # Check if the agent has successfully solved the task
         if self._robot_state_q[2] < self._height_neutral * 0.5:
@@ -385,10 +382,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
 
         return terminated, truncated
 
-    def compute_reward(self,
-                       terminated: bool,
-                       truncated: bool,
-                       info: InfoType) -> float:
+    def compute_reward(self, terminated: bool, info: InfoType) -> float:
         """Compute reward at current episode state.
 
         It computes the reward associated with each individual contribution

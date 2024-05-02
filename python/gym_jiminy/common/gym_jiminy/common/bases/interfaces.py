@@ -137,7 +137,6 @@ class InterfaceController(ABC, Generic[ActT, BaseActT]):
 
     def compute_reward(self,
                        terminated: bool,  # pylint: disable=unused-argument
-                       truncated: bool,  # pylint: disable=unused-argument
                        info: InfoType  # pylint: disable=unused-argument
                        ) -> float:
         """Compute the reward related to a specific control block.
@@ -159,9 +158,6 @@ class InterfaceController(ABC, Generic[ActT, BaseActT]):
         :param terminated: Whether the episode has reached the terminal state
                            of the MDP at the current step. This flag can be
                            used to compute a specific terminal reward.
-        :param truncated: Whether a truncation condition outside the scope of
-                          the MDP has been satisfied at the current step. This
-                          flag can be used to adapt the reward.
         :param info: Dictionary of extra information for monitoring.
 
         :returns: Aggregated reward for the current step.
@@ -182,6 +178,7 @@ class InterfaceJiminyEnv(
     """Observer plus controller interface for both generic pipeline blocks,
     including environments.
     """
+
     metadata: Dict[str, Any] = {
         "render_modes": (
             ['rgb_array'] + (['human'] if is_display_available() else []))
@@ -193,6 +190,16 @@ class InterfaceJiminyEnv(
     robot_state: jiminy.RobotState
     sensor_measurements: SensorMeasurementStackMap
     is_simulation_running: npt.NDArray[np.bool_]
+
+    num_steps: npt.NDArray[np.int64]
+    """Number of simulation steps that has been performed since last reset of
+    the base environment.
+
+    .. note::
+        The counter is incremented before updating the observation at the end
+        of the step, and consequently, before evaluating the reward and the
+        termination conditions.
+    """
 
     quantities: "QuantityManager"
 
@@ -250,13 +257,30 @@ class InterfaceJiminyEnv(
         :param v: Current extended velocity vector of the robot.
         :param sensor_measurements: Current sensor data.
         """
+        # Early return if no simulation is running
+        if not self.is_simulation_running:
+            return
+
+        # Reset the quantity manager.
+        # In principle, the internal cache of quantities should be cleared each
+        # time the state of the robot and/or its derivative changes. This is
+        # hard to do because there is no way to detect this specifically at the
+        # time being. However, `_observer_handle` is never called twice in the
+        # exact same state by the engine, so resetting quantities at the
+        # beginning of the method should cover most cases. Yet, quantities
+        # cannot be used reliably in the definition of profile forces because
+        # they are always updated before the controller gets called, no matter
+        # if either one or the other is time-continuous. Hacking the internal
+        # dynamics to clear quantities does not address this issue either.
+        self.quantities.clear()
+
         # Refresh the observation if not already done but only if a simulation
         # is already running. It would be pointless to refresh the observation
         # at this point since the controller will be called multiple times at
         # start. Besides, it would defeat the purpose `_initialize_buffers`,
         # that is supposed to be executed before `refresh_observation` is being
         # called for the first time of an episode.
-        if not self.__is_observation_refreshed and self.is_simulation_running:
+        if not self.__is_observation_refreshed:
             measurement = self.__measurement
             measurement["t"][()] = t
             measurement["states"]["agent"]["q"] = q
@@ -303,19 +327,6 @@ class InterfaceJiminyEnv(
 
         :returns: Motors torques to apply on the robot.
         """
-        # Reset the quantity manager.
-        # In principle, the internal cache of quantities should be cleared not
-        # each time the state of the robot and/or its derivative changes. This
-        # is hard to do because there is no way to detect this specifically at
-        # the time being. However, `_controller_handle` is never called twice
-        # in the exact same state by the engine, so resetting quantities at the
-        # beginning of the method should cover most cases. Yet, quantities
-        # cannot be used reliably in the definition of profile forces because
-        # they are always updated before the controller gets called, no matter
-        # if either one or the other is time-continuous. Hacking the internal
-        # dynamics to clear quantities does not address this issue either.
-        self.quantities.clear()
-
         # Refresh the observation
         self._observer_handle(t, q, v, sensor_measurements)
 

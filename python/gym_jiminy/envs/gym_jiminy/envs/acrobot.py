@@ -192,17 +192,19 @@ class AcrobotJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         qvel = sample(scale=DTHETA_RANDOM_MAX, shape=(2,), rg=self.np_random)
         return qpos, qvel
 
-    def has_terminated(self) -> Tuple[bool, bool]:
+    def has_terminated(self, info: InfoType) -> Tuple[bool, bool]:
         """Determine whether the episode is over.
 
         It terminates (`terminated=True`) if the goal has been achieved, namely
         if the tip of the Acrobot is above 'HEIGHT_REL_DEFAULT_THRESHOLD'.
         Apart from that, there is no specific truncation condition.
 
+        :param info: Dictionary of extra information for monitoring.
+
         :returns: terminated and truncated flags.
         """
         # Call base implementation
-        terminated, truncated = super().has_terminated()
+        terminated, truncated = super().has_terminated(info)
 
         # Check if the agent has successfully solved the task
         tip_transform = self.robot.pinocchio_data.oMf[self._tipIndex]
@@ -224,10 +226,7 @@ class AcrobotJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         if ACTION_NOISE > 0.0:
             command += sample(scale=ACTION_NOISE, rg=self.np_random)
 
-    def compute_reward(self,
-                       terminated: bool,
-                       truncated: bool,
-                       info: InfoType) -> float:
+    def compute_reward(self, terminated: bool, info: InfoType) -> float:
         """Compute reward at current episode state.
 
         Get a small negative reward till success.

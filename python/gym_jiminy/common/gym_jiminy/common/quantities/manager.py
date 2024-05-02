@@ -11,10 +11,8 @@ quantities in a large batch to leverage vectorization of math instructions.
 from collections.abc import MutableMapping
 from typing import Any, Dict, List, Tuple, Iterator, Type
 
-from ..bases import InterfaceJiminyEnv, AbstractQuantity, SharedCache
-
-
-QuantityCreator = Tuple[Type[AbstractQuantity], Dict[str, Any]]
+from ..bases import (
+    QuantityCreator, InterfaceJiminyEnv, AbstractQuantity, SharedCache)
 
 
 class QuantityManager(MutableMapping):
@@ -38,8 +36,8 @@ class QuantityManager(MutableMapping):
         # Backup user argument(s)
         self.env = env
 
-        # List of already instantiated quantities to manager
-        self._quantities: Dict[str, AbstractQuantity] = {}
+        # List of instantiated quantities to manager
+        self.registry: Dict[str, AbstractQuantity] = {}
 
         # Initialize shared caches for all managed quantities.
         # Note that keys are not quantities directly but pairs (class, hash).
@@ -59,7 +57,7 @@ class QuantityManager(MutableMapping):
         :param reset_tracking: Do not consider any quantity as active anymore.
                                Optional: False by default.
         """
-        for quantity in self._quantities.values():
+        for quantity in self.registry.values():
             quantity.reset(reset_tracking)
 
     def clear(self) -> None:
@@ -95,7 +93,7 @@ class QuantityManager(MutableMapping):
         It is mainly used by autocomplete feature of Ipython. It is overloaded
         to get consistent autocompletion wrt `getattr`.
         """
-        return [*super().__dir__(), *self._quantities.keys()]
+        return [*super().__dir__(), *self.registry.keys()]
 
     def __setitem__(self,
                     name: str,
@@ -107,11 +105,11 @@ class QuantityManager(MutableMapping):
                      name exists.
         :param quantity_creator: Tuple gathering the class of the new quantity
                                  to manage plus its keyword-arguments except
-                                 the environment 'env' as a dictionary.
+                                 environment and parent as a dictionary.
         """
         # Make sure that no quantity with the same name is already managed to
         # avoid silently overriding quantities being managed in user's back.
-        if name in self._quantities:
+        if name in self.registry:
             raise KeyError(
                 "A quantity with the exact same name already exists. Please "
                 "delete it first before adding a new one.")
@@ -129,14 +127,14 @@ class QuantityManager(MutableMapping):
             quantities_all += quantity.requirements.values()
 
         # Add it to the map of already managed quantities
-        self._quantities[name] = top_quantity
+        self.registry[name] = top_quantity
 
     def __getitem__(self, name: str) -> Any:
         """Get the evaluated value of a given quantity.
 
         :param name: Name of the quantity for which to fetch the current value.
         """
-        return self._quantities[name].get()
+        return self.registry[name].get()
 
     def __delitem__(self, name: str) -> None:
         """Stop managing a quantity that is no longer relevant.
@@ -151,14 +149,14 @@ class QuantityManager(MutableMapping):
         :param name: Name of the managed quantity to be discarded. It will
                      raise an exception if the specified name does not exists.
         """
-        del self._quantities[name]
+        del self.registry[name]
 
     def __iter__(self) -> Iterator[str]:
         """Iterate over names of managed quantities.
         """
-        return iter(self._quantities)
+        return iter(self.registry)
 
     def __len__(self) -> int:
         """Number of quantities being managed.
         """
-        return len(self._quantities)
+        return len(self.registry)

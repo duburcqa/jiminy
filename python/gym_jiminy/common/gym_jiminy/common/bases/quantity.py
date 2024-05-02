@@ -12,6 +12,7 @@ computed that did not changed since then, computing redundant intermediary
 quantities only once per step, and gathering similar quantities in a large
 batch to leverage vectorization of math instructions.
 """
+import re
 import weakref
 from weakref import ReferenceType
 from abc import ABC, abstractmethod
@@ -25,8 +26,6 @@ from .interfaces import InterfaceJiminyEnv
 
 
 ValueT = TypeVar('ValueT')
-
-QuantityCreator = Tuple[Type["AbstractQuantity"], Dict[str, Any]]
 
 
 class WeakMutableCollection(MutableSet, Generic[ValueT]):
@@ -115,7 +114,7 @@ class SharedCache(Generic[ValueT]):
         This implementation is not thread safe.
     """
 
-    owners: WeakMutableCollection["AbstractQuantity"]
+    owners: WeakMutableCollection["AbstractQuantity[ValueT]"]
     """Owners of the shared buffer, ie quantities relying on it to store the
     result of their evaluation. This information may be useful for determining
     the most efficient computation path overall.
@@ -164,8 +163,14 @@ class SharedCache(Generic[ValueT]):
     def reset(self) -> None:
         """Clear value stored in cache if any.
         """
+        # Clear cache
         self._value = None
         self._has_value = False
+
+        # Refresh all owner quantities for which auto refresh has been enabled
+        for owner in self.owners:
+            if owner.auto_refresh:
+                owner.get()
 
     def set(self, value: ValueT) -> None:
         """Set value in cache, silently overriding the existing value if any.
@@ -218,7 +223,8 @@ class AbstractQuantity(ABC, Generic[ValueT]):
     def __init__(self,
                  env: InterfaceJiminyEnv,
                  parent: Optional["AbstractQuantity"],
-                 requirements: Dict[str, QuantityCreator]) -> None:
+                 requirements: Dict[str, "QuantityCreator"],
+                 auto_refresh: bool) -> None:
         """
         :param env: Base or wrapped jiminy environment.
         :param parent: Higher-level quantity from which this quantity is a
@@ -227,11 +233,21 @@ class AbstractQuantity(ABC, Generic[ValueT]):
                              depends for its evaluation, as a dictionary
                              whose keys are tuple gathering their respective
                              class and all their constructor keyword-arguments
-                             except the environment 'env'.
+                             except environment 'env' and parent 'parent.
+        :param auto_refresh: Whether this quantity must be refreshed
+                             automatically as soon as its shared cache has been
+                             cleared if specified, otherwise this does nothing.
         """
         # Backup some of user argument(s)
         self.env = env
         self.parent = parent
+        self.auto_refresh = auto_refresh
+
+        # Make sure that all requirement names would be valid as property
+        requirement_names = requirements.keys()
+        if any(re.match('[^A-Za-z0-9_]', name) for name in requirement_names):
+            raise ValueError("The name of all quantity requirements should be "
+                             "ASCII alphanumeric characters plus underscore.")
 
         # Instantiate intermediary quantities if any
         self.requirements: Dict[str, AbstractQuantity] = {
@@ -252,14 +268,14 @@ class AbstractQuantity(ABC, Generic[ValueT]):
         # Whether the quantity must be re-initialized
         self._is_initialized: bool = False
 
-        # Add getter of all intermediary quantities dynamically.
+        # Add getter for all intermediary quantities dynamically.
         # This approach is hacky but much faster than any of other official
         # approach, ie implementing custom a `__getattribute__` method or even
         # worst a custom `__getattr__` method.
         def get_value(name: str, quantity: AbstractQuantity) -> Any:
             return quantity.requirements[name].get()
 
-        for name in self.requirements.keys():
+        for name in requirement_names:
             setattr(type(self), name, property(partial(get_value, name)))
 
     def __getattr__(self, name: str) -> Any:
@@ -274,7 +290,11 @@ class AbstractQuantity(ABC, Generic[ValueT]):
 
         :param name: Name of the requested quantity.
         """
-        return self.__getattribute__('requirements')[name].get()
+        try:
+            return self.__getattribute__('requirements')[name].get()
+        except KeyError as e:
+            raise AttributeError(
+                f"'{type(self)}' object has no attribute '{name}'") from e
 
     def __dir__(self) -> List[str]:
         """Attribute lookup.
@@ -452,3 +472,6 @@ class AbstractQuantity(ABC, Generic[ValueT]):
         """Evaluate this quantity based on the agent state at the end of the
         current agent step.
         """
+
+
+QuantityCreator = Tuple[Type[AbstractQuantity[ValueT]], Dict[str, Any]]

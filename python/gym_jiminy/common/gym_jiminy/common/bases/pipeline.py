@@ -80,6 +80,7 @@ class BasePipelineWrapper(
         self.robot_state = env.robot_state
         self.sensor_measurements = env.sensor_measurements
         self.is_simulation_running = env.is_simulation_running
+        self.num_steps = env.num_steps
 
         # Backup the parent environment
         self.env = env
@@ -254,7 +255,7 @@ class BasePipelineWrapper(
         reward = float(reward)
         if not math.isnan(reward):
             try:
-                reward += self.compute_reward(terminated, truncated, info)
+                reward += self.compute_reward(terminated, info)
             except NotImplementedError:
                 pass
 
@@ -736,11 +737,8 @@ class ControlledJiminyEnv(
         # the right period.
         self.env.compute_command(self.env.action, command)
 
-    def compute_reward(self,
-                       terminated: bool,
-                       truncated: bool,
-                       info: InfoType) -> float:
-        return self.controller.compute_reward(terminated, truncated, info)
+    def compute_reward(self, terminated: bool, info: InfoType) -> float:
+        return self.controller.compute_reward(terminated, info)
 
 
 class BaseTransformObservation(
