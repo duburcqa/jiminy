@@ -7,7 +7,7 @@ from collections import deque
 from functools import partial
 from dataclasses import dataclass
 from typing import (
-    List, Dict, Set, Optional, Protocol, Sequence, Tuple, TypeVar,
+    List, Dict, Set, Optional, Protocol, Sequence, Tuple, TypeVar, Union,
     runtime_checkable)
 
 import numpy as np
@@ -444,7 +444,7 @@ class StackedQuantity(AbstractQuantity[Tuple[ValueT, ...]]):
     """
 
     num_stack: Optional[int]
-    """Maximum number of values that will be stacked before starting to discard
+    """Maximum number of values that keep in memory before starting to discard
     the oldest one (FIFO). None if unlimited.
     """
 
@@ -454,6 +454,17 @@ class StackedQuantity(AbstractQuantity[Tuple[ValueT, ...]]):
                  quantity: QuantityCreator[ValueT],
                  num_stack: Optional[int] = None
                  ) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param parent: Higher-level quantity from which this quantity is a
+                       requirement if any, `None` otherwise.
+        :param quantity: Tuple gathering the class of the quantity whose values
+                         must be stacked, plus all its constructor keyword-
+                         arguments except environment 'env' and parent 'parent.
+        :param num_stack: Maximum number of values that keep in memory before
+                          starting to discard the oldest one (FIFO). None if
+                          unlimited.
+        """
         # Backup user arguments
         self.num_stack = num_stack
 
@@ -605,3 +616,101 @@ class AverageFrameSpatialVelocity(AbstractQuantity[np.ndarray]):
             self._v_lin_ang[:] = self._rot_mat @ self._v_lin_ang
 
         return self._v_spatial
+
+
+@dataclass(unsafe_hash=True)
+class MaskedQuantity(AbstractQuantity[np.ndarray]):
+    """Extract elements from a given quantity whose value is a N-dimensional
+    array along an axis.
+
+    Elements will be extract by copy unless the indices of the elements to
+    extract to be written equivalently by a slice, ie they are evenly spaced.
+    """
+
+    quantity: AbstractQuantity
+    """Base quantity whose elements must be extracted.
+    """
+
+    indices: Tuple[int]
+    """Indices of the elements to extract.
+    """
+
+    axis: Optional[int]
+    """Axis over which to extract elements. `None` to consider flattened array.
+    """
+
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 parent: Optional[AbstractQuantity],
+                 quantity: QuantityCreator[np.ndarray],
+                 key: Union[Sequence[int], Sequence[bool], slice],
+                 axis: Optional[int] = None
+                 ) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param parent: Higher-level quantity from which this quantity is a
+                       requirement if any, `None` otherwise.
+        :param quantity: Tuple gathering the class of the quantity whose values
+                         must be extracted, plus all its constructor keyword-
+                         arguments except environment 'env' and parent 'parent.
+        :param key: Sequence of indices, boolean mask, or slice that will be
+                    used to extract elements from the quantity along one axis.
+        :param axis: Axis over which to extract elements. `None` to consider
+                     flattened array.
+                     Optional: `None` by default.
+        """
+        # Check if a slice, indices or a mask has been provided
+        if key is slice:
+            pass
+        elif all(isinstance(e, bool) for e in key):
+            key, _ = np.nonzero(key)
+        elif not all(isinstance(e, int) for e in key):
+            raise ValueError(
+                "Argument 'key' invalid. It must either be a "
+                "boolean mask, or a sequence of indices.")
+
+        # Backup user arguments
+        self.indices = tuple(key)
+        self.axis = axis
+
+        # Make sure that at least one index must be extracted
+        if not self.indices:
+            raise ValueError(
+                "No indices to extract from quantity. Data would be empty.")
+
+        # Check if the indices are evenly spaced
+        self._slices: Optional[slice] = None
+        if len(self.indices) == 1:
+            stride = 1
+        if len(self.indices) > 1:
+            spacing = np.unique(np.diff(self.indices))
+            stride = stride[0] if spacing.size == 1 else None
+        if stride is not None:
+            slice_ = slice(self.indices[0], self.indices[-1] + 1, stride)
+            if axis > 0:
+                self._slices = (slice(None),) * axis + (slice_,)
+            else:
+                self._slices = (
+                    Ellipsis, slice_) + (slice(None),) * (- axis - 1)
+
+        # Call base implementation
+        super(). __init__(env,
+                          parent,
+                          requirements={"data": quantity},
+                          auto_refresh=False)
+
+        # Keep track of the quantity from which data must be extracted
+        self.quantity = self.requirements["data"]
+
+    def initialize(self) -> None:
+        # Call base implementation
+        super().initialize()
+
+    def refresh(self) -> np.ndarray:
+        # Extract elements from quantity
+        if self._slices is None:
+            # Note that `take` is faster than classical advanced indexing via
+            # `operator[]` (`__getitem__`) because the latter is more generic.
+            # Notably, `operator[]` supports boolean mask but `take` does not.
+            return self.data.take(self.indices, axis=self.axis)
+        return self.data[self._slices]

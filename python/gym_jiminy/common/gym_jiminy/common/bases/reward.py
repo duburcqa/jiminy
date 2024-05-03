@@ -91,8 +91,10 @@ class BaseQuantityReward(AbstractReward):
                      add the underlying quantity to the set of already managed
                      quantities by the environment. As a result, it must be
                      unique otherwise an exception will be raised.
-        :param quantity: Underlying quantity to use as reward, eventually after
-                         some post-processing.
+        :param quantity: Tuple gathering the class of the underlying quantity
+                         to use as reward after some post-processing, plus all
+                         its constructor keyword-arguments except environment
+                         'env' and parent 'parent.
         :param transform_fun: Transform function responsible for aggregating a
                               multi-variate quantity as floating-point scalar
                               value to maximize. Typical examples are `np.min`,
