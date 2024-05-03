@@ -224,7 +224,7 @@ class AbstractQuantity(ABC, Generic[ValueT]):
                  env: InterfaceJiminyEnv,
                  parent: Optional["AbstractQuantity"],
                  requirements: Dict[str, "QuantityCreator"],
-                 auto_refresh: bool) -> None:
+                 auto_refresh: bool = False) -> None:
         """
         :param env: Base or wrapped jiminy environment.
         :param parent: Higher-level quantity from which this quantity is a

@@ -9,7 +9,7 @@ import jiminy_py
 import pinocchio as pin
 
 from gym_jiminy.common.quantities import (
-    QuantityManager, FrameEulerAngles, FrameXYZQuat,
+    QuantityManager, FrameEulerAngles, FrameXYZQuat, MaskedQuantity,
     AverageFrameSpatialVelocity, CenterOfMass, ZeroMomentPoint)
 
 
@@ -17,6 +17,8 @@ class Quantities(unittest.TestCase):
     """ TODO: Write documentation
     """
     def test_shared_cache(self):
+        """ TODO: Write documentation
+        """
         env = gym.make("gym_jiminy.envs:atlas")
         env.reset()
 
@@ -54,6 +56,8 @@ class Quantities(unittest.TestCase):
         assert np.any(zmp_1 != zmp_2)
 
     def test_dynamic_batching(self):
+        """ TODO: Write documentation
+        """
         env = gym.make("gym_jiminy.envs:atlas")
         env.reset()
         env.step(env.action)
@@ -100,6 +104,8 @@ class Quantities(unittest.TestCase):
         assert len(quantities['rpy_0'].requirements['data'].frame_names) == 1
 
     def test_discard(self):
+        """ TODO: Write documentation
+        """
         env = gym.make("gym_jiminy.envs:atlas")
         env.reset()
 
@@ -132,6 +138,8 @@ class Quantities(unittest.TestCase):
             assert len(cache.owners) == 0
 
     def test_env(self):
+        """ TODO: Write documentation
+        """
         env = gym.make("gym_jiminy.envs:atlas")
 
         env.quantities["com"] = (CenterOfMass, {})
@@ -144,6 +152,8 @@ class Quantities(unittest.TestCase):
         assert np.all(com_0 == env.quantities["com"])
 
     def test_stack(self):
+        """ TODO: Write documentation
+        """
         env = gym.make("gym_jiminy.envs:atlas")
         env.reset()
 
@@ -158,3 +168,38 @@ class Quantities(unittest.TestCase):
         v_avg = env.quantities["v_avg"].copy()
         env.step(env.action)
         assert np.all(v_avg != env.quantities["v_avg"])
+
+    def test_masked(self):
+        """ TODO: Write documentation
+        """
+        env = gym.make("gym_jiminy.envs:atlas")
+        env.reset()
+        env.step(env.action)
+
+        # 1. From non-slice-able indices
+        env.quantities["v_masked"] = (MaskedQuantity, dict(
+            quantity=(FrameXYZQuat, dict(frame_name="root_joint")),
+            key=(0, 1, 5)))
+        quantity = env.quantities.registry["v_masked"]
+        assert not quantity._slices
+        np.testing.assert_allclose(
+            env.quantities["v_masked"], quantity.data[[0, 1, 5]])
+        del env.quantities["v_masked"]
+
+        # 2. From boolean mask
+        env.quantities["v_masked"] = (MaskedQuantity, dict(
+            quantity=(FrameXYZQuat, dict(frame_name="root_joint")),
+            key=(True, True, False, False, False, True)))
+        quantity = env.quantities.registry["v_masked"]
+        np.testing.assert_allclose(
+            env.quantities["v_masked"], quantity.data[[0, 1, 5]])
+        del env.quantities["v_masked"]
+
+        # 3. From slice-able indices
+        env.quantities["v_masked"] = (MaskedQuantity, dict(
+            quantity=(FrameXYZQuat, dict(frame_name="root_joint")),
+            key=(0, 2, 4)))
+        quantity = env.quantities.registry["v_masked"]
+        assert len(quantity._slices) == 1 and quantity._slices[0] == slice(0, 5, 2)
+        np.testing.assert_allclose(
+            env.quantities["v_masked"], quantity.data[[0, 2, 4]])

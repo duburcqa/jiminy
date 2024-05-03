@@ -3,15 +3,22 @@
 from .manager import QuantityManager
 from .generic import (FrameEulerAngles,
                       FrameXYZQuat,
-                      AverageFrameSpatialVelocity)
-from .locomotion import CenterOfMass, ZeroMomentPoint
+                      StackedQuantity,
+                      AverageFrameSpatialVelocity,
+                      MaskedQuantity)
+from .locomotion import (AverageOdometryVelocity,
+                         CenterOfMass,
+                         ZeroMomentPoint)
 
 
 __all__ = [
     'QuantityManager',
     'FrameEulerAngles',
     'FrameXYZQuat',
+    'StackedQuantity',
     'AverageFrameSpatialVelocity',
+    'MaskedQuantity',
+    'AverageOdometryVelocity',
     'CenterOfMass',
     'ZeroMomentPoint',
 ]

@@ -7,8 +7,9 @@ from collections import deque
 from functools import partial
 from dataclasses import dataclass
 from typing import (
-    List, Dict, Set, Optional, Protocol, Sequence, Tuple, TypeVar,
+    List, Dict, Set, Any, Optional, Protocol, Sequence, Tuple, TypeVar, Union,
     runtime_checkable)
+from typing_extensions import TypeAlias
 
 import numpy as np
 
@@ -17,19 +18,39 @@ from jiminy_py.core import (  # pylint: disable=no-name-in-module
 import pinocchio as pin
 
 from ..bases import InterfaceJiminyEnv, AbstractQuantity, QuantityCreator
-from ..utils import fill, matrix_to_rpy, matrix_to_quat
+from ..utils import (
+    fill, matrix_to_rpy, matrix_to_quat, quat_to_matrix,
+    quat_interpolate_middle)
 
+
+EllipsisType: TypeAlias = Any  # TODO: `EllipsisType` introduced in Python 3.10
 
 ValueT = TypeVar('ValueT')
 
 
 @runtime_checkable
 class FrameQuantity(Protocol):
+    """Protocol that must be satisfied by all quantities associated with one
+    particular frame.
+
+    This protocol is used when aggregating individual frame-level quantities
+    in a larger batch for computation vectorization on all frames at once.
+    Intermediate quantities managing these batches will make sure that all
+    their parents derive from one of the supported protocols, which includes
+    this one.
+    """
     frame_name: str
 
 
 @runtime_checkable
 class MultiFrameQuantity(Protocol):
+    """Protocol that must be satisfied by all quantities associated with
+    a particular set of frames for which the same batched intermediary
+    quantities must be computed.
+
+    This protocol is involved in automatic computation vectorization. See
+    `FrameQuantity` documentation for details.
+    """
     frame_names: Sequence[str]
 
 
@@ -428,7 +449,7 @@ class StackedQuantity(AbstractQuantity[Tuple[ValueT, ...]]):
     """
 
     num_stack: Optional[int]
-    """Maximum number of values that will be stacked before starting to discard
+    """Maximum number of values that keep in memory before starting to discard
     the oldest one (FIFO). None if unlimited.
     """
 
@@ -438,6 +459,17 @@ class StackedQuantity(AbstractQuantity[Tuple[ValueT, ...]]):
                  quantity: QuantityCreator[ValueT],
                  num_stack: Optional[int] = None
                  ) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param parent: Higher-level quantity from which this quantity is a
+                       requirement if any, `None` otherwise.
+        :param quantity: Tuple gathering the class of the quantity whose values
+                         must be stacked, plus all its constructor keyword-
+                         arguments except environment 'env' and parent 'parent.
+        :param num_stack: Maximum number of values that keep in memory before
+                          starting to discard the oldest one (FIFO). None if
+                          unlimited.
+        """
         # Backup user arguments
         self.num_stack = num_stack
 
@@ -488,12 +520,19 @@ class AverageFrameSpatialVelocity(AbstractQuantity[np.ndarray]):
 
     The average spatial velocity is obtained by finite difference. More
     precisely, it is defined here as the ratio of the geodesic distance in SE3
-    Lie  group between the pose of the frame at the end of previous and current
+    Lie Group between the pose of the frame at the end of previous and current
     step over the time difference between them. Notably, under this definition,
     the linear average velocity jointly depends on rate of change of the
     translation and rotation of the frame, which may be undesirable in some
     cases. Alternatively, the double geodesic distance could be used instead to
     completely decouple the translation from the rotation.
+
+    .. note::
+        The local frame for which the velocity is expressed is defined as the
+        midpoint interpolation between the previous and current frame pose.
+        This definition is arbitrary, in a sense that any other point for an
+        interpolation ratio going from 0.0 (previous pose) to 1.0 (current
+        pose) would be equally valid.
     """
 
     frame_name: str
@@ -547,8 +586,9 @@ class AverageFrameSpatialVelocity(AbstractQuantity[np.ndarray]):
         # Inverse step size
         self._inv_step_dt = 0.0
 
-        # Define proxy to the current frame pose (translation, rotation matrix)
-        self._rot_mat = np.eye(3)
+        # Allocate memory for the average quaternion and rotation matrix
+        self._quat_mean = np.zeros(4)
+        self._rot_mat_mean = np.eye(3)
 
         # Pre-allocate memory for the spatial velocity
         self._v_spatial: np.ndarray = np.zeros(6)
@@ -562,11 +602,6 @@ class AverageFrameSpatialVelocity(AbstractQuantity[np.ndarray]):
 
         # Compute inverse step size
         self._inv_step_dt = 1.0 / self.env.step_dt
-
-        # Refresh proxy to current frame pose
-        frame_index = self.pinocchio_model.getFrameId(self.frame_name)
-        transform = self.pinocchio_data.oMf[frame_index]
-        self._rot_mat = transform.rotation
 
         # Re-initialize pre-allocated buffers
         fill(self._v_spatial, 0)
@@ -585,7 +620,122 @@ class AverageFrameSpatialVelocity(AbstractQuantity[np.ndarray]):
 
         # Translate local velocity to world frame
         if self.reference_frame == pin.LOCAL_WORLD_ALIGNED:
+            # Define world frame as the "middle" between prev and next pose.
+            # The orientation difference has an effect on the translation
+            # difference, but not the other way around. Here, we only care
+            # about the middle rotation, so we can consider SO3 Lie Group
+            # algebra instead of SE3.
+            quat_interpolate_middle(
+                xyzquat_prev[-4:], xyzquat[-4:], self._quat_mean)
+            quat_to_matrix(self._quat_mean, self._rot_mat_mean)
+
             # TODO: x2 speedup can be expected using `np.dot` with  `nb.jit`
-            self._v_lin_ang[:] = self._rot_mat @ self._v_lin_ang
+            self._v_lin_ang[:] = self._rot_mat_mean @ self._v_lin_ang
 
         return self._v_spatial
+
+
+@dataclass(unsafe_hash=True)
+class MaskedQuantity(AbstractQuantity[np.ndarray]):
+    """Extract elements from a given quantity whose value is a N-dimensional
+    array along an axis.
+
+    Elements will be extract by copy unless the indices of the elements to
+    extract to be written equivalently by a slice (ie they are evenly spaced),
+    and the array can be flattened while preserving memory contiguity if 'axis'
+    is `None`.
+    """
+
+    quantity: AbstractQuantity
+    """Base quantity whose elements must be extracted.
+    """
+
+    indices: Tuple[int, ...]
+    """Indices of the elements to extract.
+    """
+
+    axis: Optional[int]
+    """Axis over which to extract elements. `None` to consider flattened array.
+    """
+
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 parent: Optional[AbstractQuantity],
+                 quantity: QuantityCreator[np.ndarray],
+                 key: Union[Sequence[int], Sequence[bool]],
+                 axis: Optional[int] = None
+                 ) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param parent: Higher-level quantity from which this quantity is a
+                       requirement if any, `None` otherwise.
+        :param quantity: Tuple gathering the class of the quantity whose values
+                         must be extracted, plus all its constructor keyword-
+                         arguments except environment 'env' and parent 'parent.
+        :param key: Sequence of indices or boolean mask that will be used to
+                    extract elements from the quantity along one axis.
+        :param axis: Axis over which to extract elements. `None` to consider
+                     flattened array.
+                     Optional: `None` by default.
+        """
+        # Check if indices or boolean mask has been provided
+        if all(isinstance(e, bool) for e in key):
+            key = tuple(np.flatnonzero(key))
+        elif not all(isinstance(e, int) for e in key):
+            raise ValueError(
+                "Argument 'key' invalid. It must either be a "
+                "boolean mask, or a sequence of indices.")
+
+        # Backup user arguments
+        self.indices = tuple(key)
+        self.axis = axis
+
+        # Make sure that at least one index must be extracted
+        if not self.indices:
+            raise ValueError(
+                "No indices to extract from quantity. Data would be empty.")
+
+        # Check if the indices are evenly spaced
+        self._slices: Tuple[Union[slice, EllipsisType], ...] = ()
+        stride: Optional[int] = None
+        if len(self.indices) == 1:
+            stride = 1
+        if len(self.indices) > 1 and all(e >= 0 for e in self.indices):
+            spacing = np.unique(np.diff(self.indices))
+            if spacing.size == 1:
+                stride = spacing[0]
+        if stride is not None:
+            slice_ = slice(self.indices[0], self.indices[-1] + 1, stride)
+            if axis is None:
+                self._slices = (slice_,)
+            elif axis > 0:
+                self._slices = (*((slice(None),) * axis), slice_)
+            else:
+                self._slices = (
+                    Ellipsis, slice_, *((slice(None),) * (- axis - 1)))
+
+        # Call base implementation
+        super(). __init__(env,
+                          parent,
+                          requirements={"data": quantity},
+                          auto_refresh=False)
+
+        # Keep track of the quantity from which data must be extracted
+        self.quantity = self.requirements["data"]
+
+    def initialize(self) -> None:
+        # Call base implementation
+        super().initialize()
+
+    def refresh(self) -> np.ndarray:
+        # Extract elements from quantity
+        if not self._slices:
+            # Note that `take` is faster than classical advanced indexing via
+            # `operator[]` (`__getitem__`) because the latter is more generic.
+            # Notably, `operator[]` supports boolean mask but `take` does not.
+            return self.data.take(self.indices, axis=self.axis)
+        if self.axis is None:
+            # `reshape` must be used instead of `flat` to get a view that can
+            # be sliced without copy.
+            return self.data.reshape((-1,))[self._slices]
+        return self.data[self._slices]

@@ -522,3 +522,38 @@ def quat_average(quat: np.ndarray,
     q_flat = q_perm.reshape((*q_perm.shape[:-len(axis)], -1))
     _, eigvec = np.linalg.eigh(q_flat @ np.swapaxes(q_flat, -1, -2))
     return np.moveaxis(eigvec[..., -1], -1, 0)
+
+
+@nb.jit(nopython=True, cache=True, fastmath=True)
+def quat_interpolate_middle(quat1: np.ndarray,
+                            quat2: np.ndarray,
+                            out: Optional[np.ndarray] = None) -> np.ndarray:
+    """Compute the midpoint interpolation between two batches of quaternions
+    [qx, qy, qz, qw].
+
+    The midpoint interpolation of two quaternion is defined as the integration
+    of half the difference between them, starting from the first one, ie
+    `q_mid = integrate(q1, 0.5 * difference(q1, d2))`, which is a special case
+    of the `slerp` method (spherical linear interpolation) for `alpha=0.5`.
+
+    For the midpoint in particular, one can show that the middle quaternion is
+    simply normalized sum of the previous and next quaternions.
+
+    :param quat1: First batch of quaternions as a N-dimensional array whose
+                  first dimension gathers the 4 quaternion coordinates.
+    :param quat2: Second batch of quaternions as a N-dimensional array.
+    :param out: A pre-allocated array into which the result is stored. If not
+                provided, a new array is freshly-allocated, which is slower.
+    """
+    assert quat1.ndim >= 1 and quat1.shape == quat2.shape
+    if out is None:
+        out_ = np.empty((4, *quat1.shape[1:]))
+    else:
+        assert out.shape == (4, *quat1.shape[1:])
+        out_ = out
+
+    dot = np.sum(quat1 * quat2, axis=0)
+    dot_ = dot if quat1.ndim == 1 else np.expand_dims(dot, axis=0)
+    out_[:] = (quat1 + np.sign(dot_) * quat2) / np.sqrt(2 * (1 + np.abs(dot_)))
+
+    return out_

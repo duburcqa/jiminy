@@ -1,8 +1,5 @@
 # pylint: disable=missing-module-docstring
 
-from .quantity import (QuantityCreator,
-                       SharedCache,
-                       AbstractQuantity)
 from .interfaces import (DT_EPS,
                          ObsT,
                          ActT,
@@ -14,6 +11,12 @@ from .interfaces import (DT_EPS,
                          InterfaceObserver,
                          InterfaceController,
                          InterfaceJiminyEnv)
+from .quantity import (QuantityCreator,
+                       SharedCache,
+                       AbstractQuantity)
+from .reward import (AbstractReward,
+                     BaseQuantityReward,
+                     RewardCreator)
 from .blocks import (BlockStateT,
                      InterfaceBlock,
                      BaseObserverBlock,
@@ -27,9 +30,6 @@ from .pipeline import (NestedObsT,
 
 
 __all__ = [
-    'QuantityCreator',
-    'SharedCache',
-    'AbstractQuantity',
     'DT_EPS',
     'ObsT',
     'NestedObsT',
@@ -40,10 +40,14 @@ __all__ = [
     'InfoType',
     'SensorMeasurementStackMap',
     'EngineObsType',
+    'SharedCache',
     'InterfaceObserver',
     'InterfaceController',
     'InterfaceJiminyEnv',
     'InterfaceBlock',
+    'AbstractQuantity',
+    'AbstractReward',
+    'BaseQuantityReward',
     'BaseObserverBlock',
     'BaseControllerBlock',
     'BasePipelineWrapper',
@@ -51,4 +55,6 @@ __all__ = [
     'BaseTransformAction',
     'ObservedJiminyEnv',
     'ControlledJiminyEnv',
+    'QuantityCreator',
+    'RewardCreator'
 ]
