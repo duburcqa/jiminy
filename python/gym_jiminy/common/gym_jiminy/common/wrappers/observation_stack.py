@@ -25,7 +25,7 @@ StackedObsT: TypeAlias = NestedObsT
 LOGGER = logging.getLogger(__name__)
 
 
-class StackedJiminyEnv(
+class StackObservation(
         BasePipelineWrapper[StackedObsT, ActT, NestedObsT, ActT],
         Generic[NestedObsT, ActT]):
     """Partially stack observations in a rolling manner.

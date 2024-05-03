@@ -78,7 +78,7 @@ class PipelineDesign(unittest.TestCase):
                     )
                 ), dict(
                     wrapper=dict(
-                        cls='gym_jiminy.common.wrappers.StackedJiminyEnv',
+                        cls='gym_jiminy.common.wrappers.StackObservation',
                         kwargs=dict(
                             nested_filter_keys=[
                                 ('t',),

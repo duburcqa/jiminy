@@ -64,7 +64,7 @@ class AdditiveMixtureReward(AbstractReward):
     def __init__(self,
                  env: InterfaceJiminyEnv,
                  name: str,
-                 rewards: Sequence[Tuple[float, RewardCreator]]) -> None:
+                 components: Sequence[Tuple[float, RewardCreator]]) -> None:
         """
         :param env: Base or wrapped jiminy environment.
         :param rewards: Sequence of pairs (weight, reward specification), where
@@ -81,7 +81,7 @@ class AdditiveMixtureReward(AbstractReward):
         self._weight_reward_pairs: Sequence[Tuple[float, AbstractReward]]
         self._weight_reward_pairs = tuple(
             (weight, reward_cls(self.env, **(reward_kwargs or {})))
-            for weight, (reward_cls, reward_kwargs) in rewards)
+            for weight, (reward_cls, reward_kwargs) in components)
 
         # Determine whether the cumulative reward is normalized
         weight_total = 0.0
@@ -136,7 +136,7 @@ class MultiplicativeMixtureReward(AbstractReward):
     def __init__(self,
                  env: InterfaceJiminyEnv,
                  name: str,
-                 rewards: Sequence[RewardCreator],
+                 components: Sequence[RewardCreator],
                  ) -> None:
         """
         :param env: Base or wrapped jiminy environment.
@@ -151,14 +151,14 @@ class MultiplicativeMixtureReward(AbstractReward):
         super().__init__(env)
 
         # Make sure that at least one reward component has been specified
-        if len(rewards) < 1:
+        if not components:
             raise ValueError(
                 "At least one reward component must be specified.")
 
         # List of instantiated reward components to aggregate
         self._rewards: Sequence[AbstractReward] = tuple(
             reward_cls(self.env, **(reward_kwargs or {}))
-            for reward_cls, reward_kwargs in rewards)
+            for reward_cls, reward_kwargs in components)
 
         # Determine whether the cumulative reward is normalized
         self._is_normalized = all(

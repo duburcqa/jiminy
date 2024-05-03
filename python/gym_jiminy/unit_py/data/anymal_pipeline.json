@@ -51,7 +51,7 @@
     },
     {
       "wrapper": {
-        "cls": "gym_jiminy.common.wrappers.StackedJiminyEnv",
+        "cls": "gym_jiminy.common.wrappers.StackObservation",
         "kwargs": {
           "nested_filter_keys": [
             ["t"],

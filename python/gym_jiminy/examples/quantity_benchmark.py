@@ -4,14 +4,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 import gymnasium as gym
 
-import gym_jiminy.common.bases.quantity
+import gym_jiminy.common.bases.quantities
 from gym_jiminy.common.quantities import QuantityManager, FrameEulerAngles
 
 # Define number of samples for benchmarking
 N_SAMPLES = 50000
 
 # Disable caching by forcing `SharedCache.has_value` to always return `False`
-setattr(gym_jiminy.common.bases.quantity.SharedCache,
+setattr(gym_jiminy.common.bases.quantities.SharedCache,
         "has_value",
         property(lambda self: False))
 

@@ -760,7 +760,7 @@ class BaseTransformObservation(
 
     .. note::
         This wrapper derives from `BasePipelineWrapper`, and such as, it is
-        considered as internal unlike `gym.Wrapper`. This means that it will be
+        considered internal unlike `gym.Wrapper`. This means that it will be
         taken into account calling `evaluate` or `play_interactive` on the
         wrapped environment.
     """
@@ -867,7 +867,7 @@ class BaseTransformAction(
 
     .. note::
         This wrapper derives from `BasePipelineWrapper`, and such as, it is
-        considered as internal unlike `gym.Wrapper`. This means that it will be
+        considered internal unlike `gym.Wrapper`. This means that it will be
         taken into account calling `evaluate` or `play_interactive` on the
         wrapped environment.
     """

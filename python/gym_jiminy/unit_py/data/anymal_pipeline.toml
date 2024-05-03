@@ -32,7 +32,7 @@ kp = 1.0
 ki = 0.1
 
 [[layers_config]]
-wrapper.cls = "gym_jiminy.common.wrappers.StackedJiminyEnv"
+wrapper.cls = "gym_jiminy.common.wrappers.StackObservation"
 [layers_config.wrapper.kwargs]
 nested_filter_keys = [
   ["t"],
