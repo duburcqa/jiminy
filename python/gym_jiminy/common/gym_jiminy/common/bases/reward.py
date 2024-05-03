@@ -128,6 +128,9 @@ class BaseQuantityReward(AbstractReward):
         # Add quantity to the set of quantities managed by the environment
         self.env.quantities[self.name] = quantity
 
+        # Keep track of the underlying quantity
+        self.quantity = self.env.quantities.registry[self.name]
+
     @property
     def name(self) -> str:
         """Name uniquely identifying every reward. It will be used to add the

@@ -7,8 +7,9 @@ from collections import deque
 from functools import partial
 from dataclasses import dataclass
 from typing import (
-    List, Dict, Set, Optional, Protocol, Sequence, Tuple, TypeVar, Union,
+    List, Dict, Set, Any, Optional, Protocol, Sequence, Tuple, TypeVar, Union,
     runtime_checkable)
+from typing_extensions import TypeAlias
 
 import numpy as np
 
@@ -17,8 +18,12 @@ from jiminy_py.core import (  # pylint: disable=no-name-in-module
 import pinocchio as pin
 
 from ..bases import InterfaceJiminyEnv, AbstractQuantity, QuantityCreator
-from ..utils import fill, matrix_to_rpy, matrix_to_quat
+from ..utils import (
+    fill, matrix_to_rpy, matrix_to_quat, quat_to_matrix,
+    quat_interpolate_middle)
 
+
+EllipsisType: TypeAlias = Any  # TODO: `EllipsisType` introduced in Python 3.10
 
 ValueT = TypeVar('ValueT')
 
@@ -515,12 +520,19 @@ class AverageFrameSpatialVelocity(AbstractQuantity[np.ndarray]):
 
     The average spatial velocity is obtained by finite difference. More
     precisely, it is defined here as the ratio of the geodesic distance in SE3
-    Lie  group between the pose of the frame at the end of previous and current
+    Lie Group between the pose of the frame at the end of previous and current
     step over the time difference between them. Notably, under this definition,
     the linear average velocity jointly depends on rate of change of the
     translation and rotation of the frame, which may be undesirable in some
     cases. Alternatively, the double geodesic distance could be used instead to
     completely decouple the translation from the rotation.
+
+    .. note::
+        The local frame for which the velocity is expressed is defined as the
+        midpoint interpolation between the previous and current frame pose.
+        This definition is arbitrary, in a sense that any other point for an
+        interpolation ratio going from 0.0 (previous pose) to 1.0 (current
+        pose) would be equally valid.
     """
 
     frame_name: str
@@ -574,8 +586,9 @@ class AverageFrameSpatialVelocity(AbstractQuantity[np.ndarray]):
         # Inverse step size
         self._inv_step_dt = 0.0
 
-        # Define proxy to the current frame pose (translation, rotation matrix)
-        self._rot_mat = np.eye(3)
+        # Allocate memory for the average quaternion and rotation matrix
+        self._quat_mean = np.zeros(4)
+        self._rot_mat_mean = np.eye(3)
 
         # Pre-allocate memory for the spatial velocity
         self._v_spatial: np.ndarray = np.zeros(6)
@@ -589,11 +602,6 @@ class AverageFrameSpatialVelocity(AbstractQuantity[np.ndarray]):
 
         # Compute inverse step size
         self._inv_step_dt = 1.0 / self.env.step_dt
-
-        # Refresh proxy to current frame pose
-        frame_index = self.pinocchio_model.getFrameId(self.frame_name)
-        transform = self.pinocchio_data.oMf[frame_index]
-        self._rot_mat = transform.rotation
 
         # Re-initialize pre-allocated buffers
         fill(self._v_spatial, 0)
@@ -612,8 +620,17 @@ class AverageFrameSpatialVelocity(AbstractQuantity[np.ndarray]):
 
         # Translate local velocity to world frame
         if self.reference_frame == pin.LOCAL_WORLD_ALIGNED:
+            # Define world frame as the "middle" between prev and next pose.
+            # The orientation difference has an effect on the translation
+            # difference, but not the other way around. Here, we only care
+            # about the middle rotation, so we can consider SO3 Lie Group
+            # algebra instead of SE3.
+            quat_interpolate_middle(
+                xyzquat_prev[-4:], xyzquat[-4:], self._quat_mean)
+            quat_to_matrix(self._quat_mean, self._rot_mat_mean)
+
             # TODO: x2 speedup can be expected using `np.dot` with  `nb.jit`
-            self._v_lin_ang[:] = self._rot_mat @ self._v_lin_ang
+            self._v_lin_ang[:] = self._rot_mat_mean @ self._v_lin_ang
 
         return self._v_spatial
 
@@ -624,14 +641,16 @@ class MaskedQuantity(AbstractQuantity[np.ndarray]):
     array along an axis.
 
     Elements will be extract by copy unless the indices of the elements to
-    extract to be written equivalently by a slice, ie they are evenly spaced.
+    extract to be written equivalently by a slice (ie they are evenly spaced),
+    and the array can be flattened while preserving memory contiguity if 'axis'
+    is `None`.
     """
 
     quantity: AbstractQuantity
     """Base quantity whose elements must be extracted.
     """
 
-    indices: Tuple[int]
+    indices: Tuple[int, ...]
     """Indices of the elements to extract.
     """
 
@@ -643,7 +662,7 @@ class MaskedQuantity(AbstractQuantity[np.ndarray]):
                  env: InterfaceJiminyEnv,
                  parent: Optional[AbstractQuantity],
                  quantity: QuantityCreator[np.ndarray],
-                 key: Union[Sequence[int], Sequence[bool], slice],
+                 key: Union[Sequence[int], Sequence[bool]],
                  axis: Optional[int] = None
                  ) -> None:
         """
@@ -653,17 +672,15 @@ class MaskedQuantity(AbstractQuantity[np.ndarray]):
         :param quantity: Tuple gathering the class of the quantity whose values
                          must be extracted, plus all its constructor keyword-
                          arguments except environment 'env' and parent 'parent.
-        :param key: Sequence of indices, boolean mask, or slice that will be
-                    used to extract elements from the quantity along one axis.
+        :param key: Sequence of indices or boolean mask that will be used to
+                    extract elements from the quantity along one axis.
         :param axis: Axis over which to extract elements. `None` to consider
                      flattened array.
                      Optional: `None` by default.
         """
-        # Check if a slice, indices or a mask has been provided
-        if key is slice:
-            pass
-        elif all(isinstance(e, bool) for e in key):
-            key, _ = np.nonzero(key)
+        # Check if indices or boolean mask has been provided
+        if all(isinstance(e, bool) for e in key):
+            key = tuple(np.flatnonzero(key))
         elif not all(isinstance(e, int) for e in key):
             raise ValueError(
                 "Argument 'key' invalid. It must either be a "
@@ -679,19 +696,23 @@ class MaskedQuantity(AbstractQuantity[np.ndarray]):
                 "No indices to extract from quantity. Data would be empty.")
 
         # Check if the indices are evenly spaced
-        self._slices: Optional[slice] = None
+        self._slices: Tuple[Union[slice, EllipsisType], ...] = ()
+        stride: Optional[int] = None
         if len(self.indices) == 1:
             stride = 1
-        if len(self.indices) > 1:
+        if len(self.indices) > 1 and all(e >= 0 for e in self.indices):
             spacing = np.unique(np.diff(self.indices))
-            stride = stride[0] if spacing.size == 1 else None
+            if spacing.size == 1:
+                stride = spacing[0]
         if stride is not None:
             slice_ = slice(self.indices[0], self.indices[-1] + 1, stride)
-            if axis > 0:
-                self._slices = (slice(None),) * axis + (slice_,)
+            if axis is None:
+                self._slices = (slice_,)
+            elif axis > 0:
+                self._slices = (*((slice(None),) * axis), slice_)
             else:
                 self._slices = (
-                    Ellipsis, slice_) + (slice(None),) * (- axis - 1)
+                    Ellipsis, slice_, *((slice(None),) * (- axis - 1)))
 
         # Call base implementation
         super(). __init__(env,
@@ -708,9 +729,13 @@ class MaskedQuantity(AbstractQuantity[np.ndarray]):
 
     def refresh(self) -> np.ndarray:
         # Extract elements from quantity
-        if self._slices is None:
+        if not self._slices:
             # Note that `take` is faster than classical advanced indexing via
             # `operator[]` (`__getitem__`) because the latter is more generic.
             # Notably, `operator[]` supports boolean mask but `take` does not.
             return self.data.take(self.indices, axis=self.axis)
+        if self.axis is None:
+            # `reshape` must be used instead of `flat` to get a view that can
+            # be sliced without copy.
+            return self.data.reshape((-1,))[self._slices]
         return self.data[self._slices]

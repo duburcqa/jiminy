@@ -9,6 +9,44 @@ import pinocchio as pin
 from ..bases import InterfaceJiminyEnv, AbstractQuantity
 from ..utils import fill
 
+from ..quantities import MaskedQuantity, AverageFrameSpatialVelocity
+
+
+@dataclass(unsafe_hash=True)
+class AverageOdometryVelocity(AbstractQuantity[np.ndarray]):
+    """Average odometry velocity in local-world-aligned frame at the end of the
+    agent step.
+
+    The odometry pose fully specifies the position of the robot in 2D world
+    plane. As such, it comprises the linear translation (X, Y) and the angular
+    velocity around Z axis (namely rate of change of Yaw Euler angle). The
+    average spatial velocity is obtained by finite difference. See
+    `AverageFrameSpatialVelocity` documentation for details.
+    """
+
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 parent: Optional[AbstractQuantity]) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param parent: Higher-level quantity from which this quantity is a
+                       requirement if any, `None` otherwise.
+        """
+        # Call base implementation
+        super().__init__(
+            env,
+            parent,
+            requirements=dict(
+                data=(MaskedQuantity, dict(
+                    quantity=(AverageFrameSpatialVelocity, dict(
+                        frame_name="root_joint",
+                        reference_frame=pin.LOCAL_WORLD_ALIGNED)),
+                    key=(0, 1, 5)))),
+            auto_refresh=False)
+
+    def refresh(self) -> np.ndarray:
+        return self.data
+
 
 @dataclass(unsafe_hash=True)
 class CenterOfMass(AbstractQuantity[np.ndarray]):

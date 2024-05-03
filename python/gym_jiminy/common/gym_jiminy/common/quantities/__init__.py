@@ -6,7 +6,9 @@ from .generic import (FrameEulerAngles,
                       StackedQuantity,
                       AverageFrameSpatialVelocity,
                       MaskedQuantity)
-from .locomotion import CenterOfMass, ZeroMomentPoint
+from .locomotion import (AverageOdometryVelocity,
+                         CenterOfMass,
+                         ZeroMomentPoint)
 
 
 __all__ = [
@@ -16,6 +18,7 @@ __all__ = [
     'StackedQuantity',
     'AverageFrameSpatialVelocity',
     'MaskedQuantity',
+    'AverageOdometryVelocity',
     'CenterOfMass',
     'ZeroMomentPoint',
 ]
