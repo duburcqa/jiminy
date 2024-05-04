@@ -107,19 +107,37 @@ for name in dir(core):  # type: ignore[name-defined]
 
 # Define helpers to build extension modules
 def get_cmake_module_path() -> str:
-    """ TODO: Write documentation.
+    """Get Jiminy Core cmake module path.
+
+    One must add this path to CMake search path for `find_package` to be able
+    to detect Jiminy core install.
+
+    include it when building C++ extension modules if Jiminy has
+    been installed via `pip`.
     """
     return _os.path.join(_os.path.dirname(__file__), "cmake")
 
 
 def get_include() -> str:
-    """ TODO: Write documentation.
+    """Get Jiminy Core include directory.
+
+    One must include it when building C++ extension modules if Jiminy has been
+    installed via `pip`. This can be done automatically when CMake build system
+    is used. All it requires is importing Jiminy C++ API via `find_package`,
+    then declaring `jiminy::core` imported target as target link library of the
+    extension module using `target_link_libraries`.
     """
     return _os.path.join(_os.path.dirname(__file__), "include")
 
 
 def get_libraries() -> str:
-    """ TODO: Write documentation.
+    """List all Jiminy Core shared libraries.
+
+    One must include it when building C++ extension modules if Jiminy has been
+    installed via `pip`. This can be done automatically when CMake build system
+    is used. All it requires is importing Jiminy C++ API via `find_package`,
+    then declaring `jiminy::core` imported target as target link library of the
+    extension module using `target_link_libraries`.
     """
     ver_short = '.'.join(__version__.split('.')[:2])
     lib_dir = _os.path.join(_os.path.dirname(__file__), "lib")

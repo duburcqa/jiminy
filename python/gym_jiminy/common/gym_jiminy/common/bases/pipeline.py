@@ -758,7 +758,7 @@ class BaseTransformObservation(
     .. note::
         This wrapper derives from `BasePipelineWrapper`, and such as, it is
         considered internal unlike `gym.Wrapper`. This means that it will be
-        taken into account calling `evaluate` or `play_interactive` on the
+        taken into account when calling `evaluate` or `play_interactive` on the
         wrapped environment.
     """
     def __init__(self, env: InterfaceJiminyEnv[ObsT, ActT]) -> None:
@@ -865,7 +865,7 @@ class BaseTransformAction(
     .. note::
         This wrapper derives from `BasePipelineWrapper`, and such as, it is
         considered internal unlike `gym.Wrapper`. This means that it will be
-        taken into account calling `evaluate` or `play_interactive` on the
+        taken into account when calling `evaluate` or `play_interactive` on the
         wrapped environment.
     """
     def __init__(self, env: InterfaceJiminyEnv[ObsT, ActT]) -> None:

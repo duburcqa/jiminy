@@ -229,7 +229,9 @@ class BaseQuantityReward(AbstractReward):
         return self._is_normalized
 
     def compute(self, terminated: bool, info: InfoType) -> Optional[float]:
-        """Compute the reward no matter if the current state is terminal.
+        """Compute the reward if necessary depending on whether the reward and
+        state are terminal. If so, then first evaluate the underlying quantity,
+        next apply post-processing if requested.
 
         .. warning::
             This method is not meant to be overloaded.

@@ -9,7 +9,8 @@ from typing import Sequence, Optional
 import numpy as np
 import numba as nb
 
-from ..bases import AbstractReward, BaseMixtureReward
+from ..bases import (
+    InfoType, InterfaceJiminyEnv, AbstractReward, BaseMixtureReward)
 
 
 # Reward value at cutoff threshold
@@ -185,3 +186,29 @@ AdditiveMixtureReward.is_normalized.__doc__ = \
     The cumulative reward is considered normalized if all its individual
     reward components are normalized.
     """
+
+
+class SurviveReward(AbstractReward):
+    """Constant positive reward equal to 1.0 systematically, unless the current
+    state of the environment is the terminal state. In which case, the value
+    0.0 is returned instead.
+    """
+
+    def __init__(self, env: InterfaceJiminyEnv) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        """
+        super().__init__(env, "reward_survive")
+
+    @property
+    def is_terminal(self) -> Optional[bool]:
+        return False
+
+    @property
+    def is_normalized(self) -> bool:
+        return True
+
+    def compute(self, terminated: bool, info: InfoType) -> Optional[float]:
+        """Return a constant positive reward equal to 1.0 no matter what.
+        """
+        return 1.0

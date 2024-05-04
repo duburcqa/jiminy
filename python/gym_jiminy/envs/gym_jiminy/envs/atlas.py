@@ -1,3 +1,5 @@
+""" TODO: Write documentation.
+"""
 import os
 import sys
 from pathlib import Path
