@@ -116,7 +116,7 @@ make install -j2
 
 ### Prerequisites
 
-You have to preinstall by yourself the (free) MSVC 2019 toolchain.
+You have to preinstall by yourself the (free) MSVC 2019+ toolchain.
 
 Then, install `setuptools`, `wheel` and `numpy`.
 

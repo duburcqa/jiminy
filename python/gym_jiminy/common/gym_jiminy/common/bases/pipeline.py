@@ -254,10 +254,7 @@ class BasePipelineWrapper(
         # user keeps doing more steps nonetheless.
         reward = float(reward)
         if not math.isnan(reward):
-            try:
-                reward += self.compute_reward(terminated, info)
-            except NotImplementedError:
-                pass
+            reward += self.compute_reward(terminated, info)
 
         return obs, reward, terminated, truncated, info
 

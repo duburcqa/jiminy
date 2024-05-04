@@ -16,7 +16,7 @@ from .quantities import (QuantityCreator,
                          AbstractQuantity)
 from .reward import (AbstractReward,
                      BaseQuantityReward,
-                     RewardCreator)
+                     BaseMixtureReward)
 from .blocks import (BlockStateT,
                      InterfaceBlock,
                      BaseObserverBlock,
@@ -48,6 +48,7 @@ __all__ = [
     'AbstractQuantity',
     'AbstractReward',
     'BaseQuantityReward',
+    'BaseMixtureReward',
     'BaseObserverBlock',
     'BaseControllerBlock',
     'BasePipelineWrapper',
@@ -55,6 +56,5 @@ __all__ = [
     'BaseTransformAction',
     'ObservedJiminyEnv',
     'ControlledJiminyEnv',
-    'QuantityCreator',
-    'RewardCreator'
+    'QuantityCreator'
 ]

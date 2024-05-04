@@ -139,21 +139,18 @@ class InterfaceController(ABC, Generic[ActT, BaseActT]):
                        terminated: bool,  # pylint: disable=unused-argument
                        info: InfoType  # pylint: disable=unused-argument
                        ) -> float:
-        """Compute the reward related to a specific control block.
+        """Compute the reward related to a specific control block, plus extra
+        information that may be helpful for monitoring or debugging purposes.
 
         For the corresponding MDP to be stationary, the computation of the
         reward is supposed to involve only the transition from previous to
         current state of the simulation (possibly comprising multiple agents)
         under the ongoing action.
 
-        By default, it returns 0.0 no matter what. It is up to the user to
-        provide a dedicated reward function whenever appropriate.
-
-        .. warning::
-            Only returning an aggregated scalar reward is supported. Yet, it is
-            possible to update 'info' by reference if one wants for keeping
-            track of individual reward components or any kind of extra info
-            that may be helpful for monitoring or debugging purposes.
+        By default, it returns 0.0 without extra information no matter what.
+        The user is expected to provide an appropriate reward on its own,
+        either by overloading this method or by wrapping the environment with
+        `ComposeReward` for modular environment pipeline design.
 
         :param terminated: Whether the episode has reached the terminal state
                            of the MDP at the current step. This flag can be
