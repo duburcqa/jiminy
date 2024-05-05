@@ -14,9 +14,10 @@ from .interfaces import (DT_EPS,
 from .quantities import (QuantityCreator,
                          SharedCache,
                          AbstractQuantity)
-from .reward import (AbstractReward,
-                     BaseQuantityReward,
-                     BaseMixtureReward)
+from .compositions import (AbstractReward,
+                           BaseQuantityReward,
+                           BaseMixtureReward,
+                           ComposedJiminyEnv)
 from .blocks import (BlockStateT,
                      InterfaceBlock,
                      BaseObserverBlock,

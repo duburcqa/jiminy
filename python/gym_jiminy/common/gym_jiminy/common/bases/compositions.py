@@ -4,11 +4,13 @@ Defining rewards this way allows for standardization of usual metrics. Overall,
 it greatly reduces code duplication and bugs.
 """
 from abc import ABC, abstractmethod
-from typing import Sequence, Callable, Optional, Tuple, TypeVar
+from typing import Sequence, Callable, Optional, Tuple, TypeVar, Generic
 
 import numpy as np
 
-from ..bases import InterfaceJiminyEnv, QuantityCreator, InfoType
+from .interfaces import ObsT, ActT, InfoType, EngineObsType, InterfaceJiminyEnv
+from .quantities import QuantityCreator
+from .pipeline import BasePipelineWrapper
 
 
 ValueT = TypeVar('ValueT')
@@ -271,20 +273,21 @@ class BaseMixtureReward(AbstractReward):
     single one.
     """
 
-    rewards: Tuple[AbstractReward, ...]
+    components: Tuple[AbstractReward, ...]
     """List of all the reward components that must be aggregated together.
     """
 
     def __init__(self,
+                 env: InterfaceJiminyEnv,
                  name: str,
-                 rewards: Sequence[AbstractReward],
+                 components: Sequence[AbstractReward],
                  reduce_fn: Callable[
                     [Sequence[Optional[float]]], Optional[float]],
                  is_normalized: bool) -> None:
         """
         :param env: Base or wrapped jiminy environment.
         :param name: Desired name of the total reward.
-        :param rewards: Sequence of reward components to aggregate.
+        :param components: Sequence of reward components to aggregate.
         :param reduce_fn: Transform function responsible for aggregating all
                           the reward components that were evaluated. Typical
                           examples are cumulative product and weighted sum.
@@ -292,19 +295,18 @@ class BaseMixtureReward(AbstractReward):
                               after applying reduction function `reduce_fn`.
         """
         # Make sure that at least one reward component has been specified
-        if not rewards:
+        if not components:
             raise ValueError(
                 "At least one reward component must be specified.")
 
         # Make sure that all reward components share the same environment
-        env = rewards[0].env
-        for reward in rewards[1:]:
+        for reward in components:
             if env is not reward.env:
                 raise ValueError(
                     "All reward components must share the same environment.")
 
         # Backup some user argument(s)
-        self.rewards = tuple(rewards)
+        self.components = tuple(components)
         self._reduce_fn = reduce_fn
         self._is_normalized = is_normalized
 
@@ -312,7 +314,7 @@ class BaseMixtureReward(AbstractReward):
         super().__init__(env, name)
 
         # Determine whether the reward mixture is terminal
-        is_terminal = {reward.is_terminal for reward in self.rewards}
+        is_terminal = {reward.is_terminal for reward in self.components}
         self._is_terminal: Optional[bool] = None
         if len(is_terminal) == 1:
             self._is_terminal = next(iter(is_terminal))
@@ -335,9 +337,13 @@ class BaseMixtureReward(AbstractReward):
         """Evaluate each individual reward component for the current state of
         the environment, then aggregate them in one.
         """
+        # Early return depending on whether the reward and state are terminal
+        if self.is_terminal is not None and self.is_terminal ^ terminated:
+            return None
+
         # Compute all reward components
         values = []
-        for reward in self.rewards:
+        for reward in self.components:
             # Evaluate reward
             reward_info: InfoType = {}
             value: Optional[float] = reward(terminated, reward_info)
@@ -354,3 +360,75 @@ class BaseMixtureReward(AbstractReward):
         reward_total = self._reduce_fn(values)
 
         return reward_total
+
+
+class ComposedJiminyEnv(
+        BasePipelineWrapper[ObsT, ActT, ObsT, ActT],
+        Generic[ObsT, ActT]):
+    """Plug ad-hoc reward components and termination conditions to the
+    wrapped environment.
+
+    .. note::
+        This wrapper derives from `BasePipelineWrapper`, and such as, it is
+        considered as internal unlike `gym.Wrapper`. This means that it will be
+        taken into account when calling `evaluate` or `play_interactive` on the
+        wrapped environment.
+    """
+    def __init__(self,
+                 env: InterfaceJiminyEnv[ObsT, ActT],
+                 *,
+                 reward: AbstractReward) -> None:
+        # Make sure that the reward is linked to this environment
+        assert env is reward.env
+
+        # Backup user argument(s)
+        self.reward = reward
+
+        # Initialize base class
+        super().__init__(env)
+
+        # Bind observation and action of the base environment
+        assert self.observation_space.contains(self.env.observation)
+        assert self.action_space.contains(self.env.action)
+        self.observation = self.env.observation
+        self.action = self.env.action
+
+    def _initialize_action_space(self) -> None:
+        """Configure the action space.
+
+        It simply copy the action space of the wrapped environment.
+        """
+        self.action_space = self.env.action_space
+
+    def _initialize_observation_space(self) -> None:
+        """Configure the observation space.
+
+        It simply copy the observation space of the wrapped environment.
+        """
+        self.observation_space = self.env.observation_space
+
+    def refresh_observation(self, measurement: EngineObsType) -> None:
+        """Compute high-level features based on the current wrapped
+        environment's observation.
+
+        It simply forwards the observation computed by the wrapped environment
+        without any processing.
+
+        :param measurement: Low-level measure from the environment to process
+                            to get higher-level observation.
+        """
+        self.env.refresh_observation(measurement)
+
+    def compute_command(self, action: ActT, command: np.ndarray) -> None:
+        """Compute the motors efforts to apply on the robot.
+
+        It simply forwards the command computed by the wrapped environment
+        without any processing.
+
+        :param action: High-level target to achieve by means of the command.
+        :param command: Lower-level command to updated in-place.
+        """
+        self.env.compute_command(action, command)
+
+    def compute_reward(self, terminated: bool, info: InfoType) -> float:
+        return self.reward(terminated, info)

@@ -364,8 +364,9 @@ class ObservedJiminyEnv(
 
         # Make sure that the environment is either some `ObservedJiminyEnv` or
         # `ControlledJiminyEnv` block, or the base environment directly.
-        if isinstance(env, BasePipelineWrapper) and not isinstance(
-                env, (ObservedJiminyEnv, ControlledJiminyEnv)):
+        from gym_jiminy.common.bases.compositions import ComposedJiminyEnv
+        if isinstance(env, BasePipelineWrapper) and not isinstance(env, (
+                ObservedJiminyEnv, ControlledJiminyEnv, ComposedJiminyEnv)):
             raise TypeError(
                 "Observers can only be added on top of another observer, "
                 "controller, or a base environment itself.")
@@ -586,8 +587,9 @@ class ControlledJiminyEnv(
 
         # Make sure that the environment is either some `ObservedJiminyEnv` or
         # `ControlledJiminyEnv` block, or the base environment directly.
-        if isinstance(env, BasePipelineWrapper) and not isinstance(
-                env, (ObservedJiminyEnv, ControlledJiminyEnv)):
+        from gym_jiminy.common.bases.compositions import ComposedJiminyEnv
+        if isinstance(env, BasePipelineWrapper) and not isinstance(env, (
+                ObservedJiminyEnv, ControlledJiminyEnv, ComposedJiminyEnv)):
             raise TypeError(
                 "Controllers can only be added on top of another observer, "
                 "controller, or a base environment itself.")

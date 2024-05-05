@@ -23,73 +23,113 @@ from ..bases import (InterfaceJiminyEnv,
                      BaseObserverBlock,
                      BasePipelineWrapper,
                      ObservedJiminyEnv,
-                     ControlledJiminyEnv)
+                     ControlledJiminyEnv,
+                     ComposedJiminyEnv,
+                     AbstractReward,
+                     BaseQuantityReward,
+                     BaseMixtureReward)
 from ..envs import BaseJiminyEnv
 
 
+class RewardConfig(TypedDict, total=False):
+    """ TODO: Write documentation.
+    """
+
+    cls: Union[Type[AbstractReward], str]
+    """Reward class type.
+
+    .. note::
+        Both class type or fully qualified dotted path are supported.
+    """
+
+    kwargs: Dict[str, Any]
+    """Environment constructor default arguments.
+
+    This attribute can be omitted.
+    """
+
+
 class EnvConfig(TypedDict, total=False):
+    """ TODO: Write documentation.
+    """
+
+    cls: Union[Type[BaseJiminyEnv], str]
     """Environment class type.
 
     .. note::
         Both class type or fully qualified dotted path are supported.
     """
-    cls: Union[Type[BaseJiminyEnv], str]
 
+    kwargs: Dict[str, Any]
     """Environment constructor default arguments.
 
     This attribute can be omitted.
     """
-    kwargs: Dict[str, Any]
+
+    reward: RewardConfig
+    """Reward configuration.
+
+    This attribute can be omitted.
+    """
 
 
 class BlockConfig(TypedDict, total=False):
+    """ TODO: Write documentation.
+    """
+
+    cls: Union[Type[BaseControllerBlock], Type[BaseObserverBlock], str]
     """Block class type. If must derive from `BaseControllerBlock` for
     controller blocks or from `BaseObserverBlock` for observer blocks.
 
     .. note::
         Both class type or fully qualified dotted path are supported.
     """
-    cls: Union[Type[BaseControllerBlock], Type[BaseObserverBlock], str]
 
+    kwargs: Dict[str, Any]
     """Block constructor default arguments.
 
     This attribute can be omitted.
     """
-    kwargs: Dict[str, Any]
 
 
 class WrapperConfig(TypedDict, total=False):
+    """ TODO: Write documentation.
+    """
+
+    cls: Union[Type[BasePipelineWrapper], str]
     """Wrapper class type.
 
     .. note::
         Both class type or fully qualified dotted path are supported.
     """
-    cls: Union[Type[BasePipelineWrapper], str]
 
+    kwargs: Dict[str, Any]
     """Wrapper constructor default arguments.
 
     This attribute can be omitted.
     """
-    kwargs: Dict[str, Any]
 
 
 class LayerConfig(TypedDict, total=False):
-    """Block constructor default arguments.
+    """ TODO: Write documentation.
+    """
+
+    block: BlockConfig
+    """Block configuration.
 
     This attribute can be omitted. If so, then 'wrapper_cls' must be
     specified and must not require any block. Typically, it happens when the
     wrapper is not doing any computation on its own but just transforming the
     action or observation, e.g. stacking observation frames.
     """
-    block: Optional[BlockConfig]
 
+    wrapper: WrapperConfig
     """Wrapper configuration.
 
     This attribute can be omitted. If so, then 'block' must be specified and
     must this block must be associated with a unique wrapper type to allow for
     automatic type inference. It works with any observer and controller block.
     """
-    wrapper: WrapperConfig
 
 
 def build_pipeline(env_config: EnvConfig,
@@ -107,6 +147,88 @@ def build_pipeline(env_config: EnvConfig,
         lowest level layer to the highest, each element corresponding to the
         configuration of a individual layer, as a dict of type `LayerConfig`.
     """
+    # Define helper to sanitize reward configuration
+    def sanitize_reward_config(reward_config: RewardConfig):
+        """Sanitize reward configuration in-place.
+
+        :param reward_config: Configuration of the reward, as a dict of type
+                              `RewardConfig`.
+        """
+        # Get reward class type
+        cls = reward_config["cls"]
+        if isinstance(cls, str):
+            obj = locate(cls)
+            assert (isinstance(obj, type) and
+                    issubclass(obj, AbstractReward))
+            reward_config["cls"] = obj
+
+        # Get reward constructor keyword-arguments
+        kwargs = reward_config.get("kwargs", {})
+
+        # Special handling for `BaseMixtureReward`
+        if issubclass(cls, BaseMixtureReward):
+            for reward_config in kwargs["components"]:
+                sanitize_reward_config(reward_config)
+
+    # Define helper to build the reward
+    def build_reward(env: InterfaceJiminyEnv,
+                     reward_config: RewardConfig) -> AbstractReward:
+        """Instantiate a reward associated with a given environment provided
+        some reward configuration.
+
+        :param env: Base environment or pipeline wrapper to wrap.
+        :param reward_config: Configuration of the reward, as a dict of type
+                              `RewardConfig`.
+        """
+        # Get reward class type
+        cls = reward_config["cls"]
+        assert (isinstance(obj, type) and
+                issubclass(obj, AbstractReward))
+
+        # Get reward constructor keyword-arguments
+        kwargs = reward_config.get("kwargs", {})
+
+        # Special handling for `BaseMixtureReward`
+        if issubclass(cls, BaseMixtureReward):
+            kwargs["components"] = tuple(
+                build_reward(env, reward_config)
+                for reward_config in kwargs["components"])
+
+        # Special handling for `BaseQuantityReward`
+        if cls is BaseQuantityReward:
+            quantity_config = kwargs["quantity"]
+            kwargs["quantity"] = (
+                quantity_config["cls"], quantity_config["kwargs"])
+
+        return cls(env, **kwargs)
+
+    # Define helper to build reward
+    def build_composition(env_creator: Callable[..., InterfaceJiminyEnv],
+                          reward_config: RewardConfig,
+                          **env_kwargs: Any) -> BasePipelineWrapper:
+        """Helper adding reward on top of a base environment or a pipeline
+        using `ComposedJiminyEnv` wrapper.
+
+        :param env_creator: Callable that takes optional keyword arguments as
+                            input and returns an pipeline or base environment.
+        :param reward_config: Configuration of the reward, as a dict of type
+                              `RewardConfig`.
+        :param env_kwargs: Keyword arguments to forward to the constructor of
+                           the wrapped environment. Note that it will only
+                           overwrite the default value, so it will still be
+                           possible to set different values by explicitly
+                           defining them when calling the constructor of the
+                           generated wrapper.
+        """
+        # Instantiate the environment, which may be a lower-level wrapper
+        env = env_creator(**env_kwargs)
+
+        # Instantiate the reward
+        reward = build_reward(env, reward_config)
+
+        # Instantiate the wrapper
+        return ComposedJiminyEnv(env, reward)
+
     # Define helper to wrap a single layer
     def build_layer(env_creator: Callable[..., InterfaceJiminyEnv],
                     wrapper_cls: Type[BasePipelineWrapper],
@@ -120,15 +242,15 @@ def build_pipeline(env_config: EnvConfig,
 
         :param env_creator: Callable that takes optional keyword arguments as
                             input and returns an pipeline or base environment.
+        :param wrapper_cls: Type of wrapper to use to gather the environment
+                              and the block.
+        :param wrapper_kwargs: Keyword arguments to forward to the constructor
+                               of the wrapper. See 'env_kwargs'.
         :param block_cls: Type of block to connect to the environment, if
                             any. `None` to disable.
                             Optional: Disabled by default
         :param block_kwargs: Keyword arguments to forward to the constructor of
                              the wrapped block. See 'env_kwargs'.
-        :param wrapper_cls: Type of wrapper to use to gather the environment
-                              and the block.
-        :param wrapper_kwargs: Keyword arguments to forward to the constructor
-                               of the wrapper. See 'env_kwargs'.
         :param env_kwargs: Keyword arguments to forward to the constructor of
                            the wrapped environment. Note that it will only
                            overwrite the default value, so it will still be
@@ -170,14 +292,21 @@ def build_pipeline(env_config: EnvConfig,
         # Instantiate the wrapper
         return wrapper_cls(*args, **wrapper_kwargs)
 
-    # Define callback for instantiating the base environment
-    env_cls: Union[Type[InterfaceJiminyEnv], str] = env_config["cls"]
+    # Define callable for instantiating the base environment
+    env_cls = env_config["cls"]
     if isinstance(env_cls, str):
         obj = locate(env_cls)
-        assert isinstance(obj, type) and issubclass(obj, InterfaceJiminyEnv)
+        assert isinstance(obj, type) and issubclass(obj, BaseJiminyEnv)
         env_cls = obj
     pipeline_creator: Callable[..., InterfaceJiminyEnv] = partial(
         env_cls, **env_config.get("kwargs", {}))
+
+    # Compose base environment with an extra user-specified reward if any
+    reward_config = env_config.get("reward")
+    if reward_config is not None:
+        pipeline_creator = partial(build_composition,
+                                   pipeline_creator,
+                                   sanitize_reward_config(reward_config))
 
     # Generate pipeline recursively
     for layer_config in layers_config:
