@@ -629,7 +629,7 @@ class AverageFrameSpatialVelocity(AbstractQuantity[np.ndarray]):
                 xyzquat_prev[-4:], xyzquat[-4:], self._quat_mean)
             quat_to_matrix(self._quat_mean, self._rot_mat_mean)
 
-            # TODO: x2 speedup can be expected using `np.dot` with  `nb.jit`
+            # TODO: x2 speedup can be expected using `np.dot` with `nb.jit`
             self._v_lin_ang[:] = self._rot_mat_mean @ self._v_lin_ang
 
         return self._v_spatial

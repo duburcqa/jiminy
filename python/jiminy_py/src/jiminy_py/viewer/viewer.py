@@ -319,12 +319,13 @@ class _ProcessWrapper:
         self.kill()
 
     def is_parent(self) -> bool:
-        """ TODO: Write documentation.
+        """Whether the wrapped process is a child of the main python process.
         """
         return not isinstance(self._proc, Process)
 
     def is_alive(self) -> bool:
-        """ TODO: Write documentation.
+        """Whether the wrapped process is running or idle, but not terminated
+        nor a zombie yet.
         """
         if isinstance(self._proc, ProcessMP):
             return self._proc.is_alive()
@@ -333,15 +334,16 @@ class _ProcessWrapper:
         if isinstance(self._proc, Process):
             import psutil  # pylint: disable=import-outside-toplevel
             try:
-                return self._proc.status() in [
-                    psutil.STATUS_RUNNING, psutil.STATUS_SLEEPING]
+                return self._proc.status() in (
+                    psutil.STATUS_RUNNING, psutil.STATUS_SLEEPING)
             except psutil.NoSuchProcess:
                 return False
         # if isinstance(self._proc, Panda3dApp):
         return hasattr(self._proc, 'win')
 
-    def wait(self, timeout: Optional[float] = None) -> None:
-        """ TODO: Write documentation.
+    def wait(self, timeout: float) -> None:
+        """Wait until the wrapped process finish what its current task or
+        timeout is reached.
         """
         if isinstance(self._proc, ProcessMP):
             self._proc.join(timeout)

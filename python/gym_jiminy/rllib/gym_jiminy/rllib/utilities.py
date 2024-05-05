@@ -1,4 +1,10 @@
-""" TODO: Write documentation.
+"""This module provides helper methods to make it easier to run learning
+pipelines using Ray-RLlib framework.
+
+The main focus are:
+  * making it easy to build a policy from a checkpoint
+  * enabling evaluating the performance of a given policy without having to
+    fire up a whole ray server instance, which is normally required
 """
 import os
 import re

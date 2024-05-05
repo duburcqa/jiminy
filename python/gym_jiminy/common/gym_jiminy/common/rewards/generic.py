@@ -4,13 +4,13 @@ and the application (locomotion, grasping...).
 """
 import math
 import logging
-from typing import Sequence, Tuple
+from typing import Sequence, Optional
 
 import numpy as np
 import numba as nb
 
 from ..bases import (
-    InterfaceJiminyEnv, AbstractReward, RewardCreator, InfoType)
+    InfoType, InterfaceJiminyEnv, AbstractReward, BaseMixtureReward)
 
 
 # Reward value at cutoff threshold
@@ -49,10 +49,10 @@ def radial_basis_function(error: float,
     return math.pow(RBF_CUTOFF_ESP, math.pow(distance / cutoff, 2))
 
 
-class AdditiveMixtureReward(AbstractReward):
+class AdditiveMixtureReward(BaseMixtureReward):
     """Weighted sum of multiple independent reward components.
 
-    Aggregate of reward components using the addition operator is appropriate
+    Aggregation of reward components using the addition operator is suitable
     when improving the behavior for any of them without the others is equally
     beneficial, and unbalanced performance for each reward component is
     considered acceptable rather than detrimental. It especially makes sense
@@ -62,70 +62,80 @@ class AdditiveMixtureReward(AbstractReward):
     """
 
     def __init__(self,
-                 env: InterfaceJiminyEnv,
                  name: str,
-                 rewards: Sequence[Tuple[float, RewardCreator]]) -> None:
+                 rewards: Sequence[AbstractReward],
+                 weights: Optional[Sequence[float]] = None) -> None:
         """
-        :param env: Base or wrapped jiminy environment.
-        :param rewards: Sequence of pairs (weight, reward specification), where
-                        the reward specification gathers its class and all its
-                        constructor keyword-arguments except environment 'env'.
+        :param name: Desired name of the total reward.
+        :param rewards: Sequence of rewards to aggregate.
+        :param weights: Sequence of weights associated with each reward
+                        components, with the same ordering as 'rewards'.
+                        Optional: 1.0 for all reward components by default.
         """
-        # Backup user argument(s)
-        self._name = name
+        # Handling of default arguments
+        if weights is None:
+            weights = (1.0,) * len(rewards)
 
-        # Call base implementation
-        super().__init__(env)
-
-        # List of pair (weight, instantiated reward components to aggregate)
-        self._weight_reward_pairs: Sequence[Tuple[float, AbstractReward]]
-        self._weight_reward_pairs = tuple(
-            (weight, reward_cls(self.env, **(reward_kwargs or {})))
-            for weight, (reward_cls, reward_kwargs) in rewards)
+        # Make sure that the weight sequence is consistent with the rewards
+        if len(weights) != len(rewards):
+            raise ValueError(
+                "Exactly one weight per reward component must be specified.")
 
         # Determine whether the cumulative reward is normalized
         weight_total = 0.0
-        for weight, reward_fun in self._weight_reward_pairs:
-            if not reward_fun.is_normalized:
+        for weight, reward in zip(weights, rewards):
+            if not reward.is_normalized:
                 LOGGER.warning(
                     "Reward '%s' is not normalized. Aggregating rewards that "
                     "are not normalized using the addition operator is not "
-                    "recommended.", reward_fun.name)
-                self._is_normalized = False
+                    "recommended.", reward.name)
+                is_normalized = False
                 break
             weight_total += weight
         else:
-            self._is_normalized = abs(weight_total - 1.0) < 1e-4
+            is_normalized = abs(weight_total - 1.0) < 1e-4
 
-    @property
-    def name(self) -> str:
-        return self._name
+        # Backup user-arguments
+        self.weights = weights
 
-    @property
-    def is_normalized(self) -> bool:
-        """Whether the reward is guaranteed to be normalized, ie it is in range
-        [0.0, 1.0].
+        # Call base implementation
+        super().__init__(name, rewards, self._reduce, is_normalized)
 
-        The cumulative reward is considered normalized if all its individual
-        reward components are normalized and their weights sums up to 1.0.
+    def _reduce(self, values: Sequence[Optional[float]]) -> Optional[float]:
+        """Compute the weighted sum of all the reward components that has been
+        evaluated, filtering out the others.
+
+        This method returns `None` if no reward component has been evaluated.
+
+        :param values: Sequence of scalar value for reward components that has
+                       been evaluated, `None` otherwise, with the same ordering
+                       as 'rewards'.
+
+        :returns: Scalar value if at least one of the reward component has been
+                  evaluated, `None` otherwise.
         """
-        return self._is_normalized
-
-    def __call__(self, terminated: bool, info: InfoType) -> float:
-        """Evaluate each individual reward component for the current state of
-        the environment, then compute their weighted sum to aggregate them.
-        """
-        reward_total = 0.0
-        for weight, reward_fun in self._weight_reward_pairs:
-            reward = reward_fun(terminated, info)
-            reward_total += weight * reward
-        return reward_total
+        # TODO: x2 speedup can be expected with `nb.jit`
+        total, any_value = 0.0, False
+        for weight, value in zip(self.weights, values):
+            if value is not None:
+                total += weight * value
+                any_value = True
+        return total if any_value else None
 
 
-class MultiplicativeMixtureReward(AbstractReward):
+AdditiveMixtureReward.is_normalized.__doc__ = \
+    """Whether the reward is guaranteed to be normalized, ie it is in range
+    [0.0, 1.0].
+
+    The cumulative reward is considered normalized if all its individual
+    reward components are normalized and their weights sums up to 1.0.
+    """
+
+
+class MultiplicativeMixtureReward(BaseMixtureReward):
     """Product of multiple independent reward components.
 
-    Aggregate of reward components using multiplication operator is appropriate
+    Aggregation of reward components using multiplication operator is suitable
     when maintaining balanced performance between all reward components is
     essential, and having poor performance for any of them is unacceptable.
     This type of aggregation is especially useful when reward components are
@@ -134,57 +144,71 @@ class MultiplicativeMixtureReward(AbstractReward):
     """
 
     def __init__(self,
-                 env: InterfaceJiminyEnv,
                  name: str,
-                 rewards: Sequence[RewardCreator],
+                 rewards: Sequence[AbstractReward]
                  ) -> None:
         """
-        :param env: Base or wrapped jiminy environment.
-        :param rewards: Sequence of reward specifications, each of which
-                        gathering their respective class and all their
-                        constructor keyword-arguments except environment 'env'.
+        :param name: Desired name of the reward.
+        :param rewards: Sequence of rewards to aggregate.
         """
-        # Backup user argument(s)
-        self._name = name
+        # Determine whether the cumulative reward is normalized
+        is_normalized = all(reward.is_normalized for reward in rewards)
 
         # Call base implementation
-        super().__init__(env)
+        super().__init__(name, rewards, self._reduce, is_normalized)
 
-        # Make sure that at least one reward component has been specified
-        if len(rewards) < 1:
-            raise ValueError(
-                "At least one reward component must be specified.")
+    def _reduce(self, values: Sequence[Optional[float]]) -> Optional[float]:
+        """Compute the product of all the reward components that has been
+        evaluated, filtering out the others.
 
-        # List of instantiated reward components to aggregate
-        self._rewards: Sequence[AbstractReward] = tuple(
-            reward_cls(self.env, **(reward_kwargs or {}))
-            for reward_cls, reward_kwargs in rewards)
+        This method returns `None` if no reward component has been evaluated.
 
-        # Determine whether the cumulative reward is normalized
-        self._is_normalized = all(
-            reward_fun.is_normalized for reward_fun in self._rewards)
+        :param values: Sequence of scalar value for reward components that has
+                       been evaluated, `None` otherwise, with the same ordering
+                       as 'rewards'.
+
+        :returns: Scalar value if at least one of the reward component has been
+                  evaluated, `None` otherwise.
+        """
+        # TODO: x2 speedup can be expected with `nb.jit`
+        total, any_value = 1.0, False
+        for value in values:
+            if value is not None:
+                total *= value
+                any_value = True
+        return total if any_value else None
+
+
+AdditiveMixtureReward.is_normalized.__doc__ = \
+    """Whether the reward is guaranteed to be normalized, ie it is in range
+    [0.0, 1.0].
+
+    The cumulative reward is considered normalized if all its individual
+    reward components are normalized.
+    """
+
+
+class SurviveReward(AbstractReward):
+    """Constant positive reward equal to 1.0 systematically, unless the current
+    state of the environment is the terminal state. In which case, the value
+    0.0 is returned instead.
+    """
+
+    def __init__(self, env: InterfaceJiminyEnv) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        """
+        super().__init__(env, "reward_survive")
 
     @property
-    def name(self) -> str:
-        return self._name
+    def is_terminal(self) -> Optional[bool]:
+        return False
 
     @property
     def is_normalized(self) -> bool:
-        """Whether the reward is guaranteed to be normalized, ie it is in range
-        [0.0, 1.0].
+        return True
 
-        The cumulative reward is considered normalized if all its individual
-        reward components are normalized.
+    def compute(self, terminated: bool, info: InfoType) -> Optional[float]:
+        """Return a constant positive reward equal to 1.0 no matter what.
         """
-        return self._is_normalized
-
-    def __call__(self, terminated: bool, info: InfoType) -> float:
-        """Evaluate each individual reward component for the current state of
-        the environment, then compute their cumulative product to aggregate
-        them.
-        """
-        reward_total = 1.0
-        for reward_fun in self._rewards:
-            reward_component = reward_fun(terminated, info)
-            reward_total *= reward_component
-        return reward_total
+        return 1.0

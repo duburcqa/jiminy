@@ -1,4 +1,5 @@
-""" TODO: Write documentation.
+"""This module implements a wrapper for maintaining a stable framerate when
+human rendering is enabled during an episode.
 """
 import time
 from typing import Any, List, Optional, Tuple, Generic, Union, SupportsFloat
@@ -21,8 +22,8 @@ class FrameRateLimiter(gym.Wrapper,  # [ObsT, ActT, ObsT, ActT],
         This wrapper only affects `render`, not `replay`.
 
     .. warning::
-        This wrapper is only compatible with `BasePipelineWrapper` and
-        `BaseJiminyEnv` as it requires having a `step_dt` attribute.
+        This wrapper is only compatible with `InterfaceJiminyEnv` because it
+        requires having access to `step_dt` attribute.
     """
     def __init__(self,  # pylint: disable=unused-argument
                  env: InterfaceJiminyEnv[ObsT, ActT],

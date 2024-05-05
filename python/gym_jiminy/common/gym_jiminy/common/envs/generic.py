@@ -59,7 +59,7 @@ from .internal import loop_interactive
 
 
 # Maximum realtime slowdown of simulation steps before triggering timeout error
-TIMEOUT_RATIO = 10
+TIMEOUT_RATIO = 15
 
 # Absolute tolerance when checking that observations are valid
 OBS_CONTAINS_TOL = 0.01

@@ -254,10 +254,7 @@ class BasePipelineWrapper(
         # user keeps doing more steps nonetheless.
         reward = float(reward)
         if not math.isnan(reward):
-            try:
-                reward += self.compute_reward(terminated, info)
-            except NotImplementedError:
-                pass
+            reward += self.compute_reward(terminated, info)
 
         return obs, reward, terminated, truncated, info
 
@@ -760,8 +757,8 @@ class BaseTransformObservation(
 
     .. note::
         This wrapper derives from `BasePipelineWrapper`, and such as, it is
-        considered as internal unlike `gym.Wrapper`. This means that it will be
-        taken into account calling `evaluate` or `play_interactive` on the
+        considered internal unlike `gym.Wrapper`. This means that it will be
+        taken into account when calling `evaluate` or `play_interactive` on the
         wrapped environment.
     """
     def __init__(self, env: InterfaceJiminyEnv[ObsT, ActT]) -> None:
@@ -867,8 +864,8 @@ class BaseTransformAction(
 
     .. note::
         This wrapper derives from `BasePipelineWrapper`, and such as, it is
-        considered as internal unlike `gym.Wrapper`. This means that it will be
-        taken into account calling `evaluate` or `play_interactive` on the
+        considered internal unlike `gym.Wrapper`. This means that it will be
+        taken into account when calling `evaluate` or `play_interactive` on the
         wrapped environment.
     """
     def __init__(self, env: InterfaceJiminyEnv[ObsT, ActT]) -> None:

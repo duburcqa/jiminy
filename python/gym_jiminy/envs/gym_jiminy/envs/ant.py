@@ -1,7 +1,13 @@
+"""This module implements to classic toy model environment "ant" using Jiminy
+simulator for integrating the rigid-body dynamics.
 
-""" TODO: Write documentation.
+The agent is a basic 3D quadruped. This dynamics is very basic and not
+realistic from a robotic standpoint. Its main advantage is that training a
+policy for a given task is extremely rapidly compared to a real quadrupedal
+robot such as Anymal. Still, it is complex enough for prototyping learning of
+advanced motions or locomotion tasks, as well as model-based observers and
+controllers usually intended for robotic applications.
 """
-
 import os
 import sys
 from typing import Any, Tuple, Sequence

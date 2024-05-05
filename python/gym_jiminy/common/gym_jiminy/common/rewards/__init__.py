@@ -2,12 +2,14 @@
 
 from .generic import (radial_basis_function,
                       AdditiveMixtureReward,
-                      MultiplicativeMixtureReward)
+                      MultiplicativeMixtureReward,
+                      SurviveReward)
 from .locomotion import OdometryVelocityReward
 
 __all__ = [
     "radial_basis_function",
     "AdditiveMixtureReward",
     "MultiplicativeMixtureReward",
+    "SurviveReward",
     "OdometryVelocityReward"
 ]
