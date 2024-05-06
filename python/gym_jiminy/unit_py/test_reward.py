@@ -7,7 +7,7 @@ import gymnasium as gym
 import jiminy_py
 import pinocchio as pin
 
-from gym_jiminy.common.rewards import (
+from gym_jiminy.common.compositions import (
     OdometryVelocityReward, SurviveReward, AdditiveMixtureReward)
 
 
@@ -52,18 +52,21 @@ class Rewards(unittest.TestCase):
             env, np.array([0.0, 0.0, 0.0]), cutoff=0.3)
         reward_survive = SurviveReward(env)
         reward_sum = AdditiveMixtureReward(
+            env,
             "reward_total",
-            rewards=(reward_odometry, reward_survive),
+            components=(reward_odometry, reward_survive),
             weights=(0.5, 0.2))
         reward_sum_normalized = AdditiveMixtureReward(
+            env,
             "reward_total",
-            rewards=(reward_odometry, reward_survive),
+            components=(reward_odometry, reward_survive),
             weights=(0.7, 0.3))
 
         env.reset(seed=0)
         _, _, terminated, _, _ = env.step(env.action)
 
-        assert len(reward_sum_normalized.rewards) == 2
+        assert len(reward_sum_normalized.components) == 2
+        assert reward_sum_normalized.is_terminal == False
         assert reward_sum_normalized.is_normalized
         assert not reward_sum.is_normalized
         assert reward_sum(terminated, {}) == (

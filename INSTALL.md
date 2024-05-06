@@ -152,24 +152,23 @@ if (-not (Test-Path -PathType Container $RootDir/build)) {
   New-Item -ItemType "directory" -Force -Path "$RootDir/build"
 }
 Set-Location -Path $RootDir/build
-cmake "$RootDir" -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
-      -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_MODULE_PATH="$InstallDir" `
+cmake "$RootDir" -G "Visual Studio 17 2022" -DCMAKE_GENERATOR_PLATFORM=x64 `
+      -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
+      -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" `
+      -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF -DCMAKE_VERBOSE_MAKEFILE=ON `
       -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" `
-      -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE `
-      -DBoost_USE_STATIC_LIBS=OFF `
-      -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON `
-      -DCMAKE_CXX_FLAGS="-DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC -DBOOST_CORE_USE_GENERIC_CMATH"
-cmake --build . --target all --config "${env:BUILD_TYPE}" --parallel 8
+      -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE -DBoost_USE_STATIC_LIBS=ON `
+      -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON ``
+      -DCMAKE_CXX_FLAGS="${env:CMAKE_CXX_FLAGS} $(
+      ) -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC -DBOOST_CORE_USE_GENERIC_CMATH $(
+      ) -DEIGENPY_STATIC -DURDFDOM_STATIC -DHPP_FCL_STATIC -DPINOCCHIO_STATIC"
+cmake --build . --target ALL_BUILD --config "${env:BUILD_TYPE}" --parallel 2
 
-if (-not (Test-Path -PathType Container "$RootDir/build/PyPi/jiminy_py/src/jiminy_py/core")) {
-  New-Item -ItemType "directory" -Force -Path "$RootDir/build/PyPi/jiminy_py/src/jiminy_py/core"
+if (-not (Test-Path -PathType Container "$RootDir/build/pypi/jiminy_py/src/jiminy_py")) {
+  New-Item -ItemType "directory" -Force -Path "$RootDir/build/pypi/jiminy_py/src/jiminy_py/core"
 }
-Copy-Item -Path "$InstallDir/lib/boost_numpy*.dll" `
-          -Destination "$RootDir/build/PyPi/jiminy_py/src/jiminy_py/core"
-Copy-Item -Path "$InstallDir/lib/boost_python*.dll" `
-          -Destination "$RootDir/build/PyPi/jiminy_py/src/jiminy_py/core"
-Copy-Item -Path "$InstallDir/lib/site-packages/*" `
-          -Destination "$RootDir/build/PyPi/jiminy_py/src/jiminy_py" -Recurse
+Copy-Item -Force -Recurse -Path "$InstallDir/lib/site-packages/*" `
+          -Destination "$RootDir/build/pypi/jiminy_py/src/jiminy_py/core"
 
-cmake --build . --target install --config "${env:BUILD_TYPE}"
+cmake --build . --target INSTALL --config "${env:BUILD_TYPE}"
 ```

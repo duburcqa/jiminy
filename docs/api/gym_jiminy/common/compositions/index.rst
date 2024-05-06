@@ -1,5 +1,5 @@
-Envs
-====
+Compositions
+============
 
 .. toctree::
    :maxdepth: 1

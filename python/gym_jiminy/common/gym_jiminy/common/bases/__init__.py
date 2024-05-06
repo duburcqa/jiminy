@@ -14,9 +14,9 @@ from .interfaces import (DT_EPS,
 from .quantities import (QuantityCreator,
                          SharedCache,
                          AbstractQuantity)
-from .reward import (AbstractReward,
-                     BaseQuantityReward,
-                     BaseMixtureReward)
+from .compositions import (AbstractReward,
+                           BaseQuantityReward,
+                           BaseMixtureReward)
 from .blocks import (BlockStateT,
                      InterfaceBlock,
                      BaseObserverBlock,
@@ -25,6 +25,7 @@ from .pipeline import (NestedObsT,
                        BasePipelineWrapper,
                        BaseTransformObservation,
                        BaseTransformAction,
+                       ComposedJiminyEnv,
                        ObservedJiminyEnv,
                        ControlledJiminyEnv)
 
@@ -54,6 +55,7 @@ __all__ = [
     'BasePipelineWrapper',
     'BaseTransformObservation',
     'BaseTransformAction',
+    'ComposedJiminyEnv',
     'ObservedJiminyEnv',
     'ControlledJiminyEnv',
     'QuantityCreator'

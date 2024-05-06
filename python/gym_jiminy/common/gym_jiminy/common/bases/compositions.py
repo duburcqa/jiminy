@@ -8,7 +8,8 @@ from typing import Sequence, Callable, Optional, Tuple, TypeVar
 
 import numpy as np
 
-from ..bases import InterfaceJiminyEnv, QuantityCreator, InfoType
+from .interfaces import InfoType, InterfaceJiminyEnv
+from .quantities import QuantityCreator
 
 
 ValueT = TypeVar('ValueT')
@@ -271,20 +272,21 @@ class BaseMixtureReward(AbstractReward):
     single one.
     """
 
-    rewards: Tuple[AbstractReward, ...]
+    components: Tuple[AbstractReward, ...]
     """List of all the reward components that must be aggregated together.
     """
 
     def __init__(self,
+                 env: InterfaceJiminyEnv,
                  name: str,
-                 rewards: Sequence[AbstractReward],
+                 components: Sequence[AbstractReward],
                  reduce_fn: Callable[
                     [Sequence[Optional[float]]], Optional[float]],
                  is_normalized: bool) -> None:
         """
         :param env: Base or wrapped jiminy environment.
         :param name: Desired name of the total reward.
-        :param rewards: Sequence of reward components to aggregate.
+        :param components: Sequence of reward components to aggregate.
         :param reduce_fn: Transform function responsible for aggregating all
                           the reward components that were evaluated. Typical
                           examples are cumulative product and weighted sum.
@@ -292,19 +294,18 @@ class BaseMixtureReward(AbstractReward):
                               after applying reduction function `reduce_fn`.
         """
         # Make sure that at least one reward component has been specified
-        if not rewards:
+        if not components:
             raise ValueError(
                 "At least one reward component must be specified.")
 
         # Make sure that all reward components share the same environment
-        env = rewards[0].env
-        for reward in rewards[1:]:
+        for reward in components:
             if env is not reward.env:
                 raise ValueError(
                     "All reward components must share the same environment.")
 
         # Backup some user argument(s)
-        self.rewards = tuple(rewards)
+        self.components = tuple(components)
         self._reduce_fn = reduce_fn
         self._is_normalized = is_normalized
 
@@ -312,7 +313,7 @@ class BaseMixtureReward(AbstractReward):
         super().__init__(env, name)
 
         # Determine whether the reward mixture is terminal
-        is_terminal = {reward.is_terminal for reward in self.rewards}
+        is_terminal = {reward.is_terminal for reward in self.components}
         self._is_terminal: Optional[bool] = None
         if len(is_terminal) == 1:
             self._is_terminal = next(iter(is_terminal))
@@ -335,9 +336,13 @@ class BaseMixtureReward(AbstractReward):
         """Evaluate each individual reward component for the current state of
         the environment, then aggregate them in one.
         """
+        # Early return depending on whether the reward and state are terminal
+        if self.is_terminal is not None and self.is_terminal ^ terminated:
+            return None
+
         # Compute all reward components
         values = []
-        for reward in self.rewards:
+        for reward in self.components:
             # Evaluate reward
             reward_info: InfoType = {}
             value: Optional[float] = reward(terminated, reward_info)

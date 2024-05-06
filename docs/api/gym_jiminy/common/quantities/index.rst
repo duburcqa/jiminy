@@ -1,5 +1,5 @@
-Envs
-====
+Quantities
+==========
 
 .. toctree::
    :maxdepth: 1

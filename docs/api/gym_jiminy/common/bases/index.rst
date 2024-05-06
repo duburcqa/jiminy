@@ -6,4 +6,6 @@ Bases
 
    interfaces
    blocks
+   quantities
+   compositions
    pipeline

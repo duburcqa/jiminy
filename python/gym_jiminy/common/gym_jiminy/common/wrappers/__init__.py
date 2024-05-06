@@ -12,5 +12,5 @@ __all__ = [
     'NormalizeAction',
     'NormalizeObservation',
     'FlattenAction',
-    'FlattenObservation',
+    'FlattenObservation'
 ]

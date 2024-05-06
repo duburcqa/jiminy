@@ -1,7 +1,7 @@
 Locomotion
 ==========
 
-.. automodule:: gym_jiminy.common.rewards.locomotion
+.. automodule:: gym_jiminy.common.compositions.locomotion
    :members:
    :undoc-members:
    :private-members:

@@ -62,28 +62,30 @@ class AdditiveMixtureReward(BaseMixtureReward):
     """
 
     def __init__(self,
+                 env: InterfaceJiminyEnv,
                  name: str,
-                 rewards: Sequence[AbstractReward],
+                 components: Sequence[AbstractReward],
                  weights: Optional[Sequence[float]] = None) -> None:
         """
+        :param env: Base or wrapped jiminy environment.
         :param name: Desired name of the total reward.
-        :param rewards: Sequence of rewards to aggregate.
+        :param components: Sequence of reward components to aggregate.
         :param weights: Sequence of weights associated with each reward
-                        components, with the same ordering as 'rewards'.
+                        components, with the same ordering as 'components'.
                         Optional: 1.0 for all reward components by default.
         """
         # Handling of default arguments
         if weights is None:
-            weights = (1.0,) * len(rewards)
+            weights = (1.0,) * len(components)
 
-        # Make sure that the weight sequence is consistent with the rewards
-        if len(weights) != len(rewards):
+        # Make sure that the weight sequence is consistent with the components
+        if len(weights) != len(components):
             raise ValueError(
                 "Exactly one weight per reward component must be specified.")
 
         # Determine whether the cumulative reward is normalized
         weight_total = 0.0
-        for weight, reward in zip(weights, rewards):
+        for weight, reward in zip(weights, components):
             if not reward.is_normalized:
                 LOGGER.warning(
                     "Reward '%s' is not normalized. Aggregating rewards that "
@@ -99,7 +101,7 @@ class AdditiveMixtureReward(BaseMixtureReward):
         self.weights = weights
 
         # Call base implementation
-        super().__init__(name, rewards, self._reduce, is_normalized)
+        super().__init__(env, name, components, self._reduce, is_normalized)
 
     def _reduce(self, values: Sequence[Optional[float]]) -> Optional[float]:
         """Compute the weighted sum of all the reward components that has been
@@ -109,7 +111,7 @@ class AdditiveMixtureReward(BaseMixtureReward):
 
         :param values: Sequence of scalar value for reward components that has
                        been evaluated, `None` otherwise, with the same ordering
-                       as 'rewards'.
+                       as 'components'.
 
         :returns: Scalar value if at least one of the reward component has been
                   evaluated, `None` otherwise.
@@ -144,18 +146,20 @@ class MultiplicativeMixtureReward(BaseMixtureReward):
     """
 
     def __init__(self,
+                 env: InterfaceJiminyEnv,
                  name: str,
-                 rewards: Sequence[AbstractReward]
+                 components: Sequence[AbstractReward]
                  ) -> None:
         """
+        :param env: Base or wrapped jiminy environment.
         :param name: Desired name of the reward.
-        :param rewards: Sequence of rewards to aggregate.
+        :param components: Sequence of reward components to aggregate.
         """
         # Determine whether the cumulative reward is normalized
-        is_normalized = all(reward.is_normalized for reward in rewards)
+        is_normalized = all(reward.is_normalized for reward in components)
 
         # Call base implementation
-        super().__init__(name, rewards, self._reduce, is_normalized)
+        super().__init__(env, name, components, self._reduce, is_normalized)
 
     def _reduce(self, values: Sequence[Optional[float]]) -> Optional[float]:
         """Compute the product of all the reward components that has been
@@ -165,7 +169,7 @@ class MultiplicativeMixtureReward(BaseMixtureReward):
 
         :param values: Sequence of scalar value for reward components that has
                        been evaluated, `None` otherwise, with the same ordering
-                       as 'rewards'.
+                       as 'components'.
 
         :returns: Scalar value if at least one of the reward component has been
                   evaluated, `None` otherwise.

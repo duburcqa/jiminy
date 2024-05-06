@@ -2,6 +2,18 @@
 cls = "gym_jiminy.envs.ANYmalJiminyEnv"
 [env_config.kwargs]
 step_dt = 0.04
+[env_config.reward]
+cls = "gym_jiminy.common.compositions.AdditiveMixtureReward"
+[env_config.reward.kwargs]
+name = "reward_total"
+weights = [0.6, 0.4]
+[[env_config.reward.kwargs.components]]
+cls = "gym_jiminy.common.compositions.OdometryVelocityReward"
+[env_config.reward.kwargs.components.kwargs]
+cutoff = 0.5
+target = [0.0, 0.0, 0.0]
+[[env_config.reward.kwargs.components]]
+cls = "gym_jiminy.common.compositions.SurviveReward"
 
 [[layers_config]]
 block.cls = "gym_jiminy.common.blocks.PDController"

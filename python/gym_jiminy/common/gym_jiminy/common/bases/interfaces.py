@@ -150,7 +150,7 @@ class InterfaceController(ABC, Generic[ActT, BaseActT]):
         By default, it returns 0.0 without extra information no matter what.
         The user is expected to provide an appropriate reward on its own,
         either by overloading this method or by wrapping the environment with
-        `ComposeReward` for modular environment pipeline design.
+        `ComposedJiminyEnv` for modular environment pipeline design.
 
         :param terminated: Whether the episode has reached the terminal state
                            of the MDP at the current step. This flag can be

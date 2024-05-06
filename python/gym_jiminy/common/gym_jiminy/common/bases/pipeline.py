@@ -31,6 +31,7 @@ from .interfaces import (DT_EPS,
                          InfoType,
                          EngineObsType,
                          InterfaceJiminyEnv)
+from .compositions import AbstractReward
 from .blocks import BaseControllerBlock, BaseObserverBlock
 
 from ..utils import DataNested, is_breakpoint, zeros, build_copyto, copy
@@ -298,6 +299,91 @@ class BasePipelineWrapper(
         self.env.close()
 
 
+class ComposedJiminyEnv(
+        BasePipelineWrapper[ObsT, ActT, ObsT, ActT],
+        Generic[ObsT, ActT]):
+    """Plug ad-hoc reward components and termination conditions to the
+    wrapped environment.
+
+    .. note::
+        This wrapper derives from `BasePipelineWrapper`, and such as, it is
+        considered as internal unlike `gym.Wrapper`. This means that it will be
+        taken into account when calling `evaluate` or `play_interactive` on the
+        wrapped environment.
+    """
+    def __init__(self,
+                 env: InterfaceJiminyEnv[ObsT, ActT],
+                 *,
+                 reward: AbstractReward) -> None:
+        # Make sure that the reward is linked to this environment
+        assert env is reward.env
+
+        # Backup user argument(s)
+        self.reward = reward
+
+        # Initialize base class
+        super().__init__(env)
+
+        # Bind observation and action of the base environment
+        assert self.observation_space.contains(self.env.observation)
+        assert self.action_space.contains(self.env.action)
+        self.observation = self.env.observation
+        self.action = self.env.action
+
+    def _initialize_action_space(self) -> None:
+        """Configure the action space.
+
+        It simply copy the action space of the wrapped environment.
+        """
+        self.action_space = self.env.action_space
+
+    def _initialize_observation_space(self) -> None:
+        """Configure the observation space.
+
+        It simply copy the observation space of the wrapped environment.
+        """
+        self.observation_space = self.env.observation_space
+
+    def _setup(self) -> None:
+        """Configure the wrapper.
+
+        In addition to calling the base implementation, it sets the observe
+        and control update period.
+        """
+        # Call base implementation
+        super()._setup()
+
+        # Copy observe and control update periods from wrapped environment
+        self.observe_dt = self.env.observe_dt
+        self.control_dt = self.env.control_dt
+
+    def refresh_observation(self, measurement: EngineObsType) -> None:
+        """Compute high-level features based on the current wrapped
+        environment's observation.
+
+        It simply forwards the observation computed by the wrapped environment
+        without any processing.
+
+        :param measurement: Low-level measure from the environment to process
+                            to get higher-level observation.
+        """
+        self.env.refresh_observation(measurement)
+
+    def compute_command(self, action: ActT, command: np.ndarray) -> None:
+        """Compute the motors efforts to apply on the robot.
+
+        It simply forwards the command computed by the wrapped environment
+        without any processing.
+
+        :param action: High-level target to achieve by means of the command.
+        :param command: Lower-level command to updated in-place.
+        """
+        self.env.compute_command(action, command)
+
+    def compute_reward(self, terminated: bool, info: InfoType) -> float:
+        return self.reward(terminated, info)
+
+
 class ObservedJiminyEnv(
         BasePipelineWrapper[NestedObsT, ActT, BaseObsT, ActT],
         Generic[NestedObsT, ActT, BaseObsT]):
@@ -364,8 +450,8 @@ class ObservedJiminyEnv(
 
         # Make sure that the environment is either some `ObservedJiminyEnv` or
         # `ControlledJiminyEnv` block, or the base environment directly.
-        if isinstance(env, BasePipelineWrapper) and not isinstance(
-                env, (ObservedJiminyEnv, ControlledJiminyEnv)):
+        if isinstance(env, BasePipelineWrapper) and not isinstance(env, (
+                ObservedJiminyEnv, ControlledJiminyEnv, ComposedJiminyEnv)):
             raise TypeError(
                 "Observers can only be added on top of another observer, "
                 "controller, or a base environment itself.")
@@ -586,8 +672,8 @@ class ControlledJiminyEnv(
 
         # Make sure that the environment is either some `ObservedJiminyEnv` or
         # `ControlledJiminyEnv` block, or the base environment directly.
-        if isinstance(env, BasePipelineWrapper) and not isinstance(
-                env, (ObservedJiminyEnv, ControlledJiminyEnv)):
+        if isinstance(env, BasePipelineWrapper) and not isinstance(env, (
+                ObservedJiminyEnv, ControlledJiminyEnv, ComposedJiminyEnv)):
             raise TypeError(
                 "Controllers can only be added on top of another observer, "
                 "controller, or a base environment itself.")
