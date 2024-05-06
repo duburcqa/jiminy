@@ -1,7 +1,7 @@
 Generic
 =======
 
-.. automodule:: gym_jiminy.common.rewards.generic
+.. automodule:: gym_jiminy.common.compositions.generic
    :members:
    :undoc-members:
    :private-members:

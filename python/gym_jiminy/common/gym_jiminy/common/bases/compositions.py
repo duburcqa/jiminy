@@ -4,13 +4,12 @@ Defining rewards this way allows for standardization of usual metrics. Overall,
 it greatly reduces code duplication and bugs.
 """
 from abc import ABC, abstractmethod
-from typing import Sequence, Callable, Optional, Tuple, TypeVar, Generic
+from typing import Sequence, Callable, Optional, Tuple, TypeVar
 
 import numpy as np
 
-from .interfaces import ObsT, ActT, InfoType, EngineObsType, InterfaceJiminyEnv
+from .interfaces import InfoType, InterfaceJiminyEnv
 from .quantities import QuantityCreator
-from .pipeline import BasePipelineWrapper
 
 
 ValueT = TypeVar('ValueT')
@@ -360,75 +359,3 @@ class BaseMixtureReward(AbstractReward):
         reward_total = self._reduce_fn(values)
 
         return reward_total
-
-
-class ComposedJiminyEnv(
-        BasePipelineWrapper[ObsT, ActT, ObsT, ActT],
-        Generic[ObsT, ActT]):
-    """Plug ad-hoc reward components and termination conditions to the
-    wrapped environment.
-
-    .. note::
-        This wrapper derives from `BasePipelineWrapper`, and such as, it is
-        considered as internal unlike `gym.Wrapper`. This means that it will be
-        taken into account when calling `evaluate` or `play_interactive` on the
-        wrapped environment.
-    """
-    def __init__(self,
-                 env: InterfaceJiminyEnv[ObsT, ActT],
-                 *,
-                 reward: AbstractReward) -> None:
-        # Make sure that the reward is linked to this environment
-        assert env is reward.env
-
-        # Backup user argument(s)
-        self.reward = reward
-
-        # Initialize base class
-        super().__init__(env)
-
-        # Bind observation and action of the base environment
-        assert self.observation_space.contains(self.env.observation)
-        assert self.action_space.contains(self.env.action)
-        self.observation = self.env.observation
-        self.action = self.env.action
-
-    def _initialize_action_space(self) -> None:
-        """Configure the action space.
-
-        It simply copy the action space of the wrapped environment.
-        """
-        self.action_space = self.env.action_space
-
-    def _initialize_observation_space(self) -> None:
-        """Configure the observation space.
-
-        It simply copy the observation space of the wrapped environment.
-        """
-        self.observation_space = self.env.observation_space
-
-    def refresh_observation(self, measurement: EngineObsType) -> None:
-        """Compute high-level features based on the current wrapped
-        environment's observation.
-
-        It simply forwards the observation computed by the wrapped environment
-        without any processing.
-
-        :param measurement: Low-level measure from the environment to process
-                            to get higher-level observation.
-        """
-        self.env.refresh_observation(measurement)
-
-    def compute_command(self, action: ActT, command: np.ndarray) -> None:
-        """Compute the motors efforts to apply on the robot.
-
-        It simply forwards the command computed by the wrapped environment
-        without any processing.
-
-        :param action: High-level target to achieve by means of the command.
-        :param command: Lower-level command to updated in-place.
-        """
-        self.env.compute_command(action, command)
-
-    def compute_reward(self, terminated: bool, info: InfoType) -> float:
-        return self.reward(terminated, info)

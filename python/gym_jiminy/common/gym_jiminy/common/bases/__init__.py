@@ -16,8 +16,7 @@ from .quantities import (QuantityCreator,
                          AbstractQuantity)
 from .compositions import (AbstractReward,
                            BaseQuantityReward,
-                           BaseMixtureReward,
-                           ComposedJiminyEnv)
+                           BaseMixtureReward)
 from .blocks import (BlockStateT,
                      InterfaceBlock,
                      BaseObserverBlock,
@@ -26,6 +25,7 @@ from .pipeline import (NestedObsT,
                        BasePipelineWrapper,
                        BaseTransformObservation,
                        BaseTransformAction,
+                       ComposedJiminyEnv,
                        ObservedJiminyEnv,
                        ControlledJiminyEnv)
 
@@ -55,6 +55,7 @@ __all__ = [
     'BasePipelineWrapper',
     'BaseTransformObservation',
     'BaseTransformAction',
+    'ComposedJiminyEnv',
     'ObservedJiminyEnv',
     'ControlledJiminyEnv',
     'QuantityCreator'

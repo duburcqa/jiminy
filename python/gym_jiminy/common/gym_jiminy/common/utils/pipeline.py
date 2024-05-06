@@ -148,7 +148,7 @@ def build_pipeline(env_config: EnvConfig,
         configuration of a individual layer, as a dict of type `LayerConfig`.
     """
     # Define helper to sanitize reward configuration
-    def sanitize_reward_config(reward_config: RewardConfig):
+    def sanitize_reward_config(reward_config: RewardConfig) -> None:
         """Sanitize reward configuration in-place.
 
         :param reward_config: Configuration of the reward, as a dict of type
@@ -158,17 +158,16 @@ def build_pipeline(env_config: EnvConfig,
         cls = reward_config["cls"]
         if isinstance(cls, str):
             obj = locate(cls)
-            assert (isinstance(obj, type) and
-                    issubclass(obj, AbstractReward))
-            reward_config["cls"] = obj
+            assert isinstance(obj, type) and issubclass(obj, AbstractReward)
+            reward_config["cls"] = cls = obj
 
         # Get reward constructor keyword-arguments
         kwargs = reward_config.get("kwargs", {})
 
         # Special handling for `BaseMixtureReward`
         if issubclass(cls, BaseMixtureReward):
-            for reward_config in kwargs["components"]:
-                sanitize_reward_config(reward_config)
+            for component_config in kwargs["components"]:
+                sanitize_reward_config(component_config)
 
     # Define helper to build the reward
     def build_reward(env: InterfaceJiminyEnv,
@@ -182,8 +181,7 @@ def build_pipeline(env_config: EnvConfig,
         """
         # Get reward class type
         cls = reward_config["cls"]
-        assert (isinstance(obj, type) and
-                issubclass(obj, AbstractReward))
+        assert isinstance(cls, type) and issubclass(cls, AbstractReward)
 
         # Get reward constructor keyword-arguments
         kwargs = reward_config.get("kwargs", {})
@@ -227,7 +225,7 @@ def build_pipeline(env_config: EnvConfig,
         reward = build_reward(env, reward_config)
 
         # Instantiate the wrapper
-        return ComposedJiminyEnv(env, reward)
+        return ComposedJiminyEnv(env, reward=reward)
 
     # Define helper to wrap a single layer
     def build_layer(env_creator: Callable[..., InterfaceJiminyEnv],
@@ -304,9 +302,10 @@ def build_pipeline(env_config: EnvConfig,
     # Compose base environment with an extra user-specified reward if any
     reward_config = env_config.get("reward")
     if reward_config is not None:
+        sanitize_reward_config(reward_config)
         pipeline_creator = partial(build_composition,
                                    pipeline_creator,
-                                   sanitize_reward_config(reward_config))
+                                   reward_config)
 
     # Generate pipeline recursively
     for layer_config in layers_config:
