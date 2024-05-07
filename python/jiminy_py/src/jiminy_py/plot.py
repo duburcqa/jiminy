@@ -10,14 +10,14 @@ import fnmatch
 import pathlib
 import argparse
 import logging
+from dataclasses import dataclass
 from math import ceil, sqrt, floor
 from textwrap import dedent
 from itertools import cycle
 from functools import partial
 from collections import OrderedDict
 from weakref import WeakKeyDictionary
-from typing import (
-    Dict, Optional, Any, Tuple, List, Union, Callable, TypedDict, cast)
+from typing import Dict, Any, List, Optional, Tuple, Union, Callable, cast
 
 import numpy as np
 try:
@@ -65,28 +65,50 @@ class _ButtonBlit(Button):
                 self.ax.figure.canvas.blit(self.ax.bbox)
 
 
-class TabData(TypedDict, total=True):
+@dataclass
+class TabData:
     """Internal data stored for each tab if `TabbedFigure`.
     """
-    # Matpolib `Axes` handles of every subplots
+
     axes: List[Axes]
-    # Matpolib Legend data as returned by `get_legend_handles_labels` method.
-    # First element of pair is a list of Artist to legend, which usually are
-    # `line2D` object, and the second element is the list of labels for each
-    # of them.
+    """Matpolib `Axes` handles of every subplots.
+    """
+
     legend_data: Tuple[List[Artist], List[str]]
-    # Matplotlib `NavigationToolbar2` navigation stack history. It is not meant
-    # to be modified manually, but only copied/restored when needed.
-    nav_stack: List[WeakKeyDictionary]
-    # Matplotlib `NavigationToolbar2` navigation stack position, used
-    # internally for undo/redo history. It is not meant to be modified
-    # manually, but only copied/restored when needed.
-    nav_pos: int
-    # Button associated with the tab, on which to click to switch between tabs.
+    """Matpolib Legend data as returned by `get_legend_handles_labels` method.
+
+    First element of pair is a list of Artist to legend, which usually are
+    `line2D` object, and the second element is the list of labels for each of
+    them.
+    """
+
     button: _ButtonBlit
-    # Axe of the button, used internally to define the position and size of
-    # the button.
+    """Button on which to click to switch to the tab at hands.
+    """
+
     button_axcut: Axes
+    """Axe of the button.
+
+    .. note::
+        This attribute is used internally to define the position and size of
+        the button.
+    """
+
+    nav_stack: List[WeakKeyDictionary]
+    """Matplotlib `NavigationToolbar2` navigation stack history.
+
+    .. note::
+        This attribute is used internally for undo/redo history. It is not
+        meant to be modified manually, but only copied/restored when needed.
+    """
+
+    nav_pos: int
+    """Matplotlib `NavigationToolbar2` navigation stack position.
+
+    .. note::
+        This attribute is used internally for undo/redo history. It is not
+        meant to be modified manually, but only copied/restored when needed.
+    """
 
 
 class TabbedFigure:
@@ -195,11 +217,11 @@ class TabbedFigure:
         # Refresh button size, in case the number of tabs has changed
         buttons_width = (1.0 - 0.006) / len(self.tabs_data)
         for i, tab in enumerate(self.tabs_data.values()):
-            tab["button_axcut"].set_position(
+            tab.button_axcut.set_position(
                 (buttons_width * i + 0.003, 0.1, buttons_width, 1.0))
 
         # Re-arrange subplots in case figure aspect ratio has changed
-        axes = self.tab_active["axes"]
+        axes = self.tab_active.axes
         num_subplots = len(axes)
         figure_extent = self.figure.get_window_extent()
         figure_ratio = figure_extent.width / figure_extent.height
@@ -232,7 +254,7 @@ class TabbedFigure:
 
         # Get tab name to activate
         for tab in self.tabs_data.values():
-            button = tab["button"]
+            button = tab.button
             if button.ax == event.inaxes:
                 tab_name = button.label.get_text().replace('\n', ' ')
                 break
@@ -247,20 +269,20 @@ class TabbedFigure:
             cur_stack = self.figure.canvas.toolbar._nav_stack
             for tab in self.tabs_data.values():
                 if self.sync_tabs or tab is self.tab_active:
-                    tab["nav_stack"] = cur_stack._elements.copy()
-                    tab["nav_pos"] = cur_stack._pos
+                    tab.nav_stack = cur_stack._elements.copy()
+                    tab.nav_pos = cur_stack._pos
 
         # Update axes and title
-        for ax in self.tab_active["axes"]:
+        for ax in self.tab_active.axes:
             self.subfigs[0].delaxes(ax)
         if self.legend is not None:
             self.legend.remove()
             self.legend = None
         self.tab_active = self.tabs_data[tab_name]
         self.subfigs[0].suptitle(tab_name)
-        for ax in self.tab_active["axes"]:
+        for ax in self.tab_active.axes:
             self.subfigs[0].add_subplot(ax)
-        handles, labels = self.tab_active["legend_data"]
+        handles, labels = self.tab_active.legend_data
         if labels:
             self.legend = self.subfigs[0].legend(
                 handles, labels, ncol=len(handles), loc='outside lower center')
@@ -268,13 +290,13 @@ class TabbedFigure:
         # # Restore navigation history and toolbar state if necessary
         if not self.offscreen:
             assert self.figure.canvas.toolbar is not None
-            cur_stack._elements = self.tab_active["nav_stack"]
-            cur_stack._pos = self.tab_active["nav_pos"]
+            cur_stack._elements = self.tab_active.nav_stack
+            cur_stack._pos = self.tab_active.nav_pos
             self.figure.canvas.toolbar.set_history_buttons()
 
         # Update buttons style
         for tab in self.tabs_data.values():
-            button = tab["button"]
+            button = tab.button
             if tab is self.tab_active:
                 button.ax.set_facecolor('green')
                 button.color = 'green'
@@ -420,14 +442,8 @@ class TabbedFigure:
         button.on_clicked(self.__click)
 
         # Create new tab data container
-        self.tabs_data[tab_name] = {
-            "axes": axes,
-            "legend_data": legend_data,
-            "nav_stack": [],
-            "nav_pos": -1,
-            "button": button,
-            "button_axcut": button_axcut
-        }
+        self.tabs_data[tab_name] = TabData(
+            axes, legend_data, button, button_axcut, nav_stack=[], nav_pos=-1)
 
         # Check if it is the first tab to be added
         if self.tab_active is None:
@@ -465,7 +481,7 @@ class TabbedFigure:
             "No tab with this exact name has been added.")
 
         event = LocationEvent("click", self.figure.canvas, 0, 0)
-        event.inaxes = self.tabs_data[tab_name]["button"].ax
+        event.inaxes = self.tabs_data[tab_name].button.ax
         self.__click(event, force_update=True)
 
     def remove_tab(self,
@@ -494,22 +510,22 @@ class TabbedFigure:
             self.select_active_tab(next(iter(self.tabs_data.keys())))
 
         # Change reference axis if to be deleted
-        if any(ax is self.ref_ax for ax in tab["axes"]):
+        if any(ax is self.ref_ax for ax in tab.axes):
             if self.tabs_data:
-                self.ref_ax = self.tab_active["axes"][0]
+                self.ref_ax = self.tab_active.axes[0]
             else:
                 self.ref_ax = None
 
         # Disable button
-        tab["button"].disconnect_events()
-        tab["button_axcut"].remove()
+        tab.button.disconnect_events()
+        tab.button_axcut.remove()
 
         # Remove axes and legend manually is not more tabs available
         if not self.tabs_data:
             if self.subfigs[0]._suptitle is not None:
                 self.subfigs[0]._suptitle.remove()
                 self.subfigs[0]._suptitle = None
-            for ax in tab["axes"]:
+            for ax in tab.axes:
                 ax.remove()
             if self.legend is not None:
                 self.legend.remove()
@@ -650,7 +666,7 @@ def plot_log(log_data: Dict[str, Any],
             tabs_data[' '.join(("State", fields_type))] = OrderedDict(
                 (field[7:].replace(fields_type, ""), elem)
                 for field, elem in values.items())
-        except ValueError:
+        except KeyError:
             # Variable has not been recorded and is missing in log file
             pass
 
@@ -660,7 +676,7 @@ def plot_log(log_data: Dict[str, Any],
             log_vars, robot.log_motor_effort_fieldnames, namespace=robot.name)
         tabs_data['MotorEffort'] = OrderedDict(zip(
             robot.motor_names, motors_efforts))
-    except ValueError:
+    except KeyError:
         # Variable has not been recorded and is missing in log file
         pass
 
@@ -669,7 +685,7 @@ def plot_log(log_data: Dict[str, Any],
         command = extract_variables_from_log(
             log_vars, robot.log_command_fieldnames, namespace=robot.name)
         tabs_data['Command'] = OrderedDict(zip(robot.motor_names, command))
-    except ValueError:
+    except KeyError:
         # Variable has not been recorded and is missing in log file
         pass
 
@@ -691,7 +707,7 @@ def plot_log(log_data: Dict[str, Any],
                     tabs_data[type_name] = OrderedDict(
                         (field, OrderedDict(zip(sensor_names, data)))
                         for field, data in zip(fieldnames, data_nested))
-                except ValueError:
+                except KeyError:
                     # Variable has not been recorded and is missing in log file
                     pass
         else:
@@ -703,7 +719,7 @@ def plot_log(log_data: Dict[str, Any],
                         for name in sensor_names], robot.name)
                     tabs_data[type_name] = OrderedDict(zip(
                         sensor_names, data))
-                except ValueError:
+                except KeyError:
                     # Variable has not been recorded and is missing in log file
                     pass
 
@@ -763,7 +779,8 @@ def plot_log_interactive() -> None:
 
     # Load log file
     main_fullpath = main_arguments.input
-    log_vars = read_log(main_fullpath)["variables"]
+    log_data = read_log(main_fullpath)
+    log_vars = log_data["variables"]
 
     # If no plotting commands, display the list of headers instead
     if len(plotting_commands) == 0:
@@ -778,7 +795,8 @@ def plot_log_interactive() -> None:
             if fullpath == main_fullpath or fullpath in compare_data.keys():
                 raise RuntimeError(
                     "All log files must be unique when comparing them.")
-            compare_data[fullpath] = read_log(fullpath)["variables"]
+            log_data = read_log(fullpath)
+            compare_data[fullpath] = log_data["variables"]
 
     # Define line style cycle used for logs comparison
     linestyles = ("--", "-.", ":")

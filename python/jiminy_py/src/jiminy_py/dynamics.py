@@ -1,10 +1,14 @@
 # mypy: disable-error-code="attr-defined, name-defined"
 """Helpers to ease computation of kinematic and dynamic quantities.
+
+.. warning::
+    These helpers must be used with caution. They are inefficient and some may
+    not even work properly due to ground profile being partially supported.
 """
 # pylint: disable=invalid-name,no-member
 import logging
-from copy import deepcopy
-from typing import Optional, Tuple, Sequence, Callable, TypedDict, Any
+from dataclasses import dataclass
+from typing import Optional, Tuple, Sequence, Callable
 
 import numpy as np
 
@@ -88,69 +92,63 @@ def velocityXYZQuatToXYZRPY(xyzquat: np.ndarray,
 # #################### State and Trajectory ###########################
 # #####################################################################
 
+@dataclass
 class State:
-    """Store the kinematics and dynamics data of the robot at a given time.
+    """Basic data structure storing kinematics and dynamics information at a
+    given time.
+
+    .. note::
+        The user is the responsible for keeping track to which robot the state
+        is associated to as this information is not stored in the state itself.
     """
-    def __init__(self,  # pylint: disable=unused-argument
-                 t: float,
-                 q: np.ndarray,
-                 v: Optional[np.ndarray] = None,
-                 a: Optional[np.ndarray] = None,
-                 tau: Optional[np.ndarray] = None,
-                 contact_frames: Optional[Sequence[str]] = None,
-                 f_ext: Optional[Sequence[np.ndarray]] = None,
-                 copy: bool = False,
-                 **kwargs: Any) -> None:
-        """
-        :param t: Time.
-        :param q: Configuration vector.
-        :param v: Velocity vector.
-        :param a: Acceleration vector.
-        :param tau: Joint efforts.
-        :param contact_frames: Name of the contact frames.
-        :param f_ext: Joint external forces.
-        :param copy: Force to copy the arguments.
-        """
-        # Time
-        self.t = t
-        # Configuration vector
-        self.q = deepcopy(q) if copy else q
-        # Velocity vector
-        self.v = deepcopy(v) if copy else v
-        # Acceleration vector
-        self.a = deepcopy(a) if copy else a
-        # Effort vector
-        self.tau = deepcopy(tau) if copy else tau
-        # Frame names of the contact points
-        if copy:
-            self.contact_frames = deepcopy(contact_frames)
-        else:
-            self.contact_frames = contact_frames
-        # External forces
-        self.f_ext = deepcopy(f_ext) if copy else f_ext
 
-    def __repr__(self) -> str:
-        """Convert the kinematics and dynamics data into string.
+    t: float
+    """Time.
+    """
 
-        :returns: The kinematics and dynamics data as a string.
-        """
-        msg = ""
-        for key, val in self.__dict__.items():
-            if val is not None:
-                msg += f"{key} : {val}\n"
-        return msg
+    q: np.ndarray
+    """Configuration vector.
+    """
+
+    v: Optional[np.ndarray] = None
+    """Velocity vector.
+    """
+
+    a: Optional[np.ndarray] = None
+    """Acceleration vector.
+    """
+
+    u_motors: Optional[np.ndarray] = None
+    """Motor efforts.
+    """
+
+    f_ext: Optional[Sequence[np.ndarray]] = None
+    """Joint external forces.
+    """
 
 
-class TrajectoryDataType(TypedDict, total=False):
+@dataclass
+class Trajectory:
     """Basic data structure storing the required information about a trajectory
     to later replay it using `jiminy_py.viewer.play_trajectories`.
     """
-    # List of State objects of increasing time
-    evolution_robot: Sequence[State]
-    # Jiminy robot
+
+    states: Sequence[State]
+    """List of states of increasing time.
+
+    .. warning::
+        The time may not be strictly increasing. There may be up to two
+        consecutive data point associated with the same timestep because
+        quantities may vary instantaneously at acceleration-level and higher.
+    """
+
     robot: jiminy.Robot
-    # Whether to use the theoretical model or the extended simulation model
+    """Jiminy robot.
+    """
+
     use_theoretical_model: bool
+    """Whether to use the theoretical model or the extended simulation model.
+    """
 
 
 # #####################################################################
@@ -565,7 +563,7 @@ def compute_freeflyer_state_from_fixed_body(
     :param acceleration: See position.
     :param fixed_body_name: Name of the body frame that is considered fixed
                             parallel to world frame.
-                            Optional: It will be infered from the set of
+                            Optional: It will be inferred from the set of
                             contact points and collision bodies.
     :param ground_profile: Ground profile callback.
     :param use_theoretical_model:
@@ -697,7 +695,7 @@ def compute_inverse_dynamics(robot: jiminy.Model,
                              use_theoretical_model: bool = False
                              ) -> np.ndarray:
     """Compute the motor torques through inverse dynamics, assuming to external
-    forces except the one resulting from the anyaltical constraints applied on
+    forces except the one resulting from the analytical constraints applied on
     the model.
 
     .. warning::
@@ -761,63 +759,3 @@ def compute_inverse_dynamics(robot: jiminy.Model,
     u = eigenpy.LDLT(B_ydd).solve(- a_ydd)
 
     return u
-
-
-# #####################################################################
-# ################### State sequence wrappers #########################
-# #####################################################################
-
-def compute_freeflyer(trajectory_data: TrajectoryDataType,
-                      freeflyer_continuity: bool = True) -> None:
-    """Compute the freeflyer positions and velocities.
-
-    .. warning::
-        This function modifies the internal robot data.
-
-    :param trajectory_data: Sequence of States for which to retrieve the
-                            freeflyer.
-    :param freeflyer_continuity: Whether to enforce the continuity in position
-                                 of the freeflyer.
-                                 Optional: True by default.
-    """
-    robot = trajectory_data['robot']
-
-    contact_frame_prev: Optional[str] = None
-    w_M_ff_offset = pin.SE3.Identity()
-    w_M_ff_prev = None
-    for s in trajectory_data['evolution_robot']:
-        # Compute freeflyer using contact frame as reference frame
-        compute_freeflyer_state_from_fixed_body(
-            robot, s.q, s.v, s.a, s.contact_frame, None)
-
-        # Move freeflyer to ensure continuity over time, if requested
-        if freeflyer_continuity:
-            # Extract the current freeflyer transform
-            w_M_ff = pin.XYZQUATToSE3(s.q[:7])
-
-            # Update the internal buffer of the freeflyer transform
-            if (contact_frame_prev is not None and
-                    contact_frame_prev != s.contact_frame):
-                w_M_ff_offset = w_M_ff_offset * w_M_ff_prev * w_M_ff.inverse()
-            contact_frame_prev = s.contact_frame
-            w_M_ff_prev = w_M_ff
-
-            # Add the appropriate offset to the freeflyer
-            w_M_ff = w_M_ff_offset * w_M_ff
-            s.q[:7] = pin.SE3ToXYZQUAT(w_M_ff)
-
-
-def compute_efforts(trajectory_data: TrajectoryDataType) -> None:
-    """Compute the efforts in the trajectory using RNEA method.
-
-    :param trajectory_data: Sequence of States for which to compute the
-                            efforts.
-    """
-    robot = trajectory_data['robot']
-    use_theoretical_model = trajectory_data['use_theoretical_model']
-
-    for s in trajectory_data['evolution_robot']:
-        assert s.q is not None and s.v is not None and s.a is not None
-        assert s.contact_frames is not None
-        s.tau, s.f_ext = compute_efforts_from_fixed_body(
-            robot, s.q, s.v, s.a, s.contact_frame, use_theoretical_model)

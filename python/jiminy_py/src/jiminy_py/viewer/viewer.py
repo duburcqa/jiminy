@@ -388,13 +388,14 @@ CameraPoseType = Tuple[
 
 
 class CameraMotionBreakpointType(TypedDict, total=True):
+    t: float
     """Time
     """
-    t: float
+
+    pose: Tuple[Tuple3FType, Tuple3FType]
     """Absolute pose of the camera, as a tuple position [X, Y, Z], rotation
     [Roll, Pitch, Yaw].
     """
-    pose: Tuple[Tuple3FType, Tuple3FType]
 
 
 CameraMotionType = Sequence[CameraMotionBreakpointType]
@@ -2482,7 +2483,7 @@ class Viewer:
 
     @_must_be_open
     def replay(self,
-               evolution_robot: Sequence[State],
+               states: Sequence[State],
                time_interval: Union[
                    np.ndarray, Tuple[float, float]] = (0.0, np.inf),
                speed_ratio: float = 1.0,
@@ -2502,7 +2503,7 @@ class Viewer:
             It will alter original robot data if viewer attribute
             `use_theoretical_model` is false.
 
-        :param evolution_robot: List of State object of increasing time.
+        :param states: List of State object of increasing time.
         :param time_interval: Specific time interval to replay.
                               Optional: Complete evolution by default [0, inf].
         :param speed_ratio: Real-time factor.
@@ -2529,31 +2530,31 @@ class Viewer:
 
         # Disable display of DCM if no velocity data provided
         disable_display_dcm = False
-        has_velocities = evolution_robot[0].v is not None
+        has_velocities = states[0].v is not None
         if not has_velocities and self._display_dcm:
             disable_display_dcm = True
             self.display_capture_point(False)
 
         # Check if force data is available
-        has_forces = evolution_robot[0].f_ext is not None
+        has_forces = states[0].f_ext is not None
 
         # Replay the whole trajectory at constant speed ratio
         v = None
         update_hook_t = None
-        times = [s.t for s in evolution_robot]
+        times = [s.t for s in states]
         t_simu = time_interval[0]
         i = bisect_right(times, t_simu)
         time_init = time.time()
         time_prev = time_init
-        while i < len(evolution_robot):
+        while i < len(states):
             try:
                 # Update clock if enabled
                 if enable_clock:
                     Viewer.set_clock(t_simu)
 
                 # Compute interpolated data at current time
-                s_next = evolution_robot[min(i, len(times) - 1)]
-                s = evolution_robot[max(i - 1, 0)]
+                s_next = states[min(i, len(times) - 1)]
+                s = states[max(i - 1, 0)]
                 ratio = (t_simu - s.t) / (s_next.t - s.t)
                 q = pin.interpolate(self._client.model, s.q, s_next.q, ratio)
                 if has_velocities:

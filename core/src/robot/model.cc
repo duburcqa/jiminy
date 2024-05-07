@@ -882,6 +882,23 @@ namespace jiminy
         return constraints_.exist(constraintName);
     }
 
+    bool Model::hasConstraints() const
+    {
+        bool hasConstraintsEnabled = false;
+        const_cast<ConstraintTree &>(constraints_)
+            .foreach(
+                [&hasConstraintsEnabled](
+                    const std::shared_ptr<AbstractConstraintBase> & constraint,
+                    ConstraintNodeType /* node */)
+                {
+                    if (constraint->getIsEnabled())
+                    {
+                        hasConstraintsEnabled = true;
+                    }
+                });
+        return hasConstraintsEnabled;
+    }
+
     void Model::resetConstraints(const Eigen::VectorXd & q, const Eigen::VectorXd & v)
     {
         constraints_.foreach([&q, &v](const std::shared_ptr<AbstractConstraintBase> & constraint,
@@ -1206,7 +1223,6 @@ namespace jiminy
             }
 
             // Define complete external force fieldnames and backup them
-            std::vector<std::string> jointForceExternalFieldnames;
             for (const std::string & suffix : ForceSensor::fieldnames_)
             {
                 logForceExternalFieldnames_.emplace_back(
@@ -1790,6 +1806,21 @@ namespace jiminy
         }
     }
 
+    Eigen::Index Model::nq() const
+    {
+        return nq_;
+    }
+
+    Eigen::Index Model::nv() const
+    {
+        return nv_;
+    }
+
+    Eigen::Index Model::nx() const
+    {
+        return nx_;
+    }
+
     const std::vector<std::string> & Model::getCollisionBodyNames() const
     {
         return collisionBodyNames_;
@@ -1813,41 +1844,6 @@ namespace jiminy
     const std::vector<pinocchio::FrameIndex> & Model::getContactFrameIndices() const
     {
         return contactFrameIndices_;
-    }
-
-    const std::vector<std::string> & Model::getLogPositionFieldnames() const
-    {
-        return logPositionFieldnames_;
-    }
-
-    const Eigen::VectorXd & Model::getPositionLimitMin() const
-    {
-        return positionLimitMin_;
-    }
-
-    const Eigen::VectorXd & Model::getPositionLimitMax() const
-    {
-        return positionLimitMax_;
-    }
-
-    const std::vector<std::string> & Model::getLogVelocityFieldnames() const
-    {
-        return logVelocityFieldnames_;
-    }
-
-    const Eigen::VectorXd & Model::getVelocityLimit() const
-    {
-        return velocityLimit_;
-    }
-
-    const std::vector<std::string> & Model::getLogAccelerationFieldnames() const
-    {
-        return logAccelerationFieldnames_;
-    }
-
-    const std::vector<std::string> & Model::getLogForceExternalFieldnames() const
-    {
-        return logForceExternalFieldnames_;
     }
 
     const std::vector<std::string> & Model::getMechanicalJointNames() const
@@ -1890,36 +1886,38 @@ namespace jiminy
         return backlashJointIndices_;
     }
 
-    /// \brief Returns true if at least one constraint is active on the robot.
-    bool Model::hasConstraints() const
+    const Eigen::VectorXd & Model::getPositionLimitMin() const
     {
-        bool hasConstraintsEnabled = false;
-        const_cast<ConstraintTree &>(constraints_)
-            .foreach(
-                [&hasConstraintsEnabled](
-                    const std::shared_ptr<AbstractConstraintBase> & constraint,
-                    ConstraintNodeType /* node */)
-                {
-                    if (constraint->getIsEnabled())
-                    {
-                        hasConstraintsEnabled = true;
-                    }
-                });
-        return hasConstraintsEnabled;
+        return positionLimitMin_;
     }
 
-    Eigen::Index Model::nq() const
+    const Eigen::VectorXd & Model::getPositionLimitMax() const
     {
-        return nq_;
+        return positionLimitMax_;
     }
 
-    Eigen::Index Model::nv() const
+    const Eigen::VectorXd & Model::getVelocityLimit() const
     {
-        return nv_;
+        return velocityLimit_;
     }
 
-    Eigen::Index Model::nx() const
+    const std::vector<std::string> & Model::getLogPositionFieldnames() const
     {
-        return nx_;
+        return logPositionFieldnames_;
+    }
+
+    const std::vector<std::string> & Model::getLogVelocityFieldnames() const
+    {
+        return logVelocityFieldnames_;
+    }
+
+    const std::vector<std::string> & Model::getLogAccelerationFieldnames() const
+    {
+        return logAccelerationFieldnames_;
+    }
+
+    const std::vector<std::string> & Model::getLogForceExternalFieldnames() const
+    {
+        return logForceExternalFieldnames_;
     }
 }

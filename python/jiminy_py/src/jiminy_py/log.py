@@ -4,6 +4,7 @@ reconstructing the robot to reading telemetry variables.
 """
 import re
 from bisect import bisect_right
+from itertools import zip_longest, starmap
 from collections import OrderedDict
 from typing import (
     Any, Callable, List, Dict, Optional, Sequence, Union, Literal, Type,
@@ -19,7 +20,7 @@ from .core import (  # pylint: disable=no-name-in-module
     ContactSensor as contact,
     ForceSensor as force,
     ImuSensor as imu)
-from .dynamics import State, TrajectoryDataType
+from .dynamics import State, Trajectory
 
 
 SENSORS_FIELDS: Dict[
@@ -96,7 +97,7 @@ def extract_variables_from_log(log_vars: Dict[str, np.ndarray],
 
         # Raise an exception if the key does not exists and not fail safe
         if key not in log_vars:
-            raise ValueError(f"Variable '{key}' not found in log file.")
+            raise KeyError(f"Variable '{key}' not found in log file.")
 
         # Extract the value corresponding to the key
         if as_dict:
@@ -215,7 +216,7 @@ def build_robots_from_log(
 def extract_trajectory_from_log(log_data: Dict[str, Any],
                                 robot: Optional[jiminy.Robot] = None,
                                 *, robot_name: Optional[str] = None
-                                ) -> TrajectoryDataType:
+                                ) -> Trajectory:
     """Extract the minimal required information from raw log data in order to
     replay the simulation in a viewer.
 
@@ -233,7 +234,7 @@ def extract_trajectory_from_log(log_data: Dict[str, Any],
                        is not known, call `build_robot_from_log`.
 
     :returns: Trajectory dictionary. The actual trajectory corresponds to the
-              field "evolution_robot" and it is a list of State object. The
+              field "states" and it is a list of State object. The
               other fields are additional information.
     """
     # Prepare robot namespace
@@ -254,45 +255,39 @@ def extract_trajectory_from_log(log_data: Dict[str, Any],
     # Define some proxies for convenience
     log_vars = log_data["variables"]
 
-    # Extract the joint positions, velocities and external forces over time
-    positions = np.stack([
-        log_vars.get(".".join(filter(None, (robot_name, field))), [])
-        for field in robot.log_position_fieldnames], axis=-1)
-    velocities = np.stack([
-        log_vars.get(".".join(filter(None, (robot_name, field))), [])
-        for field in robot.log_velocity_fieldnames], axis=-1)
-    forces = np.stack([
-        log_vars.get(".".join(filter(None, (robot_name, field))), [])
-        for field in robot.log_f_external_fieldnames], axis=-1)
+    # Extract robot state data over time for all quantities available
+    data: Dict[str, np.ndarray] = OrderedDict()
+    for name in ("position",
+                 "velocity",
+                 "acceleration",
+                 "motor_effort",
+                 "f_external"):
+        fieldnames = getattr(robot, f"log_{name}_fieldnames")
+        try:
+            values = extract_variables_from_log(
+                log_vars, fieldnames, robot_name)
+            data[name] = np.stack(values, axis=-1)
+        except KeyError:
+            data[name] = []
 
-    # Determine which optional data are available
-    has_positions = len(positions) > 0
-    has_velocities = len(velocities) > 0
-    has_forces = len(forces) > 0
+    # Reshape force data if available
+    f_ext = data.get("f_external")
+    if f_ext:
+        data["f_external"] = tuple(
+            map(tuple, f_ext.reshape((len(f_ext), -1, 6))))
 
     # Create state sequence
-    evolution_robot = []
-    q, v, f_ext = None, None, None
-    for i, t in enumerate(log_vars["Global.Time"]):
-        if has_positions:
-            q = positions[i]
-        if has_velocities:
-            v = velocities[i]
-        if has_forces:
-            f_ext = [forces[i, (6 * (j - 1)):(6 * j)]
-                     for j in range(1, robot.pinocchio_model.njoints)]
-        evolution_robot.append(State(
-            t=t, q=q, v=v, f_ext=f_ext))  # type: ignore[arg-type]
+    states = tuple(starmap(
+        State, zip_longest(log_vars["Global.Time"], *data.values())))
 
-    return {"evolution_robot": evolution_robot,
-            "robot": robot,
-            "use_theoretical_model": False}
+    # Create the trajectory
+    return Trajectory(states, robot, use_theoretical_model=False)
 
 
 def extract_trajectories_from_log(
         log_data: Dict[str, Any],
         robots: Optional[Sequence[jiminy.Robot]] = None
-        ) -> Dict[str, TrajectoryDataType]:
+        ) -> Dict[str, Trajectory]:
     """Extract the minimal required information from raw log data in order to
     replay the simulation in a viewer.
 
