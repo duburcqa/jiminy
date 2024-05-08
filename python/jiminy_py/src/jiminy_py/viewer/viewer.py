@@ -1,5 +1,10 @@
 # mypy: disable-error-code="attr-defined, name-defined"
-""" TODO: Write documentation.
+"""This module provides a backend-agnostic 3D viewer on top of lower-level
+implementations.
+
+This viewer can be used to render the state of a robot, including sensor data
+and external forces if any. It is mainly used to render the current simulation
+state or replay multiple complete trajectories as-posteriori.
 """
 import os
 import re
@@ -252,7 +257,11 @@ else:
 
 def get_color_code(
         color: Optional[Union[str, Tuple4FType]]) -> Optional[Tuple4FType]:
-    """ TODO: Write documentation.
+    """Sanitize color codes.
+
+    All it does is converting color codes that has been specified through
+    pre-defined names into their corresponding 4-tuple (R, G, B, A), where each
+    component is a floating-point scalar normalized in range [0.0, 1.0].
     """
     if isinstance(color, str):
         try:
@@ -352,7 +361,8 @@ class _ProcessWrapper:
             self._proc.step()
 
     def kill(self) -> None:
-        """ TODO: Write documentation.
+        """If wrapped process if it is a child of the main python process and
+        it is still alive that the time being.
         """
         if self.is_parent() and self.is_alive():
             if isinstance(self._proc, Panda3dApp):
@@ -387,13 +397,18 @@ CameraPoseType = Tuple[
 
 
 class CameraMotionBreakpointType(TypedDict, total=True):
+    """Basic data structure storing all the information needed to describe a
+    camera motion breakpoint, ie the expected pose of the camera at a given
+    point in time.
+    """
+
     t: float
-    """Time
+    """Time at which the camera is expected to have in a specific pose.
     """
 
     pose: Tuple[Tuple3FType, Tuple3FType]
-    """Absolute pose of the camera, as a tuple position [X, Y, Z], rotation
-    [Roll, Pitch, Yaw].
+    """Exacted absolute pose of the camera, as a tuple position (X, Y, Z),
+    rotation (Roll, Pitch, Yaw).
     """
 
 
@@ -420,7 +435,11 @@ class MarkerDataType(TypedDict, total=True):
 
 
 class Viewer:
-    """ TODO: Write documentation.
+    """Backend-agnostic 3D viewer.
+
+    This class can be used to render the state of a robot, including sensor
+    data and external forces if any. It is mainly used to render the current
+    simulation state or replay multiple complete trajectories as-posteriori.
 
     .. note::
         The environment variable 'JIMINY_INTERACTIVE_DISABLE' can be
@@ -1021,7 +1040,9 @@ class Viewer:
 
     @staticmethod
     def has_gui() -> bool:
-        """ TODO: Write documentation.
+        """Whether the viewer has a Graphical User Interface (GUI), ie the
+        viewer is connected to a given backend that is running up to now, and
+        onscreen rendering has been specifically requested.
         """
         if Viewer.is_alive():
             # Assert(s) for type checker
@@ -1888,8 +1909,7 @@ class Viewer:
                 return buffer
 
             # Extract and return numpy array RGB
-            array = np.frombuffer(buffer, np.uint8)
-            return array.reshape((height, width, 3), order='A')
+            return np.frombuffer(buffer, np.uint8).reshape((height, width, 3))
 
         # if Viewer.backend == 'meshcat':
         # Send capture frame request to the background recorder process
@@ -2558,7 +2578,7 @@ class Viewer:
                 state = trajectory.get(t, mode="raise")
 
                 # Update viewer force buffer
-                if trajectory.has_external_forces:
+                if state.f_ext is not None:
                     for f_ref, f_i in zip(self.f_external, state.f_ext):
                         f_ref.vector[:] = f_i
 

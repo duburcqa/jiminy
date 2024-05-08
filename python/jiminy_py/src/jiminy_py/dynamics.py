@@ -142,7 +142,7 @@ class Trajectory:
     """
 
     states: Sequence[State]
-    """List of states of increasing time.
+    """Sequence of states of increasing time.
 
     .. warning::
         The time may not be strictly increasing. There may be up to two
@@ -162,7 +162,13 @@ class Trajectory:
                  states: Sequence[State],
                  robot: jiminy.Robot,
                  use_theoretical_model: bool) -> None:
-        """TODO: Write documentation
+        """
+        :param states: Trajectory data as a sequence of `State` instances of
+                       increasing time.
+        :param robot: Robot associated with the trajectory.
+        :param use_theoretical_model: Whether the state sequence is associated
+                                      with the theoretical dynamical model or
+                                      extended simulation model of the robot.
         """
         # Backup user arguments
         self.states = states
@@ -176,16 +182,22 @@ class Trajectory:
             raise ValueError(
                 "Time must not be decreasing between consecutive timesteps.")
 
+        # Define pinocchio model proxy for fast access
+        if use_theoretical_model:
+            self._pinocchio_model = robot.pinocchio_model_th
+        else:
+            self._pinocchio_model = robot.pinocchio_model
+
         # Keep track of last request to speed up nearest neighbors search
-        self._t_prev = -1
-        self._index_prev = -1
+        self._t_prev = 0.0
+        self._index_prev = 0
 
         # List of optional state fields that are provided
         state = states[0] if states else None
-        self._has_velocity = state and state.v is not None
-        self._has_acceleration = state and state.a is not None
-        self._has_motor_efforts = state and state.u_motors is not None
-        self._has_external_forces = state and state.f_ext is not None
+        self._has_velocity = not (state is None or state.v is None)
+        self._has_acceleration = not (state is None or state.a is None)
+        self._has_motor_efforts = not (state is None or state.u_motors is None)
+        self._has_external_forces = not (state is None or state.f_ext is None)
         self._fields = tuple(
             field for field in ("v", "a", "u_motors", "f_ext")
             if states and getattr(states[0], field) is not None)
@@ -273,11 +285,11 @@ class Trajectory:
         t_right, s_right = self._times[index_right], self.states[index_right]
         if t_right - t < 1e-12:
             return s_right
-        alpha = (t - t_left) / (t_right - s_right)
+        alpha = (t - t_left) / (t_right - t_left)
 
         # Interpolate state
         data = {"q": pin.interpolate(
-            self.robot.pinocchio_model, s_left.q, s_right.q, alpha)}
+            self._pinocchio_model, s_left.q, s_right.q, alpha)}
         for field in self._fields:
             value_left = getattr(s_left, field)
             value_right = getattr(s_right, field)

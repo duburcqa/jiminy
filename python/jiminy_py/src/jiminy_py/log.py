@@ -256,7 +256,7 @@ def extract_trajectory_from_log(log_data: Dict[str, Any],
     log_vars = log_data["variables"]
 
     # Extract robot state data over time for all quantities available
-    data: Dict[str, np.ndarray] = OrderedDict()
+    data: Dict[str, Sequence[np.ndarray]] = OrderedDict()
     for name in ("position",
                  "velocity",
                  "acceleration",

@@ -11,7 +11,6 @@ import asyncio
 import tempfile
 import argparse
 from base64 import b64encode
-from bisect import bisect_right
 from collections import deque
 from types import TracebackType
 from functools import wraps, partial
@@ -307,7 +306,7 @@ def play_trajectories(
     :returns: List of viewers used to play the trajectories.
     """
     # Make sure sequence arguments are list or tuple
-    if isinstance(trajectories, dict):
+    if isinstance(trajectories, Trajectory):
         trajectories = [trajectories]
     ntrajs = len(trajectories)
     if update_hooks is None:
@@ -598,6 +597,7 @@ def play_trajectories(
             frame = av.VideoFrame(*record_video_size, 'rgb24')
 
         # Add frames to video sequentially
+        update_hook_t = None
         time_global = np.arange(
             time_interval[0], time_max, speed_ratio / VIDEO_FRAMERATE)
         for t in tqdm(
@@ -616,13 +616,12 @@ def play_trajectories(
                     state = trajectory.get(t)
 
                     # Update viewer state
-                    if trajectory.has_external_forces:
+                    if state.f_ext is not None:
                         for f_ref, f_i in zip(viewer.f_external, state.f_ext):
                             f_ref.vector[:] = f_i
-                    if update_hook is None:
-                        update_hook_t = None
-                    else:
-                        update_hook_t = partial(update_hook, t, state.q, state.v)
+                    if update_hook is not None:
+                        update_hook_t = partial(
+                            update_hook, t, state.q, state.v)
                     viewer.display(state.q, state.v, xyz_offset, update_hook_t)
 
                 # Update clock if enabled
