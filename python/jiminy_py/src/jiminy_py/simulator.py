@@ -20,7 +20,7 @@ import numpy as np
 
 from . import core as jiminy
 from .robot import BaseJiminyRobot, generate_default_hardware_description_file
-from .dynamics import TrajectoryDataType
+from .dynamics import Trajectory
 from .log import read_log, build_robot_from_log
 from .viewer import (CameraPoseType,
                      interactive_mode,
@@ -819,7 +819,7 @@ class Simulator:
 
     def replay(self,
                extra_logs_files: Sequence[str] = (),
-               extra_trajectories: Sequence[TrajectoryDataType] = (),
+               extra_trajectories: Sequence[Trajectory] = (),
                **kwargs: Any) -> None:
         """Replay the current episode until now.
 
@@ -850,7 +850,7 @@ class Simulator:
             logs_data.append(log_data)
 
         # Extract trajectory data from pairs (robot, log)
-        trajectories: List[TrajectoryDataType] = []
+        trajectories: List[Trajectory] = []
         update_hooks: List[
             Optional[Callable[[float, np.ndarray, np.ndarray], None]]] = []
         extra_kwargs: Dict[str, Any] = {}

@@ -1,4 +1,4 @@
-"""TODO: Write documentation.
+""" TODO: Write documentation.
 """
 import os
 import tempfile
@@ -157,7 +157,7 @@ class SimulatorTest(unittest.TestCase):
         log_data = read_log(log_path)
         trajectory = extract_trajectory_from_log(log_data)
 
-        final_log_states = trajectory['evolution_robot'][-1]
+        final_log_states = trajectory.states[-1]
 
         np.testing.assert_array_almost_equal(
             simulator.robot_state.q, final_log_states.q, decimal=10)
@@ -225,7 +225,7 @@ class SimulatorTest(unittest.TestCase):
         trajectories = extract_trajectories_from_log(log_data)
 
         trajectory_1, trajectory_2 = (
-            trajectories[robot.name]['evolution_robot'][-1]
+            trajectories[robot.name].states[-1]
             for robot in simulator.robots)
         robot_states_1, robot_states_2 = simulator.robot_states
 

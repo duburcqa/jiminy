@@ -32,7 +32,11 @@ from ..envs import BaseJiminyEnv
 
 
 class RewardConfig(TypedDict, total=False):
-    """ TODO: Write documentation.
+    """Store information required for instantiating a given reward.
+
+    Specifically, it is a dictionary comprising the class of the reward, which
+    must derive from `AbstractReward`, and optionally some keyword-arguments
+    that must be passed to its corresponding constructor.
     """
 
     cls: Union[Type[AbstractReward], str]
@@ -43,14 +47,22 @@ class RewardConfig(TypedDict, total=False):
     """
 
     kwargs: Dict[str, Any]
-    """Environment constructor default arguments.
+    """Environment constructor keyword-arguments.
 
     This attribute can be omitted.
     """
 
 
 class EnvConfig(TypedDict, total=False):
-    """ TODO: Write documentation.
+    """Store information required for instantiating a given base environment
+    and compose it with some additional reward components and termination
+    conditions.
+
+    Specifically, it is a dictionary comprising the class of the base
+    environment, which must derive from `BaseJiminyEnv`, optionally some
+    keyword-arguments that must be passed to its corresponding constructor, and
+    eventually the configuration of some additional reward with which to
+    compose the base environment.
     """
 
     cls: Union[Type[BaseJiminyEnv], str]
@@ -74,7 +86,13 @@ class EnvConfig(TypedDict, total=False):
 
 
 class BlockConfig(TypedDict, total=False):
-    """ TODO: Write documentation.
+    """Store information required for instantiating a given observation or
+    control block.
+
+    Specifically, it is a dictionary comprising the class of the block, which
+    must derive from `BaseControllerBlock` or `BaseObserverBlock`, and
+    optionally some keyword-arguments that must be passed to its corresponding
+    constructor.
     """
 
     cls: Union[Type[BaseControllerBlock], Type[BaseObserverBlock], str]
@@ -93,7 +111,12 @@ class BlockConfig(TypedDict, total=False):
 
 
 class WrapperConfig(TypedDict, total=False):
-    """ TODO: Write documentation.
+    """Store information required for instantiating a given environment
+    pipeline wrapper.
+
+    Specifically, it is a dictionary comprising the class of the wrapper, which
+    must derive from `BasePipelineWrapper`, and optionally some
+    keyword-arguments that must be passed to its corresponding constructor.
     """
 
     cls: Union[Type[BasePipelineWrapper], str]
@@ -111,7 +134,14 @@ class WrapperConfig(TypedDict, total=False):
 
 
 class LayerConfig(TypedDict, total=False):
-    """ TODO: Write documentation.
+    """Store information required for instantiating a given environment
+    pipeline layer, ie either a wrapper, or the combination of an observer /
+    controller block with its corresponding wrapper.
+
+    Specifically, it is a dictionary comprising the configuration of the block
+    if any, and optionally the configuration of the reward. It is generally
+    sufficient to specify either one or the other. See the documentation of the
+    both fields for details.
     """
 
     block: BlockConfig
