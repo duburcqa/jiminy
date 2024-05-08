@@ -38,7 +38,6 @@ from .viewer import (COLORS,
                      Tuple4FType,
                      CameraPoseType,
                      CameraMotionType,
-                     interp1d,
                      get_default_backend,
                      is_display_available,
                      Viewer)
@@ -513,15 +512,16 @@ def play_trajectories(
     if time_interval[1] < time_interval[0]:
         raise ValueError("Time interval must be non-empty and positive.")
 
-    # Initialize robot configuration is viewer before any further processing
+    # Initialize robot and viewer configuration before any further processing
     for viewer, trajectory, offset in zip(viewers, trajectories, xyz_offsets):
-        data = trajectory.states
-        if data:
-            i = bisect_right(
-                [s.t for s in data], time_interval[0], hi=len(data)-1)
-            for f_ext in viewer.f_external:
-                f_ext.vector[:] = 0.0
-            viewer.display(data[i].q, data[i].v, offset)
+        try:
+            state = trajectory.get(time_interval[0])
+        except RuntimeError:
+            pass
+        else:
+            viewer.display(state.q, state.v, offset)
+        for f_ext in viewer.f_external:
+            f_ext.vector[:] = 0.0
         if backend.startswith('panda3d'):
             if display_com is not None:
                 viewer.display_center_of_mass(display_com)
@@ -533,14 +533,13 @@ def play_trajectories(
                 viewer.display_external_forces(display_f_external)
 
     # Set camera pose or activate camera travelling if requested
-    viewer = viewers[0]
+    viewer, robot = viewers[0], trajectories[0].robot
     if enable_travelling:
         position, rotation, relative = None, None, None
         if camera_pose is not None:
             position, rotation, relative = camera_pose
         if relative is None:
             # Track the first actual frame by default (0: world, 1: root_joint)
-            robot = trajectories[0].robot
             assert robot is not None
             if not robot.has_freeflyer:
                 raise ValueError(
@@ -567,55 +566,10 @@ def play_trajectories(
         # Extract and resample trajectory data at fixed framerate
         time_max = time_interval[0]
         for trajectory in trajectories:
-            if len(trajectory.states):
-                time_max = max([time_max, trajectory.states[-1].t])
+            if trajectory.has_data:
+                _, t_end = trajectory.time_interval
+                time_max = max(time_max, t_end)
         time_max = min(time_max, time_interval[1])
-
-        time_global = np.arange(
-            time_interval[0], time_max, speed_ratio / VIDEO_FRAMERATE)
-        position_evolutions: List[Optional[np.ndarray]] = []
-        velocity_evolutions: List[Optional[
-            Union[np.ndarray, Sequence[None]]]] = []
-        force_evolutions: List[Optional[
-            Union[List[List[np.ndarray]], Sequence[None]]]] = []
-        for trajectory in trajectories:
-            if len(trajectory.states):
-                data_orig = trajectory.states
-                robot = trajectory.robot
-                assert robot is not None
-                if trajectory.use_theoretical_model:
-                    model = robot.pinocchio_model_th
-                else:
-                    model = robot.pinocchio_model
-                t_orig = np.array([s.t for s in data_orig])
-                pos_orig = np.stack([s.q for s in data_orig], axis=0)
-                position_evolutions.append(jiminy.interpolate_positions(
-                    model, t_orig, pos_orig.T, time_global).T)
-                if data_orig[0].v is not None:
-                    vel_orig = np.stack([
-                        s.v  # type: ignore[misc]
-                        for s in data_orig], axis=0)
-                    velocity_evolutions.append(interp1d(
-                        t_orig, vel_orig, time_global))
-                else:
-                    velocity_evolutions.append((None,) * len(time_global))
-                if data_orig[0].f_ext is not None:
-                    forces: List[np.ndarray] = []
-                    for i in range(len(data_orig[0].f_ext)):
-                        f_ext_orig = np.stack([
-                            s.f_ext[i]  # type: ignore[index]
-                            for s in data_orig], axis=0)
-                        forces.append(interp1d(
-                            t_orig, f_ext_orig, time_global))
-                    force_evolutions.append([
-                        [f_ext[i] for f_ext in forces]
-                        for i in range(len(time_global))])
-                else:
-                    force_evolutions.append((None,) * len(time_global))
-            else:
-                position_evolutions.append(None)
-                velocity_evolutions.append(None)
-                force_evolutions.append(None)
 
         # Initialize video recording
         if backend == 'meshcat':
@@ -644,30 +598,36 @@ def play_trajectories(
             frame = av.VideoFrame(*record_video_size, 'rgb24')
 
         # Add frames to video sequentially
-        for i, t_cur in enumerate(tqdm(
+        time_global = np.arange(
+            time_interval[0], time_max, speed_ratio / VIDEO_FRAMERATE)
+        for t in tqdm(
                 time_global, desc="Rendering frames",
-                disable=(not verbose and not record_video_html_embedded))):
+                disable=(not verbose and not record_video_html_embedded)):
             try:
-                # Update 3D view
-                for viewer, pos, vel, forces, xyz_offset, update_hook in zip(
-                        viewers, position_evolutions, velocity_evolutions,
-                        force_evolutions, xyz_offsets, update_hooks):
+                # Loop over all trajectories
+                for viewer, trajectory, xyz_offset, update_hook in zip(
+                        viewers, trajectories, xyz_offsets, update_hooks):
+                    # Skip empty trajectories
                     assert viewer is not None
-                    if pos is None:
+                    if not trajectory.has_data:
                         continue
-                    q, v, f_ext = pos[i], vel[i], forces[i]
-                    if f_ext is not None:
-                        for f_ref, f_i in zip(viewer.f_external, f_ext):
+
+                    # Compute robot state at current time
+                    state = trajectory.get(t)
+
+                    # Update viewer state
+                    if trajectory.has_external_forces:
+                        for f_ref, f_i in zip(viewer.f_external, state.f_ext):
                             f_ref.vector[:] = f_i
-                    if update_hook is not None:
-                        update_hook_t = partial(update_hook, t_cur, q, v)
-                    else:
+                    if update_hook is None:
                         update_hook_t = None
-                    viewer.display(q, v, xyz_offset, update_hook_t)
+                    else:
+                        update_hook_t = partial(update_hook, t, state.q, state.v)
+                    viewer.display(state.q, state.v, xyz_offset, update_hook_t)
 
                 # Update clock if enabled
                 if enable_clock:
-                    Viewer.set_clock(t_cur)
+                    Viewer.set_clock(t)
 
                 # Add frame to video
                 if backend == 'meshcat':
@@ -725,7 +685,7 @@ def play_trajectories(
             threads.append(Thread(
                 target=replay_thread,
                 args=(viewer,
-                      trajectory.states,
+                      trajectory,
                       time_interval,
                       speed_ratio,
                       xyz_offset,

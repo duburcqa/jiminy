@@ -19,7 +19,6 @@ import multiprocessing
 from copy import deepcopy
 from urllib.request import urlopen
 from functools import wraps, partial
-from bisect import bisect_right
 from threading import RLock
 from multiprocessing import Process as ProcessMP
 from typing import (
@@ -45,7 +44,7 @@ from ..core import (  # pylint: disable=no-name-in-module
     ContactSensor as contact,
     discretize_heightmap)
 from ..robot import _DuplicateFilter
-from ..dynamics import State
+from ..dynamics import Trajectory
 from .meshcat.utilities import interactive_mode
 from .panda3d.panda3d_visualizer import (
     Tuple3FType, Tuple4FType, ShapeType, Panda3dApp, Panda3dViewer,
@@ -1889,7 +1888,9 @@ class Viewer:
                 return buffer
 
             # Extract and return numpy array RGB
-            return np.frombuffer(buffer, np.uint8).reshape((height, width, 3))
+            array = np.frombuffer(buffer, np.uint8)
+            return array.reshape((height, width, 3), order='A')
+
         # if Viewer.backend == 'meshcat':
         # Send capture frame request to the background recorder process
         img_html = Viewer._backend_obj.capture_frame(width, height)
@@ -2483,7 +2484,7 @@ class Viewer:
 
     @_must_be_open
     def replay(self,
-               states: Sequence[State],
+               trajectory: Trajectory,
                time_interval: Union[
                    np.ndarray, Tuple[float, float]] = (0.0, np.inf),
                speed_ratio: float = 1.0,
@@ -2522,6 +2523,14 @@ class Viewer:
                             Optional: No update hook by default.
         :param wait: Whether to wait for rendering to finish.
         """
+        # Early return if nothing to replay
+        if not trajectory.has_data:
+            return
+
+        # Sanitize replay time interval
+        t_start, t_end = trajectory.time_interval
+        t_start, t_end = (min(max(t, t_start), t_end) for t in time_interval)
+
         # Disable display of sensor data if no update hook is provided
         disable_display_contact_forces = False
         if update_hook is None and self._display_contact_forces:
@@ -2530,68 +2539,48 @@ class Viewer:
 
         # Disable display of DCM if no velocity data provided
         disable_display_dcm = False
-        has_velocities = states[0].v is not None
-        if not has_velocities and self._display_dcm:
+        if not trajectory.has_velocity and self._display_dcm:
             disable_display_dcm = True
             self.display_capture_point(False)
 
-        # Check if force data is available
-        has_forces = states[0].f_ext is not None
-
         # Replay the whole trajectory at constant speed ratio
-        v = None
-        update_hook_t = None
-        times = [s.t for s in states]
-        t_simu = time_interval[0]
-        i = bisect_right(times, t_simu)
+        t = t_start
         time_init = time.time()
         time_prev = time_init
-        while i < len(states):
+        v, update_hook_t = None, None
+        while t < t_end:
             try:
                 # Update clock if enabled
                 if enable_clock:
-                    Viewer.set_clock(t_simu)
+                    Viewer.set_clock(t)
 
-                # Compute interpolated data at current time
-                s_next = states[min(i, len(times) - 1)]
-                s = states[max(i - 1, 0)]
-                ratio = (t_simu - s.t) / (s_next.t - s.t)
-                q = pin.interpolate(self._client.model, s.q, s_next.q, ratio)
-                if has_velocities:
-                    v = s.v + ratio * (
-                        s_next.v - s.v)  # type: ignore[operator]
-                if has_forces:
-                    for i, (f_ext, f_ext_next) in enumerate(zip(
-                            s.f_ext, s_next.f_ext)):  # type: ignore[arg-type]
-                        self.f_external[i].vector[:] = \
-                            f_ext + ratio * (f_ext_next - f_ext)
+                # Compute state at current time
+                state = trajectory.get(t, mode="raise")
+
+                # Update viewer force buffer
+                if trajectory.has_external_forces:
+                    for f_ref, f_i in zip(self.f_external, state.f_ext):
+                        f_ref.vector[:] = f_i
 
                 # Update camera motion
                 if Viewer._camera_motion is not None:
-                    Viewer._camera_xyzrpy = Viewer._camera_motion(t_simu)
+                    Viewer._camera_xyzrpy = Viewer._camera_motion(t)
 
                 # Update display
                 if update_hook is not None:
-                    update_hook_t = partial(update_hook, t_simu, q, v)
-                self.display(q, v, xyz_offset, update_hook_t, wait)
+                    update_hook_t = partial(update_hook, t, state.q, state.v)
+                self.display(state.q, v, xyz_offset, update_hook_t, wait)
 
                 # Sleep for a while if computing faster than display framerate
                 sleep(1.0 / REPLAY_FRAMERATE - (time.time() - time_prev))
-
-                # Update time in simulation, taking into account speed ratio
                 time_prev = time.time()
-                time_elapsed = time_prev - time_init
-                t_simu = time_interval[0] + speed_ratio * time_elapsed
 
-                # Compute corresponding right index from interpolation
-                i = bisect_right(times, t_simu)
+                # Update simulation time, taking into account speed ratio
+                time_elapsed = time_prev - time_init
+                t = t_start + speed_ratio * time_elapsed
 
                 # Waiting for the first timestep is enough
                 wait = False
-
-                # Stop the simulation if final time is reached
-                if t_simu > time_interval[1]:
-                    break
             except Exception as e:
                 # Get backend info to analyze the root cause of the exception
                 backend = Viewer.backend

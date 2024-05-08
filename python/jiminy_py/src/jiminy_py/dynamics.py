@@ -7,8 +7,9 @@
 """
 # pylint: disable=invalid-name,no-member
 import logging
+from bisect import bisect_right
 from dataclasses import dataclass
-from typing import Optional, Tuple, Sequence, Callable
+from typing import Optional, Tuple, Sequence, Callable, Literal
 
 import numpy as np
 
@@ -111,26 +112,33 @@ class State:
     """
 
     v: Optional[np.ndarray] = None
-    """Velocity vector.
+    """Velocity vector as a 1D array.
     """
 
     a: Optional[np.ndarray] = None
-    """Acceleration vector.
+    """Acceleration vector as a 1D array.
     """
 
     u_motors: Optional[np.ndarray] = None
-    """Motor efforts.
+    """Motor efforts as a 1D array.
     """
 
-    f_ext: Optional[Sequence[np.ndarray]] = None
-    """Joint external forces.
+    f_ext: Optional[np.ndarray] = None
+    """Joint external forces as a 2D array.
+
+     first dimension corresponds to the N individual
+    joints of the robot, while the second gathers the 6 spatial force
+    coordinates (Fx, Fy, Fz, Mx, My, Mz).
     """
 
 
-@dataclass
 class Trajectory:
-    """Basic data structure storing the required information about a trajectory
-    to later replay it using `jiminy_py.viewer.play_trajectories`.
+    """Trajectory of a robot.
+
+    This class is mostly a basic data structure storing a sequence of states
+    along with the robot to which it is associated. On top of that, it provides
+    helper methods to make it easier to manipulate these data, eg query the
+    state at a given timestamp.
     """
 
     states: Sequence[State]
@@ -143,12 +151,138 @@ class Trajectory:
     """
 
     robot: jiminy.Robot
-    """Jiminy robot.
+    """Robot associated with the trajectory.
     """
 
     use_theoretical_model: bool
     """Whether to use the theoretical model or the extended simulation model.
     """
+
+    def __init__(self,
+                 states: Sequence[State],
+                 robot: jiminy.Robot,
+                 use_theoretical_model: bool) -> None:
+        """TODO: Write documentation
+        """
+        # Backup user arguments
+        self.states = states
+        self.robot = robot
+        self.use_theoretical_model = use_theoretical_model
+
+        # Extract time associated with all states
+        self._times = tuple(state.t for state in states)
+        if any(t_right - t_left < 0.0 for t_right, t_left in zip(
+                self._times[1:], self._times[:-1])):
+            raise ValueError(
+                "Time must not be decreasing between consecutive timesteps.")
+
+        # Keep track of last request to speed up nearest neighbors search
+        self._t_prev = -1
+        self._index_prev = -1
+
+        # List of optional state fields that are provided
+        state = states[0] if states else None
+        self._has_velocity = state and state.v is not None
+        self._has_acceleration = state and state.a is not None
+        self._has_motor_efforts = state and state.u_motors is not None
+        self._has_external_forces = state and state.f_ext is not None
+        self._fields = tuple(
+            field for field in ("v", "a", "u_motors", "f_ext")
+            if states and getattr(states[0], field) is not None)
+
+    @property
+    def has_data(self) -> bool:
+        """Whether the trajectory has data, ie the state sequence is not empty.
+        """
+        return bool(self.states)
+
+    @property
+    def has_velocity(self) -> bool:
+        """Whether the trajectory contains the velocity vector.
+        """
+        return self._has_velocity
+
+    @property
+    def has_acceleration(self) -> bool:
+        """Whether the trajectory contains the acceleration vector.
+        """
+        return self._has_acceleration
+
+    @property
+    def has_motor_efforts(self) -> bool:
+        """Whether the trajectory contains motor efforts.
+        """
+        return self._has_motor_efforts
+
+    @property
+    def has_external_forces(self) -> bool:
+        """Whether the trajectory contains external forces.
+        """
+        return self._has_external_forces
+
+    @property
+    def time_interval(self) -> Tuple[float, float]:
+        """Time interval of the trajectory.
+
+        It raises an exception if no data is available.
+        """
+        if not self.has_data:
+            raise RuntimeError(
+                "State sequence is empty. Time interval undefined.")
+        return (self._times[0], self._times[-1])
+
+    def get(self,
+            t: float,
+            mode: Literal['raise', 'wrap', 'clip'] = 'clip') -> State:
+        """Query the state at a given timestamp.
+
+        Internally, the nearest neighbor states are linearly interpolated,
+        taking into account the corresponding Lie Group of all state attributes
+        that are available.
+
+        :param t: Time of the state to extract from the trajectory.
+        :param mode: Specifies how out-of-bounds indices will behave.
+        """
+        # Raise exception if state sequence is empty
+        if not self.has_data:
+            raise RuntimeError(
+                "State sequence is empty. Impossible to interpolate data.")
+
+        # Handling of the desired mode
+        t_start, t_end = self.time_interval
+        if mode == "raise":
+            if t_end < t or t < t_start:
+                raise RuntimeError("Time is out-of-range.")
+        elif mode == "wrap":
+            t = ((t - t_start) % (t_end - t_start)) + t_start
+        else:
+            t = max(t, t_start)  # Clipping right it is sufficient
+
+        # Get nearest neighbors timesteps for linear interpolation
+        if t < self._t_prev:
+            self._index_prev = 0
+        self._index_prev = bisect_right(
+            self._times, t, self._index_prev, len(self._times) - 1)
+        self._t_prev = t
+
+        # Skip interpolation if not necessary
+        index_left, index_right = self._index_prev - 1, self._index_prev
+        t_left, s_left = self._times[index_left], self.states[index_left]
+        if t - t_left < 1e-12:  # 0.01 * 'STEPPER_MIN_TIMESTEP'
+            return s_left
+        t_right, s_right = self._times[index_right], self.states[index_right]
+        if t_right - t < 1e-12:
+            return s_right
+        alpha = (t - t_left) / (t_right - s_right)
+
+        # Interpolate state
+        data = {"q": pin.interpolate(
+            self.robot.pinocchio_model, s_left.q, s_right.q, alpha)}
+        for field in self._fields:
+            value_left = getattr(s_left, field)
+            value_right = getattr(s_right, field)
+            data[field] = value_left + alpha * (value_right - value_left)
+        return State(t=t, **data)
 
 
 # #####################################################################

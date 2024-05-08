@@ -1723,7 +1723,8 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
 
         # Convert raw texture to numpy array if requested
         xsize, ysize = texture.get_x_size(), texture.get_y_size()
-        return np.frombuffer(image, np.uint8).reshape((ysize, xsize, -1))
+        array = np.frombuffer(image, np.uint8)
+        return array.reshape((ysize, xsize, -1), order='A')
 
     def enable_shadow(self, enable: bool) -> None:
         """Enable or disable shadow casting.

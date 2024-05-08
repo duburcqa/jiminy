@@ -273,8 +273,8 @@ def extract_trajectory_from_log(log_data: Dict[str, Any],
     # Reshape force data if available
     f_ext = data.get("f_external")
     if f_ext:
-        data["f_external"] = tuple(
-            map(tuple, f_ext.reshape((len(f_ext), -1, 6))))
+        data["f_external"] = tuple(np.swapaxes(
+            f_ext.reshape((len(f_ext), -1, 6), order='A'), -2, -1))
 
     # Create state sequence
     states = tuple(starmap(
@@ -297,12 +297,12 @@ def extract_trajectories_from_log(
         information.
 
     :param log_data: Logged data (constants and variables) as a dictionary.
-    :param robots: Sequend of Jiminy robots associated with the logged
+    :param robots: Sequence of Jiminy robots associated with the logged
                    trajectory.
                    Optional: None by default. If None, then it will be
                    reconstructed from 'log_data' using `build_robots_from_log`.
 
-    :returns: Dictonary mapping each robot name to its corresponding
+    :returns: Dictionary mapping each robot name to its corresponding
               trajectory.
     """
     # Handling of default argument(s)
@@ -314,7 +314,6 @@ def extract_trajectories_from_log(
     for robot in robots:
         trajectories[robot.name] = extract_trajectory_from_log(
             log_data, robot, robot_name=robot.name)
-
     return trajectories
 
 
