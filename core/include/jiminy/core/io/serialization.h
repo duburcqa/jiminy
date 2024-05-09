@@ -37,7 +37,7 @@ namespace jiminy
     template<typename T>
     void loadFromBinary(T & obj, const std::string & data);
 
-    std::string saveToBinary(const std::shared_ptr<jiminy::Robot> & robot,
+    std::string saveToBinary(const std::shared_ptr<const jiminy::Robot> & robot,
                              bool isPersistent = true);
 
     void loadFromBinary(std::shared_ptr<jiminy::Robot> & robot,
@@ -66,7 +66,14 @@ namespace boost::serialization
     // ***************************************** jiminy **************************************** //
 
     template<class Archive>
+    void load_construct_data(Archive & ar, jiminy::Model * modelPtr, const unsigned int version);
+
+    template<class Archive>
     void serialize(Archive & ar, jiminy::Model & model, const unsigned int version);
+
+    template<class Archive>
+    void
+    save_construct_data(Archive & ar, const jiminy::Robot * robotPtr, const unsigned int version);
 
     template<class Archive>
     void load_construct_data(Archive & ar, jiminy::Robot * robotPtr, const unsigned int version);

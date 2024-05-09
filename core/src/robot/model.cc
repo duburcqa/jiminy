@@ -22,14 +22,17 @@
 
 #include <Eigen/Eigenvalues>
 
+#include <boost/serialization/nvp.hpp>
+
 #include "urdf_parser/urdf_parser.h"
 
-#include "jiminy/core/hardware/basic_sensors.h"
 #include "jiminy/core/robot/pinocchio_overload_algorithms.h"
 #include "jiminy/core/constraints/abstract_constraint.h"
 #include "jiminy/core/constraints/joint_constraint.h"
 #include "jiminy/core/constraints/sphere_constraint.h"
 #include "jiminy/core/constraints/frame_constraint.h"
+#include "jiminy/core/hardware/basic_sensors.h"
+#include "jiminy/core/io/serialization.h"
 #include "jiminy/core/utilities/pinocchio.h"
 #include "jiminy/core/utilities/helpers.h"
 
@@ -193,6 +196,33 @@ namespace jiminy
         setOptions(getOptions());
     }
 
+    Model::Model(const Model & other) :
+    enable_shared_from_this()
+    {
+        *this = other;
+    }
+
+    Model & Model::operator=(const Model & other)
+    {
+        // Serialize the user-specified robot
+        std::stringstream sstream;
+        {
+            stateful_binary_oarchive oa(sstream);
+            const Model * const otherPtr = &other;
+            oa << boost::serialization::make_nvp("px", otherPtr);
+        }
+
+        // De-serialize the user-specified robot then move assign to this robot
+        {
+            stateful_binary_iarchive ia(sstream);
+            Model * robotPtr;
+            ia >> boost::serialization::make_nvp("px", robotPtr);
+            *this = std::move(*robotPtr);
+        }
+
+        return *this;
+    }
+
     void initializePinocchioData(const pinocchio::Model & model, pinocchio::Data & data)
     {
         // Re-allocate Pinocchio Data from scratch
@@ -215,7 +245,7 @@ namespace jiminy
         {
             (void)shared_from_this();
         }
-        catch (std::bad_weak_ptr & e)
+        catch (std::bad_weak_ptr &)
         {
             JIMINY_THROW(bad_control_flow, "Model must be managed by a std::shared_ptr.");
         }
