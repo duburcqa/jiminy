@@ -616,8 +616,9 @@ def play_trajectories(
                     state = trajectory.get(t)
 
                     # Update viewer state
-                    if state.f_ext is not None:
-                        for f_ref, f_i in zip(viewer.f_external, state.f_ext):
+                    if state.f_external is not None:
+                        for f_ref, f_i in zip(
+                                viewer.f_external, state.f_external):
                             f_ref.vector[:] = f_i
                     if update_hook is not None:
                         update_hook_t = partial(

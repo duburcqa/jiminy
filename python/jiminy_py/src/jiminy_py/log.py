@@ -233,9 +233,8 @@ def extract_trajectory_from_log(log_data: Dict[str, Any],
     :param robot_name: Name of the robot to be constructed in the log. If it
                        is not known, call `build_robot_from_log`.
 
-    :returns: Trajectory dictionary. The actual trajectory corresponds to the
-              field "states" and it is a list of State object. The
-              other fields are additional information.
+    :returns: Dictionary whose keys are the name of each robot and values are
+              the corresponding `Trajectory` object.
     """
     # Prepare robot namespace
     if robot is not None:

@@ -93,7 +93,7 @@ def velocityXYZQuatToXYZRPY(xyzquat: np.ndarray,
 # #################### State and Trajectory ###########################
 # #####################################################################
 
-@dataclass
+@dataclass(unsafe_hash=True)
 class State:
     """Basic data structure storing kinematics and dynamics information at a
     given time.
@@ -119,11 +119,11 @@ class State:
     """Acceleration vector as a 1D array.
     """
 
-    u_motors: Optional[np.ndarray] = None
+    u_motor: Optional[np.ndarray] = None
     """Motor efforts as a 1D array.
     """
 
-    f_ext: Optional[np.ndarray] = None
+    f_external: Optional[np.ndarray] = None
     """Joint external forces as a 2D array.
 
      first dimension corresponds to the N individual
@@ -132,6 +132,7 @@ class State:
     """
 
 
+@dataclass(unsafe_hash=True)
 class Trajectory:
     """Trajectory of a robot.
 
@@ -141,7 +142,7 @@ class Trajectory:
     state at a given timestamp.
     """
 
-    states: Sequence[State]
+    states: Tuple[State, ...]
     """Sequence of states of increasing time.
 
     .. warning::
@@ -171,7 +172,7 @@ class Trajectory:
                                       extended simulation model of the robot.
         """
         # Backup user arguments
-        self.states = states
+        self.states = tuple(states)
         self.robot = robot
         self.use_theoretical_model = use_theoretical_model
 
@@ -193,14 +194,20 @@ class Trajectory:
         self._index_prev = 0
 
         # List of optional state fields that are provided
-        state = states[0] if states else None
-        self._has_velocity = not (state is None or state.v is None)
-        self._has_acceleration = not (state is None or state.a is None)
-        self._has_motor_efforts = not (state is None or state.u_motors is None)
-        self._has_external_forces = not (state is None or state.f_ext is None)
-        self._fields = tuple(
-            field for field in ("v", "a", "u_motors", "f_ext")
-            if states and getattr(states[0], field) is not None)
+        self._fields = {}
+        self._has_velocity = False
+        self._has_acceleration = False
+        self._has_motor_efforts = False
+        self._has_external_forces = False
+        if states:
+            state = states[0]
+            self._has_velocity = state.v is not None
+            self._has_acceleration = state.a is not None
+            self._has_motor_efforts = state.u_motor is not None
+            self._has_external_forces = state.f_external is not None
+            self._fields = tuple(
+                field for field in ("v", "a", "u_motor", "f_external")
+                if getattr(state, field) is not None)
 
     @property
     def has_data(self) -> bool:
