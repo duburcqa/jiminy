@@ -6,14 +6,15 @@ from dataclasses import dataclass
 import numpy as np
 import pinocchio as pin
 
-from ..bases import InterfaceJiminyEnv, AbstractQuantity
+from ..bases import (
+    InterfaceJiminyEnv, InterfaceQuantity, AbstractQuantity, QuantityEvalMode)
 from ..utils import fill
 
 from ..quantities import MaskedQuantity, AverageFrameSpatialVelocity
 
 
 @dataclass(unsafe_hash=True)
-class AverageOdometryVelocity(AbstractQuantity[np.ndarray]):
+class AverageOdometryVelocity(InterfaceQuantity[np.ndarray]):
     """Average odometry velocity in local-world-aligned frame at the end of the
     agent step.
 
@@ -26,11 +27,14 @@ class AverageOdometryVelocity(AbstractQuantity[np.ndarray]):
 
     def __init__(self,
                  env: InterfaceJiminyEnv,
-                 parent: Optional[AbstractQuantity]) -> None:
+                 parent: Optional[InterfaceQuantity],
+                 *,
+                 mode: QuantityEvalMode = QuantityEvalMode.TRUE) -> None:
         """
         :param env: Base or wrapped jiminy environment.
         :param parent: Higher-level quantity from which this quantity is a
                        requirement if any, `None` otherwise.
+        :param mode: Desired mode of evaluation for this quantity.
         """
         # Call base implementation
         super().__init__(
@@ -40,7 +44,8 @@ class AverageOdometryVelocity(AbstractQuantity[np.ndarray]):
                 data=(MaskedQuantity, dict(
                     quantity=(AverageFrameSpatialVelocity, dict(
                         frame_name="root_joint",
-                        reference_frame=pin.LOCAL_WORLD_ALIGNED)),
+                        reference_frame=pin.LOCAL_WORLD_ALIGNED,
+                        mode=mode)),
                     key=(0, 1, 5)))),
             auto_refresh=False)
 
@@ -61,21 +66,24 @@ class CenterOfMass(AbstractQuantity[np.ndarray]):
     def __init__(
             self,
             env: InterfaceJiminyEnv,
-            parent: Optional[AbstractQuantity],
-            kinematic_level: pin.KinematicLevel = pin.POSITION
-            ) -> None:
+            parent: Optional[InterfaceQuantity],
+            *,
+            kinematic_level: pin.KinematicLevel = pin.POSITION,
+            mode: QuantityEvalMode = QuantityEvalMode.TRUE) -> None:
         """
         :param env: Base or wrapped jiminy environment.
         :param parent: Higher-level quantity from which this quantity is a
                        requirement if any, `None` otherwise.
         :para kinematic_level: Desired kinematic level, ie position, velocity
                                or acceleration.
+        :param mode: Desired mode of evaluation for this quantity.
         """
         # Backup some user argument(s)
         self.kinematic_level = kinematic_level
 
         # Call base implementation
-        super().__init__(env, parent, requirements={}, auto_refresh=False)
+        super().__init__(
+            env, parent, requirements={}, mode=mode, auto_refresh=False)
 
         # Pre-allocate memory for the CoM quantity
         self._com_data: np.ndarray = np.array([])
@@ -94,10 +102,11 @@ class CenterOfMass(AbstractQuantity[np.ndarray]):
 
     def refresh(self) -> np.ndarray:
         # Jiminy does not compute the CoM acceleration automatically
-        if self.kinematic_level == pin.ACCELERATION:
+        if (self.mode == QuantityEvalMode.TRUE and
+                self.kinematic_level == pin.ACCELERATION):
             pin.centerOfMass(self.pinocchio_model,
                              self.pinocchio_data,
-                             self.kinematic_level)
+                             pin.ACCELERATION)
 
         # Return proxy directly without copy
         return self._com_data
@@ -116,21 +125,28 @@ class ZeroMomentPoint(AbstractQuantity[np.ndarray]):
     """
     def __init__(self,
                  env: InterfaceJiminyEnv,
-                 parent: Optional[AbstractQuantity]) -> None:
+                 parent: Optional[InterfaceQuantity],
+                 *,
+                 mode: QuantityEvalMode = QuantityEvalMode.TRUE) -> None:
         """
         :param env: Base or wrapped jiminy environment.
+        :param parent: Higher-level quantity from which this quantity is a
+                       requirement if any, `None` otherwise.
+        :param mode: Desired mode of evaluation for this quantity.
         """
         # Call base implementation
-        super().__init__(env,
-                         parent,
-                         requirements={"com": (CenterOfMass, {})},
-                         auto_refresh=False)
+        super().__init__(
+            env,
+            parent,
+            requirements=dict(com=(CenterOfMass, dict(mode=mode))),
+            mode=mode,
+            auto_refresh=False)
 
         # Weight of the robot
         self._robot_weight: float = -1
 
         # Proxy for the derivative of the spatial centroidal momentum
-        self.dhg: Tuple[np.ndarray, np.ndarray] = (np.ndarray([]),) * 2
+        self.dhg: Tuple[np.ndarray, np.ndarray] = (np.array([]),) * 2
 
         # Pre-allocate memory for the ZMP
         self._zmp = np.zeros(2)
@@ -162,5 +178,4 @@ class ZeroMomentPoint(AbstractQuantity[np.ndarray]):
         if abs(f_z) > np.finfo(np.float32).eps:
             self._zmp[0] -= (dhg_angular[1] + dhg_linear[0] * com[2]) / f_z
             self._zmp[1] += (dhg_angular[0] - dhg_linear[1] * com[2]) / f_z
-
         return self._zmp

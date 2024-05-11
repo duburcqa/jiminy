@@ -947,8 +947,10 @@ namespace boost::serialization
             std::remove(urdfPath.c_str());
 
             /* Restore the theoretical model.
-               Note that it is also restore manually-added frames since they are not tracked
-               internally for now. */
+               Note that it also restores manually-added frames since they are not tracked
+               internally for now. Note that it is also necessary to restore the extended
+               simulation model otherwise adding collision bodies and contact points would fail. */
+            model.pinocchioModel_ = pinocchioModelTh;
             model.pinocchioModelTh_ = pinocchioModelTh;
             model.pinocchioDataTh_ = pinocchio::Data(pinocchioModelTh);
         }

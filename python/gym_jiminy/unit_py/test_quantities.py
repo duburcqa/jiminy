@@ -5,9 +5,12 @@ import unittest
 
 import numpy as np
 import gymnasium as gym
+
 import jiminy_py
+from jiminy_py.log import extract_trajectory_from_log
 import pinocchio as pin
 
+from gym_jiminy.common.bases import QuantityEvalMode, DatasetTrajectoryQuantity
 from gym_jiminy.common.quantities import (
     QuantityManager, FrameEulerAngles, FrameXYZQuat, MaskedQuantity,
     AverageFrameSpatialVelocity, CenterOfMass, ZeroMomentPoint)
@@ -30,7 +33,7 @@ class Quantities(unittest.TestCase):
             quantity_manager[name] = (cls, kwargs)
         quantities = quantity_manager.registry
 
-        assert len(quantity_manager) == 3
+        assert len(quantity_manager) == 4  # + 1 for 'trajectory'
         assert len(quantities["zmp"].cache.owners) == 1
         assert len(quantities["com"].cache.owners) == 2
 
@@ -134,22 +137,22 @@ class Quantities(unittest.TestCase):
 
         del quantity_manager['rpy_2']
         gc.collect()
-        for cache in quantity_manager._caches.values():
-            assert len(cache.owners) == 0
+        for (cls, _), cache in quantity_manager._caches.items():
+            assert len(cache.owners) == (cls is DatasetTrajectoryQuantity)
 
     def test_env(self):
         """ TODO: Write documentation
         """
         env = gym.make("gym_jiminy.envs:atlas")
 
-        env.quantities["com"] = (CenterOfMass, {})
+        env.quantities["zmp"] = (ZeroMomentPoint, {})
 
         env.reset(seed=0)
-        com_0 = env.quantities["com"].copy()
+        zmp_0 = env.quantities["zmp"].copy()
         env.step(env.action)
-        assert np.all(com_0 != env.quantities["com"])
+        assert np.all(zmp_0 != env.quantities["zmp"])
         env.reset(seed=0)
-        assert np.all(com_0 == env.quantities["com"])
+        assert np.all(zmp_0 == env.quantities["zmp"])
 
     def test_stack(self):
         """ TODO: Write documentation
@@ -157,15 +160,18 @@ class Quantities(unittest.TestCase):
         env = gym.make("gym_jiminy.envs:atlas")
         env.reset()
 
-        env.quantities["v_avg"] = (
-            AverageFrameSpatialVelocity,
-            dict(frame_name=env.robot.pinocchio_model.frames[1].name))
+        quantity_cls = AverageFrameSpatialVelocity
+        quantity_kwargs = dict(
+            frame_name=env.robot.pinocchio_model.frames[1].name)
+        env.quantities["v_avg"] = (quantity_cls, quantity_kwargs)
 
         env.reset(seed=0)
         with self.assertRaises(ValueError):
             env.quantities["v_avg"]
+
         env.step(env.action)
         v_avg = env.quantities["v_avg"].copy()
+        env.step(env.action)
         env.step(env.action)
         assert np.all(v_avg != env.quantities["v_avg"])
 
@@ -203,3 +209,31 @@ class Quantities(unittest.TestCase):
         assert len(quantity._slices) == 1 and quantity._slices[0] == slice(0, 5, 2)
         np.testing.assert_allclose(
             env.quantities["v_masked"], quantity.data[[0, 2, 4]])
+
+    def test_true_vs_reference(self):
+        env = gym.make("gym_jiminy.envs:atlas")
+        quantities = env.quantities.registry
+
+        env.quantities["zmp"] = (
+            ZeroMomentPoint, dict(mode=QuantityEvalMode.TRUE))
+        env.reset(seed=0)
+        for _ in range(10):
+            env.step(env.action)
+        zmp_0 = env.quantities["zmp"].copy()
+        env.stop()
+
+        trajectory = extract_trajectory_from_log(env.log_data)
+        env.quantities["zmp_ref"] = (
+            ZeroMomentPoint, dict(mode=QuantityEvalMode.REFERENCE))
+
+        with self.assertRaises(RuntimeError):
+            env.reset(seed=0)
+
+        quantities['trajectory'].add("reference", trajectory)
+        quantities['trajectory'].select("reference")
+
+        env.reset(seed=0)
+        for _ in range(10):
+            env.step(env.action_space.sample() * 0.05)
+        assert np.all(zmp_0 != env.quantities["zmp"])
+        np.testing.assert_allclose(zmp_0, env.quantities["zmp_ref"])

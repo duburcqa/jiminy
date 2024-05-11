@@ -535,7 +535,7 @@ namespace jiminy
         // Make sure that all the bodies exist
         for (const std::string & name : bodyNames)
         {
-            if (!pinocchioModel_.existBodyName(name))
+            if (!pinocchioModelTh_.existBodyName(name))
             {
                 JIMINY_THROW(std::invalid_argument, "At least one of the bodies does not exist.");
             }
@@ -715,7 +715,7 @@ namespace jiminy
         // Make sure that all the frames exist
         for (const std::string & name : frameNames)
         {
-            if (!pinocchioModel_.existFrame(name))
+            if (!pinocchioModelTh_.existFrame(name))
             {
                 JIMINY_THROW(std::invalid_argument, "At least one of the frames does not exist.");
             }
