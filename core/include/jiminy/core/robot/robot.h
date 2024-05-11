@@ -39,11 +39,11 @@ namespace jiminy
         using SensorTree = std::unordered_map<std::string, SensorVector>;
 
     public:
-        JIMINY_DISABLE_COPY(Robot)
-
-    public:
         /// \param[in] name Name of the Robot.
         explicit Robot(const std::string & name = "") noexcept;
+        Robot(const Robot & other);
+        Robot & operator=(const Robot & other);
+        Robot & operator=(Robot && other) = default;
         virtual ~Robot();
 
         auto shared_from_this() { return shared_from(this); }

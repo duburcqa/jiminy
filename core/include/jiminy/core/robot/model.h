@@ -248,9 +248,6 @@ namespace jiminy
         };
 
     public:
-        JIMINY_DISABLE_COPY(Model)
-
-    public:
         /* Manually enforcing memory alignment.
 
            Without it, head memory will not be properly allocated when de-serializing shared
@@ -276,6 +273,9 @@ namespace jiminy
 
     public:
         explicit Model() noexcept;
+        Model(const Model & other);
+        Model & operator=(const Model & other);
+        Model & operator=(Model && other) = default;
         virtual ~Model() = default;
 
         void initialize(

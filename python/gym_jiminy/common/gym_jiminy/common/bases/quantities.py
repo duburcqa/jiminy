@@ -14,13 +14,24 @@ batch to leverage vectorization of math instructions.
 """
 import re
 import weakref
+from enum import Enum
 from weakref import ReferenceType
 from abc import ABC, abstractmethod
+from collections import OrderedDict
 from collections.abc import MutableSet
-from functools import partial
+from dataclasses import dataclass, replace
+from functools import partial, wraps
 from typing import (
     Any, Dict, List, Optional, Tuple, Generic, TypeVar, Type, Iterator,
     Callable, cast)
+
+import numpy as np
+
+import jiminy_py.core as jiminy
+from jiminy_py.core import (  # pylint: disable=no-name-in-module
+    multi_array_copyto)
+from jiminy_py.dynamics import State, Trajectory, update_quantities
+import pinocchio as pin
 
 from .interfaces import InterfaceJiminyEnv
 
@@ -114,7 +125,7 @@ class SharedCache(Generic[ValueT]):
         This implementation is not thread safe.
     """
 
-    owners: WeakMutableCollection["AbstractQuantity[ValueT]"]
+    owners: WeakMutableCollection["InterfaceQuantity[ValueT]"]
     """Owners of the shared buffer, ie quantities relying on it to store the
     result of their evaluation. This information may be useful for determining
     the most efficient computation path overall.
@@ -144,7 +155,7 @@ class SharedCache(Generic[ValueT]):
         # quantity owning the cache gets garbage collected, namely all
         # quantities that may assume at some point the existence of this
         # deleted owner to find the adjust their computation path.
-        def _callback(self: WeakMutableCollection["AbstractQuantity"],
+        def _callback(self: WeakMutableCollection["InterfaceQuantity"],
                       ref: ReferenceType   # pylint: disable=unused-argument
                       ) -> None:
             for owner in self:
@@ -160,17 +171,19 @@ class SharedCache(Generic[ValueT]):
         """
         return self._has_value
 
-    def reset(self) -> None:
+    def reset(self, *, ignore_auto_refresh: bool = False) -> None:
         """Clear value stored in cache if any.
         """
         # Clear cache
         self._value = None
         self._has_value = False
 
-        # Refresh all owner quantities for which auto refresh has been enabled
-        for owner in self.owners:
-            if owner.auto_refresh:
-                owner.get()
+        # Refresh automatically if any cache owner requested it and not ignored
+        if not ignore_auto_refresh:
+            for owner in self.owners:
+                if owner.auto_refresh:
+                    owner.get()
+                    break
 
     def set(self, value: ValueT) -> None:
         """Set value in cache, silently overriding the existing value if any.
@@ -193,9 +206,9 @@ class SharedCache(Generic[ValueT]):
             "No value has been stored. Please call 'set' before 'get'.")
 
 
-class AbstractQuantity(ABC, Generic[ValueT]):
-    """Interface for quantities that involved in reward or termination
-    conditions evaluation.
+class InterfaceQuantity(ABC, Generic[ValueT]):
+    """Interface for generic quantities involved observer-controller blocks,
+    reward components or termination conditions.
 
     .. note::
         Quantities are meant to be managed automatically via `QuantityManager`.
@@ -214,7 +227,7 @@ class AbstractQuantity(ABC, Generic[ValueT]):
         convenience, but it can also be done manually.
     """
 
-    requirements: Dict[str, "AbstractQuantity"]
+    requirements: Dict[str, "InterfaceQuantity"]
     """Intermediary quantities on which this quantity may rely on for its
     evaluation at some point, depending on the optimal computation path at
     runtime. There values will be exposed to the user as usual properties.
@@ -222,8 +235,9 @@ class AbstractQuantity(ABC, Generic[ValueT]):
 
     def __init__(self,
                  env: InterfaceJiminyEnv,
-                 parent: Optional["AbstractQuantity"],
+                 parent: Optional["InterfaceQuantity"],
                  requirements: Dict[str, "QuantityCreator"],
+                 *,
                  auto_refresh: bool = False) -> None:
         """
         :param env: Base or wrapped jiminy environment.
@@ -250,17 +264,13 @@ class AbstractQuantity(ABC, Generic[ValueT]):
                              "ASCII alphanumeric characters plus underscore.")
 
         # Instantiate intermediary quantities if any
-        self.requirements: Dict[str, AbstractQuantity] = {
+        self.requirements: Dict[str, InterfaceQuantity] = {
             name: cls(env, self, **kwargs)
             for name, (cls, kwargs) in requirements.items()}
 
-        # Define some proxies for fast access
-        self.pinocchio_model = env.robot.pinocchio_model
-        self.pinocchio_data = env.robot.pinocchio_data
-
         # Shared cache handling
         self._cache: Optional[SharedCache[ValueT]] = None
-        self._has_cache = False
+        self.has_cache = False
 
         # Track whether the quantity has been called since previous reset
         self._is_active = False
@@ -268,11 +278,11 @@ class AbstractQuantity(ABC, Generic[ValueT]):
         # Whether the quantity must be re-initialized
         self._is_initialized: bool = False
 
-        # Add getter for all intermediary quantities dynamically.
+        # Add getter dynamically for user-specified intermediary quantities.
         # This approach is hacky but much faster than any of other official
         # approach, ie implementing custom a `__getattribute__` method or even
         # worst a custom `__getattr__` method.
-        def get_value(name: str, quantity: AbstractQuantity) -> Any:
+        def get_value(name: str, quantity: InterfaceQuantity) -> Any:
             return quantity.requirements[name].get()
 
         for name in requirement_names:
@@ -311,7 +321,7 @@ class AbstractQuantity(ABC, Generic[ValueT]):
         .. warning::
             This method is not meant to be overloaded.
         """
-        if not self._has_cache:
+        if not self.has_cache:
             raise RuntimeError(
                 "No shared cache has been set for this quantity. Make sure it "
                 "is managed by some `QuantityManager` instance.")
@@ -342,7 +352,7 @@ class AbstractQuantity(ABC, Generic[ValueT]):
 
         # Update internal cache attribute
         self._cache = cache
-        self._has_cache = cache is not None
+        self.has_cache = cache is not None
 
     def is_active(self, any_cache_owner: bool = False) -> bool:
         """Whether this quantity is considered active, namely `initialize` has
@@ -373,7 +383,7 @@ class AbstractQuantity(ABC, Generic[ValueT]):
         # over the public API `get` for speedup. The same cannot be done for
         # `has_value` as it would prevent mocking it during running unit tests
         # or benchmarks.
-        if (self._has_cache and
+        if (self.has_cache and
                 self._cache.has_value):  # type: ignore[union-attr]
             self._is_active = True
             return self._cache._value  # type: ignore[union-attr,return-value]
@@ -390,7 +400,7 @@ class AbstractQuantity(ABC, Generic[ValueT]):
                 "Mutual dependency between quantities is disallowed.") from e
 
         # Return value after storing it in shared cache if available
-        if self._has_cache:
+        if self.has_cache:
             self._cache.set(value)  # type: ignore[union-attr]
         return value
 
@@ -413,6 +423,12 @@ class AbstractQuantity(ABC, Generic[ValueT]):
                                until the `get` method gets called once again.
                                Optional: False by default.
         """
+        # Make sure that auto-refresh can be honored
+        if self.auto_refresh and not self.has_cache:
+            raise RuntimeError(
+                "Automatic refresh enabled but no shared cache available. "
+                "Please add one before calling this method.")
+
         # No longer consider this exact instance as initialized
         self._is_initialized = False
 
@@ -424,18 +440,22 @@ class AbstractQuantity(ABC, Generic[ValueT]):
         for quantity in self.requirements.values():
             quantity.reset(reset_tracking)
 
-        # More work has to be done if shared cache is available and has value
-        if self._has_cache:
+        # More work must to be done if shared cache is available and has value
+        if self.has_cache:
             # Early return if shared cache has no value
             if not self.cache.has_value:
                 return
 
-            # Invalidate cache before looping over all identical properties
-            self.cache.reset()
+            # Invalidate cache before looping over all identical properties.
+            # Note that auto-refresh must be ignored to avoid infinite loop.
+            self.cache.reset(ignore_auto_refresh=True)
 
             # Reset all identical quantities
             for owner in self.cache.owners:
                 owner.reset()
+
+            # Reset shared cache one last time but without ignore auto refresh
+            self.cache.reset()
 
     def initialize(self) -> None:
         """Initialize internal buffers.
@@ -459,10 +479,6 @@ class AbstractQuantity(ABC, Generic[ValueT]):
             never be the case if cache is shared between multiple identical
             instances of the same quantity.
         """
-        # Refresh some proxies
-        self.pinocchio_model = self.env.robot.pinocchio_model
-        self.pinocchio_data = self.env.robot.pinocchio_data
-
         # The quantity is now considered initialized and active unconditionally
         self._is_initialized = True
         self._is_active = True
@@ -474,4 +490,418 @@ class AbstractQuantity(ABC, Generic[ValueT]):
         """
 
 
-QuantityCreator = Tuple[Type[AbstractQuantity[ValueT]], Dict[str, Any]]
+QuantityCreator = Tuple[Type[InterfaceQuantity[ValueT]], Dict[str, Any]]
+
+
+class QuantityEvalMode(Enum):
+    """Specify on which state to evaluate a given quantity.
+    """
+
+    TRUE = 0
+    """Current state of the environment.
+    """
+
+    REFERENCE = 1
+    """State of the reference trajectory at the current simulation time.
+    """
+
+
+@dataclass(unsafe_hash=True)
+class AbstractQuantity(InterfaceQuantity, Generic[ValueT]):
+    """Base class for generic quantities involved observer-controller blocks,
+    reward components or termination conditions.
+
+    .. note::
+        A dataset of trajectories made available through `self.trajectories`.
+        The latter is synchronized because all quantities as long as shared
+        cached is available. Since the dataset is initially empty by default,
+        using `QuantityEvalMode.REFERENCE` evaluation mode requires manually
+        adding at least one trajectory to the dataset and selecting it.
+
+    .. seealso::
+        See `InterfaceQuantity` documentation for details.
+    """
+
+    mode: QuantityEvalMode
+    """Specify on which state to evaluate this quantity. See `Mode`
+    documentation for details about each mode.
+
+    .. warning::
+        Mode `REFERENCE` requires a reference trajectory to be selected
+        manually prior to evaluating this quantity for the first time.
+    """
+
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 parent: Optional[InterfaceQuantity],
+                 requirements: Dict[str, "QuantityCreator"],
+                 *,
+                 mode: QuantityEvalMode = QuantityEvalMode.TRUE,
+                 auto_refresh: bool = False) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param parent: Higher-level quantity from which this quantity is a
+                       requirement if any, `None` otherwise.
+        :param requirements: Intermediary quantities on which this quantity
+                             depends for its evaluation, as a dictionary
+                             whose keys are tuple gathering their respective
+                             class and all their constructor keyword-arguments
+                             except environment 'env' and parent 'parent.
+        :param mode: Desired mode of evaluation for this quantity. If mode is
+                     set to `QuantityEvalMode.TRUE`, then current simulation
+                     state will be used in dynamics computations. If mode is
+                     set to `QuantityEvalMode.REFERENCE`, then at the state of
+                     some reference trajectory at the current simulation time
+                     will be used instead.
+        :param auto_refresh: Whether this quantity must be refreshed
+                             automatically as soon as its shared cache has been
+                             cleared if specified, otherwise this does nothing.
+        """
+        # Backup user argument(s)
+        self.mode = mode
+
+        # Make sure that no user-specified requirement is named 'trajectory'
+        requirement_names = requirements.keys()
+        if any(name in requirement_names for name in ("state", "trajectory")):
+            raise ValueError(
+                "No user-specified requirement can be named 'state' nor "
+                "'trajectory' as these keys are reserved.")
+
+        # Add state quantity as requirement
+        requirements["state"] = (StateQuantity, dict(mode=mode))
+
+        # Call base implementation
+        super().__init__(env, parent, requirements, auto_refresh=auto_refresh)
+
+        # Add trajectory quantity proxy
+        trajectory = self.requirements["state"].requirements["trajectory"]
+        assert isinstance(trajectory, DatasetTrajectoryQuantity)
+        self.trajectory = trajectory
+
+        # Robot for which the quantity must be evaluated
+        self.robot = jiminy.Robot()
+        self.pinocchio_model = pin.Model()
+        self.pinocchio_data = pin.Data()
+
+    def initialize(self) -> None:
+        # Call base implementation
+        super().initialize()
+
+        # Refresh robot proxy
+        state = self.requirements["state"]
+        assert isinstance(state, StateQuantity)
+        self.robot = state.robot
+        self.pinocchio_model = state.pinocchio_model
+        self.pinocchio_data = state.pinocchio_data
+
+
+def sync(fun: Callable[..., None]) -> Callable[..., None]:
+    """Wrap any `InterfaceQuantity` instance method to forward call to all
+    co-owners of the same shared cache.
+
+    This wrapper is useful to keep all identical instances of the same quantity
+    in sync.
+    """
+    @wraps(fun)
+    def fun_safe(self: InterfaceQuantity, *args: Any, **kwargs: Any) -> None:
+        # Hijack instance for adding private an attribute tracking whether its
+        # internal state went out-of-sync between identical instances.
+        # Note that a local variable cannot be used because all synched methods
+        # must shared the same tracking state variable. Otherwise, one method
+        # may be flagged out-of-sync but not the others.
+        if not hasattr(self, "__is_synched__"):
+            self.__is_synched__ = self.has_cache  # type: ignore[attr-defined]
+
+        # Check if quantity has cache but is already out-of-sync.
+        # Raise exception if it now has cache while it was not the case before.
+        must_sync = self.has_cache and len(self.cache.owners) > 1
+        if not self.__is_synched__ and must_sync:
+            raise RuntimeError(
+                "This quantity went out-of-sync. Make sure that no synched "
+                "method is called priori to setting shared cache.")
+        self.__is_synched__ = self.has_cache  # type: ignore[attr-defined]
+
+        # Call instance method on all co-owners of shared cache
+        cls = type(self)
+        if self.has_cache:
+            for owner in self.cache.owners:
+                assert isinstance(owner, cls)
+                value = fun(owner, *args, **kwargs)
+                if value is not None:
+                    raise NotImplementedError(
+                        "Instance methods that does not return `None` are not "
+                        "supported.")
+
+    return fun_safe
+
+
+@dataclass(unsafe_hash=True)
+class DatasetTrajectoryQuantity(InterfaceQuantity[State]):
+    """This class manages a database of trajectories.
+
+    The database is empty by default. Trajectories must be added or discarded
+    manually. Only one trajectory can be selected at once. Once a trajectory
+    has been selecting, its state at the current simulation can be easily
+    retrieved.
+
+    This class does not require to only adding trajectories for which all
+    attributes of the underlying state sequence have been specified. Missing
+    attributes of a trajectory will also be missing from the retrieved state.
+    It is the responsible of the user to make sure all cases are properly
+    handled if needed.
+
+    All instances of this quantity sharing the same cache are synchronized,
+    which means that adding, discarding, or selecting a trajectory on any of
+    them would propagate on all the others.
+    """
+
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 parent: Optional[InterfaceQuantity],
+                 ) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param parent: Higher-level quantity from which this quantity is a
+                       requirement if any, `None` otherwise.
+        """
+        # Call base implementation
+        super().__init__(env, parent, requirements={}, auto_refresh=False)
+
+        # Ordered set of named reference trajectories as a dictionary
+        self.registry: OrderedDict[str, Trajectory] = OrderedDict()
+
+        # Name of the trajectory that is currently selected
+        self._name = ""
+
+        # Selected trajectory if any
+        self._trajectory: Optional[Trajectory] = None
+
+    @property
+    def trajectory(self) -> Trajectory:
+        """Trajectory that is currently selected if any, raises an exception
+        otherwise.
+        """
+        # Make sure that a trajectory has been selected
+        if self._trajectory is None:
+            raise RuntimeError("No trajectory has been selected.")
+
+        # Return selected trajectory
+        return self._trajectory
+
+    @property
+    def robot(self) -> jiminy.Robot:
+        """Robot associated with the selected trajectory.
+        """
+        return self.trajectory.robot
+
+    @property
+    def use_theoretical_model(self) -> bool:
+        """Whether the selected trajectory is associated with the theoretical
+        dynamical model or extended simulation model of the robot.
+        """
+        return self.trajectory.use_theoretical_model
+
+    @sync
+    def _add(self, name: str, trajectory: Trajectory) -> None:
+        """Add a trajectory to local internal registry only without performing
+        any validity check.
+
+        .. warning::
+            This method is used internally by `add` method. It is not meant to
+            be called manually.
+
+        :param name: Desired name of the trajectory.
+        :param trajectory: Trajectory instance to register.
+        """
+        self.registry[name] = trajectory
+
+    def add(self, name: str, trajectory: Trajectory) -> None:
+        """Jointly add a trajectory to the local internal registry of all
+        instances sharing the same cache as this quantity.
+
+        :param name: Desired name of the trajectory. It must be unique. If a
+                     trajectory with the exact same name already exists, then
+                     it must be discarded first, so as to prevent silently
+                     overwriting it by mistake.
+        :param trajectory: Trajectory instance to register.
+        """
+        # Make sure that no trajectory with the exact same name already exists
+        if name in self.registry:
+            raise KeyError(
+                "A trajectory with the exact same name already exists. Please "
+                "delete it first before adding a new one.")
+
+        # Allocate new dummy robot to avoid altering the simulation one
+        if trajectory.robot is self.env.robot:
+            trajectory = replace(trajectory, robot=trajectory.robot.copy())
+
+        # Add trajectory.
+        # Note that `add` has been splitted in two methods for efficiency. The
+        # first part that applies some trajectory post-processing only once,
+        # and the second part is adding the post-processed trajectory to all
+        # identical quantities at once.
+        self._add(name, trajectory)
+
+    @sync
+    def discard(self, name: str) -> None:
+        """Jointly remove a trajectory from the local internal registry of all
+        instances sharing the same cache as this quantity.
+
+        :param name: Name of the trajectory to discard.
+        """
+        # Delete trajectory
+        del self.registry[name]
+
+    @sync
+    def select(self, name: str) -> None:
+        """Jointly select a trajectory in the internal registry of all
+        instances sharing the same cache as this quantity.
+
+        :param name: Name of the trajectory to discard.
+        """
+        # Make sure that at least one trajectory has been specified
+        if not self.registry:
+            raise ValueError("Cannot select trajectory on a empty dataset.")
+
+        # Select the desired trajectory
+        self._trajectory = self.registry[name]
+        self._name = name
+
+        # Un-initialize quantity when the selected trajectory changes
+        self.reset(reset_tracking=False)
+
+    @property
+    def name(self) -> str:
+        """Name of the trajectory that is currently selected.
+        """
+        return self._name
+
+    def refresh(self) -> State:
+        """Compute state of selected trajectory at current simulation time.
+        """
+        return self.trajectory.get(self.env.stepper_state.t)
+
+
+@dataclass(unsafe_hash=True)
+class StateQuantity(InterfaceQuantity[State]):
+    """State to consider when evaluating any quantity deriving from
+    `AbstractQuantity` using the same evaluation mode as this instance.
+
+    This quantity is refreshed automatically no matter what. This guarantees
+    that all low-level kinematics and dynamics quantities that can be computed
+    from the current state are up-to-date. More specifically, every quantities
+    would be up-to-date if the evaluation mode is `QuantityEvalMode.TRUE`,
+    while it would depends on the information available on the selected
+    trajectory if the evaluation mode is `QuantityEvalMode.REFERENCE`. See
+    `update_quantities` documentation for details.
+    """
+
+    mode: QuantityEvalMode
+    """Specify on which state to evaluate this quantity. See `Mode`
+    documentation for details about each mode.
+
+    .. warning::
+        Mode `REFERENCE` requires a reference trajectory to be selected
+        manually prior to evaluating this quantity for the first time.
+    """
+
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 parent: Optional[InterfaceQuantity],
+                 *,
+                 mode: QuantityEvalMode = QuantityEvalMode.TRUE) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param parent: Higher-level quantity from which this quantity is a
+                       requirement if any, `None` otherwise.
+        :param mode: Desired mode of evaluation for this quantity. If mode is
+                     set to `QuantityEvalMode.TRUE`, then current simulation
+                     state will be used in dynamics computations. If mode is
+                     set to `QuantityEvalMode.REFERENCE`, then at the state of
+                     some reference trajectory at the current simulation time
+                     will be used instead.
+        """
+        # Backup user argument(s)
+        self.mode = mode
+
+        # Call base implementation
+        super().__init__(env, parent, requirements={}, auto_refresh=True)
+
+        # Create empty trajectory database, manually added as a requirement.
+        # Note that it must be done after base initialization, otherwise a
+        # getter will be added for it as first-class property.
+        self.trajectory = DatasetTrajectoryQuantity(env, self)
+        self.requirements["trajectory"] = self.trajectory
+
+        # Robot for which the quantity must be evaluated
+        self.robot = env.robot
+        self.pinocchio_model = env.robot.pinocchio_model
+        self.pinocchio_data = env.robot.pinocchio_data
+
+        # State for which the quantity must be evaluated
+        self._f_external_slices: Tuple[np.ndarray, ...] = ()
+        self._f_external_list: Tuple[np.ndarray, ...] = ()
+        self.state = State(t=np.nan, q=np.array([]))  # type: ignore[call-arg]
+
+    @sync
+    def initialize(self) -> None:
+        # Call base implementation
+        super().initialize()
+
+        # Refresh robot and pinocchio model / data proxies
+        if self.mode == QuantityEvalMode.TRUE:
+            self.robot = self.env.robot
+            use_theoretical_model = False
+        else:
+            self.robot = self.trajectory.robot
+            use_theoretical_model = self.trajectory.use_theoretical_model
+        if use_theoretical_model:
+            self.pinocchio_model = self.robot.pinocchio_model_th
+            self.pinocchio_data = self.robot.pinocchio_data_th
+        else:
+            self.pinocchio_model = self.robot.pinocchio_model
+            self.pinocchio_data = self.robot.pinocchio_data
+
+        # State for which the quantity must be evaluated
+        if self.mode == QuantityEvalMode.TRUE:
+            self._f_external_list = tuple(
+                f_ext.vector for f_ext in self.env.robot_state.f_external)
+            if self._f_external_list:
+                f_external_batch = np.stack(self._f_external_list, axis=0)
+            else:
+                f_external_batch = np.array([])
+            self.state = State(
+                self.env.stepper_state.t,
+                self.env.robot_state.q,
+                self.env.robot_state.v,
+                self.env.robot_state.a,
+                self.env.robot_state.u_motor,
+                f_external_batch)
+            self._f_external_slices = tuple(f_external_batch)
+
+    def refresh(self) -> State:
+        """Compute the current state depending on the mode of evaluation, and
+        make sure that kinematics and dynamics quantities are up-to-date.
+        """
+        # Update state at which the quantity must be evaluated
+        if self.mode == QuantityEvalMode.TRUE:
+            multi_array_copyto(self._f_external_slices, self._f_external_list)
+        else:
+            self.state = self.trajectory.get()
+
+        # Update all the dynamical quantities that can be given available data
+        if self.mode == QuantityEvalMode.REFERENCE:
+            update_quantities(
+                self.robot,
+                self.state.q,
+                self.state.v,
+                self.state.a,
+                update_physics=True,
+                update_centroidal=True,
+                update_energy=True,
+                update_jacobian=False,
+                update_collisions=True,
+                use_theoretical_model=self.trajectory.use_theoretical_model)
+
+        # Return state
+        return self.state

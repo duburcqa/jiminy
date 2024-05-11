@@ -12,7 +12,8 @@ from collections.abc import MutableMapping
 from typing import Any, Dict, List, Tuple, Iterator, Type
 
 from ..bases import (
-    QuantityCreator, InterfaceJiminyEnv, AbstractQuantity, SharedCache)
+    QuantityCreator, InterfaceJiminyEnv, InterfaceQuantity, SharedCache,
+    DatasetTrajectoryQuantity)
 
 
 class QuantityManager(MutableMapping):
@@ -37,15 +38,18 @@ class QuantityManager(MutableMapping):
         self.env = env
 
         # List of instantiated quantities to manager
-        self.registry: Dict[str, AbstractQuantity] = {}
+        self.registry: Dict[str, InterfaceQuantity] = {}
 
         # Initialize shared caches for all managed quantities.
         # Note that keys are not quantities directly but pairs (class, hash).
         # This is necessary because using a quantity as key directly would
-        # prevent its garbage collection and break automatic reset of
+        # prevent its garbage collection, hence breaking automatic reset of
         # computation tracking for all quantities sharing its cache.
         self._caches: Dict[
-            Tuple[Type[AbstractQuantity], int], SharedCache] = {}
+            Tuple[Type[InterfaceQuantity], int], SharedCache] = {}
+
+        # Automatically add 'trajectory' quantities at top-level
+        self['trajectory'] = (DatasetTrajectoryQuantity, {})
 
     def reset(self, reset_tracking: bool = False) -> None:
         """Consider that all managed quantity must be re-initialized before

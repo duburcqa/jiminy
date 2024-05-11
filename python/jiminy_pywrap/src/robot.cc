@@ -7,6 +7,7 @@
 #include "jiminy/core/robot/robot.h"
 
 #include "pinocchio/bindings/python/fwd.hpp"
+#include "pinocchio/bindings/python/utils/copyable.hpp"
 
 #include "jiminy/python/utilities.h"
 #include "jiminy/python/robot.h"
@@ -166,6 +167,8 @@ namespace jiminy::python
     void exposeModel()
     {
         bp::class_<Model, std::shared_ptr<Model>, boost::noncopyable>("Model", bp::init<>())
+            .def("copy", &std::make_shared<Model, const Model &>, bp::arg("self"))
+
             .def("initialize",
                  &initialize<Model>,
                  (bp::arg("self"),
@@ -378,6 +381,8 @@ namespace jiminy::python
     {
         bp::class_<Robot, bp::bases<Model>, std::shared_ptr<Robot>, boost::noncopyable>(
             "Robot", bp::init<const std::string &>(bp::arg("name") = ""))
+            .def("copy", &std::make_shared<Robot, const Robot &>, bp::arg("self"))
+
             .def("initialize",
                  &initialize<Robot>,
                  (bp::arg("self"),

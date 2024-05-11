@@ -17,7 +17,9 @@ from jiminy_py.core import (  # pylint: disable=no-name-in-module
     multi_array_copyto)
 import pinocchio as pin
 
-from ..bases import InterfaceJiminyEnv, AbstractQuantity, QuantityCreator
+from ..bases import (
+    InterfaceJiminyEnv, InterfaceQuantity, AbstractQuantity, QuantityCreator,
+    QuantityEvalMode)
 from ..utils import (
     fill, matrix_to_rpy, matrix_to_quat, quat_to_matrix,
     quat_interpolate_middle)
@@ -86,11 +88,13 @@ class _MultiFramesRotationMatrix(AbstractQuantity[np.ndarray]):
 
     def __init__(self,
                  env: InterfaceJiminyEnv,
-                 parent: AbstractQuantity) -> None:
+                 parent: InterfaceQuantity,
+                 mode: QuantityEvalMode) -> None:
         """
         :param env: Base or wrapped jiminy environment.
         :param parent: Higher-level quantity from which this quantity is a
                        requirement.
+        :param mode: Desired mode of evaluation for this quantity.
         """
         # Make sure that a parent has been specified
         assert isinstance(parent, (FrameQuantity, MultiFrameQuantity))
@@ -99,7 +103,8 @@ class _MultiFramesRotationMatrix(AbstractQuantity[np.ndarray]):
         self.identifier = hash(type(parent))
 
         # Call base implementation
-        super().__init__(env, parent, requirements={}, auto_refresh=False)
+        super().__init__(
+            env, parent, requirements={}, mode=mode, auto_refresh=False)
 
         # Initialize the ordered list of frame names
         self.frame_names: Set[str] = set()
@@ -131,7 +136,7 @@ class _MultiFramesRotationMatrix(AbstractQuantity[np.ndarray]):
             self.frame_names = {self.parent.frame_name}
         else:
             self.frame_names = set(self.parent.frame_names)
-        if self.cache:
+        if self.has_cache:
             for owner in self.cache.owners:
                 # We only consider active `_MultiFramesEulerAngles` instances
                 # instead of their parents. This is necessary because a derived
@@ -190,11 +195,13 @@ class _MultiFramesEulerAngles(AbstractQuantity[Dict[str, np.ndarray]]):
     """
     def __init__(self,
                  env: InterfaceJiminyEnv,
-                 parent: "FrameEulerAngles") -> None:
+                 parent: "FrameEulerAngles",
+                 mode: QuantityEvalMode) -> None:
         """
         :param env: Base or wrapped jiminy environment.
         :param parent: `FrameEulerAngles` instance from which this quantity is
                        a requirement.
+        :param mode: Desired mode of evaluation for this quantity.
         """
         # Make sure that a suitable parent has been provided
         assert isinstance(parent, FrameEulerAngles)
@@ -208,7 +215,10 @@ class _MultiFramesEulerAngles(AbstractQuantity[Dict[str, np.ndarray]]):
         super().__init__(
             env,
             parent,
-            requirements={"rot_mat_batch": (_MultiFramesRotationMatrix, {})},
+            requirements=dict(
+                rot_mat_batch=(_MultiFramesRotationMatrix, dict(
+                    mode=mode))),
+            mode=mode,
             auto_refresh=False)
 
         # Store Roll-Pitch-Yaw of all frames at once
@@ -224,7 +234,7 @@ class _MultiFramesEulerAngles(AbstractQuantity[Dict[str, np.ndarray]]):
         # Update the frame names based on the cache owners of this quantity
         assert isinstance(self.parent, FrameEulerAngles)
         self.frame_names = {self.parent.frame_name}
-        if self.cache:
+        if self.has_cache:
             for owner in self.cache.owners:
                 if owner.is_active(any_cache_owner=False):
                     assert isinstance(owner.parent, FrameEulerAngles)
@@ -246,7 +256,7 @@ class _MultiFramesEulerAngles(AbstractQuantity[Dict[str, np.ndarray]]):
 
 
 @dataclass(unsafe_hash=True)
-class FrameEulerAngles(AbstractQuantity[np.ndarray]):
+class FrameEulerAngles(InterfaceQuantity[np.ndarray]):
     """Euler angles (Roll-Pitch-Yaw) of the orientation of a given frame in
     world reference frame at the end of the agent step.
     """
@@ -257,23 +267,26 @@ class FrameEulerAngles(AbstractQuantity[np.ndarray]):
 
     def __init__(self,
                  env: InterfaceJiminyEnv,
-                 parent: Optional[AbstractQuantity],
+                 parent: Optional[InterfaceQuantity],
                  frame_name: str,
-                 ) -> None:
+                 *,
+                 mode: QuantityEvalMode = QuantityEvalMode.TRUE) -> None:
         """
         :param env: Base or wrapped jiminy environment.
         :param parent: Higher-level quantity from which this quantity is a
                        requirement if any, `None` otherwise.
         :param frame_name: Name of the frame on which to operate.
+        :param mode: Desired mode of evaluation for this quantity.
         """
         # Backup some user argument(s)
         self.frame_name = frame_name
 
         # Call base implementation
-        super().__init__(env,
-                         parent,
-                         requirements={"data": (_MultiFramesEulerAngles, {})},
-                         auto_refresh=False)
+        super().__init__(
+            env,
+            parent,
+            requirements=dict(data=(_MultiFramesEulerAngles, dict(mode=mode))),
+            auto_refresh=False)
 
     def initialize(self) -> None:
         # Check if the quantity is already active
@@ -315,11 +328,13 @@ class _MultiFramesXYZQuat(AbstractQuantity[Dict[str, np.ndarray]]):
     """
     def __init__(self,
                  env: InterfaceJiminyEnv,
-                 parent: "FrameXYZQuat") -> None:
+                 parent: "FrameXYZQuat",
+                 mode: QuantityEvalMode) -> None:
         """
         :param env: Base or wrapped jiminy environment.
         :param parent: `FrameXYZQuat` instance from which this quantity
                        is a requirement.
+        :param mode: Desired mode of evaluation for this quantity.
         """
         # Make sure that a suitable parent has been provided
         assert isinstance(parent, FrameXYZQuat)
@@ -331,7 +346,10 @@ class _MultiFramesXYZQuat(AbstractQuantity[Dict[str, np.ndarray]]):
         super().__init__(
             env,
             parent,
-            requirements={"rot_mat_batch": (_MultiFramesRotationMatrix, {})},
+            requirements=dict(
+                rot_mat_batch=(_MultiFramesRotationMatrix, dict(
+                    mode=mode))),
+            mode=mode,
             auto_refresh=False)
 
         # Define proxy for slices of the batch storing all translation vectors
@@ -353,7 +371,7 @@ class _MultiFramesXYZQuat(AbstractQuantity[Dict[str, np.ndarray]]):
         # Update the frame names based on the cache owners of this quantity
         assert isinstance(self.parent, FrameXYZQuat)
         self.frame_names = {self.parent.frame_name}
-        if self.cache:
+        if self.has_cache:
             for owner in self.cache.owners:
                 if owner.is_active(any_cache_owner=False):
                     assert isinstance(owner.parent, FrameXYZQuat)
@@ -387,7 +405,7 @@ class _MultiFramesXYZQuat(AbstractQuantity[Dict[str, np.ndarray]]):
 
 
 @dataclass(unsafe_hash=True)
-class FrameXYZQuat(AbstractQuantity[np.ndarray]):
+class FrameXYZQuat(InterfaceQuantity[np.ndarray]):
     """Vector representation (X, Y, Z, QuatX, QuatY, QuatZ, QuatW) of the
     transform of a given frame in world reference frame at the end of the
     agent step.
@@ -399,23 +417,26 @@ class FrameXYZQuat(AbstractQuantity[np.ndarray]):
 
     def __init__(self,
                  env: InterfaceJiminyEnv,
-                 parent: Optional[AbstractQuantity],
+                 parent: Optional[InterfaceQuantity],
                  frame_name: str,
-                 ) -> None:
+                 *,
+                 mode: QuantityEvalMode = QuantityEvalMode.TRUE) -> None:
         """
         :param env: Base or wrapped jiminy environment.
         :param parent: Higher-level quantity from which this quantity is a
                        requirement if any, `None` otherwise.
         :param frame_name: Name of the frame on which to operate.
+        :param mode: Desired mode of evaluation for this quantity.
         """
         # Backup some user argument(s)
         self.frame_name = frame_name
 
         # Call base implementation
-        super().__init__(env,
-                         parent,
-                         requirements={"data": (_MultiFramesXYZQuat, {})},
-                         auto_refresh=False)
+        super().__init__(
+            env,
+            parent,
+            requirements=dict(data=(_MultiFramesXYZQuat, dict(mode=mode))),
+            auto_refresh=False)
 
     def initialize(self) -> None:
         # Check if the quantity is already active
@@ -434,7 +455,7 @@ class FrameXYZQuat(AbstractQuantity[np.ndarray]):
 
 
 @dataclass(unsafe_hash=True)
-class StackedQuantity(AbstractQuantity[Tuple[ValueT, ...]]):
+class StackedQuantity(InterfaceQuantity[Tuple[ValueT, ...]]):
     """Keep track of a given quantity over time by automatically stacking its
     value once per environment step since last reset.
 
@@ -444,7 +465,7 @@ class StackedQuantity(AbstractQuantity[Tuple[ValueT, ...]]):
         controller updates are ignored.
     """
 
-    quantity: AbstractQuantity
+    quantity: InterfaceQuantity
     """Base quantity whose value must be stacked over time since last reset.
     """
 
@@ -455,10 +476,10 @@ class StackedQuantity(AbstractQuantity[Tuple[ValueT, ...]]):
 
     def __init__(self,
                  env: InterfaceJiminyEnv,
-                 parent: Optional[AbstractQuantity],
+                 parent: Optional[InterfaceQuantity],
                  quantity: QuantityCreator[ValueT],
-                 num_stack: Optional[int] = None
-                 ) -> None:
+                 *,
+                 num_stack: Optional[int] = None) -> None:
         """
         :param env: Base or wrapped jiminy environment.
         :param parent: Higher-level quantity from which this quantity is a
@@ -476,7 +497,7 @@ class StackedQuantity(AbstractQuantity[Tuple[ValueT, ...]]):
         # Call base implementation
         super(). __init__(env,
                           parent,
-                          requirements={"data": quantity},
+                          requirements=dict(data=quantity),
                           auto_refresh=True)
 
         # Keep track of the quantity that must be stacked once instantiated
@@ -486,7 +507,7 @@ class StackedQuantity(AbstractQuantity[Tuple[ValueT, ...]]):
         self._deque: deque = deque(maxlen=self.num_stack)
 
         # Keep track of the last time the quantity has been stacked
-        self._num_step_prev = -1
+        self._num_steps_prev = -1
 
     def initialize(self) -> None:
         # Call base implementation
@@ -496,18 +517,18 @@ class StackedQuantity(AbstractQuantity[Tuple[ValueT, ...]]):
         self._deque.clear()
 
         # Reset step counter
-        self._num_step_prev = -1
+        self._num_steps_prev = -1
 
     def refresh(self) -> Tuple[ValueT, ...]:
-        # Append value to the queue only once oer step and only if a simulation
+        # Append value to the queue only once per step and only if a simulation
         # is running. Note that data must be deep-copied to make sure it does
         # not get altered afterward.
         if self.env.is_simulation_running:
             num_steps = self.env.num_steps
-            if num_steps != self._num_step_prev:
+            if num_steps != self._num_steps_prev:
+                assert num_steps == self._num_steps_prev + 1
                 self._deque.append(deepcopy(self.data))
-                assert num_steps == self._num_step_prev + 1
-                self._num_step_prev += 1
+                self._num_steps_prev += 1
 
         # Return the whole stack as a tuple to preserve the integrity of the
         # underlying container and make the API robust to internal changes.
@@ -515,7 +536,7 @@ class StackedQuantity(AbstractQuantity[Tuple[ValueT, ...]]):
 
 
 @dataclass(unsafe_hash=True)
-class AverageFrameSpatialVelocity(AbstractQuantity[np.ndarray]):
+class AverageFrameSpatialVelocity(InterfaceQuantity[np.ndarray]):
     """Average spatial velocity of a given frame at the end of the agent step.
 
     The average spatial velocity is obtained by finite difference. More
@@ -546,10 +567,11 @@ class AverageFrameSpatialVelocity(AbstractQuantity[np.ndarray]):
 
     def __init__(self,
                  env: InterfaceJiminyEnv,
-                 parent: Optional[AbstractQuantity],
+                 parent: Optional[InterfaceQuantity],
                  frame_name: str,
-                 reference_frame: pin.ReferenceFrame = pin.LOCAL
-                 ) -> None:
+                 *,
+                 reference_frame: pin.ReferenceFrame = pin.LOCAL,
+                 mode: QuantityEvalMode = QuantityEvalMode.TRUE) -> None:
         """
         :param env: Base or wrapped jiminy environment.
         :param parent: Higher-level quantity from which this quantity is a
@@ -559,6 +581,7 @@ class AverageFrameSpatialVelocity(AbstractQuantity[np.ndarray]):
             Whether the spatial velocity must be computed in local reference
             frame (aka 'pin.LOCAL') or re-aligned with world axes (aka
             'pin.LOCAL_WORLD_ALIGNED').
+        :param mode: Desired mode of evaluation for this quantity.
         """
         # Make sure at requested reference frame is supported
         if reference_frame not in (pin.LOCAL, pin.LOCAL_WORLD_ALIGNED):
@@ -573,9 +596,10 @@ class AverageFrameSpatialVelocity(AbstractQuantity[np.ndarray]):
         super().__init__(
             env,
             parent,
-            requirements={"xyzquat_stack": (StackedQuantity, dict(
-                quantity=(FrameXYZQuat, dict(frame_name=frame_name)),
-                num_stack=2))},
+            requirements=dict(xyzquat_stack=(StackedQuantity, dict(
+                quantity=(FrameXYZQuat, dict(
+                    frame_name=frame_name, mode=mode)),
+                num_stack=2))),
             auto_refresh=False)
 
         # Define specialize difference operator on SE3 Lie group
@@ -636,7 +660,7 @@ class AverageFrameSpatialVelocity(AbstractQuantity[np.ndarray]):
 
 
 @dataclass(unsafe_hash=True)
-class MaskedQuantity(AbstractQuantity[np.ndarray]):
+class MaskedQuantity(InterfaceQuantity[np.ndarray]):
     """Extract elements from a given quantity whose value is a N-dimensional
     array along an axis.
 
@@ -646,7 +670,7 @@ class MaskedQuantity(AbstractQuantity[np.ndarray]):
     is `None`.
     """
 
-    quantity: AbstractQuantity
+    quantity: InterfaceQuantity
     """Base quantity whose elements must be extracted.
     """
 
@@ -660,11 +684,11 @@ class MaskedQuantity(AbstractQuantity[np.ndarray]):
 
     def __init__(self,
                  env: InterfaceJiminyEnv,
-                 parent: Optional[AbstractQuantity],
+                 parent: Optional[InterfaceQuantity],
                  quantity: QuantityCreator[np.ndarray],
                  key: Union[Sequence[int], Sequence[bool]],
-                 axis: Optional[int] = None
-                 ) -> None:
+                 *,
+                 axis: Optional[int] = None) -> None:
         """
         :param env: Base or wrapped jiminy environment.
         :param parent: Higher-level quantity from which this quantity is a
@@ -683,8 +707,8 @@ class MaskedQuantity(AbstractQuantity[np.ndarray]):
             key = tuple(np.flatnonzero(key))
         elif not all(isinstance(e, int) for e in key):
             raise ValueError(
-                "Argument 'key' invalid. It must either be a "
-                "boolean mask, or a sequence of indices.")
+                "Argument 'key' invalid. It must either be a boolean mask, or "
+                "a sequence of indices.")
 
         # Backup user arguments
         self.indices = tuple(key)
@@ -717,7 +741,7 @@ class MaskedQuantity(AbstractQuantity[np.ndarray]):
         # Call base implementation
         super(). __init__(env,
                           parent,
-                          requirements={"data": quantity},
+                          requirements=dict(data=quantity),
                           auto_refresh=False)
 
         # Keep track of the quantity from which data must be extracted

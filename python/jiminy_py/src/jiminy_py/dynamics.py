@@ -93,7 +93,7 @@ def velocityXYZQuatToXYZRPY(xyzquat: np.ndarray,
 # #################### State and Trajectory ###########################
 # #####################################################################
 
-@dataclass
+@dataclass(unsafe_hash=True)
 class State:
     """Basic data structure storing kinematics and dynamics information at a
     given time.
@@ -119,11 +119,11 @@ class State:
     """Acceleration vector as a 1D array.
     """
 
-    u_motors: Optional[np.ndarray] = None
+    u_motor: Optional[np.ndarray] = None
     """Motor efforts as a 1D array.
     """
 
-    f_ext: Optional[np.ndarray] = None
+    f_external: Optional[np.ndarray] = None
     """Joint external forces as a 2D array.
 
      first dimension corresponds to the N individual
@@ -132,6 +132,7 @@ class State:
     """
 
 
+@dataclass(unsafe_hash=True)
 class Trajectory:
     """Trajectory of a robot.
 
@@ -141,7 +142,7 @@ class Trajectory:
     state at a given timestamp.
     """
 
-    states: Sequence[State]
+    states: Tuple[State, ...]
     """Sequence of states of increasing time.
 
     .. warning::
@@ -171,7 +172,7 @@ class Trajectory:
                                       extended simulation model of the robot.
         """
         # Backup user arguments
-        self.states = states
+        self.states = tuple(states)
         self.robot = robot
         self.use_theoretical_model = use_theoretical_model
 
@@ -193,14 +194,20 @@ class Trajectory:
         self._index_prev = 0
 
         # List of optional state fields that are provided
-        state = states[0] if states else None
-        self._has_velocity = not (state is None or state.v is None)
-        self._has_acceleration = not (state is None or state.a is None)
-        self._has_motor_efforts = not (state is None or state.u_motors is None)
-        self._has_external_forces = not (state is None or state.f_ext is None)
-        self._fields = tuple(
-            field for field in ("v", "a", "u_motors", "f_ext")
-            if states and getattr(states[0], field) is not None)
+        self._fields: Tuple[str, ...] = ()
+        self._has_velocity = False
+        self._has_acceleration = False
+        self._has_motor_efforts = False
+        self._has_external_forces = False
+        if states:
+            state = states[0]
+            self._has_velocity = state.v is not None
+            self._has_acceleration = state.a is not None
+            self._has_motor_efforts = state.u_motor is not None
+            self._has_external_forces = state.f_external is not None
+            self._fields = tuple(
+                field for field in ("v", "a", "u_motor", "f_external")
+                if getattr(state, field) is not None)
 
     @property
     def has_data(self) -> bool:
@@ -260,6 +267,9 @@ class Trajectory:
             raise RuntimeError(
                 "State sequence is empty. Impossible to interpolate data.")
 
+        # Backup the original query time
+        t_orig = t
+
         # Handling of the desired mode
         t_start, t_end = self.time_interval
         if mode == "raise":
@@ -294,7 +304,7 @@ class Trajectory:
             value_left = getattr(s_left, field)
             value_right = getattr(s_right, field)
             data[field] = value_left + alpha * (value_right - value_left)
-        return State(t=t, **data)
+        return State(t=t_orig, **data)
 
 
 # #####################################################################
@@ -306,7 +316,7 @@ def update_quantities(robot: jiminy.Model,
                       velocity: Optional[np.ndarray] = None,
                       acceleration: Optional[np.ndarray] = None,
                       update_physics: bool = True,
-                      update_com: bool = True,
+                      update_centroidal: bool = True,
                       update_energy: bool = True,
                       update_jacobian: bool = False,
                       update_collisions: bool = True,
@@ -354,9 +364,9 @@ def update_quantities(robot: jiminy.Model,
     :param update_physics: Whether to compute the non-linear effects and
                            internal/external forces.
                            Optional: True by default.
-    :param update_com: Whether to compute the COM of the robot AND each link
-                       individually. The global COM is the first index.
-                       Optional: False by default.
+    :param update_centroidal: Whether to compute the centroidal dynamics (incl.
+                              CoM) of the robot.
+                              Optional: False by default.
     :param update_energy: Whether to compute the energy of the robot.
                           Optional: False by default
     :param update_jacobian: Whether to compute the jacobians.
@@ -373,7 +383,7 @@ def update_quantities(robot: jiminy.Model,
         model = robot.pinocchio_model
         data = robot.pinocchio_data
 
-    if (update_physics and update_com and
+    if (update_physics and update_centroidal and
             update_energy and update_jacobian and
             velocity is not None and acceleration is None):
         pin.computeAllTerms(model, data, position, velocity)
@@ -386,7 +396,7 @@ def update_quantities(robot: jiminy.Model,
             pin.forwardKinematics(
                 model, data, position, velocity, acceleration)
 
-        if update_com:
+        if update_centroidal:
             if velocity is None:
                 kinematic_level = pin.POSITION
             elif acceleration is None:
@@ -394,9 +404,10 @@ def update_quantities(robot: jiminy.Model,
             else:
                 kinematic_level = pin.ACCELERATION
             pin.centerOfMass(model, data, kinematic_level, False)
+            pin.computeCentroidalMomentumTimeVariation(model, data)
 
         if update_jacobian:
-            if update_com:
+            if update_centroidal:
                 pin.jacobianCenterOfMass(model, data)
             pin.computeJointJacobians(model, data)
 
@@ -743,7 +754,7 @@ def compute_freeflyer_state_from_fixed_body(
                       velocity,
                       acceleration,
                       update_physics=False,
-                      update_com=False,
+                      update_centroidal=False,
                       update_energy=False,
                       use_theoretical_model=use_theoretical_model)
 

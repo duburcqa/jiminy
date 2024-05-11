@@ -12,8 +12,12 @@ from .interfaces import (DT_EPS,
                          InterfaceController,
                          InterfaceJiminyEnv)
 from .quantities import (QuantityCreator,
+                         QuantityEvalMode,
                          SharedCache,
-                         AbstractQuantity)
+                         InterfaceQuantity,
+                         AbstractQuantity,
+                         StateQuantity,
+                         DatasetTrajectoryQuantity)
 from .compositions import (AbstractReward,
                            BaseQuantityReward,
                            BaseMixtureReward)
@@ -46,6 +50,7 @@ __all__ = [
     'InterfaceController',
     'InterfaceJiminyEnv',
     'InterfaceBlock',
+    'InterfaceQuantity',
     'AbstractQuantity',
     'AbstractReward',
     'BaseQuantityReward',
@@ -58,5 +63,8 @@ __all__ = [
     'ComposedJiminyEnv',
     'ObservedJiminyEnv',
     'ControlledJiminyEnv',
-    'QuantityCreator'
+    'QuantityEvalMode',
+    'QuantityCreator',
+    'StateQuantity',
+    'DatasetTrajectoryQuantity'
 ]

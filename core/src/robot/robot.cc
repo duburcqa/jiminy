@@ -1,18 +1,21 @@
 #include <fstream>
 #include <exception>
 
-#include "jiminy/core/utilities/helpers.h"
-#include "jiminy/core/utilities/pinocchio.h"
-#include "jiminy/core/utilities/json.h"
-#include "jiminy/core/io/file_device.h"
+#include "jiminy/core/constraints/abstract_constraint.h"
+#include "jiminy/core/constraints/joint_constraint.h"
 #include "jiminy/core/hardware/abstract_motor.h"
 #include "jiminy/core/hardware/abstract_sensor.h"
 #include "jiminy/core/control/abstract_controller.h"
 #include "jiminy/core/control/controller_functor.h"
-#include "jiminy/core/constraints/abstract_constraint.h"
-#include "jiminy/core/constraints/joint_constraint.h"
+#include "jiminy/core/io/file_device.h"
+#include "jiminy/core/io/serialization.h"
+#include "jiminy/core/utilities/helpers.h"
+#include "jiminy/core/utilities/pinocchio.h"
+#include "jiminy/core/utilities/json.h"
 
 #include "jiminy/core/robot/robot.h"
+
+#include <boost/serialization/nvp.hpp>
 
 
 namespace jiminy
@@ -24,6 +27,33 @@ namespace jiminy
         // Initialize options
         robotOptionsGeneric_ = getDefaultRobotOptions();
         setOptions(getOptions());
+    }
+
+    Robot::Robot(const Robot & other) :
+    Model()
+    {
+        *this = other;
+    }
+
+    Robot & Robot::operator=(const Robot & other)
+    {
+        // Serialize the user-specified robot
+        std::stringstream sstream;
+        {
+            stateful_binary_oarchive oa(sstream);
+            const Robot * const otherPtr = &other;
+            oa << boost::serialization::make_nvp("px", otherPtr);
+        }
+
+        // De-serialize the user-specified robot then move assign to this robot
+        {
+            stateful_binary_iarchive ia(sstream);
+            Robot * robotPtr;
+            ia >> boost::serialization::make_nvp("px", robotPtr);
+            *this = std::move(*robotPtr);
+        }
+
+        return *this;
     }
 
     Robot::~Robot()
@@ -271,7 +301,7 @@ namespace jiminy
             {
                 (void)shared_from_this();
             }
-            catch (std::bad_weak_ptr & e)
+            catch (std::bad_weak_ptr &)
             {
                 return;
             }

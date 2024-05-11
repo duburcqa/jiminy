@@ -2524,7 +2524,7 @@ class Viewer:
             It will alter original robot data if viewer attribute
             `use_theoretical_model` is false.
 
-        :param states: List of State object of increasing time.
+        :param states: Sequence of `State` objects of increasing time.
         :param time_interval: Specific time interval to replay.
                               Optional: Complete evolution by default [0, inf].
         :param speed_ratio: Real-time factor.
@@ -2578,8 +2578,8 @@ class Viewer:
                 state = trajectory.get(t, mode="raise")
 
                 # Update viewer force buffer
-                if state.f_ext is not None:
-                    for f_ref, f_i in zip(self.f_external, state.f_ext):
+                if state.f_external is not None:
+                    for f_ref, f_i in zip(self.f_external, state.f_external):
                         f_ref.vector[:] = f_i
 
                 # Update camera motion
