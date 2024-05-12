@@ -105,7 +105,10 @@ class QuantityManager(MutableMapping):
         """
         self._trajectory_dataset.discard(name)
 
-    def select_trajectory(self, name: str) -> None:
+    def select_trajectory(self,
+                          name: str,
+                          mode: Literal['raise', 'wrap', 'clip'] = 'raise'
+                          ) -> None:
         """Select an existing trajectory from the database shared synchronized
         all managed quantities.
 
@@ -114,8 +117,11 @@ class QuantityManager(MutableMapping):
             individual quantities at the time being.
 
         :param name: Name of the trajectory to select.
+        :param mode: Specifies how to deal with query time of are out of the
+                     time interval of the trajectory. See `Trajectory.get`
+                     documentation for details.
         """
-        self._trajectory_dataset.select(name)
+        self._trajectory_dataset.select(name, mode)
 
     def __getattr__(self, name: str) -> Any:
         """Get access managed quantities as first-class properties, rather than

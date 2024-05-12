@@ -680,6 +680,9 @@ class DatasetTrajectoryQuantity(InterfaceQuantity[State]):
         # Selected trajectory if any
         self._trajectory: Optional[Trajectory] = None
 
+        # Specifies how to deal with query time that are out-of-bounds
+        self._mode: Literal['raise', 'wrap', 'clip'] = 'raise'
+
     @property
     def trajectory(self) -> Trajectory:
         """Trajectory that is currently selected if any, raises an exception
@@ -762,11 +765,16 @@ class DatasetTrajectoryQuantity(InterfaceQuantity[State]):
         del self.registry[name]
 
     @sync
-    def select(self, name: str) -> None:
+    def select(self,
+               name: str,
+               mode: Literal['raise', 'wrap', 'clip'] = 'raise') -> None:
         """Jointly select a trajectory in the internal registry of all
         instances sharing the same cache as this quantity.
 
         :param name: Name of the trajectory to discard.
+        :param mode: Specifies how to deal with query time of are out of the
+                     time interval of the trajectory. See `Trajectory.get`
+                     documentation for details.
         """
         # Make sure that at least one trajectory has been specified
         if not self.registry:
