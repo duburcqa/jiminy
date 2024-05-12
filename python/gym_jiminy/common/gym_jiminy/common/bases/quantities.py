@@ -23,7 +23,7 @@ from dataclasses import dataclass, replace
 from functools import partial, wraps
 from typing import (
     Any, Dict, List, Optional, Tuple, Generic, TypeVar, Type, Iterator,
-    Callable, cast)
+    Callable, Literal, cast)
 
 import numpy as np
 
@@ -784,6 +784,9 @@ class DatasetTrajectoryQuantity(InterfaceQuantity[State]):
         self._trajectory = self.registry[name]
         self._name = name
 
+        # Backup user-specified mode
+        self._mode = mode
+
         # Un-initialize quantity when the selected trajectory changes
         self.reset(reset_tracking=False)
 
@@ -793,10 +796,32 @@ class DatasetTrajectoryQuantity(InterfaceQuantity[State]):
         """
         return self._name
 
+    @InterfaceQuantity.cache.setter  # type: ignore[attr-defined]
+    def cache(self, cache: Optional[SharedCache[ValueT]]) -> None:
+        # Get existing registry if any and making sure not already out-of-sync
+        registry: Optional[OrderedDict[str, Trajectory]] = None
+        if cache is not None and cache.owners:
+            owner: InterfaceQuantity = next(iter(cache.owners))
+            assert isinstance(owner, DatasetTrajectoryQuantity)
+            registry = owner.registry
+            name, mode = owner._name, owner._mode
+            if self._trajectory:
+                raise RuntimeError(
+                    "Trajectory dataset not empty. Impossible to add a shared "
+                    "cache already having owners.")
+
+        # Call base implementation
+        InterfaceQuantity.cache.fset(self, cache)  # type: ignore[attr-defined]
+
+        # Catch-up synchronization
+        if registry is not None:
+            self.registry = registry
+            self.select(name, mode)
+
     def refresh(self) -> State:
         """Compute state of selected trajectory at current simulation time.
         """
-        return self.trajectory.get(self.env.stepper_state.t)
+        return self.trajectory.get(self.env.stepper_state.t, self._mode)
 
 
 @dataclass(unsafe_hash=True)
@@ -858,7 +883,7 @@ class StateQuantity(InterfaceQuantity[State]):
         # State for which the quantity must be evaluated
         self._f_external_slices: Tuple[np.ndarray, ...] = ()
         self._f_external_list: Tuple[np.ndarray, ...] = ()
-        self.state = State(t=np.nan, q=np.array([]))  # type: ignore[call-arg]
+        self.state = State(t=np.nan, q=np.array([]))
 
     def initialize(self) -> None:
         # Refresh robot and pinocchio proxies for co-owners of shared cache.

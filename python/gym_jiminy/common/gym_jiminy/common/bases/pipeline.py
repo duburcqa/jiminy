@@ -320,8 +320,18 @@ class ComposedJiminyEnv(
                  env: InterfaceJiminyEnv[ObsT, ActT],
                  *,
                  reward: AbstractReward) -> None:
-        # Make sure that the reward is linked to this environment
-        assert env is reward.env
+        """
+        :param env: Environment to extend, eventually already wrapped.
+        :param reward: Reward object deriving from `AbstractReward`. It will be
+                       evaluated at each step of the environment and summed up
+                       with one returned by the wrapped environment. This
+                       reward must be already instantiated and associated with
+                       the provided environment. `None` for not considering any
+                       reward.
+                       Optional: `None` by default.
+        """
+        # Make sure that the unwrapped environment matches the reward one
+        assert reward is None or env.unwrapped is reward.env.unwrapped
 
         # Backup user argument(s)
         self.reward = reward

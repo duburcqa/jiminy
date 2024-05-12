@@ -33,7 +33,7 @@ class Quantities(unittest.TestCase):
             quantity_manager[name] = (cls, kwargs)
         quantities = quantity_manager.registry
 
-        assert len(quantity_manager) == 4  # + 1 for 'trajectory'
+        assert len(quantity_manager) == 3
         assert len(quantities["zmp"].cache.owners) == 1
         assert len(quantities["com"].cache.owners) == 2
 
