@@ -18,11 +18,17 @@ from ..bases import (
 
 class QuantityManager(MutableMapping):
     """This class centralizes the evaluation of all quantities involved in
-    reward or termination conditions evaluation to redundant and unnecessary
-    computations.
+    reward components or termination conditions evaluation to redundant and
+    unnecessary computations.
 
     It is responsible for making sure all quantities are evaluated on the same
-    environment, and internal buffers are re-initialized whenever necessary.
+    environment, and internal buffers are re-initialized whenever necessary. It
+    also manages a dataset of trajectories synchronized between all managed
+    quantities. These trajectories are involves in computation of quantities
+    deriving from `AbstractQuantity` for which the mode of evaluation is set to
+    `QuantityEvalMode.REFERENCE`. This dataset is initially empty. Trying to
+    evaluate quantities involving a reference trajectory without adding and
+    selecting one beforehand would raise an exception.
 
     .. note::
         Individual quantities can be accessed either as instance properties or
@@ -48,8 +54,11 @@ class QuantityManager(MutableMapping):
         self._caches: Dict[
             Tuple[Type[InterfaceQuantity], int], SharedCache] = {}
 
-        # Automatically add 'trajectory' quantities at top-level
-        self['trajectory'] = (DatasetTrajectoryQuantity, {})
+        # Instantiate trajectory database.
+        # Note that this quantity is not added to the global registry to avoid
+        # exposing directly to the user. This way, it cannot be deleted.
+        self._trajectory_dataset = self._build_quantity(
+            (DatasetTrajectoryQuantity, {}))
 
     def reset(self, reset_tracking: bool = False) -> None:
         """Consider that all managed quantity must be re-initialized before
@@ -76,6 +85,38 @@ class QuantityManager(MutableMapping):
         for cache in self._caches.values():
             cache.reset()
 
+    def add_trajectory(self, name: str, trajectory: Trajectory) -> None:
+        """Add a new reference trajectory to the database synchronized between
+        all managed quantities.
+
+        :param name: Desired name of the trajectory. It must be unique. If a
+                     trajectory with the exact same name already exists, then
+                     it must be discarded first, so as to prevent silently
+                     overwriting it by mistake.
+        :param trajectory: Trajectory instance to register.
+        """
+        self._trajectory_dataset.add(name, trajectory)
+
+    def discard_trajectory(self, name: str) -> None:
+        """Discard a trajectory from the database synchronized between all
+        managed quantities.
+
+        :param name: Name of the trajectory to discard.
+        """
+        self._trajectory_dataset.discard(name)
+
+    def select_trajectory(self, name: str) -> None:
+        """Select an existing trajectory from the database shared synchronized
+        all managed quantities.
+
+        .. note::
+            There is no way to select a different reference trajectory for
+            individual quantities at the time being.
+
+        :param name: Name of the trajectory to select.
+        """
+        self._trajectory_dataset.select(name)
+
     def __getattr__(self, name: str) -> Any:
         """Get access managed quantities as first-class properties, rather than
         dictionary-like values through `__getitem__`.
@@ -99,10 +140,44 @@ class QuantityManager(MutableMapping):
         """
         return [*super().__dir__(), *self.registry.keys()]
 
+    def _build_quantity(
+            self, quantity_creator: QuantityCreator) -> InterfaceQuantity:
+        """Instantiate a quantity sharing caching with all identical quantities
+        that has been instantiated previously.
+
+        .. note::
+            This method is not meant to be called manually. It is used
+            internally for instantiating new quantities sharing cache with all
+            identical instances that has been instantiated previously by this
+            manager in particular. This method is not responsible for keeping
+            track of the new quantity and exposing it to the user by adding it
+            to the global registry of the manager afterward.
+
+        :param name: Desired name of the quantity after instantiation. It will
+                     raise an exception if another quantity with the exact same
+                     name exists.
+        :param quantity_creator: Tuple gathering the class of the new quantity
+                                 to manage plus its keyword-arguments except
+                                 environment and parent as a dictionary.
+        """
+        # Instantiate the new quantity
+        quantity_cls, quantity_kwargs = quantity_creator
+        top_quantity = quantity_cls(self.env, None, **(quantity_kwargs or {}))
+
+        # Set a shared cache entry for all quantities involved in computations
+        quantities_all = [top_quantity]
+        while quantities_all:
+            quantity = quantities_all.pop()
+            key = (type(quantity), hash(quantity))
+            quantity.cache = self._caches.setdefault(key, SharedCache())
+            quantities_all += quantity.requirements.values()
+
+        return top_quantity
+
     def __setitem__(self,
                     name: str,
                     quantity_creator: QuantityCreator) -> None:
-        """Instantiate a new top-level quantity to manage for now on.
+        """Instantiate new top-level quantity that will be managed for now on.
 
         :param name: Desired name of the quantity after instantiation. It will
                      raise an exception if another quantity with the exact same
@@ -118,20 +193,11 @@ class QuantityManager(MutableMapping):
                 "A quantity with the exact same name already exists. Please "
                 "delete it first before adding a new one.")
 
-        # Instantiate the new quantity
-        quantity_cls, quantity_kwargs = quantity_creator
-        top_quantity = quantity_cls(self.env, None, **(quantity_kwargs or {}))
+        # Instantiate new quantity
+        quantity = self._build_quantity(quantity_creator)
 
-        # Set a shared cache entry for all quantities involved in computations
-        quantities_all = [top_quantity]
-        while quantities_all:
-            quantity = quantities_all.pop()
-            key = (type(quantity), hash(quantity))
-            quantity.cache = self._caches.setdefault(key, SharedCache())
-            quantities_all += quantity.requirements.values()
-
-        # Add it to the map of already managed quantities
-        self.registry[name] = top_quantity
+        # Add it to the global registry of already managed quantities
+        self.registry[name] = quantity
 
     def __getitem__(self, name: str) -> Any:
         """Get the evaluated value of a given quantity.

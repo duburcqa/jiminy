@@ -212,7 +212,6 @@ class Quantities(unittest.TestCase):
 
     def test_true_vs_reference(self):
         env = gym.make("gym_jiminy.envs:atlas")
-        quantities = env.quantities.registry
 
         env.quantities["zmp"] = (
             ZeroMomentPoint, dict(mode=QuantityEvalMode.TRUE))
@@ -229,8 +228,8 @@ class Quantities(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             env.reset(seed=0)
 
-        quantities['trajectory'].add("reference", trajectory)
-        quantities['trajectory'].select("reference")
+        env.quantities.add_trajectory("reference", trajectory)
+        env.quantities.select_trajectory("reference")
 
         env.reset(seed=0)
         for _ in range(10):

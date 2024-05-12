@@ -302,8 +302,13 @@ class BasePipelineWrapper(
 class ComposedJiminyEnv(
         BasePipelineWrapper[ObsT, ActT, ObsT, ActT],
         Generic[ObsT, ActT]):
-    """Plug ad-hoc reward components and termination conditions to the
-    wrapped environment.
+    """Extend an environment, eventually already wrapped, by plugging ad-hoc
+    reward components and termination conditions, including their accompanying
+    trajectory database if any.
+
+    This wrappers leaves unchanged the observation and action spaces of the
+    environment. This can be done by adding observation and/or control blocks
+    through `ObservedJiminyEnv` and `ControlledJiminyEnv` wrappers.
 
     .. note::
         This wrapper derives from `BasePipelineWrapper`, and such as, it is

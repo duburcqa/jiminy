@@ -156,7 +156,7 @@ setup(
             # Used in unit tests for numerical integration and interpolation
             "scipy",
             # Stub for static type checking
-            "types-psutil",
+            "types-psutil>=5.9.5.20240511",
             "types-Pillow",
             "types-toml",
             "types-tqdm",

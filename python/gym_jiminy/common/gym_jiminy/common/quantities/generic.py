@@ -495,10 +495,10 @@ class StackedQuantity(InterfaceQuantity[Tuple[ValueT, ...]]):
         self.num_stack = num_stack
 
         # Call base implementation
-        super(). __init__(env,
-                          parent,
-                          requirements=dict(data=quantity),
-                          auto_refresh=True)
+        super().__init__(env,
+                         parent,
+                         requirements=dict(data=quantity),
+                         auto_refresh=True)
 
         # Keep track of the quantity that must be stacked once instantiated
         self.quantity = self.requirements["data"]
@@ -739,10 +739,10 @@ class MaskedQuantity(InterfaceQuantity[np.ndarray]):
                     Ellipsis, slice_, *((slice(None),) * (- axis - 1)))
 
         # Call base implementation
-        super(). __init__(env,
-                          parent,
-                          requirements=dict(data=quantity),
-                          auto_refresh=False)
+        super().__init__(env,
+                         parent,
+                         requirements=dict(data=quantity),
+                         auto_refresh=False)
 
         # Keep track of the quantity from which data must be extracted
         self.quantity = self.requirements["data"]

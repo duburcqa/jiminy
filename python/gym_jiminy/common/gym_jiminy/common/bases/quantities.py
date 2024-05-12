@@ -621,16 +621,20 @@ def sync(fun: Callable[..., None]) -> Callable[..., None]:
                 "method is called priori to setting shared cache.")
         self.__is_synched__ = self.has_cache  # type: ignore[attr-defined]
 
-        # Call instance method on all co-owners of shared cache
-        cls = type(self)
+        # Call instance method on the original caller first
+        fun(self, *args, **kwargs)
+
+        # Call instance method on all other co-owners of shared cache if any
         if self.has_cache:
+            cls = type(self)
             for owner in self.cache.owners:
-                assert isinstance(owner, cls)
-                value = fun(owner, *args, **kwargs)
-                if value is not None:
-                    raise NotImplementedError(
-                        "Instance methods that does not return `None` are not "
-                        "supported.")
+                if owner is not self:
+                    assert isinstance(owner, cls)
+                    value = fun(owner, *args, **kwargs)
+                    if value is not None:
+                        raise NotImplementedError(
+                            "Instance methods that does not return `None` are "
+                            "not supported.")
 
     return fun_safe
 
@@ -735,11 +739,17 @@ class DatasetTrajectoryQuantity(InterfaceQuantity[State]):
         if trajectory.robot is self.env.robot:
             trajectory = replace(trajectory, robot=trajectory.robot.copy())
 
-        # Add trajectory.
-        # Note that `add` has been splitted in two methods for efficiency. The
-        # first part that applies some trajectory post-processing only once,
-        # and the second part is adding the post-processed trajectory to all
-        # identical quantities at once.
+        # Add the same post-processed trajectory to all identical instances.
+        # Note that `add` must be splitted in two methods. A first part that
+        # applies some trajectory post-processing only once, and a second part
+        # that adds the post-processed trajectory to all identical quantities
+        # at once. It is absolutely essential to proceed this way, because it
+        # guarantees that the underlying trajectories are all references to the
+        # same memory, including `pinocchio_data`. This means that calling
+        # `update_quantities` will perform the update for all of them at once.
+        # Consequently, kinematics and dynamics quantities of all `State`
+        # instances will be up-to-date as long as `refresh` is called once for
+        # a given evaluation mode.
         self._add(name, trajectory)
 
     @sync
@@ -749,7 +759,6 @@ class DatasetTrajectoryQuantity(InterfaceQuantity[State]):
 
         :param name: Name of the trajectory to discard.
         """
-        # Delete trajectory
         del self.registry[name]
 
     @sync
@@ -763,7 +772,7 @@ class DatasetTrajectoryQuantity(InterfaceQuantity[State]):
         if not self.registry:
             raise ValueError("Cannot select trajectory on a empty dataset.")
 
-        # Select the desired trajectory
+        # Select the desired trajectory for all identical instances
         self._trajectory = self.registry[name]
         self._name = name
 
@@ -843,24 +852,37 @@ class StateQuantity(InterfaceQuantity[State]):
         self._f_external_list: Tuple[np.ndarray, ...] = ()
         self.state = State(t=np.nan, q=np.array([]))  # type: ignore[call-arg]
 
-    @sync
     def initialize(self) -> None:
-        # Call base implementation
-        super().initialize()
+        # Refresh robot and pinocchio proxies for co-owners of shared cache.
+        # Note that automatic refresh is not sufficient to guarantee that
+        # `initialize` will be called unconditionally, because it will be
+        # skipped if a value is already stored in cache. As a result, it is
+        # necessary to synchronize calls to this method between co-owners of
+        # the shared cache manually, so that it will be called by the first
+        # instance to found the cache empty. Only the necessary bits are
+        # synchronized instead of the whole method, to avoid messing up with
+        # computation graph tracking.
+        owners = self.cache.owners if self.has_cache else (self,)
+        for owner in owners:
+            assert isinstance(owner, StateQuantity)
+            if owner._is_initialized:
+                continue
+            if owner.mode == QuantityEvalMode.TRUE:
+                owner.robot = owner.env.robot
+                use_theoretical_model = False
+            else:
+                owner.robot = owner.trajectory.robot
+                use_theoretical_model = owner.trajectory.use_theoretical_model
+            if use_theoretical_model:
+                owner.pinocchio_model = owner.robot.pinocchio_model_th
+                owner.pinocchio_data = owner.robot.pinocchio_data_th
+            else:
+                owner.pinocchio_model = owner.robot.pinocchio_model
+                owner.pinocchio_data = owner.robot.pinocchio_data
 
-        # Refresh robot and pinocchio model / data proxies
-        if self.mode == QuantityEvalMode.TRUE:
-            self.robot = self.env.robot
-            use_theoretical_model = False
-        else:
-            self.robot = self.trajectory.robot
-            use_theoretical_model = self.trajectory.use_theoretical_model
-        if use_theoretical_model:
-            self.pinocchio_model = self.robot.pinocchio_model_th
-            self.pinocchio_data = self.robot.pinocchio_data_th
-        else:
-            self.pinocchio_model = self.robot.pinocchio_model
-            self.pinocchio_data = self.robot.pinocchio_data
+        # Call base implementation.
+        # Thz quantity will be considered initialized and active at this point.
+        super().initialize()
 
         # State for which the quantity must be evaluated
         if self.mode == QuantityEvalMode.TRUE:
