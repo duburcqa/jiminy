@@ -28,9 +28,11 @@ namespace jiminy
         std::unique_ptr<Json::StreamWriter> writer(builder.newStreamWriter());
         std::ostream output(&buffer);
         writer->write(input, &output);
-        device_->resize(static_cast<int64_t>(buffer.str().size()));
 
-        device_->write(buffer.str());
+        // FIXME: Use `view` to get a string_view rather than a string copy when moving to C++20
+        const std::string data = buffer.str();
+        device_->resize(static_cast<int64_t>(data.size()));
+        device_->write(data);
 
         device_->close();
     }

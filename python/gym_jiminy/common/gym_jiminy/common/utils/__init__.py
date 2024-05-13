@@ -41,7 +41,10 @@ from .misc import (is_breakpoint,
                    get_fieldnames,
                    register_variables,
                    sample)
-from .pipeline import build_pipeline, load_pipeline
+from .pipeline import (save_trajectory_to_hdf5,
+                       load_trajectory_from_hdf5,
+                       build_pipeline,
+                       load_pipeline)
 
 
 __all__ = [
@@ -86,6 +89,8 @@ __all__ = [
     'is_nan',
     'get_fieldnames',
     'register_variables',
+    'save_trajectory_to_hdf5',
+    'load_trajectory_from_hdf5',
     'build_pipeline',
     'load_pipeline'
 ]

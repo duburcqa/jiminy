@@ -356,7 +356,7 @@ class _ProcessWrapper:
         if isinstance(self._proc, ProcessMP):
             self._proc.join(timeout)
         if isinstance(self._proc, (subprocess.Popen, Process)):
-            self._proc.wait(timeout)  # type: ignore[arg-type]
+            self._proc.wait(timeout)
         if isinstance(self._proc, Panda3dApp):
             self._proc.step()
 

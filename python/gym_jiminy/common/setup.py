@@ -49,8 +49,8 @@ setup(
     package_data={"gym_jiminy.common": ["py.typed"]},
     install_requires=[
         f"jiminy-py~={jiminy_version}",
-        # Use to perform linear algebra computation
-        "numpy",
+        # Use internally for loading and dumping trajectories
+        "h5py",
         # Use internally to speedup computation of math methods
         # - 0.54: Adds 'np.clip'
         "numba>=0.54.0",

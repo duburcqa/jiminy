@@ -6,14 +6,18 @@ import weakref
 import unittest
 
 import numpy as np
+import gymnasium as gym
 
 from jiminy_py.robot import _gcd
-from gym_jiminy.common.utils import build_pipeline, load_pipeline
+from jiminy_py.log import extract_trajectory_from_log
+from gym_jiminy.common.utils import (
+    save_trajectory_to_hdf5, build_pipeline, load_pipeline)
 from gym_jiminy.common.bases import InterfaceJiminyEnv
 from gym_jiminy.common.blocks import PDController
 
 
 TOLERANCE = 1.0e-6
+
 
 class PipelineDesign(unittest.TestCase):
     """ TODO: Write documentation
@@ -98,6 +102,16 @@ class PipelineDesign(unittest.TestCase):
         """
         # Get data path
         data_dir = os.path.join(os.path.dirname(__file__), "data")
+
+        # Generate machine-dependent reference trajectory
+        env = self.ANYmalPipelineEnv()
+        env.reset(seed=0)
+        for _ in range(10):
+            env.step(env.action)
+        env.stop()
+        trajectory = extract_trajectory_from_log(env.log_data)
+        save_trajectory_to_hdf5(
+            trajectory, os.path.join(data_dir, "anymal_trajectory.hdf5"))
 
         # Load TOML pipeline description, create env and perform a step
         toml_file = os.path.join(data_dir, "anymal_pipeline.toml")

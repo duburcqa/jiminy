@@ -514,7 +514,7 @@ def play_trajectories(
     # Initialize robot and viewer configuration before any further processing
     for viewer, trajectory, offset in zip(viewers, trajectories, xyz_offsets):
         try:
-            state = trajectory.get(time_interval[0])
+            state = trajectory.get(time_interval[0], mode='clip')
         except RuntimeError:
             pass
         else:
@@ -613,7 +613,7 @@ def play_trajectories(
                         continue
 
                     # Compute robot state at current time
-                    state = trajectory.get(t)
+                    state = trajectory.get(t, mode='clip')
 
                     # Update viewer state
                     if state.f_external is not None:

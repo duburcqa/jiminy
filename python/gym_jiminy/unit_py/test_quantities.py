@@ -33,7 +33,7 @@ class Quantities(unittest.TestCase):
             quantity_manager[name] = (cls, kwargs)
         quantities = quantity_manager.registry
 
-        assert len(quantity_manager) == 4  # + 1 for 'trajectory'
+        assert len(quantity_manager) == 3
         assert len(quantities["zmp"].cache.owners) == 1
         assert len(quantities["com"].cache.owners) == 2
 
@@ -212,7 +212,6 @@ class Quantities(unittest.TestCase):
 
     def test_true_vs_reference(self):
         env = gym.make("gym_jiminy.envs:atlas")
-        quantities = env.quantities.registry
 
         env.quantities["zmp"] = (
             ZeroMomentPoint, dict(mode=QuantityEvalMode.TRUE))
@@ -229,8 +228,8 @@ class Quantities(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             env.reset(seed=0)
 
-        quantities['trajectory'].add("reference", trajectory)
-        quantities['trajectory'].select("reference")
+        env.quantities.add_trajectory("reference", trajectory)
+        env.quantities.select_trajectory("reference")
 
         env.reset(seed=0)
         for _ in range(10):

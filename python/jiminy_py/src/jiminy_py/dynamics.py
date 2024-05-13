@@ -27,6 +27,9 @@ from . import core as jiminy
 LOGGER = logging.getLogger(__name__)
 
 
+TRAJ_INTERP_TOL = 1e-12  # 0.01 * 'STEPPER_MIN_TIMESTEP'
+
+
 # #####################################################################
 # ######################### Generic math ##############################
 # #####################################################################
@@ -252,7 +255,7 @@ class Trajectory:
 
     def get(self,
             t: float,
-            mode: Literal['raise', 'wrap', 'clip'] = 'clip') -> State:
+            mode: Literal['raise', 'wrap', 'clip'] = 'raise') -> State:
         """Query the state at a given timestamp.
 
         Internally, the nearest neighbor states are linearly interpolated,
@@ -260,7 +263,15 @@ class Trajectory:
         that are available.
 
         :param t: Time of the state to extract from the trajectory.
-        :param mode: Specifies how out-of-bounds indices will behave.
+        :param mode: Specifies how to deal with query time of are out of the
+                     time interval 'time_interval' of the trajectory. Specify
+                     'raise' to raise an exception if the query time is
+                     out-of-bound wrt to underlying state sequence of the
+                     selected trajectory. Specify 'clip' to force clipping of
+                     the query time before interpolation of the state sequence.
+                     Specify 'wrap' to wrap around the query time wrt the time
+                     span of the trajectory. This is useful to store periodic
+                     trajectories as finite state sequences.
         """
         # Raise exception if state sequence is empty
         if not self.has_data:
@@ -273,7 +284,7 @@ class Trajectory:
         # Handling of the desired mode
         t_start, t_end = self.time_interval
         if mode == "raise":
-            if t_end < t or t < t_start:
+            if t - t_end > TRAJ_INTERP_TOL or t_start - t > TRAJ_INTERP_TOL:
                 raise RuntimeError("Time is out-of-range.")
         elif mode == "wrap":
             t = ((t - t_start) % (t_end - t_start)) + t_start
@@ -290,10 +301,10 @@ class Trajectory:
         # Skip interpolation if not necessary
         index_left, index_right = self._index_prev - 1, self._index_prev
         t_left, s_left = self._times[index_left], self.states[index_left]
-        if t - t_left < 1e-12:  # 0.01 * 'STEPPER_MIN_TIMESTEP'
+        if t - t_left < TRAJ_INTERP_TOL:
             return s_left
         t_right, s_right = self._times[index_right], self.states[index_right]
-        if t_right - t < 1e-12:
+        if t_right - t < TRAJ_INTERP_TOL:
             return s_right
         alpha = (t - t_left) / (t_right - t_left)
 
