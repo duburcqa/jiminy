@@ -19,9 +19,11 @@ from typing import (
     Callable, cast)
 
 import numpy as np
+
 import gymnasium as gym
 from gymnasium.core import RenderFrame
 from gymnasium.envs.registration import EnvSpec
+from jiminy_py.dynamics import Trajectory
 
 from .interfaces import (DT_EPS,
                          ObsT,
@@ -319,7 +321,8 @@ class ComposedJiminyEnv(
     def __init__(self,
                  env: InterfaceJiminyEnv[ObsT, ActT],
                  *,
-                 reward: AbstractReward) -> None:
+                 reward: Optional[AbstractReward] = None,
+                 trajectories: Optional[Dict[str, Trajectory]] = None) -> None:
         """
         :param env: Environment to extend, eventually already wrapped.
         :param reward: Reward object deriving from `AbstractReward`. It will be
@@ -329,6 +332,11 @@ class ComposedJiminyEnv(
                        the provided environment. `None` for not considering any
                        reward.
                        Optional: `None` by default.
+        :param trajectories: Set of named trajectories as a dictionary whose
+                             (key, value) pairs are respectively the name of
+                             each trajectory and the trajectory itself.  `None`
+                             for not considering any trajectory.
+                             Optional: `None` by default.
         """
         # Make sure that the unwrapped environment matches the reward one
         assert reward is None or env.unwrapped is reward.env.unwrapped
@@ -338,6 +346,11 @@ class ComposedJiminyEnv(
 
         # Initialize base class
         super().__init__(env)
+
+        # Add reference trajectories to all managed quantities if requested
+        if trajectories is not None:
+            for name, trajectory in trajectories.items():
+                self.env.quantities.add_trajectory(name, trajectory)
 
         # Bind observation and action of the base environment
         assert self.observation_space.contains(self.env.observation)
@@ -396,6 +409,8 @@ class ComposedJiminyEnv(
         self.env.compute_command(action, command)
 
     def compute_reward(self, terminated: bool, info: InfoType) -> float:
+        if self.reward is None:
+            return 0.0
         return self.reward(terminated, info)
 
 

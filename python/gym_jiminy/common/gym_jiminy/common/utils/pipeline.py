@@ -10,12 +10,19 @@ import re
 import json
 import pathlib
 from pydoc import locate
+from dataclasses import asdict
 from functools import partial
 from typing import (
-    Dict, Any, Optional, Union, Type, Sequence, Callable, TypedDict)
+    Dict, Any, Optional, Union, Type, Sequence, Callable, TypedDict, Literal,
+    cast)
 
+import h5py
 import toml
+import numpy as np
 import gymnasium as gym
+
+import jiminy_py.core as jiminy
+from jiminy_py.dynamics import State, Trajectory
 
 from ..bases import (InterfaceJiminyEnv,
                      InterfaceBlock,
@@ -53,6 +60,36 @@ class RewardConfig(TypedDict, total=False):
     """
 
 
+class TrajectoriesConfig(TypedDict, total=False):
+    """Store information required for adding a database of reference
+    trajectories to the environment.
+
+    Specifically, it is a dictionary comprising a set of named trajectories as
+    a dictionary whose keys are the name of the trajectories and values are
+    either the trajectory itself or the path of a file storing its dump in HDF5
+    format, the name of the selected trajectory, and its interpolation mode.
+    """
+
+    dataset: Dict[str, Union[str, Trajectory]]
+    """Set of named trajectories as a dictionary.
+
+    .. note::
+        Both `Trajectory` objects or path (absolute or relative) are supported.
+    """
+
+    name: str
+    """Name of the selected trajectory if any.
+
+    This attribute can be omitted.
+    """
+
+    mode: Literal['raise', 'wrap', 'clip']
+    """Interpolation mode of the selected trajectory if any.
+
+    This attribute can be omitted.
+    """
+
+
 class EnvConfig(TypedDict, total=False):
     """Store information required for instantiating a given base environment
     and compose it with some additional reward components and termination
@@ -80,6 +117,12 @@ class EnvConfig(TypedDict, total=False):
 
     reward: RewardConfig
     """Reward configuration.
+
+    This attribute can be omitted.
+    """
+
+    trajectories: TrajectoriesConfig
+    """Reference trajectories configuration.
 
     This attribute can be omitted.
     """
@@ -163,7 +206,9 @@ class LayerConfig(TypedDict, total=False):
 
 
 def build_pipeline(env_config: EnvConfig,
-                   layers_config: Sequence[LayerConfig]
+                   layers_config: Sequence[LayerConfig],
+                   *,
+                   root_path: Optional[Union[str, pathlib.Path]] = None
                    ) -> Callable[..., InterfaceJiminyEnv]:
     """Wrap together an environment inheriting from `BaseJiminyEnv` with any
     number of layers, as a unified pipeline environment class inheriting from
@@ -232,8 +277,9 @@ def build_pipeline(env_config: EnvConfig,
 
     # Define helper to build reward
     def build_composition(env_creator: Callable[..., InterfaceJiminyEnv],
-                          reward_config: RewardConfig,
-                          **env_kwargs: Any) -> BasePipelineWrapper:
+                          reward_config: Optional[RewardConfig],
+                          trajectories_config: Optional[TrajectoriesConfig],
+                          **env_kwargs: Any) -> InterfaceJiminyEnv:
         """Helper adding reward on top of a base environment or a pipeline
         using `ComposedJiminyEnv` wrapper.
 
@@ -241,6 +287,8 @@ def build_pipeline(env_config: EnvConfig,
                             input and returns an pipeline or base environment.
         :param reward_config: Configuration of the reward, as a dict of type
                               `RewardConfig`.
+        :param trajectories: Set of named trajectories as a dictionary. See
+                             `ComposedJiminyEnv` documentation for details.
         :param env_kwargs: Keyword arguments to forward to the constructor of
                            the wrapped environment. Note that it will only
                            overwrite the default value, so it will still be
@@ -252,10 +300,29 @@ def build_pipeline(env_config: EnvConfig,
         env = env_creator(**env_kwargs)
 
         # Instantiate the reward
-        reward = build_reward(env, reward_config)
+        reward = None
+        if reward_config is not None:
+            reward = build_reward(env, reward_config)
 
-        # Instantiate the wrapper
-        return ComposedJiminyEnv(env, reward=reward)
+        # Get trajectory dataset
+        trajectories: Dict[str, Trajectory] = {}
+        if trajectories_config is not None:
+            trajectories = cast(
+                Dict[str, Trajectory], trajectories_config["dataset"])
+
+        # Instantiate the composition wrapper if necessary
+        if reward or trajectories:
+            env = ComposedJiminyEnv(
+                env, reward=reward, trajectories=trajectories)
+
+        # Select the reference trajectory if specified
+        if trajectories_config is not None:
+            name = trajectories_config.get("name")
+            if name is not None:
+                mode = trajectories_config.get("mode", "raise")
+                env.quantities.select_trajectory(name, mode)
+
+        return env
 
     # Define helper to wrap a single layer
     def build_layer(env_creator: Callable[..., InterfaceJiminyEnv],
@@ -329,13 +396,33 @@ def build_pipeline(env_config: EnvConfig,
     pipeline_creator: Callable[..., InterfaceJiminyEnv] = partial(
         env_cls, **env_config.get("kwargs", {}))
 
-    # Compose base environment with an extra user-specified reward if any
+    # Parse reward configuration
     reward_config = env_config.get("reward")
     if reward_config is not None:
         sanitize_reward_config(reward_config)
-        pipeline_creator = partial(build_composition,
-                                   pipeline_creator,
-                                   reward_config)
+
+    # Parse trajectory configuration
+    trajectories_config = env_config.get("trajectories")
+    if trajectories_config is not None:
+        trajectories = trajectories_config['dataset']
+        assert isinstance(trajectories, dict)
+        for name, path_or_traj in trajectories.items():
+            if isinstance(path_or_traj, Trajectory):
+                continue
+            path = pathlib.Path(path_or_traj)
+            if not path.is_absolute():
+                if root_path is None:
+                    raise RuntimeError(
+                        "The argument 'root_path' must be provided when "
+                        "specifying relative trajectory paths.")
+                path = pathlib.Path(root_path) / path
+            trajectories[name] = load_trajectory_from_hdf5(path)
+
+    # Compose base environment with an extra user-specified reward
+    pipeline_creator = partial(build_composition,
+                               pipeline_creator,
+                               reward_config,
+                               trajectories_config)
 
     # Generate pipeline recursively
     for layer_config in layers_config:
@@ -397,15 +484,94 @@ def build_pipeline(env_config: EnvConfig,
     return pipeline_creator
 
 
-def load_pipeline(fullpath: str) -> Callable[..., InterfaceJiminyEnv]:
+def load_pipeline(fullpath: Union[str, pathlib.Path]
+                  ) -> Callable[..., InterfaceJiminyEnv]:
     """Load pipeline from JSON or TOML configuration file.
 
     :param: Fullpath of the configuration file.
     """
-    file_ext = pathlib.Path(fullpath).suffix
+    fullpath = pathlib.Path(fullpath)
+    root_path, file_ext = fullpath.parent, fullpath.suffix
     with open(fullpath, 'r') as f:
         if file_ext == '.json':
-            return build_pipeline(**json.load(f))
+            return build_pipeline(**json.load(f), root_path=root_path)
         if file_ext == '.toml':
-            return build_pipeline(**toml.load(f))
+            return build_pipeline(**toml.load(f), root_path=root_path)
     raise ValueError("Only json and toml formats are supported.")
+
+
+def save_trajectory_to_hdf5(trajectory: Trajectory,
+                            fullpath: Union[str, pathlib.Path]) -> None:
+    """Export a trajectory object to HDF5 format.
+
+    :param trajectory: Trajectory object to save.
+    :param fullpath: Fullpath of the generated HDF5 file.
+    """
+    # Create HDF5 file
+    hdf_obj = h5py.File(fullpath, "w")
+
+    # Dump each state attribute that are specified for all states at once
+    if trajectory.states:
+        state_dict = asdict(trajectory.states[0])
+        state_fields = tuple(
+            key for key, value in state_dict.items() if value is not None)
+        for key in state_fields:
+            data = np.stack([
+                getattr(state, key) for state in trajectory.states], axis=0)
+            hdf_obj.create_dataset(name=f"states/{key}", data=data)
+
+    # Dump serialized robot
+    robot_data = jiminy.save_to_binary(trajectory.robot)
+    dataset = hdf_obj.create_dataset(name="robot", data=np.array(robot_data))
+
+    # Dump whether to use the theoretical model of the robot
+    dataset.attrs["use_theoretical_model"] = trajectory.use_theoretical_model
+
+    # Close the HDF5 file
+    hdf_obj.close()
+
+
+def load_trajectory_from_hdf5(
+        fullpath: Union[str, pathlib.Path]) -> Trajectory:
+    """Import a trajectory object from file in HDF5 format.
+
+    :param fullpath: Fullpath of the HDF5 file to import.
+
+    :returns: Loaded trajectory object.
+    """
+    # Open HDF5 file
+    hdf_obj = h5py.File(fullpath, "r")
+
+    # Get all state attributes that are specified
+    states_dict = {}
+    if 'states' in hdf_obj.keys():
+        for key, value in hdf_obj['states'].items():
+            states_dict[key] = value[...]
+
+    # Re-construct state sequence
+    states = []
+    for args in zip(*states_dict.values()):
+        states.append(State(**dict(zip(states_dict.keys(), args))))
+
+    # Build trajectory from data.
+    # Null char '\0' must be added at the end to match original string length.
+    dataset = hdf_obj['robot']
+    robot_data = dataset[()]
+    robot_data += b'\0' * (
+        dataset.nbytes - len(robot_data))  # pylint: disable=no-member
+    try:
+        robot = jiminy.load_from_binary(robot_data)
+    except MemoryError as e:
+        raise MemoryError(
+            "Impossible to build robot from serialized binary data. Make sure "
+            "that data has been generated on a machine with the same hardware "
+            "as this one.") from e
+
+    # Load whether to use the theoretical model of the robot
+    use_theoretical_model = dataset.attrs["use_theoretical_model"]
+
+    # Close the HDF5 file
+    hdf_obj.close()
+
+    # Re-construct the whole trajectory
+    return Trajectory(states, robot, use_theoretical_model)

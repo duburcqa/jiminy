@@ -19,14 +19,17 @@
 #include <boost/python/suite/indexing/vector_indexing_suite.hpp>
 
 
-#define EXPECTED_PYTYPE_FOR_ARG_IS_ARRAY(type)                                 \
-    namespace boost::python::converter                                         \
-    {                                                                          \
-        template<>                                                             \
-        struct expected_pytype_for_arg<type>                                   \
-        {                                                                      \
-            static const PyTypeObject * get_pytype() { return &PyArray_Type; } \
-        };                                                                     \
+#define EXPECTED_PYTYPE_FOR_ARG_IS_ARRAY(type)       \
+    namespace boost::python::converter               \
+    {                                                \
+        template<>                                   \
+        struct expected_pytype_for_arg<type>         \
+        {                                            \
+            static const PyTypeObject * get_pytype() \
+            {                                        \
+                return &PyArray_Type;                \
+            }                                        \
+        };                                           \
     }
 
 EXPECTED_PYTYPE_FOR_ARG_IS_ARRAY(numpy::ndarray)
@@ -217,6 +220,7 @@ namespace jiminy::python
         {
             stringStream << ":\n\n" << doc;
         }
+        // FIXME: Use `view` to get a string_view rather than a string copy when moving to C++20
         return stringStream.str().substr(
             std::min(static_cast<size_t>(stringStream.tellp()), size_t(1)));
     }
@@ -235,7 +239,7 @@ namespace jiminy::python
             doc, std::pair{"fget", getMemberFuncPtr}, std::pair{"fset", setMemberFuncPtr});
     }
 
-// clang-format off
+    // clang-format off
     #define DEF_READONLY3(namePy, memberFuncPtr, doc) \
         def_readonly(namePy, \
                      memberFuncPtr, \
@@ -1158,8 +1162,8 @@ namespace jiminy::python
     };
 
     template<typename R, typename... Args>
-    ConvertGeneratorFromPythonAndInvoke(R (*)(Args...))
-        -> ConvertGeneratorFromPythonAndInvoke<R(Args...), void>;
+    ConvertGeneratorFromPythonAndInvoke(
+        R (*)(Args...)) -> ConvertGeneratorFromPythonAndInvoke<R(Args...), void>;
 
     template<typename T, typename R, typename Generator, typename... Args>
     class ConvertGeneratorFromPythonAndInvoke<R(Generator, Args...), T>
@@ -1185,8 +1189,8 @@ namespace jiminy::python
     };
 
     template<typename T, typename R, typename... Args>
-    ConvertGeneratorFromPythonAndInvoke(R (T::*)(Args...))
-        -> ConvertGeneratorFromPythonAndInvoke<R(Args...), T>;
+    ConvertGeneratorFromPythonAndInvoke(
+        R (T::*)(Args...)) -> ConvertGeneratorFromPythonAndInvoke<R(Args...), T>;
 
     // **************************** Automatic From Python converter **************************** //
 

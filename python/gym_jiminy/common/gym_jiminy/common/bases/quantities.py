@@ -762,6 +762,12 @@ class DatasetTrajectoryQuantity(InterfaceQuantity[State]):
 
         :param name: Name of the trajectory to discard.
         """
+        # Un-select trajectory if it corresponds to the discarded one
+        if self._name == name:
+            self._trajectory = None
+            self._name = ""
+
+        # Delete trajectory for global registry
         del self.registry[name]
 
     @sync
@@ -799,12 +805,10 @@ class DatasetTrajectoryQuantity(InterfaceQuantity[State]):
     @InterfaceQuantity.cache.setter  # type: ignore[attr-defined]
     def cache(self, cache: Optional[SharedCache[ValueT]]) -> None:
         # Get existing registry if any and making sure not already out-of-sync
-        registry: Optional[OrderedDict[str, Trajectory]] = None
+        owner: Optional[InterfaceQuantity] = None
         if cache is not None and cache.owners:
-            owner: InterfaceQuantity = next(iter(cache.owners))
+            owner = next(iter(cache.owners))
             assert isinstance(owner, DatasetTrajectoryQuantity)
-            registry = owner.registry
-            name, mode = owner._name, owner._mode
             if self._trajectory:
                 raise RuntimeError(
                     "Trajectory dataset not empty. Impossible to add a shared "
@@ -814,9 +818,10 @@ class DatasetTrajectoryQuantity(InterfaceQuantity[State]):
         InterfaceQuantity.cache.fset(self, cache)  # type: ignore[attr-defined]
 
         # Catch-up synchronization
-        if registry is not None:
-            self.registry = registry
-            self.select(name, mode)
+        if owner:
+            self.registry = owner.registry
+            if owner._trajectory is not None:
+                self.select(owner._name, owner._mode)
 
     def refresh(self) -> State:
         """Compute state of selected trajectory at current simulation time.
