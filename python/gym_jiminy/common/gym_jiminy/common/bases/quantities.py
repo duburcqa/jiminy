@@ -581,7 +581,7 @@ class AbstractQuantity(InterfaceQuantity, Generic[ValueT]):
         # Robot for which the quantity must be evaluated
         self.robot = jiminy.Robot()
         self.pinocchio_model = pin.Model()
-        self.pinocchio_data = pin.Data()
+        self.pinocchio_data = self.pinocchio_model.createData()
 
     def initialize(self) -> None:
         # Call base implementation
