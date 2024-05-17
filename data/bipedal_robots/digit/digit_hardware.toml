@@ -6,6 +6,7 @@ contactFrameNames = []
 
 [Motor.SimpleMotor.hip_abduction_left]
 joint_name = "hip_abduction_left"
+enableVelocityLimit = true
 enableFriction = true
 frictionViscousPositive = -1.0
 frictionViscousNegative = -1.0
@@ -17,6 +18,7 @@ armature = 0.2  # 0.1728
 
 [Motor.SimpleMotor.hip_rotation_left]
 joint_name = "hip_rotation_left"
+enableVelocityLimit = true
 enableFriction = true
 frictionViscousPositive = -1.0
 frictionViscousNegative = -1.0
@@ -28,6 +30,7 @@ armature = 0.2  # 0.0675
 
 [Motor.SimpleMotor.hip_flexion_left]
 joint_name = "hip_flexion_left"
+enableVelocityLimit = true
 enableFriction = true
 frictionViscousPositive = -1.0
 frictionViscousNegative = -1.0
@@ -39,6 +42,7 @@ armature = 0.2  # 0.120576
 
 [Motor.SimpleMotor.knee_joint_left]
 joint_name = "knee_joint_left"
+enableVelocityLimit = true
 enableFriction = true
 frictionViscousPositive = -1.0
 frictionViscousNegative = -1.0
@@ -50,6 +54,7 @@ armature = 0.2  # 0.120576
 
 [Motor.SimpleMotor.toe_pitch_joint_left]
 joint_name = "toe_pitch_joint_left"
+enableVelocityLimit = true
 enableFriction = true
 frictionViscousPositive = -1.0
 frictionViscousNegative = -1.0
@@ -61,6 +66,7 @@ armature = 0.2  # 0.035
 
 [Motor.SimpleMotor.toe_roll_joint_left]
 joint_name = "toe_roll_joint_left"
+enableVelocityLimit = true
 enableFriction = true
 frictionViscousPositive = -1.0
 frictionViscousNegative = -1.0
@@ -72,6 +78,7 @@ armature = 0.2  # 0.035
 
 [Motor.SimpleMotor.shoulder_roll_joint_left]
 joint_name = "shoulder_roll_joint_left"
+enableVelocityLimit = true
 enableFriction = true
 frictionViscousPositive = -2.0
 frictionViscousNegative = -2.0
@@ -83,6 +90,7 @@ armature = 0.2  # 0.1728
 
 [Motor.SimpleMotor.shoulder_pitch_joint_left]
 joint_name = "shoulder_pitch_joint_left"
+enableVelocityLimit = true
 enableFriction = true
 frictionViscousPositive = -2.0
 frictionViscousNegative = -2.0
@@ -94,6 +102,7 @@ armature = 0.2  # 0.1728
 
 [Motor.SimpleMotor.shoulder_yaw_joint_left]
 joint_name = "shoulder_yaw_joint_left"
+enableVelocityLimit = true
 enableFriction = true
 frictionViscousPositive = -1.0
 frictionViscousNegative = -1.0
@@ -105,6 +114,7 @@ armature = 0.2  # 0.0675
 
 [Motor.SimpleMotor.elbow_joint_left]
 joint_name = "elbow_joint_left"
+enableVelocityLimit = true
 enableFriction = true
 frictionViscousPositive = -1.0
 frictionViscousNegative = -1.0
@@ -116,6 +126,7 @@ armature = 0.2  # 0.1728
 
 [Motor.SimpleMotor.hip_abduction_right]
 joint_name = "hip_abduction_right"
+enableVelocityLimit = true
 enableFriction = true
 frictionViscousPositive = -1.0
 frictionViscousNegative = -1.0
@@ -127,6 +138,7 @@ armature = 0.2  # 0.1728
 
 [Motor.SimpleMotor.hip_rotation_right]
 joint_name = "hip_rotation_right"
+enableVelocityLimit = true
 enableFriction = true
 frictionViscousPositive = -1.0
 frictionViscousNegative = -1.0
@@ -138,6 +150,7 @@ armature = 0.2  # 0.0675
 
 [Motor.SimpleMotor.hip_flexion_right]
 joint_name = "hip_flexion_right"
+enableVelocityLimit = true
 enableFriction = true
 frictionViscousPositive = -1.0
 frictionViscousNegative = -1.0
@@ -149,6 +162,7 @@ armature = 0.2  # 0.120576
 
 [Motor.SimpleMotor.knee_joint_right]
 joint_name = "knee_joint_right"
+enableVelocityLimit = true
 enableFriction = true
 frictionViscousPositive = -1.0
 frictionViscousNegative = -1.0
@@ -160,6 +174,7 @@ armature = 0.2  # 0.120576
 
 [Motor.SimpleMotor.toe_pitch_joint_right]
 joint_name = "toe_pitch_joint_right"
+enableVelocityLimit = true
 enableFriction = true
 frictionViscousPositive = -1.0
 frictionViscousNegative = -1.0
@@ -171,6 +186,7 @@ armature = 0.2  # 0.035
 
 [Motor.SimpleMotor.toe_roll_joint_right]
 joint_name = "toe_roll_joint_right"
+enableVelocityLimit = true
 enableFriction = true
 frictionViscousPositive = -1.0
 frictionViscousNegative = -1.0
@@ -182,6 +198,7 @@ armature = 0.2  # 0.035
 
 [Motor.SimpleMotor.shoulder_roll_joint_right]
 joint_name = "shoulder_roll_joint_right"
+enableVelocityLimit = true
 enableFriction = true
 frictionViscousPositive = -2.0
 frictionViscousNegative = -2.0
@@ -193,6 +210,7 @@ armature = 0.2  # 0.1728
 
 [Motor.SimpleMotor.shoulder_pitch_joint_right]
 joint_name = "shoulder_pitch_joint_right"
+enableVelocityLimit = true
 enableFriction = true
 frictionViscousPositive = -2.0
 frictionViscousNegative = -2.0
@@ -204,6 +222,7 @@ armature = 0.2  # 0.1728
 
 [Motor.SimpleMotor.shoulder_yaw_joint_right]
 joint_name = "shoulder_yaw_joint_right"
+enableVelocityLimit = true
 enableFriction = true
 frictionViscousPositive = -1.0
 frictionViscousNegative = -1.0
@@ -215,6 +234,7 @@ armature = 0.2  # 0.0675
 
 [Motor.SimpleMotor.elbow_joint_right]
 joint_name = "elbow_joint_right"
+enableVelocityLimit = true
 enableFriction = true
 frictionViscousPositive = -1.0
 frictionViscousNegative = -1.0

@@ -1260,39 +1260,9 @@ namespace jiminy
             }
         }
 
-        // Get mechanical joint position limits from the URDF or user options
-        positionLimitMin_.setConstant(pinocchioModel_.nq, -INF);
-        positionLimitMax_.setConstant(pinocchioModel_.nq, +INF);
-        if (modelOptions_->joints.positionLimitFromUrdf)
-        {
-            for (Eigen::Index positionIndex : mechanicalJointPositionIndices_)
-            {
-                positionLimitMin_[positionIndex] =
-                    pinocchioModel_.lowerPositionLimit[positionIndex];
-                positionLimitMax_[positionIndex] =
-                    pinocchioModel_.upperPositionLimit[positionIndex];
-            }
-        }
-        else
-        {
-            for (std::size_t i = 0; i < mechanicalJointPositionIndices_.size(); ++i)
-            {
-                Eigen::Index positionIndex = mechanicalJointPositionIndices_[i];
-                positionLimitMin_[positionIndex] = modelOptions_->joints.positionLimitMin[i];
-                positionLimitMax_[positionIndex] = modelOptions_->joints.positionLimitMax[i];
-            }
-        }
-
-        // Get the backlash joint position limits
-        for (pinocchio::JointIndex jointIndex : backlashJointIndices_)
-        {
-            const Eigen::Index positionIndex = pinocchioModel_.idx_qs[jointIndex];
-            positionLimitMin_[positionIndex] = pinocchioModel_.lowerPositionLimit[positionIndex];
-            positionLimitMax_[positionIndex] = pinocchioModel_.upperPositionLimit[positionIndex];
-        }
-
-        /* Overwrite the position bounds for some specific joint type, mainly due to quaternion
-           normalization and cos/sin representation. */
+        // Re-initialize position limits
+        Eigen::VectorXd positionLimitMin = Eigen::VectorXd::Constant(pinocchioModel_.nq, -INF);
+        Eigen::VectorXd positionLimitMax = Eigen::VectorXd::Constant(pinocchioModel_.nq, +INF);
         Eigen::Index idx_q, nq;
         for (const auto & joint : pinocchioModel_.joints)
         {
@@ -1315,31 +1285,73 @@ namespace jiminy
             default:
                 continue;
             }
-            positionLimitMin_.segment(idx_q, nq).setConstant(-1.0 - EPS);
-            positionLimitMax_.segment(idx_q, nq).setConstant(+1.0 + EPS);
+            positionLimitMin.segment(idx_q, nq).setConstant(-1.0 - EPS);
+            positionLimitMax.segment(idx_q, nq).setConstant(+1.0 + EPS);
         }
 
-        // Get the joint velocity limits from the URDF or the user options
-        velocityLimit_.setConstant(pinocchioModel_.nv, +INF);
-        if (modelOptions_->joints.enableVelocityLimit)
+        // Copy backlash joint position limits as-is from extended model
+        for (pinocchio::JointIndex jointIndex : backlashJointIndices_)
         {
-            if (modelOptions_->joints.velocityLimitFromUrdf)
+            const Eigen::Index positionIndex = pinocchioModel_.idx_qs[jointIndex];
+            positionLimitMin[positionIndex] = pinocchioModel_.lowerPositionLimit[positionIndex];
+            positionLimitMax[positionIndex] = pinocchioModel_.upperPositionLimit[positionIndex];
+        }
+
+        // Set mechanical joint position limits from theoretical model or user options
+        if (modelOptions_->joints.positionLimitFromUrdf)
+        {
+            int jointIndexTh = 1;
+            for (std::size_t i = 0; i < mechanicalJointIndices_.size(); ++i)
             {
-                for (Eigen::Index & velocityIndex : mechanicalJointVelocityIndices_)
+                const pinocchio::JointIndex jointIndex = mechanicalJointIndices_[i];
+                const std::string & jointName = pinocchioModel_.names[jointIndex];
+                while (pinocchioModelTh_.names[jointIndexTh] != jointName)
                 {
-                    velocityLimit_[velocityIndex] = pinocchioModel_.velocityLimit[velocityIndex];
+                    ++jointIndexTh;
                 }
+                const auto & joint = pinocchioModel_.joints[jointIndex];
+                const auto & jointTh = pinocchioModelTh_.joints[jointIndexTh];
+                positionLimitMin.segment(joint.idx_q(), joint.nq()) =
+                    pinocchioModelTh_.lowerPositionLimit.segment(jointTh.idx_q(), jointTh.nq());
+                positionLimitMax.segment(joint.idx_q(), joint.nq()) =
+                    pinocchioModelTh_.upperPositionLimit.segment(jointTh.idx_q(), jointTh.nq());
             }
-            else
+        }
+        else
+        {
+            for (std::size_t i = 0; i < mechanicalJointPositionIndices_.size(); ++i)
             {
-                for (std::size_t i = 0; i < mechanicalJointVelocityIndices_.size(); ++i)
-                {
-                    Eigen::Index velocityIndex = mechanicalJointVelocityIndices_[i];
-                    velocityLimit_[velocityIndex] = modelOptions_->joints.velocityLimit[i];
-                }
+                Eigen::Index positionIndex = mechanicalJointPositionIndices_[i];
+                positionLimitMin[positionIndex] = modelOptions_->joints.positionLimitMin[i];
+                positionLimitMax[positionIndex] = modelOptions_->joints.positionLimitMax[i];
             }
         }
 
+        // Overwrite extended model position limits
+        pinocchioModel_.lowerPositionLimit = positionLimitMin;
+        pinocchioModel_.upperPositionLimit = positionLimitMax;
+
+        // Re-initialize velocity limit
+        Eigen::VectorXd & velocityLimit = pinocchioModel_.velocityLimit;
+        velocityLimit.setConstant(+INF);
+
+        // Set mechanical joint velocity limits
+        int jointIndexTh = 1;
+        for (std::size_t i = 0; i < mechanicalJointIndices_.size(); ++i)
+        {
+            const pinocchio::JointIndex jointIndex = mechanicalJointIndices_[i];
+            const std::string & jointName = pinocchioModel_.names[jointIndex];
+            while (pinocchioModelTh_.names[jointIndexTh] != jointName)
+            {
+                ++jointIndexTh;
+            }
+            const auto & joint = pinocchioModel_.joints[jointIndex];
+            const auto & jointTh = pinocchioModelTh_.joints[jointIndexTh];
+            velocityLimit.segment(joint.idx_v(), joint.nv()) =
+                pinocchioModelTh_.velocityLimit.segment(jointTh.idx_v(), jointTh.nv());
+        }
+
+        // Refresh all other proxies
         refreshGeometryProxies();
         refreshContactProxies();
         refreshConstraintProxies();
@@ -1514,30 +1526,6 @@ namespace jiminy
                     internalBuffersMustBeUpdated = true;
                 }
             }
-            bool velocityLimitFromUrdf =
-                boost::get<bool>(jointOptionsHolder.at("velocityLimitFromUrdf"));
-            if (!velocityLimitFromUrdf)
-            {
-                const Eigen::VectorXd & jointsVelocityLimit =
-                    boost::get<Eigen::VectorXd>(jointOptionsHolder.at("velocityLimit"));
-                if (mechanicalJointVelocityIndices_.size() !=
-                    static_cast<uint32_t>(jointsVelocityLimit.size()))
-                {
-                    JIMINY_THROW(std::invalid_argument, "Wrong vector size for 'velocityLimit'.");
-                }
-                if (mechanicalJointVelocityIndices_.size() ==
-                    static_cast<uint32_t>(modelOptions_->joints.velocityLimit.size()))
-                {
-                    auto jointsVelocityLimitDiff =
-                        jointsVelocityLimit - modelOptions_->joints.velocityLimit;
-                    internalBuffersMustBeUpdated |=
-                        (jointsVelocityLimitDiff.array().abs() >= EPS).all();
-                }
-                else
-                {
-                    internalBuffersMustBeUpdated = true;
-                }
-            }
 
             // Check if deformation points are all associated with different joints/frames
             const GenericConfig & dynOptionsHolder =
@@ -1572,23 +1560,6 @@ namespace jiminy
                                  "All stiffness, damping and inertia parameters of flexibility "
                                  "joints must be positive.");
                 }
-            }
-
-            // Check if the position or velocity limits have changed, and refresh proxies if so
-            bool enableVelocityLimit =
-                boost::get<bool>(jointOptionsHolder.at("enableVelocityLimit"));
-            if (positionLimitFromUrdf != modelOptions_->joints.positionLimitFromUrdf)
-            {
-                internalBuffersMustBeUpdated = true;
-            }
-            else if (enableVelocityLimit != modelOptions_->joints.enableVelocityLimit)
-            {
-                internalBuffersMustBeUpdated = true;
-            }
-            else if (enableVelocityLimit &&
-                     (velocityLimitFromUrdf != modelOptions_->joints.velocityLimitFromUrdf))
-            {
-                internalBuffersMustBeUpdated = true;
             }
 
             // Check if the extended model must be regenerated
@@ -1914,21 +1885,6 @@ namespace jiminy
     const std::vector<pinocchio::JointIndex> & Model::getBacklashJointIndices() const
     {
         return backlashJointIndices_;
-    }
-
-    const Eigen::VectorXd & Model::getPositionLimitMin() const
-    {
-        return positionLimitMin_;
-    }
-
-    const Eigen::VectorXd & Model::getPositionLimitMax() const
-    {
-        return positionLimitMax_;
-    }
-
-    const Eigen::VectorXd & Model::getVelocityLimit() const
-    {
-        return velocityLimit_;
     }
 
     const std::vector<std::string> & Model::getLogPositionFieldnames() const

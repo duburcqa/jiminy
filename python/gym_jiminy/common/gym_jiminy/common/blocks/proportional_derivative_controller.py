@@ -345,7 +345,8 @@ class PDController(
         # to another, the observation and action spaces are required to stay
         # the same the whole time. This induces that the motors effort limit
         # must not change unlike the mapping from full state to motors.
-        self.motors_effort_limit = env.robot.command_limit[
+        pinocchio_model = env.robot.pinocchio_model
+        self.motors_effort_limit = pinocchio_model.effortLimit[
             env.robot.motor_velocity_indices]
 
         # Extract the motors target position bounds from the model
@@ -359,14 +360,16 @@ class PDController(
                 lower, upper = float("-inf"), float("inf")
             else:
                 motor_position_index = motor.joint_position_index
-                lower = env.robot.position_limit_lower[motor_position_index]
-                upper = env.robot.position_limit_upper[motor_position_index]
+                lower = pinocchio_model.lowerPositionLimit[
+                    motor_position_index]
+                upper = pinocchio_model.upperPositionLimit[
+                    motor_position_index]
             motors_position_lower.append(lower + target_position_margin)
             motors_position_upper.append(upper - target_position_margin)
 
         # Extract the motors target velocity bounds
         motors_velocity_limit = np.minimum(
-            env.robot.velocity_limit[env.robot.motor_velocity_indices],
+            pinocchio_model.velocityLimit[env.robot.motor_velocity_indices],
             target_velocity_limit)
 
         # Compute acceleration bounds allowing unrestricted bang-bang control

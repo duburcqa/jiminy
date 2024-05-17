@@ -43,6 +43,9 @@ namespace jiminy
         {
             GenericConfig config;
             config["mechanicalReduction"] = 1.0;
+            config["enableVelocityLimit"] = false;
+            config["velocityLimitFromUrdf"] = true;
+            config["velocityLimit"] = 0.0;
             config["enableCommandLimit"] = true;
             config["commandLimitFromUrdf"] = true;
             config["commandLimit"] = 0.0;
@@ -58,6 +61,9 @@ namespace jiminy
         {
             /// \brief Mechanical reduction ratio of transmission (joint/motor), usually >= 1.0.
             const double mechanicalReduction;
+            const bool enableVelocityLimit;
+            const bool velocityLimitFromUrdf;
+            const double velocityLimit;
             const bool enableCommandLimit;
             const bool commandLimitFromUrdf;
             const double commandLimit;
@@ -68,6 +74,9 @@ namespace jiminy
 
             AbstractMotorOptions(const GenericConfig & options) :
             mechanicalReduction(boost::get<double>(options.at("mechanicalReduction"))),
+            enableVelocityLimit(boost::get<bool>(options.at("enableVelocityLimit"))),
+            velocityLimitFromUrdf(boost::get<bool>(options.at("velocityLimitFromUrdf"))),
+            velocityLimit(boost::get<double>(options.at("velocityLimit"))),
             enableCommandLimit(boost::get<bool>(options.at("enableCommandLimit"))),
             commandLimitFromUrdf(boost::get<bool>(options.at("commandLimitFromUrdf"))),
             commandLimit(boost::get<double>(options.at("commandLimit"))),
@@ -147,6 +156,9 @@ namespace jiminy
         /// \brief Index of the joint associated with the motor in the velocity vector.
         Eigen::Index getJointVelocityIndex() const;
 
+        /// \brief Maximum velocity of the motor.
+        double getVelocityLimit() const;
+
         /// \brief Maximum effort of the motor.
         double getCommandLimit() const;
 
@@ -225,6 +237,7 @@ namespace jiminy
         JointModelType jointType_{JointModelType::UNSUPPORTED};
         Eigen::Index jointPositionIndex_{0};
         Eigen::Index jointVelocityIndex_{0};
+        double velocityLimit_{0.0};
         double commandLimit_{0.0};
         double armature_{0.0};
         double backlash_{0.0};

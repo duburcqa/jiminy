@@ -974,9 +974,8 @@ namespace jiminy
             /* Check that the initial configuration is not out-of-bounds if appropriate.
                Note that EPS allows to be very slightly out-of-bounds, which may occurs because of
                rounding errors. */
-            if (((contactModel_ == ContactModelType::CONSTRAINT) &&
-                 ((EPS < q.array() - robot->getPositionLimitMax().array()).any() ||
-                  (EPS < robot->getPositionLimitMin().array() - q.array()).any())))
+            if ((EPS < q.array() - robot->pinocchioModel_.upperPositionLimit.array()).any() ||
+                (EPS < robot->pinocchioModel_.lowerPositionLimit.array() - q.array()).any())
             {
                 JIMINY_THROW(std::invalid_argument,
                              "Initial configuration out-of-bounds for robot '",
@@ -985,8 +984,7 @@ namespace jiminy
             }
 
             // Check that the initial velocity is not out-of-bounds
-            if ((robot->modelOptions_->joints.enableVelocityLimit &&
-                 (robot->getVelocityLimit().array() < v.array().abs()).any()))
+            if ((robot->pinocchioModel_.velocityLimit.array() < v.array().abs()).any())
             {
                 JIMINY_THROW(std::invalid_argument,
                              "Initial velocity out-of-bounds for robot '",
@@ -2517,7 +2515,7 @@ namespace jiminy
         if (isSimulationRunning_)
         {
             JIMINY_THROW(bad_control_flow,
-                         "Simulation already running. Stop it before removing coupling forces.");
+                         "Simulation already running. Stop it before removing impulse forces.");
         }
 
         std::ptrdiff_t robotIndex = getRobotIndex(robotName);
@@ -2531,7 +2529,7 @@ namespace jiminy
         if (isSimulationRunning_)
         {
             JIMINY_THROW(bad_control_flow,
-                         "simulation already running. Stop it before removing coupling forces.");
+                         "simulation already running. Stop it before removing impulse forces.");
         }
 
         for (auto & robotData : robotDataVec_)
@@ -2546,7 +2544,7 @@ namespace jiminy
         if (isSimulationRunning_)
         {
             JIMINY_THROW(bad_control_flow,
-                         "Simulation already running. Stop it before removing coupling forces.");
+                         "Simulation already running. Stop it before removing profile forces.");
         }
 
 
@@ -2569,7 +2567,7 @@ namespace jiminy
         if (isSimulationRunning_)
         {
             JIMINY_THROW(bad_control_flow,
-                         "Simulation already running. Stop it before removing coupling forces.");
+                         "Simulation already running. Stop it before removing profile forces.");
         }
 
         for (auto & robotData : robotDataVec_)
@@ -3463,8 +3461,8 @@ namespace jiminy
 
         /* Enforce position limits for all joints having bounds constraints, ie mechanical and
            backlash joints. */
-        const Eigen::VectorXd & positionLimitMin = robot->getPositionLimitMin();
-        const Eigen::VectorXd & positionLimitMax = robot->getPositionLimitMax();
+        const Eigen::VectorXd & positionLimitMin = robot->pinocchioModel_.lowerPositionLimit;
+        const Eigen::VectorXd & positionLimitMax = robot->pinocchioModel_.upperPositionLimit;
         for (auto & constraintItem : constraints.boundJoints)
         {
             auto & constraint = constraintItem.second;
@@ -3486,7 +3484,7 @@ namespace jiminy
         // Enforce velocity limits for all joints having bounds constraints if requested
         if (robot->modelOptions_->joints.enableVelocityLimit)
         {
-            const Eigen::VectorXd & velocityLimitMax = robot->getVelocityLimit();
+            const Eigen::VectorXd & velocityLimitMax = robot->pinocchioModel_.velocityLimit;
             for (auto & constraintItem : constraints.boundJoints)
             {
                 auto & constraint = constraintItem.second;

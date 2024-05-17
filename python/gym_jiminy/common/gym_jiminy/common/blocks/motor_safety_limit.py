@@ -140,15 +140,16 @@ class MotorSafetyLimit(
         self.kd = kd
 
         # Define buffers storing information about the motors for efficiency
+        pinocchio_model = env.robot.pinocchio_model
         motor_position_indices: List[int] = sum(
             env.robot.motor_position_indices, [])
-        self.motors_position_lower = env.robot.position_limit_lower[
+        self.motors_position_lower = pinocchio_model.lowerPositionLimit[
             motor_position_indices] + soft_position_margin
-        self.motors_position_upper = env.robot.position_limit_upper[
+        self.motors_position_upper = pinocchio_model.upperPositionLimit[
             motor_position_indices] - soft_position_margin
-        self.motors_velocity_limit = np.minimum(env.robot.velocity_limit[
+        self.motors_velocity_limit = np.minimum(pinocchio_model.velocityLimit[
             env.robot.motor_velocity_indices], soft_velocity_max)
-        self.motors_effort_limit = env.robot.command_limit[
+        self.motors_effort_limit = pinocchio_model.effortLimit[
             env.robot.motor_velocity_indices]
         self.motors_effort_limit[
             self.motors_position_lower > self.motors_position_upper] = 0.0

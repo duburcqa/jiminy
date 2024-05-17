@@ -283,14 +283,18 @@ class PipelineControl(unittest.TestCase):
         np.testing.assert_allclose(target_vel[(update_ratio-1)::update_ratio],
                                    command_vel[(update_ratio-1)::update_ratio],
                                    atol=TOLERANCE)
-        np.testing.assert_allclose(target_accel_diff, target_accel[1:], atol=TOLERANCE)
-        np.testing.assert_allclose(target_vel_diff, target_vel[1:], atol=TOLERANCE)
+        np.testing.assert_allclose(
+            target_accel_diff, target_accel[1:], atol=TOLERANCE)
+        np.testing.assert_allclose(
+            target_vel_diff, target_vel[1:], atol=TOLERANCE)
 
         # Make sure that the position and velocity targets are within bounds
-        robot = env.robot
-        pos_min = robot.position_limit_lower[robot.motor_position_indices[-1]]
-        pos_max = robot.position_limit_upper[robot.motor_position_indices[-1]]
-        vel_limit = robot.velocity_limit[robot.motor_velocity_indices[-1]]
+        *_, motor_position_index = env.robot.motor_position_indices
+        *_, motor_velocity_index = env.robot.motor_velocity_indices
+        pinocchio_model = env.robot.pinocchio_model
+        pos_min = pinocchio_model.lowerPositionLimit[motor_position_index]
+        pos_max = pinocchio_model.upperPositionLimit[motor_position_index]
+        vel_limit = pinocchio_model.velocityLimit[motor_velocity_index]
         self.assertTrue(np.all(np.logical_and(
             pos_min <= target_pos, target_pos <= pos_max)))
         self.assertTrue(np.all(np.abs(target_vel) <= vel_limit))

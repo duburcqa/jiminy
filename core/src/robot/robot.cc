@@ -244,7 +244,8 @@ namespace jiminy
             const Eigen::Index motorVelocityIndex = motorIn.getJointVelocityIndex();
             robot->pinocchioModel_.rotorInertia[motorVelocityIndex] += motorIn.getArmature();
 
-            // Update effort limit
+            // Update velocity and command limits
+            robot->pinocchioModel_.velocityLimit[motorVelocityIndex] = motorIn.getVelocityLimit();
             robot->pinocchioModel_.effortLimit[motorVelocityIndex] = motorIn.getCommandLimit();
         };
 
@@ -1160,11 +1161,6 @@ namespace jiminy
                        [](const auto & elem) -> Eigen::Index
                        { return elem->getJointVelocityIndex(); });
         return motorVelocityIndices;
-    }
-
-    const Eigen::VectorXd & Robot::getCommandLimit() const
-    {
-        return pinocchioModel_.effortLimit;
     }
 
     const std::unordered_map<std::string, std::vector<std::string>> & Robot::getSensorNames() const

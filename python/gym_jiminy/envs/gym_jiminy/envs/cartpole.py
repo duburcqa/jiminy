@@ -132,9 +132,9 @@ class CartPoleJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         simulator = Simulator(robot, viewer_kwargs=viewer_kwargs)
 
         # OpenAI Gym implementation of Cartpole has no velocity limit
-        model_options = simulator.robot.get_model_options()
-        model_options["joints"]["enableVelocityLimit"] = False
-        simulator.robot.set_model_options(model_options)
+        motor_options = motor.get_options()
+        motor_options["enableVelocityLimit"] = False
+        motor.set_options(motor_options)
 
         # Map between discrete actions and actual motor force if necessary
         if not self.continuous:
@@ -166,7 +166,7 @@ class CartPoleJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         # Compute observation bounds
         high = np.array([X_THRESHOLD,
                          THETA_THRESHOLD,
-                         *self.robot.velocity_limit])
+                         *self.robot.pinocchio_model.velocityLimit])
 
         # Set the observation space
         self.observation_space = spaces.Box(

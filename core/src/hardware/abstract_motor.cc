@@ -186,6 +186,18 @@ namespace jiminy
                     std::abs(backlash - baseMotorOptions_->backlash) > EPS;
             }
 
+            // Check if velocity limit has changed
+            const bool velocityLimitFromUrdf =
+                boost::get<bool>(motorOptions.at("velocityLimitFromUrdf"));
+            mustNotifyRobot_ |=
+                (baseMotorOptions_->velocityLimitFromUrdf != velocityLimitFromUrdf);
+            if (!velocityLimitFromUrdf)
+            {
+                const double velocityLimit = boost::get<double>(motorOptions.at("velocityLimit"));
+                mustNotifyRobot_ |= std::abs(velocityLimit - baseMotorOptions_->velocityLimit) >
+                                    EPS;
+            }
+
             // Check if command limit has changed
             const bool commandLimitFromUrdf =
                 boost::get<bool>(motorOptions.at("commandLimitFromUrdf"));
@@ -259,17 +271,46 @@ namespace jiminy
         jointPositionIndex_ = getJointPositionFirstIndex(robot->pinocchioModel_, jointName_);
         jointVelocityIndex_ = getJointVelocityFirstIndex(robot->pinocchioModel_, jointName_);
 
-        // Get the motor effort limits from the URDF or the user options.
-        if (baseMotorOptions_->commandLimitFromUrdf)
+        // Get the motor effort limits from the URDF or the user options
+        if (baseMotorOptions_->enableCommandLimit)
         {
-            const Eigen::Index mechanicalJointVelocityIndex =
-                getJointVelocityFirstIndex(robot->pinocchioModelTh_, jointName_);
-            commandLimit_ = robot->pinocchioModelTh_.effortLimit[mechanicalJointVelocityIndex] /
-                            baseMotorOptions_->mechanicalReduction;
+            if (baseMotorOptions_->commandLimitFromUrdf)
+            {
+                const Eigen::Index mechanicalJointVelocityIndex =
+                    getJointVelocityFirstIndex(robot->pinocchioModelTh_, jointName_);
+                commandLimit_ =
+                    robot->pinocchioModelTh_.effortLimit[mechanicalJointVelocityIndex] /
+                    baseMotorOptions_->mechanicalReduction;
+            }
+            else
+            {
+                commandLimit_ = baseMotorOptions_->commandLimit;
+            }
         }
         else
         {
-            commandLimit_ = baseMotorOptions_->commandLimit;
+            commandLimit_ = INF;
+        }
+
+        // Get the motor velocity limits from the URDF or the user options
+        if (baseMotorOptions_->enableVelocityLimit)
+        {
+            if (baseMotorOptions_->velocityLimitFromUrdf)
+            {
+                const Eigen::Index mechanicalJointVelocityIndex =
+                    getJointVelocityFirstIndex(robot->pinocchioModelTh_, jointName_);
+                velocityLimit_ =
+                    robot->pinocchioModelTh_.velocityLimit[mechanicalJointVelocityIndex] *
+                    baseMotorOptions_->mechanicalReduction;
+            }
+            else
+            {
+                velocityLimit_ = baseMotorOptions_->velocityLimit;
+            }
+        }
+        else
+        {
+            velocityLimit_ = INF;
         }
 
         // Get the rotor inertia
@@ -378,6 +419,11 @@ namespace jiminy
     Eigen::Index AbstractMotorBase::getJointVelocityIndex() const
     {
         return jointVelocityIndex_;
+    }
+
+    double AbstractMotorBase::getVelocityLimit() const
+    {
+        return velocityLimit_;
     }
 
     double AbstractMotorBase::getCommandLimit() const

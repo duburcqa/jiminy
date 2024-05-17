@@ -69,6 +69,9 @@ class DeformationEstimatorBlock(unittest.TestCase):
         # Add motor
         motor_joint_name = 'base_to_link1'
         motor = jiminy.SimpleMotor(motor_joint_name)
+        motor_options = motor.get_options()
+        motor_options["enableVelocityLimit"] = False
+        motor.set_options(motor_options)
         robot.attach_motor(motor)
         motor.initialize(motor_joint_name)
 
@@ -92,7 +95,6 @@ class DeformationEstimatorBlock(unittest.TestCase):
             'inertia': np.array([1.0, 1.0, 0.0])
         } for i in range(1, 5)
         ]
-        model_options['joints']['enableVelocityLimit'] = False
         robot.set_model_options(model_options)
 
         # Create a simulator using this robot and controller

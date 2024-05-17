@@ -67,6 +67,7 @@ namespace jiminy
         void detachMotor(const std::string & motorName);
         void detachMotors(std::vector<std::string> motorNames = {});
         void attachSensor(std::shared_ptr<AbstractSensorBase> sensor);
+
         std::shared_ptr<AbstractSensorBase> getSensor(const std::string & sensorType,
                                                       const std::string & sensorName);
         std::weak_ptr<const AbstractSensorBase> getSensor(const std::string & sensorType,
@@ -113,14 +114,13 @@ namespace jiminy
         void updateTelemetry();
         bool getIsTelemetryConfigured() const;
 
+        const std::unordered_map<std::string, std::vector<std::string>> & getSensorNames() const;
+        const std::vector<std::string> & getSensorNames(const std::string & sensorType) const;
+
         const std::vector<std::string> & getMotorNames() const;
         std::vector<pinocchio::JointIndex> getMotorJointIndices() const;
         std::vector<std::vector<Eigen::Index>> getMotorsPositionIndices() const;
         std::vector<Eigen::Index> getMotorVelocityIndices() const;
-        const std::unordered_map<std::string, std::vector<std::string>> & getSensorNames() const;
-        const std::vector<std::string> & getSensorNames(const std::string & sensorType) const;
-
-        const Eigen::VectorXd & getCommandLimit() const;
 
         const std::vector<std::string> & getLogCommandFieldnames() const;
         const std::vector<std::string> & getLogMotorEffortFieldnames() const;

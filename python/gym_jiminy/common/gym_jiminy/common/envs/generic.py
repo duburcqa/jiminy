@@ -64,19 +64,6 @@ TIMEOUT_RATIO = 15
 # Absolute tolerance when checking that observations are valid
 OBS_CONTAINS_TOL = 0.01
 
-# Define universal bounds for the observation space
-FREEFLYER_POS_TRANS_MAX = 1000.0
-FREEFLYER_VEL_LIN_MAX = 1000.0
-FREEFLYER_VEL_ANG_MAX = 10000.0
-JOINT_POS_MAX = 10000.0
-JOINT_VEL_MAX = 100.0
-FLEX_VEL_ANG_MAX = 10000.0
-MOTOR_EFFORT_MAX = 1000.0
-SENSOR_FORCE_MAX = 100000.0
-SENSOR_MOMENT_MAX = 10000.0
-SENSOR_GYRO_MAX = 100.0
-SENSOR_ACCEL_MAX = 10000.0
-
 
 LOGGER = logging.getLogger(__name__)
 
@@ -336,9 +323,10 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         space as a whole.
         """
         # Define some proxies for convenience
-        position_limit_upper = self.robot.position_limit_upper
-        position_limit_lower = self.robot.position_limit_lower
-        velocity_limit = self.robot.velocity_limit
+        pinocchio_model = self.robot.pinocchio_model
+        position_limit_lower = pinocchio_model.lowerPositionLimit
+        position_limit_upper = pinocchio_model.upperPositionLimit
+        velocity_limit = pinocchio_model.velocityLimit
 
         # Deduce bounds associated the theoretical model from the extended one
         if use_theoretical_model:
@@ -388,17 +376,10 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         """
         # Define some proxies for convenience
         sensor_measurements = self.robot.sensor_measurements
-        command_limit = self.robot.command_limit
+        command_limit = self.robot.pinocchio_model.effortLimit
         position_space, velocity_space = self._get_agent_state_space().values()
         assert isinstance(position_space, spaces.Box)
         assert isinstance(velocity_space, spaces.Box)
-
-        # Replace inf bounds of the action space
-        for motor_name in self.robot.motor_names:
-            motor = self.robot.get_motor(motor_name)
-            motor_options = motor.get_options()
-            if not motor_options["enableCommandLimit"]:
-                command_limit[motor.joint_velocity_index] = MOTOR_EFFORT_MAX
 
         # Initialize the bounds of the sensor space
         sensor_space_lower = OrderedDict(
@@ -423,7 +404,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
                 sensor_index = sensor.index
                 joint = self.robot.pinocchio_model.joints[sensor.joint_index]
                 if sensor.joint_type == jiminy.JointModelType.ROTARY_UNBOUNDED:
-                    sensor_position_lower = -np.pi
+                    sensor_position_lower = - np.pi
                     sensor_position_upper = np.pi
                 else:
                     sensor_position_lower = position_space.low[joint.idx_q]
@@ -467,7 +448,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
             robot is uniquely defined.
         """
         # Get effort limit
-        command_limit = self.robot.command_limit
+        command_limit = self.robot.pinocchio_model.effortLimit
 
         # Set the action space
         action_scale = command_limit[self.robot.motor_velocity_indices]
@@ -1332,8 +1313,8 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         q = pin.neutral(self.robot.pinocchio_model)
 
         # Make sure it is not out-of-bounds before returning
-        position_limit_lower = self.robot.position_limit_lower
-        position_limit_upper = self.robot.position_limit_upper
+        position_limit_lower = self.robot.pinocchio_model.lowerPositionLimit
+        position_limit_upper = self.robot.pinocchio_model.upperPositionLimit
         for idx, val in enumerate(q):
             lo, hi = position_limit_lower[idx], position_limit_upper[idx]
             if hi < val or val < lo:
@@ -1358,8 +1339,8 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         q = self._neutral()
 
         # Make sure the configuration is not out-of-bound
-        q.clip(self.robot.position_limit_lower,
-               self.robot.position_limit_upper,
+        q.clip(self.robot.pinocchio_model.lowerPositionLimit,
+               self.robot.pinocchio_model.upperPositionLimit,
                out=q)
 
         # Make sure the configuration is normalized

@@ -319,16 +319,6 @@ namespace jiminy::python
                                           &Model::getBacklashJointIndices,
                                           bp::return_value_policy<result_converter<true>>())
 
-            .ADD_PROPERTY_GET_WITH_POLICY("position_limit_lower",
-                                          &Model::getPositionLimitMin,
-                                          bp::return_value_policy<bp::return_by_value>())
-            .ADD_PROPERTY_GET_WITH_POLICY("position_limit_upper",
-                                          &Model::getPositionLimitMax,
-                                          bp::return_value_policy<bp::return_by_value>())
-            .ADD_PROPERTY_GET_WITH_POLICY("velocity_limit",
-                                          &Model::getVelocityLimit,
-                                          bp::return_value_policy<bp::return_by_value>())
-
             .ADD_PROPERTY_GET_WITH_POLICY("log_position_fieldnames",
                                           &Model::getLogPositionFieldnames,
                                           bp::return_value_policy<result_converter<true>>())
@@ -455,10 +445,6 @@ namespace jiminy::python
                                           &Robot::getMotorVelocityIndices,
                                           bp::return_value_policy<result_converter<true>>())
             .ADD_PROPERTY_GET("sensor_names", &internal::robot::getSensorNames)
-
-            .ADD_PROPERTY_GET_WITH_POLICY("command_limit",
-                                          &Robot::getCommandLimit,
-                                          bp::return_value_policy<bp::return_by_value>())
 
             .ADD_PROPERTY_GET_WITH_POLICY("log_command_fieldnames",
                                           &Robot::getLogCommandFieldnames,

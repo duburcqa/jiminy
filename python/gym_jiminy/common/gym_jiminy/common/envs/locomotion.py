@@ -228,9 +228,10 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                 "`WalkerJiminyEnv` only supports robots with freeflyer.")
 
         # Update some internal buffers used for computing the reward
-        motor_effort_limit = self.robot.pinocchio_model.effortLimit[
+        pinocchio_model = self.robot.pinocchio_model
+        motor_effort_limit = pinocchio_model.effortLimit[
             self.robot.motor_velocity_indices]
-        motor_velocity_limit = self.robot.velocity_limit[
+        motor_velocity_limit = pinocchio_model.velocityLimit[
             self.robot.motor_velocity_indices]
         self._power_consumption_max = sum(
             motor_effort_limit * motor_velocity_limit)

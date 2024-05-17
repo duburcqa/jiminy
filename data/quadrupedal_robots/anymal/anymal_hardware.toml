@@ -4,50 +4,62 @@ contactFrameNames = ["LF_FOOT", "LH_FOOT", "RF_FOOT", "RH_FOOT"]
 
 [Motor.SimpleMotor.LF_HAA]
 joint_name = "LF_HAA"
+enableVelocityLimit = true
 armature = 0.1
 
 [Motor.SimpleMotor.LF_HFE]
 joint_name = "LF_HFE"
+enableVelocityLimit = true
 armature = 0.1
 
 [Motor.SimpleMotor.LF_KFE]
 joint_name = "LF_KFE"
+enableVelocityLimit = true
 armature = 0.1
 
 [Motor.SimpleMotor.RF_HAA]
 joint_name = "RF_HAA"
+enableVelocityLimit = true
 armature = 0.1
 
 [Motor.SimpleMotor.RF_HFE]
 joint_name = "RF_HFE"
+enableVelocityLimit = true
 armature = 0.1
 
 [Motor.SimpleMotor.RF_KFE]
 joint_name = "RF_KFE"
+enableVelocityLimit = true
 armature = 0.1
 
 [Motor.SimpleMotor.LH_HAA]
 joint_name = "LH_HAA"
+enableVelocityLimit = true
 armature = 0.1
 
 [Motor.SimpleMotor.LH_HFE]
 joint_name = "LH_HFE"
+enableVelocityLimit = true
 armature = 0.1
 
 [Motor.SimpleMotor.LH_KFE]
 joint_name = "LH_KFE"
+enableVelocityLimit = true
 armature = 0.1
 
 [Motor.SimpleMotor.RH_HAA]
 joint_name = "RH_HAA"
+enableVelocityLimit = true
 armature = 0.1
 
 [Motor.SimpleMotor.RH_HFE]
 joint_name = "RH_HFE"
+enableVelocityLimit = true
 armature = 0.1
 
 [Motor.SimpleMotor.RH_KFE]
 joint_name = "RH_KFE"
+enableVelocityLimit = true
 armature = 0.1
 
 [Sensor.ForceSensor.LF_FOOT]
