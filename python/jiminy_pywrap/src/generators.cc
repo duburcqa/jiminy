@@ -193,6 +193,7 @@ namespace jiminy::python
         bp::def("random_tile_ground", &tiles,
                                       (bp::arg("size"), "height_max", "interp_delta",
                                        "sparsity", "orientation", "seed"));
+        bp::def("stairs_ground", &stairs, (bp::arg("step_width"), "step_height", bp::arg("steps_number"), "orientation"));
         bp::def("sum_heightmaps", &sumHeightmaps, (bp::arg("heightmaps")));
         bp::def("merge_heightmaps", &mergeHeightmaps, (bp::arg("heightmaps")));
 

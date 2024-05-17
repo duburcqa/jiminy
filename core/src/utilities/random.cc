@@ -735,4 +735,27 @@ namespace jiminy
             }
         };
     }
+
+    HeightmapFunction stairs(double stepWidth,
+                             double stepHeight,
+                             uint32_t stepsNumber,
+                             double orientation)
+    {
+        const Eigen::Rotation2D<double> rot_mat(orientation);
+
+        return [stepWidth, stepHeight, stepsNumber, rot_mat](
+                   const Eigen::Vector2d & pos, double & height, Eigen::Vector3d & normal) -> void
+        {
+            // Compute position in stairs reference frame
+            Eigen::Vector2d posRel = (rot_mat.inverse() * pos).array();
+            auto modPos = std::fmod(std::abs(posRel[0]), stepWidth*stepsNumber*2);
+
+            auto stairNumero = static_cast<uint32_t>(modPos / stepWidth);
+            if (stairNumero > stepsNumber){
+                stairNumero = 2*stepsNumber - stairNumero;
+            }
+            height = stairNumero * stepHeight;
+            normal = Eigen::Vector3d::UnitZ();
+        };
+    }
 }

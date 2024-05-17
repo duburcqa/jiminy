@@ -536,6 +536,11 @@ namespace jiminy
                                           uint32_t sparsity,
                                           double orientation,
                                           uint32_t seed);
+
+    HeightmapFunction JIMINY_DLLAPI stairs(double width,
+                                           double height,
+                                           uint32_t stepsNumber,
+                                           double orientation);
 }
 
 #include "jiminy/core/utilities/random.hxx"
