@@ -3189,57 +3189,15 @@ namespace jiminy
         robot->getController()->computeCommand(t, q, v, command);
     }
 
-    template<template<typename, int, int> class JointModel, typename Scalar, int Options, int axis>
-    static std::enable_if_t<
-        is_pinocchio_joint_revolute_v<JointModel<Scalar, Options, axis>> ||
-            is_pinocchio_joint_revolute_unbounded_v<JointModel<Scalar, Options, axis>>,
-        double>
-    getSubtreeInertiaProj(const JointModel<Scalar, Options, axis> & /* model */,
-                          const pinocchio::Inertia & Isubtree)
-    {
-        double inertiaProj = Isubtree.inertia()(axis, axis);
-        for (Eigen::Index i = 0; i < 3; ++i)
-        {
-            if (i != axis)
-            {
-                inertiaProj += Isubtree.mass() * std::pow(Isubtree.lever()[i], 2);
-            }
-        }
-        return inertiaProj;
-    }
-
-    template<typename JointModel>
-    static std::enable_if_t<is_pinocchio_joint_revolute_unaligned_v<JointModel> ||
-                                is_pinocchio_joint_revolute_unbounded_unaligned_v<JointModel>,
-                            double>
-    getSubtreeInertiaProj(const JointModel & model, const pinocchio::Inertia & Isubtree)
-    {
-        return model.axis.dot(Isubtree.inertia() * model.axis) +
-               Isubtree.mass() * model.axis.cross(Isubtree.lever()).squaredNorm();
-    }
-
-    template<typename JointModel>
-    static std::enable_if_t<is_pinocchio_joint_prismatic_v<JointModel> ||
-                                is_pinocchio_joint_prismatic_unaligned_v<JointModel>,
-                            double>
-    getSubtreeInertiaProj(const JointModel & /* model */, const pinocchio::Inertia & Isubtree)
-    {
-        return Isubtree.mass();
-    }
-
     struct computePositionLimitsForcesAlgo :
     public pinocchio::fusion::JointUnaryVisitorBase<computePositionLimitsForcesAlgo>
     {
         typedef boost::fusion::vector<
-            const pinocchio::Data & /* pinocchioData */,
             const Eigen::VectorXd & /* q */,
-            const Eigen::VectorXd & /* v */,
             const Eigen::VectorXd & /* positionLimitMin */,
             const Eigen::VectorXd & /* positionLimitMax */,
             const std::unique_ptr<const Engine::EngineOptions> & /* engineOptions */,
-            ContactModelType /* contactModel */,
-            const std::shared_ptr<AbstractConstraintBase> & /* constraint */,
-            Eigen::VectorXd & /* u */>
+            const std::shared_ptr<AbstractConstraintBase> & /* constraint */>
             ArgsType;
 
         template<typename JointModel>
@@ -3249,64 +3207,33 @@ namespace jiminy
                                     is_pinocchio_joint_prismatic_unaligned_v<JointModel>,
                                 void>
         algo(const pinocchio::JointModelBase<JointModel> & joint,
-             const pinocchio::Data & data,
              const Eigen::VectorXd & q,
-             const Eigen::VectorXd & v,
              const Eigen::VectorXd & positionLimitMin,
              const Eigen::VectorXd & positionLimitMax,
              const std::unique_ptr<const Engine::EngineOptions> & engineOptions,
-             ContactModelType contactModel,
-             const std::shared_ptr<AbstractConstraintBase> & constraint,
-             Eigen::VectorXd & u)
+             const std::shared_ptr<AbstractConstraintBase> & constraint)
         {
             // Define some proxies for convenience
-            const pinocchio::JointIndex jointIndex = joint.id();
             const Eigen::Index positionIndex = joint.idx_q();
-            const Eigen::Index velocityIndex = joint.idx_v();
             const double qJoint = q[positionIndex];
             const double qJointMin = positionLimitMin[positionIndex];
             const double qJointMax = positionLimitMax[positionIndex];
-            const double vJoint = v[velocityIndex];
-            const double Ia = getSubtreeInertiaProj(joint.derived(), data.Ycrb[jointIndex]);
-            const double stiffness = engineOptions->joints.boundStiffness;
-            const double damping = engineOptions->joints.boundDamping;
             const double transitionEps = engineOptions->contacts.transitionEps;
 
             // Check if out-of-bounds
-            if (contactModel == ContactModelType::SPRING_DAMPER)
+            if (qJointMax < qJoint || qJoint < qJointMin)
             {
-                // Compute the acceleration to apply to move out of the bound
-                double accelJoint = 0.0;
-                if (qJoint > qJointMax)
-                {
-                    const double qJointError = qJoint - qJointMax;
-                    accelJoint = -std::max(stiffness * qJointError + damping * vJoint, 0.0);
-                }
-                else if (qJoint < qJointMin)
-                {
-                    const double qJointError = qJoint - qJointMin;
-                    accelJoint = -std::min(stiffness * qJointError + damping * vJoint, 0.0);
-                }
-
-                // Apply the resulting force
-                u[velocityIndex] += Ia * accelJoint;
+                // Enable fixed joint constraint
+                auto & jointConstraint = static_cast<JointConstraint &>(*constraint.get());
+                jointConstraint.setReferenceConfiguration(
+                    Eigen::Matrix<double, 1, 1>(std::clamp(qJoint, qJointMin, qJointMax)));
+                jointConstraint.setRotationDir(qJointMax < qJoint);
+                constraint->enable();
             }
-            else
+            else if (qJointMin + transitionEps < qJoint && qJoint < qJointMax - transitionEps)
             {
-                if (qJointMax < qJoint || qJoint < qJointMin)
-                {
-                    // Enable fixed joint constraint
-                    auto & jointConstraint = static_cast<JointConstraint &>(*constraint.get());
-                    jointConstraint.setReferenceConfiguration(
-                        Eigen::Matrix<double, 1, 1>(std::clamp(qJoint, qJointMin, qJointMax)));
-                    jointConstraint.setRotationDir(qJointMax < qJoint);
-                    constraint->enable();
-                }
-                else if (qJointMin + transitionEps < qJoint && qJoint < qJointMax - transitionEps)
-                {
-                    // Disable fixed joint constraint
-                    constraint->disable();
-                }
+                // Disable fixed joint constraint
+                constraint->disable();
             }
         }
 
@@ -3315,21 +3242,14 @@ namespace jiminy
                                     is_pinocchio_joint_revolute_unbounded_unaligned_v<JointModel>,
                                 void>
         algo(const pinocchio::JointModelBase<JointModel> & /* joint */,
-             const pinocchio::Data & /* data */,
              const Eigen::VectorXd & /* q */,
-             const Eigen::VectorXd & /* v */,
              const Eigen::VectorXd & /* positionLimitMin */,
              const Eigen::VectorXd & /* positionLimitMax */,
              const std::unique_ptr<const Engine::EngineOptions> & /* engineOptions */,
-             ContactModelType contactModel,
-             const std::shared_ptr<AbstractConstraintBase> & constraint,
-             Eigen::VectorXd & /* u */)
+             const std::shared_ptr<AbstractConstraintBase> & constraint)
         {
-            if (contactModel == ContactModelType::CONSTRAINT)
-            {
-                // Disable fixed joint constraint
-                constraint->disable();
-            }
+            // Disable fixed joint constraint
+            constraint->disable();
         }
 
         template<typename JointModel>
@@ -3342,109 +3262,17 @@ namespace jiminy
                                     is_pinocchio_joint_composite_v<JointModel>,
                                 void>
         algo(const pinocchio::JointModelBase<JointModel> & /* joint */,
-             const pinocchio::Data & /* data */,
              const Eigen::VectorXd & /* q */,
-             const Eigen::VectorXd & /* v */,
              const Eigen::VectorXd & /* positionLimitMin */,
              const Eigen::VectorXd & /* positionLimitMax */,
              const std::unique_ptr<const Engine::EngineOptions> & /* engineOptions */,
-             ContactModelType contactModel,
-             const std::shared_ptr<AbstractConstraintBase> & constraint,
-             Eigen::VectorXd & /* u */)
+             const std::shared_ptr<AbstractConstraintBase> & constraint)
         {
 #ifndef NDEBUG
-            JIMINY_WARNING("No position bounds implemented for this type of joint.");
+            JIMINY_WARNING("Position bounds not implemented for this type of joint.");
 #endif
-            if (contactModel == ContactModelType::CONSTRAINT)
-            {
-                // Disable fixed joint constraint
-                constraint->disable();
-            }
-        }
-    };
-
-    struct computeVelocityLimitsForcesAlgo :
-    public pinocchio::fusion::JointUnaryVisitorBase<computeVelocityLimitsForcesAlgo>
-    {
-        typedef boost::fusion::vector<
-            const pinocchio::Data & /* data */,
-            const Eigen::VectorXd & /* v */,
-            const Eigen::VectorXd & /* velocityLimitMax */,
-            const std::unique_ptr<const Engine::EngineOptions> & /* engineOptions */,
-            ContactModelType /* contactModel */,
-            Eigen::VectorXd & /* u */>
-            ArgsType;
-        template<typename JointModel>
-        static std::enable_if_t<is_pinocchio_joint_revolute_v<JointModel> ||
-                                    is_pinocchio_joint_revolute_unaligned_v<JointModel> ||
-                                    is_pinocchio_joint_revolute_unbounded_v<JointModel> ||
-                                    is_pinocchio_joint_revolute_unbounded_unaligned_v<JointModel> ||
-                                    is_pinocchio_joint_prismatic_v<JointModel> ||
-                                    is_pinocchio_joint_prismatic_unaligned_v<JointModel>,
-                                void>
-        algo(const pinocchio::JointModelBase<JointModel> & joint,
-             const pinocchio::Data & data,
-             const Eigen::VectorXd & v,
-             const Eigen::VectorXd & velocityLimitMax,
-             const std::unique_ptr<const Engine::EngineOptions> & engineOptions,
-             ContactModelType contactModel,
-             Eigen::VectorXd & u)
-        {
-            // Define some proxies for convenience
-            const pinocchio::JointIndex jointIndex = joint.id();
-            const Eigen::Index velocityIndex = joint.idx_v();
-            const double vJoint = v[velocityIndex];
-            const double vJointMin = -velocityLimitMax[velocityIndex];
-            const double vJointMax = velocityLimitMax[velocityIndex];
-            const double Ia = getSubtreeInertiaProj(joint.derived(), data.Ycrb[jointIndex]);
-            const double damping = engineOptions->joints.boundDamping;
-
-            // Check if out-of-bounds
-            if (contactModel == ContactModelType::SPRING_DAMPER)
-            {
-                // Compute joint velocity error
-                double vJointError = 0.0;
-                if (vJoint > vJointMax)
-                {
-                    vJointError = vJoint - vJointMax;
-                }
-                else if (vJoint < vJointMin)
-                {
-                    vJointError = vJoint - vJointMin;
-                }
-                else
-                {
-                    return;
-                }
-
-                // Generate acceleration in the opposite direction if out-of-bounds
-                const double accelJoint = -2.0 * damping * vJointError;
-
-                // Apply the resulting force
-                u[velocityIndex] += Ia * accelJoint;
-            }
-        }
-
-        template<typename JointModel>
-        static std::enable_if_t<is_pinocchio_joint_freeflyer_v<JointModel> ||
-                                    is_pinocchio_joint_spherical_v<JointModel> ||
-                                    is_pinocchio_joint_spherical_zyx_v<JointModel> ||
-                                    is_pinocchio_joint_translation_v<JointModel> ||
-                                    is_pinocchio_joint_planar_v<JointModel> ||
-                                    is_pinocchio_joint_mimic_v<JointModel> ||
-                                    is_pinocchio_joint_composite_v<JointModel>,
-                                void>
-        algo(const pinocchio::JointModelBase<JointModel> & /* joint */,
-             const pinocchio::Data & /* data */,
-             const Eigen::VectorXd & /* v */,
-             const Eigen::VectorXd & /* velocityLimitMax */,
-             const std::unique_ptr<const Engine::EngineOptions> & /* engineOptions */,
-             ContactModelType /* contactModel */,
-             Eigen::VectorXd & /* u */)
-        {
-#ifndef NDEBUG
-            JIMINY_WARNING("No velocity bounds implemented for this type of joint.");
-#endif
+            // Disable fixed joint constraint
+            constraint->disable();
         }
     };
 
@@ -3456,7 +3284,6 @@ namespace jiminy
     {
         // Define some proxies
         const pinocchio::Model & model = robot->pinocchioModel_;
-        const pinocchio::Data & data = robot->pinocchioData_;
         const ConstraintTree & constraints = robot->getConstraints();
 
         /* Enforce position limits for all joints having bounds constraints, ie mechanical and
@@ -3470,34 +3297,11 @@ namespace jiminy
             const pinocchio::JointIndex jointIndex = jointConstraint->getJointIndex();
             computePositionLimitsForcesAlgo::run(
                 model.joints[jointIndex],
-                typename computePositionLimitsForcesAlgo::ArgsType(data,
-                                                                   q,
-                                                                   v,
-                                                                   positionLimitMin,
-                                                                   positionLimitMax,
-                                                                   engineOptions_,
-                                                                   contactModel_,
-                                                                   constraint,
-                                                                   uInternal));
+                typename computePositionLimitsForcesAlgo::ArgsType(
+                    q, positionLimitMin, positionLimitMax, engineOptions_, constraint));
         }
 
-        // Enforce velocity limits for all joints having bounds constraints if requested
-        if (robot->modelOptions_->joints.enableVelocityLimit)
-        {
-            const Eigen::VectorXd & velocityLimitMax = robot->pinocchioModel_.velocityLimit;
-            for (auto & constraintItem : constraints.boundJoints)
-            {
-                auto & constraint = constraintItem.second;
-                const auto jointConstraint = std::static_pointer_cast<JointConstraint>(constraint);
-                const pinocchio::JointIndex jointIndex = jointConstraint->getJointIndex();
-                computeVelocityLimitsForcesAlgo::run(
-                    model.joints[jointIndex],
-                    typename computeVelocityLimitsForcesAlgo::ArgsType(
-                        data, v, velocityLimitMax, engineOptions_, contactModel_, uInternal));
-            }
-        }
-
-        // Compute the flexibilities (only support JointModelType::SPHERICAL so far)
+        // Compute the flexibilities (only support `JointModelType::SPHERICAL` so far)
         double angle;
         Eigen::Matrix3d rotJlog3;
         const Robot::DynamicsOptions & modelDynOptions = robot->modelOptions_->dynamics;

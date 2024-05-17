@@ -283,15 +283,6 @@ namespace jiminy
             return config;
         };
 
-        GenericConfig getDefaultJointOptions()
-        {
-            GenericConfig config;
-            config["boundStiffness"] = 1.0e7;
-            config["boundDamping"] = 1.0e4;
-
-            return config;
-        };
-
         GenericConfig getDefaultWorldOptions()
         {
             GenericConfig config;
@@ -349,7 +340,6 @@ namespace jiminy
             config["telemetry"] = getDefaultTelemetryOptions();
             config["stepper"] = getDefaultStepperOptions();
             config["world"] = getDefaultWorldOptions();
-            config["joints"] = getDefaultJointOptions();
             config["constraints"] = getDefaultConstraintOptions();
             config["contacts"] = getDefaultContactOptions();
 
@@ -390,18 +380,6 @@ namespace jiminy
             transitionEps{boost::get<double>(options.at("transitionEps"))},
             transitionVelocity{boost::get<double>(options.at("transitionVelocity"))},
             stabilizationFreq{boost::get<double>(options.at("stabilizationFreq"))}
-            {
-            }
-        };
-
-        struct JointOptions
-        {
-            const double boundStiffness;
-            const double boundDamping;
-
-            JointOptions(const GenericConfig & options) :
-            boundStiffness{boost::get<double>(options.at("boundStiffness"))},
-            boundDamping{boost::get<double>(options.at("boundDamping"))}
             {
             }
         };
@@ -481,7 +459,6 @@ namespace jiminy
             const TelemetryOptions telemetry;
             const StepperOptions stepper;
             const WorldOptions world;
-            const JointOptions joints;
             const ConstraintOptions constraints;
             const ContactOptions contacts;
 
@@ -489,7 +466,6 @@ namespace jiminy
             telemetry{boost::get<GenericConfig>(options.at("telemetry"))},
             stepper{boost::get<GenericConfig>(options.at("stepper"))},
             world{boost::get<GenericConfig>(options.at("world"))},
-            joints{boost::get<GenericConfig>(options.at("joints"))},
             constraints{boost::get<GenericConfig>(options.at("constraints"))},
             contacts{boost::get<GenericConfig>(options.at("contacts"))}
             {
