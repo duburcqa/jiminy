@@ -316,7 +316,8 @@ namespace jiminy
         // Get the rotor inertia
         if (baseMotorOptions_->enableArmature)
         {
-            armature_ = baseMotorOptions_->armature;
+            armature_ =
+                baseMotorOptions_->armature * std::pow(baseMotorOptions_->mechanicalReduction, 2);
         }
         else
         {

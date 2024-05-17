@@ -33,7 +33,6 @@ from .core import (  # pylint: disable=no-name-in-module
 
 DEFAULT_UPDATE_RATE = 1000.0  # [Hz]
 DEFAULT_FRICTION_DRY_SLOPE = 20.0
-DEFAULT_ARMATURE = 0.1
 
 EXTENSION_MODULES: Sequence[ModuleType] = ()
 
@@ -491,7 +490,7 @@ def generate_default_hardware_description_file(
                 continue
             hardware_info['Motor']['SimpleMotor'][joint_name] = OrderedDict(
                 joint_name=joint_name,
-                armature=DEFAULT_ARMATURE,
+                armature=0.0,
                 **joints_options.pop(joint_name)
             )
             hardware_info['Sensor'][effort.type][joint_name] = OrderedDict(
