@@ -14,10 +14,10 @@ frame_name = "PendulumArm"
 frame_name = "SecondPendulumArm"
 
 [Sensor.EncoderSensor.PendulumJoint]
-joint_name = "PendulumJoint"
+motor_name = "PendulumJoint"
 
 [Sensor.EncoderSensor.SecondPendulumJoint]
-joint_name = "SecondPendulumJoint"
+motor_name = "SecondPendulumJoint"
 
 [Sensor.EffortSensor.PendulumJoint]
 motor_name = "PendulumJoint"

@@ -231,6 +231,7 @@ namespace jiminy
 
             /* Trigger extended model regeneration.
                * The whole robot must be reset as joint and frame indices would be corrupted.
+               * Some sensors must be reset as their attributes may depends on motors options.
                * Skip reset if nothing has changed from this motor point of view. This is necessary
                  to prevent infinite recursive reset loop. */
             if (hasChanged)
@@ -239,9 +240,9 @@ namespace jiminy
             }
 
             // Update rotor inertia
-            const std::string & mechanicaljointName = motorIn.getJointName();
-            std::string inertiaJointName = mechanicaljointName;
-            const Eigen::Index motorVelocityIndex = motorIn.getJointVelocityIndex();
+            const pinocchio::JointIndex jointIndex = motorIn.getJointIndex();
+            const Eigen::Index motorVelocityIndex =
+                robot->pinocchioModel_.joints[jointIndex].idx_v();
             robot->pinocchioModel_.rotorInertia[motorVelocityIndex] += motorIn.getArmature();
         };
         // Attach the motor
@@ -1069,6 +1070,6 @@ namespace jiminy
 
     Eigen::Index Robot::nmotors() const
     {
-        return nmotors_;
+        return motors_.size();
     }
 }

@@ -78,40 +78,40 @@ frame_name = "RH_FOOT"
 frame_name = "imu_link"
 
 [Sensor.EncoderSensor.LF_HAA]
-joint_name = "LF_HAA"
+motor_name = "LF_HAA"
 
 [Sensor.EncoderSensor.LF_HFE]
-joint_name = "LF_HFE"
+motor_name = "LF_HFE"
 
 [Sensor.EncoderSensor.LF_KFE]
-joint_name = "LF_KFE"
+motor_name = "LF_KFE"
 
 [Sensor.EncoderSensor.RF_HAA]
-joint_name = "RF_HAA"
+motor_name = "RF_HAA"
 
 [Sensor.EncoderSensor.RF_HFE]
-joint_name = "RF_HFE"
+motor_name = "RF_HFE"
 
 [Sensor.EncoderSensor.RF_KFE]
-joint_name = "RF_KFE"
+motor_name = "RF_KFE"
 
 [Sensor.EncoderSensor.LH_HAA]
-joint_name = "LH_HAA"
+motor_name = "LH_HAA"
 
 [Sensor.EncoderSensor.LH_HFE]
-joint_name = "LH_HFE"
+motor_name = "LH_HFE"
 
 [Sensor.EncoderSensor.LH_KFE]
-joint_name = "LH_KFE"
+motor_name = "LH_KFE"
 
 [Sensor.EncoderSensor.RH_HAA]
-joint_name = "RH_HAA"
+motor_name = "RH_HAA"
 
 [Sensor.EncoderSensor.RH_HFE]
-joint_name = "RH_HFE"
+motor_name = "RH_HFE"
 
 [Sensor.EncoderSensor.RH_KFE]
-joint_name = "RH_KFE"
+motor_name = "RH_KFE"
 
 [Sensor.EffortSensor.LF_HAA]
 motor_name = "LF_HAA"

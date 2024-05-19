@@ -31,7 +31,7 @@ class SimulateTwoMasses(unittest.TestCase):
     def setUp(self):
         # Create the robot and load the URDF
         self.urdf_name = "linear_two_masses.urdf"
-        self.motor_names = ["FirstJoint", "SecondJoint"]
+        self.motor_names = ("FirstJoint", "SecondJoint")
         self.robot = load_urdf_default(
             self.urdf_name, self.motor_names, has_freeflyer=False)
 

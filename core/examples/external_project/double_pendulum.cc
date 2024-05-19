@@ -79,7 +79,7 @@ int main(int argc, char * argv[])
     motor->setOptions(motorOptions);
     auto sensor = std::make_shared<EncoderSensor>("encoder");
     robot->attachSensor(sensor);
-    sensor->initialize("SecondPendulumJoint");
+    sensor->initialize("SecondPendulumJoint", true);
 
     // Print encoder sensor index
     std::cout << "Encoder sensor index: " << sensor->getIndex() << std::endl;

@@ -26,8 +26,8 @@ class DeformationEstimatorBlock(unittest.TestCase):
     def _test_deformation_estimate(self, env, imu_atol, flex_atol):
         # Check that quaternion estimates from MahonyFilter are valid
         true_imu_rots = []
-        for frame_name in env.robot.sensor_names['ImuSensor']:
-            frame_index = env.robot.pinocchio_model.getFrameId(frame_name)
+        for imu_sensor in env.robot.sensors['ImuSensor']:
+            frame_index = imu_sensor.frame_index
             frame_rot = env.robot.pinocchio_data.oMf[frame_index].rotation
             true_imu_rots.append(frame_rot)
         true_imu_quats = matrices_to_quat(tuple(true_imu_rots))
@@ -138,7 +138,8 @@ class DeformationEstimatorBlock(unittest.TestCase):
         deformation_estimator = DeformationEstimator(
             "deformation_estimator",
             env,
-            imu_frame_names=robot.sensor_names['ImuSensor'],
+            imu_frame_names=tuple(
+                sensor.name for sensor in robot.sensors['ImuSensor']),
             flex_frame_names=robot.flexibility_joint_names,
             ignore_twist=True,
             update_ratio=-1)

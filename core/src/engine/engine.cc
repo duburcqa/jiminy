@@ -1411,7 +1411,9 @@ namespace jiminy
                 for (const auto & motor : (*robotIt)->getMotors())
                 {
                     const std::size_t motorIndex = motor->getIndex();
-                    const Eigen::Index motorVelocityIndex = motor->getJointVelocityIndex();
+                    const pinocchio::JointIndex jointIndex = motor->getJointIndex();
+                    const Eigen::Index motorVelocityIndex =
+                        (*robotIt)->pinocchioModel_.joints[jointIndex].idx_v();
                     u[motorVelocityIndex] += uMotor[motorIndex];
                 }
             }
@@ -3632,7 +3634,9 @@ namespace jiminy
             for (const auto & motor : (*robotIt)->getMotors())
             {
                 const std::size_t motorIndex = motor->getIndex();
-                const Eigen::Index motorVelocityIndex = motor->getJointVelocityIndex();
+                const pinocchio::JointIndex jointIndex = motor->getJointIndex();
+                const Eigen::Index motorVelocityIndex =
+                    (*robotIt)->pinocchioModel_.joints[jointIndex].idx_v();
                 u[motorVelocityIndex] += uMotor[motorIndex];
             }
 

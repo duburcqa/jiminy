@@ -6,7 +6,7 @@
 
 namespace jiminy
 {
-    SimpleMotor::SimpleMotor(const std::string & name) noexcept :
+    SimpleMotor::SimpleMotor(const std::string & name) :
     AbstractMotorBase(name)
     {
         /* AbstractMotorBase constructor calls the base implementations of the virtual methods
@@ -18,21 +18,12 @@ namespace jiminy
 
     void SimpleMotor::initialize(const std::string & jointName)
     {
-        // Make sure that no simulation is already running
-        // TODO: This check should be enforced by AbstractMotor somehow
-        auto robot = robot_.lock();
-        if (robot && robot->getIsLocked())
-        {
-            JIMINY_THROW(bad_control_flow,
-                         "Robot already locked, probably because a simulation is running. "
-                         "Please stop it before refreshing motor proxies.");
-        }
-
         // Update joint name
         jointName_ = jointName;
         isInitialized_ = true;
 
-        // Try refreshing proxies if possible, restore internals before throwing exception if not
+        /* Try refreshing proxies if possible, restore internals before throwing exception if not.
+           Note that it will raise an exception if a simulation is already running. */
         try
         {
             refreshProxies();

@@ -10,8 +10,7 @@ import gymnasium as gym
 
 import jiminy_py.core as jiminy
 from jiminy_py.core import (  # pylint: disable=no-name-in-module
-    array_copyto,
-    EncoderSensor as encoder)
+    EncoderSensor, array_copyto)
 
 from ..bases import BaseObsT, InterfaceJiminyEnv, BaseControllerBlock
 from ..utils import fill
@@ -235,27 +234,27 @@ def get_encoder_to_motor_map(robot: jiminy.Robot) -> Union[slice, List[int]]:
 
     :returns: A slice if possible, a list of indices otherwise.
     """
-    # Define the mapping from motors to encoders
-    encoder_to_motor = [-1 for _ in range(robot.nmotors)]
-    encoders = [robot.get_sensor(encoder.type, sensor_name)
-                for sensor_name in robot.sensor_names[encoder.type]]
-    for i, motor_name in enumerate(robot.motor_names):
-        motor = robot.get_motor(motor_name)
-        for j, sensor in enumerate(encoders):
-            assert isinstance(sensor, encoder)
-            if motor.joint_index == sensor.joint_index:
-                encoder_to_motor[sensor.index] = i
-                encoders.pop(j)
+    # Loop over all actuated joints and look for their encoder counterpart
+    encoder_to_motor_map = [-1,] * robot.nmotors
+    encoders = robot.sensors[EncoderSensor.type]
+    for motor in robot.motors:
+        for i, sensor in enumerate(encoders):
+            assert isinstance(sensor, EncoderSensor)
+            if motor.index == sensor.motor_index:
+                encoder_to_motor_map[sensor.index] = motor.index
+                del encoders[i]
                 break
         else:
             raise RuntimeError(
-                f"No encoder sensor associated with motor '{motor_name}'. "
-                "Every actuated joint must have encoder sensors attached.")
+                f"No encoder sensor associated with motor '{motor.name}'. "
+                "Every actuated joint must have a encoder sensor attached on "
+                "motor side.")
 
     # Try converting it to slice if possible
-    if (np.array(encoder_to_motor) == np.arange(robot.nmotors)).all():
+    if (np.array(encoder_to_motor_map) == np.arange(robot.nmotors)).all():
         return slice(None)
-    return encoder_to_motor
+
+    return encoder_to_motor_map
 
 
 class PDController(
@@ -330,11 +329,11 @@ class PDController(
         self.kd = kd
 
         # Mapping from motors to encoders
-        self.encoder_to_motor = get_encoder_to_motor_map(env.robot)
+        self.encoder_to_motor_map = get_encoder_to_motor_map(env.robot)
 
         # Whether stored reference to encoder measurements are already in the
         # same order as the motors, allowing skipping re-ordering entirely.
-        self._is_same_order = isinstance(self.encoder_to_motor, slice)
+        self._is_same_order = isinstance(self.encoder_to_motor_map, slice)
         if not self._is_same_order:
             warnings.warn(
                 "Consider using the same ordering for encoders and motors for "
@@ -345,32 +344,21 @@ class PDController(
         # to another, the observation and action spaces are required to stay
         # the same the whole time. This induces that the motors effort limit
         # must not change unlike the mapping from full state to motors.
-        pinocchio_model = env.robot.pinocchio_model
-        self.motors_effort_limit = pinocchio_model.effortLimit[
-            env.robot.motor_velocity_indices]
+        self.motors_effort_limit = np.array([
+            motor.effort_limit for motor in env.robot.motors])
 
         # Extract the motors target position bounds from the model
-        motors_position_lower: List[float] = []
-        motors_position_upper: List[float] = []
-        for motor_name in env.robot.motor_names:
-            motor = env.robot.get_motor(motor_name)
-            joint_type = jiminy.get_joint_type(
-                env.robot.pinocchio_model, motor.joint_index)
-            if joint_type == jiminy.JointModelType.ROTARY_UNBOUNDED:
-                lower, upper = float("-inf"), float("inf")
-            else:
-                motor_position_index = motor.joint_position_index
-                lower = pinocchio_model.lowerPositionLimit[
-                    motor_position_index]
-                upper = pinocchio_model.upperPositionLimit[
-                    motor_position_index]
-            motors_position_lower.append(lower + target_position_margin)
-            motors_position_upper.append(upper - target_position_margin)
+        motors_position_lower = np.array([
+            motor.position_limit_lower + target_position_margin
+            for motor in env.robot.motors])
+        motors_position_upper = np.array([
+            motor.position_limit_upper - target_position_margin
+            for motor in env.robot.motors])
 
         # Extract the motors target velocity bounds
-        motors_velocity_limit = np.minimum(
-            pinocchio_model.velocityLimit[env.robot.motor_velocity_indices],
-            target_velocity_limit)
+        motors_velocity_limit = np.array([
+            min(motor.velocity_limit, target_velocity_limit)
+            for motor in env.robot.motors])
 
         # Compute acceleration bounds allowing unrestricted bang-bang control
         range_limit = 2 * motors_velocity_limit / env.step_dt
@@ -380,10 +368,10 @@ class PDController(
             np.minimum(range_limit, effort_limit), target_acceleration_limit)
 
         # Compute command state bounds
-        self._command_state_lower = np.stack([np.array(motors_position_lower),
+        self._command_state_lower = np.stack([motors_position_lower,
                                               -motors_velocity_limit,
                                               -acceleration_limit], axis=0)
-        self._command_state_upper = np.stack([np.array(motors_position_upper),
+        self._command_state_upper = np.stack([motors_position_upper,
                                               motors_velocity_limit,
                                               acceleration_limit], axis=0)
 
@@ -432,15 +420,15 @@ class PDController(
 
         # Refresh measured motor positions and velocities proxies
         self.q_measured, self.v_measured = (
-            self.env.sensor_measurements[encoder.type])
+            self.env.sensor_measurements[EncoderSensor.type])
 
         # Reset the command state
         fill(self._command_state, 0)
 
     @property
     def fieldnames(self) -> List[str]:
-        return [f"currentTarget{N_ORDER_DERIVATIVE_NAMES[2]}{name}"
-                for name in self.env.robot.motor_names]
+        return [f"currentTarget{N_ORDER_DERIVATIVE_NAMES[2]}{motor.name}"
+                for motor in self.env.robot.motors]
 
     def get_state(self) -> np.ndarray:
         return self._command_state[:2]
@@ -473,8 +461,8 @@ class PDController(
         # Extract motor positions and velocity from encoder data
         q_measured, v_measured = self.q_measured, self.v_measured
         if not self._is_same_order:
-            q_measured = q_measured[self.encoder_to_motor]
-            v_measured = v_measured[self.encoder_to_motor]
+            q_measured = q_measured[self.encoder_to_motor_map]
+            v_measured = v_measured[self.encoder_to_motor_map]
 
         # Update target motor accelerations
         array_copyto(self._command_acceleration, action)
@@ -576,8 +564,8 @@ class PDAdapter(
 
     @property
     def fieldnames(self) -> List[str]:
-        return [f"nextTarget{N_ORDER_DERIVATIVE_NAMES[self.order]}{name}"
-                for name in self.env.robot.motor_names]
+        return [f"nextTarget{N_ORDER_DERIVATIVE_NAMES[self.order]}{motor.name}"
+                for motor in self.env.robot.motors]
 
     def compute_command(self, action: np.ndarray, command: np.ndarray) -> None:
         """Compute the target motor accelerations from the desired value of

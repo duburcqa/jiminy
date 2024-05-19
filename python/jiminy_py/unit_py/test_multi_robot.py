@@ -27,7 +27,7 @@ class SimulateMultiRobot(unittest.TestCase):
         """
         # Specify model
         urdf_name = "linear_single_mass.urdf"
-        motor_names = ["Joint"]
+        motor_names = ("Joint",)
 
         # Specify spring stiffness and damping for this simulation
         # First two parameters are the stiffness of each system,

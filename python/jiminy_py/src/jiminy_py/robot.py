@@ -24,11 +24,12 @@ from pinocchio.rpy import rpyToMatrix  # pylint: disable=import-error
 
 from . import core as jiminy
 from .core import (  # pylint: disable=no-name-in-module
-    EncoderSensor as encoder,
-    EffortSensor as effort,
-    ContactSensor as contact,
-    ForceSensor as force,
-    ImuSensor as imu)
+    SimpleMotor,
+    EncoderSensor,
+    EffortSensor,
+    ContactSensor,
+    ForceSensor,
+    ImuSensor)
 
 
 DEFAULT_UPDATE_RATE = 1000.0  # [Hz]
@@ -205,6 +206,8 @@ def generate_default_hardware_description_file(
         Motor=defaultdict(OrderedDict),
         Sensor=defaultdict(OrderedDict)
     )
+    motors_info = hardware_info['Motor']
+    sensors_info = hardware_info['Sensor']
 
     # Extract the root link. It is the one having no parent at all.
     links = set()
@@ -260,10 +263,10 @@ def generate_default_hardware_description_file(
             # Extract the sensor type
             sensor_type = gazebo_sensor_descr.attrib['type'].casefold()
             if 'imu' in sensor_type:
-                sensor_type = imu.type
+                sensor_type = ImuSensor.type
             elif 'contact' in sensor_type:
                 collision_body_names.add(body_name)
-                sensor_type = force.type
+                sensor_type = ForceSensor.type
             else:
                 LOGGER.warning(
                     "Unsupported Gazebo sensor plugin of type '%s'.",
@@ -295,7 +298,7 @@ def generate_default_hardware_description_file(
                     map(float, frame_pose_obj.text.split()))
 
             # Add the sensor to the robot's hardware
-            hardware_info['Sensor'][sensor_type][sensor_name] = sensor_info
+            sensors_info[sensor_type][sensor_name] = sensor_info
 
         # Extract the collision bodies and ground model, then add force
         # sensors. At this point, every force sensor is associated with a
@@ -303,7 +306,7 @@ def generate_default_hardware_description_file(
         if gazebo_plugin_descr.find('kp') is not None:
             # Add a force sensor, if not already in the collision set
             if body_name not in collision_body_names:
-                force_sensor_info = hardware_info['Sensor'][force.type]
+                force_sensor_info = sensors_info[ForceSensor.type]
                 force_sensor_info[f"{body_name}Contact"] = OrderedDict(
                     frame_name=body_name)
 
@@ -334,22 +337,22 @@ def generate_default_hardware_description_file(
                 body_name_obj = gazebo_plugin_descr.find('bodyName')
                 assert body_name_obj is not None
                 body_name = body_name_obj.text
-                force_sensor_info = hardware_info['Sensor'][force.type]
+                force_sensor_info = sensors_info[ForceSensor.type]
                 force_sensor_info[f"{body_name}Wrench"] = OrderedDict(
                     frame_name=body_name)
             else:
                 LOGGER.warning("Unsupported Gazebo plugin '%s'", plugin)
 
     # Add IMU sensor to the root link if no Gazebo IMU sensor has been found
-    if link_root and imu.type not in hardware_info['Sensor'].keys():
-        hardware_info['Sensor'][imu.type][link_root] = OrderedDict(
+    if link_root and ImuSensor.type not in sensors_info.keys():
+        sensors_info[ImuSensor.type][link_root] = OrderedDict(
             frame_name=link_root)
 
     # Add force sensors and collision bodies if no Gazebo plugin is available
     if not gazebo_plugins_found:
         for link_leaf in links_leaf:
             # Add a force sensor
-            hardware_info['Sensor'][force.type][link_leaf] = OrderedDict(
+            sensors_info[ForceSensor.type][link_leaf] = OrderedDict(
                 frame_name=link_leaf)
 
             # Add the related body to the collision set if possible
@@ -392,7 +395,7 @@ def generate_default_hardware_description_file(
     # Extract the motors and effort sensors.
     # It is done by reading 'transmission' field, that is part of
     # URDF standard, so it should be available on any URDF file.
-    transmission_found = root.find('transmission') is not None
+    joint_transmissions = set()
     for transmission_descr in root.iterfind('transmission'):
         # Assert(s) for type checker
         assert isinstance(transmission_descr, ET.Element)
@@ -428,6 +431,7 @@ def generate_default_hardware_description_file(
         assert isinstance(joint_descr, ET.Element)
         joint_name = joint_descr.attrib['name']
         motor_info['joint_name'] = joint_name
+        joint_transmissions.add(joint_name)
 
         # Make sure that the joint is revolute
         joint = root.find(f"./joint[@name='{joint_name}']")
@@ -455,15 +459,15 @@ def generate_default_hardware_description_file(
         else:
             armature_txt = armature.text
             assert armature_txt is not None
-            motor_info['armature'] = float(armature_txt) * (
-                motor_info['mechanicalReduction'] ** 2)
+            motor_info['armature'] = float(armature_txt)
 
         # Add dynamics property to motor info, if any
         motor_info.update(joints_options.pop(joint_name))
 
-        # Add the motor and sensor to the robot's hardware
-        hardware_info['Motor']['SimpleMotor'][motor_name] = motor_info
-        hardware_info['Sensor'][effort.type][joint_name] = sensor_info
+        # Add the motor and sensors to the robot's hardware
+        motors_info[SimpleMotor.type][motor_name] = motor_info
+        sensors_info[EncoderSensor.type][motor_name] = sensor_info
+        sensors_info[EffortSensor.type][motor_name] = sensor_info
 
     # Define default encoder sensors, and default effort sensors if no
     # transmission available.
@@ -480,20 +484,21 @@ def generate_default_hardware_description_file(
         encoder_info['joint_name'] = joint_name
 
         # Add the sensor to the robot's hardware
-        hardware_info['Sensor'][encoder.type][joint_name] = encoder_info
+        if joint_name not in joint_transmissions:
+            sensors_info[EncoderSensor.type][joint_name] = encoder_info
 
         # Add motors to robot hardware by default if no transmission found
-        if not transmission_found:
+        if not joint_transmissions:
             joint_limit_descr = joint_descr.find('./limit')
             assert joint_limit_descr is not None
             if float(joint_limit_descr.attrib['effort']) == 0.0:
                 continue
-            hardware_info['Motor']['SimpleMotor'][joint_name] = OrderedDict(
+            motors_info[SimpleMotor.type][joint_name] = OrderedDict(
                 joint_name=joint_name,
                 armature=0.0,
                 **joints_options.pop(joint_name)
             )
-            hardware_info['Sensor'][effort.type][joint_name] = OrderedDict(
+            sensors_info[EffortSensor.type][joint_name] = OrderedDict(
                 motor_name=joint_name)
 
     # Warn if friction model has been defined for non-actuated joints
@@ -754,21 +759,69 @@ def load_hardware_description_file(
             motor.set_options(options)
 
     # Add the sensors to the robot
+    motor_names = [motor.name for motor in robot.motors]
     for sensor_type, sensors_descr in sensors_info.items():
         for sensor_name, sensor_descr in sensors_descr.items():
+            # Extract initialization arguments from options
+            init_kwargs = {
+                field: sensor_descr.pop(field)
+                for field in (
+                    'joint_name',
+                    'motor_name',
+                    'frame_name',
+                    'body_name',
+                    'frame_pose')
+                if field in sensor_descr}
+
             # Make sure the sensor can be instantiated
-            if sensor_type == encoder.type:
-                joint_name = sensor_descr.pop('joint_name')
+            joint_name = init_kwargs.get('joint_name', None)
+            if joint_name is not None:
+                init_kwargs['joint_name'] = joint_name
                 if not robot.pinocchio_model.existJointName(joint_name):
-                    LOGGER.warning(
-                        "'%s' is not a valid joint name.", joint_name)
-                    continue
-            elif sensor_type == effort.type:
-                motor_name = sensor_descr.pop('motor_name')
-                if motor_name not in robot.motor_names:
-                    LOGGER.warning(
-                        "'%s' is not a valid motor name.", motor_name)
-                    continue
+                    raise ValueError(
+                        f"'{joint_name}' is not a valid joint name.")
+
+            motor_name = init_kwargs.get('motor_name', None)
+            if motor_name is not None:
+                init_kwargs['motor_name'] = motor_name
+                if motor_name not in motor_names:
+                    raise ValueError(
+                        f"'{motor_name}' is not a valid motor name.")
+
+            frame_name = init_kwargs.get('frame_name', None)
+            if frame_name is not None:
+                # Create a frame if a frame name has been specified.
+                # In such a case, the body name must be specified.
+                if not robot.pinocchio_model.existFrame(frame_name):
+                    # Get the body name
+                    body_name = init_kwargs.pop('body_name')
+
+                    # Generate a frame name both intelligible and available
+                    if frame_name is None:
+                        i = 0
+                        frame_name = "_".join((
+                            sensor_name, sensor_type, "Frame"))
+                        while robot.pinocchio_model.existFrame(frame_name):
+                            frame_name = "_".join((
+                                sensor_name, sensor_type, "Frame", str(i)))
+                            i += 1
+
+                    # Compute SE3 object representing the frame placement
+                    frame_pose_xyzrpy = np.array(init_kwargs.pop('frame_pose'))
+                    frame_trans = frame_pose_xyzrpy[:3]
+                    frame_rot = rpyToMatrix(frame_pose_xyzrpy[3:])
+                    frame_placement = pin.SE3(frame_rot, frame_trans)
+
+                    # Add the frame to the robot model
+                    robot.add_frame(frame_name, body_name, frame_placement)
+
+                    # Add newly created frame to initialization options
+                    init_kwargs['frame_name'] = frame_name
+                elif 'frame_pose' in init_kwargs.keys():
+                    raise ValueError(
+                        f"The sensor '{sensor_name}' is attached to the frame "
+                        f"'{frame_name}' that already exists whereas a "
+                        "specific pose is also requested.")
 
             # Create the sensor and attach it
             for module in (jiminy, *EXTENSION_MODULES):
@@ -783,54 +836,7 @@ def load_hardware_description_file(
             robot.attach_sensor(sensor)
 
             # Initialize the sensor
-            if sensor_type == encoder.type:
-                sensor.initialize(joint_name)
-            elif sensor_type == effort.type:
-                sensor.initialize(motor_name)
-            elif sensor_type == contact.type:
-                frame_name = sensor_descr.pop('frame_name')
-                sensor.initialize(frame_name)
-            elif sensor_type in [force.type, imu.type]:
-                # Create the frame and add it to the robot model
-                frame_name = sensor_descr.pop('frame_name', None)
-
-                # Create a frame if a frame name has been specified.
-                # In such a case, the body name must be specified.
-                if not frame_name or \
-                        not robot.pinocchio_model.existFrame(frame_name):
-                    # Get the body name
-                    body_name = sensor_descr.pop('body_name')
-
-                    # Generate a frame name both intelligible and available
-                    if frame_name is None:
-                        i = 0
-                        frame_name = "_".join((
-                            sensor_name, sensor_type, "Frame"))
-                        while robot.pinocchio_model.existFrame(frame_name):
-                            frame_name = "_".join((
-                                sensor_name, sensor_type, "Frame", str(i)))
-                            i += 1
-
-                    # Compute SE3 object representing the frame placement
-                    frame_pose_xyzrpy = np.array(
-                        sensor_descr.pop('frame_pose'))
-                    frame_trans = frame_pose_xyzrpy[:3]
-                    frame_rot = rpyToMatrix(frame_pose_xyzrpy[3:])
-                    frame_placement = pin.SE3(frame_rot, frame_trans)
-
-                    # Add the frame to the robot model
-                    robot.add_frame(frame_name, body_name, frame_placement)
-                elif 'frame_pose' in sensor_descr.keys():
-                    raise ValueError(
-                        f"The sensor '{sensor_name}' is attached to the frame "
-                        f"'{frame_name}' that already exists whereas a "
-                        "specific pose is also requested.")
-
-                # Initialize the sensor
-                sensor.initialize(frame_name)
-            else:
-                raise ValueError(
-                    f"Unsupported sensor type {sensor_type}.")
+            sensor.initialize(**init_kwargs)
 
             # Set the sensor options
             options = sensor.get_options()

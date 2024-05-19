@@ -46,7 +46,7 @@ from pinocchio.rpy import (  # pylint: disable=import-error
 
 from .. import core as jiminy
 from ..core import (  # pylint: disable=no-name-in-module
-    ContactSensor as contact,
+    ContactSensor,
     discretize_heightmap)
 from ..robot import _DuplicateFilter
 from ..dynamics import Trajectory
@@ -837,19 +837,17 @@ class Viewer:
                 f_z_rel = sensor_data[2] / CONTACT_FORCE_SCALE
                 return (1.0, 1.0, min(max(f_z_rel, -1.0), 1.0))
 
-            if contact.type in robot.sensor_names.keys():
-                for name in robot.sensor_names[contact.type]:
-                    sensor = robot.get_sensor(contact.type, name)
-                    frame_index, data = sensor.frame_index, sensor.data
-                    self.add_marker(name='_'.join((contact.type, name)),
-                                    shape="cylinder",
-                                    pose=self._client.data.oMf[frame_index],
-                                    scale=partial(get_contact_scale, data),
-                                    remove_if_exists=True,
-                                    auto_refresh=False,
-                                    radius=0.02,
-                                    length=0.5,
-                                    anchor_bottom=True)
+            for sensor in robot.sensors.get(ContactSensor.type, []):
+                frame_index, data = sensor.frame_index, sensor.data
+                self.add_marker(name='_'.join((sensor.type, sensor.name)),
+                                shape="cylinder",
+                                pose=self._client.data.oMf[frame_index],
+                                scale=partial(get_contact_scale, data),
+                                remove_if_exists=True,
+                                auto_refresh=False,
+                                radius=0.02,
+                                length=0.5,
+                                anchor_bottom=True)
 
             self.display_contact_forces(self._display_contact_forces)
 
@@ -2232,7 +2230,7 @@ class Viewer:
 
         # Update visibility
         for name in self.markers:
-            if name.startswith(contact.type):
+            if name.startswith(ContactSensor.type):
                 self._gui.show_node(self._markers_group, name, visibility)
                 self._markers_visibility[name] = visibility
         self._display_contact_forces = visibility

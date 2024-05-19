@@ -1415,7 +1415,7 @@ namespace boost::serialization
 
 BOOST_CLASS_EXPORT(ForceSensor)
 
-// *********************************** jiminy::EncoderSensor *********************************** //
+// ******************************** jiminy::EncoderSensor ********************************* //
 
 namespace boost::serialization
 {
@@ -1442,7 +1442,16 @@ namespace boost::serialization
         }
 
         // Save initialization data
-        ar << make_nvp("joint_name", sensor.getJointName());
+        const bool isJointSide = sensor.getMotorName().empty();
+        ar << make_nvp("is_joint_side", isJointSide);
+        if (isJointSide)
+        {
+            ar << make_nvp("joint_name", sensor.getJointName());
+        }
+        else
+        {
+            ar << make_nvp("motor_name", sensor.getMotorName());
+        }
     }
 
     template<class Archive>
@@ -1485,11 +1494,20 @@ namespace boost::serialization
         }
 
         // Load initialization data but initialize sensor only if attached
-        std::string jointName;
-        ar >> make_nvp("joint_name", jointName);
+        bool isJointSide;
+        ar >> make_nvp("is_joint_side", isJointSide);
+        std::string motorOrJointName;
+        if (isJointSide)
+        {
+            ar >> make_nvp("joint_name", motorOrJointName);
+        }
+        else
+        {
+            ar >> make_nvp("motor_name", motorOrJointName);
+        }
         if (sensor.getIsAttached())
         {
-            sensor.initialize(jointName);
+            sensor.initialize(motorOrJointName, isJointSide);
         }
     }
 

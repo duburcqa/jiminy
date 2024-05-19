@@ -116,17 +116,14 @@ class CartPoleJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
 
         # Add motors and sensors
         motor_joint_name = "slider_to_cart"
-        encoder_sensors_descr = {
-            "slider": "slider_to_cart",
-            "pole": "cart_to_pole"
-        }
         motor = jiminy.SimpleMotor(motor_joint_name)
         robot.attach_motor(motor)
         motor.initialize(motor_joint_name)
-        for sensor_name, joint_name in encoder_sensors_descr.items():
+        for sensor_name, joint_name in (
+                ("slider", "slider_to_cart"), ("pole", "cart_to_pole")):
             encoder = jiminy.EncoderSensor(sensor_name)
             robot.attach_sensor(encoder)
-            encoder.initialize(joint_name)
+            encoder.initialize(joint_name=joint_name)
 
         # Instantiate simulator
         simulator = Simulator(robot, viewer_kwargs=viewer_kwargs)
@@ -163,14 +160,18 @@ class CartPoleJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
 
         See documentation: https://gym.openai.com/envs/CartPole-v1/.
         """
-        # Compute observation bounds
-        high = np.array([X_THRESHOLD,
-                         THETA_THRESHOLD,
-                         *self.robot.pinocchio_model.velocityLimit])
+        # Define custom symmetric position bounds
+        position_limit_upper = np.array([X_THRESHOLD, THETA_THRESHOLD])
+
+        # Get velocity bounds associated the theoretical model
+        velocity_limit = self.robot.get_theoretical_velocity_from_extended(
+            self.robot.pinocchio_model.velocityLimit)
 
         # Set the observation space
+        state_limit_upper = np.concatenate((
+            position_limit_upper, *self.robot.pinocchio_model.velocityLimit))
         self.observation_space = spaces.Box(
-            low=-high, high=high, dtype=np.float64)
+            low=-state_limit_upper, high=state_limit_upper, dtype=np.float64)
 
     def _initialize_action_space(self) -> None:
         """ TODO: Write documentation.

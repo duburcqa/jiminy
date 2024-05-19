@@ -93,7 +93,7 @@ namespace jiminy
 
     public:
         /// \param[in] name Name of the motor.
-        explicit AbstractMotorBase(const std::string & name) noexcept;
+        explicit AbstractMotorBase(const std::string & name);
         virtual ~AbstractMotorBase();
 
         /// \brief Refresh the proxies.
@@ -147,14 +147,11 @@ namespace jiminy
         /// \brief Index of the joint associated with the motor in the kinematic tree.
         pinocchio::JointIndex getJointIndex() const;
 
-        /// \brief Type of joint associated with the motor.
-        JointModelType getJointType() const;
+        /// \brief Maximum position of the actuated joint translated on motor side.
+        double getPositionLimitLower() const;
 
-        /// \brief Index of the joint associated with the motor in configuration vector.
-        Eigen::Index getJointPositionIndex() const;
-
-        /// \brief Index of the joint associated with the motor in the velocity vector.
-        Eigen::Index getJointVelocityIndex() const;
+        /// \brief Minimum position of the actuated joint translated on motor side.
+        double getPositionLimitUpper() const;
 
         /// \brief Maximum velocity of the motor.
         double getVelocityLimit() const;
@@ -235,8 +232,8 @@ namespace jiminy
         std::string jointName_{};
         pinocchio::JointIndex jointIndex_{0};
         JointModelType jointType_{JointModelType::UNSUPPORTED};
-        Eigen::Index jointPositionIndex_{0};
-        Eigen::Index jointVelocityIndex_{0};
+        double positionLimitLower_{};
+        double positionLimitUpper_{};
         double velocityLimit_{0.0};
         double effortLimit_{0.0};
         double armature_{0.0};

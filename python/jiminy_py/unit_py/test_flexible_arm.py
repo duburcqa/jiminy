@@ -95,7 +95,7 @@ class SimulateFlexibleArm(unittest.TestCase):
             N_FLEXIBILITY + 1, urdf_path)
 
         # Load URDF, create model.
-        self.motor_names = ["base_to_link0"]
+        self.motor_names = ("base_to_link0",)
         robot = load_urdf_default(urdf_path, self.motor_names)
 
         # Remove temporary file

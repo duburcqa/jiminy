@@ -69,7 +69,7 @@ namespace jiminy
         };
 
     public:
-        explicit SimpleMotor(const std::string & name) noexcept;
+        explicit SimpleMotor(const std::string & name);
         virtual ~SimpleMotor() = default;
 
         void initialize(const std::string & jointName);

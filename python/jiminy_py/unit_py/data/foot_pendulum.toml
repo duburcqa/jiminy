@@ -36,7 +36,7 @@ frame_name = "Foot_CollisionBox_0_4"
 frame_name = "Foot_CollisionBox_0_6"
 
 [Sensor.EncoderSensor.PendulumJoint]
-joint_name = "PendulumJoint"
+motor_name = "PendulumJoint"
 
 [Sensor.EffortSensor.PendulumJoint]
 motor_name = "PendulumJoint"

@@ -399,13 +399,21 @@ namespace jiminy::python
                  &Robot::detachSensors,
                  (bp::arg("self"), bp::arg("sensor_type") = std::string()))
 
+            .def("get_motor",
+                 static_cast<std::shared_ptr<AbstractMotorBase> (Robot::*)(const std::string &)>(
+                     &Robot::getMotor),
+                 (bp::arg("self"), "motor_name"))
             .ADD_PROPERTY_GET_WITH_POLICY(
                 "motors",
-                static_cast<const Robot::WeakMotorVector & (Robot::*)() const>(&Robot::getMotors),
+                static_cast<const Robot::MotorVector & (Robot::*)()>(&Robot::getMotors),
                 bp::return_value_policy<result_converter<true>>())
+            .def("get_sensor",
+                 static_cast<std::shared_ptr<AbstractSensorBase> (Robot::*)(
+                     const std::string &, const std::string &)>(&Robot::getSensor),
+                 (bp::arg("self"), "sensor_type", "sensor_name"))
             .ADD_PROPERTY_GET_WITH_POLICY(
                 "sensors",
-                static_cast<const Robot::WeakSensorTree & (Robot::*)() const>(&Robot::getSensors),
+                static_cast<const Robot::SensorTree & (Robot::*)()>(&Robot::getSensors),
                 bp::return_value_policy<result_converter<true>>())
 
             .ADD_PROPERTY_GET_SET("controller",
@@ -431,6 +439,6 @@ namespace jiminy::python
                                           &Robot::getLogCommandFieldnames,
                                           bp::return_value_policy<result_converter<true>>())
 
-            .ADD_PROPERTY_GET("nmotors", &Model::nq);
+            .ADD_PROPERTY_GET("nmotors", &Robot::nmotors);
     }
 }

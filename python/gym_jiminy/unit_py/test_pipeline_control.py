@@ -13,7 +13,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image
 
-from jiminy_py.core import ImuSensor as imu
+from jiminy_py.core import ImuSensor
 from jiminy_py.viewer import Viewer
 
 from gym_jiminy.envs import (
@@ -141,7 +141,7 @@ class PipelineControl(unittest.TestCase):
             action[robot.get_motor(name).index] = value
 
         # Extract proxies for convenience
-        sensor = robot.get_sensor(imu.type, robot.sensor_names[imu.type][0])
+        sensor = next(iter(robot.sensors[ImuSensor.type]))
         imu_rot = robot.pinocchio_data.oMf[sensor.frame_index].rotation
 
         # Check that the estimate IMU orientation is accurate over the episode
@@ -289,12 +289,11 @@ class PipelineControl(unittest.TestCase):
             target_vel_diff, target_vel[1:], atol=TOLERANCE)
 
         # Make sure that the position and velocity targets are within bounds
-        *_, motor_position_index = env.robot.motor_position_indices
-        *_, motor_velocity_index = env.robot.motor_velocity_indices
         pinocchio_model = env.robot.pinocchio_model
+        motor_position_index = env.robot.motor_position_indices[-1]
         pos_min = pinocchio_model.lowerPositionLimit[motor_position_index]
         pos_max = pinocchio_model.upperPositionLimit[motor_position_index]
-        vel_limit = pinocchio_model.velocityLimit[motor_velocity_index]
+        vel_limit = self.robot.motor_velocity_limit[-1]
         self.assertTrue(np.all(np.logical_and(
             pos_min <= target_pos, target_pos <= pos_max)))
         self.assertTrue(np.all(np.abs(target_vel) <= vel_limit))

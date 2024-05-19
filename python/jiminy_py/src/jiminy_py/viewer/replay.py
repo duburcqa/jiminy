@@ -776,7 +776,7 @@ def extract_replay_data_from_log(
     if not robot.is_locked:
         update_hook = update_sensor_measurements_from_log(log_data, robot)
     else:
-        if robot.sensor_names:
+        if robot.sensors:
             LOGGER.warning(
                 "At least one of the robot is locked, which means that a "
                 "simulation using the robot is still running. It will be "

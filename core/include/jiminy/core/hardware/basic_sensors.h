@@ -137,14 +137,15 @@ namespace jiminy
     public:
         using AbstractSensorTpl<EncoderSensor>::AbstractSensorTpl;
 
-        void initialize(const std::string & jointName);
+        void initialize(const std::string & motorOrJointName, bool isJointSide = false);
 
         void setOptions(const GenericConfig & sensorOptions) override;
         void refreshProxies() override;
 
+        const std::string & getMotorName() const;
+        std::size_t getMotorIndex() const;
         const std::string & getJointName() const;
         pinocchio::JointIndex getJointIndex() const;
-        JointModelType getJointType() const;
 
     private:
         void set(double t,
@@ -157,7 +158,14 @@ namespace jiminy
     private:
         std::string jointName_{};
         pinocchio::JointIndex jointIndex_{0};
+        std::string motorName_{};
+        std::size_t motorIndex_{0};
+        bool isJointSide_{false};
+
         JointModelType jointType_{JointModelType::UNSUPPORTED};
+        std::size_t jointPositionIndex_{0};
+        std::size_t joinVelocityIndex_{0};
+        double mechanicalReduction_{1.0};
     };
 
     class EffortSensor;

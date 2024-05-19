@@ -36,9 +36,8 @@ namespace jiminy::python
                                           &AbstractMotorBase::getJointName,
                                           bp::return_value_policy<bp::return_by_value>())
             .ADD_PROPERTY_GET("joint_index", &AbstractMotorBase::getJointIndex)
-            .ADD_PROPERTY_GET("joint_type", &AbstractMotorBase::getJointType)
-            .ADD_PROPERTY_GET("joint_position_index", &AbstractMotorBase::getJointPositionIndex)
-            .ADD_PROPERTY_GET("joint_velocity_index", &AbstractMotorBase::getJointVelocityIndex)
+            .ADD_PROPERTY_GET("position_limit_lower", &AbstractMotorBase::getPositionLimitLower)
+            .ADD_PROPERTY_GET("position_limit_upper", &AbstractMotorBase::getPositionLimitUpper)
             .ADD_PROPERTY_GET("velocity_limit", &AbstractMotorBase::getVelocityLimit)
             .ADD_PROPERTY_GET("effort_limit", &AbstractMotorBase::getEffortLimit)
             .ADD_PROPERTY_GET("armature", &AbstractMotorBase::getArmature)

@@ -150,8 +150,6 @@ namespace jiminy
         mutable GenericConfig robotOptionsGeneric_{};
         /// \brief Log telemetry fieldnames associated with the command of each motor.
         std::vector<std::string> logCommandFieldnames_{};
-        /// \brief Number of motors.
-        Eigen::Index nmotors_{0};
         /// \brief Controller of the robot.
         std::shared_ptr<AbstractController> controller_{nullptr};
         /// \brief Name of the robot.

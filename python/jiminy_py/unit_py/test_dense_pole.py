@@ -44,8 +44,7 @@ class SimulateDensePole(unittest.TestCase):
         self.robot.set_model_options(model_options)
 
         # Configure the motors
-        for motor_name in self.robot.motor_names:
-            motor = self.robot.get_motor(motor_name)
+        for motor in self.robot.motors:
             motor_options = motor.get_options()
             motor_options["enableVelocityLimit"] = False
             motor.set_options(motor_options)

@@ -73,25 +73,25 @@ frictionViscousNegative = -1.0
 # ============= Encoder sensors ===============
 
 [Sensor.EncoderSensor.hip_1]
-joint_name = "hip_1"
+motor_name = "hip_1"
 
 [Sensor.EncoderSensor.ankle_1]
-joint_name = "ankle_1"
+motor_name = "ankle_1"
 
 [Sensor.EncoderSensor.hip_2]
-joint_name = "hip_2"
+motor_name = "hip_2"
 
 [Sensor.EncoderSensor.ankle_2]
-joint_name = "ankle_2"
+motor_name = "ankle_2"
 
 [Sensor.EncoderSensor.hip_3]
-joint_name = "hip_3"
+motor_name = "hip_3"
 
 [Sensor.EncoderSensor.ankle_3]
-joint_name = "ankle_3"
+motor_name = "ankle_3"
 
 [Sensor.EncoderSensor.hip_4]
-joint_name = "hip_4"
+motor_name = "hip_4"
 
 [Sensor.EncoderSensor.ankle_4]
-joint_name = "ankle_4"
+motor_name = "ankle_4"
