@@ -351,17 +351,6 @@ namespace jiminy::python
             return std::make_shared<SensorMeasurementTree>(self.getSensorMeasurements());
         }
 
-        static bp::dict getSensorNames(Robot & self)
-        {
-            bp::dict sensorsNamesPy;
-            const auto & sensorsNames = self.getSensorNames();
-            for (const auto & sensorTypeNames : sensorsNames)
-            {
-                sensorsNamesPy[sensorTypeNames.first] = convertToPython(sensorTypeNames.second);
-            }
-            return sensorsNamesPy;
-        }
-
         static void setModelOptions(Robot & self, const bp::dict & configPy)
         {
             GenericConfig config = self.getModelOptions();
@@ -396,10 +385,6 @@ namespace jiminy::python
                 "name", &Robot::getName, bp::return_value_policy<bp::return_by_value>())
 
             .def("attach_motor", &Robot::attachMotor, (bp::arg("self"), "motor"))
-            .def("get_motor",
-                 static_cast<std::shared_ptr<AbstractMotorBase> (Robot::*)(const std::string &)>(
-                     &Robot::getMotor),
-                 (bp::arg("self"), "motor_name"))
             .def("detach_motor",
                  static_cast<void (Robot::*)(const std::string &)>(&Robot::detachMotor),
                  (bp::arg("self"), "joint_name"))
@@ -413,10 +398,15 @@ namespace jiminy::python
             .def("detach_sensors",
                  &Robot::detachSensors,
                  (bp::arg("self"), bp::arg("sensor_type") = std::string()))
-            .def("get_sensor",
-                 static_cast<std::shared_ptr<AbstractSensorBase> (Robot::*)(
-                     const std::string &, const std::string &)>(&Robot::getSensor),
-                 (bp::arg("self"), "sensor_type", "sensor_name"))
+
+            .ADD_PROPERTY_GET_WITH_POLICY(
+                "motors",
+                static_cast<const Robot::WeakMotorVector & (Robot::*)() const>(&Robot::getMotors),
+                bp::return_value_policy<result_converter<true>>())
+            .ADD_PROPERTY_GET_WITH_POLICY(
+                "sensors",
+                static_cast<const Robot::WeakSensorTree & (Robot::*)() const>(&Robot::getSensors),
+                bp::return_value_policy<result_converter<true>>())
 
             .ADD_PROPERTY_GET_SET("controller",
                                   static_cast<std::shared_ptr<AbstractController> (Robot::*)()>(
@@ -437,23 +427,10 @@ namespace jiminy::python
                  &Robot::getModelOptions,
                  bp::return_value_policy<bp::return_by_value>())
 
-            .ADD_PROPERTY_GET("nmotors", &Robot::nmotors)
-            .ADD_PROPERTY_GET_WITH_POLICY("motor_names",
-                                          &Robot::getMotorNames,
-                                          bp::return_value_policy<result_converter<true>>())
-            .ADD_PROPERTY_GET_WITH_POLICY("motor_position_indices",
-                                          &Robot::getMotorsPositionIndices,
-                                          bp::return_value_policy<result_converter<true>>())
-            .ADD_PROPERTY_GET_WITH_POLICY("motor_velocity_indices",
-                                          &Robot::getMotorVelocityIndices,
-                                          bp::return_value_policy<result_converter<true>>())
-            .ADD_PROPERTY_GET("sensor_names", &internal::robot::getSensorNames)
-
             .ADD_PROPERTY_GET_WITH_POLICY("log_command_fieldnames",
                                           &Robot::getLogCommandFieldnames,
                                           bp::return_value_policy<result_converter<true>>())
-            .ADD_PROPERTY_GET_WITH_POLICY("log_motor_effort_fieldnames",
-                                          &Robot::getLogMotorEffortFieldnames,
-                                          bp::return_value_policy<result_converter<true>>());
+
+            .ADD_PROPERTY_GET("nmotors", &Model::nq);
     }
 }
