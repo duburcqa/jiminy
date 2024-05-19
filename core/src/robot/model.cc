@@ -1214,6 +1214,8 @@ namespace jiminy
         logVelocityFieldnames_.reserve(static_cast<std::size_t>(nv_));
         logAccelerationFieldnames_.clear();
         logAccelerationFieldnames_.reserve(static_cast<std::size_t>(nv_));
+        logEffortFieldnames_.clear();
+        logEffortFieldnames_.reserve(static_cast<std::size_t>(nv_));
         logForceExternalFieldnames_.clear();
         logForceExternalFieldnames_.reserve(6U * (pinocchioModel_.njoints - 1));
         for (std::size_t i = 1; i < pinocchioModel_.joints.size(); ++i)
@@ -1250,6 +1252,8 @@ namespace jiminy
                     toString(jointPrefix, "Velocity", jointShortName, suffix));
                 logAccelerationFieldnames_.emplace_back(
                     toString(jointPrefix, "Acceleration", jointShortName, suffix));
+                logEffortFieldnames_.emplace_back(
+                    toString(jointPrefix, "Effort", jointShortName, suffix));
             }
 
             // Define complete external force fieldnames and backup them
@@ -1330,26 +1334,6 @@ namespace jiminy
         // Overwrite extended model position limits
         pinocchioModel_.lowerPositionLimit = positionLimitMin;
         pinocchioModel_.upperPositionLimit = positionLimitMax;
-
-        // Re-initialize velocity limit
-        Eigen::VectorXd & velocityLimit = pinocchioModel_.velocityLimit;
-        velocityLimit.setConstant(+INF);
-
-        // Set mechanical joint velocity limits
-        int jointIndexTh = 1;
-        for (std::size_t i = 0; i < mechanicalJointIndices_.size(); ++i)
-        {
-            const pinocchio::JointIndex jointIndex = mechanicalJointIndices_[i];
-            const std::string & jointName = pinocchioModel_.names[jointIndex];
-            while (pinocchioModelTh_.names[jointIndexTh] != jointName)
-            {
-                ++jointIndexTh;
-            }
-            const auto & joint = pinocchioModel_.joints[jointIndex];
-            const auto & jointTh = pinocchioModelTh_.joints[jointIndexTh];
-            velocityLimit.segment(joint.idx_v(), joint.nv()) =
-                pinocchioModelTh_.velocityLimit.segment(jointTh.idx_v(), jointTh.nv());
-        }
 
         // Refresh all other proxies
         refreshGeometryProxies();
@@ -1900,6 +1884,11 @@ namespace jiminy
     const std::vector<std::string> & Model::getLogAccelerationFieldnames() const
     {
         return logAccelerationFieldnames_;
+    }
+
+    const std::vector<std::string> & Model::getLogEffortFieldnames() const
+    {
+        return logEffortFieldnames_;
     }
 
     const std::vector<std::string> & Model::getLogForceExternalFieldnames() const

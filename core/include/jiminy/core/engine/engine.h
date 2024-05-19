@@ -198,9 +198,9 @@ namespace jiminy
         std::vector<std::string> logPositionFieldnames{};
         std::vector<std::string> logVelocityFieldnames{};
         std::vector<std::string> logAccelerationFieldnames{};
+        std::vector<std::string> logEffortFieldnames{};
         std::vector<std::string> logForceExternalFieldnames{};
         std::vector<std::string> logCommandFieldnames{};
-        std::vector<std::string> logMotorEffortFieldnames{};
         std::string logEnergyFieldname{};
 
         /// \brief Internal buffer with the state for the integration loop.
@@ -329,7 +329,7 @@ namespace jiminy
             config["enableAcceleration"] = true;
             config["enableForceExternal"] = false;
             config["enableCommand"] = true;
-            config["enableMotorEffort"] = true;
+            config["enableEffort"] = true;
             config["enableEnergy"] = true;
             return config;
         };
@@ -438,7 +438,7 @@ namespace jiminy
             const bool enableAcceleration;
             const bool enableForceExternal;
             const bool enableCommand;
-            const bool enableMotorEffort;
+            const bool enableEffort;
             const bool enableEnergy;
 
             TelemetryOptions(const GenericConfig & options) :
@@ -448,7 +448,7 @@ namespace jiminy
             enableAcceleration{boost::get<bool>(options.at("enableAcceleration"))},
             enableForceExternal{boost::get<bool>(options.at("enableForceExternal"))},
             enableCommand{boost::get<bool>(options.at("enableCommand"))},
-            enableMotorEffort{boost::get<bool>(options.at("enableMotorEffort"))},
+            enableEffort{boost::get<bool>(options.at("enableEffort"))},
             enableEnergy{boost::get<bool>(options.at("enableEnergy"))}
             {
             }

@@ -96,7 +96,7 @@ int main(int /* argc */, char * /* argv */[])
     boost::get<bool>(telemetryOptions.at("enableAcceleration")) = true;
     boost::get<bool>(telemetryOptions.at("enableForceExternal")) = false;
     boost::get<bool>(telemetryOptions.at("enableCommand")) = true;
-    boost::get<bool>(telemetryOptions.at("enableMotorEffort")) = true;
+    boost::get<bool>(telemetryOptions.at("enableEffort")) = true;
     boost::get<bool>(telemetryOptions.at("enableEnergy")) = true;
     GenericConfig & worldOptions = boost::get<GenericConfig>(simuOptions.at("world"));
     boost::get<Eigen::VectorXd>(worldOptions.at("gravity"))[2] = -9.81;

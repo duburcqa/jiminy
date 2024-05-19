@@ -599,6 +599,11 @@ namespace jiminy
                                  robotName,
                                  {},
                                  TELEMETRY_FIELDNAME_DELIMITER);
+                robotDataIt->logEffortFieldnames =
+                    addCircumfix((*robotIt)->getLogEffortFieldnames(),
+                                 robotName,
+                                 {},
+                                 TELEMETRY_FIELDNAME_DELIMITER);
                 robotDataIt->logForceExternalFieldnames =
                     addCircumfix((*robotIt)->getLogForceExternalFieldnames(),
                                  robotName,
@@ -606,11 +611,6 @@ namespace jiminy
                                  TELEMETRY_FIELDNAME_DELIMITER);
                 robotDataIt->logCommandFieldnames =
                     addCircumfix((*robotIt)->getLogCommandFieldnames(),
-                                 robotName,
-                                 {},
-                                 TELEMETRY_FIELDNAME_DELIMITER);
-                robotDataIt->logMotorEffortFieldnames =
-                    addCircumfix((*robotIt)->getLogMotorEffortFieldnames(),
                                  robotName,
                                  {},
                                  TELEMETRY_FIELDNAME_DELIMITER);
@@ -633,6 +633,11 @@ namespace jiminy
                     telemetrySender_->registerVariable(robotDataIt->logAccelerationFieldnames,
                                                        robotDataIt->state.a);
                 }
+                if (engineOptions_->telemetry.enableEffort)
+                {
+                    telemetrySender_->registerVariable(robotDataIt->logEffortFieldnames,
+                                                       robotDataIt->state.u);
+                }
                 if (engineOptions_->telemetry.enableForceExternal)
                 {
                     for (std::size_t i = 1; i < robotDataIt->state.fExternal.size(); ++i)
@@ -650,11 +655,6 @@ namespace jiminy
                 {
                     telemetrySender_->registerVariable(robotDataIt->logCommandFieldnames,
                                                        robotDataIt->state.command);
-                }
-                if (engineOptions_->telemetry.enableMotorEffort)
-                {
-                    telemetrySender_->registerVariable(robotDataIt->logMotorEffortFieldnames,
-                                                       robotDataIt->state.uMotor);
                 }
                 if (engineOptions_->telemetry.enableEnergy)
                 {

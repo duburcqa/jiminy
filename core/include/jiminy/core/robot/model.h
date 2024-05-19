@@ -369,6 +369,7 @@ namespace jiminy
         const std::vector<std::string> & getLogPositionFieldnames() const;
         const std::vector<std::string> & getLogVelocityFieldnames() const;
         const std::vector<std::string> & getLogAccelerationFieldnames() const;
+        const std::vector<std::string> & getLogEffortFieldnames() const;
         const std::vector<std::string> & getLogForceExternalFieldnames() const;
 
         void getExtendedPositionFromTheoretical(const Eigen::VectorXd & qTheoretical,
@@ -470,6 +471,8 @@ namespace jiminy
         std::vector<std::string> logVelocityFieldnames_{};
         /// \brief Fieldnames of the elements in the acceleration vector of the model.
         std::vector<std::string> logAccelerationFieldnames_{};
+        /// \brief Fieldnames of the elements in the effort vector of the model.
+        std::vector<std::string> logEffortFieldnames_{};
         /// \brief Concatenated fieldnames of the external force applied at each joint of the
         ///        model, 'universe' excluded.
         std::vector<std::string> logForceExternalFieldnames_{};

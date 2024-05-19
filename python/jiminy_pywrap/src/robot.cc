@@ -328,6 +328,9 @@ namespace jiminy::python
             .ADD_PROPERTY_GET_WITH_POLICY("log_acceleration_fieldnames",
                                           &Model::getLogAccelerationFieldnames,
                                           bp::return_value_policy<result_converter<true>>())
+            .ADD_PROPERTY_GET_WITH_POLICY("log_effort_fieldnames",
+                                          &Model::getLogEffortFieldnames,
+                                          bp::return_value_policy<result_converter<true>>())
             .ADD_PROPERTY_GET_WITH_POLICY("log_f_external_fieldnames",
                                           &Model::getLogForceExternalFieldnames,
                                           bp::return_value_policy<result_converter<true>>());

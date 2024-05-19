@@ -40,7 +40,7 @@ namespace jiminy::python
             .ADD_PROPERTY_GET("joint_position_index", &AbstractMotorBase::getJointPositionIndex)
             .ADD_PROPERTY_GET("joint_velocity_index", &AbstractMotorBase::getJointVelocityIndex)
             .ADD_PROPERTY_GET("velocity_limit", &AbstractMotorBase::getVelocityLimit)
-            .ADD_PROPERTY_GET("command_limit", &AbstractMotorBase::getCommandLimit)
+            .ADD_PROPERTY_GET("effort_limit", &AbstractMotorBase::getEffortLimit)
             .ADD_PROPERTY_GET("armature", &AbstractMotorBase::getArmature)
             .ADD_PROPERTY_GET("backlash", &AbstractMotorBase::getBacklash)
 

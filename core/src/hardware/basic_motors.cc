@@ -89,19 +89,22 @@ namespace jiminy
                          "Motor not initialized. Impossible to compute actual motor effort.");
         }
 
-        /* Compute the motor effort, taking into account velocity and command limits.
+        // Compute the velocity at motor-level
+        const double vMotor = motorOptions_->mechanicalReduction * v;
+
+        /* Compute the motor effort, taking into account velocity and effort limits.
            It is the output of the motor on joint side, ie after the transmission. */
-        double commandMin = -commandLimit_;
-        if (v < -velocityLimit_)
+        double effortMin = -effortLimit_;
+        if (vMotor < -velocityLimit_)
         {
-            commandMin = 0.0;
+            effortMin = 0.0;
         }
-        double commandMax = commandLimit_;
-        if (v > velocityLimit_)
+        double effortMax = effortLimit_;
+        if (vMotor > velocityLimit_)
         {
-            commandMax = 0.0;
+            effortMax = 0.0;
         }
-        data() = motorOptions_->mechanicalReduction * std::clamp(command, commandMin, commandMax);
+        data() = motorOptions_->mechanicalReduction * std::clamp(command, effortMin, effortMax);
 
         /* Add friction to the joints associated with the motor if enable.
            It is computed on joint side instead of the motor. */

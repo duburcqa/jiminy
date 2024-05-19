@@ -291,6 +291,9 @@ namespace jiminy
         // Remove the motor from the holder
         motors_.erase(motorIt);
 
+        // Remove log telemetry motor command fieldname
+        logCommandFieldnames_.erase(logCommandFieldnames_.begin() + motor->getIndex());
+
         // Detach the motor
         motor->detach();
 
@@ -309,9 +312,6 @@ namespace jiminy
 
             // Trigger extended model regeneration
             reset(std::random_device{});
-
-            // Refresh the motors proxies
-            refreshMotorProxies();
         }
     }
 
@@ -565,77 +565,6 @@ namespace jiminy
     std::weak_ptr<const AbstractController> Robot::getController() const
     {
         return std::const_pointer_cast<const AbstractController>(controller_);
-    }
-
-    void Robot::refreshProxies()
-    {
-        if (!isInitialized_)
-        {
-            JIMINY_THROW(bad_control_flow, "Robot not initialized.");
-        }
-
-        Model::refreshProxies();
-        refreshMotorProxies();
-        refreshSensorProxies();
-    }
-
-    void Robot::refreshMotorProxies()
-    {
-        if (!isInitialized_)
-        {
-            JIMINY_THROW(bad_control_flow, "Robot not initialized.");
-        }
-
-        // Determine the number of motors
-        nmotors_ = motors_.size();
-
-        // Extract the motor names
-        motorNames_.clear();
-        motorNames_.reserve(nmotors_);
-        std::transform(motors_.begin(),
-                       motors_.end(),
-                       std::back_inserter(motorNames_),
-                       [](const auto & elem) -> std::string { return elem->getName(); });
-
-        // Generate the fieldnames associated with command
-        logCommandFieldnames_.clear();
-        logCommandFieldnames_.reserve(nmotors_);
-        std::transform(motors_.begin(),
-                       motors_.end(),
-                       std::back_inserter(logCommandFieldnames_),
-                       [](const auto & elem) -> std::string
-                       { return toString(JOINT_PREFIX_BASE, "Command", elem->getName()); });
-
-        // Generate the fieldnames associated with motor efforts
-        logMotorEffortFieldnames_.clear();
-        logMotorEffortFieldnames_.reserve(nmotors_);
-        std::transform(motors_.begin(),
-                       motors_.end(),
-                       std::back_inserter(logMotorEffortFieldnames_),
-                       [](const auto & elem) -> std::string
-                       { return toString(JOINT_PREFIX_BASE, "Effort", elem->getName()); });
-    }
-
-    void Robot::refreshSensorProxies()
-    {
-        if (!isInitialized_)
-        {
-            JIMINY_THROW(bad_control_flow, "Robot not initialized.");
-        }
-
-        // Extract the motor names
-        sensorNames_.clear();
-        sensorNames_.reserve(sensors_.size());
-        for (const auto & [sensorType, sensorGroup] : sensors_)
-        {
-            std::vector<std::string> sensorGroupNames;
-            sensorGroupNames.reserve(sensorGroup.size());
-            std::transform(sensorGroup.begin(),
-                           sensorGroup.end(),
-                           std::back_inserter(sensorGroupNames),
-                           [](const auto & elem) -> std::string { return elem->getName(); });
-            sensorNames_.emplace(sensorType, std::move(sensorGroupNames));
-        }
     }
 
     void Robot::initializeExtendedModel()
@@ -1088,6 +1017,11 @@ namespace jiminy
 
         // Update controller telemetry
         controller_->updateTelemetry();
+    }
+
+    const std::vector<std::string> & Robot::getLogCommandFieldnames() const
+    {
+        return logCommandFieldnames_;
     }
 
     std::unique_ptr<LockGuardLocal> Robot::getLock()

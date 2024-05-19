@@ -46,9 +46,9 @@ namespace jiminy
             config["enableVelocityLimit"] = false;
             config["velocityLimitFromUrdf"] = true;
             config["velocityLimit"] = 0.0;
-            config["enableCommandLimit"] = true;
-            config["commandLimitFromUrdf"] = true;
-            config["commandLimit"] = 0.0;
+            config["enableEffortLimit"] = true;
+            config["effortLimitFromUrdf"] = true;
+            config["effortLimit"] = 0.0;
             config["enableArmature"] = false;
             config["armature"] = 0.0;
             config["enableBacklash"] = false;
@@ -64,9 +64,9 @@ namespace jiminy
             const bool enableVelocityLimit;
             const bool velocityLimitFromUrdf;
             const double velocityLimit;
-            const bool enableCommandLimit;
-            const bool commandLimitFromUrdf;
-            const double commandLimit;
+            const bool enableEffortLimit;
+            const bool effortLimitFromUrdf;
+            const double effortLimit;
             const bool enableArmature;
             const double armature;
             const bool enableBacklash;
@@ -77,9 +77,9 @@ namespace jiminy
             enableVelocityLimit(boost::get<bool>(options.at("enableVelocityLimit"))),
             velocityLimitFromUrdf(boost::get<bool>(options.at("velocityLimitFromUrdf"))),
             velocityLimit(boost::get<double>(options.at("velocityLimit"))),
-            enableCommandLimit(boost::get<bool>(options.at("enableCommandLimit"))),
-            commandLimitFromUrdf(boost::get<bool>(options.at("commandLimitFromUrdf"))),
-            commandLimit(boost::get<double>(options.at("commandLimit"))),
+            enableEffortLimit(boost::get<bool>(options.at("enableEffortLimit"))),
+            effortLimitFromUrdf(boost::get<bool>(options.at("effortLimitFromUrdf"))),
+            effortLimit(boost::get<double>(options.at("effortLimit"))),
             enableArmature(boost::get<bool>(options.at("enableArmature"))),
             armature(boost::get<double>(options.at("armature"))),
             enableBacklash(boost::get<bool>(options.at("enableBacklash"))),
@@ -160,12 +160,12 @@ namespace jiminy
         double getVelocityLimit() const;
 
         /// \brief Maximum effort of the motor.
-        double getCommandLimit() const;
+        double getEffortLimit() const;
 
-        /// \brief Rotor inertia of the motor.
+        /// \brief Rotor inertia of the motor on joint side.
         double getArmature() const;
 
-        /// \brief Backlash of the transmission.
+        /// \brief Backlash of the transmission on joint side.
         double getBacklash() const;
 
         /// \brief Request the motor to update its actual effort based of the input data.
@@ -238,7 +238,7 @@ namespace jiminy
         Eigen::Index jointPositionIndex_{0};
         Eigen::Index jointVelocityIndex_{0};
         double velocityLimit_{0.0};
-        double commandLimit_{0.0};
+        double effortLimit_{0.0};
         double armature_{0.0};
         double backlash_{0.0};
 
