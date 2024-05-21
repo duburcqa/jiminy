@@ -37,7 +37,7 @@ namespace jiminy
     ///               |------>
     ///             x = 0
     ///
-    /// \details The stairs have identical height and width, and each staircases has an identical
+    /// \details The stairs have identical height and width, and each staircase has an identical
     ///          step number. This number corresponds to the amount of steps to climb in order to
     ///          reach the highest steps from the lowest ones. The above ASCII art shows staircases
     ///          with a step number of two.
