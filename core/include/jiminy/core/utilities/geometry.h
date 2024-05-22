@@ -25,6 +25,29 @@ namespace jiminy
         double yMax,
         double yUnit,
         bool mustSimplify = false);
+
+    /// \brief Unidirectional periodic stairs ground of even parity, consisting of alternating
+    ///        ascending and descending staircases.
+    ///                               _______                         _______
+    ///     __                _______|H      |_______         _______|H      |_______
+    ///       |______________|H                     H|_______|H                     H|_ . . .
+    ///       .       .      .       .       .       .       .       .       .       .
+    ///       .   W   .  W   .   W   .   W   .   W   .   W   .   W   .   W   .   W   .
+    ///       .  i=0  . i=0  .  i=1  .  i=N  . i=N+1 .  i=0  .  i=1  .  i=N  . i=N+1 .
+    ///               |------>
+    ///             x = 0
+    ///
+    /// \details The stairs have identical height and width, and each staircase has an identical
+    ///          step number. This number corresponds to the amount of steps to climb in order to
+    ///          reach the highest steps from the lowest ones. The above ASCII art shows staircases
+    ///          with a step number of two.
+    ///
+    /// \param[in] stepWidth   Width of the steps.
+    /// \param[in] stepHeight  Heigh of the steps.
+    /// \param[in] stepNumber  Number of steps in the ascending or descending direction.
+    /// \param[in] orientation Orientation of the staircases in the XY plane.
+    HeightmapFunction JIMINY_DLLAPI stairs(
+        double stepWidth, double stepHeight, uint32_t stepNumber, double orientation);
 }
 
 #endif  // JIMINY_GEOMETRY_H

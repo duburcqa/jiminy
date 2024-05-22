@@ -144,7 +144,7 @@ setup(
             # Used internally by Viewer to enable recording video
             # programmatically with Meshcat as backend.
             # - 1.43 is broken
-            "playwright!=1.43"
+            "playwright<1.43"
         ],
         "dev": [
             # Generate Python type hints files (aka. stubs) for C extensions.
