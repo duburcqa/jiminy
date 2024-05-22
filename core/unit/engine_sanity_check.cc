@@ -79,7 +79,7 @@ TEST(EngineSanity, EnergyConservation)
     {
         GenericConfig & motorOptions = boost::get<GenericConfig>(motorOptionsItem.second);
         boost::get<bool>(motorOptions.at("enableVelocityLimit")) = false;
-        boost::get<bool>(motorOptions.at("enableCommandLimit")) = false;
+        boost::get<bool>(motorOptions.at("enableEffortLimit")) = false;
     }
 
     // Set all robot options
@@ -93,12 +93,16 @@ TEST(EngineSanity, EnergyConservation)
     Engine engine{};
     engine.addRobot(robot);
 
-    // Configure engine: High accuracy + Continuous-time integration
+    // Configure engine: High accuracy + Continuous-time integration + telemetry
     GenericConfig simuOptions = engine.getDefaultEngineOptions();
     {
         GenericConfig & stepperOptions = boost::get<GenericConfig>(simuOptions.at("stepper"));
         boost::get<double>(stepperOptions.at("tolAbs")) = TOLERANCE * 1.0e-2;
         boost::get<double>(stepperOptions.at("tolRel")) = TOLERANCE * 1.0e-2;
+    }
+    {
+        GenericConfig & telemetryOptions = boost::get<GenericConfig>(simuOptions.at("telemetry"));
+        boost::get<bool>(telemetryOptions.at("enableEnergy")) = true;
     }
     engine.setOptions(simuOptions);
 
@@ -133,6 +137,10 @@ TEST(EngineSanity, EnergyConservation)
         GenericConfig & stepperOptions = boost::get<GenericConfig>(simuOptions.at("stepper"));
         boost::get<double>(stepperOptions.at("sensorsUpdatePeriod")) = 1.0e-3;
         boost::get<double>(stepperOptions.at("controllerUpdatePeriod")) = 1.0e-3;
+    }
+    {
+        GenericConfig & telemetryOptions = boost::get<GenericConfig>(simuOptions.at("telemetry"));
+        boost::get<bool>(telemetryOptions.at("enableEnergy")) = true;
     }
     engine.setOptions(simuOptions);
 

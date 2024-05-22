@@ -199,15 +199,9 @@ namespace jiminy
         // Check if the internal buffers must be updated
         if (isInitialized_)
         {
-            // Check if armature has changed
-            const bool enableArmature = boost::get<bool>(motorOptions.at("enableArmature"));
-            mustNotifyRobot_ |= (baseMotorOptions_->enableArmature != enableArmature);
-            if (enableArmature)
-            {
-                const double armature = boost::get<double>(motorOptions.at("armature"));
-                mustNotifyRobot_ |=  //
-                    std::abs(armature - baseMotorOptions_->armature) > EPS;
-            }
+            // Check if mechanical reduction ratio has changed
+            mustNotifyRobot_ |= abs(baseMotorOptions_->mechanicalReduction - mechanicalReduction) >
+                                EPS;
 
             // Check if backlash has changed
             const bool enableBacklash = boost::get<bool>(motorOptions.at("enableBacklash"));
@@ -219,30 +213,14 @@ namespace jiminy
                     std::abs(backlash - baseMotorOptions_->backlash) > EPS;
             }
 
-            // Check if mechanical reduction ratio has changed
-            mustNotifyRobot_ |= abs(baseMotorOptions_->mechanicalReduction - mechanicalReduction) >
-                                EPS;
-
-            // Check if velocity limit has changed
-            const bool velocityLimitFromUrdf =
-                boost::get<bool>(motorOptions.at("velocityLimitFromUrdf"));
-            mustNotifyRobot_ |=
-                (baseMotorOptions_->velocityLimitFromUrdf != velocityLimitFromUrdf);
-            if (!velocityLimitFromUrdf)
+            // Check if armature has changed
+            const bool enableArmature = boost::get<bool>(motorOptions.at("enableArmature"));
+            mustNotifyRobot_ |= (baseMotorOptions_->enableArmature != enableArmature);
+            if (enableArmature)
             {
-                const double velocityLimit = boost::get<double>(motorOptions.at("velocityLimit"));
-                mustNotifyRobot_ |= std::abs(velocityLimit - baseMotorOptions_->velocityLimit) >
-                                    EPS;
-            }
-
-            // Check if effort limit has changed
-            const bool effortLimitFromUrdf =
-                boost::get<bool>(motorOptions.at("effortLimitFromUrdf"));
-            mustNotifyRobot_ |= (baseMotorOptions_->effortLimitFromUrdf != effortLimitFromUrdf);
-            if (!effortLimitFromUrdf)
-            {
-                const double effortLimit = boost::get<double>(motorOptions.at("effortLimit"));
-                mustNotifyRobot_ |= std::abs(effortLimit - baseMotorOptions_->effortLimit) > EPS;
+                const double armature = boost::get<double>(motorOptions.at("armature"));
+                mustNotifyRobot_ |=  //
+                    std::abs(armature - baseMotorOptions_->armature) > EPS;
             }
         }
 
@@ -252,8 +230,8 @@ namespace jiminy
         // Update inherited polymorphic accessor
         deepUpdate(motorOptionsGeneric_, motorOptions);
 
-        // Refresh the proxies if the attached robot must be notified if any
-        if (robot && isAttached_ && mustNotifyRobot_)
+        // Refresh proxies systematically if motor is attached
+        if (robot && isAttached_)
         {
             refreshProxies();
         }
@@ -330,23 +308,16 @@ namespace jiminy
         }
 
         // Get the motor effort limits on motor side from the URDF or the user options
-        if (baseMotorOptions_->enableEffortLimit)
+        if (baseMotorOptions_->effortLimitFromUrdf)
         {
-            if (baseMotorOptions_->effortLimitFromUrdf)
-            {
-                const Eigen::Index mechanicalJointVelocityIndex =
-                    getJointVelocityFirstIndex(robot->pinocchioModelTh_, jointName_);
-                effortLimit_ = robot->pinocchioModelTh_.effortLimit[mechanicalJointVelocityIndex] /
-                               mechanicalReduction;
-            }
-            else
-            {
-                effortLimit_ = baseMotorOptions_->effortLimit;
-            }
+            const Eigen::Index mechanicalJointVelocityIndex =
+                getJointVelocityFirstIndex(robot->pinocchioModelTh_, jointName_);
+            effortLimit_ = robot->pinocchioModelTh_.effortLimit[mechanicalJointVelocityIndex] /
+                           mechanicalReduction;
         }
         else
         {
-            effortLimit_ = INF;
+            effortLimit_ = baseMotorOptions_->effortLimit;
         }
 
         // Get the motor velocity limits on motor side from the URDF or the user options

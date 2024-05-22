@@ -61,6 +61,14 @@ namespace jiminy
             JIMINY_THROW(std::invalid_argument, "'frictionDrySlope' must be positive.");
         }
 
+        // Check that velocity limit is not enabled with effort limit
+        if (boost::get<bool>(motorOptions.at("enableVelocityLimit")) &&
+            !boost::get<bool>(motorOptions.at("enableEffortLimit")))
+        {
+            JIMINY_THROW(std::invalid_argument,
+                         "'enableVelocityLimit' cannot be enabled without 'enableEffortLimit'.");
+        }
+
         // Update class-specific "strongly typed" accessor for fast and convenient access
         motorOptions_ = std::make_unique<const SimpleMotorOptions>(motorOptions);
 
@@ -85,17 +93,22 @@ namespace jiminy
 
         /* Compute the motor effort, taking into account velocity and effort limits.
            It is the output of the motor on joint side, ie after the transmission. */
-        double effortMin = -effortLimit_;
-        double effortMax = effortLimit_;
-        if (motorOptions_->enableVelocityLimit)
+        double effortMin = -INF;
+        double effortMax = INF;
+        if (motorOptions_->enableEffortLimit)
         {
-            if (vMotor < -velocityLimit_)
+            effortMin = -effortLimit_;
+            effortMax = effortLimit_;
+            if (motorOptions_->enableVelocityLimit)
             {
-                effortMin = 0.0;
-            }
-            if (vMotor > velocityLimit_)
-            {
-                effortMax = 0.0;
+                if (vMotor < -velocityLimit_)
+                {
+                    effortMin = 0.0;
+                }
+                if (vMotor > velocityLimit_)
+                {
+                    effortMax = 0.0;
+                }
             }
         }
         data() = motorOptions_->mechanicalReduction * std::clamp(command, effortMin, effortMax);

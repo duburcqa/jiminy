@@ -43,10 +43,8 @@ namespace jiminy
         {
             GenericConfig config;
             config["mechanicalReduction"] = 1.0;
-            config["enableVelocityLimit"] = false;
             config["velocityLimitFromUrdf"] = true;
             config["velocityLimit"] = 0.0;
-            config["enableEffortLimit"] = true;
             config["effortLimitFromUrdf"] = true;
             config["effortLimit"] = 0.0;
             config["enableArmature"] = false;
@@ -61,10 +59,8 @@ namespace jiminy
         {
             /// \brief Mechanical reduction ratio of transmission (joint/motor), usually >= 1.0.
             const double mechanicalReduction;
-            const bool enableVelocityLimit;
             const bool velocityLimitFromUrdf;
             const double velocityLimit;
-            const bool enableEffortLimit;
             const bool effortLimitFromUrdf;
             const double effortLimit;
             const bool enableArmature;
@@ -74,10 +70,8 @@ namespace jiminy
 
             AbstractMotorOptions(const GenericConfig & options) :
             mechanicalReduction(boost::get<double>(options.at("mechanicalReduction"))),
-            enableVelocityLimit(boost::get<bool>(options.at("enableVelocityLimit"))),
             velocityLimitFromUrdf(boost::get<bool>(options.at("velocityLimitFromUrdf"))),
             velocityLimit(boost::get<double>(options.at("velocityLimit"))),
-            enableEffortLimit(boost::get<bool>(options.at("enableEffortLimit"))),
             effortLimitFromUrdf(boost::get<bool>(options.at("effortLimitFromUrdf"))),
             effortLimit(boost::get<double>(options.at("effortLimit"))),
             enableArmature(boost::get<bool>(options.at("enableArmature"))),

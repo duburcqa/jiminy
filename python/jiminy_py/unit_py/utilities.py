@@ -52,7 +52,7 @@ def load_urdf_default(urdf_name: str,
     motor_options = robot_options["motors"]
     for motor in robot.motors:
         motor_options[motor.name]["enableVelocityLimit"] = False
-        motor_options[motor.name]['enableCommandLimit'] = False
+        motor_options[motor.name]['enableEffortLimit'] = False
         motor_options[motor.name]['enableArmature'] = False
     robot.set_options(robot_options)
 
