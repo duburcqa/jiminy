@@ -100,7 +100,7 @@ if interactive_mode() >= 2:
                         msg = None
                 else:
                     # Do not spend time analyzing messages already rejected
-                    msg = None
+                    idents, msg = None, None
 
                 if msg is not None and \
                         msg['header']['msg_type'].startswith('comm_'):

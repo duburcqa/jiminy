@@ -116,7 +116,6 @@ def setup_controller_and_engine(
     # Enable telemetry by default
     engine_options = engine.get_options()
     telemetry_options = engine_options["telemetry"]
-    telemetry_options["enableAcceleration"] = True
     telemetry_options["enableEffort"] = True
     telemetry_options["enableEnergy"] = True
     engine.set_options(engine_options)
@@ -200,7 +199,6 @@ def simulate_and_get_state_evolution(
     # Enable telemetry by default
     engine_options = engine.get_options()
     telemetry_options = engine_options["telemetry"]
-    telemetry_options["enableAcceleration"] = True
     telemetry_options["enableEffort"] = True
     telemetry_options["enableEnergy"] = True
     engine.set_options(engine_options)

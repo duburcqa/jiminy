@@ -32,6 +32,7 @@
 #include "jiminy/core/hardware/abstract_sensor.h"
 #include "jiminy/core/hardware/basic_sensors.h"
 #include "jiminy/core/robot/robot.h"
+#include "jiminy/core/utilities/pinocchio.h"
 
 #define BOOST_FILESYSTEM_VERSION 3
 #include <boost/filesystem/operations.hpp>  // `boost::filesystem::unique_path`
@@ -672,8 +673,28 @@ namespace boost::serialization
         // Backup mesh package lookup directories
         ar << make_nvp("mesh_package_dirs", model.getMeshPackageDirs());
 
+        /* Copy the theoretical model then remove extra collision frames.
+           Note that `removeCollisionBodies` is not called to avoid altering the robot. */
+        pinocchio::Model pinocchioModelTh = model.pinocchioModelTh_;
+        std::vector<std::string> collisionConstraintNames;
+        for (const std::string & name : model.getCollisionBodyNames())
+        {
+            for (const pinocchio::GeometryObject & geom : model.collisionModelTh_.geometryObjects)
+            {
+                if (model.pinocchioModel_.frames[geom.parentFrame].name == name &&
+                    model.getConstraints().exist(geom.name, ConstraintNodeType::COLLISION_BODIES))
+                {
+                    const pinocchio::FrameIndex frameIndex =
+                        getFrameIndex(pinocchioModelTh, geom.name);
+                    pinocchioModelTh.frames.erase(
+                        std::next(pinocchioModelTh.frames.begin(), frameIndex));
+                    pinocchioModelTh.nframes--;
+                }
+            }
+        }
+
         // Backup theoretical and extended simulation models
-        ar << make_nvp("pinocchio_model_th", model.pinocchioModelTh_);
+        ar << make_nvp("pinocchio_model_th", pinocchioModelTh);
         ar << make_nvp("pinocchio_model", model.pinocchioModel_);
 
         /* Backup the Pinocchio GeometryModel for collisions and visuals if requested.

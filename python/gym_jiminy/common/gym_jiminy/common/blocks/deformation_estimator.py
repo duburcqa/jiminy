@@ -260,8 +260,10 @@ def get_flexibility_imu_frame_chains(
     supports = []
     for joint_index in leaf_joint_indices:
         support = []
-        while joint_index > 0:
+        while True:
             support.append(joint_index)
+            if joint_index == 0:
+                break
             joint_index = parents[joint_index]
         supports.append(support)
 
@@ -544,16 +546,17 @@ class DeformationEstimator(
         # Backup some of the user-argument(s)
         self.ignore_twist = ignore_twist
 
-        # Define proxies for fast access
-        self.pinocchio_model_th = env.robot.pinocchio_model_th.copy()
-        self.pinocchio_data_th = env.robot.pinocchio_data_th.copy()
-
         # Create flexible dynamic model.
         # Dummy physical parameters are specified as they have no effect on
         # kinematic computations.
         model = jiminy.Model()
-        model.initialize(env.robot.pinocchio_model_th)
+        pinocchio_model_th = env.robot.pinocchio_model_th
+        if env.robot.has_freeflyer:
+            pinocchio_model_th = pin.buildReducedModel(
+                pinocchio_model_th, [1], pin.neutral(pinocchio_model_th))
+        model.initialize(pinocchio_model_th)
         options = model.get_options()
+        options["dynamics"]["enableFlexibility"] = True
         for frame_name in flex_frame_names:
             options["dynamics"]["flexibilityConfig"].append(
                 {
@@ -564,6 +567,10 @@ class DeformationEstimator(
                 }
             )
         model.set_options(options)
+
+        # Backup theoretical pinocchio model without floating base
+        self.pinocchio_model_th = model.pinocchio_model_th.copy()
+        self.pinocchio_data_th = model.pinocchio_data_th.copy()
 
         # Extract contiguous chains of flexibility and IMU frames for which
         # computations can be vectorized. It also stores the information of
@@ -648,15 +655,16 @@ class DeformationEstimator(
 
         # Extract mapping from encoders to theoretical configuration.
         # Note that revolute unbounded joints are not supported for now.
-        self.encoder_to_config_position_map = [-1,] * env.robot.nmotors
+        self.encoder_to_position_map = [-1,] * env.robot.nmotors
         for sensor in env.robot.sensors[EncoderSensor.type]:
             assert isinstance(sensor, EncoderSensor)
-            joint = self.pinocchio_model_th.joints[sensor.joint_index]
+            joint_index = self.pinocchio_model_th.getJointId(sensor.joint_name)
+            joint = self.pinocchio_model_th.joints[joint_index]
             joint_type = jiminy.get_joint_type(joint)
             if joint_type == jiminy.JointModelType.ROTARY_UNBOUNDED:
                 raise ValueError(
                     "Revolute unbounded joints are not supported for now.")
-            self.encoder_to_config_position_map[sensor.index] = joint.idx_q
+            self.encoder_to_position_map[sensor.index] = joint.idx_q
 
         # Extract measured motor / joint positions for fast access.
         # Note that they will be initialized in `_setup` method.
@@ -704,8 +712,12 @@ class DeformationEstimator(
         # Refresh the theoretical model of the robot.
         # Even if the robot may change, the theoretical model of the robot is
         # not supposed to change in a way that would break this observer.
-        self.pinocchio_model_th = self.env.robot.pinocchio_model_th
-        self.pinocchio_data_th = self.env.robot.pinocchio_data_th
+        pinocchio_model_th = self.env.robot.pinocchio_model_th
+        if self.env.robot.has_freeflyer:
+            pinocchio_model_th = pin.buildReducedModel(
+                pinocchio_model_th, [1], pin.neutral(pinocchio_model_th))
+        self.pinocchio_model_th = pinocchio_model_th
+        self.pinocchio_data_th = self.pinocchio_model_th.createData()
 
         # Fix initialization of the observation to be valid quaternions
         self.observation[-1] = 1.0
@@ -754,9 +766,10 @@ class DeformationEstimator(
         joint_positions = self.encoder_to_joint_ratio * self.encoder_data
 
         # Update the configuration of the theoretical model of the robot
-        self._q_th[self.encoder_to_config_position_map] = joint_positions
+        self._q_th[self.encoder_to_position_map] = joint_positions
 
-        # Update kinematic quantities according to the estimated configuration
+        # Update kinematic quantities according to the estimated configuration.
+        # FIXME: Compute frame placement only for relevant IMUs.
         pin.framesForwardKinematics(
             self.pinocchio_model_th, self.pinocchio_data_th, self._q_th)
 

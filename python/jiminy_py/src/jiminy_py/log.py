@@ -7,19 +7,12 @@ from bisect import bisect_right
 from itertools import zip_longest, starmap
 from collections import OrderedDict
 from typing import (
-    Any, Callable, List, Dict, Optional, Sequence, Union, Literal, Type,
-    overload)
+    Any, Callable, List, Dict, Optional, Sequence, Union, Literal, overload)
 
 import numpy as np
 
 from . import core as jiminy
 from . import tree
-from .core import (  # pylint: disable=no-name-in-module
-    EncoderSensor,
-    EffortSensor,
-    ContactSensor,
-    ForceSensor,
-    ImuSensor as imu)
 from .dynamics import State, Trajectory
 
 

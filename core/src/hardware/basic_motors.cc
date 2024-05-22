@@ -86,14 +86,17 @@ namespace jiminy
         /* Compute the motor effort, taking into account velocity and effort limits.
            It is the output of the motor on joint side, ie after the transmission. */
         double effortMin = -effortLimit_;
-        if (vMotor < -velocityLimit_)
-        {
-            effortMin = 0.0;
-        }
         double effortMax = effortLimit_;
-        if (vMotor > velocityLimit_)
+        if (motorOptions_->enableVelocityLimit)
         {
-            effortMax = 0.0;
+            if (vMotor < -velocityLimit_)
+            {
+                effortMin = 0.0;
+            }
+            if (vMotor > velocityLimit_)
+            {
+                effortMax = 0.0;
+            }
         }
         data() = motorOptions_->mechanicalReduction * std::clamp(command, effortMin, effortMax);
 

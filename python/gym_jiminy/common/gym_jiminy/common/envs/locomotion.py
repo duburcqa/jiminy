@@ -3,7 +3,7 @@ Jiminy simulator as physics engine.
 """
 import os
 import pathlib
-from typing import Optional, Dict, Union, Any, Type, Sequence, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
 
@@ -38,25 +38,25 @@ FLEX_STIFFNESS_SCALE = 1000
 FLEX_DAMPING_SCALE = 10
 
 SENSOR_DELAY_SCALE = {
-    EncoderSensor.type: 3.0e-3,
-    EffortSensor.type: 0.0,
-    ContactSensor.type: 0.0,
-    ForceSensor.type: 0.0,
-    ImuSensor.type: 0.0
+    EncoderSensor: 3.0e-3,
+    EffortSensor: 0.0,
+    ContactSensor: 0.0,
+    ForceSensor: 0.0,
+    ImuSensor: 0.0
 }
 SENSOR_NOISE_SCALE = {
-    EncoderSensor.type: np.array([0.0, 0.02]),
-    EffortSensor.type: np.array([10.0]),
-    ContactSensor.type: np.array([2.0, 2.0, 2.0, 10.0, 10.0, 10.0]),
-    ForceSensor.type: np.array([2.0, 2.0, 2.0]),
-    ImuSensor.type: np.array([0.0, 0.0, 0.0, 0.01, 0.01, 0.01, 0.2, 0.2, 0.2])
+    EncoderSensor: np.array([0.0, 0.02]),
+    EffortSensor: np.array([10.0]),
+    ContactSensor: np.array([2.0, 2.0, 2.0, 10.0, 10.0, 10.0]),
+    ForceSensor: np.array([2.0, 2.0, 2.0]),
+    ImuSensor: np.array([0.0, 0.0, 0.0, 0.01, 0.01, 0.01, 0.2, 0.2, 0.2])
 }
 SENSOR_BIAS_SCALE = {
-    EncoderSensor.type: np.array([0.0, 0.0]),
-    EffortSensor.type: np.array([0.0]),
-    ContactSensor.type: np.array([4.0, 4.0, 4.0, 20.0, 20.0, 20.0]),
-    ForceSensor.type: np.array([4.0, 4.0, 4.0]),
-    ImuSensor.type: np.array([0.01, 0.01, 0.01, 0.02, 0.02, 0.02, 0.0, 0.0, 0.0])
+    EncoderSensor: np.array([0.0, 0.0]),
+    EffortSensor: np.array([0.0]),
+    ContactSensor: np.array([4.0, 4.0, 4.0, 20.0, 20.0, 20.0]),
+    ForceSensor: np.array([4.0, 4.0, 4.0]),
+    ImuSensor: np.array([0.01, 0.01, 0.01, 0.02, 0.02, 0.02, 0.0, 0.0, 0.0])
 }
 
 DEFAULT_SIMULATION_DURATION = 30.0  # (s) Default simulation duration
@@ -260,25 +260,27 @@ class WalkerJiminyEnv(BaseJiminyEnv):
 
         # Add sensor noise, bias and delay
         if 'sensors' in self.std_ratio.keys():
-            sensor_classes: Sequence[Union[
-                Type[encoder], Type[effort], Type[contact], Type[force],
-                Type[imu]]] = (encoder, effort, contact, force, imu)
-            for sensor in sensor_classes:
-                sensors_options = robot_options["sensors"][sensor.type]
+            for cls in (EncoderSensor,
+                        EffortSensor,
+                        ContactSensor,
+                        ForceSensor,
+                        ImuSensor):
+                sensors_options = robot_options["sensors"][cls.type]
                 for sensor_options in sensors_options.values():
                     for name in ("delay", "jitter"):
                         sensor_options[name] = sample(
                             low=0.0,
                             high=(self.std_ratio['sensors'] *
-                                  SENSOR_DELAY_SCALE[sensor.type]),
+                                  SENSOR_DELAY_SCALE[cls]),
                             rg=self.np_random)
                     for name in (
                             ("bias", SENSOR_BIAS_SCALE),
                             ("noiseStd", SENSOR_NOISE_SCALE)):
                         sensor_options[name] = sample(
                             scale=(self.std_ratio['sensors'] *
-                                   SENSOR_NOISE_SCALE[sensor.type]),
-                            shape=(len(sensor.fieldnames),),
+                                   SENSOR_NOISE_SCALE[cls]),
+                            shape=(len(
+                                cls.fieldnames),),  # type: ignore[arg-type]
                             rg=self.np_random)
 
         # Randomize the flexibility parameters

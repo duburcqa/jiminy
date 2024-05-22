@@ -1518,7 +1518,7 @@ class Viewer:
               name and index in model.
         :param wait: Whether to wait for rendering to finish.
         """
-        # pylint: disable=invalid-name
+        # pylint: disable=invalid-name, possibly-used-before-assignment
         # Assert(s) for type checker
         assert Viewer.backend is not None
         assert Viewer._backend_obj is not None

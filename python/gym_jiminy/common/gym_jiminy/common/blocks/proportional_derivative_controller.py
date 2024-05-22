@@ -305,10 +305,8 @@ class PDController(
         :param target_velocity_limit: Restrict maximum motor target velocities
                                       wrt their hardware specifications.
                                       Optional: "inf" by default.
-        :param target_acceleration_limit:
-            Restrict maximum motor target accelerations wrt their hardware
-            specifications.
-            Optional: "inf" by default.
+        :param target_acceleration_limit: Maximum motor target acceleration.
+                                          Optional: "inf" by default.
         """
         # Make sure the action space of the environment has not been altered
         if env.action_space is not env.unwrapped.action_space:
@@ -360,12 +358,9 @@ class PDController(
             min(motor.velocity_limit, target_velocity_limit)
             for motor in env.robot.motors])
 
-        # Compute acceleration bounds allowing unrestricted bang-bang control
-        range_limit = 2 * motors_velocity_limit / env.step_dt
-        effort_limit = self.motors_effort_limit / (
-            self.kp * env.step_dt * np.maximum(env.step_dt / 2, self.kd))
-        acceleration_limit = np.minimum(
-            np.minimum(range_limit, effort_limit), target_acceleration_limit)
+        # Define acceleration bounds
+        acceleration_limit = np.full(
+            (env.robot.nmotors,), target_acceleration_limit)
 
         # Compute command state bounds
         self._command_state_lower = np.stack([motors_position_lower,

@@ -51,6 +51,7 @@ PD_REDUCED_KD = (
     # Right leg: [HpX, HpZ, HpY, KnY, AkY, AkX]
     0.02, 0.01, 0.015, 0.01, 0.015, 0.01)
 
+# PID derivative gains (one per actuated joint)
 PD_FULL_KP = (
     # Neck: [Y]
     100.0,
@@ -225,6 +226,8 @@ class AtlasReducedJiminyEnv(WalkerJiminyEnv):
             avoid_instable_collisions=True,
             debug=debug,
             **{**dict(
+                config_path=str(
+                    Path(urdf_path).with_suffix('')) + '_options.toml',
                 simulation_duration_max=SIMULATION_DURATION,
                 step_dt=STEP_DT,
                 reward_mixture=REWARD_MIXTURE,

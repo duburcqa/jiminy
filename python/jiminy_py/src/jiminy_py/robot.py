@@ -24,12 +24,7 @@ from pinocchio.rpy import rpyToMatrix  # pylint: disable=import-error
 
 from . import core as jiminy
 from .core import (  # pylint: disable=no-name-in-module
-    SimpleMotor,
-    EncoderSensor,
-    EffortSensor,
-    ContactSensor,
-    ForceSensor,
-    ImuSensor)
+    SimpleMotor, EncoderSensor, EffortSensor, ForceSensor, ImuSensor)
 
 
 DEFAULT_UPDATE_RATE = 1000.0  # [Hz]

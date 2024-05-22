@@ -116,7 +116,7 @@ class AcrobotJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
 
         # Map between discrete actions and actual motor torque if necessary
         if not self.continuous:
-            command_limit = np.asarray(motor.command_limit)
+            command_limit = np.array(motor.effort_limit)
             self.AVAIL_CTRL = (-command_limit, np.array(0.0), command_limit)
 
         # Internal parameters used for computing termination condition

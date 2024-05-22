@@ -11,7 +11,7 @@ contactFrameNames = []  #['tip_1', 'tip_2', 'tip_3', 'tip_4']
 joint_name = "hip_1"
 enableVelocityLimit = false
 mechanicalReduction = 150.0
-armature = 0.00044
+armature = 4.4e-05
 frictionViscousPositive = -1.0
 frictionViscousNegative = -1.0
 
@@ -19,7 +19,7 @@ frictionViscousNegative = -1.0
 joint_name = "ankle_1"
 enableVelocityLimit = false
 mechanicalReduction = 150.0
-armature = 0.00044
+armature = 4.4e-05
 frictionViscousPositive = -1.0
 frictionViscousNegative = -1.0
 
@@ -27,7 +27,7 @@ frictionViscousNegative = -1.0
 joint_name = "hip_2"
 enableVelocityLimit = false
 mechanicalReduction = 150.0
-armature = 0.00044
+armature = 4.4e-05
 frictionViscousPositive = -1.0
 frictionViscousNegative = -1.0
 
@@ -35,7 +35,7 @@ frictionViscousNegative = -1.0
 joint_name = "ankle_2"
 enableVelocityLimit = false
 mechanicalReduction = 150.0
-armature = 0.00044
+armature = 4.4e-05
 frictionViscousPositive = -1.0
 frictionViscousNegative = -1.0
 
@@ -43,7 +43,7 @@ frictionViscousNegative = -1.0
 joint_name = "hip_3"
 enableVelocityLimit = false
 mechanicalReduction = 150.0
-armature = 0.00044
+armature = 4.4e-05
 frictionViscousPositive = -1.0
 frictionViscousNegative = -1.0
 
@@ -51,7 +51,7 @@ frictionViscousNegative = -1.0
 joint_name = "ankle_3"
 enableVelocityLimit = false
 mechanicalReduction = 150.0
-armature = 0.00044
+armature = 4.4e-05
 frictionViscousPositive = -1.0
 frictionViscousNegative = -1.0
 
@@ -59,14 +59,14 @@ frictionViscousNegative = -1.0
 joint_name = "hip_4"
 enableVelocityLimit = false
 mechanicalReduction = 150.0
-armature = 0.00044
+armature = 4.4e-05
 frictionViscousPositive = -1.0
 frictionViscousNegative = -1.0
 
 [Motor.SimpleMotor.ankle_4]
 joint_name = "ankle_4"
 mechanicalReduction = 150.0
-armature = 0.00044
+armature = 4.4e-05
 frictionViscousPositive = -1.0
 frictionViscousNegative = -1.0
 

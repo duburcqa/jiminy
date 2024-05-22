@@ -39,8 +39,9 @@ HLC_TO_LLC_RATIO = 1
 STEP_DT = 0.04
 
 # PID proportional gains (one per actuated joint)
-PD_KP = (100.0, 100.0, 100.0, 100.0, 80.0,
-         100.0, 100.0, 100.0, 100.0, 80.0)
+PD_KP = (4.0, 4.0, 6.25, 6.25, 1.6,
+         4.0, 4.0, 6.25, 6.25, 1.6)
+
 # PID derivative gains (one per actuated joint)
 PD_KD = (0.02, 0.02, 0.02, 0.02, 0.015,
          0.02, 0.02, 0.02, 0.02, 0.015)
@@ -115,6 +116,8 @@ class CassieJiminyEnv(WalkerJiminyEnv):
             avoid_instable_collisions=True,
             debug=debug,
             **{**dict(
+                config_path=str(
+                    Path(urdf_path).with_suffix('')) + '_options.toml',
                 simulation_duration_max=SIMULATION_DURATION,
                 step_dt=STEP_DT,
                 reward_mixture=REWARD_MIXTURE,

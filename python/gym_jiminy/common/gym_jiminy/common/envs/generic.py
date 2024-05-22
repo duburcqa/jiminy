@@ -23,7 +23,7 @@ from gymnasium.core import RenderFrame
 import jiminy_py.core as jiminy
 from jiminy_py import tree
 from jiminy_py.core import (  # pylint: disable=no-name-in-module
-    EncoderSensor, array_copyto)
+    EncoderSensor, EffortSensor, array_copyto)
 from jiminy_py.dynamics import compute_freeflyer_state_from_fixed_body
 from jiminy_py.log import extract_variables_from_log
 from jiminy_py.simulator import Simulator, TabbedFigure
@@ -274,7 +274,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
             if action_size > 0 and action_size == self.robot.nmotors:
                 action_fieldnames = [
                     ".".join(('action', motor.name))
-                     for motor in self.robot.motors]
+                    for motor in self.robot.motors]
                 self.register_variable(
                     'action', self.action, action_fieldnames)
 
@@ -372,6 +372,10 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
             rather overload `_initialize_observation_space` to customize the
             observation space as a whole.
         """
+        # Define some proxies for convenience
+        position_limit_lower = self.robot.pinocchio_model.lowerPositionLimit
+        position_limit_upper = self.robot.pinocchio_model.upperPositionLimit
+
         # Initialize the bounds of the sensor space
         sensor_measurements = self.robot.sensor_measurements
         sensor_space_lower = OrderedDict(
@@ -388,22 +392,25 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
             # cannot be extracted from the motor because only the principal
             # value of the angle is observed by the sensor.
             assert isinstance(sensor, EncoderSensor)
-            sensor_index = sensor.index
-            motor = self.robot.motors[sensor.motor_index]
-            joint = self.robot.pinocchio_model.joints[motor.joint_index]
+            joint = self.robot.pinocchio_model.joints[sensor.joint_index]
             joint_type = jiminy.get_joint_type(joint)
             if joint_type == jiminy.JointModelType.ROTARY_UNBOUNDED:
                 sensor_position_lower = - np.pi
                 sensor_position_upper = np.pi
             else:
-                sensor_position_lower = motor.position_limit_lower
-                sensor_position_upper = motor.position_limit_upper
+                try:
+                    motor = self.robot.motors[sensor.motor_index]
+                    sensor_position_lower = motor.position_limit_lower
+                    sensor_position_upper = motor.position_limit_upper
+                except IndexError:
+                    sensor_position_lower = position_limit_lower[joint.idx_q]
+                    sensor_position_upper = position_limit_upper[joint.idx_q]
 
             # Update the bounds accordingly
-            sensor_space_lower[EncoderSensor.type][:, sensor.index] = (
-                sensor_position_lower, -motor.velocity_limit)
-            sensor_space_upper[EncoderSensor.type][:, sensor.index] = (
-                sensor_position_upper, motor.velocity_limit)
+            sensor_space_lower[EncoderSensor.type][0, sensor.index] = (
+                sensor_position_lower)
+            sensor_space_upper[EncoderSensor.type][0, sensor.index] = (
+                sensor_position_upper)
 
         # Replace inf bounds of the effort sensor space
         for sensor in self.robot.sensors.get(EffortSensor.type, ()):

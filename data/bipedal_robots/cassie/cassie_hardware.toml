@@ -142,31 +142,31 @@ motor_name = "toe_joint_motor_right"
 # ============= Encoder sensors ===============
 
 [Sensor.EncoderSensor.hip_abduction_left]
-motor_name = "hip_abduction_left"
+motor_name = "hip_abduction_motor_left"
 
 [Sensor.EncoderSensor.hip_rotation_left]
-motor_name = "hip_rotation_left"
+motor_name = "hip_rotation_motor_left"
 
 [Sensor.EncoderSensor.hip_flexion_left]
-motor_name = "hip_flexion_left"
+motor_name = "hip_flexion_motor_left"
 
 [Sensor.EncoderSensor.knee_joint_left]
-motor_name = "knee_joint_left"
+motor_name = "knee_joint_motor_left"
 
 [Sensor.EncoderSensor.toe_joint_left]
-motor_name = "toe_joint_left"
+motor_name = "toe_joint_motor_left"
 
 [Sensor.EncoderSensor.hip_abduction_right]
-motor_name = "hip_abduction_right"
+motor_name = "hip_abduction_motor_right"
 
 [Sensor.EncoderSensor.hip_rotation_right]
-motor_name = "hip_rotation_right"
+motor_name = "hip_rotation_motor_right"
 
 [Sensor.EncoderSensor.hip_flexion_right]
-motor_name = "hip_flexion_right"
+motor_name = "hip_flexion_motor_right"
 
 [Sensor.EncoderSensor.knee_joint_right]
-motor_name = "knee_joint_right"
+motor_name = "knee_joint_motor_right"
 
 [Sensor.EncoderSensor.toe_joint_right]
-motor_name = "toe_joint_right"
+motor_name = "toe_joint_motor_right"

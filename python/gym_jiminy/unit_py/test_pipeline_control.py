@@ -289,14 +289,11 @@ class PipelineControl(unittest.TestCase):
             target_vel_diff, target_vel[1:], atol=TOLERANCE)
 
         # Make sure that the position and velocity targets are within bounds
-        pinocchio_model = env.robot.pinocchio_model
-        motor_position_index = env.robot.motor_position_indices[-1]
-        pos_min = pinocchio_model.lowerPositionLimit[motor_position_index]
-        pos_max = pinocchio_model.upperPositionLimit[motor_position_index]
-        vel_limit = self.robot.motor_velocity_limit[-1]
+        motor = env.robot.motors[-1]
         self.assertTrue(np.all(np.logical_and(
-            pos_min <= target_pos, target_pos <= pos_max)))
-        self.assertTrue(np.all(np.abs(target_vel) <= vel_limit))
+            motor.position_limit_lower <= target_pos,
+            target_pos <= motor.position_limit_upper)))
+        self.assertTrue(np.all(np.abs(target_vel) <= motor.velocity_limit))
 
     def test_repeatability(self):
         # Instantiate the environment

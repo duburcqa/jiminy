@@ -45,13 +45,14 @@ STEP_DT = 0.04
 # PID proportional gains (one per actuated joint)
 PD_KP = (
     # Left leg: [HpX, HpZ, HpY, KnY, AkY, AkX]
-    80.0, 100.0, 100.0, 100.0, 80.0, 80.0,
+    1.0, 2.0, 6.25, 6.25, 1.6, 1.6,
     # Left arm: [ShX, ShY, ShZ, ElY]
-    50.0, 50.0, 50.0, 50.0,
+    0.625, 0.625, 1.0, 0.625,
     # Right leg: [HpX, HpZ, HpY, KnY, AkY, AkX]
-    80.0, 100.0, 100.0, 100.0, 80.0, 80.0,
+    1.0, 2.0, 6.25, 6.25, 1.6, 1.6,
     # Right arm: [ShX, ShY, ShZ, ElY]
-    50.0, 50.0, 50.0, 50.0)
+    0.625, 0.625, 1.0, 0.625)
+
 # PID derivative gains (one per actuated joint)
 PD_KD = (
     # Left leg: [HpX, HpZ, HpY, KnY, AkY, AkX]

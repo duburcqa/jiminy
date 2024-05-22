@@ -135,7 +135,7 @@ class CartPoleJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
 
         # Map between discrete actions and actual motor force if necessary
         if not self.continuous:
-            command_limit = np.asarray(motor.command_limit)
+            command_limit = np.array(motor.effort_limit)
             self.AVAIL_CTRL = (-command_limit, np.array(0.0), command_limit)
 
         # Configure the learning environment
@@ -169,7 +169,7 @@ class CartPoleJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
 
         # Set the observation space
         state_limit_upper = np.concatenate((
-            position_limit_upper, *self.robot.pinocchio_model.velocityLimit))
+            position_limit_upper, velocity_limit))
         self.observation_space = spaces.Box(
             low=-state_limit_upper, high=state_limit_upper, dtype=np.float64)
 
@@ -189,8 +189,9 @@ class CartPoleJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
 
         Bounds of hypercube associated with initial state of robot.
         """
-        qpos = sample(scale=np.array([
-            X_RANDOM_MAX, THETA_RANDOM_MAX]), rg=self.np_random)
+        x, theta = sample(scale=np.array(
+            [X_RANDOM_MAX, THETA_RANDOM_MAX]), rg=self.np_random)
+        qpos = np.array([x, np.cos(theta), np.sin(theta)])
         qvel = sample(scale=np.array([
             DX_RANDOM_MAX, DTHETA_RANDOM_MAX]), rg=self.np_random)
         return qpos, qvel

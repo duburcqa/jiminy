@@ -906,7 +906,8 @@ def compute_inverse_dynamics(robot: jiminy.Model,
     # Define some proxies for convenience
     model = robot.pinocchio_model
     data = robot.pinocchio_data
-    motor_velocity_indices = robot.motor_velocity_indices
+    motor_velocity_indices = [
+        model.joints[motor.joint_index].idx_v for motor in robot.motors]
 
     # Updating kinematics quantities
     pin.forwardKinematics(model, data, position, velocity, acceleration)

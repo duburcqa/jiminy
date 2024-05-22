@@ -350,24 +350,16 @@ namespace jiminy
         }
 
         // Get the motor velocity limits on motor side from the URDF or the user options
-        if (baseMotorOptions_->enableVelocityLimit)
+        if (baseMotorOptions_->velocityLimitFromUrdf)
         {
-            if (baseMotorOptions_->velocityLimitFromUrdf)
-            {
-                const Eigen::Index mechanicalJointVelocityIndex =
-                    getJointVelocityFirstIndex(robot->pinocchioModelTh_, jointName_);
-                velocityLimit_ =
-                    robot->pinocchioModelTh_.velocityLimit[mechanicalJointVelocityIndex] *
-                    mechanicalReduction;
-            }
-            else
-            {
-                velocityLimit_ = baseMotorOptions_->velocityLimit;
-            }
+            const Eigen::Index mechanicalJointVelocityIndex =
+                getJointVelocityFirstIndex(robot->pinocchioModelTh_, jointName_);
+            velocityLimit_ = robot->pinocchioModelTh_.velocityLimit[mechanicalJointVelocityIndex] *
+                             mechanicalReduction;
         }
         else
         {
-            velocityLimit_ = INF;
+            velocityLimit_ = baseMotorOptions_->velocityLimit;
         }
 
         // Get the rotor inertia on joint side

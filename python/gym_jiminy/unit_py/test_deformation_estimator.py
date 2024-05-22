@@ -222,7 +222,7 @@ class DeformationEstimatorBlock(unittest.TestCase):
                     block=dict(
                         cls=PDController,
                         kwargs=dict(
-                            kp=150.0,
+                            kp=1.0,
                             kd=0.03,
                             update_ratio=1,
                         )
