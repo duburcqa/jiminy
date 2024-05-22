@@ -18,6 +18,7 @@ namespace jiminy
             GenericConfig config = AbstractMotorBase::getDefaultMotorOptions();
 
             config["enableVelocityLimit"] = false;
+            config["velocityEffortInvSlope"] = 0.0;
             config["enableEffortLimit"] = true;
             config["enableFriction"] = false;
             config["frictionViscousPositive"] = 0.0;
@@ -33,6 +34,10 @@ namespace jiminy
         {
             /// \brief Wether velocity limit is enabled.
             const bool enableVelocityLimit;
+            /// \brief Inverse constant decrease rate of the maximum torque wrt velocity when
+            ///        approaching the maximum velocity. The maximum torque is equal to zero at
+            ///        maximum velocity.
+            const double velocityEffortInvSlope;
             /// \brief Wether effort limit is enabled.
             const bool enableEffortLimit;
             /// \brief Wether joint friction is enabled.
@@ -63,6 +68,7 @@ namespace jiminy
             SimpleMotorOptions(const GenericConfig & options) :
             AbstractMotorOptions(options),
             enableVelocityLimit(boost::get<bool>(options.at("enableVelocityLimit"))),
+            velocityEffortInvSlope{boost::get<double>(options.at("velocityEffortInvSlope"))},
             enableEffortLimit(boost::get<bool>(options.at("enableEffortLimit"))),
             enableFriction{boost::get<bool>(options.at("enableFriction"))},
             frictionViscousPositive{boost::get<double>(options.at("frictionViscousPositive"))},

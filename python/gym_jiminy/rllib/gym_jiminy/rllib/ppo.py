@@ -414,6 +414,8 @@ class PPOTorchPolicy(_PPOTorchPolicy):
              train_batch: SampleBatch) -> Union[TensorType, List[TensorType]]:
         """Compute PPO loss with additional regularizations.
         """
+        # pylint: disable=possibly-used-before-assignment
+
         with torch.no_grad():
             # Extract some proxies from convenience
             observation_true = train_batch["obs"]

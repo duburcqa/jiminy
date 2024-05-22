@@ -101,14 +101,12 @@ namespace jiminy
             effortMax = effortLimit_;
             if (motorOptions_->enableVelocityLimit)
             {
-                if (vMotor < -velocityLimit_)
-                {
-                    effortMin = 0.0;
-                }
-                if (vMotor > velocityLimit_)
-                {
-                    effortMax = 0.0;
-                }
+                const double velocityThr = std::max(
+                    velocityLimit_ - effortLimit_ * motorOptions_->velocityEffortInvSlope, 0.0);
+                effortMin *= std::clamp(
+                    (velocityLimit_ + vMotor) / (velocityLimit_ - velocityThr), 0.0, 1.0);
+                effortMax *= std::clamp(
+                    (velocityLimit_ - vMotor) / (velocityLimit_ - velocityThr), 0.0, 1.0);
             }
         }
         data() = motorOptions_->mechanicalReduction * std::clamp(command, effortMin, effortMax);

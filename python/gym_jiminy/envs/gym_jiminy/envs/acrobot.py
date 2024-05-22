@@ -157,6 +157,8 @@ class AcrobotJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         """
         state_space = self._get_agent_state_space(use_theoretical_model=True)
         position_space, velocity_space = state_space['q'], state_space['v']
+        assert isinstance(position_space, gym.spaces.Box)
+        assert isinstance(velocity_space, gym.spaces.Box)
         self.observation_space = gym.spaces.Box(
             low=np.concatenate((position_space.low, velocity_space.low)),
             high=np.concatenate((position_space.high, velocity_space.high)),
