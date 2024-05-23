@@ -232,8 +232,10 @@ class SimulateSimplePendulum(unittest.TestCase):
         for key, value in asdict(state_f).items():
             if key == "t":
                 continue
-            np.testing.assert_allclose(
-                getattr(robot_state, key), value, rtol=0, atol=1e-12)
+            data = getattr(robot_state, key)
+            if key == "f_external":
+                data = tuple(f_ext.vector for f_ext in data)
+            np.testing.assert_allclose(data, value, rtol=0, atol=1e-12)
 
     def test_pendulum_integration(self):
         """Compare pendulum motion, as simulated by Jiminy, against an

@@ -7,7 +7,7 @@ contactFrameNames = []
 [Motor.SimpleMotor.neck_ry]
 joint_name = "neck_ry"
 enableVelocityLimit = true
-velocityEffortInvSlope = 0.4
+velocityEffortInvSlope = 0.08
 armature = 0.1
 frictionViscousPositive = -0.1
 frictionViscousNegative = -0.1
@@ -87,7 +87,7 @@ frictionViscousNegative = -0.1
 [Motor.SimpleMotor.l_arm_wry2]
 joint_name = "l_arm_wry2"
 enableVelocityLimit = true
-velocityEffortInvSlope = 0.06
+velocityEffortInvSlope = 0.1
 armature = 0.1
 frictionViscousPositive = -0.1
 frictionViscousNegative = -0.1
@@ -143,7 +143,7 @@ frictionViscousNegative = -0.1
 [Motor.SimpleMotor.r_arm_wry2]
 joint_name = "r_arm_wry2"
 enableVelocityLimit = true
-velocityEffortInvSlope = 0.06
+velocityEffortInvSlope = 0.1
 armature = 0.1
 frictionViscousPositive = -0.1
 frictionViscousNegative = -0.1
@@ -183,7 +183,7 @@ frictionViscousNegative = -0.2
 [Motor.SimpleMotor.l_leg_aky]
 joint_name = "l_leg_aky"
 enableVelocityLimit = true
-velocityEffortInvSlope = 0.04
+velocityEffortInvSlope = 0.005
 armature = 0.6
 frictionViscousPositive = -0.1
 frictionViscousNegative = -0.1
@@ -191,7 +191,7 @@ frictionViscousNegative = -0.1
 [Motor.SimpleMotor.l_leg_akx]
 joint_name = "l_leg_akx"
 enableVelocityLimit = true
-velocityEffortInvSlope = 0.08
+velocityEffortInvSlope = 0.01
 armature = 0.6
 frictionViscousPositive = -0.1
 frictionViscousNegative = -0.1
@@ -231,7 +231,7 @@ frictionViscousNegative = -0.2
 [Motor.SimpleMotor.r_leg_aky]
 joint_name = "r_leg_aky"
 enableVelocityLimit = true
-velocityEffortInvSlope = 0.04
+velocityEffortInvSlope = 0.005
 armature = 0.6
 frictionViscousPositive = -0.1
 frictionViscousNegative = -0.1
@@ -239,7 +239,7 @@ frictionViscousNegative = -0.1
 [Motor.SimpleMotor.r_leg_akx]
 joint_name = "r_leg_akx"
 enableVelocityLimit = true
-velocityEffortInvSlope = 0.08
+velocityEffortInvSlope = 0.01
 armature = 0.6
 frictionViscousPositive = -0.1
 frictionViscousNegative = -0.1

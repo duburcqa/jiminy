@@ -460,7 +460,7 @@ def generate_default_hardware_description_file(
         motor_info.update(joints_options.pop(joint_name))
 
         # Add the motor and sensors to the robot's hardware
-        motors_info[SimpleMotor.type][motor_name] = motor_info
+        motors_info[SimpleMotor.__name__][motor_name] = motor_info
         sensors_info[EncoderSensor.type][motor_name] = sensor_info
         sensors_info[EffortSensor.type][motor_name] = sensor_info
 

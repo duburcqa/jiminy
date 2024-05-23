@@ -599,7 +599,7 @@ def play_trajectories(
         # Add frames to video sequentially
         update_hook_t = None
         time_global = np.arange(
-            time_interval[0], time_max, speed_ratio / VIDEO_FRAMERATE)
+            time_interval[0], time_max + 1e-10, speed_ratio / VIDEO_FRAMERATE)
         for t in tqdm(
                 time_global, desc="Rendering frames",
                 disable=(not verbose and not record_video_html_embedded)):
