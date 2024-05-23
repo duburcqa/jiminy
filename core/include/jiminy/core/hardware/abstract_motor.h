@@ -43,9 +43,10 @@ namespace jiminy
         {
             GenericConfig config;
             config["mechanicalReduction"] = 1.0;
-            config["enableCommandLimit"] = true;
-            config["commandLimitFromUrdf"] = true;
-            config["commandLimit"] = 0.0;
+            config["velocityLimitFromUrdf"] = true;
+            config["velocityLimit"] = 0.0;
+            config["effortLimitFromUrdf"] = true;
+            config["effortLimit"] = 0.0;
             config["enableArmature"] = false;
             config["armature"] = 0.0;
             config["enableBacklash"] = false;
@@ -58,9 +59,10 @@ namespace jiminy
         {
             /// \brief Mechanical reduction ratio of transmission (joint/motor), usually >= 1.0.
             const double mechanicalReduction;
-            const bool enableCommandLimit;
-            const bool commandLimitFromUrdf;
-            const double commandLimit;
+            const bool velocityLimitFromUrdf;
+            const double velocityLimit;
+            const bool effortLimitFromUrdf;
+            const double effortLimit;
             const bool enableArmature;
             const double armature;
             const bool enableBacklash;
@@ -68,9 +70,10 @@ namespace jiminy
 
             AbstractMotorOptions(const GenericConfig & options) :
             mechanicalReduction(boost::get<double>(options.at("mechanicalReduction"))),
-            enableCommandLimit(boost::get<bool>(options.at("enableCommandLimit"))),
-            commandLimitFromUrdf(boost::get<bool>(options.at("commandLimitFromUrdf"))),
-            commandLimit(boost::get<double>(options.at("commandLimit"))),
+            velocityLimitFromUrdf(boost::get<bool>(options.at("velocityLimitFromUrdf"))),
+            velocityLimit(boost::get<double>(options.at("velocityLimit"))),
+            effortLimitFromUrdf(boost::get<bool>(options.at("effortLimitFromUrdf"))),
+            effortLimit(boost::get<double>(options.at("effortLimit"))),
             enableArmature(boost::get<bool>(options.at("enableArmature"))),
             armature(boost::get<double>(options.at("armature"))),
             enableBacklash(boost::get<bool>(options.at("enableBacklash"))),
@@ -84,7 +87,7 @@ namespace jiminy
 
     public:
         /// \param[in] name Name of the motor.
-        explicit AbstractMotorBase(const std::string & name) noexcept;
+        explicit AbstractMotorBase(const std::string & name);
         virtual ~AbstractMotorBase();
 
         /// \brief Refresh the proxies.
@@ -138,22 +141,22 @@ namespace jiminy
         /// \brief Index of the joint associated with the motor in the kinematic tree.
         pinocchio::JointIndex getJointIndex() const;
 
-        /// \brief Type of joint associated with the motor.
-        JointModelType getJointType() const;
+        /// \brief Maximum position of the actuated joint translated on motor side.
+        double getPositionLimitLower() const;
 
-        /// \brief Index of the joint associated with the motor in configuration vector.
-        Eigen::Index getJointPositionIndex() const;
+        /// \brief Minimum position of the actuated joint translated on motor side.
+        double getPositionLimitUpper() const;
 
-        /// \brief Index of the joint associated with the motor in the velocity vector.
-        Eigen::Index getJointVelocityIndex() const;
+        /// \brief Maximum velocity of the motor.
+        double getVelocityLimit() const;
 
         /// \brief Maximum effort of the motor.
-        double getCommandLimit() const;
+        double getEffortLimit() const;
 
-        /// \brief Rotor inertia of the motor.
+        /// \brief Rotor inertia of the motor on joint side.
         double getArmature() const;
 
-        /// \brief Backlash of the transmission.
+        /// \brief Backlash of the transmission on joint side.
         double getBacklash() const;
 
         /// \brief Request the motor to update its actual effort based of the input data.
@@ -223,9 +226,10 @@ namespace jiminy
         std::string jointName_{};
         pinocchio::JointIndex jointIndex_{0};
         JointModelType jointType_{JointModelType::UNSUPPORTED};
-        Eigen::Index jointPositionIndex_{0};
-        Eigen::Index jointVelocityIndex_{0};
-        double commandLimit_{0.0};
+        double positionLimitLower_{};
+        double positionLimitUpper_{};
+        double velocityLimit_{0.0};
+        double effortLimit_{0.0};
         double armature_{0.0};
         double backlash_{0.0};
 

@@ -26,8 +26,8 @@ class DeformationEstimatorBlock(unittest.TestCase):
     def _test_deformation_estimate(self, env, imu_atol, flex_atol):
         # Check that quaternion estimates from MahonyFilter are valid
         true_imu_rots = []
-        for frame_name in env.robot.sensor_names['ImuSensor']:
-            frame_index = env.robot.pinocchio_model.getFrameId(frame_name)
+        for imu_sensor in env.robot.sensors['ImuSensor']:
+            frame_index = imu_sensor.frame_index
             frame_rot = env.robot.pinocchio_data.oMf[frame_index].rotation
             true_imu_rots.append(frame_rot)
         true_imu_quats = matrices_to_quat(tuple(true_imu_rots))
@@ -69,6 +69,9 @@ class DeformationEstimatorBlock(unittest.TestCase):
         # Add motor
         motor_joint_name = 'base_to_link1'
         motor = jiminy.SimpleMotor(motor_joint_name)
+        motor_options = motor.get_options()
+        motor_options["enableVelocityLimit"] = False
+        motor.set_options(motor_options)
         robot.attach_motor(motor)
         motor.initialize(motor_joint_name)
 
@@ -92,7 +95,6 @@ class DeformationEstimatorBlock(unittest.TestCase):
             'inertia': np.array([1.0, 1.0, 0.0])
         } for i in range(1, 5)
         ]
-        model_options['joints']['enableVelocityLimit'] = False
         robot.set_model_options(model_options)
 
         # Create a simulator using this robot and controller
@@ -136,7 +138,8 @@ class DeformationEstimatorBlock(unittest.TestCase):
         deformation_estimator = DeformationEstimator(
             "deformation_estimator",
             env,
-            imu_frame_names=robot.sensor_names['ImuSensor'],
+            imu_frame_names=tuple(
+                sensor.name for sensor in robot.sensors['ImuSensor']),
             flex_frame_names=robot.flexibility_joint_names,
             ignore_twist=True,
             update_ratio=-1)
@@ -219,7 +222,7 @@ class DeformationEstimatorBlock(unittest.TestCase):
                     block=dict(
                         cls=PDController,
                         kwargs=dict(
-                            kp=150.0,
+                            kp=1.0,
                             kd=0.03,
                             update_ratio=1,
                         )

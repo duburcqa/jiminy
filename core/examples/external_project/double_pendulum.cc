@@ -67,7 +67,6 @@ int main(int argc, char * argv[])
     GenericConfig modelOptions = robot->getModelOptions();
     GenericConfig & jointsOptions = boost::get<GenericConfig>(modelOptions.at("joints"));
     boost::get<bool>(jointsOptions.at("positionLimitFromUrdf")) = true;
-    boost::get<bool>(jointsOptions.at("velocityLimitFromUrdf")) = true;
     robot->setModelOptions(modelOptions);
     robot->initialize(urdfPath.string(), false, {});
 
@@ -75,9 +74,12 @@ int main(int argc, char * argv[])
     auto motor = std::make_shared<SimpleMotor>("motor");
     robot->attachMotor(motor);
     motor->initialize("SecondPendulumJoint");
+    GenericConfig motorOptions = motor->getOptions();
+    boost::get<bool>(motorOptions.at("velocityLimitFromUrdf")) = true;
+    motor->setOptions(motorOptions);
     auto sensor = std::make_shared<EncoderSensor>("encoder");
     robot->attachSensor(sensor);
-    sensor->initialize("SecondPendulumJoint");
+    sensor->initialize("SecondPendulumJoint", true);
 
     // Print encoder sensor index
     std::cout << "Encoder sensor index: " << sensor->getIndex() << std::endl;

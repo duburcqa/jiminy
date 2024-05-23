@@ -231,6 +231,7 @@ namespace jiminy
 
             /* Trigger extended model regeneration.
                * The whole robot must be reset as joint and frame indices would be corrupted.
+               * Some sensors must be reset as their attributes may depends on motors options.
                * Skip reset if nothing has changed from this motor point of view. This is necessary
                  to prevent infinite recursive reset loop. */
             if (hasChanged)
@@ -239,23 +240,20 @@ namespace jiminy
             }
 
             // Update rotor inertia
-            const std::string & mechanicaljointName = motorIn.getJointName();
-            std::string inertiaJointName = mechanicaljointName;
-            const Eigen::Index motorVelocityIndex = motorIn.getJointVelocityIndex();
+            const pinocchio::JointIndex jointIndex = motorIn.getJointIndex();
+            const Eigen::Index motorVelocityIndex =
+                robot->pinocchioModel_.joints[jointIndex].idx_v();
             robot->pinocchioModel_.rotorInertia[motorVelocityIndex] += motorIn.getArmature();
-
-            // Update effort limit
-            robot->pinocchioModel_.effortLimit[motorVelocityIndex] = motorIn.getCommandLimit();
         };
-
         // Attach the motor
         motor->attach(shared_from_this(), notifyRobot, motorSharedStorage_.get());
 
-        // Add the motor to the holder
+        // Add the motor to the registry
         motors_.push_back(motor);
+        motorsWeakConstRef_.push_back(motor);
 
-        // Refresh the motors proxies
-        refreshMotorProxies();
+        // Append log telemetry motor command fieldnames
+        logCommandFieldnames_.push_back(toString(JOINT_PREFIX_BASE, "Command", motorName));
     }
 
     void Robot::detachMotor(const std::string & motorName, bool triggerReset)
@@ -287,8 +285,12 @@ namespace jiminy
         // Hold the motor alive before removing it
         std::shared_ptr<AbstractMotorBase> motor = *motorIt;
 
-        // Remove the motor from the holder
+        // Remove the motor from registry
+        motorsWeakConstRef_.erase(motorsWeakConstRef_.begin() + motor->getIndex());
         motors_.erase(motorIt);
+
+        // Remove log telemetry motor command fieldname
+        logCommandFieldnames_.erase(logCommandFieldnames_.begin() + motor->getIndex());
 
         // Detach the motor
         motor->detach();
@@ -308,9 +310,6 @@ namespace jiminy
 
             // Trigger extended model regeneration
             reset(std::random_device{});
-
-            // Refresh the motors proxies
-            refreshMotorProxies();
         }
     }
 
@@ -320,39 +319,53 @@ namespace jiminy
         detachMotor(motorName, true);
     }
 
+    template<typename T>
+    static std::vector<std::string>
+    getHardwareNames(const std::vector<std::shared_ptr<T>> & hardwares)
+    {
+        std::vector<std::string> hardwareNames;
+        hardwareNames.reserve(hardwares.size());
+        std::transform(hardwares.begin(),
+                       hardwares.end(),
+                       std::back_inserter(hardwareNames),
+                       [](const std::shared_ptr<T> & hardware) { return hardware->getName(); });
+        return hardwareNames;
+    }
+
     void Robot::detachMotors(std::vector<std::string> motorNames)
     {
+        // Get the name of all motors currently attache to the robot
+        std::vector<std::string> allMotorNames = getHardwareNames(motors_);
+
+        // Remove all sensors if none is specified
         if (motorNames.empty())
         {
-            // Remove all sensors if none is specified
-            if (!motorNames_.empty())
+            if (!allMotorNames.empty())
             {
-                detachMotors(motorNames_);
+                detachMotors(allMotorNames);
             }
+            return;
         }
-        else
+
+        // Make sure that no motor names are duplicates
+        if (checkDuplicates(motorNames))
         {
-            // Make sure that no motor names are duplicates
-            if (checkDuplicates(motorNames))
-            {
-                JIMINY_THROW(std::invalid_argument, "Duplicated motor names found.");
-            }
+            JIMINY_THROW(std::invalid_argument, "Duplicated motor names found.");
+        }
 
-            // Make sure that every motor name exist
-            if (!checkInclusion(motorNames_, motorNames))
-            {
-                JIMINY_THROW(std::invalid_argument,
-                             "At least one of the motor names does not exist.");
-            }
+        // Make sure that every motor name exist
+        if (!checkInclusion(allMotorNames, motorNames))
+        {
+            JIMINY_THROW(std::invalid_argument, "At least one of the motor names does not exist.");
+        }
 
-            /* Detach motors one-by-one, and reset proxies at the very end only.
-               Beware the motor names must be stored locally because the list
-               of motors will be updated in-place. */
-            const std::size_t nMotors = motorNames.size();
-            for (std::size_t i = 0; i < nMotors; ++i)
-            {
-                detachMotor(motorNames[i], i == (nMotors - 1));
-            }
+        /* Detach motors one-by-one, and reset proxies at the very end only.
+           Beware the motor names must be stored locally because the list
+           of motors will be updated in-place. */
+        const std::size_t nMotors = motorNames.size();
+        for (std::size_t i = 0; i < nMotors; ++i)
+        {
+            detachMotor(motorNames[i], i == (nMotors - 1));
         }
     }
 
@@ -404,9 +417,7 @@ namespace jiminy
 
         // Create the sensor and add it to its group
         sensors_[sensorType].push_back(sensor);
-
-        // Refresh the sensors proxies
-        refreshSensorProxies();
+        sensorsWeakConstRef_[sensorType].push_back(sensor);
     }
 
     void Robot::detachSensor(const std::string & sensorType, const std::string & sensorName)
@@ -450,11 +461,16 @@ namespace jiminy
                          "'.");
         }
 
-        // Detach the sensor
-        (*sensorIt)->detach();
+        // Hold the sensor alive before removing it
+        std::shared_ptr<AbstractSensorBase> sensor = *sensorIt;
 
         // Remove the sensor from its group
+        WeakSensorVector & sensorGroupWeakConstRef = sensorsWeakConstRef_[sensorType];
+        sensorGroupWeakConstRef.erase(sensorGroupWeakConstRef.begin() + sensor->getIndex());
         sensorGroupIt->second.erase(sensorIt);
+
+        // Detach the sensor
+        sensor->detach();
 
         // Remove the sensor group if there is no more sensors left
         GenericConfig & telemetryOptions =
@@ -462,12 +478,10 @@ namespace jiminy
         if (sensorGroupIt->second.empty())
         {
             sensors_.erase(sensorType);
+            sensorsWeakConstRef_.erase(sensorType);
             sensorSharedStorageMap_.erase(sensorType);
             telemetryOptions.erase(sensorType);
         }
-
-        // Refresh the sensors proxies
-        refreshSensorProxies();
     }
 
     void Robot::detachSensors(const std::string & sensorType)
@@ -483,8 +497,7 @@ namespace jiminy
                              "'.");
             }
 
-            std::vector<std::string> sensorGroupNames =
-                sensorNames_[sensorType];  // Make a copy since calling detachSensors update it !
+            std::vector<std::string> sensorGroupNames = getHardwareNames(sensorGroupIt->second);
             for (const std::string & sensorName : sensorGroupNames)
             {
                 detachSensor(sensorType, sensorName);
@@ -564,77 +577,6 @@ namespace jiminy
     std::weak_ptr<const AbstractController> Robot::getController() const
     {
         return std::const_pointer_cast<const AbstractController>(controller_);
-    }
-
-    void Robot::refreshProxies()
-    {
-        if (!isInitialized_)
-        {
-            JIMINY_THROW(bad_control_flow, "Robot not initialized.");
-        }
-
-        Model::refreshProxies();
-        refreshMotorProxies();
-        refreshSensorProxies();
-    }
-
-    void Robot::refreshMotorProxies()
-    {
-        if (!isInitialized_)
-        {
-            JIMINY_THROW(bad_control_flow, "Robot not initialized.");
-        }
-
-        // Determine the number of motors
-        nmotors_ = motors_.size();
-
-        // Extract the motor names
-        motorNames_.clear();
-        motorNames_.reserve(nmotors_);
-        std::transform(motors_.begin(),
-                       motors_.end(),
-                       std::back_inserter(motorNames_),
-                       [](const auto & elem) -> std::string { return elem->getName(); });
-
-        // Generate the fieldnames associated with command
-        logCommandFieldnames_.clear();
-        logCommandFieldnames_.reserve(nmotors_);
-        std::transform(motors_.begin(),
-                       motors_.end(),
-                       std::back_inserter(logCommandFieldnames_),
-                       [](const auto & elem) -> std::string
-                       { return toString(JOINT_PREFIX_BASE, "Command", elem->getName()); });
-
-        // Generate the fieldnames associated with motor efforts
-        logMotorEffortFieldnames_.clear();
-        logMotorEffortFieldnames_.reserve(nmotors_);
-        std::transform(motors_.begin(),
-                       motors_.end(),
-                       std::back_inserter(logMotorEffortFieldnames_),
-                       [](const auto & elem) -> std::string
-                       { return toString(JOINT_PREFIX_BASE, "Effort", elem->getName()); });
-    }
-
-    void Robot::refreshSensorProxies()
-    {
-        if (!isInitialized_)
-        {
-            JIMINY_THROW(bad_control_flow, "Robot not initialized.");
-        }
-
-        // Extract the motor names
-        sensorNames_.clear();
-        sensorNames_.reserve(sensors_.size());
-        for (const auto & [sensorType, sensorGroup] : sensors_)
-        {
-            std::vector<std::string> sensorGroupNames;
-            sensorGroupNames.reserve(sensorGroup.size());
-            std::transform(sensorGroup.begin(),
-                           sensorGroup.end(),
-                           std::back_inserter(sensorGroupNames),
-                           [](const auto & elem) -> std::string { return elem->getName(); });
-            sensorNames_.emplace(sensorType, std::move(sensorGroupNames));
-        }
     }
 
     void Robot::initializeExtendedModel()
@@ -725,9 +667,14 @@ namespace jiminy
         return std::const_pointer_cast<const AbstractMotorBase>(*motorIt);
     }
 
-    const Robot::MotorVector & Robot::getMotors() const
+    const Robot::MotorVector & Robot::getMotors()
     {
         return motors_;
+    }
+
+    const Robot::WeakMotorVector & Robot::getMotors() const
+    {
+        return motorsWeakConstRef_;
     }
 
     std::shared_ptr<AbstractSensorBase> Robot::getSensor(const std::string & sensorType,
@@ -798,9 +745,14 @@ namespace jiminy
         return std::const_pointer_cast<const AbstractSensorBase>(*sensorIt);
     }
 
-    const Robot::SensorTree & Robot::getSensors() const
+    const Robot::SensorTree & Robot::getSensors()
     {
         return sensors_;
+    }
+
+    const Robot::WeakSensorTree & Robot::getSensors() const
+    {
+        return sensorsWeakConstRef_;
     }
 
     void Robot::setOptions(const GenericConfig & robotOptions)
@@ -1089,6 +1041,11 @@ namespace jiminy
         controller_->updateTelemetry();
     }
 
+    const std::vector<std::string> & Robot::getLogCommandFieldnames() const
+    {
+        return logCommandFieldnames_;
+    }
+
     std::unique_ptr<LockGuardLocal> Robot::getLock()
     {
         // Make sure that the robot is not already locked
@@ -1111,94 +1068,8 @@ namespace jiminy
         return mutexLocal_->isLocked();
     }
 
-    const std::vector<std::string> & Robot::getMotorNames() const
-    {
-        return motorNames_;
-    }
-
-    std::vector<pinocchio::JointIndex> Robot::getMotorJointIndices() const
-    {
-        std::vector<pinocchio::JointIndex> motorJointIndices;
-        motorJointIndices.reserve(nmotors_);
-        std::transform(motors_.begin(),
-                       motors_.end(),
-                       std::back_inserter(motorJointIndices),
-                       [](const auto & motor) -> pinocchio::JointIndex
-                       { return motor->getJointIndex(); });
-        return motorJointIndices;
-    }
-
-    std::vector<std::vector<Eigen::Index>> Robot::getMotorsPositionIndices() const
-    {
-        std::vector<std::vector<Eigen::Index>> motorPositionIndices;
-        motorPositionIndices.reserve(nmotors_);
-        std::transform(motors_.begin(),
-                       motors_.end(),
-                       std::back_inserter(motorPositionIndices),
-                       [](const auto & elem) -> std::vector<Eigen::Index>
-                       {
-                           const Eigen::Index & jointPositionIndex = elem->getJointPositionIndex();
-                           if (elem->getJointType() == JointModelType::ROTARY_UNBOUNDED)
-                           {
-                               return {jointPositionIndex, jointPositionIndex + 1};
-                           }
-                           else
-                           {
-                               return {jointPositionIndex};
-                           }
-                       });
-        return motorPositionIndices;
-    }
-
-    std::vector<Eigen::Index> Robot::getMotorVelocityIndices() const
-    {
-        std::vector<Eigen::Index> motorVelocityIndices;
-        motorVelocityIndices.reserve(nmotors_);
-        std::transform(motors_.begin(),
-                       motors_.end(),
-                       std::back_inserter(motorVelocityIndices),
-                       [](const auto & elem) -> Eigen::Index
-                       { return elem->getJointVelocityIndex(); });
-        return motorVelocityIndices;
-    }
-
-    const Eigen::VectorXd & Robot::getCommandLimit() const
-    {
-        return pinocchioModel_.effortLimit;
-    }
-
-    const std::unordered_map<std::string, std::vector<std::string>> & Robot::getSensorNames() const
-    {
-        return sensorNames_;
-    }
-
-    const std::vector<std::string> & Robot::getSensorNames(const std::string & sensorType) const
-    {
-        static const std::vector<std::string> sensorNamesEmpty{};
-
-        auto sensorsNamesIt = sensorNames_.find(sensorType);
-        if (sensorsNamesIt != sensorNames_.end())
-        {
-            return sensorsNamesIt->second;
-        }
-        else
-        {
-            return sensorNamesEmpty;
-        }
-    }
-
-    const std::vector<std::string> & Robot::getLogCommandFieldnames() const
-    {
-        return logCommandFieldnames_;
-    }
-
-    const std::vector<std::string> & Robot::getLogMotorEffortFieldnames() const
-    {
-        return logMotorEffortFieldnames_;
-    }
-
     Eigen::Index Robot::nmotors() const
     {
-        return nmotors_;
+        return motors_.size();
     }
 }

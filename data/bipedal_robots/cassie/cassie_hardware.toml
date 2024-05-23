@@ -6,83 +6,93 @@ contactFrameNames = []
 
 [Motor.SimpleMotor.hip_abduction_motor_left]
 joint_name = "hip_abduction_left"
+enableVelocityLimit = true
 enableFriction = true
 frictionViscousPositive = -1.0
 frictionViscousNegative = -1.0
 mechanicalReduction = 25.0
-armature = 0.2  # 0.038125
+armature = 0.00032  # 0.000061
 
 [Motor.SimpleMotor.hip_rotation_motor_left]
 joint_name = "hip_rotation_left"
+enableVelocityLimit = true
 enableFriction = true
 frictionViscousPositive = -1.0
 frictionViscousNegative = -1.0
 mechanicalReduction = 25.0
-armature = 0.2  # 0.038125
+armature = 0.00032  # 0.000061
 
 [Motor.SimpleMotor.hip_flexion_motor_left]
 joint_name = "hip_flexion_left"
+enableVelocityLimit = true
 enableFriction = true
 frictionViscousPositive = -1.0
 frictionViscousNegative = -1.0
 mechanicalReduction = 16.0
-armature = 0.2  # 0.09344
+armature = 0.00078  # 0.000365
 
 [Motor.SimpleMotor.knee_joint_motor_left]
 joint_name = "knee_joint_left"
+enableVelocityLimit = true
 enableFriction = true
 frictionViscousPositive = -1.0
 frictionViscousNegative = -1.0
 mechanicalReduction = 16.0
-armature = 0.2  # 0.09344
+armature = 0.00078  # 0.000365
 
 [Motor.SimpleMotor.toe_joint_motor_left]
 joint_name = "toe_joint_left"
+enableVelocityLimit = true
 enableFriction = true
 frictionViscousPositive = -1.0
 frictionViscousNegative = -1.0
 mechanicalReduction = 50.0
-armature = 0.2  # 0.01225
+armature = 0.00008  # 0.0000049
 
 [Motor.SimpleMotor.hip_abduction_motor_right]
 joint_name = "hip_abduction_right"
+enableVelocityLimit = true
 enableFriction = true
 frictionViscousPositive = -1.0
 frictionViscousNegative = -1.0
 mechanicalReduction = 25.0
-armature = 0.2  # 0.038125
+armature = 0.00032  # 0.000061
 
 [Motor.SimpleMotor.hip_rotation_motor_right]
 joint_name = "hip_rotation_right"
+enableVelocityLimit = true
 enableFriction = true
 frictionViscousPositive = -1.0
 frictionViscousNegative = -1.0
 mechanicalReduction = 25.0
-armature = 0.2  # 0.038125
+armature = 0.00032  # 0.000061
 
 [Motor.SimpleMotor.hip_flexion_motor_right]
 joint_name = "hip_flexion_right"
+enableVelocityLimit = true
 enableFriction = true
 frictionViscousPositive = -1.0
 frictionViscousNegative = -1.0
 mechanicalReduction = 16.0
-armature = 0.2  # 0.09344
+armature = 0.00078  # 0.000365
 
 [Motor.SimpleMotor.knee_joint_motor_right]
 joint_name = "knee_joint_right"
+enableVelocityLimit = true
 enableFriction = true
 frictionViscousPositive = -1.0
 frictionViscousNegative = -1.0
 mechanicalReduction = 16.0
-armature = 0.2  # 0.09344
+armature = 0.00078  # 0.000365
 
 [Motor.SimpleMotor.toe_joint_motor_right]
 joint_name = "toe_joint_right"
+enableVelocityLimit = true
 enableFriction = true
 frictionViscousPositive = -1.0
 frictionViscousNegative = -1.0
 mechanicalReduction = 50.0
-armature = 0.2  # 0.01225
+armature = 0.00008  # 0.0000049
 
 # =============== IMU sensors =================
 
@@ -132,31 +142,31 @@ motor_name = "toe_joint_motor_right"
 # ============= Encoder sensors ===============
 
 [Sensor.EncoderSensor.hip_abduction_left]
-joint_name = "hip_abduction_left"
+motor_name = "hip_abduction_motor_left"
 
 [Sensor.EncoderSensor.hip_rotation_left]
-joint_name = "hip_rotation_left"
+motor_name = "hip_rotation_motor_left"
 
 [Sensor.EncoderSensor.hip_flexion_left]
-joint_name = "hip_flexion_left"
+motor_name = "hip_flexion_motor_left"
 
 [Sensor.EncoderSensor.knee_joint_left]
-joint_name = "knee_joint_left"
+motor_name = "knee_joint_motor_left"
 
 [Sensor.EncoderSensor.toe_joint_left]
-joint_name = "toe_joint_left"
+motor_name = "toe_joint_motor_left"
 
 [Sensor.EncoderSensor.hip_abduction_right]
-joint_name = "hip_abduction_right"
+motor_name = "hip_abduction_motor_right"
 
 [Sensor.EncoderSensor.hip_rotation_right]
-joint_name = "hip_rotation_right"
+motor_name = "hip_rotation_motor_right"
 
 [Sensor.EncoderSensor.hip_flexion_right]
-joint_name = "hip_flexion_right"
+motor_name = "hip_flexion_motor_right"
 
 [Sensor.EncoderSensor.knee_joint_right]
-joint_name = "knee_joint_right"
+motor_name = "knee_joint_motor_right"
 
 [Sensor.EncoderSensor.toe_joint_right]
-joint_name = "toe_joint_right"
+motor_name = "toe_joint_motor_right"

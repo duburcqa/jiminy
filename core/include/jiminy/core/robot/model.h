@@ -139,9 +139,6 @@ namespace jiminy
             config["positionLimitFromUrdf"] = true;
             config["positionLimitMin"] = Eigen::VectorXd{};
             config["positionLimitMax"] = Eigen::VectorXd{};
-            config["enableVelocityLimit"] = true;
-            config["velocityLimitFromUrdf"] = true;
-            config["velocityLimit"] = Eigen::VectorXd{};
 
             return config;
         };
@@ -186,17 +183,11 @@ namespace jiminy
             /// \brief Min position limit of all the mechanical joints of the theoretical model.
             const Eigen::VectorXd positionLimitMin;
             const Eigen::VectorXd positionLimitMax;
-            const bool enableVelocityLimit;
-            const bool velocityLimitFromUrdf;
-            const Eigen::VectorXd velocityLimit;
 
             JointOptions(const GenericConfig & options) :
             positionLimitFromUrdf{boost::get<bool>(options.at("positionLimitFromUrdf"))},
             positionLimitMin{boost::get<Eigen::VectorXd>(options.at("positionLimitMin"))},
-            positionLimitMax{boost::get<Eigen::VectorXd>(options.at("positionLimitMax"))},
-            enableVelocityLimit{boost::get<bool>(options.at("enableVelocityLimit"))},
-            velocityLimitFromUrdf{boost::get<bool>(options.at("velocityLimitFromUrdf"))},
-            velocityLimit{boost::get<Eigen::VectorXd>(options.at("velocityLimit"))}
+            positionLimitMax{boost::get<Eigen::VectorXd>(options.at("positionLimitMax"))}
             {
             }
         };
@@ -375,13 +366,10 @@ namespace jiminy
         const std::vector<std::string> & getBacklashJointNames() const;
         const std::vector<pinocchio::JointIndex> & getBacklashJointIndices() const;
 
-        const Eigen::VectorXd & getPositionLimitMin() const;
-        const Eigen::VectorXd & getPositionLimitMax() const;
-        const Eigen::VectorXd & getVelocityLimit() const;
-
         const std::vector<std::string> & getLogPositionFieldnames() const;
         const std::vector<std::string> & getLogVelocityFieldnames() const;
         const std::vector<std::string> & getLogAccelerationFieldnames() const;
+        const std::vector<std::string> & getLogEffortFieldnames() const;
         const std::vector<std::string> & getLogForceExternalFieldnames() const;
 
         void getExtendedPositionFromTheoretical(const Eigen::VectorXd & qTheoretical,
@@ -477,20 +465,14 @@ namespace jiminy
         /// \brief Store constraints.
         ConstraintTree constraints_{};
 
-        /// \brief Upper position limit of the whole configuration vector (INF for non-physical
-        ///        joints, ie flexibility joints and freeflyer, if any).
-        Eigen::VectorXd positionLimitMin_{};
-        /// \brief Lower position limit of the whole configuration vector.
-        Eigen::VectorXd positionLimitMax_{};
-        /// \brief Maximum absolute velocity of the whole velocity vector.
-        Eigen::VectorXd velocityLimit_{};
-
         /// \brief Fieldnames of the elements in the configuration vector of the model.
         std::vector<std::string> logPositionFieldnames_{};
         /// \brief Fieldnames of the elements in the velocity vector of the model.
         std::vector<std::string> logVelocityFieldnames_{};
         /// \brief Fieldnames of the elements in the acceleration vector of the model.
         std::vector<std::string> logAccelerationFieldnames_{};
+        /// \brief Fieldnames of the elements in the effort vector of the model.
+        std::vector<std::string> logEffortFieldnames_{};
         /// \brief Concatenated fieldnames of the external force applied at each joint of the
         ///        model, 'universe' excluded.
         std::vector<std::string> logForceExternalFieldnames_{};

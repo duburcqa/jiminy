@@ -279,6 +279,30 @@ namespace jiminy::python
 
     // ************************************** BasicSensors ************************************* //
 
+    namespace internal::encoder
+    {
+        void Initialize(
+            EncoderSensor & self, const bp::object & motorNamePy, const bp::object & jointNamePy)
+        {
+            if (!(motorNamePy.is_none() ^ jointNamePy.is_none()))
+            {
+                throw std::invalid_argument(
+                    "Either 'motor_name' or 'joint_name' must be specified but not both.");
+            }
+
+            if (jointNamePy.is_none())
+            {
+                const std::string motorName = bp::extract<std::string>(motorNamePy);
+                self.initialize(motorName, false);
+            }
+            else
+            {
+                const std::string jointName = bp::extract<std::string>(jointNamePy);
+                self.initialize(jointName, true);
+            }
+        }
+    }
+
     struct PyBasicSensorsVisitor : public bp::def_visitor<PyBasicSensorsVisitor>
     {
     public:
@@ -350,12 +374,19 @@ namespace jiminy::python
                        boost::noncopyable>(
                 "EncoderSensor", bp::init<const std::string &>((bp::arg("self"), "name")))
                 .def(PyBasicSensorsVisitor())
-                .def("initialize", &EncoderSensor::initialize, (bp::arg("self"), "joint_name"))
+                .def("initialize",
+                     &internal::encoder::Initialize,
+                     (bp::arg("self"),
+                      bp::arg("motor_name") = bp::object(),
+                      bp::arg("joint_name") = bp::object()))
                 .ADD_PROPERTY_GET_WITH_POLICY("joint_name",
                                               &EncoderSensor::getJointName,
                                               bp::return_value_policy<bp::return_by_value>())
                 .ADD_PROPERTY_GET("joint_index", &EncoderSensor::getJointIndex)
-                .ADD_PROPERTY_GET("joint_type", &EncoderSensor::getJointType);
+                .ADD_PROPERTY_GET_WITH_POLICY("motor_name",
+                                              &EncoderSensor::getMotorName,
+                                              bp::return_value_policy<bp::return_by_value>())
+                .ADD_PROPERTY_GET("motor_index", &EncoderSensor::getMotorIndex);
 
             bp::class_<EffortSensor,
                        bp::bases<AbstractSensorBase>,

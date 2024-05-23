@@ -122,8 +122,12 @@ class State:
     """Acceleration vector as a 1D array.
     """
 
-    u_motor: Optional[np.ndarray] = None
-    """Motor efforts as a 1D array.
+    u: Optional[np.ndarray] = None
+    """Total joint efforts as a 1D array.
+    """
+
+    command: Optional[np.ndarray] = None
+    """Motor command as a 1D array.
     """
 
     f_external: Optional[np.ndarray] = None
@@ -200,16 +204,18 @@ class Trajectory:
         self._fields: Tuple[str, ...] = ()
         self._has_velocity = False
         self._has_acceleration = False
-        self._has_motor_efforts = False
+        self._has_effort = False
+        self._has_command = False
         self._has_external_forces = False
         if states:
             state = states[0]
             self._has_velocity = state.v is not None
             self._has_acceleration = state.a is not None
-            self._has_motor_efforts = state.u_motor is not None
+            self._has_effort = state.u is not None
+            self._has_command = state.command is not None
             self._has_external_forces = state.f_external is not None
             self._fields = tuple(
-                field for field in ("v", "a", "u_motor", "f_external")
+                field for field in ("v", "a", "u", "command", "f_external")
                 if getattr(state, field) is not None)
 
     @property
@@ -231,10 +237,16 @@ class Trajectory:
         return self._has_acceleration
 
     @property
-    def has_motor_efforts(self) -> bool:
-        """Whether the trajectory contains motor efforts.
+    def has_effort(self) -> bool:
+        """Whether the trajectory contains the effort vector.
         """
-        return self._has_motor_efforts
+        return self._has_acceleration
+
+    @property
+    def has_command(self) -> bool:
+        """Whether the trajectory contains motor commands.
+        """
+        return self._has_command
 
     @property
     def has_external_forces(self) -> bool:
@@ -850,10 +862,10 @@ def compute_efforts_from_fixed_body(
         data.oMi[1]).act(data.f[1])
 
     # Recompute the efforts with RNEA and the correct external forces
-    tau = jiminy.rnea(model, data, position, velocity, acceleration, f_ext)
+    u = jiminy.rnea(model, data, position, velocity, acceleration, f_ext)
     f_ext = f_ext[support_joint_index]
 
-    return tau, f_ext
+    return u, f_ext
 
 
 def compute_inverse_dynamics(robot: jiminy.Model,
@@ -894,7 +906,8 @@ def compute_inverse_dynamics(robot: jiminy.Model,
     # Define some proxies for convenience
     model = robot.pinocchio_model
     data = robot.pinocchio_data
-    motor_velocity_indices = robot.motor_velocity_indices
+    motor_velocity_indices = [
+        model.joints[motor.joint_index].idx_v for motor in robot.motors]
 
     # Updating kinematics quantities
     pin.forwardKinematics(model, data, position, velocity, acceleration)

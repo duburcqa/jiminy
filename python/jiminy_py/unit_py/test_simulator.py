@@ -7,6 +7,8 @@ import unittest
 import numpy as np
 
 import jiminy_py.core as jiminy
+from jiminy_py.core import ImuSensor  # pylint: disable=no-name-in-module
+
 from jiminy_py.robot import BaseJiminyRobot
 from jiminy_py.simulator import Simulator
 
@@ -15,6 +17,8 @@ from jiminy_py.log import (read_log,
                            extract_trajectory_from_log,
                            extract_trajectories_from_log)
 from jiminy_py.viewer.replay import play_logs_data
+
+from utilities import setup_controller_and_engine
 
 
 class SimulatorTest(unittest.TestCase):
@@ -48,16 +52,13 @@ class SimulatorTest(unittest.TestCase):
             imu.initialize(fname)
 
         # Define a PD controller with fixed target position
-        class Controller(jiminy.BaseController):
-            def compute_command(self, t, q, v, command):
-                target = np.array([1.5, 0.0])
-                command[:] = -5000 * ((q[::2] - target) + 0.07 * v[::2])
-
-        robot.controller = Controller()
+        def compute_command(t, q, v, sensor_measurements, command):
+            target = np.array([1.5, 0.0])
+            command[:] = -5000 * ((q[::2] - target) + 0.07 * v[::2])
 
         # Instantiate the engine
         engine = jiminy.Engine()
-        engine.add_robot(robot)
+        setup_controller_and_engine(engine, robot, compute_command)
 
         # Configuration the simulation
         engine_options = engine.get_options()
@@ -95,11 +96,10 @@ class SimulatorTest(unittest.TestCase):
                 diff_velocities, accelerations[:, :-1], atol=1e-12, rtol=0.0)
 
             # Check that IMU accelerations match gravity at rest
-            for imu_name in robot.sensor_names[jiminy.ImuSensor.type]:
-                log_imu_name = ".".join((jiminy.ImuSensor.type, imu_name))
+            for imu_sensor in robot.sensors[ImuSensor.type]:
+                log_imu_name = ".".join((ImuSensor.type, imu_sensor.name))
                 imu_data = np.stack(extract_variables_from_log(
-                    log_vars, jiminy.ImuSensor.fieldnames, log_imu_name
-                    ), axis=0)
+                    log_vars, ImuSensor.fieldnames, log_imu_name), axis=0)
                 imu_gyro, imu_accel = np.split(imu_data, 2)
                 imu_gyro_norm = np.linalg.norm(imu_gyro, axis=0)
                 imu_accel_norm = np.linalg.norm(imu_accel, axis=0)

@@ -935,7 +935,8 @@ class StateQuantity(InterfaceQuantity[State]):
                 self.env.robot_state.q,
                 self.env.robot_state.v,
                 self.env.robot_state.a,
-                self.env.robot_state.u_motor,
+                self.env.robot_state.u,
+                self.env.robot_state.command,
                 f_external_batch)
             self._f_external_slices = tuple(f_external_batch)
 

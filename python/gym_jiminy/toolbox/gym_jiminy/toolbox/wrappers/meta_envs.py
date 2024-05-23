@@ -61,6 +61,8 @@ class TaskSchedulingWrapper(
                  ) -> None:
         """ TODO: Write documentation.
         """
+        # pylint: disable=possibly-used-before-assignment
+
         # Call base implementation
         super().__init__(env)
 

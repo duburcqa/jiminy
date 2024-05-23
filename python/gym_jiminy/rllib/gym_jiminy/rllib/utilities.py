@@ -494,7 +494,7 @@ def train(algo: Algorithm,
             # Backup the policy
             if checkpoint_period > 0 and iter_num % checkpoint_period == 0:
                 algo.save(
-                    checkpoint_dir=f"{algo.logdir}/checkpoint_{iter_num :06d}")
+                    checkpoint_dir=f"{algo.logdir}/checkpoint_{iter_num:06d}")
 
             # Check terminal conditions
             if 0 < max_timesteps < result["timesteps_total"]:
@@ -518,7 +518,7 @@ def train(algo: Algorithm,
 
     # Backup trained agent and return file location
     return algo.save(
-        checkpoint_dir=f"{algo.logdir}/checkpoint_{iter_num :06d}")
+        checkpoint_dir=f"{algo.logdir}/checkpoint_{iter_num:06d}")
 
 
 def _restore_default_connectors() -> None:

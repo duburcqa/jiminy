@@ -17,7 +17,8 @@ from itertools import cycle
 from functools import partial
 from collections import OrderedDict
 from weakref import WeakKeyDictionary
-from typing import Dict, Any, List, Optional, Tuple, Union, Callable, cast
+from typing import (
+    Dict, Any, List, Optional, Tuple, Union, Callable, Type, cast)
 
 import numpy as np
 try:
@@ -41,11 +42,29 @@ from matplotlib.backend_bases import Event, LocationEvent
 from matplotlib.backends.backend_pdf import PdfPages
 
 import jiminy_py.core as jiminy
-from .log import (SENSORS_FIELDS,
-                  read_log,
+from .core import (  # pylint: disable=no-name-in-module
+    EncoderSensor, EffortSensor, ContactSensor, ForceSensor, ImuSensor)
+from .log import (read_log,
                   extract_variables_from_log,
                   build_robot_from_log)
 from .viewer import interactive_mode
+
+
+SENSORS_FIELDS: Dict[
+        Type[jiminy.AbstractSensor], Union[List[str], Dict[str, List[str]]]
+        ] = {
+    EncoderSensor: EncoderSensor.fieldnames,
+    EffortSensor: EffortSensor.fieldnames,
+    ContactSensor: ContactSensor.fieldnames,
+    ForceSensor: {
+        k: [e[len(k):] for e in ForceSensor.fieldnames if e.startswith(k)]
+        for k in ['F', 'M']
+    },
+    ImuSensor: {
+        k: [e[len(k):] for e in ImuSensor.fieldnames if e.startswith(k)]
+        for k in ['Quat', 'Gyro', 'Accel']
+    }
+}
 
 
 class _ButtonBlit(Button):
@@ -650,9 +669,9 @@ def plot_log(log_data: Dict[str, Any],
         str, Dict[str, Union[np.ndarray, Dict[str, np.ndarray]]]
         ] = OrderedDict()
 
-    # Get time and robot positions, velocities, and acceleration
+    # Get time and robot positions, velocities, accelerations and efforts
     time = log_vars["Global.Time"]
-    for fields_type in ("Position", "Velocity", "Acceleration"):
+    for fields_type in ("Position", "Velocity", "Acceleration", "Effort"):
         fieldnames: List[str] = getattr(robot, "_".join((
             "log", fields_type.lower(), "fieldnames")))
         if not enable_flexiblity_data:
@@ -672,21 +691,12 @@ def plot_log(log_data: Dict[str, Any],
             # Variable has not been recorded and is missing in log file
             pass
 
-    # Get motors efforts information
-    try:
-        motors_efforts = extract_variables_from_log(
-            log_vars, robot.log_motor_effort_fieldnames, namespace=robot.name)
-        tabs_data['MotorEffort'] = OrderedDict(zip(
-            robot.motor_names, motors_efforts))
-    except KeyError:
-        # Variable has not been recorded and is missing in log file
-        pass
-
     # Get command information
     try:
         command = extract_variables_from_log(
             log_vars, robot.log_command_fieldnames, namespace=robot.name)
-        tabs_data['Command'] = OrderedDict(zip(robot.motor_names, command))
+        tabs_data['Command'] = OrderedDict(
+            zip((motor.name for motor in robot.motors), command))
     except KeyError:
         # Variable has not been recorded and is missing in log file
         pass
@@ -694,7 +704,8 @@ def plot_log(log_data: Dict[str, Any],
     # Get sensors information
     for sensors_class, sensors_fields in SENSORS_FIELDS.items():
         sensors_type: str = cast(str, sensors_class.type)
-        sensor_names = robot.sensor_names.get(sensors_type, [])
+        sensor_names = tuple(
+            sensor.name for sensor in robot.sensors.get(sensors_type, []))
         if not sensor_names:
             continue
         if isinstance(sensors_fields, dict):

@@ -41,8 +41,13 @@ class SimulateDensePole(unittest.TestCase):
         model_options['joints']['positionLimitMin'] = [-self.joint_limit]
         model_options['joints']['positionLimitMax'] = [self.joint_limit]
         model_options['joints']['positionLimitFromUrdf'] = False
-        model_options['joints']['enableVelocityLimit'] = False
         self.robot.set_model_options(model_options)
+
+        # Configure the motors
+        for motor in self.robot.motors:
+            motor_options = motor.get_options()
+            motor_options["enableVelocityLimit"] = False
+            motor.set_options(motor_options)
 
         # Configure the integrator
         engine_options = self.simulator.get_options()
@@ -153,65 +158,46 @@ class SimulateDensePole(unittest.TestCase):
         assert np.allclose(twist_flex_all[0], theta_all, atol=1e-4)
 
     def test_joint_position_limits(self):
-        """Test that both spring-damper and constraint models correspond to the
-        exact same dynamical model for joint bounds in the simple case where
-        the apparent inertia is constant. Then, check that joint position
-        limits are active when they are supposed to be.
+        """Test that the joint position limits are active when they are
+        supposed to be.
         """
         # Define some constants
         t_end, step_dt = 0.05, 1e-5
 
-        theta_all = []
-        for contact_model in ('constraint', 'spring_damper'):
-            # Configure the engine
-            engine_options = self.simulator.get_options()
-            engine_options['stepper']['odeSolver'] = 'euler_explicit'
-            engine_options['stepper']['dtMax'] = step_dt
-            engine_options['contacts']['model'] = contact_model
-            self.simulator.set_options(engine_options)
+        # Configure the engine
+        engine_options = self.simulator.get_options()
+        engine_options['stepper']['odeSolver'] = 'euler_explicit'
+        engine_options['stepper']['dtMax'] = step_dt
+        self.simulator.set_options(engine_options)
 
-            # Start the simulation
-            self.simulator.start(np.array((0.0,)), np.array((1.0,)))
+        # Start the simulation
+        self.simulator.start(np.array((0.0,)), np.array((1.0,)))
 
-            # Get joint bounds constraint
-            const = next(iter(self.robot.constraints.bounds_joints.values()))
-            const.kp = engine_options['joints']['boundStiffness']
-            const.kd = engine_options['joints']['boundDamping']
+        # Get joint bounds constraint
+        const = next(iter(self.robot.constraints.bounds_joints.values()))
 
-            # Simulate for a while
-            branches = set()
-            is_enabled = const.is_enabled
-            for _ in range(int(np.round(t_end / step_dt))):
-                self.simulator.step(step_dt)
-                theta = self.simulator.robot_state.q[0]
-                if contact_model != 'constraint':
-                    continue
-                if self.joint_limit - np.abs(theta) <= 0.0:
+        # Simulate for a while
+        branches = set()
+        is_enabled = const.is_enabled
+        for _ in range(int(np.round(t_end / step_dt))):
+            self.simulator.step(step_dt)
+            theta = self.simulator.robot_state.q[0]
+            if self.joint_limit - np.abs(theta) <= 0.0:
+                assert const.is_enabled
+                branches.add(0 if is_enabled else 1)
+            elif self.joint_limit - np.abs(theta) < self.transition_eps:
+                if is_enabled:
                     assert const.is_enabled
-                    branches.add(0 if is_enabled else 1)
-                elif self.joint_limit - np.abs(theta) < self.transition_eps:
-                    if is_enabled:
-                        assert const.is_enabled
-                        branches.add(2)
-                    else:
-                        assert not const.is_enabled
-                        branches.add(3)
+                    branches.add(2)
                 else:
                     assert not const.is_enabled
-                    branches.add(4)
-                is_enabled = const.is_enabled
-            self.simulator.stop()
-            if contact_model == 'constraint':
-                assert branches == set((0, 1, 2, 3, 4))
-
-            # Extract joint angle over time
-            log_vars = self.simulator.log_data["variables"]
-            (theta,) = extract_variables_from_log(
-                log_vars,
-                (f"currentPosition{self.robot.pinocchio_model.names[-1]}",))
-            theta_all.append(theta)
-
-        assert np.allclose(*theta_all, atol=1e-4)
+                    branches.add(3)
+            else:
+                assert not const.is_enabled
+                branches.add(4)
+            is_enabled = const.is_enabled
+        self.simulator.stop()
+        assert branches == set((0, 1, 2, 3, 4))
 
 if __name__ == '__main__':
     unittest.main()

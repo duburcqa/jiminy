@@ -7,8 +7,7 @@ from typing import List
 import numpy as np
 import numba as nb
 
-from jiminy_py.core import (  # pylint: disable=no-name-in-module
-    EncoderSensor as encoder)
+from jiminy_py.core import EncoderSensor  # pylint: disable=no-name-in-module
 
 from .proportional_derivative_controller import get_encoder_to_motor_map
 
@@ -140,25 +139,26 @@ class MotorSafetyLimit(
         self.kd = kd
 
         # Define buffers storing information about the motors for efficiency
-        motor_position_indices: List[int] = sum(
-            env.robot.motor_position_indices, [])
-        self.motors_position_lower = env.robot.position_limit_lower[
-            motor_position_indices] + soft_position_margin
-        self.motors_position_upper = env.robot.position_limit_upper[
-            motor_position_indices] - soft_position_margin
-        self.motors_velocity_limit = np.minimum(env.robot.velocity_limit[
-            env.robot.motor_velocity_indices], soft_velocity_max)
-        self.motors_effort_limit = env.robot.command_limit[
-            env.robot.motor_velocity_indices]
+        self.motors_position_lower = np.array([
+            motor.position_limit_lower + soft_position_margin
+            for motor in env.robot.motors])
+        self.motors_position_upper = np.array([
+            motor.position_limit_upper - soft_position_margin
+            for motor in env.robot.motors])
+        self.motors_velocity_limit = np.array([
+            min(motor.velocity_limit, soft_velocity_max)
+            for motor in env.robot.motors])
+        self.motors_effort_limit = np.array([
+            motor.effort_limit for motor in env.robot.motors])
         self.motors_effort_limit[
             self.motors_position_lower > self.motors_position_upper] = 0.0
 
         # Mapping from motors to encoders
-        self.encoder_to_motor = get_encoder_to_motor_map(env.robot)
+        self.encoder_to_motor_map = get_encoder_to_motor_map(env.robot)
 
         # Whether stored reference to encoder measurements are already in the
         # same order as the motors, allowing skipping re-ordering entirely.
-        self._is_same_order = isinstance(self.encoder_to_motor, slice)
+        self._is_same_order = isinstance(self.encoder_to_motor_map, slice)
         if not self._is_same_order:
             warnings.warn(
                 "Consider using the same ordering for encoders and motors for "
@@ -184,12 +184,12 @@ class MotorSafetyLimit(
 
         # Refresh measured motor positions and velocities proxies
         self.q_measured, self.v_measured = (
-            self.env.sensor_measurements[encoder.type])
+            self.env.sensor_measurements[EncoderSensor.type])
 
     @property
     def fieldnames(self) -> List[str]:
-        return [f"currentMotorTorque{name}"
-                for name in self.env.robot.motor_names]
+        return [f"currentMotorTorque{motor.name}"
+                for motor in self.env.robot.motors]
 
     def compute_command(self,
                         action: np.ndarray,
@@ -204,8 +204,8 @@ class MotorSafetyLimit(
         # Extract motor positions and velocity from encoder data
         q_measured, v_measured = self.q_measured, self.v_measured
         if not self._is_same_order:
-            q_measured = q_measured[self.encoder_to_motor]
-            v_measured = v_measured[self.encoder_to_motor]
+            q_measured = q_measured[self.encoder_to_motor_map]
+            v_measured = v_measured[self.encoder_to_motor_map]
 
         # Clip command according to safe effort bounds
         apply_safety_limits(action,

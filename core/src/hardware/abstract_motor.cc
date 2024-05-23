@@ -6,9 +6,15 @@
 
 namespace jiminy
 {
-    AbstractMotorBase::AbstractMotorBase(const std::string & name) noexcept :
+    AbstractMotorBase::AbstractMotorBase(const std::string & name) :
     name_{name}
     {
+        // Make sure that the motor name is not empty
+        if (name_.empty())
+        {
+            JIMINY_THROW(std::logic_error, "Motor name must not be empty.");
+        }
+
         // Initialize options
         motorOptionsGeneric_ = getDefaultMotorOptions();
         setOptions(getOptions());
@@ -163,18 +169,39 @@ namespace jiminy
                          "Please stop it before setting motor options.");
         }
 
+        /* Make sure that the mechanical reduction ratio is larger than 1.0.
+           While technically it is possible to have a reduction ratio smaller than 1.0, it is
+           extremely unlikely in practice as motors are supposed to spin fast to operate maximum
+           efficiency. It is explicitly forbidden here because it is error prone as the user may
+           assume the ratio to be inverted. */
+        const double mechanicalReduction =
+            boost::get<double>(motorOptions.at("mechanicalReduction"));
+        if (mechanicalReduction < 1.0 - EPS)
+        {
+            JIMINY_THROW(std::invalid_argument,
+                         "The mechanical reduction must be larger than 1.0.");
+        }
+
+        /* Physically, it must be possible to deduce the joint position from the motor position.
+           For this condition to be satisfied, the joint position after doing exactly one turn on
+           motor side must remain the same (ignoring turns if any). This implies that the inverted
+           reduction ratio must be an integer. */
+        if (jointType_ == JointModelType::ROTARY_UNBOUNDED)
+        {
+            if (abs(mechanicalReduction - 1.0) < EPS)
+            {
+                JIMINY_THROW(std::runtime_error,
+                             "The mechanical reduction must be equal to 1.0 for motors actuating "
+                             "unbounded revolute joints.");
+            }
+        }
+
         // Check if the internal buffers must be updated
         if (isInitialized_)
         {
-            // Check if armature has changed
-            const bool enableArmature = boost::get<bool>(motorOptions.at("enableArmature"));
-            mustNotifyRobot_ |= (baseMotorOptions_->enableArmature != enableArmature);
-            if (enableArmature)
-            {
-                const double armature = boost::get<double>(motorOptions.at("armature"));
-                mustNotifyRobot_ |=  //
-                    std::abs(armature - baseMotorOptions_->armature) > EPS;
-            }
+            // Check if mechanical reduction ratio has changed
+            mustNotifyRobot_ |= abs(baseMotorOptions_->mechanicalReduction - mechanicalReduction) >
+                                EPS;
 
             // Check if backlash has changed
             const bool enableBacklash = boost::get<bool>(motorOptions.at("enableBacklash"));
@@ -186,14 +213,14 @@ namespace jiminy
                     std::abs(backlash - baseMotorOptions_->backlash) > EPS;
             }
 
-            // Check if command limit has changed
-            const bool commandLimitFromUrdf =
-                boost::get<bool>(motorOptions.at("commandLimitFromUrdf"));
-            mustNotifyRobot_ |= (baseMotorOptions_->commandLimitFromUrdf != commandLimitFromUrdf);
-            if (!commandLimitFromUrdf)
+            // Check if armature has changed
+            const bool enableArmature = boost::get<bool>(motorOptions.at("enableArmature"));
+            mustNotifyRobot_ |= (baseMotorOptions_->enableArmature != enableArmature);
+            if (enableArmature)
             {
-                const double commandLimit = boost::get<double>(motorOptions.at("commandLimit"));
-                mustNotifyRobot_ |= std::abs(commandLimit - baseMotorOptions_->commandLimit) > EPS;
+                const double armature = boost::get<double>(motorOptions.at("armature"));
+                mustNotifyRobot_ |=  //
+                    std::abs(armature - baseMotorOptions_->armature) > EPS;
             }
         }
 
@@ -203,13 +230,10 @@ namespace jiminy
         // Update inherited polymorphic accessor
         deepUpdate(motorOptionsGeneric_, motorOptions);
 
-        // Refresh the proxies if the robot is initialized if available
-        if (robot)
+        // Refresh proxies systematically if motor is attached
+        if (robot && isAttached_)
         {
-            if (mustNotifyRobot_ && robot->getIsInitialized() && isAttached_)
-            {
-                refreshProxies();
-            }
+            refreshProxies();
         }
     }
 
@@ -220,17 +244,17 @@ namespace jiminy
 
     void AbstractMotorBase::refreshProxies()
     {
-        if (!isAttached_)
-        {
-            JIMINY_THROW(bad_control_flow,
-                         "Motor not attached to any robot. Impossible to refresh motor proxies.");
-        }
-
         auto robot = robot_.lock();
         if (!robot)
         {
             JIMINY_THROW(std::runtime_error,
                          "Robot has been deleted. Impossible to refresh motor proxies.");
+        }
+
+        if (!isAttached_)
+        {
+            JIMINY_THROW(bad_control_flow,
+                         "Motor not attached to any robot. Impossible to refresh motor proxies.");
         }
 
         if (!isInitialized_)
@@ -245,8 +269,20 @@ namespace jiminy
                          "Robot not initialized. Impossible to refresh motor proxies.");
         }
 
-        jointIndex_ = ::jiminy::getJointIndex(robot->pinocchioModel_, jointName_);
-        jointType_ = getJointTypeFromIndex(robot->pinocchioModel_, jointIndex_);
+        if (robot->getIsLocked())
+        {
+            JIMINY_THROW(bad_control_flow,
+                         "Robot already locked, probably because a simulation is running. "
+                         "Please stop it before refreshing motor options.");
+        }
+
+        // Define proxy for convenience
+        const double mechanicalReduction = baseMotorOptions_->mechanicalReduction;
+        const pinocchio::Model & model = robot->pinocchioModel_;
+
+        // Get joint index and type
+        jointIndex_ = ::jiminy::getJointIndex(model, jointName_);
+        jointType_ = getJointTypeFromIndex(model, jointIndex_);
 
         // Motors are only supported for linear and rotary joints
         if (jointType_ != JointModelType::LINEAR && jointType_ != JointModelType::ROTARY &&
@@ -256,26 +292,51 @@ namespace jiminy
                          "A motor can only be associated with a 1-dof linear or rotary joint.");
         }
 
-        jointPositionIndex_ = getJointPositionFirstIndex(robot->pinocchioModel_, jointName_);
-        jointVelocityIndex_ = getJointVelocityFirstIndex(robot->pinocchioModel_, jointName_);
-
-        // Get the motor effort limits from the URDF or the user options.
-        if (baseMotorOptions_->commandLimitFromUrdf)
+        // Deduce the motor position limits for the joint position limits
+        if (jointType_ == JointModelType::ROTARY_UNBOUNDED)
         {
-            const Eigen::Index mechanicalJointVelocityIndex =
-                getJointVelocityFirstIndex(robot->pinocchioModelTh_, jointName_);
-            commandLimit_ = robot->pinocchioModelTh_.effortLimit[mechanicalJointVelocityIndex] /
-                            baseMotorOptions_->mechanicalReduction;
+            positionLimitLower_ = -INF;
+            positionLimitUpper_ = +INF;
         }
         else
         {
-            commandLimit_ = baseMotorOptions_->commandLimit;
+            const Eigen::Index jointPositionIndex = model.joints[jointIndex_].idx_q();
+            positionLimitLower_ =
+                model.lowerPositionLimit[jointPositionIndex] * mechanicalReduction;
+            positionLimitUpper_ =
+                model.upperPositionLimit[jointPositionIndex] * mechanicalReduction;
         }
 
-        // Get the rotor inertia
+        // Get the motor effort limits on motor side from the URDF or the user options
+        if (baseMotorOptions_->effortLimitFromUrdf)
+        {
+            const Eigen::Index mechanicalJointVelocityIndex =
+                getJointVelocityFirstIndex(robot->pinocchioModelTh_, jointName_);
+            effortLimit_ = robot->pinocchioModelTh_.effortLimit[mechanicalJointVelocityIndex] /
+                           mechanicalReduction;
+        }
+        else
+        {
+            effortLimit_ = baseMotorOptions_->effortLimit;
+        }
+
+        // Get the motor velocity limits on motor side from the URDF or the user options
+        if (baseMotorOptions_->velocityLimitFromUrdf)
+        {
+            const Eigen::Index mechanicalJointVelocityIndex =
+                getJointVelocityFirstIndex(robot->pinocchioModelTh_, jointName_);
+            velocityLimit_ = robot->pinocchioModelTh_.velocityLimit[mechanicalJointVelocityIndex] *
+                             mechanicalReduction;
+        }
+        else
+        {
+            velocityLimit_ = baseMotorOptions_->velocityLimit;
+        }
+
+        // Get the rotor inertia on joint side
         if (baseMotorOptions_->enableArmature)
         {
-            armature_ = baseMotorOptions_->armature;
+            armature_ = baseMotorOptions_->armature * std::pow(mechanicalReduction, 2);
         }
         else
         {
@@ -365,24 +426,24 @@ namespace jiminy
         return jointIndex_;
     }
 
-    JointModelType AbstractMotorBase::getJointType() const
+    double AbstractMotorBase::getPositionLimitLower() const
     {
-        return jointType_;
+        return positionLimitLower_;
     }
 
-    Eigen::Index AbstractMotorBase::getJointPositionIndex() const
+    double AbstractMotorBase::getPositionLimitUpper() const
     {
-        return jointPositionIndex_;
+        return positionLimitUpper_;
     }
 
-    Eigen::Index AbstractMotorBase::getJointVelocityIndex() const
+    double AbstractMotorBase::getVelocityLimit() const
     {
-        return jointVelocityIndex_;
+        return velocityLimit_;
     }
 
-    double AbstractMotorBase::getCommandLimit() const
+    double AbstractMotorBase::getEffortLimit() const
     {
-        return commandLimit_;
+        return effortLimit_;
     }
 
     double AbstractMotorBase::getArmature() const
@@ -407,22 +468,24 @@ namespace jiminy
             JIMINY_THROW(bad_control_flow, "Motor not attached to any robot.");
         }
 
+        // Make sure that the parent robot has not been deleted
+        auto robot = robot_.lock();
+        if (!robot)
+        {
+            JIMINY_THROW(std::runtime_error,
+                         "Robot has been deleted. Impossible to compute motor efforts.");
+        }
+
         // Compute the actual effort of every motor
         for (AbstractMotorBase * motor : sharedStorage_->motors_)
         {
-            uint8_t nq_motor;
-            if (motor->getJointType() == JointModelType::ROTARY_UNBOUNDED)
-            {
-                nq_motor = 2;
-            }
-            else
-            {
-                nq_motor = 1;
-            }
+            const pinocchio::JointIndex jointIndex = motor->getJointIndex();
+            const pinocchio::JointModel & jmodel = robot->pinocchioModel_.joints[jointIndex];
+            const Eigen::Index jointVelocityIndex = jmodel.idx_v();
             motor->computeEffort(t,
-                                 q.segment(motor->getJointPositionIndex(), nq_motor),
-                                 v[motor->getJointVelocityIndex()],
-                                 a[motor->getJointVelocityIndex()],
+                                 jmodel.jointConfigSelector(q),
+                                 v[jointVelocityIndex],
+                                 a[jointVelocityIndex],
                                  command[motor->getIndex()]);
         }
     }

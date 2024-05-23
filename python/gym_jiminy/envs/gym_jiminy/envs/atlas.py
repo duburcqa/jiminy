@@ -7,8 +7,8 @@ from typing import Any
 
 import numpy as np
 
-from jiminy_py.core import build_models_from_urdf, Robot
-from jiminy_py.robot import load_hardware_description_file, BaseJiminyRobot
+import jiminy_py.core as jiminy
+from jiminy_py.robot import load_hardware_description_file
 from jiminy_py.viewer.viewer import DEFAULT_CAMERA_XYZRPY_REL
 from pinocchio import neutral, buildReducedModel
 
@@ -51,6 +51,7 @@ PD_REDUCED_KD = (
     # Right leg: [HpX, HpZ, HpY, KnY, AkY, AkX]
     0.02, 0.01, 0.015, 0.01, 0.015, 0.01)
 
+# PID derivative gains (one per actuated joint)
 PD_FULL_KP = (
     # Neck: [Y]
     100.0,
@@ -173,11 +174,11 @@ class AtlasReducedJiminyEnv(WalkerJiminyEnv):
         urdf_path = os.path.join(data_dir, "atlas_v4.urdf")
 
         # Load the full models
-        pinocchio_model, collision_model, visual_model = \
-            build_models_from_urdf(urdf_path,
-                                   has_freeflyer=True,
-                                   build_visual_model=True,
-                                   mesh_package_dirs=[data_dir])
+        pinocchio_model, collision_model, visual_model = (
+            jiminy.build_models_from_urdf(urdf_path,
+                                          has_freeflyer=True,
+                                          build_visual_model=True,
+                                          mesh_package_dirs=[data_dir]))
 
         # Generate the reference configuration
         def joint_position_index(joint_name: str) -> int:
@@ -208,9 +209,8 @@ class AtlasReducedJiminyEnv(WalkerJiminyEnv):
             joint_locked_indices, qpos)
 
         # Build the robot and load the hardware
-        robot = BaseJiminyRobot()
-        Robot.initialize(robot, pinocchio_model, collision_model, visual_model)
-        robot._urdf_path_orig = urdf_path  # type: ignore[attr-defined]
+        robot = jiminy.Robot()
+        robot.initialize(pinocchio_model, collision_model, visual_model)
         hardware_path = str(Path(urdf_path).with_suffix('')) + '_hardware.toml'
         load_hardware_description_file(
             robot,
@@ -226,6 +226,8 @@ class AtlasReducedJiminyEnv(WalkerJiminyEnv):
             avoid_instable_collisions=True,
             debug=debug,
             **{**dict(
+                config_path=str(
+                    Path(urdf_path).with_suffix('')) + '_options.toml',
                 simulation_duration_max=SIMULATION_DURATION,
                 step_dt=STEP_DT,
                 reward_mixture=REWARD_MIXTURE,

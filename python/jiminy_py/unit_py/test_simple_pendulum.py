@@ -30,7 +30,7 @@ class SimulateSimplePendulum(unittest.TestCase):
     def setUp(self):
         # Load URDF, create model.
         self.urdf_name = "simple_pendulum.urdf"
-        self.motor_names = ["PendulumJoint"]
+        self.motor_names = ("PendulumJoint",)
         self.robot = load_urdf_default(self.urdf_name, self.motor_names)
 
         # Add IMU to the robot

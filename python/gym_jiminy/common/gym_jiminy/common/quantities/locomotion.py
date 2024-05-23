@@ -92,6 +92,13 @@ class CenterOfMass(AbstractQuantity[np.ndarray]):
         # Call base implementation
         super().initialize()
 
+        # Make sure that the state is consistent with required kinematic level
+        state = self.state
+        if ((self.kinematic_level == pin.ACCELERATION and state.a is None) or
+                (self.kinematic_level >= pin.VELOCITY and state.v is None)):
+            raise RuntimeError(
+                "State data inconsistent with required kinematic level")
+
         # Refresh CoM quantity proxy based on kinematic level
         if self.kinematic_level == pin.POSITION:
             self._com_data = self.pinocchio_data.com[0]
@@ -154,6 +161,11 @@ class ZeroMomentPoint(AbstractQuantity[np.ndarray]):
     def initialize(self) -> None:
         # Call base implementation
         super().initialize()
+
+        # Make sure that the state is consistent with required kinematic level
+        if (self.state.v is None or self.state.a is None):
+            raise RuntimeError(
+                "State data inconsistent with required kinematic level")
 
         # Compute the weight of the robot
         gravity = abs(self.pinocchio_model.gravity.linear[2])

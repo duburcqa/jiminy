@@ -135,8 +135,8 @@ namespace jiminy
         const pinocchio::SE3 & framePose = model->pinocchioData_.oMf[frameIndex_];
         const pinocchio::SE3 transformLocal(rotationLocal_, framePose.translation());
         const pinocchio::Frame & frame = model->pinocchioModel_.frames[frameIndex_];
-        const pinocchio::JointModel & joint = model->pinocchioModel_.joints[frame.parent];
-        const int32_t colRef = joint.nv() + joint.idx_v() - 1;
+        const pinocchio::JointModel & jmodel = model->pinocchioModel_.joints[frame.parent];
+        const int32_t colRef = jmodel.nv() + jmodel.idx_v() - 1;
         for (Eigen::DenseIndex j = colRef; j >= 0;
              j = model->pinocchioData_.parents_fromRow[static_cast<std::size_t>(j)])
         {

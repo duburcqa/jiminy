@@ -7,37 +7,13 @@ from bisect import bisect_right
 from itertools import zip_longest, starmap
 from collections import OrderedDict
 from typing import (
-    Any, Callable, List, Dict, Optional, Sequence, Union, Literal, Type,
-    overload)
+    Any, Callable, List, Dict, Optional, Sequence, Union, Literal, overload)
 
 import numpy as np
 
 from . import core as jiminy
 from . import tree
-from .core import (  # pylint: disable=no-name-in-module
-    EncoderSensor as encoder,
-    EffortSensor as effort,
-    ContactSensor as contact,
-    ForceSensor as force,
-    ImuSensor as imu)
 from .dynamics import State, Trajectory
-
-
-SENSORS_FIELDS: Dict[
-        Type[jiminy.AbstractSensor], Union[List[str], Dict[str, List[str]]]
-        ] = {
-    encoder: encoder.fieldnames,
-    effort: effort.fieldnames,
-    contact: contact.fieldnames,
-    force: {
-        k: [e[len(k):] for e in force.fieldnames if e.startswith(k)]
-        for k in ['F', 'M']
-    },
-    imu: {
-        k: [e[len(k):] for e in imu.fieldnames if e.startswith(k)]
-        for k in ['Quat', 'Gyro', 'Accel']
-    }
-}
 
 
 FieldNested = Union[Dict[str, 'FieldNested'], Sequence['FieldNested'], str]
@@ -259,7 +235,8 @@ def extract_trajectory_from_log(log_data: Dict[str, Any],
     for name in ("position",
                  "velocity",
                  "acceleration",
-                 "motor_effort",
+                 "effort",
+                 "command",
                  "f_external"):
         fieldnames = getattr(robot, f"log_{name}_fieldnames")
         try:
@@ -339,10 +316,9 @@ def update_sensor_measurements_from_log(
 
     # Filter sensors whose data is available
     sensors_set, sensors_log = [], []
-    for sensor_type, sensor_names in robot.sensor_names.items():
+    for sensor_type, sensor_group in robot.sensors.items():
         sensor_fieldnames = getattr(jiminy, sensor_type).fieldnames
-        for name in sensor_names:
-            sensor = robot.get_sensor(sensor_type, name)
+        for sensor in sensor_group:
             log_fieldnames = [
                 '.'.join((sensor.name, field)) for field in sensor_fieldnames]
             if log_fieldnames[0] in log_vars.keys():

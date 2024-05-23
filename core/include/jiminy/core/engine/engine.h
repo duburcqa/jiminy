@@ -198,9 +198,9 @@ namespace jiminy
         std::vector<std::string> logPositionFieldnames{};
         std::vector<std::string> logVelocityFieldnames{};
         std::vector<std::string> logAccelerationFieldnames{};
+        std::vector<std::string> logEffortFieldnames{};
         std::vector<std::string> logForceExternalFieldnames{};
         std::vector<std::string> logCommandFieldnames{};
-        std::vector<std::string> logMotorEffortFieldnames{};
         std::string logEnergyFieldname{};
 
         /// \brief Internal buffer with the state for the integration loop.
@@ -283,15 +283,6 @@ namespace jiminy
             return config;
         };
 
-        GenericConfig getDefaultJointOptions()
-        {
-            GenericConfig config;
-            config["boundStiffness"] = 1.0e7;
-            config["boundDamping"] = 1.0e4;
-
-            return config;
-        };
-
         GenericConfig getDefaultWorldOptions()
         {
             GenericConfig config;
@@ -338,8 +329,8 @@ namespace jiminy
             config["enableAcceleration"] = true;
             config["enableForceExternal"] = false;
             config["enableCommand"] = true;
-            config["enableMotorEffort"] = true;
-            config["enableEnergy"] = true;
+            config["enableEffort"] = false;
+            config["enableEnergy"] = false;
             return config;
         };
 
@@ -349,7 +340,6 @@ namespace jiminy
             config["telemetry"] = getDefaultTelemetryOptions();
             config["stepper"] = getDefaultStepperOptions();
             config["world"] = getDefaultWorldOptions();
-            config["joints"] = getDefaultJointOptions();
             config["constraints"] = getDefaultConstraintOptions();
             config["contacts"] = getDefaultContactOptions();
 
@@ -390,18 +380,6 @@ namespace jiminy
             transitionEps{boost::get<double>(options.at("transitionEps"))},
             transitionVelocity{boost::get<double>(options.at("transitionVelocity"))},
             stabilizationFreq{boost::get<double>(options.at("stabilizationFreq"))}
-            {
-            }
-        };
-
-        struct JointOptions
-        {
-            const double boundStiffness;
-            const double boundDamping;
-
-            JointOptions(const GenericConfig & options) :
-            boundStiffness{boost::get<double>(options.at("boundStiffness"))},
-            boundDamping{boost::get<double>(options.at("boundDamping"))}
             {
             }
         };
@@ -460,7 +438,7 @@ namespace jiminy
             const bool enableAcceleration;
             const bool enableForceExternal;
             const bool enableCommand;
-            const bool enableMotorEffort;
+            const bool enableEffort;
             const bool enableEnergy;
 
             TelemetryOptions(const GenericConfig & options) :
@@ -470,7 +448,7 @@ namespace jiminy
             enableAcceleration{boost::get<bool>(options.at("enableAcceleration"))},
             enableForceExternal{boost::get<bool>(options.at("enableForceExternal"))},
             enableCommand{boost::get<bool>(options.at("enableCommand"))},
-            enableMotorEffort{boost::get<bool>(options.at("enableMotorEffort"))},
+            enableEffort{boost::get<bool>(options.at("enableEffort"))},
             enableEnergy{boost::get<bool>(options.at("enableEnergy"))}
             {
             }
@@ -481,7 +459,6 @@ namespace jiminy
             const TelemetryOptions telemetry;
             const StepperOptions stepper;
             const WorldOptions world;
-            const JointOptions joints;
             const ConstraintOptions constraints;
             const ContactOptions contacts;
 
@@ -489,7 +466,6 @@ namespace jiminy
             telemetry{boost::get<GenericConfig>(options.at("telemetry"))},
             stepper{boost::get<GenericConfig>(options.at("stepper"))},
             world{boost::get<GenericConfig>(options.at("world"))},
-            joints{boost::get<GenericConfig>(options.at("joints"))},
             constraints{boost::get<GenericConfig>(options.at("constraints"))},
             contacts{boost::get<GenericConfig>(options.at("contacts"))}
             {

@@ -3,16 +3,16 @@ Jiminy simulator as physics engine.
 """
 import os
 import pathlib
-from typing import Optional, Dict, Union, Any, Type, Sequence, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
 
 from jiminy_py.core import (  # pylint: disable=no-name-in-module
-    EncoderSensor as encoder,
-    EffortSensor as effort,
-    ContactSensor as contact,
-    ForceSensor as force,
-    ImuSensor as imu,
+    EncoderSensor,
+    EffortSensor,
+    ContactSensor,
+    ForceSensor,
+    ImuSensor,
     PeriodicGaussianProcess,
     Robot)
 from jiminy_py.robot import BaseJiminyRobot
@@ -38,25 +38,25 @@ FLEX_STIFFNESS_SCALE = 1000
 FLEX_DAMPING_SCALE = 10
 
 SENSOR_DELAY_SCALE = {
-    encoder.type: 3.0e-3,
-    effort.type: 0.0,
-    contact.type: 0.0,
-    force.type: 0.0,
-    imu.type: 0.0
+    EncoderSensor: 3.0e-3,
+    EffortSensor: 0.0,
+    ContactSensor: 0.0,
+    ForceSensor: 0.0,
+    ImuSensor: 0.0
 }
 SENSOR_NOISE_SCALE = {
-    encoder.type:  np.array([0.0, 0.02]),
-    effort.type: np.array([10.0]),
-    contact.type: np.array([2.0, 2.0, 2.0, 10.0, 10.0, 10.0]),
-    force.type: np.array([2.0, 2.0, 2.0]),
-    imu.type:  np.array([0.0, 0.0, 0.0, 0.01, 0.01, 0.01, 0.2, 0.2, 0.2])
+    EncoderSensor: np.array([0.0, 0.02]),
+    EffortSensor: np.array([10.0]),
+    ContactSensor: np.array([2.0, 2.0, 2.0, 10.0, 10.0, 10.0]),
+    ForceSensor: np.array([2.0, 2.0, 2.0]),
+    ImuSensor: np.array([0.0, 0.0, 0.0, 0.01, 0.01, 0.01, 0.2, 0.2, 0.2])
 }
 SENSOR_BIAS_SCALE = {
-    encoder.type:  np.array([0.0, 0.0]),
-    effort.type: np.array([0.0]),
-    contact.type: np.array([4.0, 4.0, 4.0, 20.0, 20.0, 20.0]),
-    force.type: np.array([4.0, 4.0, 4.0]),
-    imu.type:  np.array([0.01, 0.01, 0.01, 0.02, 0.02, 0.02, 0.0, 0.0, 0.0])
+    EncoderSensor: np.array([0.0, 0.0]),
+    EffortSensor: np.array([0.0]),
+    ContactSensor: np.array([4.0, 4.0, 4.0, 20.0, 20.0, 20.0]),
+    ForceSensor: np.array([4.0, 4.0, 4.0]),
+    ImuSensor: np.array([0.01, 0.01, 0.01, 0.02, 0.02, 0.02, 0.0, 0.0, 0.0])
 }
 
 DEFAULT_SIMULATION_DURATION = 30.0  # (s) Default simulation duration
@@ -228,12 +228,10 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                 "`WalkerJiminyEnv` only supports robots with freeflyer.")
 
         # Update some internal buffers used for computing the reward
-        motor_effort_limit = self.robot.pinocchio_model.effortLimit[
-            self.robot.motor_velocity_indices]
-        motor_velocity_limit = self.robot.velocity_limit[
-            self.robot.motor_velocity_indices]
-        self._power_consumption_max = sum(
-            motor_effort_limit * motor_velocity_limit)
+        self._power_consumption_max = 0.0
+        for motor in self.robot.motors:
+            motor_power_max = motor.velocity_limit * motor.effort_limit
+            self._power_consumption_max += motor_power_max
 
         # Compute the height of the freeflyer in neutral configuration
         # TODO: Take into account the ground profile.
@@ -262,25 +260,27 @@ class WalkerJiminyEnv(BaseJiminyEnv):
 
         # Add sensor noise, bias and delay
         if 'sensors' in self.std_ratio.keys():
-            sensor_classes: Sequence[Union[
-                Type[encoder], Type[effort], Type[contact], Type[force],
-                Type[imu]]] = (encoder, effort, contact, force, imu)
-            for sensor in sensor_classes:
-                sensors_options = robot_options["sensors"][sensor.type]
+            for cls in (EncoderSensor,
+                        EffortSensor,
+                        ContactSensor,
+                        ForceSensor,
+                        ImuSensor):
+                sensors_options = robot_options["sensors"][cls.type]
                 for sensor_options in sensors_options.values():
                     for name in ("delay", "jitter"):
                         sensor_options[name] = sample(
                             low=0.0,
                             high=(self.std_ratio['sensors'] *
-                                  SENSOR_DELAY_SCALE[sensor.type]),
+                                  SENSOR_DELAY_SCALE[cls]),
                             rg=self.np_random)
                     for name in (
                             ("bias", SENSOR_BIAS_SCALE),
                             ("noiseStd", SENSOR_NOISE_SCALE)):
                         sensor_options[name] = sample(
                             scale=(self.std_ratio['sensors'] *
-                                   SENSOR_NOISE_SCALE[sensor.type]),
-                            shape=(len(sensor.fieldnames),),
+                                   SENSOR_NOISE_SCALE[cls]),
+                            shape=(len(
+                                cls.fieldnames),),  # type: ignore[arg-type]
                             rg=self.np_random)
 
         # Randomize the flexibility parameters
@@ -403,7 +403,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
             reward_dict['survival'] = 1.0
 
         if 'energy' in reward_mixture_keys:
-            v_mot = self.robot.sensor_measurements[encoder.type][1]
+            _, v_mot = self.robot.sensor_measurements[EncoderSensor.type]
             command = self.robot_state.command
             power_consumption = np.sum(np.maximum(command * v_mot, 0.0))
             power_consumption_rel = \

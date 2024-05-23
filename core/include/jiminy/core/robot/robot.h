@@ -34,8 +34,11 @@ namespace jiminy
         };
 
     public:
+        using WeakMotorVector = std::vector<std::weak_ptr<const AbstractMotorBase>>;
         using MotorVector = std::vector<std::shared_ptr<AbstractMotorBase>>;
+        using WeakSensorVector = std::vector<std::weak_ptr<const AbstractSensorBase>>;
         using SensorVector = std::vector<std::shared_ptr<AbstractSensorBase>>;
+        using WeakSensorTree = std::unordered_map<std::string, WeakSensorVector>;
         using SensorTree = std::unordered_map<std::string, SensorVector>;
 
     public:
@@ -61,19 +64,22 @@ namespace jiminy
         const std::string & getName() const;
 
         void attachMotor(std::shared_ptr<AbstractMotorBase> motor);
-        std::shared_ptr<AbstractMotorBase> getMotor(const std::string & motorName);
-        std::weak_ptr<const AbstractMotorBase> getMotor(const std::string & motorName) const;
-        const MotorVector & getMotors() const;
         void detachMotor(const std::string & motorName);
         void detachMotors(std::vector<std::string> motorNames = {});
         void attachSensor(std::shared_ptr<AbstractSensorBase> sensor);
+        void detachSensor(const std::string & sensorType, const std::string & sensorName);
+        void detachSensors(const std::string & sensorType = {});
+
+        std::shared_ptr<AbstractMotorBase> getMotor(const std::string & motorName);
+        std::weak_ptr<const AbstractMotorBase> getMotor(const std::string & motorName) const;
+        const MotorVector & getMotors();
+        const WeakMotorVector & getMotors() const;
         std::shared_ptr<AbstractSensorBase> getSensor(const std::string & sensorType,
                                                       const std::string & sensorName);
         std::weak_ptr<const AbstractSensorBase> getSensor(const std::string & sensorType,
                                                           const std::string & sensorName) const;
-        const SensorTree & getSensors() const;
-        void detachSensor(const std::string & sensorType, const std::string & sensorName);
-        void detachSensors(const std::string & sensorType = {});
+        const SensorTree & getSensors();
+        const WeakSensorTree & getSensors() const;
 
         void setController(const std::shared_ptr<AbstractController> & controller);
         std::shared_ptr<AbstractController> getController();
@@ -113,29 +119,15 @@ namespace jiminy
         void updateTelemetry();
         bool getIsTelemetryConfigured() const;
 
-        const std::vector<std::string> & getMotorNames() const;
-        std::vector<pinocchio::JointIndex> getMotorJointIndices() const;
-        std::vector<std::vector<Eigen::Index>> getMotorsPositionIndices() const;
-        std::vector<Eigen::Index> getMotorVelocityIndices() const;
-        const std::unordered_map<std::string, std::vector<std::string>> & getSensorNames() const;
-        const std::vector<std::string> & getSensorNames(const std::string & sensorType) const;
-
-        const Eigen::VectorXd & getCommandLimit() const;
-
         const std::vector<std::string> & getLogCommandFieldnames() const;
-        const std::vector<std::string> & getLogMotorEffortFieldnames() const;
-
-        // Getters without 'get' prefix for consistency with pinocchio C++ API
-        Eigen::Index nmotors() const;
 
         std::unique_ptr<LockGuardLocal> getLock();
         bool getIsLocked() const;
 
-    protected:
-        void refreshMotorProxies();
-        void refreshSensorProxies();
-        void refreshProxies() override;
+        // Getters without 'get' prefix for consistency with pinocchio C++ API
+        Eigen::Index nmotors() const;
 
+    protected:
         void initializeExtendedModel() override;
 
     private:
@@ -146,26 +138,26 @@ namespace jiminy
         std::shared_ptr<TelemetryData> telemetryData_{nullptr};
         /// \brief Motors attached to the robot.
         MotorVector motors_{};
+        /// \brief Motors attached to the robot as non-owning data structure of const references.
+        WeakMotorVector motorsWeakConstRef_{};
         /// \brief Sensors attached to the robot.
         SensorTree sensors_{};
+        /// \brief Sensors attached to the robot as non-owning data structure of const references.
+        WeakSensorTree sensorsWeakConstRef_{};
         /// \brief Whether the robot options are guaranteed to be up-to-date.
         mutable bool areRobotOptionsRefreshed_{false};
         /// \brief Dictionary with the parameters of the robot.
         mutable GenericConfig robotOptionsGeneric_{};
-        /// \brief Name of the motors.
-        std::vector<std::string> motorNames_{};
-        /// \brief Name of the sensors.
-        std::unordered_map<std::string, std::vector<std::string>> sensorNames_{};
-        /// \brief Fieldnames of the command.
+        /// \brief Log telemetry fieldnames associated with the command of each motor.
         std::vector<std::string> logCommandFieldnames_{};
-        /// \brief Fieldnames of the motors effort.
-        std::vector<std::string> logMotorEffortFieldnames_{};
-        /// \brief Number of motors.
-        Eigen::Index nmotors_{0};
         /// \brief Controller of the robot.
         std::shared_ptr<AbstractController> controller_{nullptr};
         /// \brief Name of the robot.
         std::string name_;
+        /// \brief Velocity limit associated with each motor.
+        Eigen::VectorXd motorVelocityLimit_;
+        /// \brief Effort limit associated with each motor.
+        Eigen::VectorXd motorEffortLimit_;
 
     private:
         std::unique_ptr<MutexLocal> mutexLocal_{std::make_unique<MutexLocal>()};

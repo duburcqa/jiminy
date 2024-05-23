@@ -341,6 +341,7 @@ namespace jiminy::python
                                      bp::arg("mesh_path_dir") = bp::object(),
                                      bp::arg("mesh_package_dirs") = bp::list()));
 
+        bp::def("get_joint_type", &getJointType, bp::arg("joint_model"));
         bp::def("get_joint_type", &getJointTypeFromIndex,
                                   (bp::arg("pinocchio_model"), "joint_index"));
         bp::def("get_joint_indices", &getJointIndices,

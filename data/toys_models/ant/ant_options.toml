@@ -19,8 +19,3 @@ model = "constraint"
 stabilizationFreq = 5.0
 transitionEps = 1.0e-2
 friction = 1.0
-
-# ======== Joints bounds configuration ========
-
-[robot.model.joints]
-enableVelocityLimit = false

@@ -52,9 +52,9 @@ if __name__ == '__main__':
     engine_options["telemetry"]["enableConfiguration"] = True
     engine_options["telemetry"]["enableVelocity"] = True
     engine_options["telemetry"]["enableAcceleration"] = True
+    engine_options["telemetry"]["enableEffort"] = True
     engine_options["telemetry"]["enableForceExternal"] = False
     engine_options["telemetry"]["enableCommand"] = True
-    engine_options["telemetry"]["enableMotorEffort"] = True
     engine_options["telemetry"]["enableEnergy"] = True
     engine_options["world"]["gravity"][2] = -9.81
     engine_options["stepper"]["odeSolver"] = "runge_kutta_dopri5"  # ["runge_kutta_dopri5", "euler_explicit"]

@@ -66,12 +66,10 @@ int main(int /* argc */, char * /* argv */[])
 
     // Instantiate and configuration the robot
     std::vector<std::string> motorJointNames{"SecondPendulumJoint"};
-
     auto robot = std::make_shared<Robot>();
     GenericConfig modelOptions = robot->getModelOptions();
     GenericConfig & jointsOptions = boost::get<GenericConfig>(modelOptions.at("joints"));
     boost::get<bool>(jointsOptions.at("positionLimitFromUrdf")) = true;
-    boost::get<bool>(jointsOptions.at("velocityLimitFromUrdf")) = true;
     robot->setModelOptions(modelOptions);
     robot->initialize(urdfPath.string(), false, {dataPath.string()});
     for (const std::string & jointName : motorJointNames)
@@ -79,6 +77,9 @@ int main(int /* argc */, char * /* argv */[])
         auto motor = std::make_shared<SimpleMotor>(jointName);
         robot->attachMotor(motor);
         motor->initialize(jointName);
+        GenericConfig motorOptions = motor->getOptions();
+        boost::get<bool>(motorOptions.at("velocityLimitFromUrdf")) = true;
+        motor->setOptions(motorOptions);
     }
 
     // Instantiate and configuration the controller
@@ -95,7 +96,7 @@ int main(int /* argc */, char * /* argv */[])
     boost::get<bool>(telemetryOptions.at("enableAcceleration")) = true;
     boost::get<bool>(telemetryOptions.at("enableForceExternal")) = false;
     boost::get<bool>(telemetryOptions.at("enableCommand")) = true;
-    boost::get<bool>(telemetryOptions.at("enableMotorEffort")) = true;
+    boost::get<bool>(telemetryOptions.at("enableEffort")) = true;
     boost::get<bool>(telemetryOptions.at("enableEnergy")) = true;
     GenericConfig & worldOptions = boost::get<GenericConfig>(simuOptions.at("world"));
     boost::get<Eigen::VectorXd>(worldOptions.at("gravity"))[2] = -9.81;

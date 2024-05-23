@@ -37,7 +37,7 @@ namespace jiminy
         boost::circular_buffer<Eigen::MatrixXd> data_;
         /// \brief Current sensor measurements.
         Eigen::MatrixXd measurements_;
-        /// \brief Vector of pointers to the sensors.
+        /// \brief Vector of raw pointers to the sensors.
         std::vector<AbstractSensorBase *> sensors_;
         /// \brief Number of sensors currently sharing this buffer.
         std::size_t num_;
@@ -106,7 +106,7 @@ namespace jiminy
 
     public:
         /// \param[in] name Name of the sensor
-        explicit AbstractSensorBase(const std::string & name) noexcept;
+        explicit AbstractSensorBase(const std::string & name);
         virtual ~AbstractSensorBase();
 
         /// \brief Reset the internal state of the sensors.

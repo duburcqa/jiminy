@@ -616,13 +616,22 @@ namespace jiminy
             pinocchio::FrameIndex childFrameIndex = i;
             do
             {
-                childFrameIndex = model.frames[childFrameIndex].previousFrame;
+                const pinocchio::FrameIndex previousFrameIndex =
+                    model.frames[childFrameIndex].previousFrame;
+                if (childFrameIndex > 1 && previousFrameIndex == childFrameIndex)
+                {
+                    JIMINY_THROW(std::runtime_error,
+                                 "There is something wrong with the model. Frame '",
+                                 model.frames[childFrameIndex].name,
+                                 "' is its own parent.");
+                }
+                childFrameIndex = previousFrameIndex;
                 if (childFrameIndex == frameIndex)
                 {
                     childFrameIndices.push_back(i);
                     break;
                 }
-            } while (childFrameIndex > 0 &&
+            } while (childFrameIndex > 1 &&
                      model.frames[childFrameIndex].type != pinocchio::FrameType::JOINT);
         }
 

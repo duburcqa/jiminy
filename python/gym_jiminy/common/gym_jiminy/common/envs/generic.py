@@ -23,9 +23,7 @@ from gymnasium.core import RenderFrame
 import jiminy_py.core as jiminy
 from jiminy_py import tree
 from jiminy_py.core import (  # pylint: disable=no-name-in-module
-    array_copyto,
-    EncoderSensor as encoder,
-    EffortSensor as effort)
+    EncoderSensor, EffortSensor, array_copyto)
 from jiminy_py.dynamics import compute_freeflyer_state_from_fixed_body
 from jiminy_py.log import extract_variables_from_log
 from jiminy_py.simulator import Simulator, TabbedFigure
@@ -63,19 +61,6 @@ TIMEOUT_RATIO = 15
 
 # Absolute tolerance when checking that observations are valid
 OBS_CONTAINS_TOL = 0.01
-
-# Define universal bounds for the observation space
-FREEFLYER_POS_TRANS_MAX = 1000.0
-FREEFLYER_VEL_LIN_MAX = 1000.0
-FREEFLYER_VEL_ANG_MAX = 10000.0
-JOINT_POS_MAX = 10000.0
-JOINT_VEL_MAX = 100.0
-FLEX_VEL_ANG_MAX = 10000.0
-MOTOR_EFFORT_MAX = 1000.0
-SENSOR_FORCE_MAX = 100000.0
-SENSOR_MOMENT_MAX = 10000.0
-SENSOR_GYRO_MAX = 100.0
-SENSOR_ACCEL_MAX = 10000.0
 
 
 LOGGER = logging.getLogger(__name__)
@@ -288,7 +273,8 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
             action_size = self.action.size
             if action_size > 0 and action_size == self.robot.nmotors:
                 action_fieldnames = [
-                    ".".join(('action', e)) for e in self.robot.motor_names]
+                    ".".join(('action', motor.name))
+                    for motor in self.robot.motors]
                 self.register_variable(
                     'action', self.action, action_fieldnames)
 
@@ -336,9 +322,10 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         space as a whole.
         """
         # Define some proxies for convenience
-        position_limit_upper = self.robot.position_limit_upper
-        position_limit_lower = self.robot.position_limit_lower
-        velocity_limit = self.robot.velocity_limit
+        pinocchio_model = self.robot.pinocchio_model
+        position_limit_lower = pinocchio_model.lowerPositionLimit
+        position_limit_upper = pinocchio_model.upperPositionLimit
+        velocity_limit = pinocchio_model.velocityLimit
 
         # Deduce bounds associated the theoretical model from the extended one
         if use_theoretical_model:
@@ -377,8 +364,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
 
             .. code-block:: python
 
-                sensor_name = env.robot.sensor_names[key][j]
-                sensor = env.robot.get_sensor(key, sensor_name)
+                sensor = env.robot.sensors[key][j]
 
         .. warning:
             This method is not meant to be overloaded in general since the
@@ -387,20 +373,11 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
             observation space as a whole.
         """
         # Define some proxies for convenience
-        sensor_measurements = self.robot.sensor_measurements
-        command_limit = self.robot.command_limit
-        position_space, velocity_space = self._get_agent_state_space().values()
-        assert isinstance(position_space, spaces.Box)
-        assert isinstance(velocity_space, spaces.Box)
-
-        # Replace inf bounds of the action space
-        for motor_name in self.robot.motor_names:
-            motor = self.robot.get_motor(motor_name)
-            motor_options = motor.get_options()
-            if not motor_options["enableCommandLimit"]:
-                command_limit[motor.joint_velocity_index] = MOTOR_EFFORT_MAX
+        position_limit_lower = self.robot.pinocchio_model.lowerPositionLimit
+        position_limit_upper = self.robot.pinocchio_model.upperPositionLimit
 
         # Initialize the bounds of the sensor space
+        sensor_measurements = self.robot.sensor_measurements
         sensor_space_lower = OrderedDict(
             (key, np.full(value.shape, -np.inf))
             for key, value in sensor_measurements.items())
@@ -409,46 +386,40 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
             for key, value in sensor_measurements.items())
 
         # Replace inf bounds of the encoder sensor space
-        if encoder.type in sensor_measurements.keys():
-            sensor_list = self.robot.sensor_names[encoder.type]
-            for sensor_name in sensor_list:
-                # Get the position and velocity bounds of the sensor.
-                # Note that for rotary unbounded encoders, the sensor bounds
-                # cannot be extracted from the configuration vector limits
-                # since the representation is different: cos/sin for the
-                # configuration, and principal value of the angle for the
-                # sensor.
-                sensor = self.robot.get_sensor(encoder.type, sensor_name)
-                assert isinstance(sensor, encoder)
-                sensor_index = sensor.index
-                joint = self.robot.pinocchio_model.joints[sensor.joint_index]
-                if sensor.joint_type == jiminy.JointModelType.ROTARY_UNBOUNDED:
-                    sensor_position_lower = -np.pi
-                    sensor_position_upper = np.pi
-                else:
-                    sensor_position_lower = position_space.low[joint.idx_q]
-                    sensor_position_upper = position_space.high[joint.idx_q]
-                sensor_velocity_limit = velocity_space.high[joint.idx_v]
+        for sensor in self.robot.sensors.get(EncoderSensor.type, ()):
+            # Get the position bounds of the sensor.
+            # Note that for rotary unbounded encoders, the sensor bounds
+            # cannot be extracted from the motor because only the principal
+            # value of the angle is observed by the sensor.
+            assert isinstance(sensor, EncoderSensor)
+            joint = self.robot.pinocchio_model.joints[sensor.joint_index]
+            joint_type = jiminy.get_joint_type(joint)
+            if joint_type == jiminy.JointModelType.ROTARY_UNBOUNDED:
+                sensor_position_lower = - np.pi
+                sensor_position_upper = np.pi
+            else:
+                try:
+                    motor = self.robot.motors[sensor.motor_index]
+                    sensor_position_lower = motor.position_limit_lower
+                    sensor_position_upper = motor.position_limit_upper
+                except IndexError:
+                    sensor_position_lower = position_limit_lower[joint.idx_q]
+                    sensor_position_upper = position_limit_upper[joint.idx_q]
 
-                # Update the bounds accordingly
-                sensor_space_lower[encoder.type][:, sensor_index] = (
-                    sensor_position_lower, -sensor_velocity_limit)
-                sensor_space_upper[encoder.type][:, sensor_index] = (
-                    sensor_position_upper, sensor_velocity_limit)
+            # Update the bounds accordingly
+            sensor_space_lower[EncoderSensor.type][0, sensor.index] = (
+                sensor_position_lower)
+            sensor_space_upper[EncoderSensor.type][0, sensor.index] = (
+                sensor_position_upper)
 
         # Replace inf bounds of the effort sensor space
-        if effort.type in sensor_measurements.keys():
-            sensor_list = self.robot.sensor_names[effort.type]
-            for sensor_name in sensor_list:
-                sensor = self.robot.get_sensor(effort.type, sensor_name)
-                assert isinstance(sensor, effort)
-                sensor_index = sensor.index
-                motor_velocity_index = self.robot.motor_velocity_indices[
-                    sensor.motor_index]
-                sensor_space_lower[effort.type][0, sensor_index] = (
-                    -command_limit[motor_velocity_index])
-                sensor_space_upper[effort.type][0, sensor_index] = (
-                    command_limit[motor_velocity_index])
+        for sensor in self.robot.sensors.get(EffortSensor.type, ()):
+            assert isinstance(sensor, EffortSensor)
+            motor = self.robot.motors[sensor.motor_index]
+            sensor_space_lower[EffortSensor.type][0, sensor.index] = (
+                - motor.effort_limit)
+            sensor_space_upper[EffortSensor.type][0, sensor.index] = (
+                motor.effort_limit)
 
         return spaces.Dict(OrderedDict(
             (key, spaces.Box(low=min_val, high=max_val, dtype=np.float64))
@@ -467,12 +438,12 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
             robot is uniquely defined.
         """
         # Get effort limit
-        command_limit = self.robot.command_limit
+        command_limit = np.array([
+            motor.effort_limit for motor in self.robot.motors])
 
         # Set the action space
-        action_scale = command_limit[self.robot.motor_velocity_indices]
         self.action_space = spaces.Box(
-            low=-action_scale, high=action_scale, dtype=np.float64)
+            low=-command_limit, high=command_limit, dtype=np.float64)
 
     def _initialize_seed(self, seed: Optional[int] = None) -> None:
         """Specify the seed of the environment.
@@ -1286,9 +1257,17 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         if self.debug:
             engine_options["stepper"]["timeout"] = 0.0
 
-        # Force enabling logging of geometries in debug
-        if self.debug:
-            engine_options["telemetry"]["isPersistent"] = True
+        # Enable full logging in debug and evaluation mode
+        if self.debug or not self.is_training:
+            telemetry_options = engine_options["telemetry"]
+            telemetry_options["isPersistent"] = True
+            telemetry_options["enableConfiguration"] = True
+            telemetry_options["enableVelocity"] = True
+            telemetry_options["enableAcceleration"] = True
+            telemetry_options["enableEffort"] = True
+            telemetry_options["enableForceExternal"] = True
+            telemetry_options["enableCommand"] = True
+            telemetry_options["enableEnergy"] = True
 
         # Update engine options
         self.simulator.set_options(engine_options)
@@ -1332,8 +1311,8 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         q = pin.neutral(self.robot.pinocchio_model)
 
         # Make sure it is not out-of-bounds before returning
-        position_limit_lower = self.robot.position_limit_lower
-        position_limit_upper = self.robot.position_limit_upper
+        position_limit_lower = self.robot.pinocchio_model.lowerPositionLimit
+        position_limit_upper = self.robot.pinocchio_model.upperPositionLimit
         for idx, val in enumerate(q):
             lo, hi = position_limit_lower[idx], position_limit_upper[idx]
             if hi < val or val < lo:
@@ -1358,8 +1337,8 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         q = self._neutral()
 
         # Make sure the configuration is not out-of-bound
-        q.clip(self.robot.position_limit_lower,
-               self.robot.position_limit_upper,
+        q.clip(self.robot.pinocchio_model.lowerPositionLimit,
+               self.robot.pinocchio_model.upperPositionLimit,
                out=q)
 
         # Make sure the configuration is normalized
