@@ -133,8 +133,8 @@ class State:
     f_external: Optional[np.ndarray] = None
     """Joint external forces as a 2D array.
 
-     first dimension corresponds to the N individual
-    joints of the robot, while the second gathers the 6 spatial force
+    The first dimension corresponds to the N individual joints of the robot
+    including 'universe', while the second gathers the 6 spatial force
     coordinates (Fx, Fy, Fz, Mx, My, Mz).
     """
 

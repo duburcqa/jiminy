@@ -3,12 +3,15 @@
        integration method of jiminy on simple models.
 """
 import unittest
+from dataclasses import asdict
+from typing import Union, Dict, Tuple, Sequence
+
 import numpy as np
 import scipy
 from scipy.interpolate import interp1d
-from typing import Union, Dict, Tuple, Sequence
 
 import jiminy_py.core as jiminy
+from jiminy_py.log import extract_trajectory_from_log
 from pinocchio import Quaternion, log3, exp3
 from pinocchio.rpy import matrixToRpy, rpyToMatrix
 
@@ -206,6 +209,31 @@ class SimulateSimplePendulum(unittest.TestCase):
 
         # Check that the acceleration cancels out completely
         assert np.abs(acc[-1]) < TOLERANCE
+
+    def test_extract_trajectory(self):
+        """TODO: Write documentation.
+        """
+        # Instantiate the simulator
+        engine = jiminy.Engine()
+        setup_controller_and_engine(engine, self.robot)
+        robot_state = engine.robot_states[0]
+
+        # Run a simulation
+        T_END = 4.0
+        engine.simulate(T_END, np.array([0.0]), np.array([1.0]))
+
+        # Extract trajectory from log
+        traj = extract_trajectory_from_log(engine.log_data)
+
+        # Check that the trajectory is consistent with the final state
+        state_0, *_, state_f = traj.states
+        assert np.abs(state_0.t) < 1e-12
+        assert np.abs(state_f.t - T_END) < 1e-12
+        for key, value in asdict(state_f).items():
+            if key == "t":
+                continue
+            np.testing.assert_allclose(
+                getattr(robot_state, key), value, rtol=0, atol=1e-12)
 
     def test_pendulum_integration(self):
         """Compare pendulum motion, as simulated by Jiminy, against an

@@ -7,7 +7,8 @@ from bisect import bisect_right
 from itertools import zip_longest, starmap
 from collections import OrderedDict
 from typing import (
-    Any, Callable, List, Dict, Optional, Sequence, Union, Literal, overload)
+    Any, Callable, List, Dict, Optional, Sequence, Union, Literal, overload,
+    cast)
 
 import numpy as np
 
@@ -231,7 +232,7 @@ def extract_trajectory_from_log(log_data: Dict[str, Any],
     log_vars = log_data["variables"]
 
     # Extract robot state data over time for all quantities available
-    data: Dict[str, Sequence[np.ndarray]] = OrderedDict()
+    data: Dict[str, Union[Sequence[np.ndarray], np.ndarray]] = OrderedDict()
     for name in ("position",
                  "velocity",
                  "acceleration",
@@ -240,17 +241,21 @@ def extract_trajectory_from_log(log_data: Dict[str, Any],
                  "f_external"):
         fieldnames = getattr(robot, f"log_{name}_fieldnames")
         try:
-            values = extract_variables_from_log(
+            data[name] = extract_variables_from_log(
                 log_vars, fieldnames, robot_name)
-            data[name] = np.stack(values, axis=-1)
         except KeyError:
             data[name] = []
 
-    # Reshape force data if available
-    f_ext = data.get("f_external")
-    if f_ext:
-        data["f_external"] = tuple(np.swapaxes(
-            f_ext.reshape((len(f_ext), -1, 6), order='A'), -2, -1))
+    # Add fictitious 'universe' external force and reshape data if available
+    f_ext: np.ndarray = cast(np.ndarray, data["f_external"])
+    if len(f_ext) > 0:
+        f_ext = np.stack((*((np.zeros_like(f_ext[0]),) * 6), *f_ext), axis=-1)
+        data["f_external"] = f_ext.reshape((len(f_ext), -1, 6), order='A')
+
+    # Stack available data
+    for key, values in data.items():
+        if len(values) > 0 and not isinstance(values, np.ndarray):
+            data[key] = np.stack(values, axis=-1)
 
     # Create state sequence
     states = tuple(starmap(
@@ -315,39 +320,41 @@ def update_sensor_measurements_from_log(
     times = log_vars["Global.Time"]
 
     # Filter sensors whose data is available
-    sensors_set, sensors_log = [], []
-    for sensor_type, sensor_group in robot.sensors.items():
-        sensor_fieldnames = getattr(jiminy, sensor_type).fieldnames
+    sensor_data_map = []
+    for sensor_group in robot.sensors.values():
         for sensor in sensor_group:
-            log_fieldnames = [
-                '.'.join((sensor.name, field)) for field in sensor_fieldnames]
-            if log_fieldnames[0] in log_vars.keys():
-                sensor_log = np.stack([
-                    log_vars[field] for field in log_fieldnames], axis=-1)
-                sensors_set.append(sensor)
-                sensors_log.append(sensor_log)
+            log_sensor_name = ".".join((sensor.type, sensor.name))
+            try:
+                data = np.stack(extract_variables_from_log(
+                    log_vars, sensor.fieldnames, log_sensor_name), axis=-1)
+                sensor_data_map.append((sensor, data))
+            except KeyError:
+                pass
 
     def update_hook(t: float,
                     q: np.ndarray,  # pylint: disable=unused-argument
                     v: np.ndarray  # pylint: disable=unused-argument
                     ) -> None:
-        nonlocal times, sensors_set, sensors_log
+        nonlocal times, sensor_data_map
+
+        # Early return if no more data is available
+        if t > times[-1]:
+            return
 
         # Get surrounding indices in log data
         i = bisect_right(times, t)
         i_prev, i_next = max(i - 1, 0), min(i, len(times) - 1)
 
-        # Early return if no more data is available
+        # Compute linear interpolation ratio
         if i_next == i_prev:
-            return
-
-        # Compute current time ratio
-        ratio = (t - times[i_prev]) / (times[i_next] - times[i_prev])
+            # Special case for final data point
+            ratio = 1.0
+        else:
+            ratio = (t - times[i_prev]) / (times[i_next] - times[i_prev])
 
         # Update sensors data
-        for sensor, sensor_log, in zip(sensors_set, sensors_log):
-            value_prev, value_next = sensor_log[i_prev], sensor_log[i_next]
-            value = value_prev + (value_next - value_prev) * ratio
-            sensor.data = value
+        for sensor, data in sensor_data_map:
+            value_prev, value_next = data[i_prev], data[i_next]
+            sensor.data = value_prev + (value_next - value_prev) * ratio
 
     return update_hook

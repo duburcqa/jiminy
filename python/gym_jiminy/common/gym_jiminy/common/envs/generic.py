@@ -1272,15 +1272,17 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
 
         # Enable full logging in debug and evaluation mode
         if self.debug or not self.is_training:
+            # Enable telemetry at engine-level
             telemetry_options = engine_options["telemetry"]
-            telemetry_options["isPersistent"] = True
-            telemetry_options["enableConfiguration"] = True
-            telemetry_options["enableVelocity"] = True
-            telemetry_options["enableAcceleration"] = True
-            telemetry_options["enableEffort"] = True
-            telemetry_options["enableForceExternal"] = True
-            telemetry_options["enableCommand"] = True
-            telemetry_options["enableEnergy"] = True
+            for key in telemetry_options.keys():
+                telemetry_options[key] = True
+
+            # Enable telemetry at robot-level
+            robot_options = self.robot.get_options()
+            robot_telemetry_options = robot_options["telemetry"]
+            for key in robot_telemetry_options.keys():
+                robot_telemetry_options[key] = True
+            self.robot.set_options(robot_options)
 
         # Update engine options
         self.simulator.set_options(engine_options)

@@ -2566,7 +2566,7 @@ class Viewer:
         time_init = time.time()
         time_prev = time_init
         v, update_hook_t = None, None
-        while t < t_end:
+        while True:
             try:
                 # Update clock if enabled
                 if enable_clock:
@@ -2577,7 +2577,8 @@ class Viewer:
 
                 # Update viewer force buffer
                 if state.f_external is not None:
-                    for f_ref, f_i in zip(self.f_external, state.f_external):
+                    for f_ref, f_i in zip(
+                            self.f_external, state.f_external[1:]):
                         f_ref.vector[:] = f_i
 
                 # Update camera motion
@@ -2593,9 +2594,13 @@ class Viewer:
                 sleep(1.0 / REPLAY_FRAMERATE - (time.time() - time_prev))
                 time_prev = time.time()
 
+                # Break replay loop if the final time has been reached
+                if t_end - t < 1e-10:
+                    break
+
                 # Update simulation time, taking into account speed ratio
                 time_elapsed = time_prev - time_init
-                t = t_start + speed_ratio * time_elapsed
+                t = min(t_start + speed_ratio * time_elapsed, t_end)
 
                 # Waiting for the first timestep is enough
                 wait = False
