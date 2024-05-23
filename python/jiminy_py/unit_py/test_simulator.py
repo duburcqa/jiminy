@@ -169,7 +169,7 @@ class SimulatorTest(unittest.TestCase):
             tempfile.gettempdir(),
             f"video_{next(tempfile._get_candidate_names())}.mp4")
         play_logs_data(
-            robot, log_data, record_video_path=video_path, verbose=False)
+            log_data, robot, record_video_path=video_path, verbose=False)
         self.assertTrue(os.path.isfile(video_path))
 
     def test_double_robot_simulation(self):

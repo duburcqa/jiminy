@@ -744,7 +744,7 @@ def play_trajectories(
 
 def extract_replay_data_from_log(
         log_data: Dict[str, np.ndarray],
-        robot: jiminy.Robot) -> Tuple[
+        robot: Optional[jiminy.Robot] = None) -> Tuple[
             Trajectory,
             Optional[Callable[[float, np.ndarray, np.ndarray], None]],
             Dict[str, Any]]:
@@ -758,9 +758,9 @@ def extract_replay_data_from_log(
               By default, it enables display of external forces applied on
               freeflyer if any.
     """
-    # For each pair (log, robot), extract a trajectory object for
-    # `play_trajectories`
+    # Extract a trajectory object for `play_trajectories`
     trajectory = extract_trajectory_from_log(log_data, robot)
+    robot = trajectory.robot
 
     # Display external forces on root joint, if any
     replay_kwargs = {}
@@ -787,17 +787,19 @@ def extract_replay_data_from_log(
     return trajectory, update_hook, replay_kwargs
 
 
-def play_logs_data(robots: Union[Sequence[jiminy.Robot], jiminy.Robot],
-                   logs_data: Union[Sequence[Dict[str, np.ndarray]],
-                                    Dict[str, np.ndarray]],
-                   **kwargs: Any) -> Sequence[Viewer]:
+def play_logs_data(
+        logs_data: Union[
+            Sequence[Dict[str, np.ndarray]], Dict[str, np.ndarray]],
+        robots: Optional[Union[
+            Sequence[Optional[jiminy.Robot]], jiminy.Robot]] = None,
+        **kwargs: Any) -> Sequence[Viewer]:
     """Play log data in a viewer.
 
     This method simply formats the data then calls `play_trajectories`.
 
-    :param robots: Either a single robot, or a list of robot for each log data.
     :param logs_data: Either a single dictionary, or a list of dictionaries of
                       simulation data log.
+    :param robots: Either a single robot, or a list of robot for each log data.
     :param kwargs: Keyword arguments to forward to `play_trajectories` method.
     """
     # Reformat input arguments as lists
@@ -805,10 +807,12 @@ def play_logs_data(robots: Union[Sequence[jiminy.Robot], jiminy.Robot],
         logs_data = [logs_data]
     if isinstance(robots, jiminy.Robot):
         robots = [robots]
+    elif robots is None:
+        robots = [None,] * len(logs_data)
 
     # Extract a replay data for `play_trajectories` for each pair (robot, log)
     trajectories, update_hooks, extra_kwargs = [], [], {}
-    for robot, log_data in zip(robots, logs_data):
+    for log_data, robot in zip(logs_data, robots):
         trajectory, update_hook, _kwargs = \
             extract_replay_data_from_log(log_data, robot)
         trajectories.append(trajectory)
@@ -863,7 +867,7 @@ def play_logs_files(logs_files: Union[str, Sequence[str]],
                             for log_file in logs_files]
 
     # Forward arguments to lower-level method
-    return play_logs_data(robots, logs_data, **kwargs)
+    return play_logs_data(logs_data, robots, **kwargs)
 
 
 def async_play_and_record_logs_files(
@@ -1021,11 +1025,3 @@ def _play_logs_files_entrypoint() -> None:
     # Do not exit method as long as a graphical window is open
     while Viewer.has_gui():
         time.sleep(0.5)
-
-
-__all__ = [
-    'extract_replay_data_from_log',
-    'play_logs_data',
-    'play_logs_files',
-    'async_play_and_record_logs_files',
-]

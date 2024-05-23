@@ -47,9 +47,9 @@ PD_REDUCED_KP = (
     5000.0, 5000.0, 8000.0, 4000.0, 8000.0, 5000.0)
 PD_REDUCED_KD = (
     # Left leg: [HpX, HpZ, HpY, KnY, AkY, AkX]
-    0.02, 0.01, 0.015, 0.01, 0.015, 0.01,
+    0.02, 0.01, 0.02, 0.01, 0.03, 0.01,
     # Right leg: [HpX, HpZ, HpY, KnY, AkY, AkX]
-    0.02, 0.01, 0.015, 0.01, 0.015, 0.01)
+    0.02, 0.01, 0.02, 0.01, 0.03, 0.01)
 
 # PID derivative gains (one per actuated joint)
 PD_FULL_KP = (

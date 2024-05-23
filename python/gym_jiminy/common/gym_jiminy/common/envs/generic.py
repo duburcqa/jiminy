@@ -31,7 +31,7 @@ from jiminy_py.viewer.viewer import (DEFAULT_CAMERA_XYZRPY_REL,
                                      interactive_mode,
                                      get_default_backend,
                                      Viewer)
-from jiminy_py.viewer.replay import viewer_lock  # type: ignore[attr-defined]
+from jiminy_py.viewer.replay import viewer_lock
 
 import pinocchio as pin
 
@@ -312,14 +312,22 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
                           shape=(),
                           dtype=np.float64)
 
-    def _get_agent_state_space(
-            self, use_theoretical_model: bool = False) -> spaces.Dict:
+    def _get_agent_state_space(self,
+                               use_theoretical_model: bool = False,
+                               ignore_velocity_limit: bool = True
+                               ) -> spaces.Dict:
         """Get state space.
 
         This method is not meant to be overloaded in general since the
         definition of the state space is mostly consensual. One must rather
         overload `_initialize_observation_space` to customize the observation
         space as a whole.
+
+        :param use_theoretical_model: Whether to compute the state space
+                                      associated with the theoretical model
+                                      instead of the extended simulation model.
+        :param ignore_velocity_limit: Whether to ignore the velocity bounds
+                                      specified in model.
         """
         # Define some proxies for convenience
         pinocchio_model = self.robot.pinocchio_model
@@ -335,13 +343,18 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
             velocity_limit = self.robot.get_theoretical_velocity_from_extended(
                 velocity_limit)
 
+        # Ignore velocity bounds in requested
+        if ignore_velocity_limit:
+            velocity_limit = np.full_like(velocity_limit, float("inf"))
+
         # Aggregate position and velocity bounds to define state space
         return spaces.Dict(OrderedDict(
             q=spaces.Box(low=position_limit_lower,
                          high=position_limit_upper,
                          dtype=np.float64),
-            v=spaces.Box(low=-velocity_limit,
-                         high=velocity_limit,
+            v=spaces.Box(low=float("-inf"),
+                         high=float("inf"),
+                         shape=(self.robot.pinocchio_model.nv,),
                          dtype=np.float64)))
 
     def _get_measurements_space(self) -> spaces.Dict:

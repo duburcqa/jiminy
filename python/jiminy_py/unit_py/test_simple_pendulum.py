@@ -137,6 +137,76 @@ class SimulateSimplePendulum(unittest.TestCase):
 
         self.assertTrue(np.allclose(x_jiminy, x_analytical, atol=TOLERANCE))
 
+    def test_velocity_bounds(self):
+        VELOCITY_MAX = 15.0
+        VELOCITY_SLOPE = 0.5
+        TAU = 50.0
+
+        # Configure the robot: set rotor inertia
+        robot_options = self.robot.get_options()
+        motor_options = robot_options["motors"]["PendulumJoint"]
+        motor_options['enableEffortLimit'] = True
+        motor_options['enableVelocityLimit'] = True
+        motor_options['velocityEffortInvSlope'] = VELOCITY_SLOPE
+        motor_options['velocityLimitFromUrdf'] = False
+        motor_options['velocityLimit'] = VELOCITY_MAX
+        self.robot.set_options(robot_options)
+
+        # Initialize the controller and setup the engine
+        def compute_command(t, q, v, sensor_measurements, command):
+            command[:] = TAU
+
+        engine = jiminy.Engine()
+        setup_controller_and_engine(
+            engine, self.robot, compute_command=compute_command)
+
+        # Disable position bounds
+        self.robot.pinocchio_model_th.lowerPositionLimit[:] = -1000.0
+        self.robot.pinocchio_model_th.upperPositionLimit[:] = +1000.0
+
+        # Configure the engine
+        engine_options = engine.get_options()
+        engine_options["world"]["gravity"] = np.zeros(6)
+        engine_options["stepper"]["odeSolver"] = "runge_kutta_dopri5"
+        engine_options["stepper"]["tolAbs"] = 1e-12
+        engine_options["stepper"]["tolRel"] = 1e-12
+        engine.set_options(engine_options)
+
+        # Run simulation
+        engine.simulate(4.0, np.array([0.0]), np.array([0.0]))
+
+        # Extract log data
+        log_data = engine.log_data
+        time = engine.log_data['variables']['Global.Time']
+        vel = engine.log_data['variables']['currentVelocityPendulum']
+        acc = engine.log_data['variables']['currentAccelerationPendulum']
+
+        # Check that the velocity does not exceed the limit
+        assert np.all(np.abs(vel) < VELOCITY_MAX)
+
+        # Check that the velocity ultimately reaches the limit
+        assert np.abs(vel[-1]) - VELOCITY_MAX < TOLERANCE
+
+        # Check that the acceleration is decreasing exponentially
+        acc_thr = TAU / self.robot.pinocchio_data.mass[0]
+        start_idx = next(iter(i for i, a in enumerate(acc) if a < acc_thr))
+        end_idx = start_idx + next(iter(i for i, a in enumerate(acc) if a < 0.1))
+        acc_slope = np.diff(
+            np.log(acc[start_idx:end_idx] / acc_thr)
+            ) / np.diff(time[start_idx:end_idx])
+        assert np.all(np.abs(acc_slope - np.mean(acc_slope)) < 1e-5)
+
+        # Check that the velocity limit activates when it is expected
+        motor = self.robot.motors[0]
+        v_th_max = max(
+            motor.velocity_limit - VELOCITY_SLOPE * motor.effort_limit, 0.0)
+        v_th = motor.velocity_limit - (
+            TAU / motor.effort_limit) * (motor.velocity_limit - v_th_max)
+        assert vel[start_idx - 1] < v_th and vel[start_idx] > v_th
+
+        # Check that the acceleration cancels out completely
+        assert np.abs(acc[-1]) < TOLERANCE
+
     def test_pendulum_integration(self):
         """Compare pendulum motion, as simulated by Jiminy, against an
         equivalent simulation done in python.
@@ -184,12 +254,12 @@ class SimulateSimplePendulum(unittest.TestCase):
         self.robot.set_options(robot_options)
 
         TAU = 5.0
-        def ControllerConstant(t, q, v, sensor_measurements, command):
+        def compute_command(t, q, v, sensor_measurements, command):
             command[:] = - TAU
 
         engine = jiminy.Engine()
         setup_controller_and_engine(
-            engine, self.robot, compute_command=ControllerConstant)
+            engine, self.robot, compute_command=compute_command)
 
         engine_options = engine.get_options()
         engine_options["constraints"]["regularization"] = 0.0
