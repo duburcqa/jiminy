@@ -381,7 +381,7 @@ class TabbedFigure:
                                Optional: True by default.
         """
         # Make sure that the time sequence is valid
-        assert (np.diff(time) > 0.0).all(), (
+        assert (np.diff(time) >= 0.0).all(), (
             "The time sequence must be monotonically increasing.")
 
         # Make sure that the provided tab name does not exist already

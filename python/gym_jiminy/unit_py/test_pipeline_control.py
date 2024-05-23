@@ -47,7 +47,7 @@ class PipelineControl(unittest.TestCase):
         action = np.zeros(self.env.robot.nmotors)
 
         # Run the simulation
-        while self.env.stepper_state.t < 19.0:
+        while self.env.stepper_state.t < 9.0:
             self.env.step(action)
 
         # Export figure

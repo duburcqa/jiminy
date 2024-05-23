@@ -533,9 +533,6 @@ class PDAdapter(
         # Define some proxies for convenience
         self._pd_controller = controller
 
-        # Allocate memory for the target motor accelerations
-        self._target_accelerations = np.zeros((env.robot.nmotors,))
-
         # Initialize the controller
         super().__init__(name, env, update_ratio)
 
@@ -549,13 +546,6 @@ class PDAdapter(
             low=self._pd_controller._command_state_lower[self.order],
             high=self._pd_controller._command_state_upper[self.order],
             dtype=np.float64)
-
-    def _setup(self) -> None:
-        # Call base implementation
-        super()._setup()
-
-        # Reset the target motor accelerations
-        fill(self._target_accelerations, 0)
 
     @property
     def fieldnames(self) -> List[str]:

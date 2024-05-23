@@ -107,8 +107,9 @@ if __name__ == '__main__':
     plt.grid()
     plt.show()
 
-    # Display the simulation trajectory and the reference
-    play_logs_data(robot, log_data,
+    # Replay the simulation
+    play_logs_data(log_data,
+                   robot,
                    speed_ratio=0.5,
                    camera_pose=((0.0, 7.0, 0.0), (np.pi/2, 0.0, np.pi), None),
                    delete_robot_on_close=False)

@@ -246,8 +246,8 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         # computation and log replay.
         engine_options['telemetry']['enableConfiguration'] = True
         engine_options['telemetry']['enableVelocity'] = True
-        engine_options['telemetry']['enableForceExternal'] = \
-            'disturbance' in self.std_ratio.keys()
+        if 'disturbance' in self.std_ratio.keys():
+            engine_options['telemetry']['enableForceExternal'] = True
 
         # ============= Add some stochasticity to the environment =============
 

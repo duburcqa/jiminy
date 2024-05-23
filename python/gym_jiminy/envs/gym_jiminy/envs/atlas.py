@@ -36,8 +36,9 @@ SIMULATION_DURATION = 20.0
 STEP_DT = 0.04
 
 MOTOR_POSITION_MARGIN = 0.02
-MOTOR_VELOCITY_MAX = 3.0
-MOTOR_ACCELERATION_MAX = 40.0
+MOTOR_VELOCITY_SAFE_GAIN = 0.15
+MOTOR_VELOCITY_MAX = 4.0
+MOTOR_ACCELERATION_MAX = 30.0
 
 # PID proportional gains (one per actuated joint)
 PD_REDUCED_KP = (
@@ -47,9 +48,9 @@ PD_REDUCED_KP = (
     5000.0, 5000.0, 8000.0, 4000.0, 8000.0, 5000.0)
 PD_REDUCED_KD = (
     # Left leg: [HpX, HpZ, HpY, KnY, AkY, AkX]
-    0.02, 0.01, 0.015, 0.01, 0.015, 0.01,
+    0.02, 0.01, 0.02, 0.01, 0.025, 0.01,
     # Right leg: [HpX, HpZ, HpY, KnY, AkY, AkX]
-    0.02, 0.01, 0.015, 0.01, 0.015, 0.01)
+    0.02, 0.01, 0.02, 0.01, 0.025, 0.01)
 
 # PID derivative gains (one per actuated joint)
 PD_FULL_KP = (
@@ -124,7 +125,7 @@ class AtlasJiminyEnv(WalkerJiminyEnv):
         """
         # Get the urdf and mesh paths
         data_dir = str(files("gym_jiminy.envs") / "data/bipedal_robots/atlas")
-        urdf_path = os.path.join(data_dir, "atlas_v4.urdf")
+        urdf_path = os.path.join(data_dir, "atlas.urdf")
 
         # Override default camera pose to change the reference frame
         kwargs.setdefault("viewer_kwargs", {}).setdefault(
@@ -171,7 +172,7 @@ class AtlasReducedJiminyEnv(WalkerJiminyEnv):
     def __init__(self, debug: bool = False, **kwargs: Any) -> None:
         # Get the urdf and mesh paths
         data_dir = str(files("gym_jiminy.envs") / "data/bipedal_robots/atlas")
-        urdf_path = os.path.join(data_dir, "atlas_v4.urdf")
+        urdf_path = os.path.join(data_dir, "atlas.urdf")
 
         # Load the full models
         pinocchio_model, collision_model, visual_model = (
@@ -248,7 +249,7 @@ AtlasPDControlJiminyEnv = build_pipeline(
                 cls=MotorSafetyLimit,
                 kwargs=dict(
                     kp=1.0 / MOTOR_POSITION_MARGIN,
-                    kd=1.0 / MOTOR_VELOCITY_MAX,
+                    kd=MOTOR_VELOCITY_SAFE_GAIN,
                     soft_position_margin=0.0,
                     soft_velocity_max=MOTOR_VELOCITY_MAX,
                 )

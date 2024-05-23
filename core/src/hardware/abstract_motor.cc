@@ -188,7 +188,7 @@ namespace jiminy
            reduction ratio must be an integer. */
         if (jointType_ == JointModelType::ROTARY_UNBOUNDED)
         {
-            if (abs(mechanicalReduction - 1.0) < EPS)
+            if (abs(mechanicalReduction - 1.0) > EPS)
             {
                 JIMINY_THROW(std::runtime_error,
                              "The mechanical reduction must be equal to 1.0 for motors actuating "

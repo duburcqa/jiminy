@@ -328,7 +328,7 @@ namespace jiminy
             config["enableVelocity"] = true;
             config["enableAcceleration"] = true;
             config["enableForceExternal"] = false;
-            config["enableCommand"] = true;
+            config["enableCommand"] = false;
             config["enableEffort"] = false;
             config["enableEnergy"] = false;
             return config;
