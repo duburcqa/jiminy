@@ -23,12 +23,7 @@ from gymnasium.core import RenderFrame
 import jiminy_py.core as jiminy
 from jiminy_py import tree
 from jiminy_py.core import (  # pylint: disable=no-name-in-module
-    array_copyto,
-    EncoderSensor as encoder,
-    EffortSensor as effort,
-    ContactSensor as contact,
-    ForceSensor as force,
-    ImuSensor as imu)
+    EncoderSensor, EffortSensor, array_copyto)
 from jiminy_py.dynamics import compute_freeflyer_state_from_fixed_body
 from jiminy_py.log import extract_variables_from_log
 from jiminy_py.simulator import Simulator, TabbedFigure
@@ -36,7 +31,7 @@ from jiminy_py.viewer.viewer import (DEFAULT_CAMERA_XYZRPY_REL,
                                      interactive_mode,
                                      get_default_backend,
                                      Viewer)
-from jiminy_py.viewer.replay import viewer_lock  # type: ignore[attr-defined]
+from jiminy_py.viewer.replay import viewer_lock
 
 import pinocchio as pin
 
@@ -49,7 +44,8 @@ from ..utils import (FieldNested,
                      build_contains,
                      get_fieldnames,
                      register_variables)
-from ..bases import (ObsT,
+from ..bases import (DT_EPS,
+                     ObsT,
                      ActT,
                      InfoType,
                      SensorMeasurementStackMap,
@@ -61,23 +57,10 @@ from .internal import loop_interactive
 
 
 # Maximum realtime slowdown of simulation steps before triggering timeout error
-TIMEOUT_RATIO = 10
+TIMEOUT_RATIO = 15
 
 # Absolute tolerance when checking that observations are valid
 OBS_CONTAINS_TOL = 0.01
-
-# Define universal bounds for the observation space
-FREEFLYER_POS_TRANS_MAX = 1000.0
-FREEFLYER_VEL_LIN_MAX = 1000.0
-FREEFLYER_VEL_ANG_MAX = 10000.0
-JOINT_POS_MAX = 10000.0
-JOINT_VEL_MAX = 100.0
-FLEX_VEL_ANG_MAX = 10000.0
-MOTOR_EFFORT_MAX = 1000.0
-SENSOR_FORCE_MAX = 100000.0
-SENSOR_MOMENT_MAX = 10000.0
-SENSOR_GYRO_MAX = 100.0
-SENSOR_ACCEL_MAX = 10000.0
 
 
 LOGGER = logging.getLogger(__name__)
@@ -119,7 +102,6 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
     def __init__(self,
                  simulator: Simulator,
                  step_dt: float,
-                 enforce_bounded_spaces: bool = False,
                  debug: bool = False,
                  render_mode: Optional[str] = None,
                  **kwargs: Any) -> None:
@@ -135,11 +117,6 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
                      snapshot as an RGB array without showing it on the screen.
                      Optional: 'human' by default if available with the current
                      backend (or default if none), 'rgb_array' otherwise.
-        :param enforce_bounded_spaces:
-            Whether to enforce finite bounds for the observation and action
-            spaces. If so, then '\*_MAX' are used whenever it is necessary.
-            Note that whose bounds are very spread to make sure it is suitable
-            for the vast majority of systems.
         :param debug: Whether the debug mode must be enabled. Doing it enables
                       telemetry recording.
         :param render_mode: Desired rendering mode, ie "human" or "rgb_array".
@@ -193,7 +170,6 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         self.simulator: Simulator = simulator
         self._step_dt = step_dt
         self.render_mode = render_mode
-        self.enforce_bounded_spaces = enforce_bounded_spaces
         self.debug = debug
 
         # Define some proxies for fast access.
@@ -235,8 +211,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         self.total_reward = 0.0
 
         # Number of simulation steps performed
-        self.num_steps = -1
-        self.max_steps = 0
+        self.num_steps = np.array(-1, dtype=np.int64)
         self._num_steps_beyond_terminate: Optional[int] = None
 
         # Initialize the interfaces through multiple inheritance
@@ -298,7 +273,8 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
             action_size = self.action.size
             if action_size > 0 and action_size == self.robot.nmotors:
                 action_fieldnames = [
-                    ".".join(('action', e)) for e in self.robot.motor_names]
+                    ".".join(('action', motor.name))
+                    for motor in self.robot.motors]
                 self.register_variable(
                     'action', self.action, action_fieldnames)
 
@@ -336,38 +312,28 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
                           shape=(),
                           dtype=np.float64)
 
-    def _get_agent_state_space(
-            self, use_theoretical_model: bool = False) -> spaces.Dict:
+    def _get_agent_state_space(self,
+                               use_theoretical_model: bool = False,
+                               ignore_velocity_limit: bool = True
+                               ) -> spaces.Dict:
         """Get state space.
 
         This method is not meant to be overloaded in general since the
         definition of the state space is mostly consensual. One must rather
         overload `_initialize_observation_space` to customize the observation
         space as a whole.
+
+        :param use_theoretical_model: Whether to compute the state space
+                                      associated with the theoretical model
+                                      instead of the extended simulation model.
+        :param ignore_velocity_limit: Whether to ignore the velocity bounds
+                                      specified in model.
         """
         # Define some proxies for convenience
-        model_options = self.robot.get_model_options()
-        joint_velocity_indices = self.robot.mechanical_joint_velocity_indices
-        position_limit_upper = self.robot.position_limit_upper
-        position_limit_lower = self.robot.position_limit_lower
-        velocity_limit = self.robot.velocity_limit
-
-        # Replace inf bounds of the state space if requested
-        if self.enforce_bounded_spaces:
-            if self.robot.has_freeflyer:
-                position_limit_lower[:3] = -FREEFLYER_POS_TRANS_MAX
-                position_limit_upper[:3] = +FREEFLYER_POS_TRANS_MAX
-                velocity_limit[:3] = FREEFLYER_VEL_LIN_MAX
-                velocity_limit[3:6] = FREEFLYER_VEL_ANG_MAX
-
-            for joint_index in self.robot.flexibility_joint_indices:
-                joint_velocity_index = (
-                    self.robot.pinocchio_model.joints[joint_index].idx_v)
-                velocity_limit[
-                    joint_velocity_index + np.arange(3)] = FLEX_VEL_ANG_MAX
-
-            if not model_options['joints']['enableVelocityLimit']:
-                velocity_limit[joint_velocity_indices] = JOINT_VEL_MAX
+        pinocchio_model = self.robot.pinocchio_model
+        position_limit_lower = pinocchio_model.lowerPositionLimit
+        position_limit_upper = pinocchio_model.upperPositionLimit
+        velocity_limit = pinocchio_model.velocityLimit
 
         # Deduce bounds associated the theoretical model from the extended one
         if use_theoretical_model:
@@ -377,13 +343,18 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
             velocity_limit = self.robot.get_theoretical_velocity_from_extended(
                 velocity_limit)
 
+        # Ignore velocity bounds in requested
+        if ignore_velocity_limit:
+            velocity_limit = np.full_like(velocity_limit, float("inf"))
+
         # Aggregate position and velocity bounds to define state space
         return spaces.Dict(OrderedDict(
             q=spaces.Box(low=position_limit_lower,
                          high=position_limit_upper,
                          dtype=np.float64),
-            v=spaces.Box(low=-velocity_limit,
-                         high=velocity_limit,
+            v=spaces.Box(low=float("-inf"),
+                         high=float("inf"),
+                         shape=(self.robot.pinocchio_model.nv,),
                          dtype=np.float64)))
 
     def _get_measurements_space(self) -> spaces.Dict:
@@ -406,8 +377,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
 
             .. code-block:: python
 
-                sensor_name = env.robot.sensor_names[key][j]
-                sensor = env.robot.get_sensor(key, sensor_name)
+                sensor = env.robot.sensors[key][j]
 
         .. warning:
             This method is not meant to be overloaded in general since the
@@ -416,20 +386,11 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
             observation space as a whole.
         """
         # Define some proxies for convenience
-        sensor_measurements = self.robot.sensor_measurements
-        command_limit = self.robot.command_limit
-        position_space, velocity_space = self._get_agent_state_space().values()
-        assert isinstance(position_space, spaces.Box)
-        assert isinstance(velocity_space, spaces.Box)
-
-        # Replace inf bounds of the action space
-        for motor_name in self.robot.motor_names:
-            motor = self.robot.get_motor(motor_name)
-            motor_options = motor.get_options()
-            if not motor_options["enableCommandLimit"]:
-                command_limit[motor.joint_velocity_index] = MOTOR_EFFORT_MAX
+        position_limit_lower = self.robot.pinocchio_model.lowerPositionLimit
+        position_limit_upper = self.robot.pinocchio_model.upperPositionLimit
 
         # Initialize the bounds of the sensor space
+        sensor_measurements = self.robot.sensor_measurements
         sensor_space_lower = OrderedDict(
             (key, np.full(value.shape, -np.inf))
             for key, value in sensor_measurements.items())
@@ -438,72 +399,40 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
             for key, value in sensor_measurements.items())
 
         # Replace inf bounds of the encoder sensor space
-        if encoder.type in sensor_measurements.keys():
-            sensor_list = self.robot.sensor_names[encoder.type]
-            for sensor_name in sensor_list:
-                # Get the position and velocity bounds of the sensor.
-                # Note that for rotary unbounded encoders, the sensor bounds
-                # cannot be extracted from the configuration vector limits
-                # since the representation is different: cos/sin for the
-                # configuration, and principal value of the angle for the
-                # sensor.
-                sensor = self.robot.get_sensor(encoder.type, sensor_name)
-                assert isinstance(sensor, encoder)
-                sensor_index = sensor.index
-                joint = self.robot.pinocchio_model.joints[sensor.joint_index]
-                if sensor.joint_type == jiminy.JointModelType.ROTARY_UNBOUNDED:
-                    sensor_position_lower = -np.pi
-                    sensor_position_upper = np.pi
-                else:
-                    sensor_position_lower = position_space.low[joint.idx_q]
-                    sensor_position_upper = position_space.high[joint.idx_q]
-                sensor_velocity_limit = velocity_space.high[joint.idx_v]
+        for sensor in self.robot.sensors.get(EncoderSensor.type, ()):
+            # Get the position bounds of the sensor.
+            # Note that for rotary unbounded encoders, the sensor bounds
+            # cannot be extracted from the motor because only the principal
+            # value of the angle is observed by the sensor.
+            assert isinstance(sensor, EncoderSensor)
+            joint = self.robot.pinocchio_model.joints[sensor.joint_index]
+            joint_type = jiminy.get_joint_type(joint)
+            if joint_type == jiminy.JointModelType.ROTARY_UNBOUNDED:
+                sensor_position_lower = - np.pi
+                sensor_position_upper = np.pi
+            else:
+                try:
+                    motor = self.robot.motors[sensor.motor_index]
+                    sensor_position_lower = motor.position_limit_lower
+                    sensor_position_upper = motor.position_limit_upper
+                except IndexError:
+                    sensor_position_lower = position_limit_lower[joint.idx_q]
+                    sensor_position_upper = position_limit_upper[joint.idx_q]
 
-                # Update the bounds accordingly
-                sensor_space_lower[encoder.type][:, sensor_index] = (
-                    sensor_position_lower, -sensor_velocity_limit)
-                sensor_space_upper[encoder.type][:, sensor_index] = (
-                    sensor_position_upper, sensor_velocity_limit)
+            # Update the bounds accordingly
+            sensor_space_lower[EncoderSensor.type][0, sensor.index] = (
+                sensor_position_lower)
+            sensor_space_upper[EncoderSensor.type][0, sensor.index] = (
+                sensor_position_upper)
 
         # Replace inf bounds of the effort sensor space
-        if effort.type in sensor_measurements.keys():
-            sensor_list = self.robot.sensor_names[effort.type]
-            for sensor_name in sensor_list:
-                sensor = self.robot.get_sensor(effort.type, sensor_name)
-                assert isinstance(sensor, effort)
-                sensor_index = sensor.index
-                motor_velocity_index = self.robot.motor_velocity_indices[
-                    sensor.motor_index]
-                sensor_space_lower[effort.type][0, sensor_index] = (
-                    -command_limit[motor_velocity_index])
-                sensor_space_upper[effort.type][0, sensor_index] = (
-                    command_limit[motor_velocity_index])
-
-        # Replace inf bounds of the imu sensor space
-        if self.enforce_bounded_spaces:
-            # Replace inf bounds of the contact sensor space
-            if contact.type in sensor_measurements.keys():
-                sensor_space_lower[contact.type][:] = -SENSOR_FORCE_MAX
-                sensor_space_upper[contact.type][:] = SENSOR_FORCE_MAX
-
-            # Replace inf bounds of the force sensor space
-            if force.type in sensor_measurements.keys():
-                sensor_space_lower[force.type][:3] = -SENSOR_FORCE_MAX
-                sensor_space_upper[force.type][:3] = SENSOR_FORCE_MAX
-                sensor_space_lower[force.type][3:] = -SENSOR_MOMENT_MAX
-                sensor_space_upper[force.type][3:] = SENSOR_MOMENT_MAX
-
-            # Replace inf bounds of the imu sensor space
-            if imu.type in sensor_measurements.keys():
-                gyro_index = [
-                    field.startswith('Gyro') for field in imu.fieldnames]
-                sensor_space_lower[imu.type][gyro_index] = -SENSOR_GYRO_MAX
-                sensor_space_upper[imu.type][gyro_index] = SENSOR_GYRO_MAX
-
-                accel_index = [
-                    field.startswith('Accel') for field in imu.fieldnames]
-                sensor_space_lower[imu.type][accel_index] = -SENSOR_ACCEL_MAX
-                sensor_space_upper[imu.type][accel_index] = SENSOR_ACCEL_MAX
+        for sensor in self.robot.sensors.get(EffortSensor.type, ()):
+            assert isinstance(sensor, EffortSensor)
+            motor = self.robot.motors[sensor.motor_index]
+            sensor_space_lower[EffortSensor.type][0, sensor.index] = (
+                - motor.effort_limit)
+            sensor_space_upper[EffortSensor.type][0, sensor.index] = (
+                motor.effort_limit)
 
         return spaces.Dict(OrderedDict(
             (key, spaces.Box(low=min_val, high=max_val, dtype=np.float64))
@@ -522,21 +451,12 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
             robot is uniquely defined.
         """
         # Get effort limit
-        command_limit = self.robot.command_limit
-
-        # Replace inf bounds of the effort limit if requested
-        if self.enforce_bounded_spaces:
-            for motor_name in self.robot.motor_names:
-                motor = self.robot.get_motor(motor_name)
-                motor_options = motor.get_options()
-                if not motor_options["enableCommandLimit"]:
-                    command_limit[motor.joint_velocity_index] = \
-                        MOTOR_EFFORT_MAX
+        command_limit = np.array([
+            motor.effort_limit for motor in self.robot.motors])
 
         # Set the action space
-        action_scale = command_limit[self.robot.motor_velocity_indices]
         self.action_space = spaces.Box(
-            low=-action_scale, high=action_scale, dtype=np.float64)
+            low=-command_limit, high=command_limit, dtype=np.float64)
 
     def _initialize_seed(self, seed: Optional[int] = None) -> None:
         """Specify the seed of the environment.
@@ -716,7 +636,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         self.simulator.reset(remove_all_forces=False)
 
         # Reset some internal buffers
-        self.num_steps = 0
+        self.num_steps[()] = 0
         self._num_steps_beyond_terminate = None
 
         # Create a new log file
@@ -798,9 +718,6 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         self.robot.controller = jiminy.FunctionalController(
             partial(type(env)._controller_handle, weakref.proxy(env)))
 
-        # Configure the maximum number of steps
-        self.max_steps = int(self.simulation_duration_max // self.step_dt)
-
         # Register user-specified variables to the telemetry
         for header, value in self._registered_variables.values():
             register_variables(self.robot.controller, header, value)
@@ -848,8 +765,11 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
                     f"'nan' value found in observation ({obs}). Something "
                     "went wrong with `refresh_observation` method.")
 
+        # Reset the extra information buffer
+        self._info.clear()
+
         # The simulation cannot be done before doing a single step.
-        if any(self.has_terminated()):
+        if any(self.has_terminated(self._info)):
             raise RuntimeError(
                 "The simulation has already terminated at `reset`. Check the "
                 "implementation of `has_terminated` if overloaded.")
@@ -933,6 +853,15 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
             self.simulator.stop()
             raise
 
+        # Make sure there is no 'nan' value in observation
+        if is_nan(self._robot_state_a):
+            raise RuntimeError(
+                "The acceleration of the system is 'nan'. Something went "
+                "wrong with jiminy engine.")
+
+        # Update number of (successful) steps
+        self.num_steps += 1
+
         # Update shared buffers
         self._refresh_buffers()
 
@@ -945,22 +874,16 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
             self._robot_state_v,
             self.robot.sensor_measurements)
 
-        # Make sure there is no 'nan' value in observation
-        if is_nan(self._robot_state_a):
-            raise RuntimeError(
-                "The acceleration of the system is 'nan'. Something went "
-                "wrong with jiminy engine.")
-
         # Reset the extra information buffer
         self._info.clear()
 
         # Check if the simulation is over.
         # Note that 'truncated' is forced to True if the integration failed or
         # if the maximum number of steps will be exceeded next step.
-        terminated, truncated = self.has_terminated()
+        terminated, truncated = self.has_terminated(self._info)
         truncated = (
             truncated or not self.is_simulation_running or
-            self.num_steps >= self.max_steps)
+            self.stepper_state.t + DT_EPS > self.simulation_duration_max)
 
         # Check if stepping after done and if it is an undefined behavior
         if self._num_steps_beyond_terminate is None:
@@ -980,7 +903,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
             reward = float('nan')
         else:
             # Compute reward and update extra information
-            reward = self.compute_reward(terminated, truncated, self._info)
+            reward = self.compute_reward(terminated, self._info)
 
             # Make sure the reward is not 'nan'
             if math.isnan(reward):
@@ -994,9 +917,6 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         # Write log file if simulation has just terminated in debug mode
         if self.debug and self._num_steps_beyond_terminate == 0:
             self.simulator.write_log(self.log_path, format="binary")
-
-        # Update number of (successful) steps
-        self.num_steps += 1
 
         # Clip (and copy) the most derived observation before returning it
         obs = self._get_clipped_env_observation()
@@ -1099,7 +1019,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
             kwargs['close_backend'] = not self.simulator.is_viewer_available
 
         # Stop any running simulation before replay if `has_terminated` is True
-        if self.is_simulation_running and any(self.has_terminated()):
+        if self.is_simulation_running and any(self.has_terminated({})):
             self.simulator.stop()
 
         with viewer_lock:
@@ -1350,9 +1270,19 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         if self.debug:
             engine_options["stepper"]["timeout"] = 0.0
 
-        # Force disabling logging of geometries unless in debug or eval modes
-        if self.is_training and not self.debug:
-            engine_options["telemetry"]["isPersistent"] = False
+        # Enable full logging in debug and evaluation mode
+        if self.debug or not self.is_training:
+            # Enable telemetry at engine-level
+            telemetry_options = engine_options["telemetry"]
+            for key in telemetry_options.keys():
+                telemetry_options[key] = True
+
+            # Enable telemetry at robot-level
+            robot_options = self.robot.get_options()
+            robot_telemetry_options = robot_options["telemetry"]
+            for key in robot_telemetry_options.keys():
+                robot_telemetry_options[key] = True
+            self.robot.set_options(robot_options)
 
         # Update engine options
         self.simulator.set_options(engine_options)
@@ -1396,8 +1326,8 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         q = pin.neutral(self.robot.pinocchio_model)
 
         # Make sure it is not out-of-bounds before returning
-        position_limit_lower = self.robot.position_limit_lower
-        position_limit_upper = self.robot.position_limit_upper
+        position_limit_lower = self.robot.pinocchio_model.lowerPositionLimit
+        position_limit_upper = self.robot.pinocchio_model.upperPositionLimit
         for idx, val in enumerate(q):
             lo, hi = position_limit_lower[idx], position_limit_upper[idx]
             if hi < val or val < lo:
@@ -1422,8 +1352,8 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         q = self._neutral()
 
         # Make sure the configuration is not out-of-bound
-        q.clip(self.robot.position_limit_lower,
-               self.robot.position_limit_upper,
+        q.clip(self.robot.pinocchio_model.lowerPositionLimit,
+               self.robot.pinocchio_model.upperPositionLimit,
                out=q)
 
         # Make sure the configuration is normalized
@@ -1548,7 +1478,9 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         assert isinstance(action, np.ndarray)
         array_copyto(command, action)
 
-    def has_terminated(self) -> Tuple[bool, bool]:
+    def has_terminated(self,
+                       info: InfoType  # pylint: disable=unused-argument
+                       ) -> Tuple[bool, bool]:
         """Determine whether the episode is over, because a terminal state of
         the underlying MDP has been reached or an aborting condition outside
         the scope of the MDP has been triggered.
@@ -1566,6 +1498,8 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         .. note::
             This method is called after `refresh_observation`, so that the
             internal buffer 'observation' is up-to-date.
+
+        :param info: Dictionary of extra information for monitoring.
 
         :returns: terminated and truncated flags.
         """

@@ -1,8 +1,5 @@
 # pylint: disable=missing-module-docstring
 
-from .quantity import (SharedCache,
-                       QuantityCreator,
-                       AbstractQuantity)
 from .interfaces import (DT_EPS,
                          ObsT,
                          ActT,
@@ -14,6 +11,16 @@ from .interfaces import (DT_EPS,
                          InterfaceObserver,
                          InterfaceController,
                          InterfaceJiminyEnv)
+from .quantities import (QuantityCreator,
+                         QuantityEvalMode,
+                         SharedCache,
+                         InterfaceQuantity,
+                         AbstractQuantity,
+                         StateQuantity,
+                         DatasetTrajectoryQuantity)
+from .compositions import (AbstractReward,
+                           BaseQuantityReward,
+                           BaseMixtureReward)
 from .blocks import (BlockStateT,
                      InterfaceBlock,
                      BaseObserverBlock,
@@ -22,14 +29,12 @@ from .pipeline import (NestedObsT,
                        BasePipelineWrapper,
                        BaseTransformObservation,
                        BaseTransformAction,
+                       ComposedJiminyEnv,
                        ObservedJiminyEnv,
                        ControlledJiminyEnv)
 
 
 __all__ = [
-    'SharedCache',
-    'QuantityCreator',
-    'AbstractQuantity',
     'DT_EPS',
     'ObsT',
     'NestedObsT',
@@ -40,15 +45,26 @@ __all__ = [
     'InfoType',
     'SensorMeasurementStackMap',
     'EngineObsType',
+    'SharedCache',
     'InterfaceObserver',
     'InterfaceController',
     'InterfaceJiminyEnv',
     'InterfaceBlock',
+    'InterfaceQuantity',
+    'AbstractQuantity',
+    'AbstractReward',
+    'BaseQuantityReward',
+    'BaseMixtureReward',
     'BaseObserverBlock',
     'BaseControllerBlock',
     'BasePipelineWrapper',
     'BaseTransformObservation',
     'BaseTransformAction',
+    'ComposedJiminyEnv',
     'ObservedJiminyEnv',
     'ControlledJiminyEnv',
+    'QuantityEvalMode',
+    'QuantityCreator',
+    'StateQuantity',
+    'DatasetTrajectoryQuantity'
 ]

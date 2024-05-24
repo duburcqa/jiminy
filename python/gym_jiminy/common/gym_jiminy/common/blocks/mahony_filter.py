@@ -8,8 +8,7 @@ import numpy as np
 import numba as nb
 import gymnasium as gym
 
-from jiminy_py.core import (  # pylint: disable=no-name-in-module
-    ImuSensor as imu)
+from jiminy_py.core import ImuSensor  # pylint: disable=no-name-in-module
 
 from ..bases import BaseObsT, BaseActT, BaseObserverBlock, InterfaceJiminyEnv
 from ..utils import (fill,
@@ -200,7 +199,7 @@ class MahonyFilter(
                              Optional: `1` by default.
         """
         # Handling of default argument(s)
-        num_imu_sensors = len(env.robot.sensor_names[imu.type])
+        num_imu_sensors = len(env.robot.sensors[ImuSensor.type])
         if isinstance(kp, float):
             kp = np.full((num_imu_sensors,), kp)
         if isinstance(ki, float):
@@ -268,7 +267,7 @@ class MahonyFilter(
         # internal state of the (partially observable) MDP since the previous
         # observation must be provided anyway when integrating the observable
         # dynamics by definition.
-        num_imu_sensors = len(self.env.robot.sensor_names[imu.type])
+        num_imu_sensors = len(self.env.robot.sensors[ImuSensor.type])
         self.state_space = gym.spaces.Box(
             low=np.full((3, num_imu_sensors), -np.inf),
             high=np.full((3, num_imu_sensors), np.inf),
@@ -281,7 +280,7 @@ class MahonyFilter(
         the robot at once, with special treatment for their twist part. See
         `__init__` documentation for details.
         """
-        num_imu_sensors = len(self.env.robot.sensor_names[imu.type])
+        num_imu_sensors = len(self.env.robot.sensors[ImuSensor.type])
         self.observation_space = gym.spaces.Box(
             low=np.full((4, num_imu_sensors), -1.0 - 1e-9),
             high=np.full((4, num_imu_sensors), 1.0 + 1e-9),
@@ -301,7 +300,7 @@ class MahonyFilter(
 
         # Refresh gyroscope and accelerometer proxies
         self.gyro, self.acc = np.split(
-            self.env.sensor_measurements[imu.type], 2)
+            self.env.sensor_measurements[ImuSensor.type], 2)
 
         # Reset the sensor bias
         fill(self._bias, 0)
@@ -332,8 +331,8 @@ class MahonyFilter(
 
     @property
     def fieldnames(self) -> List[List[str]]:
-        sensor_names = self.env.robot.sensor_names[imu.type]
-        return [[f"{name}.Quat{e}" for name in sensor_names]
+        imu_sensors = self.env.robot.sensors[ImuSensor.type]
+        return [[f"{sensor.name}.Quat{e}" for sensor in imu_sensors]
                 for e in ("x", "y", "z", "w")]
 
     def refresh_observation(self, measurement: BaseObsT) -> None:
@@ -358,9 +357,8 @@ class MahonyFilter(
                 # Get true orientation of IMU frames
                 imu_rots = []
                 robot = self.env.robot
-                for name in robot.sensor_names[imu.type]:
-                    sensor = robot.get_sensor(imu.type, name)
-                    assert isinstance(sensor, imu)
+                for sensor in robot.sensors[ImuSensor.type]:
+                    assert isinstance(sensor, ImuSensor)
                     rot = robot.pinocchio_data.oMf[sensor.frame_index].rotation
                     imu_rots.append(rot)
 

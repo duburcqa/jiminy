@@ -1,4 +1,10 @@
-""" TODO: Write documentation.
+"""This module provides helper methods to make it easier to run learning
+pipelines using Ray-RLlib framework.
+
+The main focus are:
+  * making it easy to build a policy from a checkpoint
+  * enabling evaluating the performance of a given policy without having to
+    fire up a whole ray server instance, which is normally required
 """
 import os
 import re
@@ -487,7 +493,8 @@ def train(algo: Algorithm,
 
             # Backup the policy
             if checkpoint_period > 0 and iter_num % checkpoint_period == 0:
-                algo.save()
+                algo.save(
+                    checkpoint_dir=f"{algo.logdir}/checkpoint_{iter_num:06d}")
 
             # Check terminal conditions
             if 0 < max_timesteps < result["timesteps_total"]:
@@ -510,7 +517,8 @@ def train(algo: Algorithm,
         result_logger.close()
 
     # Backup trained agent and return file location
-    return algo.save()
+    return algo.save(
+        checkpoint_dir=f"{algo.logdir}/checkpoint_{iter_num:06d}")
 
 
 def _restore_default_connectors() -> None:

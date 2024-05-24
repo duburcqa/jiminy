@@ -1,3 +1,5 @@
+""" TODO: Write documentation.
+"""
 import os
 import sys
 from pathlib import Path
@@ -5,8 +7,8 @@ from typing import Any
 
 import numpy as np
 
-from jiminy_py.core import build_models_from_urdf, Robot
-from jiminy_py.robot import load_hardware_description_file, BaseJiminyRobot
+import jiminy_py.core as jiminy
+from jiminy_py.robot import load_hardware_description_file
 from jiminy_py.viewer.viewer import DEFAULT_CAMERA_XYZRPY_REL
 from pinocchio import neutral, buildReducedModel
 
@@ -33,9 +35,11 @@ SIMULATION_DURATION = 20.0
 # Stepper update period (:float [s])
 STEP_DT = 0.04
 
+# Motor safety to avoid violent motions
 MOTOR_POSITION_MARGIN = 0.02
-MOTOR_VELOCITY_MAX = 3.0
-MOTOR_ACCELERATION_MAX = 40.0
+MOTOR_VELOCITY_SAFE_GAIN = 0.15
+MOTOR_VELOCITY_MAX = 4.0
+MOTOR_ACCELERATION_MAX = 30.0
 
 # PID proportional gains (one per actuated joint)
 PD_REDUCED_KP = (
@@ -45,10 +49,11 @@ PD_REDUCED_KP = (
     5000.0, 5000.0, 8000.0, 4000.0, 8000.0, 5000.0)
 PD_REDUCED_KD = (
     # Left leg: [HpX, HpZ, HpY, KnY, AkY, AkX]
-    0.02, 0.01, 0.015, 0.01, 0.015, 0.01,
+    0.02, 0.01, 0.02, 0.01, 0.025, 0.01,
     # Right leg: [HpX, HpZ, HpY, KnY, AkY, AkX]
-    0.02, 0.01, 0.015, 0.01, 0.015, 0.01)
+    0.02, 0.01, 0.02, 0.01, 0.025, 0.01)
 
+# PID derivative gains (one per actuated joint)
 PD_FULL_KP = (
     # Neck: [Y]
     100.0,
@@ -121,7 +126,7 @@ class AtlasJiminyEnv(WalkerJiminyEnv):
         """
         # Get the urdf and mesh paths
         data_dir = str(files("gym_jiminy.envs") / "data/bipedal_robots/atlas")
-        urdf_path = os.path.join(data_dir, "atlas_v4.urdf")
+        urdf_path = os.path.join(data_dir, "atlas.urdf")
 
         # Override default camera pose to change the reference frame
         kwargs.setdefault("viewer_kwargs", {}).setdefault(
@@ -168,14 +173,14 @@ class AtlasReducedJiminyEnv(WalkerJiminyEnv):
     def __init__(self, debug: bool = False, **kwargs: Any) -> None:
         # Get the urdf and mesh paths
         data_dir = str(files("gym_jiminy.envs") / "data/bipedal_robots/atlas")
-        urdf_path = os.path.join(data_dir, "atlas_v4.urdf")
+        urdf_path = os.path.join(data_dir, "atlas.urdf")
 
         # Load the full models
-        pinocchio_model, collision_model, visual_model = \
-            build_models_from_urdf(urdf_path,
-                                   has_freeflyer=True,
-                                   build_visual_model=True,
-                                   mesh_package_dirs=[data_dir])
+        pinocchio_model, collision_model, visual_model = (
+            jiminy.build_models_from_urdf(urdf_path,
+                                          has_freeflyer=True,
+                                          build_visual_model=True,
+                                          mesh_package_dirs=[data_dir]))
 
         # Generate the reference configuration
         def joint_position_index(joint_name: str) -> int:
@@ -206,9 +211,8 @@ class AtlasReducedJiminyEnv(WalkerJiminyEnv):
             joint_locked_indices, qpos)
 
         # Build the robot and load the hardware
-        robot = BaseJiminyRobot()
-        Robot.initialize(robot, pinocchio_model, collision_model, visual_model)
-        robot._urdf_path_orig = urdf_path  # type: ignore[attr-defined]
+        robot = jiminy.Robot()
+        robot.initialize(pinocchio_model, collision_model, visual_model)
         hardware_path = str(Path(urdf_path).with_suffix('')) + '_hardware.toml'
         load_hardware_description_file(
             robot,
@@ -224,6 +228,8 @@ class AtlasReducedJiminyEnv(WalkerJiminyEnv):
             avoid_instable_collisions=True,
             debug=debug,
             **{**dict(
+                config_path=str(
+                    Path(urdf_path).with_suffix('')) + '_options.toml',
                 simulation_duration_max=SIMULATION_DURATION,
                 step_dt=STEP_DT,
                 reward_mixture=REWARD_MIXTURE,
@@ -244,7 +250,7 @@ AtlasPDControlJiminyEnv = build_pipeline(
                 cls=MotorSafetyLimit,
                 kwargs=dict(
                     kp=1.0 / MOTOR_POSITION_MARGIN,
-                    kd=1.0 / MOTOR_VELOCITY_MAX,
+                    kd=MOTOR_VELOCITY_SAFE_GAIN,
                     soft_position_margin=0.0,
                     soft_velocity_max=MOTOR_VELOCITY_MAX,
                 )
@@ -256,9 +262,9 @@ AtlasPDControlJiminyEnv = build_pipeline(
                     update_ratio=1,
                     kp=PD_FULL_KP,
                     kd=PD_FULL_KD,
-                    target_position_margin=0.0,
-                    target_velocity_limit=MOTOR_VELOCITY_MAX,
-                    target_acceleration_limit=MOTOR_ACCELERATION_MAX
+                    joint_position_margin=0.0,
+                    joint_velocity_limit=MOTOR_VELOCITY_MAX,
+                    joint_acceleration_limit=MOTOR_ACCELERATION_MAX
                 )
             ),
             wrapper=dict(
@@ -314,9 +320,9 @@ AtlasReducedPDControlJiminyEnv = build_pipeline(
                     update_ratio=1,
                     kp=PD_REDUCED_KP,
                     kd=PD_REDUCED_KD,
-                    target_position_margin=0.0,
-                    target_velocity_limit=MOTOR_VELOCITY_MAX,
-                    target_acceleration_limit=MOTOR_ACCELERATION_MAX
+                    joint_position_margin=0.0,
+                    joint_velocity_limit=MOTOR_VELOCITY_MAX,
+                    joint_acceleration_limit=MOTOR_ACCELERATION_MAX
                 )
             ),
             wrapper=dict(

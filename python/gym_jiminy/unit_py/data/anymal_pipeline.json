@@ -13,9 +13,9 @@
           "update_ratio": 2,
           "kp": [1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0],
           "kd": [0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01],
-          "target_position_margin": 0.0,
-          "target_velocity_limit": 100.0,
-          "target_acceleration_limit": 10000.0
+          "joint_position_margin": 0.0,
+          "joint_velocity_limit": 100.0,
+          "joint_acceleration_limit": 10000.0
         }
       },
       "wrapper": {
@@ -51,7 +51,7 @@
     },
     {
       "wrapper": {
-        "cls": "gym_jiminy.common.wrappers.StackedJiminyEnv",
+        "cls": "gym_jiminy.common.wrappers.StackObservation",
         "kwargs": {
           "nested_filter_keys": [
             ["t"],

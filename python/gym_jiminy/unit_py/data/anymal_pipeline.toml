@@ -2,6 +2,21 @@
 cls = "gym_jiminy.envs.ANYmalJiminyEnv"
 [env_config.kwargs]
 step_dt = 0.04
+[env_config.reward]
+cls = "gym_jiminy.common.compositions.AdditiveMixtureReward"
+[env_config.trajectories]
+mode = "raise"
+name = "reference"
+dataset.reference = "./anymal_trajectory.hdf5"
+[env_config.reward.kwargs]
+name = "reward_total"
+weights = [0.6, 0.4]
+[[env_config.reward.kwargs.components]]
+cls = "gym_jiminy.common.compositions.OdometryVelocityReward"
+[env_config.reward.kwargs.components.kwargs]
+cutoff = 0.5
+[[env_config.reward.kwargs.components]]
+cls = "gym_jiminy.common.compositions.SurviveReward"
 
 [[layers_config]]
 block.cls = "gym_jiminy.common.blocks.PDController"
@@ -9,9 +24,9 @@ block.cls = "gym_jiminy.common.blocks.PDController"
 update_ratio = 2
 kp = [1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0]
 kd = [0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01]
-target_position_margin = 0.0
-target_velocity_limit = 100.0
-target_acceleration_limit = 10000.0
+joint_position_margin = 0.0
+joint_velocity_limit = 100.0
+joint_acceleration_limit = 10000.0
 [layers_config.wrapper.kwargs]
 augment_observation = true
 
@@ -32,7 +47,7 @@ kp = 1.0
 ki = 0.1
 
 [[layers_config]]
-wrapper.cls = "gym_jiminy.common.wrappers.StackedJiminyEnv"
+wrapper.cls = "gym_jiminy.common.wrappers.StackObservation"
 [layers_config.wrapper.kwargs]
 nested_filter_keys = [
   ["t"],

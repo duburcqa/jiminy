@@ -32,6 +32,7 @@
 #include "jiminy/core/hardware/abstract_sensor.h"
 #include "jiminy/core/hardware/basic_sensors.h"
 #include "jiminy/core/robot/robot.h"
+#include "jiminy/core/utilities/pinocchio.h"
 
 #define BOOST_FILESYSTEM_VERSION 3
 #include <boost/filesystem/operations.hpp>  // `boost::filesystem::unique_path`
@@ -640,7 +641,26 @@ namespace boost::serialization
         bool isPersistent = true;
         if constexpr (std::is_base_of_v<jiminy::archive::AnyState, Archive>)
         {
-            std::tie(isPersistent) = std::any_cast<std::tuple<bool &>>(ar.state_);
+            if (ar.state_.has_value())
+            {
+                try
+                {
+                    std::tie(isPersistent) = std::any_cast<std::tuple<bool &>>(ar.state_);
+                }
+                catch (const std::bad_any_cast & e)
+                {
+                    JIMINY_WARNING("Failed to parse user-specified Model serialization arguments. "
+                                   "Using default values.");
+                }
+            }
+        }
+
+        // Early return if not initalized
+        bool isInitialized = model.getIsInitialized();
+        ar << make_nvp("is_initialized", isInitialized);
+        if (!isInitialized)
+        {
+            return;
         }
 
         // Backup URDF data
@@ -653,8 +673,28 @@ namespace boost::serialization
         // Backup mesh package lookup directories
         ar << make_nvp("mesh_package_dirs", model.getMeshPackageDirs());
 
+        /* Copy the theoretical model then remove extra collision frames.
+           Note that `removeCollisionBodies` is not called to avoid altering the robot. */
+        pinocchio::Model pinocchioModelTh = model.pinocchioModelTh_;
+        std::vector<std::string> collisionConstraintNames;
+        for (const std::string & name : model.getCollisionBodyNames())
+        {
+            for (const pinocchio::GeometryObject & geom : model.collisionModelTh_.geometryObjects)
+            {
+                if (model.pinocchioModel_.frames[geom.parentFrame].name == name &&
+                    model.getConstraints().exist(geom.name, ConstraintNodeType::COLLISION_BODIES))
+                {
+                    const pinocchio::FrameIndex frameIndex =
+                        getFrameIndex(pinocchioModelTh, geom.name);
+                    pinocchioModelTh.frames.erase(
+                        std::next(pinocchioModelTh.frames.begin(), frameIndex));
+                    pinocchioModelTh.nframes--;
+                }
+            }
+        }
+
         // Backup theoretical and extended simulation models
-        ar << make_nvp("pinocchio_model_th", model.pinocchioModelTh_);
+        ar << make_nvp("pinocchio_model_th", pinocchioModelTh);
         ar << make_nvp("pinocchio_model", model.pinocchioModel_);
 
         /* Backup the Pinocchio GeometryModel for collisions and visuals if requested.
@@ -739,8 +779,11 @@ namespace boost::serialization
     }
 
     template<class Archive>
-    void load(Archive & ar, Model & model, const unsigned int /* version */)
+    void load_construct_data(Archive & ar, Model * modelPtr, const unsigned int /* version */)
     {
+        // Create instance
+        ::new (modelPtr) Model();
+
         /* Tell the archive to start managing a shared_ptr.
            Note that this must be done manually here because, when a shared pointer is
            de-serialized, a raw pointer is first created. The latter only becomes managed by a
@@ -761,19 +804,52 @@ namespace boost::serialization
            managed properly. This is a approach that has been preferred here. See:
            https://github.com/boostorg/serialization/blob/develop/include/boost/serialization/shared_ptr.hpp
         */
-        std::shared_ptr<Model> modelPtr;
+        std::shared_ptr<Model> modelSharedPtr;
         shared_ptr_helper<std::shared_ptr> & h =
             ar.template get_helper<shared_ptr_helper<std::shared_ptr>>(shared_ptr_helper_id);
-        h.reset(modelPtr, &model);
+        h.reset(modelSharedPtr, modelPtr);
+    }
 
+    template<class Archive>
+    void load(Archive & ar, Model & model, const unsigned int /* version */)
+    {
         // Load arguments from archive state if available, otherwise use conservative default
         std::optional<std::string> meshPathDir = std::nullopt;
         std::vector<std::string> meshPackageDirs = {};
         if constexpr (std::is_base_of_v<jiminy::archive::AnyState, Archive>)
         {
-            std::tie(meshPathDir, meshPackageDirs) = std::any_cast<
-                std::tuple<const std::optional<std::string> &, const std::vector<std::string> &>>(
-                ar.state_);
+            if (ar.state_.has_value())
+            {
+                try
+                {
+                    std::tie(meshPathDir, meshPackageDirs) =
+                        std::any_cast<std::tuple<const std::optional<std::string> &,
+                                                 const std::vector<std::string> &>>(ar.state_);
+                }
+                catch (const std::bad_any_cast & e)
+                {
+                    JIMINY_WARNING("Failed to parse user-specified Model de-serialization "
+                                   "arguments. Using default values.");
+                }
+            }
+        }
+
+        // Make sure that model is managed by a shared ptr
+        try
+        {
+            (void)model.shared_from_this();
+        }
+        catch (std::bad_weak_ptr & e)
+        {
+            JIMINY_THROW(bad_control_flow, "Model must be managed by a std::shared_ptr.");
+        }
+
+        // Early return if not initalized
+        bool isInitialized;
+        ar >> make_nvp("is_initialized", isInitialized);
+        if (!isInitialized)
+        {
+            return;
         }
 
         // Load URDF data
@@ -892,8 +968,10 @@ namespace boost::serialization
             std::remove(urdfPath.c_str());
 
             /* Restore the theoretical model.
-               Note that it is also restore manually-added frames since they are not tracked
-               internally for now. */
+               Note that it also restores manually-added frames since they are not tracked
+               internally for now. Note that it is also necessary to restore the extended
+               simulation model otherwise adding collision bodies and contact points would fail. */
+            model.pinocchioModel_ = pinocchioModelTh;
             model.pinocchioModelTh_ = pinocchioModelTh;
             model.pinocchioDataTh_ = pinocchio::Data(pinocchioModelTh);
         }
@@ -937,6 +1015,7 @@ namespace boost::serialization
     }
 
     EXPLICIT_TEMPLATE_INSTANTIATION_SERIALIZE(Model)
+    EXPLICIT_TEMPLATE_INSTANTIATION_LOAD_CONSTRUCT(Model)
 }
 
 BOOST_CLASS_EXPORT(Model)
@@ -974,6 +1053,14 @@ namespace boost::serialization
         // Save base
         ar << make_nvp("abstract_motor_base", base_object<AbstractMotorBase>(motor));
 
+        // Early return if not initalized
+        bool isInitialized = motor.getIsInitialized();
+        ar << make_nvp("is_initialized", isInitialized);
+        if (!isInitialized)
+        {
+            return;
+        }
+
         // Save initialization data
         ar << make_nvp("joint_name", motor.getJointName());
     }
@@ -993,7 +1080,14 @@ namespace boost::serialization
     template<class Archive>
     void load(Archive & ar, SimpleMotor & motor, const unsigned int /* version */)
     {
-        // Tell the archive to start managing a shared_ptr
+        // Tell the archive to start managing a shared_ptr.
+        // Note that it is tricky to expose `load` to the user because it would require having
+        // access to the shared pointer managing the motor, along with the robot to which the motor
+        // should be attached. The only way to specify them is through the archive state.
+        // To get around this issue, we make sure that motors can only be serialized/de-serialized
+        // through the robot to which they are attached. This way, memory is guaranteed to be
+        // heap-allocated using `new` operator, and therefore requesting the archive to manage a
+        // shared_ptr of the motor instance is safe. */
         std::shared_ptr<SimpleMotor> motorPtr;
         shared_ptr_helper<std::shared_ptr> & h =
             ar.template get_helper<shared_ptr_helper<std::shared_ptr>>(shared_ptr_helper_id);
@@ -1007,6 +1101,14 @@ namespace boost::serialization
         {
             std::shared_ptr<Robot> robot = std::any_cast<std::shared_ptr<Robot>>(ar.state_);
             robot->attachMotor(motorPtr);
+        }
+
+        // Early return if not initalized
+        bool isInitialized;
+        ar >> make_nvp("is_initialized", isInitialized);
+        if (!isInitialized)
+        {
+            return;
         }
 
         // Load initialization data but initialize motor only if attached
@@ -1082,6 +1184,14 @@ namespace boost::serialization
         // Save base
         ar << make_nvp("abstract_sensor_base", base_object<AbstractSensorBase>(sensor));
 
+        // Early return if not initalized
+        bool isInitialized = sensor.getIsInitialized();
+        ar << make_nvp("is_initialized", isInitialized);
+        if (!isInitialized)
+        {
+            return;
+        }
+
         /* Save initialization data.
            TODO: maybe `sensorRotationBiasInv_` should also be restored. */
         ar << make_nvp("frame_name", sensor.getFrameName());
@@ -1115,6 +1225,14 @@ namespace boost::serialization
         {
             std::shared_ptr<Robot> robot = std::any_cast<std::shared_ptr<Robot>>(ar.state_);
             robot->attachSensor(sensorPtr);
+        }
+
+        // Early return if not initalized
+        bool isInitialized;
+        ar >> make_nvp("is_initialized", isInitialized);
+        if (!isInitialized)
+        {
+            return;
         }
 
         // Load initialization data but initialize sensor only if attached
@@ -1156,6 +1274,14 @@ namespace boost::serialization
         // Save base
         ar << make_nvp("abstract_sensor_base", base_object<AbstractSensorBase>(sensor));
 
+        // Early return if not initalized
+        bool isInitialized = sensor.getIsInitialized();
+        ar << make_nvp("is_initialized", isInitialized);
+        if (!isInitialized)
+        {
+            return;
+        }
+
         // Save initialization data
         ar << make_nvp("frame_name", sensor.getFrameName());
     }
@@ -1189,6 +1315,14 @@ namespace boost::serialization
         {
             std::shared_ptr<Robot> robot = std::any_cast<std::shared_ptr<Robot>>(ar.state_);
             robot->attachSensor(sensorPtr);
+        }
+
+        // Early return if not initalized
+        bool isInitialized;
+        ar >> make_nvp("is_initialized", isInitialized);
+        if (!isInitialized)
+        {
+            return;
         }
 
         // Load initialization data but initialize sensor only if attached
@@ -1230,6 +1364,14 @@ namespace boost::serialization
         // Save base
         ar << make_nvp("abstract_sensor_base", base_object<AbstractSensorBase>(sensor));
 
+        // Early return if not initalized
+        bool isInitialized = sensor.getIsInitialized();
+        ar << make_nvp("is_initialized", isInitialized);
+        if (!isInitialized)
+        {
+            return;
+        }
+
         // Save initialization data
         ar << make_nvp("frame_name", sensor.getFrameName());
     }
@@ -1265,6 +1407,14 @@ namespace boost::serialization
             robot->attachSensor(sensorPtr);
         }
 
+        // Early return if not initalized
+        bool isInitialized;
+        ar >> make_nvp("is_initialized", isInitialized);
+        if (!isInitialized)
+        {
+            return;
+        }
+
         // Load initialization data but initialize sensor only if attached
         std::string frameName;
         ar >> make_nvp("frame_name", frameName);
@@ -1286,7 +1436,7 @@ namespace boost::serialization
 
 BOOST_CLASS_EXPORT(ForceSensor)
 
-// *********************************** jiminy::EncoderSensor *********************************** //
+// ******************************** jiminy::EncoderSensor ********************************* //
 
 namespace boost::serialization
 {
@@ -1304,8 +1454,25 @@ namespace boost::serialization
         // Save base
         ar << make_nvp("abstract_sensor_base", base_object<AbstractSensorBase>(sensor));
 
+        // Early return if not initalized
+        bool isInitialized = sensor.getIsInitialized();
+        ar << make_nvp("is_initialized", isInitialized);
+        if (!isInitialized)
+        {
+            return;
+        }
+
         // Save initialization data
-        ar << make_nvp("joint_name", sensor.getJointName());
+        const bool isJointSide = sensor.getMotorName().empty();
+        ar << make_nvp("is_joint_side", isJointSide);
+        if (isJointSide)
+        {
+            ar << make_nvp("joint_name", sensor.getJointName());
+        }
+        else
+        {
+            ar << make_nvp("motor_name", sensor.getMotorName());
+        }
     }
 
     template<class Archive>
@@ -1339,12 +1506,29 @@ namespace boost::serialization
             robot->attachSensor(sensorPtr);
         }
 
+        // Early return if not initalized
+        bool isInitialized;
+        ar >> make_nvp("is_initialized", isInitialized);
+        if (!isInitialized)
+        {
+            return;
+        }
+
         // Load initialization data but initialize sensor only if attached
-        std::string jointName;
-        ar >> make_nvp("joint_name", jointName);
+        bool isJointSide;
+        ar >> make_nvp("is_joint_side", isJointSide);
+        std::string motorOrJointName;
+        if (isJointSide)
+        {
+            ar >> make_nvp("joint_name", motorOrJointName);
+        }
+        else
+        {
+            ar >> make_nvp("motor_name", motorOrJointName);
+        }
         if (sensor.getIsAttached())
         {
-            sensor.initialize(jointName);
+            sensor.initialize(motorOrJointName, isJointSide);
         }
     }
 
@@ -1377,6 +1561,14 @@ namespace boost::serialization
     {
         // Save base
         ar << make_nvp("abstract_sensor_base", base_object<AbstractSensorBase>(sensor));
+
+        // Early return if not initalized
+        bool isInitialized = sensor.getIsInitialized();
+        ar << make_nvp("is_initialized", isInitialized);
+        if (!isInitialized)
+        {
+            return;
+        }
 
         // Save initialization data
         ar << make_nvp("motor_name", sensor.getMotorName());
@@ -1411,6 +1603,14 @@ namespace boost::serialization
         {
             std::shared_ptr<Robot> robot = std::any_cast<std::shared_ptr<Robot>>(ar.state_);
             robot->attachSensor(sensorPtr);
+        }
+
+        // Early return if not initalized
+        bool isInitialized;
+        ar >> make_nvp("is_initialized", isInitialized);
+        if (!isInitialized)
+        {
+            return;
         }
 
         // Load initialization data but initialize sensor only if attached
@@ -1452,24 +1652,32 @@ namespace boost::serialization
         // Save base model
         ar << make_nvp("model", base_object<Model>(robot));
 
+        // Early return if not initalized
+        bool isInitialized = robot.getIsInitialized();
+        ar << make_nvp("is_initialized", isInitialized);
+        if (!isInitialized)
+        {
+            return;
+        }
+
         // Backup all the motors using failsafe approach
         const std::shared_ptr<AbstractMotorBase> dummyMotorPtr{};
-        const Robot::MotorVector & motors = robot.getMotors();
-        const std::vector<std::string> & motorNames = robot.getMotorNames();
+        const Robot::WeakMotorVector & motors = robot.getMotors();
         std::size_t nmotors = robot.nmotors();
         ar << make_nvp("nmotors", nmotors);
         for (std::size_t i = 0; i < nmotors; ++i)
         {
+            auto motor = std::const_pointer_cast<AbstractMotorBase>(motors[i].lock());
             const std::string name = toString("motor_", i);
             try
             {
-                ar << make_nvp(name.c_str(), motors[i]);
+                ar << make_nvp(name.c_str(), motor);
             }
             catch (const boost::archive::archive_exception & e)
             {
                 ar << make_nvp(name.c_str(), dummyMotorPtr);
                 JIMINY_WARNING("Failed to serialize motor '",
-                               motorNames[i],
+                               motor->getName(),
                                "'. It will be missing when loading the robot from log."
                                "\nRaised from exception: ",
                                e.what());
@@ -1478,14 +1686,11 @@ namespace boost::serialization
 
         // Backup all the sensors using failsafe approach
         const std::shared_ptr<AbstractSensorBase> dummySensorPtr{};
-        const Robot::SensorTree & sensors = robot.getSensors();
-        const std::unordered_map<std::string, std::vector<std::string>> & sensorNames =
-            robot.getSensorNames();
-        const std::size_t nSensorTypes = sensorNames.size();
+        const Robot::WeakSensorTree & sensors = robot.getSensors();
+        const std::size_t nSensorTypes = sensors.size();
         ar << make_nvp("nsensortypes", nSensorTypes);
         auto sensorsGroupIt = sensors.cbegin();
-        auto sensorNamesGroupIt = sensorNames.cbegin();
-        for (std::size_t i = 0; i < nSensorTypes; ++sensorsGroupIt, ++sensorNamesGroupIt, ++i)
+        for (std::size_t i = 0; i < nSensorTypes; ++sensorsGroupIt, ++i)
         {
             bool hasFailed = false;
             const auto & [sensorsGroupName, sensorsGroup] = *sensorsGroupIt;
@@ -1493,12 +1698,13 @@ namespace boost::serialization
             ar << make_nvp(toString("type_", i, "_nsensors").c_str(), nSensors);
             for (std::size_t j = 0; j < nSensors; ++j)
             {
+                auto sensor = std::const_pointer_cast<AbstractSensorBase>(sensorsGroup[j].lock());
                 const std::string name = toString("type_", i, "_sensor_", j);
                 try
                 {
                     if (!hasFailed)
                     {
-                        ar << make_nvp(name.c_str(), sensorsGroup[j]);
+                        ar << make_nvp(name.c_str(), sensor);
                     }
                 }
                 catch (const boost::archive::archive_exception & e)
@@ -1533,6 +1739,12 @@ namespace boost::serialization
 
         // Create instance
         ::new (robotPtr) Robot(name);
+
+        // Tell the archive to start managing a shared_ptr
+        std::shared_ptr<Robot> robotSharedPtr;
+        shared_ptr_helper<std::shared_ptr> & h =
+            ar.template get_helper<shared_ptr_helper<std::shared_ptr>>(shared_ptr_helper_id);
+        h.reset(robotSharedPtr, robotPtr);
     }
 
     template<class Archive>
@@ -1540,6 +1752,14 @@ namespace boost::serialization
     {
         // Load base model
         ar >> make_nvp("model", base_object<Model>(robot));
+
+        // Early return if not initalized
+        bool isInitialized;
+        ar >> make_nvp("is_initialized", isInitialized);
+        if (!isInitialized)
+        {
+            return;
+        }
 
         // Backup the already restored extended simulation model
         const pinocchio::Model pinocchioModel = robot.pinocchioModel_;
@@ -1581,17 +1801,15 @@ namespace boost::serialization
         GenericConfig robotOptions;
         ar >> make_nvp("robot_options", robotOptions);
         GenericConfig & motorsOptions = boost::get<GenericConfig>(robotOptions.at("motors"));
-        const std::vector<std::string> & motorNames = robot.getMotorNames();
-        auto removeMotorOptionsPred = [&motorNames](const auto & motorOptionsItem)
-        {
-            const std::string & motorName = motorOptionsItem.first;
-            return std::find(motorNames.begin(), motorNames.end(), motorName) == motorNames.end();
-        };
         // FIXME: Replace by `std::erase_if` when moving to C++20
+        const Robot::MotorVector & motors = robot.getMotors();
         auto motorsOptionsIt = motorsOptions.begin();
         while (motorsOptionsIt != motorsOptions.end())
         {
-            if (removeMotorOptionsPred(*motorsOptionsIt))
+            if (std::find_if(motors.begin(),
+                             motors.end(),
+                             [&motorName = motorsOptionsIt->first](const auto & motor)
+                             { return motor->getName() == motorName; }) == motors.end())
             {
                 motorsOptionsIt = motorsOptions.erase(motorsOptionsIt);
             }
@@ -1601,18 +1819,12 @@ namespace boost::serialization
             }
         }
         GenericConfig & sensorsOptions = boost::get<GenericConfig>(robotOptions.at("sensors"));
-        const std::unordered_map<std::string, std::vector<std::string>> & sensorNames =
-            robot.getSensorNames();
-        auto removeSensorOptionsPred = [&sensorNames](const auto & sensorsGroupOptionsItem)
-        {
-            const std::string & sensorType = sensorsGroupOptionsItem.first;
-            return sensorNames.find(sensorType) == sensorNames.end();
-        };
         // FIXME: Replace by `std::erase_if` when moving to C++20
+        const Robot::SensorTree & sensors = robot.getSensors();
         auto sensorsOptionsIt = sensorsOptions.begin();
         while (sensorsOptionsIt != sensorsOptions.end())
         {
-            if (removeSensorOptionsPred(*sensorsOptionsIt))
+            if (sensors.find(sensorsOptionsIt->first) == sensors.end())
             {
                 sensorsOptionsIt = sensorsOptions.erase(sensorsOptionsIt);
             }
@@ -1641,7 +1853,7 @@ BOOST_CLASS_EXPORT(Robot)
 
 namespace jiminy
 {
-    std::string saveToBinary(const std::shared_ptr<jiminy::Robot> & robot, bool isPersistent)
+    std::string saveToBinary(const std::shared_ptr<const jiminy::Robot> & robot, bool isPersistent)
     {
         return saveToBinaryImpl(robot, isPersistent);
     }

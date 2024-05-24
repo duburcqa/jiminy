@@ -5,17 +5,23 @@ import unittest
 
 import numpy as np
 import gymnasium as gym
+
 import jiminy_py
+from jiminy_py.log import extract_trajectory_from_log
 import pinocchio as pin
 
+from gym_jiminy.common.bases import QuantityEvalMode, DatasetTrajectoryQuantity
 from gym_jiminy.common.quantities import (
-    QuantityManager, EulerAnglesFrame, CenterOfMass, ZeroMomentPoint)
+    QuantityManager, FrameEulerAngles, FrameXYZQuat, MaskedQuantity,
+    AverageFrameSpatialVelocity, CenterOfMass, ZeroMomentPoint)
 
 
 class Quantities(unittest.TestCase):
     """ TODO: Write documentation
     """
     def test_shared_cache(self):
+        """ TODO: Write documentation
+        """
         env = gym.make("gym_jiminy.envs:atlas")
         env.reset()
 
@@ -25,7 +31,7 @@ class Quantities(unittest.TestCase):
                 ("com", CenterOfMass, {}),
                 ("zmp", ZeroMomentPoint, {})):
             quantity_manager[name] = (cls, kwargs)
-        quantities = quantity_manager._quantities
+        quantities = quantity_manager.registry
 
         assert len(quantity_manager) == 3
         assert len(quantities["zmp"].cache.owners) == 1
@@ -53,21 +59,26 @@ class Quantities(unittest.TestCase):
         assert np.any(zmp_1 != zmp_2)
 
     def test_dynamic_batching(self):
+        """ TODO: Write documentation
+        """
         env = gym.make("gym_jiminy.envs:atlas")
         env.reset()
         env.step(env.action)
 
         quantity_manager = QuantityManager(env)
         for name, cls, kwargs in (
-                ("rpy_0", EulerAnglesFrame, dict(
+                ("xyzquat_0", FrameXYZQuat, dict(
+                    frame_name=env.robot.pinocchio_model.frames[2].name)),
+                ("rpy_0", FrameEulerAngles, dict(
                     frame_name=env.robot.pinocchio_model.frames[1].name)),
-                ("rpy_1", EulerAnglesFrame, dict(
+                ("rpy_1", FrameEulerAngles, dict(
                     frame_name=env.robot.pinocchio_model.frames[1].name)),
-                ("rpy_2", EulerAnglesFrame, dict(
+                ("rpy_2", FrameEulerAngles, dict(
                     frame_name=env.robot.pinocchio_model.frames[-1].name))):
             quantity_manager[name] = (cls, kwargs)
-        quantities = quantity_manager._quantities
+        quantities = quantity_manager.registry
 
+        xyzquat_0 =  quantity_manager.xyzquat_0.copy()
         rpy_0 = quantity_manager.rpy_0.copy()
         assert len(quantities['rpy_0'].requirements['data'].frame_names) == 1
         assert np.all(rpy_0 == quantity_manager.rpy_1)
@@ -78,7 +89,9 @@ class Quantities(unittest.TestCase):
         env.step(env.action)
         quantity_manager.reset()
         rpy_0_next = quantity_manager.rpy_0
+        xyzquat_0_next =  quantity_manager.xyzquat_0.copy()
         assert np.any(rpy_0 != rpy_0_next)
+        assert np.any(xyzquat_0 != xyzquat_0_next)
         assert len(quantities['rpy_2'].requirements['data'].frame_names) == 2
 
         assert len(quantities['rpy_1'].requirements['data'].cache.owners) == 3
@@ -90,22 +103,25 @@ class Quantities(unittest.TestCase):
 
         quantity_manager.reset(reset_tracking=True)
         assert np.all(rpy_0_next == quantity_manager.rpy_0)
+        assert np.all(xyzquat_0_next == quantity_manager.xyzquat_0)
         assert len(quantities['rpy_0'].requirements['data'].frame_names) == 1
 
     def test_discard(self):
+        """ TODO: Write documentation
+        """
         env = gym.make("gym_jiminy.envs:atlas")
         env.reset()
 
         quantity_manager = QuantityManager(env)
         for name, cls, kwargs in (
-                ("rpy_0", EulerAnglesFrame, dict(
+                ("rpy_0", FrameEulerAngles, dict(
                     frame_name=env.robot.pinocchio_model.frames[1].name)),
-                ("rpy_1", EulerAnglesFrame, dict(
+                ("rpy_1", FrameEulerAngles, dict(
                     frame_name=env.robot.pinocchio_model.frames[1].name)),
-                ("rpy_2", EulerAnglesFrame, dict(
+                ("rpy_2", FrameEulerAngles, dict(
                     frame_name=env.robot.pinocchio_model.frames[-1].name))):
             quantity_manager[name] = (cls, kwargs)
-        quantities = quantity_manager._quantities
+        quantities = quantity_manager.registry
 
         assert len(quantities['rpy_1'].cache.owners) == 2
         assert len(quantities['rpy_2'].requirements['data'].cache.owners) == 3
@@ -121,17 +137,102 @@ class Quantities(unittest.TestCase):
 
         del quantity_manager['rpy_2']
         gc.collect()
-        for cache in quantity_manager._caches.values():
-            assert len(cache.owners) == 0
+        for (cls, _), cache in quantity_manager._caches.items():
+            assert len(cache.owners) == (cls is DatasetTrajectoryQuantity)
 
     def test_env(self):
+        """ TODO: Write documentation
+        """
         env = gym.make("gym_jiminy.envs:atlas")
 
-        env.quantities["com"] = (CenterOfMass, {})
+        env.quantities["zmp"] = (ZeroMomentPoint, {})
 
         env.reset(seed=0)
-        com_0 = env.quantities["com"].copy()
+        zmp_0 = env.quantities["zmp"].copy()
         env.step(env.action)
-        assert np.all(com_0 != env.quantities["com"])
+        assert np.all(zmp_0 != env.quantities["zmp"])
         env.reset(seed=0)
-        assert np.all(com_0 == env.quantities["com"])
+        assert np.all(zmp_0 == env.quantities["zmp"])
+
+    def test_stack(self):
+        """ TODO: Write documentation
+        """
+        env = gym.make("gym_jiminy.envs:atlas")
+        env.reset()
+
+        quantity_cls = AverageFrameSpatialVelocity
+        quantity_kwargs = dict(
+            frame_name=env.robot.pinocchio_model.frames[1].name)
+        env.quantities["v_avg"] = (quantity_cls, quantity_kwargs)
+
+        env.reset(seed=0)
+        with self.assertRaises(ValueError):
+            env.quantities["v_avg"]
+
+        env.step(env.action)
+        v_avg = env.quantities["v_avg"].copy()
+        env.step(env.action)
+        env.step(env.action)
+        assert np.all(v_avg != env.quantities["v_avg"])
+
+    def test_masked(self):
+        """ TODO: Write documentation
+        """
+        env = gym.make("gym_jiminy.envs:atlas")
+        env.reset()
+        env.step(env.action)
+
+        # 1. From non-slice-able indices
+        env.quantities["v_masked"] = (MaskedQuantity, dict(
+            quantity=(FrameXYZQuat, dict(frame_name="root_joint")),
+            key=(0, 1, 5)))
+        quantity = env.quantities.registry["v_masked"]
+        assert not quantity._slices
+        np.testing.assert_allclose(
+            env.quantities["v_masked"], quantity.data[[0, 1, 5]])
+        del env.quantities["v_masked"]
+
+        # 2. From boolean mask
+        env.quantities["v_masked"] = (MaskedQuantity, dict(
+            quantity=(FrameXYZQuat, dict(frame_name="root_joint")),
+            key=(True, True, False, False, False, True)))
+        quantity = env.quantities.registry["v_masked"]
+        np.testing.assert_allclose(
+            env.quantities["v_masked"], quantity.data[[0, 1, 5]])
+        del env.quantities["v_masked"]
+
+        # 3. From slice-able indices
+        env.quantities["v_masked"] = (MaskedQuantity, dict(
+            quantity=(FrameXYZQuat, dict(frame_name="root_joint")),
+            key=(0, 2, 4)))
+        quantity = env.quantities.registry["v_masked"]
+        assert len(quantity._slices) == 1 and quantity._slices[0] == slice(0, 5, 2)
+        np.testing.assert_allclose(
+            env.quantities["v_masked"], quantity.data[[0, 2, 4]])
+
+    def test_true_vs_reference(self):
+        env = gym.make("gym_jiminy.envs:atlas")
+
+        env.quantities["zmp"] = (
+            ZeroMomentPoint, dict(mode=QuantityEvalMode.TRUE))
+        env.reset(seed=0)
+        for _ in range(10):
+            env.step(env.action)
+        zmp_0 = env.quantities["zmp"].copy()
+        env.stop()
+
+        trajectory = extract_trajectory_from_log(env.log_data)
+        env.quantities["zmp_ref"] = (
+            ZeroMomentPoint, dict(mode=QuantityEvalMode.REFERENCE))
+
+        with self.assertRaises(RuntimeError):
+            env.reset(seed=0)
+
+        env.quantities.add_trajectory("reference", trajectory)
+        env.quantities.select_trajectory("reference")
+
+        env.reset(seed=0)
+        for _ in range(10):
+            env.step(env.action_space.sample() * 0.05)
+        assert np.all(zmp_0 != env.quantities["zmp"])
+        np.testing.assert_allclose(zmp_0, env.quantities["zmp_ref"])

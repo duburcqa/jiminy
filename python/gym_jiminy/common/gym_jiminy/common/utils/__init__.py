@@ -11,6 +11,7 @@ from .math import (squared_norm_2,
                    quat_to_yaw_cos_sin,
                    quat_multiply,
                    quat_average,
+                   quat_interpolate_middle,
                    rpy_to_matrix,
                    rpy_to_quat,
                    transforms_to_vector,
@@ -40,7 +41,10 @@ from .misc import (is_breakpoint,
                    get_fieldnames,
                    register_variables,
                    sample)
-from .pipeline import build_pipeline, load_pipeline
+from .pipeline import (save_trajectory_to_hdf5,
+                       load_trajectory_from_hdf5,
+                       build_pipeline,
+                       load_pipeline)
 
 
 __all__ = [
@@ -55,6 +59,7 @@ __all__ = [
     'quat_to_yaw_cos_sin',
     'quat_multiply',
     'quat_average',
+    'quat_interpolate_middle',
     'rpy_to_matrix',
     'rpy_to_quat',
     'transforms_to_vector',
@@ -84,6 +89,8 @@ __all__ = [
     'is_nan',
     'get_fieldnames',
     'register_variables',
+    'save_trajectory_to_hdf5',
+    'load_trajectory_from_hdf5',
     'build_pipeline',
     'load_pipeline'
 ]

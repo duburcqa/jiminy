@@ -17,6 +17,9 @@ namespace jiminy
             // Add extra options or update default values
             GenericConfig config = AbstractMotorBase::getDefaultMotorOptions();
 
+            config["enableVelocityLimit"] = false;
+            config["velocityEffortInvSlope"] = 0.0;
+            config["enableEffortLimit"] = true;
             config["enableFriction"] = false;
             config["frictionViscousPositive"] = 0.0;
             config["frictionViscousNegative"] = 0.0;
@@ -29,9 +32,15 @@ namespace jiminy
 
         struct SimpleMotorOptions : public AbstractMotorOptions
         {
-            /// \brief Flag to enable the joint friction.
-            ///
-            /// \pre Must be negative.
+            /// \brief Wether velocity limit is enabled.
+            const bool enableVelocityLimit;
+            /// \brief Inverse constant decrease rate of the maximum torque wrt velocity when
+            ///        approaching the maximum velocity. The maximum torque is equal to zero at
+            ///        maximum velocity.
+            const double velocityEffortInvSlope;
+            /// \brief Wether effort limit is enabled.
+            const bool enableEffortLimit;
+            /// \brief Wether joint friction is enabled.
             const bool enableFriction;
             /// \brief Viscous coefficient of the joint friction for positive velocity.
             ///
@@ -58,6 +67,9 @@ namespace jiminy
 
             SimpleMotorOptions(const GenericConfig & options) :
             AbstractMotorOptions(options),
+            enableVelocityLimit(boost::get<bool>(options.at("enableVelocityLimit"))),
+            velocityEffortInvSlope{boost::get<double>(options.at("velocityEffortInvSlope"))},
+            enableEffortLimit(boost::get<bool>(options.at("enableEffortLimit"))),
             enableFriction{boost::get<bool>(options.at("enableFriction"))},
             frictionViscousPositive{boost::get<double>(options.at("frictionViscousPositive"))},
             frictionViscousNegative{boost::get<double>(options.at("frictionViscousNegative"))},
@@ -69,7 +81,7 @@ namespace jiminy
         };
 
     public:
-        explicit SimpleMotor(const std::string & name) noexcept;
+        explicit SimpleMotor(const std::string & name);
         virtual ~SimpleMotor() = default;
 
         void initialize(const std::string & jointName);

@@ -10,7 +10,7 @@ import gymnasium as gym
 
 import jiminy_py.core as jiminy
 from jiminy_py.core import (  # pylint: disable=no-name-in-module
-    EncoderSensor as encoder, ImuSensor as imu, get_frame_indices)
+    EncoderSensor, ImuSensor, get_frame_indices)
 
 import pinocchio as pin
 
@@ -260,8 +260,10 @@ def get_flexibility_imu_frame_chains(
     supports = []
     for joint_index in leaf_joint_indices:
         support = []
-        while joint_index > 0:
+        while True:
             support.append(joint_index)
+            if joint_index == 0:
+                break
             joint_index = parents[joint_index]
         supports.append(support)
 
@@ -544,16 +546,17 @@ class DeformationEstimator(
         # Backup some of the user-argument(s)
         self.ignore_twist = ignore_twist
 
-        # Define proxies for fast access
-        self.pinocchio_model_th = env.robot.pinocchio_model_th.copy()
-        self.pinocchio_data_th = env.robot.pinocchio_data_th.copy()
-
         # Create flexible dynamic model.
         # Dummy physical parameters are specified as they have no effect on
         # kinematic computations.
         model = jiminy.Model()
-        model.initialize(env.robot.pinocchio_model_th)
+        pinocchio_model_th = env.robot.pinocchio_model_th
+        if env.robot.has_freeflyer:
+            pinocchio_model_th = pin.buildReducedModel(
+                pinocchio_model_th, [1], pin.neutral(pinocchio_model_th))
+        model.initialize(pinocchio_model_th)
         options = model.get_options()
+        options["dynamics"]["enableFlexibility"] = True
         for frame_name in flex_frame_names:
             options["dynamics"]["flexibilityConfig"].append(
                 {
@@ -564,6 +567,10 @@ class DeformationEstimator(
                 }
             )
         model.set_options(options)
+
+        # Backup theoretical pinocchio model without floating base
+        self.pinocchio_model_th = model.pinocchio_model_th.copy()
+        self.pinocchio_data_th = model.pinocchio_data_th.copy()
 
         # Extract contiguous chains of flexibility and IMU frames for which
         # computations can be vectorized. It also stores the information of
@@ -636,34 +643,37 @@ class DeformationEstimator(
 
         # Get mapping from IMU frame to index
         imu_frame_map: Dict[str, int] = {}
-        for sensor_name in env.robot.sensor_names[imu.type]:
-            sensor = env.robot.get_sensor(imu.type, sensor_name)
-            assert isinstance(sensor, imu)
+        for sensor in env.robot.sensors[ImuSensor.type]:
+            assert isinstance(sensor, ImuSensor)
             imu_frame_map[sensor.frame_name] = sensor.index
 
         # Make sure that the robot has one encoder per mechanical joint
-        encoder_sensor_names = env.robot.sensor_names[encoder.type]
-        if len(encoder_sensor_names) < len(model.mechanical_joint_indices):
+        encoder_sensors = env.robot.sensors[EncoderSensor.type]
+        if len(encoder_sensors) < len(model.mechanical_joint_indices):
             raise ValueError(
                 "The robot must have one encoder per mechanical joints.")
 
         # Extract mapping from encoders to theoretical configuration.
         # Note that revolute unbounded joints are not supported for now.
-        self.encoder_to_config = [-1 for _ in range(env.robot.nmotors)]
-        for i, sensor_name in enumerate(encoder_sensor_names):
-            sensor = env.robot.get_sensor(encoder.type, sensor_name)
-            assert isinstance(sensor, encoder)
-            if sensor.joint_type == jiminy.JointModelType.ROTARY_UNBOUNDED:
+        self.encoder_to_position_map = [-1,] * env.robot.nmotors
+        for sensor in env.robot.sensors[EncoderSensor.type]:
+            assert isinstance(sensor, EncoderSensor)
+            joint_index = self.pinocchio_model_th.getJointId(sensor.joint_name)
+            joint = self.pinocchio_model_th.joints[joint_index]
+            joint_type = jiminy.get_joint_type(joint)
+            if joint_type == jiminy.JointModelType.ROTARY_UNBOUNDED:
                 raise ValueError(
                     "Revolute unbounded joints are not supported for now.")
-            encoder_joint = self.pinocchio_model_th.joints[sensor.joint_index]
-            self.encoder_to_config[i] = encoder_joint.idx_q
+            self.encoder_to_position_map[sensor.index] = joint.idx_q
 
-        # Extract measured joint positions for fast access.
+        # Extract measured motor / joint positions for fast access.
         # Note that they will be initialized in `_setup` method.
         self.encoder_data = np.array([])
 
-        # Buffer storing the theoretical configuration.
+        # Ratio to translate encoder data to joint side
+        self.encoder_to_joint_ratio = np.array([])
+
+        # Buffer storing the theoretical configuration
         self._q_th = pin.neutral(self.pinocchio_model_th)
 
         # Whether the observer has been compiled already
@@ -702,8 +712,12 @@ class DeformationEstimator(
         # Refresh the theoretical model of the robot.
         # Even if the robot may change, the theoretical model of the robot is
         # not supposed to change in a way that would break this observer.
-        self.pinocchio_model_th = self.env.robot.pinocchio_model_th
-        self.pinocchio_data_th = self.env.robot.pinocchio_data_th
+        pinocchio_model_th = self.env.robot.pinocchio_model_th
+        if self.env.robot.has_freeflyer:
+            pinocchio_model_th = pin.buildReducedModel(
+                pinocchio_model_th, [1], pin.neutral(pinocchio_model_th))
+        self.pinocchio_model_th = pinocchio_model_th
+        self.pinocchio_data_th = self.pinocchio_model_th.createData()
 
         # Fix initialization of the observation to be valid quaternions
         self.observation[-1] = 1.0
@@ -722,8 +736,20 @@ class DeformationEstimator(
             self._kin_flex_rots.append(kin_flex_rots)
             self._kin_imu_rots.append(kin_imu_rots)
 
-        # Refresh measured motor positions and velocities proxies
-        self.encoder_data, _ = self.env.sensor_measurements[encoder.type]
+        # Refresh measured motor position proxy
+        self.encoder_data, _ = self.env.sensor_measurements[EncoderSensor.type]
+
+        # Refresh mechanical reduction ratio
+        encoder_to_joint_ratio = []
+        for sensor in self.env.robot.sensors[EncoderSensor.type]:
+            try:
+                motor = self.env.robot.motors[sensor.motor_index]
+                motor_options = motor.get_options()
+                mechanical_reduction = motor_options["mechanicalReduction"]
+                encoder_to_joint_ratio.append(1.0 / mechanical_reduction)
+            except IndexError:
+                encoder_to_joint_ratio.append(1.0)
+        self.encoder_to_joint_ratio = np.array(encoder_to_joint_ratio)
 
         # Call `refresh_observation` manually to pre-compile it if necessary
         if not self._is_compiled:
@@ -736,10 +762,14 @@ class DeformationEstimator(
                 for e in ("x", "y", "z", "w")]
 
     def refresh_observation(self, measurement: BaseObsT) -> None:
-        # Estimate the theoretical configuration of the robot from encoder data
-        self._q_th[self.encoder_to_config] = self.encoder_data
+        # Translate encoder data at joint level
+        joint_positions = self.encoder_to_joint_ratio * self.encoder_data
 
-        # Update kinematic quantities according to the estimated configuration
+        # Update the configuration of the theoretical model of the robot
+        self._q_th[self.encoder_to_position_map] = joint_positions
+
+        # Update kinematic quantities according to the estimated configuration.
+        # FIXME: Compute frame placement only for relevant IMUs.
         pin.framesForwardKinematics(
             self.pinocchio_model_th, self.pinocchio_data_th, self._q_th)
 

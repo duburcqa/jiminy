@@ -13,7 +13,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image
 
-from jiminy_py.core import ImuSensor as imu
+from jiminy_py.core import ImuSensor
 from jiminy_py.viewer import Viewer
 
 from gym_jiminy.envs import (
@@ -47,7 +47,7 @@ class PipelineControl(unittest.TestCase):
         action = np.zeros(self.env.robot.nmotors)
 
         # Run the simulation
-        while self.env.stepper_state.t < 19.0:
+        while self.env.stepper_state.t < 9.0:
             self.env.step(action)
 
         # Export figure
@@ -141,7 +141,7 @@ class PipelineControl(unittest.TestCase):
             action[robot.get_motor(name).index] = value
 
         # Extract proxies for convenience
-        sensor = robot.get_sensor(imu.type, robot.sensor_names[imu.type][0])
+        sensor = next(iter(robot.sensors[ImuSensor.type]))
         imu_rot = robot.pinocchio_data.oMf[sensor.frame_index].rotation
 
         # Check that the estimate IMU orientation is accurate over the episode
@@ -283,17 +283,17 @@ class PipelineControl(unittest.TestCase):
         np.testing.assert_allclose(target_vel[(update_ratio-1)::update_ratio],
                                    command_vel[(update_ratio-1)::update_ratio],
                                    atol=TOLERANCE)
-        np.testing.assert_allclose(target_accel_diff, target_accel[1:], atol=TOLERANCE)
-        np.testing.assert_allclose(target_vel_diff, target_vel[1:], atol=TOLERANCE)
+        np.testing.assert_allclose(
+            target_accel_diff, target_accel[1:], atol=TOLERANCE)
+        np.testing.assert_allclose(
+            target_vel_diff, target_vel[1:], atol=TOLERANCE)
 
         # Make sure that the position and velocity targets are within bounds
-        robot = env.robot
-        pos_min = robot.position_limit_lower[robot.motor_position_indices[-1]]
-        pos_max = robot.position_limit_upper[robot.motor_position_indices[-1]]
-        vel_limit = robot.velocity_limit[robot.motor_velocity_indices[-1]]
+        motor = env.robot.motors[-1]
         self.assertTrue(np.all(np.logical_and(
-            pos_min <= target_pos, target_pos <= pos_max)))
-        self.assertTrue(np.all(np.abs(target_vel) <= vel_limit))
+            motor.position_limit_lower <= target_pos,
+            target_pos <= motor.position_limit_upper)))
+        self.assertTrue(np.all(np.abs(target_vel) <= motor.velocity_limit))
 
     def test_repeatability(self):
         # Instantiate the environment

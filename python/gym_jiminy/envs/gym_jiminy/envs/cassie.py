@@ -1,3 +1,5 @@
+""" TODO: Write documentation.
+"""
 import os
 import sys
 import math
@@ -6,12 +8,8 @@ from typing import Any, Sequence, Union
 
 import numpy as np
 
-from jiminy_py.core import (JointModelType,
-                            get_joint_type,
-                            build_models_from_urdf,
-                            DistanceConstraint,
-                            Robot)
-from jiminy_py.robot import load_hardware_description_file, BaseJiminyRobot
+import jiminy_py.core as jiminy
+from jiminy_py.robot import load_hardware_description_file
 from pinocchio import neutral, SE3, buildReducedModel
 
 from gym_jiminy.common.envs import WalkerJiminyEnv
@@ -40,9 +38,14 @@ HLC_TO_LLC_RATIO = 1
 # Stepper update period (:float [s])
 STEP_DT = 0.04
 
+# Motor safety to avoid violent motions
+MOTOR_VELOCITY_MAX = 4.0
+MOTOR_ACCELERATION_MAX = 30.0
+
 # PID proportional gains (one per actuated joint)
-PD_KP = (100.0, 100.0, 100.0, 100.0, 80.0,
-         100.0, 100.0, 100.0, 100.0, 80.0)
+PD_KP = (4.0, 4.0, 6.25, 6.25, 1.6,
+         4.0, 4.0, 6.25, 6.25, 1.6)
+
 # PID derivative gains (one per actuated joint)
 PD_KD = (0.02, 0.02, 0.02, 0.02, 0.015,
          0.02, 0.02, 0.02, 0.02, 0.015)
@@ -81,11 +84,11 @@ class CassieJiminyEnv(WalkerJiminyEnv):
         urdf_path = os.path.join(data_dir, "cassie.urdf")
 
         # Load the full models
-        pinocchio_model, collision_model, visual_model = \
-            build_models_from_urdf(urdf_path,
-                                   has_freeflyer=True,
-                                   build_visual_model=True,
-                                   mesh_package_dirs=[data_dir])
+        pinocchio_model, collision_model, visual_model = (
+            jiminy.build_models_from_urdf(urdf_path,
+                                          has_freeflyer=True,
+                                          build_visual_model=True,
+                                          mesh_package_dirs=[data_dir]))
 
         # Fix passive rotary joints with spring.
         # Alternatively, it would be more realistic to model them using the
@@ -100,9 +103,8 @@ class CassieJiminyEnv(WalkerJiminyEnv):
             joint_locked_indices, qpos)
 
         # Build the robot and load the hardware
-        robot = BaseJiminyRobot()
-        Robot.initialize(robot, pinocchio_model, collision_model, visual_model)
-        robot._urdf_path_orig = urdf_path  # type: ignore[attr-defined]
+        robot = jiminy.Robot()
+        robot.initialize(pinocchio_model, collision_model, visual_model)
         hardware_path = str(Path(urdf_path).with_suffix('')) + '_hardware.toml'
         load_hardware_description_file(
             robot,
@@ -118,6 +120,8 @@ class CassieJiminyEnv(WalkerJiminyEnv):
             avoid_instable_collisions=True,
             debug=debug,
             **{**dict(
+                config_path=str(
+                    Path(urdf_path).with_suffix('')) + '_options.toml',
                 simulation_duration_max=SIMULATION_DURATION,
                 step_dt=STEP_DT,
                 reward_mixture=REWARD_MIXTURE,
@@ -133,7 +137,7 @@ class CassieJiminyEnv(WalkerJiminyEnv):
             "right_pushrod_tarsus", "right_tarsus", M_pushrod_tarsus_right)
         self.robot.add_frame(
             "right_pushrod_hip", "hip_flexion_right", M_pushrod_hip_right)
-        pushrod_right = DistanceConstraint(
+        pushrod_right = jiminy.DistanceConstraint(
             "right_pushrod_tarsus", "right_pushrod_hip")
         pushrod_right.baumgarte_freq = 20.0
         self.robot.add_constraint("pushrod_right", pushrod_right)
@@ -145,7 +149,7 @@ class CassieJiminyEnv(WalkerJiminyEnv):
             "left_pushrod_tarsus", "left_tarsus", M_pushrod_tarsus_left)
         self.robot.add_frame(
             "left_pushrod_hip", "hip_flexion_left", M_pushrod_hip_left)
-        pushrod_left = DistanceConstraint(
+        pushrod_left = jiminy.DistanceConstraint(
             "left_pushrod_tarsus", "left_pushrod_hip")
         pushrod_left.baumgarte_freq = 20.0
         self.robot.add_constraint("pushrod_left", pushrod_left)
@@ -161,10 +165,10 @@ class CassieJiminyEnv(WalkerJiminyEnv):
             """
             joint_index = self.robot.pinocchio_model.getJointId(joint_name)
             joint = self.robot.pinocchio_model.joints[joint_index]
-            joint_type = get_joint_type(
+            joint_type = jiminy.get_joint_type(
                 self.robot.pinocchio_model, joint_index)
             q_joint: Union[Sequence[float], float]
-            if joint_type == JointModelType.ROTARY_UNBOUNDED:
+            if joint_type == jiminy.JointModelType.ROTARY_UNBOUNDED:
                 q_joint = (math.cos(theta), math.sin(theta))
             else:
                 q_joint = theta
@@ -195,9 +199,9 @@ CassiePDControlJiminyEnv = build_pipeline(
                     update_ratio=HLC_TO_LLC_RATIO,
                     kp=PD_KP,
                     kd=PD_KD,
-                    target_position_margin=0.0,
-                    target_velocity_limit=float("inf"),
-                    target_acceleration_limit=float("inf")
+                    joint_position_margin=0.0,
+                    joint_velocity_limit=MOTOR_VELOCITY_MAX,
+                    joint_acceleration_limit=MOTOR_ACCELERATION_MAX
                 )
             ),
             wrapper=dict(

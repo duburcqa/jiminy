@@ -1,4 +1,6 @@
-""" TODO: Write documentation.
+"""This module implements a wrapper for stacking observations over time.
+
+This wrapper
 """
 import logging
 from collections import deque
@@ -25,13 +27,18 @@ StackedObsT: TypeAlias = NestedObsT
 LOGGER = logging.getLogger(__name__)
 
 
-class StackedJiminyEnv(
+class StackObservation(
         BasePipelineWrapper[StackedObsT, ActT, NestedObsT, ActT],
         Generic[NestedObsT, ActT]):
     """Partially stack observations in a rolling manner.
 
     This wrapper combines and extends OpenAI Gym wrappers `FrameStack` and
-    `FilteredJiminyEnv` to support nested filter keys.
+    `FilteredJiminyEnv` to support nested filter keys. It derives from
+    `BasePipelineWrapper` rather than `gym.Wrapper`. This means that
+    observations can be stacked at observation update period rather than step
+    update period. It is also possible to access the stacked observation from
+    any block of the environment pipeline, and it will be taken into account
+    when calling `evaluate` or `play_interactive`.
 
     It adds one extra dimension to all the leaves of the original observation
     spaces that must be stacked. In such a case, the first dimension

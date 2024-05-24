@@ -9,7 +9,7 @@ import numpy as np
 
 
 from jiminy_py.core import (  # pylint: disable=no-name-in-module
-    ForceSensor as force, ImuSensor as imu, ContactSensor as contact)
+    ForceSensor, ImuSensor, ContactSensor)
 from jiminy_py.simulator import Simulator
 
 
@@ -58,23 +58,23 @@ class SimulateFootedPendulum(unittest.TestCase):
         simulator.start(q0, v0)
 
         self.assertTrue(np.all(np.abs(simulator.stepper_state.a) < TOLERANCE))
-        imu_data = simulator.robot.sensor_measurements[imu.type, 'Foot']
+        imu_data = simulator.robot.sensor_measurements[ImuSensor.type, 'Foot']
         gyro_data, accel_data = np.split(imu_data, 2)
         self.assertTrue(np.allclose(gyro_data, 0.0, atol=TOLERANCE))
         self.assertTrue(np.allclose(accel_data, -gravity[:3], atol=TOLERANCE))
         self.assertTrue(np.allclose(
-            simulator.robot.sensor_measurements[force.type, 'Foot'],
+            simulator.robot.sensor_measurements[ForceSensor.type, 'Foot'],
             -gravity * mass,
             atol=TOLERANCE))
         for i in range(3):
             self.assertTrue(np.allclose(
                 simulator.robot.sensor_measurements[
-                    contact.type, f'Foot_CollisionBox_0_{2 * i}'],
+                    ContactSensor.type, f'Foot_CollisionBox_0_{2 * i}'],
                 simulator.robot.sensor_measurements[
-                    contact.type, f'Foot_CollisionBox_0_{2 * (i + 1)}'],
+                    ContactSensor.type, f'Foot_CollisionBox_0_{2 * (i + 1)}'],
                 atol=TOLERANCE))
         with self.assertRaises(KeyError):
-            simulator.robot.sensor_measurements[contact.type, 'NA']
+            simulator.robot.sensor_measurements[ContactSensor.type, 'NA']
         with self.assertRaises(KeyError):
             simulator.robot.sensor_measurements['NA', 'Foot_CollisionBox_0_1']
 

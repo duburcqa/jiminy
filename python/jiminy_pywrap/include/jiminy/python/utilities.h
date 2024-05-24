@@ -19,14 +19,17 @@
 #include <boost/python/suite/indexing/vector_indexing_suite.hpp>
 
 
-#define EXPECTED_PYTYPE_FOR_ARG_IS_ARRAY(type)                                 \
-    namespace boost::python::converter                                         \
-    {                                                                          \
-        template<>                                                             \
-        struct expected_pytype_for_arg<type>                                   \
-        {                                                                      \
-            static const PyTypeObject * get_pytype() { return &PyArray_Type; } \
-        };                                                                     \
+#define EXPECTED_PYTYPE_FOR_ARG_IS_ARRAY(type)       \
+    namespace boost::python::converter               \
+    {                                                \
+        template<>                                   \
+        struct expected_pytype_for_arg<type>         \
+        {                                            \
+            static const PyTypeObject * get_pytype() \
+            {                                        \
+                return &PyArray_Type;                \
+            }                                        \
+        };                                           \
     }
 
 EXPECTED_PYTYPE_FOR_ARG_IS_ARRAY(numpy::ndarray)
@@ -217,6 +220,7 @@ namespace jiminy::python
         {
             stringStream << ":\n\n" << doc;
         }
+        // FIXME: Use `view` to get a string_view rather than a string copy when moving to C++20
         return stringStream.str().substr(
             std::min(static_cast<size_t>(stringStream.tellp()), size_t(1)));
     }
@@ -235,7 +239,7 @@ namespace jiminy::python
             doc, std::pair{"fget", getMemberFuncPtr}, std::pair{"fset", setMemberFuncPtr});
     }
 
-// clang-format off
+    // clang-format off
     #define DEF_READONLY3(namePy, memberFuncPtr, doc) \
         def_readonly(namePy, \
                      memberFuncPtr, \
@@ -628,11 +632,23 @@ namespace jiminy::python
                      "'values' input array must have dtype 'np.float64' or 'np.int64'.");
     }
 
+    template<typename T>
+    struct is_boost_variant : std::false_type
+    {
+    };
+
+    template<typename... Args>
+    struct is_boost_variant<boost::variant<Args...>> : std::true_type
+    {
+    };
+
+    template<typename... Args>
+    inline constexpr bool is_boost_variant_v = is_boost_variant<std::decay_t<Args>...>::value;
+
     /// Convert most C++ objects into Python objects by value
     template<typename T>
-    std::enable_if_t<!is_vector_v<T> && !is_array_v<T> && !is_eigen_any_v<T> &&
-                         !std::is_arithmetic_v<std::decay_t<T>> &&
-                         !std::is_same_v<std::decay_t<T>, GenericConfig> &&
+    std::enable_if_t<!is_vector_v<T> && !is_array_v<T> && !is_eigen_any_v<T> && !is_map_v<T> &&
+                         !is_boost_variant_v<T> && !std::is_arithmetic_v<std::decay_t<T>> &&
                          !std::is_same_v<std::decay_t<T>, SensorMeasurementTree::value_type> &&
                          !std::is_same_v<std::decay_t<T>, std::string_view> &&
                          !std::is_same_v<std::decay_t<T>, FlexibilityJointConfig>,
@@ -693,7 +709,7 @@ namespace jiminy::python
 
     template<typename T>
     std::enable_if_t<std::is_same_v<std::decay_t<T>, FlexibilityJointConfig>, bp::object>
-    convertToPython(T && flexibilityJointConfig, const bool & copy)
+    convertToPython(T && flexibilityJointConfig, const bool & copy = true)
     {
         if (!copy)
         {
@@ -712,28 +728,40 @@ namespace jiminy::python
 
     template<typename T>
     std::enable_if_t<std::is_same_v<std::decay_t<T>, SensorMeasurementTree::value_type>, bp::object>
-    convertToPython(T && sensorDataTypeItem, const bool & copy)
+    convertToPython(T && sensorDataTypeItem, const bool & copy = true)
     {
         auto & [sensorGroupName, sensorDataType] = sensorDataTypeItem;
         return bp::make_tuple(sensorGroupName, convertToPython(sensorDataType.getAll(), copy));
     }
 
     template<typename T>
+    std::enable_if_t<is_boost_variant_v<T>, bp::object> convertToPython(T && value,
+                                                                        const bool & copy = true);
+
+    template<typename T>
     std::enable_if_t<is_vector_v<T> || is_array_v<T>, bp::object>
-    convertToPython(T && data, const bool & copy = true)
+    convertToPython(T && vect, const bool & copy = true)
     {
-        bp::list dataPy;
-        for (auto & val : data)
+        bp::list listPy;
+        for (auto && value : vect)
         {
-            dataPy.append(convertToPython(val, copy));
+            listPy.append(convertToPython(value, copy));
         }
         // FIXME: Remove explicit and redundant move when moving to C++20
-        return std::move(dataPy);
+        return std::move(listPy);
     }
 
     template<typename T>
-    std::enable_if_t<std::is_same_v<std::decay_t<T>, GenericConfig>, bp::object>
-    convertToPython(T && config, const bool & copy = true);
+    std::enable_if_t<is_map_v<T>, bp::object> convertToPython(T && dict, const bool & copy = true)
+    {
+        bp::dict dictPy;
+        for (auto && [key, value] : dict)
+        {
+            dictPy[key] = convertToPython(value, copy);
+        }
+        // FIXME: Remove explicit and redundant move when moving to C++20
+        return std::move(dictPy);
+    }
 
     class AppendBoostVariantToPython : public boost::static_visitor<bp::object>
     {
@@ -754,17 +782,10 @@ namespace jiminy::python
     };
 
     template<typename T>
-    std::enable_if_t<std::is_same_v<std::decay_t<T>, GenericConfig>, bp::object>
-    convertToPython(T && config, const bool & copy)
+    std::enable_if_t<is_boost_variant_v<T>, bp::object> convertToPython(T && value,
+                                                                        const bool & copy)
     {
-        bp::dict configPyDict;
-        AppendBoostVariantToPython visitor(copy);
-        for (auto & [key, value] : config)
-        {
-            configPyDict[key] = boost::apply_visitor(visitor, value);
-        }
-        // FIXME: Remove explicit and redundant move when moving to C++20
-        return std::move(configPyDict);
+        return boost::apply_visitor(AppendBoostVariantToPython{copy}, value);
     }
 
     template<typename T, bool copy = true>
@@ -778,7 +799,7 @@ namespace jiminy::python
             {
                 return &PyList_Type;
             }
-            else if constexpr (std::is_same_v<std::decay_t<T>, GenericConfig> ||
+            else if constexpr (is_map_v<T> ||
                                std::is_same_v<std::decay_t<T>, FlexibilityJointConfig>)
             {
                 return &PyDict_Type;
@@ -1158,8 +1179,8 @@ namespace jiminy::python
     };
 
     template<typename R, typename... Args>
-    ConvertGeneratorFromPythonAndInvoke(R (*)(Args...))
-        -> ConvertGeneratorFromPythonAndInvoke<R(Args...), void>;
+    ConvertGeneratorFromPythonAndInvoke(
+        R (*)(Args...)) -> ConvertGeneratorFromPythonAndInvoke<R(Args...), void>;
 
     template<typename T, typename R, typename Generator, typename... Args>
     class ConvertGeneratorFromPythonAndInvoke<R(Generator, Args...), T>
@@ -1185,8 +1206,8 @@ namespace jiminy::python
     };
 
     template<typename T, typename R, typename... Args>
-    ConvertGeneratorFromPythonAndInvoke(R (T::*)(Args...))
-        -> ConvertGeneratorFromPythonAndInvoke<R(Args...), T>;
+    ConvertGeneratorFromPythonAndInvoke(
+        R (T::*)(Args...)) -> ConvertGeneratorFromPythonAndInvoke<R(Args...), T>;
 
     // **************************** Automatic From Python converter **************************** //
 

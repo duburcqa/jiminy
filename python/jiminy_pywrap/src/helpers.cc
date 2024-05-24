@@ -68,6 +68,12 @@ namespace jiminy::python
         return bp::make_tuple(model, collisionModel);
     }
 
+    bp::object saveRobotToBinary(const std::shared_ptr<jiminy::Robot> & robot)
+    {
+        std::string data = saveToBinary(robot, true);
+        return bp::object(bp::handle<>(PyBytes_FromStringAndSize(data.c_str(), data.size())));
+    }
+
     std::shared_ptr<jiminy::Robot> buildRobotFromBinary(const std::string & data,
                                                         const bp::object & meshPathDirPy,
                                                         const bp::object & packageDirsPy)
@@ -328,11 +334,14 @@ namespace jiminy::python
                                            bp::arg("build_visual_model") = false,
                                            bp::arg("load_visual_meshes") = false));
 
-        bp::def("build_robot_from_binary", &buildRobotFromBinary,
-                                           (bp::arg("data"),
-                                            bp::arg("mesh_path_dir") = bp::object(),
-                                            bp::arg("mesh_package_dirs") = bp::list()));
+        bp::def("save_to_binary", &saveRobotToBinary, (bp::arg("robot")));
 
+        bp::def("load_from_binary", &buildRobotFromBinary,
+                                    (bp::arg("data"),
+                                     bp::arg("mesh_path_dir") = bp::object(),
+                                     bp::arg("mesh_package_dirs") = bp::list()));
+
+        bp::def("get_joint_type", &getJointType, bp::arg("joint_model"));
         bp::def("get_joint_type", &getJointTypeFromIndex,
                                   (bp::arg("pinocchio_model"), "joint_index"));
         bp::def("get_joint_indices", &getJointIndices,

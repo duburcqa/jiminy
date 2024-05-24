@@ -144,7 +144,7 @@ setup(
             # Used internally by Viewer to enable recording video
             # programmatically with Meshcat as backend.
             # - 1.43 is broken
-            "playwright!=1.43"
+            "playwright<1.43"
         ],
         "dev": [
             # Generate Python type hints files (aka. stubs) for C extensions.
@@ -156,7 +156,7 @@ setup(
             # Used in unit tests for numerical integration and interpolation
             "scipy",
             # Stub for static type checking
-            "types-psutil",
+            "types-psutil>=5.9.5.20240511",
             "types-Pillow",
             "types-toml",
             "types-tqdm",

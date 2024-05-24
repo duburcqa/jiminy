@@ -6,7 +6,7 @@
 
 namespace jiminy
 {
-    SimpleMotor::SimpleMotor(const std::string & name) noexcept :
+    SimpleMotor::SimpleMotor(const std::string & name) :
     AbstractMotorBase(name)
     {
         /* AbstractMotorBase constructor calls the base implementations of the virtual methods
@@ -18,21 +18,12 @@ namespace jiminy
 
     void SimpleMotor::initialize(const std::string & jointName)
     {
-        // Make sure that no simulation is already running
-        // TODO: This check should be enforced by AbstractMotor somehow
-        auto robot = robot_.lock();
-        if (robot && robot->getIsLocked())
-        {
-            JIMINY_THROW(bad_control_flow,
-                         "Robot already locked, probably because a simulation is running. "
-                         "Please stop it before refreshing motor proxies.");
-        }
-
         // Update joint name
         jointName_ = jointName;
         isInitialized_ = true;
 
-        // Try refreshing proxies if possible, restore internals before throwing exception if not
+        /* Try refreshing proxies if possible, restore internals before throwing exception if not.
+           Note that it will raise an exception if a simulation is already running. */
         try
         {
             refreshProxies();
@@ -70,6 +61,14 @@ namespace jiminy
             JIMINY_THROW(std::invalid_argument, "'frictionDrySlope' must be positive.");
         }
 
+        // Check that velocity limit is not enabled with effort limit
+        if (boost::get<bool>(motorOptions.at("enableVelocityLimit")) &&
+            !boost::get<bool>(motorOptions.at("enableEffortLimit")))
+        {
+            JIMINY_THROW(std::invalid_argument,
+                         "'enableVelocityLimit' cannot be enabled without 'enableEffortLimit'.");
+        }
+
         // Update class-specific "strongly typed" accessor for fast and convenient access
         motorOptions_ = std::make_unique<const SimpleMotorOptions>(motorOptions);
 
@@ -89,27 +88,47 @@ namespace jiminy
                          "Motor not initialized. Impossible to compute actual motor effort.");
         }
 
-        /* Compute the motor effort, taking into account the limit, if any.
-           It is the output of the motor on joint side, ie after the transmission. */
-        if (motorOptions_->enableCommandLimit)
-        {
-            command = std::clamp(command, -commandLimit_, commandLimit_);
-        }
-        data() = motorOptions_->mechanicalReduction * command;
+        // Extract motor data
+        const auto & [uMotor, uTransmission] = data();
 
-        /* Add friction to the joints associated with the motor if enable.
-           It is computed on joint side instead of the motor. */
+        // Compute the velocity at motor-level
+        const double vMotor = motorOptions_->mechanicalReduction * v;
+
+        /* Compute the motor effort, taking into account velocity and effort limits.
+           It is the output of the motor on joint side, ie after the transmission. */
+        double effortMin = -INF;
+        double effortMax = INF;
+        if (motorOptions_->enableEffortLimit)
+        {
+            effortMin = -effortLimit_;
+            effortMax = effortLimit_;
+            if (motorOptions_->enableVelocityLimit)
+            {
+                const double velocityThr = std::max(
+                    velocityLimit_ - effortLimit_ * motorOptions_->velocityEffortInvSlope, 0.0);
+                effortMin *= std::clamp(
+                    (velocityLimit_ + vMotor) / (velocityLimit_ - velocityThr), 0.0, 1.0);
+                effortMax *= std::clamp(
+                    (velocityLimit_ - vMotor) / (velocityLimit_ - velocityThr), 0.0, 1.0);
+            }
+        }
+        uMotor = std::clamp(command, effortMin, effortMax);
+
+        // Translate motor effort on joint side
+        uTransmission = motorOptions_->mechanicalReduction * uMotor;
+
+        // Add transmission friction if enable
         if (motorOptions_->enableFriction)
         {
-            if (v > 0)
+            if (v > 0.0)
             {
-                data() +=
+                uTransmission +=
                     motorOptions_->frictionViscousPositive * v +
                     motorOptions_->frictionDryPositive * tanh(motorOptions_->frictionDrySlope * v);
             }
             else
             {
-                data() +=
+                uTransmission +=
                     motorOptions_->frictionViscousNegative * v +
                     motorOptions_->frictionDryNegative * tanh(motorOptions_->frictionDrySlope * v);
             }

@@ -749,4 +749,50 @@ namespace jiminy
             }
         };
     }
+
+    HeightmapFunction stairs(
+        double stepWidth, double stepHeight, uint32_t stepNumber, double orientation)
+    {
+        const double interpDelta = 0.01;
+        const Eigen::Rotation2D<double> rot_mat(orientation);
+
+        return [stepWidth, stepHeight, stepNumber, rot_mat, interpDelta](
+                   const Eigen::Vector2d & pos, double & height, Eigen::Vector3d & normal) -> void
+        {
+            // Compute position in stairs reference frame
+            Eigen::Vector2d posRel = rot_mat.inverse() * pos;
+            const double modPos = std::fmod(std::abs(posRel[0]), stepWidth * stepNumber * 2);
+
+            // Compute the default height and normal
+            uint32_t stairIndex = static_cast<uint32_t>(modPos / stepWidth);
+            int8_t staircaseSlopeSign = 1;
+            if (stairIndex >= stepNumber)
+            {
+                stairIndex = 2 * stepNumber - stairIndex;
+                staircaseSlopeSign = -1;
+            }
+            height = stairIndex * stepHeight;
+            normal = Eigen::Vector3d::UnitZ();
+
+            // Avoid unsupported vertical edge
+            const double posRelOnStep = std::fmod(modPos, stepWidth) / stepWidth;
+            if (1.0 - posRelOnStep < interpDelta)
+            {
+                const double slope = staircaseSlopeSign * stepHeight / interpDelta;
+                // Update height
+                height += slope * (posRelOnStep - (1.0 - interpDelta));
+
+                // Compute the inverse of the normal's Euclidean norm
+                const double normInv = 1.0 / std::sqrt(1.0 + std::pow(slope, 2));
+
+                // Update normal vector
+                // step 1. compute normal in stairs reference frame:
+                // normal << -slope * normInv, 0.0, normInv;
+                // step 2. Rotate normal vector in world plane reference frame:
+                // normal.head<2>() = rot_mat * normal.head<2>();
+                // Or simply in a single operation:
+                normal << -slope * normInv * rot_mat.toRotationMatrix().col(0), normInv;
+            }
+        };
+    }
 }

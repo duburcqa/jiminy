@@ -30,11 +30,12 @@ TEST_P(ModelTestFixture, CreateFlexible)
     model->initialize(urdfPath, hasFreeflyer, std::vector<std::string>(), true);
 
     // We now have a rigid robot: perform rigid computation on this
-    auto q = pinocchio::randomConfiguration(model->pinocchioModel_);
     if (hasFreeflyer)
     {
-        q.head<3>().setZero();
+        model->pinocchioModel_.lowerPositionLimit.head<3>().setZero();
+        model->pinocchioModel_.upperPositionLimit.head<3>().setZero();
     }
+    auto q = pinocchio::randomConfiguration(model->pinocchioModel_);
     auto pinocchioData = pinocchio::Data(model->pinocchioModel_);
     pinocchio::framesForwardKinematics(model->pinocchioModel_, pinocchioData, q);
 

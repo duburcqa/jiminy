@@ -3,16 +3,16 @@ Jiminy simulator as physics engine.
 """
 import os
 import pathlib
-from typing import Optional, Dict, Union, Any, Type, Sequence, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
 
 from jiminy_py.core import (  # pylint: disable=no-name-in-module
-    EncoderSensor as encoder,
-    EffortSensor as effort,
-    ContactSensor as contact,
-    ForceSensor as force,
-    ImuSensor as imu,
+    EncoderSensor,
+    EffortSensor,
+    ContactSensor,
+    ForceSensor,
+    ImuSensor,
     PeriodicGaussianProcess,
     Robot)
 from jiminy_py.robot import BaseJiminyRobot
@@ -38,25 +38,25 @@ FLEX_STIFFNESS_SCALE = 1000
 FLEX_DAMPING_SCALE = 10
 
 SENSOR_DELAY_SCALE = {
-    encoder.type: 3.0e-3,
-    effort.type: 0.0,
-    contact.type: 0.0,
-    force.type: 0.0,
-    imu.type: 0.0
+    EncoderSensor: 3.0e-3,
+    EffortSensor: 0.0,
+    ContactSensor: 0.0,
+    ForceSensor: 0.0,
+    ImuSensor: 0.0
 }
 SENSOR_NOISE_SCALE = {
-    encoder.type:  np.array([0.0, 0.02]),
-    effort.type: np.array([10.0]),
-    contact.type: np.array([2.0, 2.0, 2.0, 10.0, 10.0, 10.0]),
-    force.type: np.array([2.0, 2.0, 2.0]),
-    imu.type:  np.array([0.0, 0.0, 0.0, 0.01, 0.01, 0.01, 0.2, 0.2, 0.2])
+    EncoderSensor: np.array([0.0, 0.02]),
+    EffortSensor: np.array([10.0]),
+    ContactSensor: np.array([2.0, 2.0, 2.0, 10.0, 10.0, 10.0]),
+    ForceSensor: np.array([2.0, 2.0, 2.0]),
+    ImuSensor: np.array([0.0, 0.0, 0.0, 0.01, 0.01, 0.01, 0.2, 0.2, 0.2])
 }
 SENSOR_BIAS_SCALE = {
-    encoder.type:  np.array([0.0, 0.0]),
-    effort.type: np.array([0.0]),
-    contact.type: np.array([4.0, 4.0, 4.0, 20.0, 20.0, 20.0]),
-    force.type: np.array([4.0, 4.0, 4.0]),
-    imu.type:  np.array([0.01, 0.01, 0.01, 0.02, 0.02, 0.02, 0.0, 0.0, 0.0])
+    EncoderSensor: np.array([0.0, 0.0]),
+    EffortSensor: np.array([0.0]),
+    ContactSensor: np.array([4.0, 4.0, 4.0, 20.0, 20.0, 20.0]),
+    ForceSensor: np.array([4.0, 4.0, 4.0]),
+    ImuSensor: np.array([0.01, 0.01, 0.01, 0.02, 0.02, 0.02, 0.0, 0.0, 0.0])
 }
 
 DEFAULT_SIMULATION_DURATION = 30.0  # (s) Default simulation duration
@@ -80,7 +80,6 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                  mesh_path_dir: Optional[str] = None,
                  simulation_duration_max: float = DEFAULT_SIMULATION_DURATION,
                  step_dt: float = DEFAULT_STEP_DT,
-                 enforce_bounded_spaces: bool = False,
                  reward_mixture: Optional[dict] = None,
                  std_ratio: Optional[dict] = None,
                  config_path: Optional[str] = None,
@@ -101,9 +100,6 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         :param simulation_duration_max: Maximum duration of a simulation before
                                         returning done.
         :param step_dt: Simulation timestep for learning.
-        :param enforce_bounded_spaces:
-            Whether to enforce finite bounds for the observation and action
-            spaces. If so, '\*_MAX' are used whenever it is necessary.
         :param reward_mixture: Weighting factors of selected contributions to
                                total reward.
         :param std_ratio: Relative standard deviation of selected contributions
@@ -206,8 +202,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
             simulator.import_options(config_path)
 
         # Initialize base class
-        super().__init__(
-            simulator, step_dt, enforce_bounded_spaces, debug, **kwargs)
+        super().__init__(simulator, step_dt, debug, **kwargs)
 
     def _setup(self) -> None:
         """Configure the environment.
@@ -233,12 +228,10 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                 "`WalkerJiminyEnv` only supports robots with freeflyer.")
 
         # Update some internal buffers used for computing the reward
-        motor_effort_limit = self.robot.pinocchio_model.effortLimit[
-            self.robot.motor_velocity_indices]
-        motor_velocity_limit = self.robot.velocity_limit[
-            self.robot.motor_velocity_indices]
-        self._power_consumption_max = sum(
-            motor_effort_limit * motor_velocity_limit)
+        self._power_consumption_max = 0.0
+        for motor in self.robot.motors:
+            motor_power_max = motor.velocity_limit * motor.effort_limit
+            self._power_consumption_max += motor_power_max
 
         # Compute the height of the freeflyer in neutral configuration
         # TODO: Take into account the ground profile.
@@ -253,8 +246,8 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         # computation and log replay.
         engine_options['telemetry']['enableConfiguration'] = True
         engine_options['telemetry']['enableVelocity'] = True
-        engine_options['telemetry']['enableForceExternal'] = \
-            'disturbance' in self.std_ratio.keys()
+        if 'disturbance' in self.std_ratio.keys():
+            engine_options['telemetry']['enableForceExternal'] = True
 
         # ============= Add some stochasticity to the environment =============
 
@@ -267,25 +260,27 @@ class WalkerJiminyEnv(BaseJiminyEnv):
 
         # Add sensor noise, bias and delay
         if 'sensors' in self.std_ratio.keys():
-            sensor_classes: Sequence[Union[
-                Type[encoder], Type[effort], Type[contact], Type[force],
-                Type[imu]]] = (encoder, effort, contact, force, imu)
-            for sensor in sensor_classes:
-                sensors_options = robot_options["sensors"][sensor.type]
+            for cls in (EncoderSensor,
+                        EffortSensor,
+                        ContactSensor,
+                        ForceSensor,
+                        ImuSensor):
+                sensors_options = robot_options["sensors"][cls.type]
                 for sensor_options in sensors_options.values():
                     for name in ("delay", "jitter"):
                         sensor_options[name] = sample(
                             low=0.0,
                             high=(self.std_ratio['sensors'] *
-                                  SENSOR_DELAY_SCALE[sensor.type]),
+                                  SENSOR_DELAY_SCALE[cls]),
                             rg=self.np_random)
                     for name in (
                             ("bias", SENSOR_BIAS_SCALE),
                             ("noiseStd", SENSOR_NOISE_SCALE)):
                         sensor_options[name] = sample(
                             scale=(self.std_ratio['sensors'] *
-                                   SENSOR_NOISE_SCALE[sensor.type]),
-                            shape=(len(sensor.fieldnames),),
+                                   SENSOR_NOISE_SCALE[cls]),
+                            shape=(len(
+                                cls.fieldnames),),  # type: ignore[arg-type]
                             rg=self.np_random)
 
         # Randomize the flexibility parameters
@@ -361,7 +356,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         wrench[1] = F_PROFILE_SCALE * self._f_xy_profile[1](t)
         wrench[:2] *= self.std_ratio['disturbance']
 
-    def has_terminated(self) -> Tuple[bool, bool]:
+    def has_terminated(self, info: InfoType) -> Tuple[bool, bool]:
         """Determine whether the episode is over.
 
         It terminates (`terminated=True`) under the following conditions:
@@ -374,10 +369,12 @@ class WalkerJiminyEnv(BaseJiminyEnv):
             - observation out-of-bounds
             - maximum simulation duration exceeded
 
+        :param info: Dictionary of extra information for monitoring.
+
         :returns: terminated and truncated flags.
         """
         # Call base implementation
-        terminated, truncated = super().has_terminated()
+        terminated, truncated = super().has_terminated(info)
 
         # Check if the agent has successfully solved the task
         if self._robot_state_q[2] < self._height_neutral * 0.5:
@@ -385,10 +382,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
 
         return terminated, truncated
 
-    def compute_reward(self,
-                       terminated: bool,
-                       truncated: bool,
-                       info: InfoType) -> float:
+    def compute_reward(self, terminated: bool, info: InfoType) -> float:
         """Compute reward at current episode state.
 
         It computes the reward associated with each individual contribution
@@ -409,7 +403,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
             reward_dict['survival'] = 1.0
 
         if 'energy' in reward_mixture_keys:
-            v_mot = self.robot.sensor_measurements[encoder.type][1]
+            _, v_mot = self.robot.sensor_measurements[EncoderSensor.type]
             command = self.robot_state.command
             power_consumption = np.sum(np.maximum(command * v_mot, 0.0))
             power_consumption_rel = \

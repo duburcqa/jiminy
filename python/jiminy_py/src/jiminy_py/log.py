@@ -4,39 +4,17 @@ reconstructing the robot to reading telemetry variables.
 """
 import re
 from bisect import bisect_right
+from itertools import zip_longest, starmap
 from collections import OrderedDict
 from typing import (
-    Any, Callable, List, Dict, Optional, Sequence, Union, Literal, Type,
-    overload)
+    Any, Callable, List, Dict, Optional, Sequence, Union, Literal, overload,
+    cast)
 
 import numpy as np
 
 from . import core as jiminy
 from . import tree
-from .core import (  # pylint: disable=no-name-in-module
-    EncoderSensor as encoder,
-    EffortSensor as effort,
-    ContactSensor as contact,
-    ForceSensor as force,
-    ImuSensor as imu)
-from .dynamics import State, TrajectoryDataType
-
-
-SENSORS_FIELDS: Dict[
-        Type[jiminy.AbstractSensor], Union[List[str], Dict[str, List[str]]]
-        ] = {
-    encoder: encoder.fieldnames,
-    effort: effort.fieldnames,
-    contact: contact.fieldnames,
-    force: {
-        k: [e[len(k):] for e in force.fieldnames if e.startswith(k)]
-        for k in ['F', 'M']
-    },
-    imu: {
-        k: [e[len(k):] for e in imu.fieldnames if e.startswith(k)]
-        for k in ['Quat', 'Gyro', 'Accel']
-    }
-}
+from .dynamics import State, Trajectory
 
 
 FieldNested = Union[Dict[str, 'FieldNested'], Sequence['FieldNested'], str]
@@ -96,7 +74,7 @@ def extract_variables_from_log(log_vars: Dict[str, np.ndarray],
 
         # Raise an exception if the key does not exists and not fail safe
         if key not in log_vars:
-            raise ValueError(f"Variable '{key}' not found in log file.")
+            raise KeyError(f"Variable '{key}' not found in log file.")
 
         # Extract the value corresponding to the key
         if as_dict:
@@ -168,8 +146,8 @@ def build_robot_from_log(
     # Get binary serialized robot data
     robot_data = log_constants[".".join(filter(None, (robot_name, "robot")))]
 
-    # Load robot
-    return jiminy.build_robot_from_binary(
+    # Load robot from binary data
+    return jiminy.load_from_binary(
         robot_data, mesh_path_dir, mesh_package_dirs)
 
 
@@ -215,7 +193,7 @@ def build_robots_from_log(
 def extract_trajectory_from_log(log_data: Dict[str, Any],
                                 robot: Optional[jiminy.Robot] = None,
                                 *, robot_name: Optional[str] = None
-                                ) -> TrajectoryDataType:
+                                ) -> Trajectory:
     """Extract the minimal required information from raw log data in order to
     replay the simulation in a viewer.
 
@@ -232,9 +210,8 @@ def extract_trajectory_from_log(log_data: Dict[str, Any],
     :param robot_name: Name of the robot to be constructed in the log. If it
                        is not known, call `build_robot_from_log`.
 
-    :returns: Trajectory dictionary. The actual trajectory corresponds to the
-              field "evolution_robot" and it is a list of State object. The
-              other fields are additional information.
+    :returns: Dictionary whose keys are the name of each robot and values are
+              the corresponding `Trajectory` object.
     """
     # Prepare robot namespace
     if robot is not None:
@@ -254,45 +231,44 @@ def extract_trajectory_from_log(log_data: Dict[str, Any],
     # Define some proxies for convenience
     log_vars = log_data["variables"]
 
-    # Extract the joint positions, velocities and external forces over time
-    positions = np.stack([
-        log_vars.get(".".join(filter(None, (robot_name, field))), [])
-        for field in robot.log_position_fieldnames], axis=-1)
-    velocities = np.stack([
-        log_vars.get(".".join(filter(None, (robot_name, field))), [])
-        for field in robot.log_velocity_fieldnames], axis=-1)
-    forces = np.stack([
-        log_vars.get(".".join(filter(None, (robot_name, field))), [])
-        for field in robot.log_f_external_fieldnames], axis=-1)
+    # Extract robot state data over time for all quantities available
+    data: Dict[str, Union[Sequence[np.ndarray], np.ndarray]] = OrderedDict()
+    for name in ("position",
+                 "velocity",
+                 "acceleration",
+                 "effort",
+                 "command",
+                 "f_external"):
+        fieldnames = getattr(robot, f"log_{name}_fieldnames")
+        try:
+            data[name] = extract_variables_from_log(
+                log_vars, fieldnames, robot_name)
+        except KeyError:
+            data[name] = []
 
-    # Determine which optional data are available
-    has_positions = len(positions) > 0
-    has_velocities = len(velocities) > 0
-    has_forces = len(forces) > 0
+    # Add fictitious 'universe' external force and reshape data if available
+    f_ext: np.ndarray = cast(np.ndarray, data["f_external"])
+    if len(f_ext) > 0:
+        f_ext = np.stack((*((np.zeros_like(f_ext[0]),) * 6), *f_ext), axis=-1)
+        data["f_external"] = f_ext.reshape((len(f_ext), -1, 6), order='A')
+
+    # Stack available data
+    for key, values in data.items():
+        if len(values) > 0 and not isinstance(values, np.ndarray):
+            data[key] = np.stack(values, axis=-1)
 
     # Create state sequence
-    evolution_robot = []
-    q, v, f_ext = None, None, None
-    for i, t in enumerate(log_vars["Global.Time"]):
-        if has_positions:
-            q = positions[i]
-        if has_velocities:
-            v = velocities[i]
-        if has_forces:
-            f_ext = [forces[i, (6 * (j - 1)):(6 * j)]
-                     for j in range(1, robot.pinocchio_model.njoints)]
-        evolution_robot.append(State(
-            t=t, q=q, v=v, f_ext=f_ext))  # type: ignore[arg-type]
+    states = tuple(starmap(
+        State, zip_longest(log_vars["Global.Time"], *data.values())))
 
-    return {"evolution_robot": evolution_robot,
-            "robot": robot,
-            "use_theoretical_model": False}
+    # Create the trajectory
+    return Trajectory(states, robot, use_theoretical_model=False)
 
 
 def extract_trajectories_from_log(
         log_data: Dict[str, Any],
         robots: Optional[Sequence[jiminy.Robot]] = None
-        ) -> Dict[str, TrajectoryDataType]:
+        ) -> Dict[str, Trajectory]:
     """Extract the minimal required information from raw log data in order to
     replay the simulation in a viewer.
 
@@ -302,12 +278,12 @@ def extract_trajectories_from_log(
         information.
 
     :param log_data: Logged data (constants and variables) as a dictionary.
-    :param robots: Sequend of Jiminy robots associated with the logged
+    :param robots: Sequence of Jiminy robots associated with the logged
                    trajectory.
                    Optional: None by default. If None, then it will be
                    reconstructed from 'log_data' using `build_robots_from_log`.
 
-    :returns: Dictonary mapping each robot name to its corresponding
+    :returns: Dictionary mapping each robot name to its corresponding
               trajectory.
     """
     # Handling of default argument(s)
@@ -319,7 +295,6 @@ def extract_trajectories_from_log(
     for robot in robots:
         trajectories[robot.name] = extract_trajectory_from_log(
             log_data, robot, robot_name=robot.name)
-
     return trajectories
 
 
@@ -345,40 +320,41 @@ def update_sensor_measurements_from_log(
     times = log_vars["Global.Time"]
 
     # Filter sensors whose data is available
-    sensors_set, sensors_log = [], []
-    for sensor_type, sensor_names in robot.sensor_names.items():
-        sensor_fieldnames = getattr(jiminy, sensor_type).fieldnames
-        for name in sensor_names:
-            sensor = robot.get_sensor(sensor_type, name)
-            log_fieldnames = [
-                '.'.join((sensor.name, field)) for field in sensor_fieldnames]
-            if log_fieldnames[0] in log_vars.keys():
-                sensor_log = np.stack([
-                    log_vars[field] for field in log_fieldnames], axis=-1)
-                sensors_set.append(sensor)
-                sensors_log.append(sensor_log)
+    sensor_data_map = []
+    for sensor_group in robot.sensors.values():
+        for sensor in sensor_group:
+            log_sensor_name = ".".join((sensor.type, sensor.name))
+            try:
+                data = np.stack(extract_variables_from_log(
+                    log_vars, sensor.fieldnames, log_sensor_name), axis=-1)
+                sensor_data_map.append((sensor, data))
+            except KeyError:
+                pass
 
     def update_hook(t: float,
                     q: np.ndarray,  # pylint: disable=unused-argument
                     v: np.ndarray  # pylint: disable=unused-argument
                     ) -> None:
-        nonlocal times, sensors_set, sensors_log
+        nonlocal times, sensor_data_map
+
+        # Early return if no more data is available
+        if t > times[-1]:
+            return
 
         # Get surrounding indices in log data
         i = bisect_right(times, t)
         i_prev, i_next = max(i - 1, 0), min(i, len(times) - 1)
 
-        # Early return if no more data is available
+        # Compute linear interpolation ratio
         if i_next == i_prev:
-            return
-
-        # Compute current time ratio
-        ratio = (t - times[i_prev]) / (times[i_next] - times[i_prev])
+            # Special case for final data point
+            ratio = 1.0
+        else:
+            ratio = (t - times[i_prev]) / (times[i_next] - times[i_prev])
 
         # Update sensors data
-        for sensor, sensor_log, in zip(sensors_set, sensors_log):
-            value_prev, value_next = sensor_log[i_prev], sensor_log[i_next]
-            value = value_prev + (value_next - value_prev) * ratio
-            sensor.data = value
+        for sensor, data in sensor_data_map:
+            value_prev, value_next = data[i_prev], data[i_next]
+            sensor.data = value_prev + (value_next - value_prev) * ratio
 
     return update_hook

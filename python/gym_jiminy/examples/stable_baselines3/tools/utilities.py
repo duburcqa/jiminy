@@ -133,7 +133,7 @@ def test(test_agent: BaseAlgorithm,
                     Optional: True by default.
     """
     # Check user arguments
-    if (math.isinf(max_episodes) and math.isinf(max_duration)):
+    if math.isinf(max_episodes) and math.isinf(max_duration):
         raise ValueError(
             "Either 'max_episodes' or 'max_duration' must be finite.")
 

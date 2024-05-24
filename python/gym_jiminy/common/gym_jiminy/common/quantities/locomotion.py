@@ -6,8 +6,51 @@ from dataclasses import dataclass
 import numpy as np
 import pinocchio as pin
 
-from ..bases import InterfaceJiminyEnv, AbstractQuantity
+from ..bases import (
+    InterfaceJiminyEnv, InterfaceQuantity, AbstractQuantity, QuantityEvalMode)
 from ..utils import fill
+
+from ..quantities import MaskedQuantity, AverageFrameSpatialVelocity
+
+
+@dataclass(unsafe_hash=True)
+class AverageOdometryVelocity(InterfaceQuantity[np.ndarray]):
+    """Average odometry velocity in local-world-aligned frame at the end of the
+    agent step.
+
+    The odometry pose fully specifies the position of the robot in 2D world
+    plane. As such, it comprises the linear translation (X, Y) and the angular
+    velocity around Z axis (namely rate of change of Yaw Euler angle). The
+    average spatial velocity is obtained by finite difference. See
+    `AverageFrameSpatialVelocity` documentation for details.
+    """
+
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 parent: Optional[InterfaceQuantity],
+                 *,
+                 mode: QuantityEvalMode = QuantityEvalMode.TRUE) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param parent: Higher-level quantity from which this quantity is a
+                       requirement if any, `None` otherwise.
+        :param mode: Desired mode of evaluation for this quantity.
+        """
+        # Call base implementation
+        super().__init__(
+            env,
+            parent,
+            requirements=dict(
+                data=(MaskedQuantity, dict(
+                    quantity=(AverageFrameSpatialVelocity, dict(
+                        frame_name="root_joint",
+                        reference_frame=pin.LOCAL_WORLD_ALIGNED,
+                        mode=mode)),
+                    key=(0, 1, 5)))),
+            auto_refresh=False)
+
+    def refresh(self) -> np.ndarray:
+        return self.data
 
 
 @dataclass(unsafe_hash=True)
@@ -23,21 +66,24 @@ class CenterOfMass(AbstractQuantity[np.ndarray]):
     def __init__(
             self,
             env: InterfaceJiminyEnv,
-            parent: Optional[AbstractQuantity],
-            kinematic_level: pin.KinematicLevel = pin.POSITION
-            ) -> None:
+            parent: Optional[InterfaceQuantity],
+            *,
+            kinematic_level: pin.KinematicLevel = pin.POSITION,
+            mode: QuantityEvalMode = QuantityEvalMode.TRUE) -> None:
         """
         :param env: Base or wrapped jiminy environment.
         :param parent: Higher-level quantity from which this quantity is a
                        requirement if any, `None` otherwise.
         :para kinematic_level: Desired kinematic level, ie position, velocity
                                or acceleration.
+        :param mode: Desired mode of evaluation for this quantity.
         """
         # Backup some user argument(s)
         self.kinematic_level = kinematic_level
 
         # Call base implementation
-        super().__init__(env, parent, requirements={})
+        super().__init__(
+            env, parent, requirements={}, mode=mode, auto_refresh=False)
 
         # Pre-allocate memory for the CoM quantity
         self._com_data: np.ndarray = np.array([])
@@ -45,6 +91,13 @@ class CenterOfMass(AbstractQuantity[np.ndarray]):
     def initialize(self) -> None:
         # Call base implementation
         super().initialize()
+
+        # Make sure that the state is consistent with required kinematic level
+        state = self.state
+        if ((self.kinematic_level == pin.ACCELERATION and state.a is None) or
+                (self.kinematic_level >= pin.VELOCITY and state.v is None)):
+            raise RuntimeError(
+                "State data inconsistent with required kinematic level")
 
         # Refresh CoM quantity proxy based on kinematic level
         if self.kinematic_level == pin.POSITION:
@@ -56,10 +109,11 @@ class CenterOfMass(AbstractQuantity[np.ndarray]):
 
     def refresh(self) -> np.ndarray:
         # Jiminy does not compute the CoM acceleration automatically
-        if self.kinematic_level == pin.ACCELERATION:
+        if (self.mode == QuantityEvalMode.TRUE and
+                self.kinematic_level == pin.ACCELERATION):
             pin.centerOfMass(self.pinocchio_model,
                              self.pinocchio_data,
-                             self.kinematic_level)
+                             pin.ACCELERATION)
 
         # Return proxy directly without copy
         return self._com_data
@@ -78,18 +132,28 @@ class ZeroMomentPoint(AbstractQuantity[np.ndarray]):
     """
     def __init__(self,
                  env: InterfaceJiminyEnv,
-                 parent: Optional[AbstractQuantity]) -> None:
+                 parent: Optional[InterfaceQuantity],
+                 *,
+                 mode: QuantityEvalMode = QuantityEvalMode.TRUE) -> None:
         """
         :param env: Base or wrapped jiminy environment.
+        :param parent: Higher-level quantity from which this quantity is a
+                       requirement if any, `None` otherwise.
+        :param mode: Desired mode of evaluation for this quantity.
         """
         # Call base implementation
-        super().__init__(env, parent, requirements={"com": (CenterOfMass, {})})
+        super().__init__(
+            env,
+            parent,
+            requirements=dict(com=(CenterOfMass, dict(mode=mode))),
+            mode=mode,
+            auto_refresh=False)
 
         # Weight of the robot
         self._robot_weight: float = -1
 
         # Proxy for the derivative of the spatial centroidal momentum
-        self.dhg: Tuple[np.ndarray, np.ndarray] = (np.ndarray([]),) * 2
+        self.dhg: Tuple[np.ndarray, np.ndarray] = (np.array([]),) * 2
 
         # Pre-allocate memory for the ZMP
         self._zmp = np.zeros(2)
@@ -97,6 +161,11 @@ class ZeroMomentPoint(AbstractQuantity[np.ndarray]):
     def initialize(self) -> None:
         # Call base implementation
         super().initialize()
+
+        # Make sure that the state is consistent with required kinematic level
+        if (self.state.v is None or self.state.a is None):
+            raise RuntimeError(
+                "State data inconsistent with required kinematic level")
 
         # Compute the weight of the robot
         gravity = abs(self.pinocchio_model.gravity.linear[2])
@@ -121,5 +190,4 @@ class ZeroMomentPoint(AbstractQuantity[np.ndarray]):
         if abs(f_z) > np.finfo(np.float32).eps:
             self._zmp[0] -= (dhg_angular[1] + dhg_linear[0] * com[2]) / f_z
             self._zmp[1] += (dhg_angular[0] - dhg_linear[1] * com[2]) / f_z
-
         return self._zmp

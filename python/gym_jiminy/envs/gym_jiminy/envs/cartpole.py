@@ -116,29 +116,26 @@ class CartPoleJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
 
         # Add motors and sensors
         motor_joint_name = "slider_to_cart"
-        encoder_sensors_descr = {
-            "slider": "slider_to_cart",
-            "pole": "cart_to_pole"
-        }
         motor = jiminy.SimpleMotor(motor_joint_name)
         robot.attach_motor(motor)
         motor.initialize(motor_joint_name)
-        for sensor_name, joint_name in encoder_sensors_descr.items():
+        for sensor_name, joint_name in (
+                ("slider", "slider_to_cart"), ("pole", "cart_to_pole")):
             encoder = jiminy.EncoderSensor(sensor_name)
             robot.attach_sensor(encoder)
-            encoder.initialize(joint_name)
+            encoder.initialize(joint_name=joint_name)
 
         # Instantiate simulator
         simulator = Simulator(robot, viewer_kwargs=viewer_kwargs)
 
         # OpenAI Gym implementation of Cartpole has no velocity limit
-        model_options = simulator.robot.get_model_options()
-        model_options["joints"]["enableVelocityLimit"] = False
-        simulator.robot.set_model_options(model_options)
+        motor_options = motor.get_options()
+        motor_options["enableVelocityLimit"] = False
+        motor.set_options(motor_options)
 
         # Map between discrete actions and actual motor force if necessary
         if not self.continuous:
-            command_limit = np.asarray(motor.command_limit)
+            command_limit = np.array(motor.effort_limit)
             self.AVAIL_CTRL = (-command_limit, np.array(0.0), command_limit)
 
         # Configure the learning environment
@@ -163,14 +160,18 @@ class CartPoleJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
 
         See documentation: https://gym.openai.com/envs/CartPole-v1/.
         """
-        # Compute observation bounds
-        high = np.array([X_THRESHOLD,
-                         THETA_THRESHOLD,
-                         *self.robot.velocity_limit])
+        # Define custom symmetric position bounds
+        position_limit_upper = np.array([X_THRESHOLD, THETA_THRESHOLD])
+
+        # Get velocity bounds associated the theoretical model
+        velocity_limit = self.robot.get_theoretical_velocity_from_extended(
+            self.robot.pinocchio_model.velocityLimit)
 
         # Set the observation space
+        state_limit_upper = np.concatenate((
+            position_limit_upper, velocity_limit))
         self.observation_space = spaces.Box(
-            low=-high, high=high, dtype=np.float64)
+            low=-state_limit_upper, high=state_limit_upper, dtype=np.float64)
 
     def _initialize_action_space(self) -> None:
         """ TODO: Write documentation.
@@ -188,8 +189,9 @@ class CartPoleJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
 
         Bounds of hypercube associated with initial state of robot.
         """
-        qpos = sample(scale=np.array([
-            X_RANDOM_MAX, THETA_RANDOM_MAX]), rg=self.np_random)
+        x, theta = sample(scale=np.array(
+            [X_RANDOM_MAX, THETA_RANDOM_MAX]), rg=self.np_random)
+        qpos = np.array([x, np.cos(theta), np.sin(theta)])
         qvel = sample(scale=np.array([
             DX_RANDOM_MAX, DTHETA_RANDOM_MAX]), rg=self.np_random)
         return qpos, qvel
@@ -207,10 +209,7 @@ class CartPoleJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         """
         command[:] = action if self.continuous else self.AVAIL_CTRL[action]
 
-    def compute_reward(self,
-                       terminated: bool,
-                       truncated: bool,
-                       info: InfoType) -> float:
+    def compute_reward(self, terminated: bool, info: InfoType) -> float:
         """Compute reward at current episode state.
 
         Constant positive reward equal to 1.0 as long as no termination

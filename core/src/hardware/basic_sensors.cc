@@ -38,8 +38,14 @@
     {                                                                                            \
         JIMINY_THROW(bad_control_flow,                                                           \
                      "Sensor not initialized. Impossible to refresh sensor proxies.");           \
+    }                                                                                            \
+                                                                                                 \
+    if (robot->getIsLocked())                                                                    \
+    {                                                                                            \
+        JIMINY_THROW(bad_control_flow,                                                           \
+                     "Robot already locked, probably because a simulation is running. "          \
+                     "Please stop it before refreshing sensor proxies.");                        \
     }
-
 
 #define GET_ROBOT_IF_INITIALIZED()                                                              \
     if (!isInitialized_)                                                                        \
@@ -49,14 +55,6 @@
                                                                                                 \
     auto robot = robot_.lock();
 
-#define CHECK_SIMULATION_NOT_RUNNING()                                                  \
-    auto robot = robot_.lock();                                                         \
-    if (robot && robot->getIsLocked())                                                  \
-    {                                                                                   \
-        JIMINY_THROW(bad_control_flow,                                                  \
-                     "Robot already locked, probably because a simulation is running. " \
-                     "Please stop it before refreshing sensor proxies.");               \
-    }
 
 namespace jiminy
 {
@@ -70,10 +68,6 @@ namespace jiminy
 
     void ImuSensor::initialize(const std::string & frameName)
     {
-        // Make sure that no simulation is already running
-        // TODO: This check should be enforced by AbstractMotor somehow
-        CHECK_SIMULATION_NOT_RUNNING()
-
         // Update frame name
         frameName_ = frameName;
         isInitialized_ = true;
@@ -114,7 +108,7 @@ namespace jiminy
                 "gyroscope and accelerometer additive noise.");
         }
 
-        // Set options now that sanity check were made
+        // Set options now that sanity checks were made
         AbstractSensorTpl<ImuSensor>::setOptions(sensorOptions);
     }
 
@@ -201,10 +195,6 @@ namespace jiminy
 
     void ContactSensor::initialize(const std::string & frameName)
     {
-        // Make sure that no simulation is already running
-        // TODO: This check should be enforced by AbstractMotor somehow
-        CHECK_SIMULATION_NOT_RUNNING()
-
         // Update frame name
         frameName_ = frameName;
         isInitialized_ = true;
@@ -237,7 +227,7 @@ namespace jiminy
             JIMINY_THROW(std::invalid_argument, "Wrong noise std vector size.");
         }
 
-        // Set options now that sanity check were made
+        // Set options now that sanity checks were made
         AbstractSensorTpl<ContactSensor>::setOptions(sensorOptions);
     }
 
@@ -296,10 +286,6 @@ namespace jiminy
 
     void ForceSensor::initialize(const std::string & frameName)
     {
-        // Make sure that no simulation is already running
-        // TODO: This check should be enforced by AbstractMotor somehow
-        CHECK_SIMULATION_NOT_RUNNING()
-
         // Update frame name
         frameName_ = frameName;
         isInitialized_ = true;
@@ -332,7 +318,7 @@ namespace jiminy
             JIMINY_THROW(std::invalid_argument, "Wrong noise std vector size.");
         }
 
-        // Set options now that sanity check were made
+        // Set options now that sanity checks were made
         AbstractSensorTpl<ForceSensor>::setOptions(sensorOptions);
     }
 
@@ -407,14 +393,18 @@ namespace jiminy
     template<>
     const std::vector<std::string> AbstractSensorTpl<EncoderSensor>::fieldnames_{"Q", "V"};
 
-    void EncoderSensor::initialize(const std::string & jointName)
+    void EncoderSensor::initialize(const std::string & motorOrJointName, bool isJointSide)
     {
-        // Make sure that no simulation is already running
-        // TODO: This check should be enforced by AbstractMotor somehow
-        CHECK_SIMULATION_NOT_RUNNING()
-
-        // Update joint name
-        jointName_ = jointName;
+        // Update motor name
+        isJointSide_ = isJointSide;
+        if (isJointSide_)
+        {
+            jointName_ = motorOrJointName;
+        }
+        else
+        {
+            motorName_ = motorOrJointName;
+        }
         isInitialized_ = true;
 
         // Try refreshing proxies if possible, restore internals before throwing exception if not
@@ -424,7 +414,7 @@ namespace jiminy
         }
         catch (...)
         {
-            jointName_.clear();
+            motorName_.clear();
             isInitialized_ = false;
             throw;
         }
@@ -445,7 +435,7 @@ namespace jiminy
             JIMINY_THROW(std::invalid_argument, "Wrong noise std vector size.");
         }
 
-        // Set options now that sanity check were made
+        // Set options now that sanity checks were made
         AbstractSensorTpl<EncoderSensor>::setOptions(sensorOptions);
     }
 
@@ -453,15 +443,25 @@ namespace jiminy
     {
         GET_ROBOT_AND_CHECK_SENSOR_INTEGRITY()
 
-        if (!robot->pinocchioModel_.existJointName(jointName_))
+        // Refresh proxies that depends on whether the encoder is on the joint or motor side
+        if (isJointSide_)
         {
-            JIMINY_THROW(std::runtime_error, "Sensor attached to a joint that does not exist.");
+            motorIndex_ = robot->nmotors();
+            jointIndex_ = ::jiminy::getJointIndex(robot->pinocchioModel_, jointName_);
+            mechanicalReduction_ = 1.0;
+        }
+        else
+        {
+            std::shared_ptr<const AbstractMotorBase> motor = robot->getMotor(motorName_).lock();
+            motorIndex_ = motor->getIndex();
+            jointIndex_ = motor->getJointIndex();
+            jointName_ = robot->pinocchioModel_.names[jointIndex_];
+            mechanicalReduction_ = motor->baseMotorOptions_->mechanicalReduction;
         }
 
-        jointIndex_ = ::jiminy::getJointIndex(robot->pinocchioModel_, jointName_);
-        jointType_ = getJointTypeFromIndex(robot->pinocchioModel_, jointIndex_);
-
         // Motors are only supported for linear and rotary joints
+        const auto & jmodel = robot->pinocchioModel_.joints[jointIndex_];
+        jointType_ = getJointType(jmodel);
         if (jointType_ != JointModelType::LINEAR && jointType_ != JointModelType::ROTARY &&
             jointType_ != JointModelType::ROTARY_UNBOUNDED)
         {
@@ -469,6 +469,20 @@ namespace jiminy
                 std::runtime_error,
                 "Encoder sensors can only be associated with a 1-dof linear or rotary joint.");
         }
+
+        // Refresh joint position and velocity indices
+        jointPositionIndex_ = jmodel.idx_q();
+        joinVelocityIndex_ = jmodel.idx_v();
+    }
+
+    const std::string & EncoderSensor::getMotorName() const
+    {
+        return motorName_;
+    }
+
+    std::size_t EncoderSensor::getMotorIndex() const
+    {
+        return motorIndex_;
     }
 
     const std::string & EncoderSensor::getJointName() const
@@ -481,11 +495,6 @@ namespace jiminy
         return jointIndex_;
     }
 
-    JointModelType EncoderSensor::getJointType() const
-    {
-        return jointType_;
-    }
-
     void EncoderSensor::set(double /* t */,
                             const Eigen::VectorXd & q,
                             const Eigen::VectorXd & v,
@@ -493,22 +502,29 @@ namespace jiminy
                             const Eigen::VectorXd & /* uMotor */,
                             const ForceVector & /* fExternal */)
     {
-        GET_ROBOT_IF_INITIALIZED()
-
-        const auto & joint = robot->pinocchioModel_.joints[jointIndex_];
-        const Eigen::Index jointPositionIndex = joint.idx_q();
-        const Eigen::Index jointVelocityIndex = joint.idx_v();
+        // Compute the joint position and velocity
+        double jointPosition;
         if (jointType_ == JointModelType::ROTARY_UNBOUNDED)
         {
-            const double cosTheta = q[jointPositionIndex];
-            const double sinTheta = q[jointPositionIndex + 1];
-            data()[0] = std::atan2(sinTheta, cosTheta);
+            const double cosTheta = q[jointPositionIndex_];
+            const double sinTheta = q[jointPositionIndex_ + 1];
+            jointPosition = std::atan2(sinTheta, cosTheta);
         }
         else
         {
-            data()[0] = q[jointPositionIndex];
+            jointPosition = q[jointPositionIndex_];
         }
-        data()[1] = v[jointVelocityIndex];
+        const double jointVelocity = v[joinVelocityIndex_];
+
+        // Compute encoder data depending on whether the encoder is on joint or motor side
+        if (isJointSide_)
+        {
+            data() << jointPosition, jointVelocity;
+        }
+        else
+        {
+            data() << jointPosition * mechanicalReduction_, jointVelocity * mechanicalReduction_;
+        }
     }
 
     // ===================== EffortSensor =========================
@@ -520,10 +536,6 @@ namespace jiminy
 
     void EffortSensor::initialize(const std::string & motorName)
     {
-        // Make sure that no simulation is already running
-        // TODO: This check should be enforced by AbstractMotor somehow
-        CHECK_SIMULATION_NOT_RUNNING()
-
         // Update motor name
         motorName_ = motorName;
         isInitialized_ = true;
@@ -556,7 +568,7 @@ namespace jiminy
             JIMINY_THROW(std::invalid_argument, "Wrong noise std vector size.");
         }
 
-        // Set options now that sanity check were made
+        // Set options now that sanity checks were made
         AbstractSensorTpl<EffortSensor>::setOptions(sensorOptions);
     }
 

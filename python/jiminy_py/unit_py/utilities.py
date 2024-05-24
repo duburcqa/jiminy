@@ -49,10 +49,11 @@ def load_urdf_default(urdf_name: str,
 
     # Configure the robot
     robot_options = robot.get_options()
-    robot_options["model"]["joints"]["enableVelocityLimit"] = False
-    for name in robot.motor_names:
-        robot_options["motors"][name]['enableCommandLimit'] = False
-        robot_options["motors"][name]['enableArmature'] = False
+    motor_options = robot_options["motors"]
+    for motor in robot.motors:
+        motor_options[motor.name]["enableVelocityLimit"] = False
+        motor_options[motor.name]['enableEffortLimit'] = False
+        motor_options[motor.name]['enableArmature'] = False
     robot.set_options(robot_options)
 
     return robot
@@ -111,6 +112,15 @@ def setup_controller_and_engine(
 
     # Initialize the engine
     engine.add_robot(robot)
+
+    # Enable telemetry by default
+    engine_options = engine.get_options()
+    telemetry_options = engine_options["telemetry"]
+    telemetry_options["enableEffort"] = True
+    telemetry_options["enableCommand"] = True
+    telemetry_options["enableForceExternal"] = True
+    telemetry_options["enableEnergy"] = True
+    engine.set_options(engine_options)
 
 
 def neutral_state(robot: jiminy.Model,
@@ -188,6 +198,15 @@ def simulate_and_get_state_evolution(
         associated sequence of states as a 2D array each line corresponds to a
         given time.
     """
+    # Enable telemetry by default
+    engine_options = engine.get_options()
+    telemetry_options = engine_options["telemetry"]
+    telemetry_options["enableEffort"] = True
+    telemetry_options["enableCommand"] = True
+    telemetry_options["enableForceExternal"] = True
+    telemetry_options["enableEnergy"] = True
+    engine.set_options(engine_options)
+
     # Run simulation
     if isinstance(x0, np.ndarray):
         robot, = engine.robots

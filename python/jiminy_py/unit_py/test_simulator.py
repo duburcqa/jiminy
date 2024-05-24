@@ -1,4 +1,4 @@
-"""TODO: Write documentation.
+""" TODO: Write documentation.
 """
 import os
 import tempfile
@@ -7,6 +7,8 @@ import unittest
 import numpy as np
 
 import jiminy_py.core as jiminy
+from jiminy_py.core import ImuSensor  # pylint: disable=no-name-in-module
+
 from jiminy_py.robot import BaseJiminyRobot
 from jiminy_py.simulator import Simulator
 
@@ -15,6 +17,8 @@ from jiminy_py.log import (read_log,
                            extract_trajectory_from_log,
                            extract_trajectories_from_log)
 from jiminy_py.viewer.replay import play_logs_data
+
+from utilities import setup_controller_and_engine
 
 
 class SimulatorTest(unittest.TestCase):
@@ -48,16 +52,13 @@ class SimulatorTest(unittest.TestCase):
             imu.initialize(fname)
 
         # Define a PD controller with fixed target position
-        class Controller(jiminy.BaseController):
-            def compute_command(self, t, q, v, command):
-                target = np.array([1.5, 0.0])
-                command[:] = -5000 * ((q[::2] - target) + 0.07 * v[::2])
-
-        robot.controller = Controller()
+        def compute_command(t, q, v, sensor_measurements, command):
+            target = np.array([1.5, 0.0])
+            command[:] = -5000 * ((q[::2] - target) + 0.07 * v[::2])
 
         # Instantiate the engine
         engine = jiminy.Engine()
-        engine.add_robot(robot)
+        setup_controller_and_engine(engine, robot, compute_command)
 
         # Configuration the simulation
         engine_options = engine.get_options()
@@ -95,11 +96,10 @@ class SimulatorTest(unittest.TestCase):
                 diff_velocities, accelerations[:, :-1], atol=1e-12, rtol=0.0)
 
             # Check that IMU accelerations match gravity at rest
-            for imu_name in robot.sensor_names[jiminy.ImuSensor.type]:
-                log_imu_name = ".".join((jiminy.ImuSensor.type, imu_name))
+            for imu_sensor in robot.sensors[ImuSensor.type]:
+                log_imu_name = ".".join((ImuSensor.type, imu_sensor.name))
                 imu_data = np.stack(extract_variables_from_log(
-                    log_vars, jiminy.ImuSensor.fieldnames, log_imu_name
-                    ), axis=0)
+                    log_vars, ImuSensor.fieldnames, log_imu_name), axis=0)
                 imu_gyro, imu_accel = np.split(imu_data, 2)
                 imu_gyro_norm = np.linalg.norm(imu_gyro, axis=0)
                 imu_accel_norm = np.linalg.norm(imu_accel, axis=0)
@@ -157,7 +157,7 @@ class SimulatorTest(unittest.TestCase):
         log_data = read_log(log_path)
         trajectory = extract_trajectory_from_log(log_data)
 
-        final_log_states = trajectory['evolution_robot'][-1]
+        final_log_states = trajectory.states[-1]
 
         np.testing.assert_array_almost_equal(
             simulator.robot_state.q, final_log_states.q, decimal=10)
@@ -169,7 +169,7 @@ class SimulatorTest(unittest.TestCase):
             tempfile.gettempdir(),
             f"video_{next(tempfile._get_candidate_names())}.mp4")
         play_logs_data(
-            robot, log_data, record_video_path=video_path, verbose=False)
+            log_data, robot, record_video_path=video_path, verbose=False)
         self.assertTrue(os.path.isfile(video_path))
 
     def test_double_robot_simulation(self):
@@ -225,7 +225,7 @@ class SimulatorTest(unittest.TestCase):
         trajectories = extract_trajectories_from_log(log_data)
 
         trajectory_1, trajectory_2 = (
-            trajectories[robot.name]['evolution_robot'][-1]
+            trajectories[robot.name].states[-1]
             for robot in simulator.robots)
         robot_states_1, robot_states_2 = simulator.robot_states
 

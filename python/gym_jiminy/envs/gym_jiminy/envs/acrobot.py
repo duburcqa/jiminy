@@ -4,7 +4,6 @@ from typing import Dict, Any, Optional, Tuple
 
 import numpy as np
 import gymnasium as gym
-from gymnasium.spaces import flatten_space
 
 import jiminy_py.core as jiminy
 from jiminy_py.simulator import Simulator
@@ -98,16 +97,15 @@ class AcrobotJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         robot.initialize(
             urdf_path, has_freeflyer=False, mesh_package_dirs=[data_dir])
 
-        # Add motors and sensors
+        # Add motor
         motor_joint_name = "SecondArmJoint"
-        encoder_joint_names = ("FirstArmJoint", "SecondArmJoint")
         motor = jiminy.SimpleMotor(motor_joint_name)
         robot.attach_motor(motor)
         motor.initialize(motor_joint_name)
-        for joint_name in encoder_joint_names:
-            encoder = jiminy.EncoderSensor(joint_name)
-            robot.attach_sensor(encoder)
-            encoder.initialize(joint_name)
+        for joint_name in ("FirstArmJoint", "SecondArmJoint"):
+            sensor = jiminy.EncoderSensor(joint_name)
+            robot.attach_sensor(sensor)
+            sensor.initialize(joint_name=joint_name)
 
         # Instantiate simulator
         simulator = Simulator(robot, viewer_kwargs=viewer_kwargs)
@@ -118,7 +116,7 @@ class AcrobotJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
 
         # Map between discrete actions and actual motor torque if necessary
         if not self.continuous:
-            command_limit = np.asarray(motor.command_limit)
+            command_limit = np.array(motor.effort_limit)
             self.AVAIL_CTRL = (-command_limit, np.array(0.0), command_limit)
 
         # Internal parameters used for computing termination condition
@@ -157,8 +155,14 @@ class AcrobotJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         Only the state is observable, while by default, the current time,
         state, and sensors data are available.
         """
-        self.observation_space = flatten_space(
-            self._get_agent_state_space(use_theoretical_model=True))
+        state_space = self._get_agent_state_space(use_theoretical_model=True)
+        position_space, velocity_space = state_space['q'], state_space['v']
+        assert isinstance(position_space, gym.spaces.Box)
+        assert isinstance(velocity_space, gym.spaces.Box)
+        self.observation_space = gym.spaces.Box(
+            low=np.concatenate((position_space.low, velocity_space.low)),
+            high=np.concatenate((position_space.high, velocity_space.high)),
+            dtype=np.float64)
 
     def refresh_observation(self, measurement: EngineObsType) -> None:
         angles, velocities = measurement['measurements']['EncoderSensor']
@@ -192,17 +196,19 @@ class AcrobotJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         qvel = sample(scale=DTHETA_RANDOM_MAX, shape=(2,), rg=self.np_random)
         return qpos, qvel
 
-    def has_terminated(self) -> Tuple[bool, bool]:
+    def has_terminated(self, info: InfoType) -> Tuple[bool, bool]:
         """Determine whether the episode is over.
 
         It terminates (`terminated=True`) if the goal has been achieved, namely
         if the tip of the Acrobot is above 'HEIGHT_REL_DEFAULT_THRESHOLD'.
         Apart from that, there is no specific truncation condition.
 
+        :param info: Dictionary of extra information for monitoring.
+
         :returns: terminated and truncated flags.
         """
         # Call base implementation
-        terminated, truncated = super().has_terminated()
+        terminated, truncated = super().has_terminated(info)
 
         # Check if the agent has successfully solved the task
         tip_transform = self.robot.pinocchio_data.oMf[self._tipIndex]
@@ -224,10 +230,7 @@ class AcrobotJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         if ACTION_NOISE > 0.0:
             command += sample(scale=ACTION_NOISE, rg=self.np_random)
 
-    def compute_reward(self,
-                       terminated: bool,
-                       truncated: bool,
-                       info: InfoType) -> float:
+    def compute_reward(self, terminated: bool, info: InfoType) -> float:
         """Compute reward at current episode state.
 
         Get a small negative reward till success.

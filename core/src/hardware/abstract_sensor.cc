@@ -6,11 +6,17 @@
 
 namespace jiminy
 {
-    AbstractSensorBase::AbstractSensorBase(const std::string & name) noexcept :
+    AbstractSensorBase::AbstractSensorBase(const std::string & name) :
     generator_{std::seed_seq{std::random_device{}()}},
     name_{name},
     telemetrySender_{std::make_unique<TelemetrySender>()}
     {
+        // Make sure that the motor name is not empty
+        if (name_.empty())
+        {
+            JIMINY_THROW(std::logic_error, "Sensor name must not be empty.");
+        }
+
         /* Initialize options.
            Note that the base implementation is called even if derived. This is a limitation of the
            C++ language specification which is not going to disappear anytime soon. */

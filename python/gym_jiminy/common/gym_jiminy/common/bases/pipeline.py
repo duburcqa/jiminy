@@ -19,9 +19,11 @@ from typing import (
     Callable, cast)
 
 import numpy as np
+
 import gymnasium as gym
 from gymnasium.core import RenderFrame
 from gymnasium.envs.registration import EnvSpec
+from jiminy_py.dynamics import Trajectory
 
 from .interfaces import (DT_EPS,
                          ObsT,
@@ -31,6 +33,7 @@ from .interfaces import (DT_EPS,
                          InfoType,
                          EngineObsType,
                          InterfaceJiminyEnv)
+from .compositions import AbstractReward
 from .blocks import BaseControllerBlock, BaseObserverBlock
 
 from ..utils import DataNested, is_breakpoint, zeros, build_copyto, copy
@@ -80,6 +83,7 @@ class BasePipelineWrapper(
         self.robot_state = env.robot_state
         self.sensor_measurements = env.sensor_measurements
         self.is_simulation_running = env.is_simulation_running
+        self.num_steps = env.num_steps
 
         # Backup the parent environment
         self.env = env
@@ -253,10 +257,7 @@ class BasePipelineWrapper(
         # user keeps doing more steps nonetheless.
         reward = float(reward)
         if not math.isnan(reward):
-            try:
-                reward += self.compute_reward(terminated, truncated, info)
-            except NotImplementedError:
-                pass
+            reward += self.compute_reward(terminated, info)
 
         return obs, reward, terminated, truncated, info
 
@@ -298,6 +299,119 @@ class BasePipelineWrapper(
         environment. This behavior can be overwritten by the user.
         """
         self.env.close()
+
+
+class ComposedJiminyEnv(
+        BasePipelineWrapper[ObsT, ActT, ObsT, ActT],
+        Generic[ObsT, ActT]):
+    """Extend an environment, eventually already wrapped, by plugging ad-hoc
+    reward components and termination conditions, including their accompanying
+    trajectory database if any.
+
+    This wrappers leaves unchanged the observation and action spaces of the
+    environment. This can be done by adding observation and/or control blocks
+    through `ObservedJiminyEnv` and `ControlledJiminyEnv` wrappers.
+
+    .. note::
+        This wrapper derives from `BasePipelineWrapper`, and such as, it is
+        considered as internal unlike `gym.Wrapper`. This means that it will be
+        taken into account when calling `evaluate` or `play_interactive` on the
+        wrapped environment.
+    """
+    def __init__(self,
+                 env: InterfaceJiminyEnv[ObsT, ActT],
+                 *,
+                 reward: Optional[AbstractReward] = None,
+                 trajectories: Optional[Dict[str, Trajectory]] = None) -> None:
+        """
+        :param env: Environment to extend, eventually already wrapped.
+        :param reward: Reward object deriving from `AbstractReward`. It will be
+                       evaluated at each step of the environment and summed up
+                       with one returned by the wrapped environment. This
+                       reward must be already instantiated and associated with
+                       the provided environment. `None` for not considering any
+                       reward.
+                       Optional: `None` by default.
+        :param trajectories: Set of named trajectories as a dictionary whose
+                             (key, value) pairs are respectively the name of
+                             each trajectory and the trajectory itself.  `None`
+                             for not considering any trajectory.
+                             Optional: `None` by default.
+        """
+        # Make sure that the unwrapped environment matches the reward one
+        assert reward is None or env.unwrapped is reward.env.unwrapped
+
+        # Backup user argument(s)
+        self.reward = reward
+
+        # Initialize base class
+        super().__init__(env)
+
+        # Add reference trajectories to all managed quantities if requested
+        if trajectories is not None:
+            for name, trajectory in trajectories.items():
+                self.env.quantities.add_trajectory(name, trajectory)
+
+        # Bind observation and action of the base environment
+        assert self.observation_space.contains(self.env.observation)
+        assert self.action_space.contains(self.env.action)
+        self.observation = self.env.observation
+        self.action = self.env.action
+
+    def _initialize_action_space(self) -> None:
+        """Configure the action space.
+
+        It simply copy the action space of the wrapped environment.
+        """
+        self.action_space = self.env.action_space
+
+    def _initialize_observation_space(self) -> None:
+        """Configure the observation space.
+
+        It simply copy the observation space of the wrapped environment.
+        """
+        self.observation_space = self.env.observation_space
+
+    def _setup(self) -> None:
+        """Configure the wrapper.
+
+        In addition to calling the base implementation, it sets the observe
+        and control update period.
+        """
+        # Call base implementation
+        super()._setup()
+
+        # Copy observe and control update periods from wrapped environment
+        self.observe_dt = self.env.observe_dt
+        self.control_dt = self.env.control_dt
+
+    def refresh_observation(self, measurement: EngineObsType) -> None:
+        """Compute high-level features based on the current wrapped
+        environment's observation.
+
+        It simply forwards the observation computed by the wrapped environment
+        without any processing.
+
+        :param measurement: Low-level measure from the environment to process
+                            to get higher-level observation.
+        """
+        self.env.refresh_observation(measurement)
+
+    def compute_command(self, action: ActT, command: np.ndarray) -> None:
+        """Compute the motors efforts to apply on the robot.
+
+        It simply forwards the command computed by the wrapped environment
+        without any processing.
+
+        :param action: High-level target to achieve by means of the command.
+        :param command: Lower-level command to updated in-place.
+        """
+        self.env.compute_command(action, command)
+
+    def compute_reward(self, terminated: bool, info: InfoType) -> float:
+        if self.reward is None:
+            return 0.0
+        return self.reward(terminated, info)
 
 
 class ObservedJiminyEnv(
@@ -366,8 +480,8 @@ class ObservedJiminyEnv(
 
         # Make sure that the environment is either some `ObservedJiminyEnv` or
         # `ControlledJiminyEnv` block, or the base environment directly.
-        if isinstance(env, BasePipelineWrapper) and not isinstance(
-                env, (ObservedJiminyEnv, ControlledJiminyEnv)):
+        if isinstance(env, BasePipelineWrapper) and not isinstance(env, (
+                ObservedJiminyEnv, ControlledJiminyEnv, ComposedJiminyEnv)):
             raise TypeError(
                 "Observers can only be added on top of another observer, "
                 "controller, or a base environment itself.")
@@ -588,8 +702,8 @@ class ControlledJiminyEnv(
 
         # Make sure that the environment is either some `ObservedJiminyEnv` or
         # `ControlledJiminyEnv` block, or the base environment directly.
-        if isinstance(env, BasePipelineWrapper) and not isinstance(
-                env, (ObservedJiminyEnv, ControlledJiminyEnv)):
+        if isinstance(env, BasePipelineWrapper) and not isinstance(env, (
+                ObservedJiminyEnv, ControlledJiminyEnv, ComposedJiminyEnv)):
             raise TypeError(
                 "Controllers can only be added on top of another observer, "
                 "controller, or a base environment itself.")
@@ -736,11 +850,8 @@ class ControlledJiminyEnv(
         # the right period.
         self.env.compute_command(self.env.action, command)
 
-    def compute_reward(self,
-                       terminated: bool,
-                       truncated: bool,
-                       info: InfoType) -> float:
-        return self.controller.compute_reward(terminated, truncated, info)
+    def compute_reward(self, terminated: bool, info: InfoType) -> float:
+        return self.controller.compute_reward(terminated, info)
 
 
 class BaseTransformObservation(
@@ -762,8 +873,8 @@ class BaseTransformObservation(
 
     .. note::
         This wrapper derives from `BasePipelineWrapper`, and such as, it is
-        considered as internal unlike `gym.Wrapper`. This means that it will be
-        taken into account calling `evaluate` or `play_interactive` on the
+        considered internal unlike `gym.Wrapper`. This means that it will be
+        taken into account when calling `evaluate` or `play_interactive` on the
         wrapped environment.
     """
     def __init__(self, env: InterfaceJiminyEnv[ObsT, ActT]) -> None:
@@ -869,8 +980,8 @@ class BaseTransformAction(
 
     .. note::
         This wrapper derives from `BasePipelineWrapper`, and such as, it is
-        considered as internal unlike `gym.Wrapper`. This means that it will be
-        taken into account calling `evaluate` or `play_interactive` on the
+        considered internal unlike `gym.Wrapper`. This means that it will be
+        taken into account when calling `evaluate` or `play_interactive` on the
         wrapped environment.
     """
     def __init__(self, env: InterfaceJiminyEnv[ObsT, ActT]) -> None:
