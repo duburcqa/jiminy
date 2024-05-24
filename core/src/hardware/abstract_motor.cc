@@ -57,8 +57,8 @@ namespace jiminy
         motorIndex_ = sharedStorage_->num_;
 
         // Add a value for the motor to the shared data buffer
-        sharedStorage_->data_.conservativeResize(sharedStorage_->num_ + 1);
-        sharedStorage_->data_.tail<1>().setZero();
+        sharedStorage_->data_.conservativeResize(sharedStorage_->num_ + 1, Eigen::NoChange);
+        sharedStorage_->data_.bottomRows<1>().setZero();
 
         // Add the motor to the shared memory
         sharedStorage_->motors_.push_back(this);
@@ -82,10 +82,10 @@ namespace jiminy
         {
             const Eigen::Index motorShift =
                 static_cast<Eigen::Index>(sharedStorage_->num_ - motorIndex_ - 1);
-            sharedStorage_->data_.segment(motorIndex_, motorShift) =
-                sharedStorage_->data_.tail(motorShift);
+            sharedStorage_->data_.middleRows(motorIndex_, motorShift) =
+                sharedStorage_->data_.bottomRows(motorShift);
         }
-        sharedStorage_->data_.conservativeResize(sharedStorage_->num_ - 1);
+        sharedStorage_->data_.conservativeResize(sharedStorage_->num_ - 1, Eigen::NoChange);
 
         // Shift the motor ids
         for (std::size_t i = motorIndex_ + 1; i < sharedStorage_->num_; ++i)
@@ -362,24 +362,25 @@ namespace jiminy
         }
     }
 
-    double AbstractMotorBase::get() const
+    std::tuple<double, double> AbstractMotorBase::get() const
     {
-        static double dataEmpty;
         if (isAttached_)
         {
-            return sharedStorage_->data_[motorIndex_];
+            return {sharedStorage_->data_.coeff(motorIndex_, 0),
+                    sharedStorage_->data_.coeff(motorIndex_, 1)};
         }
-        return dataEmpty;
+        return {0.0, 0.0};
     }
 
-    double & AbstractMotorBase::data()
+    std::tuple<double &, double &> AbstractMotorBase::data()
     {
-        return sharedStorage_->data_[motorIndex_];
+        return {sharedStorage_->data_(motorIndex_, 0), sharedStorage_->data_(motorIndex_, 1)};
     }
 
-    const Eigen::VectorXd & AbstractMotorBase::getAll() const
+    std::tuple<Eigen::Ref<const Eigen::VectorXd>, Eigen::Ref<const Eigen::VectorXd>>
+    AbstractMotorBase::getAll() const
     {
-        return sharedStorage_->data_;
+        return {sharedStorage_->data_.col(0), sharedStorage_->data_.col(1)};
     }
 
     void AbstractMotorBase::setOptionsAll(const GenericConfig & motorOptions)

@@ -916,19 +916,21 @@ namespace jiminy
         }
     }
 
-    const Eigen::VectorXd & Robot::getMotorEfforts() const
+    std::tuple<Eigen::Ref<const Eigen::VectorXd>, Eigen::Ref<const Eigen::VectorXd>>
+    Robot::getMotorEfforts() const
     {
         static const Eigen::VectorXd motorsEffortsEmpty;
+        static const Eigen::VectorXd jointsEffortsEmpty;
 
         if (!motors_.empty())
         {
             return (*motors_.begin())->getAll();
         }
 
-        return motorsEffortsEmpty;
+        return {motorsEffortsEmpty, jointsEffortsEmpty};
     }
 
-    double Robot::getMotorEffort(const std::string & motorName) const
+    std::tuple<double, double> Robot::getMotorEffort(const std::string & motorName) const
     {
         if (!isInitialized_)
         {

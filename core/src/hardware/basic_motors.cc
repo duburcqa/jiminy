@@ -88,6 +88,9 @@ namespace jiminy
                          "Motor not initialized. Impossible to compute actual motor effort.");
         }
 
+        // Extract motor data
+        const auto & [uMotor, uTransmission] = data();
+
         // Compute the velocity at motor-level
         const double vMotor = motorOptions_->mechanicalReduction * v;
 
@@ -109,21 +112,23 @@ namespace jiminy
                     (velocityLimit_ - vMotor) / (velocityLimit_ - velocityThr), 0.0, 1.0);
             }
         }
-        data() = motorOptions_->mechanicalReduction * std::clamp(command, effortMin, effortMax);
+        uMotor = std::clamp(command, effortMin, effortMax);
 
-        /* Add friction to the joints associated with the motor if enable.
-           It is computed on joint side instead of the motor. */
+        // Translate motor effort on joint side
+        uTransmission = motorOptions_->mechanicalReduction * uMotor;
+
+        // Add transmission friction if enable
         if (motorOptions_->enableFriction)
         {
             if (v > 0.0)
             {
-                data() +=
+                uTransmission +=
                     motorOptions_->frictionViscousPositive * v +
                     motorOptions_->frictionDryPositive * tanh(motorOptions_->frictionDrySlope * v);
             }
             else
             {
-                data() +=
+                uTransmission +=
                     motorOptions_->frictionViscousNegative * v +
                     motorOptions_->frictionDryNegative * tanh(motorOptions_->frictionDrySlope * v);
             }

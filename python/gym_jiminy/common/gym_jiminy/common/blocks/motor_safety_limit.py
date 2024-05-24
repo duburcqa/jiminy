@@ -112,18 +112,18 @@ class MotorSafetyLimit(
                  *,
                  kp: float,
                  kd: float,
-                 soft_position_margin: float = 0.0,
-                 soft_velocity_max: float = float("inf")) -> None:
+                 soft_position_margin: float,
+                 soft_velocity_max: float) -> None:
         """
         :param name: Name of the block.
         :param env: Environment to connect with.
 
         :param kp: Scale of the velocity bound triggered by position limits.
         :param kd: Scale of the effort bound triggered by velocity limits.
-        :param soft_position_margin: Minimum distance of the current motor
+        :param soft_position_margin: Minimum distance of the current joint
                                      positions from their respective bounds
                                      before starting to break.
-        :param soft_velocity_max: Maximum velocity of the motor before
+        :param soft_velocity_max: Maximum velocity of the joint before
                                   starting to break.
         """
         # Make sure that no other controller has been added prior to this block
@@ -138,16 +138,22 @@ class MotorSafetyLimit(
         self.kp = kp
         self.kd = kd
 
+        # Refresh mechanical reduction ratio
+        encoder_to_joint_ratio = []
+        for motor in env.robot.motors:
+            motor_options = motor.get_options()
+            encoder_to_joint_ratio.append(motor_options["mechanicalReduction"])
+
         # Define buffers storing information about the motors for efficiency
         self.motors_position_lower = np.array([
-            motor.position_limit_lower + soft_position_margin
-            for motor in env.robot.motors])
+            motor.position_limit_lower + ratio * soft_position_margin
+            for motor, ratio in zip(env.robot.motors, encoder_to_joint_ratio)])
         self.motors_position_upper = np.array([
-            motor.position_limit_upper - soft_position_margin
-            for motor in env.robot.motors])
+            motor.position_limit_upper - ratio * soft_position_margin
+            for motor, ratio in zip(env.robot.motors, encoder_to_joint_ratio)])
         self.motors_velocity_limit = np.array([
-            min(motor.velocity_limit, soft_velocity_max)
-            for motor in env.robot.motors])
+            min(motor.velocity_limit, ratio * soft_velocity_max)
+            for motor, ratio in zip(env.robot.motors, encoder_to_joint_ratio)])
         self.motors_effort_limit = np.array([
             motor.effort_limit for motor in env.robot.motors])
         self.motors_effort_limit[

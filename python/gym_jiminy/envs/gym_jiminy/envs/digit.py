@@ -42,6 +42,10 @@ HLC_TO_LLC_RATIO = 1
 # Stepper update period (:float [s])
 STEP_DT = 0.04
 
+# Motor safety to avoid violent motions
+MOTOR_VELOCITY_MAX = 4.0
+MOTOR_ACCELERATION_MAX = 30.0
+
 # PID proportional gains (one per actuated joint)
 PD_KP = (
     # Left leg: [HpX, HpZ, HpY, KnY, AkY, AkX]
@@ -213,9 +217,9 @@ DigitPDControlJiminyEnv = build_pipeline(
                     update_ratio=HLC_TO_LLC_RATIO,
                     kp=PD_KP,
                     kd=PD_KD,
-                    target_position_margin=0.0,
-                    target_velocity_limit=float("inf"),
-                    target_acceleration_limit=float("inf")
+                    joint_position_margin=0.0,
+                    joint_velocity_limit=MOTOR_VELOCITY_MAX,
+                    joint_acceleration_limit=MOTOR_ACCELERATION_MAX
                 )
             ),
             wrapper=dict(

@@ -146,6 +146,7 @@ namespace jiminy
         Eigen::VectorXd command{};
         Eigen::VectorXd u{};
         Eigen::VectorXd uMotor{};
+        Eigen::VectorXd uTransmission{};
         Eigen::VectorXd uInternal{};
         Eigen::VectorXd uCustom{};
         ForceVector fExternal{};

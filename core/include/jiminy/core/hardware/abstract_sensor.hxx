@@ -289,14 +289,14 @@ namespace jiminy
     }
 
     template<typename T>
-    inline Eigen::Ref<Eigen::VectorXd> AbstractSensorTpl<T>::get()
+    inline Eigen::Block<Eigen::MatrixXd, Eigen::Dynamic, 1, true> AbstractSensorTpl<T>::get()
     {
         // No guard, since this method is not public
         return sharedStorage_->measurements_.col(sensorIndex_);
     }
 
     template<typename T>
-    inline Eigen::Ref<Eigen::VectorXd> AbstractSensorTpl<T>::data()
+    inline Eigen::Block<Eigen::MatrixXd, Eigen::Dynamic, 1, true> AbstractSensorTpl<T>::data()
     {
         // No guard, since this method is not public
         return sharedStorage_->data_.back().col(sensorIndex_);

@@ -24,8 +24,8 @@ namespace jiminy
     ///          state of every motor.
     struct MotorSharedStorage
     {
-        /// \brief Buffer storing the current true motor efforts.
-        Eigen::VectorXd data_;
+        /// \brief Buffer storing the current motor efforts on joint and motor sides respectively.
+        Eigen::MatrixX2d data_;
         /// \brief Vector of pointers to the motors.
         std::vector<AbstractMotorBase *> motors_;
         /// \brief Number of motors
@@ -108,10 +108,11 @@ namespace jiminy
         const GenericConfig & getOptions() const noexcept;
 
         /// \brief Actual effort of the motor at the current time.
-        double get() const;
+        std::tuple<double, double> get() const;
 
         /// \brief Actual effort of all the motors at the current time.
-        const Eigen::VectorXd & getAll() const;
+        std::tuple<Eigen::Ref<const Eigen::VectorXd>, Eigen::Ref<const Eigen::VectorXd>>
+        getAll() const;
 
         /// \brief Set the configuration options of the motor.
         ///
@@ -196,7 +197,7 @@ namespace jiminy
 
     protected:
         /// \brief Reference to the last data buffer corresponding to the true effort of the motor.
-        double & data();
+        std::tuple<double &, double &> data();
 
     private:
         /// \brief Attach the sensor to a robot

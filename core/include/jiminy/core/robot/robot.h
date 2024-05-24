@@ -90,8 +90,9 @@ namespace jiminy
                                  const Eigen::VectorXd & v,
                                  const Eigen::VectorXd & a,
                                  const Eigen::VectorXd & command);
-        const Eigen::VectorXd & getMotorEfforts() const;
-        double getMotorEffort(const std::string & motorName) const;
+        std::tuple<Eigen::Ref<const Eigen::VectorXd>, Eigen::Ref<const Eigen::VectorXd>>
+        getMotorEfforts() const;
+        std::tuple<double, double> getMotorEffort(const std::string & motorName) const;
 
         /// \warning It assumes that kinematic quantities have been updated previously and are
         ///          consistent with the following input arguments. If not, one must call
