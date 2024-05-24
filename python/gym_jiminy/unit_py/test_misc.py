@@ -52,7 +52,8 @@ class Miscellaneous(unittest.TestCase):
 
         # Check the external forces has been updated
         np.testing.assert_allclose(
-            env.robot_state.f_external[1:], viewer.f_external)
+            tuple(f_ext.vector for f_ext in env.robot_state.f_external[1:]),
+            tuple(f_ext.vector for f_ext in viewer.f_external))
 
         # Check that sensor data has been updated
         for key, data in env.robot.sensor_measurements.items():

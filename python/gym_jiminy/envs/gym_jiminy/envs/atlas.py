@@ -35,6 +35,7 @@ SIMULATION_DURATION = 20.0
 # Stepper update period (:float [s])
 STEP_DT = 0.04
 
+# Motor safety to avoid violent motions
 MOTOR_POSITION_MARGIN = 0.02
 MOTOR_VELOCITY_SAFE_GAIN = 0.15
 MOTOR_VELOCITY_MAX = 4.0
