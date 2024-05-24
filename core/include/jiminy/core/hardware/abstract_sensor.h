@@ -266,9 +266,9 @@ namespace jiminy
         ///          to be filled up at this stage.
         ///
         /// \return Eigen Reference to a Eigen Vector corresponding to the last data recorded.
-        virtual Eigen::Ref<Eigen::VectorXd> data() = 0;
+        virtual Eigen::Block<Eigen::MatrixXd, Eigen::Dynamic, 1, true> data() = 0;
 
-        virtual Eigen::Ref<Eigen::VectorXd> get() = 0;
+        virtual Eigen::Block<Eigen::MatrixXd, Eigen::Dynamic, 1, true> get() = 0;
 
         /// \brief Name of the sensor in the telemetry.
         ///
@@ -340,8 +340,8 @@ namespace jiminy
                             const Eigen::VectorXd & a,
                             const Eigen::VectorXd & uMotor,
                             const ForceVector & fExternal) override final;
-        virtual Eigen::Ref<Eigen::VectorXd> get() override final;
-        virtual Eigen::Ref<Eigen::VectorXd> data() override final;
+        virtual Eigen::Block<Eigen::MatrixXd, Eigen::Dynamic, 1, true> get() override final;
+        virtual Eigen::Block<Eigen::MatrixXd, Eigen::Dynamic, 1, true> data() override final;
 
     private:
         virtual void attach(std::weak_ptr<const Robot> robot,

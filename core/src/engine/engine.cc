@@ -121,6 +121,7 @@ namespace jiminy
         command.setZero(nMotors);
         u.setZero(nv);
         uMotor.setZero(nMotors);
+        uTransmission.setZero(nMotors);
         uInternal.setZero(nv);
         uCustom.setZero(nv);
         fExternal = ForceVector(nJoints, pinocchio::Force::Zero());
@@ -140,6 +141,7 @@ namespace jiminy
         command.resize(0);
         u.resize(0);
         uMotor.resize(0);
+        uTransmission.resize(0);
         uInternal.resize(0);
         uCustom.resize(0);
         fExternal.clear();
@@ -1369,6 +1371,7 @@ namespace jiminy
                 Eigen::VectorXd & u = robotDataIt->state.u;
                 Eigen::VectorXd & command = robotDataIt->state.command;
                 Eigen::VectorXd & uMotor = robotDataIt->state.uMotor;
+                Eigen::VectorXd & uTransmission = robotDataIt->state.uTransmission;
                 Eigen::VectorXd & uInternal = robotDataIt->state.uInternal;
                 Eigen::VectorXd & uCustom = robotDataIt->state.uCustom;
                 ForceVector & fext = robotDataIt->state.fExternal;
@@ -1400,7 +1403,8 @@ namespace jiminy
 
                 // Compute the actual motor effort
                 (*robotIt)->computeMotorEfforts(t, q, v, a, command);
-                uMotor = (*robotIt)->getMotorEfforts();
+                const auto & uMotorAndJoint = (*robotIt)->getMotorEfforts();
+                std::tie(uMotor, uTransmission) = uMotorAndJoint;
 
                 // Compute the internal dynamics
                 uCustom.setZero();
@@ -1414,7 +1418,7 @@ namespace jiminy
                     const pinocchio::JointIndex jointIndex = motor->getJointIndex();
                     const Eigen::Index motorVelocityIndex =
                         (*robotIt)->pinocchioModel_.joints[jointIndex].idx_v();
-                    u[motorVelocityIndex] += uMotor[motorIndex];
+                    u[motorVelocityIndex] += uTransmission[motorIndex];
                 }
             }
             isFirstIter = false;
@@ -3585,6 +3589,7 @@ namespace jiminy
             Eigen::VectorXd & u = robotDataIt->state.u;
             Eigen::VectorXd & command = robotDataIt->state.command;
             Eigen::VectorXd & uMotor = robotDataIt->state.uMotor;
+            Eigen::VectorXd & uTransmission = robotDataIt->state.uTransmission;
             Eigen::VectorXd & uInternal = robotDataIt->state.uInternal;
             Eigen::VectorXd & uCustom = robotDataIt->state.uCustom;
             ForceVector & fext = robotDataIt->state.fExternal;
@@ -3621,7 +3626,8 @@ namespace jiminy
             /* Compute the actual motor effort.
                Note that it is impossible to have access to the current accelerations. */
             (*robotIt)->computeMotorEfforts(t, *qIt, *vIt, aPrev, command);
-            uMotor = (*robotIt)->getMotorEfforts();
+            const auto & uMotorAndJoint = (*robotIt)->getMotorEfforts();
+            std::tie(uMotor, uTransmission) = uMotorAndJoint;
 
             /* Compute the user-defined internal dynamics.
                Make sure that the sensor state has been updated beforehand since the user-defined
@@ -3637,7 +3643,7 @@ namespace jiminy
                 const pinocchio::JointIndex jointIndex = motor->getJointIndex();
                 const Eigen::Index motorVelocityIndex =
                     (*robotIt)->pinocchioModel_.joints[jointIndex].idx_v();
-                u[motorVelocityIndex] += uMotor[motorIndex];
+                u[motorVelocityIndex] += uTransmission[motorIndex];
             }
 
             // Compute the dynamics

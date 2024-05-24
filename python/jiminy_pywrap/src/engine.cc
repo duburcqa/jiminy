@@ -156,6 +156,7 @@ namespace jiminy::python
             s << "command:\n    " << self.command.transpose().format(HeavyFmt);
             s << "u:\n    " << self.u.transpose().format(HeavyFmt);
             s << "u_motor:\n    " << self.uMotor.transpose().format(HeavyFmt);
+            s << "u_transmission:\n    " << self.uTransmission.transpose().format(HeavyFmt);
             s << "u_internal:\n    " << self.uInternal.transpose().format(HeavyFmt);
             s << "u_custom:\n    " << self.uCustom.transpose().format(HeavyFmt);
             s << "f_external:\n";
@@ -178,6 +179,7 @@ namespace jiminy::python
             .DEF_READONLY("command", &RobotState::command)
             .DEF_READONLY("u", &RobotState::u)
             .DEF_READONLY("u_motor", &RobotState::uMotor)
+            .DEF_READONLY("u_transmission", &RobotState::uTransmission)
             .DEF_READONLY("u_internal", &RobotState::uInternal)
             .DEF_READONLY("u_custom", &RobotState::uCustom)
             .DEF_READONLY("f_external", &RobotState::fExternal)
