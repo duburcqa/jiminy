@@ -262,9 +262,9 @@ AtlasPDControlJiminyEnv = build_pipeline(
                     update_ratio=1,
                     kp=PD_FULL_KP,
                     kd=PD_FULL_KD,
-                    target_position_margin=0.0,
-                    target_velocity_limit=MOTOR_VELOCITY_MAX,
-                    target_acceleration_limit=MOTOR_ACCELERATION_MAX
+                    joint_position_margin=0.0,
+                    joint_velocity_limit=MOTOR_VELOCITY_MAX,
+                    joint_acceleration_limit=MOTOR_ACCELERATION_MAX
                 )
             ),
             wrapper=dict(
@@ -320,9 +320,9 @@ AtlasReducedPDControlJiminyEnv = build_pipeline(
                     update_ratio=1,
                     kp=PD_REDUCED_KP,
                     kd=PD_REDUCED_KD,
-                    target_position_margin=0.0,
-                    target_velocity_limit=MOTOR_VELOCITY_MAX,
-                    target_acceleration_limit=MOTOR_ACCELERATION_MAX
+                    joint_position_margin=0.0,
+                    joint_velocity_limit=MOTOR_VELOCITY_MAX,
+                    joint_acceleration_limit=MOTOR_ACCELERATION_MAX
                 )
             ),
             wrapper=dict(

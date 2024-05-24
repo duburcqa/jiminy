@@ -287,9 +287,9 @@ class PDController(
                  update_ratio: int = 1,
                  kp: Union[float, List[float], np.ndarray],
                  kd: Union[float, List[float], np.ndarray],
-                 target_position_margin: float = 0.0,
-                 target_velocity_limit: float = float("inf"),
-                 target_acceleration_limit: float = float("inf")) -> None:
+                 joint_position_margin: float = 0.0,
+                 joint_velocity_limit: float = float("inf"),
+                 joint_acceleration_limit: float = float("inf")) -> None:
         """
         :param name: Name of the block.
         :param env: Environment to connect with.
@@ -299,14 +299,14 @@ class PDController(
                              Optional: 1 by default.
         :param kp: PD controller position-proportional gains in motor order.
         :param kd: PD controller velocity-proportional gains in motor order.
-        :param target_position_margin: Minimum distance of the motor target
-                                       positions from their respective bounds.
-                                       Optional: 0.0 by default.
-        :param target_velocity_limit: Restrict maximum motor target velocities
-                                      wrt their hardware specifications.
-                                      Optional: "inf" by default.
-        :param target_acceleration_limit: Maximum motor target acceleration.
-                                          Optional: "inf" by default.
+        :param joint_position_margin: Minimum distance of the joint target
+                                      positions from their respective bounds.
+                                      Optional: 0.0 by default.
+        :param joint_velocity_limit: Restrict maximum joint target velocities
+                                     wrt their hardware specifications.
+                                     Optional: "inf" by default.
+        :param joint_acceleration_limit: Maximum joint target acceleration.
+                                         Optional: "inf" by default.
         """
         # Make sure the action space of the environment has not been altered
         if env.action_space is not env.unwrapped.action_space:
@@ -345,22 +345,34 @@ class PDController(
         self.motors_effort_limit = np.array([
             motor.effort_limit for motor in env.robot.motors])
 
-        # Extract the motors target position bounds from the model
+        # Refresh mechanical reduction ratio
+        encoder_to_joint_ratio = []
+        for motor in env.robot.motors:
+            motor_options = motor.get_options()
+            encoder_to_joint_ratio.append(motor_options["mechanicalReduction"])
+
+        # Define the motors target position bounds
         motors_position_lower = np.array([
-            motor.position_limit_lower + target_position_margin
-            for motor in env.robot.motors])
+            motor.position_limit_lower + ratio * joint_position_margin
+            for motor, ratio in zip(env.robot.motors, encoder_to_joint_ratio)])
         motors_position_upper = np.array([
-            motor.position_limit_upper - target_position_margin
-            for motor in env.robot.motors])
+            motor.position_limit_upper - ratio * joint_position_margin
+            for motor, ratio in zip(env.robot.motors, encoder_to_joint_ratio)])
 
-        # Extract the motors target velocity bounds
+        # Define the motors target velocity bounds
         motors_velocity_limit = np.array([
-            min(motor.velocity_limit, target_velocity_limit)
-            for motor in env.robot.motors])
+            min(motor.velocity_limit, ratio * joint_velocity_limit)
+            for motor, ratio in zip(env.robot.motors, encoder_to_joint_ratio)])
 
-        # Define acceleration bounds
-        acceleration_limit = np.full(
-            (env.robot.nmotors,), target_acceleration_limit)
+        # Define acceleration bounds allowing unrestricted bang-bang control
+        range_limit = 2 * motors_velocity_limit / env.step_dt
+        effort_limit = self.motors_effort_limit / (
+            self.kp * env.step_dt * np.maximum(env.step_dt / 2, self.kd))
+        target_acceleration_limit = np.array([
+            ratio * joint_acceleration_limit
+            for ratio in encoder_to_joint_ratio])
+        acceleration_limit = np.minimum(
+            np.minimum(range_limit, effort_limit), target_acceleration_limit)
 
         # Compute command state bounds
         self._command_state_lower = np.stack([motors_position_lower,

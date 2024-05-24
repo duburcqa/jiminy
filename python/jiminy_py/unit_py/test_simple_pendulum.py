@@ -190,7 +190,7 @@ class SimulateSimplePendulum(unittest.TestCase):
         # Check that the velocity ultimately reaches the limit
         assert np.abs(vel[-1]) - VELOCITY_MAX < TOLERANCE
 
-        # Check that the acceleration is decreasing exponentially
+        # Check that the acceleration is decreasing exponentially at some point
         acc_thr = TAU / self.robot.pinocchio_data.mass[0]
         start_idx = next(iter(i for i, a in enumerate(acc) if a < acc_thr))
         end_idx = start_idx + next(iter(i for i, a in enumerate(acc) if a < 0.1))

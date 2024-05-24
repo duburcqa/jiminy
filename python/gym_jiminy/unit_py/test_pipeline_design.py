@@ -47,9 +47,9 @@ class PipelineDesign(unittest.TestCase):
                             update_ratio=2,
                             kp=self.pid_kp,
                             kd=self.pid_kd,
-                            target_position_margin=0.0,
-                            target_velocity_limit=float("inf"),
-                            target_acceleration_limit=float("inf")
+                            joint_position_margin=0.0,
+                            joint_velocity_limit=float("inf"),
+                            joint_acceleration_limit=float("inf")
                         )
                     ),
                     wrapper=dict(
