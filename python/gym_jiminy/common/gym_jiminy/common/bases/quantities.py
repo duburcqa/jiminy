@@ -161,7 +161,7 @@ class SharedCache(Generic[ValueT]):
             for owner in self:
                 while owner.parent is not None:
                     owner = owner.parent
-                owner.reset(reset_tracking=True)
+                owner.reset(reset_tracking=True, ignore_auto_refresh=True)
 
         self.owners = WeakMutableCollection(_callback)
 
@@ -173,6 +173,10 @@ class SharedCache(Generic[ValueT]):
 
     def reset(self, *, ignore_auto_refresh: bool = False) -> None:
         """Clear value stored in cache if any.
+
+        :param ignore_auto_refresh: Whether to skip automatic refresh of all
+                                    co-owner quantities of this shared cache.
+                                    Optional: False by default.
         """
         # Clear cache
         self._value = None
@@ -325,7 +329,7 @@ class InterfaceQuantity(ABC, Generic[ValueT]):
             raise RuntimeError(
                 "No shared cache has been set for this quantity. Make sure it "
                 "is managed by some `QuantityManager` instance.")
-        return cast(SharedCache[ValueT], self._cache)
+        return self._cache  # type: ignore[return-value]
 
     @cache.setter
     def cache(self, cache: Optional[SharedCache[ValueT]]) -> None:
@@ -404,7 +408,9 @@ class InterfaceQuantity(ABC, Generic[ValueT]):
             self._cache.set(value)  # type: ignore[union-attr]
         return value
 
-    def reset(self, reset_tracking: bool = False) -> None:
+    def reset(self,
+              reset_tracking: bool = False,
+              ignore_auto_refresh: bool = False) -> None:
         """Consider that the quantity must be re-initialized before being
         evaluated once again.
 
@@ -412,7 +418,7 @@ class InterfaceQuantity(ABC, Generic[ValueT]):
         quantities will jointly be reset.
 
         .. note::
-            This method must be called right before performing agent steps,
+            This method must be called right before performing any agent step,
             otherwise this quantity will not be refreshed if it was evaluated
             previously.
 
@@ -422,6 +428,9 @@ class InterfaceQuantity(ABC, Generic[ValueT]):
         :param reset_tracking: Do not consider this quantity as active anymore
                                until the `get` method gets called once again.
                                Optional: False by default.
+        :param ignore_auto_refresh: Whether to skip automatic refresh of all
+                                    co-owner quantities of this shared cache.
+                                    Optional: False by default.
         """
         # Make sure that auto-refresh can be honored
         if self.auto_refresh and not self.has_cache:
@@ -438,7 +447,7 @@ class InterfaceQuantity(ABC, Generic[ValueT]):
 
         # Reset all requirements first
         for quantity in self.requirements.values():
-            quantity.reset(reset_tracking)
+            quantity.reset(reset_tracking, ignore_auto_refresh)
 
         # More work must to be done if shared cache is available and has value
         if self.has_cache:
@@ -455,7 +464,7 @@ class InterfaceQuantity(ABC, Generic[ValueT]):
                 owner.reset()
 
             # Reset shared cache one last time but without ignore auto refresh
-            self.cache.reset()
+            self.cache.reset(ignore_auto_refresh=ignore_auto_refresh)
 
     def initialize(self) -> None:
         """Initialize internal buffers.
@@ -587,8 +596,11 @@ class AbstractQuantity(InterfaceQuantity, Generic[ValueT]):
         # Call base implementation
         super().initialize()
 
-        # Refresh robot proxy
+        # Force initializing state quantity
         state = self.requirements["state"]
+        state.initialize()
+
+        # Refresh robot proxy
         assert isinstance(state, StateQuantity)
         self.robot = state.robot
         self.pinocchio_model = state.pinocchio_model
@@ -919,7 +931,7 @@ class StateQuantity(InterfaceQuantity[State]):
                 owner.pinocchio_data = owner.robot.pinocchio_data
 
         # Call base implementation.
-        # Thz quantity will be considered initialized and active at this point.
+        # The quantity will be considered initialized and active at this point.
         super().initialize()
 
         # State for which the quantity must be evaluated

@@ -69,11 +69,17 @@ class QuantityManager(MutableMapping):
         .. note::
             The cache is cleared automatically by the quantities themselves.
 
+        .. note::
+            This method is supposed to be called before starting a simulation.
+
         :param reset_tracking: Do not consider any quantity as active anymore.
                                Optional: False by default.
         """
+        # Reset all quantities sequentially
         for quantity in self.registry.values():
-            quantity.reset(reset_tracking)
+            quantity.reset(
+                reset_tracking,
+                ignore_auto_refresh=(not self.env.is_simulation_running))
 
     def clear(self) -> None:
         """Clear internal cache of quantities to force re-evaluating them the
