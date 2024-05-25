@@ -2,34 +2,26 @@
 its topology (multiple or single branch, fixed or floating base...) and the
 application (locomotion, grasping...).
 """
-from copy import deepcopy
-from collections import deque
+import warnings
 from functools import partial
 from dataclasses import dataclass
 from typing import (
-    List, Dict, Set, Any, Optional, Protocol, Sequence, Tuple, TypeVar, Union,
-    Generic, Callable, runtime_checkable)
-from typing_extensions import TypeAlias
+    List, Dict, Set, Optional, Protocol, Sequence, runtime_checkable)
 
 import numpy as np
 
+import jiminy_py.core as jiminy
 from jiminy_py.core import (  # pylint: disable=no-name-in-module
     multi_array_copyto)
 import pinocchio as pin
 
 from ..bases import (
-    InterfaceJiminyEnv, InterfaceQuantity, AbstractQuantity, QuantityCreator,
-    QuantityEvalMode)
+    InterfaceJiminyEnv, InterfaceQuantity, AbstractQuantity, QuantityEvalMode)
 from ..utils import (
     fill, matrix_to_rpy, matrix_to_quat, quat_to_matrix,
     quat_interpolate_middle)
 
-
-EllipsisType: TypeAlias = Any  # TODO: `EllipsisType` introduced in Python 3.10
-
-ValueT = TypeVar('ValueT')
-OtherValueT = TypeVar('OtherValueT')
-YetAnotherValueT = TypeVar('YetAnotherValueT')
+from .transform import StackedQuantity
 
 
 @runtime_checkable
@@ -267,6 +259,15 @@ class FrameEulerAngles(InterfaceQuantity[np.ndarray]):
     """Name of the frame on which to operate.
     """
 
+    mode: QuantityEvalMode
+    """Specify on which state to evaluate this quantity. See `Mode`
+    documentation for details about each mode.
+
+    .. warning::
+        Mode `REFERENCE` requires a reference trajectory to be selected
+        manually prior to evaluating this quantity for the first time.
+    """
+
     def __init__(self,
                  env: InterfaceJiminyEnv,
                  parent: Optional[InterfaceQuantity],
@@ -282,6 +283,7 @@ class FrameEulerAngles(InterfaceQuantity[np.ndarray]):
         """
         # Backup some user argument(s)
         self.frame_name = frame_name
+        self.mode = mode
 
         # Call base implementation
         super().__init__(
@@ -417,6 +419,15 @@ class FrameXYZQuat(InterfaceQuantity[np.ndarray]):
     """Name of the frame on which to operate.
     """
 
+    mode: QuantityEvalMode
+    """Specify on which state to evaluate this quantity. See `Mode`
+    documentation for details about each mode.
+
+    .. warning::
+        Mode `REFERENCE` requires a reference trajectory to be selected
+        manually prior to evaluating this quantity for the first time.
+    """
+
     def __init__(self,
                  env: InterfaceJiminyEnv,
                  parent: Optional[InterfaceQuantity],
@@ -432,6 +443,7 @@ class FrameXYZQuat(InterfaceQuantity[np.ndarray]):
         """
         # Backup some user argument(s)
         self.frame_name = frame_name
+        self.mode = mode
 
         # Call base implementation
         super().__init__(
@@ -454,87 +466,6 @@ class FrameXYZQuat(InterfaceQuantity[np.ndarray]):
     def refresh(self) -> np.ndarray:
         # Return a slice of batched data
         return self.data[self.frame_name]
-
-
-@dataclass(unsafe_hash=True)
-class StackedQuantity(InterfaceQuantity[Tuple[ValueT, ...]]):
-    """Keep track of a given quantity over time by automatically stacking its
-    value once per environment step since last reset.
-
-    .. note::
-        A new entry is added to the stack right before evaluating the reward
-        and termination conditions. Internal simulation steps, observer and
-        controller updates are ignored.
-    """
-
-    quantity: InterfaceQuantity
-    """Base quantity whose value must be stacked over time since last reset.
-    """
-
-    num_stack: Optional[int]
-    """Maximum number of values that keep in memory before starting to discard
-    the oldest one (FIFO). None if unlimited.
-    """
-
-    def __init__(self,
-                 env: InterfaceJiminyEnv,
-                 parent: Optional[InterfaceQuantity],
-                 quantity: QuantityCreator[ValueT],
-                 *,
-                 num_stack: Optional[int] = None) -> None:
-        """
-        :param env: Base or wrapped jiminy environment.
-        :param parent: Higher-level quantity from which this quantity is a
-                       requirement if any, `None` otherwise.
-        :param quantity: Tuple gathering the class of the quantity whose values
-                         must be stacked, plus all its constructor keyword-
-                         arguments except environment 'env' and parent 'parent.
-        :param num_stack: Maximum number of values that keep in memory before
-                          starting to discard the oldest one (FIFO). None if
-                          unlimited.
-        """
-        # Backup user arguments
-        self.num_stack = num_stack
-
-        # Call base implementation
-        super().__init__(env,
-                         parent,
-                         requirements=dict(data=quantity),
-                         auto_refresh=True)
-
-        # Keep track of the quantity that must be stacked once instantiated
-        self.quantity = self.requirements["data"]
-
-        # Allocate deque buffer
-        self._deque: deque = deque(maxlen=self.num_stack)
-
-        # Keep track of the last time the quantity has been stacked
-        self._num_steps_prev = -1
-
-    def initialize(self) -> None:
-        # Call base implementation
-        super().initialize()
-
-        # Clear buffer
-        self._deque.clear()
-
-        # Reset step counter
-        self._num_steps_prev = -1
-
-    def refresh(self) -> Tuple[ValueT, ...]:
-        # Append value to the queue only once per step and only if a simulation
-        # is running. Note that data must be deep-copied to make sure it does
-        # not get altered afterward.
-        if self.env.is_simulation_running:
-            num_steps = self.env.num_steps
-            if num_steps != self._num_steps_prev:
-                assert num_steps == self._num_steps_prev + 1
-                self._deque.append(deepcopy(self.data))
-                self._num_steps_prev += 1
-
-        # Return the whole stack as a tuple to preserve the integrity of the
-        # underlying container and make the API robust to internal changes.
-        return tuple(self._deque)
 
 
 @dataclass(unsafe_hash=True)
@@ -567,6 +498,15 @@ class AverageFrameSpatialVelocity(InterfaceQuantity[np.ndarray]):
     or re-aligned with world axes.
     """
 
+    mode: QuantityEvalMode
+    """Specify on which state to evaluate this quantity. See `Mode`
+    documentation for details about each mode.
+
+    .. warning::
+        Mode `REFERENCE` requires a reference trajectory to be selected
+        manually prior to evaluating this quantity for the first time.
+    """
+
     def __init__(self,
                  env: InterfaceJiminyEnv,
                  parent: Optional[InterfaceQuantity],
@@ -593,6 +533,7 @@ class AverageFrameSpatialVelocity(InterfaceQuantity[np.ndarray]):
         # Backup some user argument(s)
         self.frame_name = frame_name
         self.reference_frame = reference_frame
+        self.mode = mode
 
         # Call base implementation
         super().__init__(
@@ -662,171 +603,94 @@ class AverageFrameSpatialVelocity(InterfaceQuantity[np.ndarray]):
 
 
 @dataclass(unsafe_hash=True)
-class MaskedQuantity(InterfaceQuantity[np.ndarray]):
-    """Extract elements from a given quantity whose value is a N-dimensional
-    array along an axis.
+class ActuatedJointPositions(AbstractQuantity[np.ndarray]):
+    """Concatenation of the current position of all the actuated joints
+    of the robot.
 
-    Elements will be extract by copy unless the indices of the elements to
-    extract to be written equivalently by a slice (ie they are evenly spaced),
-    and the array can be flattened while preserving memory contiguity if 'axis'
-    is `None`.
-    """
+    In practice, all actuated joints must be 1DoF for now. The principal angle
+    is used in case of revolute unbounded revolute joints.
 
-    quantity: InterfaceQuantity
-    """Base quantity whose elements must be extracted.
-    """
+    .. warning::
+        Revolute unbounded joints are not supported for now.
 
-    indices: Tuple[int, ...]
-    """Indices of the elements to extract.
-    """
-
-    axis: Optional[int]
-    """Axis over which to extract elements. `None` to consider flattened array.
+    .. warning::
+        Data is extracted from the true configuration vector instead of using
+        sensor data. As a result, this quantity is appropriate for computing
+        reward components and termination conditions but must be avoided in
+        observers and controllers.
     """
 
     def __init__(self,
                  env: InterfaceJiminyEnv,
                  parent: Optional[InterfaceQuantity],
-                 quantity: QuantityCreator[np.ndarray],
-                 key: Union[Sequence[int], Sequence[bool]],
                  *,
-                 axis: Optional[int] = None) -> None:
+                 mode: QuantityEvalMode = QuantityEvalMode.TRUE) -> None:
         """
         :param env: Base or wrapped jiminy environment.
         :param parent: Higher-level quantity from which this quantity is a
                        requirement if any, `None` otherwise.
-        :param quantity: Tuple gathering the class of the quantity whose values
-                         must be extracted, plus all its constructor keyword-
-                         arguments except environment 'env' and parent 'parent.
-        :param key: Sequence of indices or boolean mask that will be used to
-                    extract elements from the quantity along one axis.
-        :param axis: Axis over which to extract elements. `None` to consider
-                     flattened array.
-                     Optional: `None` by default.
+        :param mode: Desired mode of evaluation for this quantity.
         """
-        # Check if indices or boolean mask has been provided
-        if all(isinstance(e, bool) for e in key):
-            key = tuple(np.flatnonzero(key))
-        elif not all(isinstance(e, int) for e in key):
-            raise ValueError(
-                "Argument 'key' invalid. It must either be a boolean mask, or "
-                "a sequence of indices.")
-
-        # Backup user arguments
-        self.indices = tuple(key)
-        self.axis = axis
-
-        # Make sure that at least one index must be extracted
-        if not self.indices:
-            raise ValueError(
-                "No indices to extract from quantity. Data would be empty.")
-
-        # Check if the indices are evenly spaced
-        self._slices: Tuple[Union[slice, EllipsisType], ...] = ()
-        stride: Optional[int] = None
-        if len(self.indices) == 1:
-            stride = 1
-        if len(self.indices) > 1 and all(e >= 0 for e in self.indices):
-            spacing = np.unique(np.diff(self.indices))
-            if spacing.size == 1:
-                stride = spacing[0]
-        if stride is not None:
-            slice_ = slice(self.indices[0], self.indices[-1] + 1, stride)
-            if axis is None:
-                self._slices = (slice_,)
-            elif axis > 0:
-                self._slices = (*((slice(None),) * axis), slice_)
-            else:
-                self._slices = (
-                    Ellipsis, slice_, *((slice(None),) * (- axis - 1)))
-
         # Call base implementation
-        super().__init__(env,
-                         parent,
-                         requirements=dict(data=quantity),
-                         auto_refresh=False)
+        super().__init__(
+            env,
+            parent,
+            requirements={},
+            mode=mode,
+            auto_refresh=False)
 
-        # Keep track of the quantity from which data must be extracted
-        self.quantity = self.requirements["data"]
+        # Mechanical joint position indices.
+        # Note that it will only be used in last resort if it can be written as
+        # a slice. Indeed, "fancy" indexing returns a copy of the original data
+        # instead of a view, which requires fetching data at every refresh.
+        self.position_indices: List[int] = []
+
+        # Buffer storing mechanical joint positions
+        self.data = np.array([])
+
+        # Whether mechanical joint positions must be updated at every refresh
+        self._must_refresh = False
 
     def initialize(self) -> None:
         # Call base implementation
         super().initialize()
 
+        # Refresh mechanical joint position indices
+        self.position_indices.clear()
+        for motor in self.env.robot.motors:
+            joint_index = self.pinocchio_model.getJointId(motor.joint_name)
+            joint = self.pinocchio_model.joints[joint_index]
+            joint_type = jiminy.get_joint_type(joint)
+            if joint_type == jiminy.JointModelType.ROTARY_UNBOUNDED:
+                raise ValueError(
+                    "Revolute unbounded joints are not supported for now.")
+            self.position_indices += range(joint.idx_q, joint.idx_q + joint.nq)
+
+        # Determine whether data can be extracted from state by reference
+        position_first = min(self.position_indices)
+        position_last = max(self.position_indices)
+        self._must_refresh = True
+        if self.mode == QuantityEvalMode.TRUE:
+            try:
+                if (np.array(self.position_indices) == np.arange(
+                        position_first, position_last + 1)).all():
+                    self._must_refresh = False
+                else:
+                    warnings.warn(
+                        "Consider using the same ordering for motors and joints "
+                        "for optimal performance.")
+            except ValueError:
+                pass
+
+        # Try extracting mechanical joint positions by reference if possible
+        if self._must_refresh:
+            self.data = np.full((len(self.position_indices),), float("nan"))
+        else:
+            self.data = self.state.q[slice(position_first, position_last + 1)]
+
     def refresh(self) -> np.ndarray:
-        # Extract elements from quantity
-        if not self._slices:
-            # Note that `take` is faster than classical advanced indexing via
-            # `operator[]` (`__getitem__`) because the latter is more generic.
-            # Notably, `operator[]` supports boolean mask but `take` does not.
-            return self.data.take(self.indices, axis=self.axis)
-        if self.axis is None:
-            # `reshape` must be used instead of `flat` to get a view that can
-            # be sliced without copy.
-            return self.data.reshape((-1,))[self._slices]
-        return self.data[self._slices]
+        # Update mechanical joint positions only if necessary
+        if self._must_refresh:
+            self.state.q.take(self.position_indices, None, self.data, "clip")
 
-
-@dataclass(unsafe_hash=True)
-class BinaryOpQuantity(InterfaceQuantity[ValueT],
-                       Generic[ValueT, OtherValueT, YetAnotherValueT]):
-    """Apply a given binary operator between two quantities.
-
-    This quantity is mainly useful for computing the error between the value of
-    a given quantity evaluated at the current simulation state and the state of
-    at the current simulation time for the reference trajectory being selected.
-    """
-
-    quantity_left: InterfaceQuantity[OtherValueT]
-    """Left-hand side quantity that will be forwarded to the binary operator.
-    """
-
-    quantity_right: InterfaceQuantity[YetAnotherValueT]
-    """Right-hand side quantity that will be forwarded to the binary operator.
-    """
-
-    op: Callable[[OtherValueT, YetAnotherValueT], ValueT]
-    """Callable taking right- and left-hand side quantities as input argument.
-    """
-
-    def __init__(self,
-                 env: InterfaceJiminyEnv,
-                 parent: Optional[InterfaceQuantity],
-                 quantity_left: QuantityCreator[OtherValueT],
-                 quantity_right: QuantityCreator[YetAnotherValueT],
-                 op: Callable[[OtherValueT, YetAnotherValueT], ValueT]
-                 ) -> None:
-        """
-        :param env: Base or wrapped jiminy environment.
-        :param parent: Higher-level quantity from which this quantity is a
-                       requirement if any, `None` otherwise.
-        :param quantity_left: Tuple gathering the class of the quantity that
-                              must be passed to left-hand side of the binary
-                              operator, plus all its constructor keyword-
-                              arguments except environment 'env' and parent
-                              'parent.
-        :param quantity_right: Quantity that must be passed to right-hand side
-                               of the binary operator as a tuple
-                               (class, keyword-arguments). See `quantity_left`
-                               argument for details.
-        :param op: Any callable taking the right- and left-hand side quantities
-                   as input argument. For example `operator.sub` to compute the
-                   difference.
-        """
-        # Backup some user argument(s)
-        self.op = op
-
-        # Call base implementation
-        super().__init__(
-            env,
-            parent,
-            requirements=dict(
-                value_left=quantity_left, value_right=quantity_right),
-            auto_refresh=False)
-
-        # Keep track of the left- and right-hand side quantities for hashing
-        self.quantity_left = self.requirements["value_left"]
-        self.quantity_right = self.requirements["value_right"]
-
-    def refresh(self) -> ValueT:
-        return self.op(self.value_left, self.value_right)
+        return self.data

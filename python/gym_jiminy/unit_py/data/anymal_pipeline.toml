@@ -12,7 +12,7 @@ dataset.reference = "./anymal_trajectory.hdf5"
 name = "reward_total"
 weights = [0.6, 0.4]
 [[env_config.reward.kwargs.components]]
-cls = "gym_jiminy.common.compositions.OdometryVelocityReward"
+cls = "gym_jiminy.common.compositions.TrackingOdometryVelocityReward"
 [env_config.reward.kwargs.components.kwargs]
 cutoff = 0.5
 [[env_config.reward.kwargs.components]]

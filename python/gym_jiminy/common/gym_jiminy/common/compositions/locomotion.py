@@ -9,7 +9,7 @@ from ..quantities import AverageOdometryVelocity, BinaryOpQuantity
 from .generic import radial_basis_function
 
 
-class OdometryVelocityReward(BaseQuantityReward):
+class TrackingOdometryVelocityReward(BaseQuantityReward):
     """Reward the agent for tracking a reference odometry velocity.
 
     A reference trajectory must be selected before evaluating this reward
@@ -32,7 +32,7 @@ class OdometryVelocityReward(BaseQuantityReward):
         # Call base implementation
         super().__init__(
             env,
-            "reward_odometry_velocity",
+            "reward_tracking_odometry_velocity",
             (BinaryOpQuantity, dict(
                 quantity_left=(AverageOdometryVelocity, dict(
                     mode=QuantityEvalMode.TRUE)),

@@ -1,15 +1,16 @@
 # pylint: disable=missing-module-docstring
 
-from .generic import (radial_basis_function,
-                      AdditiveMixtureReward,
-                      MultiplicativeMixtureReward,
+from .mixin import (radial_basis_function,
+                    AdditiveMixtureReward,
+                    MultiplicativeMixtureReward)
+from .generic import (TrackingMechanicalJointPositionsReward,
                       SurviveReward)
-from .locomotion import OdometryVelocityReward
+from .locomotion import TrackingOdometryVelocityReward
 
 __all__ = [
     "radial_basis_function",
     "AdditiveMixtureReward",
     "MultiplicativeMixtureReward",
-    "SurviveReward",
-    "OdometryVelocityReward"
+    "TrackingOdometryVelocityReward",
+    "SurviveReward"
 ]

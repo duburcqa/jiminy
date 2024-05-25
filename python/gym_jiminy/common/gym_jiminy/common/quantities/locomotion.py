@@ -14,7 +14,7 @@ from ..quantities import MaskedQuantity, AverageFrameSpatialVelocity
 
 
 @dataclass(unsafe_hash=True)
-class AverageOdometryVelocity(InterfaceQuantity[np.ndarray]):
+class AverageOdometryVelocity(AbstractQuantity[np.ndarray]):
     """Average odometry velocity in local-world-aligned frame at the end of the
     agent step.
 
@@ -47,6 +47,7 @@ class AverageOdometryVelocity(InterfaceQuantity[np.ndarray]):
                         reference_frame=pin.LOCAL_WORLD_ALIGNED,
                         mode=mode)),
                     key=(0, 1, 5)))),
+            mode=mode,
             auto_refresh=False)
 
     def refresh(self) -> np.ndarray:
