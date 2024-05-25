@@ -1293,13 +1293,22 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         # Make sure plot submodule is available
         try:
             # pylint: disable=import-outside-toplevel
-            from matplotlib import cbook
+            import matplotlib
             from matplotlib.patches import Patch
         except ImportError:
             warnings.warn(
                 "Method not supported. Please install 'jiminy_py[plot]'.",
                 category=UserWarning, stacklevel=2)
             return
+
+        # Load non-interactive backend unrelated to the current one
+        try:
+            backend_registry = matplotlib.backends.backend_registry
+            plt_agg = backend_registry.load_backend_module('Agg')
+        except AttributeError:
+            # Fallback for matplotlib < 3.9.0
+            plt_agg = importlib.import_module(
+                matplotlib.cbook._backend_module_name('Agg'))
 
         # Remove existing legend, if any
         if self._legend is not None:
@@ -1313,7 +1322,6 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
 
         # Create non-interactive headless figure unrelated to current backend
         width_win, height_win = self.getSize()
-        plt_agg = importlib.import_module(cbook._backend_module_name('Agg'))
         manager = plt_agg.new_figure_manager(
             num=0, figsize=(width_win / LEGEND_DPI, height_win / LEGEND_DPI),
             dpi=LEGEND_DPI)
