@@ -3,15 +3,17 @@
 from .mixin import (radial_basis_function,
                     AdditiveMixtureReward,
                     MultiplicativeMixtureReward)
-from .generic import (TrackingMechanicalJointPositionsReward,
+from .generic import (TrackingActuatedJointPositionsReward,
                       SurviveReward)
-from .locomotion import TrackingOdometryVelocityReward
+from .locomotion import (TrackingBaseHeightReward,
+                         TrackingOdometryVelocityReward)
 
 __all__ = [
     "radial_basis_function",
     "AdditiveMixtureReward",
     "MultiplicativeMixtureReward",
-    "TrackingMechanicalJointPositionsReward",
+    "TrackingActuatedJointPositionsReward",
+    "TrackingBaseHeightReward",
     "TrackingOdometryVelocityReward",
     "SurviveReward"
 ]

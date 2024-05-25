@@ -4,25 +4,24 @@ from typing import Optional, Tuple
 from dataclasses import dataclass
 
 import numpy as np
+
+from jiminy_py.core import array_copyto  # pylint: disable=no-name-in-module
 import pinocchio as pin
 
 from ..bases import (
     InterfaceJiminyEnv, InterfaceQuantity, AbstractQuantity, QuantityEvalMode)
-from ..utils import fill
+from ..utils import fill, matrix_to_yaw
 
 from ..quantities import MaskedQuantity, AverageFrameSpatialVelocity
 
 
 @dataclass(unsafe_hash=True)
-class AverageOdometryVelocity(AbstractQuantity[np.ndarray]):
-    """Average odometry velocity in local-world-aligned frame at the end of the
-    agent step.
+class OdometryPose(AbstractQuantity[np.ndarray]):
+    """Odometry pose agent step.
 
-    The odometry pose fully specifies the position of the robot in 2D world
-    plane. As such, it comprises the linear translation (X, Y) and the angular
-    velocity around Z axis (namely rate of change of Yaw Euler angle). The
-    average spatial velocity is obtained by finite difference. See
-    `AverageFrameSpatialVelocity` documentation for details.
+    The odometry pose fully specifies the position and orientation of the robot
+    in 2D world plane. As such, it comprises the linear translation (X, Y) and
+    the rotation around Z axis (namely rate of change of Yaw Euler angle).
     """
 
     def __init__(self,
@@ -38,6 +37,78 @@ class AverageOdometryVelocity(AbstractQuantity[np.ndarray]):
         """
         # Call base implementation
         super().__init__(
+            env, parent, requirements={}, mode=mode, auto_refresh=False)
+
+        # Translation (X, Y) and rotation matrix of the floating base
+        self.xy, self.rot_mat = np.array([]), np.array([])
+
+        # Buffer to store the odometry pose
+        self.data = np.zeros((3,))
+
+        # Split odometry pose in translation (X, Y) and yaw angle
+        self.xy_view, self.yaw_view = self.data[:2], self.data[-1:]
+
+    def initialize(self) -> None:
+        # Call base implementation
+        super().initialize()
+
+        # Make sure that the robot has a floating base
+        if not self.env.robot.has_freeflyer:
+            raise RuntimeError(
+                "Robot has no floating base. Cannot compute this quantity.")
+
+        # Refresh proxies
+        base_pose = self.pinocchio_data.oMf[1]
+        self.xy, self.rot_mat = base_pose.translation[:2], base_pose.rotation
+
+    def refresh(self) -> np.ndarray:
+        # Copy translation part
+        array_copyto(self.xy_view, self.xy)
+
+        # Compute Yaw angle
+        matrix_to_yaw(self.rot_mat, self.yaw_view)
+
+        # Return buffer
+        return self.data
+
+
+@dataclass(unsafe_hash=True)
+class AverageOdometryVelocity(InterfaceQuantity[np.ndarray]):
+    """Average odometry velocity in local-world-aligned frame at the end of the
+    agent step.
+
+    The odometry pose fully specifies the position and orientation of the robot
+    in 2D world plane. See `OdometryPose` documentation for details.
+
+    The average spatial velocity is obtained by finite difference. See
+    `AverageFrameSpatialVelocity` documentation for details.
+    """
+
+    mode: QuantityEvalMode
+    """Specify on which state to evaluate this quantity. See `Mode`
+    documentation for details about each mode.
+
+    .. warning::
+        Mode `REFERENCE` requires a reference trajectory to be selected
+        manually prior to evaluating this quantity for the first time.
+    """
+
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 parent: Optional[InterfaceQuantity],
+                 *,
+                 mode: QuantityEvalMode = QuantityEvalMode.TRUE) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param parent: Higher-level quantity from which this quantity is a
+                       requirement if any, `None` otherwise.
+        :param mode: Desired mode of evaluation for this quantity.
+        """
+        # Backup some user argument(s)
+        self.mode = mode
+
+        # Call base implementation
+        super().__init__(
             env,
             parent,
             requirements=dict(
@@ -47,7 +118,6 @@ class AverageOdometryVelocity(AbstractQuantity[np.ndarray]):
                         reference_frame=pin.LOCAL_WORLD_ALIGNED,
                         mode=mode)),
                     key=(0, 1, 5)))),
-            mode=mode,
             auto_refresh=False)
 
     def refresh(self) -> np.ndarray:

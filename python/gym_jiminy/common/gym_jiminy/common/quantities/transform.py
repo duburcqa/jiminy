@@ -22,7 +22,6 @@ OtherValueT = TypeVar('OtherValueT')
 YetAnotherValueT = TypeVar('YetAnotherValueT')
 
 
-
 @dataclass(unsafe_hash=True)
 class StackedQuantity(InterfaceQuantity[Tuple[ValueT, ...]]):
     """Keep track of a given quantity over time by automatically stacking its
@@ -192,10 +191,6 @@ class MaskedQuantity(InterfaceQuantity[np.ndarray]):
         # Keep track of the quantity from which data must be extracted
         self.quantity = self.requirements["data"]
 
-    def initialize(self) -> None:
-        # Call base implementation
-        super().initialize()
-
     def refresh(self) -> np.ndarray:
         # Extract elements from quantity
         if not self._slices:
@@ -208,6 +203,58 @@ class MaskedQuantity(InterfaceQuantity[np.ndarray]):
             # be sliced without copy.
             return self.data.reshape((-1,))[self._slices]
         return self.data[self._slices]
+
+
+@dataclass(unsafe_hash=True)
+class UnaryOpQuantity(InterfaceQuantity[ValueT],
+                      Generic[ValueT, OtherValueT]):
+    """Apply a given unary operator to a quantity.
+
+    This quantity is useful to translate quantities from world frame to local
+    odometry frame. It may also be used to convert multi-variate quantities as
+    scalar, typically by computing the Lp-norm.
+    """
+
+    quantity: InterfaceQuantity[OtherValueT]
+    """Quantity that will be forwarded to the unary operator.
+    """
+
+    op: Callable[[OtherValueT], ValueT]
+    """Callable taking any value of the quantity as input argument.
+    """
+
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 parent: Optional[InterfaceQuantity],
+                 quantity: QuantityCreator[OtherValueT],
+                 op: Callable[[OtherValueT], ValueT]) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param parent: Higher-level quantity from which this quantity is a
+                       requirement if any, `None` otherwise.
+        :param quantity: Tuple gathering the class of the quantity whose value
+                         must be passed as argument of the unary operator, plus
+                         all its constructor keyword-arguments except
+                         environment 'env' and parent 'parent.
+        :param op: Any callable taking any value of the quantity as input
+                   argument. For example `partial(np.linalg.norm, ord=2)` to
+                   compute the difference.
+        """
+        # Backup some user argument(s)
+        self.op = op
+
+        # Call base implementation
+        super().__init__(
+            env,
+            parent,
+            requirements=dict(data=quantity),
+            auto_refresh=False)
+
+        # Keep track of the left- and right-hand side quantities for hashing
+        self.quantity = self.requirements["data"]
+
+    def refresh(self) -> ValueT:
+        return self.op(self.data)
 
 
 @dataclass(unsafe_hash=True)

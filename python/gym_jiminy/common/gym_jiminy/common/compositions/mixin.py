@@ -4,7 +4,7 @@ and the application (locomotion, grasping...).
 """
 import math
 import logging
-from typing import Sequence, Optional
+from typing import Sequence, Optional, Union
 
 import numpy as np
 import numba as nb
@@ -16,20 +16,22 @@ from ..bases import InterfaceJiminyEnv, AbstractReward, BaseMixtureReward
 RBF_CUTOFF_ESP = 1.0e-2
 
 
+ArrayOrScalar = Union[np.ndarray, float]
+
 LOGGER = logging.getLogger(__name__)
 
 
 @nb.jit(nopython=True, cache=True, fastmath=True)
-def radial_basis_function(error: float,
+def radial_basis_function(error: ArrayOrScalar,
                           cutoff: float,
-                          order: int = 2) -> float:
+                          ord: int = 2) -> float:
     r"""Radial basis function (RBF) kernel (aka squared-exponential kernel).
 
     The RBF kernel is defined as:
 
     .. math::
 
-        f(x) = \exp{\frac{dist(x, x_ref)}{2 \sigma^2}}
+        f(x) = \exp{\frac{dist(x, x_ref)^2}{2 \sigma^2}}
 
     where :math:`dist(x, x_ref)` is some distance metric of the error between
     the observed (:math:`x`) and desired (:math:`x_ref`) values of a
@@ -42,10 +44,13 @@ def radial_basis_function(error: float,
 
     :param error: Multi-variate error on some tangent space.
     :param cutoff: Cut-off threshold to consider.
-    :param order: Order of Lp-Norm that will be used as distance metric.
+    :param ord: Order of Lp-Norm that will be used as distance metric.
     """
-    distance = np.linalg.norm(error, order)
-    return math.pow(RBF_CUTOFF_ESP, math.pow(distance / cutoff, 2))
+    if ord == 2:
+        squared_dist_rel = np.sum(np.square(error)) / math.pow(cutoff, 2)
+    else:
+        squared_dist_rel = math.pow(np.linalg.norm(error, ord) / cutoff, 2)
+    return math.pow(RBF_CUTOFF_ESP, squared_dist_rel)
 
 
 class AdditiveMixtureReward(BaseMixtureReward):

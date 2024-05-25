@@ -677,8 +677,8 @@ class ActuatedJointPositions(AbstractQuantity[np.ndarray]):
                     self._must_refresh = False
                 else:
                     warnings.warn(
-                        "Consider using the same ordering for motors and joints "
-                        "for optimal performance.")
+                        "Consider using the same ordering for motors and "
+                        "joints for optimal performance.")
             except ValueError:
                 pass
 

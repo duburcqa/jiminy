@@ -40,7 +40,7 @@ class SurviveReward(AbstractReward):
         return 1.0
 
 
-class TrackingMechanicalJointPositionsReward(BaseQuantityReward):
+class TrackingActuatedJointPositionsReward(BaseQuantityReward):
     """Reward the agent for tracking the position of all the actuated joints of
     the robot wrt some reference trajectory.
 
@@ -64,13 +64,13 @@ class TrackingMechanicalJointPositionsReward(BaseQuantityReward):
         # Call base implementation
         super().__init__(
             env,
-            "reward_odometry_velocity",
+            "reward_actuated_joint_positions",
             (BinaryOpQuantity, dict(
                 quantity_left=(ActuatedJointPositions, dict(
                     mode=QuantityEvalMode.TRUE)),
                 quantity_right=(ActuatedJointPositions, dict(
                     mode=QuantityEvalMode.REFERENCE)),
                 op=sub)),
-            partial(radial_basis_function, cutoff=self.cutoff, order=2),
+            partial(radial_basis_function, cutoff=self.cutoff, ord=2),
             is_normalized=True,
             is_terminal=False)

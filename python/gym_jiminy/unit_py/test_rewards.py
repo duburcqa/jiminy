@@ -6,13 +6,12 @@ import unittest
 import numpy as np
 
 import gymnasium as gym
-import jiminy_py
-import pinocchio as pin
 from jiminy_py.log import extract_trajectory_from_log
 
 from gym_jiminy.common.compositions import (
-    TrackingMechanicalJointPositionsReward,
+    TrackingActuatedJointPositionsReward,
     TrackingOdometryVelocityReward,
+    TrackingBaseHeightReward,
     SurviveReward,
     AdditiveMixtureReward)
 
@@ -35,7 +34,7 @@ class Rewards(unittest.TestCase):
 
     def test_deletion(self):
         assert len(self.env.quantities.registry) == 0
-        reward_survive = TrackingMechanicalJointPositionsReward(
+        reward_survive = TrackingActuatedJointPositionsReward(
             self.env, cutoff=1.0)
         assert len(self.env.quantities.registry) > 0
         del reward_survive
@@ -45,7 +44,8 @@ class Rewards(unittest.TestCase):
     def test_tracking(self):
         for reward_class, cutoff in (
                 (TrackingOdometryVelocityReward, 10.0),
-                (TrackingMechanicalJointPositionsReward, 20.0)):
+                (TrackingActuatedJointPositionsReward, 20.0),
+                (TrackingBaseHeightReward, 40.0)):
             reward = reward_class(self.env, cutoff=cutoff)
             quantity_true = reward.quantity.requirements['value_left']
             quantity_ref = reward.quantity.requirements['value_right']
@@ -56,16 +56,18 @@ class Rewards(unittest.TestCase):
                 self.env.step(action)
             _, _, terminated, _, _ = self.env.step(self.env.action)
 
-            value = reward(terminated, {})
-
             with np.testing.assert_raises(AssertionError):
                 np.testing.assert_allclose(
-                    quantity_true.data, quantity_ref.data)
+                    quantity_true.get(), quantity_ref.get())
+
+            if isinstance(reward, TrackingBaseHeightReward):
+                np.testing.assert_allclose(
+                    quantity_true.get(), self.env.robot_state.q[2])
 
             gamma = - np.log(0.01) / cutoff ** 2
-            data = np.exp(- gamma * np.sum((
-                quantity_true.data - quantity_ref.data) ** 2))
-            np.testing.assert_allclose(value, data)
+            value = np.exp(- gamma * np.sum((
+                quantity_true.get() - quantity_ref.get()) ** 2))
+            np.testing.assert_allclose(reward(terminated, {}), value)
 
     def test_mixture(self):
         reward_odometry = TrackingOdometryVelocityReward(self.env, cutoff=0.3)
