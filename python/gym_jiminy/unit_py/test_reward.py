@@ -1,5 +1,6 @@
 """ TODO: Write documentation
 """
+import gc
 import unittest
 
 import numpy as np
@@ -10,81 +11,77 @@ import pinocchio as pin
 from jiminy_py.log import extract_trajectory_from_log
 
 from gym_jiminy.common.compositions import (
-    OdometryVelocityReward, SurviveReward, AdditiveMixtureReward)
+    TrackingOdometryVelocityReward,
+    SurviveReward,
+    AdditiveMixtureReward)
 
 
 class Rewards(unittest.TestCase):
     """ TODO: Write documentation
     """
-    def test_average_odometry_velocity(self):
-        """ TODO: Write documentation
-        """
-        env = gym.make("gym_jiminy.envs:atlas")
+    def setUp(self):
+        self.env = gym.make("gym_jiminy.envs:atlas")
 
-        env.reset(seed=0)
+        self.env.reset(seed=1)
+        action = self.env.action_space.sample()
         for _ in range(10):
-            env.step(env.action)
-        env.stop()
-        trajectory = extract_trajectory_from_log(env.log_data)
-        env.quantities.add_trajectory("reference", trajectory)
-        env.quantities.select_trajectory("reference")
+            self.env.step(action)
+        self.env.stop()
 
-        reward = OdometryVelocityReward(env, cutoff=0.3)
-        quantity_odom_vel_true = reward.quantity.requirements['value_left']
-        quantity_odom_vel_ref = reward.quantity.requirements['value_left']
+        trajectory = extract_trajectory_from_log(self.env.log_data)
+        self.env.quantities.add_trajectory("reference", trajectory)
+        self.env.quantities.select_trajectory("reference")
 
-        env.reset(seed=0)
-        base_pose_prev = env.robot_state.q[:7].copy()
-        _, _, terminated, _, _ = env.step(env.action)
-        base_pose = env.robot_state.q[:7].copy()
+    def test_deletion(self):
+        assert len(self.env.quantities.registry) == 0
+        reward_survive = TrackingOdometryVelocityReward(
+            self.env, cutoff=1.0)
+        assert len(self.env.quantities.registry) > 0
+        del reward_survive
+        gc.collect()
+        assert len(self.env.quantities.registry) == 0
 
-        se3 = pin.liegroups.SE3()
-        base_pose_diff = pin.LieGroup.difference(
-            se3, base_pose_prev, base_pose)
-        base_velocity_mean_local =  base_pose_diff / env.step_dt
-        base_pose_mean = pin.LieGroup.integrate(
-            se3, base_pose_prev, 0.5 * base_pose_diff)
-        rot_mat = pin.Quaternion(base_pose_mean[-4:]).matrix()
-        base_velocity_mean_world = np.concatenate((
-            rot_mat @ base_velocity_mean_local[:3],
-            rot_mat @ base_velocity_mean_local[3:]))
-        np.testing.assert_allclose(
-            quantity_odom_vel_true.requirements['data'].data,
-            base_velocity_mean_world)
-        base_odom_velocity = base_velocity_mean_world[[0, 1, 5]]
-        np.testing.assert_allclose(
-            quantity_odom_vel_true.data, base_odom_velocity)
-        gamma = - np.log(0.01) / reward.cutoff ** 2
-        value = np.exp(- gamma * np.sum((
-            quantity_odom_vel_true.data - quantity_odom_vel_ref.data) ** 2))
-        np.testing.assert_allclose(reward(terminated, {}), value)
+    def test_tracking(self):
+        for reward_class, cutoff in (
+                (TrackingOdometryVelocityReward, 10.0)):
+            reward = reward_class(self.env, cutoff=cutoff)
+            quantity_true = reward.quantity.requirements['value_left']
+            quantity_ref = reward.quantity.requirements['value_right']
+
+            self.env.reset(seed=0)
+            action = self.env.action_space.sample()
+            for _ in range(5):
+                self.env.step(action)
+            _, _, terminated, _, _ = self.env.step(self.env.action)
+
+            value = reward(terminated, {})
+
+            with np.testing.assert_raises(AssertionError):
+                np.testing.assert_allclose(
+                    quantity_true.data, quantity_ref.data)
+
+            gamma = - np.log(0.01) / cutoff ** 2
+            data = np.exp(- gamma * np.sum((
+                quantity_true.data - quantity_ref.data) ** 2))
+            np.testing.assert_allclose(value, data)
 
     def test_mixture(self):
-        env = gym.make("gym_jiminy.envs:atlas")
-
-        env.reset(seed=0)
-        for _ in range(10):
-            env.step(env.action)
-        env.stop()
-        trajectory = extract_trajectory_from_log(env.log_data)
-        env.quantities.add_trajectory("reference", trajectory)
-        env.quantities.select_trajectory("reference")
-
-        reward_odometry = OdometryVelocityReward(env, cutoff=0.3)
-        reward_survive = SurviveReward(env)
+        reward_odometry = TrackingOdometryVelocityReward(self.env, cutoff=0.3)
+        reward_survive = SurviveReward(self.env)
         reward_sum = AdditiveMixtureReward(
-            env,
+            self.env,
             "reward_total",
             components=(reward_odometry, reward_survive),
             weights=(0.5, 0.2))
         reward_sum_normalized = AdditiveMixtureReward(
-            env,
+            self.env,
             "reward_total",
             components=(reward_odometry, reward_survive),
             weights=(0.7, 0.3))
 
-        env.reset(seed=0)
-        _, _, terminated, _, _ = env.step(env.action)
+        self.env.reset(seed=0)
+        action = self.env.action_space.sample()
+        _, _, terminated, _, _ = self.env.step(action)
 
         assert len(reward_sum_normalized.components) == 2
         assert reward_sum_normalized.is_terminal == False
