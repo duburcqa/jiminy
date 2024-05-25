@@ -39,6 +39,7 @@ from ..utils import (FieldNested,
                      DataNested,
                      zeros,
                      is_nan,
+                     fill,
                      build_clip,
                      build_copyto,
                      build_contains,
@@ -620,6 +621,9 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         self.robot = self.simulator.robot
         self.robot_state = self.simulator.robot_state
         self.sensor_measurements = OrderedDict(self.robot.sensor_measurements)
+
+        # Reset action
+        fill(self.action, 0)
 
         # Enforce the low-level controller.
         # The robot may have changed, for example it could be randomly
