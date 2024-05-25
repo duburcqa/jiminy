@@ -66,6 +66,12 @@ class WeakMutableCollection(MutableSet, Generic[ValueT]):
         If a callback has been specified by the user, it will be triggered
         after removing the weak reference from the container.
         """
+        # Even though a temporary weak reference is provided for removal, the
+        # identity check is performed on the object being stored. If the latter
+        # has already been deleted, then one of the object in the list that
+        # has been deleted while be removed. It is not a big deal if it was
+        # actually the right weak reference since all of them will be removed
+        # in the end, so it is not a big deal.
         self._ref_list.remove(ref)
         if self._callback is not None:
             self._callback(self, ref)
@@ -110,7 +116,7 @@ class WeakMutableCollection(MutableSet, Generic[ValueT]):
 
         :param obj: Object to remove from the container.
         """
-        if value not in self:
+        if value in self:
             self.__callback__(weakref.ref(value))
 
 
@@ -155,13 +161,19 @@ class SharedCache(Generic[ValueT]):
         # quantity owning the cache gets garbage collected, namely all
         # quantities that may assume at some point the existence of this
         # deleted owner to find the adjust their computation path.
+        # Note that `owner.reset(reset_tracking=True)` must NOT be called
+        # because garbage collection may happen in the middle of a quantity
+        # evaluation, which could completely disrupt their internal state.
         def _callback(self: WeakMutableCollection["InterfaceQuantity"],
                       ref: ReferenceType   # pylint: disable=unused-argument
                       ) -> None:
+            owner: Optional["InterfaceQuantity"]
             for owner in self:
-                while owner.parent is not None:
+                while True:
+                    owner._is_active = False
                     owner = owner.parent
-                owner.reset(reset_tracking=True, ignore_auto_refresh=True)
+                    if owner is None:
+                        break
 
         self.owners = WeakMutableCollection(_callback)
 
@@ -394,10 +406,12 @@ class InterfaceQuantity(ABC, Generic[ValueT]):
 
         # Evaluate quantity
         try:
-            if not self._is_initialized:
+            if not self._is_initialized or not self._is_active:
                 self.initialize()
-                assert (self._is_initialized and
-                        self._is_active)  # type: ignore[unreachable]
+                # Note that it is not possible to check that the quantity is
+                # active because it may change at any time, due to garbage
+                # collection of any quantity sharing cache.
+                assert self._is_initialized  # type: ignore[unreachable]
             value = self.refresh()
         except RecursionError as e:
             raise LookupError(
@@ -438,12 +452,12 @@ class InterfaceQuantity(ABC, Generic[ValueT]):
                 "Automatic refresh enabled but no shared cache available. "
                 "Please add one before calling this method.")
 
-        # No longer consider this exact instance as initialized
-        self._is_initialized = False
-
         # No longer consider this exact instance as active if requested
         if reset_tracking:
             self._is_active = False
+
+        # No longer consider this exact instance as initialized
+        self._is_initialized = False
 
         # Reset all requirements first
         for quantity in self.requirements.values():
@@ -461,7 +475,7 @@ class InterfaceQuantity(ABC, Generic[ValueT]):
 
             # Reset all identical quantities
             for owner in self.cache.owners:
-                owner.reset()
+                owner.reset(ignore_auto_refresh=True)
 
             # Reset shared cache one last time but without ignore auto refresh
             self.cache.reset(ignore_auto_refresh=ignore_auto_refresh)

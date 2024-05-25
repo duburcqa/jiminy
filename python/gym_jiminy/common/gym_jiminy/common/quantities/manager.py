@@ -233,6 +233,14 @@ class QuantityManager(MutableMapping):
         :param name: Name of the managed quantity to be discarded. It will
                      raise an exception if the specified name does not exists.
         """
+        # Set a shared cache entry for all quantities involved in computations
+        quantities_all = [self.registry[name]]
+        while quantities_all:
+            quantity = quantities_all.pop()
+            quantity.cache = None
+            quantities_all += quantity.requirements.values()
+
+        # Stop managing the quantity
         del self.registry[name]
 
     def __iter__(self) -> Iterator[str]:
