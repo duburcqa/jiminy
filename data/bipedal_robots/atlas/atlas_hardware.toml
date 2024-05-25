@@ -4,14 +4,6 @@ contactFrameNames = []
 
 # ================== Motors ==================
 
-[Motor.SimpleMotor.neck_ry]
-joint_name = "neck_ry"
-enableVelocityLimit = true
-velocityEffortInvSlope = 0.08
-armature = 0.1
-frictionViscousPositive = -0.1
-frictionViscousNegative = -0.1
-
 [Motor.SimpleMotor.back_bkz]
 joint_name = "back_bkz"
 enableVelocityLimit = true
@@ -92,6 +84,14 @@ armature = 0.1
 frictionViscousPositive = -0.1
 frictionViscousNegative = -0.1
 
+[Motor.SimpleMotor.neck_ry]
+joint_name = "neck_ry"
+enableVelocityLimit = true
+velocityEffortInvSlope = 0.08
+armature = 0.1
+frictionViscousPositive = -0.1
+frictionViscousNegative = -0.1
+
 [Motor.SimpleMotor.r_arm_shz]
 joint_name = "r_arm_shz"
 enableVelocityLimit = true
@@ -148,18 +148,18 @@ armature = 0.1
 frictionViscousPositive = -0.1
 frictionViscousNegative = -0.1
 
-[Motor.SimpleMotor.l_leg_hpx]
-joint_name = "l_leg_hpx"
-enableVelocityLimit = true
-velocityEffortInvSlope = 0.005
-armature = 0.6
-frictionViscousPositive = -0.1
-frictionViscousNegative = -0.1
-
 [Motor.SimpleMotor.l_leg_hpz]
 joint_name = "l_leg_hpz"
 enableVelocityLimit = true
 velocityEffortInvSlope = 0.01
+armature = 0.6
+frictionViscousPositive = -0.1
+frictionViscousNegative = -0.1
+
+[Motor.SimpleMotor.l_leg_hpx]
+joint_name = "l_leg_hpx"
+enableVelocityLimit = true
+velocityEffortInvSlope = 0.005
 armature = 0.6
 frictionViscousPositive = -0.1
 frictionViscousNegative = -0.1
@@ -196,18 +196,18 @@ armature = 0.6
 frictionViscousPositive = -0.1
 frictionViscousNegative = -0.1
 
-[Motor.SimpleMotor.r_leg_hpx]
-joint_name = "r_leg_hpx"
-enableVelocityLimit = true
-velocityEffortInvSlope = 0.005
-armature = 0.6
-frictionViscousPositive = -0.1
-frictionViscousNegative = -0.1
-
 [Motor.SimpleMotor.r_leg_hpz]
 joint_name = "r_leg_hpz"
 enableVelocityLimit = true
 velocityEffortInvSlope = 0.01
+armature = 0.6
+frictionViscousPositive = -0.1
+frictionViscousNegative = -0.1
+
+[Motor.SimpleMotor.r_leg_hpx]
+joint_name = "r_leg_hpx"
+enableVelocityLimit = true
+velocityEffortInvSlope = 0.005
 armature = 0.6
 frictionViscousPositive = -0.1
 frictionViscousNegative = -0.1
@@ -259,9 +259,6 @@ frame_name = "r_foot"
 
 # ============= Encoder sensors ===============
 
-[Sensor.EncoderSensor.neck_ry]
-motor_name = "neck_ry"
-
 [Sensor.EncoderSensor.back_bkz]
 motor_name = "back_bkz"
 
@@ -292,6 +289,9 @@ motor_name = "l_arm_wrx"
 [Sensor.EncoderSensor.l_arm_wry2]
 motor_name = "l_arm_wry2"
 
+[Sensor.EncoderSensor.neck_ry]
+motor_name = "neck_ry"
+
 [Sensor.EncoderSensor.r_arm_shz]
 motor_name = "r_arm_shz"
 
@@ -313,11 +313,11 @@ motor_name = "r_arm_wrx"
 [Sensor.EncoderSensor.r_arm_wry2]
 motor_name = "r_arm_wry2"
 
-[Sensor.EncoderSensor.l_leg_hpx]
-motor_name = "l_leg_hpx"
-
 [Sensor.EncoderSensor.l_leg_hpz]
 motor_name = "l_leg_hpz"
+
+[Sensor.EncoderSensor.l_leg_hpx]
+motor_name = "l_leg_hpx"
 
 [Sensor.EncoderSensor.l_leg_hpy]
 motor_name = "l_leg_hpy"
@@ -331,11 +331,11 @@ motor_name = "l_leg_aky"
 [Sensor.EncoderSensor.l_leg_akx]
 motor_name = "l_leg_akx"
 
-[Sensor.EncoderSensor.r_leg_hpx]
-motor_name = "r_leg_hpx"
-
 [Sensor.EncoderSensor.r_leg_hpz]
 motor_name = "r_leg_hpz"
+
+[Sensor.EncoderSensor.r_leg_hpx]
+motor_name = "r_leg_hpx"
 
 [Sensor.EncoderSensor.r_leg_hpy]
 motor_name = "r_leg_hpy"
@@ -350,9 +350,6 @@ motor_name = "r_leg_aky"
 motor_name = "r_leg_akx"
 
 # ============= Effort sensors ===============
-
-[Sensor.EffortSensor.neck_ry]
-motor_name = "neck_ry"
 
 [Sensor.EffortSensor.back_bkz]
 motor_name = "back_bkz"
@@ -384,6 +381,9 @@ motor_name = "l_arm_wrx"
 [Sensor.EffortSensor.l_arm_wry2]
 motor_name = "l_arm_wry2"
 
+[Sensor.EffortSensor.neck_ry]
+motor_name = "neck_ry"
+
 [Sensor.EffortSensor.r_arm_shz]
 motor_name = "r_arm_shz"
 
@@ -405,11 +405,11 @@ motor_name = "r_arm_wrx"
 [Sensor.EffortSensor.r_arm_wry2]
 motor_name = "r_arm_wry2"
 
-[Sensor.EffortSensor.l_leg_hpx]
-motor_name = "l_leg_hpx"
-
 [Sensor.EffortSensor.l_leg_hpz]
 motor_name = "l_leg_hpz"
+
+[Sensor.EffortSensor.l_leg_hpx]
+motor_name = "l_leg_hpx"
 
 [Sensor.EffortSensor.l_leg_hpy]
 motor_name = "l_leg_hpy"
@@ -423,11 +423,11 @@ motor_name = "l_leg_aky"
 [Sensor.EffortSensor.l_leg_akx]
 motor_name = "l_leg_akx"
 
-[Sensor.EffortSensor.r_leg_hpx]
-motor_name = "r_leg_hpx"
-
 [Sensor.EffortSensor.r_leg_hpz]
 motor_name = "r_leg_hpz"
+
+[Sensor.EffortSensor.r_leg_hpx]
+motor_name = "r_leg_hpx"
 
 [Sensor.EffortSensor.r_leg_hpy]
 motor_name = "r_leg_hpy"
