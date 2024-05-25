@@ -6,7 +6,8 @@ from .transform import (StackedQuantity,
                         BinaryOpQuantity)
 from .generic import (FrameEulerAngles,
                       FrameXYZQuat,
-                      AverageFrameSpatialVelocity)
+                      AverageFrameSpatialVelocity,
+                      ActuatedJointPositions)
 from .locomotion import (AverageOdometryVelocity,
                          CenterOfMass,
                          ZeroMomentPoint)
@@ -17,6 +18,7 @@ __all__ = [
     'StackedQuantity',
     'MaskedQuantity',
     'BinaryOpQuantity',
+    'ActuatedJointPositions',
     'FrameEulerAngles',
     'FrameXYZQuat',
     'AverageFrameSpatialVelocity',

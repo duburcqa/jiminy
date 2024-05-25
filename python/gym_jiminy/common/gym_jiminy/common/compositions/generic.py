@@ -38,3 +38,39 @@ class SurviveReward(AbstractReward):
         """Return a constant positive reward equal to 1.0 no matter what.
         """
         return 1.0
+
+
+class TrackingMechanicalJointPositionsReward(BaseQuantityReward):
+    """Reward the agent for tracking the position of all the actuated joints of
+    the robot wrt some reference trajectory.
+
+    A reference trajectory must be selected before evaluating this reward
+    otherwise an exception will be risen. See `DatasetTrajectoryQuantity` and
+    `AbstractQuantity` documentations for details.
+
+    The error transform in a normalized reward to maximize by applying RBF
+    kernel on the error. The reward will be 0.0 if the error cancels out
+    completely and less than 0.01 above the user-specified cutoff threshold.
+    """
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 cutoff: float) -> None:
+        """
+        :param cutoff: Cutoff threshold for the RBF kernel transform.
+        """
+        # Backup some user argument(s)
+        self.cutoff = cutoff
+
+        # Call base implementation
+        super().__init__(
+            env,
+            "reward_odometry_velocity",
+            (BinaryOpQuantity, dict(
+                quantity_left=(ActuatedJointPositions, dict(
+                    mode=QuantityEvalMode.TRUE)),
+                quantity_right=(ActuatedJointPositions, dict(
+                    mode=QuantityEvalMode.REFERENCE)),
+                op=sub)),
+            partial(radial_basis_function, cutoff=self.cutoff, order=2),
+            is_normalized=True,
+            is_terminal=False)

@@ -274,3 +274,23 @@ class Quantities(unittest.TestCase):
         base_odom_velocity = base_velocity_mean_world[[0, 1, 5]]
         np.testing.assert_allclose(
             env.quantities["odometry_velocity"], base_odom_velocity)
+
+    def test_motor_positions(self):
+        """ TODO: Write documentation
+        """
+        env = gym.make("gym_jiminy.envs:atlas")
+
+        env.quantities["actuated_joint_positions"] = (
+            ActuatedJointPositions, dict(mode=QuantityEvalMode.TRUE))
+
+        env.reset(seed=0)
+        env.step(env.action_space.sample())
+
+        position_indices = []
+        for motor in env.robot.motors:
+            joint = env.robot.pinocchio_model.joints[motor.joint_index]
+            position_indices += range(joint.idx_q, joint.idx_q + joint.nq)
+
+        np.testing.assert_allclose(
+            env.quantities["actuated_joint_positions"],
+            env.robot_state.q[position_indices])

@@ -11,6 +11,7 @@ import pinocchio as pin
 from jiminy_py.log import extract_trajectory_from_log
 
 from gym_jiminy.common.compositions import (
+    TrackingMechanicalJointPositionsReward,
     TrackingOdometryVelocityReward,
     SurviveReward,
     AdditiveMixtureReward)
@@ -34,7 +35,7 @@ class Rewards(unittest.TestCase):
 
     def test_deletion(self):
         assert len(self.env.quantities.registry) == 0
-        reward_survive = TrackingOdometryVelocityReward(
+        reward_survive = TrackingMechanicalJointPositionsReward(
             self.env, cutoff=1.0)
         assert len(self.env.quantities.registry) > 0
         del reward_survive
@@ -43,7 +44,8 @@ class Rewards(unittest.TestCase):
 
     def test_tracking(self):
         for reward_class, cutoff in (
-                (TrackingOdometryVelocityReward, 10.0)):
+                (TrackingOdometryVelocityReward, 10.0),
+                (TrackingMechanicalJointPositionsReward, 20.0)):
             reward = reward_class(self.env, cutoff=cutoff)
             quantity_true = reward.quantity.requirements['value_left']
             quantity_ref = reward.quantity.requirements['value_right']

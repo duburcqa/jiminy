@@ -11,6 +11,7 @@ __all__ = [
     "radial_basis_function",
     "AdditiveMixtureReward",
     "MultiplicativeMixtureReward",
+    "TrackingMechanicalJointPositionsReward",
     "TrackingOdometryVelocityReward",
     "SurviveReward"
 ]

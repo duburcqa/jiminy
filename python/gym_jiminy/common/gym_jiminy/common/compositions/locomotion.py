@@ -10,7 +10,8 @@ from .generic import radial_basis_function
 
 
 class TrackingOdometryVelocityReward(BaseQuantityReward):
-    """Reward the agent for tracking a reference odometry velocity.
+    """Reward the agent for tracking the odometry velocity wrt some reference
+    trajectory.
 
     A reference trajectory must be selected before evaluating this reward
     otherwise an exception will be risen. See `DatasetTrajectoryQuantity` and
