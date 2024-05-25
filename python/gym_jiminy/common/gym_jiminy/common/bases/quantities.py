@@ -936,6 +936,9 @@ class StateQuantity(InterfaceQuantity[State]):
 
         # State for which the quantity must be evaluated
         if self.mode == QuantityEvalMode.TRUE:
+            if not self.env.is_simulation_running:
+                raise RuntimeError("No simulation running. Impossible to "
+                                   "initialize this quantity.")
             self._f_external_list = tuple(
                 f_ext.vector for f_ext in self.env.robot_state.f_external)
             if self._f_external_list:
