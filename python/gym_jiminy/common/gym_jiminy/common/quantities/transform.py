@@ -6,7 +6,8 @@ from copy import deepcopy
 from collections import deque
 from dataclasses import dataclass
 from typing import (
-    Any, Optional, Sequence, Tuple, TypeVar, Union, Generic, Callable)
+    Any, Optional, Sequence, Tuple, TypeVar, Union, Generic, ClassVar,
+    Callable)
 from typing_extensions import TypeAlias
 
 import numpy as np
@@ -40,6 +41,10 @@ class StackedQuantity(InterfaceQuantity[Tuple[ValueT, ...]]):
     num_stack: Optional[int]
     """Maximum number of values that keep in memory before starting to discard
     the oldest one (FIFO). None if unlimited.
+    """
+
+    allow_update_graph: ClassVar[bool] = False
+    """Disable dynamic computation graph update.
     """
 
     def __init__(self,

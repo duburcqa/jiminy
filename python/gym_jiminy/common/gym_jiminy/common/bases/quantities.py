@@ -23,7 +23,7 @@ from dataclasses import dataclass, replace
 from functools import partial, wraps
 from typing import (
     Any, Dict, List, Optional, Tuple, Generic, TypeVar, Type, Iterator,
-    Callable, Literal, cast)
+    Callable, Literal, ClassVar, cast)
 
 import numpy as np
 
@@ -72,7 +72,11 @@ class WeakMutableCollection(MutableSet, Generic[ValueT]):
         # has been deleted while be removed. It is not a big deal if it was
         # actually the right weak reference since all of them will be removed
         # in the end, so it is not a big deal.
-        self._ref_list.remove(ref)
+        value = ref()
+        for i, ref_i in enumerate(self._ref_list):
+            if value is ref_i():
+                del self._ref_list[i]
+                break
         if self._callback is not None:
             self._callback(self, ref)
 
@@ -161,19 +165,18 @@ class SharedCache(Generic[ValueT]):
         # quantity owning the cache gets garbage collected, namely all
         # quantities that may assume at some point the existence of this
         # deleted owner to find the adjust their computation path.
-        # Note that `owner.reset(reset_tracking=True)` must NOT be called
-        # because garbage collection may happen in the middle of a quantity
-        # evaluation, which could completely disrupt their internal state.
         def _callback(self: WeakMutableCollection["InterfaceQuantity"],
                       ref: ReferenceType   # pylint: disable=unused-argument
                       ) -> None:
             owner: Optional["InterfaceQuantity"]
             for owner in self:
-                while True:
-                    owner._is_active = False
+                # Stop going up in parent chain if dynamic computation graph
+                # update is disable for efficiency.
+                while owner.allow_update_graph and owner.parent is not None:
                     owner = owner.parent
-                    if owner is None:
-                        break
+                owner.reset(reset_tracking=True,
+                            ignore_auto_refresh=True,
+                            update_graph=True)
 
         self.owners = WeakMutableCollection(_callback)
 
@@ -247,6 +250,15 @@ class InterfaceQuantity(ABC, Generic[ValueT]):
     """Intermediary quantities on which this quantity may rely on for its
     evaluation at some point, depending on the optimal computation path at
     runtime. There values will be exposed to the user as usual properties.
+    """
+
+    allow_update_graph: ClassVar[bool] = True
+    """Whether dynamic computation graph update is allowed. This implies that
+    the quantity can be reset at any point in time to re-compute the optimal
+    computation path, typically after deletion or addition of some other node
+    to its dependent sub-graph. When this happens, the quantity gets reset on
+    the spot, which is not always acceptable, hence the capability to disable
+    this feature.
     """
 
     def __init__(self,
@@ -360,7 +372,12 @@ class InterfaceQuantity(ABC, Generic[ValueT]):
         """
         # Withdraw this quantity from the owners of its current cache if any
         if self._cache is not None:
-            self._cache.owners.discard(self)
+            try:
+                self._cache.owners.discard(self)
+            except ValueError:
+                # This may fail if the quantity is already being garbage
+                # collected when clearing cache.
+                pass
 
         # Declare this quantity as owner of the cache if specified
         if cache is not None:
@@ -406,12 +423,10 @@ class InterfaceQuantity(ABC, Generic[ValueT]):
 
         # Evaluate quantity
         try:
-            if not self._is_initialized or not self._is_active:
+            if not self._is_initialized:
                 self.initialize()
-                # Note that it is not possible to check that the quantity is
-                # active because it may change at any time, due to garbage
-                # collection of any quantity sharing cache.
-                assert self._is_initialized  # type: ignore[unreachable]
+                assert (self._is_initialized and
+                        self._is_active)  # type: ignore[unreachable]
             value = self.refresh()
         except RecursionError as e:
             raise LookupError(
@@ -424,7 +439,8 @@ class InterfaceQuantity(ABC, Generic[ValueT]):
 
     def reset(self,
               reset_tracking: bool = False,
-              ignore_auto_refresh: bool = False) -> None:
+              ignore_auto_refresh: bool = False,
+              update_graph: bool = False) -> None:
         """Consider that the quantity must be re-initialized before being
         evaluated once again.
 
@@ -445,12 +461,26 @@ class InterfaceQuantity(ABC, Generic[ValueT]):
         :param ignore_auto_refresh: Whether to skip automatic refresh of all
                                     co-owner quantities of this shared cache.
                                     Optional: False by default.
+        :param update_graph: If true, then the quantity will be reset if and
+                             only if dynamic computation graph update is
+                             allowed as prescribed by class attribute
+                             `allow_update_graph`. If false, then it will be
+                             reset no matter what.
         """
         # Make sure that auto-refresh can be honored
-        if self.auto_refresh and not self.has_cache:
+        if (not ignore_auto_refresh and self.auto_refresh and
+                not self.has_cache):
             raise RuntimeError(
                 "Automatic refresh enabled but no shared cache available. "
                 "Please add one before calling this method.")
+
+        # Reset all requirements first
+        for quantity in self.requirements.values():
+            quantity.reset(reset_tracking, ignore_auto_refresh, update_graph)
+
+        # Skip reset if dynamic computation graph update if appropriate
+        if update_graph and not self.allow_update_graph:
+            return
 
         # No longer consider this exact instance as active if requested
         if reset_tracking:
@@ -458,10 +488,6 @@ class InterfaceQuantity(ABC, Generic[ValueT]):
 
         # No longer consider this exact instance as initialized
         self._is_initialized = False
-
-        # Reset all requirements first
-        for quantity in self.requirements.values():
-            quantity.reset(reset_tracking, ignore_auto_refresh)
 
         # More work must to be done if shared cache is available and has value
         if self.has_cache:

@@ -71,6 +71,6 @@ class TrackingActuatedJointPositionsReward(BaseQuantityReward):
                 quantity_right=(ActuatedJointPositions, dict(
                     mode=QuantityEvalMode.REFERENCE)),
                 op=sub)),
-            partial(radial_basis_function, cutoff=self.cutoff, ord=2),
+            partial(radial_basis_function, cutoff=self.cutoff, order=2),
             is_normalized=True,
             is_terminal=False)

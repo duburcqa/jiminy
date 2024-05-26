@@ -134,16 +134,13 @@ class Quantities(unittest.TestCase):
         assert len(quantities['rpy_2'].requirements['data'].cache.owners) == 3
 
         del quantity_manager['rpy_0']
-        gc.collect()
         assert len(quantities['rpy_1'].cache.owners) == 1
         assert len(quantities['rpy_2'].requirements['data'].cache.owners) == 2
 
         del quantity_manager['rpy_1']
-        gc.collect()
         assert len(quantities['rpy_2'].requirements['data'].cache.owners) == 1
 
         del quantity_manager['rpy_2']
-        gc.collect()
         for (cls, _), cache in quantity_manager._caches.items():
             assert len(cache.owners) == (cls is DatasetTrajectoryQuantity)
 
@@ -171,6 +168,7 @@ class Quantities(unittest.TestCase):
         quantity_kwargs = dict(
             frame_name=env.robot.pinocchio_model.frames[1].name)
         env.quantities["v_avg"] = (quantity_cls, quantity_kwargs)
+        env.quantities["v_avg_2"] = (quantity_cls, quantity_kwargs)
 
         env.reset(seed=0)
         with self.assertRaises(ValueError):
@@ -179,6 +177,7 @@ class Quantities(unittest.TestCase):
         env.step(env.action_space.sample())
         v_avg = env.quantities["v_avg"].copy()
         env.step(env.action_space.sample())
+        del env.quantities["v_avg_2"]
         env.step(env.action_space.sample())
         assert np.all(v_avg != env.quantities["v_avg"])
 

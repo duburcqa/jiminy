@@ -45,7 +45,7 @@ class Rewards(unittest.TestCase):
         for reward_class, cutoff in (
                 (TrackingOdometryVelocityReward, 10.0),
                 (TrackingActuatedJointPositionsReward, 20.0),
-                (TrackingBaseHeightReward, 40.0)):
+                (TrackingBaseHeightReward, 40.0)) * 20:
             reward = reward_class(self.env, cutoff=cutoff)
             quantity_true = reward.quantity.requirements['value_left']
             quantity_ref = reward.quantity.requirements['value_right']

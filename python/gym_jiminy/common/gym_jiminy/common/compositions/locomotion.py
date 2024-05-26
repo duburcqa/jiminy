@@ -51,7 +51,7 @@ class TrackingBaseHeightReward(BaseQuantityReward):
                         op=lambda state: state.q)),
                     key=(2,))),
                 op=sub)),
-            partial(radial_basis_function, cutoff=self.cutoff, ord=2),
+            partial(radial_basis_function, cutoff=self.cutoff, order=2),
             is_normalized=True,
             is_terminal=False)
 
@@ -87,6 +87,6 @@ class TrackingOdometryVelocityReward(BaseQuantityReward):
                 quantity_right=(AverageOdometryVelocity, dict(
                     mode=QuantityEvalMode.REFERENCE)),
                 op=sub)),
-            partial(radial_basis_function, cutoff=self.cutoff, ord=2),
+            partial(radial_basis_function, cutoff=self.cutoff, order=2),
             is_normalized=True,
             is_terminal=False)

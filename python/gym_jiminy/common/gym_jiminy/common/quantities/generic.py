@@ -169,7 +169,7 @@ class _MultiFramesRotationMatrix(AbstractQuantity[np.ndarray]):
 
 
 @dataclass(unsafe_hash=True)
-class _MultiFramesEulerAngles(AbstractQuantity[Dict[str, np.ndarray]]):
+class _MultiFramesEulerAngles(InterfaceQuantity[Dict[str, np.ndarray]]):
     """Euler angles (Roll-Pitch-Yaw) of the orientation of all frames involved
     in quantities relying on it and are active since last reset of computation
     tracking if shared cache is available, its parent otherwise.
@@ -187,6 +187,16 @@ class _MultiFramesEulerAngles(AbstractQuantity[Dict[str, np.ndarray]]):
     about x15, which is achieved asymptotically for more than 100 frames. It is
     already x5 faster for 5 frames, x7 for 10 frames, and x9 for 20 frames.
     """
+
+    mode: QuantityEvalMode
+    """Specify on which state to evaluate this quantity. See `Mode`
+    documentation for details about each mode.
+
+    .. warning::
+        Mode `REFERENCE` requires a reference trajectory to be selected
+        manually prior to evaluating this quantity for the first time.
+    """
+
     def __init__(self,
                  env: InterfaceJiminyEnv,
                  parent: "FrameEulerAngles",
@@ -200,6 +210,9 @@ class _MultiFramesEulerAngles(AbstractQuantity[Dict[str, np.ndarray]]):
         # Make sure that a suitable parent has been provided
         assert isinstance(parent, FrameEulerAngles)
 
+        # Backup some user argument(s)
+        self.mode = mode
+
         # Initialize the ordered list of frame names.
         # Note that this must be done BEFORE calling base `__init__`, otherwise
         # `isinstance(..., (FrameQuantity, MultiFrameQuantity))` will fail.
@@ -212,7 +225,6 @@ class _MultiFramesEulerAngles(AbstractQuantity[Dict[str, np.ndarray]]):
             requirements=dict(
                 rot_mat_batch=(_MultiFramesRotationMatrix, dict(
                     mode=mode))),
-            mode=mode,
             auto_refresh=False)
 
         # Store Roll-Pitch-Yaw of all frames at once
@@ -330,6 +342,7 @@ class _MultiFramesXYZQuat(AbstractQuantity[Dict[str, np.ndarray]]):
     components (X, Y, Z, QuatX, QuatY, QuatZ, QuatW), while the second one are
     individual frames with the same ordering as 'self.frame_names'.
     """
+
     def __init__(self,
                  env: InterfaceJiminyEnv,
                  parent: "FrameXYZQuat",

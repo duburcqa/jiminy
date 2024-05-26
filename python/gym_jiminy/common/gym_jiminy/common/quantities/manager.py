@@ -79,7 +79,7 @@ class QuantityManager(MutableMapping):
         for quantity in self.registry.values():
             quantity.reset(
                 reset_tracking,
-                ignore_auto_refresh=(not self.env.is_simulation_running))
+                ignore_auto_refresh=not self.env.is_simulation_running)
 
     def clear(self) -> None:
         """Clear internal cache of quantities to force re-evaluating them the
@@ -233,15 +233,12 @@ class QuantityManager(MutableMapping):
         :param name: Name of the managed quantity to be discarded. It will
                      raise an exception if the specified name does not exists.
         """
-        # Set a shared cache entry for all quantities involved in computations
-        quantities_all = [self.registry[name]]
+        # Remove shared cache entry for all quantities involved in computations
+        quantities_all = [self.registry.pop(name)]
         while quantities_all:
             quantity = quantities_all.pop()
-            quantity.cache = None
+            quantity.cache = None  # type: ignore[assignment]
             quantities_all += quantity.requirements.values()
-
-        # Stop managing the quantity
-        del self.registry[name]
 
     def __iter__(self) -> Iterator[str]:
         """Iterate over names of managed quantities.

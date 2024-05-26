@@ -24,7 +24,7 @@ LOGGER = logging.getLogger(__name__)
 @nb.jit(nopython=True, cache=True, fastmath=True)
 def radial_basis_function(error: ArrayOrScalar,
                           cutoff: float,
-                          ord: int = 2) -> float:
+                          order: int = 2) -> float:
     r"""Radial basis function (RBF) kernel (aka squared-exponential kernel).
 
     The RBF kernel is defined as:
@@ -44,12 +44,12 @@ def radial_basis_function(error: ArrayOrScalar,
 
     :param error: Multi-variate error on some tangent space.
     :param cutoff: Cut-off threshold to consider.
-    :param ord: Order of Lp-Norm that will be used as distance metric.
+    :param order: Order of Lp-Norm that will be used as distance metric.
     """
-    if ord == 2:
+    if order == 2:
         squared_dist_rel = np.sum(np.square(error)) / math.pow(cutoff, 2)
     else:
-        squared_dist_rel = math.pow(np.linalg.norm(error, ord) / cutoff, 2)
+        squared_dist_rel = math.pow(np.linalg.norm(error, order) / cutoff, 2)
     return math.pow(RBF_CUTOFF_ESP, squared_dist_rel)
 
 
