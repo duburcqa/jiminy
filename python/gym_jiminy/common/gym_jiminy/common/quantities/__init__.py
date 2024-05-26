@@ -12,6 +12,7 @@ from .generic import (FrameEulerAngles,
 from .locomotion import (OdometryPose,
                          AverageOdometryVelocity,
                          CenterOfMass,
+                         CapturePoint,
                          ZeroMomentPoint)
 
 
@@ -24,8 +25,10 @@ __all__ = [
     'ActuatedJointPositions',
     'FrameEulerAngles',
     'FrameXYZQuat',
+    'OdometryPose',
     'AverageFrameSpatialVelocity',
     'AverageOdometryVelocity',
     'CenterOfMass',
+    'CapturePoint',
     'ZeroMomentPoint',
 ]

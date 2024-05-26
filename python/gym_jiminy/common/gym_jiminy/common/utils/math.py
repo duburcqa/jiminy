@@ -37,10 +37,10 @@ def matrix_to_yaw(mat: np.ndarray,
 
     # Allocate memory for the output array
     if out is None:
-        out_ = np.empty(mat.shape[2:])
+        out_ = np.atleast_1d(np.empty(mat.shape[2:]))
     else:
         assert out.shape == mat.shape[2:]
-        out_ = out
+        out_ = np.atleast_1d(out)
 
     out_[:] = np.arctan2(mat[1, 0], mat[0, 0])
 

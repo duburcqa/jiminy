@@ -1,12 +1,12 @@
 """ TODO: Write documentation
 """
-import gc
+import math
 import unittest
 
 import numpy as np
 import gymnasium as gym
 
-import jiminy_py
+from jiminy_py.dynamics import update_quantities
 from jiminy_py.log import extract_trajectory_from_log
 import pinocchio as pin
 
@@ -20,6 +20,7 @@ from gym_jiminy.common.quantities import (
     AverageOdometryVelocity,
     ActuatedJointPositions,
     CenterOfMass,
+    CapturePoint,
     ZeroMomentPoint)
 
 
@@ -103,7 +104,6 @@ class Quantities(unittest.TestCase):
 
         assert len(quantities['rpy_1'].requirements['data'].cache.owners) == 3
         del quantity_manager['rpy_2']
-        gc.collect()
         assert len(quantities['rpy_1'].requirements['data'].cache.owners) == 2
         quantity_manager.rpy_1
         assert len(quantities['rpy_1'].requirements['data'].frame_names) == 1
@@ -293,3 +293,39 @@ class Quantities(unittest.TestCase):
         np.testing.assert_allclose(
             env.quantities["actuated_joint_positions"],
             env.robot_state.q[position_indices])
+
+    def test_capture_point(self):
+        """ TODO: Write documentation
+        """
+        env = gym.make("gym_jiminy.envs:atlas")
+
+        update_quantities(
+            env.robot,
+            pin.neutral(env.robot.pinocchio_model_th),
+            update_physics=True,
+            update_centroidal=True,
+            update_energy=False,
+            update_jacobian=False,
+            update_collisions=False,
+            use_theoretical_model=True)
+        min_height = min(
+            oMf.translation[2] for oMf in env.robot.pinocchio_data_th.oMf)
+        gravity = abs(env.robot.pinocchio_model.gravity.linear[2])
+        robot_height = env.robot.pinocchio_data_th.com[0][2] - min_height
+        omega = math.sqrt(gravity / robot_height)
+
+        env.quantities["dcm"] = (CapturePoint, dict(
+            reference_frame=pin.LOCAL_WORLD_ALIGNED,
+            mode=QuantityEvalMode.TRUE))
+        quantity = env.quantities.registry["dcm"]
+
+        env.reset(seed=0)
+        env.step(env.action_space.sample())
+
+        com_position = env.robot.pinocchio_data.com[0]
+        np.testing.assert_allclose(quantity.com_position, com_position)
+        com_velocity = env.robot.pinocchio_data.vcom[0]
+        np.testing.assert_allclose(quantity.com_velocity, com_velocity)
+        np.testing.assert_allclose(
+            env.quantities["dcm"],
+            com_position[:2] + com_velocity[:2] / omega)

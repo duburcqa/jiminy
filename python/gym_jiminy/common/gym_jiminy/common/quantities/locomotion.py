@@ -1,11 +1,13 @@
 """Quantities mainly relevant for locomotion tasks on floating-base robots.
 """
+import math
 from typing import Optional, Tuple
 from dataclasses import dataclass
 
 import numpy as np
 
 from jiminy_py.core import array_copyto  # pylint: disable=no-name-in-module
+from jiminy_py.dynamics import update_quantities
 import pinocchio as pin
 
 from ..bases import (
@@ -46,7 +48,8 @@ class OdometryPose(AbstractQuantity[np.ndarray]):
         self.data = np.zeros((3,))
 
         # Split odometry pose in translation (X, Y) and yaw angle
-        self.xy_view, self.yaw_view = self.data[:2], self.data[-1:]
+        self.xy_view = self.data[:2]
+        self.yaw_view = self.data[-1:].reshape(())
 
     def initialize(self) -> None:
         # Call base implementation
@@ -192,31 +195,55 @@ class CenterOfMass(AbstractQuantity[np.ndarray]):
 
 @dataclass(unsafe_hash=True)
 class ZeroMomentPoint(AbstractQuantity[np.ndarray]):
-    """Zero Moment Point (ZMP), also called Divergent Component of Motion
-    (DCM).
+    """Zero-Tilting Moment Point (ZMP), also called Center of Pressure (CoP).
 
-    This quantity only makes sense for legged robots whose the inverted
-    pendulum is a relevant approximate dynamic model. It is involved in various
-    dynamic stability metrics (usually only on flat ground), such as N-steps
-    capturability. More precisely, the robot will keep balance if the ZMP is
-    maintained inside the support polygon.
+    This quantity only makes sense for legged robots. Such a robot will keep
+    balance if the ZMP [1] is maintained inside the support polygon [2].
+
+    .. seealso::
+        For academic reference about its relation with the notion of stability,
+        see: [1] https://scaron.info/robotics/zero-tilting-moment-point.html
+             [2] https://scaron.info/robotics/zmp-support-area.html
     """
+
+    reference_frame: pin.ReferenceFrame
+    """Whether the ZMP must be computed in local odometry frame or aligned with
+    world axes.
+    """
+
     def __init__(self,
                  env: InterfaceJiminyEnv,
                  parent: Optional[InterfaceQuantity],
                  *,
+                 reference_frame: pin.ReferenceFrame = pin.LOCAL,
                  mode: QuantityEvalMode = QuantityEvalMode.TRUE) -> None:
         """
         :param env: Base or wrapped jiminy environment.
         :param parent: Higher-level quantity from which this quantity is a
                        requirement if any, `None` otherwise.
+        :param reference_frame: Whether to compute the ZMP in local odometry
+                                frame (aka 'pin.LOCAL') or aligned with world
+                                axes (aka 'pin.LOCAL_WORLD_ALIGNED').
         :param mode: Desired mode of evaluation for this quantity.
         """
+        # Make sure at requested reference frame is supported
+        if reference_frame not in (pin.LOCAL, pin.LOCAL_WORLD_ALIGNED):
+            raise ValueError("Reference frame must be either 'pin.LOCAL' or "
+                             "'pin.LOCAL_WORLD_ALIGNED'.")
+
+        # Backup some user argument(s)
+        self.reference_frame = reference_frame
+
         # Call base implementation
         super().__init__(
             env,
             parent,
-            requirements=dict(com=(CenterOfMass, dict(mode=mode))),
+            requirements=dict(
+                com=(CenterOfMass, dict(
+                    kinematic_level=pin.POSITION,
+                    mode=mode)),
+                odom_pose=(OdometryPose, dict(mode=mode))
+            ),
             mode=mode,
             auto_refresh=False)
 
@@ -256,9 +283,128 @@ class ZeroMomentPoint(AbstractQuantity[np.ndarray]):
         # Compute the vertical force applied by the robot
         f_z = dhg_linear[2] + self._robot_weight
 
-        # Compute the center of pressure
+        # Compute the ZMP in world frame
         self._zmp[:] = com[:2] * (self._robot_weight / f_z)
         if abs(f_z) > np.finfo(np.float32).eps:
             self._zmp[0] -= (dhg_angular[1] + dhg_linear[0] * com[2]) / f_z
             self._zmp[1] += (dhg_angular[0] - dhg_linear[1] * com[2]) / f_z
+
+        # Translate the ZMP from world to local odometry frame if requested
+        if self.reference_frame == pin.LOCAL:
+            base_yaw = self.odom_pose[2]
+            cos_yaw, sin_yaw = math.cos(base_yaw), math.sin(base_yaw)
+            self._zmp[:] = (+ cos_yaw * self._zmp[0] + sin_yaw * self._zmp[1],
+                            - sin_yaw * self._zmp[0] + cos_yaw * self._zmp[1])
+
         return self._zmp
+
+
+@dataclass(unsafe_hash=True)
+class CapturePoint(AbstractQuantity[np.ndarray]):
+    """Divergent Component of Motion (DCM), also called Capture Point (CP).
+
+    This quantity only makes sense for legged robots, and in particular bipedal
+    robots for which the inverted pendulum is a relevant approximate dynamic
+    model. It is involved in various dynamic stability metrics (usually only on
+    flat ground), such as N-steps capturability. The capture point is defined
+    as "where should a bipedal robot should step right now to eliminate linear
+    momentum and come asymptotically to a stop" [1].
+
+    .. seealso::
+        For academic reference about its relation with the notion of stability,
+        see: [1] https://scaron.info/robotics/capture-point.html
+    """
+
+    reference_frame: pin.ReferenceFrame
+    """Whether the DCM must be computed in local odometry frame or aligned with
+    world axes.
+    """
+
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 parent: Optional[InterfaceQuantity],
+                 *,
+                 reference_frame: pin.ReferenceFrame = pin.LOCAL,
+                 mode: QuantityEvalMode = QuantityEvalMode.TRUE) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param parent: Higher-level quantity from which this quantity is a
+                       requirement if any, `None` otherwise.
+        :param reference_frame: Whether to compute the DCM in local odometry
+                                frame (aka 'pin.LOCAL') or aligned with world
+                                axes (aka 'pin.LOCAL_WORLD_ALIGNED').
+        :param mode: Desired mode of evaluation for this quantity.
+        """
+        # Make sure at requested reference frame is supported
+        if reference_frame not in (pin.LOCAL, pin.LOCAL_WORLD_ALIGNED):
+            raise ValueError("Reference frame must be either 'pin.LOCAL' or "
+                             "'pin.LOCAL_WORLD_ALIGNED'.")
+
+        # Backup some user argument(s)
+        self.reference_frame = reference_frame
+
+        # Call base implementation
+        super().__init__(
+            env,
+            parent,
+            requirements=dict(
+                com_position=(CenterOfMass, dict(
+                    kinematic_level=pin.POSITION,
+                    mode=mode)),
+                com_velocity=(CenterOfMass, dict(
+                    kinematic_level=pin.VELOCITY,
+                    mode=mode)),
+                odom_pose=(OdometryPose, dict(mode=mode))
+            ),
+            mode=mode,
+            auto_refresh=False)
+
+        # Natural frequency of linear pendulum approximate model of the robot
+        self.omega: float = float("nan")
+
+        # Pre-allocate memory for the DCM
+        self._dcm = np.zeros(2)
+
+    def initialize(self) -> None:
+        # Call base implementation
+        super().initialize()
+
+        # Make sure that the state is consistent with required kinematic level
+        if self.state.v is None:
+            raise RuntimeError(
+                "State data inconsistent with required kinematic level")
+
+        # Compute the natural frequency of linear pendulum approximate model.
+        # Note that the height of the robot is defined as the position of the
+        # center of mass of the robot in neutral configuration.
+        update_quantities(
+            self.robot,
+            pin.neutral(self.robot.pinocchio_model_th),
+            update_physics=True,
+            update_centroidal=True,
+            update_energy=False,
+            update_jacobian=False,
+            update_collisions=False,
+            use_theoretical_model=True)
+        min_height = min(
+            oMf.translation[2] for oMf in self.robot.pinocchio_data_th.oMf)
+        gravity = abs(self.pinocchio_model.gravity.linear[2])
+        robot_height = self.robot.pinocchio_data_th.com[0][2] - min_height
+        self.omega = math.sqrt(gravity / robot_height)
+
+        # Re-initialized pre-allocated memory buffer
+        fill(self._dcm, 0)
+
+    def refresh(self) -> np.ndarray:
+        # Compute the DCM in world frame
+        com_position, com_velocity = self.com_position, self.com_velocity
+        self._dcm[:] = com_position[:2] + com_velocity[:2] / self.omega
+
+        # Translate the ZMP from world to local odometry frame if requested
+        if self.reference_frame == pin.LOCAL:
+            base_yaw = self.odom_pose[2]
+            cos_yaw, sin_yaw = math.cos(base_yaw), math.sin(base_yaw)
+            self._dcm[:] = (+ cos_yaw * self._dcm[0] + sin_yaw * self._dcm[1],
+                            - sin_yaw * self._dcm[0] + cos_yaw * self._dcm[1])
+
+        return self._dcm
