@@ -30,6 +30,16 @@ namespace jiminy
             return config;
         };
 
+        /// \brief Simple motor that does not required specifying advanced motor constant (phase
+        ///        inductance, back-EMF...), nor hardware properties such as battery voltage.
+        ///
+        /// \details The motor torque is applied instantaneously, but may be saturated to make into
+        ///          account the maximum torque at zero velocity and the maximum velocity at zero
+        ///          load. A simple linear model is used for the maximum velocity. For reference:
+        ///          https://things-in-motion.blogspot.com/2019/05/understanding-bldc-pmsm-electric-motors.html
+        ///
+        /// \sa For details about the modelling of PMSM motors (ie brushless motors), see:
+        ///     https://github.com/matthieuvigne/nemo_bldc/blob/1c9073114a70d762b8d13774e7da984afd48bd32/src/nemo_bldc/doc/BrushlessMotorPhysics.pdf
         struct SimpleMotorOptions : public AbstractMotorOptions
         {
             /// \brief Wether velocity limit is enabled.

@@ -1,29 +1,26 @@
 """Rewards mainly relevant for locomotion tasks on floating-base robots.
 """
-from operator import sub
-from functools import partial
+import pinocchio as pin
 
-from ..bases import InterfaceJiminyEnv, BaseQuantityReward, QuantityEvalMode
-from ..quantities import AverageOdometryVelocity, BinaryOpQuantity
+from ..bases import InterfaceJiminyEnv, StateQuantity
+from ..quantities import (
+    MaskedQuantity, UnaryOpQuantity, AverageOdometryVelocity, CapturePoint)
 
-from .generic import radial_basis_function
+from .generic import BaseTrackingReward
 
 
-class OdometryVelocityReward(BaseQuantityReward):
-    """Reward the agent for tracking a reference odometry velocity.
+class TrackingBaseHeightReward(BaseTrackingReward):
+    """Reward the agent for tracking the height of the floating base of the
+    robot wrt some reference trajectory.
 
-    A reference trajectory must be selected before evaluating this reward
-    otherwise an exception will be risen. See `DatasetTrajectoryQuantity` and
-    `AbstractQuantity` documentations for details.
-
-    The error transform in a normalized reward to maximize by applying RBF
-    kernel on the error. The reward will be 0.0 if the error cancels out
-    completely and less than 0.01 above the user-specified cutoff threshold.
+    .. seealso::
+        See `BaseTrackingReward` documentation for technical details.
     """
     def __init__(self,
                  env: InterfaceJiminyEnv,
                  cutoff: float) -> None:
         """
+        :param env: Base or wrapped jiminy environment.
         :param cutoff: Cutoff threshold for the RBF kernel transform.
         """
         # Backup some user argument(s)
@@ -32,13 +29,62 @@ class OdometryVelocityReward(BaseQuantityReward):
         # Call base implementation
         super().__init__(
             env,
-            "reward_odometry_velocity",
-            (BinaryOpQuantity, dict(
-                quantity_left=(AverageOdometryVelocity, dict(
-                    mode=QuantityEvalMode.TRUE)),
-                quantity_right=(AverageOdometryVelocity, dict(
-                    mode=QuantityEvalMode.REFERENCE)),
-                op=sub)),
-            partial(radial_basis_function, cutoff=self.cutoff, order=2),
-            is_normalized=True,
-            is_terminal=False)
+            "reward_tracking_base_height",
+            lambda mode: (MaskedQuantity, dict(
+                quantity=(UnaryOpQuantity, dict(
+                    quantity=(StateQuantity, dict(mode=mode)),
+                    op=lambda state: state.q)),
+                key=(2,))),
+            cutoff)
+
+
+class TrackingOdometryVelocityReward(BaseTrackingReward):
+    """Reward the agent for tracking the odometry velocity wrt some reference
+    trajectory.
+
+    .. seealso::
+        See `BaseTrackingReward` documentation for technical details.
+    """
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 cutoff: float) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param cutoff: Cutoff threshold for the RBF kernel transform.
+        """
+        # Backup some user argument(s)
+        self.cutoff = cutoff
+
+        # Call base implementation
+        super().__init__(
+            env,
+            "reward_tracking_odometry_velocity",
+            lambda mode: (AverageOdometryVelocity, dict(mode=mode)),
+            cutoff)
+
+
+class TrackingCapturePointReward(BaseTrackingReward):
+    """Reward the agent for tracking the capture point wrt some reference
+    trajectory.
+
+    .. seealso::
+        See `BaseTrackingReward` documentation for technical details.
+    """
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 cutoff: float) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param cutoff: Cutoff threshold for the RBF kernel transform.
+        """
+        # Backup some user argument(s)
+        self.cutoff = cutoff
+
+        # Call base implementation
+        super().__init__(
+            env,
+            "reward_tracking_capture_point",
+            lambda mode: (CapturePoint, dict(
+                reference_frame=pin.LOCAL,
+                mode=mode)),
+            cutoff)

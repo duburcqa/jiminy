@@ -1,26 +1,34 @@
 # pylint: disable=missing-module-docstring
 
 from .manager import QuantityManager
+from .transform import (StackedQuantity,
+                        MaskedQuantity,
+                        UnaryOpQuantity,
+                        BinaryOpQuantity)
 from .generic import (FrameEulerAngles,
                       FrameXYZQuat,
-                      StackedQuantity,
                       AverageFrameSpatialVelocity,
-                      MaskedQuantity,
-                      BinaryOpQuantity)
-from .locomotion import (AverageOdometryVelocity,
+                      ActuatedJointPositions)
+from .locomotion import (OdometryPose,
+                         AverageOdometryVelocity,
                          CenterOfMass,
+                         CapturePoint,
                          ZeroMomentPoint)
 
 
 __all__ = [
     'QuantityManager',
+    'StackedQuantity',
+    'MaskedQuantity',
+    'UnaryOpQuantity',
+    'BinaryOpQuantity',
+    'ActuatedJointPositions',
     'FrameEulerAngles',
     'FrameXYZQuat',
-    'StackedQuantity',
+    'OdometryPose',
     'AverageFrameSpatialVelocity',
-    'MaskedQuantity',
-    'BinaryOpQuantity',
     'AverageOdometryVelocity',
     'CenterOfMass',
+    'CapturePoint',
     'ZeroMomentPoint',
 ]

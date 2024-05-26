@@ -470,6 +470,17 @@ namespace jiminy
                 "Encoder sensors can only be associated with a 1-dof linear or rotary joint.");
         }
 
+        /* Tracking motor turns is not supported for now. As a result, the mechanical reduction
+           ratio must be equal exactly to 1.0 for revolute unbounded joints. */
+        if (!isJointSide_ && jointType_ == JointModelType::ROTARY_UNBOUNDED &&
+            std::abs(mechanicalReduction_ - 1.0) > EPS)
+        {
+            JIMINY_THROW(
+                std::runtime_error,
+                "Encoder sensors on motor side do not supported motors attached to revolute "
+                "unbounded joints while having a mechanical reduction different from 1.0.");
+        }
+
         // Refresh joint position and velocity indices
         jointPositionIndex_ = jmodel.idx_q();
         joinVelocityIndex_ = jmodel.idx_v();

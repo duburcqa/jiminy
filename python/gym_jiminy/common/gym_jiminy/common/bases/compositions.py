@@ -221,6 +221,13 @@ class BaseQuantityReward(AbstractReward):
         # Keep track of the underlying quantity
         self.quantity = self.env.quantities.registry[self.name]
 
+    def __del__(self) -> None:
+        try:
+            del self.env.quantities[self.name]
+        except Exception:   # pylint: disable=broad-except
+            # This method must not fail under any circumstances
+            pass
+
     @property
     def is_terminal(self) -> Optional[bool]:
         return self._is_terminal

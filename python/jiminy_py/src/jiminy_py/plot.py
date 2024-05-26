@@ -742,7 +742,7 @@ def plot_log(log_data: Dict[str, Any],
             "plot_method": "plot", "sync_tabs": True, **kwargs})
 
     # Show the figure if appropriate, blocking if necessary
-    if block and not figure.offscreen:
+    if not figure.offscreen:
         plt.show(block=block)
 
     return figure

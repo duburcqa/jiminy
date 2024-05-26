@@ -183,15 +183,16 @@ namespace jiminy
         }
 
         /* Physically, it must be possible to deduce the joint position from the motor position.
-           For this condition to be satisfied, the joint position after doing exactly one turn on
-           motor side must remain the same (ignoring turns if any). This implies that the inverted
-           reduction ratio must be an integer. */
+           For this condition to be satisfied, the motor position after doing exactly one turn on
+           joint side must remain the same (ignoring turns if any). This implies that the reduction
+           ratio must be an integer. */
         if (jointType_ == JointModelType::ROTARY_UNBOUNDED)
         {
-            if (abs(mechanicalReduction - 1.0) > EPS)
+            const double residual = std::fmod(mechanicalReduction, 1.0);
+            if (residual > EPS && 1.0 - residual > EPS)
             {
                 JIMINY_THROW(std::runtime_error,
-                             "The mechanical reduction must be equal to 1.0 for motors actuating "
+                             "The mechanical reduction must be an integer for motors actuating "
                              "unbounded revolute joints.");
             }
         }
