@@ -43,35 +43,35 @@ MOTOR_ACCELERATION_MAX = 30.0
 
 # PID proportional gains (one per actuated joint)
 PD_REDUCED_KP = (
-    # Left leg: [HpX, HpZ, HpY, KnY, AkY, AkX]
+    # Left leg: [HpZ, HpX, HpY, KnY, AkY, AkX]
     5000.0, 5000.0, 8000.0, 4000.0, 8000.0, 5000.0,
-    # Right leg: [HpX, HpZ, HpY, KnY, AkY, AkX]
+    # Right leg: [HpZ, HpX, HpY, KnY, AkY, AkX]
     5000.0, 5000.0, 8000.0, 4000.0, 8000.0, 5000.0)
 PD_REDUCED_KD = (
-    # Left leg: [HpX, HpZ, HpY, KnY, AkY, AkX]
-    0.02, 0.01, 0.02, 0.01, 0.025, 0.01,
-    # Right leg: [HpX, HpZ, HpY, KnY, AkY, AkX]
-    0.02, 0.01, 0.02, 0.01, 0.025, 0.01)
+    # Left leg: [HpZ, HpX, HpY, KnY, AkY, AkX]
+    0.01, 0.02, 0.02, 0.01, 0.025, 0.01,
+    # Right leg: [HpZ, HpX, HpY, KnY, AkY, AkX]
+    0.01, 0.02, 0.02, 0.01, 0.025, 0.01)
 
 # PID derivative gains (one per actuated joint)
 PD_FULL_KP = (
-    # Neck: [Y]
-    100.0,
     # Back: [Z, Y, X]
     5000.0, 8000.0, 5000.0,
     # Left arm: [ShZ, ShX, ElY, ElX, WrY, WrX, WrY2]
     500.0, 100.0, 200.0, 500.0, 10.0, 100.0, 10.0,
+    # Neck: [Y]
+    100.0,
     # Right arm: [ShZ, ShX, ElY, ElX, WrY, WrX, WrY2]
     500.0, 100.0, 200.0, 500.0, 10.0, 100.0, 10.0,
     # Lower body motors
     *PD_REDUCED_KP)
 PD_FULL_KD = (
-    # Neck: [Y]
-    0.01,
     # Back: [Z, Y, X]
     0.01, 0.015, 0.02,
     # Left arm: [ShZ, ShX, ElY, ElX, WrY, WrX, WrY2]
     0.01, 0.01, 0.01, 0.02, 0.01, 0.02, 0.02,
+    # Neck: [Y]
+    0.01,
     # Right arm: [ShZ, ShX, ElY, ElX, WrY, WrX, WrY2]
     0.01, 0.01, 0.01, 0.02, 0.01, 0.02, 0.02,
     # Lower body motors

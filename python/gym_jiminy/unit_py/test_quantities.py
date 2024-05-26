@@ -1,19 +1,27 @@
 """ TODO: Write documentation
 """
-import gc
+import math
 import unittest
 
 import numpy as np
 import gymnasium as gym
 
-import jiminy_py
+from jiminy_py.dynamics import update_quantities
 from jiminy_py.log import extract_trajectory_from_log
 import pinocchio as pin
 
 from gym_jiminy.common.bases import QuantityEvalMode, DatasetTrajectoryQuantity
 from gym_jiminy.common.quantities import (
-    QuantityManager, FrameEulerAngles, FrameXYZQuat, MaskedQuantity,
-    AverageFrameSpatialVelocity, CenterOfMass, ZeroMomentPoint)
+    QuantityManager,
+    FrameEulerAngles,
+    FrameXYZQuat,
+    MaskedQuantity,
+    AverageFrameSpatialVelocity,
+    AverageOdometryVelocity,
+    ActuatedJointPositions,
+    CenterOfMass,
+    CapturePoint,
+    ZeroMomentPoint)
 
 
 class Quantities(unittest.TestCase):
@@ -23,7 +31,7 @@ class Quantities(unittest.TestCase):
         """ TODO: Write documentation
         """
         env = gym.make("gym_jiminy.envs:atlas")
-        env.reset()
+        env.reset(seed=0)
 
         quantity_manager = QuantityManager(env)
         for name, cls, kwargs in (
@@ -43,7 +51,7 @@ class Quantities(unittest.TestCase):
         assert not quantities["com"]._is_initialized
         assert quantities["zmp"].requirements["com"]._is_initialized
 
-        env.step(env.action)
+        env.step(env.action_space.sample())
         zmp_1 = quantity_manager["zmp"].copy()
         assert np.all(zmp_0 == zmp_1)
         quantity_manager.clear()
@@ -52,7 +60,7 @@ class Quantities(unittest.TestCase):
         zmp_1 = quantity_manager.zmp.copy()
         assert np.any(zmp_0 != zmp_1)
 
-        env.step(env.action)
+        env.step(env.action_space.sample())
         quantity_manager.reset()
         assert not quantities["zmp"].requirements["com"]._is_initialized
         zmp_2 = quantity_manager.zmp.copy()
@@ -62,8 +70,8 @@ class Quantities(unittest.TestCase):
         """ TODO: Write documentation
         """
         env = gym.make("gym_jiminy.envs:atlas")
-        env.reset()
-        env.step(env.action)
+        env.reset(seed=0)
+        env.step(env.action_space.sample())
 
         quantity_manager = QuantityManager(env)
         for name, cls, kwargs in (
@@ -86,7 +94,7 @@ class Quantities(unittest.TestCase):
         assert np.any(rpy_0 != rpy_2)
         assert len(quantities['rpy_2'].requirements['data'].frame_names) == 2
 
-        env.step(env.action)
+        env.step(env.action_space.sample())
         quantity_manager.reset()
         rpy_0_next = quantity_manager.rpy_0
         xyzquat_0_next =  quantity_manager.xyzquat_0.copy()
@@ -96,7 +104,6 @@ class Quantities(unittest.TestCase):
 
         assert len(quantities['rpy_1'].requirements['data'].cache.owners) == 3
         del quantity_manager['rpy_2']
-        gc.collect()
         assert len(quantities['rpy_1'].requirements['data'].cache.owners) == 2
         quantity_manager.rpy_1
         assert len(quantities['rpy_1'].requirements['data'].frame_names) == 1
@@ -110,7 +117,7 @@ class Quantities(unittest.TestCase):
         """ TODO: Write documentation
         """
         env = gym.make("gym_jiminy.envs:atlas")
-        env.reset()
+        env.reset(seed=0)
 
         quantity_manager = QuantityManager(env)
         for name, cls, kwargs in (
@@ -127,16 +134,13 @@ class Quantities(unittest.TestCase):
         assert len(quantities['rpy_2'].requirements['data'].cache.owners) == 3
 
         del quantity_manager['rpy_0']
-        gc.collect()
         assert len(quantities['rpy_1'].cache.owners) == 1
         assert len(quantities['rpy_2'].requirements['data'].cache.owners) == 2
 
         del quantity_manager['rpy_1']
-        gc.collect()
         assert len(quantities['rpy_2'].requirements['data'].cache.owners) == 1
 
         del quantity_manager['rpy_2']
-        gc.collect()
         for (cls, _), cache in quantity_manager._caches.items():
             assert len(cache.owners) == (cls is DatasetTrajectoryQuantity)
 
@@ -149,7 +153,7 @@ class Quantities(unittest.TestCase):
 
         env.reset(seed=0)
         zmp_0 = env.quantities["zmp"].copy()
-        env.step(env.action)
+        env.step(env.action_space.sample())
         assert np.all(zmp_0 != env.quantities["zmp"])
         env.reset(seed=0)
         assert np.all(zmp_0 == env.quantities["zmp"])
@@ -158,29 +162,31 @@ class Quantities(unittest.TestCase):
         """ TODO: Write documentation
         """
         env = gym.make("gym_jiminy.envs:atlas")
-        env.reset()
+        env.reset(seed=0)
 
         quantity_cls = AverageFrameSpatialVelocity
         quantity_kwargs = dict(
             frame_name=env.robot.pinocchio_model.frames[1].name)
         env.quantities["v_avg"] = (quantity_cls, quantity_kwargs)
+        env.quantities["v_avg_2"] = (quantity_cls, quantity_kwargs)
 
         env.reset(seed=0)
         with self.assertRaises(ValueError):
             env.quantities["v_avg"]
 
-        env.step(env.action)
+        env.step(env.action_space.sample())
         v_avg = env.quantities["v_avg"].copy()
-        env.step(env.action)
-        env.step(env.action)
+        env.step(env.action_space.sample())
+        del env.quantities["v_avg_2"]
+        env.step(env.action_space.sample())
         assert np.all(v_avg != env.quantities["v_avg"])
 
     def test_masked(self):
         """ TODO: Write documentation
         """
         env = gym.make("gym_jiminy.envs:atlas")
-        env.reset()
-        env.step(env.action)
+        env.reset(seed=0)
+        env.step(env.action_space.sample())
 
         # 1. From non-slice-able indices
         env.quantities["v_masked"] = (MaskedQuantity, dict(
@@ -236,3 +242,90 @@ class Quantities(unittest.TestCase):
             env.step(env.action_space.sample() * 0.05)
         assert np.all(zmp_0 != env.quantities["zmp"])
         np.testing.assert_allclose(zmp_0, env.quantities["zmp_ref"])
+
+    def test_average_odometry_velocity(self):
+        """ TODO: Write documentation
+        """
+        env = gym.make("gym_jiminy.envs:atlas")
+
+        env.quantities["odometry_velocity"] = (
+            AverageOdometryVelocity, dict(mode=QuantityEvalMode.TRUE))
+        quantity = env.quantities.registry["odometry_velocity"]
+
+        env.reset(seed=0)
+        base_pose_prev = env.robot_state.q[:7].copy()
+        env.step(env.action_space.sample())
+        base_pose = env.robot_state.q[:7].copy()
+
+        se3 = pin.liegroups.SE3()
+        base_pose_diff = pin.LieGroup.difference(
+            se3, base_pose_prev, base_pose)
+        base_velocity_mean_local =  base_pose_diff / env.step_dt
+        base_pose_mean = pin.LieGroup.integrate(
+            se3, base_pose_prev, 0.5 * base_pose_diff)
+        rot_mat = pin.Quaternion(base_pose_mean[-4:]).matrix()
+        base_velocity_mean_world = np.concatenate((
+            rot_mat @ base_velocity_mean_local[:3],
+            rot_mat @ base_velocity_mean_local[3:]))
+
+        np.testing.assert_allclose(
+            quantity.requirements['data'].data, base_velocity_mean_world)
+        base_odom_velocity = base_velocity_mean_world[[0, 1, 5]]
+        np.testing.assert_allclose(
+            env.quantities["odometry_velocity"], base_odom_velocity)
+
+    def test_motor_positions(self):
+        """ TODO: Write documentation
+        """
+        env = gym.make("gym_jiminy.envs:atlas")
+
+        env.quantities["actuated_joint_positions"] = (
+            ActuatedJointPositions, dict(mode=QuantityEvalMode.TRUE))
+
+        env.reset(seed=0)
+        env.step(env.action_space.sample())
+
+        position_indices = []
+        for motor in env.robot.motors:
+            joint = env.robot.pinocchio_model.joints[motor.joint_index]
+            position_indices += range(joint.idx_q, joint.idx_q + joint.nq)
+
+        np.testing.assert_allclose(
+            env.quantities["actuated_joint_positions"],
+            env.robot_state.q[position_indices])
+
+    def test_capture_point(self):
+        """ TODO: Write documentation
+        """
+        env = gym.make("gym_jiminy.envs:atlas")
+
+        update_quantities(
+            env.robot,
+            pin.neutral(env.robot.pinocchio_model_th),
+            update_physics=True,
+            update_centroidal=True,
+            update_energy=False,
+            update_jacobian=False,
+            update_collisions=False,
+            use_theoretical_model=True)
+        min_height = min(
+            oMf.translation[2] for oMf in env.robot.pinocchio_data_th.oMf)
+        gravity = abs(env.robot.pinocchio_model.gravity.linear[2])
+        robot_height = env.robot.pinocchio_data_th.com[0][2] - min_height
+        omega = math.sqrt(gravity / robot_height)
+
+        env.quantities["dcm"] = (CapturePoint, dict(
+            reference_frame=pin.LOCAL_WORLD_ALIGNED,
+            mode=QuantityEvalMode.TRUE))
+        quantity = env.quantities.registry["dcm"]
+
+        env.reset(seed=0)
+        env.step(env.action_space.sample())
+
+        com_position = env.robot.pinocchio_data.com[0]
+        np.testing.assert_allclose(quantity.com_position, com_position)
+        com_velocity = env.robot.pinocchio_data.vcom[0]
+        np.testing.assert_allclose(quantity.com_velocity, com_velocity)
+        np.testing.assert_allclose(
+            env.quantities["dcm"],
+            com_position[:2] + com_velocity[:2] / omega)
