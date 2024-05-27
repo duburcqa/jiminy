@@ -6,10 +6,10 @@ import warnings
 from functools import partial
 from dataclasses import dataclass
 from typing import (
-    List, Dict, Set, Optional, Protocol, Sequence, Tuple, Union,
-    runtime_checkable)
+    List, Dict, Optional, Protocol, Sequence, Tuple, Union, runtime_checkable)
 
 import numpy as np
+import numba as nb
 
 import jiminy_py.core as jiminy
 from jiminy_py.core import (  # pylint: disable=no-name-in-module
@@ -22,7 +22,7 @@ from ..utils import (
     fill, matrix_to_rpy, matrix_to_quat, quat_to_matrix,
     quat_interpolate_middle)
 
-from .transform import StackedQuantity
+from .transform import StackedQuantity, MaskedQuantity
 
 
 @runtime_checkable
@@ -48,12 +48,12 @@ class MultiFrameQuantity(Protocol):
     This protocol is involved in automatic computation vectorization. See
     `FrameQuantity` documentation for details.
     """
-    frame_names: Sequence[str]
+    frame_names: Tuple[str, ...]
 
 
 def aggregate_frame_names(quantity: InterfaceQuantity) -> Tuple[
         Tuple[str, ...],
-        Dict[Union[str, Tuple[str, ...]], Union[int, tuple[int], slice]]]:
+        Dict[Union[str, Tuple[str, ...]], Union[int, Tuple[()], slice]]]:
     """Generate a sequence of frame names that contains all the sub-sequences
     specified by the parents of all the cache owners of a given quantity.
 
@@ -80,7 +80,6 @@ def aggregate_frame_names(quantity: InterfaceQuantity) -> Tuple[
     # Make sure that parent quantity implement multi- or single-frame protocol
     assert isinstance(quantity.parent, (FrameQuantity, MultiFrameQuantity))
     quantities = (quantity.cache.owners if quantity.has_cache else (quantity,))
-
 
     # First, order all multi-frame quantities by decreasing length
     frame_names_chunks: List[Tuple[str, ...]] = []
@@ -140,7 +139,8 @@ def aggregate_frame_names(quantity: InterfaceQuantity) -> Tuple[
     # The indices are stored as a slice for non-empty multi-frame quantities,
     # as an empty tuple for empty multi-frame quantities, or as an integer for
     # single-frame quantities.
-    frame_slices = {}
+    frame_slices: Dict[
+        Union[str, Tuple[str, ...]], Union[int, Tuple[()], slice]] = {}
     nframes = len(frame_names)
     for frame_names_ in frame_names_chunks:
         if frame_names_ in frame_slices:
@@ -162,7 +162,8 @@ def aggregate_frame_names(quantity: InterfaceQuantity) -> Tuple[
 
 
 @dataclass(unsafe_hash=True)
-class _BatchedMultiFrameRotationMatrix(AbstractQuantity[np.ndarray]):
+class _BatchedMultiFrameRotationMatrix(
+        AbstractQuantity[Dict[Union[str, Tuple[str, ...]], np.ndarray]]):
     """3D rotation matrix of the orientation of all frames involved in
     quantities relying on it and are active since last reset of computation
     tracking if shared cache is available, its parent otherwise.
@@ -212,7 +213,7 @@ class _BatchedMultiFrameRotationMatrix(AbstractQuantity[np.ndarray]):
         self._rot_mat_list: List[np.ndarray] = []
 
         # Mapping from frame names to slices of batched rotation matrices
-        self._rot_mat_map: Dict[str, np.ndarray] = {}
+        self._rot_mat_map: Dict[Union[str, Tuple[str, ...]], np.ndarray] = {}
 
     def initialize(self) -> None:
         # Clear all cache owners first since only is tracking frames at once
@@ -245,7 +246,7 @@ class _BatchedMultiFrameRotationMatrix(AbstractQuantity[np.ndarray]):
             key: self._rot_mat_batch[:, :, frame_slice]
             for key, frame_slice in frame_slices.items()}
 
-    def refresh(self) -> np.ndarray:
+    def refresh(self) -> Dict[Union[str, Tuple[str, ...]], np.ndarray]:
         # Copy all rotation matrices in contiguous buffer
         multi_array_copyto(self._rot_mat_slices, self._rot_mat_list)
 
@@ -254,7 +255,8 @@ class _BatchedMultiFrameRotationMatrix(AbstractQuantity[np.ndarray]):
 
 
 @dataclass(unsafe_hash=True)
-class _BatchedMultiFrameEulerAngles(InterfaceQuantity[Dict[str, np.ndarray]]):
+class _BatchedMultiFrameEulerAngles(
+        InterfaceQuantity[Dict[Union[str, Tuple[str, ...]], np.ndarray]]):
     """Euler angles (Roll-Pitch-Yaw) of the orientation of all frames involved
     in quantities relying on it and are active since last reset of computation
     tracking if shared cache is available, its parent otherwise.
@@ -316,7 +318,7 @@ class _BatchedMultiFrameEulerAngles(InterfaceQuantity[Dict[str, np.ndarray]]):
         self._rpy_batch: np.ndarray = np.array([])
 
         # Mapping from frame name to individual Roll-Pitch-Yaw slices
-        self._rpy_map: Dict[str, np.ndarray] = {}
+        self._rpy_map: Dict[Union[str, Tuple[str, ...]], np.ndarray] = {}
 
     def initialize(self) -> None:
         # Clear all cache owners first since only is tracking frames at once
@@ -338,7 +340,7 @@ class _BatchedMultiFrameEulerAngles(InterfaceQuantity[Dict[str, np.ndarray]]):
             key: self._rpy_batch[:, frame_slice]
             for key, frame_slice in frame_slices.items()}
 
-    def refresh(self) -> Dict[str, np.ndarray]:
+    def refresh(self) -> Dict[Union[str, Tuple[str, ...]], np.ndarray]:
         # Get batch of rotation matrices
         rot_mat_batch = self.rot_mat_batch[self.frame_names]
 
@@ -389,7 +391,8 @@ class FrameEulerAngles(InterfaceQuantity[np.ndarray]):
         super().__init__(
             env,
             parent,
-            requirements=dict(data=(_BatchedMultiFrameEulerAngles, dict(mode=mode))),
+            requirements=dict(
+                data=(_BatchedMultiFrameEulerAngles, dict(mode=mode))),
             auto_refresh=False)
 
     def initialize(self) -> None:
@@ -478,7 +481,8 @@ class MultiFrameEulerAngles(InterfaceQuantity[np.ndarray]):
 
 
 @dataclass(unsafe_hash=True)
-class _BatchedMultiFrameXYZQuat(AbstractQuantity[Dict[str, np.ndarray]]):
+class _BatchedMultiFrameXYZQuat(
+        AbstractQuantity[Dict[Union[str, Tuple[str, ...]], np.ndarray]]):
     """Vector representation (X, Y, Z, QuatX, QuatY, QuatZ, QuatW) of the
     transform of all frames involved in quantities relying on it and are active
     since last reset of computation tracking if shared cache is available, its
@@ -531,7 +535,7 @@ class _BatchedMultiFrameXYZQuat(AbstractQuantity[Dict[str, np.ndarray]]):
         self._xyzquat_batch: np.ndarray = np.array([])
 
         # Mapping from frame name to individual XYZQuat slices
-        self._xyzquat_map: Dict[str, np.ndarray] = {}
+        self._xyzquat_map: Dict[Union[str, Tuple[str, ...]], np.ndarray] = {}
 
     def initialize(self) -> None:
         # Clear all cache owners first since only is tracking frames at once
@@ -562,7 +566,7 @@ class _BatchedMultiFrameXYZQuat(AbstractQuantity[Dict[str, np.ndarray]]):
             key: self._xyzquat_batch[:, frame_slice]
             for key, frame_slice in frame_slices.items()}
 
-    def refresh(self) -> Dict[str, np.ndarray]:
+    def refresh(self) -> Dict[Union[str, Tuple[str, ...]], np.ndarray]:
         # Copy all translations in contiguous buffer
         multi_array_copyto(self._translation_slices, self._translation_list)
 
@@ -617,7 +621,8 @@ class FrameXYZQuat(InterfaceQuantity[np.ndarray]):
         super().__init__(
             env,
             parent,
-            requirements=dict(data=(_BatchedMultiFrameXYZQuat, dict(mode=mode))),
+            requirements=dict(
+                data=(_BatchedMultiFrameXYZQuat, dict(mode=mode))),
             auto_refresh=False)
 
     def initialize(self) -> None:
@@ -642,7 +647,7 @@ class MultiFrameXYZQuat(InterfaceQuantity[np.ndarray]):
     the agent step.
     """
 
-    frame_names: str
+    frame_names: Tuple[str, ...]
     """Name of the frames on which to operate.
     """
 
@@ -676,7 +681,8 @@ class MultiFrameXYZQuat(InterfaceQuantity[np.ndarray]):
         super().__init__(
             env,
             parent,
-            requirements=dict(data=(_BatchedMultiFrameXYZQuat, dict(mode=mode))),
+            requirements=dict(
+                data=(_BatchedMultiFrameXYZQuat, dict(mode=mode))),
             auto_refresh=False)
 
     def initialize(self) -> None:
@@ -692,6 +698,74 @@ class MultiFrameXYZQuat(InterfaceQuantity[np.ndarray]):
 
     def refresh(self) -> np.ndarray:
         return self.data[self.frame_names]
+
+
+@dataclass(unsafe_hash=True)
+class MultiFrameMeanQuat(InterfaceQuantity[np.ndarray]):
+    """Compute the average quaternion vector (X, Y, Z, W) of a given set of
+    frame in world reference frame at the end of the agent step.
+    """
+
+    frame_names: Tuple[str, ...]
+    """Name of the frames on which to operate.
+    """
+
+    mode: QuantityEvalMode
+    """Specify on which state to evaluate this quantity. See `Mode`
+    documentation for details about each mode.
+
+    .. warning::
+        Mode `REFERENCE` requires a reference trajectory to be selected
+        manually prior to evaluating this quantity for the first time.
+    """
+
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 parent: Optional[InterfaceQuantity],
+                 frame_names: Sequence[str],
+                 *,
+                 mode: QuantityEvalMode = QuantityEvalMode.TRUE) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param parent: Higher-level quantity from which this quantity is a
+                       requirement if any, `None` otherwise.
+        :param frame_name: Name of the frames on which to operate.
+        :param mode: Desired mode of evaluation for this quantity.
+        """
+        # Backup some user argument(s)
+        self.frame_names = tuple(frame_names)
+        self.mode = mode
+
+        # Call base implementation
+        super().__init__(
+            env,
+            parent,
+            requirements=dict(data=(MaskedQuantity, dict(
+                quantity=(MultiFrameXYZQuat, dict(
+                    frame_names=frame_names,
+                    mode=mode)),
+                axis=0,
+                key=(3, 4, 5, 6)))),
+            auto_refresh=False)
+
+        # Define jit-able specialization of `quat_average` for 2D matrices
+        @nb.jit(nopython=True, cache=True, fastmath=True)
+        def quat_average_2d(quat: np.ndarray) -> np.ndarray:
+            """Compute the average of a batch of quaternions [qx, qy, qz, qw].
+
+            .. note::
+                Jit-able specialization of `quat_average` for 2D matrices.
+
+            :param quat: N-dimensional (N >= 2) array whose first dimension
+                         gathers the 4 quaternion coordinates [qx, qy, qz, qw].
+            """
+            _, eigvec = np.linalg.eigh(quat @ quat.T)
+            return eigvec[..., -1]
+
+        self._quat_average = quat_average_2d
+
+    def refresh(self) -> np.ndarray:
+        return self._quat_average(self.data)
 
 
 @dataclass(unsafe_hash=True)

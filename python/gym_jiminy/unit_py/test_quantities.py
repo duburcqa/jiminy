@@ -10,12 +10,14 @@ from jiminy_py.dynamics import update_quantities
 from jiminy_py.log import extract_trajectory_from_log
 import pinocchio as pin
 
+from gym_jiminy.common.utils import quat_average
 from gym_jiminy.common.bases import QuantityEvalMode, DatasetTrajectoryQuantity
 from gym_jiminy.common.quantities import (
     QuantityManager,
     FrameEulerAngles,
     MultiFrameEulerAngles,
     FrameXYZQuat,
+    MultiFrameMeanQuat,
     MaskedQuantity,
     AverageFrameSpatialVelocity,
     AverageOdometryVelocity,
@@ -350,3 +352,27 @@ class Quantities(unittest.TestCase):
         np.testing.assert_allclose(
             env.quantities["dcm"],
             com_position[:2] + com_velocity[:2] / omega)
+
+    def test_mean_quat(self):
+        """ TODO: Write documentation
+        """
+        env = gym.make("gym_jiminy.envs:atlas")
+
+        frame_names = [
+            frame.name for frame in env.robot.pinocchio_model.frames]
+
+        env.quantities["mean_quat"] = (
+            MultiFrameMeanQuat, dict(
+                frame_names=frame_names[:5],
+                mode=QuantityEvalMode.TRUE))
+
+        env.reset(seed=0)
+        env.step(env.action_space.sample())
+
+        value = quat_average(np.stack([
+            pin.Quaternion(oMf.rotation).coeffs()
+            for oMf in env.robot.pinocchio_data.oMf][:5], axis=-1))
+        if value[-1] < 0.0:
+            value *= -1
+
+        np.testing.assert_allclose(env.quantities["mean_quat"], value)

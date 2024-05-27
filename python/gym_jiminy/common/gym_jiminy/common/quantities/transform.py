@@ -181,7 +181,7 @@ class MaskedQuantity(InterfaceQuantity[np.ndarray]):
             slice_ = slice(self.indices[0], self.indices[-1] + 1, stride)
             if axis is None:
                 self._slices = (slice_,)
-            elif axis > 0:
+            elif axis >= 0:
                 self._slices = (*((slice(None),) * axis), slice_)
             else:
                 self._slices = (

@@ -19,7 +19,7 @@ from ..quantities import MaskedQuantity, AverageFrameSpatialVelocity
 
 @dataclass(unsafe_hash=True)
 class OdometryPose(AbstractQuantity[np.ndarray]):
-    """Odometry pose agent step.
+    """Odometry pose at the end of the agent step.
 
     The odometry pose fully specifies the position and orientation of the robot
     in 2D world plane. As such, it comprises the linear translation (X, Y) and

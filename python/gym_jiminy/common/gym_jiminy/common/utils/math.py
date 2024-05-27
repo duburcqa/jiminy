@@ -491,7 +491,7 @@ def remove_twist_from_quat(q: np.ndarray) -> None:
 
 
 def quat_average(quat: np.ndarray,
-                 axis: Optional[Union[Tuple[int, ...], int]] = None
+                 axes: Optional[Union[Tuple[int, ...], int]] = None
                  ) -> np.ndarray:
     """Compute the average of a batch of quaternions [qx, qy, qz, qw] over some
     or all axes.
@@ -505,21 +505,20 @@ def quat_average(quat: np.ndarray,
 
     :param quat: N-dimensional (N >= 2) array whose first dimension gathers the
                  4 quaternion coordinates [qx, qy, qz, qw].
-    :param out: A pre-allocated array into which the result is stored. If not
-                provided, a new array is freshly-allocated, which is slower.
+    :param axes: Batch dimensions to preserve without computing the average.
     """
     # TODO: This function cannot be jitted because numba does not support
     # batched matrix multiplication for now. See official issue for details:
     # https://github.com/numba/numba/issues/3804
     assert quat.ndim >= 2
-    if axis is None:
-        axis = tuple(range(1, quat.ndim))
-    if isinstance(axis, int):
-        axis = (axis,)
-    assert len(axis) > 0 and 0 not in axis
+    if axes is None:
+        axes = tuple(range(1, quat.ndim))
+    elif isinstance(axes, int):
+        axes = (axes,)
+    assert len(axes) > 0 and 0 not in axes
     q_perm = quat.transpose((
-        *(i for i in range(1, quat.ndim) if i not in axis), 0, *axis))
-    q_flat = q_perm.reshape((*q_perm.shape[:-len(axis)], -1))
+        *(i for i in range(1, quat.ndim) if i not in axes), 0, *axes))
+    q_flat = q_perm.reshape((*q_perm.shape[:-len(axes)], -1))
     _, eigvec = np.linalg.eigh(q_flat @ np.swapaxes(q_flat, -1, -2))
     return np.moveaxis(eigvec[..., -1], -1, 0)
 
