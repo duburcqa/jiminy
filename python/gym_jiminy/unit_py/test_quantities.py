@@ -14,6 +14,7 @@ from gym_jiminy.common.bases import QuantityEvalMode, DatasetTrajectoryQuantity
 from gym_jiminy.common.quantities import (
     QuantityManager,
     FrameEulerAngles,
+    MultiFrameEulerAngles,
     FrameXYZQuat,
     MaskedQuantity,
     AverageFrameSpatialVelocity,
@@ -73,26 +74,46 @@ class Quantities(unittest.TestCase):
         env.reset(seed=0)
         env.step(env.action_space.sample())
 
+        frame_names = [
+            frame.name for frame in env.robot.pinocchio_model.frames]
+
         quantity_manager = QuantityManager(env)
         for name, cls, kwargs in (
                 ("xyzquat_0", FrameXYZQuat, dict(
-                    frame_name=env.robot.pinocchio_model.frames[2].name)),
+                    frame_name=frame_names[2])),
                 ("rpy_0", FrameEulerAngles, dict(
-                    frame_name=env.robot.pinocchio_model.frames[1].name)),
+                    frame_name=frame_names[1])),
                 ("rpy_1", FrameEulerAngles, dict(
-                    frame_name=env.robot.pinocchio_model.frames[1].name)),
+                    frame_name=frame_names[1])),
                 ("rpy_2", FrameEulerAngles, dict(
-                    frame_name=env.robot.pinocchio_model.frames[-1].name))):
+                    frame_name=frame_names[-1])),
+                ("rpy_batch_0", MultiFrameEulerAngles, dict(  # Intersection
+                    frame_names=(frame_names[-3], frame_names[1]))),
+                ("rpy_batch_1", MultiFrameEulerAngles, dict(  # Inclusion
+                    frame_names=(frame_names[1], frame_names[-1]))),
+                ("rpy_batch_2", MultiFrameEulerAngles, dict(  # Disjoint
+                    frame_names=(frame_names[1], frame_names[-4])))):
             quantity_manager[name] = (cls, kwargs)
         quantities = quantity_manager.registry
 
-        xyzquat_0 =  quantity_manager.xyzquat_0.copy()
+        xyzquat_0 = quantity_manager.xyzquat_0.copy()
         rpy_0 = quantity_manager.rpy_0.copy()
         assert len(quantities['rpy_0'].requirements['data'].frame_names) == 1
         assert np.all(rpy_0 == quantity_manager.rpy_1)
         rpy_2 = quantity_manager.rpy_2.copy()
         assert np.any(rpy_0 != rpy_2)
         assert len(quantities['rpy_2'].requirements['data'].frame_names) == 2
+        quantity_manager.rpy_batch_0
+        assert len(quantities['rpy_batch_0'].requirements['data'].
+                   frame_names) == 3
+        quantity_manager.rpy_batch_1
+        assert len(quantities['rpy_batch_1'].requirements['data'].
+                   frame_names) == 3
+        quantity_manager.rpy_batch_2
+        assert len(quantities['rpy_batch_2'].requirements['data'].
+                   frame_names) == 5
+        assert len(quantities['rpy_batch_2'].requirements['data'].
+                   requirements['rot_mat_batch'].frame_names) == 6
 
         env.step(env.action_space.sample())
         quantity_manager.reset()
@@ -102,9 +123,9 @@ class Quantities(unittest.TestCase):
         assert np.any(xyzquat_0 != xyzquat_0_next)
         assert len(quantities['rpy_2'].requirements['data'].frame_names) == 2
 
-        assert len(quantities['rpy_1'].requirements['data'].cache.owners) == 3
+        assert len(quantities['rpy_1'].requirements['data'].cache.owners) == 6
         del quantity_manager['rpy_2']
-        assert len(quantities['rpy_1'].requirements['data'].cache.owners) == 2
+        assert len(quantities['rpy_1'].requirements['data'].cache.owners) == 5
         quantity_manager.rpy_1
         assert len(quantities['rpy_1'].requirements['data'].frame_names) == 1
 
