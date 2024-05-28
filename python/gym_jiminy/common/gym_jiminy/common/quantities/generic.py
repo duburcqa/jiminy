@@ -6,9 +6,10 @@ import warnings
 from functools import partial
 from dataclasses import dataclass
 from typing import (
-    List, Dict, Set, Optional, Protocol, Sequence, runtime_checkable)
+    List, Dict, Optional, Protocol, Sequence, Tuple, Union, runtime_checkable)
 
 import numpy as np
+import numba as nb
 
 import jiminy_py.core as jiminy
 from jiminy_py.core import (  # pylint: disable=no-name-in-module
@@ -47,11 +48,122 @@ class MultiFrameQuantity(Protocol):
     This protocol is involved in automatic computation vectorization. See
     `FrameQuantity` documentation for details.
     """
-    frame_names: Sequence[str]
+    frame_names: Tuple[str, ...]
+
+
+def aggregate_frame_names(quantity: InterfaceQuantity) -> Tuple[
+        Tuple[str, ...],
+        Dict[Union[str, Tuple[str, ...]], Union[int, Tuple[()], slice]]]:
+    """Generate a sequence of frame names that contains all the sub-sequences
+    specified by the parents of all the cache owners of a given quantity.
+
+    Ideally, the generated sequence should be the shortest possible. Since
+    finding the optimal sequence is a complex problem, a heuristic is used
+    instead. It consists in aggregating first all multi-frame quantities
+    sequentially after ordering them by decreasing length, followed by all
+    single-frame quantities.
+
+    .. note::
+        Only active quantities are considered for best performance, which may
+        change dynamically. Delegating this responsibility to cache owners may
+        be possible but difficult to implement because `frame_names` must be
+        cleared first before re-registering themselves, just in case of optimal
+        computation graph has changed, not only once to avoid getting rid of
+        quantities that just registered themselves. Nevertheless, whenever
+        re-initializing this quantity to take into account changes of the
+        active set must be decided by cache owners.
+
+    :param quantity: Quantity whose parent implements either `FrameQuantity` or
+                     `MultiFrameQuantity` protocol. All the parents of all its
+                     cache owners must also implement one of these protocol.
+    """
+    # Make sure that parent quantity implement multi- or single-frame protocol
+    assert isinstance(quantity.parent, (FrameQuantity, MultiFrameQuantity))
+    quantities = (quantity.cache.owners if quantity.has_cache else (quantity,))
+
+    # First, order all multi-frame quantities by decreasing length
+    frame_names_chunks: List[Tuple[str, ...]] = []
+    for owner in quantities:
+        if owner.parent.is_active(any_cache_owner=False):
+            if isinstance(owner.parent, MultiFrameQuantity):
+                frame_names_chunks.append(owner.parent.frame_names)
+
+    # Next, process ordered multi-frame quantities sequentially.
+    # For each of them, we first check if its set of frames is completely
+    # included in the current full set. If so, then there is nothing do not and
+    # we can move to the next quantity. If not, then we check if a part of its
+    # tail or head is contained at the beginning or end of the full set
+    # respectively. If so, only the missing part is prepended or appended
+    # respectively. If not, then the while set of frames is appended to the
+    # current full set before moving to the next quantity.
+    frame_names: List[str] = []
+    frame_names_chunks = sorted(frame_names_chunks, key=len)[::-1]
+    for frame_names_ in map(list, frame_names_chunks):
+        nframes, nframes_ = map(len, (frame_names, frame_names_))
+        for i in range(nframes - nframes_ + 1):
+            # Check if the sub-chain is completely included in the
+            # current full set.
+            if frame_names_ == frame_names[i:(i + nframes_)]:
+                break
+        else:
+            for i in range(1, nframes_ + 1):
+                # Check if part of the frame names matches with the
+                # tail of the current full set. If so, append the
+                # disjoint head only.
+                if (frame_names[(nframes - nframes_ + i):] ==
+                        frame_names_[:(nframes_ - i)]):
+                    frame_names += frame_names_[(nframes_ - i):]
+                    break
+                # Check if part of the frame names matches with the
+                # head of the current full set. If so, prepend the
+                # disjoint tail only.
+                if frame_names[:(nframes_ - i)] == frame_names_[i:]:
+                    frame_names = frame_names_[:i] + frame_names
+                    break
+
+    # Finally, loop over all single-frame quantities.
+    # If a frame name is missing, then it is appended to the current full set.
+    # Otherwise, we just move to the next quantity.
+    frame_name_chunks: List[str] = []
+    for owner in quantities:
+        if owner.parent.is_active(any_cache_owner=False):
+            if isinstance(owner.parent, FrameQuantity):
+                frame_name_chunks.append(owner.parent.frame_name)
+                frame_name = frame_name_chunks[-1]
+                if frame_name not in frame_names:
+                    frame_names.append(frame_name)
+    frame_names = tuple(frame_names)
+
+    # Compute mapping from frame names to their corresponding indices in the
+    # generated sequence of frame names.
+    # The indices are stored as a slice for non-empty multi-frame quantities,
+    # as an empty tuple for empty multi-frame quantities, or as an integer for
+    # single-frame quantities.
+    frame_slices: Dict[
+        Union[str, Tuple[str, ...]], Union[int, Tuple[()], slice]] = {}
+    nframes = len(frame_names)
+    for frame_names_ in frame_names_chunks:
+        if frame_names_ in frame_slices:
+            continue
+        if not frame_names_:
+            frame_slices[frame_names_] = ()
+            continue
+        nframes_ = len(frame_names_)
+        for i in range(nframes - nframes_ + 1):
+            if frame_names_ == frame_names[i:(i + nframes_)]:
+                break
+        frame_slices[frame_names_] = slice(i, i + nframes_)
+    for frame_name in frame_name_chunks:
+        if frame_name in frame_slices:
+            continue
+        frame_slices[frame_name] = frame_names.index(frame_name)
+
+    return frame_names, frame_slices
 
 
 @dataclass(unsafe_hash=True)
-class _MultiFramesRotationMatrix(AbstractQuantity[np.ndarray]):
+class _BatchedMultiFrameRotationMatrix(
+        AbstractQuantity[Dict[Union[str, Tuple[str, ...]], np.ndarray]]):
     """3D rotation matrix of the orientation of all frames involved in
     quantities relying on it and are active since last reset of computation
     tracking if shared cache is available, its parent otherwise.
@@ -71,15 +183,6 @@ class _MultiFramesRotationMatrix(AbstractQuantity[np.ndarray]):
         no way to get the orientation of multiple frames at once for now.
     """
 
-    identifier: int
-    """Uniquely identify its parent type.
-
-    This implies that quantities specifying `_MultiFramesRotationMatrix` as a
-    requirement will shared a unique batch with all the other ones having the
-    same type but not the others. This is essential to provide data access as a
-    batched ND contiguous array.
-    """
-
     def __init__(self,
                  env: InterfaceJiminyEnv,
                  parent: InterfaceQuantity,
@@ -93,15 +196,12 @@ class _MultiFramesRotationMatrix(AbstractQuantity[np.ndarray]):
         # Make sure that a parent has been specified
         assert isinstance(parent, (FrameQuantity, MultiFrameQuantity))
 
-        # Set unique identifier based on parent type
-        self.identifier = hash(type(parent))
-
         # Call base implementation
         super().__init__(
             env, parent, requirements={}, mode=mode, auto_refresh=False)
 
         # Initialize the ordered list of frame names
-        self.frame_names: Set[str] = set()
+        self.frame_names: Tuple[str, ...] = ()
 
         # Store all rotation matrices at once
         self._rot_mat_batch: np.ndarray = np.array([])
@@ -112,38 +212,19 @@ class _MultiFramesRotationMatrix(AbstractQuantity[np.ndarray]):
         # Define proxy for the rotation matrices of all frames
         self._rot_mat_list: List[np.ndarray] = []
 
+        # Mapping from frame names to slices of batched rotation matrices
+        self._rot_mat_map: Dict[Union[str, Tuple[str, ...]], np.ndarray] = {}
+
     def initialize(self) -> None:
+        # Clear all cache owners first since only is tracking frames at once
+        for quantity in (self.cache.owners if self.has_cache else (self,)):
+            quantity.reset(reset_tracking=True)
+
         # Call base implementation
         super().initialize()
 
-        # Update the frame names based on the cache owners of this quantity.
-        # Note that only active quantities are considered for efficiency, which
-        # may change dynamically. Delegating this responsibility to cache
-        # owners may be possible but difficult to implement because
-        # `frame_names` must be cleared first before re-registering themselves,
-        # just in case of optimal computation graph has changed, not only once
-        # to avoid getting rid of quantities that just registered themselves.
-        # Nevertheless, whenever re-initializing this quantity to take into
-        # account changes of the active set must be decided by cache owners.
-        assert isinstance(self.parent, (FrameQuantity, MultiFrameQuantity))
-        if isinstance(self.parent, FrameQuantity):
-            self.frame_names = {self.parent.frame_name}
-        else:
-            self.frame_names = set(self.parent.frame_names)
-        if self.has_cache:
-            for owner in self.cache.owners:
-                # We only consider active `_MultiFramesEulerAngles` instances
-                # instead of their parents. This is necessary because a derived
-                # quantity may feature `_MultiFramesEulerAngles` as requirement
-                # without actually relying on it depending on whether it is
-                # part of the optimal computation path at that time.
-                if owner.is_active(any_cache_owner=False):
-                    assert isinstance(
-                        owner.parent, (FrameQuantity, MultiFrameQuantity))
-                    if isinstance(owner.parent, FrameQuantity):
-                        self.frame_names.add(owner.parent.frame_name)
-                    else:
-                        self.frame_names.union(owner.parent.frame_names)
+        # Update the frame names based on the cache owners of this quantity
+        self.frame_names, frame_slices = aggregate_frame_names(self)
 
         # Re-allocate memory as the number of frames is not known in advance.
         # Note that Fortran memory layout (column-major) is used for speed up
@@ -160,22 +241,28 @@ class _MultiFramesRotationMatrix(AbstractQuantity[np.ndarray]):
             self._rot_mat_slices.append(self._rot_mat_batch[..., i])
             self._rot_mat_list.append(rot_matrix)
 
-    def refresh(self) -> np.ndarray:
+        # Re-assign mapping from frame names to their corresponding data
+        self._rot_mat_map = {
+            key: self._rot_mat_batch[:, :, frame_slice]
+            for key, frame_slice in frame_slices.items()}
+
+    def refresh(self) -> Dict[Union[str, Tuple[str, ...]], np.ndarray]:
         # Copy all rotation matrices in contiguous buffer
         multi_array_copyto(self._rot_mat_slices, self._rot_mat_list)
 
         # Return proxy directly without copy
-        return self._rot_mat_batch
+        return self._rot_mat_map
 
 
 @dataclass(unsafe_hash=True)
-class _MultiFramesEulerAngles(InterfaceQuantity[Dict[str, np.ndarray]]):
+class _BatchedMultiFrameEulerAngles(
+        InterfaceQuantity[Dict[Union[str, Tuple[str, ...]], np.ndarray]]):
     """Euler angles (Roll-Pitch-Yaw) of the orientation of all frames involved
     in quantities relying on it and are active since last reset of computation
     tracking if shared cache is available, its parent otherwise.
 
     It is not supposed to be instantiated manually but use internally by
-    `FrameEulerAngles`. See `_MultiFramesRotationMatrix` documentation.
+    `FrameEulerAngles`. See `_BatchedMultiFrameRotationMatrix` documentation.
 
     The orientation of all frames is exposed to the user as a dictionary whose
     keys are the individual frame names. Internally, data are stored in batched
@@ -199,7 +286,7 @@ class _MultiFramesEulerAngles(InterfaceQuantity[Dict[str, np.ndarray]]):
 
     def __init__(self,
                  env: InterfaceJiminyEnv,
-                 parent: "FrameEulerAngles",
+                 parent: Union["FrameEulerAngles", "MultiFrameEulerAngles"],
                  mode: QuantityEvalMode) -> None:
         """
         :param env: Base or wrapped jiminy environment.
@@ -208,7 +295,7 @@ class _MultiFramesEulerAngles(InterfaceQuantity[Dict[str, np.ndarray]]):
         :param mode: Desired mode of evaluation for this quantity.
         """
         # Make sure that a suitable parent has been provided
-        assert isinstance(parent, FrameEulerAngles)
+        assert isinstance(parent, (FrameEulerAngles, MultiFrameEulerAngles))
 
         # Backup some user argument(s)
         self.mode = mode
@@ -216,14 +303,14 @@ class _MultiFramesEulerAngles(InterfaceQuantity[Dict[str, np.ndarray]]):
         # Initialize the ordered list of frame names.
         # Note that this must be done BEFORE calling base `__init__`, otherwise
         # `isinstance(..., (FrameQuantity, MultiFrameQuantity))` will fail.
-        self.frame_names: Set[str] = set()
+        self.frame_names: Tuple[str, ...] = ()
 
         # Call base implementation
         super().__init__(
             env,
             parent,
             requirements=dict(
-                rot_mat_batch=(_MultiFramesRotationMatrix, dict(
+                rot_mat_batch=(_BatchedMultiFrameRotationMatrix, dict(
                     mode=mode))),
             auto_refresh=False)
 
@@ -231,31 +318,34 @@ class _MultiFramesEulerAngles(InterfaceQuantity[Dict[str, np.ndarray]]):
         self._rpy_batch: np.ndarray = np.array([])
 
         # Mapping from frame name to individual Roll-Pitch-Yaw slices
-        self._rpy_map: Dict[str, np.ndarray] = {}
+        self._rpy_map: Dict[Union[str, Tuple[str, ...]], np.ndarray] = {}
 
     def initialize(self) -> None:
+        # Clear all cache owners first since only is tracking frames at once
+        for quantity in (self.cache.owners if self.has_cache else (self,)):
+            quantity.reset(reset_tracking=True)
+
         # Call base implementation
         super().initialize()
 
         # Update the frame names based on the cache owners of this quantity
-        assert isinstance(self.parent, FrameEulerAngles)
-        self.frame_names = {self.parent.frame_name}
-        if self.has_cache:
-            for owner in self.cache.owners:
-                if owner.is_active(any_cache_owner=False):
-                    assert isinstance(owner.parent, FrameEulerAngles)
-                    self.frame_names.add(owner.parent.frame_name)
+        self.frame_names, frame_slices = aggregate_frame_names(self)
 
         # Re-allocate memory as the number of frames is not known in advance
         nframes = len(self.frame_names)
         self._rpy_batch = np.zeros((3, nframes), order='F')
 
         # Re-assign mapping from frame name to their corresponding data
-        self._rpy_map = dict(zip(self.frame_names, self._rpy_batch.T))
+        self._rpy_map = {
+            key: self._rpy_batch[:, frame_slice]
+            for key, frame_slice in frame_slices.items()}
 
-    def refresh(self) -> Dict[str, np.ndarray]:
+    def refresh(self) -> Dict[Union[str, Tuple[str, ...]], np.ndarray]:
+        # Get batch of rotation matrices
+        rot_mat_batch = self.rot_mat_batch[self.frame_names]
+
         # Convert all rotation matrices at once to Roll-Pitch-Yaw
-        matrix_to_rpy(self.rot_mat_batch, self._rpy_batch)
+        matrix_to_rpy(rot_mat_batch, self._rpy_batch)
 
         # Return proxy directly without copy
         return self._rpy_map
@@ -301,7 +391,71 @@ class FrameEulerAngles(InterfaceQuantity[np.ndarray]):
         super().__init__(
             env,
             parent,
-            requirements=dict(data=(_MultiFramesEulerAngles, dict(mode=mode))),
+            requirements=dict(
+                data=(_BatchedMultiFrameEulerAngles, dict(mode=mode))),
+            auto_refresh=False)
+
+    def initialize(self) -> None:
+        # Check if the quantity is already active
+        was_active = self._is_active
+
+        # Call base implementation.
+        # The quantity is now considered active at this point.
+        super().initialize()
+
+        # Force re-initializing shared data if the active set has changed
+        if not was_active:
+            # Must reset the tracking for shared computation systematically,
+            # just in case the optimal computation path has changed to the
+            # point that relying on batched quantity is no longer relevant.
+            self.requirements["data"].reset(reset_tracking=True)
+
+    def refresh(self) -> np.ndarray:
+        return self.data[self.frame_name]
+
+
+@dataclass(unsafe_hash=True)
+class MultiFrameEulerAngles(InterfaceQuantity[np.ndarray]):
+    """Euler angles (Roll-Pitch-Yaw) of the orientation of a given set of
+    frames in world reference frame at the end of the agent step.
+    """
+
+    frame_names: Tuple[str, ...]
+    """Name of the frames on which to operate.
+    """
+
+    mode: QuantityEvalMode
+    """Specify on which state to evaluate this quantity. See `Mode`
+    documentation for details about each mode.
+
+    .. warning::
+        Mode `REFERENCE` requires a reference trajectory to be selected
+        manually prior to evaluating this quantity for the first time.
+    """
+
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 parent: Optional[InterfaceQuantity],
+                 frame_names: Sequence[str],
+                 *,
+                 mode: QuantityEvalMode = QuantityEvalMode.TRUE) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param parent: Higher-level quantity from which this quantity is a
+                       requirement if any, `None` otherwise.
+        :param frame_names: Name of the frames on which to operate.
+        :param mode: Desired mode of evaluation for this quantity.
+        """
+        # Backup some user argument(s)
+        self.frame_names = tuple(frame_names)
+        self.mode = mode
+
+        # Call base implementation
+        super().__init__(
+            env,
+            parent,
+            requirements=dict(
+                data=(_BatchedMultiFrameEulerAngles, dict(mode=mode))),
             auto_refresh=False)
 
     def initialize(self) -> None:
@@ -321,31 +475,33 @@ class FrameEulerAngles(InterfaceQuantity[np.ndarray]):
 
     def refresh(self) -> np.ndarray:
         # Return a slice of batched data.
-        # Note that mapping from frame name to frame index in batched data
+        # Note that mapping from frame names to frame index in batched data
         # cannot be pre-computed as it may changed dynamically.
-        return self.data[self.frame_name]
+        return self.data[self.frame_names]
 
 
 @dataclass(unsafe_hash=True)
-class _MultiFramesXYZQuat(AbstractQuantity[Dict[str, np.ndarray]]):
+class _BatchedMultiFrameXYZQuat(
+        AbstractQuantity[Dict[Union[str, Tuple[str, ...]], np.ndarray]]):
     """Vector representation (X, Y, Z, QuatX, QuatY, QuatZ, QuatW) of the
     transform of all frames involved in quantities relying on it and are active
     since last reset of computation tracking if shared cache is available, its
     parent otherwise.
 
     It is not supposed to be instantiated manually but use internally by
-    `FrameXYZQuat`. See `_MultiFramesRotationMatrix` documentation.
+    `FrameXYZQuat`. See `_BatchedMultiFrameRotationMatrix` documentation.
 
     The transform of all frames is exposed to the user as a dictionary whose
-    keys are the individual frame names. Internally, data are stored in batched
-    2D contiguous array for efficiency. The first dimension gathers the 6
-    components (X, Y, Z, QuatX, QuatY, QuatZ, QuatW), while the second one are
-    individual frames with the same ordering as 'self.frame_names'.
+    keys are the individual frame names and/or set of frame names as a tuple.
+    Internally, data are stored in batched 2D contiguous array for efficiency.
+    The first dimension gathers the 6 components (X, Y, Z, QuatX, QuatY, QuatZ,
+    QuatW), while the second one are individual frames with the same ordering
+    as 'self.frame_names'.
     """
 
     def __init__(self,
                  env: InterfaceJiminyEnv,
-                 parent: "FrameXYZQuat",
+                 parent: Union["FrameXYZQuat", "MultiFrameXYZQuat"],
                  mode: QuantityEvalMode) -> None:
         """
         :param env: Base or wrapped jiminy environment.
@@ -354,17 +510,17 @@ class _MultiFramesXYZQuat(AbstractQuantity[Dict[str, np.ndarray]]):
         :param mode: Desired mode of evaluation for this quantity.
         """
         # Make sure that a suitable parent has been provided
-        assert isinstance(parent, FrameXYZQuat)
+        assert isinstance(parent, (FrameXYZQuat, MultiFrameXYZQuat))
 
         # Initialize the ordered list of frame names
-        self.frame_names: Set[str] = set()
+        self.frame_names: Tuple[str, ...] = ()
 
         # Call base implementation
         super().__init__(
             env,
             parent,
             requirements=dict(
-                rot_mat_batch=(_MultiFramesRotationMatrix, dict(
+                rot_mat_batch=(_BatchedMultiFrameRotationMatrix, dict(
                     mode=mode))),
             mode=mode,
             auto_refresh=False)
@@ -379,20 +535,18 @@ class _MultiFramesXYZQuat(AbstractQuantity[Dict[str, np.ndarray]]):
         self._xyzquat_batch: np.ndarray = np.array([])
 
         # Mapping from frame name to individual XYZQuat slices
-        self._xyzquat_map: Dict[str, np.ndarray] = {}
+        self._xyzquat_map: Dict[Union[str, Tuple[str, ...]], np.ndarray] = {}
 
     def initialize(self) -> None:
+        # Clear all cache owners first since only is tracking frames at once
+        for quantity in (self.cache.owners if self.has_cache else (self,)):
+            quantity.reset(reset_tracking=True)
+
         # Call base implementation
         super().initialize()
 
         # Update the frame names based on the cache owners of this quantity
-        assert isinstance(self.parent, FrameXYZQuat)
-        self.frame_names = {self.parent.frame_name}
-        if self.has_cache:
-            for owner in self.cache.owners:
-                if owner.is_active(any_cache_owner=False):
-                    assert isinstance(owner.parent, FrameXYZQuat)
-                    self.frame_names.add(owner.parent.frame_name)
+        self.frame_names, frame_slices = aggregate_frame_names(self)
 
         # Re-allocate memory as the number of frames is not known in advance
         nframes = len(self.frame_names)
@@ -407,15 +561,20 @@ class _MultiFramesXYZQuat(AbstractQuantity[Dict[str, np.ndarray]]):
             self._translation_slices.append(self._xyzquat_batch[:3, i])
             self._translation_list.append(translation)
 
-        # Re-assign mapping from frame name to their corresponding data
-        self._xyzquat_map = dict(zip(self.frame_names, self._xyzquat_batch.T))
+        # Re-assign mapping from frame names to their corresponding data
+        self._xyzquat_map = {
+            key: self._xyzquat_batch[:, frame_slice]
+            for key, frame_slice in frame_slices.items()}
 
-    def refresh(self) -> Dict[str, np.ndarray]:
+    def refresh(self) -> Dict[Union[str, Tuple[str, ...]], np.ndarray]:
         # Copy all translations in contiguous buffer
         multi_array_copyto(self._translation_slices, self._translation_list)
 
+        # Get batch of rotation matrices
+        rot_mat_batch = self.rot_mat_batch[self.frame_names]
+
         # Convert all rotation matrices at once to XYZQuat representation
-        matrix_to_quat(self.rot_mat_batch, self._xyzquat_batch[-4:])
+        matrix_to_quat(rot_mat_batch, self._xyzquat_batch[-4:])
 
         # Return proxy directly without copy
         return self._xyzquat_map
@@ -462,7 +621,8 @@ class FrameXYZQuat(InterfaceQuantity[np.ndarray]):
         super().__init__(
             env,
             parent,
-            requirements=dict(data=(_MultiFramesXYZQuat, dict(mode=mode))),
+            requirements=dict(
+                data=(_BatchedMultiFrameXYZQuat, dict(mode=mode))),
             auto_refresh=False)
 
     def initialize(self) -> None:
@@ -477,8 +637,161 @@ class FrameXYZQuat(InterfaceQuantity[np.ndarray]):
             self.requirements["data"].reset(reset_tracking=True)
 
     def refresh(self) -> np.ndarray:
-        # Return a slice of batched data
         return self.data[self.frame_name]
+
+
+@dataclass(unsafe_hash=True)
+class MultiFrameXYZQuat(InterfaceQuantity[np.ndarray]):
+    """Vector representation (X, Y, Z, QuatX, QuatY, QuatZ, QuatW) of the
+    transform of a given set of frames in world reference frame at the end of
+    the agent step.
+    """
+
+    frame_names: Tuple[str, ...]
+    """Name of the frames on which to operate.
+    """
+
+    mode: QuantityEvalMode
+    """Specify on which state to evaluate this quantity. See `Mode`
+    documentation for details about each mode.
+
+    .. warning::
+        Mode `REFERENCE` requires a reference trajectory to be selected
+        manually prior to evaluating this quantity for the first time.
+    """
+
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 parent: Optional[InterfaceQuantity],
+                 frame_names: Sequence[str],
+                 *,
+                 mode: QuantityEvalMode = QuantityEvalMode.TRUE) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param parent: Higher-level quantity from which this quantity is a
+                       requirement if any, `None` otherwise.
+        :param frame_name: Name of the frames on which to operate.
+        :param mode: Desired mode of evaluation for this quantity.
+        """
+        # Backup some user argument(s)
+        self.frame_names = tuple(frame_names)
+        self.mode = mode
+
+        # Call base implementation
+        super().__init__(
+            env,
+            parent,
+            requirements=dict(
+                data=(_BatchedMultiFrameXYZQuat, dict(mode=mode))),
+            auto_refresh=False)
+
+    def initialize(self) -> None:
+        # Check if the quantity is already active
+        was_active = self._is_active
+
+        # Call base implementation
+        super().initialize()
+
+        # Force re-initializing shared data if the active set has changed
+        if not was_active:
+            self.requirements["data"].reset(reset_tracking=True)
+
+    def refresh(self) -> np.ndarray:
+        return self.data[self.frame_names]
+
+
+@dataclass(unsafe_hash=True)
+class MultiFrameMeanXYZQuat(InterfaceQuantity[np.ndarray]):
+    """Vector representation (X, Y, Z, QuatX, QuatY, QuatZ, QuatW) of the
+    average transform of a given set of frames in world reference frame at the
+    end of the agent step.
+
+    The average position (X, Y, Z) and orientation as a quaternion vector
+    (QuatX, QuatY, QuatZ, QuatW) are computed separately. The average is
+    defined as the value minimizing the mean error wrt every individual
+    elements, considering some distance metric. See `quaternion_average` for
+    details about the distance metric being used.
+    """
+
+    frame_names: Tuple[str, ...]
+    """Name of the frames on which to operate.
+    """
+
+    mode: QuantityEvalMode
+    """Specify on which state to evaluate this quantity. See `Mode`
+    documentation for details about each mode.
+
+    .. warning::
+        Mode `REFERENCE` requires a reference trajectory to be selected
+        manually prior to evaluating this quantity for the first time.
+    """
+
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 parent: Optional[InterfaceQuantity],
+                 frame_names: Sequence[str],
+                 *,
+                 mode: QuantityEvalMode = QuantityEvalMode.TRUE) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param parent: Higher-level quantity from which this quantity is a
+                       requirement if any, `None` otherwise.
+        :param frame_name: Name of the frames on which to operate.
+        :param mode: Desired mode of evaluation for this quantity.
+        """
+        # Backup some user argument(s)
+        self.frame_names = tuple(frame_names)
+        self.mode = mode
+
+        # Call base implementation
+        super().__init__(
+            env,
+            parent,
+            requirements=dict(data=(MultiFrameXYZQuat, dict(
+                frame_names=frame_names,
+                mode=mode))),
+            auto_refresh=False)
+
+        # Define jit-able specialization of `quat_average` for 2D matrices
+        @nb.jit(nopython=True, cache=True, fastmath=True)
+        def quat_average_2d(quat: np.ndarray,
+                            out: np.ndarray) -> np.ndarray:
+            """Compute the average of a batch of quaternions [qx, qy, qz, qw].
+
+            .. note::
+                Jit-able specialization of `quat_average` for 2D matrices, with
+                further optimization for the special case where there is only 2
+                quaternions.
+
+            :param quat: N-dimensional (N >= 2) array whose first dimension
+                         gathers the 4 quaternion coordinates [qx, qy, qz, qw].
+            :param out: Pre-allocated array into which the result is stored.
+            """
+            if quat.shape[1] == 2:
+                return quat_interpolate_middle(quat[:, 0], quat[:, 1], out)
+
+            quat = np.ascontiguousarray(quat)
+            _, eigvec = np.linalg.eigh(quat @ quat.T)
+            out[:] = eigvec[..., -1]
+            return out
+
+        self._quat_average = quat_average_2d
+
+        # Pre-allocate memory for the mean for mean pose vector XYZQuat
+        self._xyzquat_mean = np.zeros((7,))
+
+        # Define position and orientation proxies for fast access
+        self._xyz_view = self._xyzquat_mean[:3]
+        self._quat_view = self._xyzquat_mean[3:]
+
+    def refresh(self) -> np.ndarray:
+        # Compute the mean translation
+        np.mean(self.data[:3], axis=-1, out=self._xyz_view)
+
+        # Compute the mean quaternion
+        self._quat_average(self.data[3:], self._quat_view)
+
+        return self._xyzquat_mean
 
 
 @dataclass(unsafe_hash=True)
