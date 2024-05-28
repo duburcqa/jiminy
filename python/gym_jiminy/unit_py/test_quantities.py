@@ -20,7 +20,8 @@ from gym_jiminy.common.quantities import (
     FrameXYZQuat,
     MultiFrameMeanXYZQuat,
     MaskedQuantity,
-    FootOdometryPose,
+    MultiFootMeanOdometryPose,
+    MultiFootRelativeXYZQuat,
     AverageFrameSpatialVelocity,
     AverageOdometryVelocity,
     ActuatedJointPositions,
@@ -391,7 +392,7 @@ class Quantities(unittest.TestCase):
         """
         env = gym.make("gym_jiminy.envs:atlas")
 
-        env.quantities["foot_odom_pose"] = (FootOdometryPose, {})
+        env.quantities["foot_odom_pose"] = (MultiFootMeanOdometryPose, {})
 
         env.reset(seed=0)
         env.step(env.action_space.sample())
@@ -410,3 +411,36 @@ class Quantities(unittest.TestCase):
         value = env.quantities["foot_odom_pose"]
 
         np.testing.assert_allclose(value, np.array((*mean_pos, mean_yaw)))
+
+    def test_foot_relative_pose(self):
+        """ TODO: Write documentation
+        """
+        env = gym.make("gym_jiminy.envs:atlas")
+
+        env.quantities["foot_rel_poses"] = (MultiFootRelativeXYZQuat, {})
+
+        env.reset(seed=0)
+        env.step(env.action_space.sample())
+
+        foot_poses = []
+        for frame_name in ("l_foot", "r_foot"):
+            frame_index = env.robot.pinocchio_model.getFrameId(frame_name)
+            foot_poses.append(env.robot.pinocchio_data.oMf[frame_index])
+        pos_feet = np.stack(tuple(
+            foot_pose.translation for foot_pose in foot_poses), axis=-1)
+        quat_feet = np.stack(tuple(
+            matrix_to_quat(foot_pose.rotation)
+            for foot_pose in foot_poses), axis=-1)
+
+        pos_mean = np.mean(pos_feet, axis=-1, keepdims=True)
+        quat_mean = quat_average(quat_feet)
+        quat_rel = np.stack(tuple(
+            matrix_to_quat(quat_to_matrix(quat_mean).T @ foot_pose.rotation)
+            for foot_pose in foot_poses), axis=-1)
+        quat_rel[-4:, quat_rel[-1] < 0.0] *= -1
+
+        value = env.quantities["foot_rel_poses"].copy()
+        value[-4:, value[-1] < 0.0] *= -1
+
+        np.testing.assert_allclose(value[:3], pos_feet - pos_mean)
+        np.testing.assert_allclose(value[-4:], quat_rel)

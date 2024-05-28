@@ -446,6 +446,9 @@ class MultiFrameEulerAngles(InterfaceQuantity[np.ndarray]):
         :param frame_names: Name of the frames on which to operate.
         :param mode: Desired mode of evaluation for this quantity.
         """
+        # Make sure that the user did not pass a single frame name
+        assert not isinstance(frame_names, str)
+
         # Backup some user argument(s)
         self.frame_names = tuple(frame_names)
         self.mode = mode
@@ -673,6 +676,9 @@ class MultiFrameXYZQuat(InterfaceQuantity[np.ndarray]):
         :param frame_name: Name of the frames on which to operate.
         :param mode: Desired mode of evaluation for this quantity.
         """
+        # Make sure that the user did not pass a single frame name
+        assert not isinstance(frame_names, str)
+
         # Backup some user argument(s)
         self.frame_names = tuple(frame_names)
         self.mode = mode
@@ -706,11 +712,15 @@ class MultiFrameMeanXYZQuat(InterfaceQuantity[np.ndarray]):
     average transform of a given set of frames in world reference frame at the
     end of the agent step.
 
-    The average position (X, Y, Z) and orientation as a quaternion vector
-    (QuatX, QuatY, QuatZ, QuatW) are computed separately. The average is
-    defined as the value minimizing the mean error wrt every individual
-    elements, considering some distance metric. See `quaternion_average` for
-    details about the distance metric being used.
+    Broadly speaking, the average is defined as the value minimizing the mean
+    error wrt every individual elements, considering some distance metric. In
+    this case, the average position (X, Y, Z) and orientation as a quaternion
+    vector (QuatX, QuatY, QuatZ, QuatW) are computed separately (double
+    geodesic). It has the advantage to be much easier to compute, and to
+    decouple the translation from the rotation, which is desirable when
+    defining reward components weighting differently position or orientation
+    errors. See `quaternion_average` for details about the distance metric
+    being used to compute the average orientation.
     """
 
     frame_names: Tuple[str, ...]
@@ -739,6 +749,9 @@ class MultiFrameMeanXYZQuat(InterfaceQuantity[np.ndarray]):
         :param frame_name: Name of the frames on which to operate.
         :param mode: Desired mode of evaluation for this quantity.
         """
+        # Make sure that the user did not pass a single frame name
+        assert not isinstance(frame_names, str)
+
         # Backup some user argument(s)
         self.frame_names = tuple(frame_names)
         self.mode = mode
@@ -767,9 +780,12 @@ class MultiFrameMeanXYZQuat(InterfaceQuantity[np.ndarray]):
                          gathers the 4 quaternion coordinates [qx, qy, qz, qw].
             :param out: Pre-allocated array into which the result is stored.
             """
-            if quat.shape[1] == 2:
+            num_quats = quat.shape[1]
+            if num_quats == 1:
+                out[:] = quat
+                return out
+            if num_quats == 2:
                 return quat_interpolate_middle(quat[:, 0], quat[:, 1], out)
-
             quat = np.ascontiguousarray(quat)
             _, eigvec = np.linalg.eigh(quat @ quat.T)
             out[:] = eigvec[..., -1]
