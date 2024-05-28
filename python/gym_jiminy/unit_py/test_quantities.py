@@ -10,15 +10,17 @@ from jiminy_py.dynamics import update_quantities
 from jiminy_py.log import extract_trajectory_from_log
 import pinocchio as pin
 
-from gym_jiminy.common.utils import quat_average
+from gym_jiminy.common.utils import  (
+    matrix_to_quat, quat_average, quat_to_matrix, quat_to_yaw)
 from gym_jiminy.common.bases import QuantityEvalMode, DatasetTrajectoryQuantity
 from gym_jiminy.common.quantities import (
     QuantityManager,
     FrameEulerAngles,
     MultiFrameEulerAngles,
     FrameXYZQuat,
-    MultiFrameMeanQuat,
+    MultiFrameMeanXYZQuat,
     MaskedQuantity,
+    FootOdometryPose,
     AverageFrameSpatialVelocity,
     AverageOdometryVelocity,
     ActuatedJointPositions,
@@ -286,7 +288,7 @@ class Quantities(unittest.TestCase):
         base_velocity_mean_local =  base_pose_diff / env.step_dt
         base_pose_mean = pin.LieGroup.integrate(
             se3, base_pose_prev, 0.5 * base_pose_diff)
-        rot_mat = pin.Quaternion(base_pose_mean[-4:]).matrix()
+        rot_mat = quat_to_matrix(base_pose_mean[-4:])
         base_velocity_mean_world = np.concatenate((
             rot_mat @ base_velocity_mean_local[:3],
             rot_mat @ base_velocity_mean_local[3:]))
@@ -353,7 +355,7 @@ class Quantities(unittest.TestCase):
             env.quantities["dcm"],
             com_position[:2] + com_velocity[:2] / omega)
 
-    def test_mean_quat(self):
+    def test_mean_pose(self):
         """ TODO: Write documentation
         """
         env = gym.make("gym_jiminy.envs:atlas")
@@ -361,18 +363,50 @@ class Quantities(unittest.TestCase):
         frame_names = [
             frame.name for frame in env.robot.pinocchio_model.frames]
 
-        env.quantities["mean_quat"] = (
-            MultiFrameMeanQuat, dict(
+        env.quantities["mean_pose"] = (
+            MultiFrameMeanXYZQuat, dict(
                 frame_names=frame_names[:5],
                 mode=QuantityEvalMode.TRUE))
 
         env.reset(seed=0)
         env.step(env.action_space.sample())
 
-        value = quat_average(np.stack([
-            pin.Quaternion(oMf.rotation).coeffs()
+        pos = np.mean(np.stack([
+            oMf.translation for oMf in env.robot.pinocchio_data.oMf
+            ][:5], axis=-1), axis=-1)
+        quat = quat_average(np.stack([
+            matrix_to_quat(oMf.rotation)
             for oMf in env.robot.pinocchio_data.oMf][:5], axis=-1))
-        if value[-1] < 0.0:
-            value *= -1
+        if quat[-1] < 0.0:
+            quat *= -1
 
-        np.testing.assert_allclose(env.quantities["mean_quat"], value)
+        value = env.quantities["mean_pose"]
+        if value[-1] < 0.0:
+            value[-4:] *= -1
+
+        np.testing.assert_allclose(value, np.concatenate((pos, quat)))
+
+    def test_foot_odometry_pose(self):
+        """ TODO: Write documentation
+        """
+        env = gym.make("gym_jiminy.envs:atlas")
+
+        env.quantities["foot_odom_pose"] = (FootOdometryPose, {})
+
+        env.reset(seed=0)
+        env.step(env.action_space.sample())
+
+        foot_left_index, foot_right_index = (
+            env.robot.pinocchio_model.getFrameId(name)
+            for name in ("l_foot", "r_foot"))
+        foot_left_pose, foot_right_pose = (
+            env.robot.pinocchio_data.oMf[frame_index]
+            for frame_index in (foot_left_index, foot_right_index))
+
+        mean_pos = (foot_left_pose.translation[:2] +
+                    foot_right_pose.translation[:2]) / 2.0
+        mean_yaw = quat_to_yaw(quat_average(np.stack(tuple(map(matrix_to_quat,
+            (foot_left_pose.rotation, foot_right_pose.rotation))), axis=-1)))
+        value = env.quantities["foot_odom_pose"]
+
+        np.testing.assert_allclose(value, np.array((*mean_pos, mean_yaw)))

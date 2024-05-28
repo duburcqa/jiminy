@@ -1,28 +1,31 @@
 """Quantities mainly relevant for locomotion tasks on floating-base robots.
 """
 import math
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Sequence, Literal, Union
 from dataclasses import dataclass
 
 import numpy as np
 
+import jiminy_py.core as jiminy
 from jiminy_py.core import array_copyto  # pylint: disable=no-name-in-module
 from jiminy_py.dynamics import update_quantities
 import pinocchio as pin
 
 from ..bases import (
     InterfaceJiminyEnv, InterfaceQuantity, AbstractQuantity, QuantityEvalMode)
-from ..utils import fill, matrix_to_yaw
+from ..utils import fill, matrix_to_yaw, quat_to_yaw
 
-from ..quantities import MaskedQuantity, AverageFrameSpatialVelocity
+from ..quantities import (
+    MaskedQuantity, AverageFrameSpatialVelocity, MultiFrameMeanXYZQuat)
 
 
 @dataclass(unsafe_hash=True)
-class OdometryPose(AbstractQuantity[np.ndarray]):
-    """Odometry pose at the end of the agent step.
+class BaseOdometryPose(AbstractQuantity[np.ndarray]):
+    """Odometry pose of the floating base of the robot at the end of the agent
+    step.
 
-    The odometry pose fully specifies the position and orientation of the robot
-    in 2D world plane. As such, it comprises the linear translation (X, Y) and
+    The odometry pose fully specifies the position and heading of the robot in
+    2D world plane. As such, it comprises the linear translation (X, Y) and
     the rotation around Z axis (namely rate of change of Yaw Euler angle).
     """
 
@@ -76,12 +79,120 @@ class OdometryPose(AbstractQuantity[np.ndarray]):
 
 
 @dataclass(unsafe_hash=True)
-class AverageOdometryVelocity(InterfaceQuantity[np.ndarray]):
-    """Average odometry velocity in local-world-aligned frame at the end of the
-    agent step.
+class FootOdometryPose(InterfaceQuantity[np.ndarray]):
+    """Odometry pose of the average position and orientation of the feet of a
+    legged robot at the end of the agent step.
+
+    Using the average foot pose to characterize the position and heading of
+    the robot in world plane may be more appropriate than using the floating
+    pose, especially when it comes to assessing the tracking error of the foot
+    trajectories. It has the advantage to make foot tracking independent from
+    floating base tracking, giving the opportunity to the robot to locally
+    recover stability by moving its upper body without impeding foot tracking.
 
     The odometry pose fully specifies the position and orientation of the robot
-    in 2D world plane. See `OdometryPose` documentation for details.
+    in 2D world plane. See `BaseOdometryPose` documentation for details.
+    """
+
+    frame_names: Tuple[str, ...]
+    """Name of the frames corresponding to the feet of the robot.
+
+    These frames must be part of the end-effectors, ie being associated with a
+    leaf joint in the kinematic tree of the robot.
+    """
+
+    mode: QuantityEvalMode
+    """Specify on which state to evaluate this quantity. See `Mode`
+    documentation for details about each mode.
+
+    .. warning::
+        Mode `REFERENCE` requires a reference trajectory to be selected
+        manually prior to evaluating this quantity for the first time.
+    """
+
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 parent: Optional[InterfaceQuantity],
+                 frame_names: Union[Sequence[str], Literal['auto']] = 'auto',
+                 *,
+                 mode: QuantityEvalMode = QuantityEvalMode.TRUE) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param parent: Higher-level quantity from which this quantity is a
+                       requirement if any, `None` otherwise.
+        :param frame_names: Name of the frames corresponding to the feet of the
+                            robot. 'auto' to automatically detect them from the
+                            set of contact and force sensors of the robot.
+        :param mode: Desired mode of evaluation for this quantity.
+        """
+        # Determine the leaf joints of the kinematic tree
+        pinocchio_model = env.robot.pinocchio_model_th
+        parents = pinocchio_model.parents
+        leaf_joint_indices = set(range(len(parents))) - set(parents)
+        leaf_frame_names = tuple(
+            frame.name for frame in pinocchio_model.frames
+            if frame.parent in leaf_joint_indices)
+
+        if frame_names == 'auto':
+            # Determine the most likely set of frames corresponding to the feet
+            foot_frame_names = set()
+            for sensor_class in (jiminy.ContactSensor, jiminy.ForceSensor):
+                for sensor in env.robot.sensors.get(sensor_class.type, ()):
+                    assert isinstance(sensor, ((
+                        jiminy.ContactSensor, jiminy.ForceSensor)))
+                    # Skip sensors not attached to a leaf joint
+                    if sensor.frame_name in leaf_frame_names:
+                        # The joint name is used as frame name. This avoids
+                        # considering multiple fixed frames wrt to the same
+                        # joint. They would be completely redundant, slowing
+                        # down computations for no reason.
+                        frame = pinocchio_model.frames[sensor.frame_index]
+                        joint_name = pinocchio_model.names[frame.parent]
+                        foot_frame_names.add(joint_name)
+            frame_names = tuple(foot_frame_names)
+
+        # Make sure that the frame names are end-effectors
+        if any(name not in leaf_frame_names for name in frame_names):
+            raise ValueError("All frames must correspond to end-effectors.")
+
+        # Backup some user argument(s)
+        self.frame_names = tuple(frame_names)
+        self.mode = mode
+
+        # Call base implementation
+        super().__init__(
+            env,
+            parent,
+            requirements=dict(
+                data=(MultiFrameMeanXYZQuat, dict(
+                    frame_names=frame_names,
+                    mode=mode))),
+            auto_refresh=False)
+
+        # Pre-allocate memory for the odometry pose (X, Y, Yaw)
+        self._odom_pose = np.zeros((3,))
+
+        # Split odometry pose in translation (X, Y) and yaw angle
+        self._xy_view = self._odom_pose[:2]
+        self._yaw_view = self._odom_pose[-1:].reshape(())
+
+    def refresh(self) -> np.ndarray:
+        # Copy translation part
+        array_copyto(self._xy_view, self.data[:2])
+
+        # Compute Yaw angle
+        quat_to_yaw(self.data[-4:], self._yaw_view)
+
+        return self._odom_pose
+
+
+@dataclass(unsafe_hash=True)
+class AverageOdometryVelocity(InterfaceQuantity[np.ndarray]):
+    """Average odometry velocity of the floating base of the robot in
+    local-world-aligned frame at the end of the agent step.
+
+    The odometry pose fully specifies the position and orientation of the robot
+    in 2D world plane. See `BaseOdometryPose` documentation for details.
 
     The average spatial velocity is obtained by finite difference. See
     `AverageFrameSpatialVelocity` documentation for details.
@@ -207,8 +318,9 @@ class ZeroMomentPoint(AbstractQuantity[np.ndarray]):
     """
 
     reference_frame: pin.ReferenceFrame
-    """Whether the ZMP must be computed in local odometry frame or aligned with
-    world axes.
+    """Whether to compute the ZMP in local frame specified by the odometry pose
+    of floating base of the robot or the frame located on the position of the
+    floating base with axes kept aligned with world frame.
     """
 
     def __init__(self,
@@ -242,7 +354,7 @@ class ZeroMomentPoint(AbstractQuantity[np.ndarray]):
                 com=(CenterOfMass, dict(
                     kinematic_level=pin.POSITION,
                     mode=mode)),
-                odom_pose=(OdometryPose, dict(mode=mode))
+                odom_pose=(BaseOdometryPose, dict(mode=mode))
             ),
             mode=mode,
             auto_refresh=False)
@@ -316,8 +428,9 @@ class CapturePoint(AbstractQuantity[np.ndarray]):
     """
 
     reference_frame: pin.ReferenceFrame
-    """Whether the DCM must be computed in local odometry frame or aligned with
-    world axes.
+    """Whether to compute the DCM in local frame specified by the odometry pose
+    of floating base of the robot or the frame located on the position of the
+    floating base with axes kept aligned with world frame.
     """
 
     def __init__(self,
@@ -354,7 +467,7 @@ class CapturePoint(AbstractQuantity[np.ndarray]):
                 com_velocity=(CenterOfMass, dict(
                     kinematic_level=pin.VELOCITY,
                     mode=mode)),
-                odom_pose=(OdometryPose, dict(mode=mode))
+                odom_pose=(BaseOdometryPose, dict(mode=mode))
             ),
             mode=mode,
             auto_refresh=False)

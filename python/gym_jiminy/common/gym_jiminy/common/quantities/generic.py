@@ -22,7 +22,7 @@ from ..utils import (
     fill, matrix_to_rpy, matrix_to_quat, quat_to_matrix,
     quat_interpolate_middle)
 
-from .transform import StackedQuantity, MaskedQuantity
+from .transform import StackedQuantity
 
 
 @runtime_checkable
@@ -701,9 +701,16 @@ class MultiFrameXYZQuat(InterfaceQuantity[np.ndarray]):
 
 
 @dataclass(unsafe_hash=True)
-class MultiFrameMeanQuat(InterfaceQuantity[np.ndarray]):
-    """Compute the average quaternion vector (X, Y, Z, W) of a given set of
-    frame in world reference frame at the end of the agent step.
+class MultiFrameMeanXYZQuat(InterfaceQuantity[np.ndarray]):
+    """Vector representation (X, Y, Z, QuatX, QuatY, QuatZ, QuatW) of the
+    average transform of a given set of frames in world reference frame at the
+    end of the agent step.
+
+    The average position (X, Y, Z) and orientation as a quaternion vector
+    (QuatX, QuatY, QuatZ, QuatW) are computed separately. The average is
+    defined as the value minimizing the mean error wrt every individual
+    elements, considering some distance metric. See `quaternion_average` for
+    details about the distance metric being used.
     """
 
     frame_names: Tuple[str, ...]
@@ -740,32 +747,51 @@ class MultiFrameMeanQuat(InterfaceQuantity[np.ndarray]):
         super().__init__(
             env,
             parent,
-            requirements=dict(data=(MaskedQuantity, dict(
-                quantity=(MultiFrameXYZQuat, dict(
-                    frame_names=frame_names,
-                    mode=mode)),
-                axis=0,
-                key=(3, 4, 5, 6)))),
+            requirements=dict(data=(MultiFrameXYZQuat, dict(
+                frame_names=frame_names,
+                mode=mode))),
             auto_refresh=False)
 
         # Define jit-able specialization of `quat_average` for 2D matrices
         @nb.jit(nopython=True, cache=True, fastmath=True)
-        def quat_average_2d(quat: np.ndarray) -> np.ndarray:
+        def quat_average_2d(quat: np.ndarray,
+                            out: np.ndarray) -> np.ndarray:
             """Compute the average of a batch of quaternions [qx, qy, qz, qw].
 
             .. note::
-                Jit-able specialization of `quat_average` for 2D matrices.
+                Jit-able specialization of `quat_average` for 2D matrices, with
+                further optimization for the special case where there is only 2
+                quaternions.
 
             :param quat: N-dimensional (N >= 2) array whose first dimension
                          gathers the 4 quaternion coordinates [qx, qy, qz, qw].
+            :param out: Pre-allocated array into which the result is stored.
             """
+            if quat.shape[1] == 2:
+                return quat_interpolate_middle(quat[:, 0], quat[:, 1], out)
+
+            quat = np.ascontiguousarray(quat)
             _, eigvec = np.linalg.eigh(quat @ quat.T)
-            return eigvec[..., -1]
+            out[:] = eigvec[..., -1]
+            return out
 
         self._quat_average = quat_average_2d
 
+        # Pre-allocate memory for the mean for mean pose vector XYZQuat
+        self._xyzquat_mean = np.zeros((7,))
+
+        # Define position and orientation proxies for fast access
+        self._xyz_view = self._xyzquat_mean[:3]
+        self._quat_view = self._xyzquat_mean[3:]
+
     def refresh(self) -> np.ndarray:
-        return self._quat_average(self.data)
+        # Compute the mean translation
+        np.mean(self.data[:3], axis=-1, out=self._xyz_view)
+
+        # Compute the mean quaternion
+        self._quat_average(self.data[3:], self._quat_view)
+
+        return self._xyzquat_mean
 
 
 @dataclass(unsafe_hash=True)
