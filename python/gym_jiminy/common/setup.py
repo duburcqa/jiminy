@@ -53,7 +53,8 @@ setup(
         "h5py",
         # Use internally to speedup computation of math methods
         # - 0.54: Adds 'np.clip'
-        "numba>=0.54.0",
+        # - 0.56: Adds 'np.broadcast_shapes'
+        "numba>=0.56.0",
         # Standard interface library for reinforcement learning.
         # - `gym` has been replaced by `gymnasium` for 0.26.0+
         # - 0.28.0: fully typed
