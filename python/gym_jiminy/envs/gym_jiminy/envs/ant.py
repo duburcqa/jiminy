@@ -20,7 +20,7 @@ from jiminy_py.core import array_copyto  # pylint: disable=no-name-in-module
 from jiminy_py.simulator import Simulator
 from gym_jiminy.common.bases import InfoType, EngineObsType
 from gym_jiminy.common.envs import BaseJiminyEnv
-from gym_jiminy.common.utils import sample, squared_norm_2
+from gym_jiminy.common.utils import sample
 
 if sys.version_info < (3, 9):
     from importlib_resources import files
@@ -255,8 +255,9 @@ class AntJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         xpos = self._robot_state_q[0]
         forward_reward = (xpos - self._xpos_prev) / self.step_dt
         survive_reward = 1.0 if not terminated else 0.0
-        ctrl_cost = 0.5 * np.square(self.action).sum()
-        contact_cost = 5e-4 * sum(map(squared_norm_2, self._f_external))
+        ctrl_cost = 0.5 * np.dot(self.action, self.action)
+        contact_cost = 5e-4 * sum((
+            np.dot(f_ext, f_ext) for f_ext in self._f_external))
 
         # Compute total reward
         reward = forward_reward + survive_reward - ctrl_cost - contact_cost

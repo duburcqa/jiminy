@@ -5,7 +5,7 @@ from .transform import (StackedQuantity,
                         MaskedQuantity,
                         UnaryOpQuantity,
                         BinaryOpQuantity)
-from .generic import (Orientation,
+from .generic import (OrientationType,
                       FrameOrientation,
                       MultiFramesOrientation,
                       FramePosition,
@@ -26,7 +26,7 @@ from .locomotion import (BaseOdometryPose,
 
 
 __all__ = [
-    'Orientation',
+    'OrientationType',
     'QuantityManager',
     'StackedQuantity',
     'MaskedQuantity',

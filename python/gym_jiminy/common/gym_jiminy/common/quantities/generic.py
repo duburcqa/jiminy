@@ -255,7 +255,7 @@ class _BatchedFramesRotationMatrix(
         return self._rot_mat_map
 
 
-class Orientation(Enum):
+class OrientationType(Enum):
     """Specify the desired vector representation of the frame orientations.
     """
 
@@ -269,6 +269,10 @@ class Orientation(Enum):
 
     QUATERNION = 2
     """Quaternion coordinates (QuatX, QuatY, QuatZ, QuatW).
+    """
+
+    ANGLE_AXIS = 3
+    """Angle-Axis representation (theta * AxisX, theta * AxisY, theta * AxisZ).
     """
 
 
@@ -299,7 +303,7 @@ class _BatchedFramesOrientation(
     faster for 5 frames, x7 for 10 frames, and x9 for 20 frames.
     """
 
-    type: Orientation
+    type: OrientationType
     """Selected vector representation of the orientation for all frames.
     """
 
@@ -315,7 +319,7 @@ class _BatchedFramesOrientation(
     def __init__(self,
                  env: InterfaceJiminyEnv,
                  parent: Union["FrameOrientation", "MultiFramesOrientation"],
-                 type: Orientation,
+                 type: OrientationType,
                  mode: QuantityEvalMode) -> None:
         """
         :param env: Base or wrapped jiminy environment.
@@ -327,6 +331,13 @@ class _BatchedFramesOrientation(
         """
         # Make sure that a suitable parent has been provided
         assert isinstance(parent, (FrameOrientation, MultiFramesOrientation))
+
+        # Make sure that the specified orientation representation is supported
+        if type not in (
+                OrientationType.MATRIX, OrientationType.EULER, OrientationType.QUATERNION):
+            raise ValueError(
+                "This quantity only supports orientation representations "
+                "'MATRIX', 'EULER', and 'QUATERNION'.")
 
         # Backup some user argument(s)
         self.type = type
@@ -373,13 +384,13 @@ class _BatchedFramesOrientation(
 
         # Re-allocate memory as the number of frames is not known in advance
         nframes = len(self.frame_names)
-        if self.type == Orientation.EULER:
+        if self.type == OrientationType.EULER:
             self._data_batch = np.zeros((3, nframes), order='C')
-        elif self.type == Orientation.QUATERNION:
+        elif self.type == OrientationType.QUATERNION:
             self._data_batch = np.zeros((4, nframes), order='C')
 
         # Re-assign mapping from chunks of frame names to corresponding data
-        if self.type in (Orientation.EULER, Orientation.QUATERNION):
+        if self.type in (OrientationType.EULER, OrientationType.QUATERNION):
             self._data_map = {
                 key: self._data_batch[..., frame_slice]
                 for key, frame_slice in frame_slices_map.items()}
@@ -389,9 +400,9 @@ class _BatchedFramesOrientation(
         rot_mat_batch = self.rot_mat_map[self.frame_names]
 
         # Convert all rotation matrices at once to the desired representation
-        if self.type == Orientation.EULER:
+        if self.type == OrientationType.EULER:
             matrix_to_rpy(rot_mat_batch, self._data_batch)
-        elif self.type == Orientation.QUATERNION:
+        elif self.type == OrientationType.QUATERNION:
             matrix_to_quat(rot_mat_batch, self._data_batch)
         else:
             # Slice data.
@@ -415,7 +426,7 @@ class FrameOrientation(InterfaceQuantity[np.ndarray]):
     """Name of the frame on which to operate.
     """
 
-    type: Orientation
+    type: OrientationType
     """Desired vector representation of the orientation.
     """
 
@@ -433,7 +444,7 @@ class FrameOrientation(InterfaceQuantity[np.ndarray]):
                  parent: Optional[InterfaceQuantity],
                  frame_name: str,
                  *,
-                 type: Orientation = Orientation.MATRIX,
+                 type: OrientationType = OrientationType.MATRIX,
                  mode: QuantityEvalMode = QuantityEvalMode.TRUE) -> None:
         """
         :param env: Base or wrapped jiminy environment.
@@ -441,7 +452,7 @@ class FrameOrientation(InterfaceQuantity[np.ndarray]):
                        requirement if any, `None` otherwise.
         :param frame_name: Name of the frame on which to operate.
         :param type: Desired vector representation of the orientation.
-                     Optional: 'Orientation.MATRIX' by default.
+                     Optional: 'OrientationType.MATRIX' by default.
         :param mode: Desired mode of evaluation for this quantity.
                      Optional: 'QuantityEvalMode.TRUE' by default.
         """
@@ -490,7 +501,7 @@ class MultiFramesOrientation(InterfaceQuantity[np.ndarray]):
     """Name of the frames on which to operate.
     """
 
-    type: Orientation
+    type: OrientationType
     """Selected vector representation of the orientation for all frames.
     """
 
@@ -508,7 +519,7 @@ class MultiFramesOrientation(InterfaceQuantity[np.ndarray]):
                  parent: Optional[InterfaceQuantity],
                  frame_names: Sequence[str],
                  *,
-                 type: Orientation = Orientation.MATRIX,
+                 type: OrientationType = OrientationType.MATRIX,
                  mode: QuantityEvalMode = QuantityEvalMode.TRUE) -> None:
         """
         :param env: Base or wrapped jiminy environment.
@@ -517,7 +528,7 @@ class MultiFramesOrientation(InterfaceQuantity[np.ndarray]):
         :param frame_names: Name of the frames on which to operate.
         :param type: Desired vector representation of the orientation for all
                      frames.
-                     Optional: 'Orientation.MATRIX' by default.
+                     Optional: 'OrientationType.MATRIX' by default.
         :param mode: Desired mode of evaluation for this quantity.
                      Optional: 'QuantityEvalMode.TRUE' by default.
         """
@@ -822,7 +833,7 @@ class FrameXYZQuat(InterfaceQuantity[np.ndarray]):
                     mode=mode)),
                 quat=(FrameOrientation, dict(
                     frame_name=frame_name,
-                    type=Orientation.QUATERNION,
+                    type=OrientationType.QUATERNION,
                     mode=mode))),
             auto_refresh=False)
 
@@ -890,7 +901,7 @@ class MultiFramesXYZQuat(InterfaceQuantity[np.ndarray]):
                     mode=mode)),
                 quats=(MultiFramesOrientation, dict(
                     frame_names=frame_names,
-                    type=Orientation.QUATERNION,
+                    type=OrientationType.QUATERNION,
                     mode=mode))),
             auto_refresh=False)
 
@@ -968,7 +979,7 @@ class MultiFramesMeanXYZQuat(InterfaceQuantity[np.ndarray]):
                     mode=mode)),
                 quats=(MultiFramesOrientation, dict(
                     frame_names=frame_names,
-                    type=Orientation.QUATERNION,
+                    type=OrientationType.QUATERNION,
                     mode=mode))),
             auto_refresh=False)
 
@@ -979,7 +990,7 @@ class MultiFramesMeanXYZQuat(InterfaceQuantity[np.ndarray]):
 
             :param value: N-dimensional array from which the last axis will be
                           reduced.
-            :param out: A pre-allocated array into which the result is stored.
+            :param out: Pre-allocated array in which to store the result.
             """
             out[:] = np.sum(value, -1) / value.shape[-1]
 
@@ -997,7 +1008,7 @@ class MultiFramesMeanXYZQuat(InterfaceQuantity[np.ndarray]):
 
             :param quat: N-dimensional (N >= 2) array whose first dimension
                          gathers the 4 quaternion coordinates [qx, qy, qz, qw].
-            :param out: Pre-allocated array into which the result is stored.
+            :param out: Pre-allocated array in which to store the result.
             """
             num_quats = quat.shape[1]
             if num_quats == 1:

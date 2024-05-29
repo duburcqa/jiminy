@@ -15,8 +15,7 @@ import pinocchio as pin
 from ..bases import (
     InterfaceJiminyEnv, InterfaceQuantity, AbstractQuantity, QuantityEvalMode)
 from ..utils import (
-    fill, matrix_to_quat, matrix_to_yaw, quat_to_yaw, quat_to_matrix,
-    quat_multiply)
+    fill, matrix_to_yaw, quat_to_yaw, quat_to_matrix, quat_multiply)
 
 from ..quantities import (
     MaskedQuantity, AverageFrameSpatialVelocity, MultiFramesXYZQuat,
@@ -363,14 +362,11 @@ class MultiFootRelativeXYZQuat(InterfaceQuantity[np.ndarray]):
             :param position_ref: Position of the reference frame in world.
             :param rotation_ref: Orientation of the reference frame in world as
                                  a 2D rotation matrix.
-            :param out: Pre-allocated array into which the result is stored.
+            :param out: Pre-allocated array in which to store the result.
             """
             out[:] = rotation_ref.T @ (positions - position_ref[:, np.newaxis])
 
         self._translate_positions_fun = translate_positions
-
-        # Inverse mean orientation as a quaternion vector
-        self._quat_mean_inv = np.zeros((4, 1))
 
         # Mean orientation as a rotation matrix
         self._rot_mean = np.zeros((3, 3))
@@ -407,12 +403,11 @@ class MultiFootRelativeXYZQuat(InterfaceQuantity[np.ndarray]):
                                       self._rot_mean,
                                       self._foot_position_view)
 
-        # Compute the inverse mean quaternion
-        array_copyto(self._quat_mean_inv[:, 0], quat_mean)
-        self._quat_mean_inv[-1] *= -1
-
-        # Compute relative frame orientations.
-        quat_multiply(self._quat_mean_inv, quats, self._foot_quat_view)
+        # Compute relative frame orientations
+        quat_multiply(quat_mean[:, np.newaxis],
+                      quats,
+                      self._foot_quat_view,
+                      is_left_inverted=True)
 
         return self._foot_poses_rel
 

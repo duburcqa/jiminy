@@ -9,7 +9,8 @@ from .generic import (BaseTrackingReward,
 from .locomotion import (TrackingBaseHeightReward,
                          TrackingOdometryVelocityReward,
                          TrackingCapturePointReward,
-                         TrackingFootPoseReward)
+                         TrackingFootPositionsReward,
+                         TrackingFootOrientationsReward)
 
 __all__ = [
     "radial_basis_function",
@@ -20,6 +21,7 @@ __all__ = [
     "TrackingBaseHeightReward",
     "TrackingOdometryVelocityReward",
     "TrackingCapturePointReward",
-    "TrackingFootPoseReward",
+    "TrackingFootPositionsReward",
+    "TrackingFootOrientationsReward",
     "SurviveReward"
 ]

@@ -13,7 +13,8 @@ from gym_jiminy.common.compositions import (
     TrackingOdometryVelocityReward,
     TrackingBaseHeightReward,
     TrackingCapturePointReward,
-    TrackingFootPoseReward,
+    TrackingFootPositionsReward,
+    TrackingFootOrientationsReward,
     SurviveReward,
     AdditiveMixtureReward)
 
@@ -49,7 +50,8 @@ class Rewards(unittest.TestCase):
                 (TrackingActuatedJointPositionsReward, 20.0),
                 (TrackingBaseHeightReward, 0.1),
                 (TrackingCapturePointReward, 0.5),
-                (TrackingFootPoseReward, 2.0),) * 20:
+                (TrackingFootPositionsReward, 1.0),
+                (TrackingFootOrientationsReward, 2.0)) * 20:
             reward = reward_class(self.env, cutoff=cutoff)
             quantity_true = reward.quantity.requirements['value_left']
             quantity_ref = reward.quantity.requirements['value_right']

@@ -14,7 +14,7 @@ from gym_jiminy.common.utils import  (
     matrix_to_quat, quat_average, quat_to_matrix, quat_to_yaw)
 from gym_jiminy.common.bases import QuantityEvalMode, DatasetTrajectoryQuantity
 from gym_jiminy.common.quantities import (
-    Orientation,
+    OrientationType,
     QuantityManager,
     FrameOrientation,
     MultiFramesOrientation,
@@ -89,28 +89,28 @@ class Quantities(unittest.TestCase):
                     frame_name=frame_names[2])),
                 ("rpy_0", FrameOrientation, dict(
                     frame_name=frame_names[1],
-                    type=Orientation.EULER)),
+                    type=OrientationType.EULER)),
                 ("rpy_1", FrameOrientation, dict(
                     frame_name=frame_names[1],
-                    type=Orientation.EULER)),
+                    type=OrientationType.EULER)),
                 ("rpy_2", FrameOrientation, dict(
                     frame_name=frame_names[-1],
-                    type=Orientation.EULER)),
+                    type=OrientationType.EULER)),
                 ("rpy_batch_0", MultiFramesOrientation, dict(  # Intersection
                     frame_names=(frame_names[-3], frame_names[1]),
-                    type=Orientation.EULER)),
+                    type=OrientationType.EULER)),
                 ("rpy_batch_1", MultiFramesOrientation, dict(  # Inclusion
                     frame_names=(frame_names[1], frame_names[-1]),
-                    type=Orientation.EULER)),
+                    type=OrientationType.EULER)),
                 ("rpy_batch_2", MultiFramesOrientation, dict(  # Disjoint
                     frame_names=(frame_names[1], frame_names[-4]),
-                    type=Orientation.EULER)),
+                    type=OrientationType.EULER)),
                 ("rot_mat_batch", MultiFramesOrientation, dict(
                     frame_names=(frame_names[1], frame_names[-1]),
-                    type=Orientation.MATRIX)),
+                    type=OrientationType.MATRIX)),
                 ("quat_batch", MultiFramesOrientation, dict(
                     frame_names=(frame_names[1], frame_names[-4]),
-                    type=Orientation.QUATERNION))):
+                    type=OrientationType.QUATERNION))):
             quantity_manager[name] = (cls, kwargs)
         quantities = quantity_manager.registry
 
@@ -266,7 +266,7 @@ class Quantities(unittest.TestCase):
         for quantity_creator in (
                 lambda mode: (ZeroMomentPoint, dict(mode=mode)),
                 lambda mode: (FrameOrientation, dict(
-                    type=Orientation.MATRIX,
+                    type=OrientationType.MATRIX,
                     frame_name=frame_names[1],
                     mode=mode)),
                 lambda mode: (FrameXYZQuat, dict(
@@ -490,10 +490,10 @@ class Quantities(unittest.TestCase):
         quat_rel = np.stack(tuple(
             matrix_to_quat(rot_mean.T @ foot_pose.rotation)
             for foot_pose in foot_poses), axis=-1)
-        quat_rel[-4:, quat_rel[-1] < 0.0] *= -1
+        quat_rel[-4:] *= np.sign(quat_rel[-1])
 
         value = env.quantities["foot_rel_poses"].copy()
-        value[-4:, value[-1] < 0.0] *= -1
+        value[-4:] *= np.sign(value[-1])
 
         np.testing.assert_allclose(value[:3], pos_rel[:, :-1])
         np.testing.assert_allclose(value[-4:], quat_rel[:, :-1])

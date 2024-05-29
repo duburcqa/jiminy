@@ -1,7 +1,6 @@
 # pylint: disable=missing-module-docstring
 
-from .math import (squared_norm_2,
-                   matrix_to_quat,
+from .math import (matrix_to_quat,
                    matrices_to_quat,
                    matrix_to_rpy,
                    matrix_to_yaw,
@@ -9,7 +8,9 @@ from .math import (squared_norm_2,
                    quat_to_rpy,
                    quat_to_yaw,
                    quat_to_yaw_cos_sin,
+                   quat_to_angle_axis,
                    quat_multiply,
+                   quat_difference,
                    quat_average,
                    quat_interpolate_middle,
                    rpy_to_matrix,
@@ -48,7 +49,6 @@ from .pipeline import (save_trajectory_to_hdf5,
 
 
 __all__ = [
-    'squared_norm_2',
     'matrix_to_quat',
     'matrices_to_quat',
     'matrix_to_rpy',
@@ -57,7 +57,9 @@ __all__ = [
     'quat_to_rpy',
     'quat_to_yaw',
     'quat_to_yaw_cos_sin',
+    'quat_to_angle_axis',
     'quat_multiply',
+    'quat_difference',
     'quat_average',
     'quat_interpolate_middle',
     'rpy_to_matrix',
