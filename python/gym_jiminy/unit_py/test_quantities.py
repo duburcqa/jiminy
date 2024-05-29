@@ -299,11 +299,9 @@ class Quantities(unittest.TestCase):
         base_pose = env.robot_state.q[:7].copy()
 
         se3 = pin.liegroups.SE3()
-        base_pose_diff = pin.LieGroup.difference(
-            se3, base_pose_prev, base_pose)
+        base_pose_diff = se3.difference(base_pose_prev, base_pose)
         base_velocity_mean_local =  base_pose_diff / env.step_dt
-        base_pose_mean = pin.LieGroup.integrate(
-            se3, base_pose_prev, 0.5 * base_pose_diff)
+        base_pose_mean = se3.integrate(base_pose_prev, 0.5 * base_pose_diff)
         rot_mat = quat_to_matrix(base_pose_mean[-4:])
         base_velocity_mean_world = np.concatenate((
             rot_mat @ base_velocity_mean_local[:3],

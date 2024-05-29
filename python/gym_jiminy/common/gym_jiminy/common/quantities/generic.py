@@ -5,7 +5,6 @@ application (locomotion, grasping...).
 """
 import warnings
 from enum import Enum
-from functools import partial
 from dataclasses import dataclass
 from typing import (
     List, Dict, Optional, Protocol, Sequence, Tuple, Union, runtime_checkable)
@@ -435,7 +434,9 @@ class FrameOrientation(InterfaceQuantity[np.ndarray]):
                        requirement if any, `None` otherwise.
         :param frame_name: Name of the frame on which to operate.
         :param type: Desired vector representation of the orientation.
+                     Optional: 'Orientation.MATRIX' by default.
         :param mode: Desired mode of evaluation for this quantity.
+                     Optional: 'QuantityEvalMode.TRUE' by default.
         """
         # Backup some user argument(s)
         self.frame_name = frame_name
@@ -509,7 +510,9 @@ class MultiFrameOrientation(InterfaceQuantity[np.ndarray]):
         :param frame_names: Name of the frames on which to operate.
         :param type: Desired vector representation of the orientation for all
                      frames.
+                     Optional: 'Orientation.MATRIX' by default.
         :param mode: Desired mode of evaluation for this quantity.
+                     Optional: 'QuantityEvalMode.TRUE' by default.
         """
         # Make sure that the user did not pass a single frame name
         assert not isinstance(frame_names, str)
@@ -672,6 +675,7 @@ class FramePosition(InterfaceQuantity[np.ndarray]):
                        requirement if any, `None` otherwise.
         :param frame_name: Name of the frame on which to operate.
         :param mode: Desired mode of evaluation for this quantity.
+                     Optional: 'QuantityEvalMode.TRUE' by default.
         """
         # Backup some user argument(s)
         self.frame_name = frame_name
@@ -731,6 +735,7 @@ class MultiFramePosition(InterfaceQuantity[np.ndarray]):
                        requirement if any, `None` otherwise.
         :param frame_name: Name of the frames on which to operate.
         :param mode: Desired mode of evaluation for this quantity.
+                     Optional: 'QuantityEvalMode.TRUE' by default.
         """
         # Make sure that the user did not pass a single frame name
         assert not isinstance(frame_names, str)
@@ -794,6 +799,7 @@ class FrameXYZQuat(InterfaceQuantity[np.ndarray]):
                        requirement if any, `None` otherwise.
         :param frame_name: Name of the frame on which to operate.
         :param mode: Desired mode of evaluation for this quantity.
+                     Optional: 'QuantityEvalMode.TRUE' by default.
         """
         # Backup some user argument(s)
         self.frame_name = frame_name
@@ -858,6 +864,7 @@ class MultiFrameXYZQuat(InterfaceQuantity[np.ndarray]):
                        requirement if any, `None` otherwise.
         :param frame_name: Name of the frames on which to operate.
         :param mode: Desired mode of evaluation for this quantity.
+                     Optional: 'QuantityEvalMode.TRUE' by default.
         """
         # Make sure that the user did not pass a single frame name
         assert not isinstance(frame_names, str)
@@ -935,6 +942,7 @@ class MultiFrameMeanXYZQuat(InterfaceQuantity[np.ndarray]):
                        requirement if any, `None` otherwise.
         :param frame_name: Name of the frames on which to operate.
         :param mode: Desired mode of evaluation for this quantity.
+                     Optional: 'QuantityEvalMode.TRUE' by default.
         """
         # Make sure that the user did not pass a single frame name
         assert not isinstance(frame_names, str)
@@ -1067,7 +1075,9 @@ class AverageFrameSpatialVelocity(InterfaceQuantity[np.ndarray]):
             Whether the spatial velocity must be computed in local reference
             frame (aka 'pin.LOCAL') or re-aligned with world axes (aka
             'pin.LOCAL_WORLD_ALIGNED').
+            Optional: 'pinocchio.ReferenceFrame.LOCAL' by default.
         :param mode: Desired mode of evaluation for this quantity.
+                     Optional: 'QuantityEvalMode.TRUE' by default.
         """
         # Make sure at requested reference frame is supported
         if reference_frame not in (pin.LOCAL, pin.LOCAL_WORLD_ALIGNED):
@@ -1090,9 +1100,8 @@ class AverageFrameSpatialVelocity(InterfaceQuantity[np.ndarray]):
             auto_refresh=False)
 
         # Define specialize difference operator on SE3 Lie group
-        self._se3_diff = partial(
-            pin.LieGroup.difference,
-            pin.liegroups.SE3())  # pylint: disable=no-member
+        self._se3_diff = (
+            pin.liegroups.SE3().difference)  # pylint: disable=no-member
 
         # Inverse step size
         self._inv_step_dt = 0.0

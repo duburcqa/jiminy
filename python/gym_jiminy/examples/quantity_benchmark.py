@@ -22,18 +22,14 @@ env.reset()
 env.step(env.action)
 
 # Define quantity manager and add quantities to benchmark
-nframes = len(env.robot.pinocchio_model.frames)
-quantity_manager = QuantityManager(
-    env.simulator,
-    {
-        f"rpy_{i}": (FrameOrientation, dict(
-            frame_name=frame.name, type=Orientation.EULER))
-        for i, frame in enumerate(env.robot.pinocchio_model.frames)
-    })
+quantity_manager = QuantityManager(env)
+for i, frame in enumerate(env.robot.pinocchio_model.frames):
+    quantity_manager[f"rpy_{i}"] = (FrameOrientation, dict(
+        frame_name=frame.name, type=Orientation.EULER))
 
 # Run the benchmark for all batch size
 time_per_frame_all = []
-for i in range(1, nframes):
+for i in range(1, len(env.robot.pinocchio_model.frames)):
     # Reset tracking
     quantity_manager.reset(reset_tracking=True)
 

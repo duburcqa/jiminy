@@ -98,6 +98,7 @@ class BaseOdometryPose(AbstractQuantity[np.ndarray]):
         :param parent: Higher-level quantity from which this quantity is a
                        requirement if any, `None` otherwise.
         :param mode: Desired mode of evaluation for this quantity.
+                     Optional: 'QuantityEvalMode.TRUE' by default.
         """
         # Call base implementation
         super().__init__(
@@ -179,6 +180,7 @@ class MultiFootMeanXYZQuat(InterfaceQuantity[np.ndarray]):
         :param frame_names: Name of the frames corresponding to some feet of
                             the robot. 'auto' to automatically detect them from
                             the set of contact and force sensors of the robot.
+                            Optional: 'auto' by default.
         :param mode: Desired mode of evaluation for this quantity.
         """
         # Backup some user argument(s)
@@ -242,7 +244,9 @@ class MultiFootMeanOdometryPose(InterfaceQuantity[np.ndarray]):
         :param frame_names: Name of the frames corresponding to the feet of the
                             robot. 'auto' to automatically detect them from the
                             set of contact and force sensors of the robot.
+                            Optional: 'auto' by default.
         :param mode: Desired mode of evaluation for this quantity.
+                     Optional: 'QuantityEvalMode.TRUE' by default.
         """
         # Backup some user argument(s)
         self.frame_names = tuple(sanitize_foot_frame_names(env, frame_names))
@@ -322,7 +326,9 @@ class MultiFootRelativeXYZQuat(InterfaceQuantity[np.ndarray]):
         :param frame_names: Name of the frames corresponding to the feet of the
                             robot. 'auto' to automatically detect them from the
                             set of contact and force sensors of the robot.
+                            Optional: 'auto' by default.
         :param mode: Desired mode of evaluation for this quantity.
+                     Optional: 'QuantityEvalMode.TRUE' by default.
         """
         # Backup some user argument(s)
         self.frame_names = tuple(sanitize_foot_frame_names(env, frame_names))
@@ -445,6 +451,7 @@ class AverageOdometryVelocity(InterfaceQuantity[np.ndarray]):
         :param parent: Higher-level quantity from which this quantity is a
                        requirement if any, `None` otherwise.
         :param mode: Desired mode of evaluation for this quantity.
+                     Optional: 'QuantityEvalMode.TRUE' by default.
         """
         # Backup some user argument(s)
         self.mode = mode
@@ -490,6 +497,7 @@ class CenterOfMass(AbstractQuantity[np.ndarray]):
         :para kinematic_level: Desired kinematic level, ie position, velocity
                                or acceleration.
         :param mode: Desired mode of evaluation for this quantity.
+                     Optional: 'QuantityEvalMode.TRUE' by default.
         """
         # Backup some user argument(s)
         self.kinematic_level = kinematic_level
@@ -565,6 +573,7 @@ class ZeroMomentPoint(AbstractQuantity[np.ndarray]):
                                 frame (aka 'pin.LOCAL') or aligned with world
                                 axes (aka 'pin.LOCAL_WORLD_ALIGNED').
         :param mode: Desired mode of evaluation for this quantity.
+                     Optional: 'QuantityEvalMode.TRUE' by default.
         """
         # Make sure at requested reference frame is supported
         if reference_frame not in (pin.LOCAL, pin.LOCAL_WORLD_ALIGNED):
@@ -675,6 +684,7 @@ class CapturePoint(AbstractQuantity[np.ndarray]):
                                 frame (aka 'pin.LOCAL') or aligned with world
                                 axes (aka 'pin.LOCAL_WORLD_ALIGNED').
         :param mode: Desired mode of evaluation for this quantity.
+                     Optional: 'QuantityEvalMode.TRUE' by default.
         """
         # Make sure at requested reference frame is supported
         if reference_frame not in (pin.LOCAL, pin.LOCAL_WORLD_ALIGNED):

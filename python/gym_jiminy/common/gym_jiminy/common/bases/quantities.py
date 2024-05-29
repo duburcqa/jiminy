@@ -919,6 +919,7 @@ class StateQuantity(InterfaceQuantity[State]):
                      set to `QuantityEvalMode.REFERENCE`, then at the state of
                      some reference trajectory at the current simulation time
                      will be used instead.
+                     Optional: 'QuantityEvalMode.TRUE' by default.
         """
         # Backup user argument(s)
         self.mode = mode
