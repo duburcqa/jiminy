@@ -5,6 +5,7 @@ from typing import Optional, Tuple, Sequence, Literal, Union
 from dataclasses import dataclass
 
 import numpy as np
+import numba as nb
 
 import jiminy_py.core as jiminy
 from jiminy_py.core import array_copyto  # pylint: disable=no-name-in-module
@@ -13,10 +14,68 @@ import pinocchio as pin
 
 from ..bases import (
     InterfaceJiminyEnv, InterfaceQuantity, AbstractQuantity, QuantityEvalMode)
-from ..utils import fill, matrix_to_yaw, quat_to_yaw
+from ..utils import (
+    fill, matrix_to_quat, matrix_to_yaw, quat_to_yaw, quat_to_matrix)
 
 from ..quantities import (
-    MaskedQuantity, AverageFrameSpatialVelocity, MultiFrameMeanXYZQuat)
+    Orientation, MaskedQuantity, AverageFrameSpatialVelocity,
+    MultiFramePosition, MultiFrameOrientation, MultiFrameMeanXYZQuat)
+
+
+def sanitize_foot_frame_names(
+        env: InterfaceJiminyEnv,
+        frame_names: Union[Sequence[str], Literal['auto']] = 'auto'
+        ) -> Sequence[str]:
+    """Try to detect automatically one frame name per foot of a given legged
+    robot if 'auto' mode is enabled. Otherwise, make sure that the specified
+    sequence of frame names is non-empty, and all of them corresponds to
+    end-effectors, ie having one of the leaf joints of the kinematic tree of
+    the robot as parent.
+
+    :param env: Base or wrapped jiminy environment.
+    :param frame_names: Name of the frames corresponding to some feet of the
+                        robot. 'auto' to automatically detect them from the set
+                        of contact and force sensors of the robot.
+    """
+    # Make sure that the robot has a freeflyer
+    if not env.robot.has_freeflyer:
+        raise ValueError("Only legged robot with floating base are supported.")
+
+    # Determine the leaf joints of the kinematic tree
+    pinocchio_model = env.robot.pinocchio_model_th
+    parents = pinocchio_model.parents
+    leaf_joint_indices = set(range(len(parents))) - set(parents)
+    leaf_frame_names = tuple(
+        frame.name for frame in pinocchio_model.frames
+        if frame.parent in leaf_joint_indices)
+
+    if frame_names == 'auto':
+        # Determine the most likely set of frames corresponding to the feet
+        foot_frame_names = set()
+        for sensor_class in (jiminy.ContactSensor, jiminy.ForceSensor):
+            for sensor in env.robot.sensors.get(sensor_class.type, ()):
+                assert isinstance(sensor, ((
+                    jiminy.ContactSensor, jiminy.ForceSensor)))
+                # Skip sensors not attached to a leaf joint
+                if sensor.frame_name in leaf_frame_names:
+                    # The joint name is used as frame name. This avoids
+                    # considering multiple fixed frames wrt to the same
+                    # joint. They would be completely redundant, slowing
+                    # down computations for no reason.
+                    frame = pinocchio_model.frames[sensor.frame_index]
+                    joint_name = pinocchio_model.names[frame.parent]
+                    foot_frame_names.add(joint_name)
+        frame_names = tuple(foot_frame_names)
+
+    # Make sure that at least one frame has been found
+    if not frame_names:
+        raise ValueError("At least one frame must be specified.")
+
+    # Make sure that the frame names are end-effectors
+    if any(name not in leaf_frame_names for name in frame_names):
+        raise ValueError("All frames must correspond to end-effectors.")
+
+    return sorted(frame_names)
 
 
 @dataclass(unsafe_hash=True)
@@ -79,16 +138,76 @@ class BaseOdometryPose(AbstractQuantity[np.ndarray]):
 
 
 @dataclass(unsafe_hash=True)
-class FootOdometryPose(InterfaceQuantity[np.ndarray]):
-    """Odometry pose of the average position and orientation of the feet of a
-    legged robot at the end of the agent step.
+class MultiFootMeanXYZQuat(InterfaceQuantity[np.ndarray]):
+    """Average position and orientation of the feet of a legged robot at the
+    end of the agent step.
 
-    Using the average foot pose to characterize the position and heading of
-    the robot in world plane may be more appropriate than using the floating
-    pose, especially when it comes to assessing the tracking error of the foot
+    The average foot pose may be more appropriate than the floating base pose
+    to characterize the position and orientation the robot in the world,
+    especially when it comes to assessing the tracking error of the foot
     trajectories. It has the advantage to make foot tracking independent from
     floating base tracking, giving the opportunity to the robot to locally
     recover stability by moving its upper body without impeding foot tracking.
+    """
+
+    frame_names: Tuple[str, ...]
+    """Name of the frames corresponding to some feet of the robot.
+
+    These frames must be part of the end-effectors, ie being associated with a
+    leaf joint in the kinematic tree of the robot.
+    """
+
+    mode: QuantityEvalMode
+    """Specify on which state to evaluate this quantity. See `Mode`
+    documentation for details about each mode.
+
+    .. warning::
+        Mode `REFERENCE` requires a reference trajectory to be selected
+        manually prior to evaluating this quantity for the first time.
+    """
+
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 parent: Optional[InterfaceQuantity],
+                 frame_names: Union[Sequence[str], Literal['auto']] = 'auto',
+                 *,
+                 mode: QuantityEvalMode = QuantityEvalMode.TRUE) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param parent: Higher-level quantity from which this quantity is a
+                       requirement if any, `None` otherwise.
+        :param frame_names: Name of the frames corresponding to some feet of
+                            the robot. 'auto' to automatically detect them from
+                            the set of contact and force sensors of the robot.
+        :param mode: Desired mode of evaluation for this quantity.
+        """
+        # Backup some user argument(s)
+        self.frame_names = tuple(sanitize_foot_frame_names(env, frame_names))
+        self.mode = mode
+
+        # Call base implementation
+        super().__init__(
+            env,
+            parent,
+            requirements=dict(
+                data=(MultiFrameMeanXYZQuat, dict(
+                    frame_names=self.frame_names,
+                    mode=mode))),
+            auto_refresh=False)
+
+    def refresh(self) -> np.ndarray:
+        return self.data
+
+
+@dataclass(unsafe_hash=True)
+class MultiFootMeanOdometryPose(InterfaceQuantity[np.ndarray]):
+    """Odometry pose of the average position and orientation of the feet of a
+    legged robot at the end of the agent step.
+
+    Using the average foot odometry pose may be more appropriate than the
+    floating base odometry pose to characterize the position and heading the
+    robot in the world plane. See `MultiFootMeanXYZQuat` documentation for
+    details.
 
     The odometry pose fully specifies the position and orientation of the robot
     in 2D world plane. See `BaseOdometryPose` documentation for details.
@@ -125,38 +244,8 @@ class FootOdometryPose(InterfaceQuantity[np.ndarray]):
                             set of contact and force sensors of the robot.
         :param mode: Desired mode of evaluation for this quantity.
         """
-        # Determine the leaf joints of the kinematic tree
-        pinocchio_model = env.robot.pinocchio_model_th
-        parents = pinocchio_model.parents
-        leaf_joint_indices = set(range(len(parents))) - set(parents)
-        leaf_frame_names = tuple(
-            frame.name for frame in pinocchio_model.frames
-            if frame.parent in leaf_joint_indices)
-
-        if frame_names == 'auto':
-            # Determine the most likely set of frames corresponding to the feet
-            foot_frame_names = set()
-            for sensor_class in (jiminy.ContactSensor, jiminy.ForceSensor):
-                for sensor in env.robot.sensors.get(sensor_class.type, ()):
-                    assert isinstance(sensor, ((
-                        jiminy.ContactSensor, jiminy.ForceSensor)))
-                    # Skip sensors not attached to a leaf joint
-                    if sensor.frame_name in leaf_frame_names:
-                        # The joint name is used as frame name. This avoids
-                        # considering multiple fixed frames wrt to the same
-                        # joint. They would be completely redundant, slowing
-                        # down computations for no reason.
-                        frame = pinocchio_model.frames[sensor.frame_index]
-                        joint_name = pinocchio_model.names[frame.parent]
-                        foot_frame_names.add(joint_name)
-            frame_names = tuple(foot_frame_names)
-
-        # Make sure that the frame names are end-effectors
-        if any(name not in leaf_frame_names for name in frame_names):
-            raise ValueError("All frames must correspond to end-effectors.")
-
         # Backup some user argument(s)
-        self.frame_names = tuple(frame_names)
+        self.frame_names = tuple(sanitize_foot_frame_names(env, frame_names))
         self.mode = mode
 
         # Call base implementation
@@ -164,8 +253,8 @@ class FootOdometryPose(InterfaceQuantity[np.ndarray]):
             env,
             parent,
             requirements=dict(
-                data=(MultiFrameMeanXYZQuat, dict(
-                    frame_names=frame_names,
+                data=(MultiFootMeanXYZQuat, dict(
+                    frame_names=self.frame_names,
                     mode=mode))),
             auto_refresh=False)
 
@@ -184,6 +273,145 @@ class FootOdometryPose(InterfaceQuantity[np.ndarray]):
         quat_to_yaw(self.data[-4:], self._yaw_view)
 
         return self._odom_pose
+
+
+@dataclass(unsafe_hash=True)
+class MultiFootRelativeXYZQuat(InterfaceQuantity[np.ndarray]):
+    """Relative position and orientation of the feet of a legged robot wrt
+    themselves at the end of the agent step.
+
+    The reference frame used to compute the relative pose of the frames is the
+    mean foot pose. See `MultiFootMeanXYZQuat` documentation for details.
+
+    Note that there is always one of the relative frame pose that is redundant
+    wrt the others. Notably, in particular case where there is only two frames,
+    it is one is the opposite of the other. As a result, the last relative pose
+    is always dropped from the returned value, based on the same ordering as
+    'self.frame_names'. As for `MultiFrameXYZQuat`, the data associated with
+    each frame are returned as a 2D contiguous array. The first dimension
+    gathers the 7 components (X, Y, Z, QuatX, QuatY, QuatZ, QuaW), while the
+    last one corresponds to individual relative frames poses.
+    """
+
+    frame_names: Tuple[str, ...]
+    """Name of the frames corresponding to the feet of the robot.
+
+    These frames must be part of the end-effectors, ie being associated with a
+    leaf joint in the kinematic tree of the robot.
+    """
+
+    mode: QuantityEvalMode
+    """Specify on which state to evaluate this quantity. See `Mode`
+    documentation for details about each mode.
+
+    .. warning::
+        Mode `REFERENCE` requires a reference trajectory to be selected
+        manually prior to evaluating this quantity for the first time.
+    """
+
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 parent: Optional[InterfaceQuantity],
+                 frame_names: Union[Sequence[str], Literal['auto']] = 'auto',
+                 *,
+                 mode: QuantityEvalMode = QuantityEvalMode.TRUE) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param parent: Higher-level quantity from which this quantity is a
+                       requirement if any, `None` otherwise.
+        :param frame_names: Name of the frames corresponding to the feet of the
+                            robot. 'auto' to automatically detect them from the
+                            set of contact and force sensors of the robot.
+        :param mode: Desired mode of evaluation for this quantity.
+        """
+        # Backup some user argument(s)
+        self.frame_names = tuple(sanitize_foot_frame_names(env, frame_names))
+        self.mode = mode
+
+        # Call base implementation
+        super().__init__(
+            env,
+            parent,
+            requirements=dict(
+                xyzquat_mean=(MultiFootMeanXYZQuat, dict(
+                    frame_names=self.frame_names,
+                    mode=mode)),
+                positions=(MultiFramePosition, dict(
+                    frame_names=self.frame_names,
+                    mode=mode)),
+                rotations=(MultiFrameOrientation, dict(
+                    frame_names=self.frame_names,
+                    type=Orientation.MATRIX,
+                    mode=mode))),
+            auto_refresh=False)
+
+        # Buffer to store the inverse mean quaternion
+        self._rot_mean = np.zeros((3, 3))
+
+        # Buffer to store relative rotation matrices
+        self._foot_rots_rel = np.zeros((3, 3, len(self.frame_names) - 1))
+
+        # Pre-allocate memory for the relative poses of all feet
+        self._foot_poses_rel = np.zeros((7, len(self.frame_names) - 1))
+
+        # Define jit-able method translating multiple positions to local frame
+        @nb.jit(nopython=True, cache=True, fastmath=True)
+        def translate_positions(positions: np.ndarray,
+                                position_ref: np.ndarray,
+                                rotation_ref: np.ndarray,
+                                out: np.ndarray) -> None:
+            """Translate a batch of position vectors from world to local frame.
+
+            :param positions: Batch of positions vectors as a 2D array whose
+                              first dimension gathers the 3 spatial coordinates
+                              (X, Y, Z) while the second corresponds to the
+                              independent points.
+            :param position_ref: Position of the reference frame in world.
+            :param rotation_ref: Orientation of the reference frame in world as
+                                 a 2D rotation matrix.
+            :param out: Pre-allocated array into which the result is stored.
+            """
+            out[:] = rotation_ref.T @ (positions - position_ref[:, np.newaxis])
+
+        self._translate_positions_fun = translate_positions
+
+        # Split foot poses in position and orientation vectors
+        self._foot_position_view = self._foot_poses_rel[:3]
+        self._foot_quat_view = self._foot_poses_rel[-4:]
+
+    def refresh(self) -> np.ndarray:
+        # Extract mean frame position and quaternion
+        xyzquat_mean = self.xyzquat_mean
+        position_mean, quat_mean = xyzquat_mean[:3], xyzquat_mean[-4:]
+
+        # Compute the mean rotation matrix
+        quat_to_matrix(quat_mean, self._rot_mean)
+
+        # Compute the relative frame position of each foot.
+        # Note that the translation and orientation are treated independently
+        # (double geodesic), to be consistent with the method that was used to
+        # compute the mean foot pose. This way, the norm of the relative
+        # position is not affected by the orientation of the feet.
+        self._translate_positions_fun(self.positions[:, :-1],
+                                      position_mean,
+                                      self._rot_mean,
+                                      self._foot_position_view)
+
+        # Compute relative frame orientations.
+        # Note that using quaternion to compose rotations or rotate position
+        # vectors if significantly more costly than using rotation matrices.
+        # Because of this, it is more efficient overall to perform all the
+        # processing steps using rotation matrices and only convert them to
+        # quaternions as the very last step.
+        np.einsum('ij,jkn',
+                  self._rot_mean.T,
+                  self.rotations[..., :-1],
+                  out=self._foot_rots_rel)
+
+        # Convert relative orientations from rotation matrices to quaternions
+        matrix_to_quat(self._foot_rots_rel, self._foot_quat_view)
+
+        return self._foot_poses_rel
 
 
 @dataclass(unsafe_hash=True)

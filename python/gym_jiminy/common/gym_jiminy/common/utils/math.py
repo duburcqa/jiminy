@@ -394,11 +394,12 @@ def quat_multiply(quat_left: np.ndarray,
     :param out: A pre-allocated array into which the result is stored. If not
                 provided, a new array is freshly-allocated, which is slower.
     """
-    assert quat_left.ndim >= 1 and quat_left.shape == quat_right.shape
+    assert quat_left.ndim >= 1
+    out_shape = np.broadcast_shapes(quat_left.shape, quat_right.shape)
     if out is None:
-        out_ = np.empty_like(quat_left)
+        out_ = np.empty(out_shape)
     else:
-        assert out.shape == quat_left.shape
+        assert out.shape == out_shape
         out_ = out
     (qx_l, qy_l, qz_l, qw_l), (qx_r, qy_r, qz_r, qw_r) = quat_left, quat_right
     # qx_out, qy_out, qz_out, qw_out = out_

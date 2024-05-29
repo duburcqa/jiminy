@@ -5,7 +5,8 @@ import matplotlib.pyplot as plt
 import gymnasium as gym
 
 import gym_jiminy.common.bases.quantities
-from gym_jiminy.common.quantities import QuantityManager, FrameEulerAngles
+from gym_jiminy.common.quantities import (
+    Orientation, QuantityManager, FrameOrientation)
 
 # Define number of samples for benchmarking
 N_SAMPLES = 50000
@@ -25,7 +26,8 @@ nframes = len(env.robot.pinocchio_model.frames)
 quantity_manager = QuantityManager(
     env.simulator,
     {
-        f"rpy_{i}": (FrameEulerAngles, dict(frame_name=frame.name))
+        f"rpy_{i}": (FrameOrientation, dict(
+            frame_name=frame.name, type=Orientation.EULER))
         for i, frame in enumerate(env.robot.pinocchio_model.frames)
     })
 
@@ -41,7 +43,7 @@ for i in range(1, nframes):
         if i == j + 1:
             break
 
-    # Extract batched data buffer of `FrameEulerAngles` quantities
+    # Extract batched data buffer of `FrameOrientation` quantities
     shared_data = quantity.requirements['data']
 
     # Benchmark computation of batched data buffer
