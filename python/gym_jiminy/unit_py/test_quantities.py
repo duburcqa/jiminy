@@ -14,13 +14,15 @@ from gym_jiminy.common.utils import  (
     matrix_to_quat, quat_average, quat_to_matrix, quat_to_yaw)
 from gym_jiminy.common.bases import QuantityEvalMode, DatasetTrajectoryQuantity
 from gym_jiminy.common.quantities import (
+    Orientation,
     QuantityManager,
-    FrameEulerAngles,
-    MultiFrameEulerAngles,
+    FrameOrientation,
+    MultiFrameOrientation,
     FrameXYZQuat,
     MultiFrameMeanXYZQuat,
     MaskedQuantity,
-    FootOdometryPose,
+    MultiFootMeanOdometryPose,
+    MultiFootRelativeXYZQuat,
     AverageFrameSpatialVelocity,
     AverageOdometryVelocity,
     ActuatedJointPositions,
@@ -85,18 +87,30 @@ class Quantities(unittest.TestCase):
         for name, cls, kwargs in (
                 ("xyzquat_0", FrameXYZQuat, dict(
                     frame_name=frame_names[2])),
-                ("rpy_0", FrameEulerAngles, dict(
-                    frame_name=frame_names[1])),
-                ("rpy_1", FrameEulerAngles, dict(
-                    frame_name=frame_names[1])),
-                ("rpy_2", FrameEulerAngles, dict(
-                    frame_name=frame_names[-1])),
-                ("rpy_batch_0", MultiFrameEulerAngles, dict(  # Intersection
-                    frame_names=(frame_names[-3], frame_names[1]))),
-                ("rpy_batch_1", MultiFrameEulerAngles, dict(  # Inclusion
-                    frame_names=(frame_names[1], frame_names[-1]))),
-                ("rpy_batch_2", MultiFrameEulerAngles, dict(  # Disjoint
-                    frame_names=(frame_names[1], frame_names[-4])))):
+                ("rpy_0", FrameOrientation, dict(
+                    frame_name=frame_names[1],
+                    type=Orientation.EULER)),
+                ("rpy_1", FrameOrientation, dict(
+                    frame_name=frame_names[1],
+                    type=Orientation.EULER)),
+                ("rpy_2", FrameOrientation, dict(
+                    frame_name=frame_names[-1],
+                    type=Orientation.EULER)),
+                ("rpy_batch_0", MultiFrameOrientation, dict(  # Intersection
+                    frame_names=(frame_names[-3], frame_names[1]),
+                    type=Orientation.EULER)),
+                ("rpy_batch_1", MultiFrameOrientation, dict(  # Inclusion
+                    frame_names=(frame_names[1], frame_names[-1]),
+                    type=Orientation.EULER)),
+                ("rpy_batch_2", MultiFrameOrientation, dict(  # Disjoint
+                    frame_names=(frame_names[1], frame_names[-4]),
+                    type=Orientation.EULER)),
+                ("rot_mat_batch", MultiFrameOrientation, dict(
+                    frame_names=(frame_names[1], frame_names[-1]),
+                    type=Orientation.MATRIX)),
+                ("quat_batch", MultiFrameOrientation, dict(
+                    frame_names=(frame_names[1], frame_names[-4]),
+                    type=Orientation.QUATERNION))):
             quantity_manager[name] = (cls, kwargs)
         quantities = quantity_manager.registry
 
@@ -107,7 +121,7 @@ class Quantities(unittest.TestCase):
         rpy_2 = quantity_manager.rpy_2.copy()
         assert np.any(rpy_0 != rpy_2)
         assert len(quantities['rpy_2'].requirements['data'].frame_names) == 2
-        quantity_manager.rpy_batch_0
+        assert tuple(quantity_manager.rpy_batch_0.shape) == (3, 2)
         assert len(quantities['rpy_batch_0'].requirements['data'].
                    frame_names) == 3
         quantity_manager.rpy_batch_1
@@ -116,8 +130,10 @@ class Quantities(unittest.TestCase):
         quantity_manager.rpy_batch_2
         assert len(quantities['rpy_batch_2'].requirements['data'].
                    frame_names) == 5
-        assert len(quantities['rpy_batch_2'].requirements['data'].
-                   requirements['rot_mat_batch'].frame_names) == 6
+        assert tuple(quantity_manager.rot_mat_batch.shape) == (3, 3, 2)
+        assert tuple(quantity_manager.quat_batch.shape) == (4, 2)
+        assert len(quantities['quat_batch'].requirements['data'].
+                   requirements['rot_mat_map'].frame_names) == 8
 
         env.step(env.action_space.sample())
         quantity_manager.reset()
@@ -146,11 +162,11 @@ class Quantities(unittest.TestCase):
 
         quantity_manager = QuantityManager(env)
         for name, cls, kwargs in (
-                ("rpy_0", FrameEulerAngles, dict(
+                ("rpy_0", FrameOrientation, dict(
                     frame_name=env.robot.pinocchio_model.frames[1].name)),
-                ("rpy_1", FrameEulerAngles, dict(
+                ("rpy_1", FrameOrientation, dict(
                     frame_name=env.robot.pinocchio_model.frames[1].name)),
-                ("rpy_2", FrameEulerAngles, dict(
+                ("rpy_2", FrameOrientation, dict(
                     frame_name=env.robot.pinocchio_model.frames[-1].name))):
             quantity_manager[name] = (cls, kwargs)
         quantities = quantity_manager.registry
@@ -391,7 +407,7 @@ class Quantities(unittest.TestCase):
         """
         env = gym.make("gym_jiminy.envs:atlas")
 
-        env.quantities["foot_odom_pose"] = (FootOdometryPose, {})
+        env.quantities["foot_odom_pose"] = (MultiFootMeanOdometryPose, {})
 
         env.reset(seed=0)
         env.step(env.action_space.sample())
@@ -410,3 +426,37 @@ class Quantities(unittest.TestCase):
         value = env.quantities["foot_odom_pose"]
 
         np.testing.assert_allclose(value, np.array((*mean_pos, mean_yaw)))
+
+    def test_foot_relative_pose(self):
+        """ TODO: Write documentation
+        """
+        env = gym.make("gym_jiminy.envs:atlas")
+
+        env.quantities["foot_rel_poses"] = (MultiFootRelativeXYZQuat, {})
+
+        env.reset(seed=0)
+        env.step(env.action_space.sample())
+
+        foot_poses = []
+        for frame_name in ("l_foot", "r_foot"):
+            frame_index = env.robot.pinocchio_model.getFrameId(frame_name)
+            foot_poses.append(env.robot.pinocchio_data.oMf[frame_index])
+        pos_feet = np.stack(tuple(
+            foot_pose.translation for foot_pose in foot_poses), axis=-1)
+        quat_feet = np.stack(tuple(
+            matrix_to_quat(foot_pose.rotation)
+            for foot_pose in foot_poses), axis=-1)
+
+        pos_mean = np.mean(pos_feet, axis=-1, keepdims=True)
+        rot_mean = quat_to_matrix(quat_average(quat_feet))
+        pos_rel = rot_mean.T @ (pos_feet - pos_mean)
+        quat_rel = np.stack(tuple(
+            matrix_to_quat(rot_mean.T @ foot_pose.rotation)
+            for foot_pose in foot_poses), axis=-1)
+        quat_rel[-4:, quat_rel[-1] < 0.0] *= -1
+
+        value = env.quantities["foot_rel_poses"].copy()
+        value[-4:, value[-1] < 0.0] *= -1
+
+        np.testing.assert_allclose(value[:3], pos_rel[:, :-1])
+        np.testing.assert_allclose(value[-4:], quat_rel[:, :-1])
