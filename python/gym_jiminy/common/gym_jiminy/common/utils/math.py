@@ -4,7 +4,7 @@ They combine batch-processing with Just-In-Time (JIT) compiling via Numba when
 possible for optimal performance. Most of them are dealing with rotations (SO3)
 to perform transformations or convert from one representation to another.
 """
-from typing import Union, Tuple, Optional, no_type_check
+from typing import Union, Tuple, Optional, no_type_check, overload
 
 import numpy as np
 import numba as nb
@@ -23,9 +23,19 @@ def squared_norm_2(array: np.ndarray) -> float:
     return np.sum(np.square(array))
 
 
+@overload
+def matrix_to_yaw(mat: np.ndarray, out: np.ndarray) -> np.ndarray:
+    ...
+
+
+@overload
+def matrix_to_yaw(mat: np.ndarray, out: None) -> None:
+    ...
+
+
 @nb.jit(nopython=True, cache=True)
 def matrix_to_yaw(mat: np.ndarray,
-                  out: Optional[np.ndarray] = None) -> np.ndarray:
+                  out: Optional[np.ndarray] = None) -> Optional[np.ndarray]:
     """Compute the yaw from Yaw-Pitch-Roll Euler angles representation of a
     rotation matrix in 3D Euclidean space.
 
@@ -40,11 +50,13 @@ def matrix_to_yaw(mat: np.ndarray,
     else:
         assert out.shape == mat.shape[2:]
         out_ = out
+    out1d = np.atleast_1d(out_)
 
-    out__ = np.atleast_1d(out_)
-    out__[:] = np.arctan2(mat[1, 0], mat[0, 0])
+    out1d[:] = np.arctan2(mat[1, 0], mat[0, 0])
 
-    return out_
+    if out is None:
+        return out_
+    return None
 
 
 @nb.jit(nopython=True, cache=True, inline='always')
@@ -61,9 +73,19 @@ def quat_to_yaw_cos_sin(quat: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     return cos_yaw, sin_yaw
 
 
+@overload
+def quat_to_yaw(quat: np.ndarray, out: np.ndarray) -> np.ndarray:
+    ...
+
+
+@overload
+def quat_to_yaw(quat: np.ndarray, out: None) -> None:
+    ...
+
+
 @nb.jit(nopython=True, cache=True)
 def quat_to_yaw(quat: np.ndarray,
-                out: Optional[np.ndarray] = None) -> np.ndarray:
+                out: Optional[np.ndarray] = None) -> Optional[np.ndarray]:
     """Compute the yaw from Yaw-Pitch-Roll Euler angles representation of a
     single or a batch of quaternions.
 
@@ -80,17 +102,29 @@ def quat_to_yaw(quat: np.ndarray,
     else:
         assert out.shape == quat.shape[1:]
         out_ = out
+    out1d = np.atleast_1d(out_)
 
     cos_yaw, sin_yaw = quat_to_yaw_cos_sin(quat)
-    out__ = np.atleast_1d(out_)
-    out__[:] = np.arctan2(sin_yaw, cos_yaw)
+    out1d[:] = np.arctan2(sin_yaw, cos_yaw)
 
-    return out_
+    if out is None:
+        return out_
+    return None
+
+
+@overload
+def quat_to_rpy(quat: np.ndarray, out: np.ndarray) -> np.ndarray:
+    ...
+
+
+@overload
+def quat_to_rpy(quat: np.ndarray, out: None) -> None:
+    ...
 
 
 @nb.jit(nopython=True, cache=True)
 def quat_to_rpy(quat: np.ndarray,
-                out: Optional[np.ndarray] = None) -> np.ndarray:
+                out: Optional[np.ndarray] = None) -> Optional[np.ndarray]:
     """Compute the Yaw-Pitch-Roll Euler angles representation of a single or a
     batch of quaternions.
 
@@ -126,12 +160,24 @@ def quat_to_rpy(quat: np.ndarray,
         np.sqrt(1.0 + 2 * (q_yw - q_xz)), np.sqrt(1.0 - 2 * (q_yw - q_xz)))
     out_[2] = np.arctan2(2 * (q_zw + q_xy), 1.0 - 2 * (q_yy + q_zz))
 
-    return out_
+    if out is None:
+        return out_
+    return None
+
+
+@overload
+def quat_to_matrix(quat: np.ndarray, out: np.ndarray) -> np.ndarray:
+    ...
+
+
+@overload
+def quat_to_matrix(quat: np.ndarray, out: None) -> None:
+    ...
 
 
 @nb.jit(nopython=True, cache=True)
 def quat_to_matrix(quat: np.ndarray,
-                   out: Optional[np.ndarray] = None) -> np.ndarray:
+                   out: Optional[np.ndarray] = None) -> Optional[np.ndarray]:
     """Compute the Rotation Matrix representation of a single or a
     batch of quaternions.
 
@@ -146,6 +192,7 @@ def quat_to_matrix(quat: np.ndarray,
     else:
         assert out.shape == (3, 3, *quat.shape[1:])
         out_ = out
+
     q_xx, q_xy, q_xz, q_xw = quat[-4] * quat[-4:]
     q_yy, q_yz, q_yw = quat[-3] * quat[-3:]
     q_zz, q_zw = quat[-2] * quat[-2:]
@@ -158,12 +205,25 @@ def quat_to_matrix(quat: np.ndarray,
     out_[2][0] = 2 * (q_xz - q_yw)
     out_[2][1] = 2 * (q_yz + q_xw)
     out_[2][2] = 1.0 - 2 * (q_xx + q_yy)
-    return out_
+
+    if out is None:
+        return out_
+    return None
+
+
+@overload
+def matrix_to_quat(mat: np.ndarray, out: np.ndarray) -> np.ndarray:
+    ...
+
+
+@overload
+def matrix_to_quat(mat: np.ndarray, out: None) -> None:
+    ...
 
 
 @nb.jit(nopython=True, cache=True)
 def matrix_to_quat(mat: np.ndarray,
-                   out: Optional[np.ndarray] = None) -> np.ndarray:
+                   out: Optional[np.ndarray] = None) -> Optional[np.ndarray]:
     """Compute the [qx, qy, qz, qw] Quaternion representation of a single or a
     batch of rotation matrices.
 
@@ -178,20 +238,35 @@ def matrix_to_quat(mat: np.ndarray,
     else:
         assert out.shape == (4, *mat.shape[2:])
         out_ = out
+
     # q_x, q_y, q_z, q_w = out_
     out_[0] = mat[2, 1] - mat[1, 2]
     out_[1] = mat[0, 2] - mat[2, 0]
     out_[2] = mat[1, 0] - mat[0, 1]
     out_[3] = 1.0 + mat[0, 0] + mat[1, 1] + mat[2, 2]
     out_ /= np.sqrt(np.sum(np.square(out_), 0))
-    return out_
+
+    if out is None:
+        return out_
+    return None
+
+
+@overload
+def matrices_to_quat(mat_list: Tuple[np.ndarray, ...],
+                     out: np.ndarray) -> np.ndarray:
+    ...
+
+
+@overload
+def matrices_to_quat(mat_list: Tuple[np.ndarray, ...], out: None) -> None:
+    ...
 
 
 # TODO: Merge this method with `matrix_to_quat` by leverage compile-time
 # implementation dispatching via `nb.generated_jit` or `nb.overload`.
 @nb.jit(nopython=True, cache=True)
 def matrices_to_quat(mat_list: Tuple[np.ndarray, ...],
-                     out: Optional[np.ndarray] = None) -> np.ndarray:
+                     out: Optional[np.ndarray] = None) -> Optional[np.ndarray]:
     """Compute the [qx, qy, qz, qw] Quaternion representation of multiple
     rotation matrices.
 
@@ -208,6 +283,7 @@ def matrices_to_quat(mat_list: Tuple[np.ndarray, ...],
     else:
         assert out.shape == (4, len(mat_list))
         out_ = out
+
     # q_x, q_y, q_z, q_w = out_
     t = np.empty((len(mat_list),))
     for i, mat in enumerate(mat_list):
@@ -238,13 +314,30 @@ def matrices_to_quat(mat_list: Tuple[np.ndarray, ...],
                 out_[2][i] = mat[1, 0] - mat[0, 1]
                 out_[3][i] = t[i]
     out_ /= 2 * np.sqrt(t)
-    return out_
+
+    if out is None:
+        return out_
+    return None
+
+
+@overload
+def transforms_to_vector(
+        transform_list: Tuple[Tuple[np.ndarray, np.ndarray], ...],
+        out: np.ndarray) -> np.ndarray:
+    ...
+
+
+@overload
+def transforms_to_vector(
+        transform_list: Tuple[Tuple[np.ndarray, np.ndarray], ...],
+        out: None) -> None:
+    ...
 
 
 @nb.jit(nopython=True, cache=True)
 def transforms_to_vector(
         transform_list: Tuple[Tuple[np.ndarray, np.ndarray], ...],
-        out: Optional[np.ndarray] = None) -> np.ndarray:
+        out: Optional[np.ndarray] = None) -> Optional[np.ndarray]:
     """Stack the translation vector [x, y, z] and the quaternion representation
     [qx, qy, qz, qw] of the orientation of multiple transform tuples.
 
@@ -272,17 +365,27 @@ def transforms_to_vector(
 
     # Convert all rotation matrices to quaternions at once
     rotation_list = [rotation for _, rotation in transform_list]
-    matrices_to_quat(rotation_list, out_[-4:])
+    matrices_to_quat(rotation_list, out_[-4:])  # type: ignore[call-overload]
 
-    # Revel extra dimension before returning if not present initially
-    if out is not None and out.ndim == 1:
-        return out_[:, 0]
-    return out_
+    # Ravel extra dimension before returning if not present initially
+    if out is not None:
+        return out_[:, 0] if out.ndim == 1 else out_
+    return None
+
+
+@overload
+def rpy_to_matrix(rpy: np.ndarray, out: np.ndarray) -> np.ndarray:
+    ...
+
+
+@overload
+def rpy_to_matrix(rpy: np.ndarray, out: None) -> None:
+    ...
 
 
 @nb.jit(nopython=True, cache=True)
 def rpy_to_matrix(rpy: np.ndarray,
-                  out: Optional[np.ndarray] = None) -> np.ndarray:
+                  out: Optional[np.ndarray] = None) -> Optional[np.ndarray]:
     """Compute the Rotation Matrix representation of a single or a
     batch of Yaw-Pitch-Roll Euler angles.
 
@@ -297,6 +400,7 @@ def rpy_to_matrix(rpy: np.ndarray,
     else:
         assert out.shape == (3, 3, *rpy.shape[1:])
         out_ = out
+
     cos_roll, cos_pitch, cos_yaw = np.cos(rpy[-3:])
     sin_roll, sin_pitch, sin_yaw = np.sin(rpy[-3:])
     out_[0][0] = cos_pitch * cos_yaw
@@ -308,12 +412,25 @@ def rpy_to_matrix(rpy: np.ndarray,
     out_[2][0] = - sin_pitch
     out_[2][1] = sin_roll * cos_pitch
     out_[2][2] = cos_roll * cos_pitch
-    return out_
+
+    if out is None:
+        return out_
+    return None
+
+
+@overload
+def matrix_to_rpy(mat: np.ndarray, out: np.ndarray) -> np.ndarray:
+    ...
+
+
+@overload
+def matrix_to_rpy(mat: np.ndarray, out: None) -> None:
+    ...
 
 
 @nb.jit(nopython=True, cache=True)
 def matrix_to_rpy(mat: np.ndarray,
-                  out: Optional[np.ndarray] = None) -> np.ndarray:
+                  out: Optional[np.ndarray] = None) -> Optional[np.ndarray]:
     """Compute the Yaw-Pitch-Roll Euler angles representation of a single or a
     batch of rotation matrices.
 
@@ -339,12 +456,24 @@ def matrix_to_rpy(mat: np.ndarray,
         sin_yaw * mat[0, 2] - cos_yaw * mat[1, 2],
         cos_yaw * mat[1, 1] - sin_yaw * mat[0, 1])
 
-    return out_
+    if out is None:
+        return out_
+    return None
+
+
+@overload
+def rpy_to_quat(rpy: np.ndarray, out: np.ndarray) -> np.ndarray:
+    ...
+
+
+@overload
+def rpy_to_quat(rpy: np.ndarray, out: None) -> None:
+    ...
 
 
 @nb.jit(nopython=True, cache=True)
 def rpy_to_quat(rpy: np.ndarray,
-                out: Optional[np.ndarray] = None) -> np.ndarray:
+                out: Optional[np.ndarray] = None) -> Optional[np.ndarray]:
     """Compute the [qx, qy, qz, qw] Quaternion representation of a single or a
     batch of Yaw-Pitch-Roll Euler angles.
 
@@ -359,6 +488,7 @@ def rpy_to_quat(rpy: np.ndarray,
     else:
         assert out.shape == (4, *rpy.shape[1:])
         out_ = out
+
     roll, pitch, yaw = rpy
     cos_roll, sin_roll = np.cos(roll / 2), np.sin(roll / 2)
     cos_pitch, sin_pitch = np.cos(pitch / 2), np.sin(pitch / 2)
@@ -368,13 +498,30 @@ def rpy_to_quat(rpy: np.ndarray,
     out_[1] = cos_roll * sin_pitch * cos_yaw + sin_roll * cos_pitch * sin_yaw
     out_[2] = cos_roll * cos_pitch * sin_yaw - sin_roll * sin_pitch * cos_yaw
     out_[3] = cos_roll * cos_pitch * cos_yaw + sin_roll * sin_pitch * sin_yaw
-    return out_
+
+    if out is None:
+        return out_
+    return None
+
+
+@overload
+def quat_multiply(quat_left: np.ndarray,
+                  quat_right: np.ndarray,
+                  out: np.ndarray) -> np.ndarray:
+    ...
+
+
+@overload
+def quat_multiply(quat_left: np.ndarray,
+                  quat_right: np.ndarray,
+                  out: None) -> None:
+    ...
 
 
 @nb.jit(nopython=True, cache=True)
 def quat_multiply(quat_left: np.ndarray,
                   quat_right: np.ndarray,
-                  out: Optional[np.ndarray] = None) -> np.ndarray:
+                  out: Optional[np.ndarray] = None) -> Optional[np.ndarray]:
     """Compute the composition of rotations as pair-wise product of two single
     or batches of quaternions [qx, qy, qz, qw], ie `quat_left * quat_right`.
 
@@ -401,13 +548,17 @@ def quat_multiply(quat_left: np.ndarray,
     else:
         assert out.shape == out_shape
         out_ = out
+
     (qx_l, qy_l, qz_l, qw_l), (qx_r, qy_r, qz_r, qw_r) = quat_left, quat_right
     # qx_out, qy_out, qz_out, qw_out = out_
     out_[0] = qw_l * qx_r + qx_l * qw_r + qy_l * qz_r - qz_l * qy_r
     out_[1] = qw_l * qy_r - qx_l * qz_r + qy_l * qw_r + qz_l * qx_r
     out_[2] = qw_l * qz_r + qx_l * qy_r - qy_l * qx_r + qz_l * qw_r
     out_[3] = qw_l * qw_r - qx_l * qx_r - qy_l * qy_r - qz_l * qz_r
-    return out_
+
+    if out is None:
+        return out_
+    return None
 
 
 @nb.jit(nopython=True, cache=True)
@@ -531,6 +682,7 @@ def quat_average(quat: np.ndarray,
     elif isinstance(axes, int):
         axes = (axes,)
     assert len(axes) > 0 and 0 not in axes
+
     q_perm = quat.transpose((
         *(i for i in range(1, quat.ndim) if i not in axes), 0, *axes))
     q_flat = q_perm.reshape((*q_perm.shape[:-len(axes)], -1))
@@ -538,10 +690,25 @@ def quat_average(quat: np.ndarray,
     return np.moveaxis(eigvec[..., -1], -1, 0)
 
 
+@overload
+def quat_interpolate_middle(quat1: np.ndarray,
+                            quat2: np.ndarray,
+                            out: np.ndarray) -> np.ndarray:
+    ...
+
+
+@overload
+def quat_interpolate_middle(quat1: np.ndarray,
+                            quat2: np.ndarray,
+                            out: None) -> None:
+    ...
+
+
 @nb.jit(nopython=True, cache=True, fastmath=True)
 def quat_interpolate_middle(quat1: np.ndarray,
                             quat2: np.ndarray,
-                            out: Optional[np.ndarray] = None) -> np.ndarray:
+                            out: Optional[np.ndarray] = None
+                            ) -> Optional[np.ndarray]:
     """Compute the midpoint interpolation between two batches of quaternions
     [qx, qy, qz, qw].
 
@@ -570,4 +737,6 @@ def quat_interpolate_middle(quat1: np.ndarray,
     dot_ = dot if quat1.ndim == 1 else np.expand_dims(dot, axis=0)
     out_[:] = (quat1 + np.sign(dot_) * quat2) / np.sqrt(2 * (1 + np.abs(dot_)))
 
-    return out_
+    if out is None:
+        return out_
+    return None
