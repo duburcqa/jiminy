@@ -673,20 +673,15 @@ def sync(fun: Callable[..., None]) -> Callable[..., None]:
                 "method is called priori to setting shared cache.")
         self.__is_synched__ = self.has_cache  # type: ignore[attr-defined]
 
-        # Call instance method on the original caller first
-        fun(self, *args, **kwargs)
-
-        # Call instance method on all other co-owners of shared cache if any
-        if self.has_cache:
-            cls = type(self)
-            for owner in self.cache.owners:
-                if owner is not self:
-                    assert isinstance(owner, cls)
-                    value = fun(owner, *args, **kwargs)
-                    if value is not None:
-                        raise NotImplementedError(
-                            "Instance methods that does not return `None` are "
-                            "not supported.")
+        # Call instance method on all co-owners of shared cache
+        cls = type(self)
+        for owner in (self.cache.owners if self.has_cache else (self,)):
+            assert isinstance(owner, cls)
+            value = fun(owner, *args, **kwargs)
+            if value is not None:
+                raise NotImplementedError(
+                    "Instance methods that does not return `None` are not "
+                    "supported.")
 
     return fun_safe
 
@@ -871,7 +866,9 @@ class DatasetTrajectoryQuantity(InterfaceQuantity[State]):
 
         # Catch-up synchronization
         if owner:
-            self.registry = owner.registry
+            # Shallow copy the original registry, so that deletion / addition
+            # does not propagate to other instances.
+            self.registry = owner.registry.copy()
             if owner._trajectory is not None:
                 self.select(owner._name, owner._mode)
 
