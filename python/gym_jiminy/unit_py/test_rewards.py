@@ -13,6 +13,7 @@ from gym_jiminy.common.compositions import (
     TrackingOdometryVelocityReward,
     TrackingBaseHeightReward,
     TrackingCapturePointReward,
+    TrackingFootPoseReward,
     SurviveReward,
     AdditiveMixtureReward)
 
@@ -47,7 +48,8 @@ class Rewards(unittest.TestCase):
                 (TrackingOdometryVelocityReward, 20.0),
                 (TrackingActuatedJointPositionsReward, 20.0),
                 (TrackingBaseHeightReward, 0.1),
-                (TrackingCapturePointReward, 0.5)) * 20:
+                (TrackingCapturePointReward, 0.5),
+                (TrackingFootPoseReward, 2.0),) * 20:
             reward = reward_class(self.env, cutoff=cutoff)
             quantity_true = reward.quantity.requirements['value_left']
             quantity_ref = reward.quantity.requirements['value_right']
@@ -67,9 +69,11 @@ class Rewards(unittest.TestCase):
                     quantity_true.get(), self.env.robot_state.q[2])
 
             gamma = - np.log(0.01) / cutoff ** 2
-            value = np.exp(- gamma * np.sum((
-                quantity_true.get() - quantity_ref.get()) ** 2))
+            value = np.exp(- gamma * np.sum((reward.quantity.op(
+                quantity_true.get(), quantity_ref.get())) ** 2))
             np.testing.assert_allclose(reward(terminated, {}), value)
+
+            del reward
 
     def test_mixture(self):
         reward_odometry = TrackingOdometryVelocityReward(self.env, cutoff=0.3)

@@ -260,29 +260,68 @@ class Quantities(unittest.TestCase):
     def test_true_vs_reference(self):
         env = gym.make("gym_jiminy.envs:atlas")
 
-        env.quantities["zmp"] = (
-            ZeroMomentPoint, dict(mode=QuantityEvalMode.TRUE))
-        env.reset(seed=0)
-        for _ in range(10):
-            env.step(env.action)
-        zmp_0 = env.quantities["zmp"].copy()
-        env.stop()
+        frame_names = [
+            frame.name for frame in env.robot.pinocchio_model.frames]
 
-        trajectory = extract_trajectory_from_log(env.log_data)
-        env.quantities["zmp_ref"] = (
-            ZeroMomentPoint, dict(mode=QuantityEvalMode.REFERENCE))
+        for quantity_creator in (
+                lambda mode: (ZeroMomentPoint, dict(mode=mode)),
+                lambda mode: (FrameOrientation, dict(
+                    type=Orientation.MATRIX,
+                    frame_name=frame_names[1],
+                    mode=mode)),
+                lambda mode: (FrameXYZQuat, dict(
+                    frame_name=frame_names[2],
+                    mode=mode)),
+                lambda mode: (MultiFrameMeanXYZQuat, dict(
+                    frame_names=tuple(frame_names[i] for i in (1, 3, -2)),
+                    mode=mode)),
+                lambda mode: (MultiFootMeanOdometryPose, dict(
+                    mode=mode)),
+                lambda mode: (AverageFrameSpatialVelocity, dict(
+                    frame_name=frame_names[1],
+                    mode=mode)),
+                lambda mode: (AverageOdometryVelocity, dict(
+                    mode=mode)),
+                lambda mode: (ActuatedJointPositions, dict(
+                    mode=mode)),
+                lambda mode: (CenterOfMass, dict(
+                    kinematic_level=pin.KinematicLevel.ACCELERATION,
+                    mode=mode)),
+                lambda mode: (CapturePoint, dict(
+                    mode=mode)),
+                lambda mode: (ZeroMomentPoint, dict(
+                    mode=mode))
+                ):
+            env.quantities["true"] = quantity_creator(QuantityEvalMode.TRUE)
 
-        with self.assertRaises(RuntimeError):
+            values = []
             env.reset(seed=0)
+            for _ in range(10):
+                env.step(env.action)
+                values.append(env.quantities["true"].copy())
+            env.stop()
+            trajectory = extract_trajectory_from_log(env.log_data)
 
-        env.quantities.add_trajectory("reference", trajectory)
-        env.quantities.select_trajectory("reference")
+            env.quantities["ref"] = quantity_creator(
+                QuantityEvalMode.REFERENCE)
 
-        env.reset(seed=0)
-        for _ in range(10):
-            env.step(env.action_space.sample() * 0.05)
-        assert np.all(zmp_0 != env.quantities["zmp"])
-        np.testing.assert_allclose(zmp_0, env.quantities["zmp_ref"])
+            with self.assertRaises(RuntimeError):
+                env.reset(seed=0)
+
+            env.quantities.add_trajectory("reference", trajectory)
+            env.quantities.select_trajectory("reference")
+
+            env.reset(seed=0)
+            for value in values:
+                env.step(env.action_space.sample() * 0.05)
+                with np.testing.assert_raises(AssertionError):
+                    np.testing.assert_allclose(value, env.quantities["true"])
+                np.testing.assert_allclose(value, env.quantities["ref"])
+            env.stop()
+
+            env.quantities.discard_trajectory("reference")
+            del env.quantities["true"]
+            del env.quantities["ref"]
 
     def test_average_odometry_velocity(self):
         """ TODO: Write documentation
@@ -299,11 +338,9 @@ class Quantities(unittest.TestCase):
         base_pose = env.robot_state.q[:7].copy()
 
         se3 = pin.liegroups.SE3()
-        base_pose_diff = pin.LieGroup.difference(
-            se3, base_pose_prev, base_pose)
+        base_pose_diff = se3.difference(base_pose_prev, base_pose)
         base_velocity_mean_local =  base_pose_diff / env.step_dt
-        base_pose_mean = pin.LieGroup.integrate(
-            se3, base_pose_prev, 0.5 * base_pose_diff)
+        base_pose_mean = se3.integrate(base_pose_prev, 0.5 * base_pose_diff)
         rot_mat = quat_to_matrix(base_pose_mean[-4:])
         base_velocity_mean_world = np.concatenate((
             rot_mat @ base_velocity_mean_local[:3],
