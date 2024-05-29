@@ -5,7 +5,6 @@ application (locomotion, grasping...).
 """
 import warnings
 from enum import Enum
-from functools import partial
 from dataclasses import dataclass
 from typing import (
     List, Dict, Optional, Protocol, Sequence, Tuple, Union, runtime_checkable)
@@ -347,8 +346,11 @@ class _BatchedMultiFrameOrientation(
                     mode=mode))),
             auto_refresh=False)
 
-        # Chunk of frame names managed by this specific instance
-        self._keys: Tuple[Union[str, Tuple[str, ...]], ...] = ()
+        # Mapping from frame names managed by this specific instance to their
+        # corresponding indices in the generated sequence of frame names.
+        self._frame_slices: Tuple[Tuple[
+            Union[str, Tuple[str, ...]], Union[int, Tuple[()], slice]], ...
+            ] = ()
 
         # Store the representation of the orientation of all frames at once
         self._data_batch: np.ndarray = np.array([])
@@ -365,10 +367,10 @@ class _BatchedMultiFrameOrientation(
         super().initialize()
 
         # Update the frame names based on the cache owners of this quantity
-        self.frame_names, frame_slices = aggregate_frame_names(self)
+        self.frame_names, frame_slices_map = aggregate_frame_names(self)
 
-        # Re-assign chunk of frame names being managed
-        self._keys = tuple(frame_slices.keys())
+        # Re-assign mapping of chunk of frame names being managed
+        self._frame_slices = tuple(frame_slices_map.items())
 
         # Re-allocate memory as the number of frames is not known in advance
         nframes = len(self.frame_names)
@@ -381,19 +383,24 @@ class _BatchedMultiFrameOrientation(
         if self.type in (Orientation.EULER, Orientation.QUATERNION):
             self._data_map = {
                 key: self._data_batch[..., frame_slice]
-                for key, frame_slice in frame_slices.items()}
+                for key, frame_slice in frame_slices_map.items()}
 
     def refresh(self) -> Dict[Union[str, Tuple[str, ...]], np.ndarray]:
-        # Get the complete rotation matrix map
-        rot_mat_map = self.rot_mat_map
+        # Get the complete batch of rotation matrices managed by this instance
+        rot_mat_batch = self.rot_mat_map[self.frame_names]
 
         # Convert all rotation matrices at once to the desired representation
         if self.type == Orientation.EULER:
-            matrix_to_rpy(rot_mat_map[self.frame_names], self._data_batch)
+            matrix_to_rpy(rot_mat_batch, self._data_batch)
         elif self.type == Orientation.QUATERNION:
-            matrix_to_quat(rot_mat_map[self.frame_names], self._data_batch)
+            matrix_to_quat(rot_mat_batch, self._data_batch)
         else:
-            self._data_map = {key: rot_mat_map[key] for key in self._keys}
+            # Slice data.
+            # Note that it cannot be pre-computed once and for all because
+            # the batched data reference may changed dynamically.
+            self._data_map = {
+                key: rot_mat_batch[..., frame_slice]
+                for key, frame_slice in self._frame_slices}
 
         # Return proxy directly without copy
         return self._data_map
@@ -435,7 +442,9 @@ class FrameOrientation(InterfaceQuantity[np.ndarray]):
                        requirement if any, `None` otherwise.
         :param frame_name: Name of the frame on which to operate.
         :param type: Desired vector representation of the orientation.
+                     Optional: 'Orientation.MATRIX' by default.
         :param mode: Desired mode of evaluation for this quantity.
+                     Optional: 'QuantityEvalMode.TRUE' by default.
         """
         # Backup some user argument(s)
         self.frame_name = frame_name
@@ -509,7 +518,9 @@ class MultiFrameOrientation(InterfaceQuantity[np.ndarray]):
         :param frame_names: Name of the frames on which to operate.
         :param type: Desired vector representation of the orientation for all
                      frames.
+                     Optional: 'Orientation.MATRIX' by default.
         :param mode: Desired mode of evaluation for this quantity.
+                     Optional: 'QuantityEvalMode.TRUE' by default.
         """
         # Make sure that the user did not pass a single frame name
         assert not isinstance(frame_names, str)
@@ -672,6 +683,7 @@ class FramePosition(InterfaceQuantity[np.ndarray]):
                        requirement if any, `None` otherwise.
         :param frame_name: Name of the frame on which to operate.
         :param mode: Desired mode of evaluation for this quantity.
+                     Optional: 'QuantityEvalMode.TRUE' by default.
         """
         # Backup some user argument(s)
         self.frame_name = frame_name
@@ -731,6 +743,7 @@ class MultiFramePosition(InterfaceQuantity[np.ndarray]):
                        requirement if any, `None` otherwise.
         :param frame_name: Name of the frames on which to operate.
         :param mode: Desired mode of evaluation for this quantity.
+                     Optional: 'QuantityEvalMode.TRUE' by default.
         """
         # Make sure that the user did not pass a single frame name
         assert not isinstance(frame_names, str)
@@ -794,6 +807,7 @@ class FrameXYZQuat(InterfaceQuantity[np.ndarray]):
                        requirement if any, `None` otherwise.
         :param frame_name: Name of the frame on which to operate.
         :param mode: Desired mode of evaluation for this quantity.
+                     Optional: 'QuantityEvalMode.TRUE' by default.
         """
         # Backup some user argument(s)
         self.frame_name = frame_name
@@ -858,6 +872,7 @@ class MultiFrameXYZQuat(InterfaceQuantity[np.ndarray]):
                        requirement if any, `None` otherwise.
         :param frame_name: Name of the frames on which to operate.
         :param mode: Desired mode of evaluation for this quantity.
+                     Optional: 'QuantityEvalMode.TRUE' by default.
         """
         # Make sure that the user did not pass a single frame name
         assert not isinstance(frame_names, str)
@@ -935,6 +950,7 @@ class MultiFrameMeanXYZQuat(InterfaceQuantity[np.ndarray]):
                        requirement if any, `None` otherwise.
         :param frame_name: Name of the frames on which to operate.
         :param mode: Desired mode of evaluation for this quantity.
+                     Optional: 'QuantityEvalMode.TRUE' by default.
         """
         # Make sure that the user did not pass a single frame name
         assert not isinstance(frame_names, str)
@@ -1067,7 +1083,9 @@ class AverageFrameSpatialVelocity(InterfaceQuantity[np.ndarray]):
             Whether the spatial velocity must be computed in local reference
             frame (aka 'pin.LOCAL') or re-aligned with world axes (aka
             'pin.LOCAL_WORLD_ALIGNED').
+            Optional: 'pinocchio.ReferenceFrame.LOCAL' by default.
         :param mode: Desired mode of evaluation for this quantity.
+                     Optional: 'QuantityEvalMode.TRUE' by default.
         """
         # Make sure at requested reference frame is supported
         if reference_frame not in (pin.LOCAL, pin.LOCAL_WORLD_ALIGNED):
@@ -1090,9 +1108,8 @@ class AverageFrameSpatialVelocity(InterfaceQuantity[np.ndarray]):
             auto_refresh=False)
 
         # Define specialize difference operator on SE3 Lie group
-        self._se3_diff = partial(
-            pin.LieGroup.difference,
-            pin.liegroups.SE3())  # pylint: disable=no-member
+        self._se3_diff = (
+            pin.liegroups.SE3().difference)  # pylint: disable=no-member
 
         # Inverse step size
         self._inv_step_dt = 0.0
