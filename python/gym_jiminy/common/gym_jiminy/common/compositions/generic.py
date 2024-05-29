@@ -9,7 +9,7 @@ from typing import Optional, Callable, TypeVar
 from ..bases import (
     InfoType, QuantityCreator, InterfaceJiminyEnv, AbstractReward,
     BaseQuantityReward, QuantityEvalMode)
-from ..quantities import BinaryOpQuantity, ActuatedJointPositions
+from ..quantities import BinaryOpQuantity, ActuatedJointsPosition
 
 from .mixin import radial_basis_function
 
@@ -124,5 +124,5 @@ class TrackingActuatedJointPositionsReward(BaseTrackingReward):
         super().__init__(
             env,
             "reward_actuated_joint_positions",
-            lambda mode: (ActuatedJointPositions, dict(mode=mode)),
+            lambda mode: (ActuatedJointsPosition, dict(mode=mode)),
             cutoff)

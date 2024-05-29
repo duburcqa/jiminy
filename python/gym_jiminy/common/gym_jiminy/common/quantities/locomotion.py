@@ -15,11 +15,12 @@ import pinocchio as pin
 from ..bases import (
     InterfaceJiminyEnv, InterfaceQuantity, AbstractQuantity, QuantityEvalMode)
 from ..utils import (
-    fill, matrix_to_quat, matrix_to_yaw, quat_to_yaw, quat_to_matrix)
+    fill, matrix_to_quat, matrix_to_yaw, quat_to_yaw, quat_to_matrix,
+    quat_multiply)
 
 from ..quantities import (
-    Orientation, MaskedQuantity, AverageFrameSpatialVelocity,
-    MultiFramePosition, MultiFrameOrientation, MultiFrameMeanXYZQuat)
+    MaskedQuantity, AverageFrameSpatialVelocity, MultiFramesXYZQuat,
+    MultiFramesMeanXYZQuat)
 
 
 def sanitize_foot_frame_names(
@@ -192,7 +193,7 @@ class MultiFootMeanXYZQuat(InterfaceQuantity[np.ndarray]):
             env,
             parent,
             requirements=dict(
-                data=(MultiFrameMeanXYZQuat, dict(
+                data=(MultiFramesMeanXYZQuat, dict(
                     frame_names=self.frame_names,
                     mode=mode))),
             auto_refresh=False)
@@ -291,7 +292,7 @@ class MultiFootRelativeXYZQuat(InterfaceQuantity[np.ndarray]):
     wrt the others. Notably, in particular case where there is only two frames,
     it is one is the opposite of the other. As a result, the last relative pose
     is always dropped from the returned value, based on the same ordering as
-    'self.frame_names'. As for `MultiFrameXYZQuat`, the data associated with
+    'self.frame_names'. As for `MultiFramesXYZQuat`, the data associated with
     each frame are returned as a 2D contiguous array. The first dimension
     gathers the 7 components (X, Y, Z, QuatX, QuatY, QuatZ, QuaW), while the
     last one corresponds to individual relative frames poses.
@@ -342,23 +343,10 @@ class MultiFootRelativeXYZQuat(InterfaceQuantity[np.ndarray]):
                 xyzquat_mean=(MultiFootMeanXYZQuat, dict(
                     frame_names=self.frame_names,
                     mode=mode)),
-                positions=(MultiFramePosition, dict(
+                xyzquats=(MultiFramesXYZQuat, dict(
                     frame_names=self.frame_names,
-                    mode=mode)),
-                rotations=(MultiFrameOrientation, dict(
-                    frame_names=self.frame_names,
-                    type=Orientation.MATRIX,
                     mode=mode))),
             auto_refresh=False)
-
-        # Buffer to store the inverse mean quaternion
-        self._rot_mean = np.zeros((3, 3))
-
-        # Buffer to store relative rotation matrices
-        self._foot_rots_rel = np.zeros((3, 3, len(self.frame_names) - 1))
-
-        # Pre-allocate memory for the relative poses of all feet
-        self._foot_poses_rel = np.zeros((7, len(self.frame_names) - 1))
 
         # Define jit-able method translating multiple positions to local frame
         @nb.jit(nopython=True, cache=True, fastmath=True)
@@ -381,16 +369,32 @@ class MultiFootRelativeXYZQuat(InterfaceQuantity[np.ndarray]):
 
         self._translate_positions_fun = translate_positions
 
+        # Inverse mean orientation as a quaternion vector
+        self._quat_mean_inv = np.zeros((4, 1))
+
+        # Mean orientation as a rotation matrix
+        self._rot_mean = np.zeros((3, 3))
+
+        # Pre-allocate memory for the relative poses of all feet
+        self._foot_poses_rel = np.zeros((7, len(self.frame_names) - 1))
+
         # Split foot poses in position and orientation vectors
         self._foot_position_view = self._foot_poses_rel[:3]
         self._foot_quat_view = self._foot_poses_rel[-4:]
 
     def refresh(self) -> np.ndarray:
-        # Extract mean frame position and quaternion
-        xyzquat_mean = self.xyzquat_mean
-        position_mean, quat_mean = xyzquat_mean[:3], xyzquat_mean[-4:]
+        # Extract mean and individual frame position and quaternion vectors
+        xyzquats, xyzquat_mean = self.xyzquats, self.xyzquat_mean
+        positions, position_mean = xyzquats[:3, :-1], xyzquat_mean[:3]
+        quats, quat_mean = xyzquats[-4:, :-1], xyzquat_mean[-4:]
 
-        # Compute the mean rotation matrix
+        # Compute the mean rotation matrix.
+        # Note that using quaternion to compose rotations is much faster than
+        # using rotation matrices, but it is much slower when it comes to
+        # rotating 3D euclidean position vectors. Because of this, it is more
+        # efficient operate on quaternion all along, but still converting the
+        # average quaternion in rotation matrix before applying it to the
+        # relative positions.
         quat_to_matrix(quat_mean, self._rot_mean)
 
         # Compute the relative frame position of each foot.
@@ -398,24 +402,17 @@ class MultiFootRelativeXYZQuat(InterfaceQuantity[np.ndarray]):
         # (double geodesic), to be consistent with the method that was used to
         # compute the mean foot pose. This way, the norm of the relative
         # position is not affected by the orientation of the feet.
-        self._translate_positions_fun(self.positions[:, :-1],
+        self._translate_positions_fun(positions,
                                       position_mean,
                                       self._rot_mean,
                                       self._foot_position_view)
 
-        # Compute relative frame orientations.
-        # Note that using quaternion to compose rotations or rotate position
-        # vectors if significantly more costly than using rotation matrices.
-        # Because of this, it is more efficient overall to perform all the
-        # processing steps using rotation matrices and only convert them to
-        # quaternions as the very last step.
-        np.einsum('ij,jkn',
-                  self._rot_mean.T,
-                  self.rotations[..., :-1],
-                  out=self._foot_rots_rel)
+        # Compute the inverse mean quaternion
+        array_copyto(self._quat_mean_inv[:, 0], quat_mean)
+        self._quat_mean_inv[-1] *= -1
 
-        # Convert relative orientations from rotation matrices to quaternions
-        matrix_to_quat(self._foot_rots_rel, self._foot_quat_view)
+        # Compute relative frame orientations.
+        quat_multiply(self._quat_mean_inv, quats, self._foot_quat_view)
 
         return self._foot_poses_rel
 

@@ -41,7 +41,7 @@ class FrameQuantity(Protocol):
 
 
 @runtime_checkable
-class MultiFrameQuantity(Protocol):
+class MultiFramesQuantity(Protocol):
     """Protocol that must be satisfied by all quantities associated with
     a particular set of frames for which the same batched intermediary
     quantities must be computed.
@@ -75,18 +75,18 @@ def aggregate_frame_names(quantity: InterfaceQuantity) -> Tuple[
         active set must be decided by cache owners.
 
     :param quantity: Quantity whose parent implements either `FrameQuantity` or
-                     `MultiFrameQuantity` protocol. All the parents of all its
+                     `MultiFramesQuantity` protocol. All the parents of all its
                      cache owners must also implement one of these protocol.
     """
     # Make sure that parent quantity implement multi- or single-frame protocol
-    assert isinstance(quantity.parent, (FrameQuantity, MultiFrameQuantity))
+    assert isinstance(quantity.parent, (FrameQuantity, MultiFramesQuantity))
     quantities = (quantity.cache.owners if quantity.has_cache else (quantity,))
 
     # First, order all multi-frame quantities by decreasing length
     frame_names_chunks: List[Tuple[str, ...]] = []
     for owner in quantities:
         if owner.parent.is_active(any_cache_owner=False):
-            if isinstance(owner.parent, MultiFrameQuantity):
+            if isinstance(owner.parent, MultiFramesQuantity):
                 frame_names_chunks.append(owner.parent.frame_names)
 
     # Next, process ordered multi-frame quantities sequentially.
@@ -163,7 +163,7 @@ def aggregate_frame_names(quantity: InterfaceQuantity) -> Tuple[
 
 
 @dataclass(unsafe_hash=True)
-class _BatchedMultiFrameRotationMatrix(
+class _BatchedFramesRotationMatrix(
         AbstractQuantity[Dict[Union[str, Tuple[str, ...]], np.ndarray]]):
     """3D rotation matrix of the orientation of all frames involved in
     quantities relying on it and are active since last reset of computation
@@ -195,7 +195,7 @@ class _BatchedMultiFrameRotationMatrix(
         :param mode: Desired mode of evaluation for this quantity.
         """
         # Make sure that a parent has been specified
-        assert isinstance(parent, (FrameQuantity, MultiFrameQuantity))
+        assert isinstance(parent, (FrameQuantity, MultiFramesQuantity))
 
         # Call base implementation
         super().__init__(
@@ -273,7 +273,7 @@ class Orientation(Enum):
 
 
 @dataclass(unsafe_hash=True)
-class _BatchedMultiFrameOrientation(
+class _BatchedFramesOrientation(
         InterfaceQuantity[Dict[Union[str, Tuple[str, ...]], np.ndarray]]):
     """Vector representation of the orientation in world reference frame of all
     frames involved in quantities relying on it and are active since last reset
@@ -290,7 +290,7 @@ class _BatchedMultiFrameOrientation(
     the same ordering as 'self.frame_names'.
 
     This quantity is used internally by `FrameOrientation`. It is not supposed
-    to be instantiated manually. See `_BatchedMultiFrameRotationMatrix`
+    to be instantiated manually. See `_BatchedFramesRotationMatrix`
     documentation for details.
 
     In the particular case of Euler angle representation, the expected maximum
@@ -314,19 +314,19 @@ class _BatchedMultiFrameOrientation(
 
     def __init__(self,
                  env: InterfaceJiminyEnv,
-                 parent: Union["FrameOrientation", "MultiFrameOrientation"],
+                 parent: Union["FrameOrientation", "MultiFramesOrientation"],
                  type: Orientation,
                  mode: QuantityEvalMode) -> None:
         """
         :param env: Base or wrapped jiminy environment.
-        :param parent: `FrameOrientation` or `MultiFrameOrientation` instance
+        :param parent: `FrameOrientation` or `MultiFramesOrientation` instance
                        from which this quantity is a requirement.
         :param type: Desired vector representation of the orientation for all
                      frames.
         :param mode: Desired mode of evaluation for this quantity.
         """
         # Make sure that a suitable parent has been provided
-        assert isinstance(parent, (FrameOrientation, MultiFrameOrientation))
+        assert isinstance(parent, (FrameOrientation, MultiFramesOrientation))
 
         # Backup some user argument(s)
         self.type = type
@@ -334,7 +334,7 @@ class _BatchedMultiFrameOrientation(
 
         # Initialize the ordered list of frame names.
         # Note that this must be done BEFORE calling base `__init__`, otherwise
-        # `isinstance(..., (FrameQuantity, MultiFrameQuantity))` will fail.
+        # `isinstance(..., (FrameQuantity, MultiFramesQuantity))` will fail.
         self.frame_names: Tuple[str, ...] = ()
 
         # Call base implementation
@@ -342,8 +342,7 @@ class _BatchedMultiFrameOrientation(
             env,
             parent,
             requirements=dict(
-                rot_mat_map=(_BatchedMultiFrameRotationMatrix, dict(
-                    mode=mode))),
+                rot_mat_map=(_BatchedFramesRotationMatrix, dict(mode=mode))),
             auto_refresh=False)
 
         # Mapping from frame names managed by this specific instance to their
@@ -456,7 +455,7 @@ class FrameOrientation(InterfaceQuantity[np.ndarray]):
             env,
             parent,
             requirements=dict(
-                data=(_BatchedMultiFrameOrientation, dict(
+                data=(_BatchedFramesOrientation, dict(
                     type=type,
                     mode=mode))),
             auto_refresh=False)
@@ -477,14 +476,14 @@ class FrameOrientation(InterfaceQuantity[np.ndarray]):
 
 
 @dataclass(unsafe_hash=True)
-class MultiFrameOrientation(InterfaceQuantity[np.ndarray]):
+class MultiFramesOrientation(InterfaceQuantity[np.ndarray]):
     """Vector representation of the orientation of a given set of frames in
     world reference frame at the end of the agent step.
 
     The vector representation of the orientation of all the frames are stacked
     in a single contiguous N-dimensional array whose last dimension corresponds
-    to the individual frames. See `_BatchedMultiFrameOrientation` documentation
-    for details.
+    to the individual frames. See `_BatchedFramesOrientation` documentation for
+    details.
     """
 
     frame_names: Tuple[str, ...]
@@ -535,7 +534,7 @@ class MultiFrameOrientation(InterfaceQuantity[np.ndarray]):
             env,
             parent,
             requirements=dict(
-                data=(_BatchedMultiFrameOrientation, dict(
+                data=(_BatchedFramesOrientation, dict(
                     type=type,
                     mode=mode))),
             auto_refresh=False)
@@ -563,14 +562,14 @@ class MultiFrameOrientation(InterfaceQuantity[np.ndarray]):
 
 
 @dataclass(unsafe_hash=True)
-class _BatchedMultiFramePosition(
+class _BatchedFramesPosition(
         AbstractQuantity[Dict[Union[str, Tuple[str, ...]], np.ndarray]]):
     """Position (X, Y, Z) of all frames involved in quantities relying on it
     and are active since last reset of computation tracking if shared cache is
     available, its parent otherwise.
 
     It is not supposed to be instantiated manually but use internally by
-    `FramePosition`. See `_BatchedMultiFrameRotationMatrix` documentation.
+    `FramePosition`. See `_BatchedFramesRotationMatrix` documentation.
 
     The positions of all frames are exposed to the user as a dictionary whose
     keys are the individual frame names and/or set of frame names as a tuple.
@@ -581,16 +580,16 @@ class _BatchedMultiFramePosition(
 
     def __init__(self,
                  env: InterfaceJiminyEnv,
-                 parent: Union["FramePosition", "MultiFramePosition"],
+                 parent: Union["FramePosition", "MultiFramesPosition"],
                  mode: QuantityEvalMode) -> None:
         """
         :param env: Base or wrapped jiminy environment.
-        :param parent: `FramePosition` or `MultiFramePosition` instance from
+        :param parent: `FramePosition` or `MultiFramesPosition` instance from
                        which this quantity is a requirement.
         :param mode: Desired mode of evaluation for this quantity.
         """
         # Make sure that a suitable parent has been provided
-        assert isinstance(parent, (FramePosition, MultiFramePosition))
+        assert isinstance(parent, (FramePosition, MultiFramesPosition))
 
         # Initialize the ordered list of frame names
         self.frame_names: Tuple[str, ...] = ()
@@ -694,7 +693,7 @@ class FramePosition(InterfaceQuantity[np.ndarray]):
             env,
             parent,
             requirements=dict(
-                data=(_BatchedMultiFramePosition, dict(mode=mode))),
+                data=(_BatchedFramesPosition, dict(mode=mode))),
             auto_refresh=False)
 
     def initialize(self) -> None:
@@ -713,7 +712,7 @@ class FramePosition(InterfaceQuantity[np.ndarray]):
 
 
 @dataclass(unsafe_hash=True)
-class MultiFramePosition(InterfaceQuantity[np.ndarray]):
+class MultiFramesPosition(InterfaceQuantity[np.ndarray]):
     """Position (X, Y, Z) of a given set of frames in world reference frame at
     the end of the agent step.
     """
@@ -757,7 +756,7 @@ class MultiFramePosition(InterfaceQuantity[np.ndarray]):
             env,
             parent,
             requirements=dict(
-                data=(_BatchedMultiFramePosition, dict(mode=mode))),
+                data=(_BatchedFramesPosition, dict(mode=mode))),
             auto_refresh=False)
 
     def initialize(self) -> None:
@@ -841,7 +840,7 @@ class FrameXYZQuat(InterfaceQuantity[np.ndarray]):
 
 
 @dataclass(unsafe_hash=True)
-class MultiFrameXYZQuat(InterfaceQuantity[np.ndarray]):
+class MultiFramesXYZQuat(InterfaceQuantity[np.ndarray]):
     """Vector representation (X, Y, Z, QuatX, QuatY, QuatZ, QuatW) of the
     transform of a given set of frames in world reference frame at the end of
     the agent step.
@@ -886,10 +885,10 @@ class MultiFrameXYZQuat(InterfaceQuantity[np.ndarray]):
             env,
             parent,
             requirements=dict(
-                positions=(MultiFramePosition, dict(
+                positions=(MultiFramesPosition, dict(
                     frame_names=frame_names,
                     mode=mode)),
-                quats=(MultiFrameOrientation, dict(
+                quats=(MultiFramesOrientation, dict(
                     frame_names=frame_names,
                     type=Orientation.QUATERNION,
                     mode=mode))),
@@ -909,7 +908,7 @@ class MultiFrameXYZQuat(InterfaceQuantity[np.ndarray]):
 
 
 @dataclass(unsafe_hash=True)
-class MultiFrameMeanXYZQuat(InterfaceQuantity[np.ndarray]):
+class MultiFramesMeanXYZQuat(InterfaceQuantity[np.ndarray]):
     """Vector representation (X, Y, Z, QuatX, QuatY, QuatZ, QuatW) of the
     average transform of a given set of frames in world reference frame at the
     end of the agent step.
@@ -964,10 +963,10 @@ class MultiFrameMeanXYZQuat(InterfaceQuantity[np.ndarray]):
             env,
             parent,
             requirements=dict(
-                positions=(MultiFramePosition, dict(
+                positions=(MultiFramesPosition, dict(
                     frame_names=frame_names,
                     mode=mode)),
-                quats=(MultiFrameOrientation, dict(
+                quats=(MultiFramesOrientation, dict(
                     frame_names=frame_names,
                     type=Orientation.QUATERNION,
                     mode=mode))),
@@ -1164,7 +1163,7 @@ class AverageFrameSpatialVelocity(InterfaceQuantity[np.ndarray]):
 
 
 @dataclass(unsafe_hash=True)
-class ActuatedJointPositions(AbstractQuantity[np.ndarray]):
+class ActuatedJointsPosition(AbstractQuantity[np.ndarray]):
     """Concatenation of the current position of all the actuated joints
     of the robot.
 

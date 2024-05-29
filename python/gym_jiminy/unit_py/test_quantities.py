@@ -17,15 +17,15 @@ from gym_jiminy.common.quantities import (
     Orientation,
     QuantityManager,
     FrameOrientation,
-    MultiFrameOrientation,
+    MultiFramesOrientation,
     FrameXYZQuat,
-    MultiFrameMeanXYZQuat,
+    MultiFramesMeanXYZQuat,
     MaskedQuantity,
     MultiFootMeanOdometryPose,
     MultiFootRelativeXYZQuat,
     AverageFrameSpatialVelocity,
     AverageOdometryVelocity,
-    ActuatedJointPositions,
+    ActuatedJointsPosition,
     CenterOfMass,
     CapturePoint,
     ZeroMomentPoint)
@@ -96,19 +96,19 @@ class Quantities(unittest.TestCase):
                 ("rpy_2", FrameOrientation, dict(
                     frame_name=frame_names[-1],
                     type=Orientation.EULER)),
-                ("rpy_batch_0", MultiFrameOrientation, dict(  # Intersection
+                ("rpy_batch_0", MultiFramesOrientation, dict(  # Intersection
                     frame_names=(frame_names[-3], frame_names[1]),
                     type=Orientation.EULER)),
-                ("rpy_batch_1", MultiFrameOrientation, dict(  # Inclusion
+                ("rpy_batch_1", MultiFramesOrientation, dict(  # Inclusion
                     frame_names=(frame_names[1], frame_names[-1]),
                     type=Orientation.EULER)),
-                ("rpy_batch_2", MultiFrameOrientation, dict(  # Disjoint
+                ("rpy_batch_2", MultiFramesOrientation, dict(  # Disjoint
                     frame_names=(frame_names[1], frame_names[-4]),
                     type=Orientation.EULER)),
-                ("rot_mat_batch", MultiFrameOrientation, dict(
+                ("rot_mat_batch", MultiFramesOrientation, dict(
                     frame_names=(frame_names[1], frame_names[-1]),
                     type=Orientation.MATRIX)),
-                ("quat_batch", MultiFrameOrientation, dict(
+                ("quat_batch", MultiFramesOrientation, dict(
                     frame_names=(frame_names[1], frame_names[-4]),
                     type=Orientation.QUATERNION))):
             quantity_manager[name] = (cls, kwargs)
@@ -272,7 +272,7 @@ class Quantities(unittest.TestCase):
                 lambda mode: (FrameXYZQuat, dict(
                     frame_name=frame_names[2],
                     mode=mode)),
-                lambda mode: (MultiFrameMeanXYZQuat, dict(
+                lambda mode: (MultiFramesMeanXYZQuat, dict(
                     frame_names=tuple(frame_names[i] for i in (1, 3, -2)),
                     mode=mode)),
                 lambda mode: (MultiFootMeanOdometryPose, dict(
@@ -282,7 +282,7 @@ class Quantities(unittest.TestCase):
                     mode=mode)),
                 lambda mode: (AverageOdometryVelocity, dict(
                     mode=mode)),
-                lambda mode: (ActuatedJointPositions, dict(
+                lambda mode: (ActuatedJointsPosition, dict(
                     mode=mode)),
                 lambda mode: (CenterOfMass, dict(
                     kinematic_level=pin.KinematicLevel.ACCELERATION,
@@ -358,7 +358,7 @@ class Quantities(unittest.TestCase):
         env = gym.make("gym_jiminy.envs:atlas")
 
         env.quantities["actuated_joint_positions"] = (
-            ActuatedJointPositions, dict(mode=QuantityEvalMode.TRUE))
+            ActuatedJointsPosition, dict(mode=QuantityEvalMode.TRUE))
 
         env.reset(seed=0)
         env.step(env.action_space.sample())
@@ -417,7 +417,7 @@ class Quantities(unittest.TestCase):
             frame.name for frame in env.robot.pinocchio_model.frames]
 
         env.quantities["mean_pose"] = (
-            MultiFrameMeanXYZQuat, dict(
+            MultiFramesMeanXYZQuat, dict(
                 frame_names=frame_names[:5],
                 mode=QuantityEvalMode.TRUE))
 
