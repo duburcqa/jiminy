@@ -20,10 +20,9 @@ import pinocchio as pin
 from ..bases import (
     InterfaceJiminyEnv, InterfaceQuantity, AbstractQuantity, QuantityEvalMode)
 from ..utils import (
-    fill, matrix_to_rpy, matrix_to_quat, quat_to_matrix,
-    quat_interpolate_middle)
+    matrix_to_rpy, matrix_to_quat, quat_apply, quat_interpolate_middle)
 
-from .transform import StackedQuantity
+from .transform import StackedQuantity, MaskedQuantity
 
 
 @runtime_checkable
@@ -326,15 +325,17 @@ class _BatchedFramesOrientation(
         :param parent: `FrameOrientation` or `MultiFramesOrientation` instance
                        from which this quantity is a requirement.
         :param type: Desired vector representation of the orientation for all
-                     frames.
+                     frames. Note that `OrientationType.ANGLE_AXIS` is not
+                     supported for now.
         :param mode: Desired mode of evaluation for this quantity.
         """
         # Make sure that a suitable parent has been provided
         assert isinstance(parent, (FrameOrientation, MultiFramesOrientation))
 
         # Make sure that the specified orientation representation is supported
-        if type not in (
-                OrientationType.MATRIX, OrientationType.EULER, OrientationType.QUATERNION):
+        if type not in (OrientationType.MATRIX,
+                        OrientationType.EULER,
+                        OrientationType.QUATERNION):
             raise ValueError(
                 "This quantity only supports orientation representations "
                 "'MATRIX', 'EULER', and 'QUATERNION'.")
@@ -384,13 +385,13 @@ class _BatchedFramesOrientation(
 
         # Re-allocate memory as the number of frames is not known in advance
         nframes = len(self.frame_names)
-        if self.type == OrientationType.EULER:
+        if self.type in (OrientationType.EULER, OrientationType.ANGLE_AXIS):
             self._data_batch = np.zeros((3, nframes), order='C')
         elif self.type == OrientationType.QUATERNION:
             self._data_batch = np.zeros((4, nframes), order='C')
 
         # Re-assign mapping from chunks of frame names to corresponding data
-        if self.type in (OrientationType.EULER, OrientationType.QUATERNION):
+        if self.type is not OrientationType.MATRIX:
             self._data_map = {
                 key: self._data_batch[..., frame_slice]
                 for key, frame_slice in frame_slices_map.items()}
@@ -1039,6 +1040,159 @@ class MultiFramesMeanXYZQuat(InterfaceQuantity[np.ndarray]):
 
 
 @dataclass(unsafe_hash=True)
+class _DifferenceFramePose(InterfaceQuantity[np.ndarray]):
+    """Finite difference between the pose of a given frame at the end of
+    previous and current agent steps.
+
+    The finite difference is defined here as the geodesic distance in SE3 Lie
+    Group. Under this definition, the rate of change of the translation depends
+    on rate of change of the orientation of the frame, which may be undesirable
+    in some cases. Alternatively, the double geodesic distance could be used
+    instead to completely decouple the position from the orientation.
+    """
+
+    frame_name: str
+    """Name of the frame on which to operate.
+    """
+
+    mode: QuantityEvalMode
+    """Specify on which state to evaluate this quantity. See `Mode`
+    documentation for details about each mode.
+
+    .. warning::
+        Mode `REFERENCE` requires a reference trajectory to be selected
+        manually prior to evaluating this quantity for the first time.
+    """
+
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 parent: Optional[InterfaceQuantity],
+                 frame_name: str,
+                 *,
+                 mode: QuantityEvalMode = QuantityEvalMode.TRUE) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param parent: Higher-level quantity from which this quantity is a
+                       requirement if any, `None` otherwise.
+        :param frame_name: Name of the frame on which to operate.
+        :param reference_frame:
+            Whether the spatial velocity must be computed in local reference
+            frame (aka 'pin.LOCAL') or re-aligned with world axes (aka
+            'pin.LOCAL_WORLD_ALIGNED').
+            Optional: 'pinocchio.ReferenceFrame.LOCAL' by default.
+        :param mode: Desired mode of evaluation for this quantity.
+                     Optional: 'QuantityEvalMode.TRUE' by default.
+        """
+        # Backup some user argument(s)
+        self.frame_name = frame_name
+        self.mode = mode
+
+        # Call base implementation
+        super().__init__(
+            env,
+            parent,
+            requirements=dict(
+                xyzquat_stack=(StackedQuantity, dict(
+                    quantity=(FrameXYZQuat, dict(
+                        frame_name=frame_name,
+                        mode=mode)),
+                    num_stack=2))),
+            auto_refresh=False)
+
+        # Define specialize difference operator on SE3 Lie group
+        self._difference = (
+            pin.liegroups.SE3().difference)  # pylint: disable=no-member
+
+        # Pre-allocate memory to store the pose difference
+        self._data: np.ndarray = np.zeros(6)
+
+    def refresh(self) -> np.ndarray:
+        # Fetch previous and current XYZQuat representation of frame transform.
+        # It will raise an exception if not enough data is available at this
+        # point. This should never occur in practice as it will be fine at
+        # the end of the first step already, before the reward and termination
+        # conditions are evaluated.
+        xyzquat_prev, xyzquat = self.xyzquat_stack
+
+        # Compute average frame velocity in local frame since previous step
+        self._data[:] = self._difference(xyzquat_prev, xyzquat)
+
+        return self._data
+
+
+@dataclass(unsafe_hash=True)
+class AverageFramePose(InterfaceQuantity[np.ndarray]):
+    """Average pose of a given frame over the whole agent step.
+
+    The average frame pose is obtained by integration of the average velocity
+    over the whole agent step, backward in time from the state at the end of
+    the step to the midpoint. See `_DifferenceFramePose` documentation for
+    details.
+
+    .. note::
+        There is a coupling between the rate of change of the orientation over
+        the agent step and the position of the midpoint. Depending on the
+        application, it may be desirable to decouple the translation from the
+        rotation completely by performing computation on the Cartesian Product
+        of the 3D Euclidean space R3 times the Special Orthogonal Group SO3.
+        The resulting distance metric is referred to as double geodesic and
+        does not correspond to the actual shortest path anymore.
+    """
+
+    frame_name: str
+    """Name of the frame on which to operate.
+    """
+
+    mode: QuantityEvalMode
+    """Specify on which state to evaluate this quantity. See `Mode`
+    documentation for details about each mode.
+
+    .. warning::
+        Mode `REFERENCE` requires a reference trajectory to be selected
+        manually prior to evaluating this quantity for the first time.
+    """
+
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 parent: Optional[InterfaceQuantity],
+                 frame_name: str,
+                 *,
+                 mode: QuantityEvalMode = QuantityEvalMode.TRUE) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param parent: Higher-level quantity from which this quantity is a
+                       requirement if any, `None` otherwise.
+        :param frame_name: Name of the frame on which to operate.
+        :param mode: Desired mode of evaluation for this quantity.
+                     Optional: 'QuantityEvalMode.TRUE' by default.
+        """
+        # Backup some user argument(s)
+        self.frame_name = frame_name
+        self.mode = mode
+
+        # Call base implementation
+        super().__init__(
+            env,
+            parent,
+            requirements=dict(
+                xyzquat_next=(FrameXYZQuat, dict(
+                    frame_name=frame_name,
+                    mode=mode)),
+                xyzquat_diff=(_DifferenceFramePose, dict(
+                    frame_name=frame_name,
+                    mode=mode))),
+            auto_refresh=False)
+
+        # Define specialize integrate operator on SE3 Lie group
+        self._integrate = (
+            pin.liegroups.SE3().integrate)  # pylint: disable=no-member
+
+    def refresh(self) -> np.ndarray:
+        # Interpolate the average spatial velocity at midpoint
+        return self._integrate(self.xyzquat_next, - 0.5 * self.xyzquat_diff)
+
+
+@dataclass(unsafe_hash=True)
 class AverageFrameSpatialVelocity(InterfaceQuantity[np.ndarray]):
     """Average spatial velocity of a given frame at the end of the agent step.
 
@@ -1111,18 +1265,24 @@ class AverageFrameSpatialVelocity(InterfaceQuantity[np.ndarray]):
         super().__init__(
             env,
             parent,
-            requirements=dict(xyzquat_stack=(StackedQuantity, dict(
-                quantity=(FrameXYZQuat, dict(
-                    frame_name=frame_name, mode=mode)),
-                num_stack=2))),
+            requirements=dict(
+                xyzquat_diff=(_DifferenceFramePose, dict(
+                    frame_name=frame_name,
+                    mode=mode)),
+                quat_mean=(MaskedQuantity, dict(
+                    quantity=(AverageFramePose, dict(
+                        frame_name=frame_name,
+                        mode=mode)),
+                    axis=0,
+                    keys=(3, 4, 5, 6)))),
             auto_refresh=False)
 
         # Define specialize difference operator on SE3 Lie group
-        self._se3_diff = (
+        self._difference = (
             pin.liegroups.SE3().difference)  # pylint: disable=no-member
 
-        # Inverse step size
-        self._inv_step_dt = 0.0
+        # Inverse time difference from previous to next state
+        self._inv_step_dt = 1.0 / self.env.step_dt
 
         # Allocate memory for the average quaternion and rotation matrix
         self._quat_mean = np.zeros(4)
@@ -1134,41 +1294,18 @@ class AverageFrameSpatialVelocity(InterfaceQuantity[np.ndarray]):
         # Reshape linear plus angular velocity vector to vectorize rotation
         self._v_lin_ang = np.reshape(self._v_spatial, (2, 3)).T
 
-    def initialize(self) -> None:
-        # Call base implementation
-        super().initialize()
-
-        # Compute inverse step size
-        self._inv_step_dt = 1.0 / self.env.step_dt
-
-        # Re-initialize pre-allocated buffers
-        fill(self._v_spatial, 0)
-
     def refresh(self) -> np.ndarray:
-        # Fetch previous and current XYZQuat representation of frame transform.
-        # It will raise an exception if not enough data is available at this
-        # point. This should never occur in practice as it will be fine at
-        # the end of the first step already, before the reward and termination
-        # conditions are evaluated.
-        xyzquat_prev, xyzquat = self.xyzquat_stack
-
         # Compute average frame velocity in local frame since previous step
-        self._v_spatial[:] = self._se3_diff(xyzquat_prev, xyzquat)
-        self._v_spatial *= self._inv_step_dt
+        # FIXME: Check if faster to split computation in 2 steps ?
+        # breakpoint()
+        self._v_spatial[:] = self._inv_step_dt * self.xyzquat_diff
 
         # Translate local velocity to world frame
         if self.reference_frame == pin.LOCAL_WORLD_ALIGNED:
             # Define world frame as the "middle" between prev and next pose.
-            # The orientation difference has an effect on the translation
-            # difference, but not the other way around. Here, we only care
-            # about the middle rotation, so we can consider SO3 Lie Group
-            # algebra instead of SE3.
-            quat_interpolate_middle(
-                xyzquat_prev[-4:], xyzquat[-4:], self._quat_mean)
-            quat_to_matrix(self._quat_mean, self._rot_mat_mean)
-
-            # TODO: x2 speedup can be expected using `np.dot` with `nb.jit`
-            self._v_lin_ang[:] = self._rot_mat_mean @ self._v_lin_ang
+            # Here, we only care about the middle rotation, so we can consider
+            # SO3 Lie Group algebra instead of SE3.
+            quat_apply(self.quat_mean, self._v_lin_ang, self._v_lin_ang)
 
         return self._v_spatial
 

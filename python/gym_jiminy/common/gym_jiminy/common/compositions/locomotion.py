@@ -41,7 +41,7 @@ class TrackingBaseHeightReward(BaseTrackingReward):
                 quantity=(UnaryOpQuantity, dict(
                     quantity=(StateQuantity, dict(mode=mode)),
                     op=lambda state: state.q)),
-                key=(2,))),
+                keys=(2,))),
             cutoff)
 
 
@@ -135,7 +135,7 @@ class TrackingFootPositionsReward(BaseTrackingReward):
                 quantity=(MultiFootRelativeXYZQuat, dict(
                     frame_names=frame_names,
                     mode=mode)),
-                key=(0, 1, 2))),
+                keys=(0, 1, 2))),
             cutoff)
 
 
@@ -189,6 +189,6 @@ class TrackingFootOrientationsReward(BaseTrackingReward):
                     frame_names=frame_names,
                     mode=mode)),
                 axis=0,
-                key=(3, 4, 5, 6))),
+                keys=(3, 4, 5, 6))),
             cutoff,
             op=partial(quat_difference_buffered, self._diff))

@@ -617,7 +617,8 @@ def quat_apply(quat: np.ndarray,
         However, if a different rotation must be applied to each position
         vector, then it is faster to apply batched quaternion transformation
         directly, because the cost of converting all quaternions to rotation
-        matrices exceeds its benefit overall.
+        matrices exceeds its benefit overall. This holds true even for a single
+        pair quaternion-position.
 
     :param quat: N-dimensional array whose first dimension gathers the 4
                  quaternion coordinates (qx, qy, qz, qw).

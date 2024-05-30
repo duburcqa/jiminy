@@ -407,7 +407,7 @@ class MultiFootRelativeXYZQuat(InterfaceQuantity[np.ndarray]):
         quat_multiply(quat_mean[:, np.newaxis],
                       quats,
                       self._foot_quat_view,
-                      is_left_inverted=True)
+                      is_left_conjugate=True)
 
         return self._foot_poses_rel
 

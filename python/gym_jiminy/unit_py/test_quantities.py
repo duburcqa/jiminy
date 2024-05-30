@@ -232,7 +232,7 @@ class Quantities(unittest.TestCase):
         # 1. From non-slice-able indices
         env.quantities["v_masked"] = (MaskedQuantity, dict(
             quantity=(FrameXYZQuat, dict(frame_name="root_joint")),
-            key=(0, 1, 5)))
+            keys=(0, 1, 5)))
         quantity = env.quantities.registry["v_masked"]
         assert not quantity._slices
         np.testing.assert_allclose(
@@ -242,7 +242,7 @@ class Quantities(unittest.TestCase):
         # 2. From boolean mask
         env.quantities["v_masked"] = (MaskedQuantity, dict(
             quantity=(FrameXYZQuat, dict(frame_name="root_joint")),
-            key=(True, True, False, False, False, True)))
+            keys=(True, True, False, False, False, True)))
         quantity = env.quantities.registry["v_masked"]
         np.testing.assert_allclose(
             env.quantities["v_masked"], quantity.data[[0, 1, 5]])
@@ -251,7 +251,7 @@ class Quantities(unittest.TestCase):
         # 3. From slice-able indices
         env.quantities["v_masked"] = (MaskedQuantity, dict(
             quantity=(FrameXYZQuat, dict(frame_name="root_joint")),
-            key=(0, 2, 4)))
+            keys=(0, 2, 4)))
         quantity = env.quantities.registry["v_masked"]
         assert len(quantity._slices) == 1 and quantity._slices[0] == slice(0, 5, 2)
         np.testing.assert_allclose(
