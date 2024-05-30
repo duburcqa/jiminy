@@ -15,11 +15,11 @@ import pinocchio as pin
 from ..bases import (
     InterfaceJiminyEnv, InterfaceQuantity, AbstractQuantity, QuantityEvalMode)
 from ..utils import (
-    fill, matrix_to_yaw, quat_to_yaw, quat_to_matrix, quat_multiply)
+    matrix_to_yaw, quat_to_yaw, quat_to_matrix, quat_multiply, quat_apply)
 
 from ..quantities import (
     MaskedQuantity, AverageFrameSpatialVelocity, MultiFramesXYZQuat,
-    MultiFramesMeanXYZQuat)
+    MultiFramesMeanXYZQuat, AverageFrameSwing)
 
 
 def sanitize_foot_frame_names(
@@ -76,6 +76,30 @@ def sanitize_foot_frame_names(
         raise ValueError("All frames must correspond to end-effectors.")
 
     return sorted(frame_names)
+
+
+@nb.jit(nopython=True, cache=True, fastmath=True)
+def translate_position_odom(position: np.ndarray,
+                            odom_pose: np.ndarray,
+                            out: np.ndarray) -> None:
+    """Translate a single or batch of 2D position vector (X, Y) from world to
+    local frame.
+
+    :param position: Batch of positions vectors as a 2D array whose
+                     first dimension gathers the 2 spatial coordinates
+                     (X, Y) while the second corresponds to the
+                     independent points.
+    :param odom_pose: Reference odometry pose as a 1D array gathering the 2
+                      position and 1 orientation coordinates in world plane
+                      (X, Y), (Yaw,) respectively.
+    :param out: Pre-allocated array in which to store the result.
+    """
+    # out = R(yaw).T @ (position - position_ref)
+    position_ref, yaw_ref = odom_pose[:2], odom_pose[2]
+    pos_rel_x, pos_rel_y = position - position_ref
+    cos_yaw, sin_yaw = math.cos(yaw_ref), math.sin(yaw_ref)
+    out[0] = + cos_yaw * pos_rel_x + sin_yaw * pos_rel_y
+    out[1] = - sin_yaw * pos_rel_x + cos_yaw * pos_rel_y
 
 
 @dataclass(unsafe_hash=True)
@@ -136,6 +160,197 @@ class BaseOdometryPose(AbstractQuantity[np.ndarray]):
 
         # Return buffer
         return self.data
+
+
+@dataclass(unsafe_hash=True)
+class AverageBaseSpatialVelocity(InterfaceQuantity[np.ndarray]):
+    """Average base spatial velocity of the floating base of the robot in
+    local odometry frame at the end of the agent step.
+
+    The average spatial velocity is obtained by finite difference. See
+    `AverageFrameSpatialVelocity` documentation for details.
+
+    Roughly speaking, the local odometry reference frame is half-way between
+    `pinocchio.LOCAL` and `pinocchio.LOCAL_WORLD_ALIGNED`. The z-axis is
+    world-aligned while x and y axes are local, which corresponds to applying
+    the swing from the Twist-after-Swing decomposition to the local velocity.
+    See `remove_twist_from_quat` for details.
+    """
+
+    mode: QuantityEvalMode
+    """Specify on which state to evaluate this quantity. See `Mode`
+    documentation for details about each mode.
+
+    .. warning::
+        Mode `REFERENCE` requires a reference trajectory to be selected
+        manually prior to evaluating this quantity for the first time.
+    """
+
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 parent: Optional[InterfaceQuantity],
+                 *,
+                 mode: QuantityEvalMode = QuantityEvalMode.TRUE) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param parent: Higher-level quantity from which this quantity is a
+                       requirement if any, `None` otherwise.
+        :param mode: Desired mode of evaluation for this quantity.
+                     Optional: 'QuantityEvalMode.TRUE' by default.
+        """
+        # Backup some user argument(s)
+        self.mode = mode
+
+        # Call base implementation
+        super().__init__(
+            env,
+            parent,
+            requirements=dict(
+                v_spatial=(AverageFrameSpatialVelocity, dict(
+                    frame_name="root_joint",
+                    reference_frame=pin.LOCAL,
+                    mode=mode)),
+                quat_swing_mean=(AverageFrameSwing, dict(
+                    frame_name="root_joint",
+                    mode=mode))),
+            auto_refresh=False)
+
+        # Twist-free average orientation of the base as a quaternion
+        self._quat_swing_mean = np.zeros((4,))
+
+        # Pre-allocate memory for the spatial velocity
+        self._v_spatial: np.ndarray = np.zeros(6)
+
+        # Reshape linear plus angular velocity vector to vectorize rotation
+        self._v_lin_ang = self._v_spatial.reshape((2, 3)).T
+
+    def refresh(self) -> np.ndarray:
+        # Apply quaternion rotation of the spatial velocity vector
+        quat_apply(self.quat_swing_mean,
+                   self.v_spatial.reshape((2, 3)).T,
+                   self._v_lin_ang)
+
+        return self._v_spatial
+
+
+@dataclass(unsafe_hash=True)
+class AverageBaseOdometryVelocity(InterfaceQuantity[np.ndarray]):
+    """Average odometry velocity of the floating base of the robot in local
+    odometry frame at the end of the agent step.
+
+    The odometry velocity fully specifies the linear and angular velocity of
+    the robot in 2D world plane. See `AverageBaseSpatialVelocity` and
+    `BaseOdometryPose`, documentations for details.
+    """
+
+    mode: QuantityEvalMode
+    """Specify on which state to evaluate this quantity. See `Mode`
+    documentation for details about each mode.
+
+    .. warning::
+        Mode `REFERENCE` requires a reference trajectory to be selected
+        manually prior to evaluating this quantity for the first time.
+    """
+
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 parent: Optional[InterfaceQuantity],
+                 *,
+                 mode: QuantityEvalMode = QuantityEvalMode.TRUE) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param parent: Higher-level quantity from which this quantity is a
+                       requirement if any, `None` otherwise.
+        :param mode: Desired mode of evaluation for this quantity.
+                     Optional: 'QuantityEvalMode.TRUE' by default.
+        """
+        # Backup some user argument(s)
+        self.mode = mode
+
+        # Call base implementation
+        super().__init__(
+            env,
+            parent,
+            requirements=dict(
+                data=(MaskedQuantity, dict(
+                    quantity=(AverageBaseSpatialVelocity, dict(
+                        mode=mode)),
+                    keys=(0, 1, 5)))),
+            auto_refresh=False)
+
+    def refresh(self) -> np.ndarray:
+        return self.data
+
+
+@dataclass(unsafe_hash=True)
+class AverageBaseMomentum(AbstractQuantity[np.ndarray]):
+    """Angular momentum of the floating base of the robot in local odometry
+    frame at the end of the agent step.
+
+    The most sensible choice for the reference frame is the local odometry
+    frame. The local-world-aligned frame makes no sense at all. The local frame
+    is not ideal as a rotation around x- and y-axes would have an effect on
+    z-axis in odometry frame, introducing an undesirable coupling between
+    odometry tracking and angular momentum minimization. Indeed, it is likely
+    undesirable to penalize the momentum around z-axis because it is firstly
+    involved in navigation rather than stabilization.
+
+    At this point, it is worth keeping track of the individual components of
+    the angular momentum rather than aggregating them as a scalar directly by
+    computing the resulting kinematic energy. This gives the opportunity to the
+    practitioner to weight differently the angular momentum for going back and
+    forth (y-axis) wrt the angular momentum for oscillating sideways (x-axis).
+    """
+
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 parent: Optional[InterfaceQuantity],
+                 *,
+                 mode: QuantityEvalMode = QuantityEvalMode.TRUE) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param parent: Higher-level quantity from which this quantity is a
+                       requirement if any, `None` otherwise.
+        :param mode: Desired mode of evaluation for this quantity.
+                     Optional: 'QuantityEvalMode.TRUE' by default.
+        """
+        # Call base implementation
+        super().__init__(
+            env,
+            parent,
+            requirements=dict(
+                v_angular=(MaskedQuantity, dict(
+                    quantity=(AverageFrameSpatialVelocity, dict(
+                        frame_name="root_joint",
+                        reference_frame=pin.LOCAL,
+                        mode=mode)),
+                    keys=(3, 4, 5))),
+                quat_swing_mean=(AverageFrameSwing, dict(
+                    frame_name="root_joint",
+                    mode=mode))),
+            auto_refresh=False)
+
+        # Angular momentum of inertia
+        self._h_angular = np.zeros((3,))
+
+        # Define proxy storing the base body (angular) inertia in local frame
+        self._inertia_local = self.pinocchio_model.inertias[1].inertia
+
+    def initialize(self) -> None:
+        # Call base implementation
+        super().initialize()
+
+        # Refresh proxy
+        self._inertia_local = self.pinocchio_model.inertias[1].inertia
+
+    def refresh(self) -> np.ndarray:
+        # Compute the local angular angular momentum of inertia
+        np.matmul(self._inertia_local, self.v_angular, self._h_angular)
+
+        # Apply quaternion rotation of the local angular momentum of inertia
+        quat_apply(self.quat_swing_mean, self._h_angular, self._h_angular)
+
+        return self._h_angular
 
 
 @dataclass(unsafe_hash=True)
@@ -257,7 +472,7 @@ class MultiFootMeanOdometryPose(InterfaceQuantity[np.ndarray]):
             env,
             parent,
             requirements=dict(
-                data=(MultiFootMeanXYZQuat, dict(
+                xyzquat_mean=(MultiFootMeanXYZQuat, dict(
                     frame_names=self.frame_names,
                     mode=mode))),
             auto_refresh=False)
@@ -271,10 +486,10 @@ class MultiFootMeanOdometryPose(InterfaceQuantity[np.ndarray]):
 
     def refresh(self) -> np.ndarray:
         # Copy translation part
-        array_copyto(self._xy_view, self.data[:2])
+        array_copyto(self._xy_view, self.xyzquat_mean[:2])
 
         # Compute Yaw angle
-        quat_to_yaw(self.data[-4:], self._yaw_view)
+        quat_to_yaw(self.xyzquat_mean[-4:], self._yaw_view)
 
         return self._odom_pose
 
@@ -349,24 +564,25 @@ class MultiFootRelativeXYZQuat(InterfaceQuantity[np.ndarray]):
 
         # Define jit-able method translating multiple positions to local frame
         @nb.jit(nopython=True, cache=True, fastmath=True)
-        def translate_positions(positions: np.ndarray,
+        def translate_positions(position: np.ndarray,
                                 position_ref: np.ndarray,
                                 rotation_ref: np.ndarray,
                                 out: np.ndarray) -> None:
-            """Translate a batch of position vectors from world to local frame.
+            """Translate a batch of 3D position vectors (X, Y, Z) from world to
+            local frame.
 
-            :param positions: Batch of positions vectors as a 2D array whose
-                              first dimension gathers the 3 spatial coordinates
-                              (X, Y, Z) while the second corresponds to the
-                              independent points.
+            :param position: Batch of positions vectors as a 2D array whose
+                             first dimension gathers the 3 spatial coordinates
+                             (X, Y, Z) while the second corresponds to the
+                             independent points.
             :param position_ref: Position of the reference frame in world.
             :param rotation_ref: Orientation of the reference frame in world as
-                                 a 2D rotation matrix.
+                                 a rotation matrix.
             :param out: Pre-allocated array in which to store the result.
             """
-            out[:] = rotation_ref.T @ (positions - position_ref[:, np.newaxis])
+            out[:] = rotation_ref.T @ (position - position_ref[:, np.newaxis])
 
-        self._translate_positions_fun = translate_positions
+        self._translate = translate_positions
 
         # Mean orientation as a rotation matrix
         self._rot_mean = np.zeros((3, 3))
@@ -398,10 +614,10 @@ class MultiFootRelativeXYZQuat(InterfaceQuantity[np.ndarray]):
         # (double geodesic), to be consistent with the method that was used to
         # compute the mean foot pose. This way, the norm of the relative
         # position is not affected by the orientation of the feet.
-        self._translate_positions_fun(positions,
-                                      position_mean,
-                                      self._rot_mean,
-                                      self._foot_position_view)
+        self._translate(positions,
+                        position_mean,
+                        self._rot_mean,
+                        self._foot_position_view)
 
         # Compute relative frame orientations
         quat_multiply(quat_mean[:, np.newaxis],
@@ -413,62 +629,12 @@ class MultiFootRelativeXYZQuat(InterfaceQuantity[np.ndarray]):
 
 
 @dataclass(unsafe_hash=True)
-class AverageOdometryVelocity(InterfaceQuantity[np.ndarray]):
-    """Average odometry velocity of the floating base of the robot in
-    local-world-aligned frame at the end of the agent step.
-
-    The odometry pose fully specifies the position and orientation of the robot
-    in 2D world plane. See `BaseOdometryPose` documentation for details.
-
-    The average spatial velocity is obtained by finite difference. See
-    `AverageFrameSpatialVelocity` documentation for details.
-    """
-
-    mode: QuantityEvalMode
-    """Specify on which state to evaluate this quantity. See `Mode`
-    documentation for details about each mode.
-
-    .. warning::
-        Mode `REFERENCE` requires a reference trajectory to be selected
-        manually prior to evaluating this quantity for the first time.
-    """
-
-    def __init__(self,
-                 env: InterfaceJiminyEnv,
-                 parent: Optional[InterfaceQuantity],
-                 *,
-                 mode: QuantityEvalMode = QuantityEvalMode.TRUE) -> None:
-        """
-        :param env: Base or wrapped jiminy environment.
-        :param parent: Higher-level quantity from which this quantity is a
-                       requirement if any, `None` otherwise.
-        :param mode: Desired mode of evaluation for this quantity.
-                     Optional: 'QuantityEvalMode.TRUE' by default.
-        """
-        # Backup some user argument(s)
-        self.mode = mode
-
-        # Call base implementation
-        super().__init__(
-            env,
-            parent,
-            requirements=dict(
-                data=(MaskedQuantity, dict(
-                    quantity=(AverageFrameSpatialVelocity, dict(
-                        frame_name="root_joint",
-                        reference_frame=pin.LOCAL_WORLD_ALIGNED,
-                        mode=mode)),
-                    key=(0, 1, 5)))),
-            auto_refresh=False)
-
-    def refresh(self) -> np.ndarray:
-        return self.data
-
-
-@dataclass(unsafe_hash=True)
 class CenterOfMass(AbstractQuantity[np.ndarray]):
-    """Position, Velocity or Acceleration of the center of mass of the robot as
-    a whole.
+    """Position, Velocity or Acceleration of the center of mass (CoM) of the
+    robot as a whole in world frame.
+
+    Considering that the CoM has no angular motion, the velocity and the
+    acceleration is equally given in world or local-world-aligned frames.
     """
 
     kinematic_level: pin.KinematicLevel
@@ -580,7 +746,7 @@ class ZeroMomentPoint(AbstractQuantity[np.ndarray]):
             env,
             parent,
             requirements=dict(
-                com=(CenterOfMass, dict(
+                com_position=(CenterOfMass, dict(
                     kinematic_level=pin.POSITION,
                     mode=mode)),
                 odom_pose=(BaseOdometryPose, dict(mode=mode))
@@ -614,12 +780,9 @@ class ZeroMomentPoint(AbstractQuantity[np.ndarray]):
         # Refresh derivative of the spatial centroidal momentum
         self.dhg = ((dhg := self.pinocchio_data.dhg).linear, dhg.angular)
 
-        # Re-initialized pre-allocated memory buffer
-        fill(self._zmp, 0)
-
     def refresh(self) -> np.ndarray:
         # Extract intermediary quantities for convenience
-        (dhg_linear, dhg_angular), com = self.dhg, self.com
+        (dhg_linear, dhg_angular), com = self.dhg, self.com_position
 
         # Compute the vertical force applied by the robot
         f_z = dhg_linear[2] + self._robot_weight
@@ -632,10 +795,7 @@ class ZeroMomentPoint(AbstractQuantity[np.ndarray]):
 
         # Translate the ZMP from world to local odometry frame if requested
         if self.reference_frame == pin.LOCAL:
-            base_yaw = self.odom_pose[2]
-            cos_yaw, sin_yaw = math.cos(base_yaw), math.sin(base_yaw)
-            self._zmp[:] = (+ cos_yaw * self._zmp[0] + sin_yaw * self._zmp[1],
-                            - sin_yaw * self._zmp[0] + cos_yaw * self._zmp[1])
+            translate_position_odom(self._zmp, self.odom_pose, self._zmp)
 
         return self._zmp
 
@@ -735,9 +895,6 @@ class CapturePoint(AbstractQuantity[np.ndarray]):
         robot_height = self.robot.pinocchio_data_th.com[0][2] - min_height
         self.omega = math.sqrt(gravity / robot_height)
 
-        # Re-initialized pre-allocated memory buffer
-        fill(self._dcm, 0)
-
     def refresh(self) -> np.ndarray:
         # Compute the DCM in world frame
         com_position, com_velocity = self.com_position, self.com_velocity
@@ -745,9 +902,6 @@ class CapturePoint(AbstractQuantity[np.ndarray]):
 
         # Translate the ZMP from world to local odometry frame if requested
         if self.reference_frame == pin.LOCAL:
-            base_yaw = self.odom_pose[2]
-            cos_yaw, sin_yaw = math.cos(base_yaw), math.sin(base_yaw)
-            self._dcm[:] = (+ cos_yaw * self._dcm[0] + sin_yaw * self._dcm[1],
-                            - sin_yaw * self._dcm[0] + cos_yaw * self._dcm[1])
+            translate_position_odom(self._dcm, self.odom_pose, self._dcm)
 
         return self._dcm

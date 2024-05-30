@@ -20,7 +20,8 @@ import pinocchio as pin
 from ..bases import (
     InterfaceJiminyEnv, InterfaceQuantity, AbstractQuantity, QuantityEvalMode)
 from ..utils import (
-    matrix_to_rpy, matrix_to_quat, quat_apply, quat_interpolate_middle)
+    matrix_to_rpy, matrix_to_quat, quat_apply, remove_twist_from_quat,
+    quat_interpolate_middle)
 
 from .transform import StackedQuantity, MaskedQuantity
 
@@ -995,7 +996,7 @@ class MultiFramesMeanXYZQuat(InterfaceQuantity[np.ndarray]):
             """
             out[:] = np.sum(value, -1) / value.shape[-1]
 
-        self._position_average_fun = position_average
+        self._position_average = position_average
 
         # Define jit-able specialization of `quat_average` for 2D matrices
         @nb.jit(nopython=True, cache=True, fastmath=True)
@@ -1020,7 +1021,7 @@ class MultiFramesMeanXYZQuat(InterfaceQuantity[np.ndarray]):
                 _, eigvec = np.linalg.eigh(quat @ quat.T)
                 out[:] = eigvec[..., -1]
 
-        self._quat_average_fun = quat_average_2d
+        self._quat_average = quat_average_2d
 
         # Pre-allocate memory for the mean for mean pose vector XYZQuat
         self._xyzquat_mean = np.zeros((7,))
@@ -1031,10 +1032,10 @@ class MultiFramesMeanXYZQuat(InterfaceQuantity[np.ndarray]):
 
     def refresh(self) -> np.ndarray:
         # Compute the mean translation
-        self._position_average_fun(self.positions, self._position_mean_view)
+        self._position_average(self.positions, self._position_mean_view)
 
         # Compute the mean quaternion
-        self._quat_average_fun(self.quats, self._quat_mean_view)
+        self._quat_average(self.quats, self._quat_mean_view)
 
         return self._xyzquat_mean
 
@@ -1193,6 +1194,71 @@ class AverageFramePose(InterfaceQuantity[np.ndarray]):
 
 
 @dataclass(unsafe_hash=True)
+class AverageFrameSwing(InterfaceQuantity[np.ndarray]):
+    """Average swing orientation from the Twist-after-Swing decomposition of a
+    given frame over the whole agent step.
+
+    .. seealso::
+        See `remove_twist_from_quat` and `AverageFramePose` for details about
+        the Twist-after-Swing decomposition and how the average frame pose is
+        defined respectively.
+    """
+
+    frame_name: str
+    """Name of the frame on which to operate.
+    """
+
+    mode: QuantityEvalMode
+    """Specify on which state to evaluate this quantity. See `Mode`
+    documentation for details about each mode.
+
+    .. warning::
+        Mode `REFERENCE` requires a reference trajectory to be selected
+        manually prior to evaluating this quantity for the first time.
+    """
+
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 parent: Optional[InterfaceQuantity],
+                 frame_name: str,
+                 *,
+                 mode: QuantityEvalMode = QuantityEvalMode.TRUE) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param parent: Higher-level quantity from which this quantity is a
+                       requirement if any, `None` otherwise.
+        :param frame_name: Name of the frame on which to operate.
+        :param mode: Desired mode of evaluation for this quantity.
+                     Optional: 'QuantityEvalMode.TRUE' by default.
+        """
+        # Backup some user argument(s)
+        self.frame_name = frame_name
+        self.mode = mode
+
+        # Call base implementation
+        super().__init__(
+            env,
+            parent,
+            requirements=dict(
+                quat_mean=(MaskedQuantity, dict(
+                    quantity=(AverageFramePose, dict(
+                        frame_name=frame_name,
+                        mode=mode)),
+                    axis=0,
+                    keys=(3, 4, 5, 6)))),
+            auto_refresh=False)
+
+        # Twist-free average orientation of the base as a quaternion
+        self._quat_swing_mean = np.zeros((4,))
+
+    def refresh(self) -> np.ndarray:
+        # Compute twist-free average orientation
+        remove_twist_from_quat(self.quat_mean, self._quat_swing_mean)
+
+        return self._quat_swing_mean
+
+
+@dataclass(unsafe_hash=True)
 class AverageFrameSpatialVelocity(InterfaceQuantity[np.ndarray]):
     """Average spatial velocity of a given frame at the end of the agent step.
 
@@ -1277,28 +1343,18 @@ class AverageFrameSpatialVelocity(InterfaceQuantity[np.ndarray]):
                     keys=(3, 4, 5, 6)))),
             auto_refresh=False)
 
-        # Define specialize difference operator on SE3 Lie group
-        self._difference = (
-            pin.liegroups.SE3().difference)  # pylint: disable=no-member
-
         # Inverse time difference from previous to next state
         self._inv_step_dt = 1.0 / self.env.step_dt
-
-        # Allocate memory for the average quaternion and rotation matrix
-        self._quat_mean = np.zeros(4)
-        self._rot_mat_mean = np.eye(3)
 
         # Pre-allocate memory for the spatial velocity
         self._v_spatial: np.ndarray = np.zeros(6)
 
         # Reshape linear plus angular velocity vector to vectorize rotation
-        self._v_lin_ang = np.reshape(self._v_spatial, (2, 3)).T
+        self._v_lin_ang = self._v_spatial.reshape((2, 3)).T
 
     def refresh(self) -> np.ndarray:
         # Compute average frame velocity in local frame since previous step
-        # FIXME: Check if faster to split computation in 2 steps ?
-        # breakpoint()
-        self._v_spatial[:] = self._inv_step_dt * self.xyzquat_diff
+        np.multiply(self.xyzquat_diff, self._inv_step_dt, self._v_spatial)
 
         # Translate local velocity to world frame
         if self.reference_frame == pin.LOCAL_WORLD_ALIGNED:

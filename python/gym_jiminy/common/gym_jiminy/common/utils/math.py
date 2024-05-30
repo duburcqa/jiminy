@@ -664,12 +664,14 @@ def quat_apply(quat: np.ndarray,
 
 
 @overload
-def log3(quat: np.ndarray, out: np.ndarray) -> None:
+def log3(quat: np.ndarray, out: np.ndarray, theta: np.ndarray) -> None:
     ...
 
 
 @overload
-def log3(quat: np.ndarray, out: Literal[None] = ...) -> np.ndarray:
+def log3(quat: np.ndarray,
+         out: Literal[None] = ...,
+         theta: Literal[None] = ...) -> np.ndarray:
     ...
 
 
@@ -1061,7 +1063,8 @@ def swing_from_vector(
 
 # FIXME: Enabling cache causes segfault on Apple Silicon
 @nb.jit(nopython=True, cache=False)
-def remove_twist_from_quat(q: np.ndarray) -> None:
+def remove_twist_from_quat(q: np.ndarray,
+                           out: Optional[np.ndarray] = None) -> None:
     """Remove the twist part of the Twist-after-Swing decomposition of given
     orientations in quaternion representation.
 
@@ -1080,13 +1083,16 @@ def remove_twist_from_quat(q: np.ndarray) -> None:
 
     :param q: Array whose rows are the 4 components of quaternions (x, y, z, w)
               and columns are N independent orientations from which to remove
-              the swing part. It will be updated in-place.
+              the swing part.
+    :param out: Pre-allocated array into which to store the result. `None` to
+                update the input quaternion in-place.
+                Optional: `None` by default.
     """
     # Compute e_z in R(q) frame (Euler-Rodrigues Formula): R(q).T @ e_z
     v_a = compute_tilt_from_quat(q)
 
     # Compute the "smallest" rotation transforming vector 'v_a' in 'e_z'
-    swing_from_vector(v_a, q)
+    swing_from_vector(v_a, q if out is None else out)
 
 
 def quat_average(quat: np.ndarray,

@@ -18,7 +18,10 @@ ValueT = TypeVar('ValueT')
 
 
 class SurviveReward(AbstractReward):
-    """Constant positive reward equal to 1.0 systematically, unless the current
+    """Reward the agent for surviving, ie make episodes last as long as
+    possible by avoiding triggering termination conditions.
+
+    Constant positive reward equal to 1.0 systematically, unless the current
     state of the environment is the terminal state. In which case, the value
     0.0 is returned instead.
     """

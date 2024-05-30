@@ -6,14 +6,16 @@ from typing import Union, Sequence, Literal
 import numpy as np
 import pinocchio as pin
 
-from ..bases import InterfaceJiminyEnv, StateQuantity
+from ..bases import (
+    InterfaceJiminyEnv, StateQuantity, QuantityEvalMode, BaseQuantityReward)
 from ..quantities import (
-    MaskedQuantity, UnaryOpQuantity, AverageOdometryVelocity,
-    MultiFootRelativeXYZQuat, CapturePoint)
+    MaskedQuantity, UnaryOpQuantity, AverageBaseOdometryVelocity,
+    AverageBaseMomentum, MultiFootRelativeXYZQuat, CapturePoint)
 from ..quantities.locomotion import sanitize_foot_frame_names
 from ..utils import quat_difference
 
 from .generic import BaseTrackingReward
+from .mixin import radial_basis_function
 
 
 class TrackingBaseHeightReward(BaseTrackingReward):
@@ -45,7 +47,7 @@ class TrackingBaseHeightReward(BaseTrackingReward):
             cutoff)
 
 
-class TrackingOdometryVelocityReward(BaseTrackingReward):
+class TrackingBaseOdometryVelocityReward(BaseTrackingReward):
     """Reward the agent for tracking the odometry velocity wrt some reference
     trajectory.
 
@@ -66,7 +68,7 @@ class TrackingOdometryVelocityReward(BaseTrackingReward):
         super().__init__(
             env,
             "reward_tracking_odometry_velocity",
-            lambda mode: (AverageOdometryVelocity, dict(mode=mode)),
+            lambda mode: (AverageBaseOdometryVelocity, dict(mode=mode)),
             cutoff)
 
 
@@ -192,3 +194,30 @@ class TrackingFootOrientationsReward(BaseTrackingReward):
                 keys=(3, 4, 5, 6))),
             cutoff,
             op=partial(quat_difference_buffered, self._diff))
+
+
+class MinimizeAngularMomentumReward(BaseQuantityReward):
+    """Reward the agent for minimizing the angular momentum in world plane.
+
+    The angular momentum along x- and y-axes in local odometry frame is
+    transform in a normalized reward to maximize by applying RBF kernel on the
+    error. See `BaseTrackingReward` documentation for technical details.
+    """
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 cutoff: float) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param cutoff: Cutoff threshold for the RBF kernel transform.
+        """
+        # Backup some user argument(s)
+        self.cutoff = cutoff
+
+        # Call base implementation
+        super().__init__(
+            env,
+            "reward_momentum",
+            (AverageBaseMomentum, dict(mode=QuantityEvalMode.TRUE)),
+            partial(radial_basis_function, cutoff=self.cutoff, order=2),
+            is_normalized=True,
+            is_terminal=False)

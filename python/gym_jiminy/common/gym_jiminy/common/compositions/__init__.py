@@ -7,10 +7,11 @@ from .generic import (BaseTrackingReward,
                       TrackingActuatedJointPositionsReward,
                       SurviveReward)
 from .locomotion import (TrackingBaseHeightReward,
-                         TrackingOdometryVelocityReward,
+                         TrackingBaseOdometryVelocityReward,
                          TrackingCapturePointReward,
                          TrackingFootPositionsReward,
-                         TrackingFootOrientationsReward)
+                         TrackingFootOrientationsReward,
+                         MinimizeAngularMomentumReward)
 
 __all__ = [
     "radial_basis_function",
@@ -19,9 +20,10 @@ __all__ = [
     "BaseTrackingReward",
     "TrackingActuatedJointPositionsReward",
     "TrackingBaseHeightReward",
-    "TrackingOdometryVelocityReward",
+    "TrackingBaseOdometryVelocityReward",
     "TrackingCapturePointReward",
     "TrackingFootPositionsReward",
     "TrackingFootOrientationsReward",
+    "MinimizeAngularMomentumReward",
     "SurviveReward"
 ]

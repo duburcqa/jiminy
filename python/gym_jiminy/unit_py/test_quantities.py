@@ -11,7 +11,8 @@ from jiminy_py.log import extract_trajectory_from_log
 import pinocchio as pin
 
 from gym_jiminy.common.utils import  (
-    matrix_to_quat, quat_average, quat_to_matrix, quat_to_yaw)
+    matrix_to_quat, quat_average, quat_to_matrix, quat_to_yaw,
+    remove_twist_from_quat)
 from gym_jiminy.common.bases import QuantityEvalMode, DatasetTrajectoryQuantity
 from gym_jiminy.common.quantities import (
     OrientationType,
@@ -24,7 +25,8 @@ from gym_jiminy.common.quantities import (
     MultiFootMeanOdometryPose,
     MultiFootRelativeXYZQuat,
     AverageFrameSpatialVelocity,
-    AverageOdometryVelocity,
+    AverageBaseOdometryVelocity,
+    AverageBaseMomentum,
     ActuatedJointsPosition,
     CenterOfMass,
     CapturePoint,
@@ -56,20 +58,21 @@ class Quantities(unittest.TestCase):
         assert quantities["com"].cache.has_value
         assert not quantities["acom"].cache.has_value
         assert not quantities["com"]._is_initialized
-        assert quantities["zmp"].requirements["com"]._is_initialized
+        assert quantities["zmp"].requirements["com_position"]._is_initialized
 
         env.step(env.action_space.sample())
         zmp_1 = quantity_manager["zmp"].copy()
         assert np.all(zmp_0 == zmp_1)
         quantity_manager.clear()
-        assert quantities["zmp"].requirements["com"]._is_initialized
+        assert quantities["zmp"].requirements["com_position"]._is_initialized
         assert not quantities["com"].cache.has_value
         zmp_1 = quantity_manager.zmp.copy()
         assert np.any(zmp_0 != zmp_1)
 
         env.step(env.action_space.sample())
         quantity_manager.reset()
-        assert not quantities["zmp"].requirements["com"]._is_initialized
+        assert not quantities["zmp"].requirements[
+            "com_position"]._is_initialized
         zmp_2 = quantity_manager.zmp.copy()
         assert np.any(zmp_1 != zmp_2)
 
@@ -280,7 +283,7 @@ class Quantities(unittest.TestCase):
                 lambda mode: (AverageFrameSpatialVelocity, dict(
                     frame_name=frame_names[1],
                     mode=mode)),
-                lambda mode: (AverageOdometryVelocity, dict(
+                lambda mode: (AverageBaseOdometryVelocity, dict(
                     mode=mode)),
                 lambda mode: (ActuatedJointsPosition, dict(
                     mode=mode)),
@@ -329,7 +332,8 @@ class Quantities(unittest.TestCase):
         env = gym.make("gym_jiminy.envs:atlas")
 
         env.quantities["odometry_velocity"] = (
-            AverageOdometryVelocity, dict(mode=QuantityEvalMode.TRUE))
+            AverageBaseOdometryVelocity, dict(
+                mode=QuantityEvalMode.TRUE))
         quantity = env.quantities.registry["odometry_velocity"]
 
         env.reset(seed=0)
@@ -341,6 +345,7 @@ class Quantities(unittest.TestCase):
         base_pose_diff = se3.difference(base_pose_prev, base_pose)
         base_velocity_mean_local =  base_pose_diff / env.step_dt
         base_pose_mean = se3.integrate(base_pose_prev, 0.5 * base_pose_diff)
+        remove_twist_from_quat(base_pose_mean[-4:])
         rot_mat = quat_to_matrix(base_pose_mean[-4:])
         base_velocity_mean_world = np.concatenate((
             rot_mat @ base_velocity_mean_local[:3],

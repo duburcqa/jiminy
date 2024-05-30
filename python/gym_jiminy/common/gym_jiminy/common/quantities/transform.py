@@ -156,8 +156,8 @@ class MaskedQuantity(InterfaceQuantity[np.ndarray]):
             keys = tuple(np.flatnonzero(keys))
         elif not all(isinstance(e, int) for e in keys):
             raise ValueError(
-                "Argument 'keys' invalid. It must either be a boolean mask, or "
-                "a sequence of indices.")
+                "Argument 'keys' invalid. It must either be a boolean mask, "
+                "or a sequence of indices.")
 
         # Backup user arguments
         self.indices = tuple(keys)
