@@ -127,9 +127,8 @@ def quat_to_rpy(quat: np.ndarray,
                 provided, a new array is freshly-allocated and returned, which
                 is slower.
     """
-    assert quat.ndim >= 1
-
     # Allocate memory for the output array
+    assert quat.ndim >= 1
     if out is None:
         out_ = np.empty((3, *quat.shape[1:]))
     else:
@@ -143,9 +142,9 @@ def quat_to_rpy(quat: np.ndarray,
     q_ww = quat[-1] * quat[-1]
 
     # First-order normalization (by copy) to avoid numerical instabilities
-    norm_inv = ((3.0 - (q_xx + q_yy + q_zz + q_ww)) / 2)
-    q_yw *= norm_inv
-    q_xz *= norm_inv
+    norm_2_inv = ((3.0 - (q_xx + q_yy + q_zz + q_ww)) / 2)
+    q_yw *= norm_2_inv
+    q_xz *= norm_2_inv
 
     # Compute Roll, Pitch and Yaw separately
     # roll, pitch, yaw = out_
@@ -1061,6 +1060,69 @@ def swing_from_vector(
     q *= (3.0 - np.sum(np.square(q), 0)) / 2
 
 
+@overload
+def remove_yaw_from_quat(quat: np.ndarray, out: np.ndarray) -> None:
+    ...
+
+
+@overload
+def remove_yaw_from_quat(quat: np.ndarray,
+                         out: Literal[None] = ...) -> np.ndarray:
+    ...
+
+
+@nb.jit(nopython=True, cache=True)
+def remove_yaw_from_quat(quat: np.ndarray,
+                         out: Optional[np.ndarray] = None
+                         ) -> Optional[np.ndarray]:
+    """Remove the rotation around z-axis of a single or batch of quaternions.
+
+    .. note::
+        Note that this decomposition is rarely used in practice, mainly because
+        of singularity issues related to the Roll-Pitch-Yaw decomposition. It
+        is usually preferable to remove the twist part of the Twist-after-Swing
+        decomposition. See `remove_twist_from_quat` documentation for details.
+
+    :param quat: N-dimensional array whose first dimension gathers the 4
+                 quaternion coordinates (qx, qy, qz, qw).
+    :param out: Pre-allocated array into which to store the result. If not
+                provided, a new array is freshly-allocated and returned, which
+                is slower.
+    """
+    # Allocate memory for the output array
+    assert quat.ndim >= 1
+    if out is None:
+        out_ = np.empty(quat.shape)
+    else:
+        assert out.shape == quat.shape
+        out_ = out
+
+    # Compute some intermediary quantities
+    q_xx, (q_xz, q_xw) = quat[-4] * quat[-4], quat[-4] * quat[-2:]
+    q_yy, q_yz, q_yw = quat[-3] * quat[-3:]
+
+    # Compute some intermediary quantities
+    cos_roll = 1.0 - 2 * (q_xx + q_yy)
+    sin_roll = 2 * (q_xw + q_yz)
+    cos_roll /= np.sqrt(cos_roll ** 2 + sin_roll ** 2)
+    cos_roll_2 = np.sqrt(0.5 * (1.0 + cos_roll))
+    sin_roll_2 = np.sign(sin_roll) * np.sqrt(0.5 * (1.0 - cos_roll))
+    sin_pitch = 2 * (q_yw - q_xz)
+    cos_pitch = np.sqrt(1.0 - sin_pitch ** 2)
+    cos_pitch_2 = np.sqrt(0.5 * (1.0 + cos_pitch))
+    sin_pitch_2 = np.sign(sin_pitch) * np.sqrt(0.5 * (1.0 - cos_pitch))
+
+    # q_x, q_y, q_z, q_w = out_
+    out_[0] = + sin_roll_2 * cos_pitch_2
+    out_[1] = + cos_roll_2 * sin_pitch_2
+    out_[2] = - sin_roll_2 * sin_pitch_2
+    out_[3] = + cos_roll_2 * cos_pitch_2
+
+    if out is None:
+        return out_
+    return None
+
+
 # FIXME: Enabling cache causes segfault on Apple Silicon
 @nb.jit(nopython=True, cache=False)
 def remove_twist_from_quat(q: np.ndarray,
@@ -1073,7 +1135,11 @@ def remove_twist_from_quat(q: np.ndarray,
         R = R_z * R_s
 
     where R_z (the twist) is a rotation around e_z and R_s (the swing) is
-    the "smallest" rotation matrix such that t(R_s) = t(R).
+    the "smallest" rotation matrix such that t(R_s) = t(R). Note that although
+    the swing is not free of rotation around z-axis, the latter only depends on
+    the rotation around e_x, e_y, which is the main motivation for using this
+    decomposition. One must use `remove_yaw_from_quat` to completely cancel you
+    the rotation around z-axis.
 
     .. seealso::
         * See "Estimation and control of the deformations of an exoskeleton

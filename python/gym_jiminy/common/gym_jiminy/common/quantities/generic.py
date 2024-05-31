@@ -20,7 +20,7 @@ import pinocchio as pin
 from ..bases import (
     InterfaceJiminyEnv, InterfaceQuantity, AbstractQuantity, QuantityEvalMode)
 from ..utils import (
-    matrix_to_rpy, matrix_to_quat, quat_apply, remove_twist_from_quat,
+    matrix_to_rpy, matrix_to_quat, quat_apply, remove_yaw_from_quat,
     quat_interpolate_middle)
 
 from .transform import StackedQuantity, MaskedQuantity
@@ -420,8 +420,8 @@ class _BatchedFramesOrientation(
 
 @dataclass(unsafe_hash=True)
 class FrameOrientation(InterfaceQuantity[np.ndarray]):
-    """Euler angles (Roll-Pitch-Yaw) of the orientation of a given frame in
-    world reference frame at the end of the agent step.
+    """Vector representation of the orientation of a given frame in world
+    reference frame at the end of the agent step.
     """
 
     frame_name: str
@@ -577,9 +577,9 @@ class MultiFramesOrientation(InterfaceQuantity[np.ndarray]):
 @dataclass(unsafe_hash=True)
 class _BatchedFramesPosition(
         AbstractQuantity[Dict[Union[str, Tuple[str, ...]], np.ndarray]]):
-    """Position (X, Y, Z) of all frames involved in quantities relying on it
-    and are active since last reset of computation tracking if shared cache is
-    available, its parent otherwise.
+    """Position vector (X, Y, Z) of all frames involved in quantities relying
+    on it and are active since last reset of computation tracking if shared
+    cache is available, its parent otherwise.
 
     It is not supposed to be instantiated manually but use internally by
     `FramePosition`. See `_BatchedFramesRotationMatrix` documentation.
@@ -666,8 +666,8 @@ class _BatchedFramesPosition(
 
 @dataclass(unsafe_hash=True)
 class FramePosition(InterfaceQuantity[np.ndarray]):
-    """Position (X, Y, Z) of a given frame in world reference frame at the end
-    of the agent step.
+    """Position vector (X, Y, Z) of a given frame in world reference frame at
+    the end of the agent step.
     """
 
     frame_name: str
@@ -726,8 +726,8 @@ class FramePosition(InterfaceQuantity[np.ndarray]):
 
 @dataclass(unsafe_hash=True)
 class MultiFramesPosition(InterfaceQuantity[np.ndarray]):
-    """Position (X, Y, Z) of a given set of frames in world reference frame at
-    the end of the agent step.
+    """Position vector (X, Y, Z) of a given set of frames in world reference
+    frame at the end of the agent step.
     """
 
     frame_names: Tuple[str, ...]
@@ -789,8 +789,8 @@ class MultiFramesPosition(InterfaceQuantity[np.ndarray]):
 
 @dataclass(unsafe_hash=True)
 class FrameXYZQuat(InterfaceQuantity[np.ndarray]):
-    """Vector representation (X, Y, Z, QuatX, QuatY, QuatZ, QuatW) of the
-    transform of a given frame in world reference frame at the end of the
+    """Spatial vector representation (X, Y, Z, QuatX, QuatY, QuatZ, QuatW) of
+    the transform of a given frame in world reference frame at the end of the
     agent step.
     """
 
@@ -854,9 +854,9 @@ class FrameXYZQuat(InterfaceQuantity[np.ndarray]):
 
 @dataclass(unsafe_hash=True)
 class MultiFramesXYZQuat(InterfaceQuantity[np.ndarray]):
-    """Vector representation (X, Y, Z, QuatX, QuatY, QuatZ, QuatW) of the
-    transform of a given set of frames in world reference frame at the end of
-    the agent step.
+    """Spatial vector representation (X, Y, Z, QuatX, QuatY, QuatZ, QuatW) of
+    the transform of a given set of frames in world reference frame at the end
+    of the agent step.
     """
 
     frame_names: Tuple[str, ...]
@@ -922,9 +922,9 @@ class MultiFramesXYZQuat(InterfaceQuantity[np.ndarray]):
 
 @dataclass(unsafe_hash=True)
 class MultiFramesMeanXYZQuat(InterfaceQuantity[np.ndarray]):
-    """Vector representation (X, Y, Z, QuatX, QuatY, QuatZ, QuatW) of the
-    average transform of a given set of frames in world reference frame at the
-    end of the agent step.
+    """Spatial vector representation (X, Y, Z, QuatX, QuatY, QuatZ, QuatW) of
+    the average transform of a given set of frames in world reference frame at
+    the end of the agent step.
 
     Broadly speaking, the average is defined as the value minimizing the mean
     error wrt every individual elements, considering some distance metric. In
@@ -1041,9 +1041,10 @@ class MultiFramesMeanXYZQuat(InterfaceQuantity[np.ndarray]):
 
 
 @dataclass(unsafe_hash=True)
-class _DifferenceFramePose(InterfaceQuantity[np.ndarray]):
-    """Finite difference between the pose of a given frame at the end of
-    previous and current agent steps.
+class _DifferenceFrameXYZQuat(InterfaceQuantity[np.ndarray]):
+    """Motion vector representation (VX, VY, VZ, WX, WY, WZ) of the finite
+    difference between the pose of a given frame at the end of previous and
+    current agent steps.
 
     The finite difference is defined here as the geodesic distance in SE3 Lie
     Group. Under this definition, the rate of change of the translation depends
@@ -1127,7 +1128,7 @@ class AverageFramePose(InterfaceQuantity[np.ndarray]):
 
     The average frame pose is obtained by integration of the average velocity
     over the whole agent step, backward in time from the state at the end of
-    the step to the midpoint. See `_DifferenceFramePose` documentation for
+    the step to the midpoint. See `_DifferenceFrameXYZQuat` documentation for
     details.
 
     .. note::
@@ -1179,7 +1180,7 @@ class AverageFramePose(InterfaceQuantity[np.ndarray]):
                 xyzquat_next=(FrameXYZQuat, dict(
                     frame_name=frame_name,
                     mode=mode)),
-                xyzquat_diff=(_DifferenceFramePose, dict(
+                xyzquat_diff=(_DifferenceFrameXYZQuat, dict(
                     frame_name=frame_name,
                     mode=mode))),
             auto_refresh=False)
@@ -1194,13 +1195,13 @@ class AverageFramePose(InterfaceQuantity[np.ndarray]):
 
 
 @dataclass(unsafe_hash=True)
-class AverageFrameSwing(InterfaceQuantity[np.ndarray]):
-    """Average swing orientation from the Twist-after-Swing decomposition of a
-    given frame over the whole agent step.
+class AverageFrameRollPitch(InterfaceQuantity[np.ndarray]):
+    """Quaternion representation of the average Yaw-free orientation from the
+    Roll-Pitch_yaw decomposition of a given frame over the whole agent step.
 
     .. seealso::
-        See `remove_twist_from_quat` and `AverageFramePose` for details about
-        the Twist-after-Swing decomposition and how the average frame pose is
+        See `remove_yaw_from_quat` and `AverageFramePose` for details about
+        the Roll-Pitch-Yaw decomposition and how the average frame pose is
         defined respectively.
     """
 
@@ -1249,13 +1250,13 @@ class AverageFrameSwing(InterfaceQuantity[np.ndarray]):
             auto_refresh=False)
 
         # Twist-free average orientation of the base as a quaternion
-        self._quat_swing_mean = np.zeros((4,))
+        self._quat_no_yaw_mean = np.zeros((4,))
 
     def refresh(self) -> np.ndarray:
-        # Compute twist-free average orientation
-        remove_twist_from_quat(self.quat_mean, self._quat_swing_mean)
+        # Compute Yaw-free average orientation
+        remove_yaw_from_quat(self.quat_mean, self._quat_no_yaw_mean)
 
-        return self._quat_swing_mean
+        return self._quat_no_yaw_mean
 
 
 @dataclass(unsafe_hash=True)
@@ -1332,7 +1333,7 @@ class AverageFrameSpatialVelocity(InterfaceQuantity[np.ndarray]):
             env,
             parent,
             requirements=dict(
-                xyzquat_diff=(_DifferenceFramePose, dict(
+                xyzquat_diff=(_DifferenceFrameXYZQuat, dict(
                     frame_name=frame_name,
                     mode=mode)),
                 quat_mean=(MaskedQuantity, dict(

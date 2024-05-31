@@ -10,9 +10,9 @@ from jiminy_py.dynamics import update_quantities
 from jiminy_py.log import extract_trajectory_from_log
 import pinocchio as pin
 
-from gym_jiminy.common.utils import  (
+from gym_jiminy.common.utils import (
     matrix_to_quat, quat_average, quat_to_matrix, quat_to_yaw,
-    remove_twist_from_quat)
+    remove_yaw_from_quat)
 from gym_jiminy.common.bases import QuantityEvalMode, DatasetTrajectoryQuantity
 from gym_jiminy.common.quantities import (
     OrientationType,
@@ -345,8 +345,7 @@ class Quantities(unittest.TestCase):
         base_pose_diff = se3.difference(base_pose_prev, base_pose)
         base_velocity_mean_local =  base_pose_diff / env.step_dt
         base_pose_mean = se3.integrate(base_pose_prev, 0.5 * base_pose_diff)
-        remove_twist_from_quat(base_pose_mean[-4:])
-        rot_mat = quat_to_matrix(base_pose_mean[-4:])
+        rot_mat = quat_to_matrix(remove_yaw_from_quat(base_pose_mean[-4:]))
         base_velocity_mean_world = np.concatenate((
             rot_mat @ base_velocity_mean_local[:3],
             rot_mat @ base_velocity_mean_local[3:]))
@@ -356,6 +355,28 @@ class Quantities(unittest.TestCase):
         base_odom_velocity = base_velocity_mean_world[[0, 1, 5]]
         np.testing.assert_allclose(
             env.quantities["odometry_velocity"], base_odom_velocity)
+
+    def test_average_momentum(self):
+        env = gym.make("gym_jiminy.envs:atlas")
+
+        env.quantities["base_momentum"] = (
+            AverageBaseMomentum, dict(mode=QuantityEvalMode.TRUE))
+
+        env.reset(seed=0)
+        base_pose_prev = env.robot_state.q[:7].copy()
+        env.step(env.action_space.sample())
+        base_pose = env.robot_state.q[:7].copy()
+
+        se3 = pin.liegroups.SE3()
+        base_pose_diff = se3.difference(base_pose_prev, base_pose)
+        base_velocity_mean_local =  base_pose_diff / env.step_dt
+        base_pose_mean = se3.integrate(base_pose_prev, 0.5 * base_pose_diff)
+        I = env.robot.pinocchio_model.inertias[1].inertia
+        rot_mat = quat_to_matrix(remove_yaw_from_quat(base_pose_mean[-4:]))
+        angular_momentum = rot_mat @ (I @ base_velocity_mean_local[3:])
+
+        np.testing.assert_allclose(
+            env.quantities["base_momentum"], angular_momentum)
 
     def test_motor_positions(self):
         """ TODO: Write documentation

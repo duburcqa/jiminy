@@ -19,7 +19,7 @@ from ..utils import (
 
 from ..quantities import (
     MaskedQuantity, AverageFrameSpatialVelocity, MultiFramesXYZQuat,
-    MultiFramesMeanXYZQuat, AverageFrameSwing)
+    MultiFramesMeanXYZQuat, AverageFrameRollPitch)
 
 
 def sanitize_foot_frame_names(
@@ -173,8 +173,8 @@ class AverageBaseSpatialVelocity(InterfaceQuantity[np.ndarray]):
     Roughly speaking, the local odometry reference frame is half-way between
     `pinocchio.LOCAL` and `pinocchio.LOCAL_WORLD_ALIGNED`. The z-axis is
     world-aligned while x and y axes are local, which corresponds to applying
-    the swing from the Twist-after-Swing decomposition to the local velocity.
-    See `remove_twist_from_quat` for details.
+    the Roll and Pitch from the Roll-Pitch-Yaw decomposition to the local
+    velocity. See `remove_yaw_from_quat` for details.
     """
 
     mode: QuantityEvalMode
@@ -210,13 +210,10 @@ class AverageBaseSpatialVelocity(InterfaceQuantity[np.ndarray]):
                     frame_name="root_joint",
                     reference_frame=pin.LOCAL,
                     mode=mode)),
-                quat_swing_mean=(AverageFrameSwing, dict(
+                quat_no_yaw_mean=(AverageFrameRollPitch, dict(
                     frame_name="root_joint",
                     mode=mode))),
             auto_refresh=False)
-
-        # Twist-free average orientation of the base as a quaternion
-        self._quat_swing_mean = np.zeros((4,))
 
         # Pre-allocate memory for the spatial velocity
         self._v_spatial: np.ndarray = np.zeros(6)
@@ -225,8 +222,8 @@ class AverageBaseSpatialVelocity(InterfaceQuantity[np.ndarray]):
         self._v_lin_ang = self._v_spatial.reshape((2, 3)).T
 
     def refresh(self) -> np.ndarray:
-        # Apply quaternion rotation of the spatial velocity vector
-        quat_apply(self.quat_swing_mean,
+        # Translate spatial base velocity from local to odometry frame
+        quat_apply(self.quat_no_yaw_mean,
                    self.v_spatial.reshape((2, 3)).T,
                    self._v_lin_ang)
 
@@ -325,16 +322,16 @@ class AverageBaseMomentum(AbstractQuantity[np.ndarray]):
                         reference_frame=pin.LOCAL,
                         mode=mode)),
                     keys=(3, 4, 5))),
-                quat_swing_mean=(AverageFrameSwing, dict(
+                quat_no_yaw_mean=(AverageFrameRollPitch, dict(
                     frame_name="root_joint",
                     mode=mode))),
             auto_refresh=False)
 
+        # Define proxy storing the base body (angular) inertia in local frame
+        self._inertia_local = np.array([])
+
         # Angular momentum of inertia
         self._h_angular = np.zeros((3,))
-
-        # Define proxy storing the base body (angular) inertia in local frame
-        self._inertia_local = self.pinocchio_model.inertias[1].inertia
 
     def initialize(self) -> None:
         # Call base implementation
@@ -348,7 +345,7 @@ class AverageBaseMomentum(AbstractQuantity[np.ndarray]):
         np.matmul(self._inertia_local, self.v_angular, self._h_angular)
 
         # Apply quaternion rotation of the local angular momentum of inertia
-        quat_apply(self.quat_swing_mean, self._h_angular, self._h_angular)
+        quat_apply(self.quat_no_yaw_mean, self._h_angular, self._h_angular)
 
         return self._h_angular
 
