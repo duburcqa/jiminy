@@ -9,7 +9,7 @@ from typing import Optional, Callable, TypeVar
 from ..bases import (
     InfoType, QuantityCreator, InterfaceJiminyEnv, AbstractReward,
     BaseQuantityReward, QuantityEvalMode)
-from ..quantities import BinaryOpQuantity, ActuatedJointPositions
+from ..quantities import BinaryOpQuantity, ActuatedJointsPosition
 
 from .mixin import radial_basis_function
 
@@ -18,7 +18,10 @@ ValueT = TypeVar('ValueT')
 
 
 class SurviveReward(AbstractReward):
-    """Constant positive reward equal to 1.0 systematically, unless the current
+    """Reward the agent for surviving, ie make episodes last as long as
+    possible by avoiding triggering termination conditions.
+
+    Constant positive reward equal to 1.0 systematically, unless the current
     state of the environment is the terminal state. In which case, the value
     0.0 is returned instead.
     """
@@ -124,5 +127,5 @@ class TrackingActuatedJointPositionsReward(BaseTrackingReward):
         super().__init__(
             env,
             "reward_actuated_joint_positions",
-            lambda mode: (ActuatedJointPositions, dict(mode=mode)),
+            lambda mode: (ActuatedJointsPosition, dict(mode=mode)),
             cutoff)
