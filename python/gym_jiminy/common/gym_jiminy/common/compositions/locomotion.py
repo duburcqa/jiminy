@@ -6,13 +6,16 @@ from typing import Union, Sequence, Literal
 import numpy as np
 import pinocchio as pin
 
-from ..bases import InterfaceJiminyEnv, StateQuantity
+from ..bases import (
+    InterfaceJiminyEnv, StateQuantity, QuantityEvalMode, BaseQuantityReward)
 from ..quantities import (
-    MaskedQuantity, UnaryOpQuantity, AverageOdometryVelocity,
-    MultiFootRelativeXYZQuat, CapturePoint)
+    MaskedQuantity, UnaryOpQuantity, AverageBaseOdometryVelocity,
+    AverageBaseMomentum, MultiFootRelativeXYZQuat, CapturePoint)
 from ..quantities.locomotion import sanitize_foot_frame_names
+from ..utils import quat_difference
 
 from .generic import BaseTrackingReward
+from .mixin import radial_basis_function
 
 
 class TrackingBaseHeightReward(BaseTrackingReward):
@@ -40,11 +43,11 @@ class TrackingBaseHeightReward(BaseTrackingReward):
                 quantity=(UnaryOpQuantity, dict(
                     quantity=(StateQuantity, dict(mode=mode)),
                     op=lambda state: state.q)),
-                key=(2,))),
+                keys=(2,))),
             cutoff)
 
 
-class TrackingOdometryVelocityReward(BaseTrackingReward):
+class TrackingBaseOdometryVelocityReward(BaseTrackingReward):
     """Reward the agent for tracking the odometry velocity wrt some reference
     trajectory.
 
@@ -65,7 +68,7 @@ class TrackingOdometryVelocityReward(BaseTrackingReward):
         super().__init__(
             env,
             "reward_tracking_odometry_velocity",
-            lambda mode: (AverageOdometryVelocity, dict(mode=mode)),
+            lambda mode: (AverageBaseOdometryVelocity, dict(mode=mode)),
             cutoff)
 
 
@@ -96,8 +99,8 @@ class TrackingCapturePointReward(BaseTrackingReward):
             cutoff)
 
 
-class TrackingFootPoseReward(BaseTrackingReward):
-    """Reward the agent for tracking the relative pose of the feet wrt to each
+class TrackingFootPositionsReward(BaseTrackingReward):
+    """Reward the agent for tracking the relative position of the feet wrt each
     other.
 
     .. seealso::
@@ -123,48 +126,98 @@ class TrackingFootPoseReward(BaseTrackingReward):
         # Sanitize frame names corresponding to the feet of the robot
         frame_names = tuple(sanitize_foot_frame_names(env, frame_names))
 
-        # Define "vectorized" difference operator on SE3 Lie group
-        se3_diff_vector = (
-            pin.liegroups.SE3().difference)  # pylint: disable=no-member
-
-        def pose_difference(xyzquats_left: np.ndarray,
-                            xyzquats_right: np.ndarray,
-                            out: np.ndarray) -> np.ndarray:
-            """Compute the pair-wise difference between batches of pose vectors
-            (X, Y, Z, QuatX, QuatY, QuatZ, QuatW), ie `quat_left - quat_right`.
-
-            Internally, this method is not vectorized for now as it loops over
-            all pairs sequentially and applies the operator
-            `pinocchio.liegroups.SE3.difference`.
-
-            :param xyzquats_left: Left-hand side of the SE3 difference, as a
-                                  N-dimensional array whose first dimension
-                                  gathers the 7 pose coordinates (x, y, z, qx,
-                                  qy, qz, qw).
-            :param xyzquats_right: Right-hand side of the SE3 difference, as a
-                                   N-dimensional array whose first dimension
-                                   gathers the 7 pose coordinates (x, y, z, qx,
-                                   qy, qz, qw).
-            :param out: A pre-allocated array into which the result is stored.
-            """
-            nonlocal se3_diff_vector
-
-            # FIXME: Implement vectorized `log6` operator defined here:
-            # https://github.com/stack-of-tasks/pinocchio/blob/master/include/pinocchio/spatial/log.hxx  # noqa: E501  # pylint: disable=line-too-long
-            for xyzquat_left, xyzquat_right, out_ in zip(
-                    xyzquats_left.T, xyzquats_right.T, out.T):
-                out_[:] = se3_diff_vector(xyzquat_left, xyzquat_right)
-            return out
-
         # Buffer storing the difference before current and reference poses
         self._spatial_velocities = np.zeros((6, len(frame_names)))
 
         # Call base implementation
         super().__init__(
             env,
-            "reward_tracking_foot_pose",
-            lambda mode: (MultiFootRelativeXYZQuat, dict(
-                frame_names=frame_names,
-                mode=mode)),
+            "reward_tracking_foot_positions",
+            lambda mode: (MaskedQuantity, dict(
+                quantity=(MultiFootRelativeXYZQuat, dict(
+                    frame_names=frame_names,
+                    mode=mode)),
+                keys=(0, 1, 2))),
+            cutoff)
+
+
+class TrackingFootOrientationsReward(BaseTrackingReward):
+    """Reward the agent for tracking the relative orientation of the feet wrt
+    each other.
+
+    .. seealso::
+        See `BaseTrackingReward` documentation for technical details.
+    """
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 cutoff: float,
+                 *,
+                 frame_names: Union[Sequence[str], Literal['auto']] = 'auto'
+                 ) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param cutoff: Cutoff threshold for the RBF kernel transform.
+        :param frame_names: Name of the frames corresponding to the feet of the
+                            robot. 'auto' to automatically detect them from the
+                            set of contact and force sensors of the robot.
+                            Optional: 'auto' by default.
+        """
+        # Backup some user argument(s)
+        self.cutoff = cutoff
+
+        # Sanitize frame names corresponding to the feet of the robot
+        frame_names = tuple(sanitize_foot_frame_names(env, frame_names))
+
+        # Buffer storing the difference before current and reference poses
+        # FIXME: Is it worth it to create a temporary ?
+        self._diff = np.zeros((3, len(frame_names) - 1))
+
+        # Define buffered quaternion difference operator for efficiency
+        def quat_difference_buffered(out: np.ndarray,
+                                     q1: np.ndarray,
+                                     q2: np.ndarray) -> np.ndarray:
+            """Wrapper around `quat_difference` passing buffer in and out
+            instead of allocating fresh memory for efficiency.
+            """
+            quat_difference(q1, q2, out)
+            return out
+
+        # Call base implementation
+        super().__init__(
+            env,
+            "reward_tracking_foot_orientations",
+            lambda mode: (MaskedQuantity, dict(
+                quantity=(MultiFootRelativeXYZQuat, dict(
+                    frame_names=frame_names,
+                    mode=mode)),
+                axis=0,
+                keys=(3, 4, 5, 6))),
             cutoff,
-            op=partial(pose_difference, out=self._spatial_velocities))
+            op=partial(quat_difference_buffered, self._diff))
+
+
+class MinimizeAngularMomentumReward(BaseQuantityReward):
+    """Reward the agent for minimizing the angular momentum in world plane.
+
+    The angular momentum along x- and y-axes in local odometry frame is
+    transform in a normalized reward to maximize by applying RBF kernel on the
+    error. See `BaseTrackingReward` documentation for technical details.
+    """
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 cutoff: float) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param cutoff: Cutoff threshold for the RBF kernel transform.
+        """
+        # Backup some user argument(s)
+        self.cutoff = cutoff
+
+        # Call base implementation
+        super().__init__(
+            env,
+            "reward_momentum",
+            (AverageBaseMomentum, dict(mode=QuantityEvalMode.TRUE)),
+            partial(radial_basis_function, cutoff=self.cutoff, order=2),
+            is_normalized=True,
+            is_terminal=False)

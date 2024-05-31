@@ -10,11 +10,13 @@ from jiminy_py.log import extract_trajectory_from_log
 
 from gym_jiminy.common.compositions import (
     TrackingActuatedJointPositionsReward,
-    TrackingOdometryVelocityReward,
+    TrackingBaseOdometryVelocityReward,
     TrackingBaseHeightReward,
     TrackingCapturePointReward,
-    TrackingFootPoseReward,
+    TrackingFootPositionsReward,
+    TrackingFootOrientationsReward,
     SurviveReward,
+    MinimizeAngularMomentumReward,
     AdditiveMixtureReward)
 
 
@@ -45,11 +47,12 @@ class Rewards(unittest.TestCase):
 
     def test_tracking(self):
         for reward_class, cutoff in (
-                (TrackingOdometryVelocityReward, 20.0),
+                (TrackingBaseOdometryVelocityReward, 20.0),
                 (TrackingActuatedJointPositionsReward, 20.0),
                 (TrackingBaseHeightReward, 0.1),
                 (TrackingCapturePointReward, 0.5),
-                (TrackingFootPoseReward, 2.0),) * 20:
+                (TrackingFootPositionsReward, 1.0),
+                (TrackingFootOrientationsReward, 2.0)) * 20:
             reward = reward_class(self.env, cutoff=cutoff)
             quantity_true = reward.quantity.requirements['value_left']
             quantity_ref = reward.quantity.requirements['value_right']
@@ -76,7 +79,8 @@ class Rewards(unittest.TestCase):
             del reward
 
     def test_mixture(self):
-        reward_odometry = TrackingOdometryVelocityReward(self.env, cutoff=0.3)
+        reward_odometry = TrackingBaseOdometryVelocityReward(
+            self.env, cutoff=0.3)
         reward_survive = SurviveReward(self.env)
         reward_sum = AdditiveMixtureReward(
             self.env,

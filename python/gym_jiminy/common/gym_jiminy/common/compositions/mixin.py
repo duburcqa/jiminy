@@ -42,14 +42,15 @@ def radial_basis_function(error: ArrayOrScalar,
     user-specified cutoff. The latter is defined as the distance from which the
     attenuation reaches 99%.
 
-    :param error: Multi-variate error on some tangent space.
+    :param error: Multi-variate error on some tangent space as a 1D array.
     :param cutoff: Cut-off threshold to consider.
     :param order: Order of Lp-Norm that will be used as distance metric.
     """
+    error_ = np.asarray(error).reshape((-1,))
     if order == 2:
-        squared_dist_rel = np.sum(np.square(error)) / math.pow(cutoff, 2)
+        squared_dist_rel = np.dot(error_, error_) / math.pow(cutoff, 2)
     else:
-        squared_dist_rel = math.pow(np.linalg.norm(error, order) / cutoff, 2)
+        squared_dist_rel = math.pow(np.linalg.norm(error_, order) / cutoff, 2)
     return math.pow(RBF_CUTOFF_ESP, squared_dist_rel)
 
 

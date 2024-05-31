@@ -233,6 +233,8 @@ def build_pipeline(env_config: EnvConfig,
         cls = reward_config["cls"]
         if isinstance(cls, str):
             obj = locate(cls)
+            if obj is None:
+                raise RuntimeError(f"Class '{cls}' not found.")
             assert isinstance(obj, type) and issubclass(obj, AbstractReward)
             reward_config["cls"] = cls = obj
 

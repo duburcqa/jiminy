@@ -7,8 +7,6 @@ import numba as nb
 from numba.np.extensions import cross2d
 from scipy.spatial import _qhull
 
-from gym_jiminy.common.utils import squared_norm_2
-
 
 @nb.jit(nopython=True, cache=True, inline='always')
 def _amin_last_axis(array: np.ndarray) -> np.ndarray:
@@ -58,7 +56,7 @@ def compute_distance_convex_to_point(points: np.ndarray,
     ratios = np.clip(ratios, 0.0, 1.0)
     projs = np.expand_dims(ratios, 1) * vectors + points_0
     dist = np.sqrt(_amin_last_axis(np.sum(np.square(
-        np.expand_dims(queries, -1) - projs), axis=1)))
+        np.expand_dims(queries, -1) - projs), 1)))
 
     # Compute the resulting signed distance (negative if inside)
     signed_dist = sign_dist * dist
@@ -179,7 +177,7 @@ class ConvexHull:
         if len(self._points) == 2:
             # Compute the distance between query points and segment
             vec = self._points[1] - self._points[0]
-            ratio = (queries - self._points[0]) @ vec / squared_norm_2(vec)
+            ratio = (queries - self._points[0]) @ vec / np.dot(vec, vec)
             proj = self._points[0] + np.outer(np.clip(ratio, 0.0, 1.0), vec)
             return np.linalg.norm(queries - proj, 2, axis=1)
 

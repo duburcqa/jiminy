@@ -4,7 +4,7 @@ They combine batch-processing with Just-In-Time (JIT) compiling via Numba when
 possible for optimal performance. Most of them are dealing with rotations (SO3)
 to perform transformations or convert from one representation to another.
 """
-from typing import Union, Tuple, Optional, no_type_check, overload
+from typing import Union, Tuple, Optional, Literal, no_type_check, overload
 
 import numpy as np
 import numba as nb
@@ -15,21 +15,13 @@ from .spaces import ArrayOrScalar
 TWIST_SWING_SINGULARITY_THR = 1e-6
 
 
-@nb.jit(nopython=True, cache=True, inline='always')
-def squared_norm_2(array: np.ndarray) -> float:
-    """Fast implementation of the sum of squared array elements, optimized for
-    small to medium size 1D arrays.
-    """
-    return np.sum(np.square(array))
-
-
 @overload
-def matrix_to_yaw(mat: np.ndarray, out: np.ndarray) -> np.ndarray:
+def matrix_to_yaw(mat: np.ndarray, out: np.ndarray) -> None:
     ...
 
 
 @overload
-def matrix_to_yaw(mat: np.ndarray, out: None) -> None:
+def matrix_to_yaw(mat: np.ndarray, out: Literal[None] = ...) -> np.ndarray:
     ...
 
 
@@ -65,7 +57,7 @@ def quat_to_yaw_cos_sin(quat: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     representation of a single or a batch of quaternions.
 
     :param quat: N-dimensional array whose first dimension gathers the 4
-                 quaternion coordinates [qx, qy, qz, qw].
+                 quaternion coordinates (qx, qy, qz, qw).
     """
     assert quat.ndim >= 1
     (q_xy, q_yy), (q_zz, q_zw) = quat[-3] * quat[-4:-2], quat[-2] * quat[-2:]
@@ -74,12 +66,12 @@ def quat_to_yaw_cos_sin(quat: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
 
 
 @overload
-def quat_to_yaw(quat: np.ndarray, out: np.ndarray) -> np.ndarray:
+def quat_to_yaw(quat: np.ndarray, out: np.ndarray) -> None:
     ...
 
 
 @overload
-def quat_to_yaw(quat: np.ndarray, out: None) -> None:
+def quat_to_yaw(quat: np.ndarray, out: Literal[None] = ...) -> np.ndarray:
     ...
 
 
@@ -90,9 +82,10 @@ def quat_to_yaw(quat: np.ndarray,
     single or a batch of quaternions.
 
     :param quat: N-dimensional array whose first dimension gathers the 4
-                 quaternion coordinates [qx, qy, qz, qw].
-    :param out: A pre-allocated array into which the result is stored. If not
-                provided, a new array is freshly-allocated, which is slower.
+                 quaternion coordinates (qx, qy, qz, qw).
+    :param out: Pre-allocated array in which to store the result. If not
+                provided, a new array is freshly-allocated and returned, which
+                is slower.
     """
     assert quat.ndim >= 1
 
@@ -113,12 +106,12 @@ def quat_to_yaw(quat: np.ndarray,
 
 
 @overload
-def quat_to_rpy(quat: np.ndarray, out: np.ndarray) -> np.ndarray:
+def quat_to_rpy(quat: np.ndarray, out: np.ndarray) -> None:
     ...
 
 
 @overload
-def quat_to_rpy(quat: np.ndarray, out: None) -> None:
+def quat_to_rpy(quat: np.ndarray, out: Literal[None] = ...) -> np.ndarray:
     ...
 
 
@@ -129,13 +122,13 @@ def quat_to_rpy(quat: np.ndarray,
     batch of quaternions.
 
     :param quat: N-dimensional array whose first dimension gathers the 4
-                 quaternion coordinates [qx, qy, qz, qw].
-    :param out: A pre-allocated array into which the result is stored. If not
-                provided, a new array is freshly-allocated, which is slower.
+                 quaternion coordinates (qx, qy, qz, qw).
+    :param out: Pre-allocated array in which to store the result. If not
+                provided, a new array is freshly-allocated and returned, which
+                is slower.
     """
-    assert quat.ndim >= 1
-
     # Allocate memory for the output array
+    assert quat.ndim >= 1
     if out is None:
         out_ = np.empty((3, *quat.shape[1:]))
     else:
@@ -146,12 +139,12 @@ def quat_to_rpy(quat: np.ndarray,
     q_xx, q_xy, q_xz, q_xw = quat[-4] * quat[-4:]
     q_yy, q_yz, q_yw = quat[-3] * quat[-3:]
     q_zz, q_zw = quat[-2] * quat[-2:]
+    q_ww = quat[-1] * quat[-1]
 
     # First-order normalization (by copy) to avoid numerical instabilities
-    q_ww = quat[-1] * quat[-1]
-    norm_inv = ((3.0 - (q_xx + q_yy + q_zz + q_ww)) / 2)
-    q_yw *= norm_inv
-    q_xz *= norm_inv
+    norm_2_inv = ((3.0 - (q_xx + q_yy + q_zz + q_ww)) / 2)
+    q_yw *= norm_2_inv
+    q_xz *= norm_2_inv
 
     # Compute Roll, Pitch and Yaw separately
     # roll, pitch, yaw = out_
@@ -166,12 +159,12 @@ def quat_to_rpy(quat: np.ndarray,
 
 
 @overload
-def quat_to_matrix(quat: np.ndarray, out: np.ndarray) -> np.ndarray:
+def quat_to_matrix(quat: np.ndarray, out: np.ndarray) -> None:
     ...
 
 
 @overload
-def quat_to_matrix(quat: np.ndarray, out: None) -> None:
+def quat_to_matrix(quat: np.ndarray, out: Literal[None] = ...) -> np.ndarray:
     ...
 
 
@@ -182,9 +175,10 @@ def quat_to_matrix(quat: np.ndarray,
     batch of quaternions.
 
     :param quat: N-dimensional array whose first dimension gathers the 4
-                 quaternion coordinates [qx, qy, qz, qw].
-    :param out: A pre-allocated array into which the result is stored. If not
-                provided, a new array is freshly-allocated, which is slower.
+                 quaternion coordinates (qx, qy, qz, qw).
+    :param out: Pre-allocated array in which to store the result. If not
+                provided, a new array is freshly-allocated and returned, which
+                is slower.
     """
     assert quat.ndim >= 1
     if out is None:
@@ -212,25 +206,26 @@ def quat_to_matrix(quat: np.ndarray,
 
 
 @overload
-def matrix_to_quat(mat: np.ndarray, out: np.ndarray) -> np.ndarray:
+def matrix_to_quat(mat: np.ndarray, out: np.ndarray) -> None:
     ...
 
 
 @overload
-def matrix_to_quat(mat: np.ndarray, out: None) -> None:
+def matrix_to_quat(mat: np.ndarray, out: Literal[None] = ...) -> np.ndarray:
     ...
 
 
 @nb.jit(nopython=True, cache=True)
 def matrix_to_quat(mat: np.ndarray,
                    out: Optional[np.ndarray] = None) -> Optional[np.ndarray]:
-    """Compute the [qx, qy, qz, qw] Quaternion representation of a single or a
+    """Compute the (qx, qy, qz, qw) Quaternion representation of a single or a
     batch of rotation matrices.
 
     :param mat: N-dimensional array whose first and second dimensions gathers
                 the 3-by-3 rotation matrix elements.
-    :param out: A pre-allocated array into which the result is stored. If not
-                provided, a new array is freshly-allocated, which is slower.
+    :param out: Pre-allocated array in which to store the result. If not
+                provided, a new array is freshly-allocated and returned, which
+                is slower.
     """
     assert mat.ndim >= 2
     if out is None:
@@ -253,12 +248,13 @@ def matrix_to_quat(mat: np.ndarray,
 
 @overload
 def matrices_to_quat(mat_list: Tuple[np.ndarray, ...],
-                     out: np.ndarray) -> np.ndarray:
+                     out: np.ndarray) -> None:
     ...
 
 
 @overload
-def matrices_to_quat(mat_list: Tuple[np.ndarray, ...], out: None) -> None:
+def matrices_to_quat(mat_list: Tuple[np.ndarray, ...],
+                     out: Literal[None] = ...) -> np.ndarray:
     ...
 
 
@@ -267,7 +263,7 @@ def matrices_to_quat(mat_list: Tuple[np.ndarray, ...], out: None) -> None:
 @nb.jit(nopython=True, cache=True)
 def matrices_to_quat(mat_list: Tuple[np.ndarray, ...],
                      out: Optional[np.ndarray] = None) -> Optional[np.ndarray]:
-    """Compute the [qx, qy, qz, qw] Quaternion representation of multiple
+    """Compute the (qx, qy, qz, qw) Quaternion representation of multiple
     rotation matrices.
 
     .. seealso::
@@ -275,8 +271,9 @@ def matrices_to_quat(mat_list: Tuple[np.ndarray, ...],
 
     :param mat: Tuple of N arrays corresponding to independent 3D rotation
                 matrices.
-    :param out: A pre-allocated array into which the result is stored. If not
-                provided, a new array is freshly-allocated, which is slower.
+    :param out: Pre-allocated array in which to store the result. If not
+                provided, a new array is freshly-allocated and returned, which
+                is slower.
     """
     if out is None:
         out_ = np.empty((4, len(mat_list)))
@@ -321,25 +318,25 @@ def matrices_to_quat(mat_list: Tuple[np.ndarray, ...],
 
 
 @overload
-def transforms_to_vector(
+def transforms_to_xyzquat(
         transform_list: Tuple[Tuple[np.ndarray, np.ndarray], ...],
-        out: np.ndarray) -> np.ndarray:
+        out: np.ndarray) -> None:
     ...
 
 
 @overload
-def transforms_to_vector(
+def transforms_to_xyzquat(
         transform_list: Tuple[Tuple[np.ndarray, np.ndarray], ...],
-        out: None) -> None:
+        out: Literal[None] = ...) -> np.ndarray:
     ...
 
 
 @nb.jit(nopython=True, cache=True)
-def transforms_to_vector(
+def transforms_to_xyzquat(
         transform_list: Tuple[Tuple[np.ndarray, np.ndarray], ...],
         out: Optional[np.ndarray] = None) -> Optional[np.ndarray]:
-    """Stack the translation vector [x, y, z] and the quaternion representation
-    [qx, qy, qz, qw] of the orientation of multiple transform tuples.
+    """Stack the translation vector (x, y, z) and the quaternion representation
+    (qx, qy, qz, qw) of the orientation of multiple transform tuples.
 
     .. note::
         Internally, it copies the translation unaffected and convert rotation
@@ -348,8 +345,9 @@ def transforms_to_vector(
     :param transform_list: Tuple of N transforms, each of which represented as
                            pairs gathering the translation as a vector and the
                            orientation as a 3D rotation matrix.
-    :param out: A pre-allocated array into which the result is stored. If not
-                provided, a new array is freshly-allocated, which is slower.
+    :param out: Pre-allocated array in which to store the result. If not
+                provided, a new array is freshly-allocated and returned, which
+                is slower.
     """
     # Allocate memory if necessart
     if out is None:
@@ -374,12 +372,12 @@ def transforms_to_vector(
 
 
 @overload
-def rpy_to_matrix(rpy: np.ndarray, out: np.ndarray) -> np.ndarray:
+def rpy_to_matrix(rpy: np.ndarray, out: np.ndarray) -> None:
     ...
 
 
 @overload
-def rpy_to_matrix(rpy: np.ndarray, out: None) -> None:
+def rpy_to_matrix(rpy: np.ndarray, out: Literal[None] = ...) -> np.ndarray:
     ...
 
 
@@ -391,8 +389,9 @@ def rpy_to_matrix(rpy: np.ndarray,
 
     :param rpy: N-dimensional array whose first dimension gathers the 3
                 Yaw-Pitch-Roll Euler angles [Roll, Pitch, Yaw].
-    :param out: A pre-allocated array into which the result is stored. If not
-                provided, a new array is freshly-allocated, which is slower.
+    :param out: Pre-allocated array in which to store the result. If not
+                provided, a new array is freshly-allocated and returned, which
+                is slower.
     """
     assert rpy.ndim >= 1
     if out is None:
@@ -419,12 +418,12 @@ def rpy_to_matrix(rpy: np.ndarray,
 
 
 @overload
-def matrix_to_rpy(mat: np.ndarray, out: np.ndarray) -> np.ndarray:
+def matrix_to_rpy(mat: np.ndarray, out: np.ndarray) -> None:
     ...
 
 
 @overload
-def matrix_to_rpy(mat: np.ndarray, out: None) -> None:
+def matrix_to_rpy(mat: np.ndarray, out: Literal[None] = ...) -> np.ndarray:
     ...
 
 
@@ -436,8 +435,9 @@ def matrix_to_rpy(mat: np.ndarray,
 
     :param mat: N-dimensional array whose first and second dimensions gathers
                 the 3-by-3 rotation matrix elements.
-    :param out: A pre-allocated array into which the result is stored. If not
-                provided, a new array is freshly-allocated, which is slower.
+    :param out: Pre-allocated array in which to store the result. If not
+                provided, a new array is freshly-allocated and returned, which
+                is slower.
     """
     assert mat.ndim >= 2
     if out is None:
@@ -462,25 +462,26 @@ def matrix_to_rpy(mat: np.ndarray,
 
 
 @overload
-def rpy_to_quat(rpy: np.ndarray, out: np.ndarray) -> np.ndarray:
+def rpy_to_quat(rpy: np.ndarray, out: np.ndarray) -> None:
     ...
 
 
 @overload
-def rpy_to_quat(rpy: np.ndarray, out: None) -> None:
+def rpy_to_quat(rpy: np.ndarray, out: Literal[None] = ...) -> np.ndarray:
     ...
 
 
 @nb.jit(nopython=True, cache=True)
 def rpy_to_quat(rpy: np.ndarray,
                 out: Optional[np.ndarray] = None) -> Optional[np.ndarray]:
-    """Compute the [qx, qy, qz, qw] Quaternion representation of a single or a
+    """Compute the (qx, qy, qz, qw) Quaternion representation of a single or a
     batch of Yaw-Pitch-Roll Euler angles.
 
     :param rpy: N-dimensional array whose first dimension gathers the 3
                 Yaw-Pitch-Roll Euler angles [Roll, Pitch, Yaw].
-    :param out: A pre-allocated array into which the result is stored. If not
-                provided, a new array is freshly-allocated, which is slower.
+    :param out: Pre-allocated array in which to store the result. If not
+                provided, a new array is freshly-allocated and returned, which
+                is slower.
     """
     assert rpy.ndim >= 1
     if out is None:
@@ -507,39 +508,53 @@ def rpy_to_quat(rpy: np.ndarray,
 @overload
 def quat_multiply(quat_left: np.ndarray,
                   quat_right: np.ndarray,
-                  out: np.ndarray) -> np.ndarray:
+                  out: np.ndarray,
+                  is_left_conjugate: bool = False,
+                  is_right_conjugate: bool = False) -> np.ndarray:
     ...
 
 
 @overload
 def quat_multiply(quat_left: np.ndarray,
                   quat_right: np.ndarray,
-                  out: None) -> None:
+                  out: Literal[None] = ...,
+                  is_left_conjugate: bool = False,
+                  is_right_conjugate: bool = False) -> None:
     ...
 
 
 @nb.jit(nopython=True, cache=True)
 def quat_multiply(quat_left: np.ndarray,
                   quat_right: np.ndarray,
-                  out: Optional[np.ndarray] = None) -> Optional[np.ndarray]:
+                  out: Optional[np.ndarray] = None,
+                  is_left_conjugate: bool = False,
+                  is_right_conjugate: bool = False) -> Optional[np.ndarray]:
     """Compute the composition of rotations as pair-wise product of two single
-    or batches of quaternions [qx, qy, qz, qw], ie `quat_left * quat_right`.
+    or batches of quaternions (qx, qy, qz, qw), ie `quat_left * quat_right`.
 
     .. warning::
         Beware the argument order is important because the composition of
         rotations is not commutative.
 
     .. seealso::
-        See `https://en.wikipedia.org/wiki/Quaternions_and_spatial_rotation`.
+        See https://en.wikipedia.org/wiki/Quaternions_and_spatial_rotation for
+        mathematical details.
 
     :param quat_left: Left-hand side of the quaternion product, as a
                       N-dimensional array whose first dimension gathers the 4
-                      quaternion coordinates [qx, qy, qz, qw].
+                      quaternion coordinates (qx, qy, qz, qw).
     :param quat_right: Right-hand side of the quaternion product, as a
                        N-dimensional array whose first dimension gathers the 4
-                       quaternion coordinates [qx, qy, qz, qw].
-    :param out: A pre-allocated array into which the result is stored. If not
-                provided, a new array is freshly-allocated, which is slower.
+                       quaternion coordinates (qx, qy, qz, qw).
+    :param out: Pre-allocated array in which to store the result. If not
+                provided, a new array is freshly-allocated and returned, which
+                is slower.
+    :param is_left_conjugate: Whether to conjugate the left-hand side
+                              quaternion before computing the product.
+                              Optional: False by default.
+    :param is_right_conjugate: Whether to conjugate the right-hand side
+                               quaternion before computing the product.
+                               Optional: False by default.
     """
     assert quat_left.ndim >= 1
     out_shape = np.broadcast_shapes(quat_left.shape, quat_right.shape)
@@ -550,15 +565,434 @@ def quat_multiply(quat_left: np.ndarray,
         out_ = out
 
     (qx_l, qy_l, qz_l, qw_l), (qx_r, qy_r, qz_r, qw_r) = quat_left, quat_right
+    s_l = -1 if is_left_conjugate else 1
+    s_r = -1 if is_right_conjugate else 1
+
     # qx_out, qy_out, qz_out, qw_out = out_
-    out_[0] = qw_l * qx_r + qx_l * qw_r + qy_l * qz_r - qz_l * qy_r
-    out_[1] = qw_l * qy_r - qx_l * qz_r + qy_l * qw_r + qz_l * qx_r
-    out_[2] = qw_l * qz_r + qx_l * qy_r - qy_l * qx_r + qz_l * qw_r
-    out_[3] = qw_l * qw_r - qx_l * qx_r - qy_l * qy_r - qz_l * qz_r
+    out_[0] = s_l * qw_l * qx_r + qx_l * s_r * qw_r + qy_l * qz_r - qz_l * qy_r
+    out_[1] = s_l * qw_l * qy_r - qx_l * qz_r + qy_l * s_r * qw_r + qz_l * qx_r
+    out_[2] = s_l * qw_l * qz_r + qx_l * qy_r - qy_l * qx_r + qz_l * s_r * qw_r
+    out_[3] = s_l * qw_l * s_r * qw_r - qx_l * qx_r - qy_l * qy_r - qz_l * qz_r
 
     if out is None:
         return out_
     return None
+
+
+@overload
+def quat_apply(quat: np.ndarray,
+               vec: np.ndarray,
+               out: np.ndarray,
+               is_conjugate: bool = False) -> np.ndarray:
+    ...
+
+
+@overload
+def quat_apply(quat: np.ndarray,
+               vec: np.ndarray,
+               out: Literal[None] = ...,
+               is_conjugate: bool = False) -> None:
+    ...
+
+
+@nb.jit(nopython=True, cache=True)
+def quat_apply(quat: np.ndarray,
+               vec: np.ndarray,
+               out: Optional[np.ndarray] = None,
+               is_conjugate: bool = False) -> Optional[np.ndarray]:
+    """Apply rotations to position vectors as pair-wise transform of a single
+    or batch of position vectors (x, y, z) by a single or batch of quaternions
+    (qx, qy, qz, qw), ie `quat * (vec, 0) * quat.conjugate()`.
+
+    .. seealso::
+        See https://en.wikipedia.org/wiki/Quaternions_and_spatial_rotation for
+        mathematical details.
+
+    .. warning::
+        Applying rotation to position vectors using quaternions is much slower
+        than using rotation matrices. In case where the same rotation must be
+        applied to a batch of position vectors, it is faster to first convert
+        the quaternion to a rotation matrix and use batched matrix product.
+        However, if a different rotation must be applied to each position
+        vector, then it is faster to apply batched quaternion transformation
+        directly, because the cost of converting all quaternions to rotation
+        matrices exceeds its benefit overall. This holds true even for a single
+        pair quaternion-position.
+
+    :param quat: N-dimensional array whose first dimension gathers the 4
+                 quaternion coordinates (qx, qy, qz, qw).
+    :param vec: N-dimensional array whose first dimension gathers the 3
+                position coordinates (x, y, z).
+    :param out: Pre-allocated array in which to store the result. If not
+                provided, a new array is freshly-allocated and returned, which
+                is slower.
+    :param is_conjugate: Whether to conjugate the quaternion before applying
+                         the rotation.
+                         Optional: False by default.
+    """
+    assert quat.ndim >= 1 and vec.ndim >= 1
+    if out is None:
+        out_ = np.empty(vec.shape)
+    else:
+        assert out.shape == vec.shape
+        out_ = out
+
+    q_xx, q_xy, q_xz, q_xw = quat[-4] * quat[-4:]
+    q_yy, q_yz, q_yw = quat[-3] * quat[-3:]
+    q_zz, q_zw = quat[-2] * quat[-2:]
+    q_ww = quat[-1] * quat[-1]
+    x, y, z = vec
+    s = -1 if is_conjugate else 1
+
+    # Note that we assign all components at once to allow rotation in-place
+    # px, py, pz = out_
+    (out_[0], out_[1], out_[2]) = (
+        x * (q_xx + q_ww - q_yy - q_zz) +
+        y * (2 * q_xy - 2 * s * q_zw) +
+        z * (2 * q_xz + 2 * s * q_yw),
+        x * (2 * s * q_zw + 2 * q_xy) +
+        y * (q_ww - q_xx + q_yy - q_zz) +
+        z * (- 2 * s * q_xw + 2 * q_yz),
+        x * (- 2 * s * q_yw + 2 * q_xz) +
+        y * (2 * s * q_xw + 2 * q_yz) +
+        z * (q_ww - q_xx - q_yy + q_zz))
+
+    if out is None:
+        return out_
+    return None
+
+
+@overload
+def log3(quat: np.ndarray, out: np.ndarray, theta: np.ndarray) -> None:
+    ...
+
+
+@overload
+def log3(quat: np.ndarray,
+         out: Literal[None] = ...,
+         theta: Literal[None] = ...) -> np.ndarray:
+    ...
+
+
+@nb.jit(nopython=True, cache=True)
+def log3(quat: np.ndarray,
+         out: Optional[np.ndarray] = None,
+         theta: Optional[np.ndarray] = None) -> Optional[np.ndarray]:
+    """Compute the angle-axis representation theta * (ax, ay, az) of a single
+    or a batch of quaternions (qx, qy, qz, qz).
+
+    As a reminder, any element of the Lie Group of rotation group SO(3) can be
+    mapped to an element of its Lie Algebra so(3) ⊂ R3 at identity, which
+    identifies to its tangent space, through the pseudo-inverse of the
+    exponential map. See `pinocchio.log3` documentation for technical details.
+
+    :param quat: N-dimensional array whose first dimension gathers the 4
+                 quaternion coordinates (qx, qy, qz, qw).
+    :param out: Pre-allocated array into which to store the result. If not
+                provided, a new array is freshly-allocated and returned, which
+                is slower.
+    :param theta: Pre-allocated array into which to store the angle. This is
+                  useful to avoid redundant computations in some cases.
+    """
+    assert quat.ndim >= 1
+    if out is None:
+        out_ = np.empty((3, *quat.shape[1:]))
+    else:
+        assert out.shape == (3, *quat.shape[1:])
+        out_ = out
+    if theta is None:
+        theta_ = np.empty(quat.shape[1:])
+    else:
+        assert theta.shape == quat.shape[1:]
+        theta_ = theta
+    theta1d = np.atleast_1d(theta_)
+
+    # Split real (qx, qy, qz) and imaginary (qw,) quaternion parts
+    q_vec, q_w = quat[:3], quat[3]
+
+    # Compute the angle-axis representation of the relative rotation.
+    # Note that one must deal with undefined behavior asymptotically.
+    # FIXME: Ideally, a taylor expansion should be used to handle theta ~ 0,
+    # but it is tricky to implement without having to compute both branches
+    # systematically. In practice, float64 computations are precise enough not
+    # to have to worry too much about it.
+    eps = np.finfo(np.float64).tiny
+    theta_sin_2 = np.sqrt(np.sum(np.square(q_vec), 0))
+    theta1d[:] = 2 * np.arctan2(theta_sin_2, np.abs(q_w))
+    inv_sinc = theta_ / np.maximum(theta_sin_2, eps)
+    out_[:] = inv_sinc * q_vec * np.sign(q_w)
+
+    if out is None:
+        return out_
+    return None
+
+
+quat_to_angle_axis = log3
+
+
+@overload
+def exp3(angle_axis: np.ndarray, out: np.ndarray) -> None:
+    ...
+
+
+@overload
+def exp3(angle_axis: np.ndarray, out: Literal[None] = ...) -> np.ndarray:
+    ...
+
+
+@nb.jit(nopython=True, cache=True)
+def exp3(angle_axis: np.ndarray,
+         out: Optional[np.ndarray] = None) -> Optional[np.ndarray]:
+    """Compute the quaternion representation (qx, qy, qz, qz) of a single
+    or a batch of angle-axis vectors theta * (ax, ay, az).
+
+    As a reminder, it also corresponds to the inverse exponential map from the
+    rotation Lie Group SO3 to its Lie Algebra so3.
+
+    :param angle_axis: N-dimensional array whose first dimension gathers the 3
+                       angle-axis components theta * (ax, ay, az).
+    :param out: Pre-allocated array into which to store the result. If not
+                provided, a new array is freshly-allocated and returned, which
+                is slower.
+    """
+    assert angle_axis.ndim >= 1
+    if out is None:
+        out_ = np.empty((4, *angle_axis.shape[1:]))
+    else:
+        assert out.shape == (4, *angle_axis.shape[1:])
+        out_ = out
+
+    # Compute unit axis and positive angle separately
+    # Note that one must deal with undefined behavior asymptotically.
+    # FIXME: Taylor expansion should be used to handle theta ~ 0.
+    eps = np.finfo(np.float64).tiny
+    theta = np.sqrt(np.sum(np.square(angle_axis), 0))
+    axis = angle_axis / np.maximum(theta, eps)
+
+    # Compute the quaternion representation
+    out_[:3] = np.sin(0.5 * theta) * axis
+    out_[3] = np.cos(0.5 * theta)
+
+    if out is None:
+        return out_
+    return None
+
+
+angle_axis_to_quat = exp3
+
+
+@overload
+def log6(xyzquat: np.ndarray, out: np.ndarray) -> None:
+    ...
+
+
+@overload
+def log6(xyzquat: np.ndarray, out: Literal[None] = ...) -> np.ndarray:
+    ...
+
+
+@nb.jit(nopython=True, cache=True)
+def log6(xyzquat: np.ndarray,
+         out: Optional[np.ndarray] = None) -> Optional[np.ndarray]:
+    """Apply SE3 to se3 inverse exponential map on a single or a batch of
+    transform vectors (x, y, z, qx, qy, qz, qw) defining the pose (position
+    plus orientation) of a frame in 3D space.
+
+    As a reminder, the resulting vector is homogeneous to a spatial velocity
+    vector, aka. a motion vector.
+
+    :param xyzquat: N-dimensional array whose first dimension gathers the 7
+                    position and quaternion coordinates (x, y, z),
+                    (qx, qy, qz, qw) respectively.
+    :param out: Pre-allocated array into which to store the result. If not
+                provided, a new array is freshly-allocated and returned, which
+                is slower.
+    """
+    assert xyzquat.ndim >= 1
+    if out is None:
+        out_ = np.empty((6, *xyzquat.shape[1:]))
+    else:
+        assert out.shape == (6, *xyzquat.shape[1:])
+        out_ = out
+
+    # Split linear and angular parts for input and output representations
+    v_lin, v_ang = out_[:3], out_[3:]
+    pos, quat = xyzquat[:3], xyzquat[3:]
+    qvec, qw = quat[:-1], quat[-1]
+
+    # Compute the angular part
+    theta = np.empty(xyzquat.shape[1:])
+    log3(quat, v_ang, theta)
+
+    # Compute the linear part.
+    # FIXME: Taylor expansion should be used to handle theta ~ 0.
+    eps = np.finfo(np.float64).tiny ** (1 / 2)
+    theta_cos_2 = np.abs(qw)
+    theta_sin_2 = np.maximum(np.sqrt(np.sum(np.square(qvec), 0)), eps)
+    theta_cot_2 = theta_cos_2 / theta_sin_2
+    np.maximum(theta, eps, theta)
+    beta = 1.0 / np.square(theta) - 0.5 * theta_cot_2 / theta
+    wxv_x = v_ang[1] * pos[2] - v_ang[2] * pos[1]
+    wxv_y = v_ang[2] * pos[0] - v_ang[0] * pos[2]
+    wxv_z = v_ang[0] * pos[1] - v_ang[1] * pos[0]
+    w2xv_x = v_ang[1] * wxv_z - v_ang[2] * wxv_y
+    w2xv_y = v_ang[2] * wxv_x - v_ang[0] * wxv_z
+    w2xv_z = v_ang[0] * wxv_y - v_ang[1] * wxv_x
+    v_lin[0] = pos[0] - 0.5 * wxv_x + beta * w2xv_x
+    v_lin[1] = pos[1] - 0.5 * wxv_y + beta * w2xv_y
+    v_lin[2] = pos[2] - 0.5 * wxv_z + beta * w2xv_z
+
+    if out is None:
+        return out_
+    return None
+
+
+@overload
+def exp6(v_spatial: np.ndarray, out: np.ndarray) -> None:
+    ...
+
+
+@overload
+def exp6(v_spatial: np.ndarray, out: Literal[None] = ...) -> np.ndarray:
+    ...
+
+
+@nb.jit(nopython=True, cache=True)
+def exp6(v_spatial: np.ndarray,
+         out: Optional[np.ndarray] = None) -> Optional[np.ndarray]:
+    """Apply se3 to SE3 exponential map on a single or a batch of spatial
+    velocity vectors (vx, vy, vz, wx, wy, wz), also called motion vectors,
+    using quaternions (qx, qy, qz, qw) to represent the rotation.
+
+    :param v_spatial: N-dimensional array whose first dimension gathers the 6
+                      linear and angular velocity components (vx, vy, vz),
+                      (wx, wy, wz) respectively.
+    :param out: Pre-allocated array into which to store the result. If not
+                provided, a new array is freshly-allocated and returned, which
+                is slower.
+    """
+    assert v_spatial.ndim >= 1
+    if out is None:
+        out_ = np.empty((7, *v_spatial.shape[1:]))
+    else:
+        assert out.shape == (7, *v_spatial.shape[1:])
+        out_ = out
+
+    # Split linear and angular velocity for convenience
+    v_lin, v_ang = v_spatial[:3], v_spatial[3:]
+
+    # Compute the linear part.
+    # FIXME: Taylor expansion should be used to handle theta ~ 0.
+    eps = np.finfo(np.float64).tiny ** (2 / 3)
+    theta_sq = np.maximum(np.sum(np.square(v_ang), 0), eps)
+    theta = np.sqrt(theta_sq)
+    theta_cos, theta_sin = np.cos(theta), np.sin(theta)
+    alpha_wxv = (1.0 - theta_cos) / theta_sq
+    alpha_w2 = (theta - theta_sin) / theta_sq / theta
+    wxv_x = v_ang[1] * v_lin[2] - v_ang[2] * v_lin[1]
+    wxv_y = v_ang[2] * v_lin[0] - v_ang[0] * v_lin[2]
+    wxv_z = v_ang[0] * v_lin[1] - v_ang[1] * v_lin[0]
+    w2xv_x = v_ang[1] * wxv_z - v_ang[2] * wxv_y
+    w2xv_y = v_ang[2] * wxv_x - v_ang[0] * wxv_z
+    w2xv_z = v_ang[0] * wxv_y - v_ang[1] * wxv_x
+    out_[0] = v_lin[0] + alpha_wxv * wxv_x + alpha_w2 * w2xv_x
+    out_[1] = v_lin[1] + alpha_wxv * wxv_y + alpha_w2 * w2xv_y
+    out_[2] = v_lin[2] + alpha_wxv * wxv_z + alpha_w2 * w2xv_z
+
+    # Compute the angular part
+    exp3(v_ang, out_[-4:])
+
+    if out is None:
+        return out_
+    return None
+
+
+@overload
+def quat_difference(quat_left: np.ndarray,
+                    quat_right: np.ndarray,
+                    out: np.ndarray) -> None:
+    ...
+
+
+@overload
+def quat_difference(quat_left: np.ndarray,
+                    quat_right: np.ndarray,
+                    out: Literal[None] = ...) -> np.ndarray:
+    ...
+
+
+@nb.jit(nopython=True, cache=True)
+def quat_difference(quat_left: np.ndarray,
+                    quat_right: np.ndarray,
+                    out: Optional[np.ndarray] = None) -> Optional[np.ndarray]:
+    """Compute the pair-wise SO3 difference between two batches of quaternions
+    (qx, qy, qz, qz). For each pairs, it returns a angular velocity vector
+    (wx, wy, wz) in tangent space of SO3 Lie Group.
+
+    First, it computes the residual rotation for all pairs, ie
+    `quat_diff = quat_left.conjugate() * quat_right`. Then, it computes the
+    angle-axis representation of the residual rotations, ie `log3(quat_diff)`.
+    See `pinocchio.liegroups.SO3.difference` documentation for reference.
+
+    .. note::
+        Calling this method is faster than `pinocchio.liegroups.SO3.difference`
+        if at least 2 pairs of quaternions with pre-allocated output. This is
+        not surprising since vectorization does not have any effect in this
+        case. This expected speed up is about x5 and x15 for 10 and 100 pairs
+        respectively with pre-allocated output.
+
+    :param quat_left: Left-hand side of SO3 difference, as a N-dimensional
+                      array whose first dimension gathers the 4 quaternion
+                      coordinates (qx, qy, qz, qw).
+    :param quat_right: Right-hand side of SO3 difference, as a N-dimensional
+                       array whose first dimension gathers the 4 quaternion
+                       coordinates (qx, qy, qz, qw).
+    :param out: Pre-allocated array into which to store the result. If not
+                provided, a new array is freshly-allocated and returned, which
+                is slower.
+    """
+    # Compute the quaternion representation of the residual rotation
+    quat_diff = quat_multiply(quat_left, quat_right, is_left_conjugate=True)
+
+    # Compute the angle-axis representation of the residual rotation
+    return log3(quat_diff, out)  # type: ignore[call-overload]
+
+
+@nb.jit(nopython=True, cache=True)
+def xyzquat_difference(xyzquat_left: np.ndarray,
+                       xyzquat_right: np.ndarray,
+                       out: Optional[np.ndarray] = None
+                       ) -> Optional[np.ndarray]:
+    """Compute the pair-wise SE3 difference between two batches of transform
+    vectors (x, y, z, qx, qy, qz, qz). For each pairs, it returns a spatial
+    velocity vector (vx, vy, vz, wx, wy, wz), also called motion vector, in
+    tangent space of SE3 Lie Group.
+
+    First, it computes the residual transform in local frame for all pairs.
+    Then, it applies the inverse exponential map `log6` of it. See
+    `pinocchio.liegroups.SE3.difference` documentation for reference.
+
+    :param xyzquat_left: Left-hand side of SE3 difference, as a N-dimensional
+                         array whose first dimension gathers the 7 position and
+                         quaternion coordinates (x, y, z), (qx, qy, qz, qw).
+    :param xyzquat_right: Right-hand side of SO3 difference, as a N-dimensional
+                         array whose first dimension gathers the 7 position and
+                         quaternion coordinates (x, y, z), (qx, qy, qz, qw).
+    :param out: Pre-allocated array into which to store the result. If not
+                provided, a new array is freshly-allocated and returned, which
+                is slower.
+    """
+    # Compute the xyzquat representation of the residual pose
+    xyzquat_diff = np.empty(xyzquat_left.shape)
+    xyz_diff, quat_diff = xyzquat_diff[:3], xyzquat_diff[-4:]
+    xyz_left, quat_left = xyzquat_left[:3], xyzquat_left[-4:]
+    xyz_right, quat_right = xyzquat_right[:3], xyzquat_right[-4:]
+    xyz_diff[:] = xyz_right - xyz_left
+    quat_apply(quat_left, xyz_diff, xyz_diff, is_conjugate=True)
+    quat_multiply(quat_left, quat_right, quat_diff, is_left_conjugate=True)
+
+    # Apply inverse exponential map to cast the residual pose in tangent space
+    return log6(xyzquat_diff, out)
 
 
 @nb.jit(nopython=True, cache=True)
@@ -626,9 +1060,73 @@ def swing_from_vector(
     q *= (3.0 - np.sum(np.square(q), 0)) / 2
 
 
+@overload
+def remove_yaw_from_quat(quat: np.ndarray, out: np.ndarray) -> None:
+    ...
+
+
+@overload
+def remove_yaw_from_quat(quat: np.ndarray,
+                         out: Literal[None] = ...) -> np.ndarray:
+    ...
+
+
+@nb.jit(nopython=True, cache=True)
+def remove_yaw_from_quat(quat: np.ndarray,
+                         out: Optional[np.ndarray] = None
+                         ) -> Optional[np.ndarray]:
+    """Remove the rotation around z-axis of a single or batch of quaternions.
+
+    .. note::
+        Note that this decomposition is rarely used in practice, mainly because
+        of singularity issues related to the Roll-Pitch-Yaw decomposition. It
+        is usually preferable to remove the twist part of the Twist-after-Swing
+        decomposition. See `remove_twist_from_quat` documentation for details.
+
+    :param quat: N-dimensional array whose first dimension gathers the 4
+                 quaternion coordinates (qx, qy, qz, qw).
+    :param out: Pre-allocated array into which to store the result. If not
+                provided, a new array is freshly-allocated and returned, which
+                is slower.
+    """
+    # Allocate memory for the output array
+    assert quat.ndim >= 1
+    if out is None:
+        out_ = np.empty(quat.shape)
+    else:
+        assert out.shape == quat.shape
+        out_ = out
+
+    # Compute some intermediary quantities
+    q_xx, (q_xz, q_xw) = quat[-4] * quat[-4], quat[-4] * quat[-2:]
+    q_yy, q_yz, q_yw = quat[-3] * quat[-3:]
+
+    # Compute some intermediary quantities
+    cos_roll = 1.0 - 2 * (q_xx + q_yy)
+    sin_roll = 2 * (q_xw + q_yz)
+    cos_roll /= np.sqrt(cos_roll ** 2 + sin_roll ** 2)
+    cos_roll_2 = np.sqrt(0.5 * (1.0 + cos_roll))
+    sin_roll_2 = np.sign(sin_roll) * np.sqrt(0.5 * (1.0 - cos_roll))
+    sin_pitch = 2 * (q_yw - q_xz)
+    cos_pitch = np.sqrt(1.0 - sin_pitch ** 2)
+    cos_pitch_2 = np.sqrt(0.5 * (1.0 + cos_pitch))
+    sin_pitch_2 = np.sign(sin_pitch) * np.sqrt(0.5 * (1.0 - cos_pitch))
+
+    # q_x, q_y, q_z, q_w = out_
+    out_[0] = + sin_roll_2 * cos_pitch_2
+    out_[1] = + cos_roll_2 * sin_pitch_2
+    out_[2] = - sin_roll_2 * sin_pitch_2
+    out_[3] = + cos_roll_2 * cos_pitch_2
+
+    if out is None:
+        return out_
+    return None
+
+
 # FIXME: Enabling cache causes segfault on Apple Silicon
 @nb.jit(nopython=True, cache=False)
-def remove_twist_from_quat(q: np.ndarray) -> None:
+def remove_twist_from_quat(q: np.ndarray,
+                           out: Optional[np.ndarray] = None) -> None:
     """Remove the twist part of the Twist-after-Swing decomposition of given
     orientations in quaternion representation.
 
@@ -637,7 +1135,11 @@ def remove_twist_from_quat(q: np.ndarray) -> None:
         R = R_z * R_s
 
     where R_z (the twist) is a rotation around e_z and R_s (the swing) is
-    the "smallest" rotation matrix such that t(R_s) = t(R).
+    the "smallest" rotation matrix such that t(R_s) = t(R). Note that although
+    the swing is not free of rotation around z-axis, the latter only depends on
+    the rotation around e_x, e_y, which is the main motivation for using this
+    decomposition. One must use `remove_yaw_from_quat` to completely cancel you
+    the rotation around z-axis.
 
     .. seealso::
         * See "Estimation and control of the deformations of an exoskeleton
@@ -647,19 +1149,22 @@ def remove_twist_from_quat(q: np.ndarray) -> None:
 
     :param q: Array whose rows are the 4 components of quaternions (x, y, z, w)
               and columns are N independent orientations from which to remove
-              the swing part. It will be updated in-place.
+              the swing part.
+    :param out: Pre-allocated array into which to store the result. `None` to
+                update the input quaternion in-place.
+                Optional: `None` by default.
     """
     # Compute e_z in R(q) frame (Euler-Rodrigues Formula): R(q).T @ e_z
     v_a = compute_tilt_from_quat(q)
 
     # Compute the "smallest" rotation transforming vector 'v_a' in 'e_z'
-    swing_from_vector(v_a, q)
+    swing_from_vector(v_a, q if out is None else out)
 
 
 def quat_average(quat: np.ndarray,
                  axes: Optional[Union[Tuple[int, ...], int]] = None
                  ) -> np.ndarray:
-    """Compute the average of a batch of quaternions [qx, qy, qz, qw] over some
+    """Compute the average of a batch of quaternions (qx, qy, qz, qw) over some
     or all axes.
 
     Here, the average is defined as a quaternion minimizing the mean error
@@ -670,7 +1175,7 @@ def quat_average(quat: np.ndarray,
     efficiently, unlike the squared angle `angle(p.conjugate() * q) ** 2`.
 
     :param quat: N-dimensional (N >= 2) array whose first dimension gathers the
-                 4 quaternion coordinates [qx, qy, qz, qw].
+                 4 quaternion coordinates (qx, qy, qz, qw).
     :param axes: Batch dimensions to preserve without computing the average.
     """
     # TODO: This function cannot be jitted because numba does not support
@@ -693,14 +1198,14 @@ def quat_average(quat: np.ndarray,
 @overload
 def quat_interpolate_middle(quat1: np.ndarray,
                             quat2: np.ndarray,
-                            out: np.ndarray) -> np.ndarray:
+                            out: np.ndarray) -> None:
     ...
 
 
 @overload
 def quat_interpolate_middle(quat1: np.ndarray,
                             quat2: np.ndarray,
-                            out: None) -> None:
+                            out: Literal[None] = ...) -> np.ndarray:
     ...
 
 
@@ -710,7 +1215,7 @@ def quat_interpolate_middle(quat1: np.ndarray,
                             out: Optional[np.ndarray] = None
                             ) -> Optional[np.ndarray]:
     """Compute the midpoint interpolation between two batches of quaternions
-    [qx, qy, qz, qw].
+    (qx, qy, qz, qw).
 
     The midpoint interpolation of two quaternion is defined as the integration
     of half the difference between them, starting from the first one, ie
@@ -723,8 +1228,9 @@ def quat_interpolate_middle(quat1: np.ndarray,
     :param quat1: First batch of quaternions as a N-dimensional array whose
                   first dimension gathers the 4 quaternion coordinates.
     :param quat2: Second batch of quaternions as a N-dimensional array.
-    :param out: A pre-allocated array into which the result is stored. If not
-                provided, a new array is freshly-allocated, which is slower.
+    :param out: Pre-allocated array in which to store the result. If not
+                provided, a new array is freshly-allocated and returned, which
+                is slower.
     """
     assert quat1.ndim >= 1 and quat1.shape == quat2.shape
     if out is None:

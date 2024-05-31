@@ -6,7 +6,7 @@ import gymnasium as gym
 
 import gym_jiminy.common.bases.quantities
 from gym_jiminy.common.quantities import (
-    Orientation, QuantityManager, FrameOrientation)
+    OrientationType, QuantityManager, FrameOrientation)
 
 # Define number of samples for benchmarking
 N_SAMPLES = 50000
@@ -25,7 +25,7 @@ env.step(env.action)
 quantity_manager = QuantityManager(env)
 for i, frame in enumerate(env.robot.pinocchio_model.frames):
     quantity_manager[f"rpy_{i}"] = (FrameOrientation, dict(
-        frame_name=frame.name, type=Orientation.EULER))
+        frame_name=frame.name, type=OrientationType.EULER))
 
 # Run the benchmark for all batch size
 time_per_frame_all = []

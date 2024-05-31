@@ -135,9 +135,9 @@ class MaskedQuantity(InterfaceQuantity[np.ndarray]):
                  env: InterfaceJiminyEnv,
                  parent: Optional[InterfaceQuantity],
                  quantity: QuantityCreator[np.ndarray],
-                 key: Union[Sequence[int], Sequence[bool]],
+                 keys: Union[Sequence[int], Sequence[bool]],
                  *,
-                 axis: Optional[int] = None) -> None:
+                 axis: Optional[int] = 0) -> None:
         """
         :param env: Base or wrapped jiminy environment.
         :param parent: Higher-level quantity from which this quantity is a
@@ -145,22 +145,22 @@ class MaskedQuantity(InterfaceQuantity[np.ndarray]):
         :param quantity: Tuple gathering the class of the quantity whose values
                          must be extracted, plus all its constructor keyword-
                          arguments except environment 'env' and parent 'parent.
-        :param key: Sequence of indices or boolean mask that will be used to
-                    extract elements from the quantity along one axis.
+        :param keys: Sequence of indices or boolean mask that will be used to
+                     extract elements from the quantity along one axis.
         :param axis: Axis over which to extract elements. `None` to consider
                      flattened array.
-                     Optional: `None` by default.
+                     Optional: First axis by default.
         """
         # Check if indices or boolean mask has been provided
-        if all(isinstance(e, bool) for e in key):
-            key = tuple(np.flatnonzero(key))
-        elif not all(isinstance(e, int) for e in key):
+        if all(isinstance(e, bool) for e in keys):
+            keys = tuple(np.flatnonzero(keys))
+        elif not all(isinstance(e, int) for e in keys):
             raise ValueError(
-                "Argument 'key' invalid. It must either be a boolean mask, or "
-                "a sequence of indices.")
+                "Argument 'keys' invalid. It must either be a boolean mask, "
+                "or a sequence of indices.")
 
         # Backup user arguments
-        self.indices = tuple(key)
+        self.indices = tuple(keys)
         self.axis = axis
 
         # Make sure that at least one index must be extracted
