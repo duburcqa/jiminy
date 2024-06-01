@@ -775,7 +775,7 @@ namespace jiminy
             normal = Eigen::Vector3d::UnitZ();
 
             // Avoid unsupported vertical edge
-            const double posRelOnStep = std::fmod(modPos, stepWidth) / stepWidth;
+            const double posRelOnStep = std::fmod(modPos + 1e-9, stepWidth) / stepWidth;
             if (1.0 - posRelOnStep < interpDelta)
             {
                 const double slope = staircaseSlopeSign * stepHeight / interpDelta;
