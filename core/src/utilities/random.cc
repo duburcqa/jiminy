@@ -735,4 +735,40 @@ namespace jiminy
             }
         };
     }
+
+    HeightmapFunction unidirectionalPerlinGround(AbstractPerlinProcess & perlinProcess,
+                                                 double orientation,
+                                                 uint32_t seed)
+    {
+
+        const Eigen::Rotation2D<double> rot_mat(orientation);
+
+        // Set seed of Perlin Process
+        PCG32 pcg32_generator=PCG32(seed);
+        perlinProcess.reset(pcg32_generator);
+
+        // Constant for numerical gradient
+        const double h = 1e-6;
+        const double offset = 100.0;
+
+        return [&perlinProcess, rot_mat, h, offset](
+                   const Eigen::Vector2d & pos, double & height, Eigen::Vector3d & normal) -> void
+        {
+            // Compute the Perlin Process relative coordinate
+            Eigen::Vector2d posRel = (rot_mat.inverse() * pos).array() + offset;
+
+            // Compute the height
+            height = perlinProcess(std::abs(static_cast<float>(posRel[0])));
+
+            // Compute the numerical gradient of the Perlin Process
+            // and retrieve the normal
+            const double curvGrad = 0.5 * (
+                perlinProcess(std::abs(static_cast<float>(posRel[0] + h)))
+                - perlinProcess(std::abs(static_cast<float>(posRel[0] - h)))
+                ) / h;
+            normal << -curvGrad, 0.0, 1.0;
+            normal.segment<2>(0) = rot_mat * normal.segment<2>(0);
+            normal.normalize();
+        };
+    }
 }

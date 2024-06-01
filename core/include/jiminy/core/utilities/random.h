@@ -536,6 +536,10 @@ namespace jiminy
                                           uint32_t sparsity,
                                           double orientation,
                                           uint32_t seed);
+
+    HeightmapFunction JIMINY_DLLAPI unidirectionalPerlinGround(AbstractPerlinProcess & perlinProcess,
+                                                               double orientation,
+                                                               uint32_t seed);
 }
 
 #include "jiminy/core/utilities/random.hxx"
