@@ -100,6 +100,12 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
     to implement one. It has been designed to be highly flexible and easy to
     customize by overloading it to fit the vast majority of users' needs.
     """
+
+    derived: "InterfaceJiminyEnv"
+    """Top-most block from which this environment is part of when leveraging
+    modular pipeline design capability.
+    """
+
     def __init__(self,
                  simulator: Simulator,
                  step_dt: float,
@@ -186,8 +192,8 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         self.sensor_measurements: SensorMeasurementStackMap = OrderedDict(
             self.robot.sensor_measurements)
 
-        # Top-most block of the pipeline to which the environment is part of
-        self.derived: InterfaceJiminyEnv = self
+        # Top-most block of the pipeline is the environment itself by default
+        self.derived = self
 
         # Store references to the variables to register to the telemetry
         self._registered_variables: MutableMappingT[
@@ -215,6 +221,9 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         self.num_steps = np.array(-1, dtype=np.int64)
         self._num_steps_beyond_terminate: Optional[int] = None
 
+        # Initialize a quantity manager for later use
+        self.quantities = QuantityManager(self)
+
         # Initialize the interfaces through multiple inheritance
         super().__init__()  # Do not forward extra arguments, if any
 
@@ -232,9 +241,6 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
             raise NotImplementedError(
                 "`BaseJiminyEnv.compute_command` must be overloaded in case "
                 "of custom action spaces.")
-
-        # Initialize a quantity manager for later use
-        self.quantities = QuantityManager(self)
 
         # Define specialized operators for efficiency.
         # Note that a partial view of observation corresponding to measurement
@@ -599,8 +605,8 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         if seed is not None:
             self._initialize_seed(seed)
 
-        # Stop the simulator
-        self.simulator.stop()
+        # Stop the episode if one is still running
+        self.stop()
 
         # Remove external forces, if any
         self.simulator.remove_all_forces()
@@ -854,7 +860,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
             self.simulator.step(self.step_dt)
         except Exception:
             # Stop the simulation before raising the exception
-            self.simulator.stop()
+            self.stop()
             raise
 
         # Make sure there is no 'nan' value in observation
@@ -1023,8 +1029,8 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
             kwargs['close_backend'] = not self.simulator.is_viewer_available
 
         # Stop any running simulation before replay if `has_terminated` is True
-        if self.is_simulation_running and any(self.has_terminated({})):
-            self.simulator.stop()
+        if any(self.has_terminated({})):
+            self.stop()
 
         with viewer_lock:
             # Call render before replay in order to take into account custom
@@ -1135,8 +1141,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
 
         # Stop the simulation to unlock the robot.
         # It will enable to display contact forces for replay.
-        if self.simulator.is_simulation_running:
-            self.simulator.stop()
+        self.stop()
 
         # Disable play interactive mode flag and restore training flag
         self._is_interactive = False
@@ -1213,7 +1218,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
                 action = policy_fn(obs, reward, terminated or truncated, info)
                 obs, reward, terminated, truncated, info = env.step(action)
                 info_episode.append(info)
-            self.simulator.stop()
+            self.stop()
         except KeyboardInterrupt:
             pass
 

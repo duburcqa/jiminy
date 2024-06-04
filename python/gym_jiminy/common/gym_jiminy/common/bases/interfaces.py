@@ -17,6 +17,7 @@ from jiminy_py.viewer.viewer import is_display_available
 
 from ..utils import DataNested
 if TYPE_CHECKING:
+    from ..envs.generic import BaseJiminyEnv
     from ..quantities import QuantityManager
 
 
@@ -220,6 +221,9 @@ class InterfaceJiminyEnv(
         # Call super to allow mixing interfaces through multiple inheritance
         super().__init__(*args, **kwargs)
 
+        # Define convenience proxy for quantity manager
+        self.quantities = self.unwrapped.quantities
+
     def _setup(self) -> None:
         """Configure the observer-controller.
 
@@ -335,9 +339,24 @@ class InterfaceJiminyEnv(
         # '_controller_handle' as it is never called more often than necessary.
         self.__is_observation_refreshed = False
 
+    def stop(self) -> None:
+        """Stop the episode immediately without waiting for a termination or
+        truncation condition to be satisfied.
+
+        .. note::
+            This method is mainly intended for data analysis and debugging.
+            Stopping the episode is necessary to log the final state, otherwise
+            it will be missing from plots and viewer replay. Moreover, sensor
+            data will not be available during replay using object-oriented
+            method `replay`. Helper method `play_logs_data` must be preferred
+            to replay an episode that cannot be stopped at the time being.
+        """
+        self.simulator.stop()
+
     @property
-    def unwrapped(self) -> "InterfaceJiminyEnv":
-        """Base environment of the pipeline.
+    def unwrapped(self) -> "BaseJiminyEnv":
+        """The "underlying environment at the basis of the pipeline from which
+        this environment is part of.
         """
         return self
 
