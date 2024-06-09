@@ -9,6 +9,7 @@ import gymnasium as gym
 from jiminy_py.log import extract_trajectory_from_log
 
 from gym_jiminy.common.compositions import (
+    CUTOFF_ESP,
     TrackingActuatedJointPositionsReward,
     TrackingBaseOdometryVelocityReward,
     TrackingBaseHeightReward,
@@ -16,8 +17,10 @@ from gym_jiminy.common.compositions import (
     TrackingFootPositionsReward,
     TrackingFootOrientationsReward,
     SurviveReward,
-    MinimizeAngularMomentumReward,
     AdditiveMixtureReward)
+from gym_jiminy.toolbox.compositions import (
+    tanh_normalization,
+    MaximizeStability)
 
 
 class Rewards(unittest.TestCase):
@@ -104,3 +107,21 @@ class Rewards(unittest.TestCase):
         assert reward_sum(terminated, {}) == (
             0.5 * reward_odometry(terminated, {}) +
             0.2 * reward_survive(terminated, {}))
+
+    def test_stability(self):
+        CUTOFF_INNER, CUTOFF_OUTER = 0.1, 0.5
+        reward_stability = MaximizeStability(
+            self.env, cutoff_inner=0.1, cutoff_outer=0.5)
+        quantity = reward_stability.quantity
+
+        self.env.reset(seed=0)
+        action = self.env.action_space.sample()
+        _, _, terminated, _, _ = self.env.step(action)
+
+        dist = quantity.support_polygon.get_distance_to_point(quantity.zmp)
+        value = tanh_normalization(dist.item(), -CUTOFF_INNER, CUTOFF_OUTER)
+        np.testing.assert_allclose(tanh_normalization(
+            -CUTOFF_INNER, -CUTOFF_INNER, CUTOFF_OUTER), 1.0 - CUTOFF_ESP)
+        np.testing.assert_allclose(tanh_normalization(
+            CUTOFF_OUTER, -CUTOFF_INNER, CUTOFF_OUTER), CUTOFF_ESP)
+        np.testing.assert_allclose(reward_stability(terminated, {}), value)

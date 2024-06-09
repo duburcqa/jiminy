@@ -167,7 +167,7 @@ def integrate_dynamics(time: np.ndarray,
 
                          dynamics(t: float, x: np.ndarray) -> np:ndarray
 
-    :return: 2D array for which the i-th line is the solution x at `time[i]`.
+    :returns: 2D array for which the i-th line is the solution x at `time[i]`.
     """
     solver = ode(dynamics)
     solver.set_initial_value(x0, t=time[0])

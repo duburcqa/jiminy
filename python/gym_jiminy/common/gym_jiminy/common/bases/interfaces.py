@@ -354,11 +354,11 @@ class InterfaceJiminyEnv(
         self.simulator.stop()
 
     @property
+    @abstractmethod
     def unwrapped(self) -> "BaseJiminyEnv":
         """The "underlying environment at the basis of the pipeline from which
         this environment is part of.
         """
-        return self
 
     @property
     @abstractmethod

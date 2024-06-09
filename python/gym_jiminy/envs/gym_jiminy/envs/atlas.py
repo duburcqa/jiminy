@@ -18,7 +18,7 @@ from gym_jiminy.common.blocks import (MotorSafetyLimit,
                                       PDAdapter,
                                       MahonyFilter)
 from gym_jiminy.common.utils import build_pipeline
-from gym_jiminy.toolbox.math import ConvexHull
+from gym_jiminy.toolbox.math import ConvexHull2D
 
 if sys.version_info < (3, 9):
     from importlib_resources import files
@@ -100,18 +100,19 @@ STD_RATIO = {
 def _cleanup_contact_points(env: WalkerJiminyEnv) -> None:
     contact_frame_indices = env.robot.contact_frame_indices
     contact_frame_names = env.robot.contact_frame_names
-    num_contacts = int(len(env.robot.contact_frame_indices) // 2)
+    num_contacts = len(env.robot.contact_frame_indices) // 2
     for contact_slice in (slice(num_contacts), slice(num_contacts, None)):
         contact_positions = np.stack([
             env.robot.pinocchio_data.oMf[frame_index].translation
-            for frame_index in contact_frame_indices[contact_slice]], axis=0)
+            for frame_index in contact_frame_indices[contact_slice]
+            ], axis=0)
         contact_bottom_index = np.argsort(
-            contact_positions[:, 2])[:int(num_contacts//2)]
-        convex_hull = ConvexHull(contact_positions[contact_bottom_index, :2])
+            contact_positions[:, 2])[:(num_contacts // 2)]
+        convex_hull = ConvexHull2D(contact_positions[contact_bottom_index, :2])
         env.robot.remove_contact_points([
             contact_frame_names[contact_slice][i]
             for i in set(range(num_contacts)).difference(
-                contact_bottom_index[convex_hull._vertex_indices])])
+                contact_bottom_index[convex_hull.indices])])
 
 
 class AtlasJiminyEnv(WalkerJiminyEnv):

@@ -566,6 +566,10 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
     def is_training(self) -> bool:
         return self._is_training
 
+    @property
+    def unwrapped(self) -> "BaseJiminyEnv":
+        return self
+
     def train(self) -> None:
         self._is_training = True
 

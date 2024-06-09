@@ -13,7 +13,7 @@ from ..bases import InterfaceJiminyEnv, AbstractReward, BaseMixtureReward
 
 
 # Reward value at cutoff threshold
-RBF_CUTOFF_ESP = 1.0e-2
+CUTOFF_ESP = 1.0e-2
 
 
 ArrayOrScalar = Union[np.ndarray, float]
@@ -51,7 +51,7 @@ def radial_basis_function(error: ArrayOrScalar,
         squared_dist_rel = np.dot(error_, error_) / math.pow(cutoff, 2)
     else:
         squared_dist_rel = math.pow(np.linalg.norm(error_, order) / cutoff, 2)
-    return math.pow(RBF_CUTOFF_ESP, squared_dist_rel)
+    return math.pow(CUTOFF_ESP, squared_dist_rel)
 
 
 class AdditiveMixtureReward(BaseMixtureReward):

@@ -22,15 +22,15 @@ generated-members = torch, jiminy
 [tool.pylint.basic]
 # Good variable names which should always be accepted, separated by a comma
 good-names =
-    i, j, k, l, N,                    # Python: for-loop indices
-    tb, np, nb, mp, tp,               # Python: classical modules
-    fd, _,                            # Python: contexte
-    t, q, v, x, u, s, qx, qy, qz, qw, # Physics: state, action
-    I, R, H, T, M, dt,                # Physics: dynamics
-    a, b, c, y, z, n, e,              # Maths / Algebra : variables
-    f, rg, lo, hi, op, fn,            # Maths / Algebra : operators
-    kp, kd, ki,                       # Control: Gains
-    ax                                # Matplotlib
+    i, j, k, l, N,                     # Python: for-loop indices
+    tb, np, nb, mp, tp,                # Python: classical modules
+    fd, _,                             # Python: contexte
+    t, q, v, x, u, s, qx, qy, qz, qw,  # Physics: state, action
+    I, R, H, T, M, dt,                 # Physics: dynamics
+    A, a, b, c, y, z, n, e,            # Maths / Algebra : variables
+    f, rg, lo, hi, op, fn,             # Maths / Algebra : operators
+    kp, kd, ki,                        # Control: Gains
+    ax                                 # Matplotlib
 
 [tool.pylint.format]
 # Regexp for a line that is allowed to be longer than the limit

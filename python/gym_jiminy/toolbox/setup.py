@@ -32,12 +32,11 @@ setup(
     package_data={"gym_jiminy.toolbox": ["py.typed"]},
     install_requires=[
         f"gym-jiminy~={gym_jiminy_version}",
-        # Used to compute convex hull.
+        # Used to compute 3D convex hulls (using custom implementation in 2D),
+        # and to solve the Linear Program for finding their Chebyshev center.
         # No wheel is distributed on pypi for PyPy, and pip requires to install
         # `libatlas-base-dev` system dependency to build it from source.
-        # 1.8.0: `scipy.spatial.qhull` low-level API changes.
-        # 1.9.2: First release to support Python 3.11
-        "scipy>=1.9.2"
+        "scipy"
     ],
     zip_safe=False
 )
