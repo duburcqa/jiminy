@@ -17,7 +17,7 @@ from scipy.optimize import linprog
 try:
     from matplotlib.pyplot import Figure
 except ImportError:
-    Figure = type(None)  # type: ignore[misc,assignment]
+    Figure = type(None)  # type: ignore[misc,assignment,unused-ignore]
 
 from jiminy_py.viewer import interactive_mode
 
