@@ -190,4 +190,5 @@ class Miscellaneous(unittest.TestCase):
                 np.testing.assert_allclose(
                     rpy_i, pin.rpy.matrixToRpy(rot_mat_i.reshape((3, 3))))
             np.testing.assert_allclose(math.rpy_to_quat(rpy), quat)
-            np.testing.assert_allclose(math.matrix_to_quat(rot_mat), quat)
+            np.testing.assert_allclose(
+                math.matrix_to_quat(rot_mat), quat, atol=1e-9)

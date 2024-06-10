@@ -16,6 +16,7 @@ from gym_jiminy.common.compositions import (
     TrackingCapturePointReward,
     TrackingFootPositionsReward,
     TrackingFootOrientationsReward,
+    MinimizeFrictionReward,
     SurviveReward,
     AdditiveMixtureReward)
 from gym_jiminy.toolbox.compositions import (
@@ -74,9 +75,10 @@ class Rewards(unittest.TestCase):
                 np.testing.assert_allclose(
                     quantity_true.get(), self.env.robot_state.q[2])
 
-            gamma = - np.log(0.01) / cutoff ** 2
+            gamma = - np.log(CUTOFF_ESP) / cutoff ** 2
             value = np.exp(- gamma * np.sum((reward.quantity.op(
                 quantity_true.get(), quantity_ref.get())) ** 2))
+            assert value > 0.01
             np.testing.assert_allclose(reward(terminated, {}), value)
 
             del reward
@@ -125,3 +127,19 @@ class Rewards(unittest.TestCase):
         np.testing.assert_allclose(tanh_normalization(
             CUTOFF_OUTER, -CUTOFF_INNER, CUTOFF_OUTER), CUTOFF_ESP)
         np.testing.assert_allclose(reward_stability(terminated, {}), value)
+
+    def test_friction(self):
+        CUTOFF = 0.5
+        env = gym.make("gym_jiminy.envs:atlas-pid", debug=True)
+        reward_friction = MinimizeFrictionReward(env, cutoff=CUTOFF)
+        quantity = reward_friction.quantity
+
+        env.reset(seed=0)
+        _, _, terminated, _, _ = env.step(env.action)
+        force_tangential_rel = quantity.get()
+        force_tangential_rel_norm = np.sum(np.square(force_tangential_rel))
+
+        gamma = - np.log(CUTOFF_ESP) / CUTOFF ** 2
+        value = np.exp(- gamma * force_tangential_rel_norm)
+        assert value > 0.01
+        np.testing.assert_allclose(reward_friction(terminated, {}), value)

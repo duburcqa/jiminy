@@ -30,7 +30,8 @@ from gym_jiminy.common.quantities import (
     ActuatedJointsPosition,
     CenterOfMass,
     CapturePoint,
-    ZeroMomentPoint)
+    ZeroMomentPoint,
+    MultiContactRelativeForceTangential)
 
 
 class Quantities(unittest.TestCase):
@@ -523,3 +524,24 @@ class Quantities(unittest.TestCase):
 
         np.testing.assert_allclose(value[:3], pos_rel[:, :-1])
         np.testing.assert_allclose(value[-4:], quat_rel[:, :-1])
+
+    def test_tangential_forces(self):
+        """ TODO: Write documentation
+        """
+        env = gym.make("gym_jiminy.envs:atlas")
+
+        env.quantities["force_tangential_rel"] = (
+            MultiContactRelativeForceTangential, {})
+
+        env.reset(seed=0)
+        for _ in range(10):
+            env.step(env.action)
+
+        gravity = abs(env.robot.pinocchio_model.gravity.linear[2])
+        robot_mass = env.robot.pinocchio_data.mass[0]
+        force_tangential_rel = np.stack(tuple(
+            constraint.lambda_c[:2]
+            for constraint in env.robot.constraints.contact_frames.values()),
+            axis=-1) / (robot_mass * gravity)
+        np.testing.assert_allclose(
+            force_tangential_rel, env.quantities["force_tangential_rel"])

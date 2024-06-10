@@ -46,11 +46,22 @@ def radial_basis_function(error: ArrayOrScalar,
     :param cutoff: Cut-off threshold to consider.
     :param order: Order of Lp-Norm that will be used as distance metric.
     """
-    error_ = np.asarray(error).reshape((-1,))
-    if order == 2:
-        squared_dist_rel = np.dot(error_, error_) / math.pow(cutoff, 2)
+    error_ = np.asarray(error)
+    is_contiguous = error_.flags.f_contiguous or error_.flags.c_contiguous
+    if is_contiguous or order != 2:
+        if error_.ndim > 1 and not is_contiguous:
+            error_ = np.ascontiguousarray(error_)
+        if error_.flags.c_contiguous:
+            error1d = np.asarray(error_).ravel()
+        else:
+            error1d = np.asarray(error_.T).ravel()
+        if order == 2:
+            squared_dist_rel = np.dot(error1d, error1d) / math.pow(cutoff, 2)
+        else:
+            squared_dist_rel = math.pow(
+                np.linalg.norm(error1d, order) / cutoff, 2)
     else:
-        squared_dist_rel = math.pow(np.linalg.norm(error_, order) / cutoff, 2)
+        squared_dist_rel = np.sum(np.square(error_)) / math.pow(cutoff, 2)
     return math.pow(CUTOFF_ESP, squared_dist_rel)
 
 
