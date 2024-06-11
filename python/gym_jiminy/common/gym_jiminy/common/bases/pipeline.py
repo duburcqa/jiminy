@@ -9,14 +9,16 @@ It implements:
 * a wrapper to combine a controller block and a `BaseJiminyEnv` environment,
   eventually already wrapped, so that it appears as a black-box environment.
 """
+import sys
 import math
+import logging
 from weakref import ref
 from copy import deepcopy
 from abc import abstractmethod
 from collections import OrderedDict
 from typing import (
     Dict, Any, List, Optional, Tuple, Union, Generic, TypeVar, SupportsFloat,
-    Callable, cast)
+    Callable, cast, TYPE_CHECKING)
 
 import numpy as np
 
@@ -37,6 +39,8 @@ from .compositions import AbstractReward
 from .blocks import BaseControllerBlock, BaseObserverBlock
 
 from ..utils import DataNested, is_breakpoint, zeros, build_copyto, copy
+if TYPE_CHECKING:
+    from ..envs.generic import BaseJiminyEnv
 
 
 OtherObsT = TypeVar('OtherObsT', bound=DataNested)
@@ -44,6 +48,9 @@ OtherStateT = TypeVar('OtherStateT', bound=DataNested)
 NestedObsT = TypeVar('NestedObsT', bound=Dict[str, DataNested])
 TransformedObsT = TypeVar('TransformedObsT', bound=DataNested)
 TransformedActT = TypeVar('TransformedActT', bound=DataNested)
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 class BasePipelineWrapper(
@@ -101,7 +108,20 @@ class BasePipelineWrapper(
 
         It enables to get access to the attribute and methods of the wrapped
         environment directly without having to do it through `env`.
+
+        .. warning::
+            This fallback incurs a significant runtime overhead. As such, it
+            must only be used for debug and manual analysis between episodes.
+            Calling this method in script mode while a simulation is already
+            running would trigger a warning to avoid relying on it by mistake.
         """
+        if self.is_simulation_running and not hasattr(sys, 'ps1'):
+            # `hasattr(sys, 'ps1')` is used to detect whether the method was
+            # called from an interpreter or within a script. For details, see:
+            # https://stackoverflow.com/a/64523765/4820605
+            LOGGER.warning(
+                "Relying on fallback attribute getter is inefficient and "
+                "strongly discouraged at runtime.")
         return getattr(self.__getattribute__('env'), name)
 
     def __dir__(self) -> List[str]:
@@ -143,9 +163,7 @@ class BasePipelineWrapper(
         self.env.np_random = value
 
     @property
-    def unwrapped(self) -> InterfaceJiminyEnv:
-        """Base environment of the pipeline.
-        """
+    def unwrapped(self) -> "BaseJiminyEnv":
         return self.env.unwrapped
 
     @property
@@ -236,8 +254,7 @@ class BasePipelineWrapper(
             self._copyto_action(action)
 
             # Make sure that the pipeline has not change since last reset
-            env_derived = (
-                self.unwrapped.derived)  # type: ignore[attr-defined]
+            env_derived = self.unwrapped.derived
             if env_derived is not self:
                 raise RuntimeError(
                     "Pipeline environment has changed. Please call 'reset' "
@@ -532,14 +549,14 @@ class ObservedJiminyEnv(
         # Register the observer's internal state and feature to the telemetry
         if state is not None:
             try:
-                self.env.register_variable(  # type: ignore[attr-defined]
+                self.unwrapped.register_variable(
                     'state', state, None, self.observer.name)
             except ValueError:
                 pass
-        self.env.register_variable('feature',  # type: ignore[attr-defined]
-                                   self.observer.observation,
-                                   self.observer.fieldnames,
-                                   self.observer.name)
+        self.unwrapped.register_variable('feature',
+                                         self.observer.observation,
+                                         self.observer.fieldnames,
+                                         self.observer.name)
 
     def _setup(self) -> None:
         """Configure the wrapper.
@@ -750,14 +767,14 @@ class ControlledJiminyEnv(
         # Register the controller's internal state and target to the telemetry
         if state is not None:
             try:
-                self.env.register_variable(  # type: ignore[attr-defined]
+                self.unwrapped.register_variable(
                     'state', state, None, self.controller.name)
             except ValueError:
                 pass
-        self.env.register_variable('action',  # type: ignore[attr-defined]
-                                   self.action,
-                                   self.controller.fieldnames,
-                                   self.controller.name)
+        self.unwrapped.register_variable('action',
+                                         self.action,
+                                         self.controller.fieldnames,
+                                         self.controller.name)
 
     def _setup(self) -> None:
         """Configure the wrapper.

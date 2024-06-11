@@ -1,10 +1,10 @@
 # pylint: disable=missing-module-docstring
 
-from .qhull import ConvexHull, compute_distance_convex_to_point
+from .qhull import ConvexHull2D, compute_convex_chebyshev_center
 
 __all__ = [
-    "ConvexHull",
-    "compute_distance_convex_to_point"
+    "ConvexHull2D",
+    "compute_convex_chebyshev_center"
 ]
 
 try:

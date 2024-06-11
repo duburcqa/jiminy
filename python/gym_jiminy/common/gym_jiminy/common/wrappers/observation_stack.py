@@ -146,6 +146,10 @@ class StackObservation(
         # Whether the stack has been shifted to the left since last update
         self._was_stack_shifted = True
 
+        # Bind action of the base environment
+        assert self.action_space.contains(self.env.action)
+        self.action = self.env.action
+
     def _initialize_action_space(self) -> None:
         """Configure the action space.
         """

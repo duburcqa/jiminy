@@ -116,7 +116,8 @@ class MaskedQuantity(InterfaceQuantity[np.ndarray]):
     Elements will be extract by copy unless the indices of the elements to
     extract to be written equivalently by a slice (ie they are evenly spaced),
     and the array can be flattened while preserving memory contiguity if 'axis'
-    is `None`.
+    is `None`, which means that the result will be different between C- and F-
+    contiguous arrays.
     """
 
     quantity: InterfaceQuantity
@@ -204,9 +205,9 @@ class MaskedQuantity(InterfaceQuantity[np.ndarray]):
             # Notably, `operator[]` supports boolean mask but `take` does not.
             return self.data.take(self.indices, self.axis)
         if self.axis is None:
-            # `reshape` must be used instead of `flat` to get a view that can
+            # `ravel` must be used instead of `flat` to get a view that can
             # be sliced without copy.
-            return self.data.reshape((-1,))[self._slices]
+            return self.data.ravel(order="K")[self._slices]
         return self.data[self._slices]
 
 

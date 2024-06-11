@@ -1,14 +1,15 @@
 """Quantities mainly relevant for locomotion tasks on floating-base robots.
 """
 import math
-from typing import Optional, Tuple, Sequence, Literal, Union
+from typing import List, Optional, Tuple, Sequence, Literal, Union
 from dataclasses import dataclass
 
 import numpy as np
 import numba as nb
 
 import jiminy_py.core as jiminy
-from jiminy_py.core import array_copyto  # pylint: disable=no-name-in-module
+from jiminy_py.core import (  # pylint: disable=no-name-in-module
+    array_copyto, multi_array_copyto)
 from jiminy_py.dynamics import update_quantities
 import pinocchio as pin
 
@@ -902,3 +903,92 @@ class CapturePoint(AbstractQuantity[np.ndarray]):
             translate_position_odom(self._dcm, self.odom_pose, self._dcm)
 
         return self._dcm
+
+
+@dataclass(unsafe_hash=True)
+class MultiContactRelativeForceTangential(InterfaceQuantity[np.ndarray]):
+    """Standardized tangential forces apply on all contact points and collision
+    bodies.
+
+    The tangential force is rescaled by the weight of the robot rather than the
+    actual vertical force. It has the advantage to guarantee that the resulting
+    quantity is never poorly conditioned, which would be the case otherwise.
+    Moreover, the effect of the vertical force is not canceled out, which is
+    interesting for deriving a reward, as it allows for indirectly penalize
+    jerky contact states and violent impacts. The side effect is not being able
+    to guarantee that this quantity is bounded. Indeed, only the ratio of the
+    norm of the tangential force at every contact point (or the resulting one)
+    is bounded by the product of the friction coefficient by the vertical
+    force, not the tangential force itself. This issue is a minor inconvenience
+    as all it requires is normalization using RBF kernel to make it finite.
+    """
+
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 parent: Optional[InterfaceQuantity]) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param parent: Higher-level quantity from which this quantity is a
+                       requirement if any, `None` otherwise.
+        """
+        # Call base implementation
+        super().__init__(
+            env,
+            parent,
+            requirements={},
+            auto_refresh=False)
+
+        # Weight of the robot
+        self._robot_weight: float = -1
+
+        # Stacked tangential forces on all contact points and collision bodies
+        self._force_tangential_batch = np.array([])
+
+        # Define proxy for views of individual tangential forces in the stack
+        self._force_tangential_views: Tuple[np.ndarray, ...] = ()
+
+        # Define proxy for the current tangential forces
+        self._force_tangential_refs: Tuple[np.ndarray, ...] = ()
+
+    def initialize(self) -> None:
+        # Call base implementation
+        super().initialize()
+
+        # Compute the weight of the robot
+        gravity = abs(self.env.robot.pinocchio_model.gravity.linear[2])
+        robot_mass = self.env.robot.pinocchio_data.mass[0]
+        self._robot_weight = robot_mass * gravity
+
+        # Get all frame constraints associated with contacts and collisions
+        frame_constraints: List[jiminy.FrameConstraint] = []
+        for constraint in self.env.robot.constraints.contact_frames.values():
+            assert isinstance(constraint, jiminy.FrameConstraint)
+            frame_constraints.append(constraint)
+        for constraints_body in self.env.robot.constraints.collision_bodies:
+            for constraint in constraints_body:
+                assert isinstance(constraint, jiminy.FrameConstraint)
+                frame_constraints.append(constraint)
+
+        # Extract references to all the tangential forces
+        force_tangential_refs = []
+        for constraint in frame_constraints:
+            # f_lin, f_ang = lambda[:3], np.array([0.0, 0.0, lambda[3]])
+            force_tangential_refs.append(constraint.lambda_c[:2])
+        self._force_tangential_refs = tuple(force_tangential_refs)
+
+        # Pre-allocated memory for stacked tangential forces
+        self._force_tangential_batch = np.zeros(
+            (2, len(self._force_tangential_refs)), order='F')
+
+        # Refresh proxies
+        self._force_tangential_views = tuple(self._force_tangential_batch.T)
+
+    def refresh(self) -> np.ndarray:
+        # Copy all tangential forces in contiguous buffer
+        multi_array_copyto(self._force_tangential_views,
+                           self._force_tangential_refs)
+
+        # Scale the tangential forces by the weight of the robot
+        self._force_tangential_batch /= self._robot_weight
+
+        return self._force_tangential_batch

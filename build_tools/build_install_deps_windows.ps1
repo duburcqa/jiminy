@@ -44,7 +44,12 @@ if (-not (Test-Path env:GENERATOR)) {
 }
 
 ### Set common CMAKE_C/CXX_FLAGS
-${CMAKE_CXX_FLAGS} = "${env:CMAKE_CXX_FLAGS} /MP2 /EHsc /bigobj /Gy /Zc:inline /Zc:preprocessor /Zc:__cplusplus /permissive- /DWIN32 /D_USE_MATH_DEFINES /DNOMINMAX"
+# * Flag "DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR" is a dirty workaround to deal with VC runtime
+#   conflict related to different search path ordering at compile-time / run-time causing segfault:
+#   https://github.com/actions/runner-images/issues/10004
+${CMAKE_CXX_FLAGS} =  "${env:CMAKE_CXX_FLAGS} $(
+) /MP2 /EHsc /bigobj /Gy /Zc:inline /Zc:preprocessor /Zc:__cplusplus /permissive- $(
+) /DWIN32 /D_USE_MATH_DEFINES /D_DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR /DNOMINMAX"
 if (${BUILD_TYPE} -eq "Debug") {
   ${CMAKE_CXX_FLAGS} = "${CMAKE_CXX_FLAGS} /Zi /Od"
 } else {
