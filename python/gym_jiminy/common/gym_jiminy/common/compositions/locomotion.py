@@ -9,8 +9,9 @@ import pinocchio as pin
 from ..bases import (
     InterfaceJiminyEnv, StateQuantity, QuantityEvalMode, BaseQuantityReward)
 from ..quantities import (
-    MaskedQuantity, UnaryOpQuantity, AverageBaseOdometryVelocity,
-    AverageBaseMomentum, MultiFootRelativeXYZQuat, CapturePoint)
+    MaskedQuantity, UnaryOpQuantity, AverageBaseOdometryVelocity, CapturePoint,
+    MultiFootRelativeXYZQuat, MultiContactRelativeForceTangential,
+    AverageBaseMomentum)
 from ..quantities.locomotion import sanitize_foot_frame_names
 from ..utils import quat_difference
 
@@ -218,6 +219,37 @@ class MinimizeAngularMomentumReward(BaseQuantityReward):
             env,
             "reward_momentum",
             (AverageBaseMomentum, dict(mode=QuantityEvalMode.TRUE)),
+            partial(radial_basis_function, cutoff=self.cutoff, order=2),
+            is_normalized=True,
+            is_terminal=False)
+
+
+class MinimizeFrictionReward(BaseQuantityReward):
+    """Reward the agent for minimizing the tangential forces at all the contact
+    points and collision bodies, and to avoid jerky intermittent contact state.
+
+    The L2-norm is used to aggregate all the local tangential forces. While the
+    L1-norm would be more natural in this specific cases, using the L2-norm is
+    preferable as it promotes space-time regularity, ie balancing the  force
+    distribution evenly between all the candidate contact points and avoiding
+    jerky contact forces over time (high-frequency vibrations),  phenomena to
+    which the L1-norm is completely insensitive.
+    """
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 cutoff: float) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param cutoff: Cutoff threshold for the RBF kernel transform.
+        """
+        # Backup some user argument(s)
+        self.cutoff = cutoff
+
+        # Call base implementation
+        super().__init__(
+            env,
+            "reward_friction",
+            (MultiContactRelativeForceTangential, dict()),
             partial(radial_basis_function, cutoff=self.cutoff, order=2),
             is_normalized=True,
             is_terminal=False)

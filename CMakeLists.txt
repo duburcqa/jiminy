@@ -71,7 +71,9 @@ if(MSVC)
             set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /fp:contract")
         endif()
     endif()
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP /EHsc /bigobj /Gy /Zc:inline /Zc:preprocessor /Zc:__cplusplus /permissive- /DWIN32 /D_USE_MATH_DEFINES /DNOMINMAX")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} \
+        /MP /EHsc /bigobj /Gy /Zc:inline /Zc:preprocessor /Zc:__cplusplus /permissive- /DWIN32 \
+        /D_USE_MATH_DEFINES /D_DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR /DNOMINMAX")
     set(CMAKE_CXX_FLAGS_DEBUG "/Zi /Od")
     set(CMAKE_CXX_FLAGS_RELEASE "/DNDEBUG /O2 /Ob3")
     set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELEASE} /Zi")

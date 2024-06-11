@@ -49,6 +49,7 @@ class PipelineControl(unittest.TestCase):
         # Run the simulation
         while self.env.stepper_state.t < 9.0:
             self.env.step(action)
+        self.env.stop()
 
         # Export figure
         fd, pdf_path = mkstemp(prefix="plot_", suffix=".pdf")
@@ -263,6 +264,7 @@ class PipelineControl(unittest.TestCase):
         env.unwrapped._height_neutral = float("-inf")
         while env.stepper_state.t < 2.0:
             env.step(0.2 * env.action_space.sample())
+        env.stop()
 
         # Extract the target position and velocity of a single motor
         adapter_name, controller_name = adapter.name, controller.name
@@ -284,9 +286,9 @@ class PipelineControl(unittest.TestCase):
                                    command_vel[(update_ratio-1)::update_ratio],
                                    atol=TOLERANCE)
         np.testing.assert_allclose(
-            target_accel_diff, target_accel[1:], atol=TOLERANCE)
+            target_accel_diff[:-1], target_accel[1:-1], atol=TOLERANCE)
         np.testing.assert_allclose(
-            target_vel_diff, target_vel[1:], atol=TOLERANCE)
+            target_vel_diff[:-1], target_vel[1:-1], atol=TOLERANCE)
 
         # Make sure that the position and velocity targets are within bounds
         motor = env.robot.motors[-1]

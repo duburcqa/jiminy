@@ -54,9 +54,10 @@ class BaseTrackingReward(BaseQuantityReward):
     otherwise an exception will be risen. See `DatasetTrajectoryQuantity` and
     `AbstractQuantity` documentations for details.
 
-    The error transform in a normalized reward to maximize by applying RBF
+    The error is transformed in a normalized reward to maximize by applying RBF
     kernel on the error. The reward will be 0.0 if the error cancels out
-    completely and less than 0.01 above the user-specified cutoff threshold.
+    completely and less than 'CUTOFF_ESP' above the user-specified cutoff
+    threshold.
     """
     def __init__(self,
                  env: InterfaceJiminyEnv,

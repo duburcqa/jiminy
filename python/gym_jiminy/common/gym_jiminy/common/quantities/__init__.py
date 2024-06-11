@@ -26,7 +26,9 @@ from .locomotion import (BaseOdometryPose,
                          MultiFootRelativeXYZQuat,
                          CenterOfMass,
                          CapturePoint,
-                         ZeroMomentPoint)
+                         ZeroMomentPoint,
+                         MultiContactRelativeForceTangential,
+                         translate_position_odom)
 
 
 __all__ = [
@@ -57,4 +59,6 @@ __all__ = [
     'CenterOfMass',
     'CapturePoint',
     'ZeroMomentPoint',
+    'MultiContactRelativeForceTangential',
+    'translate_position_odom'
 ]

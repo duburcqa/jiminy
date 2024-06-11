@@ -230,6 +230,9 @@ class _BatchedFramesRotationMatrix(
         # Re-allocate memory as the number of frames is not known in advance.
         # Note that Fortran memory layout (column-major) is used for speed up
         # because it preserves contiguity when copying frame data.
+        # Anyway, C memory layout (row-major) does not make sense in this case
+        # since chunks of columns are systematically extracted, which means
+        # that the returned array would NEVER be contiguous.
         nframes = len(self.frame_names)
         self._rot_mat_batch = np.zeros((3, 3, nframes), order='F')
 
@@ -387,9 +390,9 @@ class _BatchedFramesOrientation(
         # Re-allocate memory as the number of frames is not known in advance
         nframes = len(self.frame_names)
         if self.type in (OrientationType.EULER, OrientationType.ANGLE_AXIS):
-            self._data_batch = np.zeros((3, nframes), order='C')
+            self._data_batch = np.zeros((3, nframes), order='F')
         elif self.type == OrientationType.QUATERNION:
-            self._data_batch = np.zeros((4, nframes), order='C')
+            self._data_batch = np.zeros((4, nframes), order='F')
 
         # Re-assign mapping from chunks of frame names to corresponding data
         if self.type is not OrientationType.MATRIX:
@@ -640,7 +643,7 @@ class _BatchedFramesPosition(
 
         # Re-allocate memory as the number of frames is not known in advance
         nframes = len(self.frame_names)
-        self._pos_batch = np.zeros((3, nframes), order='C')
+        self._pos_batch = np.zeros((3, nframes), order='F')
 
         # Refresh proxies
         self._pos_views.clear()
@@ -908,7 +911,7 @@ class MultiFramesXYZQuat(InterfaceQuantity[np.ndarray]):
             auto_refresh=False)
 
         # Pre-allocate memory for storing the pose XYZQuat of all frames
-        self._xyzquats = np.zeros((7, len(frame_names)), order='C')
+        self._xyzquats = np.zeros((7, len(frame_names)), order='F')
 
     def refresh(self) -> np.ndarray:
         # Copy the position of all frames at once in contiguous buffer

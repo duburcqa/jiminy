@@ -246,6 +246,7 @@ class PipelineDesign(unittest.TestCase):
 
         env.reset(seed=0, options=dict(reset_hook=configure_telemetry))
         env.step(env.action)
+        env.stop()
 
         controller = env.env.env.env.controller
         assert isinstance(controller, PDController)
