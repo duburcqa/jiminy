@@ -379,6 +379,29 @@ namespace jiminy
         return lerp(ratio, yLeft, yRight);
     }
 
+    double AbstractPerlinNoiseOctave::gradient(double t) const
+    {
+        // Get current phase
+        const double phase = t / wavelength_ + shift_;
+
+        // Compute closest right and left knots
+        const int32_t phaseIndexLeft = static_cast<int32_t>(phase);
+        const int32_t phaseIndexRight = phaseIndexLeft + 1;
+
+        // Compute smoothed ratio of current phase wrt to the closest knots
+        const double dtLeft = phase - phaseIndexLeft;
+        const double dtRight = dtLeft - 1.0;
+        const double ratio = fade(dtLeft);
+        const double dRatio = fade_derivative(dtLeft);
+
+        /* Compute gradients at knots, and perform linear interpolation between them to get value
+           at current phase.*/
+        const double yLeft = grad(phaseIndexLeft, dtLeft);
+        const double yRight = grad(phaseIndexRight, dtRight);
+        return (yRight - yLeft) * dRatio +
+            lerp(ratio, yLeft / dtLeft, yRight / dtRight);
+    }
+
     double AbstractPerlinNoiseOctave::getWavelength() const noexcept
     {
         return wavelength_;
@@ -395,6 +418,11 @@ namespace jiminy
     double AbstractPerlinNoiseOctave::lerp(double ratio, double yLeft, double yRight) noexcept
     {
         return yLeft + ratio * (yRight - yLeft);
+    }
+
+    double AbstractPerlinNoiseOctave::fade_derivative(double delta) noexcept
+    {
+        return 30 * std::pow(delta, 2) * (delta * (delta - 2.0) + 1.0);
     }
 
     RandomPerlinNoiseOctave::RandomPerlinNoiseOctave(double wavelength) :
@@ -516,6 +544,20 @@ namespace jiminy
         // Scale sum by maximum amplitude
         return value / amplitude_;
     }
+
+    double AbstractPerlinProcess::gradient(float t)
+    {
+        // Compute sum of octaves' values
+        double value = 0.0;
+        for (const auto & [octave, scale] : octaveScalePairs_)
+        {
+            value += scale * (*octave).gradient(t);
+        }
+
+        // Scale sum by maximum amplitude
+        return value / amplitude_;
+    }
+
 
     double AbstractPerlinProcess::getWavelength() const noexcept
     {
@@ -736,39 +778,82 @@ namespace jiminy
         };
     }
 
-    HeightmapFunction unidirectionalPerlinGround(AbstractPerlinProcess & perlinProcess,
+    HeightmapFunction unidirectionalRandomPerlinGround(double wavelength,
+                                                std::size_t numOctaves,
                                                  double orientation,
                                                  uint32_t seed)
     {
-
         const Eigen::Rotation2D<double> rot_mat(orientation);
 
-        // Set seed of Perlin Process
-        PCG32 pcg32_generator=PCG32(seed);
-        perlinProcess.reset(pcg32_generator);
-
-        // Constant for numerical gradient
-        const double h = 1e-6;
-        const double offset = 100.0;
-
-        return [&perlinProcess, rot_mat, h, offset](
+        return [wavelength, numOctaves, rot_mat, seed](
                    const Eigen::Vector2d & pos, double & height, Eigen::Vector3d & normal) -> void
         {
+             // Set seed of Random Perlin Process
+            PCG32 pcg32_generator=PCG32(seed);
+            RandomPerlinProcess perlinProcess = RandomPerlinProcess(wavelength, numOctaves);
+            perlinProcess.reset(pcg32_generator);
+
             // Compute the Perlin Process relative coordinate
-            Eigen::Vector2d posRel = (rot_mat.inverse() * pos).array() + offset;
+            Eigen::Vector2d posRel = (rot_mat.inverse() * pos).array();
+            float delta = std::abs(static_cast<float>(posRel[0]));
 
             // Compute the height
-            height = perlinProcess(std::abs(static_cast<float>(posRel[0])));
+            height = perlinProcess(delta);
 
-            // Compute the numerical gradient of the Perlin Process
+            // Compute the gradient of the Perlin Process
             // and retrieve the normal
-            const double curvGrad = 0.5 * (
-                perlinProcess(std::abs(static_cast<float>(posRel[0] + h)))
-                - perlinProcess(std::abs(static_cast<float>(posRel[0] - h)))
-                ) / h;
-            normal << -curvGrad, 0.0, 1.0;
-            normal.segment<2>(0) = rot_mat * normal.segment<2>(0);
-            normal.normalize();
+            const double slope = perlinProcess.gradient(delta);
+
+            // Compute the inverse of the normal's Euclidean norm
+            const double normInv = 1.0 / std::sqrt(1.0 + std::pow(slope, 2));
+
+            // Update normal vector
+            // step 1. compute normal in Perlin process reference frame:
+            // normal << -slope * normInv, 0.0, normInv;
+            // step 2. Rotate normal vector in world plane reference frame:
+            // normal.head<2>() = rot_mat * normal.head<2>();
+            // Or simply in a single operation:
+            normal << -slope * normInv * rot_mat.toRotationMatrix().col(0), normInv;
+        };
+    }
+
+    HeightmapFunction unidirectionalPeriodicPerlinGround(double wavelength,
+                                                 double period,
+                                                 std::size_t numOctaves,
+                                                 double orientation,
+                                                 uint32_t seed)
+    {
+        const Eigen::Rotation2D<double> rot_mat(orientation);
+
+        return [wavelength, period, numOctaves, rot_mat, seed](
+                   const Eigen::Vector2d & pos, double & height, Eigen::Vector3d & normal) -> void
+        {
+            // Set seed of Periodic Perlin Process
+            PCG32 pcg32_generator=PCG32(seed);
+            PeriodicPerlinProcess perlinProcess = PeriodicPerlinProcess(wavelength, period, numOctaves);
+            perlinProcess.reset(pcg32_generator);
+
+            // Compute the Perlin Process relative coordinate
+            Eigen::Vector2d posRel = (rot_mat.inverse() * pos).array();
+            float delta = std::abs(static_cast<float>(posRel[0]));
+
+            // Compute the height
+            height = perlinProcess(delta);
+
+            // Compute the gradient of the Perlin Process
+            // and retrieve the normal
+            const double slope = perlinProcess.gradient(delta);
+
+            // Compute the inverse of the normal's Euclidean norm
+            const double normInv = 1.0 / std::sqrt(1.0 + std::pow(slope, 2));
+
+            // Update normal vector
+            // step 1. compute normal in Perlin process reference frame:
+            // normal << -slope * normInv, 0.0, normInv;
+            // step 2. Rotate normal vector in world plane reference frame:
+            // normal.head<2>() = rot_mat * normal.head<2>();
+            // Or simply in a single operation:
+            normal << -slope * normInv * rot_mat.toRotationMatrix().col(0), normInv;
         };
     }
 }
