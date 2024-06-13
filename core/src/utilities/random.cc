@@ -785,7 +785,10 @@ namespace jiminy
     {
         const Eigen::Rotation2D<double> rot_mat(orientation);
 
-        return [wavelength, numOctaves, rot_mat, seed](
+        // Constant for avoiding discontinuity at (0.0, 0.0)
+        const double offset = 100.0;
+
+        return [wavelength, numOctaves, rot_mat, offset, seed](
                    const Eigen::Vector2d & pos, double & height, Eigen::Vector3d & normal) -> void
         {
              // Set seed of Random Perlin Process
@@ -795,7 +798,7 @@ namespace jiminy
 
             // Compute the Perlin Process relative coordinate
             Eigen::Vector2d posRel = (rot_mat.inverse() * pos).array();
-            float delta = std::abs(static_cast<float>(posRel[0]));
+            float delta = std::abs(static_cast<float>(posRel[0] + offset));
 
             // Compute the height
             height = perlinProcess(delta);
@@ -825,7 +828,10 @@ namespace jiminy
     {
         const Eigen::Rotation2D<double> rot_mat(orientation);
 
-        return [wavelength, period, numOctaves, rot_mat, seed](
+        // Constant for avoiding discontinuity at (0.0, 0.0)
+        const double offset = 100.0;
+
+        return [wavelength, period, numOctaves, rot_mat, offset, seed](
                    const Eigen::Vector2d & pos, double & height, Eigen::Vector3d & normal) -> void
         {
             // Set seed of Periodic Perlin Process
@@ -835,7 +841,7 @@ namespace jiminy
 
             // Compute the Perlin Process relative coordinate
             Eigen::Vector2d posRel = (rot_mat.inverse() * pos).array();
-            float delta = std::abs(static_cast<float>(posRel[0]));
+            float delta = std::abs(static_cast<float>(posRel[0] + offset));
 
             // Compute the height
             height = perlinProcess(delta);
