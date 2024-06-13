@@ -398,8 +398,7 @@ namespace jiminy
            at current phase.*/
         const double yLeft = grad(phaseIndexLeft, dtLeft);
         const double yRight = grad(phaseIndexRight, dtRight);
-        return (yRight - yLeft) * dRatio +
-            lerp(ratio, yLeft / dtLeft, yRight / dtRight);
+        return (yRight - yLeft) * dRatio + lerp(ratio, yLeft / dtLeft, yRight / dtRight);
     }
 
     double AbstractPerlinNoiseOctave::getWavelength() const noexcept
@@ -778,10 +777,8 @@ namespace jiminy
         };
     }
 
-    HeightmapFunction unidirectionalRandomPerlinGround(double wavelength,
-                                                std::size_t numOctaves,
-                                                 double orientation,
-                                                 uint32_t seed)
+    HeightmapFunction unidirectionalRandomPerlinGround(
+        double wavelength, std::size_t numOctaves, double orientation, uint32_t seed)
     {
         const Eigen::Rotation2D<double> rot_mat(orientation);
 
@@ -791,8 +788,8 @@ namespace jiminy
         return [wavelength, numOctaves, rot_mat, offset, seed](
                    const Eigen::Vector2d & pos, double & height, Eigen::Vector3d & normal) -> void
         {
-             // Set seed of Random Perlin Process
-            PCG32 pcg32_generator=PCG32(seed);
+            // Set seed of Random Perlin Process
+            PCG32 pcg32_generator = PCG32(seed);
             RandomPerlinProcess perlinProcess = RandomPerlinProcess(wavelength, numOctaves);
             perlinProcess.reset(pcg32_generator);
 
@@ -821,10 +818,10 @@ namespace jiminy
     }
 
     HeightmapFunction unidirectionalPeriodicPerlinGround(double wavelength,
-                                                 double period,
-                                                 std::size_t numOctaves,
-                                                 double orientation,
-                                                 uint32_t seed)
+                                                         double period,
+                                                         std::size_t numOctaves,
+                                                         double orientation,
+                                                         uint32_t seed)
     {
         const Eigen::Rotation2D<double> rot_mat(orientation);
 
@@ -835,8 +832,9 @@ namespace jiminy
                    const Eigen::Vector2d & pos, double & height, Eigen::Vector3d & normal) -> void
         {
             // Set seed of Periodic Perlin Process
-            PCG32 pcg32_generator=PCG32(seed);
-            PeriodicPerlinProcess perlinProcess = PeriodicPerlinProcess(wavelength, period, numOctaves);
+            PCG32 pcg32_generator = PCG32(seed);
+            PeriodicPerlinProcess perlinProcess =
+                PeriodicPerlinProcess(wavelength, period, numOctaves);
             perlinProcess.reset(pcg32_generator);
 
             // Compute the Perlin Process relative coordinate
