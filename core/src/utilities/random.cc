@@ -557,7 +557,6 @@ namespace jiminy
         return value / amplitude_;
     }
 
-
     double AbstractPerlinProcess::getWavelength() const noexcept
     {
         double wavelength = INF;
