@@ -333,6 +333,9 @@ namespace jiminy::python
                                           bp::return_value_policy<result_converter<true>>())
             .ADD_PROPERTY_GET_WITH_POLICY("log_f_external_fieldnames",
                                           &Model::getLogForceExternalFieldnames,
+                                          bp::return_value_policy<result_converter<true>>())
+            .ADD_PROPERTY_GET_WITH_POLICY("log_constraint_fieldnames",
+                                          &Model::getLogConstraintFieldnames,
                                           bp::return_value_policy<result_converter<true>>());
     }
 

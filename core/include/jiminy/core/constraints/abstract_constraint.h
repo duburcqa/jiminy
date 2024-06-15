@@ -55,7 +55,7 @@ namespace jiminy
         virtual const std::string & getType() const = 0;
 
         /// \brief Dimension of the constraint.
-        uint64_t getDim() const;
+        uint64_t getSize() const;
 
         /// \brief Jacobian of the constraint.
         const Eigen::MatrixXd & getJacobian() const;

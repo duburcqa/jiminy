@@ -1050,24 +1050,15 @@ namespace jiminy
 
     std::unique_ptr<LockGuardLocal> Robot::getLock()
     {
-        // Make sure that the robot is not already locked
-        if (mutexLocal_->isLocked())
-        {
-            JIMINY_THROW(bad_control_flow,
-                         "Robot already locked. Please release it first prior requesting lock.");
-        }
+        // Get lock
+        std::unique_ptr<LockGuardLocal> lock = Model::getLock();
 
         // Make sure that the options are not already considered valid as it was impossible to
         // guarantee it before locking the robot.
         areRobotOptionsRefreshed_ = false;
 
         // Return lock
-        return std::make_unique<LockGuardLocal>(*mutexLocal_);
-    }
-
-    bool Robot::getIsLocked() const
-    {
-        return mutexLocal_->isLocked();
+        return lock;
     }
 
     Eigen::Index Robot::nmotors() const

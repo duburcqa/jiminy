@@ -611,6 +611,11 @@ namespace jiminy
                                  robotName,
                                  {},
                                  TELEMETRY_FIELDNAME_DELIMITER);
+                robotDataIt->logConstraintFieldnames =
+                    addCircumfix((*robotIt)->getLogConstraintFieldnames(),
+                                 robotName,
+                                 {},
+                                 TELEMETRY_FIELDNAME_DELIMITER);
                 robotDataIt->logCommandFieldnames =
                     addCircumfix((*robotIt)->getLogCommandFieldnames(),
                                  robotName,
@@ -652,6 +657,23 @@ namespace jiminy
                                 &fext[j]);
                         }
                     }
+                }
+                if (engineOptions_->telemetry.enableConstraint)
+                {
+                    const ConstraintTree & constraints = (*robotIt)->getConstraints();
+                    // FIXME: Remove explicit `telemetrySender` capture when moving to C++20
+                    constraints.foreach(
+                        [&telemetrySender = telemetrySender_, &robotData = *robotDataIt, i = 0](
+                            const std::shared_ptr<AbstractConstraintBase> & constraint,
+                            ConstraintRegistryType /* type */) mutable
+                        {
+                            for (uint8_t j = 0; j < constraint->getSize(); ++j)
+                            {
+                                telemetrySender->registerVariable(
+                                    robotData.logConstraintFieldnames[i++],
+                                    &constraint->lambda_[j]);
+                            }
+                        });
                 }
                 if (engineOptions_->telemetry.enableCommand)
                 {
@@ -1449,7 +1471,8 @@ namespace jiminy
             robotData.statePrev = robotData.state;
         }
 
-        // Lock the telemetry. At this point it is not possible to register new variables.
+        /* Register all engine and robots variables, then lock the telemetry.
+           At this point it is not possible for the user to register new variables. */
         configureTelemetry();
 
         // Log robots

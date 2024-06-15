@@ -871,7 +871,7 @@ namespace boost::serialization
                  ++meshPathIt)
             {
                 const std::string meshPath = meshPathIt->str();
-                if (meshPath.compare(0, packagePrefix.size(), packagePrefix) != 0)
+                if (!meshPath.compare(0, packagePrefix.size(), packagePrefix))
                 {
                     meshPaths.emplace_back(meshPath);
                 }

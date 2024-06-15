@@ -109,7 +109,7 @@ namespace jiminy
         return zeta / (2.0 * M_PI);
     }
 
-    uint64_t AbstractConstraintBase::getDim() const
+    uint64_t AbstractConstraintBase::getSize() const
     {
         return static_cast<uint64_t>(drift_.size());
     }

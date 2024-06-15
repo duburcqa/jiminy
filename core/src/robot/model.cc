@@ -33,8 +33,8 @@
 #include "jiminy/core/constraints/frame_constraint.h"
 #include "jiminy/core/hardware/basic_sensors.h"
 #include "jiminy/core/io/serialization.h"
-#include "jiminy/core/utilities/pinocchio.h"
 #include "jiminy/core/utilities/helpers.h"
+#include "jiminy/core/utilities/pinocchio.h"
 
 #include "jiminy/core/robot/model.h"
 
@@ -861,6 +861,22 @@ namespace jiminy
             // Detach the constraint
             constraintIt->second->detach();
 
+            // Remove log telemetry constraint fieldnames
+            const std::string logConstraintFieldnameFirst =
+                toString("Constraint", getConstraintNodeName(type), constraintName, 0);
+            for (auto logConstraintFieldnamesIt = logConstraintFieldnames_.begin();
+                 logConstraintFieldnamesIt != logConstraintFieldnames_.end();
+                 ++logConstraintFieldnamesIt)
+            {
+                if (*logConstraintFieldnamesIt == logConstraintFieldnameFirst)
+                {
+                    logConstraintFieldnames_.erase(logConstraintFieldnamesIt,
+                                                   logConstraintFieldnamesIt +
+                                                       constraintIt->second->getSize());
+                    break;
+                }
+            }
+
             // Remove the constraint from the holder
             constraintMapPtr->erase(constraintIt);
         }
@@ -1335,10 +1351,13 @@ namespace jiminy
         pinocchioModel_.lowerPositionLimit = positionLimitMin;
         pinocchioModel_.upperPositionLimit = positionLimitMax;
 
+        // Initialize backup joint space acceleration
+        jointSpatialAccelerations_ =
+            MotionVector(pinocchioData_.a.size(), pinocchio::Motion::Zero());
+
         // Refresh all other proxies
         refreshGeometryProxies();
         refreshContactProxies();
-        refreshConstraintProxies();
     }
 
     void Model::refreshGeometryProxies()
@@ -1434,32 +1453,6 @@ namespace jiminy
 
         // Extract the contact frames indices in the model
         contactFrameIndices_ = getFrameIndices(pinocchioModel_, contactFrameNames_);
-    }
-
-    void Model::refreshConstraintProxies()
-    {
-        // Initialize backup joint space acceleration
-        jointSpatialAccelerations_ =
-            MotionVector(pinocchioData_.a.size(), pinocchio::Motion::Zero());
-
-        constraints_.foreach(
-            [&](const std::shared_ptr<AbstractConstraintBase> & constraint,
-                ConstraintNodeType /* node */)
-            {
-                // Reset constraint using neutral configuration and zero velocity
-                constraint->reset(pinocchio::neutral(pinocchioModel_), Eigen::VectorXd::Zero(nv_));
-
-                // Call constraint on neutral position and zero velocity.
-                auto J = constraint->getJacobian();
-
-                // Check dimensions consistency
-                if (J.cols() != pinocchioModel_.nv)
-                {
-                    JIMINY_THROW(
-                        std::logic_error,
-                        "Constraint has inconsistent jacobian and drift (size mismatch).");
-                }
-            });
     }
 
     void Model::setOptions(const GenericConfig & modelOptions)
@@ -1894,5 +1887,28 @@ namespace jiminy
     const std::vector<std::string> & Model::getLogForceExternalFieldnames() const
     {
         return logForceExternalFieldnames_;
+    }
+
+    const std::vector<std::string> & Model::getLogConstraintFieldnames() const
+    {
+        return logConstraintFieldnames_;
+    }
+
+    std::unique_ptr<LockGuardLocal> Model::getLock()
+    {
+        // Make sure that the robot is not already locked
+        if (mutexLocal_->isLocked())
+        {
+            JIMINY_THROW(bad_control_flow,
+                         "Model already locked. Please release it first prior requesting lock.");
+        }
+
+        // Return lock
+        return std::make_unique<LockGuardLocal>(*mutexLocal_);
+    }
+
+    bool Model::getIsLocked() const
+    {
+        return mutexLocal_->isLocked();
     }
 }

@@ -21,6 +21,8 @@ namespace jiminy
     class AbstractConstraintBase;
     class FrameConstraint;
     class JointConstraint;
+    class MutexLocal;
+    class LockGuardLocal;
 
     // ************************************** Constraints ************************************** //
 
@@ -371,6 +373,7 @@ namespace jiminy
         const std::vector<std::string> & getLogAccelerationFieldnames() const;
         const std::vector<std::string> & getLogEffortFieldnames() const;
         const std::vector<std::string> & getLogForceExternalFieldnames() const;
+        const std::vector<std::string> & getLogConstraintFieldnames() const;
 
         void getExtendedPositionFromTheoretical(const Eigen::VectorXd & qTheoretical,
                                                 Eigen::VectorXd & qExtended) const;
@@ -380,6 +383,9 @@ namespace jiminy
                                                 Eigen::VectorXd & qTheoretical) const;
         void getTheoreticalVelocityFromExtended(const Eigen::VectorXd & vExtended,
                                                 Eigen::VectorXd & vTheoretical) const;
+
+        virtual std::unique_ptr<LockGuardLocal> getLock();
+        bool getIsLocked() const;
 
     protected:
         void generateModelExtended(const uniform_random_bit_generator_ref<uint32_t> & g);
@@ -405,8 +411,6 @@ namespace jiminy
 
         void refreshGeometryProxies();
         void refreshContactProxies();
-        /// \brief Refresh the proxies of the kinematics constraints.
-        void refreshConstraintProxies();
         virtual void refreshProxies();
 
     public:
@@ -476,8 +480,12 @@ namespace jiminy
         /// \brief Concatenated fieldnames of the external force applied at each joint of the
         ///        model, 'universe' excluded.
         std::vector<std::string> logForceExternalFieldnames_{};
+        /// \brief Concatenated fieldnames of all the constraints.
+        std::vector<std::string> logConstraintFieldnames_{};
 
     private:
+        std::unique_ptr<MutexLocal> mutexLocal_{std::make_unique<MutexLocal>()};
+
         /// \brief Vector of joints acceleration corresponding to a copy of data.a.
         //         Used for computing constraints as a temporary buffer.
         MotionVector jointSpatialAccelerations_{};
