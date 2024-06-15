@@ -28,15 +28,15 @@ class Rewards(unittest.TestCase):
     """ TODO: Write documentation
     """
     def setUp(self):
-        self.env = gym.make("gym_jiminy.envs:atlas")
-
-        self.env.reset(seed=1)
-        action = self.env.action_space.sample()
+        env = gym.make("gym_jiminy.envs:atlas", debug=True)
+        env.reset(seed=1)
+        action = env.action_space.sample()
         for _ in range(10):
-            self.env.step(action)
-        self.env.stop()
+            env.step(action)
+        env.stop()
+        trajectory = extract_trajectory_from_log(env.log_data)
 
-        trajectory = extract_trajectory_from_log(self.env.log_data)
+        self.env = gym.make("gym_jiminy.envs:atlas")
         self.env.quantities.add_trajectory("reference", trajectory)
         self.env.quantities.select_trajectory("reference")
 

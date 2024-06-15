@@ -9,7 +9,7 @@
 import logging
 from bisect import bisect_right
 from dataclasses import dataclass
-from typing import Optional, Tuple, Sequence, Callable, Literal
+from typing import Dict, Optional, Tuple, Sequence, Callable, Literal
 
 import numpy as np
 
@@ -138,6 +138,13 @@ class State:
     coordinates (Fx, Fy, Fz, Mx, My, Mz).
     """
 
+    lambda_c: Optional[np.ndarray] = None
+    """Lambda multipliers associated with all the constraints as a 2D array.
+
+    The first dimension corresponds to the N individual constraints applied on
+    the robot, while the second gathers the lambda multipliers.
+    """
+
 
 @dataclass(unsafe_hash=True)
 class Trajectory:
@@ -201,12 +208,12 @@ class Trajectory:
         self._index_prev = 0
 
         # List of optional state fields that are provided
-        self._fields: Tuple[str, ...] = ()
         self._has_velocity = False
         self._has_acceleration = False
         self._has_effort = False
         self._has_command = False
         self._has_external_forces = False
+        self._has_constraints = False
         if states:
             state = states[0]
             self._has_velocity = state.v is not None
@@ -214,8 +221,10 @@ class Trajectory:
             self._has_effort = state.u is not None
             self._has_command = state.command is not None
             self._has_external_forces = state.f_external is not None
+            self._has_constraints = state.lambda_c is not None
             self._fields = tuple(
-                field for field in ("v", "a", "u", "command", "f_external")
+                field for field in (
+                    "v", "a", "u", "command", "f_external", "lambda_c")
                 if getattr(state, field) is not None)
 
     @property
@@ -253,6 +262,12 @@ class Trajectory:
         """Whether the trajectory contains external forces.
         """
         return self._has_external_forces
+
+    @property
+    def has_constraints(self) -> bool:
+        """Whether the trajectory contains lambda multipliers of constraints.
+        """
+        return self._has_constraints
 
     @property
     def time_interval(self) -> Tuple[float, float]:

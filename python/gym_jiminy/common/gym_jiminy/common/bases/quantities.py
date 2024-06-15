@@ -29,7 +29,7 @@ import numpy as np
 
 import jiminy_py.core as jiminy
 from jiminy_py.core import (  # pylint: disable=no-name-in-module
-    multi_array_copyto)
+    array_copyto, multi_array_copyto)
 from jiminy_py.dynamics import State, Trajectory, update_quantities
 import pinocchio as pin
 
@@ -936,9 +936,18 @@ class StateQuantity(InterfaceQuantity[State]):
         self.pinocchio_data = env.robot.pinocchio_data
 
         # State for which the quantity must be evaluated
-        self._f_external_slices: Tuple[np.ndarray, ...] = ()
-        self._f_external_list: Tuple[np.ndarray, ...] = ()
+        self._f_external_slices: List[np.ndarray] = []
+        self._f_external_list: List[np.ndarray] = []
         self.state = State(t=np.nan, q=np.array([]))
+
+        # Persistent buffer storing all lambda multipliers for efficiency
+        self._constraint_lambda_all = np.array({})
+
+        # Slices in stacked lambda multiplier flat vector
+        self._constraint_lambda_slices: List[np.ndarray] = []
+
+        # Lambda multipliers of all the constraints individually
+        self._constraint_lambda_list: List[np.ndarray] = []
 
     def initialize(self) -> None:
         # Refresh robot and pinocchio proxies for co-owners of shared cache.
@@ -972,13 +981,14 @@ class StateQuantity(InterfaceQuantity[State]):
         # The quantity will be considered initialized and active at this point.
         super().initialize()
 
-        # State for which the quantity must be evaluated
+        # Define the state for which the quantity must be evaluated
         if self.mode == QuantityEvalMode.TRUE:
+            # Refresh mapping from robot state to quantity buffer
             if not self.env.is_simulation_running:
                 raise RuntimeError("No simulation running. Impossible to "
                                    "initialize this quantity.")
-            self._f_external_list = tuple(
-                f_ext.vector for f_ext in self.env.robot_state.f_external)
+            self._f_external_list = [
+                f_ext.vector for f_ext in self.env.robot_state.f_external]
             if self._f_external_list:
                 f_external_batch = np.stack(self._f_external_list, axis=0)
             else:
@@ -991,7 +1001,37 @@ class StateQuantity(InterfaceQuantity[State]):
                 self.env.robot_state.u,
                 self.env.robot_state.command,
                 f_external_batch)
-            self._f_external_slices = tuple(f_external_batch)
+            self._f_external_slices = list(f_external_batch)
+        else:
+            # Allocate memory for lambda vector
+            self._constraint_lambda_all = np.zeros(
+                (len(self.robot.log_constraint_fieldnames),))
+
+            # Refresh mapping from lambda multipliers to corresponding slice
+            self._constraint_lambda_list.clear()
+            self._constraint_lambda_slices.clear()
+            constraint_lookup_pairs = tuple(
+                (f"Constraint{registry_type}", registry)
+                for registry_type, registry in (
+                    ("BoundJoints", self.robot.constraints.bounds_joints),
+                    ("ContactFrames", self.robot.constraints.contact_frames),
+                    ("CollisionBodies", {
+                        name: constraint for constraints in (
+                            self.robot.constraints.collision_bodies)
+                        for name, constraint in constraints.items()}),
+                    ("User", self.robot.constraints.user)))
+            i = 0
+            while i < len(self.robot.log_constraint_fieldnames):
+                fieldname = self.robot.log_constraint_fieldnames[i]
+                for registry_type, registry in constraint_lookup_pairs:
+                    if fieldname.startswith(registry_type):
+                        break
+                constraint_name = fieldname[len(registry_type):-1]
+                constraint = registry[constraint_name]
+                self._constraint_lambda_list.append(constraint.lambda_c)
+                self._constraint_lambda_slices.append(
+                    self._constraint_lambda_all[i:(i + constraint.size)])
+                i += constraint.size
 
     def refresh(self) -> State:
         """Compute the current state depending on the mode of evaluation, and
@@ -1003,8 +1043,8 @@ class StateQuantity(InterfaceQuantity[State]):
         else:
             self.state = self.trajectory.get()
 
-        # Update all the dynamical quantities that can be given available data
         if self.mode == QuantityEvalMode.REFERENCE:
+            # Update all dynamical quantities that can be given available data
             update_quantities(
                 self.robot,
                 self.state.q,
@@ -1016,6 +1056,11 @@ class StateQuantity(InterfaceQuantity[State]):
                 update_jacobian=False,
                 update_collisions=True,
                 use_theoretical_model=self.trajectory.use_theoretical_model)
+
+            # Restore lagrangian multipliers of the constraints
+            array_copyto(self._constraint_lambda_all, self.state.lambda_c)
+            multi_array_copyto(
+                self._constraint_lambda_list, self._constraint_lambda_slices)
 
         # Return state
         return self.state

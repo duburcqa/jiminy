@@ -54,13 +54,9 @@ def extract_variables_from_log(log_vars: Dict[str, np.ndarray],
     :param fieldnames: Structured fieldnames.
     :param namespace: Namespace of the fieldnames. Empty string to disable.
                       Optional: Empty by default.
-    :param keep_structure: Whether to return a dictionary mapping flattened
-                           fieldnames to values.
-                           Optional: True by default.
-
-    :returns:
-        `np.ndarray` or None for each fieldname individually depending if it is
-        found or not.
+    :param as_dict: Whether to return a dictionary mapping flattened fieldnames
+                    to values.
+                    Optional: True by default.
     """
     # Extract values from log if it exists
     if as_dict:
@@ -238,7 +234,8 @@ def extract_trajectory_from_log(log_data: Dict[str, Any],
                  "acceleration",
                  "effort",
                  "command",
-                 "f_external"):
+                 "f_external",
+                 "constraint"):
         fieldnames = getattr(robot, f"log_{name}_fieldnames")
         try:
             data[name] = extract_variables_from_log(
