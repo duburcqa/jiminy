@@ -1,5 +1,6 @@
 #include <fstream>
 #include <exception>
+#include <unordered_set>
 
 #include "pinocchio/spatial/symmetric3.hpp"                // `pinocchio::Symmetric3 `
 #include "pinocchio/spatial/explog.hpp"                    // `pinocchio::exp3`
@@ -43,16 +44,24 @@ namespace jiminy
 {
     // ************************************** Constraints ************************************** //
 
-    void ConstraintTree::clear() noexcept
+    constexpr std::string_view getConstraintNodeName(ConstraintRegistryType type)
     {
-        boundJoints.clear();
-        contactFrames.clear();
-        collisionBodies.clear();
-        registry.clear();
+        switch (type)
+        {
+        case ConstraintRegistryType::BOUNDS_JOINTS:
+            return "BoundJoints";
+        case ConstraintRegistryType::CONTACT_FRAMES:
+            return "ContactFrames";
+        case ConstraintRegistryType::COLLISION_BODIES:
+            return "CollisionBodies";
+        case ConstraintRegistryType::USER:
+        default:
+            return "User";
+        }
     }
 
     template<typename T>
-    static auto findImpl(T && constraints, const std::string & key, ConstraintNodeType node)
+    static auto findImpl(T && constraints, const std::string & key, ConstraintRegistryType type)
     {
         // Determine return types based on argument constness
         constexpr bool isConst = std::is_const_v<std::remove_reference_t<T>>;
@@ -63,7 +72,7 @@ namespace jiminy
         // Pointers are NOT initialized to nullptr by default
         constraintMapT * constraintMapPtr{nullptr};
         constraintIteratorT constraintIt{};
-        if (node == ConstraintNodeType::COLLISION_BODIES)
+        if (type == ConstraintRegistryType::COLLISION_BODIES)
         {
             for (auto & collisionBody : constraints.collisionBodies)
             {
@@ -80,18 +89,18 @@ namespace jiminy
         }
         else
         {
-            switch (node)
+            switch (type)
             {
-            case ConstraintNodeType::BOUNDS_JOINTS:
+            case ConstraintRegistryType::BOUNDS_JOINTS:
                 constraintMapPtr = &constraints.boundJoints;
                 break;
-            case ConstraintNodeType::CONTACT_FRAMES:
+            case ConstraintRegistryType::CONTACT_FRAMES:
                 constraintMapPtr = &constraints.contactFrames;
                 break;
-            case ConstraintNodeType::USER:
-            case ConstraintNodeType::COLLISION_BODIES:
+            case ConstraintRegistryType::USER:
+            case ConstraintRegistryType::COLLISION_BODIES:
             default:
-                constraintMapPtr = &constraints.registry;
+                constraintMapPtr = &constraints.user;
             }
             constraintIt = std::find_if(constraintMapPtr->begin(),
                                         constraintMapPtr->end(),
@@ -103,88 +112,112 @@ namespace jiminy
     }
 
     std::pair<ConstraintMap *, ConstraintMap::iterator> ConstraintTree::find(
-        const std::string & key, ConstraintNodeType node)
+        const std::string & key, ConstraintRegistryType type)
     {
-        return findImpl(*this, key, node);
+        return findImpl(*this, key, type);
     }
 
     std::pair<const ConstraintMap *, ConstraintMap::const_iterator> ConstraintTree::find(
-        const std::string & key, ConstraintNodeType node) const
+        const std::string & key, ConstraintRegistryType type) const
     {
-        return findImpl(*this, key, node);
+        return findImpl(*this, key, type);
     }
 
-    bool ConstraintTree::exist(const std::string & key, ConstraintNodeType node) const
+    bool ConstraintTree::exist(const std::string & key, ConstraintRegistryType type) const
     {
-        const auto [constraintMapPtr, constraintIt] =
-            const_cast<ConstraintTree *>(this)->find(key, node);
+        const auto [constraintMapPtr, constraintIt] = find(key, type);
         return (constraintMapPtr && constraintIt != constraintMapPtr->cend());
     }
 
-    bool ConstraintTree::exist(const std::string & key) const
-    {
-        for (ConstraintNodeType node : constraintNodeTypesAll)
-        {
-            if (exist(key, node))
-            {
-                return true;
-            }
-        }
-        return false;
-    }
-
     std::shared_ptr<AbstractConstraintBase> ConstraintTree::get(const std::string & key,
-                                                                ConstraintNodeType node) const
+                                                                ConstraintRegistryType type) const
     {
-        auto [constraintMapPtr, constraintIt] = find(key, node);
-        if (constraintMapPtr && constraintIt != constraintMapPtr->cend())
+        auto [constraintMapPtr, constraintIt] = find(key, type);
+        if (constraintMapPtr && constraintIt == constraintMapPtr->end())
         {
-            return constraintIt->second;
+            JIMINY_THROW(std::invalid_argument,
+                         "No constraint named '",
+                         key,
+                         "' exists in registry '",
+                         getConstraintNodeName(type),
+                         "'.");
         }
-        return {};
+        return constraintIt->second;
     }
 
-    std::shared_ptr<AbstractConstraintBase> ConstraintTree::get(const std::string & key) const
+    void ConstraintTree::insert(const ConstraintMap & constraintMap, ConstraintRegistryType type)
     {
-        std::shared_ptr<AbstractConstraintBase> constraint;
-        for (ConstraintNodeType node : constraintNodeTypesAll)
+        // Make sure that all constraints are properly defined and their names do not already exist
+        std::unordered_set<std::string> keys;
+        for (const auto & [constraintName, constraintPtr] : constraintMap)
         {
-            constraint = get(key, node);
-            if (constraint)
+            if (!constraintPtr)
             {
-                break;
+                JIMINY_THROW(std::invalid_argument,
+                             "Constraint named '",
+                             constraintName,
+                             "' is undefined.");
             }
-        }
-        return constraint;
-    }
 
-    void ConstraintTree::insert(const ConstraintMap & constraintMap, ConstraintNodeType node)
-    {
-        switch (node)
+            if (exist(constraintName, type))
+            {
+                JIMINY_THROW(std::invalid_argument,
+                             "A constraint named '",
+                             constraintName,
+                             "' already exists in registry '",
+                             getConstraintNodeName(type),
+                             "'.");
+            }
+
+            keys.insert(constraintName);
+        }
+
+        // Make sure that all constraints have a unique name
+        if (keys.size() != constraintMap.size())
         {
-        case ConstraintNodeType::BOUNDS_JOINTS:
+            JIMINY_THROW(std::invalid_argument,
+                         "Impossible to insert constraints with duplicate names.");
+        }
+
+        switch (type)
+        {
+        case ConstraintRegistryType::BOUNDS_JOINTS:
             boundJoints.insert(boundJoints.end(), constraintMap.begin(), constraintMap.end());
             break;
-        case ConstraintNodeType::CONTACT_FRAMES:
+        case ConstraintRegistryType::CONTACT_FRAMES:
             contactFrames.insert(contactFrames.end(), constraintMap.begin(), constraintMap.end());
             break;
-        case ConstraintNodeType::COLLISION_BODIES:
+        case ConstraintRegistryType::COLLISION_BODIES:
             collisionBodies.push_back(constraintMap);
             break;
-        case ConstraintNodeType::USER:
+        case ConstraintRegistryType::USER:
         default:
-            registry.insert(registry.end(), constraintMap.begin(), constraintMap.end());
+            user.insert(user.end(), constraintMap.begin(), constraintMap.end());
         }
     }
 
-    ConstraintMap::iterator ConstraintTree::erase(const std::string & key, ConstraintNodeType node)
+    ConstraintMap::iterator ConstraintTree::erase(const std::string & key,
+                                                  ConstraintRegistryType type)
     {
-        auto [constraintMapPtr, constraintIt] = find(key, node);
-        if (constraintMapPtr && constraintIt != constraintMapPtr->end())
+        auto [constraintMapPtr, constraintIt] = find(key, type);
+        if (constraintMapPtr && constraintIt == constraintMapPtr->end())
         {
-            return constraintMapPtr->erase(constraintIt);
+            JIMINY_THROW(std::invalid_argument,
+                         "No constraint named '",
+                         key,
+                         "' exists in registry '",
+                         getConstraintNodeName(type),
+                         "'.");
         }
-        return constraintMapPtr->end();
+        return constraintMapPtr->erase(constraintIt);
+    }
+
+    void ConstraintTree::clear() noexcept
+    {
+        boundJoints.clear();
+        contactFrames.clear();
+        collisionBodies.clear();
+        user.clear();
     }
 
     // ***************************************** Model ***************************************** //
@@ -324,7 +357,7 @@ namespace jiminy
                 jointConstraintsMap.emplace_back(jointName,
                                                  std::make_shared<JointConstraint>(jointName));
             }
-            addConstraints(jointConstraintsMap, ConstraintNodeType::BOUNDS_JOINTS);
+            addConstraints(jointConstraintsMap, ConstraintRegistryType::BOUNDS_JOINTS);
         }
         catch (...)
         {
@@ -391,6 +424,14 @@ namespace jiminy
            frame to another frame. This means that the relative transform of the frame wrt the
            parent joint must be computed. */
 
+        // Make sure that no simulation is already running
+        if (getIsLocked())
+        {
+            JIMINY_THROW(bad_control_flow,
+                         "Model already locked, probably because a simulation is running. "
+                         "Please stop it before adding frames.");
+        }
+
         // Check that no frame with the same name already exists
         if (pinocchioModelTh_.existFrame(frameName))
         {
@@ -440,6 +481,14 @@ namespace jiminy
     void Model::removeFrames(const std::vector<std::string> & frameNames,
                              const std::vector<pinocchio::FrameType> & filter)
     {
+        // Make sure that no simulation is already running
+        if (getIsLocked())
+        {
+            JIMINY_THROW(bad_control_flow,
+                         "Model already locked, probably because a simulation is running. "
+                         "Please stop it before removing frames.");
+        }
+
         /* Check that the frame can be safely removed from the theoretical model.
            If so, then it holds true for the extended model. */
         if (!filter.empty())
@@ -500,9 +549,18 @@ namespace jiminy
 
     void Model::addCollisionBodies(const std::vector<std::string> & bodyNames, bool ignoreMeshes)
     {
+        // Make sure that the model is initialized
         if (!isInitialized_)
         {
             JIMINY_THROW(bad_control_flow, "Model not initialized.");
+        }
+
+        // Make sure that no simulation is already running
+        if (getIsLocked())
+        {
+            JIMINY_THROW(bad_control_flow,
+                         "Model already locked, probably because a simulation is running. "
+                         "Please stop it before adding collision bodies.");
         }
 
         // Returning early if nothing to do
@@ -541,83 +599,93 @@ namespace jiminy
             }
         }
 
-        // Make sure that at least one geometry is associated with each body
-        for (const std::string & name : bodyNames)
+        /* Create the collision pairs and add them to the geometry model of the robot,
+           after checking first that at least one geometry is associated with each body. */
+        for (bool isDryRun : std::array{true, false})
         {
-            bool hasGeometry = false;
-            for (const pinocchio::GeometryObject & geom : collisionModelTh_.geometryObjects)
+            const pinocchio::GeomIndex & groundIndex = collisionModelTh_.getGeometryId("ground");
+            for (const std::string & name : bodyNames)
             {
-                const bool isGeomMesh = (geom.meshPath.find('/') != std::string::npos ||
-                                         geom.meshPath.find('\\') != std::string::npos);
-                // geom.meshPath is the geometry type if it is not an actual mesh
-                if (!(ignoreMeshes && isGeomMesh) &&
-                    pinocchioModel_.frames[geom.parentFrame].name == name)
+                bool hasGeometry = false;
+                ConstraintMap collisionConstraintsMap;
+
+                // Add a collision pair for all geometries having the body as parent
+                for (std::size_t i = 0; i < collisionModelTh_.geometryObjects.size(); ++i)
                 {
-                    hasGeometry = true;
-                    break;
+                    const pinocchio::GeometryObject & geom = collisionModelTh_.geometryObjects[i];
+                    // geom.meshPath is the geometry type if it is not an actual mesh
+                    const bool isGeomMesh = (geom.meshPath.find('/') != std::string::npos ||
+                                             geom.meshPath.find('\\') != std::string::npos);
+                    const std::string & frameName = pinocchioModel_.frames[geom.parentFrame].name;
+                    if (!(ignoreMeshes && isGeomMesh) && frameName == name)
+                    {
+                        // Add constraint associated with contact frame only if it is a sphere
+                        const hpp::fcl::CollisionGeometry & shape = *geom.geometry;
+                        if (shape.getNodeType() == hpp::fcl::GEOM_SPHERE)
+                        {
+                            // A valid geometry has been found
+                            hasGeometry = true;
+
+                            // Early return if dry run
+                            if (isDryRun)
+                            {
+                                break;
+                            }
+
+                            /* Create and add the collision pair with the ground.
+                            Note that the ground always comes second for the normal to be
+                            consistently compute wrt the ground instead of the body. */
+                            const pinocchio::CollisionPair collisionPair(i, groundIndex);
+                            collisionModelTh_.addCollisionPair(collisionPair);
+
+                            /* Add dedicated frame.
+                            Note that 'FIXED_JOINT' type is used instead of default 'OP_FRAME' to
+                            avoid considering it as manually added to the model, and therefore
+                            prevent its deletion by the user. */
+                            const pinocchio::FrameType frameType =
+                                pinocchio::FrameType::FIXED_JOINT;
+                            addFrame(geom.name, frameName, geom.placement, frameType);
+
+                            // Add fixed frame constraint of bounded sphere
+                            // const hpp::fcl::Sphere & sphere =
+                            //     static_cast<const hpp::fcl::Sphere &>(shape);
+                            // collisionConstraintsMap.emplace_back(
+                            //     geom.name,
+                            //     std::make_shared<SphereConstraint>(geom.name, sphere.radius));
+                            collisionConstraintsMap.emplace_back(
+                                geom.name,
+                                std::make_shared<FrameConstraint>(
+                                    geom.name, std::array{true, true, true, false, false, true}));
+                        }
+                        else
+                        {
+                            JIMINY_WARNING("Geometry object has been ignored because its type is "
+                                           "unsupported for now.");
+                        }
+                    }
                 }
-            }
-            if (!hasGeometry)
-            {
-                JIMINY_THROW(std::invalid_argument,
-                             "At least one of the bodies not associated with any collision "
-                             "geometry of requested type.");
+
+                // Make sure that at least one geometry is associated with each body
+                if (!hasGeometry)
+                {
+                    JIMINY_THROW(std::invalid_argument,
+                                 "Body '",
+                                 name,
+                                 "' not associated with any collision "
+                                 "geometry of a supported type.");
+                }
+
+                // Add constraints map if not dry run
+                if (!isDryRun)
+                {
+                    addConstraints(collisionConstraintsMap,
+                                   ConstraintRegistryType::COLLISION_BODIES);
+                }
             }
         }
 
         // Add the list of bodies to the set of collision bodies
         collisionBodyNames_.insert(collisionBodyNames_.end(), bodyNames.begin(), bodyNames.end());
-
-        // Create the collision pairs and add them to the geometry model of the robot
-        const pinocchio::GeomIndex & groundIndex = collisionModelTh_.getGeometryId("ground");
-        for (const std::string & name : bodyNames)
-        {
-            // Add a collision pair for all geometries having the body as parent
-            ConstraintMap collisionConstraintsMap;
-            for (std::size_t i = 0; i < collisionModelTh_.geometryObjects.size(); ++i)
-            {
-                const pinocchio::GeometryObject & geom = collisionModelTh_.geometryObjects[i];
-                const bool isGeomMesh = (geom.meshPath.find('/') != std::string::npos ||
-                                         geom.meshPath.find('\\') != std::string::npos);
-                const std::string & frameName = pinocchioModel_.frames[geom.parentFrame].name;
-                if (!(ignoreMeshes && isGeomMesh) && frameName == name)
-                {
-                    // Add constraint associated with contact frame only if it is a sphere
-                    const hpp::fcl::CollisionGeometry & shape = *geom.geometry;
-                    if (shape.getNodeType() == hpp::fcl::GEOM_SPHERE)
-                    {
-                        /* Create and add the collision pair with the ground.
-                           Note that the ground always comes second for the normal to be
-                           consistently compute wrt the ground instead of the body. */
-                        const pinocchio::CollisionPair collisionPair(i, groundIndex);
-                        collisionModelTh_.addCollisionPair(collisionPair);
-
-                        /* Add dedicated frame.
-                           Note that 'FIXED_JOINT' type is used instead of default 'OP_FRAME' to
-                           avoid considering it as manually added to the model, and therefore
-                           prevent its deletion by the user. */
-                        const pinocchio::FrameType frameType = pinocchio::FrameType::FIXED_JOINT;
-                        addFrame(geom.name, frameName, geom.placement, frameType);
-
-                        // Add fixed frame constraint of bounded sphere
-                        // const hpp::fcl::Sphere & sphere =
-                        //     static_cast<const hpp::fcl::Sphere &>(shape);
-                        // collisionConstraintsMap.emplace_back(
-                        //     geom.name,
-                        //     std::make_shared<SphereConstraint>(geom.name, sphere.radius));
-                        collisionConstraintsMap.emplace_back(
-                            geom.name,
-                            std::make_shared<FrameConstraint>(
-                                geom.name, std::array{true, true, true, false, false, true}));
-                    }
-
-                    // TODO: Add warning or error to notify that a geometry has been ignored
-                }
-            }
-
-            // Add constraints map
-            addConstraints(collisionConstraintsMap, ConstraintNodeType::COLLISION_BODIES);
-        }
 
         // Refresh proxies associated with the collisions only
         refreshGeometryProxies();
@@ -625,9 +693,18 @@ namespace jiminy
 
     void Model::removeCollisionBodies(std::vector<std::string> bodyNames)
     {
+        // Make sure that the model is initialized
         if (!isInitialized_)
         {
             JIMINY_THROW(bad_control_flow, "Model not initialized.");
+        }
+
+        // Make sure that no simulation is already running
+        if (getIsLocked())
+        {
+            JIMINY_THROW(bad_control_flow,
+                         "Model already locked, probably because a simulation is running. "
+                         "Please stop it before removing collision bodies.");
         }
 
         // Make sure that no body are duplicates
@@ -676,7 +753,7 @@ namespace jiminy
                     collisionModelTh_.removeCollisionPair(collisionPair);
 
                     // Append collision geometry to the list of constraints to remove
-                    if (constraints_.exist(geom.name, ConstraintNodeType::COLLISION_BODIES))
+                    if (constraints_.exist(geom.name, ConstraintRegistryType::COLLISION_BODIES))
                     {
                         collisionConstraintNames.emplace_back(geom.name);
                     }
@@ -685,7 +762,7 @@ namespace jiminy
         }
 
         // Remove the constraints and associated frames
-        removeConstraints(collisionConstraintNames, ConstraintNodeType::COLLISION_BODIES);
+        removeConstraints(collisionConstraintNames, ConstraintRegistryType::COLLISION_BODIES);
         removeFrames(collisionConstraintNames, {pinocchio::FrameType::FIXED_JOINT});
 
         // Refresh proxies associated with the collisions only
@@ -694,9 +771,18 @@ namespace jiminy
 
     void Model::addContactPoints(const std::vector<std::string> & frameNames)
     {
+        // Make sure that the model is initialized
         if (!isInitialized_)
         {
             JIMINY_THROW(bad_control_flow, "Model not initialized.");
+        }
+
+        // Make sure that no simulation is already running
+        if (getIsLocked())
+        {
+            JIMINY_THROW(bad_control_flow,
+                         "Model already locked, probably because a simulation is running. "
+                         "Please stop it before adding contact points.");
         }
 
         // Make sure that no frame are duplicates
@@ -734,7 +820,7 @@ namespace jiminy
                 std::make_shared<FrameConstraint>(
                     frameName, std::array{true, true, true, false, false, true}));
         }
-        addConstraints(frameConstraintsMap, ConstraintNodeType::CONTACT_FRAMES);
+        addConstraints(frameConstraintsMap, ConstraintRegistryType::CONTACT_FRAMES);
 
         // Refresh proxies associated with contacts and constraints
         refreshContactProxies();
@@ -742,9 +828,18 @@ namespace jiminy
 
     void Model::removeContactPoints(const std::vector<std::string> & frameNames)
     {
+        // Make sure that the model is initialized
         if (!isInitialized_)
         {
             JIMINY_THROW(bad_control_flow, "Model not initialized.");
+        }
+
+        // Make sure that no simulation is already running
+        if (getIsLocked())
+        {
+            JIMINY_THROW(bad_control_flow,
+                         "Model already locked, probably because a simulation is running. "
+                         "Please stop it before removing contact points.");
         }
 
         // Make sure that no frame are duplicates
@@ -764,12 +859,12 @@ namespace jiminy
            the set of contact frames. */
         if (!frameNames.empty())
         {
-            removeConstraints(frameNames, ConstraintNodeType::CONTACT_FRAMES);
+            removeConstraints(frameNames, ConstraintRegistryType::CONTACT_FRAMES);
             eraseVector(contactFrameNames_, frameNames);
         }
         else
         {
-            removeConstraints(contactFrameNames_, ConstraintNodeType::CONTACT_FRAMES);
+            removeConstraints(contactFrameNames_, ConstraintRegistryType::CONTACT_FRAMES);
             contactFrameNames_.clear();
         }
 
@@ -777,78 +872,92 @@ namespace jiminy
         refreshContactProxies();
     }
 
-    void Model::addConstraints(const ConstraintMap & constraintMap, ConstraintNodeType node)
+    void Model::addConstraints(const ConstraintMap & constraintMap, ConstraintRegistryType type)
     {
-        // Check if constraint is properly defined and not already exists
-        for (const auto & [constraintName, constraintPtr] : constraintMap)
+        // Make sure that no simulation is already running
+        if (getIsLocked())
         {
-            if (!constraintPtr)
-            {
-                JIMINY_THROW(std::invalid_argument,
-                             "Constraint named '",
-                             constraintName,
-                             "' is undefined.");
-            }
-            if (constraints_.exist(constraintName))
-            {
-                JIMINY_THROW(std::invalid_argument,
-                             "A constraint named '",
-                             constraintName,
-                             "' already exists.");
-            }
+            JIMINY_THROW(bad_control_flow,
+                         "Model already locked, probably because a simulation is running. "
+                         "Please stop it before adding constraints.");
         }
 
-        // Attach constraint if not already exist
+        // Add constraints to registry
+        constraints_.insert(constraintMap, type);
+
+        // Attach constraint
         for (auto & constraintPair : constraintMap)
         {
             constraintPair.second->attach(shared_from_this());
         }
 
-        // Add them to constraints holder
-        constraints_.insert(constraintMap, node);
-
-        // Disable internal constraint by default if internal
-        if (node != ConstraintNodeType::USER)
+        // Loop over all constraints
+        Eigen::VectorXd qNeutral = pinocchio::neutral(pinocchioModel_);
+        for (auto & [constraintName, constraint] : constraintMap)
         {
-            for (auto & constraintItem : constraintMap)
+            // Reset constraint using neutral configuration and zero velocity
+            constraint->reset(qNeutral, Eigen::VectorXd::Zero(nv_));
+
+            // Call constraint on neutral position and zero velocity.
+            auto J = constraint->getJacobian();
+
+            // Check dimensions consistency
+            if (J.cols() != pinocchioModel_.nv)
             {
-                constraintItem.second->disable();
+                JIMINY_THROW(std::logic_error,
+                             "Constraint has inconsistent jacobian and drift (size mismatch).");
+            }
+
+            // Append log telemetry constraint fieldnames
+            for (uint32_t j = 0; j < constraint->getSize(); ++j)
+            {
+                logConstraintFieldnames_.push_back(
+                    toString("Constraint", getConstraintNodeName(type), constraintName, j));
+            }
+
+            // Disable constraint by default if internal
+            if (type != ConstraintRegistryType::USER)
+            {
+                constraint->disable();
             }
         }
     }
 
     void Model::addConstraint(const std::string & constraintName,
                               const std::shared_ptr<AbstractConstraintBase> & constraint,
-                              ConstraintNodeType node)
+                              ConstraintRegistryType type)
     {
-        return addConstraints({{constraintName, constraint}}, node);
+        return addConstraints({{constraintName, constraint}}, type);
     }
 
     void Model::addConstraint(const std::string & constraintName,
                               const std::shared_ptr<AbstractConstraintBase> & constraint)
     {
-        return addConstraint(constraintName, constraint, ConstraintNodeType::USER);
+        return addConstraint(constraintName, constraint, ConstraintRegistryType::USER);
     }
 
     void Model::removeConstraints(const std::vector<std::string> & constraintNames,
-                                  ConstraintNodeType node)
+                                  ConstraintRegistryType type)
     {
-        // Make sure the constraints exists
+        // Make sure that no simulation is already running
+        if (getIsLocked())
+        {
+            JIMINY_THROW(bad_control_flow,
+                         "Model already locked, probably because a simulation is running. "
+                         "Please stop it before removing constraints.");
+        }
+
+        // Make sure all constraints exist
         for (const std::string & constraintName : constraintNames)
         {
-            if (!constraints_.exist(constraintName, node))
+            if (!constraints_.exist(constraintName, type))
             {
-                if (node == ConstraintNodeType::USER)
-                {
-                    JIMINY_THROW(std::invalid_argument,
-                                 "No user-registered constraint with name '",
-                                 constraintName,
-                                 "' exists.");
-                }
                 JIMINY_THROW(std::invalid_argument,
-                             "No internal constraint with name '",
+                             "No constraint named '",
                              constraintName,
-                             "' exists.");
+                             "' exists in registry '",
+                             getConstraintNodeName(type),
+                             "'.");
             }
         }
 
@@ -856,7 +965,7 @@ namespace jiminy
         for (const std::string & constraintName : constraintNames)
         {
             // Lookup constraint
-            auto [constraintMapPtr, constraintIt] = constraints_.find(constraintName, node);
+            auto [constraintMapPtr, constraintIt] = constraints_.find(constraintName, type);
 
             // Detach the constraint
             constraintIt->second->detach();
@@ -882,50 +991,19 @@ namespace jiminy
         }
     }
 
-    void Model::removeConstraint(const std::string & constraintName, ConstraintNodeType node)
+    void Model::removeConstraint(const std::string & constraintName, ConstraintRegistryType type)
     {
-        return removeConstraints({constraintName}, node);
+        return removeConstraints({constraintName}, type);
     }
 
     void Model::removeConstraint(const std::string & constraintName)
     {
-        return removeConstraint(constraintName, ConstraintNodeType::USER);
-    }
-
-    std::shared_ptr<AbstractConstraintBase> Model::getConstraint(
-        const std::string & constraintName)
-    {
-        std::shared_ptr<AbstractConstraintBase> constraint = constraints_.get(constraintName);
-        if (!constraint)
-        {
-            JIMINY_THROW(
-                std::invalid_argument, "No constraint with name '", constraintName, "' exists.");
-        }
-        return constraint;
-    }
-
-    std::weak_ptr<const AbstractConstraintBase> Model::getConstraint(
-        const std::string & constraintName) const
-    {
-        std::weak_ptr<const AbstractConstraintBase> constraint =
-            std::const_pointer_cast<const AbstractConstraintBase>(
-                const_cast<ConstraintTree &>(constraints_).get(constraintName));
-        if (!constraint.lock())
-        {
-            JIMINY_THROW(
-                std::invalid_argument, "No constraint with name '", constraintName, "' exists.");
-        }
-        return constraint;
+        return removeConstraint(constraintName, ConstraintRegistryType::USER);
     }
 
     const ConstraintTree & Model::getConstraints() const
     {
         return constraints_;
-    }
-
-    bool Model::existConstraint(const std::string & constraintName) const
-    {
-        return constraints_.exist(constraintName);
     }
 
     bool Model::hasConstraints() const
@@ -935,7 +1013,7 @@ namespace jiminy
             .foreach(
                 [&hasConstraintsEnabled](
                     const std::shared_ptr<AbstractConstraintBase> & constraint,
-                    ConstraintNodeType /* node */)
+                    ConstraintRegistryType /* type */)
                 {
                     if (constraint->getIsEnabled())
                     {
@@ -947,14 +1025,23 @@ namespace jiminy
 
     void Model::resetConstraints(const Eigen::VectorXd & q, const Eigen::VectorXd & v)
     {
-        constraints_.foreach([&q, &v](const std::shared_ptr<AbstractConstraintBase> & constraint,
-                                      ConstraintNodeType /* node */) { constraint->reset(q, v); });
+        // Make sure that no simulation is already running
+        if (getIsLocked())
+        {
+            JIMINY_THROW(bad_control_flow,
+                         "Model already locked, probably because a simulation is running. "
+                         "Please stop it before resetting constraints.");
+        }
 
-        constraints_.foreach(std::array{ConstraintNodeType::BOUNDS_JOINTS,
-                                        ConstraintNodeType::CONTACT_FRAMES,
-                                        ConstraintNodeType::COLLISION_BODIES},
+        constraints_.foreach([&q, &v](const std::shared_ptr<AbstractConstraintBase> & constraint,
+                                      ConstraintRegistryType /* type */)
+                             { constraint->reset(q, v); });
+
+        constraints_.foreach(std::array{ConstraintRegistryType::BOUNDS_JOINTS,
+                                        ConstraintRegistryType::CONTACT_FRAMES,
+                                        ConstraintRegistryType::COLLISION_BODIES},
                              [](const std::shared_ptr<AbstractConstraintBase> & constraint,
-                                ConstraintNodeType /* node */) { constraint->disable(); });
+                                ConstraintRegistryType /* type */) { constraint->disable(); });
     }
 
     void Model::generateModelExtended(const uniform_random_bit_generator_ref<uint32_t> & g)
@@ -1182,7 +1269,7 @@ namespace jiminy
         // Compute sequentially the jacobian and drift of each enabled constraint
         constraints_.foreach(
             [&](const std::shared_ptr<AbstractConstraintBase> & constraint,
-                ConstraintNodeType /* node */)
+                ConstraintRegistryType /* type */)
             {
                 // Skip constraint if disabled
                 if (!constraint || !constraint->getIsEnabled())

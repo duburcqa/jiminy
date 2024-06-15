@@ -675,14 +675,15 @@ namespace boost::serialization
 
         /* Copy the theoretical model then remove extra collision frames.
            Note that `removeCollisionBodies` is not called to avoid altering the robot. */
-        pinocchio::Model pinocchioModelTh = model.pinocchioModelTh_;
         std::vector<std::string> collisionConstraintNames;
+        const ConstraintTree & constraints = model.getConstraints();
+        pinocchio::Model pinocchioModelTh = model.pinocchioModelTh_;
         for (const std::string & name : model.getCollisionBodyNames())
         {
             for (const pinocchio::GeometryObject & geom : model.collisionModelTh_.geometryObjects)
             {
                 if (model.pinocchioModel_.frames[geom.parentFrame].name == name &&
-                    model.getConstraints().exist(geom.name, ConstraintNodeType::COLLISION_BODIES))
+                    constraints.exist(geom.name, ConstraintRegistryType::COLLISION_BODIES))
                 {
                     const pinocchio::FrameIndex frameIndex =
                         getFrameIndex(pinocchioModelTh, geom.name);
@@ -749,15 +750,14 @@ namespace boost::serialization
            all constraints manually in order to serialize the one for which it works, and just
            print warning and move on when it is not. */
         const std::shared_ptr<AbstractConstraintBase> dummyConstraintPtr{};
-        const ConstraintMap & constraintRegistry = model.getConstraints().registry;
-        std::size_t constraintRegistryLength = constraintRegistry.size();
-        ar << make_nvp("user_constraints_length", constraintRegistryLength);
-        for (std::size_t i = 0; i < constraintRegistryLength; ++i)
+        std::size_t numUserConstraints = constraints.user.size();
+        ar << make_nvp("num_user_constraints", numUserConstraints);
+        for (std::size_t i = 0; i < numUserConstraints; ++i)
         {
             /* Note that it is not possible to serialize `std::pair` directly because serialization
             failure of the motor would corrupt the whole archive state with half-backed data. */
             const std::string name = toString("constraint_", i);
-            const auto & [constraintName, constraintPtr] = constraintRegistry[i];
+            const auto & [constraintName, constraintPtr] = constraints.user[i];
             ar << make_nvp(toString(name, "_name").c_str(), constraintName);
             try
             {
@@ -767,7 +767,7 @@ namespace boost::serialization
             {
                 ar << make_nvp(toString(name, "_ptr").c_str(), dummyConstraintPtr);
                 JIMINY_WARNING("Failed to serialize constraint '",
-                               constraintRegistry[i].first,
+                               constraints.user[i].first,
                                "'. It will be missing when loading the robot from log."
                                "\nRaised from exception: ",
                                e.what());
@@ -984,9 +984,9 @@ namespace boost::serialization
         model.addContactPoints(contactFrameNames);
 
         // Restore user-specified constraints
-        std::size_t constraintRegistryLength;
-        ar >> make_nvp("user_constraints_length", constraintRegistryLength);
-        for (std::size_t i = 0; i < constraintRegistryLength; ++i)
+        std::size_t numUserConstraints;
+        ar >> make_nvp("num_user_constraints", numUserConstraints);
+        for (std::size_t i = 0; i < numUserConstraints; ++i)
         {
             std::string constraintName;
             std::shared_ptr<AbstractConstraintBase> constraintPtr;

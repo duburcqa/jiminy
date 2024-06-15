@@ -1256,10 +1256,10 @@ namespace jiminy
                 [&contactModel = contactModel_,
                  &freq = engineOptions_->contacts.stabilizationFreq](
                     const std::shared_ptr<AbstractConstraintBase> & constraint,
-                    ConstraintNodeType node)
+                    ConstraintRegistryType type)
                 {
                     // Set baumgarte freq for all contact constraints
-                    if (node != ConstraintNodeType::USER)
+                    if (type != ConstraintRegistryType::USER)
                     {
                         constraint->setBaumgarteFreq(freq);  // It cannot fail
                     }
@@ -1267,20 +1267,20 @@ namespace jiminy
                     // Enable constraints by default
                     if (contactModel == ContactModelType::CONSTRAINT)
                     {
-                        switch (node)
+                        switch (type)
                         {
-                        case ConstraintNodeType::BOUNDS_JOINTS:
+                        case ConstraintRegistryType::BOUNDS_JOINTS:
                         {
                             auto & jointConstraint =
                                 static_cast<JointConstraint &>(*constraint.get());
                             jointConstraint.setRotationDir(false);
                         }
                             [[fallthrough]];
-                        case ConstraintNodeType::CONTACT_FRAMES:
-                        case ConstraintNodeType::COLLISION_BODIES:
+                        case ConstraintRegistryType::CONTACT_FRAMES:
+                        case ConstraintRegistryType::COLLISION_BODIES:
                             constraint->enable();
                             break;
-                        case ConstraintNodeType::USER:
+                        case ConstraintRegistryType::USER:
                         default:
                             break;
                         }
@@ -3738,12 +3738,12 @@ namespace jiminy
             // Restore contact frame forces and bounds internal efforts
             const ConstraintTree & constraints = robot->getConstraints();
             constraints.foreach(
-                ConstraintNodeType::BOUNDS_JOINTS,
+                ConstraintRegistryType::BOUNDS_JOINTS,
                 [&u = robotData.state.u,
                  &uInternal = robotData.state.uInternal,
                  &joints = const_cast<pinocchio::Model::JointModelVector &>(model.joints)](
                     const std::shared_ptr<AbstractConstraintBase> & constraint,
-                    ConstraintNodeType /* node */)
+                    ConstraintRegistryType /* type */)
                 {
                     if (!constraint->getIsEnabled())
                     {
@@ -3794,9 +3794,9 @@ namespace jiminy
             }
 
             constraints.foreach(
-                ConstraintNodeType::COLLISION_BODIES,
+                ConstraintRegistryType::COLLISION_BODIES,
                 [&fext, &model, &data](const std::shared_ptr<AbstractConstraintBase> & constraint,
-                                       ConstraintNodeType /* node */)
+                                       ConstraintRegistryType /* type */)
                 {
                     if (!constraint->getIsEnabled())
                     {

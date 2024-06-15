@@ -594,7 +594,7 @@ namespace jiminy
 
             // Check if constraint a joint bounds constraint exist
             const bool hasConstraint =
-                constraints_.exist(backlashName, ConstraintNodeType::BOUNDS_JOINTS);
+                constraints_.exist(backlashName, ConstraintRegistryType::BOUNDS_JOINTS);
 
             // Skip adding joint if no backlash
             const double backlash = motor->getBacklash();
@@ -603,7 +603,7 @@ namespace jiminy
                 // Remove joint bounds constraint if any
                 if (hasConstraint)
                 {
-                    removeConstraint(backlashName, ConstraintNodeType::BOUNDS_JOINTS);
+                    removeConstraint(backlashName, ConstraintRegistryType::BOUNDS_JOINTS);
                 }
 
                 continue;
@@ -614,7 +614,7 @@ namespace jiminy
             {
                 std::shared_ptr<AbstractConstraintBase> constraint =
                     std::make_shared<JointConstraint>(backlashName);
-                addConstraint(backlashName, constraint, ConstraintNodeType::BOUNDS_JOINTS);
+                addConstraint(backlashName, constraint, ConstraintRegistryType::BOUNDS_JOINTS);
             }
 
             // Add backlash joint to the model
