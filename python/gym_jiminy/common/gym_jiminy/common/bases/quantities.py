@@ -471,7 +471,7 @@ class InterfaceQuantity(ABC, Generic[ValueT]):
         if (not ignore_auto_refresh and self.auto_refresh and
                 not self.has_cache):
             raise RuntimeError(
-                "Automatic refresh enabled but no shared cache available. "
+                "Automatic refresh enabled but no shared cache is available. "
                 "Please add one before calling this method.")
 
         # Reset all requirements first
@@ -994,7 +994,7 @@ class StateQuantity(InterfaceQuantity[State]):
             else:
                 f_external_batch = np.array([])
             self.state = State(
-                self.env.stepper_state.t,
+                0.0,
                 self.env.robot_state.q,
                 self.env.robot_state.v,
                 self.env.robot_state.a,
@@ -1039,6 +1039,7 @@ class StateQuantity(InterfaceQuantity[State]):
         """
         # Update state at which the quantity must be evaluated
         if self.mode == QuantityEvalMode.TRUE:
+            self.state.t = self.env.stepper_state.t
             multi_array_copyto(self._f_external_slices, self._f_external_list)
         else:
             self.state = self.trajectory.get()

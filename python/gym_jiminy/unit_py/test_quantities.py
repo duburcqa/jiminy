@@ -309,8 +309,10 @@ class Quantities(unittest.TestCase):
             env.quantities["ref"] = quantity_creator(
                 QuantityEvalMode.REFERENCE)
 
+            # No trajectory has been selected
             with self.assertRaises(RuntimeError):
                 env.reset(seed=0)
+                env.quantities["ref"]
 
             env.quantities.add_trajectory("reference", trajectory)
             env.quantities.select_trajectory("reference")

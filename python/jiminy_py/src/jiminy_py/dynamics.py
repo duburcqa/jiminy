@@ -7,9 +7,9 @@
 """
 # pylint: disable=invalid-name,no-member
 import logging
-from bisect import bisect_right
+from bisect import bisect_left
 from dataclasses import dataclass
-from typing import Dict, Optional, Tuple, Sequence, Callable, Literal
+from typing import Optional, Tuple, Sequence, Callable, Literal
 
 import numpy as np
 
@@ -205,7 +205,7 @@ class Trajectory:
 
         # Keep track of last request to speed up nearest neighbors search
         self._t_prev = 0.0
-        self._index_prev = 0
+        self._index_prev = 1
 
         # List of optional state fields that are provided
         self._has_velocity = False
@@ -318,14 +318,20 @@ class Trajectory:
         else:
             t = max(t, t_start)  # Clipping right it is sufficient
 
-        # Get nearest neighbors timesteps for linear interpolation
+        # Get nearest neighbors timesteps for linear interpolation.
+        # Note that the left and right data points may be associated with the
+        # same timestamp, corresponding respectively t- and t+. These values
+        # are different for quantities that may change discontinuously such as
+        # the acceleration. If the state at such a timestamp is requested, then
+        # returning the left value is preferred, because it corresponds to the
+        # only state that was accessible to the user, ie after call `step`.
         if t < self._t_prev:
-            self._index_prev = 0
-        self._index_prev = bisect_right(
+            self._index_prev = 1
+        self._index_prev = bisect_left(
             self._times, t, self._index_prev, len(self._times) - 1)
         self._t_prev = t
 
-        # Skip interpolation if not necessary
+        # Skip interpolation if not necessary.
         index_left, index_right = self._index_prev - 1, self._index_prev
         t_left, s_left = self._times[index_left], self.states[index_left]
         if t - t_left < TRAJ_INTERP_TOL:
