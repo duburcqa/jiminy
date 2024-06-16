@@ -28,15 +28,17 @@ class Rewards(unittest.TestCase):
     """ TODO: Write documentation
     """
     def setUp(self):
-        env = gym.make("gym_jiminy.envs:atlas", debug=True)
-        env.reset(seed=1)
-        action = env.action_space.sample()
-        for _ in range(10):
-            env.step(action)
-        env.stop()
-        trajectory = extract_trajectory_from_log(env.log_data)
+        self.env = gym.make("gym_jiminy.envs:atlas-pid", debug=False)
 
-        self.env = gym.make("gym_jiminy.envs:atlas")
+        self.env.eval()
+        self.env.reset(seed=1)
+        action = self.env.action_space.sample()
+        for _ in range(10):
+            self.env.step(action)
+        self.env.stop()
+        trajectory = extract_trajectory_from_log(self.env.log_data)
+        self.env.train()
+
         self.env.quantities.add_trajectory("reference", trajectory)
         self.env.quantities.select_trajectory("reference")
 
@@ -130,12 +132,11 @@ class Rewards(unittest.TestCase):
 
     def test_friction(self):
         CUTOFF = 0.5
-        env = gym.make("gym_jiminy.envs:atlas-pid", debug=True)
-        reward_friction = MinimizeFrictionReward(env, cutoff=CUTOFF)
+        reward_friction = MinimizeFrictionReward(self.env, cutoff=CUTOFF)
         quantity = reward_friction.quantity
 
-        env.reset(seed=0)
-        _, _, terminated, _, _ = env.step(env.action)
+        self.env.reset(seed=0)
+        _, _, terminated, _, _ = self.env.step(self.env.action)
         force_tangential_rel = quantity.get()
         force_tangential_rel_norm = np.sum(np.square(force_tangential_rel))
 

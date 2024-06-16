@@ -262,7 +262,8 @@ class Quantities(unittest.TestCase):
             env.quantities["v_masked"], quantity.data[[0, 2, 4]])
 
     def test_true_vs_reference(self):
-        env = gym.make("gym_jiminy.envs:atlas", debug=True)
+        env = gym.make("gym_jiminy.envs:atlas", debug=False)
+        env.eval()
 
         frame_names = [
             frame.name for frame in env.robot.pinocchio_model.frames]
@@ -409,7 +410,7 @@ class Quantities(unittest.TestCase):
         update_quantities(
             env.robot,
             pin.neutral(env.robot.pinocchio_model_th),
-            update_physics=True,
+            update_dynamics=True,
             update_centroidal=True,
             update_energy=False,
             update_jacobian=False,

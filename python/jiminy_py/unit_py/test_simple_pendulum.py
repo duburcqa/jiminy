@@ -230,7 +230,7 @@ class SimulateSimplePendulum(unittest.TestCase):
         assert np.abs(state_0.t) < 1e-12
         assert np.abs(state_f.t - T_END) < 1e-12
         for key, value in asdict(state_f).items():
-            if key == "t":
+            if key in ("t", "lambda_c"):
                 continue
             data = getattr(robot_state, key)
             if key == "f_external":

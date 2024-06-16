@@ -904,7 +904,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
             if terminated or truncated:
                 self._num_steps_beyond_terminate = 0
         else:
-            if not self.is_training and self._num_steps_beyond_terminate == 0:
+            if self.is_training and self._num_steps_beyond_terminate == 0:
                 LOGGER.error(
                     "Calling `step` after termination causes the reward to be "
                     "'nan' systematically and is strongly discouraged in "

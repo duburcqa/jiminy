@@ -198,7 +198,7 @@ class StackObservation(
             if (step_ratio // frame_ratio) * frame_ratio != step_ratio:
                 LOGGER.warning(
                     "Beware `step_dt // observe_dt` is not a multiple of "
-                    "`skip_frame_ratio + 1`.")
+                    "`skip_frames_ratio + 1`.")
 
         # Copy observe and control update periods from wrapped environment
         self.observe_dt = self.env.observe_dt

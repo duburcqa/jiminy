@@ -9,7 +9,7 @@
 import logging
 from bisect import bisect_left
 from dataclasses import dataclass
-from typing import Optional, Tuple, Sequence, Callable, Literal
+from typing import List, Union, Optional, Tuple, Sequence, Callable, Literal
 
 import numpy as np
 
@@ -359,11 +359,13 @@ def update_quantities(robot: jiminy.Model,
                       position: np.ndarray,
                       velocity: Optional[np.ndarray] = None,
                       acceleration: Optional[np.ndarray] = None,
-                      update_physics: bool = True,
+                      f_external: Optional[
+                        Union[List[np.ndarray], pin.StdVec_Force]] = None,
+                      update_dynamics: bool = True,
                       update_centroidal: bool = True,
                       update_energy: bool = True,
                       update_jacobian: bool = False,
-                      update_collisions: bool = True,
+                      update_collisions: bool = False,
                       use_theoretical_model: bool = True) -> None:
     """Compute all quantities using position, velocity and acceleration
     configurations.
@@ -372,11 +374,11 @@ def update_quantities(robot: jiminy.Model,
     the model position, velocity and acceleration.
 
     This includes:
-    - body spatial transforms,
+    - body and frame spatial transforms,
     - body spatial velocities,
     - body spatial drifts,
-    - body transform acceleration,
-    - body transform jacobians,
+    - body spatial acceleration,
+    - joint transform jacobian matrices,
     - center-of-mass position,
     - center-of-mass velocity,
     - center-of-mass drift,
@@ -387,34 +389,31 @@ def update_quantities(robot: jiminy.Model,
     - collisions and distances
 
     .. note::
-        Computation results are stored internally in the robot, and can
-        be retrieved with associated getters.
+        Computation results are stored internally in the robot, and can be
+        retrieved with associated getters.
 
     .. warning::
         This function modifies the internal robot data.
 
-    .. warning::
-        It does not called overloaded pinocchio methods provided by
-        `jiminy_py.core` but the original pinocchio methods instead. As a
-        result, it does not take into account the rotor inertias / armatures.
-        One is responsible of calling the appropriate methods manually instead
-        of this one if necessary. This behavior is expected to change in the
-        future.
-
     :param robot: Jiminy robot.
-    :param position: Robot position vector.
-    :param velocity: Robot velocity vector.
-    :param acceleration: Robot acceleration vector.
-    :param update_physics: Whether to compute the non-linear effects and
-                           internal/external forces.
-                           Optional: True by default.
+    :param position: Configuration vector.
+    :param velocity: Joint velocity vector.
+    :param acceleration: Joint acceleration vector.
+    :param f_external: External forces applied on each joints.
+    :param update_dynamics: Whether to compute the non-linear effects and the
+                            joint internal forces.
+                            Optional: True by default.
     :param update_centroidal: Whether to compute the centroidal dynamics (incl.
                               CoM) of the robot.
                               Optional: False by default.
     :param update_energy: Whether to compute the energy of the robot.
                           Optional: False by default
-    :param update_jacobian: Whether to compute the jacobians.
+    :param update_jacobian: Whether to compute the Jacobian matrices of the
+                            joint transforms.
                             Optional: False by default.
+    :param update_collisions: Whether to detect collisions and compute
+                              distances between all the geometry objects.
+                              Optional: False by default.
     :param use_theoretical_model: Whether the state corresponds to the
                                   theoretical model when updating and fetching
                                   the state of the robot.
@@ -427,7 +426,7 @@ def update_quantities(robot: jiminy.Model,
         model = robot.pinocchio_model
         data = robot.pinocchio_data
 
-    if (update_physics and update_centroidal and
+    if (update_dynamics and update_centroidal and
             update_energy and update_jacobian and
             velocity is not None and acceleration is None):
         pin.computeAllTerms(model, data, position, velocity)
@@ -440,36 +439,37 @@ def update_quantities(robot: jiminy.Model,
             pin.forwardKinematics(
                 model, data, position, velocity, acceleration)
 
-        if update_centroidal:
-            if velocity is None:
-                kinematic_level = pin.POSITION
-            elif acceleration is None:
-                kinematic_level = pin.VELOCITY
-            else:
-                kinematic_level = pin.ACCELERATION
-            pin.centerOfMass(model, data, kinematic_level, False)
-            pin.computeCentroidalMomentumTimeVariation(model, data)
-
         if update_jacobian:
             if update_centroidal:
                 pin.jacobianCenterOfMass(model, data)
-            pin.computeJointJacobians(model, data)
+            if not update_dynamics:
+                pin.computeJointJacobians(model, data)
 
-        if update_physics:
+        if update_dynamics:
             if velocity is not None:
                 pin.nonLinearEffects(model, data, position, velocity)
-            pin.crba(model, data, position)
+            jiminy.crba(model, data, position)
 
         if update_energy:
             if velocity is not None:
-                pin.computeKineticEnergy(model, data)
+                jiminy.computeKineticEnergy(
+                    model, data, position, velocity, update_kinematics=False)
             pin.computePotentialEnergy(model, data)
 
+    if update_centroidal:
+        pin.computeCentroidalMomentumTimeVariation(model, data)
+        if acceleration is not None:
+            pin.centerOfMass(model, data, pin.ACCELERATION, False)
+
+    if (update_dynamics and velocity is not None and
+            acceleration is not None and f_external is not None):
+        jiminy.rnea(model, data, position, velocity, acceleration, f_external)
+
     pin.updateFramePlacements(model, data)
+    pin.updateGeometryPlacements(
+        model, data, robot.collision_model, robot.collision_data)
 
     if update_collisions:
-        pin.updateGeometryPlacements(
-            model, data, robot.collision_model, robot.collision_data)
         pin.computeCollisions(
             robot.collision_model, robot.collision_data,
             stop_at_first_collision=False)
@@ -797,7 +797,7 @@ def compute_freeflyer_state_from_fixed_body(
                       position,
                       velocity,
                       acceleration,
-                      update_physics=False,
+                      update_dynamics=False,
                       update_centroidal=False,
                       update_energy=False,
                       use_theoretical_model=use_theoretical_model)

@@ -793,6 +793,7 @@ namespace jiminy
     void computeExtraTerms(
         std::shared_ptr<Robot> & robot, const RobotData & robotData, ForceVector & fExt)
     {
+        // Define some proxies for convenience
         const pinocchio::Model & model = robot->pinocchioModel_;
         pinocchio::Data & data = robot->pinocchioData_;
 
@@ -801,7 +802,7 @@ namespace jiminy
             model, data, robotData.state.q, robotData.state.v, false);
         pinocchio::computePotentialEnergy(model, data);
 
-        /* Update manually the subtree (apparent) inertia, since it is only computed by crba, which
+        /* Update manually the subtree (apparent) inertia, since it is only computed by CRBA, which
            is doing more computation than necessary. It will be used here for computing the
            centroidal kinematics, and used later for joint bounds dynamics. Note that, by doing all
            the computations here instead of 'computeForwardKinematics', we are doing the assumption
@@ -823,13 +824,25 @@ namespace jiminy
             }
         }
 
-        /* Neither 'aba' nor 'forwardDynamics' are computing simultaneously the actual joint
-           accelerations, joint forces and body forces, so it must be done separately:
-           - 1st step: computing the accelerations based on ForwardKinematic algorithm
-           - 2nd step: computing the forces based on RNEA algorithm */
+        /* The objective here is to compute the actual joint accelerations and the joint internal
+           forces. The latter are not involved in dynamic computations, but are useful for analysis
+           of the mechanical design. Indeed, it brings information about stresses and strains
+           applied to the mechanical structure, which may cause unexpected fatigue wear. In
+           addition, the body external forces are also evaluated, as an intermediate quantity for
+           computing the centroidal dynamics, ie the spatial momentum of the whole robot at the
+           Center of Mass along with its temporal derivative.
+
+           Neither 'aba' nor 'forwardDynamics' are computing simultaneously the actual joint
+           accelerations, the joint internal forces and the body external forces. Hence, it is done
+           manually, following a two computation steps procedure:
+           * joint accelerations based on ForwardKinematic algorithm
+           * joint internal forces and body external forces based on RNEA algorithm */
 
         /* Compute the true joint acceleration and the one due to the lone gravity field, then
-           the spatial momenta and the total internal and external forces acting on each body. */
+           the spatial momenta and the total internal and external forces acting on each body.
+           * `fExt` is used as a buffer for storing the total body external forces. It serves
+             no purpose other than being an intermediate quantity for other computations.
+           * `data.f` stores the joint internal forces */
         data.h[0].setZero();
         fExt[0].setZero();
         data.f[0].setZero();

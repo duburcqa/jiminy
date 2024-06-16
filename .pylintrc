@@ -71,6 +71,7 @@ disable =
     useless-parent-delegation,
     use-dict-literal,
     unspecified-encoding,
+    undefined-loop-variable,
     cyclic-import
 
 # Enable the message, report, category or checker with the given id(s)

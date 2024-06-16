@@ -592,7 +592,7 @@ namespace jiminy
             std::string backlashName = jointName;
             backlashName += BACKLASH_JOINT_SUFFIX;
 
-            // Check if constraint a joint bounds constraint exist
+            // Check if the corresponding joint bound constraint already exists
             const bool hasConstraint =
                 constraints_.exist(backlashName, ConstraintRegistryType::BOUNDS_JOINTS);
 
@@ -605,9 +605,12 @@ namespace jiminy
                 {
                     removeConstraint(backlashName, ConstraintRegistryType::BOUNDS_JOINTS);
                 }
-
                 continue;
             }
+
+            // Add backlash joint to the model
+            addBacklashJointAfterMechanicalJoint(pinocchioModel_, jointName, backlashName);
+            backlashJointNames_.push_back(backlashName);
 
             // Add joint bounds constraint if necessary
             if (!hasConstraint)
@@ -616,10 +619,6 @@ namespace jiminy
                     std::make_shared<JointConstraint>(backlashName);
                 addConstraint(backlashName, constraint, ConstraintRegistryType::BOUNDS_JOINTS);
             }
-
-            // Add backlash joint to the model
-            addBacklashJointAfterMechanicalJoint(pinocchioModel_, jointName, backlashName);
-            backlashJointNames_.push_back(backlashName);
 
             // Update position limits in model
             const Eigen::Index positionIndex =
