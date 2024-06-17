@@ -611,6 +611,11 @@ namespace jiminy
                                  robotName,
                                  {},
                                  TELEMETRY_FIELDNAME_DELIMITER);
+                robotDataIt->logConstraintFieldnames =
+                    addCircumfix((*robotIt)->getLogConstraintFieldnames(),
+                                 robotName,
+                                 {},
+                                 TELEMETRY_FIELDNAME_DELIMITER);
                 robotDataIt->logCommandFieldnames =
                     addCircumfix((*robotIt)->getLogCommandFieldnames(),
                                  robotName,
@@ -652,6 +657,23 @@ namespace jiminy
                                 &fext[j]);
                         }
                     }
+                }
+                if (engineOptions_->telemetry.enableConstraint)
+                {
+                    const ConstraintTree & constraints = (*robotIt)->getConstraints();
+                    // FIXME: Remove explicit `telemetrySender` capture when moving to C++20
+                    constraints.foreach(
+                        [&telemetrySender = telemetrySender_, &robotData = *robotDataIt, i = 0](
+                            const std::shared_ptr<AbstractConstraintBase> & constraint,
+                            ConstraintRegistryType /* type */) mutable
+                        {
+                            for (uint8_t j = 0; j < constraint->getSize(); ++j)
+                            {
+                                telemetrySender->registerVariable(
+                                    robotData.logConstraintFieldnames[i++],
+                                    &constraint->lambda_[j]);
+                            }
+                        });
                 }
                 if (engineOptions_->telemetry.enableCommand)
                 {
@@ -771,6 +793,7 @@ namespace jiminy
     void computeExtraTerms(
         std::shared_ptr<Robot> & robot, const RobotData & robotData, ForceVector & fExt)
     {
+        // Define some proxies for convenience
         const pinocchio::Model & model = robot->pinocchioModel_;
         pinocchio::Data & data = robot->pinocchioData_;
 
@@ -779,7 +802,7 @@ namespace jiminy
             model, data, robotData.state.q, robotData.state.v, false);
         pinocchio::computePotentialEnergy(model, data);
 
-        /* Update manually the subtree (apparent) inertia, since it is only computed by crba, which
+        /* Update manually the subtree (apparent) inertia, since it is only computed by CRBA, which
            is doing more computation than necessary. It will be used here for computing the
            centroidal kinematics, and used later for joint bounds dynamics. Note that, by doing all
            the computations here instead of 'computeForwardKinematics', we are doing the assumption
@@ -801,13 +824,25 @@ namespace jiminy
             }
         }
 
-        /* Neither 'aba' nor 'forwardDynamics' are computing simultaneously the actual joint
-           accelerations, joint forces and body forces, so it must be done separately:
-           - 1st step: computing the accelerations based on ForwardKinematic algorithm
-           - 2nd step: computing the forces based on RNEA algorithm */
+        /* The objective here is to compute the actual joint accelerations and the joint internal
+           forces. The latter are not involved in dynamic computations, but are useful for analysis
+           of the mechanical design. Indeed, it brings information about stresses and strains
+           applied to the mechanical structure, which may cause unexpected fatigue wear. In
+           addition, the body external forces are also evaluated, as an intermediate quantity for
+           computing the centroidal dynamics, ie the spatial momentum of the whole robot at the
+           Center of Mass along with its temporal derivative.
+
+           Neither 'aba' nor 'forwardDynamics' are computing simultaneously the actual joint
+           accelerations, the joint internal forces and the body external forces. Hence, it is done
+           manually, following a two computation steps procedure:
+           * joint accelerations based on ForwardKinematic algorithm
+           * joint internal forces and body external forces based on RNEA algorithm */
 
         /* Compute the true joint acceleration and the one due to the lone gravity field, then
-           the spatial momenta and the total internal and external forces acting on each body. */
+           the spatial momenta and the total internal and external forces acting on each body.
+           * `fExt` is used as a buffer for storing the total body external forces. It serves
+             no purpose other than being an intermediate quantity for other computations.
+           * `data.f` stores the joint internal forces */
         data.h[0].setZero();
         fExt[0].setZero();
         data.f[0].setZero();
@@ -1234,10 +1269,10 @@ namespace jiminy
                 [&contactModel = contactModel_,
                  &freq = engineOptions_->contacts.stabilizationFreq](
                     const std::shared_ptr<AbstractConstraintBase> & constraint,
-                    ConstraintNodeType node)
+                    ConstraintRegistryType type)
                 {
                     // Set baumgarte freq for all contact constraints
-                    if (node != ConstraintNodeType::USER)
+                    if (type != ConstraintRegistryType::USER)
                     {
                         constraint->setBaumgarteFreq(freq);  // It cannot fail
                     }
@@ -1245,20 +1280,20 @@ namespace jiminy
                     // Enable constraints by default
                     if (contactModel == ContactModelType::CONSTRAINT)
                     {
-                        switch (node)
+                        switch (type)
                         {
-                        case ConstraintNodeType::BOUNDS_JOINTS:
+                        case ConstraintRegistryType::BOUNDS_JOINTS:
                         {
                             auto & jointConstraint =
                                 static_cast<JointConstraint &>(*constraint.get());
                             jointConstraint.setRotationDir(false);
                         }
                             [[fallthrough]];
-                        case ConstraintNodeType::CONTACT_FRAMES:
-                        case ConstraintNodeType::COLLISION_BODIES:
+                        case ConstraintRegistryType::CONTACT_FRAMES:
+                        case ConstraintRegistryType::COLLISION_BODIES:
                             constraint->enable();
                             break;
-                        case ConstraintNodeType::USER:
+                        case ConstraintRegistryType::USER:
                         default:
                             break;
                         }
@@ -1449,7 +1484,8 @@ namespace jiminy
             robotData.statePrev = robotData.state;
         }
 
-        // Lock the telemetry. At this point it is not possible to register new variables.
+        /* Register all engine and robots variables, then lock the telemetry.
+           At this point it is not possible for the user to register new variables. */
         configureTelemetry();
 
         // Log robots
@@ -3715,12 +3751,12 @@ namespace jiminy
             // Restore contact frame forces and bounds internal efforts
             const ConstraintTree & constraints = robot->getConstraints();
             constraints.foreach(
-                ConstraintNodeType::BOUNDS_JOINTS,
+                ConstraintRegistryType::BOUNDS_JOINTS,
                 [&u = robotData.state.u,
                  &uInternal = robotData.state.uInternal,
                  &joints = const_cast<pinocchio::Model::JointModelVector &>(model.joints)](
                     const std::shared_ptr<AbstractConstraintBase> & constraint,
-                    ConstraintNodeType /* node */)
+                    ConstraintRegistryType /* type */)
                 {
                     if (!constraint->getIsEnabled())
                     {
@@ -3771,9 +3807,9 @@ namespace jiminy
             }
 
             constraints.foreach(
-                ConstraintNodeType::COLLISION_BODIES,
+                ConstraintRegistryType::COLLISION_BODIES,
                 [&fext, &model, &data](const std::shared_ptr<AbstractConstraintBase> & constraint,
-                                       ConstraintNodeType /* node */)
+                                       ConstraintRegistryType /* type */)
                 {
                     if (!constraint->getIsEnabled())
                     {

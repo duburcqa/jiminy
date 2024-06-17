@@ -14,7 +14,8 @@ from jiminy_py.dynamics import update_quantities
 import pinocchio as pin
 
 from ..bases import (
-    InterfaceJiminyEnv, InterfaceQuantity, AbstractQuantity, QuantityEvalMode)
+    InterfaceJiminyEnv, InterfaceQuantity, AbstractQuantity, StateQuantity,
+    QuantityEvalMode)
 from ..utils import (
     matrix_to_yaw, quat_to_yaw, quat_to_matrix, quat_multiply, quat_apply)
 
@@ -660,7 +661,13 @@ class CenterOfMass(AbstractQuantity[np.ndarray]):
 
         # Call base implementation
         super().__init__(
-            env, parent, requirements={}, mode=mode, auto_refresh=False)
+            env,
+            parent,
+            requirements=dict(
+                state=(StateQuantity, dict(
+                    update_centroidal=True))),
+            mode=mode,
+            auto_refresh=False)
 
         # Pre-allocate memory for the CoM quantity
         self._com_data: np.ndarray = np.array([])
@@ -747,8 +754,7 @@ class ZeroMomentPoint(AbstractQuantity[np.ndarray]):
                 com_position=(CenterOfMass, dict(
                     kinematic_level=pin.POSITION,
                     mode=mode)),
-                odom_pose=(BaseOdometryPose, dict(mode=mode))
-            ),
+                odom_pose=(BaseOdometryPose, dict(mode=mode))),
             mode=mode,
             auto_refresh=False)
 
@@ -855,8 +861,7 @@ class CapturePoint(AbstractQuantity[np.ndarray]):
                 com_velocity=(CenterOfMass, dict(
                     kinematic_level=pin.VELOCITY,
                     mode=mode)),
-                odom_pose=(BaseOdometryPose, dict(mode=mode))
-            ),
+                odom_pose=(BaseOdometryPose, dict(mode=mode))),
             mode=mode,
             auto_refresh=False)
 
@@ -881,7 +886,7 @@ class CapturePoint(AbstractQuantity[np.ndarray]):
         update_quantities(
             self.robot,
             pin.neutral(self.robot.pinocchio_model_th),
-            update_physics=True,
+            update_dynamics=False,
             update_centroidal=True,
             update_energy=False,
             update_jacobian=False,
@@ -933,10 +938,7 @@ class MultiContactRelativeForceTangential(InterfaceQuantity[np.ndarray]):
         """
         # Call base implementation
         super().__init__(
-            env,
-            parent,
-            requirements={},
-            auto_refresh=False)
+            env, parent, requirements={}, auto_refresh=False)
 
         # Weight of the robot
         self._robot_weight: float = -1

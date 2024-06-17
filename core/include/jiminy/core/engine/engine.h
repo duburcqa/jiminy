@@ -201,6 +201,7 @@ namespace jiminy
         std::vector<std::string> logAccelerationFieldnames{};
         std::vector<std::string> logEffortFieldnames{};
         std::vector<std::string> logForceExternalFieldnames{};
+        std::vector<std::string> logConstraintFieldnames{};
         std::vector<std::string> logCommandFieldnames{};
         std::string logEnergyFieldname{};
 
@@ -329,6 +330,7 @@ namespace jiminy
             config["enableVelocity"] = true;
             config["enableAcceleration"] = true;
             config["enableForceExternal"] = false;
+            config["enableConstraint"] = false;
             config["enableCommand"] = false;
             config["enableEffort"] = false;
             config["enableEnergy"] = false;
@@ -438,6 +440,7 @@ namespace jiminy
             const bool enableVelocity;
             const bool enableAcceleration;
             const bool enableForceExternal;
+            const bool enableConstraint;
             const bool enableCommand;
             const bool enableEffort;
             const bool enableEnergy;
@@ -448,6 +451,7 @@ namespace jiminy
             enableVelocity{boost::get<bool>(options.at("enableVelocity"))},
             enableAcceleration{boost::get<bool>(options.at("enableAcceleration"))},
             enableForceExternal{boost::get<bool>(options.at("enableForceExternal"))},
+            enableConstraint{boost::get<bool>(options.at("enableConstraint"))},
             enableCommand{boost::get<bool>(options.at("enableCommand"))},
             enableEffort{boost::get<bool>(options.at("enableEffort"))},
             enableEnergy{boost::get<bool>(options.at("enableEnergy"))}

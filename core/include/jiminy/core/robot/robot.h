@@ -15,8 +15,6 @@ namespace jiminy
     class AbstractSensorBase;
     class AbstractController;
     class TelemetryData;
-    class MutexLocal;
-    class LockGuardLocal;
 
     class JIMINY_DLLAPI Robot : public Model
     {
@@ -115,15 +113,14 @@ namespace jiminy
 
         /// \remark This method does not have to be called manually before running a simulation.
         ///         The Engine is taking care of it.
-        virtual void reset(const uniform_random_bit_generator_ref<uint32_t> & g) override;
+        void reset(const uniform_random_bit_generator_ref<uint32_t> & g) override;
         virtual void configureTelemetry(std::shared_ptr<TelemetryData> telemetryData);
         void updateTelemetry();
         bool getIsTelemetryConfigured() const;
 
         const std::vector<std::string> & getLogCommandFieldnames() const;
 
-        std::unique_ptr<LockGuardLocal> getLock();
-        bool getIsLocked() const;
+        std::unique_ptr<LockGuardLocal> getLock() override;
 
         // Getters without 'get' prefix for consistency with pinocchio C++ API
         Eigen::Index nmotors() const;
@@ -161,7 +158,6 @@ namespace jiminy
         Eigen::VectorXd motorEffortLimit_;
 
     private:
-        std::unique_ptr<MutexLocal> mutexLocal_{std::make_unique<MutexLocal>()};
         std::shared_ptr<MotorSharedStorage> motorSharedStorage_;
         std::unordered_map<std::string, std::shared_ptr<SensorSharedStorage>>
             sensorSharedStorageMap_{};

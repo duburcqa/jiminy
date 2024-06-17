@@ -38,15 +38,16 @@ namespace jiminy
         Eigen::Index constraintsRowsMax = 0U;
         constraints->foreach(
             [&](const std::shared_ptr<AbstractConstraintBase> & constraint,
-                ConstraintNodeType node)
+                ConstraintRegistryType type)
             {
                 // Define constraint blocks
-                const Eigen::Index constraintDim = static_cast<Eigen::Index>(constraint->getDim());
+                const Eigen::Index constraintSize =
+                    static_cast<Eigen::Index>(constraint->getSize());
                 ConstraintBlock block{};
                 ConstraintData constraintData{};
-                switch (node)
+                switch (type)
                 {
-                case ConstraintNodeType::BOUNDS_JOINTS:
+                case ConstraintRegistryType::BOUNDS_JOINTS:
                     // The joint is blocked in only one direction
                     block.lo = 0.0;
                     block.hi = INF;
@@ -55,8 +56,8 @@ namespace jiminy
                     constraintData.blocks[0] = block;
                     constraintData.nBlocks = 1;
                     break;
-                case ConstraintNodeType::CONTACT_FRAMES:
-                case ConstraintNodeType::COLLISION_BODIES:
+                case ConstraintRegistryType::CONTACT_FRAMES:
+                case ConstraintRegistryType::COLLISION_BODIES:
                     // Non-penetration normal force
                     block.lo = 0.0;
                     block.hi = INF;
@@ -85,14 +86,14 @@ namespace jiminy
 
                     constraintData.nBlocks = 3;
                     break;
-                case ConstraintNodeType::USER:
+                case ConstraintRegistryType::USER:
                 default:
                     break;
                 }
-                constraintData.dim = constraintDim;
+                constraintData.dim = constraintSize;
                 constraintData.constraint = constraint.get();
                 constraintsData_.emplace_back(std::move(constraintData));
-                constraintsRowsMax += constraintDim;
+                constraintsRowsMax += constraintSize;
             });
 
         // Resize buffers
@@ -338,15 +339,15 @@ namespace jiminy
             {
                 continue;
             }
-            const Eigen::Index constraintDim = constraintData.dim;
+            const Eigen::Index constraintSize = constraintData.dim;
             if (!isStateUpToDate)
             {
-                J_.middleRows(constraintRows, constraintDim) = constraint->getJacobian();
-                gamma_.segment(constraintRows, constraintDim) = constraint->getDrift();
-                lambda_.segment(constraintRows, constraintDim) = constraint->lambda_;
+                J_.middleRows(constraintRows, constraintSize) = constraint->getJacobian();
+                gamma_.segment(constraintRows, constraintSize) = constraint->getDrift();
+                lambda_.segment(constraintRows, constraintSize) = constraint->lambda_;
             }
             constraintData.startIndex = constraintRows;
-            constraintRows += constraintDim;
+            constraintRows += constraintSize;
         };
 
         // Extract active rows
@@ -433,9 +434,9 @@ namespace jiminy
             {
                 continue;
             }
-            const Eigen::Index constraintDim = static_cast<Eigen::Index>(constraint->getDim());
-            constraint->lambda_ = lambda_.segment(constraintRows, constraintDim);
-            constraintRows += constraintDim;
+            const Eigen::Index constraintSize = static_cast<Eigen::Index>(constraint->getSize());
+            constraint->lambda_ = lambda_.segment(constraintRows, constraintSize);
+            constraintRows += constraintSize;
         };
 
         /* Compute resulting acceleration, no matter if computing forces was successful.

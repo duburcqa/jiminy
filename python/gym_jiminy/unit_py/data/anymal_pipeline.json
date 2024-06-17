@@ -58,8 +58,8 @@
             ["measurements", "ImuSensor"],
             ["actions"]
           ],
-          "num_stack": 3,
-          "skip_frames_ratio": 2
+          "num_stack": 4,
+          "skip_frames_ratio": 3
         }
       }
     }

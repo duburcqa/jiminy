@@ -29,7 +29,7 @@ import numpy as np
 
 import jiminy_py.core as jiminy
 from jiminy_py.core import (  # pylint: disable=no-name-in-module
-    multi_array_copyto)
+    array_copyto, multi_array_copyto)
 from jiminy_py.dynamics import State, Trajectory, update_quantities
 import pinocchio as pin
 
@@ -296,6 +296,14 @@ class InterfaceQuantity(ABC, Generic[ValueT]):
             name: cls(env, self, **kwargs)
             for name, (cls, kwargs) in requirements.items()}
 
+        # Update the state explicitly if available but auto-refresh not enabled
+        self._state: Optional[StateQuantity] = None
+        if isinstance(self, AbstractQuantity):
+            quantity = self.requirements["state"]
+            if not quantity.auto_refresh:
+                assert isinstance(quantity, StateQuantity)
+                self._state = quantity
+
         # Shared cache handling
         self._cache: Optional[SharedCache[ValueT]] = None
         self.has_cache = False
@@ -423,10 +431,17 @@ class InterfaceQuantity(ABC, Generic[ValueT]):
 
         # Evaluate quantity
         try:
+            # Initialize quantity
             if not self._is_initialized:
                 self.initialize()
                 assert (self._is_initialized and
                         self._is_active)  # type: ignore[unreachable]
+
+            # Make sure that the state has been refreshed
+            if self._state is not None:
+                self._state.get()
+
+            # Refresh quantity
             value = self.refresh()
         except RecursionError as e:
             raise LookupError(
@@ -471,7 +486,7 @@ class InterfaceQuantity(ABC, Generic[ValueT]):
         if (not ignore_auto_refresh and self.auto_refresh and
                 not self.has_cache):
             raise RuntimeError(
-                "Automatic refresh enabled but no shared cache available. "
+                "Automatic refresh enabled but no shared cache is available. "
                 "Please add one before calling this method.")
 
         # Reset all requirements first
@@ -611,13 +626,23 @@ class AbstractQuantity(InterfaceQuantity, Generic[ValueT]):
 
         # Make sure that no user-specified requirement is named 'trajectory'
         requirement_names = requirements.keys()
-        if any(name in requirement_names for name in ("state", "trajectory")):
+        if "trajectory" in requirement_names:
             raise ValueError(
-                "No user-specified requirement can be named 'state' nor "
-                "'trajectory' as these keys are reserved.")
+                "Key 'trajectory' is reserved and cannot be used for "
+                "user-specified requirements.")
 
-        # Add state quantity as requirement
-        requirements["state"] = (StateQuantity, dict(mode=mode))
+        # Make sure that state requirement is valid if any or use default
+        quantity = requirements.get("state")
+        if quantity is not None:
+            cls, kwargs = quantity
+            if (not issubclass(cls, StateQuantity) or
+                    kwargs.setdefault("mode", mode) != mode):
+                raise ValueError(
+                    "Key 'state' is reserved and can only be used to specify "
+                    "a `StateQuantity` requirement, as a way to give the "
+                    "opportunity to overwrite 'update_*' default arguments.")
+        else:
+            requirements["state"] = (StateQuantity, dict(mode=mode))
 
         # Call base implementation
         super().__init__(env, parent, requirements, auto_refresh=auto_refresh)
@@ -905,7 +930,12 @@ class StateQuantity(InterfaceQuantity[State]):
                  env: InterfaceJiminyEnv,
                  parent: Optional[InterfaceQuantity],
                  *,
-                 mode: QuantityEvalMode = QuantityEvalMode.TRUE) -> None:
+                 mode: QuantityEvalMode = QuantityEvalMode.TRUE,
+                 update_kinematics: bool = True,
+                 update_dynamics: bool = False,
+                 update_centroidal: bool = False,
+                 update_energy: bool = False,
+                 update_jacobian: bool = False) -> None:
         """
         :param env: Base or wrapped jiminy environment.
         :param parent: Higher-level quantity from which this quantity is a
@@ -917,12 +947,66 @@ class StateQuantity(InterfaceQuantity[State]):
                      some reference trajectory at the current simulation time
                      will be used instead.
                      Optional: 'QuantityEvalMode.TRUE' by default.
+        :param update_kinematics: Whether to update body and frame transforms,
+                                  spatial velocities and accelerations stored
+                                  in `self.pinocchio_data` if necessary to be
+                                  consistent with the current state of the
+                                  robot. This argument has no effect if mode is
+                                  set to `QuantityEvalMode.TRUE` because this
+                                  property is already guarantee.
+                                  Optional: False by default.
+        :param update_dynamics: Whether to update the non-linear effects and
+                                the joint internal forces stored in
+                                `self.pinocchio_data` if necessary.
+                                Optional: False by default.
+        :param update_centroidal: Whether to update the centroidal dynamics
+                                  (incl. CoM) stored in `self.pinocchio_data`
+                                  if necessary.
+                                  Optional: True by default.
+        :param update_energy: Whether to update the potential and kinematic
+                              energy stored in `self.pinocchio_data` if
+                              necessary.
+                              Optional: False by default.
+        :param update_jacobian: Whether to update the joint Jacobian matrices
+                                stored in `self.pinocchio_data` if necessary.
+                                Optional: False by default.
         """
+        # Make sure that the input arguments are valid
+        update_kinematics = (
+            update_kinematics or update_dynamics or update_centroidal or
+            update_energy or update_jacobian)
+
         # Backup user argument(s)
         self.mode = mode
+        self.update_kinematics = update_kinematics
+        self.update_dynamics = update_dynamics
+        self.update_centroidal = update_centroidal
+        self.update_energy = update_energy
+        self.update_jacobian = update_jacobian
 
-        # Call base implementation
-        super().__init__(env, parent, requirements={}, auto_refresh=True)
+        # Enable auto-refresh based on the evaluation mode
+        # Note that it is necessary to auto-refresh this quantity, as it is the
+        # one responsible for making sure that dynamics quantities are always
+        # up-to-date when refreshing quantities. The latter are involved one
+        # way of the other in the computation of any quantity, which means that
+        # pre-computing it does not induce any unnecessary computations as long
+        # as the user fetches the value of at least one quantity. Although this
+        # assumption is very likely to be true at the step update period, it is
+        # not the case at the observer update period. It sounds more efficient
+        # refresh to the state the first time any quantity gets computed.
+        # However, systematically checking if the state must be refreshed for
+        # all quantities adds overheat and may be fairly costly overall. The
+        # optimal trade-off is to rely on auto-refresh if the evaluation mode
+        # is TRUE, since refreshing the state only consists in copying some
+        # data, which is very cheap. On the contrary, it is more efficient to
+        # only refresh the state when needed if the evaluation mode is TRAJ.
+        # * Update state: 500ns (TRUE) | 5.0us (TRAJ)
+        # * Check cache state: 70ns
+        auto_refresh = mode == QuantityEvalMode.TRUE
+
+        # Call base implementation.
+        super().__init__(
+            env, parent, requirements={}, auto_refresh=auto_refresh)
 
         # Create empty trajectory database, manually added as a requirement.
         # Note that it must be done after base initialization, otherwise a
@@ -936,11 +1020,47 @@ class StateQuantity(InterfaceQuantity[State]):
         self.pinocchio_data = env.robot.pinocchio_data
 
         # State for which the quantity must be evaluated
-        self._f_external_slices: Tuple[np.ndarray, ...] = ()
-        self._f_external_list: Tuple[np.ndarray, ...] = ()
         self.state = State(t=np.nan, q=np.array([]))
 
+        # Persistent buffer for storing body external forces if necessary
+        self._f_external_vec = pin.StdVec_Force()
+        self._f_external_list: List[np.ndarray] = []
+        self._f_external_batch = np.array([])
+        self._f_external_slices: List[np.ndarray] = []
+
+        # Persistent buffer storing all lambda multipliers for efficiency
+        self._constraint_lambda_batch = np.array([])
+
+        # Slices in stacked lambda multiplier flat vector
+        self._constraint_lambda_slices: List[np.ndarray] = []
+
+        # Lambda multipliers of all the constraints individually
+        self._constraint_lambda_list: List[np.ndarray] = []
+
+        # Whether to update kinematic and dynamic data to be consistent with
+        # the current state of the robot, based on the requirement of all the
+        # co-owners of shared cache.
+        self._update_kinematics = False
+        self._update_dynamics = False
+        self._update_centroidal = False
+        self._update_energy = False
+        self._update_jacobian = False
+
     def initialize(self) -> None:
+        # Determine which data must be update based on shared cache co-owners
+        owners = self.cache.owners if self.has_cache else (self,)
+        self._update_kinematics = False
+        self._update_dynamics = False
+        self._update_centroidal = False
+        self._update_energy = False
+        self._update_jacobian = False
+        for owner in owners:
+            self._update_kinematics |= owner.update_kinematics
+            self._update_dynamics |= owner.update_dynamics
+            self._update_centroidal |= owner.update_centroidal
+            self._update_energy |= owner.update_energy
+            self._update_jacobian |= owner.update_jacobian
+
         # Refresh robot and pinocchio proxies for co-owners of shared cache.
         # Note that automatic refresh is not sufficient to guarantee that
         # `initialize` will be called unconditionally, because it will be
@@ -950,7 +1070,6 @@ class StateQuantity(InterfaceQuantity[State]):
         # instance to found the cache empty. Only the necessary bits are
         # synchronized instead of the whole method, to avoid messing up with
         # computation graph tracking.
-        owners = self.cache.owners if self.has_cache else (self,)
         for owner in owners:
             assert isinstance(owner, StateQuantity)
             if owner._is_initialized:
@@ -972,26 +1091,61 @@ class StateQuantity(InterfaceQuantity[State]):
         # The quantity will be considered initialized and active at this point.
         super().initialize()
 
-        # State for which the quantity must be evaluated
+        # Refresh proxies and allocate memory for storing external forces
+        if self.mode == QuantityEvalMode.TRUE:
+            self._f_external_vec = self.env.robot_state.f_external
+        else:
+            self._f_external_vec = pin.StdVec_Force()
+            self._f_external_vec.extend([
+                pin.Force() for _ in range(self.pinocchio_model.njoints)])
+        self._f_external_list = [
+            f_ext.vector for f_ext in self._f_external_vec]
+        self._f_external_batch = np.zeros((self.pinocchio_model.njoints, 6))
+        self._f_external_slices = list(self._f_external_batch)
+
+        # Allocate memory for lambda vector
+        self._constraint_lambda_batch = np.zeros(
+            (len(self.robot.log_constraint_fieldnames),))
+
+        # Refresh mapping from lambda multipliers to corresponding slice
+        self._constraint_lambda_list.clear()
+        self._constraint_lambda_slices.clear()
+        constraint_lookup_pairs = tuple(
+            (f"Constraint{registry_type}", registry)
+            for registry_type, registry in (
+                ("BoundJoints", self.robot.constraints.bounds_joints),
+                ("ContactFrames", self.robot.constraints.contact_frames),
+                ("CollisionBodies", {
+                    name: constraint for constraints in (
+                        self.robot.constraints.collision_bodies)
+                    for name, constraint in constraints.items()}),
+                ("User", self.robot.constraints.user)))
+        i = 0
+        while i < len(self.robot.log_constraint_fieldnames):
+            fieldname = self.robot.log_constraint_fieldnames[i]
+            for registry_type, registry in constraint_lookup_pairs:
+                if fieldname.startswith(registry_type):
+                    break
+            constraint_name = fieldname[len(registry_type):-1]
+            constraint = registry[constraint_name]
+            self._constraint_lambda_list.append(constraint.lambda_c)
+            self._constraint_lambda_slices.append(
+                self._constraint_lambda_batch[i:(i + constraint.size)])
+            i += constraint.size
+
+        # Allocate state for which the quantity must be evaluated if needed
         if self.mode == QuantityEvalMode.TRUE:
             if not self.env.is_simulation_running:
                 raise RuntimeError("No simulation running. Impossible to "
                                    "initialize this quantity.")
-            self._f_external_list = tuple(
-                f_ext.vector for f_ext in self.env.robot_state.f_external)
-            if self._f_external_list:
-                f_external_batch = np.stack(self._f_external_list, axis=0)
-            else:
-                f_external_batch = np.array([])
             self.state = State(
-                self.env.stepper_state.t,
+                0.0,
                 self.env.robot_state.q,
                 self.env.robot_state.v,
                 self.env.robot_state.a,
                 self.env.robot_state.u,
                 self.env.robot_state.command,
-                f_external_batch)
-            self._f_external_slices = tuple(f_external_batch)
+                self._f_external_batch)
 
     def refresh(self) -> State:
         """Compute the current state depending on the mode of evaluation, and
@@ -999,23 +1153,47 @@ class StateQuantity(InterfaceQuantity[State]):
         """
         # Update state at which the quantity must be evaluated
         if self.mode == QuantityEvalMode.TRUE:
+            # Update the current simulation time
+            self.state.t = self.env.stepper_state.t
+
+            # Update external forces and constraint multipliers in state buffer
             multi_array_copyto(self._f_external_slices, self._f_external_list)
+            multi_array_copyto(
+                self._constraint_lambda_slices, self._constraint_lambda_list)
         else:
             self.state = self.trajectory.get()
 
-        # Update all the dynamical quantities that can be given available data
         if self.mode == QuantityEvalMode.REFERENCE:
-            update_quantities(
-                self.robot,
-                self.state.q,
-                self.state.v,
-                self.state.a,
-                update_physics=True,
-                update_centroidal=True,
-                update_energy=True,
-                update_jacobian=False,
-                update_collisions=True,
-                use_theoretical_model=self.trajectory.use_theoretical_model)
+            # Copy body external forces from stacked buffer to force vector
+            has_forces = self.state.f_external is not None
+            if has_forces:
+                array_copyto(self._f_external_batch, self.state.f_external)
+                multi_array_copyto(self._f_external_list,
+                                   self._f_external_slices)
+
+            # Update all dynamical quantities that can be given available data
+            if self.update_kinematics:
+                update_quantities(
+                    self.robot,
+                    self.state.q,
+                    self.state.v,
+                    self.state.a,
+                    self._f_external_vec if has_forces else None,
+                    update_dynamics=self._update_dynamics,
+                    update_centroidal=self._update_centroidal,
+                    update_energy=self._update_energy,
+                    update_jacobian=self._update_jacobian,
+                    update_collisions=False,
+                    use_theoretical_model=(
+                        self.trajectory.use_theoretical_model))
+
+            # Restore lagrangian multipliers of the constraints if available
+            has_constraints = self.state.lambda_c is not None
+            if has_constraints:
+                array_copyto(
+                    self._constraint_lambda_batch, self.state.lambda_c)
+                multi_array_copyto(self._constraint_lambda_list,
+                                   self._constraint_lambda_slices)
 
         # Return state
         return self.state

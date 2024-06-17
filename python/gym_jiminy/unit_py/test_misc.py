@@ -29,7 +29,8 @@ class Miscellaneous(unittest.TestCase):
         """ TODO: Write documentation.
         """
         # Instantiate the environment
-        env = gym.make("gym_jiminy.envs:atlas", debug=True)
+        env = gym.make("gym_jiminy.envs:atlas", debug=False)
+        env.eval()
 
         # Run a few steps
         env.reset(seed=0)
@@ -50,7 +51,8 @@ class Miscellaneous(unittest.TestCase):
                                     backend="panda3d-sync",
                                     record_video_path=video_path,
                                     display_contacts=True,
-                                    display_f_external=True)
+                                    display_f_external=True,
+                                    verbose=False)
         Viewer.close()
 
         # Check the external forces has been updated

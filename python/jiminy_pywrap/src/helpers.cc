@@ -321,80 +321,113 @@ namespace jiminy::python
 
     void exposeHelpers()
     {
-        // clang-format off
-        bp::def("build_geom_from_urdf", &buildGeometryModelFromUrdf,
-                                        (bp::arg("pinocchio_model"), "urdf_filename", "geom_type",
-                                         bp::arg("mesh_package_dirs") = bp::list(),
-                                         bp::arg("load_meshes") = true,
-                                         bp::arg("make_meshes_convex") = false));
+        bp::def("build_geom_from_urdf",
+                &buildGeometryModelFromUrdf,
+                (bp::arg("pinocchio_model"),
+                 "urdf_filename",
+                 "geom_type",
+                 bp::arg("mesh_package_dirs") = bp::list(),
+                 bp::arg("load_meshes") = true,
+                 bp::arg("make_meshes_convex") = false));
 
-        bp::def("build_models_from_urdf", &buildMultipleModelsFromUrdf,
-                                          (bp::arg("urdf_path"), "has_freeflyer",
-                                           bp::arg("mesh_package_dirs") = bp::list(),
-                                           bp::arg("build_visual_model") = false,
-                                           bp::arg("load_visual_meshes") = false));
+        bp::def("build_models_from_urdf",
+                &buildMultipleModelsFromUrdf,
+                (bp::arg("urdf_path"),
+                 "has_freeflyer",
+                 bp::arg("mesh_package_dirs") = bp::list(),
+                 bp::arg("build_visual_model") = false,
+                 bp::arg("load_visual_meshes") = false));
 
         bp::def("save_to_binary", &saveRobotToBinary, (bp::arg("robot")));
 
-        bp::def("load_from_binary", &buildRobotFromBinary,
-                                    (bp::arg("data"),
-                                     bp::arg("mesh_path_dir") = bp::object(),
-                                     bp::arg("mesh_package_dirs") = bp::list()));
+        bp::def("load_from_binary",
+                &buildRobotFromBinary,
+                (bp::arg("data"),
+                 bp::arg("mesh_path_dir") = bp::object(),
+                 bp::arg("mesh_package_dirs") = bp::list()));
 
         bp::def("get_joint_type", &getJointType, bp::arg("joint_model"));
-        bp::def("get_joint_type", &getJointTypeFromIndex,
-                                  (bp::arg("pinocchio_model"), "joint_index"));
-        bp::def("get_joint_indices", &getJointIndices,
-                                     (bp::arg("pinocchio_model"), "joint_names"));
-        bp::def("get_joint_position_first_index", &getJointPositionFirstIndex,
-                                          (bp::arg("pinocchio_model"), "joint_name"));
-        bp::def("is_position_valid", &isPositionValid,
-                                     (bp::arg("pinocchio_model"), "position",
-                                      bp::arg("tol_abs") = std::numeric_limits<float>::epsilon()));
+        bp::def(
+            "get_joint_type", &getJointTypeFromIndex, (bp::arg("pinocchio_model"), "joint_index"));
+        bp::def(
+            "get_joint_indices", &getJointIndices, (bp::arg("pinocchio_model"), "joint_names"));
+        bp::def("get_joint_position_first_index",
+                &getJointPositionFirstIndex,
+                (bp::arg("pinocchio_model"), "joint_name"));
+        bp::def("is_position_valid",
+                &isPositionValid,
+                (bp::arg("pinocchio_model"),
+                 "position",
+                 bp::arg("tol_abs") = std::numeric_limits<float>::epsilon()));
 
-        bp::def("get_frame_indices", &getFrameIndices,
-                                     bp::return_value_policy<result_converter<true>>(),
-                                     (bp::arg("pinocchio_model"), "frame_names"));
-        bp::def("get_joint_indices", &getFrameIndices,
-                                     bp::return_value_policy<result_converter<true>>(),
-                                     (bp::arg("pinocchio_model"), "joint_names"));
+        bp::def("get_frame_indices",
+                &getFrameIndices,
+                bp::return_value_policy<result_converter<true>>(),
+                (bp::arg("pinocchio_model"), "frame_names"));
+        bp::def("get_joint_indices",
+                &getFrameIndices,
+                bp::return_value_policy<result_converter<true>>(),
+                (bp::arg("pinocchio_model"), "joint_names"));
 
         bp::def("array_copyto", &arrayCopyTo, (bp::arg("dst"), "src"));
         bp::def("multi_array_copyto", &multiArrayCopyTo, (bp::arg("dst"), "src"));
 
-        // Do not use EigenPy To-Python converter because it considers matrices with 1 column as vectors
-        bp::def("interpolate_positions", &interpolatePositions,
-                                         bp::return_value_policy<result_converter<true>>(),
-                                         (bp::arg("pinocchio_model"), "times_in", "positions_in", "times_out"));
+        // Do NOT use EigenPy to-python converter as it considers arrays with 1 column as vectors
+        bp::def("interpolate_positions",
+                &interpolatePositions,
+                bp::return_value_policy<result_converter<true>>(),
+                (bp::arg("pinocchio_model"), "times_in", "positions_in", "times_out"));
 
         bp::def("aba",
-                &pinocchio_overload::aba<
-                    double, 0, pinocchio::JointCollectionDefaultTpl, Eigen::VectorXd, Eigen::VectorXd, Eigen::VectorXd, pinocchio::Force>,
+                &pinocchio_overload::aba<double,
+                                         0,
+                                         pinocchio::JointCollectionDefaultTpl,
+                                         Eigen::VectorXd,
+                                         Eigen::VectorXd,
+                                         Eigen::VectorXd,
+                                         pinocchio::Force>,
                 bp::return_value_policy<result_converter<false>>(),
                 (bp::arg("pinocchio_model"), "pinocchio_data", "q", "v", "u", "fext"),
                 "Compute ABA with external forces, store the result in Data::ddq and return it.");
+        bp::def(
+            "rnea",
+            &pinocchio_overload::rnea<double,
+                                      0,
+                                      pinocchio::JointCollectionDefaultTpl,
+                                      Eigen::VectorXd,
+                                      Eigen::VectorXd,
+                                      Eigen::VectorXd>,
+            bp::return_value_policy<result_converter<false>>(),
+            (bp::arg("pinocchio_model"), "pinocchio_data", "q", "v", "a"),
+            "Compute the RNEA without external forces, store the result in Data and return it.");
         bp::def("rnea",
-                &pinocchio_overload::rnea<
-                    double, 0, pinocchio::JointCollectionDefaultTpl, Eigen::VectorXd, Eigen::VectorXd, Eigen::VectorXd>,
-                bp::return_value_policy<result_converter<false>>(),
-                (bp::arg("pinocchio_model"), "pinocchio_data", "q", "v", "a"),
-                "Compute the RNEA without external forces, store the result in Data and return it.");
-        bp::def("rnea",
-                &pinocchio_overload::rnea<
-                    double, 0, pinocchio::JointCollectionDefaultTpl, Eigen::VectorXd, Eigen::VectorXd, Eigen::VectorXd, pinocchio::Force>,
+                &pinocchio_overload::rnea<double,
+                                          0,
+                                          pinocchio::JointCollectionDefaultTpl,
+                                          Eigen::VectorXd,
+                                          Eigen::VectorXd,
+                                          Eigen::VectorXd,
+                                          pinocchio::Force>,
                 bp::return_value_policy<result_converter<false>>(),
                 (bp::arg("pinocchio_model"), "pinocchio_data", "q", "v", "a", "fext"),
                 "Compute the RNEA with external forces, store the result in Data and return it.");
         bp::def("crba",
-                &pinocchio_overload::crba<
-                    double, 0, pinocchio::JointCollectionDefaultTpl, Eigen::VectorXd>,
+                &pinocchio_overload::
+                    crba<double, 0, pinocchio::JointCollectionDefaultTpl, Eigen::VectorXd>,
                 bp::return_value_policy<result_converter<false>>(),
-                (bp::arg("pinocchio_model"), "pinocchio_data", "q", bp::arg("fast_math") = false),
+                (bp::arg("pinocchio_model"), "pinocchio_data", "q", bp::arg("fastmath") = false),
                 "Computes CRBA, store the result in Data and return it.");
         bp::def("computeKineticEnergy",
-                &pinocchio_overload::computeKineticEnergy<
-                    double, 0, pinocchio::JointCollectionDefaultTpl, Eigen::VectorXd, Eigen::VectorXd>,
-                (bp::arg("pinocchio_model"), "pinocchio_data", "q", "v"),
+                &pinocchio_overload::computeKineticEnergy<double,
+                                                          0,
+                                                          pinocchio::JointCollectionDefaultTpl,
+                                                          Eigen::VectorXd,
+                                                          Eigen::VectorXd>,
+                (bp::arg("pinocchio_model"),
+                 "pinocchio_data",
+                 "q",
+                 "v",
+                 bp::arg("update_kinematics") = true),
                 "Computes the forward kinematics and the kinematic energy of the model for the "
                 "given joint configuration and velocity given as input. "
                 "The result is accessible through data.kinetic_energy.");
@@ -402,9 +435,12 @@ namespace jiminy::python
         bp::def("computeJMinvJt",
                 &pinocchio_overload::computeJMinvJt<Eigen::MatrixXd>,
                 bp::return_value_policy<result_converter<false>>(),
-                (bp::arg("pinocchio_model"), "pinocchio_data", "J", bp::arg("update_decomposition") = true));
-        bp::def("solveJMinvJtv", &solveJMinvJtv,
+                (bp::arg("pinocchio_model"),
+                 "pinocchio_data",
+                 "J",
+                 bp::arg("update_decomposition") = true));
+        bp::def("solveJMinvJtv",
+                &solveJMinvJtv,
                 (bp::arg("pinocchio_data"), "v", bp::arg("update_decomposition") = true));
-        // clang-format on
     }
 }

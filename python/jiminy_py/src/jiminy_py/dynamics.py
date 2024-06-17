@@ -7,9 +7,9 @@
 """
 # pylint: disable=invalid-name,no-member
 import logging
-from bisect import bisect_right
+from bisect import bisect_left
 from dataclasses import dataclass
-from typing import Optional, Tuple, Sequence, Callable, Literal
+from typing import List, Union, Optional, Tuple, Sequence, Callable, Literal
 
 import numpy as np
 
@@ -138,6 +138,13 @@ class State:
     coordinates (Fx, Fy, Fz, Mx, My, Mz).
     """
 
+    lambda_c: Optional[np.ndarray] = None
+    """Lambda multipliers associated with all the constraints as a 2D array.
+
+    The first dimension corresponds to the N individual constraints applied on
+    the robot, while the second gathers the lambda multipliers.
+    """
+
 
 @dataclass(unsafe_hash=True)
 class Trajectory:
@@ -198,15 +205,15 @@ class Trajectory:
 
         # Keep track of last request to speed up nearest neighbors search
         self._t_prev = 0.0
-        self._index_prev = 0
+        self._index_prev = 1
 
         # List of optional state fields that are provided
-        self._fields: Tuple[str, ...] = ()
         self._has_velocity = False
         self._has_acceleration = False
         self._has_effort = False
         self._has_command = False
         self._has_external_forces = False
+        self._has_constraints = False
         if states:
             state = states[0]
             self._has_velocity = state.v is not None
@@ -214,8 +221,10 @@ class Trajectory:
             self._has_effort = state.u is not None
             self._has_command = state.command is not None
             self._has_external_forces = state.f_external is not None
+            self._has_constraints = state.lambda_c is not None
             self._fields = tuple(
-                field for field in ("v", "a", "u", "command", "f_external")
+                field for field in (
+                    "v", "a", "u", "command", "f_external", "lambda_c")
                 if getattr(state, field) is not None)
 
     @property
@@ -253,6 +262,12 @@ class Trajectory:
         """Whether the trajectory contains external forces.
         """
         return self._has_external_forces
+
+    @property
+    def has_constraints(self) -> bool:
+        """Whether the trajectory contains lambda multipliers of constraints.
+        """
+        return self._has_constraints
 
     @property
     def time_interval(self) -> Tuple[float, float]:
@@ -303,14 +318,20 @@ class Trajectory:
         else:
             t = max(t, t_start)  # Clipping right it is sufficient
 
-        # Get nearest neighbors timesteps for linear interpolation
+        # Get nearest neighbors timesteps for linear interpolation.
+        # Note that the left and right data points may be associated with the
+        # same timestamp, corresponding respectively t- and t+. These values
+        # are different for quantities that may change discontinuously such as
+        # the acceleration. If the state at such a timestamp is requested, then
+        # returning the left value is preferred, because it corresponds to the
+        # only state that was accessible to the user, ie after call `step`.
         if t < self._t_prev:
-            self._index_prev = 0
-        self._index_prev = bisect_right(
+            self._index_prev = 1
+        self._index_prev = bisect_left(
             self._times, t, self._index_prev, len(self._times) - 1)
         self._t_prev = t
 
-        # Skip interpolation if not necessary
+        # Skip interpolation if not necessary.
         index_left, index_right = self._index_prev - 1, self._index_prev
         t_left, s_left = self._times[index_left], self.states[index_left]
         if t - t_left < TRAJ_INTERP_TOL:
@@ -338,11 +359,13 @@ def update_quantities(robot: jiminy.Model,
                       position: np.ndarray,
                       velocity: Optional[np.ndarray] = None,
                       acceleration: Optional[np.ndarray] = None,
-                      update_physics: bool = True,
+                      f_external: Optional[
+                        Union[List[np.ndarray], pin.StdVec_Force]] = None,
+                      update_dynamics: bool = True,
                       update_centroidal: bool = True,
                       update_energy: bool = True,
                       update_jacobian: bool = False,
-                      update_collisions: bool = True,
+                      update_collisions: bool = False,
                       use_theoretical_model: bool = True) -> None:
     """Compute all quantities using position, velocity and acceleration
     configurations.
@@ -351,11 +374,11 @@ def update_quantities(robot: jiminy.Model,
     the model position, velocity and acceleration.
 
     This includes:
-    - body spatial transforms,
+    - body and frame spatial transforms,
     - body spatial velocities,
     - body spatial drifts,
-    - body transform acceleration,
-    - body transform jacobians,
+    - body spatial acceleration,
+    - joint transform jacobian matrices,
     - center-of-mass position,
     - center-of-mass velocity,
     - center-of-mass drift,
@@ -366,34 +389,31 @@ def update_quantities(robot: jiminy.Model,
     - collisions and distances
 
     .. note::
-        Computation results are stored internally in the robot, and can
-        be retrieved with associated getters.
+        Computation results are stored internally in the robot, and can be
+        retrieved with associated getters.
 
     .. warning::
         This function modifies the internal robot data.
 
-    .. warning::
-        It does not called overloaded pinocchio methods provided by
-        `jiminy_py.core` but the original pinocchio methods instead. As a
-        result, it does not take into account the rotor inertias / armatures.
-        One is responsible of calling the appropriate methods manually instead
-        of this one if necessary. This behavior is expected to change in the
-        future.
-
     :param robot: Jiminy robot.
-    :param position: Robot position vector.
-    :param velocity: Robot velocity vector.
-    :param acceleration: Robot acceleration vector.
-    :param update_physics: Whether to compute the non-linear effects and
-                           internal/external forces.
-                           Optional: True by default.
+    :param position: Configuration vector.
+    :param velocity: Joint velocity vector.
+    :param acceleration: Joint acceleration vector.
+    :param f_external: External forces applied on each joints.
+    :param update_dynamics: Whether to compute the non-linear effects and the
+                            joint internal forces.
+                            Optional: True by default.
     :param update_centroidal: Whether to compute the centroidal dynamics (incl.
                               CoM) of the robot.
                               Optional: False by default.
     :param update_energy: Whether to compute the energy of the robot.
                           Optional: False by default
-    :param update_jacobian: Whether to compute the jacobians.
+    :param update_jacobian: Whether to compute the Jacobian matrices of the
+                            joint transforms.
                             Optional: False by default.
+    :param update_collisions: Whether to detect collisions and compute
+                              distances between all the geometry objects.
+                              Optional: False by default.
     :param use_theoretical_model: Whether the state corresponds to the
                                   theoretical model when updating and fetching
                                   the state of the robot.
@@ -406,7 +426,7 @@ def update_quantities(robot: jiminy.Model,
         model = robot.pinocchio_model
         data = robot.pinocchio_data
 
-    if (update_physics and update_centroidal and
+    if (update_dynamics and update_centroidal and
             update_energy and update_jacobian and
             velocity is not None and acceleration is None):
         pin.computeAllTerms(model, data, position, velocity)
@@ -419,36 +439,37 @@ def update_quantities(robot: jiminy.Model,
             pin.forwardKinematics(
                 model, data, position, velocity, acceleration)
 
-        if update_centroidal:
-            if velocity is None:
-                kinematic_level = pin.POSITION
-            elif acceleration is None:
-                kinematic_level = pin.VELOCITY
-            else:
-                kinematic_level = pin.ACCELERATION
-            pin.centerOfMass(model, data, kinematic_level, False)
-            pin.computeCentroidalMomentumTimeVariation(model, data)
-
         if update_jacobian:
             if update_centroidal:
                 pin.jacobianCenterOfMass(model, data)
-            pin.computeJointJacobians(model, data)
+            if not update_dynamics:
+                pin.computeJointJacobians(model, data)
 
-        if update_physics:
+        if update_dynamics:
             if velocity is not None:
                 pin.nonLinearEffects(model, data, position, velocity)
-            pin.crba(model, data, position)
+            jiminy.crba(model, data, position)
 
         if update_energy:
             if velocity is not None:
-                pin.computeKineticEnergy(model, data)
+                jiminy.computeKineticEnergy(
+                    model, data, position, velocity, update_kinematics=False)
             pin.computePotentialEnergy(model, data)
 
+    if update_centroidal:
+        pin.computeCentroidalMomentumTimeVariation(model, data)
+        if acceleration is not None:
+            pin.centerOfMass(model, data, pin.ACCELERATION, False)
+
+    if (update_dynamics and velocity is not None and
+            acceleration is not None and f_external is not None):
+        jiminy.rnea(model, data, position, velocity, acceleration, f_external)
+
     pin.updateFramePlacements(model, data)
+    pin.updateGeometryPlacements(
+        model, data, robot.collision_model, robot.collision_data)
 
     if update_collisions:
-        pin.updateGeometryPlacements(
-            model, data, robot.collision_model, robot.collision_data)
         pin.computeCollisions(
             robot.collision_model, robot.collision_data,
             stop_at_first_collision=False)
@@ -776,7 +797,7 @@ def compute_freeflyer_state_from_fixed_body(
                       position,
                       velocity,
                       acceleration,
-                      update_physics=False,
+                      update_dynamics=False,
                       update_centroidal=False,
                       update_energy=False,
                       use_theoretical_model=use_theoretical_model)

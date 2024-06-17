@@ -98,30 +98,30 @@ namespace jiminy::python
             ConstraintTree constraints = self.getConstraints();
             constraints.foreach(
                 [&constraintsRows](const std::shared_ptr<AbstractConstraintBase> & constraint,
-                                   ConstraintNodeType /* node */)
+                                   ConstraintRegistryType /* type */)
                 {
                     if (!constraint->getIsEnabled())
                     {
                         return;
                     }
-                    constraintsRows += static_cast<Eigen::Index>(constraint->getDim());
+                    constraintsRows += static_cast<Eigen::Index>(constraint->getSize());
                 });
             Eigen::MatrixXd J(constraintsRows, self.nv());
             Eigen::VectorXd gamma(constraintsRows);
             constraints.foreach(
                 [&J, &gamma, &constraintRow](
                     const std::shared_ptr<AbstractConstraintBase> & constraint,
-                    ConstraintNodeType /* node */)
+                    ConstraintRegistryType /* type */)
                 {
                     if (!constraint->getIsEnabled())
                     {
                         return;
                     }
-                    const Eigen::Index constraintDim =
-                        static_cast<Eigen::Index>(constraint->getDim());
-                    J.middleRows(constraintRow, constraintDim) = constraint->getJacobian();
-                    gamma.segment(constraintRow, constraintDim) = constraint->getDrift();
-                    constraintRow += constraintDim;
+                    const Eigen::Index constraintSize =
+                        static_cast<Eigen::Index>(constraint->getSize());
+                    J.middleRows(constraintRow, constraintSize) = constraint->getJacobian();
+                    gamma.segment(constraintRow, constraintSize) = constraint->getDrift();
+                    constraintRow += constraintSize;
                 });
             return bp::make_tuple(J, gamma);
         }
@@ -221,11 +221,6 @@ namespace jiminy::python
             .def("remove_constraint",
                  static_cast<void (Model::*)(const std::string &)>(&Model::removeConstraint),
                  (bp::arg("self"), "name"))
-            .def("get_constraint",
-                 static_cast<std::shared_ptr<AbstractConstraintBase> (Model::*)(
-                     const std::string &)>(&Model::getConstraint),
-                 (bp::arg("self"), "constraint_name"))
-            .def("exist_constraint", &Model::existConstraint, (bp::arg("self"), "constraint_name"))
             .ADD_PROPERTY_GET("has_constraints", &Model::hasConstraints)
             .ADD_PROPERTY_GET_WITH_POLICY("constraints",
                                           &Model::getConstraints,
@@ -333,6 +328,9 @@ namespace jiminy::python
                                           bp::return_value_policy<result_converter<true>>())
             .ADD_PROPERTY_GET_WITH_POLICY("log_f_external_fieldnames",
                                           &Model::getLogForceExternalFieldnames,
+                                          bp::return_value_policy<result_converter<true>>())
+            .ADD_PROPERTY_GET_WITH_POLICY("log_constraint_fieldnames",
+                                          &Model::getLogConstraintFieldnames,
                                           bp::return_value_policy<result_converter<true>>());
     }
 

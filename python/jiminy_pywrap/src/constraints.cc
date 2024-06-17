@@ -104,6 +104,7 @@ namespace jiminy::python
             .ADD_PROPERTY_GET_WITH_POLICY("type",
                                           &AbstractConstraintBase::getType,
                                           bp::return_value_policy<bp::return_by_value>())
+            .ADD_PROPERTY_GET("size", &AbstractConstraintBase::getSize)
             .ADD_PROPERTY_GET_SET("is_enabled",
                                   &AbstractConstraintBase::getIsEnabled,
                                   &internal::constraints::setIsEnable)
@@ -283,14 +284,14 @@ namespace jiminy::python
             return constraintCollisionBodies;
         }
 
-        static bp::dict getRegistry(ConstraintTree & self)
+        static bp::dict getUser(ConstraintTree & self)
         {
-            bp::dict constraintRegistryPy;
-            for (auto & [name, constraint] : self.registry)
+            bp::dict constraintUserPy;
+            for (auto & [name, constraint] : self.user)
             {
-                constraintRegistryPy[name] = constraint;
+                constraintUserPy[name] = constraint;
             }
-            return constraintRegistryPy;
+            return constraintUserPy;
         }
     }
 
@@ -301,6 +302,6 @@ namespace jiminy::python
             .ADD_PROPERTY_GET("bounds_joints", &internal::constraint_tree::getBoundJoints)
             .ADD_PROPERTY_GET("contact_frames", &internal::constraint_tree::getContactFrames)
             .ADD_PROPERTY_GET("collision_bodies", &internal::constraint_tree::getCollisionBodies)
-            .ADD_PROPERTY_GET("registry", &internal::constraint_tree::getRegistry);
+            .ADD_PROPERTY_GET("user", &internal::constraint_tree::getUser);
     }
 }

@@ -347,7 +347,10 @@ namespace jiminy
     AbstractPerlinNoiseOctave::AbstractPerlinNoiseOctave(double wavelength) :
     wavelength_{wavelength}
     {
-        assert(wavelength_ > 0 && "wavelength must be strictly larger than 0.0.");
+        if (wavelength_ <= 0.0)
+        {
+            JIMINY_THROW(std::invalid_argument, "'wavelength' must be strictly larger than 0.0.");
+        }
         shift_ = uniform(std::random_device{});
     }
 
@@ -447,8 +450,11 @@ namespace jiminy
     period_{period}
     {
         // Make sure the wavelength is multiple of the period
-        assert(std::abs(std::round(period / wavelength) * wavelength - period) < 1e-6 &&
-               "wavelength must be multiple of period.");
+        if (std::abs(std::round(period / wavelength) * wavelength - period) >
+            std::numeric_limits<float>::epsilon())
+        {
+            JIMINY_THROW(std::invalid_argument, "'wavelength' must be multiple of 'period'.");
+        }
 
         // Initialize the permutation vector with values from 0 to 255 and shuffle it
         internal::randomizePermutationVector(std::random_device{}, perm_);
@@ -569,7 +575,10 @@ namespace jiminy
     period_{period}
     {
         // Make sure the period is larger than the wavelength
-        assert(period_ >= wavelength && "Period must be larger than wavelength.");
+        if (period_ < wavelength)
+        {
+            JIMINY_THROW(std::invalid_argument, "'period' must be larger than 'wavelength'.");
+        }
     }
 
     double PeriodicPerlinProcess::getPeriod() const noexcept
