@@ -21,12 +21,14 @@ namespace jiminy
     class AbstractConstraintBase;
     class FrameConstraint;
     class JointConstraint;
+    class MutexLocal;
+    class LockGuardLocal;
 
     // ************************************** Constraints ************************************** //
 
     using ConstraintMap = static_map_t<std::string, std::shared_ptr<AbstractConstraintBase>>;
 
-    enum class ConstraintNodeType : uint8_t
+    enum class ConstraintRegistryType : uint8_t
     {
         CONTACT_FRAMES = 0,
         COLLISION_BODIES = 1,
@@ -37,77 +39,74 @@ namespace jiminy
     /* Note that the following ordering plays a critical role as it determines in which order
        `foreach` iterates over all the constraints. This has a directly effect on the solution
        found by 'PGS' constraint solvers. */
-    inline constexpr std::array constraintNodeTypesAll{ConstraintNodeType::BOUNDS_JOINTS,
-                                                       ConstraintNodeType::CONTACT_FRAMES,
-                                                       ConstraintNodeType::COLLISION_BODIES,
-                                                       ConstraintNodeType::USER};
+    inline constexpr std::array constraintNodeTypesAll{ConstraintRegistryType::BOUNDS_JOINTS,
+                                                       ConstraintRegistryType::CONTACT_FRAMES,
+                                                       ConstraintRegistryType::COLLISION_BODIES,
+                                                       ConstraintRegistryType::USER};
 
     struct JIMINY_DLLAPI ConstraintTree
     {
     public:
+        std::pair<ConstraintMap *, ConstraintMap::iterator> find(const std::string & key,
+                                                                 ConstraintRegistryType type);
+        std::pair<const ConstraintMap *, ConstraintMap::const_iterator> find(
+            const std::string & key, ConstraintRegistryType type) const;
+
+        bool exist(const std::string & key, ConstraintRegistryType type) const;
+
+        std::shared_ptr<AbstractConstraintBase> get(const std::string & key,
+                                                    ConstraintRegistryType type) const;
+
+        void insert(const ConstraintMap & constraintMap, ConstraintRegistryType type);
+
+        ConstraintMap::iterator erase(const std::string & key, ConstraintRegistryType type);
+
         void clear() noexcept;
 
-        std::pair<ConstraintMap *, ConstraintMap::iterator> find(const std::string & key,
-                                                                 ConstraintNodeType node);
-        std::pair<const ConstraintMap *, ConstraintMap::const_iterator> find(
-            const std::string & key, ConstraintNodeType node) const;
-
-        bool exist(const std::string & key) const;
-        bool exist(const std::string & key, ConstraintNodeType node) const;
-
-        std::shared_ptr<AbstractConstraintBase> get(const std::string & key) const;
-        std::shared_ptr<AbstractConstraintBase> get(const std::string & key,
-                                                    ConstraintNodeType node) const;
-
-        void insert(const ConstraintMap & constraintMap, ConstraintNodeType node);
-
-        ConstraintMap::iterator erase(const std::string & key, ConstraintNodeType node);
-
         template<typename Function>
-        void foreach(ConstraintNodeType node, Function && func) const
+        void foreach(ConstraintRegistryType type, Function && func) const
         {
-            if (node == ConstraintNodeType::COLLISION_BODIES)
+            if (type == ConstraintRegistryType::COLLISION_BODIES)
             {
                 for (auto & constraintMap : collisionBodies)
                 {
                     for (auto & constraintItem : constraintMap)
                     {
-                        std::invoke(std::forward<Function>(func), constraintItem.second, node);
+                        std::invoke(std::forward<Function>(func), constraintItem.second, type);
                     }
                 }
             }
             else
             {
                 const ConstraintMap * constraintMapPtr;
-                switch (node)
+                switch (type)
                 {
-                case ConstraintNodeType::BOUNDS_JOINTS:
+                case ConstraintRegistryType::BOUNDS_JOINTS:
                     constraintMapPtr = &boundJoints;
                     break;
-                case ConstraintNodeType::CONTACT_FRAMES:
+                case ConstraintRegistryType::CONTACT_FRAMES:
                     constraintMapPtr = &contactFrames;
                     break;
-                case ConstraintNodeType::USER:
-                    constraintMapPtr = &registry;
+                case ConstraintRegistryType::USER:
+                    constraintMapPtr = &user;
                     break;
-                case ConstraintNodeType::COLLISION_BODIES:
+                case ConstraintRegistryType::COLLISION_BODIES:
                 default:
                     constraintMapPtr = nullptr;
                 }
                 for (const auto & constraintItem : *constraintMapPtr)
                 {
-                    std::invoke(std::forward<Function>(func), constraintItem.second, node);
+                    std::invoke(std::forward<Function>(func), constraintItem.second, type);
                 }
             }
         }
 
         template<typename Function, std::size_t N>
-        void foreach(const std::array<ConstraintNodeType, N> & constraintsHolderTypes,
-                     Function && func) const
+        void foreach(const std::array<ConstraintRegistryType, N> & types, Function && func) const
         {
-            for (ConstraintNodeType node : constraintsHolderTypes)
+            for (ConstraintRegistryType type : types)
             {
-                foreach(node, std::forward<Function>(func));
+                foreach(type, std::forward<Function>(func));
             }
         }
 
@@ -125,7 +124,7 @@ namespace jiminy
         /// \brief Constraints registered by the engine to handle collision bounds.
         std::vector<ConstraintMap> collisionBodies{};
         /// \brief Constraints explicitly registered by user.
-        ConstraintMap registry{};
+        ConstraintMap user{};
     };
 
     // ***************************************** Model ***************************************** //
@@ -306,17 +305,7 @@ namespace jiminy
         /// \param[in] constraintName Unique name identifying the kinematic constraint.
         void removeConstraint(const std::string & constraintName);
 
-        /// \brief Pointer to the constraint referenced by constraintName
-        ///
-        /// \param[in] constraintName Name of the constraint to get.
-        std::shared_ptr<AbstractConstraintBase> getConstraint(const std::string & constraintName);
-
-        std::weak_ptr<const AbstractConstraintBase> getConstraint(
-            const std::string & constraintName) const;
-
         const ConstraintTree & getConstraints() const;
-
-        bool existConstraint(const std::string & constraintName) const;
 
         /// \brief Returns true if at least one constraint is active on the robot.
         bool hasConstraints() const;
@@ -371,6 +360,7 @@ namespace jiminy
         const std::vector<std::string> & getLogAccelerationFieldnames() const;
         const std::vector<std::string> & getLogEffortFieldnames() const;
         const std::vector<std::string> & getLogForceExternalFieldnames() const;
+        const std::vector<std::string> & getLogConstraintFieldnames() const;
 
         void getExtendedPositionFromTheoretical(const Eigen::VectorXd & qTheoretical,
                                                 Eigen::VectorXd & qExtended) const;
@@ -380,6 +370,9 @@ namespace jiminy
                                                 Eigen::VectorXd & qTheoretical) const;
         void getTheoreticalVelocityFromExtended(const Eigen::VectorXd & vExtended,
                                                 Eigen::VectorXd & vTheoretical) const;
+
+        virtual std::unique_ptr<LockGuardLocal> getLock();
+        bool getIsLocked() const;
 
     protected:
         void generateModelExtended(const uniform_random_bit_generator_ref<uint32_t> & g);
@@ -397,16 +390,14 @@ namespace jiminy
 
         void addConstraint(const std::string & constraintName,
                            const std::shared_ptr<AbstractConstraintBase> & constraint,
-                           ConstraintNodeType node);
-        void addConstraints(const ConstraintMap & constraintMap, ConstraintNodeType node);
-        void removeConstraint(const std::string & constraintName, ConstraintNodeType node);
+                           ConstraintRegistryType type);
+        void addConstraints(const ConstraintMap & constraintMap, ConstraintRegistryType type);
+        void removeConstraint(const std::string & constraintName, ConstraintRegistryType type);
         void removeConstraints(const std::vector<std::string> & constraintNames,
-                               ConstraintNodeType node);
+                               ConstraintRegistryType type);
 
         void refreshGeometryProxies();
         void refreshContactProxies();
-        /// \brief Refresh the proxies of the kinematics constraints.
-        void refreshConstraintProxies();
         virtual void refreshProxies();
 
     public:
@@ -476,8 +467,12 @@ namespace jiminy
         /// \brief Concatenated fieldnames of the external force applied at each joint of the
         ///        model, 'universe' excluded.
         std::vector<std::string> logForceExternalFieldnames_{};
+        /// \brief Concatenated fieldnames of all the constraints.
+        std::vector<std::string> logConstraintFieldnames_{};
 
     private:
+        std::unique_ptr<MutexLocal> mutexLocal_{std::make_unique<MutexLocal>()};
+
         /// \brief Vector of joints acceleration corresponding to a copy of data.a.
         //         Used for computing constraints as a temporary buffer.
         MotionVector jointSpatialAccelerations_{};

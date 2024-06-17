@@ -13,7 +13,7 @@ from .generic import (OrientationType,
                       MultiFramesPosition,
                       MultiFramesXYZQuat,
                       MultiFramesMeanXYZQuat,
-                      AverageFramePose,
+                      AverageFrameXYZQuat,
                       AverageFrameRollPitch,
                       AverageFrameSpatialVelocity,
                       ActuatedJointsPosition)
@@ -24,10 +24,10 @@ from .locomotion import (BaseOdometryPose,
                          AverageBaseMomentum,
                          MultiFootMeanXYZQuat,
                          MultiFootRelativeXYZQuat,
+                         MultiContactRelativeForceTangential,
                          CenterOfMass,
                          CapturePoint,
                          ZeroMomentPoint,
-                         MultiContactRelativeForceTangential,
                          translate_position_odom)
 
 
@@ -48,7 +48,8 @@ __all__ = [
     'MultiFootMeanXYZQuat',
     'MultiFootRelativeXYZQuat',
     'MultiFootMeanOdometryPose',
-    'AverageFramePose',
+    'MultiContactRelativeForceTangential',
+    'AverageFrameXYZQuat',
     'AverageFrameRollPitch',
     'AverageFrameSpatialVelocity',
     'AverageBaseSpatialVelocity',
@@ -59,6 +60,5 @@ __all__ = [
     'CenterOfMass',
     'CapturePoint',
     'ZeroMomentPoint',
-    'MultiContactRelativeForceTangential',
     'translate_position_odom'
 ]

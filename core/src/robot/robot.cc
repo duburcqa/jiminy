@@ -592,9 +592,9 @@ namespace jiminy
             std::string backlashName = jointName;
             backlashName += BACKLASH_JOINT_SUFFIX;
 
-            // Check if constraint a joint bounds constraint exist
+            // Check if the corresponding joint bound constraint already exists
             const bool hasConstraint =
-                constraints_.exist(backlashName, ConstraintNodeType::BOUNDS_JOINTS);
+                constraints_.exist(backlashName, ConstraintRegistryType::BOUNDS_JOINTS);
 
             // Skip adding joint if no backlash
             const double backlash = motor->getBacklash();
@@ -603,23 +603,22 @@ namespace jiminy
                 // Remove joint bounds constraint if any
                 if (hasConstraint)
                 {
-                    removeConstraint(backlashName, ConstraintNodeType::BOUNDS_JOINTS);
+                    removeConstraint(backlashName, ConstraintRegistryType::BOUNDS_JOINTS);
                 }
-
                 continue;
             }
+
+            // Add backlash joint to the model
+            addBacklashJointAfterMechanicalJoint(pinocchioModel_, jointName, backlashName);
+            backlashJointNames_.push_back(backlashName);
 
             // Add joint bounds constraint if necessary
             if (!hasConstraint)
             {
                 std::shared_ptr<AbstractConstraintBase> constraint =
                     std::make_shared<JointConstraint>(backlashName);
-                addConstraint(backlashName, constraint, ConstraintNodeType::BOUNDS_JOINTS);
+                addConstraint(backlashName, constraint, ConstraintRegistryType::BOUNDS_JOINTS);
             }
-
-            // Add backlash joint to the model
-            addBacklashJointAfterMechanicalJoint(pinocchioModel_, jointName, backlashName);
-            backlashJointNames_.push_back(backlashName);
 
             // Update position limits in model
             const Eigen::Index positionIndex =
@@ -1050,24 +1049,15 @@ namespace jiminy
 
     std::unique_ptr<LockGuardLocal> Robot::getLock()
     {
-        // Make sure that the robot is not already locked
-        if (mutexLocal_->isLocked())
-        {
-            JIMINY_THROW(bad_control_flow,
-                         "Robot already locked. Please release it first prior requesting lock.");
-        }
+        // Get lock
+        std::unique_ptr<LockGuardLocal> lock = Model::getLock();
 
         // Make sure that the options are not already considered valid as it was impossible to
         // guarantee it before locking the robot.
         areRobotOptionsRefreshed_ = false;
 
         // Return lock
-        return std::make_unique<LockGuardLocal>(*mutexLocal_);
-    }
-
-    bool Robot::getIsLocked() const
-    {
-        return mutexLocal_->isLocked();
+        return lock;
     }
 
     Eigen::Index Robot::nmotors() const

@@ -1126,8 +1126,9 @@ class _DifferenceFrameXYZQuat(InterfaceQuantity[np.ndarray]):
 
 
 @dataclass(unsafe_hash=True)
-class AverageFramePose(InterfaceQuantity[np.ndarray]):
-    """Average pose of a given frame over the whole agent step.
+class AverageFrameXYZQuat(InterfaceQuantity[np.ndarray]):
+    """Spatial vector representation (X, Y, Z, QuatX, QuatY, QuatZ, QuatW) of
+    the average pose of a given frame over the whole agent step.
 
     The average frame pose is obtained by integration of the average velocity
     over the whole agent step, backward in time from the state at the end of
@@ -1203,7 +1204,7 @@ class AverageFrameRollPitch(InterfaceQuantity[np.ndarray]):
     Roll-Pitch_yaw decomposition of a given frame over the whole agent step.
 
     .. seealso::
-        See `remove_yaw_from_quat` and `AverageFramePose` for details about
+        See `remove_yaw_from_quat` and `AverageFrameXYZQuat` for details about
         the Roll-Pitch-Yaw decomposition and how the average frame pose is
         defined respectively.
     """
@@ -1245,7 +1246,7 @@ class AverageFrameRollPitch(InterfaceQuantity[np.ndarray]):
             parent,
             requirements=dict(
                 quat_mean=(MaskedQuantity, dict(
-                    quantity=(AverageFramePose, dict(
+                    quantity=(AverageFrameXYZQuat, dict(
                         frame_name=frame_name,
                         mode=mode)),
                     axis=0,
@@ -1340,7 +1341,7 @@ class AverageFrameSpatialVelocity(InterfaceQuantity[np.ndarray]):
                     frame_name=frame_name,
                     mode=mode)),
                 quat_mean=(MaskedQuantity, dict(
-                    quantity=(AverageFramePose, dict(
+                    quantity=(AverageFrameXYZQuat, dict(
                         frame_name=frame_name,
                         mode=mode)),
                     axis=0,

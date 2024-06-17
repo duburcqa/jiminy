@@ -119,6 +119,7 @@ def setup_controller_and_engine(
     telemetry_options["enableEffort"] = True
     telemetry_options["enableCommand"] = True
     telemetry_options["enableForceExternal"] = True
+    telemetry_options["enableConstraint"] = True
     telemetry_options["enableEnergy"] = True
     engine.set_options(engine_options)
 

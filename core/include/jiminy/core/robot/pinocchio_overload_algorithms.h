@@ -46,9 +46,9 @@ namespace jiminy::pinocchio_overload
                          pinocchio::DataTpl<Scalar, Options, JointCollectionTpl> & data,
                          const Eigen::MatrixBase<ConfigVectorType> & q,
                          const Eigen::MatrixBase<TangentVectorType> & v,
-                         bool update_kinematics = true)
+                         bool updateKinematics = true)
     {
-        if (update_kinematics)
+        if (updateKinematics)
         {
             pinocchio::forwardKinematics(model, data, q, v);
         }
