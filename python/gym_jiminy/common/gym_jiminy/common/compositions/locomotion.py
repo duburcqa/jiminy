@@ -11,7 +11,7 @@ from ..bases import (
 from ..quantities import (
     MaskedQuantity, UnaryOpQuantity, AverageBaseOdometryVelocity, CapturePoint,
     MultiFootRelativeXYZQuat, MultiContactRelativeForceTangential,
-    AverageBaseMomentum)
+    MultiFootRelativeForceVertical, AverageBaseMomentum)
 from ..quantities.locomotion import sanitize_foot_frame_names
 from ..utils import quat_difference
 
@@ -195,6 +195,53 @@ class TrackingFootOrientationsReward(BaseTrackingReward):
                 keys=(3, 4, 5, 6))),
             cutoff,
             op=partial(quat_difference_buffered, self._diff))
+
+
+class TrackingFootForceDistributionReward(BaseTrackingReward):
+    """Reward the agent for tracking the relative vertical force in world frame
+    applied on each foot.
+
+    .. note::
+        The force is normalized by the weight of the robot rather than the
+        total force applied on all feet. This is important as it not only takes
+        into account the force distribution between the feet, but also the
+        overall ground contact interact force. This way, building up momentum
+        before jumping will be distinguished for standing still. Moreover, it
+        ensures that the reward is always properly defined, even if the robot
+        has no contact with the ground at all, which typically arises during
+        the flying phase of running.
+
+    .. seealso::
+        See `BaseTrackingReward` documentation for technical details.
+    """
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 cutoff: float,
+                 *,
+                 frame_names: Union[Sequence[str], Literal['auto']] = 'auto'
+                 ) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param cutoff: Cutoff threshold for the RBF kernel transform.
+        :param frame_names: Name of the frames corresponding to the feet of the
+                            robot. 'auto' to automatically detect them from the
+                            set of contact and force sensors of the robot.
+                            Optional: 'auto' by default.
+        """
+        # Backup some user argument(s)
+        self.cutoff = cutoff
+
+        # Sanitize frame names corresponding to the feet of the robot
+        frame_names = tuple(sanitize_foot_frame_names(env, frame_names))
+
+        # Call base implementation
+        super().__init__(
+            env,
+            "reward_tracking_foot_force_distribution",
+            lambda mode: (MultiFootRelativeForceVertical, dict(
+                frame_names=frame_names,
+                mode=mode)),
+            cutoff)
 
 
 class MinimizeAngularMomentumReward(BaseQuantityReward):

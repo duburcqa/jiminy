@@ -1104,6 +1104,7 @@ class MultiFootRelativeForceVertical(AbstractQuantity[np.ndarray]):
             requirements=dict(
                 state=(StateQuantity, dict(
                     update_kinematics=False))),
+            mode=mode,
             auto_refresh=False)
 
         # Define jit-able method compute the normalized tangential forces

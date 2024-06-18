@@ -16,6 +16,7 @@ from gym_jiminy.common.compositions import (
     TrackingCapturePointReward,
     TrackingFootPositionsReward,
     TrackingFootOrientationsReward,
+    TrackingFootForceDistributionReward,
     MinimizeFrictionReward,
     SurviveReward,
     AdditiveMixtureReward)
@@ -32,7 +33,7 @@ class Rewards(unittest.TestCase):
 
         self.env.eval()
         self.env.reset(seed=1)
-        action = self.env.action_space.sample()
+        action = 0.5 * self.env.action_space.sample()
         for _ in range(10):
             self.env.step(action)
         self.env.stop()
@@ -54,17 +55,18 @@ class Rewards(unittest.TestCase):
     def test_tracking(self):
         for reward_class, cutoff in (
                 (TrackingBaseOdometryVelocityReward, 20.0),
-                (TrackingActuatedJointPositionsReward, 20.0),
+                (TrackingActuatedJointPositionsReward, 10.0),
                 (TrackingBaseHeightReward, 0.1),
-                (TrackingCapturePointReward, 0.5),
+                (TrackingCapturePointReward, 0.2),
                 (TrackingFootPositionsReward, 1.0),
-                (TrackingFootOrientationsReward, 2.0)):
+                (TrackingFootOrientationsReward, 2.0),
+                (TrackingFootForceDistributionReward, 2.0)):
             reward = reward_class(self.env, cutoff=cutoff)
             quantity_true = reward.quantity.requirements['value_left']
             quantity_ref = reward.quantity.requirements['value_right']
 
             self.env.reset(seed=0)
-            action = self.env.action_space.sample()
+            action = 0.5 * self.env.action_space.sample()
             for _ in range(5):
                 self.env.step(action)
             _, _, terminated, _, _ = self.env.step(self.env.action)
