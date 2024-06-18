@@ -26,7 +26,7 @@ if __name__ == '__main__':
     engine_options["stepper"]["sensorsUpdatePeriod"] = 0.0
 
     # Configure integrator
-    engine_options['stepper']['odeSolver'] = 'runge_kutta_dopri5'
+    engine_options['stepper']['odeSolver'] = 'runge_kutta_dopri'
     engine_options['stepper']['dtMax'] = 1.0e-3
     simulator.set_options(engine_options)
 

@@ -37,7 +37,7 @@ if __name__ == '__main__':
 
     # Configure integrator
     engine_options["stepper"]['logInternalStepperSteps'] = True
-    engine_options['stepper']['odeSolver'] = 'runge_kutta_dopri5'
+    engine_options['stepper']['odeSolver'] = 'runge_kutta_dopri'
     engine_options['stepper']['dtMax'] = 1.0e-3
 
     # Set the ground contact options

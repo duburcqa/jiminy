@@ -35,7 +35,7 @@ namespace jiminy
     const std::map<std::string, ConstraintSolverType> CONSTRAINT_SOLVERS_MAP{
         {"PGS", ConstraintSolverType::PGS}};
 
-    const std::set<std::string> STEPPERS{"euler_explicit", "runge_kutta_4", "runge_kutta_dopri5"};
+    const std::set<std::string> STEPPERS{"euler_explicit", "runge_kutta_4", "runge_kutta_dopri"};
 
     class Robot;
     class AbstractConstraintSolver;
@@ -306,8 +306,8 @@ namespace jiminy
             GenericConfig config;
             config["verbose"] = false;
             config["randomSeedSeq"] = VectorX<uint32_t>::Zero(1).eval();
-            /// \details Must be either "runge_kutta_dopri5", "runge_kutta_4" or "euler_explicit".
-            config["odeSolver"] = std::string{"runge_kutta_dopri5"};
+            /// \details Must be either "runge_kutta_dopri", "runge_kutta_4" or "euler_explicit".
+            config["odeSolver"] = std::string{"runge_kutta_dopri"};
             config["tolAbs"] = 1.0e-5;
             config["tolRel"] = 1.0e-4;
             config["dtMax"] = SIMULATION_MAX_TIMESTEP;

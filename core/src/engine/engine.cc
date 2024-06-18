@@ -1149,7 +1149,7 @@ namespace jiminy
                        robots_.end(),
                        std::back_inserter(robots),
                        [](const auto & robot) { return robot.get(); });
-        if (engineOptions_->stepper.odeSolver == "runge_kutta_dopri5")
+        if (engineOptions_->stepper.odeSolver == "runge_kutta_dopri")
         {
             stepper_ = std::unique_ptr<AbstractStepper>(new RungeKuttaDOPRIStepper(
                 robotOde, robots, engineOptions_->stepper.tolAbs, engineOptions_->stepper.tolRel));
