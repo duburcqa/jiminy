@@ -1,7 +1,7 @@
 """Rewards mainly relevant for locomotion tasks on floating-base robots.
 """
 from functools import partial
-from typing import Union, Sequence, Literal
+from typing import Union, Sequence, Literal, Callable, cast
 
 import numpy as np
 import pinocchio as pin
@@ -169,20 +169,6 @@ class TrackingFootOrientationsReward(BaseTrackingReward):
         # Sanitize frame names corresponding to the feet of the robot
         frame_names = tuple(sanitize_foot_frame_names(env, frame_names))
 
-        # Buffer storing the difference before current and reference poses
-        # FIXME: Is it worth it to create a temporary ?
-        self._diff = np.zeros((3, len(frame_names) - 1))
-
-        # Define buffered quaternion difference operator for efficiency
-        def quat_difference_buffered(out: np.ndarray,
-                                     q1: np.ndarray,
-                                     q2: np.ndarray) -> np.ndarray:
-            """Wrapper around `quat_difference` passing buffer in and out
-            instead of allocating fresh memory for efficiency.
-            """
-            quat_difference(q1, q2, out)
-            return out
-
         # Call base implementation
         super().__init__(
             env,
@@ -194,7 +180,8 @@ class TrackingFootOrientationsReward(BaseTrackingReward):
                 axis=0,
                 keys=(3, 4, 5, 6))),
             cutoff,
-            op=partial(quat_difference_buffered, self._diff))
+            op=cast(Callable[
+                [np.ndarray, np.ndarray], np.ndarray], quat_difference))
 
 
 class TrackingFootForceDistributionReward(BaseTrackingReward):
