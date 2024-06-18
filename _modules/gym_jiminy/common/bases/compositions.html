@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>gym_jiminy.common.bases.compositions &mdash; jiminy 1.8.7 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../../_static/documentation_options.js?v=7e97f9bf"></script>
+        <script src="../../../../_static/doctools.js?v=9a2dae69"></script>
+        <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            jiminy
+              <img src="../../../../_static/jiminy_logo.svg" class="logo" alt="Logo"/>
+          </a>
+              <div class="version">
+                1.8.7
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">README</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html">Key features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#gym-jiminy">Gym Jiminy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#demo">Demo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#getting-started">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">INSTALLATION</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html">Easy-install on Ubuntu 18+</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html#building-from-source">Building from source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">TUTORIALS</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorial.html">An introduction to Jiminy</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API DOC</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/jiminy/index.html">Jiminy C++ API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/jiminy_py/index.html">Jiminy Python API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/gym_jiminy/common/index.html">Gym Jiminy API</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Technical Specifications</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/src/tlmc_format_specification.html">HDF5 telemetry log format (TLMC)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/pdf/index.html">Downloadable PDF</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">jiminy</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">gym_jiminy.common.bases.compositions</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for gym_jiminy.common.bases.compositions</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;This module promotes reward components as first-class objects.</span>
+
+<span class="sd">Defining rewards this way allows for standardization of usual metrics. Overall,</span>
+<span class="sd">it greatly reduces code duplication and bugs.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">abc</span> <span class="kn">import</span> <span class="n">ABC</span><span class="p">,</span> <span class="n">abstractmethod</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Sequence</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">TypeVar</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="kn">from</span> <span class="nn">.interfaces</span> <span class="kn">import</span> <span class="n">InfoType</span><span class="p">,</span> <span class="n">InterfaceJiminyEnv</span>
+<span class="kn">from</span> <span class="nn">.quantities</span> <span class="kn">import</span> <span class="n">QuantityCreator</span>
+
+
+<span class="n">ValueT</span> <span class="o">=</span> <span class="n">TypeVar</span><span class="p">(</span><span class="s1">&#39;ValueT&#39;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="AbstractReward">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/bases/compositions.html#gym_jiminy.common.bases.compositions.AbstractReward">[docs]</a>
+<span class="k">class</span> <span class="nc">AbstractReward</span><span class="p">(</span><span class="n">ABC</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Abstract class from which all reward component must derived.</span>
+
+<span class="sd">    This goal of the agent is to maximize the expectation of the cumulative sum</span>
+<span class="sd">    of discounted reward over complete episodes. This holds true no matter if</span>
+<span class="sd">    its sign is always negative (aka. reward), always positive (aka. cost) or</span>
+<span class="sd">    indefinite (aka. objective).</span>
+
+<span class="sd">    Defining cost is allowed by not recommended. Although it encourages the</span>
+<span class="sd">    agent to achieve the task at hands as quickly as possible if success if the</span>
+<span class="sd">    only termination condition, it has the side-effect to give the opportunity</span>
+<span class="sd">    to the agent to maximize the return by killing itself whenever this is an</span>
+<span class="sd">    option, which is rarely the desired behavior. No restriction is enforced as</span>
+<span class="sd">    it may be limiting in some relevant cases, so it is up to the user to make</span>
+<span class="sd">    sure that its design makes sense overall.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">env</span><span class="p">:</span> <span class="n">InterfaceJiminyEnv</span><span class="p">,</span>
+                 <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param env: Base or wrapped jiminy environment.</span>
+<span class="sd">        :param name: Desired name of the reward.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">env</span> <span class="o">=</span> <span class="n">env</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_name</span> <span class="o">=</span> <span class="n">name</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">name</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Name uniquely identifying a given reward component.</span>
+
+<span class="sd">        This name will be used as key for storing reward-specific monitoring</span>
+<span class="sd">        information in &#39;info&#39; if key is missing, otherwise it will raise an</span>
+<span class="sd">        exception.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_name</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">is_terminal</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Whether the reward is terminal, non-terminal, or indefinite.</span>
+
+<span class="sd">        A reward is said to be &quot;terminal&quot; if only evaluated for the terminal</span>
+<span class="sd">        state of the MDP, &quot;non-terminal&quot; if evaluated for all states except the</span>
+<span class="sd">        terminal one, or indefinite if systematically evaluated no matter what.</span>
+
+<span class="sd">        All rewards are supposed to be indefinite unless stated otherwise by</span>
+<span class="sd">        overloading this method. The responsibility of evaluating the reward</span>
+<span class="sd">        only when necessary is delegated to `compute`. This allows for complex</span>
+<span class="sd">        evaluation logics beyond terminal or non-terminal without restriction.</span>
+
+<span class="sd">        .. note::</span>
+<span class="sd">            Truncation is not consider the same as termination. The reward to</span>
+<span class="sd">            not be evaluated in such a case, which means that it will never be</span>
+<span class="sd">            for such episodes.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="nd">@property</span>
+    <span class="nd">@abstractmethod</span>
+    <span class="k">def</span> <span class="nf">is_normalized</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Whether the reward is guaranteed to be normalized, ie it is in range</span>
+<span class="sd">        [0.0, 1.0].</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="AbstractReward.compute">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/bases/compositions.html#gym_jiminy.common.bases.compositions.AbstractReward.compute">[docs]</a>
+    <span class="nd">@abstractmethod</span>
+    <span class="k">def</span> <span class="nf">compute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">terminated</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span> <span class="n">info</span><span class="p">:</span> <span class="n">InfoType</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute the reward.</span>
+
+<span class="sd">        .. note::</span>
+<span class="sd">            Return value can be set to `None` to indicate that evaluation was</span>
+<span class="sd">            skipped for some reason, and therefore the reward must not be taken</span>
+<span class="sd">            into account when computing the total reward. This is useful when</span>
+<span class="sd">            the reward is undefined or simply inappropriate in the current</span>
+<span class="sd">            state of the environment.</span>
+
+<span class="sd">        .. warning::</span>
+<span class="sd">            It is the responsibility of the practitioner overloading this</span>
+<span class="sd">            method to honor flags &#39;is_terminated&#39; (if not indefinite) and</span>
+<span class="sd">            &#39;is_normalized&#39;. Failing this, an exception will be raised.</span>
+
+<span class="sd">        :returns: Scalar value if the reward was evaluated, `None` otherwise.</span>
+<span class="sd">        &quot;&quot;&quot;</span></div>
+
+
+    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">terminated</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span> <span class="n">info</span><span class="p">:</span> <span class="n">InfoType</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the reward associated with the current environment step.</span>
+
+<span class="sd">        For the corresponding MDP to be stationary, the computation of the</span>
+<span class="sd">        reward is supposed to involve only the transition from previous to</span>
+<span class="sd">        current state of the environment under the ongoing action.</span>
+
+<span class="sd">        .. note::</span>
+<span class="sd">            This method is a lightweight wrapper around `compute` to skip</span>
+<span class="sd">            evaluation depending on whether the current state and the reward</span>
+<span class="sd">            are terminal. If the reward was truly evaluated, then &#39;info&#39; is</span>
+<span class="sd">            updated to store either reward-specific &#39;info&#39; if any or its value</span>
+<span class="sd">            otherwise. If not, then &#39;info&#39; is left as-is and 0.0 is returned.</span>
+
+<span class="sd">        .. warning::</span>
+<span class="sd">            This method is not meant to be overloaded.</span>
+
+<span class="sd">        :param terminated: Whether the episode has reached a terminal state of</span>
+<span class="sd">                           the MDP at the current step.</span>
+<span class="sd">        :param info: Dictionary of extra information for monitoring. It will be</span>
+<span class="sd">                     updated in-place for storing current value of the reward</span>
+<span class="sd">                     in &#39;info&#39; if it was truly evaluated.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Evaluate the reward and store extra information</span>
+        <span class="n">reward_info</span><span class="p">:</span> <span class="n">InfoType</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">compute</span><span class="p">(</span><span class="n">terminated</span><span class="p">,</span> <span class="n">reward_info</span><span class="p">)</span>
+
+        <span class="c1"># Early return if None, which means that the reward was not evaluated</span>
+        <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="mf">0.0</span>
+
+        <span class="c1"># Make sure that terminal flag is honored</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_terminal</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_terminal</span> <span class="o">^</span> <span class="n">terminated</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Flag &#39;is_terminal&#39; not honored.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Make sure that the reward is scalar</span>
+        <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">ndim</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span>
+
+        <span class="c1"># Make sure that the reward is normalized</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_normalized</span> <span class="ow">and</span> <span class="p">(</span><span class="n">value</span> <span class="o">&lt;</span> <span class="mf">0.0</span> <span class="ow">or</span> <span class="n">value</span> <span class="o">&gt;</span> <span class="mf">1.0</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;Reward not normalized in range [0.0, 1.0] as it ought to be.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Store its value as info</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="ow">is</span> <span class="n">info</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Key &#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&#39; already reserved in &#39;info&#39;. Impossible to &quot;</span>
+                <span class="s2">&quot;store value of reward component.&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">reward_info</span><span class="p">:</span>
+            <span class="n">info</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">reward_info</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">info</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+
+        <span class="c1"># Returning the reward</span>
+        <span class="k">return</span> <span class="n">value</span></div>
+
+
+
+<div class="viewcode-block" id="BaseQuantityReward">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/bases/compositions.html#gym_jiminy.common.bases.compositions.BaseQuantityReward">[docs]</a>
+<span class="k">class</span> <span class="nc">BaseQuantityReward</span><span class="p">(</span><span class="n">AbstractReward</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Base class that makes easy easy to derive reward components from generic</span>
+<span class="sd">    quantities.</span>
+
+<span class="sd">    All this class does is applying some user-specified post-processing to the</span>
+<span class="sd">    value of a given multi-variate quantity to return a floating-point scalar</span>
+<span class="sd">    value, eventually normalized between 0.0 and 1.0 if desired.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">env</span><span class="p">:</span> <span class="n">InterfaceJiminyEnv</span><span class="p">,</span>
+                 <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                 <span class="n">quantity</span><span class="p">:</span> <span class="n">QuantityCreator</span><span class="p">[</span><span class="n">ValueT</span><span class="p">],</span>
+                 <span class="n">transform_fn</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">[[</span><span class="n">ValueT</span><span class="p">],</span> <span class="nb">float</span><span class="p">]],</span>
+                 <span class="n">is_normalized</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+                 <span class="n">is_terminal</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param env: Base or wrapped jiminy environment.</span>
+<span class="sd">        :param name: Desired name of the reward. This name will be used as key</span>
+<span class="sd">                     for storing current value of the reward in &#39;info&#39;, and to</span>
+<span class="sd">                     add the underlying quantity to the set of already managed</span>
+<span class="sd">                     quantities by the environment. As a result, it must be</span>
+<span class="sd">                     unique otherwise an exception will be raised.</span>
+<span class="sd">        :param quantity: Tuple gathering the class of the underlying quantity</span>
+<span class="sd">                         to use as reward after some post-processing, plus all</span>
+<span class="sd">                         its constructor keyword-arguments except environment</span>
+<span class="sd">                         &#39;env&#39; and parent &#39;parent.</span>
+<span class="sd">        :param transform_fn: Transform function responsible for aggregating a</span>
+<span class="sd">                             multi-variate quantity as floating-point scalar</span>
+<span class="sd">                             value to maximize. Typical examples are `np.min`,</span>
+<span class="sd">                             `np.max`, `lambda x: np.linalg.norm(x, order=N)`.</span>
+<span class="sd">                             This function is also responsible for rescaling</span>
+<span class="sd">                             the transformed quantity in range [0.0, 1.0] if</span>
+<span class="sd">                             the reward is advertised as normalized. The Radial</span>
+<span class="sd">                             Basis Function (RBF) kernel is the most common</span>
+<span class="sd">                             choice to derive a reward to maximize from errors</span>
+<span class="sd">                             based on distance metrics (See</span>
+<span class="sd">                             `radial_basis_function` for details.). `None` to</span>
+<span class="sd">                             skip transform entirely if not necessary.</span>
+<span class="sd">        :param is_normalized: Whether the reward is guaranteed to be normalized</span>
+<span class="sd">                              after applying transform function `transform_fn`.</span>
+<span class="sd">        :param is_terminal: Whether the reward is terminal, non-terminal or</span>
+<span class="sd">                            indefinite. A terminal reward will be evaluated at</span>
+<span class="sd">                            most once, at the end of each episode for which a</span>
+<span class="sd">                            termination condition has been triggered. On the</span>
+<span class="sd">                            contrary, a non-terminal reward will be evaluated</span>
+<span class="sd">                            systematically except at the end of the episode.</span>
+<span class="sd">                            Finally, a indefinite reward will be evaluated</span>
+<span class="sd">                            systematically. The value 0.0 is returned and no</span>
+<span class="sd">                            &#39;info&#39; will be stored when reward evaluation is</span>
+<span class="sd">                            skipped.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Backup user argument(s)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_transform_fn</span> <span class="o">=</span> <span class="n">transform_fn</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_is_normalized</span> <span class="o">=</span> <span class="n">is_normalized</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_is_terminal</span> <span class="o">=</span> <span class="n">is_terminal</span>
+
+        <span class="c1"># Call base implementation</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+
+        <span class="c1"># Add quantity to the set of quantities managed by the environment</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">quantities</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">quantity</span>
+
+        <span class="c1"># Keep track of the underlying quantity</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">quantity</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">quantities</span><span class="o">.</span><span class="n">registry</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="fm">__del__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">quantities</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">]</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>   <span class="c1"># pylint: disable=broad-except</span>
+            <span class="c1"># This method must not fail under any circumstances</span>
+            <span class="k">pass</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">is_terminal</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_terminal</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">is_normalized</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_normalized</span>
+
+<div class="viewcode-block" id="BaseQuantityReward.compute">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/bases/compositions.html#gym_jiminy.common.bases.compositions.BaseQuantityReward.compute">[docs]</a>
+    <span class="k">def</span> <span class="nf">compute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">terminated</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span> <span class="n">info</span><span class="p">:</span> <span class="n">InfoType</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute the reward if necessary depending on whether the reward and</span>
+<span class="sd">        state are terminal. If so, then first evaluate the underlying quantity,</span>
+<span class="sd">        next apply post-processing if requested.</span>
+
+<span class="sd">        .. warning::</span>
+<span class="sd">            This method is not meant to be overloaded.</span>
+
+<span class="sd">        :returns: Scalar value if the reward was evaluated, `None` otherwise.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Early return depending on whether the reward and state are terminal</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_terminal</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_terminal</span> <span class="o">^</span> <span class="n">terminated</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+
+        <span class="c1"># Evaluate raw quantity</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">quantities</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">]</span>
+
+        <span class="c1"># Early return if quantity is None</span>
+        <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+
+        <span class="c1"># Apply some post-processing if requested</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_transform_fn</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_transform_fn</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+
+        <span class="c1"># Return the reward</span>
+        <span class="k">return</span> <span class="n">value</span></div>
+</div>
+
+
+
+<span class="n">BaseQuantityReward</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="vm">__doc__</span> <span class="o">=</span> \
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Name uniquely identifying every reward.</span>
+
+<span class="sd">    It will be used as key not only for storing reward-specific monitoring</span>
+<span class="sd">    information in &#39;info&#39;, but also for adding the underlying quantity to</span>
+<span class="sd">    the ones already managed by the environment.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+
+<div class="viewcode-block" id="BaseMixtureReward">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/bases/compositions.html#gym_jiminy.common.bases.compositions.BaseMixtureReward">[docs]</a>
+<span class="k">class</span> <span class="nc">BaseMixtureReward</span><span class="p">(</span><span class="n">AbstractReward</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Base class for aggregating multiple independent reward components in a</span>
+<span class="sd">    single one.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">components</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">AbstractReward</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;List of all the reward components that must be aggregated together.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">env</span><span class="p">:</span> <span class="n">InterfaceJiminyEnv</span><span class="p">,</span>
+                 <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                 <span class="n">components</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">AbstractReward</span><span class="p">],</span>
+                 <span class="n">reduce_fn</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[</span>
+                    <span class="p">[</span><span class="n">Sequence</span><span class="p">[</span><span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]]],</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]],</span>
+                 <span class="n">is_normalized</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param env: Base or wrapped jiminy environment.</span>
+<span class="sd">        :param name: Desired name of the total reward.</span>
+<span class="sd">        :param components: Sequence of reward components to aggregate.</span>
+<span class="sd">        :param reduce_fn: Transform function responsible for aggregating all</span>
+<span class="sd">                          the reward components that were evaluated. Typical</span>
+<span class="sd">                          examples are cumulative product and weighted sum.</span>
+<span class="sd">        :param is_normalized: Whether the reward is guaranteed to be normalized</span>
+<span class="sd">                              after applying reduction function `reduce_fn`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Make sure that at least one reward component has been specified</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">components</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;At least one reward component must be specified.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Make sure that all reward components share the same environment</span>
+        <span class="k">for</span> <span class="n">reward</span> <span class="ow">in</span> <span class="n">components</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">env</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">reward</span><span class="o">.</span><span class="n">env</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s2">&quot;All reward components must share the same environment.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Backup some user argument(s)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">components</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">components</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_reduce_fn</span> <span class="o">=</span> <span class="n">reduce_fn</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_is_normalized</span> <span class="o">=</span> <span class="n">is_normalized</span>
+
+        <span class="c1"># Call base implementation</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+
+        <span class="c1"># Determine whether the reward mixture is terminal</span>
+        <span class="n">is_terminal</span> <span class="o">=</span> <span class="p">{</span><span class="n">reward</span><span class="o">.</span><span class="n">is_terminal</span> <span class="k">for</span> <span class="n">reward</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_is_terminal</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">is_terminal</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_is_terminal</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="nb">iter</span><span class="p">(</span><span class="n">is_terminal</span><span class="p">))</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">is_terminal</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Whether the reward is terminal, ie only evaluated at the end of an</span>
+<span class="sd">        episode if a termination condition has been triggered.</span>
+
+<span class="sd">        The cumulative reward is considered terminal if and only if all its</span>
+<span class="sd">        individual reward components are terminal.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_terminal</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">is_normalized</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_normalized</span>
+
+<div class="viewcode-block" id="BaseMixtureReward.compute">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/bases/compositions.html#gym_jiminy.common.bases.compositions.BaseMixtureReward.compute">[docs]</a>
+    <span class="k">def</span> <span class="nf">compute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">terminated</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span> <span class="n">info</span><span class="p">:</span> <span class="n">InfoType</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Evaluate each individual reward component for the current state of</span>
+<span class="sd">        the environment, then aggregate them in one.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Early return depending on whether the reward and state are terminal</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_terminal</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_terminal</span> <span class="o">^</span> <span class="n">terminated</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+
+        <span class="c1"># Compute all reward components</span>
+        <span class="n">values</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">reward</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">:</span>
+            <span class="c1"># Evaluate reward</span>
+            <span class="n">reward_info</span><span class="p">:</span> <span class="n">InfoType</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="n">value</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="n">reward</span><span class="p">(</span><span class="n">terminated</span><span class="p">,</span> <span class="n">reward_info</span><span class="p">)</span>
+
+            <span class="c1"># Clear reward value if the reward was never truly evaluated</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">reward_info</span><span class="p">:</span>
+                <span class="n">value</span> <span class="o">=</span> <span class="kc">None</span>
+
+            <span class="c1"># Append reward value and information</span>
+            <span class="n">info</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">reward_info</span><span class="p">)</span>
+            <span class="n">values</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+
+        <span class="c1"># Aggregate all reward components in one</span>
+        <span class="n">reward_total</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reduce_fn</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">reward_total</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, Alexis Duburcq - MIT licence.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

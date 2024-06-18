@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Locomotion &mdash; jiminy 1.8.7 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../../_static/documentation_options.js?v=7e97f9bf"></script>
+        <script src="../../../../_static/doctools.js?v=9a2dae69"></script>
+        <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            jiminy
+              <img src="../../../../_static/jiminy_logo.svg" class="logo" alt="Logo"/>
+          </a>
+              <div class="version">
+                1.8.7
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">README</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html">Key features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#gym-jiminy">Gym Jiminy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#demo">Demo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#getting-started">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">INSTALLATION</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html">Easy-install on Ubuntu 18+</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html#building-from-source">Building from source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">TUTORIALS</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorial.html">An introduction to Jiminy</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API DOC</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../jiminy/index.html">Jiminy C++ API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../jiminy_py/index.html">Jiminy Python API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../index.html">Gym Jiminy API</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Technical Specifications</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/src/tlmc_format_specification.html">HDF5 telemetry log format (TLMC)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/pdf/index.html">Downloadable PDF</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">jiminy</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Locomotion</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../../../_sources/api/gym_jiminy/common/compositions/locomotion.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-gym_jiminy.common.compositions.locomotion">
+<span id="locomotion"></span><h1>Locomotion<a class="headerlink" href="#module-gym_jiminy.common.compositions.locomotion" title="Link to this heading">¶</a></h1>
+<p>Rewards mainly relevant for locomotion tasks on floating-base robots.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.compositions.locomotion.TrackingBaseHeightReward">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.compositions.locomotion.</span></span><span class="sig-name descname"><span class="pre">TrackingBaseHeightReward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cutoff</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/compositions/locomotion.html#TrackingBaseHeightReward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.compositions.locomotion.TrackingBaseHeightReward" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="generic.html#gym_jiminy.common.compositions.generic.BaseTrackingReward" title="gym_jiminy.common.compositions.generic.BaseTrackingReward"><code class="xref py py-class docutils literal notranslate"><span class="pre">BaseTrackingReward</span></code></a></p>
+<p>Reward the agent for tracking the height of the floating base of the
+robot wrt some reference trajectory.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p>See <cite>BaseTrackingReward</cite> documentation for technical details.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="../bases/interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a>) – Base or wrapped jiminy environment.</p></li>
+<li><p><strong>cutoff</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.12)"><em>float</em></a>) – Cutoff threshold for the RBF kernel transform.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.compositions.locomotion.TrackingBaseHeightReward._abc_impl">
+<span class="sig-name descname"><span class="pre">_abc_impl</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">&lt;_abc._abc_data</span> <span class="pre">object&gt;</span></em><a class="headerlink" href="#gym_jiminy.common.compositions.locomotion.TrackingBaseHeightReward._abc_impl" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.compositions.locomotion.TrackingBaseOdometryVelocityReward">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.compositions.locomotion.</span></span><span class="sig-name descname"><span class="pre">TrackingBaseOdometryVelocityReward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cutoff</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/compositions/locomotion.html#TrackingBaseOdometryVelocityReward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.compositions.locomotion.TrackingBaseOdometryVelocityReward" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="generic.html#gym_jiminy.common.compositions.generic.BaseTrackingReward" title="gym_jiminy.common.compositions.generic.BaseTrackingReward"><code class="xref py py-class docutils literal notranslate"><span class="pre">BaseTrackingReward</span></code></a></p>
+<p>Reward the agent for tracking the odometry velocity wrt some reference
+trajectory.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p>See <cite>BaseTrackingReward</cite> documentation for technical details.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="../bases/interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a>) – Base or wrapped jiminy environment.</p></li>
+<li><p><strong>cutoff</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.12)"><em>float</em></a>) – Cutoff threshold for the RBF kernel transform.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.compositions.locomotion.TrackingBaseOdometryVelocityReward._abc_impl">
+<span class="sig-name descname"><span class="pre">_abc_impl</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">&lt;_abc._abc_data</span> <span class="pre">object&gt;</span></em><a class="headerlink" href="#gym_jiminy.common.compositions.locomotion.TrackingBaseOdometryVelocityReward._abc_impl" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.compositions.locomotion.TrackingCapturePointReward">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.compositions.locomotion.</span></span><span class="sig-name descname"><span class="pre">TrackingCapturePointReward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cutoff</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/compositions/locomotion.html#TrackingCapturePointReward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.compositions.locomotion.TrackingCapturePointReward" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="generic.html#gym_jiminy.common.compositions.generic.BaseTrackingReward" title="gym_jiminy.common.compositions.generic.BaseTrackingReward"><code class="xref py py-class docutils literal notranslate"><span class="pre">BaseTrackingReward</span></code></a></p>
+<p>Reward the agent for tracking the capture point wrt some reference
+trajectory.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p>See <cite>BaseTrackingReward</cite> documentation for technical details.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="../bases/interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a>) – Base or wrapped jiminy environment.</p></li>
+<li><p><strong>cutoff</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.12)"><em>float</em></a>) – Cutoff threshold for the RBF kernel transform.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.compositions.locomotion.TrackingCapturePointReward._abc_impl">
+<span class="sig-name descname"><span class="pre">_abc_impl</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">&lt;_abc._abc_data</span> <span class="pre">object&gt;</span></em><a class="headerlink" href="#gym_jiminy.common.compositions.locomotion.TrackingCapturePointReward._abc_impl" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.compositions.locomotion.TrackingFootPositionsReward">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.compositions.locomotion.</span></span><span class="sig-name descname"><span class="pre">TrackingFootPositionsReward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cutoff</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">frame_names</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'auto'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/compositions/locomotion.html#TrackingFootPositionsReward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.compositions.locomotion.TrackingFootPositionsReward" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="generic.html#gym_jiminy.common.compositions.generic.BaseTrackingReward" title="gym_jiminy.common.compositions.generic.BaseTrackingReward"><code class="xref py py-class docutils literal notranslate"><span class="pre">BaseTrackingReward</span></code></a></p>
+<p>Reward the agent for tracking the relative position of the feet wrt each
+other.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p>See <cite>BaseTrackingReward</cite> documentation for technical details.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="../bases/interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a>) – Base or wrapped jiminy environment.</p></li>
+<li><p><strong>cutoff</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.12)"><em>float</em></a>) – Cutoff threshold for the RBF kernel transform.</p></li>
+<li><p><strong>frame_names</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.12)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Literal" title="(in Python v3.12)"><em>Literal</em></a><em>[</em><em>'auto'</em><em>]</em>) – Name of the frames corresponding to the feet of the
+robot. ‘auto’ to automatically detect them from the
+set of contact and force sensors of the robot.
+Optional: ‘auto’ by default.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.compositions.locomotion.TrackingFootPositionsReward._abc_impl">
+<span class="sig-name descname"><span class="pre">_abc_impl</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">&lt;_abc._abc_data</span> <span class="pre">object&gt;</span></em><a class="headerlink" href="#gym_jiminy.common.compositions.locomotion.TrackingFootPositionsReward._abc_impl" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.compositions.locomotion.TrackingFootOrientationsReward">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.compositions.locomotion.</span></span><span class="sig-name descname"><span class="pre">TrackingFootOrientationsReward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cutoff</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">frame_names</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'auto'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/compositions/locomotion.html#TrackingFootOrientationsReward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.compositions.locomotion.TrackingFootOrientationsReward" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="generic.html#gym_jiminy.common.compositions.generic.BaseTrackingReward" title="gym_jiminy.common.compositions.generic.BaseTrackingReward"><code class="xref py py-class docutils literal notranslate"><span class="pre">BaseTrackingReward</span></code></a></p>
+<p>Reward the agent for tracking the relative orientation of the feet wrt
+each other.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p>See <cite>BaseTrackingReward</cite> documentation for technical details.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="../bases/interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a>) – Base or wrapped jiminy environment.</p></li>
+<li><p><strong>cutoff</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.12)"><em>float</em></a>) – Cutoff threshold for the RBF kernel transform.</p></li>
+<li><p><strong>frame_names</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.12)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Literal" title="(in Python v3.12)"><em>Literal</em></a><em>[</em><em>'auto'</em><em>]</em>) – Name of the frames corresponding to the feet of the
+robot. ‘auto’ to automatically detect them from the
+set of contact and force sensors of the robot.
+Optional: ‘auto’ by default.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.compositions.locomotion.TrackingFootOrientationsReward._abc_impl">
+<span class="sig-name descname"><span class="pre">_abc_impl</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">&lt;_abc._abc_data</span> <span class="pre">object&gt;</span></em><a class="headerlink" href="#gym_jiminy.common.compositions.locomotion.TrackingFootOrientationsReward._abc_impl" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.compositions.locomotion.TrackingFootForceDistributionReward">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.compositions.locomotion.</span></span><span class="sig-name descname"><span class="pre">TrackingFootForceDistributionReward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cutoff</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">frame_names</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'auto'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/compositions/locomotion.html#TrackingFootForceDistributionReward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.compositions.locomotion.TrackingFootForceDistributionReward" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="generic.html#gym_jiminy.common.compositions.generic.BaseTrackingReward" title="gym_jiminy.common.compositions.generic.BaseTrackingReward"><code class="xref py py-class docutils literal notranslate"><span class="pre">BaseTrackingReward</span></code></a></p>
+<p>Reward the agent for tracking the relative vertical force in world frame
+applied on each foot.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The force is normalized by the weight of the robot rather than the
+total force applied on all feet. This is important as it not only takes
+into account the force distribution between the feet, but also the
+overall ground contact interact force. This way, building up momentum
+before jumping will be distinguished for standing still. Moreover, it
+ensures that the reward is always properly defined, even if the robot
+has no contact with the ground at all, which typically arises during
+the flying phase of running.</p>
+</div>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p>See <cite>BaseTrackingReward</cite> documentation for technical details.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="../bases/interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a>) – Base or wrapped jiminy environment.</p></li>
+<li><p><strong>cutoff</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.12)"><em>float</em></a>) – Cutoff threshold for the RBF kernel transform.</p></li>
+<li><p><strong>frame_names</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.12)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Literal" title="(in Python v3.12)"><em>Literal</em></a><em>[</em><em>'auto'</em><em>]</em>) – Name of the frames corresponding to the feet of the
+robot. ‘auto’ to automatically detect them from the
+set of contact and force sensors of the robot.
+Optional: ‘auto’ by default.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.compositions.locomotion.TrackingFootForceDistributionReward._abc_impl">
+<span class="sig-name descname"><span class="pre">_abc_impl</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">&lt;_abc._abc_data</span> <span class="pre">object&gt;</span></em><a class="headerlink" href="#gym_jiminy.common.compositions.locomotion.TrackingFootForceDistributionReward._abc_impl" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.compositions.locomotion.MinimizeAngularMomentumReward">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.compositions.locomotion.</span></span><span class="sig-name descname"><span class="pre">MinimizeAngularMomentumReward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cutoff</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/compositions/locomotion.html#MinimizeAngularMomentumReward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.compositions.locomotion.MinimizeAngularMomentumReward" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="../bases/compositions.html#gym_jiminy.common.bases.compositions.BaseQuantityReward" title="gym_jiminy.common.bases.compositions.BaseQuantityReward"><code class="xref py py-class docutils literal notranslate"><span class="pre">BaseQuantityReward</span></code></a></p>
+<p>Reward the agent for minimizing the angular momentum in world plane.</p>
+<p>The angular momentum along x- and y-axes in local odometry frame is
+transform in a normalized reward to maximize by applying RBF kernel on the
+error. See <cite>BaseTrackingReward</cite> documentation for technical details.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="../bases/interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a>) – Base or wrapped jiminy environment.</p></li>
+<li><p><strong>cutoff</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.12)"><em>float</em></a>) – Cutoff threshold for the RBF kernel transform.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.compositions.locomotion.MinimizeAngularMomentumReward._abc_impl">
+<span class="sig-name descname"><span class="pre">_abc_impl</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">&lt;_abc._abc_data</span> <span class="pre">object&gt;</span></em><a class="headerlink" href="#gym_jiminy.common.compositions.locomotion.MinimizeAngularMomentumReward._abc_impl" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.compositions.locomotion.MinimizeFrictionReward">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.compositions.locomotion.</span></span><span class="sig-name descname"><span class="pre">MinimizeFrictionReward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cutoff</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/compositions/locomotion.html#MinimizeFrictionReward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.compositions.locomotion.MinimizeFrictionReward" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="../bases/compositions.html#gym_jiminy.common.bases.compositions.BaseQuantityReward" title="gym_jiminy.common.bases.compositions.BaseQuantityReward"><code class="xref py py-class docutils literal notranslate"><span class="pre">BaseQuantityReward</span></code></a></p>
+<p>Reward the agent for minimizing the tangential forces at all the contact
+points and collision bodies, and to avoid jerky intermittent contact state.</p>
+<p>The L2-norm is used to aggregate all the local tangential forces. While the
+L1-norm would be more natural in this specific cases, using the L2-norm is
+preferable as it promotes space-time regularity, ie balancing the  force
+distribution evenly between all the candidate contact points and avoiding
+jerky contact forces over time (high-frequency vibrations),  phenomena to
+which the L1-norm is completely insensitive.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="../bases/interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a>) – Base or wrapped jiminy environment.</p></li>
+<li><p><strong>cutoff</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.12)"><em>float</em></a>) – Cutoff threshold for the RBF kernel transform.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.compositions.locomotion.MinimizeFrictionReward._abc_impl">
+<span class="sig-name descname"><span class="pre">_abc_impl</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">&lt;_abc._abc_data</span> <span class="pre">object&gt;</span></em><a class="headerlink" href="#gym_jiminy.common.compositions.locomotion.MinimizeFrictionReward._abc_impl" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, Alexis Duburcq - MIT licence.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

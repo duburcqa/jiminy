@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>gym_jiminy.common.compositions.generic &mdash; jiminy 1.8.7 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../../_static/documentation_options.js?v=7e97f9bf"></script>
+        <script src="../../../../_static/doctools.js?v=9a2dae69"></script>
+        <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            jiminy
+              <img src="../../../../_static/jiminy_logo.svg" class="logo" alt="Logo"/>
+          </a>
+              <div class="version">
+                1.8.7
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">README</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html">Key features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#gym-jiminy">Gym Jiminy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#demo">Demo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#getting-started">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">INSTALLATION</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html">Easy-install on Ubuntu 18+</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html#building-from-source">Building from source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">TUTORIALS</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorial.html">An introduction to Jiminy</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API DOC</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/jiminy/index.html">Jiminy C++ API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/jiminy_py/index.html">Jiminy Python API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/gym_jiminy/common/index.html">Gym Jiminy API</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Technical Specifications</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/src/tlmc_format_specification.html">HDF5 telemetry log format (TLMC)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/pdf/index.html">Downloadable PDF</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">jiminy</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">gym_jiminy.common.compositions.generic</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for gym_jiminy.common.compositions.generic</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Generic reward components that may be relevant for any kind of robot,</span>
+<span class="sd">regardless its topology (multiple or single branch, fixed or floating base...)</span>
+<span class="sd">and the application (locomotion, grasping...).</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">operator</span> <span class="kn">import</span> <span class="n">sub</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">TypeVar</span>
+
+<span class="kn">from</span> <span class="nn">..bases</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">InfoType</span><span class="p">,</span> <span class="n">QuantityCreator</span><span class="p">,</span> <span class="n">InterfaceJiminyEnv</span><span class="p">,</span> <span class="n">AbstractReward</span><span class="p">,</span>
+    <span class="n">BaseQuantityReward</span><span class="p">,</span> <span class="n">QuantityEvalMode</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">..quantities</span> <span class="kn">import</span> <span class="n">BinaryOpQuantity</span><span class="p">,</span> <span class="n">ActuatedJointsPosition</span>
+
+<span class="kn">from</span> <span class="nn">.mixin</span> <span class="kn">import</span> <span class="n">radial_basis_function</span>
+
+
+<span class="n">ValueT</span> <span class="o">=</span> <span class="n">TypeVar</span><span class="p">(</span><span class="s1">&#39;ValueT&#39;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="SurviveReward">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/compositions/generic.html#gym_jiminy.common.compositions.generic.SurviveReward">[docs]</a>
+<span class="k">class</span> <span class="nc">SurviveReward</span><span class="p">(</span><span class="n">AbstractReward</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Reward the agent for surviving, ie make episodes last as long as</span>
+<span class="sd">    possible by avoiding triggering termination conditions.</span>
+
+<span class="sd">    Constant positive reward equal to 1.0 systematically, unless the current</span>
+<span class="sd">    state of the environment is the terminal state. In which case, the value</span>
+<span class="sd">    0.0 is returned instead.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">env</span><span class="p">:</span> <span class="n">InterfaceJiminyEnv</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param env: Base or wrapped jiminy environment.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="s2">&quot;reward_survive&quot;</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">is_terminal</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="kc">False</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">is_normalized</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">True</span>
+
+<div class="viewcode-block" id="SurviveReward.compute">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/compositions/generic.html#gym_jiminy.common.compositions.generic.SurviveReward.compute">[docs]</a>
+    <span class="k">def</span> <span class="nf">compute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">terminated</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span> <span class="n">info</span><span class="p">:</span> <span class="n">InfoType</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a constant positive reward equal to 1.0 no matter what.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="mf">1.0</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="BaseTrackingReward">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/compositions/generic.html#gym_jiminy.common.compositions.generic.BaseTrackingReward">[docs]</a>
+<span class="k">class</span> <span class="nc">BaseTrackingReward</span><span class="p">(</span><span class="n">BaseQuantityReward</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Base class from which to derive reward defined as a difference between</span>
+<span class="sd">    the current and reference value of a given quantity.</span>
+
+<span class="sd">    A reference trajectory must be selected before evaluating this reward</span>
+<span class="sd">    otherwise an exception will be risen. See `DatasetTrajectoryQuantity` and</span>
+<span class="sd">    `AbstractQuantity` documentations for details.</span>
+
+<span class="sd">    The error is transformed in a normalized reward to maximize by applying RBF</span>
+<span class="sd">    kernel on the error. The reward will be 0.0 if the error cancels out</span>
+<span class="sd">    completely and less than &#39;CUTOFF_ESP&#39; above the user-specified cutoff</span>
+<span class="sd">    threshold.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">env</span><span class="p">:</span> <span class="n">InterfaceJiminyEnv</span><span class="p">,</span>
+                 <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                 <span class="n">quantity_creator</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[</span>
+                    <span class="p">[</span><span class="n">QuantityEvalMode</span><span class="p">],</span> <span class="n">QuantityCreator</span><span class="p">[</span><span class="n">ValueT</span><span class="p">]],</span>
+                 <span class="n">cutoff</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                 <span class="o">*</span><span class="p">,</span>
+                 <span class="n">op</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">ValueT</span><span class="p">,</span> <span class="n">ValueT</span><span class="p">],</span> <span class="n">ValueT</span><span class="p">]</span> <span class="o">=</span> <span class="n">sub</span><span class="p">,</span>
+                 <span class="n">order</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">2</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param env: Base or wrapped jiminy environment.</span>
+<span class="sd">        :param name: Desired name of the reward. This name will be used as key</span>
+<span class="sd">                     for storing current value of the reward in &#39;info&#39;, and to</span>
+<span class="sd">                     add the underlying quantity to the set of already managed</span>
+<span class="sd">                     quantities by the environment. As a result, it must be</span>
+<span class="sd">                     unique otherwise an exception will be raised.</span>
+<span class="sd">        :param quantity_creator: Any callable taking a quantity evaluation mode</span>
+<span class="sd">                                 as input argument and return a tuple gathering</span>
+<span class="sd">                                 the class of the underlying quantity to use as</span>
+<span class="sd">                                 reward after some post-processing, plus all</span>
+<span class="sd">                                 its constructor keyword-arguments except</span>
+<span class="sd">                                 environment &#39;env&#39;, parent &#39;parent.</span>
+<span class="sd">        :param cutoff: Cutoff threshold for the RBF kernel transform.</span>
+<span class="sd">        :param op: Any callable taking the true and reference values of the</span>
+<span class="sd">                   quantity as input argument and returning the difference</span>
+<span class="sd">                   between them, considering the algebra defined by their Lie</span>
+<span class="sd">                   Group. The basic subtraction operator `operator.sub` is</span>
+<span class="sd">                   appropriate for Euclidean.</span>
+<span class="sd">                   Optional: `operator.sub` by default.</span>
+<span class="sd">        :param order: Order of Lp-Norm that will be used as distance metric.</span>
+<span class="sd">                      Optional: 2 by default.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Backup some user argument(s)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cutoff</span> <span class="o">=</span> <span class="n">cutoff</span>
+
+        <span class="c1"># Call base implementation</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">env</span><span class="p">,</span>
+            <span class="n">name</span><span class="p">,</span>
+            <span class="p">(</span><span class="n">BinaryOpQuantity</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span>
+                <span class="n">quantity_left</span><span class="o">=</span><span class="n">quantity_creator</span><span class="p">(</span><span class="n">QuantityEvalMode</span><span class="o">.</span><span class="n">TRUE</span><span class="p">),</span>
+                <span class="n">quantity_right</span><span class="o">=</span><span class="n">quantity_creator</span><span class="p">(</span><span class="n">QuantityEvalMode</span><span class="o">.</span><span class="n">REFERENCE</span><span class="p">),</span>
+                <span class="n">op</span><span class="o">=</span><span class="n">op</span><span class="p">)),</span>
+            <span class="n">partial</span><span class="p">(</span><span class="n">radial_basis_function</span><span class="p">,</span> <span class="n">cutoff</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">cutoff</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="n">order</span><span class="p">),</span>
+            <span class="n">is_normalized</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">is_terminal</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="TrackingActuatedJointPositionsReward">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/compositions/generic.html#gym_jiminy.common.compositions.generic.TrackingActuatedJointPositionsReward">[docs]</a>
+<span class="k">class</span> <span class="nc">TrackingActuatedJointPositionsReward</span><span class="p">(</span><span class="n">BaseTrackingReward</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Reward the agent for tracking the position of all the actuated joints of</span>
+<span class="sd">    the robot wrt some reference trajectory.</span>
+
+<span class="sd">    .. seealso::</span>
+<span class="sd">        See `BaseTrackingReward` documentation for technical details.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">env</span><span class="p">:</span> <span class="n">InterfaceJiminyEnv</span><span class="p">,</span>
+                 <span class="n">cutoff</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param env: Base or wrapped jiminy environment.</span>
+<span class="sd">        :param cutoff: Cutoff threshold for the RBF kernel transform.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Backup some user argument(s)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cutoff</span> <span class="o">=</span> <span class="n">cutoff</span>
+
+        <span class="c1"># Call base implementation</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">env</span><span class="p">,</span>
+            <span class="s2">&quot;reward_actuated_joint_positions&quot;</span><span class="p">,</span>
+            <span class="k">lambda</span> <span class="n">mode</span><span class="p">:</span> <span class="p">(</span><span class="n">ActuatedJointsPosition</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="n">mode</span><span class="p">)),</span>
+            <span class="n">cutoff</span><span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, Alexis Duburcq - MIT licence.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
