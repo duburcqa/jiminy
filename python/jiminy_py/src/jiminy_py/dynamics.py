@@ -139,10 +139,7 @@ class State:
     """
 
     lambda_c: Optional[np.ndarray] = None
-    """Lambda multipliers associated with all the constraints as a 2D array.
-
-    The first dimension corresponds to the N individual constraints applied on
-    the robot, while the second gathers the lambda multipliers.
+    """Lambda multipliers associated with all the constraints as a 1D array.
     """
 
 

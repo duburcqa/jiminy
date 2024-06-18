@@ -20,8 +20,8 @@ from ..utils import (
     matrix_to_yaw, quat_to_yaw, quat_to_matrix, quat_multiply, quat_apply)
 
 from ..quantities import (
-    MaskedQuantity, AverageFrameSpatialVelocity, MultiFramesXYZQuat,
-    MultiFramesMeanXYZQuat, AverageFrameRollPitch)
+    MaskedQuantity, MultiFramesXYZQuat, MultiFramesMeanXYZQuat,
+    AverageFrameSpatialVelocity, AverageFrameRollPitch)
 
 
 def sanitize_foot_frame_names(
@@ -343,7 +343,7 @@ class AverageBaseMomentum(AbstractQuantity[np.ndarray]):
         self._inertia_local = self.pinocchio_model.inertias[1].inertia
 
     def refresh(self) -> np.ndarray:
-        # Compute the local angular angular momentum of inertia
+        # Compute the local angular momentum of inertia
         np.matmul(self._inertia_local, self.v_angular, self._h_angular)
 
         # Apply quaternion rotation of the local angular momentum of inertia
@@ -676,12 +676,13 @@ class CenterOfMass(AbstractQuantity[np.ndarray]):
         # Call base implementation
         super().initialize()
 
-        # Make sure that the state is consistent with required kinematic level
+        # Make sure that the state data meet requirements
         state = self.state
         if ((self.kinematic_level == pin.ACCELERATION and state.a is None) or
                 (self.kinematic_level >= pin.VELOCITY and state.v is None)):
             raise RuntimeError(
-                "State data inconsistent with required kinematic level")
+                "Available state data do not meet requirements for kinematic "
+                f"level '{self.kinematic_level}'.")
 
         # Refresh CoM quantity proxy based on kinematic level
         if self.kinematic_level == pin.POSITION:
@@ -771,10 +772,11 @@ class ZeroMomentPoint(AbstractQuantity[np.ndarray]):
         # Call base implementation
         super().initialize()
 
-        # Make sure that the state is consistent with required kinematic level
-        if (self.state.v is None or self.state.a is None):
+        # Make sure that the state data meet requirements
+        if self.state.v is None or self.state.a is None:
             raise RuntimeError(
-                "State data inconsistent with required kinematic level")
+                "State data do not meet requirements. Velocity and "
+                "acceleration are missing.")
 
         # Compute the weight of the robot
         gravity = abs(self.pinocchio_model.gravity.linear[2])
@@ -875,10 +877,10 @@ class CapturePoint(AbstractQuantity[np.ndarray]):
         # Call base implementation
         super().initialize()
 
-        # Make sure that the state is consistent with required kinematic level
+        # Make sure that the state data meet requirements
         if self.state.v is None:
             raise RuntimeError(
-                "State data inconsistent with required kinematic level")
+                "State data do not meet requirements. Velocity is missing.")
 
         # Compute the natural frequency of linear pendulum approximate model.
         # Note that the height of the robot is defined as the position of the
@@ -911,9 +913,13 @@ class CapturePoint(AbstractQuantity[np.ndarray]):
 
 
 @dataclass(unsafe_hash=True)
-class MultiContactRelativeForceTangential(InterfaceQuantity[np.ndarray]):
+class MultiContactRelativeForceTangential(AbstractQuantity[np.ndarray]):
     """Standardized tangential forces apply on all contact points and collision
-    bodies.
+    bodies in their respective local contact frame.
+
+    The local contact frame is defined as the frame having the normal of the
+    ground as vertical axis, and the vector orthogonal to the x-axis in world
+    frame as y-axis.
 
     The tangential force is rescaled by the weight of the robot rather than the
     actual vertical force. It has the advantage to guarantee that the resulting
@@ -930,7 +936,9 @@ class MultiContactRelativeForceTangential(InterfaceQuantity[np.ndarray]):
 
     def __init__(self,
                  env: InterfaceJiminyEnv,
-                 parent: Optional[InterfaceQuantity]) -> None:
+                 parent: Optional[InterfaceQuantity],
+                 *,
+                 mode: QuantityEvalMode = QuantityEvalMode.TRUE) -> None:
         """
         :param env: Base or wrapped jiminy environment.
         :param parent: Higher-level quantity from which this quantity is a
@@ -938,59 +946,307 @@ class MultiContactRelativeForceTangential(InterfaceQuantity[np.ndarray]):
         """
         # Call base implementation
         super().__init__(
-            env, parent, requirements={}, auto_refresh=False)
+            env,
+            parent,
+            requirements=dict(
+                state=(StateQuantity, dict(
+                    update_kinematics=False))),
+            mode=mode,
+            auto_refresh=False)
+
+        # Define jit-able method compute the normalized tangential forces
+        @nb.jit(nopython=True, cache=True, fastmath=True)
+        def normalize_tangential_forces(lambda_c: np.ndarray,
+                                        index_start: int,
+                                        index_end: int,
+                                        robot_weight: float,
+                                        out: np.ndarray) -> None:
+            """Compute the tangential forces of all the constraints associated
+            with contact frames and collision bodies, normalized by the total
+            weight of the robot.
+
+            :param lambda_c: Stacked lambda multipliers all the constraints.
+            :param index_start: First index of the constraints associated with
+                                contact frames and collisions bodies.
+            :param index_end: One-past-last index of the constraints associated
+                              with contact frames and collisions bodies.
+            :param robot_weight: Total weight of the robot which will be used
+                                 to rescale the tangential forces.
+            :param out: Pre-allocated array in which to store the result.
+            """
+            # Extract constraint lambdas of contacts and collisions from state
+            lambda_ = lambda_c[index_start:index_end].reshape((-1, 4)).T
+
+            # Extract references to all the tangential forces
+            # f_lin, f_ang = lambda_[:3], np.array([0.0, 0.0, lambda_[3]])
+            forces_tangential = lambda_[:2]
+
+            # Scale the tangential forces by the weight of the robot
+            np.divide(forces_tangential, robot_weight, out)
+
+        self._normalize_tangential_forces = normalize_tangential_forces
 
         # Weight of the robot
-        self._robot_weight: float = -1
+        self._robot_weight: float = float("nan")
+
+        # Slice of constraint lambda multipliers for contacts and collisions
+        self._contact_slice: Tuple[int, int] = (0, 0)
 
         # Stacked tangential forces on all contact points and collision bodies
-        self._force_tangential_batch = np.array([])
-
-        # Define proxy for views of individual tangential forces in the stack
-        self._force_tangential_views: Tuple[np.ndarray, ...] = ()
-
-        # Define proxy for the current tangential forces
-        self._force_tangential_refs: Tuple[np.ndarray, ...] = ()
+        self._force_tangential_rel_batch = np.array([])
 
     def initialize(self) -> None:
         # Call base implementation
         super().initialize()
 
+        # Make sure that the state data meet requirements
+        if self.state.lambda_c is None:
+            raise RuntimeError("State data do not meet requirements. "
+                               "Constraints lambda multipliers are missing.")
+
         # Compute the weight of the robot
-        gravity = abs(self.env.robot.pinocchio_model.gravity.linear[2])
-        robot_mass = self.env.robot.pinocchio_data.mass[0]
+        gravity = abs(self.pinocchio_model.gravity.linear[2])
+        robot_mass = self.pinocchio_data.mass[0]
         self._robot_weight = robot_mass * gravity
 
-        # Get all frame constraints associated with contacts and collisions
-        frame_constraints: List[jiminy.FrameConstraint] = []
-        for constraint in self.env.robot.constraints.contact_frames.values():
+        # Extract slice of constraints associated with contacts and collisions
+        index_first, index_last = None, None
+        for i, fieldname in enumerate(self.robot.log_constraint_fieldnames):
+            is_contact = any(
+                fieldname.startswith(f"Constraint{registry_type}")
+                for registry_type in ("ContactFrames", "CollisionBodies"))
+            if index_first is None:
+                if is_contact:
+                    index_first = i
+            elif index_last is None:  # type: ignore[unreachable]
+                if not is_contact:
+                    index_last = i
+            elif is_contact:
+                raise ValueError(
+                    "Constraints associated with contacts and collisions are "
+                    "not continuously ordered.")
+        if index_last is None:
+            index_last = i + 1
+        assert index_first is not None
+        self._contact_slice = (index_first, index_last)
+
+        # Make sure that all contacts and collisions constraints are supported
+        for constraint in self.robot.constraints.contact_frames.values():
             assert isinstance(constraint, jiminy.FrameConstraint)
-            frame_constraints.append(constraint)
-        for constraints_body in self.env.robot.constraints.collision_bodies:
+        for constraints_body in self.robot.constraints.collision_bodies:
             for constraint in constraints_body:
                 assert isinstance(constraint, jiminy.FrameConstraint)
-                frame_constraints.append(constraint)
 
-        # Extract references to all the tangential forces
-        force_tangential_refs = []
-        for constraint in frame_constraints:
-            # f_lin, f_ang = lambda[:3], np.array([0.0, 0.0, lambda[3]])
-            force_tangential_refs.append(constraint.lambda_c[:2])
-        self._force_tangential_refs = tuple(force_tangential_refs)
+        # Make sure that the extracted slice is consistent with the constraints
+        num_contraints = len(self.robot.constraints.contact_frames) + sum(
+            map(len, self.robot.constraints.collision_bodies))
+        assert 4 * num_contraints == index_last - index_first
 
-        # Pre-allocated memory for stacked tangential forces
-        self._force_tangential_batch = np.zeros(
-            (2, len(self._force_tangential_refs)), order='F')
-
-        # Refresh proxies
-        self._force_tangential_views = tuple(self._force_tangential_batch.T)
+        # Pre-allocated memory for stacked normalized tangential forces
+        self._force_tangential_rel_batch = np.zeros(
+            (2, num_contraints), order='F')
 
     def refresh(self) -> np.ndarray:
-        # Copy all tangential forces in contiguous buffer
-        multi_array_copyto(self._force_tangential_views,
-                           self._force_tangential_refs)
+        self._normalize_tangential_forces(
+            self.state.lambda_c,
+            *self._contact_slice,
+            self._robot_weight,
+            self._force_tangential_rel_batch)
 
-        # Scale the tangential forces by the weight of the robot
-        self._force_tangential_batch /= self._robot_weight
+        return self._force_tangential_rel_batch
 
-        return self._force_tangential_batch
+
+@dataclass(unsafe_hash=True)
+class MultiFootRelativeForceVertical(AbstractQuantity[np.ndarray]):
+    """Standardized total vertical forces apply on each foot in world frame.
+
+    The lambda multipliers of the contact constraints are used to compute the
+    total forces applied on each foot. Although relying on the total wrench
+    acting on their respective parent joint seems enticing, it aggregates all
+    external forces, not just the ground contact reaction forces. Most often,
+    there is no difference, but not in the case of multiple robots interacting
+    with each others, or if user-specified external forces are manually applied
+    on the foot, eg to create disturbances. Relying on sensors to get the
+    desired information is not an option either, because they do not give
+    access to the ground truth.
+    """
+
+    frame_names: Tuple[str, ...]
+    """Name of the frames corresponding to some feet of the robot.
+
+    These frames must be part of the end-effectors, ie being associated with a
+    leaf joint in the kinematic tree of the robot.
+    """
+
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 parent: Optional[InterfaceQuantity],
+                 frame_names: Union[Sequence[str], Literal['auto']] = 'auto',
+                 *,
+                 mode: QuantityEvalMode = QuantityEvalMode.TRUE) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param parent: Higher-level quantity from which this quantity is a
+                       requirement if any, `None` otherwise.
+        :param frame_names: Name of the frames corresponding to some feet of
+                            the robot. 'auto' to automatically detect them from
+                            the set of contact and force sensors of the robot.
+                            Optional: 'auto' by default.
+        :param mode: Desired mode of evaluation for this quantity.
+        """
+        # Backup some user argument(s)
+        self.frame_names = tuple(sanitize_foot_frame_names(env, frame_names))
+
+        # Call base implementation
+        super().__init__(
+            env,
+            parent,
+            requirements=dict(
+                state=(StateQuantity, dict(
+                    update_kinematics=False))),
+            auto_refresh=False)
+
+        # Define jit-able method compute the normalized tangential forces
+        @nb.jit(nopython=True, cache=True, fastmath=True)
+        def normalize_vertical_forces(
+                lambda_c: np.ndarray,
+                foot_slices: Tuple[Tuple[int, int], ...],
+                vertical_transform_batches: Tuple[np.ndarray, ...],
+                robot_weight: float,
+                out: np.ndarray) -> None:
+            """Compute the sum of the vertical forces in world frame of all the
+            constraints associated with contact frames and collision bodies,
+            normalized by the total weight of the robot.
+
+            :param lambda_c: Stacked lambda multipliers all the constraints.
+            :param foot_slices: Slices of lambda multiplier of the constraints
+                                associated with contact frames and collisions
+                                bodies acting each foot, as a sequence of pairs
+                                (index_start, index_end) corresponding to the
+                                first and one-past-last indices respectively.
+            :param vertical_transform_batches:
+                Last row of the rotation matrices from world to local contact
+                frame associated with all contact and collision constraints
+                acting on each foot, as a list of 2D arrays. The first
+                dimension gathers the 3 spatial coordinates while the second
+                corresponds to the N individual constraints on each foot.
+            :param robot_weight: Total weight  of the robot which will be used
+                                 to rescale the tangential forces.
+            :param out: Pre-allocated array in which to store the result.
+            """
+            for i, ((index_start, index_end), vertical_transforms) in (
+                    enumerate(zip(foot_slices, vertical_transform_batches))):
+                # Extract constraint multipliers from state
+                lambda_ = lambda_c[index_start:index_end].reshape((-1, 4)).T
+
+                # Extract references to all the linear forces
+                # f_ang = np.array([0.0, 0.0, lambda_[3]])
+                f_lin = lambda_[:3]
+
+                # Compute vertical forces in world frame and aggregate them
+                f_z_world = np.sum(vertical_transforms * f_lin)
+
+                # Scale the vertical forces by the weight of the robot
+                out[i] = f_z_world / robot_weight
+
+        self._normalize_vertical_forces = normalize_vertical_forces
+
+        # Weight of the robot
+        self._robot_weight: float = float("nan")
+
+        # Slice of constraint lambda multipliers associated with each foot
+        self._foot_slices: Tuple[Tuple[int, int], ...] = ()
+
+        # Stacked vertical forces in (world frame) on each foot
+        self._vertical_force_batch = np.array([])
+
+        # Define proxies for vertical axis transform of each frame constraint
+        self._vertical_transform_list: Tuple[np.ndarray, ...] = ()
+
+        # Stacked vertical axis transforms
+        self._vertical_transform_batches: Tuple[np.ndarray, ...] = ()
+
+        # Define proxy for views of the batch storing vertical axis transforms
+        self._vertical_transform_views: Tuple[Tuple[np.ndarray, ...], ...] = ()
+
+    def initialize(self) -> None:
+        # Call base implementation
+        super().initialize()
+
+        # Make sure that the state data meet requirements
+        if self.state.lambda_c is None:
+            raise RuntimeError("State data do not meet requirements. "
+                               "Constraints lambda multipliers are missing.")
+
+        # Compute the weight of the robot
+        gravity = abs(self.pinocchio_model.gravity.linear[2])
+        robot_mass = self.pinocchio_data.mass[0]
+        self._robot_weight = robot_mass * gravity
+
+        # Get the joint index corresponding to each foot frame
+        foot_joint_indices: List[int] = []
+        for frame_name in self.frame_names:
+            frame_index = self.pinocchio_model.getFrameId(frame_name)
+            joint_index = self.pinocchio_model.frames[frame_index].parent
+            foot_joint_indices.append(joint_index)
+
+        # Get constraint names and vertical axis transforms for each foot
+        num_contraints = 0
+        foot_lookup_names: List[List[str]] = [[] for _ in self.frame_names]
+        vertical_transforms: List[List[np.ndarray]] = [
+            [] for _ in self.frame_names]
+        constraint_lookup_pairs = (
+                ("ContactFrames", self.robot.constraints.contact_frames),
+                ("CollisionBodies", {
+                    name: constraint for constraints in (
+                        self.robot.constraints.collision_bodies)
+                    for name, constraint in constraints.items()}))
+        for registry_type, registry in constraint_lookup_pairs:
+            for name, constraint in registry.items():
+                assert isinstance(constraint, jiminy.FrameConstraint)
+                frame = self.pinocchio_model.frames[constraint.frame_index]
+                try:
+                    foot_index = foot_joint_indices.index(frame.parent)
+                    foot_lookup_names[foot_index] += (
+                        f"Constraint{registry_type}{name}{i}"
+                        for i in range(constraint.size))
+                    vertical_transforms[foot_index].append(
+                        constraint.local_rotation[2])
+                    num_contraints += 1
+                except IndexError:
+                    pass
+        assert 4 * num_contraints == sum(map(len, foot_lookup_names))
+        self._vertical_transform_list = tuple(
+            e for values in vertical_transforms for e in values)
+
+        # Extract constraint lambda multiplier slices associated with each foot
+        self._foot_slices = tuple(
+            (self.robot.log_constraint_fieldnames.index(lookup_names[0]),
+             self.robot.log_constraint_fieldnames.index(lookup_names[-1]) + 1)
+            for lookup_names in foot_lookup_names)
+
+        # Pre-allocate memory for stacked vertical forces in world frame
+        self._vertical_force_batch = np.zeros((len(self.frame_names),))
+
+        # Pre-allocate memory for stacked vertical axis transforms
+        self._vertical_transform_batches = tuple(
+            np.zeros((3, num_foot_contacts), order='F')
+            for num_foot_contacts in map(len, vertical_transforms))
+
+        # Define proxy for views of the batch storing vertical axis transforms
+        self._vertical_transform_views = tuple(
+            e for values in self._vertical_transform_batches for e in values.T)
+
+    def refresh(self) -> np.ndarray:
+        # Copy all vertical axis transforms in contiguous buffer
+        multi_array_copyto(self._vertical_transform_views,
+                           self._vertical_transform_list)
+
+        # Compute the normalized sum of the vertical forces in world frame
+        self._normalize_vertical_forces(self.state.lambda_c,
+                                        self._foot_slices,
+                                        self._vertical_transform_batches,
+                                        self._robot_weight,
+                                        self._vertical_force_batch)
+
+        return self._vertical_force_batch

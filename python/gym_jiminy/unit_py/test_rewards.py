@@ -58,7 +58,7 @@ class Rewards(unittest.TestCase):
                 (TrackingBaseHeightReward, 0.1),
                 (TrackingCapturePointReward, 0.5),
                 (TrackingFootPositionsReward, 1.0),
-                (TrackingFootOrientationsReward, 2.0)) * 20:
+                (TrackingFootOrientationsReward, 2.0)):
             reward = reward_class(self.env, cutoff=cutoff)
             quantity_true = reward.quantity.requirements['value_left']
             quantity_ref = reward.quantity.requirements['value_right']
@@ -82,8 +82,6 @@ class Rewards(unittest.TestCase):
                 quantity_true.get(), quantity_ref.get())) ** 2))
             assert value > 0.01
             np.testing.assert_allclose(reward(terminated, {}), value)
-
-            del reward
 
     def test_mixture(self):
         reward_odometry = TrackingBaseOdometryVelocityReward(

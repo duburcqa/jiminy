@@ -31,7 +31,8 @@ from gym_jiminy.common.quantities import (
     CenterOfMass,
     CapturePoint,
     ZeroMomentPoint,
-    MultiContactRelativeForceTangential)
+    MultiContactRelativeForceTangential,
+    MultiFootRelativeForceVertical)
 
 
 class Quantities(unittest.TestCase):
@@ -541,10 +542,36 @@ class Quantities(unittest.TestCase):
             env.step(env.action)
 
         gravity = abs(env.robot.pinocchio_model.gravity.linear[2])
-        robot_mass = env.robot.pinocchio_data.mass[0]
+        robot_weight = env.robot.pinocchio_data.mass[0] * gravity
         force_tangential_rel = np.stack(tuple(
             constraint.lambda_c[:2]
             for constraint in env.robot.constraints.contact_frames.values()),
-            axis=-1) / (robot_mass * gravity)
+            axis=-1) / robot_weight
         np.testing.assert_allclose(
             force_tangential_rel, env.quantities["force_tangential_rel"])
+
+    def test_vertical_forces(self):
+        """ TODO: Write documentation
+        """
+        env = gym.make("gym_jiminy.envs:atlas-pid")
+
+        env.quantities["force_vertical_rel"] = (
+            MultiFootRelativeForceVertical, {})
+
+        env.reset(seed=0)
+        for _ in range(10):
+            env.step(env.action)
+
+        gravity = abs(env.robot.pinocchio_model.gravity.linear[2])
+        robot_weight = env.robot.pinocchio_data.mass[0] * gravity
+        force_vertical_rel = np.empty((2,))
+        for i, frame_name in enumerate(("l_foot", "r_foot")):
+            frame_index = env.robot.pinocchio_model.getFrameId(frame_name)
+            frame = env.robot.pinocchio_model.frames[frame_index]
+            transform = env.robot.pinocchio_data.oMf[frame_index]
+            f_external = env.robot_state.f_external[frame.parent]
+            f_z_world = np.dot(transform.rotation[2], f_external.linear)
+            force_vertical_rel[i] = f_z_world / robot_weight
+        np.testing.assert_allclose(
+            force_vertical_rel, env.quantities["force_vertical_rel"])
+        np.testing.assert_allclose(np.sum(force_vertical_rel), 1.0, atol=1e-3)
