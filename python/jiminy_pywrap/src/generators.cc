@@ -194,6 +194,10 @@ namespace jiminy::python
                                       (bp::arg("size"), "height_max", "interp_delta",
                                        "sparsity", "orientation", "seed"));
         bp::def("stairs_ground", &stairs, (bp::arg("step_width"), "step_height", "step_number", "orientation"));
+        bp::def("unidirectional_random_perlin_ground", &unidirectionalRandomPerlinGround,
+                     (bp::arg("wavelength"), bp::arg("num_octaves"), "orientation", "seed"));
+        bp::def("unidirectional_periodic_perlin_ground", &unidirectionalPeriodicPerlinGround,
+                     (bp::arg("wavelength"), "period", bp::arg("num_octaves"), "orientation", "seed"));
         bp::def("sum_heightmaps", &sumHeightmaps, (bp::arg("heightmaps")));
         bp::def("merge_heightmaps", &mergeHeightmaps, (bp::arg("heightmaps")));
 

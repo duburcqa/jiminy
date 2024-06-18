@@ -412,6 +412,8 @@ namespace jiminy
 
         double getWavelength() const noexcept;
 
+        double gradient(double t) const;
+
     protected:
         virtual double grad(int32_t knot, double delta) const noexcept = 0;
 
@@ -423,6 +425,8 @@ namespace jiminy
         ///     https://en.wikipedia.org/wiki/Smoothstep#Variations
         static double fade(double delta) noexcept;
         static double lerp(double ratio, double yLeft, double yRight) noexcept;
+
+        static double fade_derivative(double delta) noexcept;
 
     protected:
         const double wavelength_;
@@ -496,6 +500,7 @@ namespace jiminy
         void reset(const uniform_random_bit_generator_ref<uint32_t> & g) noexcept;
 
         double operator()(float t);
+        double gradient(float t);
 
         double getWavelength() const noexcept;
         std::size_t getNumOctaves() const noexcept;
@@ -536,6 +541,17 @@ namespace jiminy
                                           uint32_t sparsity,
                                           double orientation,
                                           uint32_t seed);
+
+    HeightmapFunction JIMINY_DLLAPI unidirectionalRandomPerlinGround(double wavelength,
+                                                                std::size_t numOctaves,
+                                                                double orientation,
+                                                                uint32_t seed);
+
+    HeightmapFunction JIMINY_DLLAPI unidirectionalPeriodicPerlinGround(double wavelength,
+                                                                double period,
+                                                                std::size_t numOctaves,
+                                                                double orientation,
+                                                                uint32_t seed);
 }
 
 #include "jiminy/core/utilities/random.hxx"
