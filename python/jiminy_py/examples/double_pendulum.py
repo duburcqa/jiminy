@@ -57,10 +57,10 @@ if __name__ == '__main__':
     engine_options["telemetry"]["enableCommand"] = True
     engine_options["telemetry"]["enableEnergy"] = True
     engine_options["world"]["gravity"][2] = -9.81
-    engine_options["stepper"]["odeSolver"] = "runge_kutta_dopri5"  # ["runge_kutta_dopri5", "euler_explicit"]
+    engine_options["stepper"]["odeSolver"] = "runge_kutta_dopri"  # ["runge_kutta_dopri", "euler_explicit"]
     engine_options["stepper"]["tolRel"] = 1.0e-5
     engine_options["stepper"]["tolAbs"] = 1.0e-4
-    engine_options["stepper"]["dtMax"] = 2.0e-3  # 2.0e-4 for "euler_explicit", 3.0e-3 for "runge_kutta_dopri5"
+    engine_options["stepper"]["dtMax"] = 2.0e-3  # 2.0e-4 for "euler_explicit", 3.0e-3 for "runge_kutta_dopri"
     engine_options["stepper"]["sensorsUpdatePeriod"] = 1.0e-3
     engine_options["stepper"]["controllerUpdatePeriod"] = 1.0e-3
     engine_options["stepper"]["logInternalStepperSteps"] = False
