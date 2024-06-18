@@ -120,7 +120,7 @@ class SimulateSimplePendulum(unittest.TestCase):
         # Configure the engine
         engine_options = engine.get_options()
         engine_options["world"]["gravity"] = np.zeros(6)
-        engine_options["stepper"]["odeSolver"] = "runge_kutta_dopri5"
+        engine_options["stepper"]["odeSolver"] = "runge_kutta_dopri"
         engine_options["stepper"]["tolAbs"] = TOLERANCE * 1e-1
         engine_options["stepper"]["tolRel"] = TOLERANCE * 1e-1
         engine.set_options(engine_options)
@@ -170,7 +170,7 @@ class SimulateSimplePendulum(unittest.TestCase):
         # Configure the engine
         engine_options = engine.get_options()
         engine_options["world"]["gravity"] = np.zeros(6)
-        engine_options["stepper"]["odeSolver"] = "runge_kutta_dopri5"
+        engine_options["stepper"]["odeSolver"] = "runge_kutta_dopri"
         engine_options["stepper"]["tolAbs"] = 1e-12
         engine_options["stepper"]["tolRel"] = 1e-12
         engine.set_options(engine_options)
@@ -703,7 +703,7 @@ class SimulateSimplePendulum(unittest.TestCase):
         # Configure the engine
         engine_options = engine.get_options()
         engine_options["world"]["gravity"] = np.zeros(6)
-        engine_options["stepper"]["odeSolver"] = "runge_kutta_dopri5"
+        engine_options["stepper"]["odeSolver"] = "runge_kutta_dopri"
         engine_options["stepper"]["tolAbs"] = TOLERANCE * 1e-1
         engine_options["stepper"]["tolRel"] = TOLERANCE * 1e-1
         engine.set_options(engine_options)
@@ -779,7 +779,7 @@ class SimulateSimplePendulum(unittest.TestCase):
         # Configure the engine
         engine_options = engine.get_options()
         engine_options["world"]["gravity"] = np.zeros(6)
-        engine_options["stepper"]["odeSolver"] = "runge_kutta_dopri5"
+        engine_options["stepper"]["odeSolver"] = "runge_kutta_dopri"
         engine_options["stepper"]["tolAbs"] = TOLERANCE * 1e-1
         engine_options["stepper"]["tolRel"] = TOLERANCE * 1e-1
         engine_options["constraints"]["regularization"] = 0.0

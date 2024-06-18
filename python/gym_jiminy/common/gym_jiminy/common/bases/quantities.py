@@ -1145,7 +1145,8 @@ class StateQuantity(InterfaceQuantity[State]):
                 self.env.robot_state.a,
                 self.env.robot_state.u,
                 self.env.robot_state.command,
-                self._f_external_batch)
+                self._f_external_batch,
+                self._constraint_lambda_batch)
 
     def refresh(self) -> State:
         """Compute the current state depending on the mode of evaluation, and

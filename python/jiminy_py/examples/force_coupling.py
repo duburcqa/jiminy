@@ -38,7 +38,7 @@ if __name__ == '__main__':
 
     # Remove gravity
     engine_options = engine.get_options()
-    engine_options["stepper"]["odeSolver"] = 'runge_kutta_dopri5'
+    engine_options["stepper"]["odeSolver"] = 'runge_kutta_dopri'
     engine_options["stepper"]["tolAbs"] = 1e-10
     engine_options["stepper"]["tolRel"] = 1e-10
     engine_options["stepper"]["dtMax"] = 0.01

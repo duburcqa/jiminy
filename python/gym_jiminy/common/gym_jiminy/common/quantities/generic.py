@@ -18,7 +18,8 @@ from jiminy_py.core import (  # pylint: disable=no-name-in-module
 import pinocchio as pin
 
 from ..bases import (
-    InterfaceJiminyEnv, InterfaceQuantity, AbstractQuantity, QuantityEvalMode)
+    InterfaceJiminyEnv, InterfaceQuantity, AbstractQuantity, StateQuantity,
+    QuantityEvalMode)
 from ..utils import (
     matrix_to_rpy, matrix_to_quat, quat_apply, remove_yaw_from_quat,
     quat_interpolate_middle)
@@ -1404,7 +1405,9 @@ class ActuatedJointsPosition(AbstractQuantity[np.ndarray]):
         super().__init__(
             env,
             parent,
-            requirements={},
+            requirements=dict(
+                state=(StateQuantity, dict(
+                    update_kinematics=False))),
             mode=mode,
             auto_refresh=False)
 

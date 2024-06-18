@@ -12,6 +12,7 @@ from .locomotion import (TrackingBaseHeightReward,
                          TrackingCapturePointReward,
                          TrackingFootPositionsReward,
                          TrackingFootOrientationsReward,
+                         TrackingFootForceDistributionReward,
                          MinimizeAngularMomentumReward,
                          MinimizeFrictionReward)
 
@@ -27,6 +28,7 @@ __all__ = [
     "TrackingCapturePointReward",
     "TrackingFootPositionsReward",
     "TrackingFootOrientationsReward",
+    "TrackingFootForceDistributionReward",
     "MinimizeAngularMomentumReward",
     "MinimizeFrictionReward",
     "SurviveReward"
