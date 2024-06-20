@@ -33,8 +33,8 @@ from ..bases import (InterfaceJiminyEnv,
                      ControlledJiminyEnv,
                      ComposedJiminyEnv,
                      AbstractReward,
-                     BaseQuantityReward,
-                     BaseMixtureReward)
+                     QuantityReward,
+                     MixtureReward)
 from ..envs import BaseJiminyEnv
 
 
@@ -241,8 +241,8 @@ def build_pipeline(env_config: EnvConfig,
         # Get reward constructor keyword-arguments
         kwargs = reward_config.get("kwargs", {})
 
-        # Special handling for `BaseMixtureReward`
-        if issubclass(cls, BaseMixtureReward):
+        # Special handling for `MixtureReward`
+        if issubclass(cls, MixtureReward):
             for component_config in kwargs["components"]:
                 sanitize_reward_config(component_config)
 
@@ -263,14 +263,14 @@ def build_pipeline(env_config: EnvConfig,
         # Get reward constructor keyword-arguments
         kwargs = reward_config.get("kwargs", {})
 
-        # Special handling for `BaseMixtureReward`
-        if issubclass(cls, BaseMixtureReward):
+        # Special handling for `MixtureReward`
+        if issubclass(cls, MixtureReward):
             kwargs["components"] = tuple(
                 build_reward(env, reward_config)
                 for reward_config in kwargs["components"])
 
-        # Special handling for `BaseQuantityReward`
-        if cls is BaseQuantityReward:
+        # Special handling for `QuantityReward`
+        if cls is QuantityReward:
             quantity_config = kwargs["quantity"]
             kwargs["quantity"] = (
                 quantity_config["cls"], quantity_config["kwargs"])

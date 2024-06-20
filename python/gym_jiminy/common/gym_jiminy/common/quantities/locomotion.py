@@ -16,12 +16,11 @@ import pinocchio as pin
 from ..bases import (
     InterfaceJiminyEnv, InterfaceQuantity, AbstractQuantity, StateQuantity,
     QuantityEvalMode)
-from ..utils import (
-    matrix_to_yaw, quat_to_yaw, quat_to_matrix, quat_multiply, quat_apply)
-
 from ..quantities import (
     MaskedQuantity, MultiFramesXYZQuat, MultiFramesMeanXYZQuat,
-    AverageFrameSpatialVelocity, AverageFrameRollPitch)
+    FrameSpatialAverageVelocity, AverageFrameRollPitch)
+
+from .transform import UnaryOpQuantity
 
 
 def sanitize_foot_frame_names(
@@ -165,12 +164,12 @@ class BaseOdometryPose(AbstractQuantity[np.ndarray]):
 
 
 @dataclass(unsafe_hash=True)
-class AverageBaseSpatialVelocity(InterfaceQuantity[np.ndarray]):
+class BaseSpatialAverageVelocity(InterfaceQuantity[np.ndarray]):
     """Average base spatial velocity of the floating base of the robot in
     local odometry frame at the end of the agent step.
 
     The average spatial velocity is obtained by finite difference. See
-    `AverageFrameSpatialVelocity` documentation for details.
+    `FrameSpatialAverageVelocity` documentation for details.
 
     Roughly speaking, the local odometry reference frame is half-way between
     `pinocchio.LOCAL` and `pinocchio.LOCAL_WORLD_ALIGNED`. The z-axis is
@@ -208,7 +207,7 @@ class AverageBaseSpatialVelocity(InterfaceQuantity[np.ndarray]):
             env,
             parent,
             requirements=dict(
-                v_spatial=(AverageFrameSpatialVelocity, dict(
+                v_spatial=(FrameSpatialAverageVelocity, dict(
                     frame_name="root_joint",
                     reference_frame=pin.LOCAL,
                     mode=mode)),
@@ -233,12 +232,12 @@ class AverageBaseSpatialVelocity(InterfaceQuantity[np.ndarray]):
 
 
 @dataclass(unsafe_hash=True)
-class AverageBaseOdometryVelocity(InterfaceQuantity[np.ndarray]):
+class BaseOdometryAverageVelocity(InterfaceQuantity[np.ndarray]):
     """Average odometry velocity of the floating base of the robot in local
     odometry frame at the end of the agent step.
 
     The odometry velocity fully specifies the linear and angular velocity of
-    the robot in 2D world plane. See `AverageBaseSpatialVelocity` and
+    the robot in 2D world plane. See `BaseSpatialAverageVelocity` and
     `BaseOdometryPose`, documentations for details.
     """
 
@@ -272,7 +271,7 @@ class AverageBaseOdometryVelocity(InterfaceQuantity[np.ndarray]):
             parent,
             requirements=dict(
                 data=(MaskedQuantity, dict(
-                    quantity=(AverageBaseSpatialVelocity, dict(
+                    quantity=(BaseSpatialAverageVelocity, dict(
                         mode=mode)),
                     keys=(0, 1, 5)))),
             auto_refresh=False)
@@ -319,7 +318,7 @@ class AverageBaseMomentum(AbstractQuantity[np.ndarray]):
             parent,
             requirements=dict(
                 v_angular=(MaskedQuantity, dict(
-                    quantity=(AverageFrameSpatialVelocity, dict(
+                    quantity=(FrameSpatialAverageVelocity, dict(
                         frame_name="root_joint",
                         reference_frame=pin.LOCAL,
                         mode=mode)),

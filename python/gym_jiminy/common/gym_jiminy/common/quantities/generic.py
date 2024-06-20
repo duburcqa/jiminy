@@ -1265,7 +1265,7 @@ class AverageFrameRollPitch(InterfaceQuantity[np.ndarray]):
 
 
 @dataclass(unsafe_hash=True)
-class AverageFrameSpatialVelocity(InterfaceQuantity[np.ndarray]):
+class FrameSpatialAverageVelocity(InterfaceQuantity[np.ndarray]):
     """Average spatial velocity of a given frame at the end of the agent step.
 
     The average spatial velocity is obtained by finite difference. More

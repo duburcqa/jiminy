@@ -24,8 +24,8 @@ from gym_jiminy.common.quantities import (
     MaskedQuantity,
     MultiFootMeanOdometryPose,
     MultiFootRelativeXYZQuat,
-    AverageFrameSpatialVelocity,
-    AverageBaseOdometryVelocity,
+    FrameSpatialAverageVelocity,
+    BaseOdometryAverageVelocity,
     AverageBaseMomentum,
     ActuatedJointsPosition,
     CenterOfMass,
@@ -210,7 +210,7 @@ class Quantities(unittest.TestCase):
         env = gym.make("gym_jiminy.envs:atlas")
         env.reset(seed=0)
 
-        quantity_cls = AverageFrameSpatialVelocity
+        quantity_cls = FrameSpatialAverageVelocity
         quantity_kwargs = dict(
             frame_name=env.robot.pinocchio_model.frames[1].name)
         env.quantities["v_avg"] = (quantity_cls, quantity_kwargs)
@@ -283,10 +283,10 @@ class Quantities(unittest.TestCase):
                     mode=mode)),
                 lambda mode: (MultiFootMeanOdometryPose, dict(
                     mode=mode)),
-                lambda mode: (AverageFrameSpatialVelocity, dict(
+                lambda mode: (FrameSpatialAverageVelocity, dict(
                     frame_name=frame_names[1],
                     mode=mode)),
-                lambda mode: (AverageBaseOdometryVelocity, dict(
+                lambda mode: (BaseOdometryAverageVelocity, dict(
                     mode=mode)),
                 lambda mode: (ActuatedJointsPosition, dict(
                     mode=mode)),
@@ -337,7 +337,7 @@ class Quantities(unittest.TestCase):
         env = gym.make("gym_jiminy.envs:atlas")
 
         env.quantities["odometry_velocity"] = (
-            AverageBaseOdometryVelocity, dict(
+            BaseOdometryAverageVelocity, dict(
                 mode=QuantityEvalMode.TRUE))
         quantity = env.quantities.registry["odometry_velocity"]
 

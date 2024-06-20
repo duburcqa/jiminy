@@ -274,8 +274,8 @@ class InterfaceQuantity(ABC, Generic[ValueT]):
         :param requirements: Intermediary quantities on which this quantity
                              depends for its evaluation, as a dictionary
                              whose keys are tuple gathering their respective
-                             class and all their constructor keyword-arguments
-                             except environment 'env' and parent 'parent.
+                             class plus any keyword-arguments of its
+                             constructor except 'env' and 'parent'.
         :param auto_refresh: Whether this quantity must be refreshed
                              automatically as soon as its shared cache has been
                              cleared if specified, otherwise this does nothing.
@@ -609,8 +609,8 @@ class AbstractQuantity(InterfaceQuantity, Generic[ValueT]):
         :param requirements: Intermediary quantities on which this quantity
                              depends for its evaluation, as a dictionary
                              whose keys are tuple gathering their respective
-                             class and all their constructor keyword-arguments
-                             except environment 'env' and parent 'parent.
+                             class plus any keyword-arguments of its
+                             constructor except 'env' and 'parent'.
         :param mode: Desired mode of evaluation for this quantity. If mode is
                      set to `QuantityEvalMode.TRUE`, then current simulation
                      state will be used in dynamics computations. If mode is

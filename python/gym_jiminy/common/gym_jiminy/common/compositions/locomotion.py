@@ -7,24 +7,24 @@ import numpy as np
 import pinocchio as pin
 
 from ..bases import (
-    InterfaceJiminyEnv, StateQuantity, QuantityEvalMode, BaseQuantityReward)
+    InterfaceJiminyEnv, StateQuantity, QuantityEvalMode, QuantityReward)
 from ..quantities import (
-    MaskedQuantity, UnaryOpQuantity, AverageBaseOdometryVelocity, CapturePoint,
+    MaskedQuantity, UnaryOpQuantity, BaseOdometryAverageVelocity, CapturePoint,
     MultiFootRelativeXYZQuat, MultiContactRelativeForceTangential,
     MultiFootRelativeForceVertical, AverageBaseMomentum)
 from ..quantities.locomotion import sanitize_foot_frame_names
 from ..utils import quat_difference
 
-from .generic import BaseTrackingReward
+from .generic import TrackingQuantityReward
 from .mixin import radial_basis_function
 
 
-class TrackingBaseHeightReward(BaseTrackingReward):
+class TrackingBaseHeightReward(TrackingQuantityReward):
     """Reward the agent for tracking the height of the floating base of the
     robot wrt some reference trajectory.
 
     .. seealso::
-        See `BaseTrackingReward` documentation for technical details.
+        See `TrackingQuantityReward` documentation for technical details.
     """
     def __init__(self,
                  env: InterfaceJiminyEnv,
@@ -48,12 +48,12 @@ class TrackingBaseHeightReward(BaseTrackingReward):
             cutoff)
 
 
-class TrackingBaseOdometryVelocityReward(BaseTrackingReward):
+class TrackingBaseOdometryVelocityReward(TrackingQuantityReward):
     """Reward the agent for tracking the odometry velocity wrt some reference
     trajectory.
 
     .. seealso::
-        See `BaseTrackingReward` documentation for technical details.
+        See `TrackingQuantityReward` documentation for technical details.
     """
     def __init__(self,
                  env: InterfaceJiminyEnv,
@@ -69,16 +69,16 @@ class TrackingBaseOdometryVelocityReward(BaseTrackingReward):
         super().__init__(
             env,
             "reward_tracking_odometry_velocity",
-            lambda mode: (AverageBaseOdometryVelocity, dict(mode=mode)),
+            lambda mode: (BaseOdometryAverageVelocity, dict(mode=mode)),
             cutoff)
 
 
-class TrackingCapturePointReward(BaseTrackingReward):
+class TrackingCapturePointReward(TrackingQuantityReward):
     """Reward the agent for tracking the capture point wrt some reference
     trajectory.
 
     .. seealso::
-        See `BaseTrackingReward` documentation for technical details.
+        See `TrackingQuantityReward` documentation for technical details.
     """
     def __init__(self,
                  env: InterfaceJiminyEnv,
@@ -100,12 +100,12 @@ class TrackingCapturePointReward(BaseTrackingReward):
             cutoff)
 
 
-class TrackingFootPositionsReward(BaseTrackingReward):
+class TrackingFootPositionsReward(TrackingQuantityReward):
     """Reward the agent for tracking the relative position of the feet wrt each
     other.
 
     .. seealso::
-        See `BaseTrackingReward` documentation for technical details.
+        See `TrackingQuantityReward` documentation for technical details.
     """
     def __init__(self,
                  env: InterfaceJiminyEnv,
@@ -142,12 +142,12 @@ class TrackingFootPositionsReward(BaseTrackingReward):
             cutoff)
 
 
-class TrackingFootOrientationsReward(BaseTrackingReward):
+class TrackingFootOrientationsReward(TrackingQuantityReward):
     """Reward the agent for tracking the relative orientation of the feet wrt
     each other.
 
     .. seealso::
-        See `BaseTrackingReward` documentation for technical details.
+        See `TrackingQuantityReward` documentation for technical details.
     """
     def __init__(self,
                  env: InterfaceJiminyEnv,
@@ -184,7 +184,7 @@ class TrackingFootOrientationsReward(BaseTrackingReward):
                 [np.ndarray, np.ndarray], np.ndarray], quat_difference))
 
 
-class TrackingFootForceDistributionReward(BaseTrackingReward):
+class TrackingFootForceDistributionReward(TrackingQuantityReward):
     """Reward the agent for tracking the relative vertical force in world frame
     applied on each foot.
 
@@ -199,7 +199,7 @@ class TrackingFootForceDistributionReward(BaseTrackingReward):
         the flying phase of running.
 
     .. seealso::
-        See `BaseTrackingReward` documentation for technical details.
+        See `TrackingQuantityReward` documentation for technical details.
     """
     def __init__(self,
                  env: InterfaceJiminyEnv,
@@ -231,12 +231,12 @@ class TrackingFootForceDistributionReward(BaseTrackingReward):
             cutoff)
 
 
-class MinimizeAngularMomentumReward(BaseQuantityReward):
+class MinimizeAngularMomentumReward(QuantityReward):
     """Reward the agent for minimizing the angular momentum in world plane.
 
     The angular momentum along x- and y-axes in local odometry frame is
     transform in a normalized reward to maximize by applying RBF kernel on the
-    error. See `BaseTrackingReward` documentation for technical details.
+    error. See `TrackingQuantityReward` documentation for technical details.
     """
     def __init__(self,
                  env: InterfaceJiminyEnv,
@@ -258,7 +258,7 @@ class MinimizeAngularMomentumReward(BaseQuantityReward):
             is_terminal=False)
 
 
-class MinimizeFrictionReward(BaseQuantityReward):
+class MinimizeFrictionReward(QuantityReward):
     """Reward the agent for minimizing the tangential forces at all the contact
     points and collision bodies, and to avoid jerky intermittent contact state.
 
