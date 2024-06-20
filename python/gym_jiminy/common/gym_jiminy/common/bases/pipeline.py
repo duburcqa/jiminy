@@ -352,6 +352,9 @@ class ComposedJiminyEnv(
         considered as internal unlike `gym.Wrapper`. This means that it will be
         taken into account when calling `evaluate` or `play_interactive` on the
         wrapped environment.
+
+    .. warning::
+        This class is final, ie not meant to be derived.
     """
     def __init__(self,
                  env: InterfaceJiminyEnv[ObsT, ActT],
@@ -382,9 +385,9 @@ class ComposedJiminyEnv(
                              Optional: `None` by default.
         """
         # Make sure that the unwrapped environment of compositions matches
-        compositions = (*((reward,) if reward is None else ()), *terminations)
-        assert all(env.unwrapped is composition.env.unwrapped
-                   for composition in compositions)
+        assert reward is None or env.unwrapped is reward.env.unwrapped
+        assert all(env.unwrapped is termination.env.unwrapped
+                   for termination in terminations)
 
         # Backup user argument(s)
         self.reward = reward
@@ -443,9 +446,7 @@ class ComposedJiminyEnv(
         """
         self.env.refresh_observation(measurement)
 
-    def has_terminated(self,
-                       info: InfoType  # pylint: disable=unused-argument
-                       ) -> Tuple[bool, bool]:
+    def has_terminated(self, info: InfoType) -> Tuple[bool, bool]:
         """Determine whether the episode is over, because a terminal state of
         the underlying MDP has been reached or an aborting condition outside
         the scope of the MDP has been triggered.

@@ -44,6 +44,8 @@ class Rewards(unittest.TestCase):
         self.env.quantities.select_trajectory("reference")
 
     def test_deletion(self):
+        """ TODO: Write documentation
+        """
         assert len(self.env.quantities.registry) == 0
         reward_survive = TrackingActuatedJointPositionsReward(
             self.env, cutoff=1.0)
@@ -53,6 +55,8 @@ class Rewards(unittest.TestCase):
         assert len(self.env.quantities.registry) == 0
 
     def test_tracking(self):
+        """ TODO: Write documentation
+        """
         for reward_class, cutoff in (
                 (TrackingBaseOdometryVelocityReward, 20.0),
                 (TrackingActuatedJointPositionsReward, 10.0),
@@ -113,6 +117,8 @@ class Rewards(unittest.TestCase):
             0.2 * reward_survive(terminated, {}))
 
     def test_stability(self):
+        """ TODO: Write documentation
+        """
         CUTOFF_INNER, CUTOFF_OUTER = 0.1, 0.5
         reward_stability = MaximizeStability(
             self.env, cutoff_inner=0.1, cutoff_outer=0.5)
@@ -131,6 +137,8 @@ class Rewards(unittest.TestCase):
         np.testing.assert_allclose(reward_stability(terminated, {}), value)
 
     def test_friction(self):
+        """ TODO: Write documentation
+        """
         CUTOFF = 0.5
         reward_friction = MinimizeFrictionReward(self.env, cutoff=CUTOFF)
         quantity = reward_friction.quantity

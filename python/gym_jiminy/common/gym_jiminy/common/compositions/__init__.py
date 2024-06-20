@@ -7,8 +7,8 @@ from .mixin import (CUTOFF_ESP,
 from .generic import (TrackingQuantityReward,
                       TrackingActuatedJointPositionsReward,
                       SurviveReward,
-                      DriftTrackingQuantityTerminationCondition,
-                      ShiftTrackingQuantityTerminationCondition)
+                      DriftTrackingQuantityTermination,
+                      ShiftTrackingQuantityTermination)
 from .locomotion import (TrackingBaseHeightReward,
                          TrackingBaseOdometryVelocityReward,
                          TrackingCapturePointReward,
@@ -16,7 +16,8 @@ from .locomotion import (TrackingBaseHeightReward,
                          TrackingFootOrientationsReward,
                          TrackingFootForceDistributionReward,
                          MinimizeAngularMomentumReward,
-                         MinimizeFrictionReward,)
+                         MinimizeFrictionReward,
+                         BaseRollPitchTermination)
 
 __all__ = [
     "CUTOFF_ESP",
@@ -34,6 +35,7 @@ __all__ = [
     "MinimizeAngularMomentumReward",
     "MinimizeFrictionReward",
     "SurviveReward",
-    "DriftTrackingQuantityTerminationCondition",
-    "ShiftTrackingQuantityTerminationCondition"
+    "DriftTrackingQuantityTermination",
+    "ShiftTrackingQuantityTermination",
+    "BaseRollPitchTermination"
 ]

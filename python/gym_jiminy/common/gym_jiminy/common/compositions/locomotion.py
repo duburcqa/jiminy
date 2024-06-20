@@ -1,7 +1,7 @@
 """Rewards mainly relevant for locomotion tasks on floating-base robots.
 """
 from functools import partial
-from typing import Union, Sequence, Literal, Callable, cast
+from typing import Optional, Union, Sequence, Literal, Callable, cast
 
 import numpy as np
 import pinocchio as pin
@@ -9,13 +9,15 @@ import pinocchio as pin
 from ..bases import (
     InterfaceJiminyEnv, StateQuantity, QuantityEvalMode, QuantityReward)
 from ..quantities import (
-    MaskedQuantity, UnaryOpQuantity, BaseOdometryAverageVelocity, CapturePoint,
-    MultiFootRelativeXYZQuat, MultiContactRelativeForceTangential,
-    MultiFootRelativeForceVertical, AverageBaseMomentum)
+    OrientationType, MaskedQuantity, UnaryOpQuantity, FrameOrientation,
+    BaseOdometryAverageVelocity, CapturePoint, MultiFootRelativeXYZQuat,
+    MultiContactRelativeForceTangential, MultiFootRelativeForceVertical,
+    AverageBaseMomentum)
 from ..quantities.locomotion import sanitize_foot_frame_names
 from ..utils import quat_difference
 
-from .generic import TrackingQuantityReward
+from .generic import (
+    ArrayLikeOrScalar, TrackingQuantityReward, QuantityTermination)
 from .mixin import radial_basis_function
 
 
@@ -287,3 +289,44 @@ class MinimizeFrictionReward(QuantityReward):
             partial(radial_basis_function, cutoff=self.cutoff, order=2),
             is_normalized=True,
             is_terminal=False)
+
+
+class BaseRollPitchTermination(QuantityTermination):
+    """Encourages the agent to keep its base straight, ie its torso in the case
+    of a humanoid robot, by prohibiting excessive roll and pitch angles.
+    """
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 low: Optional[ArrayLikeOrScalar],
+                 high: Optional[ArrayLikeOrScalar],
+                 grace_period: float = 0.0,
+                 *,
+                 is_training_only: bool = False) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param low: Lower bound below which termination is triggered.
+        :param high: Upper bound above which termination is triggered.
+        :param grace_period: Grace period effective only at the very beginning
+                             of the episode, during which the latter is bound
+                             to continue whatever happens.
+                             Optional: 0.0 by default.
+        :param is_training_only: Whether the termination condition should be
+                                 completely by-passed if the environment is in
+                                 evaluation mode.
+                                 Optional: False by default.
+        """
+        # Call base implementation
+        super().__init__(
+            env,
+            "termination_base_roll_pitch",
+            (MaskedQuantity, dict(  # type: ignore[arg-type]
+                quantity=(FrameOrientation, dict(
+                    frame_name="root_joint",
+                    type=OrientationType.EULER)),
+                axis=0,
+                keys=(0, 1))),
+            low,
+            high,
+            grace_period,
+            is_truncation=False,
+            is_training_only=is_training_only)

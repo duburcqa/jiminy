@@ -18,7 +18,8 @@ from .quantities import QuantityCreator
 
 ValueT = TypeVar('ValueT')
 
-ArrayOrScalar = Union[np.ndarray, float]
+ArrayOrScalar = Union[np.ndarray, float, int]
+ArrayLikeOrScalar = Union[ArrayOrScalar, Sequence[Union[float, int]]]
 
 
 class AbstractReward(ABC):
@@ -155,7 +156,7 @@ class AbstractReward(ABC):
                 "Reward not normalized in range [0.0, 1.0] as it ought to be.")
 
         # Store its value as info
-        if self.name is info.keys():
+        if self.name in info.keys():
             raise KeyError(
                 f"Key '{self.name}' already reserved in 'info'. Impossible to "
                 "store value of reward component.")
@@ -444,14 +445,14 @@ class AbstractTerminationCondition(ABC):
 
     @abstractmethod
     def compute(self, info: InfoType) -> EpisodeState:
-        """Compute the termination condition.
+        """Evaluate the termination condition.
 
         :param info: Dictionary of extra information for monitoring. It will be
                      updated in-place for storing terminated and truncated
                      flags in 'info' as a tri-states `EpisodeState` value.
 
-        :returns: Current state of the episode from the perspective of the
-        termination condition at hands.
+        :returns: Current episode state from the sole perspective of the
+                  termination condition at hands.
         """
 
     def __call__(self, info: InfoType) -> Tuple[bool, bool]:
@@ -483,7 +484,7 @@ class AbstractTerminationCondition(ABC):
         is_truncated = episode_state == EpisodeState.TRUNCATED
 
         # Store episode state as info
-        if self.name is info.keys():
+        if self.name in info.keys():
             raise KeyError(
                 f"Key '{self.name}' already reserved in 'info'. Impossible to "
                 "store value of termination condition.")
@@ -496,7 +497,7 @@ class AbstractTerminationCondition(ABC):
         return is_terminated, is_truncated
 
 
-class QuantityTerminationCondition(AbstractTerminationCondition):
+class QuantityTermination(AbstractTerminationCondition):
     """Convenience class making it easy to derive termination conditions from
     generic quantities.
 
@@ -511,8 +512,8 @@ class QuantityTerminationCondition(AbstractTerminationCondition):
                  env: InterfaceJiminyEnv,
                  name: str,
                  quantity: QuantityCreator[Optional[ArrayOrScalar]],
-                 low: Optional[ArrayOrScalar],
-                 high: Optional[ArrayOrScalar],
+                 low: Optional[ArrayLikeOrScalar],
+                 high: Optional[ArrayLikeOrScalar],
                  grace_period: float = 0.0,
                  *,
                  is_truncation: bool = False,
@@ -545,8 +546,8 @@ class QuantityTerminationCondition(AbstractTerminationCondition):
                                  Optional: False by default.
         """
         # Backup user argument(s)
-        self.low = low
-        self.high = high
+        self.low = np.asarray(low) if low is not None else None
+        self.high = np.asarray(high) if high is not None else None
         self.grace_period = grace_period
         self.is_truncation = is_truncation
         self.is_training_only = is_training_only
@@ -568,23 +569,32 @@ class QuantityTerminationCondition(AbstractTerminationCondition):
             pass
 
     def compute(self, info: InfoType) -> EpisodeState:
-        """Compute the reward if necessary depending on whether the reward and
-        state are terminal. If so, then first evaluate the underlying quantity,
-        next apply post-processing if requested.
+        """Evaluate the termination condition.
+
+        The underlying quantity is first evaluated. The episode continues if
+        its value is within bounds for all its components, otherwise the
+        episode is either truncated or terminated according to 'is_truncation'.
 
         .. warning::
             This method is not meant to be overloaded.
 
-        :returns: Scalar value if the reward was evaluated, `None` otherwise.
+        :returns: Current episode state from the sole perspective of the
+                  termination condition at hands.
         """
+        # Skip termination condition in eval mode or during grace period
+        if (self.is_training_only and not self.env.is_training) or (
+                self.env.stepper_state.t < self.grace_period):
+            return EpisodeState.CONTINUED
+
         # Evaluate the quantity
         value = self.env.quantities[self.name]
 
         # Check if the quantity is within bound.
         # Note that it may be `None` if the quantity is ill-defined for the
         # current simulation state, which triggers termination unconditionally.
-        is_valid = value is not None and np.all(
-            (self.low < value) & (value < self.high))
+        is_valid = value is not None
+        is_valid &= self.low is None or bool(np.all(self.low <= value))
+        is_valid &= self.high is None or bool(np.all(value <= self.high))
 
         # Determine the episode state to return
         if is_valid:
@@ -594,7 +604,7 @@ class QuantityTerminationCondition(AbstractTerminationCondition):
         return EpisodeState.TERMINATED
 
 
-QuantityTerminationCondition.name.__doc__ = \
+QuantityTermination.name.__doc__ = \
     """Name uniquely identifying every termination condition.
 
     It will be used as key not only for storing termination condition-specific

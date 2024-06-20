@@ -7,7 +7,7 @@ from collections import deque
 from dataclasses import dataclass
 from typing import (
     Any, Optional, Sequence, Tuple, TypeVar, Union, Generic, ClassVar,
-    Callable, Literal)
+    Callable, Literal, overload, cast)
 from typing_extensions import TypeAlias
 
 import numpy as np
@@ -26,7 +26,8 @@ YetAnotherValueT = TypeVar('YetAnotherValueT')
 
 
 @dataclass(unsafe_hash=True)
-class StackedQuantity(InterfaceQuantity[Tuple[ValueT, ...]]):
+class StackedQuantity(
+        InterfaceQuantity[OtherValueT], Generic[ValueT, OtherValueT]):
     """Keep track of a given quantity over time by automatically stacking its
     value once per environment step since last reset.
 
@@ -36,62 +37,86 @@ class StackedQuantity(InterfaceQuantity[Tuple[ValueT, ...]]):
         controller updates are ignored.
     """
 
-    quantity: InterfaceQuantity
+    quantity: InterfaceQuantity[ValueT]
     """Base quantity whose value must be stacked over time since last reset.
     """
 
-    num_stack: Optional[int]
+    max_stack: Optional[int]
     """Maximum number of values that keep in memory before starting to discard
     the oldest one (FIFO). None if unlimited.
     """
 
     as_array: bool
-    """Whether to return data as a tuple or a contiguous N-dimension whose
-    first dimension gathers the value of individual timesteps.
+    """Whether to return data as a tuple or a contiguous N-dimensional array
+    whose last dimension gathers the value of individual timesteps.
     """
 
-    mode: Literal['raise', 'tuple', 'array']
-    """Fallback strategy in case of incomplete stack. "raise" raises an
-    exception, "slice" returns only available data, "zeros" returns a
-    zero-padded fixed-length stack.
+    mode: Literal['slice', 'zeros']
+    """Fallback strategy in case of incomplete stack. "slice" returns only
+    available data, "zeros" returns a zero-padded fixed-length stack.
     """
 
     allow_update_graph: ClassVar[bool] = False
     """Disable dynamic computation graph update.
     """
 
-    def __init__(self,
+    @overload
+    def __init__(self: "StackedQuantity[ValueT, Tuple[ValueT, ...]]",
                  env: InterfaceJiminyEnv,
                  parent: Optional[InterfaceQuantity],
                  quantity: QuantityCreator[ValueT],
                  *,
-                 num_stack: Optional[int] = None,
+                 max_stack: Optional[int],
+                 as_array: Literal[False],
+                 mode: Literal['slice', 'zeros']) -> None:
+        ...
+
+    @overload
+    def __init__(self: "StackedQuantity[np.ndarray, np.ndarray]",
+                 env: InterfaceJiminyEnv,
+                 parent: Optional[InterfaceQuantity],
+                 quantity: QuantityCreator[np.ndarray],
+                 *,
+                 max_stack: Optional[int],
+                 as_array: Literal[True],
+                 mode: Literal['slice', 'zeros']) -> None:
+        ...
+
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 parent: Optional[InterfaceQuantity],
+                 quantity: QuantityCreator[Any],
+                 *,
+                 max_stack: Optional[int] = None,
                  as_array: bool = False,
-                 mode: Literal['raise', 'slice', 'zeros'] = 'slice') -> None:
+                 mode: Literal['slice', 'zeros'] = 'slice') -> None:
         """
         :param env: Base or wrapped jiminy environment.
         :param parent: Higher-level quantity from which this quantity is a
                        requirement if any, `None` otherwise.
         :param quantity: Tuple gathering the class of the quantity whose values
                          must be stacked, plus all its constructor keyword-
-                         arguments except environment 'env' and parent 'parent'.
-        :param num_stack: Maximum number of values that keep in memory before
+                         arguments except environment 'env' and 'parent'.
+        :param max_stack: Maximum number of values that keep in memory before
                           starting to discard the oldest one (FIFO). None if
                           unlimited.
+        :param as_array: Whether to return data as a tuple or a contiguous
+                         N-dimensional array whose last dimension gathers the
+                         value of individual timesteps.
         :param mode: Fallback strategy in case of incomplete stack. If
-                     'num_stack' is None, then only 'tuple' is supported.
+                     'max_stack' is None, then only 'tuple' is supported.
                      'zeros' is only supported by quantities returning
                      fixed-size N-D array.
                      Optional: 'slice' by default.
         """
         # Make sure that the input arguments are valid
-        if num_stack is None and mode != 'slice':
+        if max_stack is None and (mode != 'slice' or as_array):
             raise ValueError(
-                "The only mode supported is 'slice' when the stack length is "
-                "unbounded.")
+                "Unbounded stack length is only supported for `mode='slice'` "
+                "and `as_array=False`.")
 
         # Backup user arguments
-        self.num_stack = num_stack
+        self.max_stack = max_stack
         self.as_array = as_array
         self.mode = mode
 
@@ -105,7 +130,7 @@ class StackedQuantity(InterfaceQuantity[Tuple[ValueT, ...]]):
         self.quantity = self.requirements["data"]
 
         # Allocate deque buffer
-        self._deque: deque = deque(maxlen=self.num_stack)
+        self._deque: deque = deque(maxlen=self.max_stack)
 
         # Continuous memory to store the whole stack if requested.
         # Note that it will be allocated lazily since the dimension of the
@@ -124,7 +149,7 @@ class StackedQuantity(InterfaceQuantity[Tuple[ValueT, ...]]):
         self._deque.clear()
 
         # Initialize buffers if necessary
-        if self.as_array or self.mode == "zero":
+        if self.as_array or self.mode == 'zeros':
             # Get quantity value
             value = self.data
 
@@ -133,30 +158,36 @@ class StackedQuantity(InterfaceQuantity[Tuple[ValueT, ...]]):
                 raise ValueError(
                     "'as_array=True' is only supported by quantities "
                     "returning N-dimensional arrays as value.")
+            value = np.asarray(value)
 
             # Full the queue with zero if necessary
-            if self.mode == "zero":
-                for _ in range(self.num_stack):
+            assert self.max_stack is not None
+            if self.mode == 'zeros':
+                for _ in range(self.max_stack):
                     self._deque.append(np.zeros_like(value))
 
             # Allocate stack memory if necessary
             if self.as_array:
-                self._data = np.zeros((self.num_stack, *value.shape),
+                self._data = np.zeros((*value.shape, self.max_stack),
                                       order='F',
                                       dtype=value.dtype)
-                self._data_views = tuple(self._data)
+                self._data_views = tuple(
+                    self._data[..., i] for i in range(self.max_stack))
 
         # Reset step counter
         self._num_steps_prev = -1
 
-    def refresh(self) -> Tuple[ValueT, ...]:
+    def refresh(self) -> OtherValueT:
         # Append value to the queue only once per step and only if a simulation
         # is running. Note that data must be deep-copied to make sure it does
         # not get altered afterward.
         if self.env.is_simulation_running:
             num_steps = self.env.num_steps
             if num_steps != self._num_steps_prev:
-                assert num_steps == self._num_steps_prev + 1
+                if num_steps != self._num_steps_prev + 1:
+                    raise RuntimeError(
+                        "Previous step missing in the stack. Please reset the "
+                        "environmentafter adding this quantity.")
                 if self.as_array:
                     value = self.data.copy()
                 else:
@@ -164,33 +195,22 @@ class StackedQuantity(InterfaceQuantity[Tuple[ValueT, ...]]):
                 self._deque.append(value)
                 self._num_steps_prev += 1
 
-        # Determine the first index being filled if necessary
-        keep_valid = self.as_array ^ self.mode == "zero"
-        if keep_valid:
-            index_first = self.num_stack - len(self._deque)
-
-        # Raise exception if requested when stack is not full
-        if self.mode == "raise":
-            if len(self._deque) < self.num_stack:
-                raise RuntimeError("The stack is not full.")
-
         # Aggregate data in contiguous array only if requested
+        is_padded = self.mode == 'zeros'
         value_list = tuple(self._deque)
-        if keep_valid:
-            value_list = value_list[index_first:]
-
         if self.as_array:
-            data_views = self._data_views
-            if keep_valid:
-                data_views = data_views[index_first:]
-            multi_array_copyto(self._data_views, value_list)
-            if self.mode == "zeros":
-                return self._data
-            return self._data[index_first:]
+            if is_padded:
+                value_list = value_list[(- self._num_steps_prev - 1):]
+            data_views = self._data_views[(- self._num_steps_prev - 1):]
+            multi_array_copyto(data_views, value_list)
+            if is_padded:
+                return cast(OtherValueT, self._data)
+            data = self._data[..., (- self._num_steps_prev - 1):]
+            return cast(OtherValueT, data)
 
         # Return the whole stack as a tuple to preserve the integrity of the
         # underlying container and make the API robust to internal changes.
-        return value_list
+        return cast(OtherValueT, value_list)
 
 
 @dataclass(unsafe_hash=True)
@@ -205,7 +225,7 @@ class MaskedQuantity(InterfaceQuantity[np.ndarray]):
     contiguous arrays.
     """
 
-    quantity: InterfaceQuantity
+    quantity: InterfaceQuantity[np.ndarray]
     """Base quantity whose elements must be extracted.
     """
 
@@ -229,8 +249,8 @@ class MaskedQuantity(InterfaceQuantity[np.ndarray]):
         :param parent: Higher-level quantity from which this quantity is a
                        requirement if any, `None` otherwise.
         :param quantity: Tuple gathering the class of the quantity whose values
-                         must be extracted, plus all its constructor keyword-
-                         arguments except environment 'env' and parent 'parent'.
+                         must be extracted, plus any keyword-arguments of its
+                         constructor except 'env' and 'parent'.
         :param keys: Sequence of indices or boolean mask that will be used to
                      extract elements from the quantity along one axis.
         :param axis: Axis over which to extract elements. `None` to consider

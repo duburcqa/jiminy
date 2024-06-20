@@ -901,7 +901,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
 
         # Check if stepping after done and if it is an undefined behavior
         if self._num_steps_beyond_terminate is None:
-            if terminated or truncated:
+            if terminated:
                 self._num_steps_beyond_terminate = 0
         else:
             if self.is_training and self._num_steps_beyond_terminate == 0:
@@ -1491,9 +1491,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         assert isinstance(action, np.ndarray)
         array_copyto(command, action)
 
-    def has_terminated(self,
-                       info: InfoType  # pylint: disable=unused-argument
-                       ) -> Tuple[bool, bool]:
+    def has_terminated(self, info: InfoType) -> Tuple[bool, bool]:
         """Determine whether the episode is over, because a terminal state of
         the underlying MDP has been reached or an aborting condition outside
         the scope of the MDP has been triggered.

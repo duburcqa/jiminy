@@ -4,14 +4,14 @@ and the application (locomotion, grasping...).
 """
 from operator import sub
 from functools import partial
-from typing import Optional, Callable, TypeVar, Union
+from typing import Optional, Sequence, Callable, TypeVar, Union
 
 import numpy as np
 import numba as nb
 
 from ..bases import (
     InfoType, QuantityCreator, InterfaceJiminyEnv, AbstractReward,
-    QuantityReward, QuantityEvalMode, QuantityTerminationCondition)
+    QuantityReward, QuantityEvalMode, QuantityTermination)
 from ..quantities import (
     StackedQuantity, UnaryOpQuantity, BinaryOpQuantity, ActuatedJointsPosition)
 
@@ -20,7 +20,8 @@ from .mixin import radial_basis_function
 
 ValueT = TypeVar('ValueT')
 
-ArrayOrScalar = Union[np.ndarray, float]
+ArrayOrScalar = Union[np.ndarray, float, int]
+ArrayLikeOrScalar = Union[ArrayOrScalar, Sequence[Union[float, int]]]
 
 
 class SurviveReward(AbstractReward):
@@ -138,13 +139,13 @@ class TrackingActuatedJointPositionsReward(TrackingQuantityReward):
             cutoff)
 
 
-class DriftTrackingQuantityTerminationCondition(QuantityTerminationCondition):
+class DriftTrackingQuantityTermination(QuantityTermination):
     """Base class to derive termination condition from the difference between
     the current and reference drift of a given quantity.
 
     The drift is defined as the difference between the most recent and oldest
     values of a time series. In this case, a variable-length horizon bounded by
-    'num_stack' is considered.
+    'max_stack' is considered.
 
     All elements must be within bounds for at least one time step in the fixed
     horizon. If so, then the episode continues, otherwise it is either
@@ -157,9 +158,9 @@ class DriftTrackingQuantityTerminationCondition(QuantityTerminationCondition):
                  name: str,
                  quantity_creator: Callable[
                     [QuantityEvalMode], QuantityCreator[ArrayOrScalar]],
-                 low: Optional[ArrayOrScalar],
-                 high: Optional[ArrayOrScalar],
-                 num_stack: int,
+                 low: Optional[ArrayLikeOrScalar],
+                 high: Optional[ArrayLikeOrScalar],
+                 max_stack: int,
                  grace_period: float = 0.0,
                  *,
                  op: Callable[
@@ -182,7 +183,7 @@ class DriftTrackingQuantityTerminationCondition(QuantityTerminationCondition):
                                  'env' and 'parent'.
         :param low: Lower bound below which termination is triggered.
         :param high: Upper bound above which termination is triggered.
-        :param num_stack: Horizon over which values of the quantity will be
+        :param max_stack: Horizon over which values of the quantity will be
                           stacked if desired. 1 to disable.
                           Optional: 1 by default.
         :param grace_period: Grace period effective only at the very beginning
@@ -204,48 +205,49 @@ class DriftTrackingQuantityTerminationCondition(QuantityTerminationCondition):
                                  evaluation mode.
                                  Optional: False by default.
         """
-        # Backup user argument(s)
-        self.low = low
-        self.high = high
-        self.num_stack = num_stack
-        self.grace_period = grace_period
-        self.op = op
-        self.is_truncation = is_truncation
-        self.is_training_only = is_training_only
+        # pylint: disable=unnecessary-lambda-assignment
 
-        # Call base implementation
-        super().__init__(env, name)
+        # Backup user argument(s)
+        self.max_stack = max_stack
+        self.op = op
 
         # Define drift of quantity
-        stack_creator = lambda mode: (StackedQuantity, dict(
+        stack_creator = lambda mode: (StackedQuantity, dict(  # noqa: E731
             quantity=quantity_creator(mode),
-            num_stack=num_stack))
-        delta_creator = lambda mode: (BinaryOpQuantity, dict(
+            max_stack=max_stack))
+        delta_creator = lambda mode: (BinaryOpQuantity, dict(  # noqa: E731
             quantity_left=(UnaryOpQuantity, dict(
                 quantity=stack_creator(mode),
-                op=lambda stack: stack[0])),
+                op=lambda stack: stack[-1])),
             quantity_right=(UnaryOpQuantity, dict(
                 quantity=stack_creator(mode),
-                op=lambda stack: stack[-1])),
+                op=lambda stack: stack[0])),
             op=op))
 
         # Add drift quantity to the set of quantities managed by environment
-        self.env.quantities[self.name] = (BinaryOpQuantity, dict(
-            quantity_left=delta_creator(QuantityEvalMode.TRUE),
-            quantity_right=delta_creator(QuantityEvalMode.REFERENCE),
-            op=sub))
+        drift_tracking_quantity = (BinaryOpQuantity, dict(
+                quantity_left=delta_creator(QuantityEvalMode.TRUE),
+                quantity_right=delta_creator(QuantityEvalMode.REFERENCE),
+                op=sub))
 
-        # Keep track of the underlying quantity
-        self.quantity = self.env.quantities.registry[self.name]
+        # Call base implementation
+        super().__init__(env,
+                         name,
+                         drift_tracking_quantity,  # type: ignore[arg-type]
+                         low,
+                         high,
+                         grace_period,
+                         is_truncation=is_truncation,
+                         is_training_only=is_training_only)
 
 
-class ShiftTrackingQuantityTerminationCondition(QuantityTerminationCondition):
+class ShiftTrackingQuantityTermination(QuantityTermination):
     """Base class to derive termination condition from the shift between the
     current and reference values of a given quantity.
 
     The shift is defined as the minimum time-aligned distance (L2-norm of the
     difference) between two multivariate time series. In this case, a
-    variable-length horizon bounded by 'num_stack' is considered.
+    variable-length horizon bounded by 'max_stack' is considered.
 
     All elements must be within bounds for at least one time step in the fixed
     horizon. If so, then the episode continues, otherwise it is either
@@ -259,7 +261,7 @@ class ShiftTrackingQuantityTerminationCondition(QuantityTerminationCondition):
                  quantity_creator: Callable[
                     [QuantityEvalMode], QuantityCreator[ArrayOrScalar]],
                  thr: float,
-                 num_stack: int,
+                 max_stack: int,
                  grace_period: float = 0.0,
                  *,
                  op: Callable[[np.ndarray, np.ndarray], np.ndarray] = sub,
@@ -281,19 +283,21 @@ class ShiftTrackingQuantityTerminationCondition(QuantityTerminationCondition):
                                  'env' and 'parent'.
         :param thr: Termination is triggered if the shift exceeds this
                     threshold.
-        :param num_stack: Horizon over which values of the quantity will be
+        :param max_stack: Horizon over which values of the quantity will be
                           stacked if desired. 1 to disable.
                           Optional: 1 by default.
         :param grace_period: Grace period effective only at the very beginning
                              of the episode, during which the latter is bound
                              to continue whatever happens.
                              Optional: 0.0 by default.
-        :param op: FIXME: Taking stacked quantity !!!
-                   Any callable taking the true and reference values of the
-                   quantity as input argument and returning the difference
+        :param op: Any callable taking the true and reference stacked values of
+                   the quantity as input argument and returning the difference
                    between them, considering the algebra defined by their Lie
-                   Group. The basic subtraction operator `operator.sub` is
-                   appropriate for Euclidean space.
+                   Group. True and reference values are stacked in contiguous
+                   N-dimension arrays along the first axis, namely the first
+                   dimension gathers individual timesteps. For instance, the
+                   common subtraction operator `operator.sub` is appropriate
+                   for Euclidean space.
                    Optional: `operator.sub` by default.
         :param order: Order of Lp-Norm that will be used as distance metric.
         :param is_truncation: Whether the episode should be considered
@@ -305,44 +309,70 @@ class ShiftTrackingQuantityTerminationCondition(QuantityTerminationCondition):
                                  evaluation mode.
                                  Optional: False by default.
         """
-        # Backup user argument(s)
-        self.thr = thr
-        self.num_stack = num_stack
-        self.grace_period = grace_period
-        self.op = op
-        self.is_truncation = is_truncation
-        self.is_training_only = is_training_only
+        # pylint: disable=unnecessary-lambda-assignment
 
-        # Call base implementation
-        super().__init__(env, name)
+        # Backup user argument(s)
+        self.max_stack = max_stack
+        self.op = op
 
         # Define jit-able minimum distance between two time series
         @nb.jit(nopython=True, cache=True)
-        def min_norm(diff: np.ndarray) -> float:
-            """ TODO: Write documentation.
+        def min_norm(values: np.ndarray) -> float:
+            """Compute the minimum Euclidean norm over all timestamps of a
+            multivariate time series.
+
+            :param values: Time series as a N-dimensional array whose last
+                           dimension corresponds to individual timestamps over
+                           a finite horizon. The value at each timestamp will
+                           be regarded as a 1D vector for computing their
+                           Euclidean norm.
             """
-            return np.sqrt(np.min(np.sum(np.square(diff), axis=0)))
+            num_times = values.shape[-1]
+            values_squared_flat = np.square(values).reshape((-1, num_times))
+            return np.sqrt(np.min(np.sum(values_squared_flat, axis=0)))
 
         self._min_norm = min_norm
 
         # Define drift of quantity
-        drift_creator = lambda mode: (StackedQuantity, dict(
+        stack_creator = lambda mode: (StackedQuantity, dict(  # noqa: E731
             quantity=quantity_creator(mode),
-            num_stack=num_stack,
+            max_stack=max_stack,
             as_array=True))
 
         # Add drift quantity to the set of quantities managed by environment
-        self.env.quantities[self.name] = (BinaryOpQuantity, dict(
-            quantity_left=drift_creator(QuantityEvalMode.TRUE),
-            quantity_right=drift_creator(QuantityEvalMode.REFERENCE),
+        shift_tracking_quantity = (BinaryOpQuantity, dict(
+            quantity_left=stack_creator(QuantityEvalMode.TRUE),
+            quantity_right=stack_creator(QuantityEvalMode.REFERENCE),
             op=self._compute_min_distance))
 
-        # Keep track of the underlying quantity
-        self.quantity = self.env.quantities.registry[self.name]
+        # Call base implementation
+        super().__init__(env,
+                         name,
+                         shift_tracking_quantity,  # type: ignore[arg-type]
+                         None,
+                         thr,
+                         grace_period,
+                         is_truncation=is_truncation,
+                         is_training_only=is_training_only)
 
     def _compute_min_distance(self,
                               left: np.ndarray,
                               right: np.ndarray) -> float:
-        """ TODO: Write documentation.
+        """Compute the minimum time-aligned Euclidean distance between two
+        multivariate time series kept in sync.
+
+        Internally, the time-aligned difference between the two time series
+        will first be computed according to the user-specified binary operator
+        'op'. The classical Euclidean norm of the difference is then computed
+        over all timestamps individually and the minimum value is returned.
+
+        :param left: Time series as a N-dimensional array whose first dimension
+                     corresponds to individual timestamps over a finite
+                     horizon. The value at each timestamp will be regarded as a
+                     1D vector for computing their Euclidean norm. It will be
+                     passed as left-hand side of the binary operator 'op'.
+        :param right: Time series as a N-dimensional array with the exact same
+                      shape as 'left'. See 'left' for details. It will be
+                      passed as right-hand side of the binary operator 'op'.
         """
         return self._min_norm(self.op(left, right))

@@ -912,7 +912,7 @@ class MultiFramesXYZQuat(InterfaceQuantity[np.ndarray]):
             auto_refresh=False)
 
         # Pre-allocate memory for storing the pose XYZQuat of all frames
-        self._xyzquats = np.zeros((7, len(frame_names)), order='F')
+        self._xyzquats = np.zeros((7, len(frame_names)), order='C')
 
     def refresh(self) -> np.ndarray:
         # Copy the position of all frames at once in contiguous buffer
@@ -1102,7 +1102,7 @@ class _DifferenceFrameXYZQuat(InterfaceQuantity[np.ndarray]):
                     quantity=(FrameXYZQuat, dict(
                         frame_name=frame_name,
                         mode=mode)),
-                    num_stack=2))),
+                    max_stack=2))),
             auto_refresh=False)
 
         # Define specialize difference operator on SE3 Lie group

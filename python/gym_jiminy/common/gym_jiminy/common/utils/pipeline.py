@@ -12,9 +12,10 @@ import pathlib
 from pydoc import locate
 from dataclasses import asdict
 from functools import partial
+from collections.abc import Sequence
 from typing import (
-    Dict, Any, Optional, Union, Type, Sequence, Callable, TypedDict, Literal,
-    cast)
+    Dict, Any, Optional, Union, Type, Sequence as SequenceT, Callable,
+    TypedDict, Literal, overload, cast)
 
 import h5py
 import toml
@@ -33,10 +34,8 @@ from ..bases import (InterfaceJiminyEnv,
                      ControlledJiminyEnv,
                      ComposedJiminyEnv,
                      AbstractReward,
-                     QuantityReward,
                      MixtureReward,
-                     AbstractTerminationCondition,
-                     QuantityTerminationCondition)
+                     AbstractTerminationCondition)
 from ..envs import BaseJiminyEnv
 
 
@@ -124,7 +123,7 @@ class EnvConfig(TypedDict, total=False):
     This attribute can be omitted.
     """
 
-    terminations: Sequence[CompositionConfig]
+    terminations: SequenceT[CompositionConfig]
     """Sequence of configuration for every individual termination conditions.
 
     This attribute can be omitted.
@@ -215,7 +214,7 @@ class LayerConfig(TypedDict, total=False):
 
 
 def build_pipeline(env_config: EnvConfig,
-                   layers_config: Sequence[LayerConfig],
+                   layers_config: SequenceT[LayerConfig],
                    *,
                    root_path: Optional[Union[str, pathlib.Path]] = None
                    ) -> Callable[..., InterfaceJiminyEnv]:
@@ -245,11 +244,10 @@ def build_pipeline(env_config: EnvConfig,
             obj = locate(cls)
             if obj is None:
                 raise RuntimeError(f"Class '{cls}' not found.")
-            assert isinstance(obj, type)
-            if is_reward:
-                assert issubclass(obj, AbstractReward)
-            else:
-                assert issubclass(obj, AbstractTerminationCondition)
+            assert isinstance(obj, type) and (
+                (is_reward and issubclass(obj, AbstractReward)) or
+                (not is_reward and issubclass(
+                    obj, AbstractTerminationCondition)))
             composition_config["cls"] = cls = obj
 
         # Get its constructor keyword-arguments
@@ -258,7 +256,23 @@ def build_pipeline(env_config: EnvConfig,
         # Special handling for `MixtureReward`
         if is_reward and issubclass(cls, MixtureReward):
             for component_config in kwargs["components"]:
-                sanitize_composition_config(component_config)
+                sanitize_composition_config(component_config, is_reward)
+
+    @overload
+    def build_composition(
+            env: InterfaceJiminyEnv,
+            composition_config: CompositionConfig,
+            is_reward: Literal[True]
+            ) -> AbstractReward:
+        ...
+
+    @overload
+    def build_composition(
+            env: InterfaceJiminyEnv,
+            composition_config: CompositionConfig,
+            is_reward: Literal[False]
+            ) -> AbstractTerminationCondition:
+        ...
 
     # Define helper to build the composition
     def build_composition(
@@ -276,10 +290,6 @@ def build_pipeline(env_config: EnvConfig,
         # Get composition class type
         cls = composition_config["cls"]
         assert isinstance(cls, type)
-        if is_reward:
-            assert issubclass(cls, AbstractReward)
-        else:
-            assert issubclass(cls, AbstractTerminationCondition)
 
         # Get its constructor keyword-arguments
         kwargs = composition_config.get("kwargs", {})
@@ -290,8 +300,8 @@ def build_pipeline(env_config: EnvConfig,
                 build_composition(env, reward_config, is_reward)
                 for reward_config in kwargs["components"])
 
-        # Special handling for `QuantityReward`, `QuantityTerminationCondition`
-        if issubclass(cls, (QuantityReward, QuantityTerminationCondition)):
+        # Special handling for 'quantity' key
+        if "quantity" in kwargs:
             quantity_config = kwargs["quantity"]
             kwargs["quantity"] = (
                 quantity_config["cls"], quantity_config["kwargs"])
@@ -302,7 +312,7 @@ def build_pipeline(env_config: EnvConfig,
     def build_composition_layer(
             env_creator: Callable[..., InterfaceJiminyEnv],
             reward_config: Optional[CompositionConfig],
-            terminations_config: Sequence[CompositionConfig],
+            terminations_config: SequenceT[CompositionConfig],
             trajectories_config: Optional[TrajectoryDatabaseConfig],
             **env_kwargs: Any) -> InterfaceJiminyEnv:
         """Helper adding reward components and/or termination conditions on top
@@ -438,12 +448,10 @@ def build_pipeline(env_config: EnvConfig,
         sanitize_composition_config(reward_config, is_reward=True)
 
     # Parse the configuration of every termination conditions
-    terminations_config = env_config.get("terminations")
-    if terminations_config is not None:
-        if not isinstance(terminations_config, (list, tuple)):
-            terminations_config = (terminations_config,)
-        for termination_config in terminations_config:
-            sanitize_composition_config(termination_config, is_reward=False)
+    terminations_config = env_config.get("terminations", ())
+    assert isinstance(terminations_config, Sequence)
+    for termination_config in terminations_config:
+        sanitize_composition_config(termination_config, is_reward=False)
 
     # Parse trajectory configuration
     trajectories_config = env_config.get("trajectories")

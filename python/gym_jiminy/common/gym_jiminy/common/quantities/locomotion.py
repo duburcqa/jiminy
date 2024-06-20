@@ -19,8 +19,8 @@ from ..bases import (
 from ..quantities import (
     MaskedQuantity, MultiFramesXYZQuat, MultiFramesMeanXYZQuat,
     FrameSpatialAverageVelocity, AverageFrameRollPitch)
-
-from .transform import UnaryOpQuantity
+from ..utils import (
+    matrix_to_yaw, quat_to_yaw, quat_to_matrix, quat_multiply, quat_apply)
 
 
 def sanitize_foot_frame_names(

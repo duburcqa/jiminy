@@ -17,6 +17,7 @@ from gym_jiminy.common.bases import QuantityEvalMode, DatasetTrajectoryQuantity
 from gym_jiminy.common.quantities import (
     OrientationType,
     QuantityManager,
+    StackedQuantity,
     FrameOrientation,
     MultiFramesOrientation,
     FrameXYZQuat,
@@ -204,7 +205,7 @@ class Quantities(unittest.TestCase):
         env.reset(seed=0)
         assert np.all(zmp_0 == env.quantities["zmp"])
 
-    def test_stack(self):
+    def test_stack_auto_refresh(self):
         """ TODO: Write documentation
         """
         env = gym.make("gym_jiminy.envs:atlas")
@@ -226,6 +227,47 @@ class Quantities(unittest.TestCase):
         del env.quantities["v_avg_2"]
         env.step(env.action_space.sample())
         assert np.all(v_avg != env.quantities["v_avg"])
+
+    def test_stack_api(self):
+        """ TODO: Write documentation
+        """
+        env = gym.make("gym_jiminy.envs:atlas")
+
+        for max_stack, as_array, mode in (
+                (None, False, "slice"),
+                (3, False, "slice"),
+                (3, True, "slice"),
+                (3, False, "zeros"),
+                (3, True, "zeros")):
+            quantity_creator = (StackedQuantity, dict(
+                quantity=(MultiFootRelativeXYZQuat, {}),
+                max_stack=max_stack,
+                as_array=as_array,
+                mode=mode))
+            env.quantities["xyzquat_stack"] = quantity_creator
+            env.reset(seed=0)
+
+            value = env.quantities["xyzquat_stack"]
+            if as_array:
+                assert isinstance(value, np.ndarray)
+            else:
+                assert isinstance(value, tuple)
+            for i in range(1, (max_stack or 5) + 2):
+                num_stack = max_stack or i
+                if mode == "slice":
+                    num_stack = min(i, num_stack)
+                value = env.quantities["xyzquat_stack"]
+                if as_array:
+                    assert value.shape[-1] == num_stack
+                    if mode == "zeros":
+                        np.testing.assert_allclose(value[..., :-i], 0.0)
+                else:
+                    assert len(value) == num_stack
+                    if mode == "zeros":
+                        np.testing.assert_allclose(value[:-i], 0.0)
+                env.step(env.action)
+
+            del env.quantities["xyzquat_stack"]
 
     def test_masked(self):
         """ TODO: Write documentation
