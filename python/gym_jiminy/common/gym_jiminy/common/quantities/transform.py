@@ -7,11 +7,13 @@ from collections import deque
 from dataclasses import dataclass
 from typing import (
     Any, Optional, Sequence, Tuple, TypeVar, Union, Generic, ClassVar,
-    Callable)
+    Callable, Literal)
 from typing_extensions import TypeAlias
 
 import numpy as np
 
+from jiminy_py.core import (  # pylint: disable=no-name-in-module
+    multi_array_copyto)
 
 from ..bases import InterfaceJiminyEnv, InterfaceQuantity, QuantityCreator
 
@@ -43,6 +45,17 @@ class StackedQuantity(InterfaceQuantity[Tuple[ValueT, ...]]):
     the oldest one (FIFO). None if unlimited.
     """
 
+    as_array: bool
+    """Whether to return data as a tuple or a contiguous N-dimension whose
+    first dimension gathers the value of individual timesteps.
+    """
+
+    mode: Literal['raise', 'tuple', 'array']
+    """Fallback strategy in case of incomplete stack. "raise" raises an
+    exception, "slice" returns only available data, "zeros" returns a
+    zero-padded fixed-length stack.
+    """
+
     allow_update_graph: ClassVar[bool] = False
     """Disable dynamic computation graph update.
     """
@@ -52,20 +65,35 @@ class StackedQuantity(InterfaceQuantity[Tuple[ValueT, ...]]):
                  parent: Optional[InterfaceQuantity],
                  quantity: QuantityCreator[ValueT],
                  *,
-                 num_stack: Optional[int] = None) -> None:
+                 num_stack: Optional[int] = None,
+                 as_array: bool = False,
+                 mode: Literal['raise', 'slice', 'zeros'] = 'slice') -> None:
         """
         :param env: Base or wrapped jiminy environment.
         :param parent: Higher-level quantity from which this quantity is a
                        requirement if any, `None` otherwise.
         :param quantity: Tuple gathering the class of the quantity whose values
                          must be stacked, plus all its constructor keyword-
-                         arguments except environment 'env' and parent 'parent.
+                         arguments except environment 'env' and parent 'parent'.
         :param num_stack: Maximum number of values that keep in memory before
                           starting to discard the oldest one (FIFO). None if
                           unlimited.
+        :param mode: Fallback strategy in case of incomplete stack. If
+                     'num_stack' is None, then only 'tuple' is supported.
+                     'zeros' is only supported by quantities returning
+                     fixed-size N-D array.
+                     Optional: 'slice' by default.
         """
+        # Make sure that the input arguments are valid
+        if num_stack is None and mode != 'slice':
+            raise ValueError(
+                "The only mode supported is 'slice' when the stack length is "
+                "unbounded.")
+
         # Backup user arguments
         self.num_stack = num_stack
+        self.as_array = as_array
+        self.mode = mode
 
         # Call base implementation
         super().__init__(env,
@@ -79,6 +107,12 @@ class StackedQuantity(InterfaceQuantity[Tuple[ValueT, ...]]):
         # Allocate deque buffer
         self._deque: deque = deque(maxlen=self.num_stack)
 
+        # Continuous memory to store the whole stack if requested.
+        # Note that it will be allocated lazily since the dimension of the
+        # quantity is not known in advance.
+        self._data = np.array([])
+        self._data_views: Tuple[np.ndarray, ...] = ()
+
         # Keep track of the last time the quantity has been stacked
         self._num_steps_prev = -1
 
@@ -88,6 +122,29 @@ class StackedQuantity(InterfaceQuantity[Tuple[ValueT, ...]]):
 
         # Clear buffer
         self._deque.clear()
+
+        # Initialize buffers if necessary
+        if self.as_array or self.mode == "zero":
+            # Get quantity value
+            value = self.data
+
+            # Make sure that the quantity is an array or a scalar
+            if not isinstance(value, (int, float, np.ndarray)):
+                raise ValueError(
+                    "'as_array=True' is only supported by quantities "
+                    "returning N-dimensional arrays as value.")
+
+            # Full the queue with zero if necessary
+            if self.mode == "zero":
+                for _ in range(self.num_stack):
+                    self._deque.append(np.zeros_like(value))
+
+            # Allocate stack memory if necessary
+            if self.as_array:
+                self._data = np.zeros((self.num_stack, *value.shape),
+                                      order='F',
+                                      dtype=value.dtype)
+                self._data_views = tuple(self._data)
 
         # Reset step counter
         self._num_steps_prev = -1
@@ -100,12 +157,40 @@ class StackedQuantity(InterfaceQuantity[Tuple[ValueT, ...]]):
             num_steps = self.env.num_steps
             if num_steps != self._num_steps_prev:
                 assert num_steps == self._num_steps_prev + 1
-                self._deque.append(deepcopy(self.data))
+                if self.as_array:
+                    value = self.data.copy()
+                else:
+                    value = deepcopy(self.data)
+                self._deque.append(value)
                 self._num_steps_prev += 1
+
+        # Determine the first index being filled if necessary
+        keep_valid = self.as_array ^ self.mode == "zero"
+        if keep_valid:
+            index_first = self.num_stack - len(self._deque)
+
+        # Raise exception if requested when stack is not full
+        if self.mode == "raise":
+            if len(self._deque) < self.num_stack:
+                raise RuntimeError("The stack is not full.")
+
+        # Aggregate data in contiguous array only if requested
+        value_list = tuple(self._deque)
+        if keep_valid:
+            value_list = value_list[index_first:]
+
+        if self.as_array:
+            data_views = self._data_views
+            if keep_valid:
+                data_views = data_views[index_first:]
+            multi_array_copyto(self._data_views, value_list)
+            if self.mode == "zeros":
+                return self._data
+            return self._data[index_first:]
 
         # Return the whole stack as a tuple to preserve the integrity of the
         # underlying container and make the API robust to internal changes.
-        return tuple(self._deque)
+        return value_list
 
 
 @dataclass(unsafe_hash=True)
@@ -145,7 +230,7 @@ class MaskedQuantity(InterfaceQuantity[np.ndarray]):
                        requirement if any, `None` otherwise.
         :param quantity: Tuple gathering the class of the quantity whose values
                          must be extracted, plus all its constructor keyword-
-                         arguments except environment 'env' and parent 'parent.
+                         arguments except environment 'env' and parent 'parent'.
         :param keys: Sequence of indices or boolean mask that will be used to
                      extract elements from the quantity along one axis.
         :param axis: Axis over which to extract elements. `None` to consider
@@ -240,8 +325,8 @@ class UnaryOpQuantity(InterfaceQuantity[ValueT],
                        requirement if any, `None` otherwise.
         :param quantity: Tuple gathering the class of the quantity whose value
                          must be passed as argument of the unary operator, plus
-                         all its constructor keyword-arguments except
-                         environment 'env' and parent 'parent.
+                         any keyword-arguments of its constructor except 'env'
+                         and 'parent'.
         :param op: Any callable taking any value of the quantity as input
                    argument. For example `partial(np.linalg.norm, ord=2)` to
                    compute the difference.
@@ -282,7 +367,7 @@ class BinaryOpQuantity(InterfaceQuantity[ValueT],
     """
 
     op: Callable[[OtherValueT, YetAnotherValueT], ValueT]
-    """Callable taking right- and left-hand side quantities as input argument.
+    """Callable taking left- and right-hand side quantities as input argument.
     """
 
     def __init__(self,
