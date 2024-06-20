@@ -288,7 +288,7 @@ QuantityReward.name.__doc__ = \
 
 
 class MixtureReward(AbstractReward):
-    """Base class for aggregating multiple independent reward components in a
+    """Base class for aggregating multiple independent reward components as a
     single one.
     """
 

@@ -34,33 +34,36 @@ from ..bases import (InterfaceJiminyEnv,
                      ComposedJiminyEnv,
                      AbstractReward,
                      QuantityReward,
-                     MixtureReward)
+                     MixtureReward,
+                     AbstractTerminationCondition,
+                     QuantityTerminationCondition)
 from ..envs import BaseJiminyEnv
 
 
-class RewardConfig(TypedDict, total=False):
-    """Store information required for instantiating a given reward.
+class CompositionConfig(TypedDict, total=False):
+    """Store information required for instantiating a given composition, which
+    comprises reward components or a termination condition at the time being.
 
-    Specifically, it is a dictionary comprising the class of the reward, which
-    must derive from `AbstractReward`, and optionally some keyword-arguments
-    that must be passed to its corresponding constructor.
+    Specifically, it is a dictionary comprising the class of the composition
+    that must derive from `AbstractReward` or `AbstractTerminationCondition]`,
+    and optionally some keyword-arguments to pass to its constructor.
     """
 
-    cls: Union[Type[AbstractReward], str]
-    """Reward class type.
+    cls: Union[Type[AbstractReward], Type[AbstractTerminationCondition], str]
+    """Composition class type.
 
     .. note::
         Both class type or fully qualified dotted path are supported.
     """
 
     kwargs: Dict[str, Any]
-    """Environment constructor keyword-arguments.
+    """Composition constructor keyword-arguments.
 
     This attribute can be omitted.
     """
 
 
-class TrajectoriesConfig(TypedDict, total=False):
+class TrajectoryDatabaseConfig(TypedDict, total=False):
     """Store information required for adding a database of reference
     trajectories to the environment.
 
@@ -115,14 +118,20 @@ class EnvConfig(TypedDict, total=False):
     This attribute can be omitted.
     """
 
-    reward: RewardConfig
+    reward: CompositionConfig
     """Reward configuration.
 
     This attribute can be omitted.
     """
 
-    trajectories: TrajectoriesConfig
-    """Reference trajectories configuration.
+    terminations: Sequence[CompositionConfig]
+    """Sequence of configuration for every individual termination conditions.
+
+    This attribute can be omitted.
+    """
+
+    trajectories: TrajectoryDatabaseConfig
+    """Reference trajectory database configuration.
 
     This attribute can be omitted.
     """
@@ -182,9 +191,9 @@ class LayerConfig(TypedDict, total=False):
     controller block with its corresponding wrapper.
 
     Specifically, it is a dictionary comprising the configuration of the block
-    if any, and optionally the configuration of the reward. It is generally
-    sufficient to specify either one or the other. See the documentation of the
-    both fields for details.
+    if any, and optionally the configuration of the reward and termination. It
+    is generally sufficient to specify either one or the other. See the
+    documentation of the both fields for details.
     """
 
     block: BlockConfig
@@ -222,55 +231,67 @@ def build_pipeline(env_config: EnvConfig,
         lowest level layer to the highest, each element corresponding to the
         configuration of a individual layer, as a dict of type `LayerConfig`.
     """
-    # Define helper to sanitize reward configuration
-    def sanitize_reward_config(reward_config: RewardConfig) -> None:
-        """Sanitize reward configuration in-place.
+    # Define helper to sanitize composition configuration
+    def sanitize_composition_config(composition_config: CompositionConfig,
+                                    is_reward: bool) -> None:
+        """Sanitize composition configuration in-place.
 
-        :param reward_config: Configuration of the reward, as a dict of type
-                              `RewardConfig`.
+        :param composition_config: Configuration of the composition, as a
+                                   dict of type `CompositionConfig`.
         """
-        # Get reward class type
-        cls = reward_config["cls"]
+        # Get composition class type
+        cls = composition_config["cls"]
         if isinstance(cls, str):
             obj = locate(cls)
             if obj is None:
                 raise RuntimeError(f"Class '{cls}' not found.")
-            assert isinstance(obj, type) and issubclass(obj, AbstractReward)
-            reward_config["cls"] = cls = obj
+            assert isinstance(obj, type)
+            if is_reward:
+                assert issubclass(obj, AbstractReward)
+            else:
+                assert issubclass(obj, AbstractTerminationCondition)
+            composition_config["cls"] = cls = obj
 
-        # Get reward constructor keyword-arguments
-        kwargs = reward_config.get("kwargs", {})
+        # Get its constructor keyword-arguments
+        kwargs = composition_config.get("kwargs", {})
 
         # Special handling for `MixtureReward`
-        if issubclass(cls, MixtureReward):
+        if is_reward and issubclass(cls, MixtureReward):
             for component_config in kwargs["components"]:
-                sanitize_reward_config(component_config)
+                sanitize_composition_config(component_config)
 
-    # Define helper to build the reward
-    def build_reward(env: InterfaceJiminyEnv,
-                     reward_config: RewardConfig) -> AbstractReward:
-        """Instantiate a reward associated with a given environment provided
-        some reward configuration.
+    # Define helper to build the composition
+    def build_composition(
+            env: InterfaceJiminyEnv,
+            composition_config: CompositionConfig,
+            is_reward: bool
+            ) -> Union[AbstractReward, AbstractTerminationCondition]:
+        """Instantiate a composition associated with a given environment from
+        some composition configuration.
 
         :param env: Base environment or pipeline wrapper to wrap.
-        :param reward_config: Configuration of the reward, as a dict of type
-                              `RewardConfig`.
+        :param composition_config: Configuration of the composition, as a
+                                   dict of type `CompositionConfig`.
         """
-        # Get reward class type
-        cls = reward_config["cls"]
-        assert isinstance(cls, type) and issubclass(cls, AbstractReward)
+        # Get composition class type
+        cls = composition_config["cls"]
+        assert isinstance(cls, type)
+        if is_reward:
+            assert issubclass(cls, AbstractReward)
+        else:
+            assert issubclass(cls, AbstractTerminationCondition)
 
-        # Get reward constructor keyword-arguments
-        kwargs = reward_config.get("kwargs", {})
+        # Get its constructor keyword-arguments
+        kwargs = composition_config.get("kwargs", {})
 
         # Special handling for `MixtureReward`
-        if issubclass(cls, MixtureReward):
+        if is_reward and issubclass(cls, MixtureReward):
             kwargs["components"] = tuple(
-                build_reward(env, reward_config)
+                build_composition(env, reward_config, is_reward)
                 for reward_config in kwargs["components"])
 
-        # Special handling for `QuantityReward`
-        if cls is QuantityReward:
+        # Special handling for `QuantityReward`, `QuantityTerminationCondition`
+        if issubclass(cls, (QuantityReward, QuantityTerminationCondition)):
             quantity_config = kwargs["quantity"]
             kwargs["quantity"] = (
                 quantity_config["cls"], quantity_config["kwargs"])
@@ -278,17 +299,22 @@ def build_pipeline(env_config: EnvConfig,
         return cls(env, **kwargs)
 
     # Define helper to build reward
-    def build_composition(env_creator: Callable[..., InterfaceJiminyEnv],
-                          reward_config: Optional[RewardConfig],
-                          trajectories_config: Optional[TrajectoriesConfig],
-                          **env_kwargs: Any) -> InterfaceJiminyEnv:
-        """Helper adding reward on top of a base environment or a pipeline
-        using `ComposedJiminyEnv` wrapper.
+    def build_composition_layer(
+            env_creator: Callable[..., InterfaceJiminyEnv],
+            reward_config: Optional[CompositionConfig],
+            terminations_config: Sequence[CompositionConfig],
+            trajectories_config: Optional[TrajectoryDatabaseConfig],
+            **env_kwargs: Any) -> InterfaceJiminyEnv:
+        """Helper adding reward components and/or termination conditions on top
+        of a base environment or a pipeline using `ComposedJiminyEnv` wrapper.
 
         :param env_creator: Callable that takes optional keyword arguments as
                             input and returns an pipeline or base environment.
         :param reward_config: Configuration of the reward, as a dict of type
-                              `RewardConfig`.
+                              `CompositionConfig`.
+        :param termination_config: Configuration of the termination conditions,
+                                   as a sequence of dict of type
+                                   `CompositionConfig`.
         :param trajectories: Set of named trajectories as a dictionary. See
                              `ComposedJiminyEnv` documentation for details.
         :param env_kwargs: Keyword arguments to forward to the constructor of
@@ -304,7 +330,12 @@ def build_pipeline(env_config: EnvConfig,
         # Instantiate the reward
         reward = None
         if reward_config is not None:
-            reward = build_reward(env, reward_config)
+            reward = build_composition(env, reward_config, True)
+
+        # Instantiate the termination conditions
+        terminations = tuple(
+            build_composition(env, termination_config, False)
+            for termination_config in terminations_config)
 
         # Get trajectory dataset
         trajectories: Dict[str, Trajectory] = {}
@@ -313,9 +344,11 @@ def build_pipeline(env_config: EnvConfig,
                 Dict[str, Trajectory], trajectories_config["dataset"])
 
         # Instantiate the composition wrapper if necessary
-        if reward or trajectories:
-            env = ComposedJiminyEnv(
-                env, reward=reward, trajectories=trajectories)
+        if reward or terminations or trajectories:
+            env = ComposedJiminyEnv(env,
+                                    reward=reward,
+                                    terminations=terminations,
+                                    trajectories=trajectories)
 
         # Select the reference trajectory if specified
         if trajectories_config is not None:
@@ -327,15 +360,16 @@ def build_pipeline(env_config: EnvConfig,
         return env
 
     # Define helper to wrap a single layer
-    def build_layer(env_creator: Callable[..., InterfaceJiminyEnv],
-                    wrapper_cls: Type[BasePipelineWrapper],
-                    wrapper_kwargs: Dict[str, Any],
-                    block_cls: Optional[Type[InterfaceBlock]],
-                    block_kwargs: Dict[str, Any],
-                    **env_kwargs: Any
-                    ) -> BasePipelineWrapper:
-        """Helper wrapping a base environment or a pipeline with additional
-        layer, typically an observer or a controller.
+    def build_controller_observer_layer(
+            env_creator: Callable[..., InterfaceJiminyEnv],
+            wrapper_cls: Type[BasePipelineWrapper],
+            wrapper_kwargs: Dict[str, Any],
+            block_cls: Optional[Type[InterfaceBlock]],
+            block_kwargs: Dict[str, Any],
+            **env_kwargs: Any
+            ) -> BasePipelineWrapper:
+        """Helper wrapping a base environment or a pipeline with an additional
+        observer-controller layer.
 
         :param env_creator: Callable that takes optional keyword arguments as
                             input and returns an pipeline or base environment.
@@ -401,7 +435,15 @@ def build_pipeline(env_config: EnvConfig,
     # Parse reward configuration
     reward_config = env_config.get("reward")
     if reward_config is not None:
-        sanitize_reward_config(reward_config)
+        sanitize_composition_config(reward_config, is_reward=True)
+
+    # Parse the configuration of every termination conditions
+    terminations_config = env_config.get("terminations")
+    if terminations_config is not None:
+        if not isinstance(terminations_config, (list, tuple)):
+            terminations_config = (terminations_config,)
+        for termination_config in terminations_config:
+            sanitize_composition_config(termination_config, is_reward=False)
 
     # Parse trajectory configuration
     trajectories_config = env_config.get("trajectories")
@@ -419,12 +461,6 @@ def build_pipeline(env_config: EnvConfig,
                         "specifying relative trajectory paths.")
                 path = pathlib.Path(root_path) / path
             trajectories[name] = load_trajectory_from_hdf5(path)
-
-    # Compose base environment with an extra user-specified reward
-    pipeline_creator = partial(build_composition,
-                               pipeline_creator,
-                               reward_config,
-                               trajectories_config)
 
     # Generate pipeline recursively
     for layer_config in layers_config:
@@ -476,12 +512,19 @@ def build_pipeline(env_config: EnvConfig,
                     "Either 'block.cls' or 'wrapper.cls' must be specified.")
 
         # Add layer on top of the existing pipeline
-        pipeline_creator = partial(build_layer,
+        pipeline_creator = partial(build_controller_observer_layer,
                                    pipeline_creator,
                                    wrapper_cls_,
                                    wrapper_kwargs,
                                    block_cls_,
                                    block_kwargs)
+
+    # Add extra user-specified reward, termination conditions and trajectories
+    pipeline_creator = partial(build_composition_layer,
+                               pipeline_creator,
+                               reward_config,
+                               terminations_config,
+                               trajectories_config)
 
     return pipeline_creator
 

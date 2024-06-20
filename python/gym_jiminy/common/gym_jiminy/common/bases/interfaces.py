@@ -5,7 +5,8 @@ observer/controller block must inherit and implement those interfaces.
 from abc import abstractmethod, ABC
 from collections import OrderedDict
 from typing import (
-    Dict, Any, TypeVar, Generic, no_type_check, TypedDict, TYPE_CHECKING)
+    Dict, Any, Tuple, TypeVar, Generic, TypedDict, no_type_check,
+    TYPE_CHECKING)
 
 import numpy as np
 import numpy.typing as npt
@@ -353,6 +354,36 @@ class InterfaceJiminyEnv(
         """
         self.simulator.stop()
 
+    @abstractmethod
+    def has_terminated(self, info: InfoType) -> Tuple[bool, bool]:
+        """Determine whether the episode is over, because a terminal state of
+        the underlying MDP has been reached or an aborting condition outside
+        the scope of the MDP has been triggered.
+
+        .. note::
+            This method is called after `refresh_observation`, so that the
+            internal buffer 'observation' is up-to-date.
+
+        :param info: Dictionary of extra information for monitoring.
+
+        :returns: terminated and truncated flags.
+        """
+
+    @abstractmethod
+    def train(self) -> None:
+        """Sets the environment in training mode.
+        """
+
+    @abstractmethod
+    def eval(self) -> None:
+        """Sets the environment in evaluation mode.
+
+        This only has an effect on certain environments. It can be used for
+        instance to enable clipping or filtering of the action at evaluation
+        time specifically. See documentations of a given environment for
+        details about their behaviors in training and evaluation modes.
+        """
+
     @property
     @abstractmethod
     def unwrapped(self) -> "BaseJiminyEnv":
@@ -370,19 +401,4 @@ class InterfaceJiminyEnv(
     @abstractmethod
     def is_training(self) -> bool:
         """Check whether the environment is in 'train' or 'eval' mode.
-        """
-
-    @abstractmethod
-    def train(self) -> None:
-        """Sets the environment in training mode.
-        """
-
-    @abstractmethod
-    def eval(self) -> None:
-        """Sets the environment in evaluation mode.
-
-        This only has an effect on certain environments. It can be used for
-        instance to enable clipping or filtering of the action at evaluation
-        time specifically. See documentations of a given environment for
-        details about their behaviors in training and evaluation modes.
         """
