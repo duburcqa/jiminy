@@ -9,7 +9,7 @@ from typing import Sequence, Optional, Union
 import numpy as np
 import numba as nb
 
-from ..bases import InterfaceJiminyEnv, AbstractReward, BaseMixtureReward
+from ..bases import InterfaceJiminyEnv, AbstractReward, MixtureReward
 
 
 # Reward value at cutoff threshold
@@ -65,7 +65,7 @@ def radial_basis_function(error: ArrayOrScalar,
     return math.pow(CUTOFF_ESP, squared_dist_rel)
 
 
-class AdditiveMixtureReward(BaseMixtureReward):
+class AdditiveMixtureReward(MixtureReward):
     """Weighted sum of multiple independent reward components.
 
     Aggregation of reward components using the addition operator is suitable
@@ -150,7 +150,7 @@ AdditiveMixtureReward.is_normalized.__doc__ = \
     """
 
 
-class MultiplicativeMixtureReward(BaseMixtureReward):
+class MultiplicativeMixtureReward(MixtureReward):
     """Product of multiple independent reward components.
 
     Aggregation of reward components using multiplication operator is suitable

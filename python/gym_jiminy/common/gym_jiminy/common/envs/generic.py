@@ -783,7 +783,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         self._info.clear()
 
         # The simulation cannot be done before doing a single step.
-        if any(self.has_terminated(self._info)):
+        if any(self.derived.has_terminated(self._info)):
             raise RuntimeError(
                 "The simulation has already terminated at `reset`. Check the "
                 "implementation of `has_terminated` if overloaded.")
@@ -894,14 +894,14 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         # Check if the simulation is over.
         # Note that 'truncated' is forced to True if the integration failed or
         # if the maximum number of steps will be exceeded next step.
-        terminated, truncated = self.has_terminated(self._info)
+        terminated, truncated = self.derived.has_terminated(self._info)
         truncated = (
             truncated or not self.is_simulation_running or
             self.stepper_state.t + DT_EPS > self.simulation_duration_max)
 
         # Check if stepping after done and if it is an undefined behavior
         if self._num_steps_beyond_terminate is None:
-            if terminated or truncated:
+            if terminated:
                 self._num_steps_beyond_terminate = 0
         else:
             if self.is_training and self._num_steps_beyond_terminate == 0:
@@ -1033,7 +1033,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
             kwargs['close_backend'] = not self.simulator.is_viewer_available
 
         # Stop any running simulation before replay if `has_terminated` is True
-        if any(self.has_terminated({})):
+        if any(self.derived.has_terminated({})):
             self.stop()
 
         with viewer_lock:
@@ -1491,9 +1491,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         assert isinstance(action, np.ndarray)
         array_copyto(command, action)
 
-    def has_terminated(self,
-                       info: InfoType  # pylint: disable=unused-argument
-                       ) -> Tuple[bool, bool]:
+    def has_terminated(self, info: InfoType) -> Tuple[bool, bool]:
         """Determine whether the episode is over, because a terminal state of
         the underlying MDP has been reached or an aborting condition outside
         the scope of the MDP has been triggered.

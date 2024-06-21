@@ -171,8 +171,9 @@ class QuantityManager(MutableMapping):
                      raise an exception if another quantity with the exact same
                      name exists.
         :param quantity_creator: Tuple gathering the class of the new quantity
-                                 to manage plus its keyword-arguments except
-                                 environment and parent as a dictionary.
+                                 to manage plus any keyword-arguments of its
+                                 constructor as a dictionary except 'env' and
+                                 'parent'.
         """
         # Instantiate the new quantity
         quantity_cls, quantity_kwargs = quantity_creator
@@ -197,8 +198,9 @@ class QuantityManager(MutableMapping):
                      raise an exception if another quantity with the exact same
                      name exists.
         :param quantity_creator: Tuple gathering the class of the new quantity
-                                 to manage plus its keyword-arguments except
-                                 environment and parent as a dictionary.
+                                 to manage plus any keyword-arguments of its
+                                 constructor as a dictionary except 'env' and
+                                 'parent'.
         """
         # Make sure that no quantity with the same name is already managed to
         # avoid silently overriding quantities being managed in user's back.

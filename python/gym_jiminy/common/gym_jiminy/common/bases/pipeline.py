@@ -17,8 +17,8 @@ from copy import deepcopy
 from abc import abstractmethod
 from collections import OrderedDict
 from typing import (
-    Dict, Any, List, Optional, Tuple, Union, Generic, TypeVar, SupportsFloat,
-    Callable, cast, TYPE_CHECKING)
+    Dict, Any, List, Sequence, Optional, Tuple, Union, Generic, TypeVar,
+    SupportsFloat, Callable, cast, TYPE_CHECKING)
 
 import numpy as np
 
@@ -35,7 +35,7 @@ from .interfaces import (DT_EPS,
                          InfoType,
                          EngineObsType,
                          InterfaceJiminyEnv)
-from .compositions import AbstractReward
+from .compositions import AbstractReward, AbstractTerminationCondition
 from .blocks import BaseControllerBlock, BaseObserverBlock
 
 from ..utils import DataNested, is_breakpoint, zeros, build_copyto, copy
@@ -301,6 +301,24 @@ class BasePipelineWrapper(
         # Initialize specialized operator(s) for efficiency
         self._copyto_action = build_copyto(self.action)
 
+    def has_terminated(self, info: InfoType) -> Tuple[bool, bool]:
+        """Determine whether the episode is over, because a terminal state of
+        the underlying MDP has been reached or an aborting condition outside
+        the scope of the MDP has been triggered.
+
+        By default, it does nothing but forwarding the request to the base
+        environment. This behavior can be overwritten by the user.
+
+        .. note::
+            This method is called after `refresh_observation`, so that the
+            internal buffer 'observation' is up-to-date.
+
+        :param info: Dictionary of extra information for monitoring.
+
+        :returns: terminated and truncated flags.
+        """
+        return self.env.has_terminated(info)
+
     def render(self) -> Optional[Union[RenderFrame, List[RenderFrame]]]:
         """Render the unified environment.
 
@@ -334,32 +352,46 @@ class ComposedJiminyEnv(
         considered as internal unlike `gym.Wrapper`. This means that it will be
         taken into account when calling `evaluate` or `play_interactive` on the
         wrapped environment.
+
+    .. warning::
+        This class is final, ie not meant to be derived.
     """
     def __init__(self,
                  env: InterfaceJiminyEnv[ObsT, ActT],
                  *,
                  reward: Optional[AbstractReward] = None,
+                 terminations: Sequence[AbstractTerminationCondition] = (),
                  trajectories: Optional[Dict[str, Trajectory]] = None) -> None:
         """
         :param env: Environment to extend, eventually already wrapped.
         :param reward: Reward object deriving from `AbstractReward`. It will be
                        evaluated at each step of the environment and summed up
-                       with one returned by the wrapped environment. This
+                       with the one returned by the wrapped environment. This
                        reward must be already instantiated and associated with
                        the provided environment. `None` for not considering any
                        reward.
                        Optional: `None` by default.
+        :param terminations: Sequence of termination condition objects deriving
+                             from `AbstractTerminationCondition`. They will be
+                             checked along with the one enforced by the wrapped
+                             environment. If provided, these termination
+                             conditions must be already instantiated and
+                             associated with the environment at hands.
+                             Optional: Empty sequence by default.
         :param trajectories: Set of named trajectories as a dictionary whose
                              (key, value) pairs are respectively the name of
                              each trajectory and the trajectory itself.  `None`
                              for not considering any trajectory.
                              Optional: `None` by default.
         """
-        # Make sure that the unwrapped environment matches the reward one
+        # Make sure that the unwrapped environment of compositions matches
         assert reward is None or env.unwrapped is reward.env.unwrapped
+        assert all(env.unwrapped is termination.env.unwrapped
+                   for termination in terminations)
 
         # Backup user argument(s)
         self.reward = reward
+        self.terminations = tuple(terminations)
 
         # Initialize base class
         super().__init__(env)
@@ -413,6 +445,39 @@ class ComposedJiminyEnv(
                             to get higher-level observation.
         """
         self.env.refresh_observation(measurement)
+
+    def has_terminated(self, info: InfoType) -> Tuple[bool, bool]:
+        """Determine whether the episode is over, because a terminal state of
+        the underlying MDP has been reached or an aborting condition outside
+        the scope of the MDP has been triggered.
+
+        At each step of the wrapped environment, all its termination conditions
+        will be evaluated sequentially until one of them eventually gets
+        triggered. If this happens, evaluation is skipped for the remaining
+        ones and the reward is evaluated straight away. Ultimately, the
+        practitioner is instructed to stop the ongoing episode, but it is his
+        own responsibility to honor this request. The first condition being
+        evaluated is the one of the underlying environment, then comes the ones
+        of this composition layer, following the original sequence ordering.
+
+        .. note::
+            This method is called after `refresh_observation`, so that the
+            internal buffer 'observation' is up-to-date.
+
+        :param info: Dictionary of extra information for monitoring.
+
+        :returns: terminated and truncated flags.
+        """
+        # Call unwrapped environment implementation
+        terminated, truncated = self.env.has_terminated(info)
+
+        # Evaluate conditions one-by-one as long as none has been triggered
+        for termination in self.terminations:
+            if terminated or truncated:
+                break
+            terminated, truncated = termination(info)
+
+        return terminated, truncated
 
     def compute_command(self, action: ActT, command: np.ndarray) -> None:
         """Compute the motors efforts to apply on the robot.

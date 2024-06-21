@@ -4,9 +4,11 @@ from .mixin import (CUTOFF_ESP,
                     radial_basis_function,
                     AdditiveMixtureReward,
                     MultiplicativeMixtureReward)
-from .generic import (BaseTrackingReward,
+from .generic import (TrackingQuantityReward,
                       TrackingActuatedJointPositionsReward,
-                      SurviveReward)
+                      SurviveReward,
+                      DriftTrackingQuantityTermination,
+                      ShiftTrackingQuantityTermination)
 from .locomotion import (TrackingBaseHeightReward,
                          TrackingBaseOdometryVelocityReward,
                          TrackingCapturePointReward,
@@ -14,14 +16,15 @@ from .locomotion import (TrackingBaseHeightReward,
                          TrackingFootOrientationsReward,
                          TrackingFootForceDistributionReward,
                          MinimizeAngularMomentumReward,
-                         MinimizeFrictionReward)
+                         MinimizeFrictionReward,
+                         BaseRollPitchTermination)
 
 __all__ = [
     "CUTOFF_ESP",
     "radial_basis_function",
     "AdditiveMixtureReward",
     "MultiplicativeMixtureReward",
-    "BaseTrackingReward",
+    "TrackingQuantityReward",
     "TrackingActuatedJointPositionsReward",
     "TrackingBaseHeightReward",
     "TrackingBaseOdometryVelocityReward",
@@ -31,5 +34,8 @@ __all__ = [
     "TrackingFootForceDistributionReward",
     "MinimizeAngularMomentumReward",
     "MinimizeFrictionReward",
-    "SurviveReward"
+    "SurviveReward",
+    "DriftTrackingQuantityTermination",
+    "ShiftTrackingQuantityTermination",
+    "BaseRollPitchTermination"
 ]

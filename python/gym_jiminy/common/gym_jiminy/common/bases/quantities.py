@@ -23,7 +23,7 @@ from dataclasses import dataclass, replace
 from functools import partial, wraps
 from typing import (
     Any, Dict, List, Optional, Tuple, Generic, TypeVar, Type, Iterator,
-    Callable, Literal, ClassVar, cast)
+    Callable, Literal, ClassVar, cast, TYPE_CHECKING)
 
 import numpy as np
 
@@ -274,8 +274,8 @@ class InterfaceQuantity(ABC, Generic[ValueT]):
         :param requirements: Intermediary quantities on which this quantity
                              depends for its evaluation, as a dictionary
                              whose keys are tuple gathering their respective
-                             class and all their constructor keyword-arguments
-                             except environment 'env' and parent 'parent.
+                             class plus any keyword-arguments of its
+                             constructor except 'env' and 'parent'.
         :param auto_refresh: Whether this quantity must be refreshed
                              automatically as soon as its shared cache has been
                              cleared if specified, otherwise this does nothing.
@@ -324,31 +324,23 @@ class InterfaceQuantity(ABC, Generic[ValueT]):
         for name in requirement_names:
             setattr(type(self), name, property(partial(get_value, name)))
 
-    def __getattr__(self, name: str) -> Any:
-        """Get access to intermediary quantities as first-class properties,
-        without having to do it through `requirements`.
+    if TYPE_CHECKING:
+        def __getattr__(self, name: str) -> Any:
+            """Get access to intermediary quantities as first-class properties,
+            without having to do it through `requirements`.
 
-        .. warning::
-            Accessing quantities this way is convenient, but unfortunately
-            much slower than do it through `requirements` manually. As a
-            result, this approach is mainly intended for ease of use while
-            prototyping.
+            .. warning::
+                Accessing quantities this way is convenient, but unfortunately
+                much slower than do it through dynamically added properties. As
+                a result, this approach is only used to fix typing issues.
 
-        :param name: Name of the requested quantity.
-        """
-        try:
-            return self.__getattribute__('requirements')[name].get()
-        except KeyError as e:
-            raise AttributeError(
-                f"'{type(self)}' object has no attribute '{name}'") from e
-
-    def __dir__(self) -> List[str]:
-        """Attribute lookup.
-
-        It is mainly used by autocomplete feature of Ipython. It is overloaded
-        to get consistent autocompletion wrt `getattr`.
-        """
-        return [*super().__dir__(), *self.requirements.keys()]
+            :param name: Name of the requested quantity.
+            """
+            try:
+                return self.__getattribute__('requirements')[name].get()
+            except KeyError as e:
+                raise AttributeError(
+                    f"'{type(self)}' object has no attribute '{name}'") from e
 
     @property
     def cache(self) -> SharedCache[ValueT]:
@@ -554,7 +546,9 @@ class InterfaceQuantity(ABC, Generic[ValueT]):
         """
 
 
-QuantityCreator = Tuple[Type[InterfaceQuantity[ValueT]], Dict[str, Any]]
+QuantityValueT_co = TypeVar('QuantityValueT_co', covariant=True)
+QuantityCreator = Tuple[
+    Type[InterfaceQuantity[QuantityValueT_co]], Dict[str, Any]]
 
 
 class QuantityEvalMode(Enum):
@@ -609,8 +603,8 @@ class AbstractQuantity(InterfaceQuantity, Generic[ValueT]):
         :param requirements: Intermediary quantities on which this quantity
                              depends for its evaluation, as a dictionary
                              whose keys are tuple gathering their respective
-                             class and all their constructor keyword-arguments
-                             except environment 'env' and parent 'parent.
+                             class plus any keyword-arguments of its
+                             constructor except 'env' and 'parent'.
         :param mode: Desired mode of evaluation for this quantity. If mode is
                      set to `QuantityEvalMode.TRUE`, then current simulation
                      state will be used in dynamics computations. If mode is
@@ -1026,7 +1020,7 @@ class StateQuantity(InterfaceQuantity[State]):
         self._f_external_vec = pin.StdVec_Force()
         self._f_external_list: List[np.ndarray] = []
         self._f_external_batch = np.array([])
-        self._f_external_slices: List[np.ndarray] = []
+        self._f_external_slices: Tuple[np.ndarray, ...] = ()
 
         # Persistent buffer storing all lambda multipliers for efficiency
         self._constraint_lambda_batch = np.array([])
@@ -1101,7 +1095,7 @@ class StateQuantity(InterfaceQuantity[State]):
         self._f_external_list = [
             f_ext.vector for f_ext in self._f_external_vec]
         self._f_external_batch = np.zeros((self.pinocchio_model.njoints, 6))
-        self._f_external_slices = list(self._f_external_batch)
+        self._f_external_slices = tuple(self._f_external_batch)
 
         # Allocate memory for lambda vector
         self._constraint_lambda_batch = np.zeros(

@@ -7,7 +7,7 @@ import numba as nb
 
 from gym_jiminy.common.compositions import CUTOFF_ESP
 from gym_jiminy.common.bases import (
-    InterfaceJiminyEnv, QuantityEvalMode, BaseQuantityReward)
+    InterfaceJiminyEnv, QuantityEvalMode, QuantityReward)
 
 from ..quantities import StabilityMarginProjectedSupportPolygon
 
@@ -36,7 +36,7 @@ def tanh_normalization(value: float,
     return 1.0 / (1.0 + math.pow(CUTOFF_ESP / (1.0 - CUTOFF_ESP), value_rel))
 
 
-class MaximizeStability(BaseQuantityReward):
+class MaximizeStability(QuantityReward):
     """Encourage the agent to maintain itself in postures as robust as possible
     to external disturbances.
 

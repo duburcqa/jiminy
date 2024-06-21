@@ -287,15 +287,15 @@ class Trajectory:
         that are available.
 
         :param t: Time of the state to extract from the trajectory.
-        :param mode: Specifies how to deal with query time of are out of the
-                     time interval 'time_interval' of the trajectory. Specify
-                     'raise' to raise an exception if the query time is
-                     out-of-bound wrt to underlying state sequence of the
-                     selected trajectory. Specify 'clip' to force clipping of
-                     the query time before interpolation of the state sequence.
-                     Specify 'wrap' to wrap around the query time wrt the time
-                     span of the trajectory. This is useful to store periodic
-                     trajectories as finite state sequences.
+        :param mode: Fallback strategy when the query time is not in the time
+                     interval 'time_interval' of the trajectory. 'raise' raises
+                     an exception if the query time is out-of-bound wrt the
+                     underlying state sequence of the selected trajectory.
+                     'clip' forces clipping of the query time before
+                     interpolation of the state sequence. 'wrap' wraps around
+                     the query time wrt the time span of the trajectory. This
+                     is useful to store periodic trajectories as finite state
+                     sequences.
         """
         # Raise exception if state sequence is empty
         if not self.has_data:

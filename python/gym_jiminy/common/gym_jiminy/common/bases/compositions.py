@@ -1,10 +1,14 @@
-"""This module promotes reward components as first-class objects.
+"""This module promotes reward components and termination conditions as
+first-class objects. Those building blocks that can be plugged onto an existing
+pipeline by composition to keep everything modular, from the task definition to
+the low-level observers and controllers.
 
-Defining rewards this way allows for standardization of usual metrics. Overall,
-it greatly reduces code duplication and bugs.
+This modular approach allows for standardization of usual metrics. Overall, it
+greatly reduces code duplication and bugs.
 """
 from abc import ABC, abstractmethod
-from typing import Sequence, Callable, Optional, Tuple, TypeVar
+from enum import Enum
+from typing import Tuple, Sequence, Callable, Union, Optional, TypeVar
 
 import numpy as np
 
@@ -13,6 +17,9 @@ from .quantities import QuantityCreator
 
 
 ValueT = TypeVar('ValueT')
+
+ArrayOrScalar = Union[np.ndarray, float, int]
+ArrayLikeOrScalar = Union[ArrayOrScalar, Sequence[Union[float, int]]]
 
 
 class AbstractReward(ABC):
@@ -24,7 +31,7 @@ class AbstractReward(ABC):
     indefinite (aka. objective).
 
     Defining cost is allowed by not recommended. Although it encourages the
-    agent to achieve the task at hands as quickly as possible if success if the
+    agent to achieve the task at hands as quickly as possible if success is the
     only termination condition, it has the side-effect to give the opportunity
     to the agent to maximize the return by killing itself whenever this is an
     option, which is rarely the desired behavior. No restriction is enforced as
@@ -47,8 +54,8 @@ class AbstractReward(ABC):
         """Name uniquely identifying a given reward component.
 
         This name will be used as key for storing reward-specific monitoring
-        information in 'info' if key is missing, otherwise it will raise an
-        exception.
+        and debugging information in 'info' if key does not already exists,
+        otherwise it will raise an exception.
         """
         return self._name
 
@@ -95,6 +102,12 @@ class AbstractReward(ABC):
             method to honor flags 'is_terminated' (if not indefinite) and
             'is_normalized'. Failing this, an exception will be raised.
 
+        :param terminated: Whether the episode has reached a terminal state of
+                           the MDP at the current step.
+        :param info: Dictionary of extra information for monitoring. It will be
+                     updated in-place for storing current value of the reward
+                     in 'info' if it was truly evaluated.
+
         :returns: Scalar value if the reward was evaluated, `None` otherwise.
         """
 
@@ -109,8 +122,9 @@ class AbstractReward(ABC):
             This method is a lightweight wrapper around `compute` to skip
             evaluation depending on whether the current state and the reward
             are terminal. If the reward was truly evaluated, then 'info' is
-            updated to store either reward-specific 'info' if any or its value
-            otherwise. If not, then 'info' is left as-is and 0.0 is returned.
+            updated to store either custom debugging information if any or its
+            value otherwise. If the reward is not evaluated, then 'info' is
+            left as-is and 0.0 is returned.
 
         .. warning::
             This method is not meant to be overloaded.
@@ -142,7 +156,7 @@ class AbstractReward(ABC):
                 "Reward not normalized in range [0.0, 1.0] as it ought to be.")
 
         # Store its value as info
-        if self.name is info.keys():
+        if self.name in info.keys():
             raise KeyError(
                 f"Key '{self.name}' already reserved in 'info'. Impossible to "
                 "store value of reward component.")
@@ -155,9 +169,9 @@ class AbstractReward(ABC):
         return value
 
 
-class BaseQuantityReward(AbstractReward):
-    """Base class that makes easy easy to derive reward components from generic
-    quantities.
+class QuantityReward(AbstractReward):
+    """Convenience class making it easy to derive reward components from
+    generic quantities.
 
     All this class does is applying some user-specified post-processing to the
     value of a given multi-variate quantity to return a floating-point scalar
@@ -179,9 +193,9 @@ class BaseQuantityReward(AbstractReward):
                      quantities by the environment. As a result, it must be
                      unique otherwise an exception will be raised.
         :param quantity: Tuple gathering the class of the underlying quantity
-                         to use as reward after some post-processing, plus all
-                         its constructor keyword-arguments except environment
-                         'env' and parent 'parent.
+                         to use as reward after some post-processing, plus any
+                         keyword-arguments of its constructor except 'env',
+                         and 'parent'.
         :param transform_fn: Transform function responsible for aggregating a
                              multi-variate quantity as floating-point scalar
                              value to maximize. Typical examples are `np.min`,
@@ -265,17 +279,17 @@ class BaseQuantityReward(AbstractReward):
         return value
 
 
-BaseQuantityReward.name.__doc__ = \
+QuantityReward.name.__doc__ = \
     """Name uniquely identifying every reward.
 
     It will be used as key not only for storing reward-specific monitoring
-    information in 'info', but also for adding the underlying quantity to
-    the ones already managed by the environment.
+    and debugging information in 'info', but also for adding the underlying
+    quantity to the ones already managed by the environment.
     """
 
 
-class BaseMixtureReward(AbstractReward):
-    """Base class for aggregating multiple independent reward components in a
+class MixtureReward(AbstractReward):
+    """Base class for aggregating multiple independent reward components as a
     single one.
     """
 
@@ -366,3 +380,234 @@ class BaseMixtureReward(AbstractReward):
         reward_total = self._reduce_fn(values)
 
         return reward_total
+
+
+class EpisodeState(Enum):
+    """Specify the current state of the ongoing episode.
+    """
+
+    CONTINUED = 0
+    """No termination condition has been triggered this step.
+    """
+
+    TERMINATED = 1
+    """The terminal state has been reached.
+    """
+
+    TRUNCATED = 2
+    """A truncation condition has been triggered.
+    """
+
+
+class AbstractTerminationCondition(ABC):
+    """Abstract class from which all termination conditions must derived.
+
+    Request the ongoing episode to stop immediately as soon as a termination
+    condition is triggered.
+
+    There are two cases: truncating the episode or reaching the terminal state.
+    In the former case, the agent is instructed to stop collecting samples from
+    the ongoing episode and move to the next one, without considering this as a
+    failure. As such, the reward-to-go that has not been observed will be
+    estimated via a value function estimator. This is  already what happens
+    when collecting sample batches in the infinite horizon RL framework, except
+    that the episode is not resumed to collect the rest of the episode in the
+    following sample batched. In the case of a termination condition, the agent
+    is just as much instructed to move to the next  episode, but also to
+    consider that it was an actual failure. This means that, unlike truncation
+    conditions, the reward-to-go is known to be exactly zero. This is usually
+    dramatic for the agent in the perspective of an infinite horizon reward,
+    even more as the maximum discounted reward grows larger as the discount
+    factor gets closer to one. As a result, the agent will avoid at all cost
+    triggering terminal conditions, to the point of becoming risk averse by
+    taking extra security margins lowering the average reward if necessary.
+    """
+
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 name: str) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param name: Desired name of the reward.
+        """
+        self.env = env
+        self._name = name
+
+    @property
+    def name(self) -> str:
+        """Name uniquely identifying a given termination condition.
+
+        This name will be used as key for storing termination
+        condition-specific monitoring information in 'info' if key does not
+        already exists, otherwise it will raise an exception.
+        """
+        return self._name
+
+    @abstractmethod
+    def compute(self, info: InfoType) -> EpisodeState:
+        """Evaluate the termination condition.
+
+        :param info: Dictionary of extra information for monitoring. It will be
+                     updated in-place for storing terminated and truncated
+                     flags in 'info' as a tri-states `EpisodeState` value.
+
+        :returns: Current episode state from the sole perspective of the
+                  termination condition at hands.
+        """
+
+    def __call__(self, info: InfoType) -> Tuple[bool, bool]:
+        """Return whether the termination condition has been triggered.
+
+        For the corresponding MDP to be stationary, the condition to trigger
+        termination is supposed to involve only the transition from previous to
+        current state of the environment under the ongoing action.
+
+        .. note::
+            This method is a lightweight wrapper around `compute` to split the
+            episode state in two boolean flags to comply with Gym API. 'info'
+            will be updated to store either custom debug information if any
+            or the episode state otherwise.
+
+        .. warning::
+            This method is not meant to be overloaded.
+
+        :param info: Dictionary of extra information for monitoring. It will be
+                     updated in-place for storing terminated and truncated
+                     flags in 'info' as a tri-states `EpisodeState` value.
+
+        :returns: terminated and truncated flags.
+        """
+        # Evaluate the reward and store extra information
+        termination_info: InfoType = {}
+        episode_state = self.compute(termination_info)
+        is_terminated = episode_state == EpisodeState.TERMINATED
+        is_truncated = episode_state == EpisodeState.TRUNCATED
+
+        # Store episode state as info
+        if self.name in info.keys():
+            raise KeyError(
+                f"Key '{self.name}' already reserved in 'info'. Impossible to "
+                "store value of termination condition.")
+        if termination_info:
+            info[self.name] = termination_info
+        else:
+            info[self.name] = episode_state
+
+        # Returning terminated and truncated flags
+        return is_terminated, is_truncated
+
+
+class QuantityTermination(AbstractTerminationCondition):
+    """Convenience class making it easy to derive termination conditions from
+    generic quantities.
+
+    All this class does is checking that, all elements of a given quantity are
+    within bounds. If so, then the episode continues, otherwise it is either
+    truncated or terminated according to 'is_truncation' constructor argument.
+    This only applies after the end of a grace period. Before that, the
+    episode continues no matter what.
+    """
+
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 name: str,
+                 quantity: QuantityCreator[Optional[ArrayOrScalar]],
+                 low: Optional[ArrayLikeOrScalar],
+                 high: Optional[ArrayLikeOrScalar],
+                 grace_period: float = 0.0,
+                 *,
+                 is_truncation: bool = False,
+                 is_training_only: bool = False) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param name: Desired name of the termination condition. This name will
+                     be used as key for storing the current episode state from
+                     the perspective of this specific condition in 'info', and
+                     to add the underlying quantity to the set of already
+                     managed quantities by the environment. As a result, it
+                     must be unique otherwise an exception will be raised.
+        :param quantity: Tuple gathering the class of the underlying quantity
+                         to use as termination condition, plus any
+                         keyword-arguments of its constructor except 'env',
+                         and 'parent'.
+        :param low: Lower bound below which termination is triggered.
+        :param high: Upper bound above which termination is triggered.
+        :param grace_period: Grace period effective only at the very beginning
+                             of the episode, during which the latter is bound
+                             to continue whatever happens.
+                             Optional: 0.0 by default.
+        :param is_truncation: Whether the episode should be considered
+                              terminated or truncated whenever the termination
+                              condition is triggered.
+                              Optional: False by default.
+        :param is_training_only: Whether the termination condition should be
+                                 completely by-passed if the environment is in
+                                 evaluation mode.
+                                 Optional: False by default.
+        """
+        # Backup user argument(s)
+        self.low = np.asarray(low) if low is not None else None
+        self.high = np.asarray(high) if high is not None else None
+        self.grace_period = grace_period
+        self.is_truncation = is_truncation
+        self.is_training_only = is_training_only
+
+        # Call base implementation
+        super().__init__(env, name)
+
+        # Add quantity to the set of quantities managed by the environment
+        self.env.quantities[self.name] = quantity
+
+        # Keep track of the underlying quantity
+        self.quantity = self.env.quantities.registry[self.name]
+
+    def __del__(self) -> None:
+        try:
+            del self.env.quantities[self.name]
+        except Exception:   # pylint: disable=broad-except
+            # This method must not fail under any circumstances
+            pass
+
+    def compute(self, info: InfoType) -> EpisodeState:
+        """Evaluate the termination condition.
+
+        The underlying quantity is first evaluated. The episode continues if
+        its value is within bounds for all its components, otherwise the
+        episode is either truncated or terminated according to 'is_truncation'.
+
+        .. warning::
+            This method is not meant to be overloaded.
+
+        :returns: Current episode state from the sole perspective of the
+                  termination condition at hands.
+        """
+        # Skip termination condition in eval mode or during grace period
+        if (self.is_training_only and not self.env.is_training) or (
+                self.env.stepper_state.t < self.grace_period):
+            return EpisodeState.CONTINUED
+
+        # Evaluate the quantity
+        value = self.env.quantities[self.name]
+
+        # Check if the quantity is within bound.
+        # Note that it may be `None` if the quantity is ill-defined for the
+        # current simulation state, which triggers termination unconditionally.
+        is_valid = value is not None
+        is_valid &= self.low is None or bool(np.all(self.low <= value))
+        is_valid &= self.high is None or bool(np.all(value <= self.high))
+
+        # Determine the episode state to return
+        if is_valid:
+            return EpisodeState.CONTINUED
+        if self.is_truncation:
+            return EpisodeState.TRUNCATED
+        return EpisodeState.TERMINATED
+
+
+QuantityTermination.name.__doc__ = \
+    """Name uniquely identifying every termination condition.
+
+    It will be used as key not only for storing termination condition-specific
+    monitoring and debugging information in 'info', but also for adding the
+    underlying quantity to the ones already managed by the environment.
+    """

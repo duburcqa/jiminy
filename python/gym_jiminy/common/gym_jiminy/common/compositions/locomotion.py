@@ -1,30 +1,32 @@
 """Rewards mainly relevant for locomotion tasks on floating-base robots.
 """
 from functools import partial
-from typing import Union, Sequence, Literal, Callable, cast
+from typing import Optional, Union, Sequence, Literal, Callable, cast
 
 import numpy as np
 import pinocchio as pin
 
 from ..bases import (
-    InterfaceJiminyEnv, StateQuantity, QuantityEvalMode, BaseQuantityReward)
+    InterfaceJiminyEnv, StateQuantity, QuantityEvalMode, QuantityReward)
 from ..quantities import (
-    MaskedQuantity, UnaryOpQuantity, AverageBaseOdometryVelocity, CapturePoint,
-    MultiFootRelativeXYZQuat, MultiContactRelativeForceTangential,
-    MultiFootRelativeForceVertical, AverageBaseMomentum)
+    OrientationType, MaskedQuantity, UnaryOpQuantity, FrameOrientation,
+    BaseOdometryAverageVelocity, CapturePoint, MultiFootRelativeXYZQuat,
+    MultiContactRelativeForceTangential, MultiFootRelativeForceVertical,
+    AverageBaseMomentum)
 from ..quantities.locomotion import sanitize_foot_frame_names
 from ..utils import quat_difference
 
-from .generic import BaseTrackingReward
+from .generic import (
+    ArrayLikeOrScalar, TrackingQuantityReward, QuantityTermination)
 from .mixin import radial_basis_function
 
 
-class TrackingBaseHeightReward(BaseTrackingReward):
+class TrackingBaseHeightReward(TrackingQuantityReward):
     """Reward the agent for tracking the height of the floating base of the
     robot wrt some reference trajectory.
 
     .. seealso::
-        See `BaseTrackingReward` documentation for technical details.
+        See `TrackingQuantityReward` documentation for technical details.
     """
     def __init__(self,
                  env: InterfaceJiminyEnv,
@@ -48,12 +50,12 @@ class TrackingBaseHeightReward(BaseTrackingReward):
             cutoff)
 
 
-class TrackingBaseOdometryVelocityReward(BaseTrackingReward):
+class TrackingBaseOdometryVelocityReward(TrackingQuantityReward):
     """Reward the agent for tracking the odometry velocity wrt some reference
     trajectory.
 
     .. seealso::
-        See `BaseTrackingReward` documentation for technical details.
+        See `TrackingQuantityReward` documentation for technical details.
     """
     def __init__(self,
                  env: InterfaceJiminyEnv,
@@ -69,16 +71,16 @@ class TrackingBaseOdometryVelocityReward(BaseTrackingReward):
         super().__init__(
             env,
             "reward_tracking_odometry_velocity",
-            lambda mode: (AverageBaseOdometryVelocity, dict(mode=mode)),
+            lambda mode: (BaseOdometryAverageVelocity, dict(mode=mode)),
             cutoff)
 
 
-class TrackingCapturePointReward(BaseTrackingReward):
+class TrackingCapturePointReward(TrackingQuantityReward):
     """Reward the agent for tracking the capture point wrt some reference
     trajectory.
 
     .. seealso::
-        See `BaseTrackingReward` documentation for technical details.
+        See `TrackingQuantityReward` documentation for technical details.
     """
     def __init__(self,
                  env: InterfaceJiminyEnv,
@@ -100,12 +102,12 @@ class TrackingCapturePointReward(BaseTrackingReward):
             cutoff)
 
 
-class TrackingFootPositionsReward(BaseTrackingReward):
+class TrackingFootPositionsReward(TrackingQuantityReward):
     """Reward the agent for tracking the relative position of the feet wrt each
     other.
 
     .. seealso::
-        See `BaseTrackingReward` documentation for technical details.
+        See `TrackingQuantityReward` documentation for technical details.
     """
     def __init__(self,
                  env: InterfaceJiminyEnv,
@@ -142,12 +144,12 @@ class TrackingFootPositionsReward(BaseTrackingReward):
             cutoff)
 
 
-class TrackingFootOrientationsReward(BaseTrackingReward):
+class TrackingFootOrientationsReward(TrackingQuantityReward):
     """Reward the agent for tracking the relative orientation of the feet wrt
     each other.
 
     .. seealso::
-        See `BaseTrackingReward` documentation for technical details.
+        See `TrackingQuantityReward` documentation for technical details.
     """
     def __init__(self,
                  env: InterfaceJiminyEnv,
@@ -184,7 +186,7 @@ class TrackingFootOrientationsReward(BaseTrackingReward):
                 [np.ndarray, np.ndarray], np.ndarray], quat_difference))
 
 
-class TrackingFootForceDistributionReward(BaseTrackingReward):
+class TrackingFootForceDistributionReward(TrackingQuantityReward):
     """Reward the agent for tracking the relative vertical force in world frame
     applied on each foot.
 
@@ -199,7 +201,7 @@ class TrackingFootForceDistributionReward(BaseTrackingReward):
         the flying phase of running.
 
     .. seealso::
-        See `BaseTrackingReward` documentation for technical details.
+        See `TrackingQuantityReward` documentation for technical details.
     """
     def __init__(self,
                  env: InterfaceJiminyEnv,
@@ -231,12 +233,12 @@ class TrackingFootForceDistributionReward(BaseTrackingReward):
             cutoff)
 
 
-class MinimizeAngularMomentumReward(BaseQuantityReward):
+class MinimizeAngularMomentumReward(QuantityReward):
     """Reward the agent for minimizing the angular momentum in world plane.
 
     The angular momentum along x- and y-axes in local odometry frame is
     transform in a normalized reward to maximize by applying RBF kernel on the
-    error. See `BaseTrackingReward` documentation for technical details.
+    error. See `TrackingQuantityReward` documentation for technical details.
     """
     def __init__(self,
                  env: InterfaceJiminyEnv,
@@ -258,7 +260,7 @@ class MinimizeAngularMomentumReward(BaseQuantityReward):
             is_terminal=False)
 
 
-class MinimizeFrictionReward(BaseQuantityReward):
+class MinimizeFrictionReward(QuantityReward):
     """Reward the agent for minimizing the tangential forces at all the contact
     points and collision bodies, and to avoid jerky intermittent contact state.
 
@@ -287,3 +289,44 @@ class MinimizeFrictionReward(BaseQuantityReward):
             partial(radial_basis_function, cutoff=self.cutoff, order=2),
             is_normalized=True,
             is_terminal=False)
+
+
+class BaseRollPitchTermination(QuantityTermination):
+    """Encourages the agent to keep its base straight, ie its torso in the case
+    of a humanoid robot, by prohibiting excessive roll and pitch angles.
+    """
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 low: Optional[ArrayLikeOrScalar],
+                 high: Optional[ArrayLikeOrScalar],
+                 grace_period: float = 0.0,
+                 *,
+                 is_training_only: bool = False) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param low: Lower bound below which termination is triggered.
+        :param high: Upper bound above which termination is triggered.
+        :param grace_period: Grace period effective only at the very beginning
+                             of the episode, during which the latter is bound
+                             to continue whatever happens.
+                             Optional: 0.0 by default.
+        :param is_training_only: Whether the termination condition should be
+                                 completely by-passed if the environment is in
+                                 evaluation mode.
+                                 Optional: False by default.
+        """
+        # Call base implementation
+        super().__init__(
+            env,
+            "termination_base_roll_pitch",
+            (MaskedQuantity, dict(  # type: ignore[arg-type]
+                quantity=(FrameOrientation, dict(
+                    frame_name="root_joint",
+                    type=OrientationType.EULER)),
+                axis=0,
+                keys=(0, 1))),
+            low,
+            high,
+            grace_period,
+            is_truncation=False,
+            is_training_only=is_training_only)
