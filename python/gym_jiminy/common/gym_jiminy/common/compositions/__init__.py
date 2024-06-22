@@ -17,7 +17,9 @@ from .locomotion import (TrackingBaseHeightReward,
                          TrackingFootForceDistributionReward,
                          MinimizeAngularMomentumReward,
                          MinimizeFrictionReward,
-                         BaseRollPitchTermination)
+                         BaseRollPitchTermination,
+                         BaseHeightTermination,
+                         FootCollisionTermination)
 
 __all__ = [
     "CUTOFF_ESP",
@@ -37,5 +39,7 @@ __all__ = [
     "SurviveReward",
     "DriftTrackingQuantityTermination",
     "ShiftTrackingQuantityTermination",
-    "BaseRollPitchTermination"
+    "BaseRollPitchTermination",
+    "BaseHeightTermination",
+    "FootCollisionTermination"
 ]

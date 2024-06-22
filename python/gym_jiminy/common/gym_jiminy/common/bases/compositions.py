@@ -18,8 +18,9 @@ from .quantities import QuantityCreator
 
 ValueT = TypeVar('ValueT')
 
-ArrayOrScalar = Union[np.ndarray, float, int]
-ArrayLikeOrScalar = Union[ArrayOrScalar, Sequence[Union[float, int]]]
+Number = Union[float, int, bool, complex]
+ArrayOrScalar = Union[np.ndarray, np.number, Number]
+ArrayLikeOrScalar = Union[ArrayOrScalar, Sequence[Union[Number, np.number]]]
 
 
 class AbstractReward(ABC):

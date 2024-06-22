@@ -6,6 +6,8 @@
 
 #include "jiminy/core/utilities/random.h"
 
+#include <hpp/fcl/narrowphase/narrowphase.h>
+
 /* Eigenpy must be imported first, since it sets pre-processor definitions used by Boost Python
    to configure Python C API. */
 #include "pinocchio/bindings/python/fwd.hpp"
@@ -52,6 +54,14 @@ namespace jiminy::python
         np::initialize(false);
         // Initialized EigenPy, enabling PyArrays<->Eigen automatic converters
         eigenpy::enableEigenPy();
+
+        if (!eigenpy::register_symbolic_link_to_registered_type<hpp::fcl::GJKInitialGuess>())
+        {
+            bp::enum_<hpp::fcl::GJKInitialGuess>("GJKInitialGuess")
+                .value("DefaultGuess", hpp::fcl::GJKInitialGuess::DefaultGuess)
+                .value("CachedGuess", hpp::fcl::GJKInitialGuess::CachedGuess)
+                .value("BoundingVolumeGuess", hpp::fcl::GJKInitialGuess::BoundingVolumeGuess);
+        }
 
         // Expose the version
         bp::scope().attr("__version__") = bp::str(JIMINY_VERSION);

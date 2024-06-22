@@ -16,7 +16,9 @@ from gym_jiminy.common.quantities import (
 from gym_jiminy.common.compositions import (
     DriftTrackingQuantityTermination,
     ShiftTrackingQuantityTermination,
-    BaseRollPitchTermination)
+    BaseRollPitchTermination,
+    BaseHeightTermination,
+    FootCollisionTermination)
 
 
 class TerminationConditions(unittest.TestCase):
@@ -36,6 +38,29 @@ class TerminationConditions(unittest.TestCase):
 
         self.env.quantities.add_trajectory("reference", trajectory)
         self.env.quantities.select_trajectory("reference")
+
+    def test_composition(self):
+        """ TODO: Write documentation
+        """
+        ROLL_MIN, ROLL_MAX = -0.2, 0.2
+        PITCH_MIN, PITCH_MAX = -0.05, 0.3
+        termination = BaseRollPitchTermination(
+            self.env,
+            np.array([ROLL_MIN, PITCH_MIN]),
+            np.array([ROLL_MAX, PITCH_MAX]))
+        self.env.reset(seed=0)
+        env = ComposedJiminyEnv(self.env, terminations=(termination,))
+
+        env.reset(seed=0)
+        action = self.env.action_space.sample()
+        for _ in range(20):
+            _, _, terminated_env, _, _ = env.step(action)
+            terminated_cond, _ = termination({})
+            assert not (terminated_env ^ terminated_cond)
+            if terminated_env:
+                terminated_unwrapped, _ = env.unwrapped.has_terminated({})
+                assert not terminated_unwrapped
+                break
 
     def test_drift_tracking(self):
         """ TODO: Write documentation
@@ -209,25 +234,39 @@ class TerminationConditions(unittest.TestCase):
                 ROLL_MIN < roll < ROLL_MAX and PITCH_MIN < pitch < PITCH_MAX)
             assert terminated ^ is_valid
 
-    def test_composition(self):
+    def test_foot_collision(self):
         """ TODO: Write documentation
         """
-        ROLL_MIN, ROLL_MAX = -0.2, 0.2
-        PITCH_MIN, PITCH_MAX = -0.05, 0.3
-        termination = BaseRollPitchTermination(
-            self.env,
-            np.array([ROLL_MIN, PITCH_MIN]),
-            np.array([ROLL_MAX, PITCH_MAX]))
-        self.env.reset(seed=0)
-        env = ComposedJiminyEnv(self.env, terminations=(termination,))
+        termination = FootCollisionTermination(self.env, security_margin=0.0)
 
-        env.reset(seed=0)
+        motor_names = [motor.name for motor in self.env.robot.motors]
+        left_motor_index = motor_names.index('l_leg_hpx')
+        right_motor_index = motor_names.index('r_leg_hpx')
+        action = np.zeros((len(motor_names),))
+        action[[left_motor_index, right_motor_index]] = -0.5, 0.5
+
+        self.env.robot.remove_contact_points([])
+        self.env.eval()
+        self.env.reset(seed=0)
+        for _ in range(10):
+            self.env.step(action)
+            terminated, truncated = termination({})
+            assert not truncated
+            if terminated:
+                break
+        else:
+            raise AssertionError("No collision detected.")
+
+    def test_misc(self):
+        """ TODO: Write documentation
+        """
+        termination = BaseHeightTermination(self.env, 0.5)
+
+        self.env.reset(seed=0)
         action = self.env.action_space.sample()
         for _ in range(20):
-            _, _, terminated_env, _, _ = env.step(action)
-            terminated_cond, _ = termination({})
-            assert not (terminated_env ^ terminated_cond)
-            if terminated_env:
-                terminated_unwrapped, _ = env.unwrapped.has_terminated({})
-                assert not terminated_unwrapped
+            _, _, terminated, _, _ = self.env.step(action)
+            if terminated:
                 break
+            terminated, truncated = termination({})
+            assert not truncated

@@ -10,8 +10,9 @@ from ..bases import (
     InterfaceJiminyEnv, StateQuantity, QuantityEvalMode, QuantityReward)
 from ..quantities import (
     OrientationType, MaskedQuantity, UnaryOpQuantity, FrameOrientation,
-    BaseOdometryAverageVelocity, CapturePoint, MultiFootRelativeXYZQuat,
-    MultiContactRelativeForceTangential, MultiFootRelativeForceVertical,
+    BaseRelativeHeight, BaseOdometryAverageVelocity, CapturePoint,
+    MultiFootRelativeXYZQuat, MultiContactNormalizedForceTangential,
+    MultiFootNormalizedForceVertical, MultiFootCollisionDetection,
     AverageBaseMomentum)
 from ..quantities.locomotion import sanitize_foot_frame_names
 from ..utils import quat_difference
@@ -227,7 +228,7 @@ class TrackingFootForceDistributionReward(TrackingQuantityReward):
         super().__init__(
             env,
             "reward_tracking_foot_force_distribution",
-            lambda mode: (MultiFootRelativeForceVertical, dict(
+            lambda mode: (MultiFootNormalizedForceVertical, dict(
                 frame_names=frame_names,
                 mode=mode)),
             cutoff)
@@ -285,15 +286,15 @@ class MinimizeFrictionReward(QuantityReward):
         super().__init__(
             env,
             "reward_friction",
-            (MultiContactRelativeForceTangential, dict()),
+            (MultiContactNormalizedForceTangential, dict()),
             partial(radial_basis_function, cutoff=self.cutoff, order=2),
             is_normalized=True,
             is_terminal=False)
 
 
 class BaseRollPitchTermination(QuantityTermination):
-    """Encourages the agent to keep its base straight, ie its torso in the case
-    of a humanoid robot, by prohibiting excessive roll and pitch angles.
+    """Encourages the agent to keep the floating base straight, ie its torso in
+    case of a humanoid robot, by prohibiting excessive roll and pitch angles.
     """
     def __init__(self,
                  env: InterfaceJiminyEnv,
@@ -327,6 +328,87 @@ class BaseRollPitchTermination(QuantityTermination):
                 keys=(0, 1))),
             low,
             high,
+            grace_period,
+            is_truncation=False,
+            is_training_only=is_training_only)
+
+
+class BaseHeightTermination(QuantityTermination):
+    """Terminate the episode immediately if the floating base of the robot
+    gets too close from the ground.
+
+    It is assumed that the state is no longer recoverable when its condition
+    is triggered. As such, the episode is terminated on the spot as the
+    situation is hopeless. Generally speaking, aborting an epsiode in
+    anticipation of catastrophic failure is beneficial. Assuming the condition
+    is on point, doing this improves the signal to noice ratio when estimating
+    the gradient by avoiding cluterring the training batches with irrelevant
+    information.
+    """
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 thr: float,
+                 grace_period: float = 0.0,
+                 *,
+                 is_training_only: bool = False) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param low: Lower bound below which termination is triggered.
+        :param grace_period: Grace period effective only at the very beginning
+                             of the episode, during which the latter is bound
+                             to continue whatever happens.
+                             Optional: 0.0 by default.
+        :param is_training_only: Whether the termination condition should be
+                                 completely by-passed if the environment is in
+                                 evaluation mode.
+                                 Optional: False by default.
+        """
+        # Call base implementation
+        super().__init__(
+            env,
+            "termination_base_height",
+            (BaseRelativeHeight, {}),  # type: ignore[arg-type]
+            thr,
+            None,
+            grace_period,
+            is_truncation=False,
+            is_training_only=is_training_only)
+
+
+class FootCollisionTermination(QuantityTermination):
+    """Terminate the episode immediately if some of the feet of the robot are
+    getting too close from each other.
+
+    Self-collision must be avoided at all cost, as it can damage the hardware.
+    Considering this condition as a dramatically failure urges the agent to do
+    his best in this matter, to the point of becoming risk averse.
+    """
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 security_margin: float = 0.0,
+                 grace_period: float = 0.0,
+                 *,
+                 is_training_only: bool = False) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param low: Lower bound below which termination is triggered.
+        :param grace_period: Grace period effective only at the very beginning
+                             of the episode, during which the latter is bound
+                             to continue whatever happens.
+                             Optional: 0.0 by default.
+        :param is_training_only: Whether the termination condition should be
+                                 completely by-passed if the environment is in
+                                 evaluation mode.
+                                 Optional: False by default.
+        """
+        # Call base implementation
+        super().__init__(
+            env,
+            "termination_foot_collision",
+            (MultiFootCollisionDetection, dict(  # type: ignore[arg-type]
+                security_margin=security_margin)),
+            False,
+            False,
             grace_period,
             is_truncation=False,
             is_training_only=is_training_only)

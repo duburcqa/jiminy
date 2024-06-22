@@ -19,21 +19,23 @@ from gym_jiminy.common.quantities import (
     QuantityManager,
     StackedQuantity,
     FrameOrientation,
-    MultiFramesOrientation,
+    MultiFrameOrientation,
     FrameXYZQuat,
-    MultiFramesMeanXYZQuat,
+    MultiFrameMeanXYZQuat,
     MaskedQuantity,
     MultiFootMeanOdometryPose,
     MultiFootRelativeXYZQuat,
+    MultiFrameCollisionDetection,
     FrameSpatialAverageVelocity,
     BaseOdometryAverageVelocity,
+    BaseRelativeHeight,
     AverageBaseMomentum,
     ActuatedJointsPosition,
     CenterOfMass,
     CapturePoint,
     ZeroMomentPoint,
-    MultiContactRelativeForceTangential,
-    MultiFootRelativeForceVertical)
+    MultiContactNormalizedForceTangential,
+    MultiFootNormalizedForceVertical)
 
 
 class Quantities(unittest.TestCase):
@@ -102,19 +104,19 @@ class Quantities(unittest.TestCase):
                 ("rpy_2", FrameOrientation, dict(
                     frame_name=frame_names[-1],
                     type=OrientationType.EULER)),
-                ("rpy_batch_0", MultiFramesOrientation, dict(  # Intersection
+                ("rpy_batch_0", MultiFrameOrientation, dict(  # Intersection
                     frame_names=(frame_names[-3], frame_names[1]),
                     type=OrientationType.EULER)),
-                ("rpy_batch_1", MultiFramesOrientation, dict(  # Inclusion
+                ("rpy_batch_1", MultiFrameOrientation, dict(  # Inclusion
                     frame_names=(frame_names[1], frame_names[-1]),
                     type=OrientationType.EULER)),
-                ("rpy_batch_2", MultiFramesOrientation, dict(  # Disjoint
+                ("rpy_batch_2", MultiFrameOrientation, dict(  # Disjoint
                     frame_names=(frame_names[1], frame_names[-4]),
                     type=OrientationType.EULER)),
-                ("rot_mat_batch", MultiFramesOrientation, dict(
+                ("rot_mat_batch", MultiFrameOrientation, dict(
                     frame_names=(frame_names[1], frame_names[-1]),
                     type=OrientationType.MATRIX)),
-                ("quat_batch", MultiFramesOrientation, dict(
+                ("quat_batch", MultiFrameOrientation, dict(
                     frame_names=(frame_names[1], frame_names[-4]),
                     type=OrientationType.QUATERNION))):
             quantity_manager[name] = (cls, kwargs)
@@ -320,7 +322,7 @@ class Quantities(unittest.TestCase):
                 lambda mode: (FrameXYZQuat, dict(
                     frame_name=frame_names[2],
                     mode=mode)),
-                lambda mode: (MultiFramesMeanXYZQuat, dict(
+                lambda mode: (MultiFrameMeanXYZQuat, dict(
                     frame_names=tuple(frame_names[i] for i in (1, 3, -2)),
                     mode=mode)),
                 lambda mode: (MultiFootMeanOdometryPose, dict(
@@ -490,7 +492,7 @@ class Quantities(unittest.TestCase):
             frame.name for frame in env.robot.pinocchio_model.frames]
 
         env.quantities["mean_pose"] = (
-            MultiFramesMeanXYZQuat, dict(
+            MultiFrameMeanXYZQuat, dict(
                 frame_names=frame_names[:5],
                 mode=QuantityEvalMode.TRUE))
 
@@ -577,7 +579,7 @@ class Quantities(unittest.TestCase):
         env = gym.make("gym_jiminy.envs:atlas")
 
         env.quantities["force_tangential_rel"] = (
-            MultiContactRelativeForceTangential, {})
+            MultiContactNormalizedForceTangential, {})
 
         env.reset(seed=0)
         for _ in range(10):
@@ -598,7 +600,7 @@ class Quantities(unittest.TestCase):
         env = gym.make("gym_jiminy.envs:atlas-pid")
 
         env.quantities["force_vertical_rel"] = (
-            MultiFootRelativeForceVertical, {})
+            MultiFootNormalizedForceVertical, {})
 
         env.reset(seed=0)
         for _ in range(10):
@@ -617,3 +619,48 @@ class Quantities(unittest.TestCase):
         np.testing.assert_allclose(
             force_vertical_rel, env.quantities["force_vertical_rel"])
         np.testing.assert_allclose(np.sum(force_vertical_rel), 1.0, atol=1e-3)
+
+    def test_base_height(self):
+        env = gym.make("gym_jiminy.envs:atlas-pid")
+
+        env.quantities["base_height"] = (BaseRelativeHeight, {})
+
+        env.reset(seed=0)
+        action = env.action_space.sample()
+        for _ in range(10):
+            env.step(action)
+
+        value = env.quantities["base_height"]
+        base_z = env.robot.pinocchio_data.oMf[1].translation[[2]]
+        contacts_z = []
+        for constraint in env.robot.constraints.contact_frames.values():
+            frame_index = constraint.frame_index
+            frame_pos = env.robot.pinocchio_data.oMf[frame_index]
+            contacts_z.append(frame_pos.translation[[2]])
+        np.testing.assert_allclose(base_z - np.min(contacts_z), value)
+
+    def test_frames_collision(self):
+        env = gym.make("gym_jiminy.envs:atlas-pid", step_dt=0.01)
+
+        env.quantities["frames_collision"] = (
+            MultiFrameCollisionDetection, dict(
+                frame_names=("l_foot", "r_foot"),
+                security_margin=0.0))
+
+        motor_names = [motor.name for motor in env.robot.motors]
+        left_motor_index = motor_names.index('l_leg_hpx')
+        right_motor_index = motor_names.index('r_leg_hpx')
+        action = np.zeros((len(motor_names),))
+        action[[left_motor_index, right_motor_index]] = -0.5, 0.5
+
+        env.robot.remove_contact_points([])
+        env.eval()
+        env.reset(seed=0)
+        assert not env.quantities["frames_collision"]
+        for _ in range(20):
+            env.step(action)
+            if env.quantities["frames_collision"]:
+                break
+        else:
+            raise AssertionError("No collision detected.")
+

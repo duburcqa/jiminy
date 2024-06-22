@@ -137,7 +137,7 @@ class ProjectedSupportPolygon(AbstractQuantity[ConvexHull2D]):
         # because it preserves contiguity when copying frame data, and because
         # the `ConvexHull2D` would perform one extra copy otherwise.
         self._candidate_xy_batch = np.empty(
-            (len(self._candidate_xy_refs), 2), order="C")
+            (len(self._candidate_xy_refs), 2), order='C')
 
         # Refresh proxies
         self._candidate_xy_views = tuple(self._candidate_xy_batch)
