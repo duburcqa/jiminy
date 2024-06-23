@@ -17,7 +17,7 @@ from .generic import (OrientationType,
                       AverageFrameXYZQuat,
                       AverageFrameRollPitch,
                       FrameSpatialAverageVelocity,
-                      ActuatedJointsPosition)
+                      MultiActuatedJointKinematic)
 from .locomotion import (BaseOdometryPose,
                          BaseRelativeHeight,
                          BaseSpatialAverageVelocity,
@@ -64,7 +64,7 @@ __all__ = [
     'AverageBaseMomentum',
     'BaseOdometryPose',
     'BaseRelativeHeight',
-    'ActuatedJointsPosition',
+    'MultiActuatedJointKinematic',
     'CenterOfMass',
     'CapturePoint',
     'ZeroMomentPoint',

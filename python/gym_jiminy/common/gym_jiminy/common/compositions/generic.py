@@ -133,7 +133,9 @@ class TrackingActuatedJointPositionsReward(TrackingQuantityReward):
         super().__init__(
             env,
             "reward_actuated_joint_positions",
-            lambda mode: (ActuatedJointsPosition, dict(mode=mode)),
+            lambda mode: (MultiActuatedJointKinematic, dict(
+                kinematic_level=pin.KinematicLevel.POSITION,
+                mode=mode)),
             cutoff)
 
 
