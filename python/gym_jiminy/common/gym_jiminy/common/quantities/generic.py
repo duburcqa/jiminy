@@ -1582,11 +1582,18 @@ class MultiActuatedJointKinematic(AbstractQuantity[np.ndarray]):
         # Call base implementation
         super().initialize()
 
+        # Make sure that the state data meet requirements
+        state = self.state
+        if ((self.kinematic_level == pin.ACCELERATION and state.a is None) or
+                (self.kinematic_level >= pin.VELOCITY and state.v is None)):
+            raise RuntimeError(
+                "Available state data do not meet requirements for kinematic "
+                f"level '{self.kinematic_level}'.")
+
         # Refresh mechanical joint position indices
         self.kinematic_indices.clear()
         for motor in self.env.robot.motors:
-            joint_index = self.pinocchio_model.getJointId(motor.joint_name)
-            joint = self.pinocchio_model.joints[joint_index]
+            joint = self.pinocchio_model.joints[motor.joint_index]
             joint_type = jiminy.get_joint_type(joint)
             if joint_type == jiminy.JointModelType.ROTARY_UNBOUNDED:
                 raise ValueError(
@@ -1617,11 +1624,22 @@ class MultiActuatedJointKinematic(AbstractQuantity[np.ndarray]):
         if self._must_refresh:
             self.data = np.full((len(self.kinematic_indices),), float("nan"))
         else:
-            self.data = self.state.q[slice(kin_first, kin_last + 1)]
+            if self.kinematic_level == pin.KinematicLevel.POSITION:
+                self.data = self.state.q[slice(kin_first, kin_last + 1)]
+            elif self.kinematic_level == pin.KinematicLevel.VELOCITY:
+                self.data = self.state.v[slice(kin_first, kin_last + 1)]
+            else:
+                self.data = self.state.a[slice(kin_first, kin_last + 1)]
 
     def refresh(self) -> np.ndarray:
         # Update mechanical joint positions only if necessary
         if self._must_refresh:
-            self.state.q.take(self.kinematic_indices, None, self.data, "clip")
+            if self.kinematic_level == pin.KinematicLevel.POSITION:
+                data = self.state.q
+            elif self.kinematic_level == pin.KinematicLevel.VELOCITY:
+                data = self.state.v
+            else:
+                data = self.state.a
+            data.take(self.kinematic_indices, None, self.data, "clip")
 
         return self.data

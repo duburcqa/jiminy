@@ -459,9 +459,9 @@ class Quantities(unittest.TestCase):
             if level == pin.KinematicLevel.POSITION:
                 value = env.robot_state.q[kinematic_indices]
             elif level == pin.KinematicLevel.VELOCITY:
-                value = env.robot_state.q[kinematic_indices]
+                value = env.robot_state.v[kinematic_indices]
             else:
-                value = env.robot_state.q[kinematic_indices]
+                value = env.robot_state.a[kinematic_indices]
 
             np.testing.assert_allclose(
                 env.quantities[f"actuated_joint_{level}"], value)

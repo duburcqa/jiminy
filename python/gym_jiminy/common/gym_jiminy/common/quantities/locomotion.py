@@ -706,8 +706,8 @@ class CenterOfMass(AbstractQuantity[np.ndarray]):
         :param env: Base or wrapped jiminy environment.
         :param parent: Higher-level quantity from which this quantity is a
                        requirement if any, `None` otherwise.
-        :para kinematic_level: Desired kinematic level, ie position, velocity
-                               or acceleration.
+        :param kinematic_level: Desired kinematic level, ie position, velocity
+                                or acceleration.
         :param mode: Desired mode of evaluation for this quantity.
                      Optional: 'QuantityEvalMode.TRUE' by default.
         """

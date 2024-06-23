@@ -438,7 +438,7 @@ class MultiAryOpQuantity(InterfaceQuantity[ValueT]):
     """Apply a given n-ary operator to the values of a given set of quantities.
     """
 
-    quantities: Tuple[InterfaceQuantity[Any]]
+    quantities: Tuple[InterfaceQuantity[Any], ...]
     """Sequence of quantities that will be forwarded to the n-ary operator in
     this exact order.
     """

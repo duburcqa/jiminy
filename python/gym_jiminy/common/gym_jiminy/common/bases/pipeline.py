@@ -115,7 +115,8 @@ class BasePipelineWrapper(
             Calling this method in script mode while a simulation is already
             running would trigger a warning to avoid relying on it by mistake.
         """
-        if self.is_simulation_running and not hasattr(sys, 'ps1'):
+        if (self.is_simulation_running and self.env.is_training and
+                not hasattr(sys, 'ps1')):
             # `hasattr(sys, 'ps1')` is used to detect whether the method was
             # called from an interpreter or within a script. For details, see:
             # https://stackoverflow.com/a/64523765/4820605

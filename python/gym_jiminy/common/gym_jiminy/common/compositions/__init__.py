@@ -8,7 +8,8 @@ from .generic import (TrackingQuantityReward,
                       TrackingActuatedJointPositionsReward,
                       SurviveReward,
                       DriftTrackingQuantityTermination,
-                      ShiftTrackingQuantityTermination)
+                      ShiftTrackingQuantityTermination,
+                      MechanicalSafetyTermination)
 from .locomotion import (TrackingBaseHeightReward,
                          TrackingBaseOdometryVelocityReward,
                          TrackingCapturePointReward,
@@ -39,6 +40,7 @@ __all__ = [
     "SurviveReward",
     "DriftTrackingQuantityTermination",
     "ShiftTrackingQuantityTermination",
+    "MechanicalSafetyTermination",
     "BaseRollPitchTermination",
     "BaseHeightTermination",
     "FootCollisionTermination"

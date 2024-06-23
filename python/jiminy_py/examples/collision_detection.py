@@ -25,9 +25,9 @@ class CollisionChecker:
             geom_model.getGeometryId, (geom_name_1, geom_name_2))
         self.oMg1, self.oMg2 = (
             geom_data.oMg[i] for i in (geom_index_1, geom_index_2))
-        self.collide_functor = hppfcl.ComputeCollision(*(
+        self.collide_functor = hppfcl.ComputeCollision(*[
             geom_model.geometryObjects[i].geometry
-            for i in (geom_index_1, geom_index_2)))
+            for i in (geom_index_1, geom_index_2)])
         self.req = hppfcl.CollisionRequest()
         self.req.enable_cached_gjk_guess = True
         self.req.distance_upper_bound = 1e-6
