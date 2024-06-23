@@ -17,7 +17,8 @@ from ..bases import (
     InterfaceJiminyEnv, InterfaceQuantity, AbstractQuantity, StateQuantity,
     QuantityEvalMode)
 from ..quantities import (
-    MaskedQuantity, MultiFramesXYZQuat, MultiFramesMeanXYZQuat,
+    MaskedQuantity, FramePosition, MultiFramePosition, MultiFrameXYZQuat,
+    MultiFrameMeanXYZQuat, MultiFrameCollisionDetection,
     FrameSpatialAverageVelocity, AverageFrameRollPitch)
 from ..utils import (
     matrix_to_yaw, quat_to_yaw, quat_to_matrix, quat_multiply, quat_apply)
@@ -101,6 +102,61 @@ def translate_position_odom(position: np.ndarray,
     cos_yaw, sin_yaw = math.cos(yaw_ref), math.sin(yaw_ref)
     out[0] = + cos_yaw * pos_rel_x + sin_yaw * pos_rel_y
     out[1] = - sin_yaw * pos_rel_x + cos_yaw * pos_rel_y
+
+
+@dataclass(unsafe_hash=True)
+class BaseRelativeHeight(InterfaceQuantity[float]):
+    """Relative height of the floating base of the robot wrt lowest contact
+    point or collision body in world frame.
+    """
+
+    mode: QuantityEvalMode
+    """Specify on which state to evaluate this quantity. See `Mode`
+    documentation for details about each mode.
+
+    .. warning::
+        Mode `REFERENCE` requires a reference trajectory to be selected
+        manually prior to evaluating this quantity for the first time.
+    """
+
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 parent: Optional[InterfaceQuantity],
+                 *,
+                 mode: QuantityEvalMode = QuantityEvalMode.TRUE) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param parent: Higher-level quantity from which this quantity is a
+                       requirement if any, `None` otherwise.
+        :param mode: Desired mode of evaluation for this quantity.
+                     Optional: 'QuantityEvalMode.TRUE' by default.
+        """
+        # Backup some user argument(s)
+        self.mode = mode
+
+        # Get all frame constraints associated with contacts and collisions
+        frame_names: List[str] = []
+        for constraint in env.robot.constraints.contact_frames.values():
+            assert isinstance(constraint, jiminy.FrameConstraint)
+            frame_names.append(constraint.frame_name)
+        for constraints_body in env.robot.constraints.collision_bodies:
+            for constraint in constraints_body:
+                assert isinstance(constraint, jiminy.FrameConstraint)
+                frame_names.append(constraint.frame_name)
+
+        # Call base implementation
+        super().__init__(
+            env,
+            parent,
+            requirements=dict(
+                base_pos=(FramePosition, dict(
+                    frame_name="root_joint")),
+                contacts_pos=(MultiFramePosition, dict(
+                    frame_names=frame_names))),
+            auto_refresh=False)
+
+    def refresh(self) -> float:
+        return self.base_pos[2] - np.min(self.contacts_pos[2])
 
 
 @dataclass(unsafe_hash=True)
@@ -405,7 +461,7 @@ class MultiFootMeanXYZQuat(InterfaceQuantity[np.ndarray]):
             env,
             parent,
             requirements=dict(
-                data=(MultiFramesMeanXYZQuat, dict(
+                data=(MultiFrameMeanXYZQuat, dict(
                     frame_names=self.frame_names,
                     mode=mode))),
             auto_refresh=False)
@@ -504,7 +560,7 @@ class MultiFootRelativeXYZQuat(InterfaceQuantity[np.ndarray]):
     wrt the others. Notably, in particular case where there is only two frames,
     it is one is the opposite of the other. As a result, the last relative pose
     is always dropped from the returned value, based on the same ordering as
-    'self.frame_names'. As for `MultiFramesXYZQuat`, the data associated with
+    'self.frame_names'. As for `MultiFrameXYZQuat`, the data associated with
     each frame are returned as a 2D contiguous array. The first dimension
     gathers the 7 components (X, Y, Z, QuatX, QuatY, QuatZ, QuaW), while the
     last one corresponds to individual relative frames poses.
@@ -555,7 +611,7 @@ class MultiFootRelativeXYZQuat(InterfaceQuantity[np.ndarray]):
                 xyzquat_mean=(MultiFootMeanXYZQuat, dict(
                     frame_names=self.frame_names,
                     mode=mode)),
-                xyzquats=(MultiFramesXYZQuat, dict(
+                xyzquats=(MultiFrameXYZQuat, dict(
                     frame_names=self.frame_names,
                     mode=mode))),
             auto_refresh=False)
@@ -912,7 +968,7 @@ class CapturePoint(AbstractQuantity[np.ndarray]):
 
 
 @dataclass(unsafe_hash=True)
-class MultiContactRelativeForceTangential(AbstractQuantity[np.ndarray]):
+class MultiContactNormalizedForceTangential(AbstractQuantity[np.ndarray]):
     """Standardized tangential forces apply on all contact points and collision
     bodies in their respective local contact frame.
 
@@ -1056,7 +1112,7 @@ class MultiContactRelativeForceTangential(AbstractQuantity[np.ndarray]):
 
 
 @dataclass(unsafe_hash=True)
-class MultiFootRelativeForceVertical(AbstractQuantity[np.ndarray]):
+class MultiFootNormalizedForceVertical(AbstractQuantity[np.ndarray]):
     """Standardized total vertical forces apply on each foot in world frame.
 
     The lambda multipliers of the contact constraints are used to compute the
@@ -1250,3 +1306,55 @@ class MultiFootRelativeForceVertical(AbstractQuantity[np.ndarray]):
                                         self._vertical_force_batch)
 
         return self._vertical_force_batch
+
+
+@dataclass(unsafe_hash=True)
+class MultiFootCollisionDetection(InterfaceQuantity[bool]):
+    """Check if some of the feet of the robot are colliding with each other.
+
+    It takes into account some safety margins by which their volume will be
+    inflated / deflated. See `MultiFrameCollisionDetection` documentation for
+    details.
+    """
+
+    frame_names: Tuple[str, ...]
+    """Name of the frames corresponding to some feet of the robot.
+
+    These frames must be part of the end-effectors, ie being associated with a
+    leaf joint in the kinematic tree of the robot.
+    """
+
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 parent: Optional[InterfaceQuantity],
+                 frame_names: Union[Sequence[str], Literal['auto']] = 'auto',
+                 *,
+                 security_margin: float = 0.0) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param parent: Higher-level quantity from which this quantity is a
+                       requirement if any, `None` otherwise.
+        :param frame_names: Name of the frames corresponding to some feet of
+                            the robot. 'auto' to automatically detect them from
+                            the set of contact and force sensors of the robot.
+                            Optional: 'auto' by default.
+        :param security_margin: Signed distance below which a pair of geometry
+                                objects is stated in collision.
+                                Optional: 0.0 by default.
+        """
+        # Backup some user argument(s)
+        self.frame_names = tuple(sanitize_foot_frame_names(env, frame_names))
+
+        # Call base implementation
+        super().__init__(
+            env,
+            parent,
+            requirements=dict(
+                is_colliding=(MultiFrameCollisionDetection, dict(
+                    frame_names=self.frame_names,
+                    security_margin=security_margin
+                ))),
+            auto_refresh=False)
+
+    def refresh(self) -> bool:
+        return self.is_colliding

@@ -5,9 +5,11 @@ application (locomotion, grasping...).
 """
 import warnings
 from enum import Enum
+from functools import partial
 from dataclasses import dataclass
 from typing import (
-    List, Dict, Optional, Protocol, Sequence, Tuple, Union, runtime_checkable)
+    List, Dict, Optional, Protocol, Sequence, Tuple, Union, Callable,
+    runtime_checkable)
 
 import numpy as np
 import numba as nb
@@ -16,6 +18,7 @@ import jiminy_py.core as jiminy
 from jiminy_py.core import (  # pylint: disable=no-name-in-module
     array_copyto, multi_array_copyto)
 import pinocchio as pin
+import hppfcl as fcl
 
 from ..bases import (
     InterfaceJiminyEnv, InterfaceQuantity, AbstractQuantity, StateQuantity,
@@ -42,7 +45,7 @@ class FrameQuantity(Protocol):
 
 
 @runtime_checkable
-class MultiFramesQuantity(Protocol):
+class MultiFrameQuantity(Protocol):
     """Protocol that must be satisfied by all quantities associated with
     a particular set of frames for which the same batched intermediary
     quantities must be computed.
@@ -76,18 +79,18 @@ def aggregate_frame_names(quantity: InterfaceQuantity) -> Tuple[
         active set must be decided by cache owners.
 
     :param quantity: Quantity whose parent implements either `FrameQuantity` or
-                     `MultiFramesQuantity` protocol. All the parents of all its
+                     `MultiFrameQuantity` protocol. All the parents of all its
                      cache owners must also implement one of these protocol.
     """
     # Make sure that parent quantity implement multi- or single-frame protocol
-    assert isinstance(quantity.parent, (FrameQuantity, MultiFramesQuantity))
+    assert isinstance(quantity.parent, (FrameQuantity, MultiFrameQuantity))
     quantities = (quantity.cache.owners if quantity.has_cache else (quantity,))
 
     # First, order all multi-frame quantities by decreasing length
     frame_names_chunks: List[Tuple[str, ...]] = []
     for owner in quantities:
         if owner.parent.is_active(any_cache_owner=False):
-            if isinstance(owner.parent, MultiFramesQuantity):
+            if isinstance(owner.parent, MultiFrameQuantity):
                 frame_names_chunks.append(owner.parent.frame_names)
 
     # Next, process ordered multi-frame quantities sequentially.
@@ -196,7 +199,7 @@ class _BatchedFramesRotationMatrix(
         :param mode: Desired mode of evaluation for this quantity.
         """
         # Make sure that a parent has been specified
-        assert isinstance(parent, (FrameQuantity, MultiFramesQuantity))
+        assert isinstance(parent, (FrameQuantity, MultiFrameQuantity))
 
         # Call base implementation
         super().__init__(
@@ -322,12 +325,12 @@ class _BatchedFramesOrientation(
 
     def __init__(self,
                  env: InterfaceJiminyEnv,
-                 parent: Union["FrameOrientation", "MultiFramesOrientation"],
+                 parent: Union["FrameOrientation", "MultiFrameOrientation"],
                  type: OrientationType,
                  mode: QuantityEvalMode) -> None:
         """
         :param env: Base or wrapped jiminy environment.
-        :param parent: `FrameOrientation` or `MultiFramesOrientation` instance
+        :param parent: `FrameOrientation` or `MultiFrameOrientation` instance
                        from which this quantity is a requirement.
         :param type: Desired vector representation of the orientation for all
                      frames. Note that `OrientationType.ANGLE_AXIS` is not
@@ -335,7 +338,7 @@ class _BatchedFramesOrientation(
         :param mode: Desired mode of evaluation for this quantity.
         """
         # Make sure that a suitable parent has been provided
-        assert isinstance(parent, (FrameOrientation, MultiFramesOrientation))
+        assert isinstance(parent, (FrameOrientation, MultiFrameOrientation))
 
         # Make sure that the specified orientation representation is supported
         if type not in (OrientationType.MATRIX,
@@ -351,7 +354,7 @@ class _BatchedFramesOrientation(
 
         # Initialize the ordered list of frame names.
         # Note that this must be done BEFORE calling base `__init__`, otherwise
-        # `isinstance(..., (FrameQuantity, MultiFramesQuantity))` will fail.
+        # `isinstance(..., (FrameQuantity, MultiFrameQuantity))` will fail.
         self.frame_names: Tuple[str, ...] = ()
 
         # Call base implementation
@@ -493,7 +496,7 @@ class FrameOrientation(InterfaceQuantity[np.ndarray]):
 
 
 @dataclass(unsafe_hash=True)
-class MultiFramesOrientation(InterfaceQuantity[np.ndarray]):
+class MultiFrameOrientation(InterfaceQuantity[np.ndarray]):
     """Vector representation of the orientation of a given set of frames in
     world reference frame at the end of the agent step.
 
@@ -597,16 +600,16 @@ class _BatchedFramesPosition(
 
     def __init__(self,
                  env: InterfaceJiminyEnv,
-                 parent: Union["FramePosition", "MultiFramesPosition"],
+                 parent: Union["FramePosition", "MultiFramePosition"],
                  mode: QuantityEvalMode) -> None:
         """
         :param env: Base or wrapped jiminy environment.
-        :param parent: `FramePosition` or `MultiFramesPosition` instance from
+        :param parent: `FramePosition` or `MultiFramePosition` instance from
                        which this quantity is a requirement.
         :param mode: Desired mode of evaluation for this quantity.
         """
         # Make sure that a suitable parent has been provided
-        assert isinstance(parent, (FramePosition, MultiFramesPosition))
+        assert isinstance(parent, (FramePosition, MultiFramePosition))
 
         # Initialize the ordered list of frame names
         self.frame_names: Tuple[str, ...] = ()
@@ -729,7 +732,7 @@ class FramePosition(InterfaceQuantity[np.ndarray]):
 
 
 @dataclass(unsafe_hash=True)
-class MultiFramesPosition(InterfaceQuantity[np.ndarray]):
+class MultiFramePosition(InterfaceQuantity[np.ndarray]):
     """Position vector (X, Y, Z) of a given set of frames in world reference
     frame at the end of the agent step.
     """
@@ -857,7 +860,7 @@ class FrameXYZQuat(InterfaceQuantity[np.ndarray]):
 
 
 @dataclass(unsafe_hash=True)
-class MultiFramesXYZQuat(InterfaceQuantity[np.ndarray]):
+class MultiFrameXYZQuat(InterfaceQuantity[np.ndarray]):
     """Spatial vector representation (X, Y, Z, QuatX, QuatY, QuatZ, QuatW) of
     the transform of a given set of frames in world reference frame at the end
     of the agent step.
@@ -902,10 +905,10 @@ class MultiFramesXYZQuat(InterfaceQuantity[np.ndarray]):
             env,
             parent,
             requirements=dict(
-                positions=(MultiFramesPosition, dict(
+                positions=(MultiFramePosition, dict(
                     frame_names=frame_names,
                     mode=mode)),
-                quats=(MultiFramesOrientation, dict(
+                quats=(MultiFrameOrientation, dict(
                     frame_names=frame_names,
                     type=OrientationType.QUATERNION,
                     mode=mode))),
@@ -925,7 +928,7 @@ class MultiFramesXYZQuat(InterfaceQuantity[np.ndarray]):
 
 
 @dataclass(unsafe_hash=True)
-class MultiFramesMeanXYZQuat(InterfaceQuantity[np.ndarray]):
+class MultiFrameMeanXYZQuat(InterfaceQuantity[np.ndarray]):
     """Spatial vector representation (X, Y, Z, QuatX, QuatY, QuatZ, QuatW) of
     the average transform of a given set of frames in world reference frame at
     the end of the agent step.
@@ -980,10 +983,10 @@ class MultiFramesMeanXYZQuat(InterfaceQuantity[np.ndarray]):
             env,
             parent,
             requirements=dict(
-                positions=(MultiFramesPosition, dict(
+                positions=(MultiFramePosition, dict(
                     frame_names=frame_names,
                     mode=mode)),
-                quats=(MultiFramesOrientation, dict(
+                quats=(MultiFrameOrientation, dict(
                     frame_names=frame_names,
                     type=OrientationType.QUATERNION,
                     mode=mode))),
@@ -1042,6 +1045,146 @@ class MultiFramesMeanXYZQuat(InterfaceQuantity[np.ndarray]):
         self._quat_average(self.quats, self._quat_mean_view)
 
         return self._xyzquat_mean
+
+
+@dataclass(unsafe_hash=True)
+class MultiFrameCollisionDetection(InterfaceQuantity[bool]):
+    """Check if some geometry objects are colliding with each other.
+
+    It takes into account some safety margins by which their volume will be
+    inflated / deflated.
+
+    .. note::
+        Jiminy enforces all collision geometries to be either primitive shapes
+        or convex polyhedra for efficiency. In practice, tf meshes where
+        specified in the original URDF file, then they will be converted into
+        their respective convex hull.
+    """
+
+    frame_names: Tuple[str, ...]
+    """Name of the bodies of the robot to consider for collision detection.
+
+    All the geometry objects sharing with them the same parent joint will be
+    taking into account.
+    """
+
+    security_margin: float
+    """Signed distance below which a pair of geometry objects is stated in
+    collision.
+
+    This can be interpreted as inflating or deflating the geometry objects by
+    the safety margin depending on whether it is positive or negative
+    respectively. Therefore, the actual geometry objects do no have to be in
+    contact to be stated in collision if the satefy margin is positive. On the
+    contry, the penetration depth must be large enough if the security margin
+    is positive.
+    """
+
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 parent: Optional[InterfaceQuantity],
+                 frame_names: Sequence[str],
+                 *,
+                 security_margin: float = 0.0) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param parent: Higher-level quantity from which this quantity is a
+                       requirement if any, `None` otherwise.
+        :param frame_names: Name of the bodies of the robot to consider for
+                            collision detection. All the geometry objects
+                            sharing with them the same parent joint will be
+                            taking into account.
+        :param security_margin: Signed distance below which a pair of geometry
+                                objects is stated in collision.
+                                Optional: 0.0 by default.
+        """
+        # Backup some user-arguments
+        self.frame_names = tuple(frame_names)
+        self.security_margin = security_margin
+
+        # Call base implementation
+        super().__init__(
+            env,
+            parent,
+            requirements={},
+            auto_refresh=False)
+
+        # Initialize a broadphase manager for each collision group
+        self._collision_groups = [
+            fcl.DynamicAABBTreeCollisionManager() for _ in frame_names]
+
+        # Initialize pair-wise collision requests between groups of bodies
+        self._requests: List[Tuple[
+            fcl.BroadPhaseCollisionManager,
+            fcl.BroadPhaseCollisionManager,
+            fcl.CollisionCallBackBase]] = []
+        for i in range(len(frame_names)):
+            for j in range(i + 1, len(frame_names)):
+                manager_1 = self._collision_groups[i]
+                manager_2 = self._collision_groups[j]
+                callback = fcl.CollisionCallBackDefault()
+                request: fcl.CollisionRequest = (
+                    callback.data.request)  # pylint: disable=no-member
+                request.gjk_initial_guess = jiminy.GJKInitialGuess.CachedGuess
+                # request.gjk_variant = fcl.GJKVariant.NesterovAcceleration
+                # request.break_distance = 0.1
+                request.gjk_tolerance = 1e-6
+                request.distance_upper_bound = 1e-6
+                request.num_max_contacts = 1
+                request.security_margin = security_margin
+                self._requests.append((manager_1, manager_2, callback))
+
+        # Store callable responsible to updating transform of colision objects
+        self._transform_updates: List[Callable[[], None]] = []
+
+    def initialize(self) -> None:
+        # Call base implementation
+        super().initialize()
+
+        # Clear all collision managers
+        for manager in self._collision_groups:
+            manager.clear()
+
+        # Get the list of parent joint indices mapping
+        frame_indices_map: Dict[int, int] = {}
+        for i, frame_name in enumerate(self.frame_names):
+            frame_index = self.env.robot.pinocchio_model.getFrameId(frame_name)
+            frame = self.env.robot.pinocchio_model.frames[frame_index]
+            frame_indices_map[frame.parent] = i
+
+        # Add collision objects to their corresponding manager
+        self._transform_updates.clear()
+        for i, geom in enumerate(
+                self.env.robot.collision_model.geometryObjects):
+            j = frame_indices_map.get(geom.parentJoint)
+            if j is not None:
+                obj = fcl.CollisionObject(geom.geometry)
+                self._collision_groups[j].registerObject(obj)
+                pose = self.env.robot.collision_data.oMg[i]
+                translation, rotation = pose.translation, pose.rotation
+                self._transform_updates += (
+                    partial(obj.setTranslation, translation),
+                    partial(obj.setRotation, rotation))
+
+        # Initialize collision detection facilities
+        for manager in self._collision_groups:
+            manager.setup()
+
+    def refresh(self) -> bool:
+        # Update collision object placement
+        for transform_update in self._transform_updates:
+            transform_update()
+
+        # Update all collision managers
+        # for manager in self._collision_groups:
+        #     manager.update()
+
+        # Check collision for all candidate pairs
+        for manager_1, manager_2, callback in self._requests:
+            manager_1.collide(manager_2, callback)
+            if callback.data.result.isCollision():
+                return True
+        return False
 
 
 @dataclass(unsafe_hash=True)

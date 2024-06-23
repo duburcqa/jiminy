@@ -4,7 +4,7 @@ and the application (locomotion, grasping...).
 """
 from operator import sub
 from functools import partial
-from typing import Optional, Sequence, Callable, TypeVar, Union
+from typing import Optional, Callable, TypeVar
 
 import numpy as np
 import numba as nb
@@ -12,6 +12,7 @@ import numba as nb
 from ..bases import (
     InfoType, QuantityCreator, InterfaceJiminyEnv, AbstractReward,
     QuantityReward, QuantityEvalMode, QuantityTermination)
+from ..bases.compositions import ArrayOrScalar, ArrayLikeOrScalar
 from ..quantities import (
     StackedQuantity, UnaryOpQuantity, BinaryOpQuantity, ActuatedJointsPosition)
 
@@ -19,9 +20,6 @@ from .mixin import radial_basis_function
 
 
 ValueT = TypeVar('ValueT')
-
-ArrayOrScalar = Union[np.ndarray, float, int]
-ArrayLikeOrScalar = Union[ArrayOrScalar, Sequence[Union[float, int]]]
 
 
 class SurviveReward(AbstractReward):

@@ -572,9 +572,9 @@ class AbstractQuantity(InterfaceQuantity, Generic[ValueT]):
     .. note::
         A dataset of trajectories made available through `self.trajectories`.
         The latter is synchronized because all quantities as long as shared
-        cached is available. Since the dataset is initially empty by default,
-        using `QuantityEvalMode.REFERENCE` evaluation mode requires manually
-        adding at least one trajectory to the dataset and selecting it.
+        cached is available. At least one trajectory must be added to the
+        dataset and selected prior to using `QuantityEvalMode.REFERENCE`
+        evaluation mode since the dataset is initially empty by default.
 
     .. seealso::
         See `InterfaceQuantity` documentation for details.
@@ -608,9 +608,9 @@ class AbstractQuantity(InterfaceQuantity, Generic[ValueT]):
         :param mode: Desired mode of evaluation for this quantity. If mode is
                      set to `QuantityEvalMode.TRUE`, then current simulation
                      state will be used in dynamics computations. If mode is
-                     set to `QuantityEvalMode.REFERENCE`, then at the state of
-                     some reference trajectory at the current simulation time
-                     will be used instead.
+                     set to `QuantityEvalMode.REFERENCE`, then the state at the
+                     current simulation time of the selected reference
+                     trajectory will be used instead.
         :param auto_refresh: Whether this quantity must be refreshed
                              automatically as soon as its shared cache has been
                              cleared if specified, otherwise this does nothing.
@@ -1146,7 +1146,6 @@ class StateQuantity(InterfaceQuantity[State]):
         """Compute the current state depending on the mode of evaluation, and
         make sure that kinematics and dynamics quantities are up-to-date.
         """
-        # Update state at which the quantity must be evaluated
         if self.mode == QuantityEvalMode.TRUE:
             # Update the current simulation time
             self.state.t = self.env.stepper_state.t
@@ -1158,7 +1157,6 @@ class StateQuantity(InterfaceQuantity[State]):
         else:
             self.state = self.trajectory.get()
 
-        if self.mode == QuantityEvalMode.REFERENCE:
             # Copy body external forces from stacked buffer to force vector
             has_forces = self.state.f_external is not None
             if has_forces:
@@ -1183,8 +1181,7 @@ class StateQuantity(InterfaceQuantity[State]):
                         self.trajectory.use_theoretical_model))
 
             # Restore lagrangian multipliers of the constraints if available
-            has_constraints = self.state.lambda_c is not None
-            if has_constraints:
+            if self.state.lambda_c is not None:
                 array_copyto(
                     self._constraint_lambda_batch, self.state.lambda_c)
                 multi_array_copyto(self._constraint_lambda_list,
