@@ -4,7 +4,8 @@ from .manager import QuantityManager
 from .transform import (StackedQuantity,
                         MaskedQuantity,
                         UnaryOpQuantity,
-                        BinaryOpQuantity)
+                        BinaryOpQuantity,
+                        MultiAryOpQuantity)
 from .generic import (OrientationType,
                       FrameOrientation,
                       FramePosition,
@@ -42,6 +43,7 @@ __all__ = [
     'MaskedQuantity',
     'UnaryOpQuantity',
     'BinaryOpQuantity',
+    'MultiAryOpQuantity',
     'FrameOrientation',
     'FramePosition',
     'FrameXYZQuat',
