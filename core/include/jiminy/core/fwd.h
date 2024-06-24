@@ -190,8 +190,9 @@ namespace jiminy
     };
 
     // Ground profile functors
-    using HeightmapFunction = std::function<void(
-        const Eigen::Vector2d & /* xy */, double & /* height */, Eigen::Vector3d & /* normal */)>;
+    using HeightmapFunction = std::function<void(const Eigen::Vector2d & /* xy */,
+                                                 double & /* height */,
+                                                 Eigen::Ref<Eigen::Vector3d> /* normal */)>;
 
     // Flexible joints
     struct FlexibilityJointConfig

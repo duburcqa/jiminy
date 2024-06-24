@@ -13,7 +13,7 @@ import pinocchio as pin
 
 from ..bases import (
     InfoType, QuantityCreator, InterfaceJiminyEnv, InterfaceQuantity,
-    AbstractQuantity, QuantityEvalMode, AbstractReward, QuantityReward,
+    QuantityEvalMode, AbstractReward, QuantityReward,
     AbstractTerminationCondition, QuantityTermination)
 from ..bases.compositions import ArrayOrScalar, ArrayLikeOrScalar
 from ..quantities import (
@@ -384,16 +384,14 @@ class ShiftTrackingQuantityTermination(QuantityTermination[np.ndarray]):
 
 @dataclass(unsafe_hash=True)
 class _MultiActuatedJointBoundDistance(
-        AbstractQuantity[Tuple[np.ndarray, np.ndarray]]):
+        InterfaceQuantity[Tuple[np.ndarray, np.ndarray]]):
     """Distance of the actuated joints from their respective lower and upper
     mechanical stops.
     """
 
     def __init__(self,
                  env: InterfaceJiminyEnv,
-                 parent: Optional[InterfaceQuantity],
-                 *,
-                 mode: QuantityEvalMode = QuantityEvalMode.TRUE) -> None:
+                 parent: Optional[InterfaceQuantity]) -> None:
         """
         :param env: Base or wrapped jiminy environment.
         :param parent: Higher-level quantity from which this quantity is a
@@ -406,32 +404,31 @@ class _MultiActuatedJointBoundDistance(
             parent,
             requirements=dict(
                 position=(MultiActuatedJointKinematic, dict(
-                    kinematic_level=pin.KinematicLevel.POSITION))),
-            mode=mode,
+                    kinematic_level=pin.KinematicLevel.POSITION,
+                    mode=QuantityEvalMode.TRUE))),
             auto_refresh=False)
 
         # Lower and upper bounds of the actuated joints
-        self.position_lower = np.array([])
-        self.position_upper = np.array([])
+        self.position_low, self.position_high = np.array([]), np.array([])
 
     def initialize(self) -> None:
         # Call base implementation
         super().initialize()
 
-        # Initialize the motor position indices
+        # Initialize the actuated joint position indices
         quantity = self.requirements["position"]
         quantity.initialize()
         position_indices = quantity.kinematic_indices
 
         # Refresh mechanical joint position indices
-        position_limit_lower = self.robot.pinocchio_model.lowerPositionLimit
-        self.position_lower = position_limit_lower[position_indices]
-        position_limit_upper = self.robot.pinocchio_model.upperPositionLimit
-        self.position_upper = position_limit_upper[position_indices]
+        position_limit_low = self.env.robot.pinocchio_model.lowerPositionLimit
+        self.position_low = position_limit_low[position_indices]
+        position_limit_high = self.env.robot.pinocchio_model.upperPositionLimit
+        self.position_high = position_limit_high[position_indices]
 
     def refresh(self) -> Tuple[np.ndarray, np.ndarray]:
-        return (self.position - self.position_lower,
-                self.position_upper - self.position)
+        return (self.position - self.position_low,
+                self.position_high - self.position)
 
 
 class MechanicalSafetyTermination(AbstractTerminationCondition):

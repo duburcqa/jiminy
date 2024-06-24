@@ -1076,7 +1076,7 @@ class MultiFrameCollisionDetection(InterfaceQuantity[bool]):
     the safety margin depending on whether it is positive or negative
     respectively. Therefore, the actual geometry objects do no have to be in
     contact to be stated in collision if the satefy margin is positive. On the
-    contry, the penetration depth must be large enough if the security margin
+    contrary, the penetration depth must be large enough if the security margin
     is positive.
     """
 

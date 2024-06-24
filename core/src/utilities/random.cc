@@ -678,7 +678,9 @@ namespace jiminy
         const Eigen::Rotation2D<double> rot_mat(orientation);
 
         return [size, heightMax, interpDelta, rot_mat, sparsity, interpThr, offset, seed](
-                   const Eigen::Vector2d & pos, double & height, Eigen::Vector3d & normal) -> void
+                   const Eigen::Vector2d & pos,
+                   double & height,
+                   Eigen::Ref<Eigen::Vector3d> normal) -> void
         {
             // Compute the tile index and relative coordinate
             Eigen::Vector2d posRel = (rot_mat * (pos + offset)).array() / size.array();
