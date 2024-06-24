@@ -4,7 +4,8 @@ from .manager import QuantityManager
 from .transform import (StackedQuantity,
                         MaskedQuantity,
                         UnaryOpQuantity,
-                        BinaryOpQuantity)
+                        BinaryOpQuantity,
+                        MultiAryOpQuantity)
 from .generic import (OrientationType,
                       FrameOrientation,
                       FramePosition,
@@ -17,7 +18,7 @@ from .generic import (OrientationType,
                       AverageFrameXYZQuat,
                       AverageFrameRollPitch,
                       FrameSpatialAverageVelocity,
-                      ActuatedJointsPosition)
+                      MultiActuatedJointKinematic)
 from .locomotion import (BaseOdometryPose,
                          BaseRelativeHeight,
                          BaseSpatialAverageVelocity,
@@ -42,6 +43,7 @@ __all__ = [
     'MaskedQuantity',
     'UnaryOpQuantity',
     'BinaryOpQuantity',
+    'MultiAryOpQuantity',
     'FrameOrientation',
     'FramePosition',
     'FrameXYZQuat',
@@ -64,7 +66,7 @@ __all__ = [
     'AverageBaseMomentum',
     'BaseOdometryPose',
     'BaseRelativeHeight',
-    'ActuatedJointsPosition',
+    'MultiActuatedJointKinematic',
     'CenterOfMass',
     'CapturePoint',
     'ZeroMomentPoint',

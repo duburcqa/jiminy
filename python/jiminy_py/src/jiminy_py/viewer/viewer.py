@@ -1428,7 +1428,7 @@ class Viewer:
                 for text, (robot_name, color) in zip(
                         labels, Viewer._backend_robot_colors.items()):
                     if color is not None:
-                        rgba = (*(int(e * 255) for e in color[:3]), color[3])
+                        rgba = (*[int(e * 255) for e in color[:3]], color[3])
                         color_text = f"rgba({','.join(map(str, rgba))})"
                     else:
                         color_text = "black"

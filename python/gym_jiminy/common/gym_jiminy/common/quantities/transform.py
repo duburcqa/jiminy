@@ -431,3 +431,55 @@ class BinaryOpQuantity(InterfaceQuantity[ValueT],
 
     def refresh(self) -> ValueT:
         return self.op(self.value_left, self.value_right)
+
+
+@dataclass(unsafe_hash=True)
+class MultiAryOpQuantity(InterfaceQuantity[ValueT]):
+    """Apply a given n-ary operator to the values of a given set of quantities.
+    """
+
+    quantities: Tuple[InterfaceQuantity[Any], ...]
+    """Sequence of quantities that will be forwarded to the n-ary operator in
+    this exact order.
+    """
+
+    op: Callable[[Sequence[Any]], ValueT]
+    """Callable taking the packed sequence of values for all the specified
+    quantities as input argument.
+    """
+
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 parent: Optional[InterfaceQuantity],
+                 quantities: Sequence[QuantityCreator[Any]],
+                 op: Callable[[Sequence[Any]], ValueT]) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param parent: Higher-level quantity from which this quantity is a
+                       requirement if any, `None` otherwise.
+        :param quantities: Ordered sequence of n pairs, each gathering the
+                           class of a quantity whose value must be passed as
+                           argument of the n-ary operator, plus any
+                           keyword-arguments of its constructor except 'env'
+                           and 'parent'.
+        :param op: Any callable taking the packed sequence of values for all
+                   the quantities as input argument, in the exact order they
+                   were originally specified.
+        """
+        # Backup some user argument(s)
+        self.op = op
+
+        # Call base implementation
+        super().__init__(
+            env,
+            parent,
+            requirements={
+                f"value_{i}": quantity
+                for i, quantity in enumerate(quantities)},
+            auto_refresh=False)
+
+        # Keep track of the instantiated quantities for hashing
+        self.quantities = tuple(self.requirements.values())
+
+    def refresh(self) -> ValueT:
+        return self.op([quantity.get() for quantity in self.quantities])

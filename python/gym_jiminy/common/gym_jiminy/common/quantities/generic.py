@@ -1516,34 +1516,46 @@ class FrameSpatialAverageVelocity(InterfaceQuantity[np.ndarray]):
 
 
 @dataclass(unsafe_hash=True)
-class ActuatedJointsPosition(AbstractQuantity[np.ndarray]):
-    """Concatenation of the current position of all the actuated joints
-    of the robot.
+class MultiActuatedJointKinematic(AbstractQuantity[np.ndarray]):
+    """Concatenation of the current position, velocity or acceleration of all
+    the actuated joints of the robot.
 
-    In practice, all actuated joints must be 1DoF for now. The principal angle
-    is used in case of revolute unbounded revolute joints.
-
-    .. warning::
-        Revolute unbounded joints are not supported for now.
+    In practice, all actuated joints must be 1DoF for now. In the case of
+    revolute unbounded revolute joints, the principal angle 'theta' is used to
+    encode the position, as opposed to `(cos(theta), sin(theta))`.
 
     .. warning::
         Data is extracted from the true configuration vector instead of using
         sensor data. As a result, this quantity is appropriate for computing
         reward components and termination conditions but must be avoided in
         observers and controllers.
+
+    .. warning::
+        Revolute unbounded joints are not supported for now.
+
+    """
+
+    kinematic_level: pin.KinematicLevel
+    """Kinematic level to consider, ie position, velocity or acceleration.
     """
 
     def __init__(self,
                  env: InterfaceJiminyEnv,
                  parent: Optional[InterfaceQuantity],
                  *,
+                 kinematic_level: pin.KinematicLevel = pin.POSITION,
                  mode: QuantityEvalMode = QuantityEvalMode.TRUE) -> None:
         """
         :param env: Base or wrapped jiminy environment.
         :param parent: Higher-level quantity from which this quantity is a
                        requirement if any, `None` otherwise.
+        :param kinematic_level: Desired kinematic level, ie position, velocity
+                                or acceleration.
         :param mode: Desired mode of evaluation for this quantity.
         """
+        # Backup some of the user-arguments
+        self.kinematic_level = kinematic_level
+
         # Call base implementation
         super().__init__(
             env,
@@ -1558,7 +1570,7 @@ class ActuatedJointsPosition(AbstractQuantity[np.ndarray]):
         # Note that it will only be used in last resort if it can be written as
         # a slice. Indeed, "fancy" indexing returns a copy of the original data
         # instead of a view, which requires fetching data at every refresh.
-        self.position_indices: List[int] = []
+        self.kinematic_indices: List[int] = []
 
         # Buffer storing mechanical joint positions
         self.data = np.array([])
@@ -1570,25 +1582,36 @@ class ActuatedJointsPosition(AbstractQuantity[np.ndarray]):
         # Call base implementation
         super().initialize()
 
+        # Make sure that the state data meet requirements
+        state = self.state
+        if ((self.kinematic_level == pin.ACCELERATION and state.a is None) or
+                (self.kinematic_level >= pin.VELOCITY and state.v is None)):
+            raise RuntimeError(
+                "Available state data do not meet requirements for kinematic "
+                f"level '{self.kinematic_level}'.")
+
         # Refresh mechanical joint position indices
-        self.position_indices.clear()
+        self.kinematic_indices.clear()
         for motor in self.env.robot.motors:
-            joint_index = self.pinocchio_model.getJointId(motor.joint_name)
-            joint = self.pinocchio_model.joints[joint_index]
+            joint = self.pinocchio_model.joints[motor.joint_index]
             joint_type = jiminy.get_joint_type(joint)
             if joint_type == jiminy.JointModelType.ROTARY_UNBOUNDED:
                 raise ValueError(
                     "Revolute unbounded joints are not supported for now.")
-            self.position_indices += range(joint.idx_q, joint.idx_q + joint.nq)
+            if self.kinematic_level == pin.KinematicLevel.POSITION:
+                kin_first, kin_last = joint.idx_q, joint.idx_q + joint.nq
+            else:
+                kin_first, kin_last = joint.idx_v, joint.idx_v + joint.nv
+            self.kinematic_indices += range(kin_first, kin_last)
 
         # Determine whether data can be extracted from state by reference
-        position_first = min(self.position_indices)
-        position_last = max(self.position_indices)
+        kin_first = min(self.kinematic_indices)
+        kin_last = max(self.kinematic_indices)
         self._must_refresh = True
         if self.mode == QuantityEvalMode.TRUE:
             try:
-                if (np.array(self.position_indices) == np.arange(
-                        position_first, position_last + 1)).all():
+                if (np.array(self.kinematic_indices) == np.arange(
+                        kin_first, kin_last + 1)).all():
                     self._must_refresh = False
                 else:
                     warnings.warn(
@@ -1599,13 +1622,24 @@ class ActuatedJointsPosition(AbstractQuantity[np.ndarray]):
 
         # Try extracting mechanical joint positions by reference if possible
         if self._must_refresh:
-            self.data = np.full((len(self.position_indices),), float("nan"))
+            self.data = np.full((len(self.kinematic_indices),), float("nan"))
         else:
-            self.data = self.state.q[slice(position_first, position_last + 1)]
+            if self.kinematic_level == pin.KinematicLevel.POSITION:
+                self.data = self.state.q[slice(kin_first, kin_last + 1)]
+            elif self.kinematic_level == pin.KinematicLevel.VELOCITY:
+                self.data = self.state.v[slice(kin_first, kin_last + 1)]
+            else:
+                self.data = self.state.a[slice(kin_first, kin_last + 1)]
 
     def refresh(self) -> np.ndarray:
         # Update mechanical joint positions only if necessary
         if self._must_refresh:
-            self.state.q.take(self.position_indices, None, self.data, "clip")
+            if self.kinematic_level == pin.KinematicLevel.POSITION:
+                data = self.state.q
+            elif self.kinematic_level == pin.KinematicLevel.VELOCITY:
+                data = self.state.v
+            else:
+                data = self.state.a
+            data.take(self.kinematic_indices, None, self.data, "clip")
 
         return self.data

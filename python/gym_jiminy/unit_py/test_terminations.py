@@ -18,7 +18,8 @@ from gym_jiminy.common.compositions import (
     ShiftTrackingQuantityTermination,
     BaseRollPitchTermination,
     BaseHeightTermination,
-    FootCollisionTermination)
+    FootCollisionTermination,
+    MechanicalSafetyTermination)
 
 
 class TerminationConditions(unittest.TestCase):
@@ -257,16 +258,47 @@ class TerminationConditions(unittest.TestCase):
         else:
             raise AssertionError("No collision detected.")
 
-    def test_misc(self):
-        """ TODO: Write documentation
-        """
-        termination = BaseHeightTermination(self.env, 0.5)
+    def test_safety_limits(self):
+        POSITION_MARGIN, VELOCITY_MAX = 0.05, 1.0
+        termination = MechanicalSafetyTermination(self.env, POSITION_MARGIN, VELOCITY_MAX)
 
         self.env.reset(seed=0)
+
+        position_indices, velocity_indices = [], []
+        pincocchio_model = self.env.robot.pinocchio_model
+        for motor in self.env.robot.motors:
+            joint = pincocchio_model.joints[motor.joint_index]
+            position_indices.append(joint.idx_q)
+            velocity_indices.append(joint.idx_v)
+        position_lower = pincocchio_model.lowerPositionLimit[position_indices]
+        position_lower += POSITION_MARGIN
+        position_upper = pincocchio_model.upperPositionLimit[position_indices]
+        position_upper -= POSITION_MARGIN
+
         action = self.env.action_space.sample()
         for _ in range(20):
             _, _, terminated, _, _ = self.env.step(action)
             if terminated:
                 break
             terminated, truncated = termination({})
-            assert not truncated
+            position = self.env.robot_state.q[position_indices]
+            velocity = self.env.robot_state.v[velocity_indices]
+            is_valid = np.all(
+                (position_lower <= position) | (velocity >= - VELOCITY_MAX))
+            is_valid = is_valid and np.all(
+                (position_upper >= position) | (velocity <= VELOCITY_MAX))
+            assert terminated ^ is_valid
+
+    def test_misc(self):
+        """ TODO: Write documentation
+        """
+        for termination in (
+                BaseHeightTermination(self.env, 0.5),):
+            self.env.reset(seed=0)
+            action = self.env.action_space.sample()
+            for _ in range(20):
+                _, _, terminated, _, _ = self.env.step(action)
+                if terminated:
+                    break
+                terminated, truncated = termination({})
+                assert not truncated

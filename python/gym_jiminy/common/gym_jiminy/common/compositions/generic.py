@@ -4,17 +4,21 @@ and the application (locomotion, grasping...).
 """
 from operator import sub
 from functools import partial
-from typing import Optional, Callable, TypeVar
+from dataclasses import dataclass
+from typing import Optional, Callable, Tuple, TypeVar
 
 import numpy as np
 import numba as nb
+import pinocchio as pin
 
 from ..bases import (
-    InfoType, QuantityCreator, InterfaceJiminyEnv, AbstractReward,
-    QuantityReward, QuantityEvalMode, QuantityTermination)
+    InfoType, QuantityCreator, InterfaceJiminyEnv, InterfaceQuantity,
+    AbstractQuantity, QuantityEvalMode, AbstractReward, QuantityReward,
+    AbstractTerminationCondition, QuantityTermination)
 from ..bases.compositions import ArrayOrScalar, ArrayLikeOrScalar
 from ..quantities import (
-    StackedQuantity, UnaryOpQuantity, BinaryOpQuantity, ActuatedJointsPosition)
+    StackedQuantity, UnaryOpQuantity, BinaryOpQuantity,
+    MultiActuatedJointKinematic)
 
 from .mixin import radial_basis_function
 
@@ -133,7 +137,9 @@ class TrackingActuatedJointPositionsReward(TrackingQuantityReward):
         super().__init__(
             env,
             "reward_actuated_joint_positions",
-            lambda mode: (ActuatedJointsPosition, dict(mode=mode)),
+            lambda mode: (MultiActuatedJointKinematic, dict(
+                kinematic_level=pin.KinematicLevel.POSITION,
+                mode=mode)),
             cutoff)
 
 
@@ -239,7 +245,7 @@ class DriftTrackingQuantityTermination(QuantityTermination):
                          is_training_only=is_training_only)
 
 
-class ShiftTrackingQuantityTermination(QuantityTermination):
+class ShiftTrackingQuantityTermination(QuantityTermination[np.ndarray]):
     """Base class to derive termination condition from the shift between the
     current and reference values of a given quantity.
 
@@ -348,7 +354,7 @@ class ShiftTrackingQuantityTermination(QuantityTermination):
                          name,
                          shift_tracking_quantity,  # type: ignore[arg-type]
                          None,
-                         thr,
+                         np.array(thr),
                          grace_period,
                          is_truncation=is_truncation,
                          is_training_only=is_training_only)
@@ -374,3 +380,151 @@ class ShiftTrackingQuantityTermination(QuantityTermination):
                       passed as right-hand side of the binary operator 'op'.
         """
         return self._min_norm(self.op(left, right))
+
+
+@dataclass(unsafe_hash=True)
+class _MultiActuatedJointBoundDistance(
+        AbstractQuantity[Tuple[np.ndarray, np.ndarray]]):
+    """Distance of the actuated joints from their respective lower and upper
+    mechanical stops.
+    """
+
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 parent: Optional[InterfaceQuantity],
+                 *,
+                 mode: QuantityEvalMode = QuantityEvalMode.TRUE) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param parent: Higher-level quantity from which this quantity is a
+                       requirement if any, `None` otherwise.
+        :param mode: Desired mode of evaluation for this quantity.
+        """
+        # Call base implementation
+        super().__init__(
+            env,
+            parent,
+            requirements=dict(
+                position=(MultiActuatedJointKinematic, dict(
+                    kinematic_level=pin.KinematicLevel.POSITION))),
+            mode=mode,
+            auto_refresh=False)
+
+        # Lower and upper bounds of the actuated joints
+        self.position_lower = np.array([])
+        self.position_upper = np.array([])
+
+    def initialize(self) -> None:
+        # Call base implementation
+        super().initialize()
+
+        # Initialize the motor position indices
+        quantity = self.requirements["position"]
+        quantity.initialize()
+        position_indices = quantity.kinematic_indices
+
+        # Refresh mechanical joint position indices
+        position_limit_lower = self.robot.pinocchio_model.lowerPositionLimit
+        self.position_lower = position_limit_lower[position_indices]
+        position_limit_upper = self.robot.pinocchio_model.upperPositionLimit
+        self.position_upper = position_limit_upper[position_indices]
+
+    def refresh(self) -> Tuple[np.ndarray, np.ndarray]:
+        return (self.position - self.position_lower,
+                self.position_upper - self.position)
+
+
+class MechanicalSafetyTermination(AbstractTerminationCondition):
+    """Discouraging the agent from hitting the mechanical stops by immediately
+    terminating the episode if the articulated joints approach them at
+    excessive speed.
+
+    Hitting the lower and upper mechanical stops is inconvenient but forbidding
+    it completely is not desirable as it induces safety margins that constrain
+    the problem too strictly. This is particularly true when the maximum motor
+    torque becomes increasingly limited and PD controllers are being used for
+    low-level motor control, which turns out to be the case in most instances.
+    Overall, such an hard constraint would impede performance while completing
+    the task successfully remains the highest priority. Still, the impact
+    velocity must be restricted to prevent destructive damage. It is
+    recommended to estimate an acceptable thresholdfrom real experimental data.
+    """
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 position_margin: float,
+                 velocity_max: float,
+                 grace_period: float = 0.0,
+                 *,
+                 is_training_only: bool = False) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param position_margin: Distance of actuated joints from their
+                                respective mechanical bounds below which
+                                their speed is being watched.
+        :param velocity_max: Maximum velocity above which further approaching
+                             the mechanical stops triggers termination when
+                             watched for being close from them.
+        :param grace_period: Grace period effective only at the very beginning
+                             of the episode, during which the latter is bound
+                             to continue whatever happens.
+                             Optional: 0.0 by default.
+        :param is_training_only: Whether the termination condition should be
+                                 completely by-passed if the environment is in
+                                 evaluation mode.
+                                 Optional: False by default.
+        """
+        # Backup user argument(s)
+        self.position_margin = position_margin
+        self.velocity_max = velocity_max
+
+        # Call base implementation
+        super().__init__(
+            env,
+            "termination_mechanical_safety",
+            grace_period,
+            is_truncation=False,
+            is_training_only=is_training_only)
+
+        # Add quantity to the set of quantities managed by the environment
+        self.env.quantities["_".join((self.name, "position_delta"))] = (
+            _MultiActuatedJointBoundDistance, {})
+        self.env.quantities["_".join((self.name, "velocity"))] = (
+            MultiActuatedJointKinematic, dict(
+                kinematic_level=pin.KinematicLevel.VELOCITY))
+
+        # Keep track of the underlying quantities
+        registry = self.env.quantities.registry
+        self.position_delta = registry["_".join((self.name, "position_delta"))]
+        self.velocity = registry["_".join((self.name, "velocity"))]
+
+    def __del__(self) -> None:
+        try:
+            for field in ("position_delta", "velocity"):
+                if hasattr(self, field):
+                    del self.env.quantities["_".join((self.name, field))]
+        except Exception:   # pylint: disable=broad-except
+            # This method must not fail under any circumstances
+            pass
+
+    def compute(self, info: InfoType) -> bool:
+        """Evaluate the termination condition.
+
+        The underlying quantity is first evaluated. The episode continues if
+        its value is within bounds, otherwise the episode is either truncated
+        or terminated according to 'is_truncation'.
+
+        .. warning::
+            This method is not meant to be overloaded.
+        """
+        # Evaluate the quantity
+        position_delta_low, position_delta_high = self.position_delta.get()
+        velocity = self.velocity.get()
+
+        # Check if the robot is going to hit the mechanical stops at high speed
+        is_done = any(
+            (position_delta_low < self.position_margin) &
+            (velocity < - self.velocity_max))
+        is_done |= any(
+            (position_delta_high < self.position_margin) &
+            (velocity > self.velocity_max))
+        return is_done

@@ -30,7 +30,7 @@ from gym_jiminy.common.quantities import (
     BaseOdometryAverageVelocity,
     BaseRelativeHeight,
     AverageBaseMomentum,
-    ActuatedJointsPosition,
+    MultiActuatedJointKinematic,
     CenterOfMass,
     CapturePoint,
     ZeroMomentPoint,
@@ -332,7 +332,11 @@ class Quantities(unittest.TestCase):
                     mode=mode)),
                 lambda mode: (BaseOdometryAverageVelocity, dict(
                     mode=mode)),
-                lambda mode: (ActuatedJointsPosition, dict(
+                lambda mode: (MultiActuatedJointKinematic, dict(
+                    kinematic_level=pin.KinematicLevel.POSITION,
+                    mode=mode)),
+                lambda mode: (MultiActuatedJointKinematic, dict(
+                    kinematic_level=pin.KinematicLevel.VELOCITY,
                     mode=mode)),
                 lambda mode: (CenterOfMass, dict(
                     kinematic_level=pin.KinematicLevel.ACCELERATION,
@@ -427,25 +431,40 @@ class Quantities(unittest.TestCase):
         np.testing.assert_allclose(
             env.quantities["base_momentum"], angular_momentum)
 
-    def test_motor_positions(self):
+    def test_actuated_joints_kinematic(self):
         """ TODO: Write documentation
         """
         env = gym.make("gym_jiminy.envs:atlas")
 
-        env.quantities["actuated_joint_positions"] = (
-            ActuatedJointsPosition, dict(mode=QuantityEvalMode.TRUE))
+        for level in (
+                pin.KinematicLevel.POSITION,
+                pin.KinematicLevel.VELOCITY,
+                pin.KinematicLevel.ACCELERATION):
+            env.quantities[f"actuated_joint_{level}"] = (
+                MultiActuatedJointKinematic, dict(
+                    kinematic_level=level,
+                    mode=QuantityEvalMode.TRUE))
 
-        env.reset(seed=0)
-        env.step(env.action_space.sample())
+            env.reset(seed=0)
+            env.step(env.action_space.sample())
 
-        position_indices = []
-        for motor in env.robot.motors:
-            joint = env.robot.pinocchio_model.joints[motor.joint_index]
-            position_indices += range(joint.idx_q, joint.idx_q + joint.nq)
+            kinematic_indices = []
+            for motor in env.robot.motors:
+                joint = env.robot.pinocchio_model.joints[motor.joint_index]
+                if level == pin.KinematicLevel.POSITION:
+                    kin_first, kin_last = joint.idx_q, joint.idx_q + joint.nq
+                else:
+                    kin_first, kin_last = joint.idx_v, joint.idx_v + joint.nv
+                kinematic_indices += range(kin_first, kin_last)
+            if level == pin.KinematicLevel.POSITION:
+                value = env.robot_state.q[kinematic_indices]
+            elif level == pin.KinematicLevel.VELOCITY:
+                value = env.robot_state.v[kinematic_indices]
+            else:
+                value = env.robot_state.a[kinematic_indices]
 
-        np.testing.assert_allclose(
-            env.quantities["actuated_joint_positions"],
-            env.robot_state.q[position_indices])
+            np.testing.assert_allclose(
+                env.quantities[f"actuated_joint_{level}"], value)
 
     def test_capture_point(self):
         """ TODO: Write documentation
