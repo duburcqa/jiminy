@@ -20,7 +20,7 @@ from playwright._impl._driver import compute_driver_executable, get_driver_env
 
 
 PLAYWRIGHT_DOWNLOAD_TIMEOUT = 180.0  # 3min to download browser (~130Mo)
-PLAYWRIGHT_START_TIMEOUT = 40000.0   # 40s
+PLAYWRIGHT_START_TIMEOUT = 60000.0   # 60s
 
 WINDOW_SIZE_DEFAULT = (600, 600)
 

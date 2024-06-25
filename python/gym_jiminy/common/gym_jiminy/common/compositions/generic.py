@@ -17,8 +17,8 @@ from ..bases import (
     AbstractTerminationCondition, QuantityTermination)
 from ..bases.compositions import ArrayOrScalar, ArrayLikeOrScalar
 from ..quantities import (
-    StackedQuantity, UnaryOpQuantity, BinaryOpQuantity,
-    MultiActuatedJointKinematic)
+    EnergyGenerationMode, StackedQuantity, UnaryOpQuantity, BinaryOpQuantity,
+    MultiActuatedJointKinematic, AveragePowerConsumption)
 
 from .mixin import radial_basis_function
 
@@ -139,6 +139,7 @@ class TrackingActuatedJointPositionsReward(TrackingQuantityReward):
             "reward_actuated_joint_positions",
             lambda mode: (MultiActuatedJointKinematic, dict(
                 kinematic_level=pin.KinematicLevel.POSITION,
+                is_motor_side=False,
                 mode=mode)),
             cutoff)
 
@@ -164,7 +165,7 @@ class DriftTrackingQuantityTermination(QuantityTermination):
                     [QuantityEvalMode], QuantityCreator[ArrayOrScalar]],
                  low: Optional[ArrayLikeOrScalar],
                  high: Optional[ArrayLikeOrScalar],
-                 max_stack: int,
+                 horizon: float,
                  grace_period: float = 0.0,
                  *,
                  op: Callable[
@@ -187,9 +188,8 @@ class DriftTrackingQuantityTermination(QuantityTermination):
                                  'env' and 'parent'.
         :param low: Lower bound below which termination is triggered.
         :param high: Upper bound above which termination is triggered.
-        :param max_stack: Horizon over which values of the quantity will be
-                          stacked if desired. 1 to disable.
-                          Optional: 1 by default.
+        :param horizon: Horizon over which values of the quantity will be
+                        stacked before computing the drift.
         :param grace_period: Grace period effective only at the very beginning
                              of the episode, during which the latter is bound
                              to continue whatever happens.
@@ -210,6 +210,9 @@ class DriftTrackingQuantityTermination(QuantityTermination):
                                  Optional: False by default.
         """
         # pylint: disable=unnecessary-lambda-assignment
+
+        # Convert horizon in stack length, assuming constant env timestep
+        max_stack = max(int(np.ceil(horizon / env.step_dt)), 1)
 
         # Backup user argument(s)
         self.max_stack = max_stack
@@ -265,7 +268,7 @@ class ShiftTrackingQuantityTermination(QuantityTermination[np.ndarray]):
                  quantity_creator: Callable[
                     [QuantityEvalMode], QuantityCreator[ArrayOrScalar]],
                  thr: float,
-                 max_stack: int,
+                 horizon: float,
                  grace_period: float = 0.0,
                  *,
                  op: Callable[[np.ndarray, np.ndarray], np.ndarray] = sub,
@@ -287,9 +290,8 @@ class ShiftTrackingQuantityTermination(QuantityTermination[np.ndarray]):
                                  'env' and 'parent'.
         :param thr: Termination is triggered if the shift exceeds this
                     threshold.
-        :param max_stack: Horizon over which values of the quantity will be
-                          stacked if desired. 1 to disable.
-                          Optional: 1 by default.
+        :param horizon: Horizon over which values of the quantity will be
+                        stacked before computing the shift.
         :param grace_period: Grace period effective only at the very beginning
                              of the episode, during which the latter is bound
                              to continue whatever happens.
@@ -314,6 +316,9 @@ class ShiftTrackingQuantityTermination(QuantityTermination[np.ndarray]):
                                  Optional: False by default.
         """
         # pylint: disable=unnecessary-lambda-assignment
+
+        # Convert horizon in stack length, assuming constant env timestep
+        max_stack = max(int(np.ceil(horizon / env.step_dt)), 1)
 
         # Backup user argument(s)
         self.max_stack = max_stack
@@ -405,6 +410,7 @@ class _MultiActuatedJointBoundDistance(
             requirements=dict(
                 position=(MultiActuatedJointKinematic, dict(
                     kinematic_level=pin.KinematicLevel.POSITION,
+                    is_motor_side=False,
                     mode=QuantityEvalMode.TRUE))),
             auto_refresh=False)
 
@@ -487,7 +493,8 @@ class MechanicalSafetyTermination(AbstractTerminationCondition):
             _MultiActuatedJointBoundDistance, {})
         self.env.quantities["_".join((self.name, "velocity"))] = (
             MultiActuatedJointKinematic, dict(
-                kinematic_level=pin.KinematicLevel.VELOCITY))
+                kinematic_level=pin.KinematicLevel.VELOCITY,
+                is_motor_side=False))
 
         # Keep track of the underlying quantities
         registry = self.env.quantities.registry
@@ -525,3 +532,57 @@ class MechanicalSafetyTermination(AbstractTerminationCondition):
             (position_delta_high < self.position_margin) &
             (velocity > self.velocity_max))
         return is_done
+
+
+class PowerConsumptionTermination(QuantityTermination):
+    """Terminate the episode immediately if the average mechanical power
+    consumption is too high.
+
+    High power consumption is undesirable as it means that the motion is
+    suboptimal and probably unnatural and fragile. Moreover, it helps to
+    accommodate hardware capability to avoid motor overheating while increasing
+    battery autonomy and lifespan. Finally, it may be necessary to deal with
+    some hardware limitations on max power drain.
+    """
+    def __init__(
+            self,
+            env: InterfaceJiminyEnv,
+            max_power: float,
+            horizon: float,
+            generator_mode: EnergyGenerationMode = EnergyGenerationMode.CHARGE,
+            grace_period: float = 0.0,
+            *,
+            is_training_only: bool = False) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param max_power: Maximum average mechanical power consumption applied
+                          on any of the contact points or collision bodies
+                          above which termination is triggered.
+        :param grace_period: Grace period effective only at the very beginning
+                             of the episode, during which the latter is bound
+                             to continue whatever happens.
+                             Optional: 0.0 by default.
+        :param horizon: Horizon over which values of the quantity will be
+                        stacked before computing the average.
+        :param is_training_only: Whether the termination condition should be
+                                 completely by-passed if the environment is in
+                                 evaluation mode.
+                                 Optional: False by default.
+        """
+        # Backup user argument(s)
+        self.max_power = max_power
+        self.horizon = horizon
+        self.generator_mode = generator_mode
+
+        # Call base implementation
+        super().__init__(
+            env,
+            "termination_power_consumption",
+            (AveragePowerConsumption, dict(  # type: ignore[arg-type]
+                horizon=self.horizon,
+                generator_mode=self.generator_mode)),
+            None,
+            self.max_power,
+            grace_period,
+            is_truncation=False,
+            is_training_only=is_training_only)

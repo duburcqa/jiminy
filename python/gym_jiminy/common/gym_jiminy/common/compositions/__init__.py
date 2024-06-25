@@ -9,7 +9,8 @@ from .generic import (TrackingQuantityReward,
                       SurviveReward,
                       DriftTrackingQuantityTermination,
                       ShiftTrackingQuantityTermination,
-                      MechanicalSafetyTermination)
+                      MechanicalSafetyTermination,
+                      PowerConsumptionTermination)
 from .locomotion import (TrackingBaseHeightReward,
                          TrackingBaseOdometryVelocityReward,
                          TrackingCapturePointReward,
@@ -21,7 +22,8 @@ from .locomotion import (TrackingBaseHeightReward,
                          BaseRollPitchTermination,
                          BaseHeightTermination,
                          FootCollisionTermination,
-                         FlyingTermination)
+                         FlyingTermination,
+                         ImpactForceTermination)
 
 __all__ = [
     "CUTOFF_ESP",
@@ -42,8 +44,10 @@ __all__ = [
     "DriftTrackingQuantityTermination",
     "ShiftTrackingQuantityTermination",
     "MechanicalSafetyTermination",
+    "PowerConsumptionTermination",
     "FlyingTermination",
     "BaseRollPitchTermination",
     "BaseHeightTermination",
-    "FootCollisionTermination"
+    "FootCollisionTermination",
+    "ImpactForceTermination"
 ]

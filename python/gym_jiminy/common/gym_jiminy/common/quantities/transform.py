@@ -72,10 +72,10 @@ class StackedQuantity(
         ...
 
     @overload
-    def __init__(self: "StackedQuantity[np.ndarray, np.ndarray]",
+    def __init__(self: "StackedQuantity[Union[np.ndarray, float], np.ndarray]",
                  env: InterfaceJiminyEnv,
                  parent: Optional[InterfaceQuantity],
-                 quantity: QuantityCreator[np.ndarray],
+                 quantity: QuantityCreator[Union[np.ndarray, float]],
                  *,
                  max_stack: Optional[int],
                  as_array: Literal[True],
@@ -188,11 +188,11 @@ class StackedQuantity(
                     raise RuntimeError(
                         "Previous step missing in the stack. Please reset the "
                         "environmentafter adding this quantity.")
-                if self.as_array:
-                    value = self.data.copy()
+                value = self.data
+                if isinstance(value, np.ndarray):
+                    self._deque.append(value.copy())
                 else:
-                    value = deepcopy(self.data)
-                self._deque.append(value)
+                    self._deque.append(deepcopy(value))
                 self._num_steps_prev += 1
 
         # Aggregate data in contiguous array only if requested

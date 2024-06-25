@@ -20,7 +20,9 @@ from gym_jiminy.common.compositions import (
     BaseHeightTermination,
     FootCollisionTermination,
     MechanicalSafetyTermination,
-    FlyingTermination)
+    FlyingTermination,
+    ImpactForceTermination,
+    PowerConsumptionTermination)
 
 
 class TerminationConditions(unittest.TestCase):
@@ -87,7 +89,7 @@ class TerminationConditions(unittest.TestCase):
                         mode=mode)),
                     low=low,
                     high=high,
-                    max_stack=8,
+                    horizon=0.3,
                     grace_period=0.2,
                     op=op,
                     is_truncation=is_truncation,
@@ -158,7 +160,7 @@ class TerminationConditions(unittest.TestCase):
                         frame_name="root_joint",
                         mode=mode)),
                     thr=thr,
-                    max_stack=8,
+                    horizon=0.3,
                     grace_period=0.2,
                     op=op,
                     is_truncation=is_truncation,
@@ -321,12 +323,13 @@ class TerminationConditions(unittest.TestCase):
         """ TODO: Write documentation
         """
         for termination in (
-                BaseHeightTermination(self.env, 0.5),):
+                BaseHeightTermination(self.env, 0.6),
+                ImpactForceTermination(self.env, 1.0),
+                PowerConsumptionTermination(self.env, 400.0, 1.0),):
             self.env.reset(seed=0)
+            self.env.eval()
             action = self.env.action_space.sample()
             for _ in range(20):
                 _, _, terminated, _, _ = self.env.step(action)
-                if terminated:
-                    break
                 terminated, truncated = termination({})
                 assert not truncated

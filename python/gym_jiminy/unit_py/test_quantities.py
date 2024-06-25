@@ -15,27 +15,29 @@ from gym_jiminy.common.utils import (
     remove_yaw_from_quat)
 from gym_jiminy.common.bases import QuantityEvalMode, DatasetTrajectoryQuantity
 from gym_jiminy.common.quantities import (
+    EnergyGenerationMode,
     OrientationType,
     QuantityManager,
     StackedQuantity,
-    FrameOrientation,
-    MultiFrameOrientation,
-    FrameXYZQuat,
-    MultiFrameMeanXYZQuat,
     MaskedQuantity,
+    MultiFrameMeanXYZQuat,
+    MultiFrameOrientation,
     MultiFootMeanOdometryPose,
     MultiFootRelativeXYZQuat,
     MultiFrameCollisionDetection,
+    MultiActuatedJointKinematic,
+    MultiContactNormalizedSpatialForce,
+    MultiFootNormalizedForceVertical,
+    FrameOrientation,
+    FrameXYZQuat,
     FrameSpatialAverageVelocity,
     BaseOdometryAverageVelocity,
     BaseRelativeHeight,
     AverageBaseMomentum,
-    MultiActuatedJointKinematic,
+    AveragePowerConsumption,
     CenterOfMass,
     CapturePoint,
-    ZeroMomentPoint,
-    MultiContactNormalizedForceTangential,
-    MultiFootNormalizedForceVertical)
+    ZeroMomentPoint)
 
 
 class Quantities(unittest.TestCase):
@@ -334,9 +336,11 @@ class Quantities(unittest.TestCase):
                     mode=mode)),
                 lambda mode: (MultiActuatedJointKinematic, dict(
                     kinematic_level=pin.KinematicLevel.POSITION,
+                    is_motor_side=False,
                     mode=mode)),
                 lambda mode: (MultiActuatedJointKinematic, dict(
                     kinematic_level=pin.KinematicLevel.VELOCITY,
+                    is_motor_side=True,
                     mode=mode)),
                 lambda mode: (CenterOfMass, dict(
                     kinematic_level=pin.KinematicLevel.ACCELERATION,
@@ -434,16 +438,23 @@ class Quantities(unittest.TestCase):
     def test_actuated_joints_kinematic(self):
         """ TODO: Write documentation
         """
-        env = gym.make("gym_jiminy.envs:atlas")
+        env = gym.make("gym_jiminy.envs:cassie")
 
         for level in (
                 pin.KinematicLevel.POSITION,
                 pin.KinematicLevel.VELOCITY,
                 pin.KinematicLevel.ACCELERATION):
-            env.quantities[f"actuated_joint_{level}"] = (
+            env.quantities[f"joint_{level}"] = (
                 MultiActuatedJointKinematic, dict(
                     kinematic_level=level,
+                    is_motor_side=False,
                     mode=QuantityEvalMode.TRUE))
+            if level < 2:
+                env.quantities[f"motor_{level}"] = (
+                    MultiActuatedJointKinematic, dict(
+                        kinematic_level=level,
+                        is_motor_side=True,
+                        mode=QuantityEvalMode.TRUE))
 
             env.reset(seed=0)
             env.step(env.action_space.sample())
@@ -457,14 +468,18 @@ class Quantities(unittest.TestCase):
                     kin_first, kin_last = joint.idx_v, joint.idx_v + joint.nv
                 kinematic_indices += range(kin_first, kin_last)
             if level == pin.KinematicLevel.POSITION:
-                value = env.robot_state.q[kinematic_indices]
+                joint_value = env.robot_state.q[kinematic_indices]
             elif level == pin.KinematicLevel.VELOCITY:
-                value = env.robot_state.v[kinematic_indices]
+                joint_value = env.robot_state.v[kinematic_indices]
             else:
-                value = env.robot_state.a[kinematic_indices]
+                joint_value = env.robot_state.a[kinematic_indices]
+            encoder_data = env.robot.sensor_measurements["EncoderSensor"]
 
             np.testing.assert_allclose(
-                env.quantities[f"actuated_joint_{level}"], value)
+                env.quantities[f"joint_{level}"], joint_value)
+            if level < 2:
+                np.testing.assert_allclose(
+                    env.quantities[f"motor_{level}"], encoder_data[level])
 
     def test_capture_point(self):
         """ TODO: Write documentation
@@ -592,13 +607,13 @@ class Quantities(unittest.TestCase):
         np.testing.assert_allclose(value[:3], pos_rel[:, :-1])
         np.testing.assert_allclose(value[-4:], quat_rel[:, :-1])
 
-    def test_tangential_forces(self):
+    def test_contact_spatial_forces(self):
         """ TODO: Write documentation
         """
         env = gym.make("gym_jiminy.envs:atlas")
 
-        env.quantities["force_tangential_rel"] = (
-            MultiContactNormalizedForceTangential, {})
+        env.quantities["force_spatial_rel"] = (
+            MultiContactNormalizedSpatialForce, {})
 
         env.reset(seed=0)
         for _ in range(10):
@@ -606,14 +621,14 @@ class Quantities(unittest.TestCase):
 
         gravity = abs(env.robot.pinocchio_model.gravity.linear[2])
         robot_weight = env.robot.pinocchio_data.mass[0] * gravity
-        force_tangential_rel = np.stack(tuple(
-            constraint.lambda_c[:2]
-            for constraint in env.robot.constraints.contact_frames.values()),
+        force_spatial_rel = np.stack(tuple(np.concatenate(
+            (constraint.lambda_c[:3], np.zeros((2,)), constraint.lambda_c[[3]])
+            ) for constraint in env.robot.constraints.contact_frames.values()),
             axis=-1) / robot_weight
         np.testing.assert_allclose(
-            force_tangential_rel, env.quantities["force_tangential_rel"])
+            force_spatial_rel, env.quantities["force_spatial_rel"])
 
-    def test_vertical_forces(self):
+    def test_foot_vertical_forces(self):
         """ TODO: Write documentation
         """
         env = gym.make("gym_jiminy.envs:atlas-pid")
@@ -683,3 +698,43 @@ class Quantities(unittest.TestCase):
         else:
             raise AssertionError("No collision detected.")
 
+    def test_power_consumption(self):
+        env = gym.make("gym_jiminy.envs:cassie")
+
+        for mode in (
+                EnergyGenerationMode.CHARGE,
+                EnergyGenerationMode.LOST_EACH,
+                EnergyGenerationMode.LOST_GLOBAL,
+                EnergyGenerationMode.PENALIZE):
+            env.quantities["mean_power_consumption"] = (
+                AveragePowerConsumption, dict(
+                    horizon=0.2,
+                    generator_mode=mode))
+            quantity = env.quantities.registry["mean_power_consumption"]
+            env.reset(seed=0)
+
+            total_power_stack = [0.0,] * quantity.max_stack
+            encoder_data = env.robot.sensor_measurements["EncoderSensor"]
+            _, motor_velocities = encoder_data
+            for _ in range(8):
+                motor_efforts = 0.1 * env.action_space.sample()
+                env.step(motor_efforts)
+
+                motor_powers = motor_efforts * motor_velocities
+                if mode == EnergyGenerationMode.CHARGE:
+                    total_power = np.sum(motor_powers)
+                elif mode == EnergyGenerationMode.LOST_EACH:
+                    total_power = np.sum(np.maximum(motor_powers, 0.0))
+                elif mode == EnergyGenerationMode.LOST_GLOBAL:
+                    total_power = max(np.sum(motor_powers), 0.0)
+                else:
+                    total_power = np.sum(np.abs(motor_powers))
+                total_power_stack.append(total_power)
+                mean_total_power = np.mean(
+                    total_power_stack[-quantity.max_stack:])
+
+                np.testing.assert_allclose(
+                    total_power, quantity.total_power_stack[-1])
+                np.testing.assert_allclose(mean_total_power, quantity.get())
+
+            del env.quantities["mean_power_consumption"]
