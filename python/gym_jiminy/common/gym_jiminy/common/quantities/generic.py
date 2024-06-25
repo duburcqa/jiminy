@@ -27,7 +27,8 @@ from ..utils import (
     matrix_to_rpy, matrix_to_quat, quat_apply, remove_yaw_from_quat,
     quat_interpolate_middle)
 
-from .transform import StackedQuantity, MaskedQuantity
+from .transform import (
+    StackedQuantity, MaskedQuantity, UnaryOpQuantity, BinaryOpQuantity)
 
 
 @runtime_checkable
@@ -315,7 +316,7 @@ class _BatchedFramesOrientation(
     """
 
     mode: QuantityEvalMode
-    """Specify on which state to evaluate this quantity. See `Mode`
+    """Specify on which state to evaluate this quantity. See `QuantityEvalMode`
     documentation for details about each mode.
 
     .. warning::
@@ -440,7 +441,7 @@ class FrameOrientation(InterfaceQuantity[np.ndarray]):
     """
 
     mode: QuantityEvalMode
-    """Specify on which state to evaluate this quantity. See `Mode`
+    """Specify on which state to evaluate this quantity. See `QuantityEvalMode`
     documentation for details about each mode.
 
     .. warning::
@@ -515,7 +516,7 @@ class MultiFrameOrientation(InterfaceQuantity[np.ndarray]):
     """
 
     mode: QuantityEvalMode
-    """Specify on which state to evaluate this quantity. See `Mode`
+    """Specify on which state to evaluate this quantity. See `QuantityEvalMode`
     documentation for details about each mode.
 
     .. warning::
@@ -682,7 +683,7 @@ class FramePosition(InterfaceQuantity[np.ndarray]):
     """
 
     mode: QuantityEvalMode
-    """Specify on which state to evaluate this quantity. See `Mode`
+    """Specify on which state to evaluate this quantity. See `QuantityEvalMode`
     documentation for details about each mode.
 
     .. warning::
@@ -742,7 +743,7 @@ class MultiFramePosition(InterfaceQuantity[np.ndarray]):
     """
 
     mode: QuantityEvalMode
-    """Specify on which state to evaluate this quantity. See `Mode`
+    """Specify on which state to evaluate this quantity. See `QuantityEvalMode`
     documentation for details about each mode.
 
     .. warning::
@@ -806,7 +807,7 @@ class FrameXYZQuat(InterfaceQuantity[np.ndarray]):
     """
 
     mode: QuantityEvalMode
-    """Specify on which state to evaluate this quantity. See `Mode`
+    """Specify on which state to evaluate this quantity. See `QuantityEvalMode`
     documentation for details about each mode.
 
     .. warning::
@@ -871,7 +872,7 @@ class MultiFrameXYZQuat(InterfaceQuantity[np.ndarray]):
     """
 
     mode: QuantityEvalMode
-    """Specify on which state to evaluate this quantity. See `Mode`
+    """Specify on which state to evaluate this quantity. See `QuantityEvalMode`
     documentation for details about each mode.
 
     .. warning::
@@ -949,7 +950,7 @@ class MultiFrameMeanXYZQuat(InterfaceQuantity[np.ndarray]):
     """
 
     mode: QuantityEvalMode
-    """Specify on which state to evaluate this quantity. See `Mode`
+    """Specify on which state to evaluate this quantity. See `QuantityEvalMode`
     documentation for details about each mode.
 
     .. warning::
@@ -1141,6 +1142,9 @@ class MultiFrameCollisionDetection(InterfaceQuantity[bool]):
         # Call base implementation
         super().initialize()
 
+        # Define robot proxy for convenience
+        robot = self.env.robot
+
         # Clear all collision managers
         for manager in self._collision_groups:
             manager.clear()
@@ -1148,19 +1152,18 @@ class MultiFrameCollisionDetection(InterfaceQuantity[bool]):
         # Get the list of parent joint indices mapping
         frame_indices_map: Dict[int, int] = {}
         for i, frame_name in enumerate(self.frame_names):
-            frame_index = self.env.robot.pinocchio_model.getFrameId(frame_name)
-            frame = self.env.robot.pinocchio_model.frames[frame_index]
+            frame_index = robot.pinocchio_model.getFrameId(frame_name)
+            frame = robot.pinocchio_model.frames[frame_index]
             frame_indices_map[frame.parent] = i
 
         # Add collision objects to their corresponding manager
         self._transform_updates.clear()
-        for i, geom in enumerate(
-                self.env.robot.collision_model.geometryObjects):
+        for i, geom in enumerate(robot.collision_model.geometryObjects):
             j = frame_indices_map.get(geom.parentJoint)
             if j is not None:
                 obj = fcl.CollisionObject(geom.geometry)
                 self._collision_groups[j].registerObject(obj)
-                pose = self.env.robot.collision_data.oMg[i]
+                pose = robot.collision_data.oMg[i]
                 translation, rotation = pose.translation, pose.rotation
                 self._transform_updates += (
                     partial(obj.setTranslation, translation),
@@ -1205,7 +1208,7 @@ class _DifferenceFrameXYZQuat(InterfaceQuantity[np.ndarray]):
     """
 
     mode: QuantityEvalMode
-    """Specify on which state to evaluate this quantity. See `Mode`
+    """Specify on which state to evaluate this quantity. See `QuantityEvalMode`
     documentation for details about each mode.
 
     .. warning::
@@ -1294,7 +1297,7 @@ class AverageFrameXYZQuat(InterfaceQuantity[np.ndarray]):
     """
 
     mode: QuantityEvalMode
-    """Specify on which state to evaluate this quantity. See `Mode`
+    """Specify on which state to evaluate this quantity. See `QuantityEvalMode`
     documentation for details about each mode.
 
     .. warning::
@@ -1358,7 +1361,7 @@ class AverageFrameRollPitch(InterfaceQuantity[np.ndarray]):
     """
 
     mode: QuantityEvalMode
-    """Specify on which state to evaluate this quantity. See `Mode`
+    """Specify on which state to evaluate this quantity. See `QuantityEvalMode`
     documentation for details about each mode.
 
     .. warning::
@@ -1438,7 +1441,7 @@ class FrameSpatialAverageVelocity(InterfaceQuantity[np.ndarray]):
     """
 
     mode: QuantityEvalMode
-    """Specify on which state to evaluate this quantity. See `Mode`
+    """Specify on which state to evaluate this quantity. See `QuantityEvalMode`
     documentation for details about each mode.
 
     .. warning::
@@ -1517,12 +1520,12 @@ class FrameSpatialAverageVelocity(InterfaceQuantity[np.ndarray]):
 
 @dataclass(unsafe_hash=True)
 class MultiActuatedJointKinematic(AbstractQuantity[np.ndarray]):
-    """Concatenation of the current position, velocity or acceleration of all
-    the actuated joints of the robot.
+    """Current position, velocity or acceleration of all the actuated joints
+    of the robot before or after the mechanical transmissions.
 
     In practice, all actuated joints must be 1DoF for now. In the case of
     revolute unbounded revolute joints, the principal angle 'theta' is used to
-    encode the position, as opposed to `(cos(theta), sin(theta))`.
+    encode the position, not the polar coordinates `(cos(theta), sin(theta))`.
 
     .. warning::
         Data is extracted from the true configuration vector instead of using
@@ -1532,11 +1535,15 @@ class MultiActuatedJointKinematic(AbstractQuantity[np.ndarray]):
 
     .. warning::
         Revolute unbounded joints are not supported for now.
-
     """
 
     kinematic_level: pin.KinematicLevel
     """Kinematic level to consider, ie position, velocity or acceleration.
+    """
+
+    is_motor_side: bool
+    """Whether the compute kinematic data on motor- or joint-side, ie before or
+    after their respective mechanical transmision.
     """
 
     def __init__(self,
@@ -1544,6 +1551,7 @@ class MultiActuatedJointKinematic(AbstractQuantity[np.ndarray]):
                  parent: Optional[InterfaceQuantity],
                  *,
                  kinematic_level: pin.KinematicLevel = pin.POSITION,
+                 is_motor_side: bool = False,
                  mode: QuantityEvalMode = QuantityEvalMode.TRUE) -> None:
         """
         :param env: Base or wrapped jiminy environment.
@@ -1551,10 +1559,15 @@ class MultiActuatedJointKinematic(AbstractQuantity[np.ndarray]):
                        requirement if any, `None` otherwise.
         :param kinematic_level: Desired kinematic level, ie position, velocity
                                 or acceleration.
+        :param is_motor_side: Whether the compute kinematic data on motor- or
+                              joint-side, ie before or after the mechanical
+                              transmisions.
+                              Optional: False by default.
         :param mode: Desired mode of evaluation for this quantity.
         """
         # Backup some of the user-arguments
         self.kinematic_level = kinematic_level
+        self.is_motor_side = is_motor_side
 
         # Call base implementation
         super().__init__(
@@ -1572,8 +1585,11 @@ class MultiActuatedJointKinematic(AbstractQuantity[np.ndarray]):
         # instead of a view, which requires fetching data at every refresh.
         self.kinematic_indices: List[int] = []
 
+        # Keep track of the mechanical reduction ratio for all the motors
+        self._joint_to_motor_ratios = np.array([])
+
         # Buffer storing mechanical joint positions
-        self.data = np.array([])
+        self._data = np.array([])
 
         # Whether mechanical joint positions must be updated at every refresh
         self._must_refresh = False
@@ -1590,9 +1606,10 @@ class MultiActuatedJointKinematic(AbstractQuantity[np.ndarray]):
                 "Available state data do not meet requirements for kinematic "
                 f"level '{self.kinematic_level}'.")
 
-        # Refresh mechanical joint position indices
+        # Refresh mechanical joint position indices and reduction ratio
+        joint_to_motor_ratios = []
         self.kinematic_indices.clear()
-        for motor in self.env.robot.motors:
+        for motor in self.robot.motors:
             joint = self.pinocchio_model.joints[motor.joint_index]
             joint_type = jiminy.get_joint_type(joint)
             if joint_type == jiminy.JointModelType.ROTARY_UNBOUNDED:
@@ -1602,7 +1619,11 @@ class MultiActuatedJointKinematic(AbstractQuantity[np.ndarray]):
                 kin_first, kin_last = joint.idx_q, joint.idx_q + joint.nq
             else:
                 kin_first, kin_last = joint.idx_v, joint.idx_v + joint.nv
+            motor_options = motor.get_options()
+            mechanical_reduction = motor_options["mechanicalReduction"]
+            joint_to_motor_ratios.append(mechanical_reduction)
             self.kinematic_indices += range(kin_first, kin_last)
+        self._joint_to_motor_ratios = np.array(joint_to_motor_ratios)
 
         # Determine whether data can be extracted from state by reference
         kin_first = min(self.kinematic_indices)
@@ -1610,8 +1631,8 @@ class MultiActuatedJointKinematic(AbstractQuantity[np.ndarray]):
         self._must_refresh = True
         if self.mode == QuantityEvalMode.TRUE:
             try:
-                if (np.array(self.kinematic_indices) == np.arange(
-                        kin_first, kin_last + 1)).all():
+                if np.all(np.array(self.kinematic_indices) == np.arange(
+                        kin_first, kin_last + 1)):
                     self._must_refresh = False
                 else:
                     warnings.warn(
@@ -1622,14 +1643,14 @@ class MultiActuatedJointKinematic(AbstractQuantity[np.ndarray]):
 
         # Try extracting mechanical joint positions by reference if possible
         if self._must_refresh:
-            self.data = np.full((len(self.kinematic_indices),), float("nan"))
+            self._data = np.full((len(self.kinematic_indices),), float("nan"))
         else:
             if self.kinematic_level == pin.KinematicLevel.POSITION:
-                self.data = self.state.q[slice(kin_first, kin_last + 1)]
+                self._data = self.state.q[slice(kin_first, kin_last + 1)]
             elif self.kinematic_level == pin.KinematicLevel.VELOCITY:
-                self.data = self.state.v[slice(kin_first, kin_last + 1)]
+                self._data = self.state.v[slice(kin_first, kin_last + 1)]
             else:
-                self.data = self.state.a[slice(kin_first, kin_last + 1)]
+                self._data = self.state.a[slice(kin_first, kin_last + 1)]
 
     def refresh(self) -> np.ndarray:
         # Update mechanical joint positions only if necessary
@@ -1640,6 +1661,142 @@ class MultiActuatedJointKinematic(AbstractQuantity[np.ndarray]):
                 data = self.state.v
             else:
                 data = self.state.a
-            data.take(self.kinematic_indices, None, self.data, "clip")
+            data.take(self.kinematic_indices, None, self._data, "clip")
 
-        return self.data
+        # Translate encoder data at joint level
+        if self.is_motor_side:
+            self._data *= self._joint_to_motor_ratios
+
+        return self._data
+
+
+class EnergyGenerationMode(Enum):
+    """Specify what happens to the energy generated by motors when breaking.
+    """
+
+    CHARGE = 0
+    """The energy flows back to the battery to charge them without any kind of
+    losses in the process if negative overall.
+    """
+
+    LOST_EACH = 1
+    """The generated energy by each motor individually is lost by thermal
+    dissipation, without flowing back to the battery nor powering other motors
+    consuming energy if any.
+    """
+
+    LOST_GLOBAL = 2
+    """The energy is lost by thermal dissipation without flowing back to the
+    battery if negative overall.
+    """
+
+    PENALIZE = 3
+    """The generated energy by each motor individually is treated as consumed.
+    """
+
+
+@dataclass(unsafe_hash=True)
+class AveragePowerConsumption(InterfaceQuantity[float]):
+    """Average mechanical power consumption by all the motors over a sliding
+    time window.
+    """
+
+    max_stack: int
+    """Time horizon over which values of the instantaneous power consumption
+    will be stacked for computing the average.
+    """
+
+    generator_mode: EnergyGenerationMode
+    """Specify what happens to the energy generated by motors when breaking.
+    See `EnergyGenerationMode` documentation for details.
+    """
+
+    mode: QuantityEvalMode
+    """Specify on which state to evaluate this quantity. See `QuantityEvalMode`
+    documentation for details about each mode.
+
+    .. warning::
+        Mode `REFERENCE` requires a reference trajectory to be selected
+        manually prior to evaluating this quantity for the first time.
+    """
+
+    def __init__(
+            self,
+            env: InterfaceJiminyEnv,
+            parent: Optional[InterfaceQuantity],
+            *,
+            horizon: float,
+            generator_mode: EnergyGenerationMode = EnergyGenerationMode.CHARGE,
+            mode: QuantityEvalMode = QuantityEvalMode.TRUE) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param parent: Higher-level quantity from which this quantity is a
+                       requirement if any, `None` otherwise.
+        :param horizon: Horizon over which values of the quantity will be
+                        stacked before computing the average.
+        :param generator_mode: Specify what happens to the energy generated by
+                               motors when breaking.
+                               Optional: `EnergyGenerationMode.CHARGE` by
+                               default.
+        :param mode: Desired mode of evaluation for this quantity.
+        """
+        # Convert horizon in stack length, assuming constant env timestep
+        max_stack = max(int(np.ceil(horizon / env.step_dt)), 1)
+
+        # Backup some of the user-arguments
+        self.max_stack = max_stack
+        self.generator_mode = generator_mode
+        self.mode = mode
+
+        # Define jit-able method for computing the total inst power consumption
+        @nb.jit(nopython=True, cache=True, fastmath=True)
+        def _compute_power(generator_mode: EnergyGenerationMode,
+                           motor_velocities: np.ndarray,
+                           motor_efforts: np.ndarray) -> float:
+            """Compute the total instantaneous mechanical power consumption of
+            all motors.
+
+            :param generator_mode: Specify what happens to the energy generated
+                                   by motors when breaking.
+            :param motor_velocities: Velocity of all the motors before
+                                     transmission as a 1D array. The order must
+                                     be consistent with the motor indices.
+            :param motor_efforts: Effort of all the motors before transmission
+                                  as a 1D array. The order must be consistent
+                                  with the motor indices.
+            """
+            if generator_mode in (EnergyGenerationMode.CHARGE,
+                                  EnergyGenerationMode.LOST_GLOBAL):
+                total_power = np.dot(motor_velocities, motor_efforts)
+                if generator_mode == EnergyGenerationMode.CHARGE:
+                    return total_power
+                return max(total_power, 0.0)
+            motor_powers = motor_velocities * motor_efforts
+            if generator_mode == EnergyGenerationMode.LOST_EACH:
+                return np.sum(np.maximum(motor_powers, 0.0))
+            return np.sum(np.abs(motor_powers))
+
+        # Call base implementation
+        super().__init__(
+            env,
+            parent,
+            requirements=dict(
+                total_power_stack=(StackedQuantity, dict(
+                    quantity=(BinaryOpQuantity, dict(
+                        quantity_left=(UnaryOpQuantity, dict(
+                            quantity=(StateQuantity, dict(
+                                update_kinematics=False,
+                                mode=self.mode)),
+                            op=lambda state: state.command)),
+                        quantity_right=(MultiActuatedJointKinematic, dict(
+                            kinematic_level=pin.KinematicLevel.VELOCITY,
+                            is_motor_side=True,
+                            mode=self.mode)),
+                        op=partial(_compute_power, self.generator_mode))),
+                    max_stack=self.max_stack,
+                    as_array=True,
+                    mode='zeros'))),
+            auto_refresh=False)
+
+    def refresh(self) -> float:
+        return np.mean(self.total_power_stack)

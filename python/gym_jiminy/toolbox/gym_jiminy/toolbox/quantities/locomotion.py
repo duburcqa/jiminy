@@ -181,7 +181,7 @@ class StabilityMarginProjectedSupportPolygon(InterfaceQuantity[float]):
     """
 
     mode: QuantityEvalMode
-    """Specify on which state to evaluate this quantity. See `Mode`
+    """Specify on which state to evaluate this quantity. See `QuantityEvalMode`
     documentation for details about each mode.
 
     .. warning::

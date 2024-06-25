@@ -17,7 +17,7 @@ from ..quantities import (
     OrientationType, MaskedQuantity, UnaryOpQuantity, FrameOrientation,
     BaseRelativeHeight, BaseOdometryAverageVelocity, CapturePoint,
     MultiFramePosition, MultiFootRelativeXYZQuat,
-    MultiContactNormalizedForceTangential, MultiFootNormalizedForceVertical,
+    MultiContactNormalizedSpatialForce, MultiFootNormalizedForceVertical,
     MultiFootCollisionDetection, AverageBaseMomentum)
 from ..quantities.locomotion import sanitize_foot_frame_names
 from ..utils import quat_difference
@@ -50,7 +50,9 @@ class TrackingBaseHeightReward(TrackingQuantityReward):
             "reward_tracking_base_height",
             lambda mode: (MaskedQuantity, dict(
                 quantity=(UnaryOpQuantity, dict(
-                    quantity=(StateQuantity, dict(mode=mode)),
+                    quantity=(StateQuantity, dict(
+                        update_kinematics=False,
+                        mode=mode)),
                     op=lambda state: state.q)),
                 keys=(2,))),
             cutoff)
@@ -291,7 +293,10 @@ class MinimizeFrictionReward(QuantityReward):
         super().__init__(
             env,
             "reward_friction",
-            (MultiContactNormalizedForceTangential, dict()),
+            (MaskedQuantity, dict(
+                quantity=(MultiContactNormalizedSpatialForce, dict()),
+                axis=0,
+                keys=(0, 1))),
             partial(radial_basis_function, cutoff=self.cutoff, order=2),
             is_normalized=True,
             is_terminal=False)
@@ -523,10 +528,10 @@ class FlyingTermination(QuantityTermination):
     """Discourage the agent of jumping by terminating the episode immediately
     if the robot is flying too high above the ground.
 
-    This kind of jumping behavior is unsually undesirable because it may be
-    frightning for people nearby, difficule to predict and hardly repeatable.
-    Moreover, they tend to transfer poorly to reality as very dynamic motions
-    worsen the simulation to real gap.
+    This kind of behavior is unsually undesirable because it may be frightning
+    for people nearby, damage the hardware, be difficult to predict and be
+    hardly repeatable. Moreover, such dynamic motions tend to transfer poorly
+    to reality because the simulation to real gap is worsening.
     """
     def __init__(self,
                  env: InterfaceJiminyEnv,
@@ -536,8 +541,8 @@ class FlyingTermination(QuantityTermination):
                  is_training_only: bool = False) -> None:
         """
         :param env: Base or wrapped jiminy environment.
-        :param max_height: Maximum height of all the lowest contact points wrt
-                           the groupd above which termination is triggered.
+        :param max_height: Maximum height of the lowest contact points wrt the
+                           groupd above which termination is triggered.
         :param grace_period: Grace period effective only at the very beginning
                              of the episode, during which the latter is bound
                              to continue whatever happens.
@@ -554,6 +559,48 @@ class FlyingTermination(QuantityTermination):
             (_MultiContactMinGroundDistance, {}),  # type: ignore[arg-type]
             None,
             max_height,
+            grace_period,
+            is_truncation=False,
+            is_training_only=is_training_only)
+
+
+class ImpactForceTermination(QuantityTermination):
+    """Terminate the episode immediately in case of violent impact on the
+    ground.
+
+    Similarly to the jumping behavior, this kind of behavior is usually
+    undesirable. See `FlyingTermination` documentation for details.
+    """
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 max_force: float,
+                 grace_period: float = 0.0,
+                 *,
+                 is_training_only: bool = False) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param max_force: Maximum vertical force applied on any of the contact
+                          points or collision bodies above which termination is
+                          triggered.
+        :param grace_period: Grace period effective only at the very beginning
+                             of the episode, during which the latter is bound
+                             to continue whatever happens.
+                             Optional: 0.0 by default.
+        :param is_training_only: Whether the termination condition should be
+                                 completely by-passed if the environment is in
+                                 evaluation mode.
+                                 Optional: False by default.
+        """
+        # Call base implementation
+        super().__init__(
+            env,
+            "termination_flying",
+            (MaskedQuantity, dict(  # type: ignore[arg-type]
+                quantity=(MultiContactNormalizedSpatialForce, dict()),
+                axis=0,
+                keys=(2,))),
+            None,
+            max_force,
             grace_period,
             is_truncation=False,
             is_training_only=is_training_only)

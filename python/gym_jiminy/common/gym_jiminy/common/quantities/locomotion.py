@@ -111,7 +111,7 @@ class BaseRelativeHeight(InterfaceQuantity[float]):
     """
 
     mode: QuantityEvalMode
-    """Specify on which state to evaluate this quantity. See `Mode`
+    """Specify on which state to evaluate this quantity. See `QuantityEvalMode`
     documentation for details about each mode.
 
     .. warning::
@@ -235,7 +235,7 @@ class BaseSpatialAverageVelocity(InterfaceQuantity[np.ndarray]):
     """
 
     mode: QuantityEvalMode
-    """Specify on which state to evaluate this quantity. See `Mode`
+    """Specify on which state to evaluate this quantity. See `QuantityEvalMode`
     documentation for details about each mode.
 
     .. warning::
@@ -298,7 +298,7 @@ class BaseOdometryAverageVelocity(InterfaceQuantity[np.ndarray]):
     """
 
     mode: QuantityEvalMode
-    """Specify on which state to evaluate this quantity. See `Mode`
+    """Specify on which state to evaluate this quantity. See `QuantityEvalMode`
     documentation for details about each mode.
 
     .. warning::
@@ -428,7 +428,7 @@ class MultiFootMeanXYZQuat(InterfaceQuantity[np.ndarray]):
     """
 
     mode: QuantityEvalMode
-    """Specify on which state to evaluate this quantity. See `Mode`
+    """Specify on which state to evaluate this quantity. See `QuantityEvalMode`
     documentation for details about each mode.
 
     .. warning::
@@ -492,7 +492,7 @@ class MultiFootMeanOdometryPose(InterfaceQuantity[np.ndarray]):
     """
 
     mode: QuantityEvalMode
-    """Specify on which state to evaluate this quantity. See `Mode`
+    """Specify on which state to evaluate this quantity. See `QuantityEvalMode`
     documentation for details about each mode.
 
     .. warning::
@@ -574,7 +574,7 @@ class MultiFootRelativeXYZQuat(InterfaceQuantity[np.ndarray]):
     """
 
     mode: QuantityEvalMode
-    """Specify on which state to evaluate this quantity. See `Mode`
+    """Specify on which state to evaluate this quantity. See `QuantityEvalMode`
     documentation for details about each mode.
 
     .. warning::
@@ -968,18 +968,18 @@ class CapturePoint(AbstractQuantity[np.ndarray]):
 
 
 @dataclass(unsafe_hash=True)
-class MultiContactNormalizedForceTangential(AbstractQuantity[np.ndarray]):
-    """Standardized tangential forces apply on all contact points and collision
+class MultiContactNormalizedSpatialForce(AbstractQuantity[np.ndarray]):
+    """Standardized spatial forces apply on all contact points and collision
     bodies in their respective local contact frame.
 
     The local contact frame is defined as the frame having the normal of the
     ground as vertical axis, and the vector orthogonal to the x-axis in world
     frame as y-axis.
 
-    The tangential force is rescaled by the weight of the robot rather than the
+    The spatial force is rescaled by the weight of the robot rather than the
     actual vertical force. It has the advantage to guarantee that the resulting
     quantity is never poorly conditioned, which would be the case otherwise.
-    Moreover, the effect of the vertical force is not canceled out, which is
+    Moreover, the contribution of the vertical force is still present, which is
     interesting for deriving a reward, as it allows for indirectly penalize
     jerky contact states and violent impacts. The side effect is not being able
     to guarantee that this quantity is bounded. Indeed, only the ratio of the
@@ -1009,14 +1009,14 @@ class MultiContactNormalizedForceTangential(AbstractQuantity[np.ndarray]):
             mode=mode,
             auto_refresh=False)
 
-        # Define jit-able method compute the normalized tangential forces
+        # Define jit-able method compute the normalized spatial forces
         @nb.jit(nopython=True, cache=True, fastmath=True)
-        def normalize_tangential_forces(lambda_c: np.ndarray,
-                                        index_start: int,
-                                        index_end: int,
-                                        robot_weight: float,
-                                        out: np.ndarray) -> None:
-            """Compute the tangential forces of all the constraints associated
+        def normalize_spatial_forces(lambda_c: np.ndarray,
+                                     index_start: int,
+                                     index_end: int,
+                                     robot_weight: float,
+                                     out: np.ndarray) -> None:
+            """Compute the spatial forces of all the constraints associated
             with contact frames and collision bodies, normalized by the total
             weight of the robot.
 
@@ -1026,20 +1026,20 @@ class MultiContactNormalizedForceTangential(AbstractQuantity[np.ndarray]):
             :param index_end: One-past-last index of the constraints associated
                               with contact frames and collisions bodies.
             :param robot_weight: Total weight of the robot which will be used
-                                 to rescale the tangential forces.
+                                 to rescale the spatial forces.
             :param out: Pre-allocated array in which to store the result.
             """
             # Extract constraint lambdas of contacts and collisions from state
             lambda_ = lambda_c[index_start:index_end].reshape((-1, 4)).T
 
-            # Extract references to all the tangential forces
-            # f_lin, f_ang = lambda_[:3], np.array([0.0, 0.0, lambda_[3]])
-            forces_tangential = lambda_[:2]
+            # Extract references to all the spatial forces
+            forces_linear, forces_angular_z = lambda_[:3], lambda_[3]
 
-            # Scale the tangential forces by the weight of the robot
-            np.divide(forces_tangential, robot_weight, out)
+            # Scale the spatial forces by the weight of the robot
+            out[:3] = forces_linear / robot_weight
+            out[5] = forces_angular_z / robot_weight
 
-        self._normalize_tangential_forces = normalize_tangential_forces
+        self._normalize_spatial_forces = normalize_spatial_forces
 
         # Weight of the robot
         self._robot_weight: float = float("nan")
@@ -1047,8 +1047,8 @@ class MultiContactNormalizedForceTangential(AbstractQuantity[np.ndarray]):
         # Slice of constraint lambda multipliers for contacts and collisions
         self._contact_slice: Tuple[int, int] = (0, 0)
 
-        # Stacked tangential forces on all contact points and collision bodies
-        self._force_tangential_rel_batch = np.array([])
+        # Stacked spatial forces on all contact points and collision bodies
+        self._force_spatial_rel_batch = np.empty((6, 0))
 
     def initialize(self) -> None:
         # Call base implementation
@@ -1097,18 +1097,18 @@ class MultiContactNormalizedForceTangential(AbstractQuantity[np.ndarray]):
             map(len, self.robot.constraints.collision_bodies))
         assert 4 * num_contraints == index_last - index_first
 
-        # Pre-allocated memory for stacked normalized tangential forces
-        self._force_tangential_rel_batch = np.zeros(
-            (2, num_contraints), order='F')
+        # Pre-allocated memory for stacked normalized spatial forces
+        self._force_spatial_rel_batch = np.zeros(
+            (6, num_contraints), order='C')
 
     def refresh(self) -> np.ndarray:
-        self._normalize_tangential_forces(
+        self._normalize_spatial_forces(
             self.state.lambda_c,
             *self._contact_slice,
             self._robot_weight,
-            self._force_tangential_rel_batch)
+            self._force_spatial_rel_batch)
 
-        return self._force_tangential_rel_batch
+        return self._force_spatial_rel_batch
 
 
 @dataclass(unsafe_hash=True)
@@ -1162,7 +1162,7 @@ class MultiFootNormalizedForceVertical(AbstractQuantity[np.ndarray]):
             mode=mode,
             auto_refresh=False)
 
-        # Define jit-able method compute the normalized tangential forces
+        # Define jit-able method compute the normalized vertical forces
         @nb.jit(nopython=True, cache=True, fastmath=True)
         def normalize_vertical_forces(
                 lambda_c: np.ndarray,
@@ -1187,7 +1187,7 @@ class MultiFootNormalizedForceVertical(AbstractQuantity[np.ndarray]):
                 dimension gathers the 3 spatial coordinates while the second
                 corresponds to the N individual constraints on each foot.
             :param robot_weight: Total weight  of the robot which will be used
-                                 to rescale the tangential forces.
+                                 to rescale the vertical forces.
             :param out: Pre-allocated array in which to store the result.
             """
             for i, ((index_start, index_end), vertical_transforms) in (
@@ -1196,11 +1196,11 @@ class MultiFootNormalizedForceVertical(AbstractQuantity[np.ndarray]):
                 lambda_ = lambda_c[index_start:index_end].reshape((-1, 4)).T
 
                 # Extract references to all the linear forces
-                # f_ang = np.array([0.0, 0.0, lambda_[3]])
-                f_lin = lambda_[:3]
+                # forces_angular = np.array([0.0, 0.0, lambda_[3]])
+                forces_linear = lambda_[:3]
 
                 # Compute vertical forces in world frame and aggregate them
-                f_z_world = np.sum(vertical_transforms * f_lin)
+                f_z_world = np.sum(vertical_transforms * forces_linear)
 
                 # Scale the vertical forces by the weight of the robot
                 out[i] = f_z_world / robot_weight
