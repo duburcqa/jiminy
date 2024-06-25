@@ -19,7 +19,8 @@ from gym_jiminy.common.compositions import (
     BaseRollPitchTermination,
     BaseHeightTermination,
     FootCollisionTermination,
-    MechanicalSafetyTermination)
+    MechanicalSafetyTermination,
+    FlyingTermination)
 
 
 class TerminationConditions(unittest.TestCase):
@@ -260,7 +261,8 @@ class TerminationConditions(unittest.TestCase):
 
     def test_safety_limits(self):
         POSITION_MARGIN, VELOCITY_MAX = 0.05, 1.0
-        termination = MechanicalSafetyTermination(self.env, POSITION_MARGIN, VELOCITY_MAX)
+        termination = MechanicalSafetyTermination(
+            self.env, POSITION_MARGIN, VELOCITY_MAX)
 
         self.env.reset(seed=0)
 
@@ -287,6 +289,32 @@ class TerminationConditions(unittest.TestCase):
                 (position_lower <= position) | (velocity >= - VELOCITY_MAX))
             is_valid = is_valid and np.all(
                 (position_upper >= position) | (velocity <= VELOCITY_MAX))
+            assert terminated ^ is_valid
+
+    def test_flying(self):
+        MAX_HEIGHT = 0.02
+        termination = FlyingTermination(self.env, max_height=MAX_HEIGHT)
+
+        self.env.reset(seed=0)
+
+        engine_options = self.env.unwrapped.engine.get_options()
+        heightmap = engine_options["world"]["groundProfile"]
+
+        action = self.env.action_space.sample()
+        for _ in range(20):
+            _, _, terminated, _, _ = self.env.step(action)
+            if terminated:
+                break
+            terminated, truncated = termination({})
+            is_valid = False
+            for frame_index in self.env.robot.contact_frame_indices:
+                transform = self.env.robot.pinocchio_data.oMf[frame_index]
+                position = transform.translation
+                height, normal = heightmap(position[:2])
+                depth = (position[2] - height) * normal[2]
+                if depth <= MAX_HEIGHT:
+                    is_valid = True
+                    break
             assert terminated ^ is_valid
 
     def test_misc(self):

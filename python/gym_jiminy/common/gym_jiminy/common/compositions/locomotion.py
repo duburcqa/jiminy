@@ -1,19 +1,24 @@
 """Rewards mainly relevant for locomotion tasks on floating-base robots.
 """
 from functools import partial
+from dataclasses import dataclass
 from typing import Optional, Union, Sequence, Literal, Callable, cast
 
 import numpy as np
+import numba as nb
+
+import jiminy_py.core as jiminy
 import pinocchio as pin
 
 from ..bases import (
-    InterfaceJiminyEnv, StateQuantity, QuantityEvalMode, QuantityReward)
+    InterfaceJiminyEnv, StateQuantity, InterfaceQuantity, QuantityEvalMode,
+    QuantityReward)
 from ..quantities import (
     OrientationType, MaskedQuantity, UnaryOpQuantity, FrameOrientation,
     BaseRelativeHeight, BaseOdometryAverageVelocity, CapturePoint,
-    MultiFootRelativeXYZQuat, MultiContactNormalizedForceTangential,
-    MultiFootNormalizedForceVertical, MultiFootCollisionDetection,
-    AverageBaseMomentum)
+    MultiFramePosition, MultiFootRelativeXYZQuat,
+    MultiContactNormalizedForceTangential, MultiFootNormalizedForceVertical,
+    MultiFootCollisionDetection, AverageBaseMomentum)
 from ..quantities.locomotion import sanitize_foot_frame_names
 from ..utils import quat_difference
 
@@ -347,13 +352,14 @@ class BaseHeightTermination(QuantityTermination):
     """
     def __init__(self,
                  env: InterfaceJiminyEnv,
-                 thr: float,
+                 min_height: float,
                  grace_period: float = 0.0,
                  *,
                  is_training_only: bool = False) -> None:
         """
         :param env: Base or wrapped jiminy environment.
-        :param low: Lower bound below which termination is triggered.
+        :param min_height: Minimum height of the floating base of the robot
+                           below which termination is triggered.
         :param grace_period: Grace period effective only at the very beginning
                              of the episode, during which the latter is bound
                              to continue whatever happens.
@@ -368,7 +374,7 @@ class BaseHeightTermination(QuantityTermination):
             env,
             "termination_base_height",
             (BaseRelativeHeight, {}),  # type: ignore[arg-type]
-            thr,
+            min_height,
             None,
             grace_period,
             is_truncation=False,
@@ -391,7 +397,11 @@ class FootCollisionTermination(QuantityTermination):
                  is_training_only: bool = False) -> None:
         """
         :param env: Base or wrapped jiminy environment.
-        :param low: Lower bound below which termination is triggered.
+        :param security_margin:
+            Minimum signed distance below which termination is triggered. This
+            can be interpreted as inflating or deflating the geometry objects
+            by the safety margin depending on whether it is positive or
+            negative. See `MultiFootCollisionDetection` for details.
         :param grace_period: Grace period effective only at the very beginning
                              of the episode, during which the latter is bound
                              to continue whatever happens.
@@ -409,6 +419,141 @@ class FootCollisionTermination(QuantityTermination):
                 security_margin=security_margin)),
             False,
             False,
+            grace_period,
+            is_truncation=False,
+            is_training_only=is_training_only)
+
+
+@dataclass(unsafe_hash=True)
+class _MultiContactMinGroundDistance(InterfaceQuantity[float]):
+    """Minimum distance from the ground profile among all the contact points.
+
+    .. note::
+        Internally, it does not compute the exact shortest distance from the
+        ground profile because it would be computionally too demanding for now.
+        As a surrogate, it relies on a first order approximation assuming zero
+        local curvature around all the contact points individually.
+
+    .. warning::
+        The set of contact points must not change over episodes. In addition,
+        collision bodies are not supported for now.
+    """
+
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 parent: Optional[InterfaceQuantity]) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param parent: Higher-level quantity from which this quantity is a
+                       requirement if any, `None` otherwise.
+        """
+        # Get the name of all the contact points
+        contact_frame_names = env.robot.contact_frame_names
+
+        # Call base implementation
+        super().__init__(
+            env,
+            parent,
+            requirements=dict(
+                positions=(MultiFramePosition, dict(
+                    frame_names=contact_frame_names,
+                    mode=QuantityEvalMode.TRUE
+                ))),
+            auto_refresh=False)
+
+        # Define jit-able method for computing minimum first-order depth
+        @nb.jit(nopython=True, cache=True, fastmath=True)
+        def min_depth(positions: np.ndarray,
+                      heights: np.ndarray,
+                      normals: np.ndarray) -> float:
+            """Approximate minimum distance from the ground profile among a set
+            of the query points.
+
+            Internally, it uses a first order approximation assuming zero local
+            curvature around each query point.
+
+            :param positions: Position of all the query points from which to
+                              compute from the ground profile, as a 2D array
+                              whose first dimension gathers the 3 position
+                              coordinates (X, Y, Z) while the second correponds
+                              to the N individual query points.
+            :param heights: Vertical height wrt the ground profile of the N
+                            individual query points in world frame as 1D array.
+            :param normals: Normal of the ground profile for the projection in
+                            world plane of all the query points, as a 2D array
+                            whose first dimension gathers the 3 position
+                            coordinates (X, Y, Z) while the second correponds
+                            to the N individual query points.
+            """
+            return np.min((positions[2] - heights) * normals[2])
+
+        self._min_depth = min_depth
+
+        # Reference to the heightmap function for the ongoing epsiode
+        self._heightmap = jiminy.HeightmapFunction(lambda: None)
+
+        # Allocate memory for the height and normal of all the contact points
+        self._heights = np.zeros((len(contact_frame_names),))
+        self._normals = np.zeros((3, len(contact_frame_names)), order="F")
+
+    def initialize(self) -> None:
+        # Call base implementation
+        super().initialize()
+
+        # Refresh the heighmap function
+        engine_options = self.env.unwrapped.engine.get_options()
+        self._heightmap = engine_options["world"]["groundProfile"]
+
+    def refresh(self) -> float:
+        # Query the height and normal to the ground profile for the position in
+        # world plane of all the contact points.
+        jiminy.query_heightmap(self._heightmap,
+                               self.positions[:2],
+                               self._heights,
+                               self._normals)
+
+        # Make sure the ground normal is normalized
+        # self._normals /= np.linalg.norm(self._normals, axis=0)
+
+        # First-order distance estimation assuming no curvature
+        return self._min_depth(self.positions, self._heights, self._normals)
+
+
+class FlyingTermination(QuantityTermination):
+    """Discourage the agent of jumping by terminating the episode immediately
+    if the robot is flying too high above the ground.
+
+    This kind of jumping behavior is unsually undesirable because it may be
+    frightning for people nearby, difficule to predict and hardly repeatable.
+    Moreover, they tend to transfer poorly to reality as very dynamic motions
+    worsen the simulation to real gap.
+    """
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 max_height: float,
+                 grace_period: float = 0.0,
+                 *,
+                 is_training_only: bool = False) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param max_height: Maximum height of all the lowest contact points wrt
+                           the groupd above which termination is triggered.
+        :param grace_period: Grace period effective only at the very beginning
+                             of the episode, during which the latter is bound
+                             to continue whatever happens.
+                             Optional: 0.0 by default.
+        :param is_training_only: Whether the termination condition should be
+                                 completely by-passed if the environment is in
+                                 evaluation mode.
+                                 Optional: False by default.
+        """
+        # Call base implementation
+        super().__init__(
+            env,
+            "termination_flying",
+            (_MultiContactMinGroundDistance, {}),  # type: ignore[arg-type]
+            None,
+            max_height,
             grace_period,
             is_truncation=False,
             is_training_only=is_training_only)

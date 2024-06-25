@@ -221,7 +221,7 @@ namespace jiminy::python
         }
 
         void operator()(
-            const Eigen::Vector2d & posFrame, double & height, Eigen::Vector3d & normal)
+            const Eigen::Vector2d & posFrame, double & height, Eigen::Ref<Eigen::Vector3d> normal)
         {
             switch (heightmapType_)
             {

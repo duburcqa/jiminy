@@ -696,8 +696,9 @@ namespace jiminy
         {
             return heightmaps[0];
         }
-        return [heightmaps](
-                   const Eigen::Vector2d & pos, double & height, Eigen::Vector3d & normal) -> void
+        return [heightmaps](const Eigen::Vector2d & pos,
+                            double & height,
+                            Eigen::Ref<Eigen::Vector3d> normal) -> void
         {
             thread_local static double height_i;
             thread_local static Eigen::Vector3d normal_i;
@@ -720,8 +721,9 @@ namespace jiminy
         {
             return heightmaps[0];
         }
-        return [heightmaps](
-                   const Eigen::Vector2d & pos, double & height, Eigen::Vector3d & normal) -> void
+        return [heightmaps](const Eigen::Vector2d & pos,
+                            double & height,
+                            Eigen::Ref<Eigen::Vector3d> normal) -> void
         {
             thread_local static double height_i;
             thread_local static Eigen::Vector3d normal_i;
@@ -757,7 +759,9 @@ namespace jiminy
         const Eigen::Rotation2D<double> rot_mat(orientation);
 
         return [stepWidth, stepHeight, stepNumber, rot_mat, interpDelta](
-                   const Eigen::Vector2d & pos, double & height, Eigen::Vector3d & normal) -> void
+                   const Eigen::Vector2d & pos,
+                   double & height,
+                   Eigen::Ref<Eigen::Vector3d> normal) -> void
         {
             // Compute position in stairs reference frame
             Eigen::Vector2d posRel = rot_mat.inverse() * pos;

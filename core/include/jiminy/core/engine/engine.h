@@ -292,7 +292,7 @@ namespace jiminy
             config["groundProfile"] = HeightmapFunction(
                 [](const Eigen::Vector2d & /* xy */,
                    double & height,
-                   Eigen::Vector3d & normal) -> void
+                   Eigen::Ref<Eigen::Vector3d> normal) -> void
                 {
                     height = 0.0;
                     normal = Eigen::Vector3d::UnitZ();
