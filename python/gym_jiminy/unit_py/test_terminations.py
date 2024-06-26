@@ -23,8 +23,11 @@ from gym_jiminy.common.compositions import (
     FlyingTermination,
     ImpactForceTermination,
     MechanicalPowerConsumptionTermination,
-    DriftTrackingBaseOdometryPoseTermination,
-    ShiftTrackingMotorPositionsTermination)
+    DriftTrackingBaseOdometryPositionTermination,
+    DriftTrackingBaseOdometryOrientationTermination,
+    ShiftTrackingMotorPositionsTermination,
+    ShiftTrackingFootOdometryPositionsTermination,
+    ShiftTrackingFootOdometryOrientationsTermination)
 
 
 class TerminationConditions(unittest.TestCase):
@@ -264,6 +267,8 @@ class TerminationConditions(unittest.TestCase):
             raise AssertionError("No collision detected.")
 
     def test_safety_limits(self):
+        """ TODO: Write documentation
+        """
         POSITION_MARGIN, VELOCITY_MAX = 0.05, 1.0
         termination = MechanicalSafetyTermination(
             self.env, POSITION_MARGIN, VELOCITY_MAX)
@@ -296,6 +301,8 @@ class TerminationConditions(unittest.TestCase):
             assert terminated ^ is_valid
 
     def test_flying(self):
+        """ TODO: Write documentation
+        """
         MAX_HEIGHT = 0.02
         termination = FlyingTermination(self.env, max_height=MAX_HEIGHT)
 
@@ -322,10 +329,15 @@ class TerminationConditions(unittest.TestCase):
             assert terminated ^ is_valid
 
     def test_drift_tracking_base_odom(self):
+        """ TODO: Write documentation
+        """
         MAX_POS_ERROR, MAX_ROT_ERROR = 0.1, 0.2
-        termination = DriftTrackingBaseOdometryPoseTermination(
-            self.env, MAX_POS_ERROR,MAX_ROT_ERROR, 1.0)
-        quantity = termination.quantity
+        termination_pos = DriftTrackingBaseOdometryPositionTermination(
+            self.env, MAX_POS_ERROR, 1.0)
+        quantity_pos = termination_pos.quantity
+        termination_rot = DriftTrackingBaseOdometryOrientationTermination(
+            self.env, MAX_ROT_ERROR, 1.0)
+        quantity_rot = termination_rot.quantity
 
         self.env.reset(seed=0)
         action = self.env.action_space.sample()
@@ -333,10 +345,13 @@ class TerminationConditions(unittest.TestCase):
             _, _, terminated, _, _ = self.env.step(action)
             if terminated:
                 break
-            terminated, truncated = termination({})
-            diff = quantity.value_left - quantity.value_right
-            is_valid = np.linalg.norm(diff[:2]) <= MAX_POS_ERROR
-            is_valid &= np.abs(diff[2]) <= MAX_ROT_ERROR
+            terminated, truncated = termination_pos({})
+            diff = quantity_pos.value_left - quantity_pos.value_right
+            is_valid = np.linalg.norm(diff) <= MAX_POS_ERROR
+            assert terminated ^ is_valid
+            diff = quantity_rot.value_left - quantity_rot.value_right
+            terminated, truncated = termination_rot({})
+            is_valid = np.abs(diff) <= MAX_ROT_ERROR
             assert terminated ^ is_valid
 
     def test_misc(self):
@@ -346,7 +361,11 @@ class TerminationConditions(unittest.TestCase):
                 BaseHeightTermination(self.env, 0.6),
                 ImpactForceTermination(self.env, 1.0),
                 MechanicalPowerConsumptionTermination(self.env, 400.0, 1.0),
-                ShiftTrackingMotorPositionsTermination(self.env, 0.4, 0.5),):
+                ShiftTrackingMotorPositionsTermination(self.env, 0.4, 0.5),
+                ShiftTrackingFootOdometryPositionsTermination(
+                    self.env, 0.2, 0.5),
+                ShiftTrackingFootOdometryOrientationsTermination(
+                    self.env, 0.1, 0.5)):
             self.env.reset(seed=0)
             self.env.eval()
             action = self.env.action_space.sample()

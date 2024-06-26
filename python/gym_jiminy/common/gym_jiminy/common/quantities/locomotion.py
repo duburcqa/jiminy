@@ -621,7 +621,7 @@ class MultiFootRelativeXYZQuat(InterfaceQuantity[np.ndarray]):
                     mode=mode))),
             auto_refresh=False)
 
-        # Define jit-able method translating multiple positions to local frame
+        # Jit-able method translating multiple positions to local frame
         @nb.jit(nopython=True, cache=True, fastmath=True)
         def translate_positions(position: np.ndarray,
                                 position_ref: np.ndarray,
@@ -1014,7 +1014,7 @@ class MultiContactNormalizedSpatialForce(AbstractQuantity[np.ndarray]):
             mode=mode,
             auto_refresh=False)
 
-        # Define jit-able method compute the normalized spatial forces
+        # Jit-able method computing the normalized spatial forces
         @nb.jit(nopython=True, cache=True, fastmath=True)
         def normalize_spatial_forces(lambda_c: np.ndarray,
                                      index_start: int,
@@ -1167,7 +1167,7 @@ class MultiFootNormalizedForceVertical(AbstractQuantity[np.ndarray]):
             mode=mode,
             auto_refresh=False)
 
-        # Define jit-able method compute the normalized vertical forces
+        # Jit-able method computing the normalized vertical forces
         @nb.jit(nopython=True, cache=True, fastmath=True)
         def normalize_vertical_forces(
                 lambda_c: np.ndarray,

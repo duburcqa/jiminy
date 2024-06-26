@@ -638,8 +638,7 @@ def play_trajectories(
                     # of the whole recording process (~75% on discrete gpu).
                     buffer = Viewer.capture_frame(
                         *record_video_size, raw_data=True)
-                    memoryview(
-                        frame.planes[0])[:] = buffer  # type: ignore[arg-type]
+                    memoryview(frame.planes[0])[:] = buffer
 
                     # Write frame
                     for packet in stream.encode(frame):

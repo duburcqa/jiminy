@@ -303,7 +303,7 @@ class MixtureReward(AbstractReward):
                  name: str,
                  components: Sequence[AbstractReward],
                  reduce_fn: Callable[
-                    [Sequence[Optional[float]]], Optional[float]],
+                    [Tuple[Optional[float], ...]], Optional[float]],
                  is_normalized: bool) -> None:
         """
         :param env: Base or wrapped jiminy environment.
@@ -378,7 +378,7 @@ class MixtureReward(AbstractReward):
             values.append(value)
 
         # Aggregate all reward components in one
-        reward_total = self._reduce_fn(values)
+        reward_total = self._reduce_fn(tuple(values))
 
         return reward_total
 

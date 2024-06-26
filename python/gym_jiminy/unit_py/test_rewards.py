@@ -22,7 +22,7 @@ from gym_jiminy.common.compositions import (
     AdditiveMixtureReward)
 from gym_jiminy.toolbox.compositions import (
     tanh_normalization,
-    MaximizeStability)
+    MaximizeRobusntess)
 
 
 class Rewards(unittest.TestCase):
@@ -119,7 +119,7 @@ class Rewards(unittest.TestCase):
         """ TODO: Write documentation
         """
         CUTOFF_INNER, CUTOFF_OUTER = 0.1, 0.5
-        reward_stability = MaximizeStability(
+        reward_stability = MaximizeRobusntess(
             self.env, cutoff_inner=0.1, cutoff_outer=0.5)
         quantity = reward_stability.quantity
 

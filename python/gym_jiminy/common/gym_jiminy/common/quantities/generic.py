@@ -993,7 +993,7 @@ class MultiFrameMeanXYZQuat(InterfaceQuantity[np.ndarray]):
                     mode=mode))),
             auto_refresh=False)
 
-        # Define jit-able specialization of `np.mean` for `axis=-1`
+        # Jit-able method specialization of `np.mean` for `axis=-1`
         @nb.jit(nopython=True, cache=True, fastmath=True)
         def position_average(value: np.ndarray, out: np.ndarray) -> None:
             """Compute the mean of an array over its last axis only.
@@ -1006,7 +1006,7 @@ class MultiFrameMeanXYZQuat(InterfaceQuantity[np.ndarray]):
 
         self._position_average = position_average
 
-        # Define jit-able specialization of `quat_average` for 2D matrices
+        # Jit-able specialization of `quat_average` for 2D matrices
         @nb.jit(nopython=True, cache=True, fastmath=True)
         def quat_average_2d(quat: np.ndarray, out: np.ndarray) -> None:
             """Compute the average of a batch of quaternions [qx, qy, qz, qw].
@@ -1748,7 +1748,7 @@ class AverageMechanicalPowerConsumption(InterfaceQuantity[float]):
         self.generator_mode = generator_mode
         self.mode = mode
 
-        # Define jit-able method for computing the total inst power consumption
+        # Jit-able method computing the total instantaneous power consumption
         @nb.jit(nopython=True, cache=True, fastmath=True)
         def _compute_power(generator_mode: EnergyGenerationMode,
                            motor_velocities: np.ndarray,

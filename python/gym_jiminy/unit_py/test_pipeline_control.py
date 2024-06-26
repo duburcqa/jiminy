@@ -21,6 +21,9 @@ from gym_jiminy.envs import (
 from gym_jiminy.common.blocks import PDController, PDAdapter, MahonyFilter
 from gym_jiminy.common.blocks.proportional_derivative_controller import (
     integrate_zoh)
+from gym_jiminy.common.wrappers import (
+    FilterObservation, StackObservation, NormalizeObservation,
+    FlattenObservation)
 from gym_jiminy.common.utils import (
     quat_to_rpy, matrix_to_rpy, matrix_to_quat, remove_twist_from_quat)
 
@@ -298,6 +301,8 @@ class PipelineControl(unittest.TestCase):
         self.assertTrue(np.all(np.abs(target_vel) <= motor.velocity_limit))
 
     def test_repeatability(self):
+        """ TODO: Write documentation.
+        """
         # Instantiate the environment
         env = AtlasPDControlJiminyEnv()
 

@@ -346,7 +346,7 @@ class ShiftTrackingQuantityTermination(QuantityTermination[np.ndarray]):
         self.max_stack = max_stack
         self.op = op
 
-        # Define jit-able minimum distance between two time series
+        # Jit-able method computing minimum distance between two time series
         @nb.jit(nopython=True, cache=True)
         def min_norm(values: np.ndarray) -> float:
             """Compute the minimum Euclidean norm over all timestamps of a
@@ -612,9 +612,9 @@ class MechanicalPowerConsumptionTermination(QuantityTermination):
 
 
 class ShiftTrackingMotorPositionsTermination(ShiftTrackingQuantityTermination):
-    """Terminate the episode if the robot is not tracking the actuated joint
-    positions wrt some reference trajectory with expected accuracy, whatever
-    the timestep being considered over some fixed-size sliding time window.
+    """Terminate the episode if the selected reference trajectory is not
+    tracked with expected accuracy regarding the actuated joint positions,
+    whatever the timestep being considered over some fixed-size sliding window.
 
     The robot must track the reference if there is no hazard, only applying
     minor corrections to keep balance. Rewarding the agent for doing so is

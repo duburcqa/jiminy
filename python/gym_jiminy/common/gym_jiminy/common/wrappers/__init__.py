@@ -9,8 +9,8 @@ from .flatten import FlattenAction, FlattenObservation
 __all__ = [
     'FilterObservation',
     'StackObservation',
-    'NormalizeAction',
     'NormalizeObservation',
-    'FlattenAction',
-    'FlattenObservation'
+    'FlattenObservation',
+    'NormalizeAction',
+    'FlattenAction'
 ]

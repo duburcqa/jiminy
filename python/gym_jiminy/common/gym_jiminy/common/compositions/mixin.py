@@ -4,7 +4,8 @@ and the application (locomotion, grasping...).
 """
 import math
 import logging
-from typing import Sequence, Optional, Union
+from functools import partial
+from typing import Sequence, Tuple, Optional, Union
 
 import numpy as np
 import numba as nb
@@ -99,6 +100,12 @@ class AdditiveMixtureReward(MixtureReward):
             raise ValueError(
                 "Exactly one weight per reward component must be specified.")
 
+        # Filter out components whose weight are zero
+        weights, components = zip(*(
+            (weight, reward)
+            for weight, reward in zip(weights, components)
+            if weight > 0.0))
+
         # Determine whether the cumulative reward is normalized
         weight_total = 0.0
         for weight, reward in zip(weights, components):
@@ -114,31 +121,40 @@ class AdditiveMixtureReward(MixtureReward):
             is_normalized = abs(weight_total - 1.0) < 1e-4
 
         # Backup user-arguments
-        self.weights = weights
+        self.weights = tuple(weights)
+
+        # Jit-able method computing the weighted sum of reward components
+        @nb.jit(nopython=True, cache=True, fastmath=True)
+        def weighted_sum(weights: Tuple[float, ...],
+                         values: Tuple[Optional[float], ...]
+                         ) -> Optional[float]:
+            """Compute the weighted sum of all the reward components that has
+            been evaluated, filtering out the others.
+
+            This method returns `None` if no reward component has been
+            evaluated.
+
+            :param values: Sequence of scalar value for reward components that
+                           has been evaluated, `None` otherwise, with the same
+                           ordering as 'components'.
+
+            :returns: Scalar value if at least one of the reward component has
+                      been evaluated, `None` otherwise.
+            """
+            total, any_value = 0.0, False
+            for weight, value in zip(weights, values):
+                if value is not None:
+                    total += weight * value
+                    any_value = True
+            return total if any_value else None
 
         # Call base implementation
-        super().__init__(env, name, components, self._reduce, is_normalized)
-
-    def _reduce(self, values: Sequence[Optional[float]]) -> Optional[float]:
-        """Compute the weighted sum of all the reward components that has been
-        evaluated, filtering out the others.
-
-        This method returns `None` if no reward component has been evaluated.
-
-        :param values: Sequence of scalar value for reward components that has
-                       been evaluated, `None` otherwise, with the same ordering
-                       as 'components'.
-
-        :returns: Scalar value if at least one of the reward component has been
-                  evaluated, `None` otherwise.
-        """
-        # TODO: x2 speedup can be expected with `nb.jit`
-        total, any_value = 0.0, False
-        for weight, value in zip(self.weights, values):
-            if value is not None:
-                total += weight * value
-                any_value = True
-        return total if any_value else None
+        super().__init__(
+            env,
+            name,
+            components,
+            partial(weighted_sum, self.weights),
+            is_normalized)
 
 
 AdditiveMixtureReward.is_normalized.__doc__ = \
