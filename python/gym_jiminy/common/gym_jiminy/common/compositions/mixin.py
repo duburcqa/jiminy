@@ -164,8 +164,7 @@ class MultiplicativeMixtureReward(MixtureReward):
     def __init__(self,
                  env: InterfaceJiminyEnv,
                  name: str,
-                 components: Sequence[AbstractReward]
-                 ) -> None:
+                 components: Sequence[AbstractReward]) -> None:
         """
         :param env: Base or wrapped jiminy environment.
         :param name: Desired name of the reward.
