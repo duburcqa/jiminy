@@ -173,19 +173,15 @@ def _unflatten_as(data: StructNested[Any],
     """
     data_type = type(data)
     if issubclass_mapping(data_type):  # type: ignore[arg-type]
+        flat_items = [(key, _unflatten_as(value, data_leaf_it))
+            for key, value in data.items()]  # type: ignore[union-attr]
         try:
-            return data_type([  # type: ignore[call-arg]
-                (key, _unflatten_as(value, data_leaf_it))
-                for key, value in data.items()  # type: ignore[union-attr]
-            ])
+            return data_type(flat_items)  # type: ignore[call-arg]
         except (ValueError, RuntimeError):
             # Fallback to initialisation from dict in the rare event of
             # a container type not supporting initialisation from a
             # sequence of key-value pairs.
-            return data_type({  # type: ignore[call-arg]
-                key: _unflatten_as(value, data_leaf_it)
-                for key, value in data.items()  # type: ignore[union-attr]
-            })
+            return data_type(dict(flat_items))  # type: ignore[call-arg]
     if issubclass_sequence(data_type):  # type: ignore[arg-type]
         return data_type(tuple(  # type: ignore[call-arg]
             _unflatten_as(value, data_leaf_it) for value in data
