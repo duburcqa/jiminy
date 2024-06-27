@@ -167,6 +167,11 @@ class BaseOdometryPose(AbstractQuantity[np.ndarray]):
     The odometry pose fully specifies the position and heading of the robot in
     2D world plane. As such, it comprises the linear translation (X, Y) and
     the rotation around Z axis (namely rate of change of Yaw Euler angle).
+    Mathematically, one is supposed to rely on se2 Lie Algebra for performing
+    operations on odometry poses such as differentiation. In practice, the
+    double geodesic metric space is used instead to prevent coupling between
+    the linear and angular parts by considering them independently. Strictly
+    speaking, it corresponds to the cartesian space (R^2 x SO(2)).
     """
 
     def __init__(self,

@@ -22,7 +22,9 @@ from gym_jiminy.common.compositions import (
     MechanicalSafetyTermination,
     FlyingTermination,
     ImpactForceTermination,
-    PowerConsumptionTermination)
+    MechanicalPowerConsumptionTermination,
+    DriftTrackingBaseOdometryPoseTermination,
+    ShiftTrackingMotorPositionsTermination)
 
 
 class TerminationConditions(unittest.TestCase):
@@ -319,13 +321,32 @@ class TerminationConditions(unittest.TestCase):
                     break
             assert terminated ^ is_valid
 
+    def test_drift_tracking_base_odom(self):
+        MAX_POS_ERROR, MAX_ROT_ERROR = 0.1, 0.2
+        termination = DriftTrackingBaseOdometryPoseTermination(
+            self.env, MAX_POS_ERROR,MAX_ROT_ERROR, 1.0)
+        quantity = termination.quantity
+
+        self.env.reset(seed=0)
+        action = self.env.action_space.sample()
+        for _ in range(20):
+            _, _, terminated, _, _ = self.env.step(action)
+            if terminated:
+                break
+            terminated, truncated = termination({})
+            diff = quantity.value_left - quantity.value_right
+            is_valid = np.linalg.norm(diff[:2]) <= MAX_POS_ERROR
+            is_valid &= np.abs(diff[2]) <= MAX_ROT_ERROR
+            assert terminated ^ is_valid
+
     def test_misc(self):
         """ TODO: Write documentation
         """
         for termination in (
                 BaseHeightTermination(self.env, 0.6),
                 ImpactForceTermination(self.env, 1.0),
-                PowerConsumptionTermination(self.env, 400.0, 1.0),):
+                MechanicalPowerConsumptionTermination(self.env, 400.0, 1.0),
+                ShiftTrackingMotorPositionsTermination(self.env, 0.4, 0.5),):
             self.env.reset(seed=0)
             self.env.eval()
             action = self.env.action_space.sample()

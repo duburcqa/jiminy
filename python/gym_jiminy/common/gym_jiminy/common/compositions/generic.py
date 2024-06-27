@@ -18,7 +18,7 @@ from ..bases import (
 from ..bases.compositions import ArrayOrScalar, ArrayLikeOrScalar
 from ..quantities import (
     EnergyGenerationMode, StackedQuantity, UnaryOpQuantity, BinaryOpQuantity,
-    MultiActuatedJointKinematic, AveragePowerConsumption)
+    MultiActuatedJointKinematic, AverageMechanicalPowerConsumption)
 
 from .mixin import radial_basis_function
 
@@ -170,6 +170,8 @@ class DriftTrackingQuantityTermination(QuantityTermination):
                  *,
                  op: Callable[
                     [ArrayOrScalar, ArrayOrScalar], ArrayOrScalar] = sub,
+                 post_fn: Optional[Callable[
+                    [ArrayOrScalar], ArrayOrScalar]] = None,
                  is_truncation: bool = False,
                  is_training_only: bool = False) -> None:
         """
@@ -200,6 +202,11 @@ class DriftTrackingQuantityTermination(QuantityTermination):
                    Group. The basic subtraction operator `operator.sub` is
                    appropriate for Euclidean space.
                    Optional: `operator.sub` by default.
+        :apram post_fn: Optional callable taking the true and reference drifts
+                        of the quantity as input argument and returning some
+                        post-processed value to which bound checking will be
+                        applied. None to skip post-processing entirely.
+                        Optional: None by default.
         :param is_truncation: Whether the episode should be considered
                               terminated or truncated whenever the termination
                               condition is triggered.
@@ -217,6 +224,7 @@ class DriftTrackingQuantityTermination(QuantityTermination):
         # Backup user argument(s)
         self.max_stack = max_stack
         self.op = op
+        self.post_fn = post_fn
 
         # Define drift of quantity
         stack_creator = lambda mode: (StackedQuantity, dict(  # noqa: E731
@@ -233,9 +241,9 @@ class DriftTrackingQuantityTermination(QuantityTermination):
 
         # Add drift quantity to the set of quantities managed by environment
         drift_tracking_quantity = (BinaryOpQuantity, dict(
-                quantity_left=delta_creator(QuantityEvalMode.TRUE),
-                quantity_right=delta_creator(QuantityEvalMode.REFERENCE),
-                op=sub))
+            quantity_left=delta_creator(QuantityEvalMode.TRUE),
+            quantity_right=delta_creator(QuantityEvalMode.REFERENCE),
+            op=self._compute_drift_error))
 
         # Call base implementation
         super().__init__(env,
@@ -246,6 +254,20 @@ class DriftTrackingQuantityTermination(QuantityTermination):
                          grace_period,
                          is_truncation=is_truncation,
                          is_training_only=is_training_only)
+
+    def _compute_drift_error(self,
+                             left: np.ndarray,
+                             right: np.ndarray) -> ArrayOrScalar:
+        """Compute the difference between the true and reference drift over
+        a given horizon, then apply some post-processing on it if requested.
+
+        :param left: True value of the drift as a N-dimensional array.
+        :param right: Reference value of the drift as a N-dimensional array.
+        """
+        diff = left - right
+        if self.post_fn is not None:
+            return self.post_fn(diff)
+        return diff
 
 
 class ShiftTrackingQuantityTermination(QuantityTermination[np.ndarray]):
@@ -346,6 +368,7 @@ class ShiftTrackingQuantityTermination(QuantityTermination[np.ndarray]):
         stack_creator = lambda mode: (StackedQuantity, dict(  # noqa: E731
             quantity=quantity_creator(mode),
             max_stack=max_stack,
+            mode='slice',
             as_array=True))
 
         # Add drift quantity to the set of quantities managed by environment
@@ -534,7 +557,7 @@ class MechanicalSafetyTermination(AbstractTerminationCondition):
         return is_done
 
 
-class PowerConsumptionTermination(QuantityTermination):
+class MechanicalPowerConsumptionTermination(QuantityTermination):
     """Terminate the episode immediately if the average mechanical power
     consumption is too high.
 
@@ -578,11 +601,66 @@ class PowerConsumptionTermination(QuantityTermination):
         super().__init__(
             env,
             "termination_power_consumption",
-            (AveragePowerConsumption, dict(  # type: ignore[arg-type]
+            (AverageMechanicalPowerConsumption, dict(  # type: ignore[arg-type]
                 horizon=self.horizon,
                 generator_mode=self.generator_mode)),
             None,
             self.max_power,
+            grace_period,
+            is_truncation=False,
+            is_training_only=is_training_only)
+
+
+class ShiftTrackingMotorPositionsTermination(ShiftTrackingQuantityTermination):
+    """Terminate the episode if the robot is not tracking the actuated joint
+    positions wrt some reference trajectory with expected accuracy, whatever
+    the timestep being considered over some fixed-size sliding time window.
+
+    The robot must track the reference if there is no hazard, only applying
+    minor corrections to keep balance. Rewarding the agent for doing so is
+    not effective as favoring robustness remains more profitable. Indeed, it
+    would anticipate disturbances, lowering its current reward to maximize the
+    future return, primarily averting termination. Limiting the shift over a
+    given horizon allows for large deviations to handle strong pushes.
+    Moreover, assuming that the agent is not able to keep track of the time
+    flow, which means that only the observation at the current step is provided
+    to the agent and o stateful network architecture such as LSTM is being
+    used, restricting the shift also urges to do what it takes to get back to
+    normal as soon as possible for fear of triggering termination, as it may
+    happen any time the deviation is above the maximum acceptable shift,
+    irrespective of its scale.
+    """
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 thr: float,
+                 horizon: float,
+                 grace_period: float = 0.0,
+                 *,
+                 is_training_only: bool = False) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param thr: Maximum shift above which termination is triggered.
+        :param horizon: Horizon over which values of the quantity will be
+                        stacked before computing the shift.
+        :param grace_period: Grace period effective only at the very beginning
+                             of the episode, during which the latter is bound
+                             to continue whatever happens.
+                             Optional: 0.0 by default.
+        :param is_training_only: Whether the termination condition should be
+                                 completely by-passed if the environment is in
+                                 evaluation mode.
+                                 Optional: False by default.
+        """
+        # Call base implementation
+        super().__init__(
+            env,
+            "termination_tracking_motor_positions",
+            lambda mode: (MultiActuatedJointKinematic, dict(
+                kinematic_level=pin.KinematicLevel.POSITION,
+                is_motor_side=False,
+                mode=mode)),
+            thr,
+            horizon,
             grace_period,
             is_truncation=False,
             is_training_only=is_training_only)

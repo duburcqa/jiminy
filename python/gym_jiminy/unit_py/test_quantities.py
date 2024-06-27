@@ -34,7 +34,7 @@ from gym_jiminy.common.quantities import (
     BaseOdometryAverageVelocity,
     BaseRelativeHeight,
     AverageBaseMomentum,
-    AveragePowerConsumption,
+    AverageMechanicalPowerConsumption,
     CenterOfMass,
     CapturePoint,
     ZeroMomentPoint)
@@ -707,13 +707,13 @@ class Quantities(unittest.TestCase):
                 EnergyGenerationMode.LOST_GLOBAL,
                 EnergyGenerationMode.PENALIZE):
             env.quantities["mean_power_consumption"] = (
-                AveragePowerConsumption, dict(
+                AverageMechanicalPowerConsumption, dict(
                     horizon=0.2,
                     generator_mode=mode))
             quantity = env.quantities.registry["mean_power_consumption"]
             env.reset(seed=0)
 
-            total_power_stack = [0.0,] * quantity.max_stack
+            total_power_stack = [0.0,]
             encoder_data = env.robot.sensor_measurements["EncoderSensor"]
             _, motor_velocities = encoder_data
             for _ in range(8):

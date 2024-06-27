@@ -66,8 +66,7 @@ class Rewards(unittest.TestCase):
                 (TrackingFootOrientationsReward, 2.0),
                 (TrackingFootForceDistributionReward, 2.0)):
             reward = reward_class(self.env, cutoff=cutoff)
-            quantity_true = reward.quantity.requirements['value_left']
-            quantity_ref = reward.quantity.requirements['value_right']
+            quantity = reward.quantity
 
             self.env.reset(seed=0)
             action = 0.5 * self.env.action_space.sample()
@@ -77,15 +76,15 @@ class Rewards(unittest.TestCase):
 
             with np.testing.assert_raises(AssertionError):
                 np.testing.assert_allclose(
-                    quantity_true.get(), quantity_ref.get())
+                    quantity.value_left, quantity.value_right)
 
             if isinstance(reward, TrackingBaseHeightReward):
                 np.testing.assert_allclose(
-                    quantity_true.get(), self.env.robot_state.q[2])
+                    quantity.value_left, self.env.robot_state.q[2])
 
             gamma = - np.log(CUTOFF_ESP) / cutoff ** 2
-            value = np.exp(- gamma * np.sum((reward.quantity.op(
-                quantity_true.get(), quantity_ref.get())) ** 2))
+            value = np.exp(- gamma * np.sum((quantity.op(
+                quantity.value_left, quantity.value_right)) ** 2))
             assert value > 0.01
             np.testing.assert_allclose(reward(terminated, {}), value)
 

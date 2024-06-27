@@ -1696,7 +1696,7 @@ class EnergyGenerationMode(Enum):
 
 
 @dataclass(unsafe_hash=True)
-class AveragePowerConsumption(InterfaceQuantity[float]):
+class AverageMechanicalPowerConsumption(InterfaceQuantity[float]):
     """Average mechanical power consumption by all the motors over a sliding
     time window.
     """
@@ -1795,7 +1795,7 @@ class AveragePowerConsumption(InterfaceQuantity[float]):
                         op=partial(_compute_power, self.generator_mode))),
                     max_stack=self.max_stack,
                     as_array=True,
-                    mode='zeros'))),
+                    mode='slice'))),
             auto_refresh=False)
 
     def refresh(self) -> float:

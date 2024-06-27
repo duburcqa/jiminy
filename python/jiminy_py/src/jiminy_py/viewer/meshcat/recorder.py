@@ -350,7 +350,7 @@ class MeshcatRecorder:
         """ TODO: Write documentation.
         """
         self._send_request(
-            "start_record", message=f"{fps}|{width}|{height}", timeout=10.0)
+            "start_record", message=f"{fps}|{width}|{height}", timeout=15.0)
         self.is_recording = True
 
     def add_video_frame(self) -> None:
