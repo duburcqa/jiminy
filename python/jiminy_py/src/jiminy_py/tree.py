@@ -19,6 +19,7 @@ of use and versatility rather with optimal performance.
 from functools import lru_cache
 from itertools import chain, starmap
 from collections.abc import (Mapping, ValuesView, Sequence, Set)
+from collections import OrderedDict
 from typing import (
     Any, Union, Mapping as MappingT, Iterable, Iterator as Iterator, Tuple,
     TypeVar, Callable, Type)
@@ -173,10 +174,10 @@ def _unflatten_as(data: StructNested[Any],
     """
     data_type = type(data)
     if issubclass_mapping(data_type):  # type: ignore[arg-type]
-        return data_type({  # type: ignore[call-arg]
+        return data_type(OrderedDict({  # type: ignore[call-arg]
             key: _unflatten_as(value, data_leaf_it)
             for key, value in data.items()  # type: ignore[union-attr]
-        })
+        }))
     if issubclass_sequence(data_type):  # type: ignore[arg-type]
         return data_type(tuple(  # type: ignore[call-arg]
             _unflatten_as(value, data_leaf_it) for value in data
