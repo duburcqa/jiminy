@@ -176,8 +176,9 @@ def _unflatten_as(data: StructNested[Any],
         flat_items = [(key, _unflatten_as(value, data_leaf_it))
             for key, value in data.items()]  # type: ignore[union-attr]
         try:
-            # Initialisation from dict cannot be the default path as `gym.spaces.Dict`
-            # would sort keys in this specific scenario, which must be avoided.
+            # Initialisation from dict cannot be the default path as
+            # `gym.spaces.Dict` would sort keys in this specific scenario,
+            # which must be avoided.
             return data_type(flat_items)  # type: ignore[call-arg]
         except (ValueError, RuntimeError):
             # Fallback to initialisation from dict in the rare event of
