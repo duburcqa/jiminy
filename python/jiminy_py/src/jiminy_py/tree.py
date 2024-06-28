@@ -173,8 +173,10 @@ def _unflatten_as(data: StructNested[Any],
     """
     data_type = type(data)
     if issubclass_mapping(data_type):  # type: ignore[arg-type]
-        flat_items = [(key, _unflatten_as(value, data_leaf_it))
-            for key, value in data.items()]  # type: ignore[union-attr]
+        flat_items = [
+            (key, _unflatten_as(value, data_leaf_it))
+            for key, value in data.items()  # type: ignore[union-attr]
+        ]
         try:
             # Initialisation from dict cannot be the default path as
             # `gym.spaces.Dict` would sort keys in this specific scenario,
