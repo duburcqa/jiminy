@@ -237,9 +237,9 @@ def clip(data: DataNested, space: gym.Space[DataNested]) -> DataNested:
             field: clip(data[field], subspace)
             for field, subspace in space.spaces.items()})
     if tree.issubclass_sequence(data_type):
-        return data_type(tuple(
+        return data_type([
             clip(data[i], subspace)
-            for i, subspace in enumerate(space.spaces)))
+            for i, subspace in enumerate(space.spaces)])
     return _array_clip(data, *get_bounds(space))
 
 

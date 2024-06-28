@@ -25,7 +25,7 @@ from .locomotion import (TrackingBaseHeightReward,
                          MinimizeAngularMomentumReward,
                          MinimizeFrictionReward,
                          BaseRollPitchTermination,
-                         BaseHeightTermination,
+                         FallingTermination,
                          FootCollisionTermination,
                          FlyingTermination,
                          ImpactForceTermination)
@@ -57,7 +57,7 @@ __all__ = [
     "MechanicalPowerConsumptionTermination",
     "FlyingTermination",
     "BaseRollPitchTermination",
-    "BaseHeightTermination",
+    "FallingTermination",
     "FootCollisionTermination",
     "ImpactForceTermination"
 ]

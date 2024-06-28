@@ -1,6 +1,5 @@
 """Rewards mainly relevant for locomotion tasks on floating-base robots.
 """
-import math
 from functools import partial
 from dataclasses import dataclass
 from typing import Optional, Union, Sequence, Literal, Callable, cast
@@ -309,7 +308,7 @@ class BaseRollPitchTermination(QuantityTermination):
             is_training_only=is_training_only)
 
 
-class BaseHeightTermination(QuantityTermination):
+class FallingTermination(QuantityTermination):
     """Terminate the episode immediately if the floating base of the robot
     gets too close from the ground.
 
@@ -323,14 +322,14 @@ class BaseHeightTermination(QuantityTermination):
     """
     def __init__(self,
                  env: InterfaceJiminyEnv,
-                 min_height: float,
+                 min_base_height: float,
                  grace_period: float = 0.0,
                  *,
                  is_training_only: bool = False) -> None:
         """
         :param env: Base or wrapped jiminy environment.
-        :param min_height: Minimum height of the floating base of the robot
-                           below which termination is triggered.
+        :param min_base_height: Minimum height of the floating base of the
+                                robot below which termination is triggered.
         :param grace_period: Grace period effective only at the very beginning
                              of the episode, during which the latter is bound
                              to continue whatever happens.
@@ -344,7 +343,7 @@ class BaseHeightTermination(QuantityTermination):
             env,
             "termination_base_height",
             (BaseRelativeHeight, {}),  # type: ignore[arg-type]
-            min_height,
+            min_base_height,
             None,
             grace_period,
             is_truncation=False,
@@ -542,15 +541,15 @@ class ImpactForceTermination(QuantityTermination):
     """
     def __init__(self,
                  env: InterfaceJiminyEnv,
-                 max_force: float,
+                 max_force_rel: float,
                  grace_period: float = 0.0,
                  *,
                  is_training_only: bool = False) -> None:
         """
         :param env: Base or wrapped jiminy environment.
-        :param max_force: Maximum vertical force applied on any of the contact
-                          points or collision bodies above which termination is
-                          triggered.
+        :param max_force_rel: Maximum vertical force applied on any of the
+                              contact points or collision bodies above which
+                              termination is triggered.
         :param grace_period: Grace period effective only at the very beginning
                              of the episode, during which the latter is bound
                              to continue whatever happens.
@@ -568,7 +567,7 @@ class ImpactForceTermination(QuantityTermination):
                 axis=0,
                 keys=(2,))),
             None,
-            max_force,
+            max_force_rel,
             grace_period,
             is_truncation=False,
             is_training_only=is_training_only)

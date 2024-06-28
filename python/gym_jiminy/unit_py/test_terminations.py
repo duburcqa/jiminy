@@ -17,7 +17,7 @@ from gym_jiminy.common.compositions import (
     DriftTrackingQuantityTermination,
     ShiftTrackingQuantityTermination,
     BaseRollPitchTermination,
-    BaseHeightTermination,
+    FallingTermination,
     FootCollisionTermination,
     MechanicalSafetyTermination,
     FlyingTermination,
@@ -358,7 +358,7 @@ class TerminationConditions(unittest.TestCase):
         """ TODO: Write documentation
         """
         for termination in (
-                BaseHeightTermination(self.env, 0.6),
+                FallingTermination(self.env, 0.6),
                 ImpactForceTermination(self.env, 1.0),
                 MechanicalPowerConsumptionTermination(self.env, 400.0, 1.0),
                 ShiftTrackingMotorPositionsTermination(self.env, 0.4, 0.5),

@@ -587,18 +587,18 @@ class Quantities(unittest.TestCase):
         for frame_name in ("l_foot", "r_foot"):
             frame_index = env.robot.pinocchio_model.getFrameId(frame_name)
             foot_poses.append(env.robot.pinocchio_data.oMf[frame_index])
-        pos_feet = np.stack(tuple(
-            foot_pose.translation for foot_pose in foot_poses), axis=-1)
-        quat_feet = np.stack(tuple(
+        pos_feet = np.stack([
+            foot_pose.translation for foot_pose in foot_poses], axis=-1)
+        quat_feet = np.stack([
             matrix_to_quat(foot_pose.rotation)
-            for foot_pose in foot_poses), axis=-1)
+            for foot_pose in foot_poses], axis=-1)
 
         pos_mean = np.mean(pos_feet, axis=-1, keepdims=True)
         rot_mean = quat_to_matrix(quat_average(quat_feet))
         pos_rel = rot_mean.T @ (pos_feet - pos_mean)
-        quat_rel = np.stack(tuple(
+        quat_rel = np.stack([
             matrix_to_quat(rot_mean.T @ foot_pose.rotation)
-            for foot_pose in foot_poses), axis=-1)
+            for foot_pose in foot_poses], axis=-1)
         quat_rel[-4:] *= np.sign(quat_rel[-1])
 
         value = env.quantities["foot_rel_poses"].copy()
@@ -621,9 +621,9 @@ class Quantities(unittest.TestCase):
 
         gravity = abs(env.robot.pinocchio_model.gravity.linear[2])
         robot_weight = env.robot.pinocchio_data.mass[0] * gravity
-        force_spatial_rel = np.stack(tuple(np.concatenate(
+        force_spatial_rel = np.stack([np.concatenate(
             (constraint.lambda_c[:3], np.zeros((2,)), constraint.lambda_c[[3]])
-            ) for constraint in env.robot.constraints.contact_frames.values()),
+            ) for constraint in env.robot.constraints.contact_frames.values()],
             axis=-1) / robot_weight
         np.testing.assert_allclose(
             force_spatial_rel, env.quantities["force_spatial_rel"])

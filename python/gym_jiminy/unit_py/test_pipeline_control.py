@@ -316,3 +316,30 @@ class PipelineControl(unittest.TestCase):
             assert np.all(a_prev == env.robot_state.a)
             for _ in range(n_steps):
                 env.step(env.action)
+
+    def test_preserve_obs_key_order(self):
+        """ TODO: Write documentation.
+        """
+        env = AtlasPDControlJiminyEnv()
+
+        env_stack = StackObservation(
+            env, skip_frames_ratio=-1, num_stack=2, nested_filter_keys=[["t"]])
+        env_filter = FilterObservation(
+            env, nested_filter_keys=env.observation_space.keys())
+        env_obs_norm = NormalizeObservation(env)
+        for env in (env, env_stack, env_filter, env_obs_norm):
+            env.reset(seed=0)
+            assert [*env.observation_space.keys()] == [*env.observation.keys()]
+
+        env_flat = FlattenObservation(env)
+        env_flat.reset(seed=0)
+        all_values_flat = []
+        obs_nodes = list(env.observation.values())
+        while obs_nodes:
+            value = obs_nodes.pop()
+            if isinstance(value, dict):
+                obs_nodes += value.values()
+            else:
+                all_values_flat.append(value.flatten())
+        obs_flat = np.concatenate(all_values_flat[::-1])
+        np.testing.assert_allclose(env_flat.observation, obs_flat)
