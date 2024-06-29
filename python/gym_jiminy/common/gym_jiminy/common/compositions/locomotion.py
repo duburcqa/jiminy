@@ -1,6 +1,5 @@
 """Rewards mainly relevant for locomotion tasks on floating-base robots.
 """
-import math
 from functools import partial
 from dataclasses import dataclass
 from typing import Optional, Union, Sequence, Literal, Callable, cast
@@ -20,12 +19,11 @@ from ..quantities import (
     CapturePoint, MultiFramePosition, MultiFootRelativeXYZQuat,
     MultiContactNormalizedSpatialForce, MultiFootNormalizedForceVertical,
     MultiFootCollisionDetection, AverageBaseMomentum)
-from ..quantities.locomotion import sanitize_foot_frame_names
-from ..utils import quat_difference
+from ..utils import quat_difference, quat_to_yaw
 
 from .generic import (
     ArrayLikeOrScalar, TrackingQuantityReward, QuantityTermination,
-    DriftTrackingQuantityTermination)
+    DriftTrackingQuantityTermination, ShiftTrackingQuantityTermination)
 from .mixin import radial_basis_function
 
 
@@ -43,10 +41,6 @@ class TrackingBaseHeightReward(TrackingQuantityReward):
         :param env: Base or wrapped jiminy environment.
         :param cutoff: Cutoff threshold for the RBF kernel transform.
         """
-        # Backup some user argument(s)
-        self.cutoff = cutoff
-
-        # Call base implementation
         super().__init__(
             env,
             "reward_tracking_base_height",
@@ -56,6 +50,7 @@ class TrackingBaseHeightReward(TrackingQuantityReward):
                         update_kinematics=False,
                         mode=mode)),
                     op=lambda state: state.q)),
+                axis=0,
                 keys=(2,))),
             cutoff)
 
@@ -74,10 +69,6 @@ class TrackingBaseOdometryVelocityReward(TrackingQuantityReward):
         :param env: Base or wrapped jiminy environment.
         :param cutoff: Cutoff threshold for the RBF kernel transform.
         """
-        # Backup some user argument(s)
-        self.cutoff = cutoff
-
-        # Call base implementation
         super().__init__(
             env,
             "reward_tracking_odometry_velocity",
@@ -99,15 +90,11 @@ class TrackingCapturePointReward(TrackingQuantityReward):
         :param env: Base or wrapped jiminy environment.
         :param cutoff: Cutoff threshold for the RBF kernel transform.
         """
-        # Backup some user argument(s)
-        self.cutoff = cutoff
-
-        # Call base implementation
         super().__init__(
             env,
             "reward_tracking_capture_point",
             lambda mode: (CapturePoint, dict(
-                reference_frame=pin.LOCAL,
+                reference_frame=pin.ReferenceFrame.LOCAL,
                 mode=mode)),
             cutoff)
 
@@ -133,16 +120,6 @@ class TrackingFootPositionsReward(TrackingQuantityReward):
                             set of contact and force sensors of the robot.
                             Optional: 'auto' by default.
         """
-        # Backup some user argument(s)
-        self.cutoff = cutoff
-
-        # Sanitize frame names corresponding to the feet of the robot
-        frame_names = tuple(sanitize_foot_frame_names(env, frame_names))
-
-        # Buffer storing the difference before current and reference poses
-        self._spatial_velocities = np.zeros((6, len(frame_names)))
-
-        # Call base implementation
         super().__init__(
             env,
             "reward_tracking_foot_positions",
@@ -150,6 +127,7 @@ class TrackingFootPositionsReward(TrackingQuantityReward):
                 quantity=(MultiFootRelativeXYZQuat, dict(
                     frame_names=frame_names,
                     mode=mode)),
+                axis=0,
                 keys=(0, 1, 2))),
             cutoff)
 
@@ -175,13 +153,6 @@ class TrackingFootOrientationsReward(TrackingQuantityReward):
                             set of contact and force sensors of the robot.
                             Optional: 'auto' by default.
         """
-        # Backup some user argument(s)
-        self.cutoff = cutoff
-
-        # Sanitize frame names corresponding to the feet of the robot
-        frame_names = tuple(sanitize_foot_frame_names(env, frame_names))
-
-        # Call base implementation
         super().__init__(
             env,
             "reward_tracking_foot_orientations",
@@ -227,13 +198,6 @@ class TrackingFootForceDistributionReward(TrackingQuantityReward):
                             set of contact and force sensors of the robot.
                             Optional: 'auto' by default.
         """
-        # Backup some user argument(s)
-        self.cutoff = cutoff
-
-        # Sanitize frame names corresponding to the feet of the robot
-        frame_names = tuple(sanitize_foot_frame_names(env, frame_names))
-
-        # Call base implementation
         super().__init__(
             env,
             "reward_tracking_foot_force_distribution",
@@ -328,7 +292,6 @@ class BaseRollPitchTermination(QuantityTermination):
                                  evaluation mode.
                                  Optional: False by default.
         """
-        # Call base implementation
         super().__init__(
             env,
             "termination_base_roll_pitch",
@@ -345,7 +308,7 @@ class BaseRollPitchTermination(QuantityTermination):
             is_training_only=is_training_only)
 
 
-class BaseHeightTermination(QuantityTermination):
+class FallingTermination(QuantityTermination):
     """Terminate the episode immediately if the floating base of the robot
     gets too close from the ground.
 
@@ -359,14 +322,14 @@ class BaseHeightTermination(QuantityTermination):
     """
     def __init__(self,
                  env: InterfaceJiminyEnv,
-                 min_height: float,
+                 min_base_height: float,
                  grace_period: float = 0.0,
                  *,
                  is_training_only: bool = False) -> None:
         """
         :param env: Base or wrapped jiminy environment.
-        :param min_height: Minimum height of the floating base of the robot
-                           below which termination is triggered.
+        :param min_base_height: Minimum height of the floating base of the
+                                robot below which termination is triggered.
         :param grace_period: Grace period effective only at the very beginning
                              of the episode, during which the latter is bound
                              to continue whatever happens.
@@ -376,12 +339,11 @@ class BaseHeightTermination(QuantityTermination):
                                  evaluation mode.
                                  Optional: False by default.
         """
-        # Call base implementation
         super().__init__(
             env,
             "termination_base_height",
             (BaseRelativeHeight, {}),  # type: ignore[arg-type]
-            min_height,
+            min_base_height,
             None,
             grace_period,
             is_truncation=False,
@@ -400,6 +362,7 @@ class FootCollisionTermination(QuantityTermination):
                  env: InterfaceJiminyEnv,
                  security_margin: float = 0.0,
                  grace_period: float = 0.0,
+                 frame_names: Union[Sequence[str], Literal['auto']] = 'auto',
                  *,
                  is_training_only: bool = False) -> None:
         """
@@ -413,16 +376,20 @@ class FootCollisionTermination(QuantityTermination):
                              of the episode, during which the latter is bound
                              to continue whatever happens.
                              Optional: 0.0 by default.
+        :param frame_names: Name of the frames corresponding to the feet of the
+                            robot. 'auto' to automatically detect them from the
+                            set of contact and force sensors of the robot.
+                            Optional: 'auto' by default.
         :param is_training_only: Whether the termination condition should be
                                  completely by-passed if the environment is in
                                  evaluation mode.
                                  Optional: False by default.
         """
-        # Call base implementation
         super().__init__(
             env,
             "termination_foot_collision",
             (MultiFootCollisionDetection, dict(  # type: ignore[arg-type]
+                frame_names=frame_names,
                 security_margin=security_margin)),
             False,
             False,
@@ -468,7 +435,7 @@ class _MultiContactMinGroundDistance(InterfaceQuantity[float]):
                 ))),
             auto_refresh=False)
 
-        # Define jit-able method for computing minimum first-order depth
+        # Jit-able method computing the minimum first-order depth
         @nb.jit(nopython=True, cache=True, fastmath=True)
         def min_depth(positions: np.ndarray,
                       heights: np.ndarray,
@@ -554,7 +521,6 @@ class FlyingTermination(QuantityTermination):
                                  evaluation mode.
                                  Optional: False by default.
         """
-        # Call base implementation
         super().__init__(
             env,
             "termination_flying",
@@ -575,15 +541,15 @@ class ImpactForceTermination(QuantityTermination):
     """
     def __init__(self,
                  env: InterfaceJiminyEnv,
-                 max_force: float,
+                 max_force_rel: float,
                  grace_period: float = 0.0,
                  *,
                  is_training_only: bool = False) -> None:
         """
         :param env: Base or wrapped jiminy environment.
-        :param max_force: Maximum vertical force applied on any of the contact
-                          points or collision bodies above which termination is
-                          triggered.
+        :param max_force_rel: Maximum vertical force applied on any of the
+                              contact points or collision bodies above which
+                              termination is triggered.
         :param grace_period: Grace period effective only at the very beginning
                              of the episode, during which the latter is bound
                              to continue whatever happens.
@@ -593,7 +559,6 @@ class ImpactForceTermination(QuantityTermination):
                                  evaluation mode.
                                  Optional: False by default.
         """
-        # Call base implementation
         super().__init__(
             env,
             "termination_flying",
@@ -602,16 +567,16 @@ class ImpactForceTermination(QuantityTermination):
                 axis=0,
                 keys=(2,))),
             None,
-            max_force,
+            max_force_rel,
             grace_period,
             is_truncation=False,
             is_training_only=is_training_only)
 
 
-class DriftTrackingBaseOdometryPoseTermination(
+class DriftTrackingBaseOdometryPositionTermination(
         DriftTrackingQuantityTermination):
-    """Terminate the episode if the current base odometry base is drifting too
-    much over wrt some reference trajectory that is being tracked.
+    """Terminate the episode if the current base odometry position is drifting
+    too much over wrt some reference trajectory that is being tracked.
 
     It is generally important to make sure that the robot is not deviating too
     much from some reference trajectory. It sounds appealing to make sure that
@@ -629,12 +594,12 @@ class DriftTrackingBaseOdometryPoseTermination(
     to recover balance as fast as possible before going back to the nominal
     limit cycle, without trying to catch up with the ensuing drift since the
     exact absolute odometry pose in world frame is of little interest. See
-    `DriftTrackingQuantityTermination` documentation for details.
+    `BaseOdometryPose` and `DriftTrackingQuantityTermination` documentations
+    for details.
     """
     def __init__(self,
                  env: InterfaceJiminyEnv,
                  max_position_err: float,
-                 max_orientation_err: float,
                  horizon: float,
                  grace_period: float = 0.0,
                  *,
@@ -642,10 +607,7 @@ class DriftTrackingBaseOdometryPoseTermination(
         """
         :param env: Base or wrapped jiminy environment.
         :param max_position_err:
-            Maximum drift error in translation (X, Y) in world place above
-            which termination is triggered.
-        :param max_orientation_err:
-            Maximum drift error in orientation (yaw,) in world place above
+            Maximum drift error in translation (X, Y) in world plane above
             which termination is triggered.
         :param horizon: Horizon over which values of the quantity will be
                         stacked before computing the drift.
@@ -658,34 +620,178 @@ class DriftTrackingBaseOdometryPoseTermination(
                                  evaluation mode.
                                  Optional: False by default.
         """
-        # Define jit-able method for computing translation and rotation errors
-        @nb.jit(nopython=True, cache=True)
-        def compute_se2_double_geoedesic_distance(
-                diff: np.ndarray) -> np.ndarray:
-            """Compute the errors between two odometry poses in the Cartesian
-            space (R^2, SO(2)), ie considering the translational and rotational
-            parts independently.
+        super().__init__(
+            env,
+            "termination_tracking_base_odom_position",
+            lambda mode: (  # type: ignore[arg-type, return-value]
+                MaskedQuantity, dict(
+                    quantity=(BaseOdometryPose, dict(
+                        mode=mode)),
+                    axis=0,
+                    keys=(0, 1))),
+            None,
+            max_position_err,
+            horizon,
+            grace_period,
+            post_fn=np.linalg.norm,
+            is_truncation=False,
+            is_training_only=is_training_only)
 
-            :param diff: Element-wise difference between two odometry poses as
-                         a 1D array gathering the 3 components (X, Y, Yaw).
 
-            :returns: Pair (data_err_pos, data_err_rot) gathering the L2-norm
-            of the difference in translation and rotation as a 1D array.
-            """
-            diff_x, diff_y, diff_yaw = diff
-            error_position = math.sqrt(diff_x ** 2 + diff_y ** 2)
-            error_orientation = math.fabs(diff_yaw)
-            return np.array([error_position, error_orientation])
+class DriftTrackingBaseOdometryOrientationTermination(
+        DriftTrackingQuantityTermination):
+    """Terminate the episode if the current base odometry orientation is
+    drifting too much over wrt some reference trajectory that is being tracked.
 
+    See `BaseOdometryPose` and `DriftTrackingBaseOdometryPositionTermination`
+    documentations for details.
+    """
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 max_orientation_err: float,
+                 horizon: float,
+                 grace_period: float = 0.0,
+                 *,
+                 is_training_only: bool = False) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param max_orientation_err:
+            Maximum drift error in orientation (yaw,) in world plane above
+            which termination is triggered.
+        :param horizon: Horizon over which values of the quantity will be
+                        stacked before computing the drift.
+        :param grace_period: Grace period effective only at the very beginning
+                             of the episode, during which the latter is bound
+                             to continue whatever happens.
+                             Optional: 0.0 by default.
+        :param is_training_only: Whether the termination condition should be
+                                 completely by-passed if the environment is in
+                                 evaluation mode.
+                                 Optional: False by default.
+        """
+        super().__init__(
+            env,
+            "termination_tracking_base_odom_orientation",
+            lambda mode: (  # type: ignore[arg-type, return-value]
+                MaskedQuantity, dict(
+                    quantity=(BaseOdometryPose, dict(
+                        mode=mode)),
+                    axis=0,
+                    keys=(2,))),
+            -max_orientation_err,
+            max_orientation_err,
+            horizon,
+            grace_period,
+            is_truncation=False,
+            is_training_only=is_training_only)
+
+
+class ShiftTrackingFootOdometryPositionsTermination(
+        ShiftTrackingQuantityTermination):
+    """Terminate the episode if the selected reference trajectory is not
+    tracked with expected accuracy regarding the relative foot odometry
+    positions, whatever the timestep being considered over some fixed-size
+    sliding window.
+
+    See `MultiFootRelativeXYZQuat` and `ShiftTrackingMotorPositionsTermination`
+    documentation for details.
+    """
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 max_position_err: float,
+                 horizon: float,
+                 grace_period: float = 0.0,
+                 frame_names: Union[Sequence[str], Literal['auto']] = 'auto',
+                 *,
+                 is_training_only: bool = False) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param max_position_err:
+            Maximum drift error in translation (X, Y) in world plane above
+            which termination is triggered.
+        :param horizon: Horizon over which values of the quantity will be
+                        stacked before computing the shift.
+        :param grace_period: Grace period effective only at the very beginning
+                             of the episode, during which the latter is bound
+                             to continue whatever happens.
+                             Optional: 0.0 by default.
+        :param frame_names: Name of the frames corresponding to the feet of the
+                            robot. 'auto' to automatically detect them from the
+                            set of contact and force sensors of the robot.
+                            Optional: 'auto' by default.
+        :param is_training_only: Whether the termination condition should be
+                                 completely by-passed if the environment is in
+                                 evaluation mode.
+                                 Optional: False by default.
+        """
+        super().__init__(
+            env,
+            "termination_tracking_foot_odom_positions",
+            lambda mode: (  # type: ignore[arg-type, return-value]
+                MaskedQuantity, dict(
+                    quantity=(MultiFootRelativeXYZQuat, dict(
+                        frame_names=frame_names,
+                        mode=mode)),
+                    axis=0,
+                    keys=(0, 1))),
+            max_position_err,
+            horizon,
+            grace_period,
+            is_truncation=False,
+            is_training_only=is_training_only)
+
+
+class ShiftTrackingFootOdometryOrientationsTermination(
+        ShiftTrackingQuantityTermination):
+    """Terminate the episode if the selected reference trajectory is not
+    tracked with expected accuracy regarding the relative foot odometry
+    orientations, whatever the timestep being considered over some fixed-size
+    sliding window.
+
+    See `MultiFootRelativeXYZQuat` and `ShiftTrackingMotorPositionsTermination`
+    documentation for details.
+    """
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 max_orientation_err: float,
+                 horizon: float,
+                 grace_period: float = 0.0,
+                 frame_names: Union[Sequence[str], Literal['auto']] = 'auto',
+                 *,
+                 is_training_only: bool = False) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+            Maximum shift error in orientation (yaw,) in world plane above
+            which termination is triggered.
+        :param horizon: Horizon over which values of the quantity will be
+                        stacked before computing the shift.
+        :param grace_period: Grace period effective only at the very beginning
+                             of the episode, during which the latter is bound
+                             to continue whatever happens.
+                             Optional: 0.0 by default.
+        :param frame_names: Name of the frames corresponding to the feet of the
+                            robot. 'auto' to automatically detect them from the
+                            set of contact and force sensors of the robot.
+                            Optional: 'auto' by default.
+        :param is_training_only: Whether the termination condition should be
+                                 completely by-passed if the environment is in
+                                 evaluation mode.
+                                 Optional: False by default.
+        """
         # Call base implementation
         super().__init__(
             env,
-            "termination_tracking_motor_positions",
-            lambda mode: (BaseOdometryPose, dict(mode=mode)),
-            None,
-            np.array([max_position_err, max_orientation_err]),
+            "termination_tracking_foot_odom_orientations",
+            lambda mode: (UnaryOpQuantity, dict(
+                quantity=(MaskedQuantity, dict(
+                    quantity=(MultiFootRelativeXYZQuat, dict(
+                        frame_names=frame_names,
+                        mode=mode)),
+                    axis=0,
+                    keys=(3, 4, 5, 6))),
+                op=quat_to_yaw)),
+            max_orientation_err,
             horizon,
             grace_period,
-            post_fn=compute_se2_double_geoedesic_distance,
             is_truncation=False,
             is_training_only=is_training_only)

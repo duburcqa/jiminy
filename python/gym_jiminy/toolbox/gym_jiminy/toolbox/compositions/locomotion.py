@@ -36,7 +36,7 @@ def tanh_normalization(value: float,
     return 1.0 / (1.0 + math.pow(CUTOFF_ESP / (1.0 - CUTOFF_ESP), value_rel))
 
 
-class MaximizeStability(QuantityReward):
+class MaximizeRobusntess(QuantityReward):
     """Encourage the agent to maintain itself in postures as robust as possible
     to external disturbances.
 
