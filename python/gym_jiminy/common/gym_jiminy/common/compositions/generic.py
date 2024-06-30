@@ -97,7 +97,7 @@ class TrackingQuantityReward(QuantityReward):
                    Group. The basic subtraction operator `operator.sub` is
                    appropriate for the Euclidean space.
                    Optional: `operator.sub` by default.
-        :param order: Order of Lp-Norm that will be used as distance metric.
+        :param order: Order of L^p-norm that will be used as distance metric.
                       Optional: 2 by default.
         """
         # Backup some user argument(s)
@@ -274,7 +274,7 @@ class ShiftTrackingQuantityTermination(QuantityTermination[np.ndarray]):
     """Base class to derive termination condition from the shift between the
     current and reference values of a given quantity.
 
-    The shift is defined as the minimum time-aligned distance (L2-norm of the
+    The shift is defined as the minimum time-aligned distance (L^2-norm of the
     difference) between two multivariate time series. In this case, a
     variable-length horizon bounded by 'max_stack' is considered.
 
@@ -327,7 +327,7 @@ class ShiftTrackingQuantityTermination(QuantityTermination[np.ndarray]):
                    common subtraction operator `operator.sub` is appropriate
                    for Euclidean space.
                    Optional: `operator.sub` by default.
-        :param order: Order of Lp-Norm that will be used as distance metric.
+        :param order: Order of L^p-norm that will be used as distance metric.
         :param is_truncation: Whether the episode should be considered
                               terminated or truncated whenever the termination
                               condition is triggered.

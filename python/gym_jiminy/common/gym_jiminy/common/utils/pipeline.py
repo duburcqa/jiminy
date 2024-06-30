@@ -292,7 +292,7 @@ def build_pipeline(env_config: EnvConfig,
         assert isinstance(cls, type)
 
         # Get its constructor keyword-arguments
-        kwargs = composition_config.get("kwargs", {})
+        kwargs = composition_config.get("kwargs", {}).copy()
 
         # Special handling for `MixtureReward`
         if is_reward and issubclass(cls, MixtureReward):

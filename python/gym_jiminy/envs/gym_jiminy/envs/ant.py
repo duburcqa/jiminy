@@ -239,9 +239,9 @@ class AntJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
             * survive_reward: Constant positive reward equal to 1.0 as long as
               no termination condition has been triggered.
             * ctrl_cost: Negative reward to penalize power consumption, defined
-              as the L2-norm of the action vector weighted by 0.5.
+              as the L^2-norm of the action vector weighted by 0.5.
             * contact_cost: Negative reward to penalize jerky, violent motions,
-              defined as the aggregated L2-norm of the external forces applied
+              defined as the aggregated L^2-norm of the external forces applied
               on all bodies weighted by 5e-4.
 
         The value of each individual reward is added to `info` for monitoring.

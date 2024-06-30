@@ -265,11 +265,11 @@ namespace jiminy
                they can grow arbitrary large for constraints whose bounds are active. It follows
                that stagnation of residuals is the only viable criteria.
                The PGS algorithm has been modified for solving second-order cone LCP, which means
-               that only the L2-norm of the tangential forces can be expected to converge. Because
+               that only the L^2-norm of the tangential forces can be expected to converge. Because
                of this, it is too restrictive to check the element-wise variation of the residuals
                over iterations. It makes more sense to look at the Linf-norm instead, but this
                criteria is very lax. A good compromise may be to look at the constraint-block-wise
-               L2-norm, which is similar to what Drake simulator is doing. For reference, see:
+               L^2-norm, which is similar to what Drake simulator is doing. For reference, see:
                https://github.com/RobotLocomotion/drake/blob/master/multibody/contact_solvers/pgs_solver.cc
             */
             const double tol = tolAbs_ + tolRel_ * y_.lpNorm<Eigen::Infinity>() + EPS;

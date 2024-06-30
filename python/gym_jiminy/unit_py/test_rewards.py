@@ -120,7 +120,7 @@ class Rewards(unittest.TestCase):
         """
         CUTOFF_INNER, CUTOFF_OUTER = 0.1, 0.5
         reward_stability = MaximizeRobusntess(
-            self.env, cutoff_inner=0.1, cutoff_outer=0.5)
+            self.env, cutoff=0.1, cutoff_outer=0.5)
         quantity = reward_stability.quantity
 
         self.env.reset(seed=0)
