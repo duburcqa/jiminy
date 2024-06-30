@@ -238,12 +238,12 @@ class MinimizeFrictionReward(QuantityReward):
     """Reward the agent for minimizing the tangential forces at all the contact
     points and collision bodies, and to avoid jerky intermittent contact state.
 
-    The L2-norm is used to aggregate all the local tangential forces. While the
-    L1-norm would be more natural in this specific cases, using the L2-norm is
-    preferable as it promotes space-time regularity, ie balancing the  force
-    distribution evenly between all the candidate contact points and avoiding
-    jerky contact forces over time (high-frequency vibrations),  phenomena to
-    which the L1-norm is completely insensitive.
+    The L^2-norm is used to aggregate all the local tangential forces. While
+    the L^1-norm would be more natural in this specific cases, using the L-2
+    norm is preferable as it promotes space-time regularity, ie balancing the
+    force distribution evenly between all the candidate contact points and
+    avoiding jerky contact forces over time (high-frequency vibrations),
+    phenomena to which the L^1-norm is completely insensitive.
     """
     def __init__(self,
                  env: InterfaceJiminyEnv,
@@ -561,7 +561,7 @@ class ImpactForceTermination(QuantityTermination):
         """
         super().__init__(
             env,
-            "termination_flying",
+            "termination_impact_force",
             (MaskedQuantity, dict(  # type: ignore[arg-type]
                 quantity=(MultiContactNormalizedSpatialForce, dict()),
                 axis=0,

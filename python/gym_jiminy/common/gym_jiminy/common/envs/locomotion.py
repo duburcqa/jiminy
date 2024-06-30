@@ -150,7 +150,6 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         std_ratio = {k: v for k, v in std_ratio.items() if v > 0.0}
 
         # Backup user arguments
-        self.simulation_duration_max = simulation_duration_max
         self.reward_mixture = reward_mixture
         self.urdf_path = urdf_path
         self.mesh_path_dir = mesh_path_dir
@@ -202,7 +201,8 @@ class WalkerJiminyEnv(BaseJiminyEnv):
             simulator.import_options(config_path)
 
         # Initialize base class
-        super().__init__(simulator, step_dt, debug, **kwargs)
+        super().__init__(
+            simulator, step_dt, simulation_duration_max, debug, **kwargs)
 
     def _setup(self) -> None:
         """Configure the environment.

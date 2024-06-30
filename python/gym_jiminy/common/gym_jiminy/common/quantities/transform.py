@@ -323,7 +323,7 @@ class UnaryOpQuantity(InterfaceQuantity[ValueT],
 
     This quantity is useful to translate quantities from world frame to local
     odometry frame. It may also be used to convert multi-variate quantities as
-    scalar, typically by computing the Lp-norm.
+    scalar, typically by computing the L^p-norm.
     """
 
     quantity: InterfaceQuantity[OtherValueT]
