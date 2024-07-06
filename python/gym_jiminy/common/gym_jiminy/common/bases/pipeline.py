@@ -492,9 +492,17 @@ class ComposedJiminyEnv(
         self.env.compute_command(action, command)
 
     def compute_reward(self, terminated: bool, info: InfoType) -> float:
-        if self.reward is None:
-            return 0.0
-        return self.reward(terminated, info)
+        """ TODO: Write documentation.
+        """
+        # Compute base reward
+        reward = self.env.compute_reward(terminated, info)
+
+        # Add composed reward if any
+        if self.reward is not None:
+            reward += self.reward(terminated, info)
+
+        # Return total reward
+        return reward
 
 
 class ObservedJiminyEnv(

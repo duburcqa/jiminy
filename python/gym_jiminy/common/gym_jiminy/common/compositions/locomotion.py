@@ -481,8 +481,9 @@ class _MultiContactMinGroundDistance(InterfaceQuantity[float]):
     def refresh(self) -> float:
         # Query the height and normal to the ground profile for the position in
         # world plane of all the contact points.
+        positions = self.positions.get()
         jiminy.query_heightmap(self._heightmap,
-                               self.positions[:2],
+                               positions[:2],
                                self._heights,
                                self._normals)
 
@@ -490,7 +491,7 @@ class _MultiContactMinGroundDistance(InterfaceQuantity[float]):
         # self._normals /= np.linalg.norm(self._normals, axis=0)
 
         # First-order distance estimation assuming no curvature
-        return self._min_depth(self.positions, self._heights, self._normals)
+        return self._min_depth(positions, self._heights, self._normals)
 
 
 class FlyingTermination(QuantityTermination):

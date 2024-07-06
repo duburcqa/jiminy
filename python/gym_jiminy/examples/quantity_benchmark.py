@@ -11,10 +11,9 @@ from gym_jiminy.common.quantities import (
 # Define number of samples for benchmarking
 N_SAMPLES = 50000
 
-# Disable caching by forcing `SharedCache.has_value` to always return `False`
-setattr(gym_jiminy.common.bases.quantities.SharedCache,
-        "has_value",
-        property(lambda self: False))
+# Disable caching by disabling "IS_CACHED" FSM State
+gym_jiminy.common.bases.quantities._IS_CACHED = (
+    gym_jiminy.common.bases.quantities.QuantityStateMachine.IS_INITIALIZED)
 
 # Instantiate a dummy environment
 env = gym.make("gym_jiminy.envs:atlas")
@@ -40,7 +39,7 @@ for i in range(1, len(env.robot.pinocchio_model.frames)):
             break
 
     # Extract batched data buffer of `FrameOrientation` quantities
-    shared_data = quantity.requirements['data']
+    shared_data = quantity.data
 
     # Benchmark computation of batched data buffer
     duration = timeit.timeit(

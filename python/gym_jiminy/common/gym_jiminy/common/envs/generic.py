@@ -713,12 +713,6 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         self.robot.compute_sensor_measurements(
             0.0, q_init, v_init, a_init, u_motor, f_external)
 
-        # Re-initialize the quantity manager.
-        # Note that computation graph tracking is never reset automatically.
-        # It is the responsibility of the practitioner implementing a derived
-        # environment whenever it makes sense for its specific use-case.
-        self.quantities.reset(reset_tracking=False)
-
         # Run the reset hook if any.
         # Note that the reset hook must be called after `_setup` because it
         # expects that the robot is not going to change anymore at this point.
@@ -732,6 +726,12 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
             assert env_derived.unwrapped is self
             env = env_derived
         self.derived = env
+
+        # Re-initialize the quantity manager.
+        # Note that computation graph tracking is never reset automatically.
+        # It is the responsibility of the practitioner implementing a derived
+        # environment whenever it makes sense for its specific use-case.
+        self.quantities.reset(reset_tracking=False)
 
         # Instantiate the actual controller.
         # Note that a weak reference must be used to avoid circular reference.
@@ -756,6 +756,9 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
 
         # Update shared buffers
         self._refresh_buffers()
+
+        # Clear cache and auto-refresh managed quantities
+        self.quantities.clear()
 
         # Initialize the observation
         env._observer_handle(
@@ -884,6 +887,9 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
 
         # Update shared buffers
         self._refresh_buffers()
+
+        # Clear cache and auto-refresh managed quantities
+        self.quantities.clear()
 
         # Update the observer at the end of the step.
         # This is necessary because, internally, it is called at the beginning

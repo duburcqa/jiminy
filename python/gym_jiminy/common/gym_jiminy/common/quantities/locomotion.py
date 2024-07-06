@@ -156,7 +156,8 @@ class BaseRelativeHeight(InterfaceQuantity[float]):
             auto_refresh=False)
 
     def refresh(self) -> float:
-        return self.base_pos[2] - np.min(self.contacts_pos[2])
+        base_pos, contacts_pos = self.base_pos.get(), self.contacts_pos.get()
+        return base_pos[2] - np.min(contacts_pos[2])
 
 
 @dataclass(unsafe_hash=True)
@@ -285,8 +286,9 @@ class BaseSpatialAverageVelocity(InterfaceQuantity[np.ndarray]):
 
     def refresh(self) -> np.ndarray:
         # Translate spatial base velocity from local to odometry frame
-        quat_apply(self.quat_no_yaw_mean,
-                   self.v_spatial.reshape((2, 3)).T,
+        v_spatial = self.v_spatial.get()
+        quat_apply(self.quat_no_yaw_mean.get(),
+                   v_spatial.reshape((2, 3)).T,
                    self._v_lin_ang)
 
         return self._v_spatial
@@ -338,7 +340,7 @@ class BaseOdometryAverageVelocity(InterfaceQuantity[np.ndarray]):
             auto_refresh=False)
 
     def refresh(self) -> np.ndarray:
-        return self.data
+        return self.data.get()
 
 
 @dataclass(unsafe_hash=True)
@@ -404,10 +406,11 @@ class AverageBaseMomentum(AbstractQuantity[np.ndarray]):
 
     def refresh(self) -> np.ndarray:
         # Compute the local angular momentum of inertia
-        np.matmul(self._inertia_local, self.v_angular, self._h_angular)
+        np.matmul(self._inertia_local, self.v_angular.get(), self._h_angular)
 
         # Apply quaternion rotation of the local angular momentum of inertia
-        quat_apply(self.quat_no_yaw_mean, self._h_angular, self._h_angular)
+        quat_apply(
+            self.quat_no_yaw_mean.get(), self._h_angular, self._h_angular)
 
         return self._h_angular
 
@@ -472,7 +475,7 @@ class MultiFootMeanXYZQuat(InterfaceQuantity[np.ndarray]):
             auto_refresh=False)
 
     def refresh(self) -> np.ndarray:
-        return self.data
+        return self.data.get()
 
 
 @dataclass(unsafe_hash=True)
@@ -545,10 +548,11 @@ class MultiFootMeanOdometryPose(InterfaceQuantity[np.ndarray]):
 
     def refresh(self) -> np.ndarray:
         # Copy translation part
-        array_copyto(self._xy_view, self.xyzquat_mean[:2])
+        xyzquat_mean = self.xyzquat_mean.get()
+        array_copyto(self._xy_view, xyzquat_mean[:2])
 
         # Compute Yaw angle
-        quat_to_yaw(self.xyzquat_mean[-4:], self._yaw_view)
+        quat_to_yaw(xyzquat_mean[-4:], self._yaw_view)
 
         return self._odom_pose
 
@@ -655,7 +659,7 @@ class MultiFootRelativeXYZQuat(InterfaceQuantity[np.ndarray]):
 
     def refresh(self) -> np.ndarray:
         # Extract mean and individual frame position and quaternion vectors
-        xyzquats, xyzquat_mean = self.xyzquats, self.xyzquat_mean
+        xyzquats, xyzquat_mean = self.xyzquats.get(), self.xyzquat_mean.get()
         positions, position_mean = xyzquats[:3, :-1], xyzquat_mean[:3]
         quats, quat_mean = xyzquats[-4:, :-1], xyzquat_mean[-4:]
 
@@ -737,7 +741,7 @@ class CenterOfMass(AbstractQuantity[np.ndarray]):
         super().initialize()
 
         # Make sure that the state data meet requirements
-        state = self.state
+        state = self.state.get()
         if ((self.kinematic_level == pin.ACCELERATION and state.a is None) or
                 (self.kinematic_level >= pin.VELOCITY and state.v is None)):
             raise RuntimeError(
@@ -833,7 +837,8 @@ class ZeroMomentPoint(AbstractQuantity[np.ndarray]):
         super().initialize()
 
         # Make sure that the state data meet requirements
-        if self.state.v is None or self.state.a is None:
+        state = self.state.get()
+        if state.v is None or state.a is None:
             raise RuntimeError(
                 "State data do not meet requirements. Velocity and "
                 "acceleration are missing.")
@@ -848,7 +853,7 @@ class ZeroMomentPoint(AbstractQuantity[np.ndarray]):
 
     def refresh(self) -> np.ndarray:
         # Extract intermediary quantities for convenience
-        (dhg_linear, dhg_angular), com = self.dhg, self.com_position
+        (dhg_linear, dhg_angular), com = self.dhg, self.com_position.get()
 
         # Compute the vertical force applied by the robot
         f_z = dhg_linear[2] + self._robot_weight
@@ -861,7 +866,7 @@ class ZeroMomentPoint(AbstractQuantity[np.ndarray]):
 
         # Translate the ZMP from world to local odometry frame if requested
         if self.reference_frame == pin.LOCAL:
-            translate_position_odom(self._zmp, self.odom_pose, self._zmp)
+            translate_position_odom(self._zmp, self.odom_pose.get(), self._zmp)
 
         return self._zmp
 
@@ -938,7 +943,8 @@ class CapturePoint(AbstractQuantity[np.ndarray]):
         super().initialize()
 
         # Make sure that the state data meet requirements
-        if self.state.v is None:
+        state = self.state.get()
+        if state.v is None:
             raise RuntimeError(
                 "State data do not meet requirements. Velocity is missing.")
 
@@ -962,12 +968,13 @@ class CapturePoint(AbstractQuantity[np.ndarray]):
 
     def refresh(self) -> np.ndarray:
         # Compute the DCM in world frame
-        com_position, com_velocity = self.com_position, self.com_velocity
+        com_position = self.com_position.get()
+        com_velocity = self.com_velocity.get()
         self._dcm[:] = com_position[:2] + com_velocity[:2] / self.omega
 
         # Translate the ZMP from world to local odometry frame if requested
         if self.reference_frame == pin.LOCAL:
-            translate_position_odom(self._dcm, self.odom_pose, self._dcm)
+            translate_position_odom(self._dcm, self.odom_pose.get(), self._dcm)
 
         return self._dcm
 
@@ -1060,7 +1067,8 @@ class MultiContactNormalizedSpatialForce(AbstractQuantity[np.ndarray]):
         super().initialize()
 
         # Make sure that the state data meet requirements
-        if self.state.lambda_c is None:
+        state = self.state.get()
+        if state.lambda_c is None:
             raise RuntimeError("State data do not meet requirements. "
                                "Constraints lambda multipliers are missing.")
 
@@ -1107,8 +1115,9 @@ class MultiContactNormalizedSpatialForce(AbstractQuantity[np.ndarray]):
             (6, num_contraints), order='C')
 
     def refresh(self) -> np.ndarray:
+        state = self.state.get()
         self._normalize_spatial_forces(
-            self.state.lambda_c,
+            state.lambda_c,
             *self._contact_slice,
             self._robot_weight,
             self._force_spatial_rel_batch)
@@ -1235,7 +1244,8 @@ class MultiFootNormalizedForceVertical(AbstractQuantity[np.ndarray]):
         super().initialize()
 
         # Make sure that the state data meet requirements
-        if self.state.lambda_c is None:
+        state = self.state.get()
+        if state.lambda_c is None:
             raise RuntimeError("State data do not meet requirements. "
                                "Constraints lambda multipliers are missing.")
 
@@ -1304,7 +1314,8 @@ class MultiFootNormalizedForceVertical(AbstractQuantity[np.ndarray]):
                            self._vertical_transform_list)
 
         # Compute the normalized sum of the vertical forces in world frame
-        self._normalize_vertical_forces(self.state.lambda_c,
+        state = self.state.get()
+        self._normalize_vertical_forces(state.lambda_c,
                                         self._foot_slices,
                                         self._vertical_transform_batches,
                                         self._robot_weight,
@@ -1362,4 +1373,4 @@ class MultiFootCollisionDetection(InterfaceQuantity[bool]):
             auto_refresh=False)
 
     def refresh(self) -> bool:
-        return self.is_colliding
+        return self.is_colliding.get()

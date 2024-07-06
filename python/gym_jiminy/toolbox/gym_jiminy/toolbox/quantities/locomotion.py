@@ -70,8 +70,7 @@ class ProjectedSupportPolygon(AbstractQuantity[ConvexHull2D]):
             env,
             parent,
             requirements=dict(
-                odom_pose=(BaseOdometryPose, dict(mode=mode))
-            ),
+                odom_pose=(BaseOdometryPose, dict(mode=mode))),
             mode=mode,
             auto_refresh=False)
 
@@ -149,7 +148,7 @@ class ProjectedSupportPolygon(AbstractQuantity[ConvexHull2D]):
         # Translate candidate contact points from world to local odometry frame
         if self.reference_frame == pin.LOCAL:
             translate_position_odom(self._candidate_xy_batch,
-                                    self.odom_pose,
+                                    self.odom_pose.get(),
                                     self._candidate_xy_batch)
 
         # Compute the 2D convex hull in world plane
@@ -217,4 +216,5 @@ class StabilityMarginProjectedSupportPolygon(InterfaceQuantity[float]):
             auto_refresh=False)
 
     def refresh(self) -> float:
-        return - self.support_polygon.get_distance_to_point(self.zmp).item()
+        support_polygon, zmp = self.support_polygon.get(), self.zmp.get()
+        return - support_polygon.get_distance_to_point(zmp).item()

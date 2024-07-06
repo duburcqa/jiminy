@@ -66,7 +66,7 @@ class Rewards(unittest.TestCase):
                 (TrackingFootOrientationsReward, 2.0),
                 (TrackingFootForceDistributionReward, 2.0)):
             reward = reward_class(self.env, cutoff=cutoff)
-            quantity = reward.quantity
+            quantity = reward.data
 
             self.env.reset(seed=0)
             action = 0.5 * self.env.action_space.sample()
@@ -74,17 +74,18 @@ class Rewards(unittest.TestCase):
                 self.env.step(action)
             _, _, terminated, _, _ = self.env.step(self.env.action)
 
+            value_left = quantity.quantity_left.get()
+            value_right = quantity.quantity_right.get()
             with np.testing.assert_raises(AssertionError):
-                np.testing.assert_allclose(
-                    quantity.value_left, quantity.value_right)
+                np.testing.assert_allclose(value_left, value_right)
 
             if isinstance(reward, TrackingBaseHeightReward):
                 np.testing.assert_allclose(
-                    quantity.value_left, self.env.robot_state.q[2])
+                    value_left, self.env.robot_state.q[2])
 
             gamma = - np.log(CUTOFF_ESP) / cutoff ** 2
-            value = np.exp(- gamma * np.sum((quantity.op(
-                quantity.value_left, quantity.value_right)) ** 2))
+            value = np.exp(- gamma * np.sum(
+                (quantity.op(value_left, value_right)) ** 2))
             assert value > 0.01
             np.testing.assert_allclose(reward(terminated, {}), value)
 
@@ -121,13 +122,14 @@ class Rewards(unittest.TestCase):
         CUTOFF_INNER, CUTOFF_OUTER = 0.1, 0.5
         reward_stability = MaximizeRobusntess(
             self.env, cutoff=0.1, cutoff_outer=0.5)
-        quantity = reward_stability.quantity
+        quantity = reward_stability.data
 
         self.env.reset(seed=0)
         action = self.env.action_space.sample()
         _, _, terminated, _, _ = self.env.step(action)
 
-        dist = quantity.support_polygon.get_distance_to_point(quantity.zmp)
+        support_polygon = quantity.support_polygon.get()
+        dist = support_polygon.get_distance_to_point(quantity.zmp.get())
         value = tanh_normalization(dist.item(), -CUTOFF_INNER, CUTOFF_OUTER)
         np.testing.assert_allclose(tanh_normalization(
             -CUTOFF_INNER, -CUTOFF_INNER, CUTOFF_OUTER), 1.0 - CUTOFF_ESP)
@@ -140,7 +142,7 @@ class Rewards(unittest.TestCase):
         """
         CUTOFF = 0.5
         reward_friction = MinimizeFrictionReward(self.env, cutoff=CUTOFF)
-        quantity = reward_friction.quantity
+        quantity = reward_friction.data
 
         self.env.reset(seed=0)
         _, _, terminated, _, _ = self.env.step(self.env.action)

@@ -62,24 +62,30 @@ class Quantities(unittest.TestCase):
         assert len(quantities["com"].cache.owners) == 2
 
         zmp_0 = quantity_manager.zmp.copy()
-        assert quantities["com"].cache.has_value
-        assert not quantities["acom"].cache.has_value
-        assert not quantities["com"]._is_initialized
-        assert quantities["zmp"].requirements["com_position"]._is_initialized
+        assert quantities["com"].cache.sm_state == 2
+        assert quantities["acom"].cache.sm_state == 0
+        is_initialized_all = [
+            owner._is_initialized for owner in quantities["com"].cache.owners]
+        assert len(is_initialized_all) == 2
+        assert len(set(is_initialized_all)) == 2
 
         env.step(env.action_space.sample())
         zmp_1 = quantity_manager["zmp"].copy()
         assert np.all(zmp_0 == zmp_1)
         quantity_manager.clear()
-        assert quantities["zmp"].requirements["com_position"]._is_initialized
-        assert not quantities["com"].cache.has_value
+        is_initialized_all = [
+            owner._is_initialized for owner in quantities["com"].cache.owners]
+        assert any(is_initialized_all)
+        assert quantities["com"].cache.sm_state == 1
         zmp_1 = quantity_manager.zmp.copy()
         assert np.any(zmp_0 != zmp_1)
 
         env.step(env.action_space.sample())
         quantity_manager.reset()
-        assert not quantities["zmp"].requirements[
-            "com_position"]._is_initialized
+        assert quantities["com"].cache.sm_state == 0
+        is_initialized_all = [
+            owner._is_initialized for owner in quantities["com"].cache.owners]
+        assert not any(is_initialized_all)
         zmp_2 = quantity_manager.zmp.copy()
         assert np.any(zmp_1 != zmp_2)
 
@@ -126,43 +132,39 @@ class Quantities(unittest.TestCase):
 
         xyzquat_0 = quantity_manager.xyzquat_0.copy()
         rpy_0 = quantity_manager.rpy_0.copy()
-        assert len(quantities['rpy_0'].requirements['data'].frame_names) == 1
+        assert len(quantities['rpy_0'].data.cache.owners[0].frame_names) == 1
         assert np.all(rpy_0 == quantity_manager.rpy_1)
         rpy_2 = quantity_manager.rpy_2.copy()
         assert np.any(rpy_0 != rpy_2)
-        assert len(quantities['rpy_2'].requirements['data'].frame_names) == 2
+        assert len(quantities['rpy_2'].data.cache.owners[0].frame_names) == 2
         assert tuple(quantity_manager.rpy_batch_0.shape) == (3, 2)
-        assert len(quantities['rpy_batch_0'].requirements['data'].
-                   frame_names) == 3
+        assert len(quantities['rpy_batch_0'].data.cache.owners[0].frame_names) == 3
         quantity_manager.rpy_batch_1
-        assert len(quantities['rpy_batch_1'].requirements['data'].
-                   frame_names) == 3
+        assert len(quantities['rpy_batch_1'].data.cache.owners[0].frame_names) == 3
         quantity_manager.rpy_batch_2
-        assert len(quantities['rpy_batch_2'].requirements['data'].
-                   frame_names) == 5
+        assert len(quantities['rpy_batch_2'].data.cache.owners[0].frame_names) == 5
         assert tuple(quantity_manager.rot_mat_batch.shape) == (3, 3, 2)
         assert tuple(quantity_manager.quat_batch.shape) == (4, 2)
-        assert len(quantities['quat_batch'].requirements['data'].
-                   requirements['rot_mat_map'].frame_names) == 8
+        assert len(quantities['quat_batch'].data.rot_mat_map.cache.owners[0].frame_names) == 8
 
         env.step(env.action_space.sample())
         quantity_manager.reset()
         rpy_0_next = quantity_manager.rpy_0
-        xyzquat_0_next =  quantity_manager.xyzquat_0.copy()
+        xyzquat_0_next = quantity_manager.xyzquat_0.copy()
         assert np.any(rpy_0 != rpy_0_next)
         assert np.any(xyzquat_0 != xyzquat_0_next)
-        assert len(quantities['rpy_2'].requirements['data'].frame_names) == 2
+        assert len(quantities['rpy_2'].data.cache.owners[0].frame_names) == 5
 
-        assert len(quantities['rpy_1'].requirements['data'].cache.owners) == 6
+        assert len(quantities['rpy_1'].data.cache.owners) == 6
         del quantity_manager['rpy_2']
-        assert len(quantities['rpy_1'].requirements['data'].cache.owners) == 5
+        assert len(quantities['rpy_1'].data.cache.owners) == 5
         quantity_manager.rpy_1
-        assert len(quantities['rpy_1'].requirements['data'].frame_names) == 1
+        assert len(quantities['rpy_1'].data.cache.owners[0].frame_names) == 1
 
         quantity_manager.reset(reset_tracking=True)
         assert np.all(rpy_0_next == quantity_manager.rpy_0)
         assert np.all(xyzquat_0_next == quantity_manager.xyzquat_0)
-        assert len(quantities['rpy_0'].requirements['data'].frame_names) == 1
+        assert len(quantities['rpy_0'].data.cache.owners[0].frame_names) == 1
 
     def test_discard(self):
         """ TODO: Write documentation
@@ -182,14 +184,14 @@ class Quantities(unittest.TestCase):
         quantities = quantity_manager.registry
 
         assert len(quantities['rpy_1'].cache.owners) == 2
-        assert len(quantities['rpy_2'].requirements['data'].cache.owners) == 3
+        assert len(quantities['rpy_2'].data.cache.owners) == 3
 
         del quantity_manager['rpy_0']
         assert len(quantities['rpy_1'].cache.owners) == 1
-        assert len(quantities['rpy_2'].requirements['data'].cache.owners) == 2
+        assert len(quantities['rpy_2'].data.cache.owners) == 2
 
         del quantity_manager['rpy_1']
-        assert len(quantities['rpy_2'].requirements['data'].cache.owners) == 1
+        assert len(quantities['rpy_2'].data.cache.owners) == 1
 
         del quantity_manager['rpy_2']
         for (cls, _), cache in quantity_manager._caches.items():
@@ -286,8 +288,9 @@ class Quantities(unittest.TestCase):
             keys=(0, 1, 5)))
         quantity = env.quantities.registry["v_masked"]
         assert not quantity._slices
+        value = quantity.quantity.get()
         np.testing.assert_allclose(
-            env.quantities["v_masked"], quantity.data[[0, 1, 5]])
+            env.quantities["v_masked"], value[[0, 1, 5]])
         del env.quantities["v_masked"]
 
         # 2. From boolean mask
@@ -295,8 +298,9 @@ class Quantities(unittest.TestCase):
             quantity=(FrameXYZQuat, dict(frame_name="root_joint")),
             keys=(True, True, False, False, False, True)))
         quantity = env.quantities.registry["v_masked"]
+        value = quantity.quantity.get()
         np.testing.assert_allclose(
-            env.quantities["v_masked"], quantity.data[[0, 1, 5]])
+            env.quantities["v_masked"], value[[0, 1, 5]])
         del env.quantities["v_masked"]
 
         # 3. From slice-able indices
@@ -304,9 +308,11 @@ class Quantities(unittest.TestCase):
             quantity=(FrameXYZQuat, dict(frame_name="root_joint")),
             keys=(0, 2, 4)))
         quantity = env.quantities.registry["v_masked"]
-        assert len(quantity._slices) == 1 and quantity._slices[0] == slice(0, 5, 2)
+        assert len(quantity._slices) == 1 and (
+            quantity._slices[0] == slice(0, 5, 2))
+        value = quantity.quantity.get()
         np.testing.assert_allclose(
-            env.quantities["v_masked"], quantity.data[[0, 2, 4]])
+            env.quantities["v_masked"], value[[0, 2, 4]])
 
     def test_true_vs_reference(self):
         env = gym.make("gym_jiminy.envs:atlas", debug=False)
@@ -408,7 +414,7 @@ class Quantities(unittest.TestCase):
             rot_mat @ base_velocity_mean_local[3:]))
 
         np.testing.assert_allclose(
-            quantity.requirements['data'].data, base_velocity_mean_world)
+            quantity.data.quantity.get(), base_velocity_mean_world)
         base_odom_velocity = base_velocity_mean_world[[0, 1, 5]]
         np.testing.assert_allclose(
             env.quantities["odometry_velocity"], base_odom_velocity)
@@ -510,9 +516,9 @@ class Quantities(unittest.TestCase):
         env.step(env.action_space.sample())
 
         com_position = env.robot.pinocchio_data.com[0]
-        np.testing.assert_allclose(quantity.com_position, com_position)
+        np.testing.assert_allclose(quantity.com_position.get(), com_position)
         com_velocity = env.robot.pinocchio_data.vcom[0]
-        np.testing.assert_allclose(quantity.com_velocity, com_velocity)
+        np.testing.assert_allclose(quantity.com_velocity.get(), com_velocity)
         np.testing.assert_allclose(
             env.quantities["dcm"],
             com_position[:2] + com_velocity[:2] / omega)
@@ -733,8 +739,8 @@ class Quantities(unittest.TestCase):
                 mean_total_power = np.mean(
                     total_power_stack[-quantity.max_stack:])
 
-                np.testing.assert_allclose(
-                    total_power, quantity.total_power_stack[-1])
+                value = quantity.total_power_stack.get()
+                np.testing.assert_allclose(total_power, value[-1])
                 np.testing.assert_allclose(mean_total_power, quantity.get())
 
             del env.quantities["mean_power_consumption"]

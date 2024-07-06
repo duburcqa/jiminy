@@ -166,7 +166,7 @@ class AdditiveMixtureReward(MixtureReward):
                       been evaluated, `None` otherwise.
             """
             total, any_value = 0.0, False
-            for value in values:
+            for value, weight in zip(values, weights):
                 if value is not None:
                     if isinstance(order, str):
                         if any_value:

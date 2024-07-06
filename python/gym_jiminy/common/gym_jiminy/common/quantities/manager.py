@@ -239,6 +239,8 @@ class QuantityManager(MutableMapping):
         quantities_all = [self.registry.pop(name)]
         while quantities_all:
             quantity = quantities_all.pop()
+            if len(tuple(quantity.cache.owners)) == 1:
+                del self._caches[(type(quantity), hash(quantity))]
             quantity.cache = None  # type: ignore[assignment]
             quantities_all += quantity.requirements.values()
 

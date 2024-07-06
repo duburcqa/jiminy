@@ -122,8 +122,8 @@ class TerminationConditions(unittest.TestCase):
                         (termination_rot, flags_rot, rotations, info_rot)):
                     values = values[-termination.max_stack:]
                     drift = termination.op(values[-1], values[0])
-                    data = termination.quantity.value_left
-                    np.testing.assert_allclose(drift, data)
+                    value = termination.data.quantity_left.get()
+                    np.testing.assert_allclose(drift, value)
 
                     time = self.env.stepper_state.t
                     is_active = (
@@ -137,7 +137,7 @@ class TerminationConditions(unittest.TestCase):
                         assert is_active
                         assert terminated ^ termination.is_truncation
                     elif is_active:
-                        value = termination.quantity.get()
+                        value = termination.data.get()
                         assert np.all(value >= termination.low)
                         assert np.all(value <= termination.high)
                 _, _, terminated, truncated, _ = self.env.step(action)
@@ -193,13 +193,13 @@ class TerminationConditions(unittest.TestCase):
                         (termination_rot, flags_rot, rotations, info_rot)):
                     values = values[-termination.max_stack:]
                     stack = np.stack(values, axis=-1)
-                    left = termination.quantity.value_left
+                    left = termination.data.quantity_left.get()
                     np.testing.assert_allclose(stack, left)
-                    right = termination.quantity.value_right
+                    right = termination.data.quantity_right.get()
                     diff = termination.op(left, right)
                     shift = np.min(np.linalg.norm(
                         diff.reshape((-1, len(values))), axis=0))
-                    value = termination.quantity.get()
+                    value = termination.data.get()
                     np.testing.assert_allclose(shift, value)
 
                     time = self.env.stepper_state.t
@@ -334,10 +334,10 @@ class TerminationConditions(unittest.TestCase):
         MAX_POS_ERROR, MAX_ROT_ERROR = 0.1, 0.2
         termination_pos = DriftTrackingBaseOdometryPositionTermination(
             self.env, MAX_POS_ERROR, 1.0)
-        quantity_pos = termination_pos.quantity
+        quantity_pos = termination_pos.data
         termination_rot = DriftTrackingBaseOdometryOrientationTermination(
             self.env, MAX_ROT_ERROR, 1.0)
-        quantity_rot = termination_rot.quantity
+        quantity_rot = termination_rot.data
 
         self.env.reset(seed=0)
         action = self.env.action_space.sample()
@@ -346,10 +346,14 @@ class TerminationConditions(unittest.TestCase):
             if terminated:
                 break
             terminated, truncated = termination_pos({})
-            diff = quantity_pos.value_left - quantity_pos.value_right
+            value_left = quantity_pos.quantity_left.get()
+            value_right = quantity_pos.quantity_right.get()
+            diff = value_left - value_right
             is_valid = np.linalg.norm(diff) <= MAX_POS_ERROR
             assert terminated ^ is_valid
-            diff = quantity_rot.value_left - quantity_rot.value_right
+            value_left = quantity_rot.quantity_left.get()
+            value_right = quantity_rot.quantity_right.get()
+            diff = value_left - value_right
             terminated, truncated = termination_rot({})
             is_valid = np.abs(diff) <= MAX_ROT_ERROR
             assert terminated ^ is_valid

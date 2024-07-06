@@ -445,9 +445,8 @@ class _MultiActuatedJointBoundDistance(
         super().initialize()
 
         # Initialize the actuated joint position indices
-        quantity = self.requirements["position"]
-        quantity.initialize()
-        position_indices = quantity.kinematic_indices
+        self.position.initialize()
+        position_indices = self.position.kinematic_indices
 
         # Refresh mechanical joint position indices
         position_limit_low = self.env.robot.pinocchio_model.lowerPositionLimit
@@ -456,8 +455,8 @@ class _MultiActuatedJointBoundDistance(
         self.position_high = position_limit_high[position_indices]
 
     def refresh(self) -> Tuple[np.ndarray, np.ndarray]:
-        return (self.position - self.position_low,
-                self.position_high - self.position)
+        position = self.position.get()
+        return (position - self.position_low, self.position_high - position)
 
 
 class MechanicalSafetyTermination(AbstractTerminationCondition):
