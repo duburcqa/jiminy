@@ -111,16 +111,15 @@ class AdditiveMixtureReward(MixtureReward):
             raise ValueError("'order' must be strictly positive or 'inf'.")
 
         # Make sure that the weight sequence is consistent with the components
-        if weights is None or len(weights) != len(components):
+        if len(weights) != len(components):
             raise ValueError(
                 "Exactly one weight per reward component must be specified.")
 
         # Filter out components whose weight are zero
-        if weights is not None:
-            weights, components = zip(*(
-                (weight, reward)
-                for weight, reward in zip(weights, components)
-                if weight > 0.0))
+        weights, components = zip(*(
+            (weight, reward)
+            for weight, reward in zip(weights, components)
+            if weight > 0.0))
 
         # Determine whether the cumulative reward is normalized
         scale = 0.0
@@ -141,11 +140,11 @@ class AdditiveMixtureReward(MixtureReward):
 
         # Backup user-arguments
         self.order = order
-        self.weights = tuple(weights) if weights is not None else weights
+        self.weights = tuple(weights)
 
         # Jit-able method computing the weighted sum of reward components
         @nb.jit(nopython=True, cache=True, fastmath=True)
-        def weighted_norm(weights: Optional[Tuple[float, ...]],
+        def weighted_norm(weights: Tuple[float, ...],
                           order: Union[int, float, Literal['inf']],
                           values: Tuple[Optional[float], ...]
                           ) -> Optional[float]:
@@ -155,8 +154,8 @@ class AdditiveMixtureReward(MixtureReward):
             This method returns `None` if no reward component has been
             evaluated.
 
-            :param weights: Optional sequence of weights for each reward
-                            component, with same ordering as 'components'.
+            :param weights: Sequence of weights for each reward component, with
+                            same ordering as 'components'.
             :param order: Order of the L^p-norm.
             :param values: Sequence of scalar value for reward components that
                            has been evaluated, `None` otherwise, with the same

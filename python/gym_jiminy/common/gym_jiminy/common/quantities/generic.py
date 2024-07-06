@@ -90,9 +90,11 @@ def aggregate_frame_names(quantity: InterfaceQuantity) -> Tuple[
     # First, order all multi-frame quantities by decreasing length
     frame_names_chunks: List[Tuple[str, ...]] = []
     for owner in quantities:
-        if owner.parent.is_active(any_cache_owner=False):
-            if isinstance(owner.parent, MultiFrameQuantity):
-                frame_names_chunks.append(owner.parent.frame_names)
+        parent = owner.parent
+        assert parent is not None
+        if parent.is_active(any_cache_owner=False):
+            if isinstance(parent, MultiFrameQuantity):
+                frame_names_chunks.append(parent.frame_names)
 
     # Next, process ordered multi-frame quantities sequentially.
     # For each of them, we first check if its set of frames is completely
@@ -132,9 +134,11 @@ def aggregate_frame_names(quantity: InterfaceQuantity) -> Tuple[
     # Otherwise, we just move to the next quantity.
     frame_name_chunks: List[str] = []
     for owner in quantities:
-        if owner.parent.is_active(any_cache_owner=False):
-            if isinstance(owner.parent, FrameQuantity):
-                frame_name_chunks.append(owner.parent.frame_name)
+        parent = owner.parent
+        assert parent is not None
+        if parent.is_active(any_cache_owner=False):
+            if isinstance(parent, FrameQuantity):
+                frame_name_chunks.append(parent.frame_name)
                 frame_name = frame_name_chunks[-1]
                 if frame_name not in frame_names:
                     frame_names.append(frame_name)
@@ -285,7 +289,8 @@ class OrientationType(IntEnum):
 
 
 # Define proxies for fast lookup
-_MATRIX, _EULER, _QUATERNION, _ANGLE_AXIS = OrientationType
+_MATRIX, _EULER, _QUATERNION, _ANGLE_AXIS = (  # pylint: disable=invalid-name
+    OrientationType)
 
 
 @dataclass(unsafe_hash=True)
@@ -495,6 +500,9 @@ class FrameOrientation(InterfaceQuantity[np.ndarray]):
 
         # Force re-initializing shared data if the active set has changed
         if not was_active:
+            # Must reset the tracking for shared computation systematically,
+            # just in case the optimal computation path has changed to the
+            # point that relying on batched quantity is no longer relevant.
             self.data.reset(reset_tracking=True)
 
     def refresh(self) -> np.ndarray:
@@ -576,9 +584,6 @@ class MultiFrameOrientation(InterfaceQuantity[np.ndarray]):
 
         # Force re-initializing shared data if the active set has changed
         if not was_active:
-            # Must reset the tracking for shared computation systematically,
-            # just in case the optimal computation path has changed to the
-            # point that relying on batched quantity is no longer relevant.
             self.data.reset(reset_tracking=True)
 
     def refresh(self) -> np.ndarray:

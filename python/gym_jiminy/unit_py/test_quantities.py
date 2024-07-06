@@ -1,5 +1,6 @@
 """ TODO: Write documentation
 """
+import sys
 import math
 import unittest
 
@@ -194,7 +195,7 @@ class Quantities(unittest.TestCase):
         assert len(quantities['rpy_2'].data.cache.owners) == 1
 
         del quantity_manager['rpy_2']
-        for (cls, _), cache in quantity_manager._caches.items():
+        for (cls, _), cache in quantity_manager._caches:
             assert len(cache.owners) == (cls is DatasetTrajectoryQuantity)
 
     def test_env(self):
@@ -247,7 +248,7 @@ class Quantities(unittest.TestCase):
                 (3, True, "zeros")):
             quantity_creator = (StackedQuantity, dict(
                 quantity=(MultiFootRelativeXYZQuat, {}),
-                max_stack=max_stack,
+                max_stack=max_stack or sys.maxsize,
                 as_array=as_array,
                 mode=mode))
             env.quantities["xyzquat_stack"] = quantity_creator
@@ -257,7 +258,7 @@ class Quantities(unittest.TestCase):
             if as_array:
                 assert isinstance(value, np.ndarray)
             else:
-                assert isinstance(value, tuple)
+                assert isinstance(value, list)
             for i in range(1, (max_stack or 5) + 2):
                 num_stack = max_stack or i
                 if mode == "slice":

@@ -8,7 +8,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 from typing import (
     Any, Optional, Sequence, Tuple, TypeVar, Union, Generic, ClassVar,
-    Callable, Literal, overload, cast)
+    Callable, Literal, List, overload, cast)
 from typing_extensions import TypeAlias
 
 import numpy as np
@@ -171,7 +171,8 @@ class StackedQuantity(
             # Full the queue with zero if necessary
             if self.mode == 'zeros':
                 for _ in range(self.max_stack):
-                    self._value_list.append(np.zeros_like(value))
+                    self._value_list.append(
+                        np.zeros_like(value))  # type: ignore[arg-type]
 
             # Allocate stack memory if necessary
             if self.as_array:
@@ -198,7 +199,7 @@ class StackedQuantity(
                         "environment after adding this quantity.")
                 value = self.quantity.get()
                 if isinstance(value, np.ndarray):
-                    value_list.append(value.copy())
+                    value_list.append(value.copy())  # type: ignore[arg-type]
                 else:
                     value_list.append(deepcopy(value))
                 if len(value_list) > self.max_stack:
@@ -482,7 +483,7 @@ class MultiAryOpQuantity(InterfaceQuantity[ValueT]):
                 for i, quantity in enumerate(quantities)},
             auto_refresh=False)
 
-        # Keep track of the instantiated quantities for fast access
+        # Keep track of the instantiated quantities for identity check
         self.quantities = tuple(self.requirements.values())
 
     def refresh(self) -> ValueT:

@@ -53,8 +53,13 @@ class QuantityManager(MutableMapping):
         # This is necessary because using a quantity as key directly would
         # prevent its garbage collection, hence breaking automatic reset of
         # computation tracking for all quantities sharing its cache.
-        self._caches: Dict[
-            Tuple[Type[InterfaceQuantity], int], SharedCache] = {}
+        # In case of dataclasses, their hash is the same as if it was obtained
+        # using `hash(dataclasses.astuple(quantity))`. This is clearly not
+        # unique, as all it requires to be the same is being built from the
+        # same nested ordered arguments. To get around this issue, we need to
+        # store (key, value) pairs in a list.
+        self._caches: List[Tuple[
+            Tuple[Type[InterfaceQuantity], int], SharedCache]] = []
 
         # Instantiate trajectory database.
         # Note that this quantity is not added to the global registry to avoid
@@ -77,9 +82,7 @@ class QuantityManager(MutableMapping):
         """
         # Reset all quantities sequentially
         for quantity in self.registry.values():
-            quantity.reset(
-                reset_tracking,
-                ignore_auto_refresh=not self.env.is_simulation_running)
+            quantity.reset(reset_tracking)
 
     def clear(self) -> None:
         """Clear internal cache of quantities to force re-evaluating them the
@@ -90,8 +93,8 @@ class QuantityManager(MutableMapping):
             environment has changed (ie either the agent or world itself),
             thereby invalidating the value currently stored in cache if any.
         """
-        for cache in self._caches.values():
-            cache.reset()
+        for _, cache in self._caches:
+            cache.reset(ignore_auto_refresh=not self.env.is_simulation_running)
 
     def add_trajectory(self, name: str, trajectory: Trajectory) -> None:
         """Add a new reference trajectory to the database synchronized between
@@ -182,9 +185,24 @@ class QuantityManager(MutableMapping):
         # Set a shared cache entry for all quantities involved in computations
         quantities_all = [top_quantity]
         while quantities_all:
+            # Deal with the first quantity in the process queue
             quantity = quantities_all.pop()
+
+            # Get already available cache entry if any, otherwise create it
             key = (type(quantity), hash(quantity))
-            quantity.cache = self._caches.setdefault(key, SharedCache())
+            for cache_key, cache in self._caches:
+                if key == cache_key:
+                    owner, *_ = cache.owners
+                    if quantity == owner:
+                        break
+            else:
+                cache = SharedCache()
+                self._caches.append((key, cache))
+
+            # Set shared cache of the quantity
+            quantity.cache = cache
+
+            # Add all the requirements of the new quantity in the process queue
             quantities_all += quantity.requirements.values()
 
         return top_quantity
@@ -235,13 +253,21 @@ class QuantityManager(MutableMapping):
         :param name: Name of the managed quantity to be discarded. It will
                      raise an exception if the specified name does not exists.
         """
-        # Remove shared cache entry for all quantities involved in computations
+        # Remove shared cache entries for the quantity and its requirements.
+        # Note that done top-down rather than bottom-up, otherwise reset of
+        # required quantities no longer having shared cache will be triggered
+        # automatically by parent quantities following computation graph
+        # tracking reset whenever a shared cache co-owner is removed.
         quantities_all = [self.registry.pop(name)]
         while quantities_all:
-            quantity = quantities_all.pop()
-            if len(tuple(quantity.cache.owners)) == 1:
-                del self._caches[(type(quantity), hash(quantity))]
+            quantity = quantities_all.pop(0)
+            cache = quantity.cache
             quantity.cache = None  # type: ignore[assignment]
+            if len(cache.owners) == 0:
+                for i, (_, _cache) in enumerate(self._caches):
+                    if cache is _cache:
+                        del self._caches[i]
+                        break
             quantities_all += quantity.requirements.values()
 
     def __iter__(self) -> Iterator[str]:
