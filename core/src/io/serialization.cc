@@ -1008,6 +1008,7 @@ namespace boost::serialization
 
         // Restore extended simulation model
         model.pinocchioModel_ = pinocchioModel;
+        model.pinocchioData_ = pinocchio::Data(pinocchioModel);
     }
 
     template<class Archive>
