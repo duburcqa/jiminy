@@ -202,7 +202,7 @@ class Simulator:
               config_path: Optional[str] = None,
               avoid_instable_collisions: bool = True,
               debug: bool = False,
-              *, robot_name: str = "",
+              *, name: str = "",
               **kwargs: Any) -> 'Simulator':
         r"""Create a new single-robot simulator instance from scratch based on
         configuration files only.
@@ -233,8 +233,8 @@ class Simulator:
                                           its vertices.
         :param debug: Whether the debug mode must be activated. Doing it
                       enables temporary files automatic deletion.
-        :param robot_name: Desired name of the robot.
-                           Optional: Empty string by default.
+        :param name: Desired name of the robot.
+                     Optional: Empty string by default.
         :param kwargs: Keyword arguments to forward to class constructor.
         """
         # Handling of default argument(s)
@@ -246,7 +246,7 @@ class Simulator:
 
         # Instantiate and initialize the robot
         robot = _build_robot_from_urdf(
-            robot_name, urdf_path, hardware_path, mesh_path_dir, has_freeflyer,
+            name, urdf_path, hardware_path, mesh_path_dir, has_freeflyer,
             avoid_instable_collisions, debug)
 
         # Instantiate and initialize the engine
