@@ -274,7 +274,7 @@ class InterfaceJiminyEnv(
         # they are always updated before the controller gets called, no matter
         # if either one or the other is time-continuous. Hacking the internal
         # dynamics to clear quantities does not address this issue either.
-        self.quantities.clear()
+        # self.quantities.clear()
 
         # Refresh the observation if not already done but only if a simulation
         # is already running. It would be pointless to refresh the observation

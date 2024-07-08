@@ -4,7 +4,7 @@ its topology (multiple or single branch, fixed or floating base...) and the
 application (locomotion, grasping...).
 """
 import warnings
-from enum import Enum
+from enum import IntEnum
 from functools import partial
 from dataclasses import dataclass
 from typing import (
@@ -90,9 +90,11 @@ def aggregate_frame_names(quantity: InterfaceQuantity) -> Tuple[
     # First, order all multi-frame quantities by decreasing length
     frame_names_chunks: List[Tuple[str, ...]] = []
     for owner in quantities:
-        if owner.parent.is_active(any_cache_owner=False):
-            if isinstance(owner.parent, MultiFrameQuantity):
-                frame_names_chunks.append(owner.parent.frame_names)
+        parent = owner.parent
+        assert parent is not None
+        if parent.is_active(any_cache_owner=False):
+            if isinstance(parent, MultiFrameQuantity):
+                frame_names_chunks.append(parent.frame_names)
 
     # Next, process ordered multi-frame quantities sequentially.
     # For each of them, we first check if its set of frames is completely
@@ -132,9 +134,11 @@ def aggregate_frame_names(quantity: InterfaceQuantity) -> Tuple[
     # Otherwise, we just move to the next quantity.
     frame_name_chunks: List[str] = []
     for owner in quantities:
-        if owner.parent.is_active(any_cache_owner=False):
-            if isinstance(owner.parent, FrameQuantity):
-                frame_name_chunks.append(owner.parent.frame_name)
+        parent = owner.parent
+        assert parent is not None
+        if parent.is_active(any_cache_owner=False):
+            if isinstance(parent, FrameQuantity):
+                frame_name_chunks.append(parent.frame_name)
                 frame_name = frame_name_chunks[-1]
                 if frame_name not in frame_names:
                     frame_names.append(frame_name)
@@ -263,7 +267,7 @@ class _BatchedFramesRotationMatrix(
         return self._rot_mat_map
 
 
-class OrientationType(Enum):
+class OrientationType(IntEnum):
     """Specify the desired vector representation of the frame orientations.
     """
 
@@ -282,6 +286,11 @@ class OrientationType(Enum):
     ANGLE_AXIS = 3
     """Angle-Axis representation (theta * AxisX, theta * AxisY, theta * AxisZ).
     """
+
+
+# Define proxies for fast lookup
+_MATRIX, _EULER, _QUATERNION, _ANGLE_AXIS = (  # pylint: disable=invalid-name
+    OrientationType)
 
 
 @dataclass(unsafe_hash=True)
@@ -407,12 +416,13 @@ class _BatchedFramesOrientation(
 
     def refresh(self) -> Dict[Union[str, Tuple[str, ...]], np.ndarray]:
         # Get the complete batch of rotation matrices managed by this instance
-        rot_mat_batch = self.rot_mat_map[self.frame_names]
+        value = self.rot_mat_map.get()
+        rot_mat_batch = value[self.frame_names]
 
         # Convert all rotation matrices at once to the desired representation
-        if self.type == OrientationType.EULER:
+        if self.type == _EULER:
             matrix_to_rpy(rot_mat_batch, self._data_batch)
-        elif self.type == OrientationType.QUATERNION:
+        elif self.type == _QUATERNION:
             matrix_to_quat(rot_mat_batch, self._data_batch)
         else:
             # Slice data.
@@ -490,10 +500,14 @@ class FrameOrientation(InterfaceQuantity[np.ndarray]):
 
         # Force re-initializing shared data if the active set has changed
         if not was_active:
-            self.requirements["data"].reset(reset_tracking=True)
+            # Must reset the tracking for shared computation systematically,
+            # just in case the optimal computation path has changed to the
+            # point that relying on batched quantity is no longer relevant.
+            self.data.reset(reset_tracking=True)
 
     def refresh(self) -> np.ndarray:
-        return self.data[self.frame_name]
+        value = self.data.get()
+        return value[self.frame_name]
 
 
 @dataclass(unsafe_hash=True)
@@ -570,16 +584,14 @@ class MultiFrameOrientation(InterfaceQuantity[np.ndarray]):
 
         # Force re-initializing shared data if the active set has changed
         if not was_active:
-            # Must reset the tracking for shared computation systematically,
-            # just in case the optimal computation path has changed to the
-            # point that relying on batched quantity is no longer relevant.
-            self.requirements["data"].reset(reset_tracking=True)
+            self.data.reset(reset_tracking=True)
 
     def refresh(self) -> np.ndarray:
         # Return a slice of batched data.
         # Note that mapping from frame names to frame index in batched data
         # cannot be pre-computed as it may changed dynamically.
-        return self.data[self.frame_names]
+        value = self.data.get()
+        return value[self.frame_names]
 
 
 @dataclass(unsafe_hash=True)
@@ -726,10 +738,11 @@ class FramePosition(InterfaceQuantity[np.ndarray]):
 
         # Force re-initializing shared data if the active set has changed
         if not was_active:
-            self.requirements["data"].reset(reset_tracking=True)
+            self.data.reset(reset_tracking=True)
 
     def refresh(self) -> np.ndarray:
-        return self.data[self.frame_name]
+        value = self.data.get()
+        return value[self.frame_name]
 
 
 @dataclass(unsafe_hash=True)
@@ -789,10 +802,11 @@ class MultiFramePosition(InterfaceQuantity[np.ndarray]):
 
         # Force re-initializing shared data if the active set has changed
         if not was_active:
-            self.requirements["data"].reset(reset_tracking=True)
+            self.data.reset(reset_tracking=True)
 
     def refresh(self) -> np.ndarray:
-        return self.data[self.frame_names]
+        value = self.data.get()
+        return value[self.frame_names]
 
 
 @dataclass(unsafe_hash=True)
@@ -852,10 +866,10 @@ class FrameXYZQuat(InterfaceQuantity[np.ndarray]):
 
     def refresh(self) -> np.ndarray:
         # Copy the position of all frames at once in contiguous buffer
-        array_copyto(self._xyzquat[:3], self.position)
+        array_copyto(self._xyzquat[:3], self.position.get())
 
         # Copy the quaternion of all frames at once in contiguous buffer
-        array_copyto(self._xyzquat[-4:], self.quat)
+        array_copyto(self._xyzquat[-4:], self.quat.get())
 
         return self._xyzquat
 
@@ -920,10 +934,10 @@ class MultiFrameXYZQuat(InterfaceQuantity[np.ndarray]):
 
     def refresh(self) -> np.ndarray:
         # Copy the position of all frames at once in contiguous buffer
-        array_copyto(self._xyzquats[:3], self.positions)
+        array_copyto(self._xyzquats[:3], self.positions.get())
 
         # Copy the quaternion of all frames at once in contiguous buffer
-        array_copyto(self._xyzquats[-4:], self.quats)
+        array_copyto(self._xyzquats[-4:], self.quats.get())
 
         return self._xyzquats
 
@@ -1040,10 +1054,10 @@ class MultiFrameMeanXYZQuat(InterfaceQuantity[np.ndarray]):
 
     def refresh(self) -> np.ndarray:
         # Compute the mean translation
-        self._position_average(self.positions, self._position_mean_view)
+        self._position_average(self.positions.get(), self._position_mean_view)
 
         # Compute the mean quaternion
-        self._quat_average(self.quats, self._quat_mean_view)
+        self._quat_average(self.quats.get(), self._quat_mean_view)
 
         return self._xyzquat_mean
 
@@ -1264,7 +1278,7 @@ class _DifferenceFrameXYZQuat(InterfaceQuantity[np.ndarray]):
         # point. This should never occur in practice as it will be fine at
         # the end of the first step already, before the reward and termination
         # conditions are evaluated.
-        xyzquat_prev, xyzquat = self.xyzquat_stack
+        xyzquat_prev, xyzquat = self.xyzquat_stack.get()
 
         # Compute average frame velocity in local frame since previous step
         self._data[:] = self._difference(xyzquat_prev, xyzquat)
@@ -1342,7 +1356,8 @@ class AverageFrameXYZQuat(InterfaceQuantity[np.ndarray]):
 
     def refresh(self) -> np.ndarray:
         # Interpolate the average spatial velocity at midpoint
-        return self._integrate(self.xyzquat_next, - 0.5 * self.xyzquat_diff)
+        return self._integrate(
+            self.xyzquat_next.get(), - 0.5 * self.xyzquat_diff.get())
 
 
 @dataclass(unsafe_hash=True)
@@ -1405,7 +1420,7 @@ class AverageFrameRollPitch(InterfaceQuantity[np.ndarray]):
 
     def refresh(self) -> np.ndarray:
         # Compute Yaw-free average orientation
-        remove_yaw_from_quat(self.quat_mean, self._quat_no_yaw_mean)
+        remove_yaw_from_quat(self.quat_mean.get(), self._quat_no_yaw_mean)
 
         return self._quat_no_yaw_mean
 
@@ -1506,14 +1521,15 @@ class FrameSpatialAverageVelocity(InterfaceQuantity[np.ndarray]):
 
     def refresh(self) -> np.ndarray:
         # Compute average frame velocity in local frame since previous step
-        np.multiply(self.xyzquat_diff, self._inv_step_dt, self._v_spatial)
+        np.multiply(
+            self.xyzquat_diff.get(), self._inv_step_dt, self._v_spatial)
 
         # Translate local velocity to world frame
         if self.reference_frame == pin.LOCAL_WORLD_ALIGNED:
             # Define world frame as the "middle" between prev and next pose.
             # Here, we only care about the middle rotation, so we can consider
             # SO3 Lie Group algebra instead of SE3.
-            quat_apply(self.quat_mean, self._v_lin_ang, self._v_lin_ang)
+            quat_apply(self.quat_mean.get(), self._v_lin_ang, self._v_lin_ang)
 
         return self._v_spatial
 
@@ -1599,7 +1615,7 @@ class MultiActuatedJointKinematic(AbstractQuantity[np.ndarray]):
         super().initialize()
 
         # Make sure that the state data meet requirements
-        state = self.state
+        state = self.state.get()
         if ((self.kinematic_level == pin.ACCELERATION and state.a is None) or
                 (self.kinematic_level >= pin.VELOCITY and state.v is None)):
             raise RuntimeError(
@@ -1645,22 +1661,24 @@ class MultiActuatedJointKinematic(AbstractQuantity[np.ndarray]):
         if self._must_refresh:
             self._data = np.full((len(self.kinematic_indices),), float("nan"))
         else:
+            state = self.state.get()
             if self.kinematic_level == pin.KinematicLevel.POSITION:
-                self._data = self.state.q[slice(kin_first, kin_last + 1)]
+                self._data = state.q[slice(kin_first, kin_last + 1)]
             elif self.kinematic_level == pin.KinematicLevel.VELOCITY:
-                self._data = self.state.v[slice(kin_first, kin_last + 1)]
+                self._data = state.v[slice(kin_first, kin_last + 1)]
             else:
-                self._data = self.state.a[slice(kin_first, kin_last + 1)]
+                self._data = state.a[slice(kin_first, kin_last + 1)]
 
     def refresh(self) -> np.ndarray:
         # Update mechanical joint positions only if necessary
+        state = self.state.get()
         if self._must_refresh:
             if self.kinematic_level == pin.KinematicLevel.POSITION:
-                data = self.state.q
+                data = state.q
             elif self.kinematic_level == pin.KinematicLevel.VELOCITY:
-                data = self.state.v
+                data = state.v
             else:
-                data = self.state.a
+                data = state.a
             data.take(self.kinematic_indices, None, self._data, "clip")
 
         # Translate encoder data at joint level
@@ -1670,7 +1688,7 @@ class MultiActuatedJointKinematic(AbstractQuantity[np.ndarray]):
         return self._data
 
 
-class EnergyGenerationMode(Enum):
+class EnergyGenerationMode(IntEnum):
     """Specify what happens to the energy generated by motors when breaking.
     """
 
@@ -1693,6 +1711,10 @@ class EnergyGenerationMode(Enum):
     PENALIZE = 3
     """The generated energy by each motor individually is treated as consumed.
     """
+
+
+# Define proxies for fast lookup
+_CHARGE, _LOST_EACH, _LOST_GLOBAL, _PENALIZE = map(int, EnergyGenerationMode)
 
 
 @dataclass(unsafe_hash=True)
@@ -1750,7 +1772,7 @@ class AverageMechanicalPowerConsumption(InterfaceQuantity[float]):
 
         # Jit-able method computing the total instantaneous power consumption
         @nb.jit(nopython=True, cache=True, fastmath=True)
-        def _compute_power(generator_mode: EnergyGenerationMode,
+        def _compute_power(generator_mode: int,  # EnergyGenerationMode
                            motor_velocities: np.ndarray,
                            motor_efforts: np.ndarray) -> float:
             """Compute the total instantaneous mechanical power consumption of
@@ -1765,14 +1787,13 @@ class AverageMechanicalPowerConsumption(InterfaceQuantity[float]):
                                   as a 1D array. The order must be consistent
                                   with the motor indices.
             """
-            if generator_mode in (EnergyGenerationMode.CHARGE,
-                                  EnergyGenerationMode.LOST_GLOBAL):
+            if generator_mode in (_CHARGE, _LOST_GLOBAL):
                 total_power = np.dot(motor_velocities, motor_efforts)
-                if generator_mode == EnergyGenerationMode.CHARGE:
+                if generator_mode == _CHARGE:
                     return total_power
                 return max(total_power, 0.0)
             motor_powers = motor_velocities * motor_efforts
-            if generator_mode == EnergyGenerationMode.LOST_EACH:
+            if generator_mode == _LOST_EACH:
                 return np.sum(np.maximum(motor_powers, 0.0))
             return np.sum(np.abs(motor_powers))
 
@@ -1792,11 +1813,11 @@ class AverageMechanicalPowerConsumption(InterfaceQuantity[float]):
                             kinematic_level=pin.KinematicLevel.VELOCITY,
                             is_motor_side=True,
                             mode=self.mode)),
-                        op=partial(_compute_power, self.generator_mode))),
+                        op=partial(_compute_power, int(self.generator_mode)))),
                     max_stack=self.max_stack,
                     as_array=True,
                     mode='slice'))),
             auto_refresh=False)
 
     def refresh(self) -> float:
-        return np.mean(self.total_power_stack)
+        return np.mean(self.total_power_stack.get())

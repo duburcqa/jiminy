@@ -109,6 +109,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
     def __init__(self,
                  simulator: Simulator,
                  step_dt: float,
+                 simulation_duration_max: float = 86400.0,
                  debug: bool = False,
                  render_mode: Optional[str] = None,
                  **kwargs: Any) -> None:
@@ -119,11 +120,15 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
                         independent from the controller and observation update
                         periods. The latter are configured via
                         `engine.set_options`.
-        :param mode: Rendering mode. It can be either 'human' to display the
-                     current simulation state, or 'rgb_array' to return a
-                     snapshot as an RGB array without showing it on the screen.
-                     Optional: 'human' by default if available with the current
-                     backend (or default if none), 'rgb_array' otherwise.
+        :param simulation_duration_max:
+            Maximum duration of a simulation. If the current simulation time
+            exceeds this threshold, then it will triggers `is_truncated=True`.
+            It cannot exceed the maximum possible duration before telemetry
+            log time overflow which is extremely large (about 30 years). Beware
+            that log data are stored in RAM, which may cause out-of-memory
+            error if the episode is lasting for too long without reset.
+            Optional: About 4GB of log data assuming 5ms control update period
+            and telemetry disabled for everything but the robot configuration.
         :param debug: Whether the debug mode must be enabled. Doing it enables
                       telemetry recording.
         :param render_mode: Desired rendering mode, ie "human" or "rgb_array".
@@ -174,7 +179,8 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         assert render_mode in self.metadata['render_modes']
 
         # Backup some user arguments
-        self.simulator: Simulator = simulator
+        self.simulator = simulator
+        self.simulation_duration_max = simulation_duration_max
         self._step_dt = step_dt
         self.render_mode = render_mode
         self.debug = debug
@@ -707,12 +713,6 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         self.robot.compute_sensor_measurements(
             0.0, q_init, v_init, a_init, u_motor, f_external)
 
-        # Re-initialize the quantity manager.
-        # Note that computation graph tracking is never reset automatically.
-        # It is the responsibility of the practitioner implementing a derived
-        # environment whenever it makes sense for its specific use-case.
-        self.quantities.reset(reset_tracking=False)
-
         # Run the reset hook if any.
         # Note that the reset hook must be called after `_setup` because it
         # expects that the robot is not going to change anymore at this point.
@@ -726,6 +726,12 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
             assert env_derived.unwrapped is self
             env = env_derived
         self.derived = env
+
+        # Re-initialize the quantity manager.
+        # Note that computation graph tracking is never reset automatically.
+        # It is the responsibility of the practitioner implementing a derived
+        # environment whenever it makes sense for its specific use-case.
+        self.quantities.reset(reset_tracking=False)
 
         # Instantiate the actual controller.
         # Note that a weak reference must be used to avoid circular reference.
@@ -750,6 +756,9 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
 
         # Update shared buffers
         self._refresh_buffers()
+
+        # Clear cache and auto-refresh managed quantities
+        self.quantities.clear()
 
         # Initialize the observation
         env._observer_handle(
@@ -878,6 +887,9 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
 
         # Update shared buffers
         self._refresh_buffers()
+
+        # Clear cache and auto-refresh managed quantities
+        self.quantities.clear()
 
         # Update the observer at the end of the step.
         # This is necessary because, internally, it is called at the beginning
@@ -1502,9 +1514,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
 
         .. warning::
             No matter what, truncation will happen when reaching the maximum
-            simulation duration, i.e. 'self.simulation_duration_max'. Its
-            default value is extremely large, but it can be overwritten by the
-            user to terminate the simulation earlier.
+            simulation duration, i.e. 'self.simulation_duration_max'.
 
         .. note::
             This method is called after `refresh_observation`, so that the

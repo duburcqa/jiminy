@@ -311,7 +311,10 @@ class Trajectory:
             if t - t_end > TRAJ_INTERP_TOL or t_start - t > TRAJ_INTERP_TOL:
                 raise RuntimeError("Time is out-of-range.")
         elif mode == "wrap":
-            t = ((t - t_start) % (t_end - t_start)) + t_start
+            if t_end > t_start:
+                t = ((t - t_start) % (t_end - t_start)) + t_start
+            else:
+                t = t_start
         else:
             t = max(t, t_start)  # Clipping right it is sufficient
 

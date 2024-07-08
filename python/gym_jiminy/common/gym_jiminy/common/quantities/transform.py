@@ -2,12 +2,13 @@
 its topology (multiple or single branch, fixed or floating base...) and the
 application (locomotion, grasping...).
 """
+import sys
+import warnings
 from copy import deepcopy
-from collections import deque
 from dataclasses import dataclass
 from typing import (
     Any, Optional, Sequence, Tuple, TypeVar, Union, Generic, ClassVar,
-    Callable, Literal, overload, cast)
+    Callable, Literal, List, overload, cast)
 from typing_extensions import TypeAlias
 
 import numpy as np
@@ -41,9 +42,9 @@ class StackedQuantity(
     """Base quantity whose value must be stacked over time since last reset.
     """
 
-    max_stack: Optional[int]
+    max_stack: int
     """Maximum number of values that keep in memory before starting to discard
-    the oldest one (FIFO). None if unlimited.
+    the oldest one (FIFO). `sys.maxsize` if unlimited.
     """
 
     as_array: bool
@@ -61,12 +62,12 @@ class StackedQuantity(
     """
 
     @overload
-    def __init__(self: "StackedQuantity[ValueT, Tuple[ValueT, ...]]",
+    def __init__(self: "StackedQuantity[ValueT, List[ValueT]]",
                  env: InterfaceJiminyEnv,
                  parent: Optional[InterfaceQuantity],
                  quantity: QuantityCreator[ValueT],
                  *,
-                 max_stack: Optional[int],
+                 max_stack: int,
                  as_array: Literal[False],
                  mode: Literal['slice', 'zeros']) -> None:
         ...
@@ -77,7 +78,7 @@ class StackedQuantity(
                  parent: Optional[InterfaceQuantity],
                  quantity: QuantityCreator[Union[np.ndarray, float]],
                  *,
-                 max_stack: Optional[int],
+                 max_stack: int,
                  as_array: Literal[True],
                  mode: Literal['slice', 'zeros']) -> None:
         ...
@@ -87,7 +88,7 @@ class StackedQuantity(
                  parent: Optional[InterfaceQuantity],
                  quantity: QuantityCreator[Any],
                  *,
-                 max_stack: Optional[int] = None,
+                 max_stack: int = sys.maxsize,
                  as_array: bool = False,
                  mode: Literal['slice', 'zeros'] = 'slice') -> None:
         """
@@ -98,22 +99,22 @@ class StackedQuantity(
                          must be stacked, plus all its constructor keyword-
                          arguments except environment 'env' and 'parent'.
         :param max_stack: Maximum number of values that keep in memory before
-                          starting to discard the oldest one (FIFO). None if
-                          unlimited.
-        :param as_array: Whether to return data as a tuple or a contiguous
+                          starting to discard the oldest one (FIFO).
+                          Optional: The maxium sequence length by default, ie
+                          `sys.maxsize` (2^63 - 1).
+        :param as_array: Whether to return data as a list or a contiguous
                          N-dimensional array whose last dimension gathers the
                          value of individual timesteps.
-        :param mode: Fallback strategy in case of incomplete stack. If
-                     'max_stack' is None, then only 'tuple' is supported.
+        :param mode: Fallback strategy in case of incomplete stack.
                      'zeros' is only supported by quantities returning
                      fixed-size N-D array.
                      Optional: 'slice' by default.
         """
         # Make sure that the input arguments are valid
-        if max_stack is None and (mode != 'slice' or as_array):
-            raise ValueError(
-                "Unbounded stack length is only supported for `mode='slice'` "
-                "and `as_array=False`.")
+        if max_stack > 10000 and (mode != 'slice' or as_array):
+            warnings.warn(
+                "Very large stack length is strongly discourages for "
+                "`mode != 'slice'` or `as_array=True`.")
 
         # Backup user arguments
         self.max_stack = max_stack
@@ -123,20 +124,24 @@ class StackedQuantity(
         # Call base implementation
         super().__init__(env,
                          parent,
-                         requirements=dict(data=quantity),
+                         requirements=dict(quantity=quantity),
                          auto_refresh=True)
 
-        # Keep track of the quantity that must be stacked once instantiated
-        self.quantity = self.requirements["data"]
-
-        # Allocate deque buffer
-        self._deque: deque = deque(maxlen=self.max_stack)
+        # Allocate stack buffer.
+        # Note that using a plain list is more efficient in practice. Although
+        # front deletion is very fast compared to list, casting deque to tuple
+        # or list is very slow, which ultimately prevail. The matter gets worst
+        # as the maximum length gets longer.
+        self._value_list: List[ValueT] = []
 
         # Continuous memory to store the whole stack if requested.
         # Note that it will be allocated lazily since the dimension of the
         # quantity is not known in advance.
         self._data = np.array([])
         self._data_views: Tuple[np.ndarray, ...] = ()
+
+        # Define proxy to number of steps of current episode for fast access
+        self._num_steps = np.array(-1)
 
         # Keep track of the last time the quantity has been stacked
         self._num_steps_prev = -1
@@ -145,13 +150,16 @@ class StackedQuantity(
         # Call base implementation
         super().initialize()
 
-        # Clear buffer
-        self._deque.clear()
+        # Refresh proxy
+        self._num_steps = self.env.num_steps
+
+        # Clear stack buffer
+        self._value_list.clear()
 
         # Initialize buffers if necessary
         if self.as_array or self.mode == 'zeros':
-            # Get quantity value
-            value = self.data
+            # Get current value of base quantity
+            value = self.quantity.get()
 
             # Make sure that the quantity is an array or a scalar
             if not isinstance(value, (int, float, np.ndarray)):
@@ -161,10 +169,10 @@ class StackedQuantity(
             value = np.asarray(value)
 
             # Full the queue with zero if necessary
-            assert self.max_stack is not None
             if self.mode == 'zeros':
                 for _ in range(self.max_stack):
-                    self._deque.append(np.zeros_like(value))
+                    self._value_list.append(
+                        np.zeros_like(value))  # type: ignore[arg-type]
 
             # Allocate stack memory if necessary
             if self.as_array:
@@ -181,34 +189,38 @@ class StackedQuantity(
         # Append value to the queue only once per step and only if a simulation
         # is running. Note that data must be deep-copied to make sure it does
         # not get altered afterward.
+        value_list = self._value_list
         if self.env.is_simulation_running:
-            num_steps = self.env.num_steps
+            num_steps = self._num_steps.item()
             if num_steps != self._num_steps_prev:
                 if num_steps != self._num_steps_prev + 1:
                     raise RuntimeError(
                         "Previous step missing in the stack. Please reset the "
-                        "environmentafter adding this quantity.")
-                value = self.data
+                        "environment after adding this quantity.")
+                value = self.quantity.get()
                 if isinstance(value, np.ndarray):
-                    self._deque.append(value.copy())
+                    value_list.append(value.copy())  # type: ignore[arg-type]
                 else:
-                    self._deque.append(deepcopy(value))
+                    value_list.append(deepcopy(value))
+                if len(value_list) > self.max_stack:
+                    del value_list[0]
                 self._num_steps_prev += 1
 
         # Aggregate data in contiguous array only if requested
-        is_padded = self.mode == 'zeros'
-        value_list = tuple(self._deque)
         if self.as_array:
-            if is_padded:
-                value_list = value_list[(- self._num_steps_prev - 1):]
-            data_views = self._data_views[(- self._num_steps_prev - 1):]
+            is_padded = self.mode == 'zeros'
+            offset = - self._num_steps_prev - 1
+            data, data_views = self._data, self._data_views
+            if offset > - self.max_stack:
+                if is_padded:
+                    value_list = value_list[offset:]
+                else:
+                    data = data[..., offset:]
+                data_views = self._data_views[offset:]
             multi_array_copyto(data_views, value_list)
-            if is_padded:
-                return cast(OtherValueT, self._data)
-            data = self._data[..., (- self._num_steps_prev - 1):]
             return cast(OtherValueT, data)
 
-        # Return the whole stack as a tuple to preserve the integrity of the
+        # Return the whole stack as a list to preserve the integrity of the
         # underlying container and make the API robust to internal changes.
         return cast(OtherValueT, value_list)
 
@@ -296,24 +308,24 @@ class MaskedQuantity(InterfaceQuantity[np.ndarray]):
         # Call base implementation
         super().__init__(env,
                          parent,
-                         requirements=dict(data=quantity),
+                         requirements=dict(quantity=quantity),
                          auto_refresh=False)
 
-        # Keep track of the quantity from which data must be extracted
-        self.quantity = self.requirements["data"]
-
     def refresh(self) -> np.ndarray:
+        # Get current value of base quantity
+        value = self.quantity.get()
+
         # Extract elements from quantity
         if not self._slices:
             # Note that `take` is faster than classical advanced indexing via
             # `operator[]` (`__getitem__`) because the latter is more generic.
             # Notably, `operator[]` supports boolean mask but `take` does not.
-            return self.data.take(self.indices, self.axis)
+            return value.take(self.indices, self.axis)
         if self.axis is None:
             # `ravel` must be used instead of `flat` to get a view that can
             # be sliced without copy.
-            return self.data.ravel(order="K")[self._slices]
-        return self.data[self._slices]
+            return value.ravel(order="K")[self._slices]
+        return value[self._slices]
 
 
 @dataclass(unsafe_hash=True)
@@ -323,7 +335,7 @@ class UnaryOpQuantity(InterfaceQuantity[ValueT],
 
     This quantity is useful to translate quantities from world frame to local
     odometry frame. It may also be used to convert multi-variate quantities as
-    scalar, typically by computing the Lp-norm.
+    scalar, typically by computing the L^p-norm.
     """
 
     quantity: InterfaceQuantity[OtherValueT]
@@ -358,14 +370,11 @@ class UnaryOpQuantity(InterfaceQuantity[ValueT],
         super().__init__(
             env,
             parent,
-            requirements=dict(data=quantity),
+            requirements=dict(quantity=quantity),
             auto_refresh=False)
 
-        # Keep track of the left- and right-hand side quantities for hashing
-        self.quantity = self.requirements["data"]
-
     def refresh(self) -> ValueT:
-        return self.op(self.data)
+        return self.op(self.quantity.get())
 
 
 @dataclass(unsafe_hash=True)
@@ -422,15 +431,11 @@ class BinaryOpQuantity(InterfaceQuantity[ValueT],
             env,
             parent,
             requirements=dict(
-                value_left=quantity_left, value_right=quantity_right),
+                quantity_left=quantity_left, quantity_right=quantity_right),
             auto_refresh=False)
 
-        # Keep track of the left- and right-hand side quantities for hashing
-        self.quantity_left = self.requirements["value_left"]
-        self.quantity_right = self.requirements["value_right"]
-
     def refresh(self) -> ValueT:
-        return self.op(self.value_left, self.value_right)
+        return self.op(self.quantity_left.get(), self.quantity_right.get())
 
 
 @dataclass(unsafe_hash=True)
@@ -474,11 +479,11 @@ class MultiAryOpQuantity(InterfaceQuantity[ValueT]):
             env,
             parent,
             requirements={
-                f"value_{i}": quantity
+                f"quantity_{i}": quantity
                 for i, quantity in enumerate(quantities)},
             auto_refresh=False)
 
-        # Keep track of the instantiated quantities for hashing
+        # Keep track of the instantiated quantities for identity check
         self.quantities = tuple(self.requirements.values())
 
     def refresh(self) -> ValueT:

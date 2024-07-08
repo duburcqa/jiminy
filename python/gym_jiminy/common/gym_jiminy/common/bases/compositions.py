@@ -7,7 +7,7 @@ This modular approach allows for standardization of usual metrics. Overall, it
 greatly reduces code duplication and bugs.
 """
 from abc import ABC, abstractmethod
-from enum import Enum
+from enum import IntEnum
 from typing import Tuple, Sequence, Callable, Union, Optional, Generic, TypeVar
 
 import numpy as np
@@ -234,7 +234,7 @@ class QuantityReward(AbstractReward, Generic[ValueT]):
         self.env.quantities[self.name] = quantity
 
         # Keep track of the underlying quantity
-        self.quantity = self.env.quantities.registry[self.name]
+        self.data = self.env.quantities.registry[self.name]
 
     def __del__(self) -> None:
         try:
@@ -266,7 +266,7 @@ class QuantityReward(AbstractReward, Generic[ValueT]):
             return None
 
         # Evaluate raw quantity
-        value = self.quantity.get()
+        value = self.data.get()
 
         # Early return if quantity is None
         if value is None:
@@ -383,7 +383,7 @@ class MixtureReward(AbstractReward):
         return reward_total
 
 
-class EpisodeState(Enum):
+class EpisodeState(IntEnum):
     """Specify the current state of the ongoing episode.
     """
 
@@ -595,7 +595,7 @@ class QuantityTermination(AbstractTerminationCondition, Generic[ValueT]):
         self.env.quantities[self.name] = quantity
 
         # Keep track of the underlying quantity
-        self.quantity = self.env.quantities.registry[self.name]
+        self.data = self.env.quantities.registry[self.name]
 
     def __del__(self) -> None:
         try:
@@ -615,7 +615,7 @@ class QuantityTermination(AbstractTerminationCondition, Generic[ValueT]):
             This method is not meant to be overloaded.
         """
         # Evaluate the quantity
-        value = self.quantity.get()
+        value = self.data.get()
 
         # Check if the quantity is out-of-bounds bound.
         # Note that it may be `None` if the quantity is ill-defined for the

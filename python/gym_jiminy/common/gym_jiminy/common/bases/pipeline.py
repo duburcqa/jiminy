@@ -448,9 +448,10 @@ class ComposedJiminyEnv(
         self.env.refresh_observation(measurement)
 
     def has_terminated(self, info: InfoType) -> Tuple[bool, bool]:
-        """Determine whether the episode is over, because a terminal state of
-        the underlying MDP has been reached or an aborting condition outside
-        the scope of the MDP has been triggered.
+        """Determine whether the practitioner is instructed to stop the ongoing
+        episode on the spot because a termination condition has been triggered,
+        either coming from the based environment or from the ad-hoc termination
+        conditions that has been plugged on top of it.
 
         At each step of the wrapped environment, all its termination conditions
         will be evaluated sequentially until one of them eventually gets
@@ -464,6 +465,9 @@ class ComposedJiminyEnv(
         .. note::
             This method is called after `refresh_observation`, so that the
             internal buffer 'observation' is up-to-date.
+
+        .. seealso::
+            See `InterfaceJiminyEnv.has_terminated` documentation for details.
 
         :param info: Dictionary of extra information for monitoring.
 
@@ -492,9 +496,29 @@ class ComposedJiminyEnv(
         self.env.compute_command(action, command)
 
     def compute_reward(self, terminated: bool, info: InfoType) -> float:
-        if self.reward is None:
-            return 0.0
-        return self.reward(terminated, info)
+        """Compute the total reward, ie the sum of the original reward from the
+        wrapped environment with the ad-hoc reward components that has been
+        plugged on top of it.
+
+        .. seealso::
+            See `InterfaceController.compute_reward` documentation for details.
+
+        :param terminated: Whether the episode has reached the terminal state
+                           of the MDP at the current step. This flag can be
+                           used to compute a specific terminal reward.
+        :param info: Dictionary of extra information for monitoring.
+
+        :returns: Aggregated reward for the current step.
+        """
+        # Compute base reward
+        reward = self.env.compute_reward(terminated, info)
+
+        # Add composed reward if any
+        if self.reward is not None:
+            reward += self.reward(terminated, info)
+
+        # Return total reward
+        return reward
 
 
 class ObservedJiminyEnv(

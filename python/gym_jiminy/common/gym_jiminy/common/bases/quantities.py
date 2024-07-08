@@ -14,16 +14,16 @@ batch to leverage vectorization of math instructions.
 """
 import re
 import weakref
-from enum import Enum
+from enum import IntEnum
 from weakref import ReferenceType
 from abc import ABC, abstractmethod
 from collections import OrderedDict
 from collections.abc import MutableSet
 from dataclasses import dataclass, replace
-from functools import partial, wraps
+from functools import wraps
 from typing import (
     Any, Dict, List, Optional, Tuple, Generic, TypeVar, Type, Iterator,
-    Callable, Literal, ClassVar, cast, TYPE_CHECKING)
+    Collection, Callable, Literal, ClassVar, TYPE_CHECKING)
 
 import numpy as np
 
@@ -47,6 +47,9 @@ class WeakMutableCollection(MutableSet, Generic[ValueT]):
     Internally, it is implemented as a set for which uniqueness is
     characterized by identity instead of equality operator.
     """
+
+    __slots__ = ("_callback", "_weakrefs")
+
     def __init__(self, callback: Optional[Callable[[
             "WeakMutableCollection[ValueT]", ReferenceType
             ], None]] = None) -> None:
@@ -56,7 +59,7 @@ class WeakMutableCollection(MutableSet, Generic[ValueT]):
                          Optional: None by default.
         """
         self._callback = callback
-        self._ref_list: List[ReferenceType] = []
+        self._weakrefs: List[ReferenceType] = []
 
     def __callback__(self, ref: ReferenceType) -> None:
         """Internal method that will be called every time an element must be
@@ -73,9 +76,9 @@ class WeakMutableCollection(MutableSet, Generic[ValueT]):
         # actually the right weak reference since all of them will be removed
         # in the end, so it is not a big deal.
         value = ref()
-        for i, ref_i in enumerate(self._ref_list):
+        for i, ref_i in enumerate(self._weakrefs):
             if value is ref_i():
-                del self._ref_list[i]
+                del self._weakrefs[i]
                 break
         if self._callback is not None:
             self._callback(self, ref)
@@ -87,13 +90,13 @@ class WeakMutableCollection(MutableSet, Generic[ValueT]):
 
         :param obj: Object to look for in the container.
         """
-        return any(ref() is obj for ref in self._ref_list)
+        return any(ref() is obj for ref in self._weakrefs)
 
     def __iter__(self) -> Iterator[ValueT]:
         """Dunder method that returns an iterator over the objects of the
-        container for which a string reference still exist.
+        container for which a reference still exist.
         """
-        for ref in self._ref_list:
+        for ref in self._weakrefs:
             obj = ref()
             if obj is not None:
                 yield obj
@@ -101,7 +104,7 @@ class WeakMutableCollection(MutableSet, Generic[ValueT]):
     def __len__(self) -> int:
         """Dunder method that returns the length of the container.
         """
-        return len(self._ref_list)
+        return len(self._weakrefs)
 
     def add(self, value: ValueT) -> None:
         """Add a new element to the container if not already contained.
@@ -111,7 +114,7 @@ class WeakMutableCollection(MutableSet, Generic[ValueT]):
         :param obj: Object to add to the container.
         """
         if value not in self:
-            self._ref_list.append(weakref.ref(value, self.__callback__))
+            self._weakrefs.append(weakref.ref(value, self.__callback__))
 
     def discard(self, value: ValueT) -> None:
         """Remove an element from the container if stored in it.
@@ -122,6 +125,34 @@ class WeakMutableCollection(MutableSet, Generic[ValueT]):
         """
         if value in self:
             self.__callback__(weakref.ref(value))
+
+
+class QuantityStateMachine(IntEnum):
+    """Specify the current state of a given (unique) quantity, which determines
+    the steps to perform for retrieving its current value.
+    """
+
+    IS_RESET = 0
+    """The quantity at hands has just been reset. The quantity must first be
+    initialized, then refreshed and finally stored in cached before to retrieve
+    its value.
+    """
+
+    IS_INITIALIZED = 1
+    """The quantity at hands has been initialized but never evaluated for the
+    current robot state. Its value must still be refreshed and stored in cache
+    before to retrieve it.
+    """
+
+    IS_CACHED = 2
+    """The quantity at hands has been evaluated and its value stored in cache.
+    As such, its value can be retrieve from cache directly.
+    """
+
+
+# Define proxies for fast lookup
+_IS_RESET, _IS_INITIALIZED, _IS_CACHED = (  # pylint: disable=invalid-name
+    QuantityStateMachine)
 
 
 class SharedCache(Generic[ValueT]):
@@ -135,7 +166,10 @@ class SharedCache(Generic[ValueT]):
         This implementation is not thread safe.
     """
 
-    owners: WeakMutableCollection["InterfaceQuantity[ValueT]"]
+    __slots__ = (
+        "_value", "_weakrefs", "_owner", "_auto_refresh", "sm_state", "owners")
+
+    owners: Collection["InterfaceQuantity[ValueT]"]
     """Owners of the shared buffer, ie quantities relying on it to store the
     result of their evaluation. This information may be useful for determining
     the most efficient computation path overall.
@@ -157,72 +191,174 @@ class SharedCache(Generic[ValueT]):
         # Cached value if any
         self._value: Optional[ValueT] = None
 
-        # Whether a value is stored in cached
-        self._has_value: bool = False
+        # Whether auto-refresh is requested
+        self._auto_refresh = True
+
+        # Basic state machine management
+        self.sm_state: QuantityStateMachine = QuantityStateMachine.IS_RESET
 
         # Initialize "owners" of the shared buffer.
         # Define callback to reset part of the computation graph whenever a
         # quantity owning the cache gets garbage collected, namely all
         # quantities that may assume at some point the existence of this
-        # deleted owner to find the adjust their computation path.
-        def _callback(self: WeakMutableCollection["InterfaceQuantity"],
-                      ref: ReferenceType   # pylint: disable=unused-argument
-                      ) -> None:
-            owner: Optional["InterfaceQuantity"]
+        # deleted owner to adjust their computation path.
+        def _callback(
+                self: WeakMutableCollection["InterfaceQuantity[ValueT]"],
+                ref: ReferenceType) -> None:  # pylint: disable=unused-argument
+            owner: Optional["InterfaceQuantity[ValueT]"]
             for owner in self:
                 # Stop going up in parent chain if dynamic computation graph
                 # update is disable for efficiency.
-                while owner.allow_update_graph and owner.parent is not None:
+                while (owner.allow_update_graph and
+                        owner.parent is not None and owner.parent.has_cache):
                     owner = owner.parent
-                owner.reset(reset_tracking=True,
-                            ignore_auto_refresh=True,
-                            update_graph=True)
+                owner.reset(reset_tracking=True)
 
-        self.owners = WeakMutableCollection(_callback)
+        # Initialize weak reference to owning quantities
+        self._weakrefs = WeakMutableCollection(_callback)
 
-    @property
-    def has_value(self) -> bool:
-        """Whether a value is stored in cache.
+        # Maintain alive owning quantities upon reset
+        self.owners = self._weakrefs
+        self._owner: Optional["InterfaceQuantity[ValueT]"] = None
+
+    def add(self, owner: "InterfaceQuantity[ValueT]") -> None:
+        """Add a given quantity instance to the set of co-owners associated
+        with the shared cache at hands.
+
+        .. warning::
+            All shared cache co-owners must be instances of the same unique
+            quantity. An exception will be thrown if an attempt is made to add
+            a quantity instance that does not satisfy this condition.
+
+        :param owner: Quantity instance to add to the set of co-owners.
         """
-        return self._has_value
+        # Make sure that the quantity is not already part of the co-owners
+        if id(owner) in map(id, self.owners):
+            raise ValueError(
+                "The specified quantity instance is already an owner of this "
+                "shared cache.")
 
-    def reset(self, *, ignore_auto_refresh: bool = False) -> None:
+        # Make sure that the new owner is consistent with the others if any
+        if any(owner != _owner for _owner in self._weakrefs):
+            raise ValueError(
+                "Quantity instance inconsistent with already existing shared "
+                "cache owners.")
+
+        # Add quantity instance to shared cache owners
+        self._weakrefs.add(owner)
+
+        # Refresh owners
+        if self.sm_state is not QuantityStateMachine.IS_RESET:
+            self.owners = tuple(self._weakrefs)
+
+    def discard(self, owner: "InterfaceQuantity[ValueT]") -> None:
+        """Remove a given quantity instance from the set of co-owners
+        associated with the shared cache at hands.
+
+        :param owner: Quantity instance to remove from the set of co-owners.
+        """
+        # Make sure that the quantity is part of the co-owners
+        if id(owner) not in map(id, self.owners):
+            raise ValueError(
+                "The specified quantity instance is not an owner of this "
+                "shared cache.")
+
+        # Restore "dynamic" owner list as it may be involved in quantity reset
+        self.owners = self._weakrefs
+
+        # Remove quantity instance from shared cache owners
+        self._weakrefs.discard(owner)
+
+        # Refresh owners.
+        # Note that one must keep tracking the quantity instance being used in
+        # computations, aka 'self._owner', even if it is no longer an actual
+        # shared cache owner. This is necessary because updating it would
+        # require resetting the state machine, which is not an option as it
+        # would mess up with quantities storing history since initialization.
+        if self.sm_state is not QuantityStateMachine.IS_RESET:
+            self.owners = tuple(self._weakrefs)
+
+    def reset(self,
+              *, ignore_auto_refresh: bool = False,
+              reset_state_machine: bool = False) -> None:
         """Clear value stored in cache if any.
 
         :param ignore_auto_refresh: Whether to skip automatic refresh of all
                                     co-owner quantities of this shared cache.
                                     Optional: False by default.
+        :param reset_state_machine: Whether to reset completely the state
+                                    machine of the underlying quantity, ie not
+                                    considering it initialized anymore.
+                                    Optional: False by default.
         """
         # Clear cache
-        self._value = None
-        self._has_value = False
+        if self.sm_state is _IS_CACHED:
+            self.sm_state = _IS_INITIALIZED
 
-        # Refresh automatically if any cache owner requested it and not ignored
-        if not ignore_auto_refresh:
+        # Special branch if case quantities must be reset on the way
+        if reset_state_machine:
+            # Reset the state machine completely
+            self.sm_state = _IS_RESET
+
+            # Update list of owning quantities
+            self.owners = self._weakrefs
+            self._owner = None
+
+            # Reset auto-refresh buffer
+            self._auto_refresh = True
+
+        # Refresh automatically if not already proven useless and not ignored
+        if not ignore_auto_refresh and self._auto_refresh:
             for owner in self.owners:
                 if owner.auto_refresh:
                     owner.get()
                     break
-
-    def set(self, value: ValueT) -> None:
-        """Set value in cache, silently overriding the existing value if any.
-
-        .. warning:
-            Beware the value is stored by reference for efficiency. It is up to
-            the user to copy it if necessary.
-
-        :param value: Value to store in cache.
-        """
-        self._value = value
-        self._has_value = True
+            else:
+                self._auto_refresh = False
 
     def get(self) -> ValueT:
-        """Return cached value if any, otherwise raises an exception.
+        """Return cached value if any, otherwise evaluate it and store it.
         """
-        if self._has_value:
-            return cast(ValueT, self._value)
-        raise ValueError(
-            "No value has been stored. Please call 'set' before 'get'.")
+        # Get value already stored
+        if self.sm_state is _IS_CACHED:
+            # return cast(ValueT, self._value)
+            return self._value  # type: ignore[return-value]
+
+        # Evaluate quantity
+        try:
+            if self.sm_state is _IS_RESET:
+                # Cache the list of owning quantities
+                self.owners = tuple(self._weakrefs)
+
+                # Stick to the first owning quantity systematically
+                owner = self.owners[0]
+                self._owner = owner
+
+                # Initialize quantity if not already done manually
+                if not owner._is_initialized:
+                    owner.initialize()
+                assert owner._is_initialized
+
+            # Get first owning quantity systematically
+            # assert self._owner is not None
+            owner = self._owner  # type: ignore[assignment]
+
+            # Make sure that the state has been refreshed
+            if owner._force_update_state:
+                owner.state.get()
+
+            # Refresh quantity
+            value = owner.refresh()
+        except RecursionError as e:
+            raise LookupError(
+                "Mutual dependency between quantities is disallowed.") from e
+
+        # Update state machine
+        self.sm_state = _IS_CACHED
+
+        # Return value after storing it
+        self._value = value
+        return value
 
 
 class InterfaceQuantity(ABC, Generic[ValueT]):
@@ -249,7 +385,7 @@ class InterfaceQuantity(ABC, Generic[ValueT]):
     requirements: Dict[str, "InterfaceQuantity"]
     """Intermediary quantities on which this quantity may rely on for its
     evaluation at some point, depending on the optimal computation path at
-    runtime. There values will be exposed to the user as usual properties.
+    runtime. They will be exposed to the user as usual attributes.
     """
 
     allow_update_graph: ClassVar[bool] = True
@@ -257,8 +393,8 @@ class InterfaceQuantity(ABC, Generic[ValueT]):
     the quantity can be reset at any point in time to re-compute the optimal
     computation path, typically after deletion or addition of some other node
     to its dependent sub-graph. When this happens, the quantity gets reset on
-    the spot, which is not always acceptable, hence the capability to disable
-    this feature.
+    the spot, even if a simulation is already running. This is not always
+    acceptable, hence the capability to disable this feature at class-level.
     """
 
     def __init__(self,
@@ -296,13 +432,20 @@ class InterfaceQuantity(ABC, Generic[ValueT]):
             name: cls(env, self, **kwargs)
             for name, (cls, kwargs) in requirements.items()}
 
+        # Define proxies for user-specified intermediary quantities.
+        # This approach is much faster than hidding quantities behind value
+        # getters. In particular, dynamically adding properties, which is hacky
+        # but which is the fastest alternative option, still adds 35% overhead
+        # on Python 3.11 compared to calling `get` directly. The "official"
+        # approaches are even slower, ie implementing custom `__getattribute__`
+        # method or worst custom `__getattr__` method.
+        for name, quantity in self.requirements.items():
+            setattr(self, name, quantity)
+
         # Update the state explicitly if available but auto-refresh not enabled
-        self._state: Optional[StateQuantity] = None
+        self._force_update_state = False
         if isinstance(self, AbstractQuantity):
-            quantity = self.requirements["state"]
-            if not quantity.auto_refresh:
-                assert isinstance(quantity, StateQuantity)
-                self._state = quantity
+            self._force_update_state = not self.state.auto_refresh
 
         # Shared cache handling
         self._cache: Optional[SharedCache[ValueT]] = None
@@ -313,16 +456,6 @@ class InterfaceQuantity(ABC, Generic[ValueT]):
 
         # Whether the quantity must be re-initialized
         self._is_initialized: bool = False
-
-        # Add getter dynamically for user-specified intermediary quantities.
-        # This approach is hacky but much faster than any of other official
-        # approach, ie implementing custom a `__getattribute__` method or even
-        # worst a custom `__getattr__` method.
-        def get_value(name: str, quantity: InterfaceQuantity) -> Any:
-            return quantity.requirements[name].get()
-
-        for name in requirement_names:
-            setattr(type(self), name, property(partial(get_value, name)))
 
     if TYPE_CHECKING:
         def __getattr__(self, name: str) -> Any:
@@ -373,7 +506,7 @@ class InterfaceQuantity(ABC, Generic[ValueT]):
         # Withdraw this quantity from the owners of its current cache if any
         if self._cache is not None:
             try:
-                self._cache.owners.discard(self)
+                self._cache.discard(self)
             except ValueError:
                 # This may fail if the quantity is already being garbage
                 # collected when clearing cache.
@@ -381,7 +514,7 @@ class InterfaceQuantity(ABC, Generic[ValueT]):
 
         # Declare this quantity as owner of the cache if specified
         if cache is not None:
-            cache.owners.add(self)
+            cache.add(self)
 
         # Update internal cache attribute
         self._cache = cache
@@ -411,43 +544,35 @@ class InterfaceQuantity(ABC, Generic[ValueT]):
         .. warning::
             This method is not meant to be overloaded.
         """
-        # Get value in cache if available.
-        # Note that direct access to internal `_value` attribute is preferred
-        # over the public API `get` for speedup. The same cannot be done for
-        # `has_value` as it would prevent mocking it during running unit tests
-        # or benchmarks.
-        if (self.has_cache and
-                self._cache.has_value):  # type: ignore[union-attr]
+        # Delegate getting value to shared cache if available
+        if self._cache is not None:
+            # Get value
+            value = self._cache.get()
+
+            # This instance is not forceably considered active at this point.
+            # Note that it must be done AFTER getting the value, otherwise it
+            # would mess up with computation graph tracking at initialization.
             self._is_active = True
-            return self._cache._value  # type: ignore[union-attr,return-value]
+
+            # Return cached value
+            return value
 
         # Evaluate quantity
         try:
             # Initialize quantity
             if not self._is_initialized:
                 self.initialize()
-                assert (self._is_initialized and
-                        self._is_active)  # type: ignore[unreachable]
-
-            # Make sure that the state has been refreshed
-            if self._state is not None:
-                self._state.get()
+                assert self._is_initialized
 
             # Refresh quantity
-            value = self.refresh()
+            return self.refresh()
         except RecursionError as e:
             raise LookupError(
                 "Mutual dependency between quantities is disallowed.") from e
 
-        # Return value after storing it in shared cache if available
-        if self.has_cache:
-            self._cache.set(value)  # type: ignore[union-attr]
-        return value
-
     def reset(self,
               reset_tracking: bool = False,
-              ignore_auto_refresh: bool = False,
-              update_graph: bool = False) -> None:
+              *, ignore_other_instances: bool = False) -> None:
         """Consider that the quantity must be re-initialized before being
         evaluated once again.
 
@@ -465,53 +590,47 @@ class InterfaceQuantity(ABC, Generic[ValueT]):
         :param reset_tracking: Do not consider this quantity as active anymore
                                until the `get` method gets called once again.
                                Optional: False by default.
-        :param ignore_auto_refresh: Whether to skip automatic refresh of all
-                                    co-owner quantities of this shared cache.
-                                    Optional: False by default.
-        :param update_graph: If true, then the quantity will be reset if and
-                             only if dynamic computation graph update is
-                             allowed as prescribed by class attribute
-                             `allow_update_graph`. If false, then it will be
-                             reset no matter what.
+        :param ignore_other_instances:
+            Whether to skip reset of intermediary quantities as well as any
+            shared cache co-owner quantity instances.
+            Optional: False by default.
         """
         # Make sure that auto-refresh can be honored
-        if (not ignore_auto_refresh and self.auto_refresh and
-                not self.has_cache):
+        if self.auto_refresh and not self.has_cache:
             raise RuntimeError(
                 "Automatic refresh enabled but no shared cache is available. "
                 "Please add one before calling this method.")
 
         # Reset all requirements first
-        for quantity in self.requirements.values():
-            quantity.reset(reset_tracking, ignore_auto_refresh, update_graph)
+        if not ignore_other_instances:
+            for quantity in self.requirements.values():
+                quantity.reset(reset_tracking, ignore_other_instances=False)
 
-        # Skip reset if dynamic computation graph update if appropriate
-        if update_graph and not self.allow_update_graph:
+        # Skip reset if dynamic computation graph update is not allowed
+        if self.env.is_simulation_running and not self.allow_update_graph:
             return
 
-        # No longer consider this exact instance as active if requested
+        # No longer consider this exact instance as active
         if reset_tracking:
             self._is_active = False
 
         # No longer consider this exact instance as initialized
         self._is_initialized = False
 
-        # More work must to be done if shared cache is available and has value
+        # More work must to be done if shared cache if appropriate
         if self.has_cache:
-            # Early return if shared cache has no value
-            if not self.cache.has_value:
-                return
+            # Reset all identical quantities.
+            # Note that auto-refresh will be done afterward if requested.
+            if not ignore_other_instances:
+                for owner in self.cache.owners:
+                    if owner is not self:
+                        owner.reset(reset_tracking=reset_tracking,
+                                    ignore_other_instances=True)
 
-            # Invalidate cache before looping over all identical properties.
-            # Note that auto-refresh must be ignored to avoid infinite loop.
-            self.cache.reset(ignore_auto_refresh=True)
-
-            # Reset all identical quantities
-            for owner in self.cache.owners:
-                owner.reset(ignore_auto_refresh=True)
-
-            # Reset shared cache one last time but without ignore auto refresh
-            self.cache.reset(ignore_auto_refresh=ignore_auto_refresh)
+            # Reset shared cache
+            self.cache.reset(
+                ignore_auto_refresh=not self.env.is_simulation_running,
+                reset_state_machine=True)
 
     def initialize(self) -> None:
         """Initialize internal buffers.
@@ -551,7 +670,7 @@ QuantityCreator = Tuple[
     Type[InterfaceQuantity[QuantityValueT_co]], Dict[str, Any]]
 
 
-class QuantityEvalMode(Enum):
+class QuantityEvalMode(IntEnum):
     """Specify on which state to evaluate a given quantity.
     """
 
@@ -562,6 +681,10 @@ class QuantityEvalMode(Enum):
     REFERENCE = 1
     """State of the reference trajectory at the current simulation time.
     """
+
+
+# Define proxies for fast lookup
+_TRUE, _REFERENCE = QuantityEvalMode
 
 
 @dataclass(unsafe_hash=True)
@@ -642,7 +765,7 @@ class AbstractQuantity(InterfaceQuantity, Generic[ValueT]):
         super().__init__(env, parent, requirements, auto_refresh=auto_refresh)
 
         # Add trajectory quantity proxy
-        trajectory = self.requirements["state"].requirements["trajectory"]
+        trajectory = self.state.trajectory
         assert isinstance(trajectory, DatasetTrajectoryQuantity)
         self.trajectory = trajectory
 
@@ -656,14 +779,13 @@ class AbstractQuantity(InterfaceQuantity, Generic[ValueT]):
         super().initialize()
 
         # Force initializing state quantity
-        state = self.requirements["state"]
-        state.initialize()
+        self.state.initialize()
 
         # Refresh robot proxy
-        assert isinstance(state, StateQuantity)
-        self.robot = state.robot
-        self.pinocchio_model = state.pinocchio_model
-        self.pinocchio_data = state.pinocchio_data
+        assert isinstance(self.state, StateQuantity)
+        self.robot = self.state.robot
+        self.pinocchio_model = self.state.pinocchio_model
+        self.pinocchio_data = self.state.pinocchio_data
 
 
 def sync(fun: Callable[..., None]) -> Callable[..., None]:
@@ -996,17 +1118,14 @@ class StateQuantity(InterfaceQuantity[State]):
         # only refresh the state when needed if the evaluation mode is TRAJ.
         # * Update state: 500ns (TRUE) | 5.0us (TRAJ)
         # * Check cache state: 70ns
-        auto_refresh = mode == QuantityEvalMode.TRUE
+        auto_refresh = mode is QuantityEvalMode.TRUE
 
         # Call base implementation.
         super().__init__(
-            env, parent, requirements={}, auto_refresh=auto_refresh)
-
-        # Create empty trajectory database, manually added as a requirement.
-        # Note that it must be done after base initialization, otherwise a
-        # getter will be added for it as first-class property.
-        self.trajectory = DatasetTrajectoryQuantity(env, self)
-        self.requirements["trajectory"] = self.trajectory
+            env,
+            parent,
+            requirements=dict(trajectory=(DatasetTrajectoryQuantity, {})),
+            auto_refresh=auto_refresh)
 
         # Robot for which the quantity must be evaluated
         self.robot = env.robot
@@ -1014,7 +1133,7 @@ class StateQuantity(InterfaceQuantity[State]):
         self.pinocchio_data = env.robot.pinocchio_data
 
         # State for which the quantity must be evaluated
-        self.state = State(t=np.nan, q=np.array([]))
+        self._state = State(t=np.nan, q=np.array([]))
 
         # Persistent buffer for storing body external forces if necessary
         self._f_external_vec = pin.StdVec_Force()
@@ -1068,7 +1187,7 @@ class StateQuantity(InterfaceQuantity[State]):
             assert isinstance(owner, StateQuantity)
             if owner._is_initialized:
                 continue
-            if owner.mode == QuantityEvalMode.TRUE:
+            if owner.mode is QuantityEvalMode.TRUE:
                 owner.robot = owner.env.robot
                 use_theoretical_model = False
             else:
@@ -1086,7 +1205,7 @@ class StateQuantity(InterfaceQuantity[State]):
         super().initialize()
 
         # Refresh proxies and allocate memory for storing external forces
-        if self.mode == QuantityEvalMode.TRUE:
+        if self.mode is QuantityEvalMode.TRUE:
             self._f_external_vec = self.env.robot_state.f_external
         else:
             self._f_external_vec = pin.StdVec_Force()
@@ -1128,11 +1247,11 @@ class StateQuantity(InterfaceQuantity[State]):
             i += constraint.size
 
         # Allocate state for which the quantity must be evaluated if needed
-        if self.mode == QuantityEvalMode.TRUE:
+        if self.mode is QuantityEvalMode.TRUE:
             if not self.env.is_simulation_running:
                 raise RuntimeError("No simulation running. Impossible to "
                                    "initialize this quantity.")
-            self.state = State(
+            self._state = State(
                 0.0,
                 self.env.robot_state.q,
                 self.env.robot_state.v,
@@ -1146,21 +1265,21 @@ class StateQuantity(InterfaceQuantity[State]):
         """Compute the current state depending on the mode of evaluation, and
         make sure that kinematics and dynamics quantities are up-to-date.
         """
-        if self.mode == QuantityEvalMode.TRUE:
+        if self.mode is _TRUE:
             # Update the current simulation time
-            self.state.t = self.env.stepper_state.t
+            self._state.t = self.env.stepper_state.t
 
             # Update external forces and constraint multipliers in state buffer
             multi_array_copyto(self._f_external_slices, self._f_external_list)
             multi_array_copyto(
                 self._constraint_lambda_slices, self._constraint_lambda_list)
         else:
-            self.state = self.trajectory.get()
+            self._state = self.trajectory.get()
 
             # Copy body external forces from stacked buffer to force vector
-            has_forces = self.state.f_external is not None
+            has_forces = self._state.f_external is not None
             if has_forces:
-                array_copyto(self._f_external_batch, self.state.f_external)
+                array_copyto(self._f_external_batch, self._state.f_external)
                 multi_array_copyto(self._f_external_list,
                                    self._f_external_slices)
 
@@ -1168,9 +1287,9 @@ class StateQuantity(InterfaceQuantity[State]):
             if self.update_kinematics:
                 update_quantities(
                     self.robot,
-                    self.state.q,
-                    self.state.v,
-                    self.state.a,
+                    self._state.q,
+                    self._state.v,
+                    self._state.a,
                     self._f_external_vec if has_forces else None,
                     update_dynamics=self._update_dynamics,
                     update_centroidal=self._update_centroidal,
@@ -1181,11 +1300,11 @@ class StateQuantity(InterfaceQuantity[State]):
                         self.trajectory.use_theoretical_model))
 
             # Restore lagrangian multipliers of the constraints if available
-            if self.state.lambda_c is not None:
+            if self._state.lambda_c is not None:
                 array_copyto(
-                    self._constraint_lambda_batch, self.state.lambda_c)
+                    self._constraint_lambda_batch, self._state.lambda_c)
                 multi_array_copyto(self._constraint_lambda_list,
                                    self._constraint_lambda_slices)
 
         # Return state
-        return self.state
+        return self._state
