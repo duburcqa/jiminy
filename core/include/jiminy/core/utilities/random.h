@@ -220,9 +220,9 @@ namespace jiminy
 
     template<typename Generator, typename Derived1, typename Derived2>
     std::enable_if_t<
-        (is_eigen_any_v<Derived1> ||
-         is_eigen_any_v<Derived2>)&&(!std::is_arithmetic_v<std::decay_t<Derived1>> ||
-                                     !std::is_arithmetic_v<std::decay_t<Derived2>>),
+        (is_eigen_any_v<Derived1> || is_eigen_any_v<Derived2>) &&
+            (!std::is_arithmetic_v<std::decay_t<Derived1>> ||
+             !std::is_arithmetic_v<std::decay_t<Derived2>>),
         Eigen::CwiseNullaryOp<
             scalar_random_op<float(const uniform_random_bit_generator_ref<uint32_t> &, float, float),
                              Generator &,
@@ -271,9 +271,9 @@ namespace jiminy
     /// optimizations enabled (level 01 is enough), probably due to inlining.
     template<typename Generator, typename Derived1, typename Derived2>
     std::enable_if_t<
-        (is_eigen_any_v<Derived1> ||
-         is_eigen_any_v<Derived2>)&&(!std::is_arithmetic_v<std::decay_t<Derived1>> ||
-                                     !std::is_arithmetic_v<std::decay_t<Derived2>>),
+        (is_eigen_any_v<Derived1> || is_eigen_any_v<Derived2>) &&
+            (!std::is_arithmetic_v<std::decay_t<Derived1>> ||
+             !std::is_arithmetic_v<std::decay_t<Derived2>>),
         Eigen::CwiseNullaryOp<
             scalar_random_op<float(const uniform_random_bit_generator_ref<uint32_t> &, float, float),
                              Generator &,
@@ -461,7 +461,8 @@ namespace jiminy
     private:
         const double period_;
 
-        std::array<uint8_t, 256> perm_{};
+        std::vector<uint32_t> hashes_ =
+            std::vector<uint32_t>(static_cast<std::size_t>(period_ / wavelength_));
     };
 
     /// \brief  Sum of Perlin noise octaves.

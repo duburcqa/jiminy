@@ -432,23 +432,16 @@ namespace jiminy
         return 2.0 * grad * delta;
     }
 
-    namespace internal
-    {
-        template<typename Generator, typename T>
-        void randomizePermutationVector(Generator && g, T & vec)
-        {
-            // Re-Initialize the permutation vector with values from 0 to size
-            std::iota(vec.begin(), vec.end(), 0);
-
-            // Shuffle the permutation vector
-            std::shuffle(vec.begin(), vec.end(), g);
-        }
-    }
-
     PeriodicPerlinNoiseOctave::PeriodicPerlinNoiseOctave(double wavelength, double period) :
     AbstractPerlinNoiseOctave(wavelength),
     period_{period}
     {
+        // Make sure the period is larger than the wavelength
+        if (period_ < wavelength_)
+        {
+            JIMINY_THROW(std::invalid_argument, "'period' must be larger than 'wavelength'.");
+        }
+
         // Make sure the wavelength is multiple of the period
         if (std::abs(std::round(period / wavelength) * wavelength - period) >
             std::numeric_limits<float>::epsilon())
@@ -456,8 +449,8 @@ namespace jiminy
             JIMINY_THROW(std::invalid_argument, "'wavelength' must be multiple of 'period'.");
         }
 
-        // Initialize the permutation vector with values from 0 to 255 and shuffle it
-        internal::randomizePermutationVector(std::random_device{}, perm_);
+        // Initialize the pre-computed hash table
+        std::generate(hashes_.begin(), hashes_.end(), std::random_device{});
     }
 
     void PeriodicPerlinNoiseOctave::reset(
@@ -466,8 +459,8 @@ namespace jiminy
         // Call base implementation
         AbstractPerlinNoiseOctave::reset(g);
 
-        // Re-Initialize the permutation vector with values from 0 to 255
-        internal::randomizePermutationVector(g, perm_);
+        // Re-initialize the pre-computed hash table
+        std::generate(hashes_.begin(), hashes_.end(), g);
     }
 
     double PeriodicPerlinNoiseOctave::grad(int32_t knot, double delta) const noexcept
@@ -476,7 +469,8 @@ namespace jiminy
         knot %= static_cast<uint32_t>(period_ / wavelength_);
 
         // Convert to double in [0.0, 1.0)
-        const double s = perm_[knot] / 256.0;
+        const double s = static_cast<double>(hashes_[knot]) /
+                         static_cast<double>(std::numeric_limits<uint32_t>::max());
 
         // Compute rescaled gradient between [-1.0, 1.0)
         const double grad = 2.0 * s - 1.0;
@@ -574,11 +568,6 @@ namespace jiminy
         { return std::make_unique<PeriodicPerlinNoiseOctave>(wavelengthIn, period); })),
     period_{period}
     {
-        // Make sure the period is larger than the wavelength
-        if (period_ < wavelength)
-        {
-            JIMINY_THROW(std::invalid_argument, "'period' must be larger than 'wavelength'.");
-        }
     }
 
     double PeriodicPerlinProcess::getPeriod() const noexcept
@@ -675,15 +664,15 @@ namespace jiminy
                        uniformSparseFromState(Vector1<Eigen::Index>::Constant(i), 1, seed);
             });
 
-        const Eigen::Rotation2D<double> rot_mat(orientation);
+        const Eigen::Rotation2D<double> rotMat(orientation);
 
-        return [size, heightMax, interpDelta, rot_mat, sparsity, interpThr, offset, seed](
+        return [size, heightMax, interpDelta, rotMat, sparsity, interpThr, offset, seed](
                    const Eigen::Vector2d & pos,
                    double & height,
                    Eigen::Ref<Eigen::Vector3d> normal) -> void
         {
             // Compute the tile index and relative coordinate
-            Eigen::Vector2d posRel = (rot_mat * (pos + offset)).array() / size.array();
+            Eigen::Vector2d posRel = (rotMat * (pos + offset)).array() / size.array();
             Vector2<int32_t> posIndices = posRel.array().floor().cast<int32_t>();
             posRel -= posIndices.cast<double>();
 

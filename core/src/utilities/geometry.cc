@@ -752,20 +752,23 @@ namespace jiminy
         };
     }
 
-    HeightmapFunction stairs(
+    HeightmapFunction periodicStairs(
         double stepWidth, double stepHeight, uint32_t stepNumber, double orientation)
     {
         const double interpDelta = 0.01;
-        const Eigen::Rotation2D<double> rot_mat(orientation);
 
-        return [stepWidth, stepHeight, stepNumber, rot_mat, interpDelta](
+        // Define the projection axis
+        const Eigen::Vector2d axis{std::cos(orientation), std::sin(orientation)};
+
+        return [stepWidth, stepHeight, stepNumber, axis, interpDelta](
                    const Eigen::Vector2d & pos,
                    double & height,
                    Eigen::Ref<Eigen::Vector3d> normal) -> void
         {
             // Compute position in stairs reference frame
-            Eigen::Vector2d posRel = rot_mat.inverse() * pos;
-            const double modPos = std::fmod(std::abs(posRel[0]), stepWidth * stepNumber * 2);
+            // Eigen::Vector2d posRel = rotMat.inverse() * pos;
+            const double posRel = axis.dot(pos);
+            const double modPos = std::fmod(std::abs(posRel), stepWidth * stepNumber * 2);
 
             // Compute the default height and normal
             uint32_t stairIndex = static_cast<uint32_t>(modPos / stepWidth);
@@ -779,7 +782,8 @@ namespace jiminy
             normal = Eigen::Vector3d::UnitZ();
 
             // Avoid unsupported vertical edge
-            const double posRelOnStep = std::fmod(modPos, stepWidth) / stepWidth;
+            const double posRelOnStep =
+                std::fmod(modPos + std::numeric_limits<float>::epsilon(), stepWidth) / stepWidth;
             if (1.0 - posRelOnStep < interpDelta)
             {
                 const double slope = staircaseSlopeSign * stepHeight / interpDelta;
@@ -793,9 +797,9 @@ namespace jiminy
                 // step 1. compute normal in stairs reference frame:
                 // normal << -slope * normInv, 0.0, normInv;
                 // step 2. Rotate normal vector in world plane reference frame:
-                // normal.head<2>() = rot_mat * normal.head<2>();
+                // normal.head<2>() = rotMat * normal.head<2>();
                 // Or simply in a single operation:
-                normal << -slope * normInv * rot_mat.toRotationMatrix().col(0), normInv;
+                normal << -slope * normInv * axis, normInv;
             }
         };
     }
