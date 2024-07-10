@@ -314,7 +314,7 @@ namespace jiminy
         /// \param[in] coeffs First row of the matrix to decompose.
         template<typename Derived>
         MatrixX<typename Derived::Scalar>
-        standardToeplitzCholeskyLower(const Eigen::MatrixBase<Derived> & coeffs);
+        standardToeplitzCholeskyLower(const Eigen::MatrixBase<Derived> & coeffs, double reg = 0.0);
     }
 
     class JIMINY_DLLAPI PeriodicGaussianProcess
@@ -327,7 +327,8 @@ namespace jiminy
 
         void reset(const uniform_random_bit_generator_ref<uint32_t> & g) noexcept;
 
-        double operator()(float t);
+        double operator()(double t);
+        double gradient(double t);
 
         double getWavelength() const noexcept;
         double getPeriod() const noexcept;
@@ -336,7 +337,7 @@ namespace jiminy
         const double wavelength_;
         const double period_;
 
-        const double dt_{0.02 * wavelength_};
+        const double dt_{0.1 * wavelength_};
         const Eigen::Index numTimes_{static_cast<int>(std::ceil(period_ / dt_))};
 
         /// \brief Cholesky decomposition (LLT) of the covariance matrix.
@@ -347,20 +348,42 @@ namespace jiminy
         ///          positive semi-definite Toepliz matrix, which means that the computational
         ///          complexity can be reduced even further using an specialized Cholesky
         ///          decomposition algorithm. See: https://math.stackexchange.com/q/22825/375496
-        Eigen::MatrixXd covSqrtRoot_{
-            internal::standardToeplitzCholeskyLower(Eigen::VectorXd::NullaryExpr(
+        ///          Ultimately, the algorithmic complexity can be reduced from O(n^3) to O(n^2),
+        ///          which is lower than the matrix multiplication itself.
+        ///
+        Eigen::MatrixXd covSqrtRoot_{internal::standardToeplitzCholeskyLower(
+            Eigen::VectorXd::NullaryExpr(
                 numTimes_,
                 [numTimes = static_cast<double>(numTimes_), wavelength = wavelength_](double i) {
                     return std::exp(-2.0 *
                                     std::pow(std::sin(M_PI / numTimes * i) / wavelength, 2));
-                }))};
+                }),
+            1e-9)};
+        Eigen::MatrixXd covJacobian_{Eigen::MatrixXd::NullaryExpr(
+            numTimes_,
+            numTimes_,
+            [numTimes = static_cast<double>(numTimes_),
+             wavelength = wavelength_,
+             period = period_](double i, double j)
+            {
+                return -2 * M_PI / period / std::pow(wavelength, 2) *
+                       std::sin(2 * M_PI / numTimes * (i - j)) *
+                       std::exp(-2.0 *
+                                std::pow(std::sin(M_PI / numTimes * (i - j)) / wavelength, 2));
+            })};
+
         Eigen::VectorXd values_{numTimes_};
+        Eigen::VectorXd grads_{numTimes_};
     };
 
     // **************************** Continuous 1D Fourier processes **************************** //
 
     /// \see Based on "Smooth random functions, random ODEs, and Gaussian processes":
-    ///      https://hal.inria.fr/hal-01944992/file/random_revision2.pdf */
+    ///      https://hal.inria.fr/hal-01944992/file/random_revision2.pdf
+    ///
+    /// \see For references about the derivatives of a Gaussian Process:
+    ///      http://herbsusmann.com/2020/07/06/gaussian-process-derivatives
+    ///      https://arxiv.org/abs/1810.12283
     class JIMINY_DLLAPI PeriodicFourierProcess
     {
     public:
@@ -371,7 +394,8 @@ namespace jiminy
 
         void reset(const uniform_random_bit_generator_ref<uint32_t> & g) noexcept;
 
-        double operator()(float t);
+        double operator()(double t);
+        double gradient(double t);
 
         double getWavelength() const noexcept;
         double getPeriod() const noexcept;
@@ -380,7 +404,7 @@ namespace jiminy
         const double wavelength_;
         const double period_;
 
-        const double dt_{0.02 * wavelength_};
+        const double dt_{0.1 * wavelength_};
         const Eigen::Index numTimes_{static_cast<Eigen::Index>(std::ceil(period_ / dt_))};
         const Eigen::Index numHarmonics_{
             static_cast<Eigen::Index>(std::ceil(period_ / wavelength_))};
@@ -389,13 +413,15 @@ namespace jiminy
             numTimes_,
             numHarmonics_,
             [numTimes = static_cast<double>(numTimes_)](double i, double j)
-            { return std::cos(2 * M_PI / numTimes * i * j); })};
+            { return std::cos(2 * M_PI / numTimes * i * (j + 1)); })};
         const Eigen::MatrixXd sinMat_{Eigen::MatrixXd::NullaryExpr(
             numTimes_,
             numHarmonics_,
             [numTimes = static_cast<double>(numTimes_)](double i, double j)
-            { return std::sin(2 * M_PI / numTimes * i * j); })};
+            { return std::sin(2 * M_PI / numTimes * i * (j + 1)); })};
+
         Eigen::VectorXd values_{numTimes_};
+        Eigen::VectorXd grads_{numTimes_};
     };
 
     // ***************************** Continuous 1D Perlin processes **************************** //
@@ -461,8 +487,8 @@ namespace jiminy
     private:
         const double period_;
 
-        std::vector<uint32_t> hashes_ =
-            std::vector<uint32_t>(static_cast<std::size_t>(period_ / wavelength_));
+        std::vector<float> grads_ =
+            std::vector<float>(static_cast<std::size_t>(period_ / wavelength_));
     };
 
     /// \brief  Sum of Perlin noise octaves.
@@ -496,7 +522,7 @@ namespace jiminy
     public:
         void reset(const uniform_random_bit_generator_ref<uint32_t> & g) noexcept;
 
-        double operator()(float t);
+        double operator()(double t);
 
         double getWavelength() const noexcept;
         std::size_t getNumOctaves() const noexcept;

@@ -57,9 +57,9 @@ namespace jiminy
 
     template<typename Generator, typename Derived1, typename Derived2>
     std::enable_if_t<
-        (is_eigen_any_v<Derived1> ||
-         is_eigen_any_v<Derived2>)&&(!std::is_arithmetic_v<std::decay_t<Derived1>> ||
-                                     !std::is_arithmetic_v<std::decay_t<Derived2>>),
+        (is_eigen_any_v<Derived1> || is_eigen_any_v<Derived2>) &&
+            (!std::is_arithmetic_v<std::decay_t<Derived1>> ||
+             !std::is_arithmetic_v<std::decay_t<Derived2>>),
         Eigen::CwiseNullaryOp<
             scalar_random_op<float(const uniform_random_bit_generator_ref<uint32_t> &, float, float),
                              Generator &,
@@ -103,9 +103,9 @@ namespace jiminy
 
     template<typename Generator, typename Derived1, typename Derived2>
     std::enable_if_t<
-        (is_eigen_any_v<Derived1> ||
-         is_eigen_any_v<Derived2>)&&(!std::is_arithmetic_v<std::decay_t<Derived1>> ||
-                                     !std::is_arithmetic_v<std::decay_t<Derived2>>),
+        (is_eigen_any_v<Derived1> || is_eigen_any_v<Derived2>) &&
+            (!std::is_arithmetic_v<std::decay_t<Derived1>> ||
+             !std::is_arithmetic_v<std::decay_t<Derived2>>),
         Eigen::CwiseNullaryOp<
             scalar_random_op<float(const uniform_random_bit_generator_ref<uint32_t> &, float, float),
                              Generator &,
@@ -153,7 +153,7 @@ namespace jiminy
     {
         template<typename Derived>
         MatrixX<typename Derived::Scalar>
-        standardToeplitzCholeskyLower(const Eigen::MatrixBase<Derived> & coeffs)
+        standardToeplitzCholeskyLower(const Eigen::MatrixBase<Derived> & coeffs, double reg)
         {
             using Scalar = typename Derived::Scalar;
 
@@ -165,6 +165,7 @@ namespace jiminy
                It coincides with the Schur generator for Toepliz matrices. */
             Eigen::Matrix<Scalar, 2, Eigen::Dynamic> g{2, n};
             g.rowwise() = coeffs.transpose();
+            g(0, 0) += reg;
 
             // Run progressive Schur algorithm, adapted to Toepliz matrices
             l.col(0) = g.row(0);

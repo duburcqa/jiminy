@@ -247,6 +247,64 @@ namespace jiminy
 
     // **************************** Continuous 1D Gaussian processes *************************** //
 
+    static std::tuple<Eigen::Index, Eigen::Index, double> getClosestKnots(double value,
+                                                                          double delta)
+    {
+        // Compute closest left and right indices
+        const double quot = value / delta;
+        const Eigen::Index indexLeft = static_cast<Eigen::Index>(std::floor(quot));
+        Eigen::Index indexRight = indexLeft + 1;
+
+        // Compute the time ratio
+        const double ratio = quot - indexLeft;
+
+        return {indexLeft, indexRight, ratio};
+    }
+
+    static std::tuple<Eigen::Index, Eigen::Index, double> getClosestKnots(
+        double value, double delta, double period)
+    {
+        // Compute discretized period
+        const Eigen::Index numTimes = static_cast<Eigen::Index>(std::ceil(period / delta));
+
+        // Wrap value in period interval
+        double periodKnots = numTimes * delta;
+        value = std::fmod(value, periodKnots);
+        if (value < 0.0)
+        {
+            value += periodKnots;
+        }
+
+        // Compute closest left and right indices, wrapping around if needed
+        auto [indexLeft, indexRight, ratio] = getClosestKnots(value, delta);
+        if (indexRight == numTimes)
+        {
+            indexRight = 0;
+        }
+        return {indexLeft, indexRight, ratio};
+    }
+
+    template<typename T>
+    static std::decay_t<T> cubicInterp(
+        double ratio, double delta, T && valueLeft, T && valueRight, T && gradLeft, T && gradRight)
+    {
+        const auto dy = valueRight - valueLeft;
+        const auto a = gradLeft * delta - dy;
+        const auto b = -gradRight * delta + dy;
+        return valueLeft + ratio * ((1.0 - ratio) * ((1.0 - ratio) * a + ratio * b) + dy);
+    }
+
+    template<typename T>
+    static std::decay_t<T> derivativeCubicInterp(
+        double ratio, double delta, T && valueLeft, T && valueRight, T && gradLeft, T && gradRight)
+    {
+        const auto dy = valueRight - valueLeft;
+        const auto a = gradLeft * delta - dy;
+        const auto b = -gradRight * delta + dy;
+        return ((1.0 - ratio) * (1.0 - 3.0 * ratio) * a + ratio * (2.0 - 3.0 * ratio) * b + dy) /
+               delta;
+    }
+
     PeriodicGaussianProcess::PeriodicGaussianProcess(double wavelength, double period) noexcept :
     wavelength_{wavelength},
     period_{period}
@@ -258,28 +316,56 @@ namespace jiminy
         const uniform_random_bit_generator_ref<uint32_t> & g) noexcept
     {
         // Sample normal vector
-        auto normalVec = normal(numTimes_, 1, g);
+        const Eigen::VectorXd normalVec = normal(numTimes_, 1, g).cast<double>();
 
-        // Compute discrete periodic gaussian process values
-        values_.noalias() = covSqrtRoot_.triangularView<Eigen::Lower>() * normalVec.cast<double>();
+        /* Compute discrete periodic gaussian process values.
+
+           A gaussian process can be derived from a normally distributed random vector.
+           More precisely, a Gaussian Process y is uniquely defined by its kernel K and
+           a normally distributed random vector z ~ N(0, I). Let us consider a timestamp t.
+           The value of the Gaussian process y at time t is given by:
+               y(t) = K(t*, t) @ (L^-T @ z),
+           where:
+               t* are evenly spaced sampling timestamps associated with z
+               Cov = K(t*, t*) = L @ L^T is the Cholesky decomposition of the covariance matrix.
+
+           Its analytical derivative can be deduced easily:
+               dy/dt(t) = dK/dt(t*, t) @ (L^-T @ z).
+
+           When the query timestamps corresponds to the sampling timestamps, it yields:
+               y^* = K(t*, t*) @ (L^-T @ z) = L @ z
+               dy/dt^* = dK/dt(t*, t*) @ (L^-T @ z). */
+        values_.noalias() = covSqrtRoot_.triangularView<Eigen::Lower>() * normalVec;
+        grads_.noalias() =
+            covJacobian_ *
+            covSqrtRoot_.transpose().triangularView<Eigen::Upper>().solve(normalVec);
     }
 
-    double PeriodicGaussianProcess::operator()(float t)
+    double PeriodicGaussianProcess::operator()(double t)
     {
-        // Wrap requested time in gaussian process period
-        double tWrap = std::fmod(t, period_);
-        if (tWrap < 0)
-        {
-            tWrap += period_;
-        }
+        // Compute closest left index within time period
+        const auto [indexLeft, indexRight, ratio] = getClosestKnots(t, dt_, period_);
 
-        // Compute closest left and right indices
-        const Eigen::Index tLeftIndex = static_cast<Eigen::Index>(std::floor(tWrap / dt_));
-        const Eigen::Index tRightIndex = (tLeftIndex + 1) % numTimes_;
+        /* Perform cubic spline interpolation to ensure continuity of the derivative:
+           https://en.wikipedia.org/wiki/Spline_interpolation#Algorithm_to_find_the_interpolating_cubic_spline
+        */
+        return cubicInterp(ratio,
+                           dt_,
+                           values_[indexLeft],
+                           values_[indexRight],
+                           grads_[indexLeft],
+                           grads_[indexRight]);
+    }
 
-        // Perform First order interpolation
-        const double ratio = tWrap / dt_ - static_cast<double>(tLeftIndex);
-        return values_[tLeftIndex] + ratio * (values_[tRightIndex] - values_[tLeftIndex]);
+    double PeriodicGaussianProcess::gradient(double t)
+    {
+        const auto [indexLeft, indexRight, ratio] = getClosestKnots(t, dt_, period_);
+        return derivativeCubicInterp(ratio,
+                                     dt_,
+                                     values_[indexLeft],
+                                     values_[indexRight],
+                                     grads_[indexLeft],
+                                     grads_[indexRight]);
     }
 
     double PeriodicGaussianProcess::getWavelength() const noexcept
@@ -305,31 +391,40 @@ namespace jiminy
         const uniform_random_bit_generator_ref<uint32_t> & g) noexcept
     {
         // Sample normal vectors
-        auto normalVec1 = normal(numHarmonics_, 1, g);
-        auto normalVec2 = normal(numHarmonics_, 1, g);
+        const Eigen::VectorXd normalVec1 = normal(numHarmonics_, 1, g).cast<double>();
+        const Eigen::VectorXd normalVec2 = normal(numHarmonics_, 1, g).cast<double>();
 
-        // Compute discrete periodic gaussian process values
+        // Compute discrete periodic fourrier process values and derivatives
         const double scale = M_SQRT2 / std::sqrt(2 * numHarmonics_ + 1);
-        values_ = scale * cosMat_ * normalVec1.cast<double>();
-        values_.noalias() += scale * sinMat_ * normalVec2.cast<double>();
+        values_ = scale * sinMat_ * normalVec1;
+        values_.noalias() += scale * cosMat_ * normalVec2;
+
+        const auto diff =
+            2 * M_PI / period_ * Eigen::VectorXd::LinSpaced(numHarmonics_, 1, numHarmonics_);
+        grads_ = scale * cosMat_ * normalVec1.cwiseProduct(diff);
+        grads_.noalias() -= scale * sinMat_ * normalVec2.cwiseProduct(diff);
     }
 
-    double PeriodicFourierProcess::operator()(float t)
+    double PeriodicFourierProcess::operator()(double t)
     {
-        // Wrap requested time in guassian process period
-        double tWrap = std::fmod(t, period_);
-        if (tWrap < 0)
-        {
-            tWrap += period_;
-        }
+        const auto [indexLeft, indexRight, ratio] = getClosestKnots(t, dt_, period_);
+        return cubicInterp(ratio,
+                           dt_,
+                           values_[indexLeft],
+                           values_[indexRight],
+                           grads_[indexLeft],
+                           grads_[indexRight]);
+    }
 
-        // Compute closest left and right indices
-        const Eigen::Index tLeftIndex = static_cast<Eigen::Index>(std::floor(tWrap / dt_));
-        const Eigen::Index tRightIndex = (tLeftIndex + 1) % numTimes_;
-
-        // Perform First order interpolation
-        const double ratio = tWrap / dt_ - static_cast<double>(tLeftIndex);
-        return values_[tLeftIndex] + ratio * (values_[tRightIndex] - values_[tLeftIndex]);
+    double PeriodicFourierProcess::gradient(double t)
+    {
+        const auto [indexLeft, indexRight, ratio] = getClosestKnots(t, dt_, period_);
+        return derivativeCubicInterp(ratio,
+                                     dt_,
+                                     values_[indexLeft],
+                                     values_[indexRight],
+                                     grads_[indexLeft],
+                                     grads_[indexRight]);
     }
 
     double PeriodicFourierProcess::getWavelength() const noexcept
@@ -367,7 +462,7 @@ namespace jiminy
         const double phase = t / wavelength_ + shift_;
 
         // Compute closest right and left knots
-        const int32_t phaseIndexLeft = static_cast<int32_t>(phase);
+        const int32_t phaseIndexLeft = static_cast<int32_t>(std::lroundl(std::floor(phase)));
         const int32_t phaseIndexRight = phaseIndexLeft + 1;
 
         // Compute smoothed ratio of current phase wrt to the closest knots
@@ -429,28 +524,24 @@ namespace jiminy
         const double grad = 2.0 * s - 1.0;
 
         // Return scalar product between distance and gradient
-        return 2.0 * grad * delta;
+        return grad * delta;
     }
 
     PeriodicPerlinNoiseOctave::PeriodicPerlinNoiseOctave(double wavelength, double period) :
-    AbstractPerlinNoiseOctave(wavelength),
+    AbstractPerlinNoiseOctave(period / std::max(std::round(period / wavelength), 1.0)),
     period_{period}
     {
         // Make sure the period is larger than the wavelength
-        if (period_ < wavelength_)
+        if (period < wavelength)
         {
             JIMINY_THROW(std::invalid_argument, "'period' must be larger than 'wavelength'.");
         }
 
-        // Make sure the wavelength is multiple of the period
-        if (std::abs(std::round(period / wavelength) * wavelength - period) >
-            std::numeric_limits<float>::epsilon())
-        {
-            JIMINY_THROW(std::invalid_argument, "'wavelength' must be multiple of 'period'.");
-        }
-
         // Initialize the pre-computed hash table
-        std::generate(hashes_.begin(), hashes_.end(), std::random_device{});
+        std::generate(grads_.begin(),
+                      grads_.end(),
+                      [g = uniform_random_bit_generator_ref<uint32_t>{std::random_device{}}]()
+                      { return uniform(g, -1.0F, 1.0F); });
     }
 
     void PeriodicPerlinNoiseOctave::reset(
@@ -460,23 +551,21 @@ namespace jiminy
         AbstractPerlinNoiseOctave::reset(g);
 
         // Re-initialize the pre-computed hash table
-        std::generate(hashes_.begin(), hashes_.end(), g);
+        std::generate(grads_.begin(), grads_.end(), [&g]() { return uniform(g, -1.0F, 1.0F); });
     }
 
     double PeriodicPerlinNoiseOctave::grad(int32_t knot, double delta) const noexcept
     {
         // Wrap knot is period interval
-        knot %= static_cast<uint32_t>(period_ / wavelength_);
+        const int32_t numTimes = static_cast<int32_t>(grads_.size());
+        knot %= numTimes;
+        if (knot < 0)
+        {
+            knot += numTimes;
+        }
 
-        // Convert to double in [0.0, 1.0)
-        const double s = static_cast<double>(hashes_[knot]) /
-                         static_cast<double>(std::numeric_limits<uint32_t>::max());
-
-        // Compute rescaled gradient between [-1.0, 1.0)
-        const double grad = 2.0 * s - 1.0;
-
-        // Return scalar product between distance and gradient
-        return 2.0 * grad * delta;
+        // Return scalar product between time delta and gradient
+        return grads_[knot] * delta;
     }
 
     AbstractPerlinProcess::AbstractPerlinProcess(
@@ -504,7 +593,7 @@ namespace jiminy
         }
     }
 
-    double AbstractPerlinProcess::operator()(float t)
+    double AbstractPerlinProcess::operator()(double t)
     {
         // Compute sum of octaves' values
         double value = 0.0;

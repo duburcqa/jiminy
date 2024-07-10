@@ -142,9 +142,8 @@ namespace jiminy::python
                    boost::noncopyable>(
             "PeriodicGaussianProcess",
             bp::init<double, double>((bp::arg("self"), "wavelength", "period")))
-            .def("__call__",
-                 &PeriodicGaussianProcess::operator(),
-                 (bp::arg("self"), bp::arg("time")))
+            .def("__call__", &PeriodicGaussianProcess::operator(), (bp::arg("self"), "time"))
+            .def("gradient", &PeriodicGaussianProcess::gradient, (bp::arg("self"), "time"))
             .def("reset",
                  makeFunction(ConvertGeneratorFromPythonAndInvoke(&PeriodicGaussianProcess::reset),
                               bp::default_call_policies(),
@@ -157,9 +156,8 @@ namespace jiminy::python
                    boost::noncopyable>(
             "PeriodicFourierProcess",
             bp::init<double, double>((bp::arg("self"), "wavelength", "period")))
-            .def("__call__",
-                 &PeriodicFourierProcess::operator(),
-                 (bp::arg("self"), bp::arg("time")))
+            .def("__call__", &PeriodicFourierProcess::operator(), (bp::arg("self"), "time"))
+            .def("gradient", &PeriodicFourierProcess::gradient, (bp::arg("self"), "time"))
             .def("reset",
                  makeFunction(ConvertGeneratorFromPythonAndInvoke(&PeriodicFourierProcess::reset),
                               bp::default_call_policies(),
