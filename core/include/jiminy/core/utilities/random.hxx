@@ -8,6 +8,9 @@
 
 namespace jiminy
 {
+    static inline constexpr double PERLIN_NOISE_PERSISTENCE{1.50};
+    static inline constexpr double PERLIN_NOISE_LACUNARITY{1.15};
+
     // ***************************** Uniform random bit generators ***************************** //
 
     namespace internal
@@ -184,6 +187,359 @@ namespace jiminy
 
             return l;
         }
+    }
+
+    // ****************************** Continuous Perlin processes ****************************** //
+
+    /// \brief Improved Smoothstep function by Ken Perlin (aka Smootherstep).
+    ///
+    /// \details It has zero 1st and 2nd-order derivatives at dt = 0.0, and 1.0.
+    ///
+    /// \sa For reference, see:
+    ///     https://en.wikipedia.org/wiki/Smoothstep#Variations
+    static inline double fade(double delta) noexcept
+    {
+        /* Improved Smoothstep function by Ken Perlin (aka Smootherstep).
+           It has zero 1st and 2nd-order derivatives at dt = 0.0, and 1.0:
+           https://en.wikipedia.org/wiki/Smoothstep#Variations */
+        return std::pow(delta, 3) * (delta * (delta * 6.0 - 15.0) + 10.0);
+    }
+
+    static inline double lerp(double ratio, double yLeft, double yRight) noexcept
+    {
+        return yLeft + ratio * (yRight - yLeft);
+    }
+
+    template<unsigned int N>
+    AbstractPerlinNoiseOctave<N>::AbstractPerlinNoiseOctave(double wavelength) :
+    wavelength_{wavelength}
+    {
+        if (wavelength_ <= 0.0)
+        {
+            JIMINY_THROW(std::invalid_argument, "'wavelength' must be strictly larger than 0.0.");
+        }
+        auto gen = uniform_random_bit_generator_ref<uint32_t>{std::random_device{}};
+        shift_ = uniform(N, 1, gen).cast<double>();
+    }
+
+    template<unsigned int N>
+    void AbstractPerlinNoiseOctave<N>::reset(
+        const uniform_random_bit_generator_ref<uint32_t> & g) noexcept
+    {
+        // Sample random phase shift
+        shift_ = uniform(N, 1, g).cast<double>();
+    }
+
+    template<unsigned int N>
+    double AbstractPerlinNoiseOctave<N>::getWavelength() const noexcept
+    {
+        return wavelength_;
+    }
+
+    template<unsigned int N>
+    double AbstractPerlinNoiseOctave<N>::operator()(const VectorN<double> & x) const
+    {
+        // Get current phase
+        const VectorN<double> phase = x / wavelength_ + shift_;
+
+        // Compute closest right and left knots
+        const VectorN<int32_t> phaseIndexLeft = phase.array().floor().template cast<int32_t>();
+        const VectorN<int32_t> phaseIndexRight = phaseIndexLeft.array() + 1;
+
+        // Compute smoothed ratio of current phase wrt to the closest knots
+        const VectorN<double> dtLeft = phase - phaseIndexLeft.template cast<double>();
+        const VectorN<double> dtRight = dtLeft.array() - 1.0;
+        const VectorN<double> ratio = dtLeft.array().unaryExpr(std::ref(fade));
+
+        // Compute gradients at knots, ie on a meshgrid, then dedicate offsets at query point
+        VectorN<int32_t> knot;
+        VectorN<double> delta;
+        std::array<double, (1U << N)> offsets;
+        for (uint32_t k = 0; k < (1U << N); k++)
+        {
+            // Mapping from index to knot
+            for (uint32_t i = 0; i < N; i++)
+            {
+                if (k & (1 << i))
+                {
+                    knot[i] = phaseIndexRight[i];
+                    delta[i] = dtRight[i];
+                }
+                else
+                {
+                    knot[i] = phaseIndexLeft[i];
+                    delta[i] = dtLeft[i];
+                }
+            }
+
+            // Evaluate the gradient at knot
+            const VectorN<double> grad_ = grad(knot);
+
+            // Compute the offset at query point
+            offsets[k] = grad_.dot(delta);
+        }
+
+        // Perform linear interpolation on each dimension recursively until to get a single scalar
+        for (int32_t i = N - 1; i >= 0; --i)
+        {
+            for (uint32_t k = 0; k < (1U << i); k++)
+            {
+                double & offsetLeft = offsets[k];
+                const double offsetRight = offsets[k | (1U << i)];
+                offsetLeft = lerp(ratio[i], offsetLeft, offsetRight);
+            }
+        }
+        return offsets[0];
+    }
+
+    template<unsigned int N>
+    RandomPerlinNoiseOctave<N>::RandomPerlinNoiseOctave(double wavelength) :
+    AbstractPerlinNoiseOctave<N>(wavelength)
+    {
+        seed_ = std::random_device{}();
+    }
+
+    template<unsigned int N>
+    void RandomPerlinNoiseOctave<N>::reset(
+        const uniform_random_bit_generator_ref<uint32_t> & g) noexcept
+    {
+        // Call base implementation
+        AbstractPerlinNoiseOctave<N>::reset(g);
+
+        // Sample new random seed for MurmurHash
+        seed_ = g();
+    }
+
+    template<unsigned int N>
+    typename RandomPerlinNoiseOctave<N>::template VectorN<double>
+    RandomPerlinNoiseOctave<N>::grad(const VectorN<int32_t> & knot) const noexcept
+    {
+        constexpr float fHashMax = static_cast<float>(std::numeric_limits<uint32_t>::max());
+
+        // Compute knot hash
+        uint32_t hash = MurmurHash3(knot.data(), static_cast<int32_t>(sizeof(int32_t) * N), seed_);
+
+        /* Generate random gradient uniformly distributed on n-ball.
+           For technical reference, see:
+           https://extremelearning.com.au/how-to-generate-uniformly-random-points-on-n-spheres-and-n-balls/
+        */
+        if constexpr (N == 1)
+        {
+            // Sample random scalar in [0.0, 1.0)
+            const float s = static_cast<float>(hash) / fHashMax;
+
+            // Compute rescaled gradient between [-1.0, 1.0)
+            return VectorN<double>{2.0 * s - 1.0};
+        }
+        else if constexpr (N == 2)
+        {
+            // Sample random vector on a 2-ball (disk) using
+            const double theta = 2 * M_PI * static_cast<float>(hash) / fHashMax;
+            hash = MurmurHash3(&hash, sizeof(uint32_t), seed_);
+            const float radius = std::sqrt(static_cast<float>(hash) / fHashMax);
+            return VectorN<double>{radius * std::cos(theta), radius * std::sin(theta)};
+        }
+        else
+        {
+            // Generate a uniformly distributed random vector on n-sphere
+            VectorN<double> dir;
+            for (uint_fast8_t i = 0; i < N; i += 2)
+            {
+                // Generate 2 uniformly distributed random variables
+                const float u1 = static_cast<float>(hash) / fHashMax;
+                hash = MurmurHash3(&hash, sizeof(uint32_t), seed_);
+                const float u2 = static_cast<float>(hash) / fHashMax;
+                hash = MurmurHash3(&hash, sizeof(uint32_t), seed_);
+
+                // Apply Box-Mueller algorithm to deduce 2 normally distributed random variables
+                const double theta = 2 * M_PI * u2;
+                const float radius = std::sqrt(-2 * std::log(u1));
+                dir[i] = radius * std::cos(theta);
+                if (i + 1 < N)
+                {
+                    dir[i + 1] = radius * std::sin(theta);
+                }
+            }
+            dir.normalize();
+
+            // Sample radius
+            const double radius = std::pow(static_cast<float>(hash) / fHashMax, 1.0 / N);
+
+            // Return the resulting random vector on n-ball using Muller method
+            return radius * dir;
+        }
+    }
+
+    template<unsigned int N>
+    PeriodicPerlinNoiseOctave<N>::PeriodicPerlinNoiseOctave(double wavelength, double period) :
+    AbstractPerlinNoiseOctave<N>(period / std::max(std::round(period / wavelength), 1.0)),
+    period_{period}
+    {
+        // Make sure the period is larger than the wavelength
+        if (period < wavelength)
+        {
+            JIMINY_THROW(std::invalid_argument, "'period' must be larger than 'wavelength'.");
+        }
+
+        // Initialize the pre-computed hash table
+        reset(std::random_device{});
+    }
+
+    template<unsigned int N>
+    void PeriodicPerlinNoiseOctave<N>::reset(
+        const uniform_random_bit_generator_ref<uint32_t> & g) noexcept
+    {
+        // Call base implementation
+        AbstractPerlinNoiseOctave<N>::reset(g);
+
+        // Re-initialize the pre-computed hash table
+        std::generate(
+            grads_.begin(),
+            grads_.end(),
+            [&g]() -> VectorN<double>
+            {
+                if constexpr (N == 1)
+                {
+                    return VectorN<double>{uniform(g, -1.0F, 1.0F)};
+                }
+                else if constexpr (N == 2)
+                {
+                    const double theta = 2 * M_PI * uniform(g);
+                    const float radius = std::sqrt(uniform(g));
+                    return VectorN<double>{radius * std::cos(theta), radius * std::sin(theta)};
+                }
+                else
+                {
+                    const VectorN<double> dir = normal(N, 1, g).cast<double>().normalized();
+                    const double radius = std::pow(uniform(g), 1.0 / N);
+                    return radius * dir;
+                }
+            });
+    }
+
+    template<unsigned int N>
+    typename PeriodicPerlinNoiseOctave<N>::template VectorN<double>
+    PeriodicPerlinNoiseOctave<N>::grad(const VectorN<int32_t> & knot) const noexcept
+    {
+        // Wrap knot is period interval
+        int32_t index = 0;
+        for (uint_fast8_t i = 0; i < N; ++i)
+        {
+            int32_t coord = knot[i] % size_;
+            if (coord < 0)
+            {
+                coord += size_;
+            }
+            index += coord * static_cast<int32_t>(std::pow(size_, i));
+        }
+
+        // Return the gradient
+        return grads_[index];
+    }
+
+    template<unsigned int N>
+    AbstractPerlinProcess<N>::AbstractPerlinProcess(
+        std::vector<OctaveScalePair> && octaveScalePairs) noexcept :
+    octaveScalePairs_(std::move(octaveScalePairs))
+    {
+        // Compute the scaling factor to keep values within range [-1.0, 1.0]
+        double amplitudeSquared = 0.0;
+        for (const OctaveScalePair & octaveScale : octaveScalePairs_)
+        {
+            // FIXME: replaced `std::get<N>` by placeholder `_` when moving to C++26 (P2169R4)
+            amplitudeSquared += std::pow(std::get<1>(octaveScale), 2);
+        }
+        amplitude_ = std::sqrt(amplitudeSquared);
+    }
+
+    template<unsigned int N>
+    void
+    AbstractPerlinProcess<N>::reset(const uniform_random_bit_generator_ref<uint32_t> & g) noexcept
+    {
+        // Reset octaves
+        for (OctaveScalePair & octaveScale : octaveScalePairs_)
+        {
+            // FIXME: replaced `std::get<N>` by placeholder `_` when moving to C++26 (P2169R4)
+            std::get<0>(octaveScale)->reset(g);
+        }
+    }
+
+    template<unsigned int N>
+    double AbstractPerlinProcess<N>::operator()(const VectorN<double> & x) const
+    {
+        // Compute sum of octaves' values
+        double value = 0.0;
+        for (const auto & [octave, scale] : octaveScalePairs_)
+        {
+            value += scale * (*octave)(x);
+        }
+
+        // Scale sum by maximum amplitude
+        return value / amplitude_;
+    }
+
+    template<unsigned int N>
+    double AbstractPerlinProcess<N>::getWavelength() const noexcept
+    {
+        double wavelength = INF;
+        for (const OctaveScalePair & octaveScale : octaveScalePairs_)
+        {
+            // FIXME: replaced `std::get<N>` by placeholder `_` when moving to C++26 (P2169R4)
+            wavelength = std::min(wavelength, std::get<0>(octaveScale)->getWavelength());
+        }
+        return wavelength;
+    }
+
+    template<unsigned int N>
+    std::size_t AbstractPerlinProcess<N>::getNumOctaves() const noexcept
+    {
+        return octaveScalePairs_.size();
+    }
+
+    template<unsigned int N>
+    static std::vector<typename AbstractPerlinProcess<N>::OctaveScalePair> buildPerlinNoiseOctaves(
+        double wavelength,
+        std::size_t numOctaves,
+        std::function<std::unique_ptr<AbstractPerlinNoiseOctave<N>>(double)> factory)
+    {
+        std::vector<typename AbstractPerlinProcess<N>::OctaveScalePair> octaveScalePairs;
+        octaveScalePairs.reserve(numOctaves);
+        double scale = 1.0;
+        for (std::size_t i = 0; i < numOctaves; ++i)
+        {
+            octaveScalePairs.emplace_back(factory(wavelength), scale);
+            wavelength *= PERLIN_NOISE_LACUNARITY;
+            scale *= PERLIN_NOISE_PERSISTENCE;
+        }
+        return octaveScalePairs;
+    }
+
+    template<unsigned int N>
+    RandomPerlinProcess<N>::RandomPerlinProcess(double wavelength, std::size_t numOctaves) :
+    AbstractPerlinProcess<N>(buildPerlinNoiseOctaves<N>(
+        wavelength,
+        numOctaves,
+        [](double wavelengthIn) -> std::unique_ptr<AbstractPerlinNoiseOctave<N>>
+        { return std::make_unique<RandomPerlinNoiseOctave<N>>(wavelengthIn); }))
+    {
+    }
+
+    template<unsigned int N>
+    PeriodicPerlinProcess<N>::PeriodicPerlinProcess(
+        double wavelength, double period, std::size_t numOctaves) :
+    AbstractPerlinProcess<N>(buildPerlinNoiseOctaves<N>(
+        wavelength,
+        numOctaves,
+        [period](double wavelengthIn) -> std::unique_ptr<AbstractPerlinNoiseOctave<N>>
+        { return std::make_unique<PeriodicPerlinNoiseOctave<N>>(wavelengthIn, period); })),
+    period_{period}
+    {
+    }
+
+    template<unsigned int N>
+    double PeriodicPerlinProcess<N>::getPeriod() const noexcept
+    {
+        return period_;
     }
 }
 

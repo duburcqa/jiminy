@@ -5,9 +5,6 @@
 
 namespace jiminy
 {
-    static inline constexpr double PERLIN_NOISE_PERSISTENCE{1.50};
-    static inline constexpr double PERLIN_NOISE_LACUNARITY{1.15};
-
     // ***************************** Uniform random bit generators ***************************** //
 
     PCG32::PCG32(uint64_t state) noexcept :
@@ -182,7 +179,7 @@ namespace jiminy
     /// \sa It was written by Austin Appleby, and is placed in the public domain.
     ///     The author hereby disclaims copyright to this source code:
     ///     https://github.com/aappleby/smhasher/blob/master/src/MurmurHash3.cpp
-    static uint32_t MurmurHash3(const void * key, int32_t len, uint32_t seed) noexcept
+    uint32_t MurmurHash3(const void * key, int32_t len, uint32_t seed) noexcept
     {
         // Define some internal constants
         constexpr uint32_t c1 = 0xcc9e2d51;
@@ -262,17 +259,14 @@ namespace jiminy
     }
 
     static std::tuple<Eigen::Index, Eigen::Index, double> getClosestKnots(
-        double value, double delta, double period)
+        double value, double delta, Eigen::Index numTimes)
     {
-        // Compute discretized period
-        const Eigen::Index numTimes = static_cast<Eigen::Index>(std::ceil(period / delta));
-
         // Wrap value in period interval
-        double periodKnots = numTimes * delta;
-        value = std::fmod(value, periodKnots);
+        const double period = numTimes * delta;
+        value = std::fmod(value, period);
         if (value < 0.0)
         {
-            value += periodKnots;
+            value += period;
         }
 
         // Compute closest left and right indices, wrapping around if needed
@@ -305,9 +299,56 @@ namespace jiminy
                delta;
     }
 
-    PeriodicGaussianProcess::PeriodicGaussianProcess(double wavelength, double period) noexcept :
+    PeriodicTabularProcess::PeriodicTabularProcess(double wavelength, double period) :
     wavelength_{wavelength},
     period_{period}
+    {
+        // Make sure the period is positive
+        if (period < 0.0)
+        {
+            JIMINY_THROW(std::invalid_argument, "'period' must be positive.");
+        }
+    }
+
+    double PeriodicTabularProcess::operator()(double t) const noexcept
+    {
+        // Compute closest left index within time period
+        const auto [indexLeft, indexRight, ratio] = getClosestKnots(t, dt_, numTimes_);
+
+        /* Perform cubic spline interpolation to ensure continuity of the derivative:
+           https://en.wikipedia.org/wiki/Spline_interpolation#Algorithm_to_find_the_interpolating_cubic_spline
+        */
+        return cubicInterp(ratio,
+                           dt_,
+                           values_[indexLeft],
+                           values_[indexRight],
+                           grads_[indexLeft],
+                           grads_[indexRight]);
+    }
+
+    double PeriodicTabularProcess::grad(double t) const noexcept
+    {
+        const auto [indexLeft, indexRight, ratio] = getClosestKnots(t, dt_, numTimes_);
+        return derivativeCubicInterp(ratio,
+                                     dt_,
+                                     values_[indexLeft],
+                                     values_[indexRight],
+                                     grads_[indexLeft],
+                                     grads_[indexRight]);
+    }
+
+    double PeriodicTabularProcess::getWavelength() const noexcept
+    {
+        return wavelength_;
+    }
+
+    double PeriodicTabularProcess::getPeriod() const noexcept
+    {
+        return period_;
+    }
+
+    PeriodicGaussianProcess::PeriodicGaussianProcess(double wavelength, double period) :
+    PeriodicTabularProcess(wavelength, period)
     {
         reset(std::random_device{});
     }
@@ -341,48 +382,10 @@ namespace jiminy
             covSqrtRoot_.transpose().triangularView<Eigen::Upper>().solve(normalVec);
     }
 
-    double PeriodicGaussianProcess::operator()(double t)
-    {
-        // Compute closest left index within time period
-        const auto [indexLeft, indexRight, ratio] = getClosestKnots(t, dt_, period_);
-
-        /* Perform cubic spline interpolation to ensure continuity of the derivative:
-           https://en.wikipedia.org/wiki/Spline_interpolation#Algorithm_to_find_the_interpolating_cubic_spline
-        */
-        return cubicInterp(ratio,
-                           dt_,
-                           values_[indexLeft],
-                           values_[indexRight],
-                           grads_[indexLeft],
-                           grads_[indexRight]);
-    }
-
-    double PeriodicGaussianProcess::gradient(double t)
-    {
-        const auto [indexLeft, indexRight, ratio] = getClosestKnots(t, dt_, period_);
-        return derivativeCubicInterp(ratio,
-                                     dt_,
-                                     values_[indexLeft],
-                                     values_[indexRight],
-                                     grads_[indexLeft],
-                                     grads_[indexRight]);
-    }
-
-    double PeriodicGaussianProcess::getWavelength() const noexcept
-    {
-        return wavelength_;
-    }
-
-    double PeriodicGaussianProcess::getPeriod() const noexcept
-    {
-        return period_;
-    }
-
     // **************************** Continuous 1D Fourier processes **************************** //
 
-    PeriodicFourierProcess::PeriodicFourierProcess(double wavelength, double period) noexcept :
-    wavelength_{wavelength},
-    period_{period}
+    PeriodicFourierProcess::PeriodicFourierProcess(double wavelength, double period) :
+    PeriodicTabularProcess(wavelength, period)
     {
         reset(std::random_device{});
     }
@@ -403,265 +406,6 @@ namespace jiminy
             2 * M_PI / period_ * Eigen::VectorXd::LinSpaced(numHarmonics_, 1, numHarmonics_);
         grads_ = scale * cosMat_ * normalVec1.cwiseProduct(diff);
         grads_.noalias() -= scale * sinMat_ * normalVec2.cwiseProduct(diff);
-    }
-
-    double PeriodicFourierProcess::operator()(double t)
-    {
-        const auto [indexLeft, indexRight, ratio] = getClosestKnots(t, dt_, period_);
-        return cubicInterp(ratio,
-                           dt_,
-                           values_[indexLeft],
-                           values_[indexRight],
-                           grads_[indexLeft],
-                           grads_[indexRight]);
-    }
-
-    double PeriodicFourierProcess::gradient(double t)
-    {
-        const auto [indexLeft, indexRight, ratio] = getClosestKnots(t, dt_, period_);
-        return derivativeCubicInterp(ratio,
-                                     dt_,
-                                     values_[indexLeft],
-                                     values_[indexRight],
-                                     grads_[indexLeft],
-                                     grads_[indexRight]);
-    }
-
-    double PeriodicFourierProcess::getWavelength() const noexcept
-    {
-        return wavelength_;
-    }
-
-    double PeriodicFourierProcess::getPeriod() const noexcept
-    {
-        return period_;
-    }
-
-    // ***************************** Continuous 1D Perlin processes **************************** //
-
-    AbstractPerlinNoiseOctave::AbstractPerlinNoiseOctave(double wavelength) :
-    wavelength_{wavelength}
-    {
-        if (wavelength_ <= 0.0)
-        {
-            JIMINY_THROW(std::invalid_argument, "'wavelength' must be strictly larger than 0.0.");
-        }
-        shift_ = uniform(std::random_device{});
-    }
-
-    void AbstractPerlinNoiseOctave::reset(
-        const uniform_random_bit_generator_ref<uint32_t> & g) noexcept
-    {
-        // Sample random phase shift
-        shift_ = uniform(g);
-    }
-
-    double AbstractPerlinNoiseOctave::operator()(double t) const
-    {
-        // Get current phase
-        const double phase = t / wavelength_ + shift_;
-
-        // Compute closest right and left knots
-        const int32_t phaseIndexLeft = static_cast<int32_t>(std::lroundl(std::floor(phase)));
-        const int32_t phaseIndexRight = phaseIndexLeft + 1;
-
-        // Compute smoothed ratio of current phase wrt to the closest knots
-        const double dtLeft = phase - phaseIndexLeft;
-        const double dtRight = dtLeft - 1.0;
-        const double ratio = fade(dtLeft);
-
-        /* Compute gradients at knots, and perform linear interpolation between them to get value
-           at current phase.*/
-        const double yLeft = grad(phaseIndexLeft, dtLeft);
-        const double yRight = grad(phaseIndexRight, dtRight);
-        return lerp(ratio, yLeft, yRight);
-    }
-
-    double AbstractPerlinNoiseOctave::getWavelength() const noexcept
-    {
-        return wavelength_;
-    }
-
-    double AbstractPerlinNoiseOctave::fade(double delta) noexcept
-    {
-        /* Improved Smoothstep function by Ken Perlin (aka Smootherstep).
-           It has zero 1st and 2nd-order derivatives at dt = 0.0, and 1.0:
-           https://en.wikipedia.org/wiki/Smoothstep#Variations */
-        return std::pow(delta, 3) * (delta * (delta * 6.0 - 15.0) + 10.0);
-    }
-
-    double AbstractPerlinNoiseOctave::lerp(double ratio, double yLeft, double yRight) noexcept
-    {
-        return yLeft + ratio * (yRight - yLeft);
-    }
-
-    RandomPerlinNoiseOctave::RandomPerlinNoiseOctave(double wavelength) :
-    AbstractPerlinNoiseOctave(wavelength)
-    {
-        seed_ = std::random_device{}();
-    }
-
-    void RandomPerlinNoiseOctave::reset(
-        const uniform_random_bit_generator_ref<uint32_t> & g) noexcept
-    {
-        // Call base implementation
-        AbstractPerlinNoiseOctave::reset(g);
-
-        // Sample new random seed for MurmurHash
-        seed_ = g();
-    }
-
-    double RandomPerlinNoiseOctave::grad(int32_t knot, double delta) const noexcept
-    {
-        // Get hash of knot
-        const uint32_t hash = MurmurHash3(&knot, sizeof(int32_t), seed_);
-
-        // Convert to double in [0.0, 1.0)
-        const double s =
-            static_cast<double>(hash) / static_cast<double>(std::numeric_limits<uint32_t>::max());
-
-        // Compute rescaled gradient between [-1.0, 1.0)
-        const double grad = 2.0 * s - 1.0;
-
-        // Return scalar product between distance and gradient
-        return grad * delta;
-    }
-
-    PeriodicPerlinNoiseOctave::PeriodicPerlinNoiseOctave(double wavelength, double period) :
-    AbstractPerlinNoiseOctave(period / std::max(std::round(period / wavelength), 1.0)),
-    period_{period}
-    {
-        // Make sure the period is larger than the wavelength
-        if (period < wavelength)
-        {
-            JIMINY_THROW(std::invalid_argument, "'period' must be larger than 'wavelength'.");
-        }
-
-        // Initialize the pre-computed hash table
-        std::generate(grads_.begin(),
-                      grads_.end(),
-                      [g = uniform_random_bit_generator_ref<uint32_t>{std::random_device{}}]()
-                      { return uniform(g, -1.0F, 1.0F); });
-    }
-
-    void PeriodicPerlinNoiseOctave::reset(
-        const uniform_random_bit_generator_ref<uint32_t> & g) noexcept
-    {
-        // Call base implementation
-        AbstractPerlinNoiseOctave::reset(g);
-
-        // Re-initialize the pre-computed hash table
-        std::generate(grads_.begin(), grads_.end(), [&g]() { return uniform(g, -1.0F, 1.0F); });
-    }
-
-    double PeriodicPerlinNoiseOctave::grad(int32_t knot, double delta) const noexcept
-    {
-        // Wrap knot is period interval
-        const int32_t numTimes = static_cast<int32_t>(grads_.size());
-        knot %= numTimes;
-        if (knot < 0)
-        {
-            knot += numTimes;
-        }
-
-        // Return scalar product between time delta and gradient
-        return grads_[knot] * delta;
-    }
-
-    AbstractPerlinProcess::AbstractPerlinProcess(
-        std::vector<OctaveScalePair> && octaveScalePairs) noexcept :
-    octaveScalePairs_(std::move(octaveScalePairs))
-    {
-        // Compute the scaling factor to keep values within range [-1.0, 1.0]
-        double amplitudeSquared = 0.0;
-        for (const OctaveScalePair & octaveScale : octaveScalePairs_)
-        {
-            // FIXME: replaced `std::get<N>` by placeholder `_` when moving to C++26 (P2169R4)
-            amplitudeSquared += std::pow(std::get<1>(octaveScale), 2);
-        }
-        amplitude_ = std::sqrt(amplitudeSquared);
-    }
-
-    void AbstractPerlinProcess::reset(
-        const uniform_random_bit_generator_ref<uint32_t> & g) noexcept
-    {
-        // Reset octaves
-        for (OctaveScalePair & octaveScale : octaveScalePairs_)
-        {
-            // FIXME: replaced `std::get<N>` by placeholder `_` when moving to C++26 (P2169R4)
-            std::get<0>(octaveScale)->reset(g);
-        }
-    }
-
-    double AbstractPerlinProcess::operator()(double t)
-    {
-        // Compute sum of octaves' values
-        double value = 0.0;
-        for (const auto & [octave, scale] : octaveScalePairs_)
-        {
-            value += scale * (*octave)(t);
-        }
-
-        // Scale sum by maximum amplitude
-        return value / amplitude_;
-    }
-
-    double AbstractPerlinProcess::getWavelength() const noexcept
-    {
-        double wavelength = INF;
-        for (const OctaveScalePair & octaveScale : octaveScalePairs_)
-        {
-            // FIXME: replaced `std::get<N>` by placeholder `_` when moving to C++26 (P2169R4)
-            wavelength = std::min(wavelength, std::get<0>(octaveScale)->getWavelength());
-        }
-        return wavelength;
-    }
-
-    std::size_t AbstractPerlinProcess::getNumOctaves() const noexcept
-    {
-        return octaveScalePairs_.size();
-    }
-
-    std::vector<AbstractPerlinProcess::OctaveScalePair> buildPerlinNoiseOctaves(
-        double wavelength,
-        std::size_t numOctaves,
-        std::function<std::unique_ptr<AbstractPerlinNoiseOctave>(double)> factory)
-    {
-        std::vector<AbstractPerlinProcess::OctaveScalePair> octaveScalePairs;
-        octaveScalePairs.reserve(numOctaves);
-        double scale = 1.0;
-        for (std::size_t i = 0; i < numOctaves; ++i)
-        {
-            octaveScalePairs.emplace_back(factory(wavelength), scale);
-            wavelength *= PERLIN_NOISE_LACUNARITY;
-            scale *= PERLIN_NOISE_PERSISTENCE;
-        }
-        return octaveScalePairs;
-    }
-
-    RandomPerlinProcess::RandomPerlinProcess(double wavelength, std::size_t numOctaves) :
-    AbstractPerlinProcess(buildPerlinNoiseOctaves(
-        wavelength,
-        numOctaves,
-        [](double wavelengthIn) -> std::unique_ptr<AbstractPerlinNoiseOctave>
-        { return std::make_unique<RandomPerlinNoiseOctave>(wavelengthIn); }))
-    {
-    }
-
-    PeriodicPerlinProcess::PeriodicPerlinProcess(
-        double wavelength, double period, std::size_t numOctaves) :
-    AbstractPerlinProcess(buildPerlinNoiseOctaves(
-        wavelength,
-        numOctaves,
-        [period](double wavelengthIn) -> std::unique_ptr<AbstractPerlinNoiseOctave>
-        { return std::make_unique<PeriodicPerlinNoiseOctave>(wavelengthIn, period); })),
-    period_{period}
-    {
-    }
-
-    double PeriodicPerlinProcess::getPeriod() const noexcept
-    {
-        return period_;
     }
 
     // ******************************* Random terrain generators ******************************* //

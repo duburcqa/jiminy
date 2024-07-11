@@ -189,6 +189,11 @@ namespace jiminy
         using std::logic_error::logic_error::what;
     };
 
+    template<typename ResultType,
+             ResultType min_ = std::numeric_limits<ResultType>::min(),
+             ResultType max_ = std::numeric_limits<ResultType>::max()>
+    class uniform_random_bit_generator_ref;
+
     // Ground profile functors
     using HeightmapFunction = std::function<void(const Eigen::Vector2d & /* xy */,
                                                  double & /* height */,

@@ -35,7 +35,6 @@ namespace jiminy::python
         return generator.seed(std::seed_seq(seedSeq.cbegin(), seedSeq.cend()));
     }
 
-
 #define GENERIC_DISTRIBUTION_WRAPPER(dist, arg1, arg2)                                            \
     Eigen::MatrixXd dist##FromStackedArgs(                                                        \
         const uniform_random_bit_generator_ref<uint32_t> & generator,                             \
@@ -93,6 +92,57 @@ namespace jiminy::python
 
 #undef GENERIC_DISTRIBUTION_WRAPPER
 
+    template<typename... Args>
+    std::enable_if_t<std::conjunction_v<std::is_arithmetic<std::decay_t<Args>>...>, double>
+    evaluateRandomProcessUnpacked(AbstractPerlinProcess<sizeof...(Args)> & process, Args... args)
+    {
+        return process(Eigen::Matrix<double, sizeof...(Args), 1>{args...});
+    }
+
+    template<typename T, size_t>
+    using type_t = T;
+
+    template<size_t... Is>
+    auto evaluateRandomProcessUnpackedSignature(std::index_sequence<Is...>)
+        -> double (*)(AbstractPerlinProcess<sizeof...(Is)> &, type_t<double, Is>...);
+
+    template<unsigned int N>
+    constexpr void exposeRandomProcess()
+    {
+        bp::class_<AbstractPerlinProcess<N>,
+                   std::shared_ptr<AbstractPerlinProcess<N>>,
+                   boost::noncopyable>(toString("AbstractPerlinProcess", N, "D").c_str(),
+                                       bp::no_init)
+            .def("__call__",
+                 static_cast<decltype(evaluateRandomProcessUnpackedSignature(
+                     std::make_index_sequence<N>{}))>(evaluateRandomProcessUnpacked))
+            .def("__call__", &AbstractPerlinProcess<N>::operator(), (bp::arg("self"), "vec"))
+            .def(
+                "reset",
+                makeFunction(ConvertGeneratorFromPythonAndInvoke(&AbstractPerlinProcess<N>::reset),
+                             bp::default_call_policies(),
+                             (bp::arg("self"), "generator")))
+            .ADD_PROPERTY_GET("wavelength", &AbstractPerlinProcess<N>::getWavelength)
+            .ADD_PROPERTY_GET("num_octaves", &AbstractPerlinProcess<N>::getNumOctaves);
+
+        bp::class_<RandomPerlinProcess<N>,
+                   bp::bases<AbstractPerlinProcess<N>>,
+                   std::shared_ptr<RandomPerlinProcess<N>>,
+                   boost::noncopyable>(
+            toString("RandomPerlinProcess", N, "D").c_str(),
+            bp::init<double, uint32_t>(
+                (bp::arg("self"), "wavelength", bp::arg("num_octaves") = 6U)));
+
+        bp::class_<PeriodicPerlinProcess<N>,
+                   bp::bases<AbstractPerlinProcess<N>>,
+                   std::shared_ptr<PeriodicPerlinProcess<N>>,
+                   boost::noncopyable>(
+            toString("PeriodicPerlinProcess", N, "D").c_str(),
+            bp::init<double, double, uint32_t>(
+                (bp::arg("self"), "wavelength", "period", bp::arg("num_octaves") = 6U)))
+            .ADD_PROPERTY_GET("period", &PeriodicPerlinProcess<N>::getPeriod);
+    }
+
     void exposeGenerators()
     {
         bp::class_<PCG32, std::shared_ptr<PCG32>, boost::noncopyable>(
@@ -137,61 +187,37 @@ namespace jiminy::python
                     bp::default_call_policies(),
                     (bp::arg("generator"))));
 
+        bp::class_<PeriodicTabularProcess,
+                   std::shared_ptr<PeriodicTabularProcess>,
+                   boost::noncopyable>("PeriodicTabularProcess", bp::no_init)
+            .def("__call__", &PeriodicTabularProcess::operator(), (bp::arg("self"), "time"))
+            .def("grad", &PeriodicTabularProcess::grad, (bp::arg("self"), "time"))
+            .def("reset",
+                 makeFunction(ConvertGeneratorFromPythonAndInvoke(&PeriodicTabularProcess::reset),
+                              bp::default_call_policies(),
+                              (bp::arg("self"), "generator")))
+            .ADD_PROPERTY_GET("wavelength", &PeriodicTabularProcess::getWavelength)
+            .ADD_PROPERTY_GET("period", &PeriodicTabularProcess::getPeriod);
+
         bp::class_<PeriodicGaussianProcess,
+                   bp::bases<PeriodicTabularProcess>,
                    std::shared_ptr<PeriodicGaussianProcess>,
                    boost::noncopyable>(
             "PeriodicGaussianProcess",
-            bp::init<double, double>((bp::arg("self"), "wavelength", "period")))
-            .def("__call__", &PeriodicGaussianProcess::operator(), (bp::arg("self"), "time"))
-            .def("gradient", &PeriodicGaussianProcess::gradient, (bp::arg("self"), "time"))
-            .def("reset",
-                 makeFunction(ConvertGeneratorFromPythonAndInvoke(&PeriodicGaussianProcess::reset),
-                              bp::default_call_policies(),
-                              (bp::arg("self"), "generator")))
-            .ADD_PROPERTY_GET("wavelength", &PeriodicGaussianProcess::getWavelength)
-            .ADD_PROPERTY_GET("period", &PeriodicGaussianProcess::getPeriod);
+            bp::init<double, double>((bp::arg("self"), "wavelength", "period")));
 
         bp::class_<PeriodicFourierProcess,
+                   bp::bases<PeriodicTabularProcess>,
                    std::shared_ptr<PeriodicFourierProcess>,
                    boost::noncopyable>(
             "PeriodicFourierProcess",
-            bp::init<double, double>((bp::arg("self"), "wavelength", "period")))
-            .def("__call__", &PeriodicFourierProcess::operator(), (bp::arg("self"), "time"))
-            .def("gradient", &PeriodicFourierProcess::gradient, (bp::arg("self"), "time"))
-            .def("reset",
-                 makeFunction(ConvertGeneratorFromPythonAndInvoke(&PeriodicFourierProcess::reset),
-                              bp::default_call_policies(),
-                              (bp::arg("self"), "generator")))
-            .ADD_PROPERTY_GET("wavelength", &PeriodicFourierProcess::getWavelength)
-            .ADD_PROPERTY_GET("period", &PeriodicFourierProcess::getPeriod);
+            bp::init<double, double>((bp::arg("self"), "wavelength", "period")));
 
-        bp::class_<AbstractPerlinProcess,
-                   std::shared_ptr<AbstractPerlinProcess>,
-                   boost::noncopyable>("AbstractPerlinProcess", bp::no_init)
-            .def("__call__", &AbstractPerlinProcess::operator(), (bp::arg("self"), "time"))
-            .def("reset",
-                 makeFunction(ConvertGeneratorFromPythonAndInvoke(&AbstractPerlinProcess::reset),
-                              bp::default_call_policies(),
-                              (bp::arg("self"), "generator")))
-            .ADD_PROPERTY_GET("wavelength", &AbstractPerlinProcess::getWavelength)
-            .ADD_PROPERTY_GET("num_octaves", &AbstractPerlinProcess::getNumOctaves);
-
-        bp::class_<RandomPerlinProcess,
-                   bp::bases<AbstractPerlinProcess>,
-                   std::shared_ptr<RandomPerlinProcess>,
-                   boost::noncopyable>(
-            "RandomPerlinProcess",
-            bp::init<double, uint32_t>(
-                (bp::arg("self"), "wavelength", bp::arg("num_octaves") = 6U)));
-
-        bp::class_<PeriodicPerlinProcess,
-                   bp::bases<AbstractPerlinProcess>,
-                   std::shared_ptr<PeriodicPerlinProcess>,
-                   boost::noncopyable>(
-            "PeriodicPerlinProcess",
-            bp::init<double, double, uint32_t>(
-                (bp::arg("self"), "wavelength", "period", bp::arg("num_octaves") = 6U)))
-            .ADD_PROPERTY_GET("period", &PeriodicPerlinProcess::getPeriod);
+        /* FIXME: Use template lambda and compile-time for-loop when moving to c++20.
+           For reference: https://stackoverflow.com/a/76272348/4820605 */
+        exposeRandomProcess<1>();
+        exposeRandomProcess<2>();
+        exposeRandomProcess<3>();
 
         bp::def(
             "random_tile_ground",

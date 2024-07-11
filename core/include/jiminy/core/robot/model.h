@@ -8,7 +8,6 @@
 #include "pinocchio/multibody/frame.hpp"  // `pinocchio::FrameType` (C-style enum cannot be forward declared)
 
 #include "jiminy/core/fwd.h"
-#include "jiminy/core/utilities/random.h"  // `uniform_random_bit_generator_ref`
 
 
 namespace jiminy

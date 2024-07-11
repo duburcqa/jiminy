@@ -2,7 +2,6 @@
 #include "pinocchio/multibody/data.hpp"      // `pinocchio::Data`
 #include "pinocchio/algorithm/cholesky.hpp"  // `pinocchio::cholesky::`
 
-#include "jiminy/core/utilities/random.h"
 #include "jiminy/core/utilities/helpers.h"
 #include "jiminy/core/constraints/abstract_constraint.h"
 #include "jiminy/core/robot/pinocchio_overload_algorithms.h"

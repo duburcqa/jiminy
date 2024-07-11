@@ -1,7 +1,6 @@
 #ifndef JIMINY_RANDOM_H
 #define JIMINY_RANDOM_H
 
-#include <array>     // `std::array`
 #include <memory>    // `std::unique_ptr`
 #include <optional>  // `std::optional`
 #include <utility>   // `std::pair`, `std::declval`
@@ -85,9 +84,7 @@ namespace jiminy
     ///
     /// \sa For technical reference about type-erasure for random generators:
     ///     https://stackoverflow.com/a/77809228/4820605
-    template<typename ResultType,
-             ResultType min_ = std::numeric_limits<ResultType>::min(),
-             ResultType max_ = std::numeric_limits<ResultType>::max()>
+    template<typename ResultType, ResultType min_, ResultType max_>
     class uniform_random_bit_generator_ref : private function_ref<ResultType()>
     {
     public:
@@ -317,29 +314,40 @@ namespace jiminy
         standardToeplitzCholeskyLower(const Eigen::MatrixBase<Derived> & coeffs, double reg = 0.0);
     }
 
-    class JIMINY_DLLAPI PeriodicGaussianProcess
+    class JIMINY_DLLAPI PeriodicTabularProcess
     {
     public:
-        JIMINY_DISABLE_COPY(PeriodicGaussianProcess)
+        JIMINY_DISABLE_COPY(PeriodicTabularProcess)
 
     public:
-        explicit PeriodicGaussianProcess(double wavelength, double period) noexcept;
+        explicit PeriodicTabularProcess(double wavelength, double period);
 
-        void reset(const uniform_random_bit_generator_ref<uint32_t> & g) noexcept;
+        virtual void reset(const uniform_random_bit_generator_ref<uint32_t> & g) = 0;
 
-        double operator()(double t);
-        double gradient(double t);
+        double operator()(double t) const noexcept;
+        double grad(double t) const noexcept;
 
         double getWavelength() const noexcept;
         double getPeriod() const noexcept;
 
-    private:
+    protected:
         const double wavelength_;
         const double period_;
+        const Eigen::Index numTimes_{static_cast<int>(std::ceil(period_ / (0.1 * wavelength_)))};
+        const double dt_{period_ / numTimes_};
 
-        const double dt_{0.1 * wavelength_};
-        const Eigen::Index numTimes_{static_cast<int>(std::ceil(period_ / dt_))};
+        Eigen::VectorXd values_{numTimes_};
+        Eigen::VectorXd grads_{numTimes_};
+    };
 
+    class JIMINY_DLLAPI PeriodicGaussianProcess final : public PeriodicTabularProcess
+    {
+    public:
+        explicit PeriodicGaussianProcess(double wavelength, double period);
+
+        void reset(const uniform_random_bit_generator_ref<uint32_t> & g) noexcept override;
+
+    private:
         /// \brief Cholesky decomposition (LLT) of the covariance matrix.
         ///
         /// \details All decompositions are equivalent as the covariance matrix is symmetric,
@@ -350,7 +358,6 @@ namespace jiminy
         ///          decomposition algorithm. See: https://math.stackexchange.com/q/22825/375496
         ///          Ultimately, the algorithmic complexity can be reduced from O(n^3) to O(n^2),
         ///          which is lower than the matrix multiplication itself.
-        ///
         Eigen::MatrixXd covSqrtRoot_{internal::standardToeplitzCholeskyLower(
             Eigen::VectorXd::NullaryExpr(
                 numTimes_,
@@ -371,9 +378,6 @@ namespace jiminy
                        std::exp(-2.0 *
                                 std::pow(std::sin(M_PI / numTimes * (i - j)) / wavelength, 2));
             })};
-
-        Eigen::VectorXd values_{numTimes_};
-        Eigen::VectorXd grads_{numTimes_};
     };
 
     // **************************** Continuous 1D Fourier processes **************************** //
@@ -384,28 +388,14 @@ namespace jiminy
     /// \see For references about the derivatives of a Gaussian Process:
     ///      http://herbsusmann.com/2020/07/06/gaussian-process-derivatives
     ///      https://arxiv.org/abs/1810.12283
-    class JIMINY_DLLAPI PeriodicFourierProcess
+    class JIMINY_DLLAPI PeriodicFourierProcess final : public PeriodicTabularProcess
     {
     public:
-        JIMINY_DISABLE_COPY(PeriodicFourierProcess)
+        explicit PeriodicFourierProcess(double wavelength, double period);
 
-    public:
-        explicit PeriodicFourierProcess(double wavelength, double period) noexcept;
-
-        void reset(const uniform_random_bit_generator_ref<uint32_t> & g) noexcept;
-
-        double operator()(double t);
-        double gradient(double t);
-
-        double getWavelength() const noexcept;
-        double getPeriod() const noexcept;
+        void reset(const uniform_random_bit_generator_ref<uint32_t> & g) noexcept override;
 
     private:
-        const double wavelength_;
-        const double period_;
-
-        const double dt_{0.1 * wavelength_};
-        const Eigen::Index numTimes_{static_cast<Eigen::Index>(std::ceil(period_ / dt_))};
         const Eigen::Index numHarmonics_{
             static_cast<Eigen::Index>(std::ceil(period_ / wavelength_))};
 
@@ -419,45 +409,46 @@ namespace jiminy
             numHarmonics_,
             [numTimes = static_cast<double>(numTimes_)](double i, double j)
             { return std::sin(2 * M_PI / numTimes * i * (j + 1)); })};
-
-        Eigen::VectorXd values_{numTimes_};
-        Eigen::VectorXd grads_{numTimes_};
     };
 
-    // ***************************** Continuous 1D Perlin processes **************************** //
+    // ****************************** Continuous Perlin processes ****************************** //
 
+    uint32_t MurmurHash3(const void * key, int32_t len, uint32_t seed) noexcept;
+
+    template<unsigned int N>
     class JIMINY_DLLAPI AbstractPerlinNoiseOctave
     {
+    public:
+        template<typename Scalar>
+        using VectorN = Eigen::Matrix<Scalar, N, 1>;
+
     public:
         explicit AbstractPerlinNoiseOctave(double wavelength);
         virtual ~AbstractPerlinNoiseOctave() = default;
 
         virtual void reset(const uniform_random_bit_generator_ref<uint32_t> & g) noexcept;
 
-        double operator()(double t) const;
+        double operator()(const VectorN<double> & x) const;
+        // VectorN<double> grad(VectorN<double> const & x) const;
 
         double getWavelength() const noexcept;
 
     protected:
-        virtual double grad(int32_t knot, double delta) const noexcept = 0;
-
-        /// \brief Improved Smoothstep function by Ken Perlin (aka Smootherstep).
-        ///
-        /// \details It has zero 1st and 2nd-order derivatives at dt = 0.0, and 1.0.
-        ///
-        /// \sa For reference, see:
-        ///     https://en.wikipedia.org/wiki/Smoothstep#Variations
-        static double fade(double delta) noexcept;
-        static double lerp(double ratio, double yLeft, double yRight) noexcept;
+        virtual VectorN<double> grad(const VectorN<int32_t> & knot) const noexcept = 0;
 
     protected:
         const double wavelength_;
 
-        double shift_{0.0};
+        VectorN<double> shift_{};
     };
 
-    class JIMINY_DLLAPI RandomPerlinNoiseOctave : public AbstractPerlinNoiseOctave
+    template<unsigned int N>
+    class JIMINY_DLLAPI RandomPerlinNoiseOctave : public AbstractPerlinNoiseOctave<N>
     {
+    public:
+        template<typename Scalar>
+        using VectorN = Eigen::Matrix<Scalar, N, 1>;
+
     public:
         explicit RandomPerlinNoiseOctave(double wavelength);
         ~RandomPerlinNoiseOctave() override = default;
@@ -465,14 +456,19 @@ namespace jiminy
         void reset(const uniform_random_bit_generator_ref<uint32_t> & g) noexcept override;
 
     protected:
-        double grad(int32_t knot, double delta) const noexcept override;
+        VectorN<double> grad(const VectorN<int32_t> & knot) const noexcept override;
 
     private:
         uint32_t seed_{0U};
     };
 
-    class JIMINY_DLLAPI PeriodicPerlinNoiseOctave : public AbstractPerlinNoiseOctave
+    template<unsigned int N>
+    class JIMINY_DLLAPI PeriodicPerlinNoiseOctave : public AbstractPerlinNoiseOctave<N>
     {
+    public:
+        template<typename Scalar>
+        using VectorN = Eigen::Matrix<Scalar, N, 1>;
+
     public:
         explicit PeriodicPerlinNoiseOctave(double wavelength, double period);
         ~PeriodicPerlinNoiseOctave() override = default;
@@ -482,13 +478,14 @@ namespace jiminy
         double getPeriod() const noexcept;
 
     protected:
-        double grad(int32_t knot, double delta) const noexcept override;
+        VectorN<double> grad(const VectorN<int32_t> & knot) const noexcept override;
 
     private:
         const double period_;
 
-        std::vector<float> grads_ =
-            std::vector<float>(static_cast<std::size_t>(period_ / wavelength_));
+        const int32_t size_{static_cast<int32_t>(period_ / this->wavelength_)};
+        std::vector<VectorN<double>> grads_ =
+            std::vector<VectorN<double>>(static_cast<std::size_t>(std::pow(size_, N)));
     };
 
     /// \brief  Sum of Perlin noise octaves.
@@ -511,18 +508,22 @@ namespace jiminy
     ///      https://github.com/bradykieffer/SimplexNoise/blob/master/simplexnoise/noise.py
     ///      https://github.com/sol-prog/Perlin_Noise/blob/master/PerlinNoise.cpp
     ///      https://github.com/ashima/webgl-noise/blob/master/src/classicnoise2D.glsl
+    template<unsigned int N>
     class JIMINY_DLLAPI AbstractPerlinProcess
     {
     public:
         JIMINY_DISABLE_COPY(AbstractPerlinProcess)
 
+        template<typename Scalar>
+        using VectorN = Eigen::Matrix<Scalar, N, 1>;
+
         using OctaveScalePair =
-            std::pair<std::unique_ptr<AbstractPerlinNoiseOctave>, const double>;
+            std::pair<std::unique_ptr<AbstractPerlinNoiseOctave<N>>, const double>;
 
     public:
         void reset(const uniform_random_bit_generator_ref<uint32_t> & g) noexcept;
 
-        double operator()(double t);
+        double operator()(const VectorN<double> & x) const;
 
         double getWavelength() const noexcept;
         std::size_t getNumOctaves() const noexcept;
@@ -537,13 +538,15 @@ namespace jiminy
         double amplitude_{0.0};
     };
 
-    class JIMINY_DLLAPI RandomPerlinProcess : public AbstractPerlinProcess
+    template<unsigned int N>
+    class JIMINY_DLLAPI RandomPerlinProcess : public AbstractPerlinProcess<N>
     {
     public:
         explicit RandomPerlinProcess(double wavelength, std::size_t numOctaves = 6U);
     };
 
-    class PeriodicPerlinProcess : public AbstractPerlinProcess
+    template<unsigned int N>
+    class PeriodicPerlinProcess : public AbstractPerlinProcess<N>
     {
     public:
         explicit PeriodicPerlinProcess(
