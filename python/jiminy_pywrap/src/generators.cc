@@ -96,7 +96,7 @@ namespace jiminy::python
     std::enable_if_t<std::conjunction_v<std::is_arithmetic<std::decay_t<Args>>...>, double>
     evaluatePerlinProcessUnpacked(DerivedPerlinProcess & fun, Args... args)
     {
-        return fun(Eigen::Matrix<double, sizeof...(Args), 1>{args...});
+        return fun(Eigen::Matrix<double, static_cast<int>(sizeof...(Args)), 1>{args...});
     }
 
     template<typename DerivedPerlinProcess, typename... Args>
@@ -104,7 +104,7 @@ namespace jiminy::python
                      typename DerivedPerlinProcess::template VectorN<double>>
     gradPerlinProcessUnpacked(DerivedPerlinProcess & fun, Args... args)
     {
-        return fun.grad(Eigen::Matrix<double, sizeof...(Args), 1>{args...});
+        return fun.grad(Eigen::Matrix<double, static_cast<int>(sizeof...(Args)), 1>{args...});
     }
 
     template<typename T, size_t>

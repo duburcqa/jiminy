@@ -462,6 +462,12 @@ namespace jiminy
     }
 
     template<unsigned int N>
+    double PeriodicPerlinNoiseOctave<N>::getPeriod() const noexcept
+    {
+        return period_;
+    }
+
+    template<unsigned int N>
     void PeriodicPerlinNoiseOctave<N>::reset(
         const uniform_random_bit_generator_ref<uint32_t> & g) noexcept
     {

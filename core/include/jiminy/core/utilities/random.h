@@ -314,7 +314,7 @@ namespace jiminy
         standardToeplitzCholeskyLower(const Eigen::MatrixBase<Derived> & coeffs, double reg = 0.0);
     }
 
-    class JIMINY_DLLAPI PeriodicTabularProcess
+    class JIMINY_TEMPLATE_DLLAPI PeriodicTabularProcess
     {
     public:
         explicit PeriodicTabularProcess(double wavelength, double period);
@@ -337,7 +337,7 @@ namespace jiminy
         Eigen::VectorXd grads_{numTimes_};
     };
 
-    class JIMINY_DLLAPI PeriodicGaussianProcess final : public PeriodicTabularProcess
+    class JIMINY_TEMPLATE_DLLAPI PeriodicGaussianProcess final : public PeriodicTabularProcess
     {
     public:
         explicit PeriodicGaussianProcess(double wavelength, double period);
@@ -385,7 +385,7 @@ namespace jiminy
     /// \see For references about the derivatives of a Gaussian Process:
     ///      http://herbsusmann.com/2020/07/06/gaussian-process-derivatives
     ///      https://arxiv.org/abs/1810.12283
-    class JIMINY_DLLAPI PeriodicFourierProcess final : public PeriodicTabularProcess
+    class JIMINY_TEMPLATE_DLLAPI PeriodicFourierProcess final : public PeriodicTabularProcess
     {
     public:
         explicit PeriodicFourierProcess(double wavelength, double period);
@@ -413,7 +413,7 @@ namespace jiminy
     uint32_t MurmurHash3(const void * key, int32_t len, uint32_t seed) noexcept;
 
     template<template<unsigned int> class DerivedPerlinNoiseOctave, unsigned int N>
-    class JIMINY_DLLAPI AbstractPerlinNoiseOctave
+    class JIMINY_TEMPLATE_DLLAPI AbstractPerlinNoiseOctave
     {
     public:
         template<typename Scalar>
@@ -441,7 +441,7 @@ namespace jiminy
     };
 
     template<unsigned int N>
-    class JIMINY_DLLAPI RandomPerlinNoiseOctave :
+    class JIMINY_TEMPLATE_DLLAPI RandomPerlinNoiseOctave :
     public AbstractPerlinNoiseOctave<RandomPerlinNoiseOctave, N>
     {
     public:
@@ -463,7 +463,7 @@ namespace jiminy
     };
 
     template<unsigned int N>
-    class JIMINY_DLLAPI PeriodicPerlinNoiseOctave :
+    class JIMINY_TEMPLATE_DLLAPI PeriodicPerlinNoiseOctave :
     public AbstractPerlinNoiseOctave<PeriodicPerlinNoiseOctave, N>
     {
     public:
@@ -518,7 +518,7 @@ namespace jiminy
     class AbstractPerlinProcess;
 
     template<template<unsigned int> class DerivedPerlinNoiseOctave, unsigned int N>
-    class JIMINY_DLLAPI AbstractPerlinProcess<DerivedPerlinNoiseOctave, N>
+    class JIMINY_TEMPLATE_DLLAPI AbstractPerlinProcess<DerivedPerlinNoiseOctave, N>
     {
     public:
         template<typename Scalar>
@@ -546,7 +546,7 @@ namespace jiminy
     };
 
     template<unsigned int N>
-    class JIMINY_DLLAPI RandomPerlinProcess :
+    class JIMINY_TEMPLATE_DLLAPI RandomPerlinProcess :
     public AbstractPerlinProcess<RandomPerlinNoiseOctave, N>
     {
     public:
