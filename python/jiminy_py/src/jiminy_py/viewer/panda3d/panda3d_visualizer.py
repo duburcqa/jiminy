@@ -648,9 +648,12 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         # Set offscreen buffer frame properties.
         # Note that accumulator bits and back buffers is not supported by
         # resizeable buffers.
+        # Beware MSAA is very picky on MacOS regarding the image format, with
+        # only a few variant being supported.
         # See https://github.com/panda3d/panda3d/issues/1121
+        #     https://github.com/panda3d/panda3d/issues/756
         fbprops = FrameBufferProperties()
-        fbprops.set_rgba_bits(8, 8, 8, 0)
+        fbprops.set_rgba_bits(8, 8, 8, 8)
         fbprops.set_float_color(False)
         fbprops.set_depth_bits(16)
         fbprops.set_float_depth(True)

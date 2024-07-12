@@ -279,7 +279,7 @@ class SharedCache(Generic[ValueT]):
             self.owners = tuple(self._weakrefs)
 
     def reset(self,
-              *, ignore_auto_refresh: bool = False,
+              ignore_auto_refresh: bool = False,
               reset_state_machine: bool = False) -> None:
         """Clear value stored in cache if any.
 
@@ -628,6 +628,7 @@ class InterfaceQuantity(ABC, Generic[ValueT]):
                                     ignore_other_instances=True)
 
             # Reset shared cache
+            # pylint: disable=unexpected-keyword-arg
             self.cache.reset(
                 ignore_auto_refresh=not self.env.is_simulation_running,
                 reset_state_machine=True)
