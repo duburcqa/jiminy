@@ -594,19 +594,34 @@ namespace jiminy
         return octaveScalePairs_.size();
     }
 
-    template<template<unsigned int> class DerivedPerlinNoiseOctave, unsigned int N>
+    template<template<unsigned int> class DerivedPerlinNoiseOctave,
+             unsigned int N,
+             typename... ExtraArgs>
     static std::vector<std::pair<DerivedPerlinNoiseOctave<N>, const double>>
-    buildPerlinNoiseOctaves(
-        double wavelength,
-        std::size_t numOctaves,
-        std::function<DerivedPerlinNoiseOctave<N>(double /* wavelength */)> factory)
+    buildPerlinNoiseOctaves(double wavelength, std::size_t numOctaves, ExtraArgs &&... args)
     {
+        if constexpr (std::is_base_of_v<PeriodicPerlinNoiseOctave<N>, DerivedPerlinNoiseOctave<N>>)
+        {
+            const double period = std::get<0>(std::tuple{std::forward<ExtraArgs>(args)...});
+            const double wavelengthMax =
+                std::pow(PERLIN_NOISE_LACUNARITY, numOctaves) * wavelength;
+            if (period < wavelengthMax)
+            {
+                JIMINY_THROW(std::invalid_argument,
+                             "'period' must be larger than (",
+                             PERLIN_NOISE_LACUNARITY,
+                             "^'numOctaves') * 'wavelength' (ie. ",
+                             wavelengthMax,
+                             ").");
+            }
+        }
+
         std::vector<std::pair<DerivedPerlinNoiseOctave<N>, const double>> octaveScalePairs;
         octaveScalePairs.reserve(numOctaves);
         double scale = 1.0;
         for (std::size_t i = 0; i < numOctaves; ++i)
         {
-            octaveScalePairs.emplace_back(factory(wavelength), scale);
+            octaveScalePairs.emplace_back(DerivedPerlinNoiseOctave<N>(wavelength, args...), scale);
             wavelength *= PERLIN_NOISE_LACUNARITY;
             scale *= PERLIN_NOISE_PERSISTENCE;
         }
@@ -616,10 +631,7 @@ namespace jiminy
     template<unsigned int N>
     RandomPerlinProcess<N>::RandomPerlinProcess(double wavelength, std::size_t numOctaves) :
     AbstractPerlinProcess<RandomPerlinNoiseOctave, N>(
-        buildPerlinNoiseOctaves<RandomPerlinNoiseOctave, N>(
-            wavelength,
-            numOctaves,
-            [](double wavelengthIn) { return RandomPerlinNoiseOctave<N>(wavelengthIn); }))
+        buildPerlinNoiseOctaves<RandomPerlinNoiseOctave, N>(wavelength, numOctaves))
     {
     }
 
@@ -627,11 +639,7 @@ namespace jiminy
     PeriodicPerlinProcess<N>::PeriodicPerlinProcess(
         double wavelength, double period, std::size_t numOctaves) :
     AbstractPerlinProcess<PeriodicPerlinNoiseOctave, N>(
-        buildPerlinNoiseOctaves<PeriodicPerlinNoiseOctave, N>(
-            wavelength,
-            numOctaves,
-            [period](double wavelengthIn)
-            { return PeriodicPerlinNoiseOctave<N>(wavelengthIn, period); })),
+        buildPerlinNoiseOctaves<PeriodicPerlinNoiseOctave, N>(wavelength, numOctaves, period)),
     period_{period}
     {
     }
