@@ -1248,7 +1248,7 @@ class Viewer:
             for pid in psutil.pids():
                 try:
                     proc_info = Process(pid)
-                    for conn in proc_info.connections("tcp4"):
+                    for conn in proc_info.net_connections("tcp4"):
                         if conn.status != 'LISTEN' or \
                                 conn.laddr.ip != '127.0.0.1':
                             continue
