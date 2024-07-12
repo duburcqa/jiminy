@@ -1238,7 +1238,7 @@ namespace Eigen
 
 #define StateDerivative_SHARED_ADDON                                                          \
     template<typename Derived,                                                                \
-             typename = typename std::enable_if_t<                                            \
+             typename = std::enable_if_t<                                                     \
                  is_base_of_template_v<StateDerivativeBase,                                   \
                                        typename internal::traits<Derived>::ValueType>::value, \
                  void>>                                                                       \
@@ -1268,7 +1268,7 @@ namespace Eigen
     template<                                                                                     \
         typename Derived,                                                                         \
         typename OtherDerived,                                                                    \
-        typename = typename std::enable_if_t<                                                     \
+        typename = std::enable_if_t<                                                              \
             is_base_of_template_v<StateDerivativeBase,                                            \
                                   typename internal::traits<Derived>::ValueType>::value &&        \
                 is_base_of_template_v<StateBase,                                                  \
@@ -1290,7 +1290,7 @@ namespace Eigen
     }                                                                                             \
                                                                                                   \
     template<typename Derived,                                                                    \
-             typename = typename std::enable_if_t<                                                \
+             typename = std::enable_if_t<                                                         \
                  is_base_of_template_v<StateDerivativeBase,                                       \
                                        typename internal::traits<Derived>::ValueType>::value,     \
                  void>>                                                                           \
@@ -1301,7 +1301,7 @@ namespace Eigen
     }                                                                                             \
                                                                                                   \
     template<typename Derived,                                                                    \
-             typename = typename std::enable_if_t<                                                \
+             typename = std::enable_if_t<                                                         \
                  is_base_of_template_v<StateDerivativeBase,                                       \
                                        typename internal::traits<Derived>::ValueType>::value,     \
                  void>>                                                                           \
@@ -1320,7 +1320,7 @@ namespace Eigen
     template<                                                                                     \
         typename Derived,                                                                         \
         typename OtherDerived,                                                                    \
-        typename = typename std::enable_if_t<                                                     \
+        typename = std::enable_if_t<                                                              \
             is_base_of_template_v<StateBase,                                                      \
                                   typename internal::traits<Derived>::ValueType>::value &&        \
                 is_base_of_template_v<StateDerivativeBase,                                        \

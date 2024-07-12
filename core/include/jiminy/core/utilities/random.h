@@ -91,7 +91,7 @@ namespace jiminy
         using result_type = ResultType;
 
         template<typename F
-                 //  ,typename = std::enable_if_t<std::bool_constant<
+                 //  , typename = std::enable_if_t<std::bool_constant<
                  //      std::decay_t<F>::min() == min_ && std::decay_t<F>::max() == max_>::value>
                  >
         constexpr uniform_random_bit_generator_ref(F && f) noexcept :
@@ -317,9 +317,6 @@ namespace jiminy
     class JIMINY_DLLAPI PeriodicTabularProcess
     {
     public:
-        JIMINY_DISABLE_COPY(PeriodicTabularProcess)
-
-    public:
         explicit PeriodicTabularProcess(double wavelength, double period);
 
         virtual void reset(const uniform_random_bit_generator_ref<uint32_t> & g) = 0;
@@ -415,7 +412,7 @@ namespace jiminy
 
     uint32_t MurmurHash3(const void * key, int32_t len, uint32_t seed) noexcept;
 
-    template<unsigned int N>
+    template<template<unsigned int> class DerivedPerlinNoiseOctave, unsigned int N>
     class JIMINY_DLLAPI AbstractPerlinNoiseOctave
     {
     public:
@@ -424,17 +421,13 @@ namespace jiminy
 
     public:
         explicit AbstractPerlinNoiseOctave(double wavelength);
-        virtual ~AbstractPerlinNoiseOctave() = default;
 
-        virtual void reset(const uniform_random_bit_generator_ref<uint32_t> & g) noexcept;
+        void reset(const uniform_random_bit_generator_ref<uint32_t> & g) noexcept;
 
         double operator()(const VectorN<double> & x) const;
         VectorN<double> grad(const VectorN<double> & x) const;
 
         double getWavelength() const noexcept;
-
-    protected:
-        virtual VectorN<double> grad(const VectorN<int32_t> & knot) const noexcept = 0;
 
     private:
         template<bool isGradient>
@@ -448,42 +441,46 @@ namespace jiminy
     };
 
     template<unsigned int N>
-    class JIMINY_DLLAPI RandomPerlinNoiseOctave : public AbstractPerlinNoiseOctave<N>
+    class JIMINY_DLLAPI RandomPerlinNoiseOctave :
+    public AbstractPerlinNoiseOctave<RandomPerlinNoiseOctave, N>
     {
     public:
         template<typename Scalar>
         using VectorN = Eigen::Matrix<Scalar, N, 1>;
 
+        friend class AbstractPerlinNoiseOctave<RandomPerlinNoiseOctave, N>;
+
     public:
         explicit RandomPerlinNoiseOctave(double wavelength);
-        ~RandomPerlinNoiseOctave() override = default;
 
-        void reset(const uniform_random_bit_generator_ref<uint32_t> & g) noexcept override;
+        void reset(const uniform_random_bit_generator_ref<uint32_t> & g) noexcept;
 
     protected:
-        VectorN<double> grad(const VectorN<int32_t> & knot) const noexcept override;
+        VectorN<double> gradKnot(const VectorN<int32_t> & knot) const noexcept;
 
     private:
         uint32_t seed_{0U};
     };
 
     template<unsigned int N>
-    class JIMINY_DLLAPI PeriodicPerlinNoiseOctave : public AbstractPerlinNoiseOctave<N>
+    class JIMINY_DLLAPI PeriodicPerlinNoiseOctave :
+    public AbstractPerlinNoiseOctave<PeriodicPerlinNoiseOctave, N>
     {
     public:
         template<typename Scalar>
         using VectorN = Eigen::Matrix<Scalar, N, 1>;
 
+        friend class AbstractPerlinNoiseOctave<PeriodicPerlinNoiseOctave, N>;
+
     public:
         explicit PeriodicPerlinNoiseOctave(double wavelength, double period);
-        ~PeriodicPerlinNoiseOctave() override = default;
 
-        void reset(const uniform_random_bit_generator_ref<uint32_t> & g) noexcept override;
+        void reset(const uniform_random_bit_generator_ref<uint32_t> & g) noexcept;
 
         double getPeriod() const noexcept;
 
     protected:
-        VectorN<double> grad(const VectorN<int32_t> & knot) const noexcept override;
+        VectorN<double> gradKnot(const VectorN<int32_t> & knot) const noexcept;
 
     private:
         const double period_;
@@ -513,17 +510,21 @@ namespace jiminy
     ///      https://github.com/bradykieffer/SimplexNoise/blob/master/simplexnoise/noise.py
     ///      https://github.com/sol-prog/Perlin_Noise/blob/master/PerlinNoise.cpp
     ///      https://github.com/ashima/webgl-noise/blob/master/src/classicnoise2D.glsl
-    template<unsigned int N>
-    class JIMINY_DLLAPI AbstractPerlinProcess
+    template<template<unsigned int> class DerivedPerlinNoiseOctave,
+             unsigned int N,
+             typename = std::enable_if_t<
+                 std::is_base_of_v<AbstractPerlinNoiseOctave<DerivedPerlinNoiseOctave, N>,
+                                   DerivedPerlinNoiseOctave<N>>>>
+    class AbstractPerlinProcess;
+
+    template<template<unsigned int> class DerivedPerlinNoiseOctave, unsigned int N>
+    class JIMINY_DLLAPI AbstractPerlinProcess<DerivedPerlinNoiseOctave, N>
     {
     public:
-        JIMINY_DISABLE_COPY(AbstractPerlinProcess)
-
         template<typename Scalar>
         using VectorN = Eigen::Matrix<Scalar, N, 1>;
 
-        using OctaveScalePair =
-            std::pair<std::unique_ptr<AbstractPerlinNoiseOctave<N>>, const double>;
+        using OctaveScalePair = std::pair<DerivedPerlinNoiseOctave<N>, const double>;
 
     public:
         void reset(const uniform_random_bit_generator_ref<uint32_t> & g) noexcept;
@@ -545,14 +546,15 @@ namespace jiminy
     };
 
     template<unsigned int N>
-    class JIMINY_DLLAPI RandomPerlinProcess : public AbstractPerlinProcess<N>
+    class JIMINY_DLLAPI RandomPerlinProcess :
+    public AbstractPerlinProcess<RandomPerlinNoiseOctave, N>
     {
     public:
         explicit RandomPerlinProcess(double wavelength, std::size_t numOctaves = 6U);
     };
 
     template<unsigned int N>
-    class PeriodicPerlinProcess : public AbstractPerlinProcess<N>
+    class PeriodicPerlinProcess : public AbstractPerlinProcess<PeriodicPerlinNoiseOctave, N>
     {
     public:
         explicit PeriodicPerlinProcess(

@@ -194,7 +194,8 @@ namespace jiminy
              ResultType max_ = std::numeric_limits<ResultType>::max()>
     class uniform_random_bit_generator_ref;
 
-    // Ground profile functors
+    // Ground profile functors.
+    // FIXME: use `std::move_only_function` instead of `std::function` when moving to C++23
     using HeightmapFunction = std::function<void(const Eigen::Vector2d & /* xy */,
                                                  double & /* height */,
                                                  Eigen::Ref<Eigen::Vector3d> /* normal */)>;

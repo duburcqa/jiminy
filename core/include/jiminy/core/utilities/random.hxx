@@ -224,8 +224,9 @@ namespace jiminy
         return dratio * (yRight - yLeft);
     }
 
-    template<unsigned int N>
-    AbstractPerlinNoiseOctave<N>::AbstractPerlinNoiseOctave(double wavelength) :
+    template<template<unsigned int> class DerivedPerlinNoiseOctave, unsigned int N>
+    AbstractPerlinNoiseOctave<DerivedPerlinNoiseOctave, N>::AbstractPerlinNoiseOctave(
+        double wavelength) :
     wavelength_{wavelength}
     {
         if (wavelength_ <= 0.0)
@@ -236,26 +237,28 @@ namespace jiminy
         shift_ = uniform(N, 1, gen).cast<double>();
     }
 
-    template<unsigned int N>
-    void AbstractPerlinNoiseOctave<N>::reset(
+    template<template<unsigned int> class DerivedPerlinNoiseOctave, unsigned int N>
+    void AbstractPerlinNoiseOctave<DerivedPerlinNoiseOctave, N>::reset(
         const uniform_random_bit_generator_ref<uint32_t> & g) noexcept
     {
         // Sample random phase shift
         shift_ = uniform(N, 1, g).cast<double>();
     }
 
-    template<unsigned int N>
-    double AbstractPerlinNoiseOctave<N>::getWavelength() const noexcept
+    template<template<unsigned int> class DerivedPerlinNoiseOctave, unsigned int N>
+    double AbstractPerlinNoiseOctave<DerivedPerlinNoiseOctave, N>::getWavelength() const noexcept
     {
         return wavelength_;
     }
 
-    template<unsigned int N>
+    template<template<unsigned int> class DerivedPerlinNoiseOctave, unsigned int N>
     template<bool isGradient>
-    std::conditional_t<isGradient,
-                       typename AbstractPerlinNoiseOctave<N>::template VectorN<double>,
-                       double>
-    AbstractPerlinNoiseOctave<N>::evaluate(const VectorN<double> & x) const
+    std::conditional_t<
+        isGradient,
+        typename AbstractPerlinNoiseOctave<DerivedPerlinNoiseOctave, N>::template VectorN<double>,
+        double>
+    AbstractPerlinNoiseOctave<DerivedPerlinNoiseOctave, N>::evaluate(
+        const VectorN<double> & x) const
     {
         // Get current phase
         const VectorN<double> phase = x / wavelength_ + shift_;
@@ -291,7 +294,7 @@ namespace jiminy
             }
 
             // Evaluate the gradient at knot
-            grads[k] = grad(knot);
+            grads[k] = static_cast<const DerivedPerlinNoiseOctave<N> &>(*this).gradKnot(knot);
 
             // Compute the offset at query point
             offsets[k] = grads[k].dot(delta);
@@ -350,22 +353,23 @@ namespace jiminy
         }
     }
 
-    template<unsigned int N>
-    double AbstractPerlinNoiseOctave<N>::operator()(const VectorN<double> & x) const
+    template<template<unsigned int> class DerivedPerlinNoiseOctave, unsigned int N>
+    double AbstractPerlinNoiseOctave<DerivedPerlinNoiseOctave, N>::operator()(
+        const VectorN<double> & x) const
     {
         return evaluate<false>(x);
     }
 
-    template<unsigned int N>
-    typename AbstractPerlinNoiseOctave<N>::template VectorN<double>
-    AbstractPerlinNoiseOctave<N>::grad(const VectorN<double> & x) const
+    template<template<unsigned int> class DerivedPerlinNoiseOctave, unsigned int N>
+    typename AbstractPerlinNoiseOctave<DerivedPerlinNoiseOctave, N>::template VectorN<double>
+    AbstractPerlinNoiseOctave<DerivedPerlinNoiseOctave, N>::grad(const VectorN<double> & x) const
     {
         return evaluate<true>(x);
     }
 
     template<unsigned int N>
     RandomPerlinNoiseOctave<N>::RandomPerlinNoiseOctave(double wavelength) :
-    AbstractPerlinNoiseOctave<N>(wavelength)
+    AbstractPerlinNoiseOctave<RandomPerlinNoiseOctave, N>(wavelength)
     {
         seed_ = std::random_device{}();
     }
@@ -375,7 +379,7 @@ namespace jiminy
         const uniform_random_bit_generator_ref<uint32_t> & g) noexcept
     {
         // Call base implementation
-        AbstractPerlinNoiseOctave<N>::reset(g);
+        AbstractPerlinNoiseOctave<RandomPerlinNoiseOctave, N>::reset(g);
 
         // Sample new random seed for MurmurHash
         seed_ = g();
@@ -383,7 +387,7 @@ namespace jiminy
 
     template<unsigned int N>
     typename RandomPerlinNoiseOctave<N>::template VectorN<double>
-    RandomPerlinNoiseOctave<N>::grad(const VectorN<int32_t> & knot) const noexcept
+    RandomPerlinNoiseOctave<N>::gradKnot(const VectorN<int32_t> & knot) const noexcept
     {
         constexpr float fHashMax = static_cast<float>(std::numeric_limits<uint32_t>::max());
 
@@ -443,7 +447,8 @@ namespace jiminy
 
     template<unsigned int N>
     PeriodicPerlinNoiseOctave<N>::PeriodicPerlinNoiseOctave(double wavelength, double period) :
-    AbstractPerlinNoiseOctave<N>(period / std::max(std::round(period / wavelength), 1.0)),
+    AbstractPerlinNoiseOctave<PeriodicPerlinNoiseOctave, N>(
+        period / std::max(std::round(period / wavelength), 1.0)),
     period_{period}
     {
         // Make sure the period is larger than the wavelength
@@ -461,7 +466,7 @@ namespace jiminy
         const uniform_random_bit_generator_ref<uint32_t> & g) noexcept
     {
         // Call base implementation
-        AbstractPerlinNoiseOctave<N>::reset(g);
+        AbstractPerlinNoiseOctave<PeriodicPerlinNoiseOctave, N>::reset(g);
 
         // Re-initialize the pre-computed hash table
         std::generate(
@@ -490,7 +495,7 @@ namespace jiminy
 
     template<unsigned int N>
     typename PeriodicPerlinNoiseOctave<N>::template VectorN<double>
-    PeriodicPerlinNoiseOctave<N>::grad(const VectorN<int32_t> & knot) const noexcept
+    PeriodicPerlinNoiseOctave<N>::gradKnot(const VectorN<int32_t> & knot) const noexcept
     {
         // Wrap knot is period interval
         int32_t index = 0;
@@ -508,8 +513,8 @@ namespace jiminy
         return grads_[index];
     }
 
-    template<unsigned int N>
-    AbstractPerlinProcess<N>::AbstractPerlinProcess(
+    template<template<unsigned int> class DerivedPerlinNoiseOctave, unsigned int N>
+    AbstractPerlinProcess<DerivedPerlinNoiseOctave, N>::AbstractPerlinProcess(
         std::vector<OctaveScalePair> && octaveScalePairs) noexcept :
     octaveScalePairs_(std::move(octaveScalePairs))
     {
@@ -523,72 +528,74 @@ namespace jiminy
         amplitude_ = std::sqrt(amplitudeSquared);
     }
 
-    template<unsigned int N>
-    void
-    AbstractPerlinProcess<N>::reset(const uniform_random_bit_generator_ref<uint32_t> & g) noexcept
+    template<template<unsigned int> class DerivedPerlinNoiseOctave, unsigned int N>
+    void AbstractPerlinProcess<DerivedPerlinNoiseOctave, N>::reset(
+        const uniform_random_bit_generator_ref<uint32_t> & g) noexcept
     {
         // Reset octaves
         for (OctaveScalePair & octaveScale : octaveScalePairs_)
         {
             // FIXME: replaced `std::get<N>` by placeholder `_` when moving to C++26 (P2169R4)
-            std::get<0>(octaveScale)->reset(g);
+            std::get<0>(octaveScale).reset(g);
         }
     }
 
-    template<unsigned int N>
-    double AbstractPerlinProcess<N>::operator()(const VectorN<double> & x) const
+    template<template<unsigned int> class DerivedPerlinNoiseOctave, unsigned int N>
+    double
+    AbstractPerlinProcess<DerivedPerlinNoiseOctave, N>::operator()(const VectorN<double> & x) const
     {
         // Compute sum of octaves' values
         double value = 0.0;
         for (const auto & [octave, scale] : octaveScalePairs_)
         {
-            value += scale * (*octave)(x);
+            value += scale * octave(x);
         }
 
         // Scale sum by maximum amplitude
         return value / amplitude_;
     }
 
-    template<unsigned int N>
-    typename AbstractPerlinProcess<N>::template VectorN<double>
-    AbstractPerlinProcess<N>::grad(const VectorN<double> & x) const
+    template<template<unsigned int> class DerivedPerlinNoiseOctave, unsigned int N>
+    typename AbstractPerlinProcess<DerivedPerlinNoiseOctave, N>::template VectorN<double>
+    AbstractPerlinProcess<DerivedPerlinNoiseOctave, N>::grad(const VectorN<double> & x) const
     {
         // Compute sum of octaves' values
         VectorN<double> value = VectorN<double>::Zero();
         for (const auto & [octave, scale] : octaveScalePairs_)
         {
-            value += scale * octave->grad(x);
+            value += scale * octave.grad(x);
         }
 
         // Scale sum by maximum amplitude
         return value / amplitude_;
     }
 
-    template<unsigned int N>
-    double AbstractPerlinProcess<N>::getWavelength() const noexcept
+    template<template<unsigned int> class DerivedPerlinNoiseOctave, unsigned int N>
+    double AbstractPerlinProcess<DerivedPerlinNoiseOctave, N>::getWavelength() const noexcept
     {
         double wavelength = INF;
         for (const OctaveScalePair & octaveScale : octaveScalePairs_)
         {
             // FIXME: replaced `std::get<N>` by placeholder `_` when moving to C++26 (P2169R4)
-            wavelength = std::min(wavelength, std::get<0>(octaveScale)->getWavelength());
+            wavelength = std::min(wavelength, std::get<0>(octaveScale).getWavelength());
         }
         return wavelength;
     }
 
-    template<unsigned int N>
-    std::size_t AbstractPerlinProcess<N>::getNumOctaves() const noexcept
+    template<template<unsigned int> class DerivedPerlinNoiseOctave, unsigned int N>
+    std::size_t AbstractPerlinProcess<DerivedPerlinNoiseOctave, N>::getNumOctaves() const noexcept
     {
         return octaveScalePairs_.size();
     }
 
-    template<unsigned int N>
-    static std::vector<typename AbstractPerlinProcess<N>::OctaveScalePair> buildPerlinNoiseOctaves(
+    template<template<unsigned int> class DerivedPerlinNoiseOctave, unsigned int N>
+    static std::vector<std::pair<DerivedPerlinNoiseOctave<N>, const double>>
+    buildPerlinNoiseOctaves(
         double wavelength,
         std::size_t numOctaves,
-        std::function<std::unique_ptr<AbstractPerlinNoiseOctave<N>>(double)> factory)
+        std::function<DerivedPerlinNoiseOctave<N>(double /* wavelength */)> factory)
     {
-        std::vector<typename AbstractPerlinProcess<N>::OctaveScalePair> octaveScalePairs;
+        std::vector<std::pair<DerivedPerlinNoiseOctave<N>, const double>> octaveScalePairs;
         octaveScalePairs.reserve(numOctaves);
         double scale = 1.0;
         for (std::size_t i = 0; i < numOctaves; ++i)
@@ -602,22 +609,23 @@ namespace jiminy
 
     template<unsigned int N>
     RandomPerlinProcess<N>::RandomPerlinProcess(double wavelength, std::size_t numOctaves) :
-    AbstractPerlinProcess<N>(buildPerlinNoiseOctaves<N>(
-        wavelength,
-        numOctaves,
-        [](double wavelengthIn) -> std::unique_ptr<AbstractPerlinNoiseOctave<N>>
-        { return std::make_unique<RandomPerlinNoiseOctave<N>>(wavelengthIn); }))
+    AbstractPerlinProcess<RandomPerlinNoiseOctave, N>(
+        buildPerlinNoiseOctaves<RandomPerlinNoiseOctave, N>(
+            wavelength,
+            numOctaves,
+            [](double wavelengthIn) { return RandomPerlinNoiseOctave<N>(wavelengthIn); }))
     {
     }
 
     template<unsigned int N>
     PeriodicPerlinProcess<N>::PeriodicPerlinProcess(
         double wavelength, double period, std::size_t numOctaves) :
-    AbstractPerlinProcess<N>(buildPerlinNoiseOctaves<N>(
-        wavelength,
-        numOctaves,
-        [period](double wavelengthIn) -> std::unique_ptr<AbstractPerlinNoiseOctave<N>>
-        { return std::make_unique<PeriodicPerlinNoiseOctave<N>>(wavelengthIn, period); })),
+    AbstractPerlinProcess<PeriodicPerlinNoiseOctave, N>(
+        buildPerlinNoiseOctaves<PeriodicPerlinNoiseOctave, N>(
+            wavelength,
+            numOctaves,
+            [period](double wavelengthIn)
+            { return PeriodicPerlinNoiseOctave<N>(wavelengthIn, period); })),
     period_{period}
     {
     }

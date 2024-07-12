@@ -92,17 +92,17 @@ namespace jiminy::python
 
 #undef GENERIC_DISTRIBUTION_WRAPPER
 
-    template<typename... Args>
+    template<typename DerivedPerlinProcess, typename... Args>
     std::enable_if_t<std::conjunction_v<std::is_arithmetic<std::decay_t<Args>>...>, double>
-    evaluateRandomProcessUnpacked(AbstractPerlinProcess<sizeof...(Args)> & fun, Args... args)
+    evaluatePerlinProcessUnpacked(DerivedPerlinProcess & fun, Args... args)
     {
         return fun(Eigen::Matrix<double, sizeof...(Args), 1>{args...});
     }
 
-    template<typename... Args>
+    template<typename DerivedPerlinProcess, typename... Args>
     std::enable_if_t<std::conjunction_v<std::is_arithmetic<std::decay_t<Args>>...>,
-                     typename AbstractPerlinProcess<sizeof...(Args)>::template VectorN<double>>
-    gradRandomProcessUnpacked(AbstractPerlinProcess<sizeof...(Args)> & fun, Args... args)
+                     typename DerivedPerlinProcess::template VectorN<double>>
+    gradPerlinProcessUnpacked(DerivedPerlinProcess & fun, Args... args)
     {
         return fun.grad(Eigen::Matrix<double, sizeof...(Args), 1>{args...});
     }
@@ -110,55 +110,68 @@ namespace jiminy::python
     template<typename T, size_t>
     using type_t = T;
 
-    template<size_t... Is>
-    auto evaluateRandomProcessUnpackedSignature(std::index_sequence<Is...>)
-        -> double (*)(AbstractPerlinProcess<sizeof...(Is)> &, type_t<double, Is>...);
+    template<typename DerivedPerlinProcess, size_t... Is>
+    auto evaluatePerlinProcessUnpackedSignature(
+        std::index_sequence<Is...>) -> double (*)(DerivedPerlinProcess &, type_t<double, Is>...);
 
-    template<size_t... Is>
-    auto gradRandomProcessUnpackedSignature(std::index_sequence<Is...>) ->
-        typename AbstractPerlinProcess<sizeof...(Is)>::template VectorN<double> (*)(
-            AbstractPerlinProcess<sizeof...(Is)> &, type_t<double, Is>...);
+    template<typename DerivedPerlinProcess, size_t... Is>
+    auto gradPerlinProcessUnpackedSignature(std::index_sequence<Is...>) ->
+        typename DerivedPerlinProcess::template VectorN<double> (*)(DerivedPerlinProcess &,
+                                                                    type_t<double, Is>...);
 
     template<unsigned int N>
-    constexpr void exposeRandomProcess()
+    struct PyPerlinProcessVisitor : public bp::def_visitor<PyPerlinProcessVisitor<N>>
     {
-        bp::class_<AbstractPerlinProcess<N>,
-                   std::shared_ptr<AbstractPerlinProcess<N>>,
-                   boost::noncopyable>(toString("AbstractPerlinProcess", N, "D").c_str(),
-                                       bp::no_init)
-            .def("__call__",
-                 static_cast<decltype(evaluateRandomProcessUnpackedSignature(
-                     std::make_index_sequence<N>{}))>(evaluateRandomProcessUnpacked))
-            .def("__call__", &AbstractPerlinProcess<N>::operator(), (bp::arg("self"), "vec"))
-            .def("grad",
-                 static_cast<decltype(gradRandomProcessUnpackedSignature(
-                     std::make_index_sequence<N>{}))>(gradRandomProcessUnpacked))
-            .def("grad", &AbstractPerlinProcess<N>::grad, (bp::arg("self"), "vec"))
-            .def(
-                "reset",
-                makeFunction(ConvertGeneratorFromPythonAndInvoke(&AbstractPerlinProcess<N>::reset),
-                             bp::default_call_policies(),
-                             (bp::arg("self"), "generator")))
-            .ADD_PROPERTY_GET("wavelength", &AbstractPerlinProcess<N>::getWavelength)
-            .ADD_PROPERTY_GET("num_octaves", &AbstractPerlinProcess<N>::getNumOctaves);
+    public:
+        template<typename PyClass>
+        static void visit(PyClass & cl)
+        {
+            using DerivedPerlinProcess = typename PyClass::wrapped_type;
 
-        bp::class_<RandomPerlinProcess<N>,
-                   bp::bases<AbstractPerlinProcess<N>>,
-                   std::shared_ptr<RandomPerlinProcess<N>>,
-                   boost::noncopyable>(
-            toString("RandomPerlinProcess", N, "D").c_str(),
-            bp::init<double, uint32_t>(
-                (bp::arg("self"), "wavelength", bp::arg("num_octaves") = 6U)));
+            // clang-format off
+            cl
+                .def("__call__",
+                    static_cast<decltype(evaluatePerlinProcessUnpackedSignature<DerivedPerlinProcess>(
+                        std::make_index_sequence<N>{}))>(evaluatePerlinProcessUnpacked))
+                .def("__call__", &DerivedPerlinProcess::operator(), (bp::arg("self"), "vec"))
+                .def("grad",
+                    static_cast<decltype(gradPerlinProcessUnpackedSignature<DerivedPerlinProcess>(
+                        std::make_index_sequence<N>{}))>(gradPerlinProcessUnpacked))
+                .def("grad", &DerivedPerlinProcess::grad, (bp::arg("self"), "vec"))
+                .def(
+                    "reset",
+                    makeFunction(ConvertGeneratorFromPythonAndInvoke<
+                        void(const uniform_random_bit_generator_ref<uint32_t> &), DerivedPerlinProcess
+                        >(&DerivedPerlinProcess::reset),
+                    bp::default_call_policies(),
+                    (bp::arg("self"), "generator")))
+                .ADD_PROPERTY_GET("wavelength", &DerivedPerlinProcess::getWavelength)
+                .ADD_PROPERTY_GET("num_octaves", &DerivedPerlinProcess::getNumOctaves);
+            // clang-format on
+        }
 
-        bp::class_<PeriodicPerlinProcess<N>,
-                   bp::bases<AbstractPerlinProcess<N>>,
-                   std::shared_ptr<PeriodicPerlinProcess<N>>,
-                   boost::noncopyable>(
-            toString("PeriodicPerlinProcess", N, "D").c_str(),
-            bp::init<double, double, uint32_t>(
-                (bp::arg("self"), "wavelength", "period", bp::arg("num_octaves") = 6U)))
-            .ADD_PROPERTY_GET("period", &PeriodicPerlinProcess<N>::getPeriod);
-    }
+        static void expose()
+        {
+            bp::class_<RandomPerlinProcess<N>,
+                       // bp::bases<AbstractPerlinProcess<RandomPerlinNoiseOctave, N>>,
+                       std::shared_ptr<RandomPerlinProcess<N>>,
+                       boost::noncopyable>(
+                toString("RandomPerlinProcess", N, "D").c_str(),
+                bp::init<double, uint32_t>(
+                    (bp::arg("self"), "wavelength", bp::arg("num_octaves") = 6U)))
+                .def(PyPerlinProcessVisitor<N>());
+
+            bp::class_<PeriodicPerlinProcess<N>,
+                       // bp::bases<AbstractPerlinProcess<PeriodicPerlinNoiseOctave, N>>,
+                       std::shared_ptr<PeriodicPerlinProcess<N>>,
+                       boost::noncopyable>(
+                toString("PeriodicPerlinProcess", N, "D").c_str(),
+                bp::init<double, double, uint32_t>(
+                    (bp::arg("self"), "wavelength", "period", bp::arg("num_octaves") = 6U)))
+                .ADD_PROPERTY_GET("period", &PeriodicPerlinProcess<N>::getPeriod)
+                .def(PyPerlinProcessVisitor<N>());
+        }
+    };
 
     void exposeGenerators()
     {
@@ -232,9 +245,9 @@ namespace jiminy::python
 
         /* FIXME: Use template lambda and compile-time for-loop when moving to c++20.
            For reference: https://stackoverflow.com/a/76272348/4820605 */
-        exposeRandomProcess<1>();
-        exposeRandomProcess<2>();
-        exposeRandomProcess<3>();
+        PyPerlinProcessVisitor<1>::expose();
+        PyPerlinProcessVisitor<2>::expose();
+        PyPerlinProcessVisitor<3>::expose();
 
         bp::def(
             "random_tile_ground",

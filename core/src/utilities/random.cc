@@ -480,7 +480,7 @@ namespace jiminy
                             double orientation,
                             uint32_t seed)
     {
-        if ((0.01 < interpDelta.array()).any() || (interpDelta.array() > size.array() / 2.0).any())
+        if ((0.01 > interpDelta.array()).any() || (interpDelta.array() > size.array() / 2.0).any())
         {
             JIMINY_WARNING(
                 "All components of 'interpDelta' must be in range [0.01, 'size'/2.0]. Value: ",
