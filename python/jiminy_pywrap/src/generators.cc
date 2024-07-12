@@ -94,9 +94,17 @@ namespace jiminy::python
 
     template<typename... Args>
     std::enable_if_t<std::conjunction_v<std::is_arithmetic<std::decay_t<Args>>...>, double>
-    evaluateRandomProcessUnpacked(AbstractPerlinProcess<sizeof...(Args)> & process, Args... args)
+    evaluateRandomProcessUnpacked(AbstractPerlinProcess<sizeof...(Args)> & fun, Args... args)
     {
-        return process(Eigen::Matrix<double, sizeof...(Args), 1>{args...});
+        return fun(Eigen::Matrix<double, sizeof...(Args), 1>{args...});
+    }
+
+    template<typename... Args>
+    std::enable_if_t<std::conjunction_v<std::is_arithmetic<std::decay_t<Args>>...>,
+                     typename AbstractPerlinProcess<sizeof...(Args)>::template VectorN<double>>
+    gradRandomProcessUnpacked(AbstractPerlinProcess<sizeof...(Args)> & fun, Args... args)
+    {
+        return fun.grad(Eigen::Matrix<double, sizeof...(Args), 1>{args...});
     }
 
     template<typename T, size_t>
@@ -105,6 +113,11 @@ namespace jiminy::python
     template<size_t... Is>
     auto evaluateRandomProcessUnpackedSignature(std::index_sequence<Is...>)
         -> double (*)(AbstractPerlinProcess<sizeof...(Is)> &, type_t<double, Is>...);
+
+    template<size_t... Is>
+    auto gradRandomProcessUnpackedSignature(std::index_sequence<Is...>) ->
+        typename AbstractPerlinProcess<sizeof...(Is)>::template VectorN<double> (*)(
+            AbstractPerlinProcess<sizeof...(Is)> &, type_t<double, Is>...);
 
     template<unsigned int N>
     constexpr void exposeRandomProcess()
@@ -117,6 +130,10 @@ namespace jiminy::python
                  static_cast<decltype(evaluateRandomProcessUnpackedSignature(
                      std::make_index_sequence<N>{}))>(evaluateRandomProcessUnpacked))
             .def("__call__", &AbstractPerlinProcess<N>::operator(), (bp::arg("self"), "vec"))
+            .def("grad",
+                 static_cast<decltype(gradRandomProcessUnpackedSignature(
+                     std::make_index_sequence<N>{}))>(gradRandomProcessUnpacked))
+            .def("grad", &AbstractPerlinProcess<N>::grad, (bp::arg("self"), "vec"))
             .def(
                 "reset",
                 makeFunction(ConvertGeneratorFromPythonAndInvoke(&AbstractPerlinProcess<N>::reset),

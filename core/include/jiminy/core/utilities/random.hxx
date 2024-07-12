@@ -205,9 +205,23 @@ namespace jiminy
         return std::pow(delta, 3) * (delta * (delta * 6.0 - 15.0) + 10.0);
     }
 
-    static inline double lerp(double ratio, double yLeft, double yRight) noexcept
+    static inline double derivativeFade(double delta) noexcept
+    {
+        return 30 * std::pow(delta, 2) * (delta * (delta - 2.0) + 1.0);
+    }
+
+    template<typename T1, typename T2>
+    static std::common_type_t<std::decay_t<T1>, std::decay_t<T2>>
+    lerp(double ratio, T1 && yLeft, T2 && yRight) noexcept
     {
         return yLeft + ratio * (yRight - yLeft);
+    }
+
+    template<typename T1, typename T2>
+    static std::common_type_t<std::decay_t<T1>, std::decay_t<T2>>
+    derivativeLerp(double dratio, T1 && yLeft, T2 && yRight) noexcept
+    {
+        return dratio * (yRight - yLeft);
     }
 
     template<unsigned int N>
@@ -237,7 +251,11 @@ namespace jiminy
     }
 
     template<unsigned int N>
-    double AbstractPerlinNoiseOctave<N>::operator()(const VectorN<double> & x) const
+    template<bool isGradient>
+    std::conditional_t<isGradient,
+                       typename AbstractPerlinNoiseOctave<N>::template VectorN<double>,
+                       double>
+    AbstractPerlinNoiseOctave<N>::evaluate(const VectorN<double> & x) const
     {
         // Get current phase
         const VectorN<double> phase = x / wavelength_ + shift_;
@@ -247,49 +265,102 @@ namespace jiminy
         const VectorN<int32_t> phaseIndexRight = phaseIndexLeft.array() + 1;
 
         // Compute smoothed ratio of current phase wrt to the closest knots
-        const VectorN<double> dtLeft = phase - phaseIndexLeft.template cast<double>();
-        const VectorN<double> dtRight = dtLeft.array() - 1.0;
-        const VectorN<double> ratio = dtLeft.array().unaryExpr(std::ref(fade));
+        const VectorN<double> deltaLeft = phase - phaseIndexLeft.template cast<double>();
+        const VectorN<double> deltaRight = deltaLeft.array() - 1.0;
 
         // Compute gradients at knots, ie on a meshgrid, then dedicate offsets at query point
         VectorN<int32_t> knot;
         VectorN<double> delta;
         std::array<double, (1U << N)> offsets;
+        std::array<VectorN<double>, (1U << N)> grads;
         for (uint32_t k = 0; k < (1U << N); k++)
         {
             // Mapping from index to knot
             for (uint32_t i = 0; i < N; i++)
             {
-                if (k & (1 << i))
+                if (k & (1U << i))
                 {
                     knot[i] = phaseIndexRight[i];
-                    delta[i] = dtRight[i];
+                    delta[i] = deltaRight[i];
                 }
                 else
                 {
                     knot[i] = phaseIndexLeft[i];
-                    delta[i] = dtLeft[i];
+                    delta[i] = deltaLeft[i];
                 }
             }
 
             // Evaluate the gradient at knot
-            const VectorN<double> grad_ = grad(knot);
+            grads[k] = grad(knot);
 
             // Compute the offset at query point
-            offsets[k] = grad_.dot(delta);
+            offsets[k] = grads[k].dot(delta);
         }
 
-        // Perform linear interpolation on each dimension recursively until to get a single scalar
-        for (int32_t i = N - 1; i >= 0; --i)
+        // Compute the derivative along each axis
+        const VectorN<double> ratio = deltaLeft.array().unaryExpr(std::ref(fade));
+        if constexpr (isGradient)
         {
-            for (uint32_t k = 0; k < (1U << i); k++)
+            const VectorN<double> dratio = deltaLeft.array().unaryExpr(std::ref(derivativeFade));
+            for (int32_t i = N - 1; i >= 0; --i)
             {
-                double & offsetLeft = offsets[k];
-                const double offsetRight = offsets[k | (1U << i)];
-                offsetLeft = lerp(ratio[i], offsetLeft, offsetRight);
+                for (uint32_t k = 0; k < (1U << i); k++)
+                {
+                    VectorN<double> & gradLeft = grads[k];
+                    const VectorN<double> gradRight = grads[k | (1U << i)];
+                    gradLeft = lerp(ratio[i], gradLeft, gradRight);
+                }
             }
+            for (int32_t j = 0; j < static_cast<int32_t>(N); ++j)
+            {
+                std::array<double, (1U << N)> interpOffsets_ = offsets;
+                for (int32_t i = N - 1; i >= 0; --i)
+                {
+                    for (uint32_t k = 0; k < (1U << i); k++)
+                    {
+                        double & offsetLeft = interpOffsets_[k];
+                        const double offsetRight = interpOffsets_[k | (1U << i)];
+                        if (i == j)
+                        {
+                            offsetLeft = derivativeLerp(dratio[i], offsetLeft, offsetRight);
+                        }
+                        else
+                        {
+                            offsetLeft = lerp(ratio[i], offsetLeft, offsetRight);
+                        }
+                    }
+                }
+                grads[0][j] += interpOffsets_[0];
+            }
+            return grads[0] / wavelength_;
         }
-        return offsets[0];
+        else
+        {
+            // Perform linear interpolation on each dimension recursively until to get a scalar
+            for (int32_t i = N - 1; i >= 0; --i)
+            {
+                for (uint32_t k = 0; k < (1U << i); k++)
+                {
+                    double & offsetLeft = offsets[k];
+                    const double offsetRight = offsets[k | (1U << i)];
+                    offsetLeft = lerp(ratio[i], offsetLeft, offsetRight);
+                }
+            }
+            return offsets[0];
+        }
+    }
+
+    template<unsigned int N>
+    double AbstractPerlinNoiseOctave<N>::operator()(const VectorN<double> & x) const
+    {
+        return evaluate<false>(x);
+    }
+
+    template<unsigned int N>
+    typename AbstractPerlinNoiseOctave<N>::template VectorN<double>
+    AbstractPerlinNoiseOctave<N>::grad(const VectorN<double> & x) const
+    {
+        return evaluate<true>(x);
     }
 
     template<unsigned int N>
@@ -472,6 +543,21 @@ namespace jiminy
         for (const auto & [octave, scale] : octaveScalePairs_)
         {
             value += scale * (*octave)(x);
+        }
+
+        // Scale sum by maximum amplitude
+        return value / amplitude_;
+    }
+
+    template<unsigned int N>
+    typename AbstractPerlinProcess<N>::template VectorN<double>
+    AbstractPerlinProcess<N>::grad(const VectorN<double> & x) const
+    {
+        // Compute sum of octaves' values
+        VectorN<double> value = VectorN<double>::Zero();
+        for (const auto & [octave, scale] : octaveScalePairs_)
+        {
+            value += scale * octave->grad(x);
         }
 
         // Scale sum by maximum amplitude

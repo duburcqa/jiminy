@@ -429,12 +429,17 @@ namespace jiminy
         virtual void reset(const uniform_random_bit_generator_ref<uint32_t> & g) noexcept;
 
         double operator()(const VectorN<double> & x) const;
-        // VectorN<double> grad(VectorN<double> const & x) const;
+        VectorN<double> grad(const VectorN<double> & x) const;
 
         double getWavelength() const noexcept;
 
     protected:
         virtual VectorN<double> grad(const VectorN<int32_t> & knot) const noexcept = 0;
+
+    private:
+        template<bool isGradient>
+        std::conditional_t<isGradient, VectorN<double>, double>
+        evaluate(const VectorN<double> & x) const;
 
     protected:
         const double wavelength_;
@@ -524,6 +529,7 @@ namespace jiminy
         void reset(const uniform_random_bit_generator_ref<uint32_t> & g) noexcept;
 
         double operator()(const VectorN<double> & x) const;
+        VectorN<double> grad(const VectorN<double> & x) const;
 
         double getWavelength() const noexcept;
         std::size_t getNumOctaves() const noexcept;
