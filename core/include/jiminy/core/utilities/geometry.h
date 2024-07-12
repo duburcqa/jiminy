@@ -48,6 +48,21 @@ namespace jiminy
     /// \param[in] orientation Orientation of the staircases in the XY plane.
     HeightmapFunction JIMINY_DLLAPI periodicStairs(
         double stepWidth, double stepHeight, uint32_t stepNumber, double orientation);
+
+    HeightmapFunction JIMINY_DLLAPI unidirectionalRandomPerlinGround(
+        double wavelength, std::size_t numOctaves, double orientation, uint32_t seed);
+
+    HeightmapFunction JIMINY_DLLAPI unidirectionalPeriodicPerlinGround(double wavelength,
+                                                                       double period,
+                                                                       std::size_t numOctaves,
+                                                                       double orientation,
+                                                                       uint32_t seed);
+
+    HeightmapFunction JIMINY_DLLAPI randomPerlinGround(
+        double wavelength, std::size_t numOctaves, uint32_t seed);
+
+    HeightmapFunction JIMINY_DLLAPI periodicPerlinGround(
+        double wavelength, double period, std::size_t numOctaves, uint32_t seed);
 }
 
 #endif  // JIMINY_GEOMETRY_H

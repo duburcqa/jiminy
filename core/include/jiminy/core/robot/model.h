@@ -1,6 +1,8 @@
 #ifndef JIMINY_MODEL_H
 #define JIMINY_MODEL_H
 
+#include <optional>
+
 #include "pinocchio/spatial/fwd.hpp"         // `pinocchio::SE3`
 #include "pinocchio/multibody/model.hpp"     // `pinocchio::Model`
 #include "pinocchio/multibody/data.hpp"      // `pinocchio::Data`

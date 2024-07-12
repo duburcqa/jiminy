@@ -418,7 +418,7 @@ namespace jiminy
         {
             // Generate a uniformly distributed random vector on n-sphere
             VectorN<double> dir;
-            for (uint_fast8_t i = 0; i < N; i += 2)
+            for (uint32_t i = 0; i < N; i += 2)
             {
                 // Generate 2 uniformly distributed random variables
                 const float u1 = static_cast<float>(hash) / fHashMax;

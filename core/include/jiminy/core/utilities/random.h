@@ -331,7 +331,7 @@ namespace jiminy
         const double wavelength_;
         const double period_;
         const Eigen::Index numTimes_{static_cast<int>(std::ceil(period_ / (0.1 * wavelength_)))};
-        const double dt_{period_ / numTimes_};
+        const double dt_{period_ / static_cast<double>(numTimes_)};
 
         Eigen::VectorXd values_{numTimes_};
         Eigen::VectorXd grads_{numTimes_};

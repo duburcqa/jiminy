@@ -253,7 +253,7 @@ namespace jiminy
         Eigen::Index indexRight = indexLeft + 1;
 
         // Compute the time ratio
-        const double ratio = quot - indexLeft;
+        const double ratio = quot - static_cast<double>(indexLeft);
 
         return {indexLeft, indexRight, ratio};
     }
@@ -262,7 +262,7 @@ namespace jiminy
         double value, double delta, Eigen::Index numTimes)
     {
         // Wrap value in period interval
-        const double period = numTimes * delta;
+        const double period = static_cast<double>(numTimes) * delta;
         value = std::fmod(value, period);
         if (value < 0.0)
         {
@@ -403,7 +403,8 @@ namespace jiminy
         values_.noalias() += scale * cosMat_ * normalVec2;
 
         const auto diff =
-            2 * M_PI / period_ * Eigen::VectorXd::LinSpaced(numHarmonics_, 1, numHarmonics_);
+            2 * M_PI / period_ * Eigen::VectorXd::LinSpaced(
+                numHarmonics_, 1, static_cast<double>(numHarmonics_));
         grads_ = scale * cosMat_ * normalVec1.cwiseProduct(diff);
         grads_.noalias() -= scale * sinMat_ * normalVec2.cwiseProduct(diff);
     }
