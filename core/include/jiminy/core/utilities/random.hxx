@@ -9,7 +9,7 @@
 namespace jiminy
 {
     static inline constexpr double PERLIN_NOISE_PERSISTENCE{1.50};
-    static inline constexpr double PERLIN_NOISE_LACUNARITY{1.15};
+    static inline constexpr double PERLIN_NOISE_LACUNARITY{0.85};
 
     // ***************************** Uniform random bit generators ***************************** //
 
@@ -230,8 +230,7 @@ namespace jiminy
         {
             JIMINY_THROW(std::invalid_argument, "'wavelength' must be strictly larger than 0.0.");
         }
-        auto gen = uniform_random_bit_generator_ref<uint32_t>{std::random_device{}};
-        shift_ = uniform(N, 1, gen).cast<double>();
+        reset(std::random_device{});
     }
 
     template<template<unsigned int> class DerivedPerlinNoiseOctave, unsigned int N>
@@ -297,7 +296,7 @@ namespace jiminy
         {
             VectorN<int32_t> knot;
             VectorN<double> delta;
-            const auto derived = static_cast<const DerivedPerlinNoiseOctave<N> &>(*this);
+            const auto & derived = static_cast<const DerivedPerlinNoiseOctave<N> &>(*this);
             for (uint32_t k = 0; k < (1U << N); k++)
             {
                 // Mapping from index to knot
@@ -398,7 +397,7 @@ namespace jiminy
     RandomPerlinNoiseOctave<N>::RandomPerlinNoiseOctave(double wavelength) :
     AbstractPerlinNoiseOctave<RandomPerlinNoiseOctave, N>(wavelength)
     {
-        seed_ = std::random_device{}();
+        reset(std::random_device{});
     }
 
     template<unsigned int N>
@@ -408,7 +407,7 @@ namespace jiminy
         // Call base implementation
         AbstractPerlinNoiseOctave<RandomPerlinNoiseOctave, N>::reset(g);
 
-        // Sample new random seed for MurmurHash
+        // Sample new random seed
         seed_ = g();
     }
 
@@ -503,12 +502,6 @@ namespace jiminy
     }
 
     template<unsigned int N>
-    double PeriodicPerlinNoiseOctave<N>::getPeriod() const noexcept
-    {
-        return period_;
-    }
-
-    template<unsigned int N>
     void PeriodicPerlinNoiseOctave<N>::reset(
         const uniform_random_bit_generator_ref<uint32_t> & g) noexcept
     {
@@ -516,28 +509,25 @@ namespace jiminy
         AbstractPerlinNoiseOctave<PeriodicPerlinNoiseOctave, N>::reset(g);
 
         // Re-initialize the pre-computed hash table
-        std::generate(
-            grads_.begin(),
-            grads_.end(),
-            [&g]() -> VectorN<double>
+        for (auto & grad : grads_)
+        {
+            if constexpr (N == 1)
             {
-                if constexpr (N == 1)
-                {
-                    return VectorN<double>{uniform(g, -1.0F, 1.0F)};
-                }
-                else if constexpr (N == 2)
-                {
-                    const double theta = 2 * M_PI * uniform(g);
-                    const float radius = std::sqrt(uniform(g));
-                    return VectorN<double>{radius * std::cos(theta), radius * std::sin(theta)};
-                }
-                else
-                {
-                    const VectorN<double> dir = normal(N, 1, g).cast<double>().normalized();
-                    const double radius = std::pow(uniform(g), 1.0 / N);
-                    return radius * dir;
-                }
-            });
+                grad = VectorN<double>{uniform(g, -1.0F, 1.0F)};
+            }
+            else if constexpr (N == 2)
+            {
+                const double theta = 2 * M_PI * uniform(g);
+                const float radius = std::sqrt(uniform(g));
+                grad = VectorN<double>{radius * std::cos(theta), radius * std::sin(theta)};
+            }
+            else
+            {
+                const VectorN<double> dir = normal(N, 1, g).cast<double>().normalized();
+                const double radius = std::pow(uniform(g), 1.0 / N);
+                grad = radius * dir;
+            }
+        }
     }
 
     template<unsigned int N>
@@ -560,6 +550,12 @@ namespace jiminy
 
         // Return the gradient
         return grads_[index];
+    }
+
+    template<unsigned int N>
+    double PeriodicPerlinNoiseOctave<N>::getPeriod() const noexcept
+    {
+        return period_;
     }
 
     template<template<unsigned int> class DerivedPerlinNoiseOctave, unsigned int N>
@@ -643,19 +639,26 @@ namespace jiminy
     static std::vector<std::pair<DerivedPerlinNoiseOctave<N>, const double>>
     buildPerlinNoiseOctaves(double wavelength, std::size_t numOctaves, ExtraArgs &&... args)
     {
+        // Make sure that at least one octave has been requested
+        if (numOctaves < 1)
+        {
+            JIMINY_THROW(std::invalid_argument, "'numOctaves' must at least 1.");
+        }
+
+        // Make sure that wavelength of all the octaves is consistent with period if application
         if constexpr (std::is_base_of_v<PeriodicPerlinNoiseOctave<N>, DerivedPerlinNoiseOctave<N>>)
         {
             const double period = std::get<0>(std::tuple{std::forward<ExtraArgs>(args)...});
-            const double wavelengthMax =
-                std::pow(PERLIN_NOISE_LACUNARITY, numOctaves) * wavelength;
-            if (period < wavelengthMax)
+            const double wavelengthFinal =
+                wavelength / std::pow(PERLIN_NOISE_LACUNARITY, numOctaves - 1);
+            if (period < std::max(wavelength, wavelengthFinal))
             {
                 JIMINY_THROW(std::invalid_argument,
-                             "'period' must be larger than (",
+                             "'period' must be larger than the wavelength of all the octaves (",
+                             std::max(wavelength, wavelengthFinal),
+                             "), ie 'wavelength' / ",
                              PERLIN_NOISE_LACUNARITY,
-                             "^'numOctaves') * 'wavelength' (ie. ",
-                             wavelengthMax,
-                             ").");
+                             "^i for i in [1, ..., 'numOctaves'].");
             }
         }
 
@@ -665,7 +668,7 @@ namespace jiminy
         for (std::size_t i = 0; i < numOctaves; ++i)
         {
             octaveScalePairs.emplace_back(DerivedPerlinNoiseOctave<N>(wavelength, args...), scale);
-            wavelength *= PERLIN_NOISE_LACUNARITY;
+            wavelength /= PERLIN_NOISE_LACUNARITY;
             scale *= PERLIN_NOISE_PERSISTENCE;
         }
         return octaveScalePairs;
