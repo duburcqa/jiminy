@@ -168,7 +168,13 @@ namespace jiminy
 
     // **************************** Non-cryptographic hash function **************************** //
 
-#if !defined(NO_CLANG_BUILTIN) && __has_builtin(__builtin_rotateleft32)
+#ifdef __has_builtin
+#    define HAS_BUILTIN(x) __has_builtin(x)
+#else
+#    define HAS_BUILTIN(x) 0
+#endif
+
+#if !defined(NO_CLANG_BUILTIN) && HAS_BUILTIN(__builtin_rotateleft32)
 #    define rotl32 __builtin_rotateleft32
 /* Note: although _rotl exists for minGW (GCC under windows), performance seems poor */
 #elif defined(_MSC_VER)
@@ -572,7 +578,7 @@ namespace jiminy
         return [size, heightMax, interpDelta, rotMat, sparsity, interpThr, offset, seed](
                    const Eigen::Vector2d & pos,
                    double & height,
-                   Eigen::Ref<Eigen::Vector3d> normal) -> void
+                   std::optional<Eigen::Ref<Eigen::Vector3d>> normal) -> void
         {
             // Compute the tile index and relative coordinate
             Eigen::Vector2d posRel = (rotMat * (pos + offset)).array() / size.array();
@@ -636,14 +642,20 @@ namespace jiminy
                     const double dheight_x = dheight_x_0 + (dheight_x_p - dheight_x_0) * ratio;
                     const double dheight_y =
                         (height_p - height_0) / (2.0 * size[1] * interpThr[1]);
-                    normal << -dheight_x, -dheight_y, 1.0;
-                    normal.normalize();
+                    if (normal.has_value())
+                    {
+                        normal.value() << -dheight_x, -dheight_y, 1.0;
+                        normal->normalize();
+                    }
                 }
             }
             else
             {
                 height = heightMax * uniformSparseFromState(posIndices, sparsity, seed);
-                normal = Eigen::Vector3d::UnitZ();
+                if (normal.has_value())
+                {
+                    normal.value() = Eigen::Vector3d::UnitZ();
+                }
             }
         };
     }

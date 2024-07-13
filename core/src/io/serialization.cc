@@ -250,10 +250,13 @@ namespace boost::serialization
     {
         fun = [](const Eigen::Vector2d & /* xy */,
                  double & height,
-                 Eigen::Ref<Eigen::Vector3d> normal)
+                 std::optional<Eigen::Ref<Eigen::Vector3d>> normal)
         {
             height = 0.0;
-            normal = Eigen::Vector3d::UnitZ();
+            if (normal.has_value())
+            {
+                normal.value() = Eigen::Vector3d::UnitZ();
+            }
         };
     }
 

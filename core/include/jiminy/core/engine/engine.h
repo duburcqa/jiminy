@@ -297,7 +297,7 @@ namespace jiminy
                     height = 0.0;
                     if (normal.has_value())
                     {
-                        normal->setUnit(2);
+                        normal.value() = Eigen::Vector3d::UnitZ();
                     }
                 });
 
