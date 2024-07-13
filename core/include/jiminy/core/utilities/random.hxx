@@ -199,15 +199,12 @@ namespace jiminy
     ///     https://en.wikipedia.org/wiki/Smoothstep#Variations
     static inline double fade(double delta) noexcept
     {
-        /* Improved Smoothstep function by Ken Perlin (aka Smootherstep).
-           It has zero 1st and 2nd-order derivatives at dt = 0.0, and 1.0:
-           https://en.wikipedia.org/wiki/Smoothstep#Variations */
-        return std::pow(delta, 3) * (delta * (delta * 6.0 - 15.0) + 10.0);
+        return delta * delta * delta * (delta * (delta * 6.0 - 15.0) + 10.0);
     }
 
     static inline double derivativeFade(double delta) noexcept
     {
-        return 30 * std::pow(delta, 2) * (delta * (delta - 2.0) + 1.0);
+        return 30 * delta * delta * (delta * (delta - 2.0) + 1.0);
     }
 
     template<typename T1, typename T2>
@@ -241,7 +238,7 @@ namespace jiminy
     void AbstractPerlinNoiseOctave<DerivedPerlinNoiseOctave, N>::reset(
         const uniform_random_bit_generator_ref<uint32_t> & g) noexcept
     {
-        // Sample random phase shift
+        // Sample random cell shift
         shift_ = uniform(N, 1, g).cast<double>();
     }
 
@@ -260,69 +257,99 @@ namespace jiminy
     AbstractPerlinNoiseOctave<DerivedPerlinNoiseOctave, N>::evaluate(
         const VectorN<double> & x) const
     {
-        // Get current phase
-        const VectorN<double> phase = x / wavelength_ + shift_;
+        // Get current cell
+        const VectorN<double> cell = x / wavelength_ + shift_;
 
-        // Compute closest right and left knots
-        const VectorN<int32_t> phaseIndexLeft = phase.array().floor().template cast<int32_t>();
-        const VectorN<int32_t> phaseIndexRight = phaseIndexLeft.array() + 1;
+        // Compute the bottom left corner knot
+        const VectorN<int32_t> cellIndexLeft = cell.array().floor().template cast<int32_t>();
+        const VectorN<int32_t> cellIndexRight = cellIndexLeft.array() + 1;
 
-        // Compute smoothed ratio of current phase wrt to the closest knots
-        const VectorN<double> deltaLeft = phase - phaseIndexLeft.template cast<double>();
+        // Compute smoothed ratio of query point wrt to the bottom left corner knot
+        const VectorN<double> deltaLeft = cell - cellIndexLeft.template cast<double>();
         const VectorN<double> deltaRight = deltaLeft.array() - 1.0;
 
-        // Compute gradients at knots, ie on a meshgrid, then dedicate offsets at query point
-        VectorN<int32_t> knot;
-        VectorN<double> delta;
+        // Compute gradients at knots (on a meshgrid), then corresponding offsets at query point
+        bool isCacheValid = (cellIndexLeft.array() == cellIndex_.array()).all();
         std::array<double, (1U << N)> offsets;
-        std::array<VectorN<double>, (1U << N)> grads;
-        for (uint32_t k = 0; k < (1U << N); k++)
+        if (isCacheValid)
         {
-            // Mapping from index to knot
-            for (uint32_t i = 0; i < N; i++)
+            VectorN<double> delta;
+            for (uint32_t k = 0; k < (1U << N); k++)
             {
-                if (k & (1U << i))
+                // Mapping from index to knot
+                for (uint32_t i = 0; i < N; i++)
                 {
-                    knot[i] = phaseIndexRight[i];
-                    delta[i] = deltaRight[i];
+                    if (k & (1U << i))
+                    {
+                        delta[i] = deltaRight[i];
+                    }
+                    else
+                    {
+                        delta[i] = deltaLeft[i];
+                    }
                 }
-                else
-                {
-                    knot[i] = phaseIndexLeft[i];
-                    delta[i] = deltaLeft[i];
-                }
+
+                // Compute the offset at query point
+                offsets[k] = gradKnots_[k].dot(delta);
             }
-
-            // Evaluate the gradient at knot
-            grads[k] = static_cast<const DerivedPerlinNoiseOctave<N> &>(*this).gradKnot(knot);
-
-            // Compute the offset at query point
-            offsets[k] = grads[k].dot(delta);
         }
+        else
+        {
+            VectorN<int32_t> knot;
+            VectorN<double> delta;
+            const auto derived = static_cast<const DerivedPerlinNoiseOctave<N> &>(*this);
+            for (uint32_t k = 0; k < (1U << N); k++)
+            {
+                // Mapping from index to knot
+                for (uint32_t i = 0; i < N; i++)
+                {
+                    if (k & (1U << i))
+                    {
+                        knot[i] = cellIndexRight[i];
+                        delta[i] = deltaRight[i];
+                    }
+                    else
+                    {
+                        knot[i] = cellIndexLeft[i];
+                        delta[i] = deltaLeft[i];
+                    }
+                }
+
+                // Evaluate the gradient at knot
+                gradKnots_[k] = derived.gradKnot(knot);
+
+                // Compute the offset at query point
+                offsets[k] = gradKnots_[k].dot(delta);
+            }
+        }
+
+        // Update cache index
+        cellIndex_ = cellIndexLeft;
 
         // Compute the derivative along each axis
         const VectorN<double> ratio = deltaLeft.array().unaryExpr(std::ref(fade));
         if constexpr (isGradient)
         {
             const VectorN<double> dratio = deltaLeft.array().unaryExpr(std::ref(derivativeFade));
+            std::array<VectorN<double>, (1U << N)> _interpGrads = gradKnots_;
             for (int32_t i = N - 1; i >= 0; --i)
             {
                 for (uint32_t k = 0; k < (1U << i); k++)
                 {
-                    VectorN<double> & gradLeft = grads[k];
-                    const VectorN<double> gradRight = grads[k | (1U << i)];
+                    VectorN<double> & gradLeft = _interpGrads[k];
+                    const VectorN<double> gradRight = _interpGrads[k | (1U << i)];
                     gradLeft = lerp(ratio[i], gradLeft, gradRight);
                 }
             }
             for (int32_t j = 0; j < static_cast<int32_t>(N); ++j)
             {
-                std::array<double, (1U << N)> interpOffsets_ = offsets;
+                std::array<double, (1U << N)> _interpOffsets = offsets;
                 for (int32_t i = N - 1; i >= 0; --i)
                 {
                     for (uint32_t k = 0; k < (1U << i); k++)
                     {
-                        double & offsetLeft = interpOffsets_[k];
-                        const double offsetRight = interpOffsets_[k | (1U << i)];
+                        double & offsetLeft = _interpOffsets[k];
+                        const double offsetRight = _interpOffsets[k | (1U << i)];
                         if (i == j)
                         {
                             offsetLeft = derivativeLerp(dratio[i], offsetLeft, offsetRight);
@@ -333,9 +360,9 @@ namespace jiminy
                         }
                     }
                 }
-                grads[0][j] += interpOffsets_[0];
+                _interpGrads[0][j] += _interpOffsets[0];
             }
-            return grads[0] / wavelength_;
+            return _interpGrads[0] / wavelength_;
         }
         else
         {
@@ -409,10 +436,24 @@ namespace jiminy
         else if constexpr (N == 2)
         {
             // Sample random vector on a 2-ball (disk) using
-            const double theta = 2 * M_PI * static_cast<float>(hash) / fHashMax;
-            hash = MurmurHash3(&hash, sizeof(uint32_t), seed_);
-            const float radius = std::sqrt(static_cast<float>(hash) / fHashMax);
-            return VectorN<double>{radius * std::cos(theta), radius * std::sin(theta)};
+            // const double theta = 2 * M_PI * static_cast<float>(hash) / fHashMax;
+            // hash = MurmurHash3(&hash, sizeof(uint32_t), seed_);
+            // const float radius = std::sqrt(static_cast<float>(hash) / fHashMax);
+            // return VectorN<double>{radius * std::cos(theta), radius * std::sin(theta)};
+
+            /* The rejection method is much fast in 2d because it does not involve complex math
+               (sqrt, sincos) and the acceptance rate is high (~78%) compared to the cost of
+               sampling random numbers using `MurmurHash3`. */
+            while (true)
+            {
+                const float x = 2 * static_cast<float>(hash) / fHashMax - 1.0F;
+                hash = MurmurHash3(&hash, sizeof(uint32_t), seed_);
+                const float y = 2 * static_cast<float>(hash) / fHashMax - 1.0F;
+                if (x * x + y * y <= 1.0F)
+                {
+                    return VectorN<double>{x, y};
+                }
+            }
         }
         else
         {
@@ -505,6 +546,7 @@ namespace jiminy
     {
         // Wrap knot is period interval
         int32_t index = 0;
+        int32_t shift = 1;
         for (uint_fast8_t i = 0; i < N; ++i)
         {
             int32_t coord = knot[i] % size_;
@@ -512,7 +554,8 @@ namespace jiminy
             {
                 coord += size_;
             }
-            index += coord * static_cast<int32_t>(std::pow(size_, i));
+            index += coord * shift;
+            shift *= size_;
         }
 
         // Return the gradient

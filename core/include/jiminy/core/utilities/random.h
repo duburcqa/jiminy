@@ -438,6 +438,9 @@ namespace jiminy
         const double wavelength_;
 
         VectorN<double> shift_{};
+
+        mutable VectorN<int32_t> cellIndex_{};
+        mutable std::array<VectorN<double>, (1U << N)> gradKnots_{};
     };
 
     template<unsigned int N>
