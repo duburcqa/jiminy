@@ -1,7 +1,9 @@
 #include "hpp/fcl/BVH/BVH_model.h"  // `hpp::fcl::CollisionGeometry`, `hpp::fcl::BVHModel`, `hpp::fcl::OBBRSS`
 #include "hpp/fcl/shape/geometric_shapes.h"  // `hpp::fcl::Halfspace`
 #include "hpp/fcl/hfield.h"                  // `hpp::fcl::HeightField`
+
 #include "jiminy/core/utilities/geometry.h"
+#include "jiminy/core/utilities/random.h"
 
 
 namespace jiminy
@@ -752,20 +754,23 @@ namespace jiminy
         };
     }
 
-    HeightmapFunction stairs(
+    HeightmapFunction periodicStairs(
         double stepWidth, double stepHeight, uint32_t stepNumber, double orientation)
     {
         const double interpDelta = 0.01;
-        const Eigen::Rotation2D<double> rot_mat(orientation);
 
-        return [stepWidth, stepHeight, stepNumber, rot_mat, interpDelta](
+        // Define the projection axis
+        const Eigen::Vector2d axis{std::cos(orientation), std::sin(orientation)};
+
+        return [stepWidth, stepHeight, stepNumber, axis, interpDelta](
                    const Eigen::Vector2d & pos,
                    double & height,
                    Eigen::Ref<Eigen::Vector3d> normal) -> void
         {
             // Compute position in stairs reference frame
-            Eigen::Vector2d posRel = rot_mat.inverse() * pos;
-            const double modPos = std::fmod(std::abs(posRel[0]), stepWidth * stepNumber * 2);
+            // Eigen::Vector2d posRel = rotMat.inverse() * pos;
+            const double posRel = axis.dot(pos);
+            const double modPos = std::fmod(std::abs(posRel), stepWidth * stepNumber * 2);
 
             // Compute the default height and normal
             uint32_t stairIndex = static_cast<uint32_t>(modPos / stepWidth);
@@ -779,7 +784,8 @@ namespace jiminy
             normal = Eigen::Vector3d::UnitZ();
 
             // Avoid unsupported vertical edge
-            const double posRelOnStep = std::fmod(modPos, stepWidth) / stepWidth;
+            const double posRelOnStep =
+                std::fmod(modPos + std::numeric_limits<float>::epsilon(), stepWidth) / stepWidth;
             if (1.0 - posRelOnStep < interpDelta)
             {
                 const double slope = staircaseSlopeSign * stepHeight / interpDelta;
@@ -793,10 +799,94 @@ namespace jiminy
                 // step 1. compute normal in stairs reference frame:
                 // normal << -slope * normInv, 0.0, normInv;
                 // step 2. Rotate normal vector in world plane reference frame:
-                // normal.head<2>() = rot_mat * normal.head<2>();
+                // normal.head<2>() = rotMat * normal.head<2>();
                 // Or simply in a single operation:
-                normal << -slope * normInv * rot_mat.toRotationMatrix().col(0), normInv;
+                normal << -slope * normInv * axis, normInv;
             }
         };
+    }
+
+    template<template<unsigned int> class AnyPerlinProcess>
+    static HeightmapFunction generateHeightmapFromPerlinProcess1D(AnyPerlinProcess<1> && fun,
+                                                                  double orientation)
+    {
+        // Define the projection axis
+        const Eigen::Vector2d axis{std::cos(orientation), std::sin(orientation)};
+
+        auto tmp = [fun = std::move(fun), axis](const Eigen::Vector2d & pos,
+                                                double & height,
+                                                Eigen::Ref<Eigen::Vector3d> normal) mutable
+        {
+            // Compute the position along axis
+            const Vector1<double> posAxis = Vector1<double>{axis.dot(pos)};
+
+            // Compute the height
+            height = fun(posAxis);
+
+            // Compute the gradient of the Perlin Proces
+            const double slope = fun.grad(posAxis)[0];
+
+            // Compute the inverse of the normal's Euclidean norm
+            const double normInv = 1.0 / std::sqrt(1.0 + std::pow(slope, 2));
+
+            // Update normal vector
+            normal << -slope * normInv * axis, normInv;
+        };
+        return tmp;
+    }
+
+    template<template<unsigned int> class AnyPerlinProcess>
+    static HeightmapFunction generateHeightmapFromPerlinProcess2D(AnyPerlinProcess<2> && fun)
+    {
+        return [fun = std::move(fun)](const Eigen::Vector2d & pos,
+                                      double & height,
+                                      Eigen::Ref<Eigen::Vector3d> normal) mutable
+        {
+            // Compute the height
+            height = fun(pos);
+
+            // Compute the gradient of the Perlin Proces
+            const auto grad = fun.grad(pos);
+
+            // Compute the inverse of the normal's Euclidean norm
+            const double normInv = 1.0 / grad.norm();
+
+            // Update normal vector
+            normal << -normInv * grad.template head<2>(), normInv;
+        };
+    }
+
+    HeightmapFunction unidirectionalRandomPerlinGround(
+        double wavelength, std::size_t numOctaves, double orientation, uint32_t seed)
+    {
+        auto fun = RandomPerlinProcess<1>(wavelength, numOctaves);
+        fun.reset(PCG32(seed));
+        return generateHeightmapFromPerlinProcess1D(std::move(fun), orientation);
+    }
+
+    HeightmapFunction randomPerlinGround(double wavelength, std::size_t numOctaves, uint32_t seed)
+    {
+        auto fun = RandomPerlinProcess<2>(wavelength, numOctaves);
+        fun.reset(PCG32(seed));
+        return generateHeightmapFromPerlinProcess2D(std::move(fun));
+    }
+
+    HeightmapFunction periodicPerlinGround(
+        double wavelength, double period, std::size_t numOctaves, uint32_t seed)
+    {
+        auto fun = PeriodicPerlinProcess<2>(wavelength, period, numOctaves);
+        fun.reset(PCG32(seed));
+        return generateHeightmapFromPerlinProcess2D(std::move(fun));
+    }
+
+    HeightmapFunction unidirectionalPeriodicPerlinGround(double wavelength,
+                                                         double period,
+                                                         std::size_t numOctaves,
+                                                         double orientation,
+                                                         uint32_t seed)
+    {
+        auto fun = PeriodicPerlinProcess<1>(wavelength, period, numOctaves);
+        fun.reset(PCG32(seed));
+        return generateHeightmapFromPerlinProcess1D(std::move(fun), orientation);
     }
 }
