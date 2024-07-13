@@ -410,7 +410,19 @@ namespace jiminy
 
     // ****************************** Continuous Perlin processes ****************************** //
 
+    /// \brief Non-cryptographic hash function initially designed for hash-based lookup.
+    ///
+    /// \sa Murmursh algorithms were proposed by Austin Appleby and placed in public domain.
+    ///     The author hereby disclaims copyright to this source code:
+    ///     https://github.com/aappleby/smhasher/blob/master/src/MurmurHash3.cpp
     uint32_t MurmurHash3(const void * key, int32_t len, uint32_t seed) noexcept;
+
+    /// \brief Non-cryptographic hash function initially designed for hash-based lookup.
+    ///
+    /// \sa xxHash algorithms were proposed by Yann Collet and placed in the public domain.
+    ///     The author hereby disclaims copyright to this source code:
+    ///     https://github.com/Cyan4973/xxHash/blob/dev/xxhash.h
+    uint32_t xxHash(const void * key, int32_t len, uint32_t seed) noexcept;
 
     template<template<unsigned int> class DerivedPerlinNoiseOctave, unsigned int N>
     class JIMINY_TEMPLATE_DLLAPI AbstractPerlinNoiseOctave

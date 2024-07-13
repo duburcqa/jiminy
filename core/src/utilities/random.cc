@@ -168,17 +168,93 @@ namespace jiminy
 
     // **************************** Non-cryptographic hash function **************************** //
 
-    static uint32_t rotl32(uint32_t x, int8_t r) noexcept
+#ifdef __has_builtin
+#    define HAS_BUILTIN(x) __has_builtin(x)
+#else
+#    define HAS_BUILTIN(x) 0
+#endif
+
+#if !defined(NO_CLANG_BUILTIN) && HAS_BUILTIN(__builtin_rotateleft32)
+#    define rotl32 __builtin_rotateleft32
+/* Note: although _rotl exists for minGW (GCC under windows), performance seems poor */
+#elif defined(_MSC_VER)
+#    define rotl32(x, r) _rotl(x, r)
+#else
+#    define rotl32(x, r) (((x) << (r)) | ((x) >> (32 - (r))))
+#endif
+
+    constexpr uint32_t PRIME32_1 = 0x9E3779B1U; /* 0b10011110001101110111100110110001 */
+    constexpr uint32_t PRIME32_2 = 0x85EBCA77U; /* 0b10000101111010111100101001110111 */
+    constexpr uint32_t PRIME32_3 = 0xC2B2AE3DU; /* 0b11000010101100101010111000111101 */
+    constexpr uint32_t PRIME32_4 = 0x27D4EB2FU; /* 0b00100111110101001110101100101111 */
+    constexpr uint32_t PRIME32_5 = 0x165667B1U; /* 0b00010110010101100110011110110001 */
+
+    static uint32_t XXH32_round(uint32_t acc, const uint32_t input)
     {
-        return (x << r) | (x >> (32 - r));
+        acc += input * PRIME32_2;
+        acc = rotl32(acc, 13);
+        acc *= PRIME32_1;
+        return acc;
     }
 
-    /// \brief MurmurHash3 is a non-cryptographic hash function initially designed
-    ///        for hash-based lookup.
-    ///
-    /// \sa It was written by Austin Appleby, and is placed in the public domain.
-    ///     The author hereby disclaims copyright to this source code:
-    ///     https://github.com/aappleby/smhasher/blob/master/src/MurmurHash3.cpp
+    uint32_t xxHash(const void * input, int32_t len, uint32_t seed) noexcept
+    {
+        uint32_t hash;
+
+        const auto * data = reinterpret_cast<const uint8_t *>(input);
+        if (len >= 16)
+        {
+            uint32_t v1 = seed + PRIME32_1 + PRIME32_2;
+            uint32_t v2 = seed + PRIME32_2;
+            uint32_t v3 = seed + 0;
+            uint32_t v4 = seed - PRIME32_1;
+
+            const uint8_t * const bEnd = data + len;
+            const uint8_t * const limit = bEnd - 15;
+            do
+            {
+                v1 = XXH32_round(v1, *reinterpret_cast<const uint32_t *>(data));
+                data += 4;
+                v2 = XXH32_round(v2, *reinterpret_cast<const uint32_t *>(data));
+                data += 4;
+                v3 = XXH32_round(v3, *reinterpret_cast<const uint32_t *>(data));
+                data += 4;
+                v4 = XXH32_round(v4, *reinterpret_cast<const uint32_t *>(data));
+                data += 4;
+            } while (data < limit);
+            len &= 15;
+
+            hash = rotl32(v1, 1) + rotl32(v2, 7) + rotl32(v3, 12) + rotl32(v4, 18);
+        }
+        else
+        {
+            hash = seed + PRIME32_5;
+        }
+        hash += static_cast<uint32_t>(len);
+
+        while (len >= 4)
+        {
+            hash += *reinterpret_cast<const uint32_t *>(data) * PRIME32_3;
+            data += 4;
+            hash = rotl32(hash, 17) * PRIME32_4;
+            len -= 4;
+        }
+        while (len > 0)
+        {
+            hash += *data * PRIME32_5;
+            data += 1;
+            hash = rotl32(hash, 11) * PRIME32_1;
+            --len;
+        }
+
+        hash ^= hash >> 15;
+        hash *= PRIME32_2;
+        hash ^= hash >> 13;
+        hash *= PRIME32_3;
+        hash ^= hash >> 16;
+        return hash;
+    }
+
     uint32_t MurmurHash3(const void * key, int32_t len, uint32_t seed) noexcept
     {
         // Define some internal constants
@@ -238,7 +314,6 @@ namespace jiminy
         h1 ^= h1 >> 13;
         h1 *= 0xc2b2ae35;
         h1 ^= h1 >> 16;
-
         return h1;
     }
 
@@ -403,8 +478,8 @@ namespace jiminy
         values_.noalias() += scale * cosMat_ * normalVec2;
 
         const auto diff =
-            2 * M_PI / period_ * Eigen::VectorXd::LinSpaced(
-                numHarmonics_, 1, static_cast<double>(numHarmonics_));
+            2 * M_PI / period_ *
+            Eigen::VectorXd::LinSpaced(numHarmonics_, 1, static_cast<double>(numHarmonics_));
         grads_ = scale * cosMat_ * normalVec1.cwiseProduct(diff);
         grads_.noalias() -= scale * sinMat_ * normalVec2.cwiseProduct(diff);
     }
@@ -416,7 +491,7 @@ namespace jiminy
         const MatrixX<Scalar> & state, int64_t sparsity, uint32_t seed) noexcept
     {
         const auto numBytes = static_cast<int32_t>(sizeof(Scalar) * state.size());
-        const uint32_t hash = MurmurHash3(state.data(), numBytes, seed);
+        const uint32_t hash = xxHash(state.data(), numBytes, seed);
         if (hash % sparsity == 0)
         {
             return static_cast<float>(hash) /
@@ -503,7 +578,7 @@ namespace jiminy
         return [size, heightMax, interpDelta, rotMat, sparsity, interpThr, offset, seed](
                    const Eigen::Vector2d & pos,
                    double & height,
-                   Eigen::Ref<Eigen::Vector3d> normal) -> void
+                   std::optional<Eigen::Ref<Eigen::Vector3d>> normal) -> void
         {
             // Compute the tile index and relative coordinate
             Eigen::Vector2d posRel = (rotMat * (pos + offset)).array() / size.array();
@@ -519,7 +594,10 @@ namespace jiminy
                 std::tie(height, dheight_x) = tile2dInterp1d(
                     posIndices, posRel, 0, size, sparsity, heightMax, interpThr, seed);
                 const double norm_inv = 1.0 / std::sqrt(dheight_x * dheight_x + 1.0);
-                normal << -dheight_x * norm_inv, 0.0, norm_inv;
+                if (normal.has_value())
+                {
+                    normal.value() << -dheight_x * norm_inv, 0.0, norm_inv;
+                }
             }
             else if (!is_edge[0] && is_edge[1])
             {
@@ -527,7 +605,10 @@ namespace jiminy
                 std::tie(height, dheight_y) = tile2dInterp1d(
                     posIndices, posRel, 1, size, sparsity, heightMax, interpThr, seed);
                 const double norm_inv = 1.0 / std::sqrt(dheight_y * dheight_y + 1.0);
-                normal << 0.0, -dheight_y * norm_inv, norm_inv;
+                if (normal.has_value())
+                {
+                    normal.value() << 0.0, -dheight_y * norm_inv, norm_inv;
+                }
             }
             else if (is_edge[0] && is_edge[1])
             {
@@ -544,8 +625,11 @@ namespace jiminy
                     const double dheight_x = dheight_x_0 + (dheight_x_m - dheight_x_0) * ratio;
                     const double dheight_y =
                         (height_0 - height_m) / (2.0 * size[1] * interpThr[1]);
-                    normal << -dheight_x, -dheight_y, 1.0;
-                    normal.normalize();
+                    if (normal.has_value())
+                    {
+                        normal.value() << -dheight_x, -dheight_y, 1.0;
+                        normal->normalize();
+                    }
                 }
                 else
                 {
@@ -558,14 +642,20 @@ namespace jiminy
                     const double dheight_x = dheight_x_0 + (dheight_x_p - dheight_x_0) * ratio;
                     const double dheight_y =
                         (height_p - height_0) / (2.0 * size[1] * interpThr[1]);
-                    normal << -dheight_x, -dheight_y, 1.0;
-                    normal.normalize();
+                    if (normal.has_value())
+                    {
+                        normal.value() << -dheight_x, -dheight_y, 1.0;
+                        normal->normalize();
+                    }
                 }
             }
             else
             {
                 height = heightMax * uniformSparseFromState(posIndices, sparsity, seed);
-                normal = Eigen::Vector3d::UnitZ();
+                if (normal.has_value())
+                {
+                    normal.value() = Eigen::Vector3d::UnitZ();
+                }
             }
         };
     }

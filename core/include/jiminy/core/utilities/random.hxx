@@ -204,7 +204,7 @@ namespace jiminy
 
     static inline double derivativeFade(double delta) noexcept
     {
-        return 30 * delta * delta * (delta * (delta - 2.0) + 1.0);
+        return 30.0 * delta * delta * (delta * (delta - 2.0) + 1.0);
     }
 
     template<typename T1, typename T2>
@@ -419,7 +419,7 @@ namespace jiminy
         constexpr float fHashMax = static_cast<float>(std::numeric_limits<uint32_t>::max());
 
         // Compute knot hash
-        uint32_t hash = MurmurHash3(knot.data(), static_cast<int32_t>(sizeof(int32_t) * N), seed_);
+        uint32_t hash = xxHash(knot.data(), static_cast<int32_t>(sizeof(int32_t) * N), seed_);
 
         /* Generate random gradient uniformly distributed on n-ball.
            For technical reference, see:
@@ -437,17 +437,17 @@ namespace jiminy
         {
             // Sample random vector on a 2-ball (disk) using
             // const double theta = 2 * M_PI * static_cast<float>(hash) / fHashMax;
-            // hash = MurmurHash3(&hash, sizeof(uint32_t), seed_);
+            // hash = xxHash(&hash, sizeof(uint32_t), seed_);
             // const float radius = std::sqrt(static_cast<float>(hash) / fHashMax);
             // return VectorN<double>{radius * std::cos(theta), radius * std::sin(theta)};
 
             /* The rejection method is much fast in 2d because it does not involve complex math
                (sqrt, sincos) and the acceptance rate is high (~78%) compared to the cost of
-               sampling random numbers using `MurmurHash3`. */
+               sampling random numbers using `xxHash`. */
             while (true)
             {
                 const float x = 2 * static_cast<float>(hash) / fHashMax - 1.0F;
-                hash = MurmurHash3(&hash, sizeof(uint32_t), seed_);
+                hash = xxHash(&hash, sizeof(uint32_t), seed_);
                 const float y = 2 * static_cast<float>(hash) / fHashMax - 1.0F;
                 if (x * x + y * y <= 1.0F)
                 {
@@ -463,9 +463,9 @@ namespace jiminy
             {
                 // Generate 2 uniformly distributed random variables
                 const float u1 = static_cast<float>(hash) / fHashMax;
-                hash = MurmurHash3(&hash, sizeof(uint32_t), seed_);
+                hash = xxHash(&hash, sizeof(uint32_t), seed_);
                 const float u2 = static_cast<float>(hash) / fHashMax;
-                hash = MurmurHash3(&hash, sizeof(uint32_t), seed_);
+                hash = xxHash(&hash, sizeof(uint32_t), seed_);
 
                 // Apply Box-Mueller algorithm to deduce 2 normally distributed random variables
                 const double theta = 2 * M_PI * u2;

@@ -41,8 +41,7 @@ namespace jiminy::python
         // Loop over all query points sequentially
         for (Eigen::Index i = 0; i < positions.cols(); ++i)
         {
-            Eigen::Vector3d normal;
-            heightmap(positions.col(i), heights[i], normal);
+            heightmap(positions.col(i), heights[i], std::nullopt);
         }
     }
 

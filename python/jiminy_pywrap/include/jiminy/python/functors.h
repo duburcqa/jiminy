@@ -220,18 +220,25 @@ namespace jiminy::python
         {
         }
 
-        void operator()(
-            const Eigen::Vector2d & posFrame, double & height, Eigen::Ref<Eigen::Vector3d> normal)
+        void operator()(const Eigen::Vector2d & posFrame,
+                        double & height,
+                        std::optional<Eigen::Ref<Eigen::Vector3d>> normal)
         {
             switch (heightmapType_)
             {
             case HeightmapType::CONSTANT:
                 height = bp::extract<double>(handlePyPtr_);
-                normal = Eigen::Vector3d::UnitZ();
+                if (normal.has_value())
+                {
+                    normal.value() = Eigen::Vector3d::UnitZ();
+                }
                 break;
             case HeightmapType::STAIRS:
                 handlePyPtr_(posFrame, convertToPython(height, false));
-                normal = Eigen::Vector3d::UnitZ();
+                if (normal.has_value())
+                {
+                    normal.value() = Eigen::Vector3d::UnitZ();
+                }
                 break;
             case HeightmapType::GENERIC:
             default:

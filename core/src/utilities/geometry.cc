@@ -623,8 +623,7 @@ namespace jiminy
         for (Eigen::Index i = 0; i < vertices.rows(); ++i)
         {
             auto vertex = vertices.row(i);
-            Eigen::Vector3d normal;
-            heightmap(vertex.head<2>(), vertex[2], normal);
+            heightmap(vertex.head<2>(), vertex[2], std::nullopt);
         }
 
         // Check if the heightmap is flat
@@ -694,62 +693,103 @@ namespace jiminy
 
     HeightmapFunction sumHeightmaps(const std::vector<HeightmapFunction> & heightmaps)
     {
+        // Make sure that at least one heightmap has been specified
+        if (heightmaps.empty())
+        {
+            JIMINY_THROW(bad_control_flow, "At least one heightmap must be specified.");
+        }
+
+        // Early return if a single heightmap has been specified. Nothing to do.
         if (heightmaps.size() == 1)
         {
             return heightmaps[0];
         }
+
         return [heightmaps](const Eigen::Vector2d & pos,
                             double & height,
-                            Eigen::Ref<Eigen::Vector3d> normal) -> void
+                            std::optional<Eigen::Ref<Eigen::Vector3d>> normal) -> void
         {
-            thread_local static double height_i;
-            thread_local static Eigen::Vector3d normal_i;
-
             height = 0.0;
-            normal.setZero();
-            for (const HeightmapFunction & heightmap : heightmaps)
+            if (normal.has_value())
             {
-                heightmap(pos, height_i, normal_i);
-                height += height_i;
-                normal += normal_i;
+                normal->setZero();
+                for (const HeightmapFunction & heightmap : heightmaps)
+                {
+                    double height_i;
+                    Eigen::Vector3d normal_i;
+                    heightmap(pos, height_i, normal_i);
+                    height += height_i;
+                    normal.value() += normal_i;
+                }
+                normal->normalize();
             }
-            normal.normalize();
+            else
+            {
+                for (const HeightmapFunction & heightmap : heightmaps)
+                {
+                    double height_i;
+                    heightmap(pos, height_i, std::nullopt);
+                    height += height_i;
+                }
+            }
         };
     }
 
     HeightmapFunction mergeHeightmaps(const std::vector<HeightmapFunction> & heightmaps)
     {
+        // Make sure that at least one heightmap has been specified
+        if (heightmaps.empty())
+        {
+            JIMINY_THROW(bad_control_flow, "At least one heightmap must be specified.");
+        }
+
+        // Early return if a single heightmap has been specified. Nothing to do.
         if (heightmaps.size() == 1)
         {
             return heightmaps[0];
         }
+
         return [heightmaps](const Eigen::Vector2d & pos,
                             double & height,
-                            Eigen::Ref<Eigen::Vector3d> normal) -> void
+                            std::optional<Eigen::Ref<Eigen::Vector3d>> normal) -> void
         {
-            thread_local static double height_i;
-            thread_local static Eigen::Vector3d normal_i;
-
             height = -INF;
-            bool is_dirty = false;
-            for (const HeightmapFunction & heightmap : heightmaps)
+            if (normal.has_value())
             {
-                heightmap(pos, height_i, normal_i);
-                if (std::abs(height_i - height) < EPS)
+                bool is_dirty = false;
+                for (const HeightmapFunction & heightmap : heightmaps)
                 {
-                    normal += normal_i;
-                    is_dirty = true;
+                    double height_i;
+                    Eigen::Vector3d normal_i;
+                    heightmap(pos, height_i, normal_i);
+                    if (std::abs(height_i - height) < EPS)
+                    {
+                        normal.value() += normal_i;
+                        is_dirty = true;
+                    }
+                    else if (height_i > height)
+                    {
+                        height = height_i;
+                        normal.value() = normal_i;
+                        is_dirty = false;
+                    }
                 }
-                else if (height_i > height)
+                if (is_dirty)
                 {
-                    height = height_i;
-                    normal = normal_i;
-                    is_dirty = false;
+                    normal->normalize();
                 }
             }
-            if (is_dirty)
+            else
             {
-                normal.normalize();
+                for (const HeightmapFunction & heightmap : heightmaps)
+                {
+                    double height_i;
+                    heightmap(pos, height_i, std::nullopt);
+                    if (height_i > height)
+                    {
+                        height = height_i;
+                    }
+                }
             }
         };
     }
@@ -765,14 +805,14 @@ namespace jiminy
         return [stepWidth, stepHeight, stepNumber, axis, interpDelta](
                    const Eigen::Vector2d & pos,
                    double & height,
-                   Eigen::Ref<Eigen::Vector3d> normal) -> void
+                   std::optional<Eigen::Ref<Eigen::Vector3d>> normal) -> void
         {
             // Compute position in stairs reference frame
             // Eigen::Vector2d posRel = rotMat.inverse() * pos;
             const double posRel = axis.dot(pos);
             const double modPos = std::fmod(std::abs(posRel), stepWidth * stepNumber * 2);
 
-            // Compute the default height and normal
+            // Compute the default height
             uint32_t stairIndex = static_cast<uint32_t>(modPos / stepWidth);
             int8_t staircaseSlopeSign = 1;
             if (stairIndex >= stepNumber)
@@ -781,27 +821,35 @@ namespace jiminy
                 staircaseSlopeSign = -1;
             }
             height = stairIndex * stepHeight;
-            normal = Eigen::Vector3d::UnitZ();
 
             // Avoid unsupported vertical edge
             const double posRelOnStep =
                 std::fmod(modPos + std::numeric_limits<float>::epsilon(), stepWidth) / stepWidth;
             if (1.0 - posRelOnStep < interpDelta)
             {
+                // Compute the slope of the vertical edge of the stair
                 const double slope = staircaseSlopeSign * stepHeight / interpDelta;
+
                 // Update height
                 height += slope * (posRelOnStep - (1.0 - interpDelta));
 
-                // Compute the inverse of the normal's Euclidean norm
-                const double normInv = 1.0 / std::sqrt(1.0 + std::pow(slope, 2));
+                if (normal.has_value())
+                {
+                    // Compute the inverse of the normal's Euclidean norm
+                    const double normInv = 1.0 / std::sqrt(1.0 + std::pow(slope, 2));
 
-                // Update normal vector
-                // step 1. compute normal in stairs reference frame:
-                // normal << -slope * normInv, 0.0, normInv;
-                // step 2. Rotate normal vector in world plane reference frame:
-                // normal.head<2>() = rotMat * normal.head<2>();
-                // Or simply in a single operation:
-                normal << -slope * normInv * axis, normInv;
+                    // Update normal vector
+                    // step 1. compute normal in stairs reference frame:
+                    // normal << -slope * normInv, 0.0, normInv;
+                    // step 2. Rotate normal vector in world plane reference frame:
+                    // normal.head<2>() = rotMat * normal.head<2>();
+                    // Or simply in a single operation:
+                    normal.value() << -slope * normInv * axis, normInv;
+                }
+            }
+            else if (normal.has_value())
+            {
+                normal.value() = Eigen::Vector3d::UnitZ();
             }
         };
     }
@@ -813,9 +861,10 @@ namespace jiminy
         // Define the projection axis
         const Eigen::Vector2d axis{std::cos(orientation), std::sin(orientation)};
 
-        auto tmp = [fun = std::move(fun), axis](const Eigen::Vector2d & pos,
-                                                double & height,
-                                                Eigen::Ref<Eigen::Vector3d> normal) mutable
+        return
+            [fun = std::move(fun), axis](const Eigen::Vector2d & pos,
+                                         double & height,
+                                         std::optional<Eigen::Ref<Eigen::Vector3d>> normal) mutable
         {
             // Compute the position along axis
             const Vector1<double> posAxis = Vector1<double>{axis.dot(pos)};
@@ -823,16 +872,18 @@ namespace jiminy
             // Compute the height
             height = fun(posAxis);
 
-            // Compute the gradient of the Perlin Proces
-            const double slope = fun.grad(posAxis)[0];
+            if (normal.has_value())
+            {
+                // Compute the gradient of the Perlin Proces
+                const double slope = fun.grad(posAxis)[0];
 
-            // Compute the inverse of the normal's Euclidean norm
-            const double normInv = 1.0 / std::sqrt(1.0 + std::pow(slope, 2));
+                // Compute the inverse of the normal's Euclidean norm
+                const double normInv = 1.0 / std::sqrt(1.0 + std::pow(slope, 2));
 
-            // Update normal vector
-            normal << -slope * normInv * axis, normInv;
+                // Update normal vector
+                normal.value() << -slope * normInv * axis, normInv;
+            }
         };
-        return tmp;
     }
 
     template<template<unsigned int> class AnyPerlinProcess>
@@ -840,19 +891,22 @@ namespace jiminy
     {
         return [fun = std::move(fun)](const Eigen::Vector2d & pos,
                                       double & height,
-                                      Eigen::Ref<Eigen::Vector3d> normal) mutable
+                                      std::optional<Eigen::Ref<Eigen::Vector3d>> normal) mutable
         {
             // Compute the height
             height = fun(pos);
 
-            // Compute the gradient of the Perlin Proces
-            const auto grad = fun.grad(pos);
+            if (normal.has_value())
+            {
+                // Compute the gradient of the Perlin Proces
+                const auto grad = fun.grad(pos);
 
-            // Compute the inverse of the normal's Euclidean norm
-            const double normInv = 1.0 / grad.norm();
+                // Compute the inverse of the normal's Euclidean norm
+                const double normInv = 1.0 / grad.norm();
 
-            // Update normal vector
-            normal << -normInv * grad.template head<2>(), normInv;
+                // Update normal vector
+                normal.value() << -normInv * grad.template head<2>(), normInv;
+            }
         };
     }
 

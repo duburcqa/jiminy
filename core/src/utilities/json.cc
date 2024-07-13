@@ -147,10 +147,13 @@ namespace jiminy
     {
         return {[](const Eigen::Vector2d & /* xy */,
                    double & height,
-                   Eigen::Ref<Eigen::Vector3d> normal) -> void
+                   std::optional<Eigen::Ref<Eigen::Vector3d>> normal) -> void
                 {
                     height = 0.0;
-                    normal = Eigen::Vector3d::UnitZ();
+                    if (normal.has_value())
+                    {
+                        normal.value() = Eigen::Vector3d::UnitZ();
+                    }
                 }};
     }
 
