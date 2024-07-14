@@ -902,7 +902,7 @@ namespace jiminy
                 const auto grad = fun.grad(pos);
 
                 // Compute the inverse of the normal's Euclidean norm
-                const double normInv = 1.0 / grad.norm();
+                const double normInv = 1.0 / std::sqrt(1.0 + grad.squaredNorm());
 
                 // Update normal vector
                 normal.value() << -normInv * grad.template head<2>(), normInv;
