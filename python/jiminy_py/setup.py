@@ -136,7 +136,7 @@ setup(
             "meshcat>=0.3.2",
             # Used to detect running Meshcat servers and avoid orphan child
             # processes.
-            "psutil",
+            "psutil>=6.0",
             # Low-level backend for Ipython powering Jupyter notebooks
             "ipykernel>=5.0,<7.0",
             # Used internally by Viewer to read/write Meshcat snapshots

@@ -34,8 +34,8 @@ from direct.showbase.ShowBase import ShowBase
 from direct.gui.OnscreenImage import OnscreenImage
 from direct.gui.OnscreenText import OnscreenText
 from panda3d.core import (  # pylint: disable=no-name-in-module
-    NodePath, Point3, Vec3, Vec4, Mat4, Quat, LQuaternion, Geom, GeomEnums,
-    GeomNode, GeomTriangles, GeomVertexData, GeomVertexArrayFormat,
+    NodePath, PandaNode, Point3, Vec3, Vec4, Mat4, Quat, Geom, GeomEnums,
+    GeomNode, GeomTriangles, GeomVertexData, GeomVertexArrayFormat, BitMask32,
     GeomVertexFormat, GeomVertexWriter, PNMImage, PNMImageHeader, TextNode,
     OmniBoundingVolume, CompassEffect, BillboardEffect, InternalName, Filename,
     Material, Texture, TextureStage, TransparencyAttrib, PGTop, Camera, Lens,
@@ -58,7 +58,7 @@ from ..geometry import extract_vertices_and_faces_from_geometry
 
 
 WINDOW_SIZE_DEFAULT = (600, 600)
-CAMERA_POS_DEFAULT = [(4.0, -4.0, 1.5), (0, 0, 0.5)]
+CAMERA_POSE_DEFAULT = [(4.0, -4.0, 1.5), (0, 0, 0.5)]
 
 SKY_TOP_COLOR = (0.53, 0.8, 0.98, 1.0)
 SKY_BOTTOM_COLOR = (0.1, 0.1, 0.43, 1.0)
@@ -366,9 +366,39 @@ def make_torus(minor_radius: float = 0.2, num_segments: int = 16) -> Geom:
     return geom
 
 
+def enable_pbr_shader(node: NodePath) -> None:
+    """Create physics-based shader.
+
+    .. note::
+        Lighting must be adapted accordingly to give the desired effect.
+
+    .. warning::
+        It slows down the rendering by about 30% on discrete NVIDIA GPU.
+
+    :param node: Root node on which to apply shader, usually the camera itself.
+    """
+    tempnode = NodePath(PandaNode("temp node"))
+    shader_options = {'ENABLE_SHADOWS': True}
+    pbr_shader = simplepbr.shaderutils.make_shader(
+        'pbr', 'simplepbr.vert', 'simplepbr.frag', shader_options)
+    tempnode.set_attrib(ShaderAttrib.make(pbr_shader))
+    env_map = simplepbr.EnvMap.create_empty()
+    tempnode.set_shader_input(
+        'filtered_env_map', env_map.filtered_env_map)
+    tempnode.set_shader_input(
+        'max_reflection_lod',
+        env_map.filtered_env_map.num_loadable_ram_mipmap_images)
+    tempnode.set_shader_input('sh_coeffs', env_map.sh_coefficients)
+    node.set_initial_state(tempnode.get_state())
+
+
 class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
     """A Panda3D based application.
     """
+    UserRGBCameraMask = BitMask32(1 << 1)  # 0x2
+    UserDepthCameraMask = BitMask32(1 << 2)  # 0x4
+    UserCameraMask = UserRGBCameraMask | UserDepthCameraMask
+
     def __init__(self,  # pylint: disable=super-init-not-called
                  config: Optional[ViewerConfig] = None) -> None:
         # Enforce viewer configuration
@@ -376,7 +406,8 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
             config = ViewerConfig()
         config.set_window_size(*WINDOW_SIZE_DEFAULT)
         config.set_window_fixed(False)
-        config.enable_antialiasing(True, multisamples=4)
+        config.enable_antialiasing(False, multisamples=0)
+        # config.set_value('want-pstats', True)
         config.set_value('framebuffer-software', False)
         config.set_value('framebuffer-hardware', False)
         config.set_value('load-display', 'pandagl')
@@ -388,13 +419,14 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         config.set_value('sync-video', False)
         config.set_value('default-near', 0.1)
         config.set_value('gl-version', '3 1')
+        # config.set_value('gl-check-errors', '#t')
         config.set_value('notify-level', 'fatal')
         config.set_value('notify-level-x11display', 'fatal')
         config.set_value('notify-level-device', 'fatal')
         config.set_value('default-directnotify-level', 'error')
         loadPrcFileData('', str(config))
 
-        # Define offscreen buffer
+        # Offscreen buffer
         self.buff: Optional[GraphicsOutput] = None
 
         # Initialize base implementation.
@@ -429,28 +461,16 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self._spotlight = self.config.GetBool('enable-spotlight', False)
         self._lights_mask = [True, True]
 
-        # Create physics-based shader and adapt lighting accordingly.
-        # It slows down the rendering by about 30% on discrete NVIDIA GPU.
-        shader_options = {'ENABLE_SHADOWS': True}
-        pbr_shader = simplepbr.shaderutils.make_shader(
-            'pbr', 'simplepbr.vert', 'simplepbr.frag', shader_options)
-        self.render.set_attrib(ShaderAttrib.make(pbr_shader))
-        env_map = simplepbr.EnvMap.create_empty()
-        self.render.set_shader_input(
-            'filtered_env_map', env_map.filtered_env_map)
-        self.render.set_shader_input(
-            'max_reflection_lod',
-            env_map.filtered_env_map.num_loadable_ram_mipmap_images)
-        self.render.set_shader_input('sh_coeffs', env_map.sh_coefficients)
+        # Adapt lighting to accomodate physics-based rendering.
         self._lights = [
             self._make_light_ambient((0.5, 0.5, 0.5)),
             self._make_light_direct(1, (1.0, 1.0, 1.0), pos=(8.0, -8.0, 10.0))]
 
-        # Define default camera pos
-        self._camera_defaults = CAMERA_POS_DEFAULT
+        # Current camera pose
+        self._camera_defaults = CAMERA_POSE_DEFAULT
         self.reset_camera(*self._camera_defaults)
 
-        # Define clock. It will be used later to limit framerate
+        # Custom clock. It will be used later to limit framerate
         self.clock = ClockObject.get_global_clock()
         self.framerate: Optional[float] = None
 
@@ -469,9 +489,9 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         # Create gradient for skybox
         self.skybox = make_gradient_skybox(
             SKY_TOP_COLOR, SKY_BOTTOM_COLOR, 0.35, 0.17)
-        self.skybox.set_shader_auto(True)
+        self.skybox.set_shader_auto()
         self.skybox.set_light_off()
-        self.skybox.hide(self.LightMask)
+        self.skybox.hide(self.LightMask | self.UserDepthCameraMask)
 
         # The background needs to be parented to an intermediary node to which
         # a compass effect is applied to keep it at the same position as the
@@ -522,7 +542,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self.offA2dBottomCenter.set_pos(0, 0, self.a2dBottom)
         self.offA2dBottomRight.set_pos(self.a2dRight, 0, self.a2dBottom)
 
-        # Define widget overlay
+        # Widget overlay
         self.offscreen_graphics_lens: Optional[Lens] = None
         self.offscreen_display_region: Optional[DisplayRegion] = None
         self._help_label = None
@@ -530,10 +550,14 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self._legend: Optional[OnscreenImage] = None
         self._clock: Optional[OnscreenText] = None
 
-        # Define input control
+        # Custom user-specified cameras
+        self._user_buffers: Dict[str, NodePath] = {}
+        self._user_cameras: Dict[str, NodePath] = {}
+
+        # Input control
         self.key_map = {"mouse1": 0, "mouse2": 0, "mouse3": 0}
 
-        # Define camera control
+        # Camera control
         self.zoom_rate = 1.03
         self.camera_lookat = np.zeros(3)
         self.longitude_deg = 0.0
@@ -541,12 +565,16 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self.last_mouse_x = 0.0
         self.last_mouse_y = 0.0
 
-        # Define object/highlighting selector
+        # Object/highlighting selector
         self.picker_ray: Optional[CollisionRay] = None
         self.picker_node: Optional[CollisionNode] = None
         self.picked_object: Optional[Tuple[str, str]] = None
         self.click_mouse_x = 0.0
         self.click_mouse_y = 0.0
+
+        # Make the original window inactive without deleting it.
+        # It must be kept in order to maintain alive the same graphics context.
+        self.win.set_active(False)
 
         # Create resizeable offscreen buffer.
         # Note that a resizable buffer is systematically created, no matter
@@ -580,16 +608,23 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         if self.has_gui():
             raise RuntimeError("Only one graphical window can be opened.")
 
+        # Force enabling multi-sampling for onscreen graphical window
+        fbprops = FrameBufferProperties(FrameBufferProperties.getDefault())
+        fbprops.set_multisamples(4)
+
         # Replace the original offscreen window by an onscreen one if possible
         is_success = True
         size = self.win.get_size()
         try:
             self.windowType = 'onscreen'
-            self.open_main_window(size=size)
+            self.open_main_window(size=size, fbprops=fbprops)
         except Exception:   # pylint: disable=broad-except
             is_success = False
             self.windowType = 'offscreen'
-            self.open_main_window(size=size)
+            self.open_main_window(size=size, fbprops=fbprops)
+
+        # Enable Physics-based rendering
+        enable_pbr_shader(self.cam.node())
 
         if is_success:
             # Setup mouse and keyboard controls for onscreen display
@@ -656,7 +691,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         fbprops.set_rgba_bits(8, 8, 8, 8)
         fbprops.set_float_color(False)
         fbprops.set_depth_bits(16)
-        fbprops.set_float_depth(True)
+        fbprops.set_float_depth(False)
         fbprops.set_multisamples(4)
 
         # Set offscreen buffer windows properties
@@ -674,22 +709,29 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
             self.pipe, "offscreen_buffer", 0, fbprops, winprops, flags,
             self.win.get_gsg(), self.win)
         if win is None:
-            raise RuntimeError("Faulty graphics pipeline of this machine.")
+            raise RuntimeError("Faulty graphics pipeline on this machine.")
         self.buff = win
+
+        # Disable automatic rendering of the buffer of efficiency
+        win.set_one_shot(True)
 
         # Append buffer to the list of windows managed by the ShowBase
         self.winList.append(win)
 
         # Attach a texture as screenshot requires copying GPU data to RAM
-        self.buff.add_render_texture(
-            Texture(), GraphicsOutput.RTM_triggered_copy_ram)
+        tex = Texture()
+        tex.set_format(Texture.F_rgb)
+        self.buff.add_render_texture(tex, GraphicsOutput.RTM_copy_ram)
 
         # Create 3D camera region for the scene.
         # Set near distance of camera lens to allow seeing model from close.
         self.offscreen_graphics_lens = PerspectiveLens()
         self.offscreen_graphics_lens.set_near(0.1)
-        self.make_camera(
+        cam = self.make_camera(
             win, camName='offscreen_camera', lens=self.offscreen_graphics_lens)
+
+        # Enable Physics-based rendering
+        enable_pbr_shader(cam.node())
 
         # Create 2D display region for widgets
         self.offscreen_display_region = win.makeMonoDisplayRegion()
@@ -741,6 +783,122 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         self.offA2dTopRight.set_pos(a2dRight, 0, a2dTop)
         self.offA2dBottomLeft.set_pos(a2dLeft, 0, a2dBottom)
         self.offA2dBottomRight.set_pos(a2dRight, 0, a2dBottom)
+
+    def add_camera(self,
+                   name: str,
+                   is_depthmap: bool,
+                   size: Tuple[int, int]) -> None:
+        """Add a RGB or depth camera to the scene.
+
+        The user is responsible for managing it, ie set its pose in world, get
+        screenshot from it, and remove it when no longer relevant. Manually
+        added cameras is mainly useful for simulating exteroceptive sensors.
+
+        :param name: Name of the camera to be added.
+        :param is_depthmap: Whether the camera output gathers 3 8-bits integers
+                            RGB channels or 1 32-bits floats depth channel.
+        :param size: Resolution (height and width) in pixel of the image being
+                     captured by the camera.
+        """
+        # TODO: Expose optional parameters to set lens type and properties.
+
+        # Make sure that no camera with the same name already exists
+        if name in self._user_cameras:
+            raise ValueError(
+                "A camera with the same name already exists. Please delete "
+                "it by calling `remove_camera` before adding a new one.")
+
+        # Create new offscreen buffer
+        fbprops = FrameBufferProperties()
+        if is_depthmap:
+            fbprops.set_depth_bits(32)
+            fbprops.set_float_depth(True)
+            fbprops.set_multisamples(0)
+        else:
+            fbprops.set_rgba_bits(8, 8, 8, 8)
+            fbprops.set_float_color(False)
+            fbprops.set_depth_bits(16)
+            fbprops.set_float_depth(False)
+            fbprops.set_multisamples(4)
+        winprops = WindowProperties()
+        winprops.set_size(*size)
+        flags = GraphicsPipe.BF_refuse_window
+        buffer = self.graphicsEngine.make_output(
+            self.pipe, f"user_buffer_{name}", 0, fbprops, winprops, flags,
+            self.win.get_gsg(), self.win)
+        if buffer is None:
+            raise RuntimeError("Faulty graphics pipeline on this machine.")
+        self._user_buffers[name] = buffer
+        self.winList.append(buffer)
+
+        # Disable automatic rendering of the buffer of efficiency
+        buffer.set_one_shot(True)
+
+        # Disable color buffer and enable depth buffer
+        if is_depthmap:
+            buffer.set_clear_color_active(False)
+            buffer.set_clear_depth_active(True)
+
+        # Attach a texture as screenshot requires copying GPU data to RAM
+        tex = Texture(f"user_texture_{name}")
+        if is_depthmap:
+            tex.set_format(Texture.F_depth_component)
+        else:
+            tex.set_format(Texture.F_rgb)
+        buffer.add_render_texture(tex, GraphicsOutput.RTM_copy_ram)
+
+        # Create 3D camera region for the scene.
+        # See official documentation about field of view parameterization:
+        # https://docs.panda3d.org/1.10/python/programming/camera-control/perspective-lenses   # noqa: E501  # pylint: disable=line-too-long
+        lens = PerspectiveLens()
+        if is_depthmap:
+            lens.set_fov(50.0)   # field of view angle [0, 180], 40° by default
+            lens.set_near(0.02)  # near distance (objects closer not rendered)
+            lens.set_far(6.0)    # far distance (objects farther not rendered)
+            # lens.set_film_size(24, 36)
+            # lens.set_focal_length(50)  # Setting this will overwrite fov
+        else:
+            lens.set_near(0.1)
+        lens.set_aspect_ratio(self.get_aspect_ratio(buffer))
+        if is_depthmap:
+            mask = self.UserDepthCameraMask
+        else:
+            mask = self.UserRGBCameraMask
+        cam = self.make_camera(
+            buffer, camName=f"user_camera_{name}", lens=lens, mask=mask)
+        cam.reparent_to(self.render)
+        self._user_cameras[name] = cam
+
+        # Disable shader for depth map since it irrelevant
+        if is_depthmap:
+            tempnode = NodePath(PandaNode("temp node"))
+            tempnode.set_material_off(2)
+            tempnode.set_texture_off(2)
+            tempnode.set_light_off(2)
+            tempnode.set_shader_off(2)
+            cam.node().set_initial_state(tempnode.get_state())
+        else:
+            # Enable Physics-based rendering
+            enable_pbr_shader(cam.node())
+
+        # Force rendering the scene to finalize initialization of the GSG
+        self.graphics_engine.render_frame()
+
+        # Flipped buffer upside-down
+        buffer.inverted = True
+
+    def remove_camera(self, name: str) -> None:
+        """Remove one of the cameras being managed by the user, which has been
+        added manually via `add_camera`.
+
+        :param name: Name of the camera to remove.
+        """
+        # Make sure that the camera exists before trying to delete it
+        if name not in self._user_cameras:
+            raise ValueError(f"No camera with name '{name}' was found.")
+        self.close_window(self._user_buffers[name], keepCamera=False)
+        del self._user_cameras[name]
+        del self._user_buffers[name]
 
     def getSize(self, win: Optional[Any] = None) -> Tuple[int, int]:
         """Patched to return the size of the window used for capturing frame by
@@ -896,9 +1054,9 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
     def _make_light_ambient(self, color: Tuple3FType) -> NodePath:
         """Patched to fix wrong color alpha.
         """
-        node = super()._make_light_ambient(color)
-        node.get_node(0).set_color((*color, 1.0))
-        return node
+        light = super()._make_light_ambient(color)
+        light.node().set_color((*color, 1.0))
+        return light
 
     def _make_light_direct(self,
                            index: int,
@@ -908,9 +1066,9 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                            ) -> NodePath:
         """Patched to fix wrong color alpha.
         """
-        light_path = super()._make_light_direct(index, color, pos, target)
-        light_path.get_node(0).set_color((*color, 1.0))
-        return light_path
+        light = super()._make_light_direct(index, color, pos, target)
+        light.node().set_color((*color, 1.0))
+        return light
 
     def _make_axes(self) -> NodePath:
         model = GeomNode('axes')
@@ -920,9 +1078,10 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         if self.win.gsg.driver_vendor.startswith('NVIDIA'):
             node.set_render_mode_thickness(4)
         node.set_antialias(AntialiasAttrib.MLine)
-        node.set_shader_auto(True)
+        node.set_shader_auto()
         node.set_light_off()
-        node.hide(self.LightMask)
+        node.hide(self.LightMask | self.UserCameraMask)
+        node.set_tag("is_virtual", "1")
         node.set_scale(0.3)
         return node
 
@@ -962,7 +1121,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         # Set material to render shadows if supported
         material = Material()
         material.set_base_color((1.35, 1.35, 1.35, 1.0))
-        node.set_material(material, True)
+        node.set_material(material)
 
         # Disable light casting
         node.hide(self.LightMask)
@@ -970,7 +1129,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         # Adjust frustum of the lights to project shadow over the whole scene
         for light_path in self._lights[1:]:
             bmin, bmax = node.get_tight_bounds(light_path)
-            lens = light_path.get_node(0).get_lens()
+            lens = light_path.node().get_lens()
             lens.set_film_offset((bmin.xz + bmax.xz) * 0.5)
             lens.set_film_size(bmax.xz - bmin.xz)
             lens.set_near_far(bmin.y, bmax.y)
@@ -1071,9 +1230,10 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         if self.win.gsg.driver_vendor.startswith('NVIDIA'):
             node.set_render_mode_thickness(4)
         node.set_antialias(AntialiasAttrib.MLine)
-        node.set_shader_auto(True)
+        node.set_shader_auto()
         node.set_light_off()
-        node.hide(self.LightMask)
+        node.hide(self.LightMask | self.UserCameraMask)
+        node.set_tag("is_virtual", "1")
         self.append_node(root_path, name, node, frame)
 
     def append_cone(self,
@@ -1156,6 +1316,10 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         body_node.set_scale(1.0, 1.0, length)
         body_node.set_pos(0.0, 0.0, (-0.5 if anchor_top else 0.5) * length)
         arrow_node.set_scale(radius, radius, 1.0)
+
+        arrow_node.hide(self.LightMask | self.UserCameraMask)
+        arrow_node.set_tag("is_virtual", "1")
+
         self.append_node(root_path, name, arrow_node, frame)
 
     def append_mesh(self,
@@ -1498,7 +1662,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                 material.set_diffuse(Vec4(*color))
                 material.set_specular(Vec3(1, 1, 1))
                 material.set_roughness(0.4)
-                node.set_material(material, True)
+                node.set_material(material)
 
                 if color[3] < 1.0:
                     node.set_transparency(TransparencyAttrib.M_alpha)
@@ -1573,10 +1737,14 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                 node.set_tag("status", "hidden")
                 node.hide()
             if always_foreground is not None:
+                # FIXME: Properly restore original mask if any
                 if always_foreground:
                     node.set_bin("fixed", 0)
+                    node.hide(self.UserCameraMask)
                 else:
                     node.clear_bin()
+                    if node.get_tag("is_virtual") != "1":
+                        node.show(self.UserCameraMask)
                 node.set_depth_test(not always_foreground)
                 node.set_depth_write(not always_foreground)
 
@@ -1587,27 +1755,40 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                   representation of the orientation (X, Y, Z, W) as a
                   pair of `np.ndarray`.
         """
-        return (np.array(self.camera.get_pos()),
-                np.array(self.camera.get_quat()))
+        return (np.array(self.camera.get_pos(), dtype=np.float64),
+                np.array(self.camera.get_quat(), dtype=np.float64))
 
     def set_camera_transform(self,
                              pos: Tuple3FType,
                              quat: np.ndarray,
-                             lookat: Tuple3FType = (0.0, 0.0, 0.0)) -> None:
+                             camera_name: Optional[str] = None) -> None:
         """Set the current absolute pose of the camera.
 
         :param pos: Desired position of the camera.
         :param quat: Desired orientation of the camera as a quaternion
                      (X, Y, Z, W).
-        :param lookat: Point at which the camera is looking at. It is partially
-                       redundant with the desired orientation and will take
-                       precedence in case of inconsistency. It is also involved
-                       in zoom control.
+        :param camera_name: Name of the camera to consider. Whether one of the
+                            cameras that were manually added by the user via
+                            `add_camera`, or None to specify the one associated
+                            with the main window. If the main window is an
+                            onscreen graphical window, then the camera of its
+                            accompanying offscreen buffer for screenshots will
+                            be jointly moved since they are attached together.
+                            Optional: None by default.
         """
-        self.camera.set_pos(*pos)
-        self.camera.set_quat(LQuaternion(quat[-1], *quat[:-1]))
-        self.camera_lookat = np.array(lookat)
-        self.move_orbital_camera_task()
+        # Pick the right camera
+        if camera_name is None:
+            camera = self.camera
+        else:
+            camera = self._user_cameras[camera_name]
+
+        # Move the camera
+        camera.set_pos_quat(Vec3(*pos), Quat(quat[-1], *quat[:-1]))
+
+        # Reset orbital camera control
+        if camera_name is None:
+            self.camera_lookat = np.array([0.0, 0.0, 0.0])
+            self.move_orbital_camera_task()
 
     def get_camera_lookat(self) -> np.ndarray:
         """Get the location of the point toward which the camera is looking at.
@@ -1673,7 +1854,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         # Refresh the scene to make sure it is perfectly up-to-date.
         # It will take into account the updated position of the camera.
         assert self.buff is not None
-        self.buff.trigger_copy()
+        self.buff.set_one_shot(True)
         self.graphics_engine.render_frame()
 
         # Capture frame as image
@@ -1695,9 +1876,9 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
 
         return True
 
-    def get_screenshot(self,
-                       requested_format: str = 'RGB',
-                       raw: bool = False) -> Union[np.ndarray, bytes]:
+    def get_screenshot(self,  # pylint: disable=arguments-renamed
+                       camera_name: Optional[str] = None
+                       ) -> Union[np.ndarray, bytes]:
         """Patched to take screenshot of the last window available instead of
         the main one, and to add raw data return mode for efficient
         multiprocessing.
@@ -1708,32 +1889,54 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
             scheduler. The framerate limit must be disable manually to avoid
             such limitation.
 
-        .. note::
-            Internally, Panda3d uses BGRA, so using it is slightly faster than
-            RGBA, but not RGB since there is one channel missing.
-
-        :param requested_format: Desired export format (e.g. 'RGB' or 'BGRA')
-        :param raw: whether to return a raw memory view of bytes, of a
-                    structured `np.ndarray` of uint8 with dimensions [H, W, D].
+        :param camera_name: Name of the camera to consider. Whether one of the
+                            cameras that were manually added by the user via
+                            `add_camera`, or None to specify the one associated
+                            with the main window (ie either the camera attached
+                            to the main window directly if the later is an
+                            offscreen buffer, otherwise the camera of its
+                            accompanying offscreen buffer).
+                            Optional: None by default.
         """
-        # Refresh the scene
-        assert self.buff is not None
-        self.buff.trigger_copy()
-        self.graphics_engine.render_frame()
+        # Get desired buffer
+        if camera_name is None:
+            assert self.buff is not None
+            buffer = self.buff
+        else:
+            buffer = self._user_buffers[camera_name]
 
         # Get frame as raw texture
-        assert self.buff is not None
-        texture = self.buff.get_texture()
+        texture = buffer.get_texture()
+        is_depth_map = texture.format == Texture.F_depth_component32
+
+        # Disable shadow casting for depth map computation since it is useless
+        shadow_buffers = []
+        if is_depth_map:
+            for light in self._lights:
+                if not light.node().is_ambient_light():
+                    shadow_buffer = light.node().getShadowBuffer(self.win.gsg)
+                    if shadow_buffer is not None:
+                        shadow_buffer.active = False
+                        shadow_buffers.append(shadow_buffer)
+
+        # Refresh the scene
+        buffer.set_one_shot(True)
+        self.graphics_engine.render_frame()
+
+        # Restore shadow casting
+        for shadow_buffer in shadow_buffers:
+            shadow_buffer.active = True
 
         # Extract raw array buffer from texture
-        image = texture.get_ram_image_as(requested_format)
-
-        # Return raw buffer if requested
-        if raw:
-            return image.get_data()
+        if is_depth_map:
+            image = texture.get_ram_image()
+        else:
+            image = texture.get_ram_image_as('RGB')
 
         # Convert raw texture to numpy array if requested
         xsize, ysize = texture.get_x_size(), texture.get_y_size()
+        if is_depth_map:
+            return np.frombuffer(image, np.float32).reshape((ysize, xsize))
         return np.frombuffer(image, np.uint8).reshape((ysize, xsize, -1))
 
     def enable_shadow(self, enable: bool) -> None:

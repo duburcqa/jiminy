@@ -451,7 +451,8 @@ namespace jiminy
 
         VectorN<double> shift_{};
 
-        mutable VectorN<int32_t> cellIndex_{};
+        mutable VectorN<int32_t> cellIndex_ =
+            VectorN<int32_t>::Constant(std::numeric_limits<int32_t>::max());
         mutable std::array<VectorN<double>, (1U << N)> gradKnots_{};
     };
 
