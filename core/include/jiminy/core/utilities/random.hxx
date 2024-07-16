@@ -239,6 +239,9 @@ namespace jiminy
     {
         // Sample random cell shift
         shift_ = uniform(N, 1, g).cast<double>();
+
+        // Clear cache index
+        cellIndex_.setConstant(std::numeric_limits<int32_t>::max());
     }
 
     template<template<unsigned int> class DerivedPerlinNoiseOctave, unsigned int N>

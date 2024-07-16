@@ -595,6 +595,7 @@ def play_trajectories(
 
             # Create frame storage
             frame = av.VideoFrame(*record_video_size, 'rgb24')
+            frame_bytes = memoryview(frame.planes[0])
 
         # Add frames to video sequentially
         update_hook_t = None
@@ -636,9 +637,8 @@ def play_trajectories(
                     # Update frame.
                     # Note that `capture_frame` is by far the main bottleneck
                     # of the whole recording process (~75% on discrete gpu).
-                    buffer = Viewer.capture_frame(
-                        *record_video_size, raw_data=True)
-                    memoryview(frame.planes[0])[:] = buffer
+                    buffer = Viewer.capture_frame(*record_video_size)
+                    frame_bytes[:] = buffer.reshape(-1).data
 
                     # Write frame
                     for packet in stream.encode(frame):
