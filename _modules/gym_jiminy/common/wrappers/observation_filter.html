@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>gym_jiminy.common.wrappers.observation_filter &mdash; jiminy 1.8.8 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../../_static/documentation_options.js?v=968d5a7d"></script>
+        <script src="../../../../_static/doctools.js?v=9a2dae69"></script>
+        <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            jiminy
+              <img src="../../../../_static/jiminy_logo.svg" class="logo" alt="Logo"/>
+          </a>
+              <div class="version">
+                1.8.8
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">README</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html">Key features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#gym-jiminy">Gym Jiminy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#demo">Demo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#getting-started">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">INSTALLATION</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html">Easy-install on Ubuntu 18+</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html#building-from-source">Building from source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">TUTORIALS</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorial.html">An introduction to Jiminy</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API DOC</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/jiminy/index.html">Jiminy C++ API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/jiminy_py/index.html">Jiminy Python API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/gym_jiminy/common/index.html">Gym Jiminy API</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Technical Specifications</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/src/tlmc_format_specification.html">HDF5 telemetry log format (TLMC)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/pdf/index.html">Downloadable PDF</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">jiminy</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">gym_jiminy.common.wrappers.observation_filter</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for gym_jiminy.common.wrappers.observation_filter</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;This module implements a block transformation for filtering out some of the</span>
+<span class="sd">keys of the observation space of an environment that may be arbitrarily nested.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">operator</span> <span class="kn">import</span> <span class="n">getitem</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">reduce</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">OrderedDict</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">Sequence</span><span class="p">,</span> <span class="n">Set</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Generic</span><span class="p">,</span> <span class="n">TypeVar</span><span class="p">,</span> <span class="n">Type</span><span class="p">,</span> <span class="n">no_type_check</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">typing_extensions</span> <span class="kn">import</span> <span class="n">TypeAlias</span>
+
+<span class="kn">import</span> <span class="nn">gymnasium</span> <span class="k">as</span> <span class="nn">gym</span>
+<span class="kn">from</span> <span class="nn">jiminy_py.tree</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">flatten_with_path</span><span class="p">,</span> <span class="n">issubclass_mapping</span><span class="p">,</span> <span class="n">issubclass_sequence</span><span class="p">)</span>
+
+<span class="kn">from</span> <span class="nn">..bases</span> <span class="kn">import</span> <span class="p">(</span><span class="n">NestedObsT</span><span class="p">,</span>
+                     <span class="n">ActT</span><span class="p">,</span>
+                     <span class="n">InterfaceJiminyEnv</span><span class="p">,</span>
+                     <span class="n">BaseTransformObservation</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">..utils</span> <span class="kn">import</span> <span class="n">DataNested</span><span class="p">,</span> <span class="n">copy</span>
+
+
+<span class="n">SpaceOrDataT</span> <span class="o">=</span> <span class="n">TypeVar</span><span class="p">(</span>
+    <span class="s1">&#39;SpaceOrDataT&#39;</span><span class="p">,</span> <span class="n">bound</span><span class="o">=</span><span class="n">Union</span><span class="p">[</span><span class="n">DataNested</span><span class="p">,</span> <span class="n">gym</span><span class="o">.</span><span class="n">Space</span><span class="p">[</span><span class="n">DataNested</span><span class="p">]])</span>
+<span class="n">FilteredObsT</span><span class="p">:</span> <span class="n">TypeAlias</span> <span class="o">=</span> <span class="n">NestedObsT</span>
+
+
+<span class="nd">@no_type_check</span>
+<span class="k">def</span> <span class="nf">_copy_filtered</span><span class="p">(</span><span class="n">data</span><span class="p">:</span> <span class="n">SpaceOrDataT</span><span class="p">,</span>
+                   <span class="n">path_filtered_leaves</span><span class="p">:</span> <span class="n">Set</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="o">...</span><span class="p">]])</span> <span class="o">-&gt;</span> <span class="n">SpaceOrDataT</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Partially shallow copy some nested data structure, so that all leaves</span>
+<span class="sd">    being filtered in are still references but their corresponding containers</span>
+<span class="sd">    are copies.</span>
+
+<span class="sd">    :param data: Hierarchical data structure to copy without allocation.</span>
+<span class="sd">    :param path_filtered_leaves: Set gathering the paths of all leaves that</span>
+<span class="sd">                                 must be kept. Each path is a tuple of keys</span>
+<span class="sd">                                 to access a given leaf recursively.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Special handling if no leaf to filter has been specified</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">path_filtered_leaves</span><span class="p">:</span>
+        <span class="n">data_type</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">issubclass_mapping</span><span class="p">(</span><span class="n">data_type</span><span class="p">)</span> <span class="ow">or</span> <span class="n">issubclass_sequence</span><span class="p">(</span><span class="n">data_type</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">data_type</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">data</span>
+
+    <span class="c1"># Shallow copy the whole data structure</span>
+    <span class="n">out</span> <span class="o">=</span> <span class="n">copy</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+
+    <span class="c1"># Convert all parent containers to mutable dictionary</span>
+    <span class="n">type_filtered_nodes</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Type</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">out_flat</span> <span class="o">=</span> <span class="n">flatten_with_path</span><span class="p">(</span><span class="n">out</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">key_nested</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">out_flat</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">key_nested</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">path_filtered_leaves</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">key_nested</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="c1"># Extract parent container</span>
+            <span class="o">*</span><span class="n">key_nested_parent</span><span class="p">,</span> <span class="n">key_leaf</span> <span class="o">=</span> <span class="n">key_nested</span><span class="p">[:</span><span class="n">i</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">key_nested_parent</span><span class="p">:</span>
+                <span class="o">*</span><span class="n">key_nested_container</span><span class="p">,</span> <span class="n">key_parent</span> <span class="o">=</span> <span class="n">key_nested_parent</span>
+                <span class="n">container</span> <span class="o">=</span> <span class="n">reduce</span><span class="p">(</span><span class="n">getitem</span><span class="p">,</span> <span class="n">key_nested_container</span><span class="p">,</span> <span class="n">out</span><span class="p">)</span>
+                <span class="n">parent</span> <span class="o">=</span> <span class="n">container</span><span class="p">[</span><span class="n">key_parent</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">parent</span> <span class="o">=</span> <span class="n">out</span>
+
+            <span class="c1"># Convert parent container to mutable dictionary</span>
+            <span class="n">parent_type</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="n">parent</span><span class="p">)</span>
+            <span class="n">type_filtered_nodes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">parent_type</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">parent_type</span> <span class="ow">in</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">OrderedDict</span><span class="p">):</span>
+                <span class="k">continue</span>
+            <span class="k">if</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">parent_type</span><span class="p">,</span> <span class="n">gym</span><span class="o">.</span><span class="n">Space</span><span class="p">):</span>
+                <span class="n">parent</span> <span class="o">=</span> <span class="n">parent</span><span class="o">.</span><span class="n">spaces</span>
+            <span class="k">if</span> <span class="n">issubclass_mapping</span><span class="p">(</span><span class="n">parent_type</span><span class="p">):</span>
+                <span class="n">parent</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">parent</span><span class="o">.</span><span class="n">items</span><span class="p">())</span>
+            <span class="k">elif</span> <span class="n">issubclass_sequence</span><span class="p">(</span><span class="n">parent_type</span><span class="p">):</span>
+                <span class="n">parent</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">enumerate</span><span class="p">(</span><span class="n">parent</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Unsupported container type: &#39;</span><span class="si">{</span><span class="n">parent_type</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+
+            <span class="c1"># Re-assign parent data structure</span>
+            <span class="k">if</span> <span class="n">key_nested_parent</span><span class="p">:</span>
+                <span class="n">container</span><span class="p">[</span><span class="n">key_parent</span><span class="p">]</span> <span class="o">=</span> <span class="n">parent</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">out</span> <span class="o">=</span> <span class="n">parent</span>
+
+    <span class="c1"># Remove unnecessary keys</span>
+    <span class="k">for</span> <span class="n">key_nested</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">out_flat</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">key_nested</span> <span class="ow">in</span> <span class="n">path_filtered_leaves</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">key_nested</span><span class="p">))[::</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span>
+            <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">key_nested</span><span class="p">[:</span><span class="n">i</span><span class="p">]</span> <span class="o">==</span> <span class="n">path</span><span class="p">[:</span><span class="n">i</span><span class="p">]</span>
+                   <span class="k">for</span> <span class="n">path</span> <span class="ow">in</span> <span class="n">path_filtered_leaves</span><span class="p">):</span>
+                <span class="k">break</span>
+        <span class="o">*</span><span class="n">key_nested_parent</span><span class="p">,</span> <span class="n">key_leaf</span> <span class="o">=</span> <span class="n">key_nested</span><span class="p">[:(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)]</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">parent</span> <span class="o">=</span> <span class="n">reduce</span><span class="p">(</span><span class="n">getitem</span><span class="p">,</span> <span class="n">key_nested_parent</span><span class="p">,</span> <span class="n">out</span><span class="p">)</span>
+            <span class="k">del</span> <span class="n">parent</span><span class="p">[</span><span class="n">key_leaf</span><span class="p">]</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="c1"># Some nested keys may have been deleted previously</span>
+            <span class="k">pass</span>
+
+    <span class="c1"># Restore original parent container types</span>
+    <span class="n">parent_type_it</span> <span class="o">=</span> <span class="nb">iter</span><span class="p">(</span><span class="n">type_filtered_nodes</span><span class="p">[::</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+    <span class="k">for</span> <span class="n">key_nested</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">out_flat</span><span class="p">[::</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span>
+        <span class="k">if</span> <span class="n">key_nested</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">path_filtered_leaves</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">key_nested</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)[::</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span>
+            <span class="c1"># Extract parent container</span>
+            <span class="o">*</span><span class="n">key_nested_parent</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">key_nested</span><span class="p">[:</span><span class="n">i</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">key_nested_parent</span><span class="p">:</span>
+                <span class="o">*</span><span class="n">key_nested_container</span><span class="p">,</span> <span class="n">key_parent</span> <span class="o">=</span> <span class="n">key_nested_parent</span>
+                <span class="n">container</span> <span class="o">=</span> <span class="n">reduce</span><span class="p">(</span><span class="n">getitem</span><span class="p">,</span> <span class="n">key_nested_container</span><span class="p">,</span> <span class="n">out</span><span class="p">)</span>
+                <span class="n">parent</span> <span class="o">=</span> <span class="n">container</span><span class="p">[</span><span class="n">key_parent</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">parent</span> <span class="o">=</span> <span class="n">out</span>
+
+            <span class="c1"># Restore original container type if not already done</span>
+            <span class="n">parent_type</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">parent_type_it</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">parent</span><span class="p">,</span> <span class="n">parent_type</span><span class="p">):</span>
+                <span class="k">continue</span>
+            <span class="k">if</span> <span class="n">issubclass_mapping</span><span class="p">(</span><span class="n">parent_type</span><span class="p">):</span>
+                <span class="n">parent</span> <span class="o">=</span> <span class="n">parent_type</span><span class="p">(</span><span class="nb">tuple</span><span class="p">(</span><span class="n">parent</span><span class="o">.</span><span class="n">items</span><span class="p">()))</span>
+            <span class="k">elif</span> <span class="n">issubclass_sequence</span><span class="p">(</span><span class="n">parent_type</span><span class="p">):</span>
+                <span class="n">parent</span> <span class="o">=</span> <span class="n">parent_type</span><span class="p">(</span><span class="nb">tuple</span><span class="p">(</span><span class="n">parent</span><span class="o">.</span><span class="n">values</span><span class="p">()))</span>
+
+            <span class="c1"># Re-assign output data structure</span>
+            <span class="k">if</span> <span class="n">key_nested_parent</span><span class="p">:</span>
+                <span class="n">container</span><span class="p">[</span><span class="n">key_parent</span><span class="p">]</span> <span class="o">=</span> <span class="n">parent</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">out</span> <span class="o">=</span> <span class="n">parent</span>
+    <span class="k">return</span> <span class="n">out</span>
+
+
+<div class="viewcode-block" id="FilterObservation">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/wrappers/observation_filter.html#gym_jiminy.common.wrappers.observation_filter.FilterObservation">[docs]</a>
+<span class="k">class</span> <span class="nc">FilterObservation</span><span class="p">(</span>
+        <span class="n">BaseTransformObservation</span><span class="p">[</span><span class="n">FilteredObsT</span><span class="p">,</span> <span class="n">NestedObsT</span><span class="p">,</span> <span class="n">ActT</span><span class="p">],</span>
+        <span class="n">Generic</span><span class="p">[</span><span class="n">NestedObsT</span><span class="p">,</span> <span class="n">ActT</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Filter nested observation space.</span>
+
+<span class="sd">    This wrapper does nothing but providing an observation only exposing a</span>
+<span class="sd">    subset of all the leaves of the original observation space. For flattening</span>
+<span class="sd">    the observation space after filtering, you should wrap the environment with</span>
+<span class="sd">    `FlattenObservation` as yet another layer.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">env</span><span class="p">:</span> <span class="n">InterfaceJiminyEnv</span><span class="p">[</span><span class="n">NestedObsT</span><span class="p">,</span> <span class="n">ActT</span><span class="p">],</span>
+                 <span class="n">nested_filter_keys</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span>
+                    <span class="n">Union</span><span class="p">[</span><span class="n">Sequence</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]],</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]]</span>
+                 <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># Make sure that the observation space derives from &#39;gym.spaces.Dict&#39;</span>
+        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">env</span><span class="o">.</span><span class="n">observation_space</span><span class="p">,</span> <span class="n">gym</span><span class="o">.</span><span class="n">spaces</span><span class="o">.</span><span class="n">Dict</span><span class="p">)</span>
+
+        <span class="c1"># Make sure all nested keys are stored in sequence</span>
+        <span class="k">assert</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">nested_filter_keys</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nested_filter_keys</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Sequence</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">key_nested</span> <span class="ow">in</span> <span class="n">nested_filter_keys</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">key_nested</span><span class="p">,</span> <span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">)):</span>
+                <span class="n">key_nested</span> <span class="o">=</span> <span class="p">(</span><span class="n">key_nested</span><span class="p">,)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">nested_filter_keys</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">tuple</span><span class="p">(</span><span class="n">key_nested</span><span class="p">))</span>
+
+        <span class="c1"># Get all paths associated with leaf values that must be stacked</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">path_filtered_leaves</span><span class="p">:</span> <span class="n">Set</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span> <span class="o">...</span><span class="p">]]</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">path</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">flatten_with_path</span><span class="p">(</span><span class="n">env</span><span class="o">.</span><span class="n">observation_space</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">path</span><span class="p">[:</span><span class="nb">len</span><span class="p">(</span><span class="n">e</span><span class="p">)]</span> <span class="o">==</span> <span class="n">e</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">nested_filter_keys</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">path_filtered_leaves</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+
+        <span class="c1"># Make sure that some keys are preserved</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">path_filtered_leaves</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;At least one observation leaf must be preserved.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Initialize base class</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">env</span><span class="p">)</span>
+
+        <span class="c1"># Bind observation of the environment for all filtered keys.</span>
+        <span class="c1"># Note that all parent containers of the filtered leaves must be</span>
+        <span class="c1"># constructible from standard `dict` or `tuple` objects, which is the</span>
+        <span class="c1"># case for all standard `gym.Space`.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">observation</span> <span class="o">=</span> <span class="n">_copy_filtered</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">observation</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">path_filtered_leaves</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_initialize_observation_space</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Configure the observation space.</span>
+
+<span class="sd">        It gathers a subset of all the leaves of the original observation space</span>
+<span class="sd">        without any further processing.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">observation_space</span> <span class="o">=</span> <span class="n">_copy_filtered</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">observation_space</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">path_filtered_leaves</span><span class="p">)</span>
+
+<div class="viewcode-block" id="FilterObservation.transform_observation">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/wrappers/observation_filter.html#gym_jiminy.common.wrappers.observation_filter.FilterObservation.transform_observation">[docs]</a>
+    <span class="k">def</span> <span class="nf">transform_observation</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;No-op transform since the transform observation is sharing memory</span>
+<span class="sd">        with the wrapped one since it is just a partial view.</span>
+<span class="sd">        &quot;&quot;&quot;</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, Alexis Duburcq - MIT licence.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
