@@ -25,20 +25,45 @@ namespace jiminy::python
     // *********************************** HeightmapFunction *********************************** //
 
     void queryHeightMap(HeightmapFunction & heightmap,
-                        np::ndarray positionsPy,
-                        np::ndarray heightsPy)
+                        const Eigen::Matrix2Xd & positions,
+                        Eigen::Ref<Eigen::VectorXd> heights)
     {
-        auto const positions = convertFromPython<
-            Eigen::Map<Eigen::MatrixXd, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>>
-            >(positionsPy);
-        auto heights = convertFromPython<
-            Eigen::Map<Eigen::MatrixXd, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>>
-            >(heightsPy).col(0);
-
-        for (Eigen::Index i = 0; i < positions.cols() ; ++i)
+        // Make sure that the number of query points is consistent between all arguments
+        if (heights.size() != positions.cols())
         {
-            Eigen::Vector3d normal;
-            heightmap(positions.col(i), heights[i], normal);
+            JIMINY_THROW(
+                std::invalid_argument,
+                "'positions' and/or 'heights' are inconsistent with each other. 'position' must "
+                "be a 2D array whose first dimension gathers the 2 position coordinates in world "
+                "plane (X, Y) while the second dimension corresponds to individual query points.");
+        }
+
+        // Loop over all query points sequentially
+        for (Eigen::Index i = 0; i < positions.cols(); ++i)
+        {
+            heightmap(positions.col(i), heights[i], std::nullopt);
+        }
+    }
+
+    void queryHeightMapWithNormals(HeightmapFunction & heightmap,
+                                   const Eigen::Matrix2Xd & positions,
+                                   Eigen::Ref<Eigen::VectorXd> heights,
+                                   Eigen::Ref<Eigen::Matrix3Xd> normals)
+    {
+        // Make sure that the number of query points is consistent between all arguments
+        if (heights.size() != positions.cols() || normals.cols() != positions.cols())
+        {
+            JIMINY_THROW(std::invalid_argument,
+                         "'positions', 'heights' and/or 'normals' are inconsistent with each "
+                         "other. 'normals' must be a 2D array whose first dimension gathers the 3 "
+                         "position coordinates (X, Y, Z) while the second dimension corresponds "
+                         "to individual query points.");
+        }
+
+        // Loop over all query points sequentially
+        for (Eigen::Index i = 0; i < positions.cols(); ++i)
+        {
+            heightmap(positions.col(i), heights[i], normals.col(i));
         }
     }
 
@@ -83,8 +108,10 @@ namespace jiminy::python
                                           &internal::heightmap_function::getPyFun,
                                           bp::return_value_policy<bp::return_by_value>());
 
+        bp::def(
+            "query_heightmap", &queryHeightMap, (bp::args("heightmap"), "positions", "heights"));
         bp::def("query_heightmap",
-                &queryHeightMap,
-                (bp::args("heightmap"), "positions", "heights"));
+                &queryHeightMapWithNormals,
+                (bp::args("heightmap"), "positions", "heights", "normals"));
     }
 }

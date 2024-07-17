@@ -21,7 +21,6 @@ import tempfile
 import subprocess
 import webbrowser
 import multiprocessing
-from copy import deepcopy
 from urllib.request import urlopen
 from functools import wraps, partial
 from threading import RLock
@@ -1248,7 +1247,7 @@ class Viewer:
             for pid in psutil.pids():
                 try:
                     proc_info = Process(pid)
-                    for conn in proc_info.connections("tcp4"):
+                    for conn in proc_info.net_connections("tcp4"):
                         if conn.status != 'LISTEN' or \
                                 conn.laddr.ip != '127.0.0.1':
                             continue
@@ -1428,7 +1427,7 @@ class Viewer:
                 for text, (robot_name, color) in zip(
                         labels, Viewer._backend_robot_colors.items()):
                     if color is not None:
-                        rgba = (*(int(e * 255) for e in color[:3]), color[3])
+                        rgba = (*[int(e * 255) for e in color[:3]], color[3])
                         color_text = f"rgba({','.join(map(str, rgba))})"
                     else:
                         color_text = "black"
@@ -1460,7 +1459,8 @@ class Viewer:
     @staticmethod
     @_with_lock
     @_must_be_open
-    def get_camera_transform() -> Tuple[Tuple3FType, Tuple3FType]:
+    def get_camera_transform(camera_name: Optional[str] = None
+                             ) -> Tuple[Tuple3FType, Tuple3FType]:
         """Get transform of the camera pose.
 
         .. warning::
@@ -1471,6 +1471,15 @@ class Viewer:
             since it is impossible to get access to this information. Thus
             this method is valid as long as the user does not move the
             camera manually using mouse camera control.
+
+        .. warning::
+            Specifying a camera name is only supported by Panda3d rendering
+            backend.
+
+        :param camera_name: Name of the camera to consider. None to specify
+                            the "default" world facing camera that is used
+                            when GUI (onscreen window) in enabled.
+                            Optional: None by default.
         """
         # Assert(s) for type checker
         assert Viewer.backend is not None
@@ -1481,9 +1490,15 @@ class Viewer:
             quat /= np.linalg.norm(quat)
             rot = pin.Quaternion(*quat).matrix()
             rpy = matrixToRpy(rot @ CAMERA_INV_TRANSFORM_PANDA3D.T)
-        else:
-            xyz, rpy = deepcopy(Viewer._camera_xyzrpy)
-        return xyz, rpy
+            return xyz, rpy
+
+        # Make sure that no camera name has been specified for meshcat
+        if camera_name is not None:
+            raise ValueError(
+                "Specifying a camera name is only supported by Panda3d.")
+
+        xpy, rpy = map(tuple, Viewer._camera_xyzrpy)
+        return xpy, rpy
 
     @_with_lock
     @_must_be_open
@@ -1491,6 +1506,7 @@ class Viewer:
                              position: Optional[Tuple3FType] = None,
                              rotation: Optional[Tuple3FType] = None,
                              relative: Optional[Union[str, int]] = None,
+                             camera_name: Optional[str] = None,
                              wait: bool = False) -> None:
         """Set transform of the camera pose.
 
@@ -1499,6 +1515,10 @@ class Viewer:
             which means that position = [0.0, 0.0, 0.0], rotation =
             [0.0, 0.0, 0.0] moves the camera at the center of scene, looking
             downward.
+
+        .. warning::
+            Specifying a camera name is only supported by Panda3d rendering
+            backend.
 
         :param position: Position [X, Y, Z] as a list or 1D array. If `None`,
                          when it will be kept as is.
@@ -1516,12 +1536,22 @@ class Viewer:
             - **other:** relative to a robot frame, not accounting for the
               rotation of the frame during travelling. It supports both frame
               name and index in model.
+        :param camera_name: Name of the camera to consider. None to specify
+                            the "default" world facing camera that is used
+                            when GUI (onscreen window) in enabled.
+                            Optional: None by default.
         :param wait: Whether to wait for rendering to finish.
         """
         # pylint: disable=invalid-name, possibly-used-before-assignment
         # Assert(s) for type checker
         assert Viewer.backend is not None
         assert Viewer._backend_obj is not None
+        assert self is None or isinstance(self, Viewer)
+
+        # Make sure that no camera name has been specified for meshcat
+        if Viewer.backend == 'meshcat' and camera_name is not None:
+            raise ValueError(
+                "Specifying a camera name is only supported by Panda3d.")
 
         if self is None and relative is not None and relative != 'camera':
             raise ValueError(
@@ -1530,7 +1560,8 @@ class Viewer:
 
         # Handling of position and rotation arguments
         if position is None or rotation is None or relative == 'camera':
-            position_camera, rotation_camera = Viewer.get_camera_transform()
+            position_camera, rotation_camera = Viewer.get_camera_transform(
+                camera_name=camera_name)
         if position is None:
             if relative is not None:
                 position = (0.0, 0.0, 0.0)
@@ -1568,7 +1599,8 @@ class Viewer:
             H_abs = H_orig * SE3(rotation_mat, position)
             position = H_abs.translation
             rotation = matrixToRpy(H_abs.rotation)
-            Viewer.set_camera_transform(None, position, rotation)
+            Viewer.set_camera_transform(
+                None, position, rotation, camera_name=camera_name)
             return
 
         # Perform the desired transformation
@@ -1576,7 +1608,7 @@ class Viewer:
             rotation_panda3d = pin.Quaternion(
                 rotation_mat @ CAMERA_INV_TRANSFORM_PANDA3D).coeffs()
             Viewer._backend_obj.gui.set_camera_transform(
-                position, rotation_panda3d)
+                position, rotation_panda3d, camera_name)
         elif Viewer.backend == 'meshcat':
             # pylint: disable=import-outside-toplevel
             # Meshcat camera is rotated by -pi/2 along Roll axis wrt the
@@ -1758,7 +1790,7 @@ class Viewer:
         """Override the color of the visual and collision geometries of the
         robot on-the-fly.
 
-        .. note::
+        .. warning::
             This method is only supported by Panda3d for now.
 
         :param color: Color of the robot. It will override the original color
@@ -1867,17 +1899,53 @@ class Viewer:
     @staticmethod
     @_with_lock
     @_must_be_open
+    def add_camera(camera_name: str,
+                   width: int,
+                   height: int,
+                   is_depthmap: bool) -> None:
+        """TODO: Write documentation.
+
+        .. warning::
+            This method is only supported by Panda3d for now.
+
+        """
+        # Assert(s) for type checker
+        assert Viewer.backend is not None
+        assert Viewer._backend_obj is not None
+
+        # Make sure the backend supports this method
+        if not Viewer.backend.startswith('panda3d'):
+            raise NotImplementedError(
+                "This method is only supported by Panda3d.")
+
+        # Add camera
+        Viewer._backend_obj.gui.add_camera(
+            camera_name, (width, height), is_depthmap)
+
+    @staticmethod
+    @_with_lock
+    @_must_be_open
     def capture_frame(width: Optional[int] = None,
                       height: Optional[int] = None,
-                      raw_data: bool = False) -> Union[np.ndarray, bytes]:
+                      camera_name: Optional[str] = None,
+                      raw_data: bool = False
+                      ) -> Union[np.ndarray, bytes]:
         """Take a snapshot and return associated data.
+
+        .. warning::
+            Specifying a camera name is only supported by Panda3d rendering
+            backend, while raw data mode is only supported by Meshcat.
 
         :param width: Width for the image in pixels. None to keep unchanged.
                       Optional: Kept unchanged by default.
         :param height: Height for the image in pixels. None to keep unchanged.
                        Optional: Kept unchanged by default.
+        :param camera_name: Name of the camera to consider. None to specify
+                            the "default" world facing camera that is used
+                            when GUI (onscreen window) in enabled.
+                            Optional: None by default.
         :param raw_data: Whether to return a 2D numpy array, or the raw output
-                         from the backend (the actual type may vary).
+                         from the backend as bytes array.
         """
         # Assert(s) for type checker
         assert Viewer.backend is not None
@@ -1885,31 +1953,33 @@ class Viewer:
 
         # Check user arguments
         if Viewer.backend.startswith('panda3d'):
-            # Resize window if size has changed
-            _width, _height = Viewer._backend_obj.gui.getSize()
-            if width is None:
-                width = _width
-            if height is None:
-                height = _height
-            if _width != width or _height != height:
-                Viewer._backend_obj.gui.set_window_size(width, height)
+            if camera_name is None:
+                # Resize window if size has changed
+                _width, _height = Viewer._backend_obj.gui.getSize()
+                if width is None:
+                    width = _width
+                if height is None:
+                    height = _height
+                if _width != width or _height != height:
+                    Viewer._backend_obj.gui.set_window_size(width, height)
+            elif width is not None or height is not None:
+                raise ValueError(
+                    "Specifying both camera name and image width and/or "
+                    "height is not supported.")
 
-            # Get raw buffer image instead of numpy array for efficiency
-            buffer = Viewer._backend_obj.gui.get_screenshot(
-                requested_format='RGB', raw=True)
-            if buffer is None:
+            # Get screenshot
+            image = Viewer._backend_obj.gui.get_screenshot(camera_name)
+            if image is None:
                 raise RuntimeError(
                     "Impossible to capture frame. There is something wrong "
                     "with the graphics stack on this machine.")
+            return image
 
-            # Return raw data if requested
-            if raw_data:
-                return buffer
+        # Make sure that no camera name has been specified for meshcat
+        if camera_name is not None:
+            raise ValueError(
+                "Specifying a camera name is only supported by Panda3d.")
 
-            # Extract and return numpy array RGB
-            return np.frombuffer(buffer, np.uint8).reshape((height, width, 3))
-
-        # if Viewer.backend == 'meshcat':
         # Send capture frame request to the background recorder process
         img_html = Viewer._backend_obj.capture_frame(width, height)
 

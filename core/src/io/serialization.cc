@@ -248,10 +248,15 @@ namespace boost::serialization
     template<class Archive>
     void load(Archive & /* ar */, HeightmapFunction & fun, const unsigned int /* version */)
     {
-        fun = [](const Eigen::Vector2d & /* xy */, double & height, Eigen::Vector3d & normal)
+        fun = [](const Eigen::Vector2d & /* xy */,
+                 double & height,
+                 std::optional<Eigen::Ref<Eigen::Vector3d>> normal)
         {
             height = 0.0;
-            normal = Eigen::Vector3d::UnitZ();
+            if (normal.has_value())
+            {
+                normal.value() = Eigen::Vector3d::UnitZ();
+            }
         };
     }
 
@@ -1006,6 +1011,7 @@ namespace boost::serialization
 
         // Restore extended simulation model
         model.pinocchioModel_ = pinocchioModel;
+        model.pinocchioData_ = pinocchio::Data(pinocchioModel);
     }
 
     template<class Archive>

@@ -1189,7 +1189,7 @@ def quat_average(quat: np.ndarray,
     assert len(axes) > 0 and 0 not in axes
 
     q_perm = quat.transpose((
-        *(i for i in range(1, quat.ndim) if i not in axes), 0, *axes))
+        *[i for i in range(1, quat.ndim) if i not in axes], 0, *axes))
     q_flat = q_perm.reshape((*q_perm.shape[:-len(axes)], -1))
     _, eigvec = np.linalg.eigh(q_flat @ np.swapaxes(q_flat, -1, -2))
     return np.moveaxis(eigvec[..., -1], -1, 0)

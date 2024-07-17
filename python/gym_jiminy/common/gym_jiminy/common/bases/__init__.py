@@ -19,8 +19,11 @@ from .quantities import (QuantityCreator,
                          StateQuantity,
                          DatasetTrajectoryQuantity)
 from .compositions import (AbstractReward,
-                           BaseQuantityReward,
-                           BaseMixtureReward)
+                           QuantityReward,
+                           MixtureReward,
+                           AbstractTerminationCondition,
+                           QuantityTermination,
+                           EpisodeState)
 from .blocks import (BlockStateT,
                      InterfaceBlock,
                      BaseObserverBlock,
@@ -53,8 +56,10 @@ __all__ = [
     'InterfaceQuantity',
     'AbstractQuantity',
     'AbstractReward',
-    'BaseQuantityReward',
-    'BaseMixtureReward',
+    'AbstractTerminationCondition',
+    'QuantityReward',
+    'MixtureReward',
+    'QuantityTermination',
     'BaseObserverBlock',
     'BaseControllerBlock',
     'BasePipelineWrapper',
@@ -65,6 +70,7 @@ __all__ = [
     'ControlledJiminyEnv',
     'QuantityEvalMode',
     'QuantityCreator',
+    'EpisodeState',
     'StateQuantity',
     'DatasetTrajectoryQuantity'
 ]

@@ -1,20 +1,20 @@
 #ifndef JIMINY_FORWARD_H
 #define JIMINY_FORWARD_H
 
-#include <string_view>    // `std::string_view`
 #include <cstdint>        // `int32_t`, `int64_t`, `uint32_t`, `uint64_t`, ...
-#include <functional>     // `std::function`, `std::invoke`
-#include <limits>         // `std::numeric_limits`
 #include <map>            // `std::map`
+#include <unordered_map>  // `std::unordered_map`
 #include <deque>          // `std::deque`
+#include <vector>         // `std::vector`
+#include <utility>        // `std::pair`
+#include <optional>       // `std::optional`
 #include <string>         // `std::string`
 #include <sstream>        // `std::ostringstream`
-#include <unordered_map>  // `std::unordered_map`
-#include <utility>        // `std::pair`
-#include <vector>         // `std::vector`
+#include <functional>     // `std::function`, `std::invoke`
+#include <limits>         // `std::numeric_limits`
 #include <memory>         // `std::addressof`
 #include <utility>        // `std::forward`
-#include <stdexcept>      // `std::runtime_error`, `std::logic_error`
+#include <stdexcept>      // `std::logic_error`
 #include <type_traits>  // `std::enable_if_t`, `std::decay_t`, `std::add_pointer_t`, `std::is_same_v`, ...
 
 #include "pinocchio/fwd.hpp"            // To avoid having to include it everywhere
@@ -189,9 +189,17 @@ namespace jiminy
         using std::logic_error::logic_error::what;
     };
 
-    // Ground profile functors
-    using HeightmapFunction = std::function<void(
-        const Eigen::Vector2d & /* xy */, double & /* height */, Eigen::Vector3d & /* normal */)>;
+    template<typename ResultType,
+             ResultType min_ = std::numeric_limits<ResultType>::min(),
+             ResultType max_ = std::numeric_limits<ResultType>::max()>
+    class uniform_random_bit_generator_ref;
+
+    // Ground profile functors.
+    // FIXME: use `std::move_only_function` instead of `std::function` when moving to C++23
+    using HeightmapFunction =
+        std::function<void(const Eigen::Vector2d & /* xy */,
+                           double & /* height */,
+                           std::optional<Eigen::Ref<Eigen::Vector3d>> /* normal */)>;
 
     // Flexible joints
     struct FlexibilityJointConfig

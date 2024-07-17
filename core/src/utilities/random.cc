@@ -5,9 +5,6 @@
 
 namespace jiminy
 {
-    static inline constexpr double PERLIN_NOISE_PERSISTENCE{1.50};
-    static inline constexpr double PERLIN_NOISE_LACUNARITY{1.15};
-
     // ***************************** Uniform random bit generators ***************************** //
 
     PCG32::PCG32(uint64_t state) noexcept :
@@ -171,18 +168,94 @@ namespace jiminy
 
     // **************************** Non-cryptographic hash function **************************** //
 
-    static uint32_t rotl32(uint32_t x, int8_t r) noexcept
+#ifdef __has_builtin
+#    define HAS_BUILTIN(x) __has_builtin(x)
+#else
+#    define HAS_BUILTIN(x) 0
+#endif
+
+#if !defined(NO_CLANG_BUILTIN) && HAS_BUILTIN(__builtin_rotateleft32)
+#    define rotl32 __builtin_rotateleft32
+/* Note: although _rotl exists for minGW (GCC under windows), performance seems poor */
+#elif defined(_MSC_VER)
+#    define rotl32(x, r) _rotl(x, r)
+#else
+#    define rotl32(x, r) (((x) << (r)) | ((x) >> (32 - (r))))
+#endif
+
+    constexpr uint32_t PRIME32_1 = 0x9E3779B1U; /* 0b10011110001101110111100110110001 */
+    constexpr uint32_t PRIME32_2 = 0x85EBCA77U; /* 0b10000101111010111100101001110111 */
+    constexpr uint32_t PRIME32_3 = 0xC2B2AE3DU; /* 0b11000010101100101010111000111101 */
+    constexpr uint32_t PRIME32_4 = 0x27D4EB2FU; /* 0b00100111110101001110101100101111 */
+    constexpr uint32_t PRIME32_5 = 0x165667B1U; /* 0b00010110010101100110011110110001 */
+
+    static uint32_t XXH32_round(uint32_t acc, const uint32_t input)
     {
-        return (x << r) | (x >> (32 - r));
+        acc += input * PRIME32_2;
+        acc = rotl32(acc, 13);
+        acc *= PRIME32_1;
+        return acc;
     }
 
-    /// \brief MurmurHash3 is a non-cryptographic hash function initially designed
-    ///        for hash-based lookup.
-    ///
-    /// \sa It was written by Austin Appleby, and is placed in the public domain.
-    ///     The author hereby disclaims copyright to this source code:
-    ///     https://github.com/aappleby/smhasher/blob/master/src/MurmurHash3.cpp
-    static uint32_t MurmurHash3(const void * key, int32_t len, uint32_t seed) noexcept
+    uint32_t xxHash(const void * input, int32_t len, uint32_t seed) noexcept
+    {
+        uint32_t hash;
+
+        const auto * data = reinterpret_cast<const uint8_t *>(input);
+        if (len >= 16)
+        {
+            uint32_t v1 = seed + PRIME32_1 + PRIME32_2;
+            uint32_t v2 = seed + PRIME32_2;
+            uint32_t v3 = seed + 0;
+            uint32_t v4 = seed - PRIME32_1;
+
+            const uint8_t * const bEnd = data + len;
+            const uint8_t * const limit = bEnd - 15;
+            do
+            {
+                v1 = XXH32_round(v1, *reinterpret_cast<const uint32_t *>(data));
+                data += 4;
+                v2 = XXH32_round(v2, *reinterpret_cast<const uint32_t *>(data));
+                data += 4;
+                v3 = XXH32_round(v3, *reinterpret_cast<const uint32_t *>(data));
+                data += 4;
+                v4 = XXH32_round(v4, *reinterpret_cast<const uint32_t *>(data));
+                data += 4;
+            } while (data < limit);
+            len &= 15;
+
+            hash = rotl32(v1, 1) + rotl32(v2, 7) + rotl32(v3, 12) + rotl32(v4, 18);
+        }
+        else
+        {
+            hash = seed + PRIME32_5;
+        }
+        hash += static_cast<uint32_t>(len);
+
+        while (len >= 4)
+        {
+            hash += *reinterpret_cast<const uint32_t *>(data) * PRIME32_3;
+            data += 4;
+            hash = rotl32(hash, 17) * PRIME32_4;
+            len -= 4;
+        }
+        while (len > 0)
+        {
+            hash += *data * PRIME32_5;
+            data += 1;
+            hash = rotl32(hash, 11) * PRIME32_1;
+            --len;
+        }
+
+        hash ^= hash >> 15;
+        hash *= PRIME32_2;
+        hash ^= hash >> 13;
+        hash *= PRIME32_3;
+        hash ^= hash >> 16;
+        return hash;
+    }
+
+    uint32_t MurmurHash3(const void * key, int32_t len, uint32_t seed) noexcept
     {
         // Define some internal constants
         constexpr uint32_t c1 = 0xcc9e2d51;
@@ -241,15 +314,116 @@ namespace jiminy
         h1 ^= h1 >> 13;
         h1 *= 0xc2b2ae35;
         h1 ^= h1 >> 16;
-
         return h1;
     }
 
     // **************************** Continuous 1D Gaussian processes *************************** //
 
-    PeriodicGaussianProcess::PeriodicGaussianProcess(double wavelength, double period) noexcept :
+    static std::tuple<Eigen::Index, Eigen::Index, double> getClosestKnots(double value,
+                                                                          double delta)
+    {
+        // Compute closest left and right indices
+        const double quot = value / delta;
+        const Eigen::Index indexLeft = static_cast<Eigen::Index>(std::floor(quot));
+        Eigen::Index indexRight = indexLeft + 1;
+
+        // Compute the time ratio
+        const double ratio = quot - static_cast<double>(indexLeft);
+
+        return {indexLeft, indexRight, ratio};
+    }
+
+    static std::tuple<Eigen::Index, Eigen::Index, double> getClosestKnots(
+        double value, double delta, Eigen::Index numTimes)
+    {
+        // Wrap value in period interval
+        const double period = static_cast<double>(numTimes) * delta;
+        value = std::fmod(value, period);
+        if (value < 0.0)
+        {
+            value += period;
+        }
+
+        // Compute closest left and right indices, wrapping around if needed
+        auto [indexLeft, indexRight, ratio] = getClosestKnots(value, delta);
+        if (indexRight == numTimes)
+        {
+            indexRight = 0;
+        }
+        return {indexLeft, indexRight, ratio};
+    }
+
+    template<typename T>
+    static std::decay_t<T> cubicInterp(
+        double ratio, double delta, T && valueLeft, T && valueRight, T && gradLeft, T && gradRight)
+    {
+        const auto dy = valueRight - valueLeft;
+        const auto a = gradLeft * delta - dy;
+        const auto b = -gradRight * delta + dy;
+        return valueLeft + ratio * ((1.0 - ratio) * ((1.0 - ratio) * a + ratio * b) + dy);
+    }
+
+    template<typename T>
+    static std::decay_t<T> derivativeCubicInterp(
+        double ratio, double delta, T && valueLeft, T && valueRight, T && gradLeft, T && gradRight)
+    {
+        const auto dy = valueRight - valueLeft;
+        const auto a = gradLeft * delta - dy;
+        const auto b = -gradRight * delta + dy;
+        return ((1.0 - ratio) * (1.0 - 3.0 * ratio) * a + ratio * (2.0 - 3.0 * ratio) * b + dy) /
+               delta;
+    }
+
+    PeriodicTabularProcess::PeriodicTabularProcess(double wavelength, double period) :
     wavelength_{wavelength},
     period_{period}
+    {
+        // Make sure the period is positive
+        if (period < 0.0)
+        {
+            JIMINY_THROW(std::invalid_argument, "'period' must be positive.");
+        }
+    }
+
+    double PeriodicTabularProcess::operator()(double t) const noexcept
+    {
+        // Compute closest left index within time period
+        const auto [indexLeft, indexRight, ratio] = getClosestKnots(t, dt_, numTimes_);
+
+        /* Perform cubic spline interpolation to ensure continuity of the derivative:
+           https://en.wikipedia.org/wiki/Spline_interpolation#Algorithm_to_find_the_interpolating_cubic_spline
+        */
+        return cubicInterp(ratio,
+                           dt_,
+                           values_[indexLeft],
+                           values_[indexRight],
+                           grads_[indexLeft],
+                           grads_[indexRight]);
+    }
+
+    double PeriodicTabularProcess::grad(double t) const noexcept
+    {
+        const auto [indexLeft, indexRight, ratio] = getClosestKnots(t, dt_, numTimes_);
+        return derivativeCubicInterp(ratio,
+                                     dt_,
+                                     values_[indexLeft],
+                                     values_[indexRight],
+                                     grads_[indexLeft],
+                                     grads_[indexRight]);
+    }
+
+    double PeriodicTabularProcess::getWavelength() const noexcept
+    {
+        return wavelength_;
+    }
+
+    double PeriodicTabularProcess::getPeriod() const noexcept
+    {
+        return period_;
+    }
+
+    PeriodicGaussianProcess::PeriodicGaussianProcess(double wavelength, double period) :
+    PeriodicTabularProcess(wavelength, period)
     {
         reset(std::random_device{});
     }
@@ -258,45 +432,35 @@ namespace jiminy
         const uniform_random_bit_generator_ref<uint32_t> & g) noexcept
     {
         // Sample normal vector
-        auto normalVec = normal(numTimes_, 1, g);
+        const Eigen::VectorXd normalVec = normal(numTimes_, 1, g).cast<double>();
 
-        // Compute discrete periodic gaussian process values
-        values_.noalias() = covSqrtRoot_.triangularView<Eigen::Lower>() * normalVec.cast<double>();
-    }
+        /* Compute discrete periodic gaussian process values.
 
-    double PeriodicGaussianProcess::operator()(float t)
-    {
-        // Wrap requested time in gaussian process period
-        double tWrap = std::fmod(t, period_);
-        if (tWrap < 0)
-        {
-            tWrap += period_;
-        }
+           A gaussian process can be derived from a normally distributed random vector.
+           More precisely, a Gaussian Process y is uniquely defined by its kernel K and
+           a normally distributed random vector z ~ N(0, I). Let us consider a timestamp t.
+           The value of the Gaussian process y at time t is given by:
+               y(t) = K(t*, t) @ (L^-T @ z),
+           where:
+               t* are evenly spaced sampling timestamps associated with z
+               Cov = K(t*, t*) = L @ L^T is the Cholesky decomposition of the covariance matrix.
 
-        // Compute closest left and right indices
-        const Eigen::Index tLeftIndex = static_cast<Eigen::Index>(std::floor(tWrap / dt_));
-        const Eigen::Index tRightIndex = (tLeftIndex + 1) % numTimes_;
+           Its analytical derivative can be deduced easily:
+               dy/dt(t) = dK/dt(t*, t) @ (L^-T @ z).
 
-        // Perform First order interpolation
-        const double ratio = tWrap / dt_ - static_cast<double>(tLeftIndex);
-        return values_[tLeftIndex] + ratio * (values_[tRightIndex] - values_[tLeftIndex]);
-    }
-
-    double PeriodicGaussianProcess::getWavelength() const noexcept
-    {
-        return wavelength_;
-    }
-
-    double PeriodicGaussianProcess::getPeriod() const noexcept
-    {
-        return period_;
+           When the query timestamps corresponds to the sampling timestamps, it yields:
+               y^* = K(t*, t*) @ (L^-T @ z) = L @ z
+               dy/dt^* = dK/dt(t*, t*) @ (L^-T @ z). */
+        values_.noalias() = covSqrtRoot_.triangularView<Eigen::Lower>() * normalVec;
+        grads_.noalias() =
+            covJacobian_ *
+            covSqrtRoot_.transpose().triangularView<Eigen::Upper>().solve(normalVec);
     }
 
     // **************************** Continuous 1D Fourier processes **************************** //
 
-    PeriodicFourierProcess::PeriodicFourierProcess(double wavelength, double period) noexcept :
-    wavelength_{wavelength},
-    period_{period}
+    PeriodicFourierProcess::PeriodicFourierProcess(double wavelength, double period) :
+    PeriodicTabularProcess(wavelength, period)
     {
         reset(std::random_device{});
     }
@@ -305,285 +469,19 @@ namespace jiminy
         const uniform_random_bit_generator_ref<uint32_t> & g) noexcept
     {
         // Sample normal vectors
-        auto normalVec1 = normal(numHarmonics_, 1, g);
-        auto normalVec2 = normal(numHarmonics_, 1, g);
+        const Eigen::VectorXd normalVec1 = normal(numHarmonics_, 1, g).cast<double>();
+        const Eigen::VectorXd normalVec2 = normal(numHarmonics_, 1, g).cast<double>();
 
-        // Compute discrete periodic gaussian process values
+        // Compute discrete periodic fourrier process values and derivatives
         const double scale = M_SQRT2 / std::sqrt(2 * numHarmonics_ + 1);
-        values_ = scale * cosMat_ * normalVec1.cast<double>();
-        values_.noalias() += scale * sinMat_ * normalVec2.cast<double>();
-    }
+        values_ = scale * sinMat_ * normalVec1;
+        values_.noalias() += scale * cosMat_ * normalVec2;
 
-    double PeriodicFourierProcess::operator()(float t)
-    {
-        // Wrap requested time in guassian process period
-        double tWrap = std::fmod(t, period_);
-        if (tWrap < 0)
-        {
-            tWrap += period_;
-        }
-
-        // Compute closest left and right indices
-        const Eigen::Index tLeftIndex = static_cast<Eigen::Index>(std::floor(tWrap / dt_));
-        const Eigen::Index tRightIndex = (tLeftIndex + 1) % numTimes_;
-
-        // Perform First order interpolation
-        const double ratio = tWrap / dt_ - static_cast<double>(tLeftIndex);
-        return values_[tLeftIndex] + ratio * (values_[tRightIndex] - values_[tLeftIndex]);
-    }
-
-    double PeriodicFourierProcess::getWavelength() const noexcept
-    {
-        return wavelength_;
-    }
-
-    double PeriodicFourierProcess::getPeriod() const noexcept
-    {
-        return period_;
-    }
-
-    // ***************************** Continuous 1D Perlin processes **************************** //
-
-    AbstractPerlinNoiseOctave::AbstractPerlinNoiseOctave(double wavelength) :
-    wavelength_{wavelength}
-    {
-        if (wavelength_ <= 0.0)
-        {
-            JIMINY_THROW(std::invalid_argument, "'wavelength' must be strictly larger than 0.0.");
-        }
-        shift_ = uniform(std::random_device{});
-    }
-
-    void AbstractPerlinNoiseOctave::reset(
-        const uniform_random_bit_generator_ref<uint32_t> & g) noexcept
-    {
-        // Sample random phase shift
-        shift_ = uniform(g);
-    }
-
-    double AbstractPerlinNoiseOctave::operator()(double t) const
-    {
-        // Get current phase
-        const double phase = t / wavelength_ + shift_;
-
-        // Compute closest right and left knots
-        const int32_t phaseIndexLeft = static_cast<int32_t>(phase);
-        const int32_t phaseIndexRight = phaseIndexLeft + 1;
-
-        // Compute smoothed ratio of current phase wrt to the closest knots
-        const double dtLeft = phase - phaseIndexLeft;
-        const double dtRight = dtLeft - 1.0;
-        const double ratio = fade(dtLeft);
-
-        /* Compute gradients at knots, and perform linear interpolation between them to get value
-           at current phase.*/
-        const double yLeft = grad(phaseIndexLeft, dtLeft);
-        const double yRight = grad(phaseIndexRight, dtRight);
-        return lerp(ratio, yLeft, yRight);
-    }
-
-    double AbstractPerlinNoiseOctave::getWavelength() const noexcept
-    {
-        return wavelength_;
-    }
-
-    double AbstractPerlinNoiseOctave::fade(double delta) noexcept
-    {
-        /* Improved Smoothstep function by Ken Perlin (aka Smootherstep).
-           It has zero 1st and 2nd-order derivatives at dt = 0.0, and 1.0:
-           https://en.wikipedia.org/wiki/Smoothstep#Variations */
-        return std::pow(delta, 3) * (delta * (delta * 6.0 - 15.0) + 10.0);
-    }
-
-    double AbstractPerlinNoiseOctave::lerp(double ratio, double yLeft, double yRight) noexcept
-    {
-        return yLeft + ratio * (yRight - yLeft);
-    }
-
-    RandomPerlinNoiseOctave::RandomPerlinNoiseOctave(double wavelength) :
-    AbstractPerlinNoiseOctave(wavelength)
-    {
-        seed_ = std::random_device{}();
-    }
-
-    void RandomPerlinNoiseOctave::reset(
-        const uniform_random_bit_generator_ref<uint32_t> & g) noexcept
-    {
-        // Call base implementation
-        AbstractPerlinNoiseOctave::reset(g);
-
-        // Sample new random seed for MurmurHash
-        seed_ = g();
-    }
-
-    double RandomPerlinNoiseOctave::grad(int32_t knot, double delta) const noexcept
-    {
-        // Get hash of knot
-        const uint32_t hash = MurmurHash3(&knot, sizeof(int32_t), seed_);
-
-        // Convert to double in [0.0, 1.0)
-        const double s =
-            static_cast<double>(hash) / static_cast<double>(std::numeric_limits<uint32_t>::max());
-
-        // Compute rescaled gradient between [-1.0, 1.0)
-        const double grad = 2.0 * s - 1.0;
-
-        // Return scalar product between distance and gradient
-        return 2.0 * grad * delta;
-    }
-
-    namespace internal
-    {
-        template<typename Generator, typename T>
-        void randomizePermutationVector(Generator && g, T & vec)
-        {
-            // Re-Initialize the permutation vector with values from 0 to size
-            std::iota(vec.begin(), vec.end(), 0);
-
-            // Shuffle the permutation vector
-            std::shuffle(vec.begin(), vec.end(), g);
-        }
-    }
-
-    PeriodicPerlinNoiseOctave::PeriodicPerlinNoiseOctave(double wavelength, double period) :
-    AbstractPerlinNoiseOctave(wavelength),
-    period_{period}
-    {
-        // Make sure the wavelength is multiple of the period
-        if (std::abs(std::round(period / wavelength) * wavelength - period) >
-            std::numeric_limits<float>::epsilon())
-        {
-            JIMINY_THROW(std::invalid_argument, "'wavelength' must be multiple of 'period'.");
-        }
-
-        // Initialize the permutation vector with values from 0 to 255 and shuffle it
-        internal::randomizePermutationVector(std::random_device{}, perm_);
-    }
-
-    void PeriodicPerlinNoiseOctave::reset(
-        const uniform_random_bit_generator_ref<uint32_t> & g) noexcept
-    {
-        // Call base implementation
-        AbstractPerlinNoiseOctave::reset(g);
-
-        // Re-Initialize the permutation vector with values from 0 to 255
-        internal::randomizePermutationVector(g, perm_);
-    }
-
-    double PeriodicPerlinNoiseOctave::grad(int32_t knot, double delta) const noexcept
-    {
-        // Wrap knot is period interval
-        knot %= static_cast<uint32_t>(period_ / wavelength_);
-
-        // Convert to double in [0.0, 1.0)
-        const double s = perm_[knot] / 256.0;
-
-        // Compute rescaled gradient between [-1.0, 1.0)
-        const double grad = 2.0 * s - 1.0;
-
-        // Return scalar product between distance and gradient
-        return 2.0 * grad * delta;
-    }
-
-    AbstractPerlinProcess::AbstractPerlinProcess(
-        std::vector<OctaveScalePair> && octaveScalePairs) noexcept :
-    octaveScalePairs_(std::move(octaveScalePairs))
-    {
-        // Compute the scaling factor to keep values within range [-1.0, 1.0]
-        double amplitudeSquared = 0.0;
-        for (const OctaveScalePair & octaveScale : octaveScalePairs_)
-        {
-            // FIXME: replaced `std::get<N>` by placeholder `_` when moving to C++26 (P2169R4)
-            amplitudeSquared += std::pow(std::get<1>(octaveScale), 2);
-        }
-        amplitude_ = std::sqrt(amplitudeSquared);
-    }
-
-    void AbstractPerlinProcess::reset(
-        const uniform_random_bit_generator_ref<uint32_t> & g) noexcept
-    {
-        // Reset octaves
-        for (OctaveScalePair & octaveScale : octaveScalePairs_)
-        {
-            // FIXME: replaced `std::get<N>` by placeholder `_` when moving to C++26 (P2169R4)
-            std::get<0>(octaveScale)->reset(g);
-        }
-    }
-
-    double AbstractPerlinProcess::operator()(float t)
-    {
-        // Compute sum of octaves' values
-        double value = 0.0;
-        for (const auto & [octave, scale] : octaveScalePairs_)
-        {
-            value += scale * (*octave)(t);
-        }
-
-        // Scale sum by maximum amplitude
-        return value / amplitude_;
-    }
-
-    double AbstractPerlinProcess::getWavelength() const noexcept
-    {
-        double wavelength = INF;
-        for (const OctaveScalePair & octaveScale : octaveScalePairs_)
-        {
-            // FIXME: replaced `std::get<N>` by placeholder `_` when moving to C++26 (P2169R4)
-            wavelength = std::min(wavelength, std::get<0>(octaveScale)->getWavelength());
-        }
-        return wavelength;
-    }
-
-    std::size_t AbstractPerlinProcess::getNumOctaves() const noexcept
-    {
-        return octaveScalePairs_.size();
-    }
-
-    std::vector<AbstractPerlinProcess::OctaveScalePair> buildPerlinNoiseOctaves(
-        double wavelength,
-        std::size_t numOctaves,
-        std::function<std::unique_ptr<AbstractPerlinNoiseOctave>(double)> factory)
-    {
-        std::vector<AbstractPerlinProcess::OctaveScalePair> octaveScalePairs;
-        octaveScalePairs.reserve(numOctaves);
-        double scale = 1.0;
-        for (std::size_t i = 0; i < numOctaves; ++i)
-        {
-            octaveScalePairs.emplace_back(factory(wavelength), scale);
-            wavelength *= PERLIN_NOISE_LACUNARITY;
-            scale *= PERLIN_NOISE_PERSISTENCE;
-        }
-        return octaveScalePairs;
-    }
-
-    RandomPerlinProcess::RandomPerlinProcess(double wavelength, std::size_t numOctaves) :
-    AbstractPerlinProcess(buildPerlinNoiseOctaves(
-        wavelength,
-        numOctaves,
-        [](double wavelengthIn) -> std::unique_ptr<AbstractPerlinNoiseOctave>
-        { return std::make_unique<RandomPerlinNoiseOctave>(wavelengthIn); }))
-    {
-    }
-
-    PeriodicPerlinProcess::PeriodicPerlinProcess(
-        double wavelength, double period, std::size_t numOctaves) :
-    AbstractPerlinProcess(buildPerlinNoiseOctaves(
-        wavelength,
-        numOctaves,
-        [period](double wavelengthIn) -> std::unique_ptr<AbstractPerlinNoiseOctave>
-        { return std::make_unique<PeriodicPerlinNoiseOctave>(wavelengthIn, period); })),
-    period_{period}
-    {
-        // Make sure the period is larger than the wavelength
-        if (period_ < wavelength)
-        {
-            JIMINY_THROW(std::invalid_argument, "'period' must be larger than 'wavelength'.");
-        }
-    }
-
-    double PeriodicPerlinProcess::getPeriod() const noexcept
-    {
-        return period_;
+        const auto diff =
+            2 * M_PI / period_ *
+            Eigen::VectorXd::LinSpaced(numHarmonics_, 1, static_cast<double>(numHarmonics_));
+        grads_ = scale * cosMat_ * normalVec1.cwiseProduct(diff);
+        grads_.noalias() -= scale * sinMat_ * normalVec2.cwiseProduct(diff);
     }
 
     // ******************************* Random terrain generators ******************************* //
@@ -593,7 +491,7 @@ namespace jiminy
         const MatrixX<Scalar> & state, int64_t sparsity, uint32_t seed) noexcept
     {
         const auto numBytes = static_cast<int32_t>(sizeof(Scalar) * state.size());
-        const uint32_t hash = MurmurHash3(state.data(), numBytes, seed);
+        const uint32_t hash = xxHash(state.data(), numBytes, seed);
         if (hash % sparsity == 0)
         {
             return static_cast<float>(hash) /
@@ -658,7 +556,7 @@ namespace jiminy
                             double orientation,
                             uint32_t seed)
     {
-        if ((0.01 < interpDelta.array()).any() || (interpDelta.array() > size.array() / 2.0).any())
+        if ((0.01 > interpDelta.array()).any() || (interpDelta.array() > size.array() / 2.0).any())
         {
             JIMINY_WARNING(
                 "All components of 'interpDelta' must be in range [0.01, 'size'/2.0]. Value: ",
@@ -675,13 +573,15 @@ namespace jiminy
                        uniformSparseFromState(Vector1<Eigen::Index>::Constant(i), 1, seed);
             });
 
-        const Eigen::Rotation2D<double> rot_mat(orientation);
+        const Eigen::Rotation2D<double> rotMat(orientation);
 
-        return [size, heightMax, interpDelta, rot_mat, sparsity, interpThr, offset, seed](
-                   const Eigen::Vector2d & pos, double & height, Eigen::Vector3d & normal) -> void
+        return [size, heightMax, interpDelta, rotMat, sparsity, interpThr, offset, seed](
+                   const Eigen::Vector2d & pos,
+                   double & height,
+                   std::optional<Eigen::Ref<Eigen::Vector3d>> normal) -> void
         {
             // Compute the tile index and relative coordinate
-            Eigen::Vector2d posRel = (rot_mat * (pos + offset)).array() / size.array();
+            Eigen::Vector2d posRel = (rotMat * (pos + offset)).array() / size.array();
             Vector2<int32_t> posIndices = posRel.array().floor().cast<int32_t>();
             posRel -= posIndices.cast<double>();
 
@@ -694,7 +594,10 @@ namespace jiminy
                 std::tie(height, dheight_x) = tile2dInterp1d(
                     posIndices, posRel, 0, size, sparsity, heightMax, interpThr, seed);
                 const double norm_inv = 1.0 / std::sqrt(dheight_x * dheight_x + 1.0);
-                normal << -dheight_x * norm_inv, 0.0, norm_inv;
+                if (normal.has_value())
+                {
+                    normal.value() << -dheight_x * norm_inv, 0.0, norm_inv;
+                }
             }
             else if (!is_edge[0] && is_edge[1])
             {
@@ -702,7 +605,10 @@ namespace jiminy
                 std::tie(height, dheight_y) = tile2dInterp1d(
                     posIndices, posRel, 1, size, sparsity, heightMax, interpThr, seed);
                 const double norm_inv = 1.0 / std::sqrt(dheight_y * dheight_y + 1.0);
-                normal << 0.0, -dheight_y * norm_inv, norm_inv;
+                if (normal.has_value())
+                {
+                    normal.value() << 0.0, -dheight_y * norm_inv, norm_inv;
+                }
             }
             else if (is_edge[0] && is_edge[1])
             {
@@ -719,8 +625,11 @@ namespace jiminy
                     const double dheight_x = dheight_x_0 + (dheight_x_m - dheight_x_0) * ratio;
                     const double dheight_y =
                         (height_0 - height_m) / (2.0 * size[1] * interpThr[1]);
-                    normal << -dheight_x, -dheight_y, 1.0;
-                    normal.normalize();
+                    if (normal.has_value())
+                    {
+                        normal.value() << -dheight_x, -dheight_y, 1.0;
+                        normal->normalize();
+                    }
                 }
                 else
                 {
@@ -733,14 +642,20 @@ namespace jiminy
                     const double dheight_x = dheight_x_0 + (dheight_x_p - dheight_x_0) * ratio;
                     const double dheight_y =
                         (height_p - height_0) / (2.0 * size[1] * interpThr[1]);
-                    normal << -dheight_x, -dheight_y, 1.0;
-                    normal.normalize();
+                    if (normal.has_value())
+                    {
+                        normal.value() << -dheight_x, -dheight_y, 1.0;
+                        normal->normalize();
+                    }
                 }
             }
             else
             {
                 height = heightMax * uniformSparseFromState(posIndices, sparsity, seed);
-                normal = Eigen::Vector3d::UnitZ();
+                if (normal.has_value())
+                {
+                    normal.value() = Eigen::Vector3d::UnitZ();
+                }
             }
         };
     }

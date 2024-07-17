@@ -812,8 +812,7 @@ namespace jiminy::python
     struct result_converter
     {
         template<typename T,
-                 typename = typename std::enable_if_t<copy || std::is_reference_v<T> ||
-                                                      is_eigen_ref_v<T>>>
+                 typename = std::enable_if_t<copy || std::is_reference_v<T> || is_eigen_ref_v<T>>>
         struct apply
         {
             struct type

@@ -22,7 +22,7 @@ from gym_jiminy.common.compositions import (
     AdditiveMixtureReward)
 from gym_jiminy.toolbox.compositions import (
     tanh_normalization,
-    MaximizeStability)
+    MaximizeRobusntess)
 
 
 class Rewards(unittest.TestCase):
@@ -44,6 +44,8 @@ class Rewards(unittest.TestCase):
         self.env.quantities.select_trajectory("reference")
 
     def test_deletion(self):
+        """ TODO: Write documentation
+        """
         assert len(self.env.quantities.registry) == 0
         reward_survive = TrackingActuatedJointPositionsReward(
             self.env, cutoff=1.0)
@@ -53,6 +55,8 @@ class Rewards(unittest.TestCase):
         assert len(self.env.quantities.registry) == 0
 
     def test_tracking(self):
+        """ TODO: Write documentation
+        """
         for reward_class, cutoff in (
                 (TrackingBaseOdometryVelocityReward, 20.0),
                 (TrackingActuatedJointPositionsReward, 10.0),
@@ -62,8 +66,7 @@ class Rewards(unittest.TestCase):
                 (TrackingFootOrientationsReward, 2.0),
                 (TrackingFootForceDistributionReward, 2.0)):
             reward = reward_class(self.env, cutoff=cutoff)
-            quantity_true = reward.quantity.requirements['value_left']
-            quantity_ref = reward.quantity.requirements['value_right']
+            quantity = reward.data
 
             self.env.reset(seed=0)
             action = 0.5 * self.env.action_space.sample()
@@ -71,17 +74,18 @@ class Rewards(unittest.TestCase):
                 self.env.step(action)
             _, _, terminated, _, _ = self.env.step(self.env.action)
 
+            value_left = quantity.quantity_left.get()
+            value_right = quantity.quantity_right.get()
             with np.testing.assert_raises(AssertionError):
-                np.testing.assert_allclose(
-                    quantity_true.get(), quantity_ref.get())
+                np.testing.assert_allclose(value_left, value_right)
 
             if isinstance(reward, TrackingBaseHeightReward):
                 np.testing.assert_allclose(
-                    quantity_true.get(), self.env.robot_state.q[2])
+                    value_left, self.env.robot_state.q[2])
 
             gamma = - np.log(CUTOFF_ESP) / cutoff ** 2
-            value = np.exp(- gamma * np.sum((reward.quantity.op(
-                quantity_true.get(), quantity_ref.get())) ** 2))
+            value = np.exp(- gamma * np.sum(
+                (quantity.op(value_left, value_right)) ** 2))
             assert value > 0.01
             np.testing.assert_allclose(reward(terminated, {}), value)
 
@@ -113,16 +117,19 @@ class Rewards(unittest.TestCase):
             0.2 * reward_survive(terminated, {}))
 
     def test_stability(self):
+        """ TODO: Write documentation
+        """
         CUTOFF_INNER, CUTOFF_OUTER = 0.1, 0.5
-        reward_stability = MaximizeStability(
-            self.env, cutoff_inner=0.1, cutoff_outer=0.5)
-        quantity = reward_stability.quantity
+        reward_stability = MaximizeRobusntess(
+            self.env, cutoff=0.1, cutoff_outer=0.5)
+        quantity = reward_stability.data
 
         self.env.reset(seed=0)
         action = self.env.action_space.sample()
         _, _, terminated, _, _ = self.env.step(action)
 
-        dist = quantity.support_polygon.get_distance_to_point(quantity.zmp)
+        support_polygon = quantity.support_polygon.get()
+        dist = support_polygon.get_distance_to_point(quantity.zmp.get())
         value = tanh_normalization(dist.item(), -CUTOFF_INNER, CUTOFF_OUTER)
         np.testing.assert_allclose(tanh_normalization(
             -CUTOFF_INNER, -CUTOFF_INNER, CUTOFF_OUTER), 1.0 - CUTOFF_ESP)
@@ -131,9 +138,11 @@ class Rewards(unittest.TestCase):
         np.testing.assert_allclose(reward_stability(terminated, {}), value)
 
     def test_friction(self):
+        """ TODO: Write documentation
+        """
         CUTOFF = 0.5
         reward_friction = MinimizeFrictionReward(self.env, cutoff=CUTOFF)
-        quantity = reward_friction.quantity
+        quantity = reward_friction.data
 
         self.env.reset(seed=0)
         _, _, terminated, _, _ = self.env.step(self.env.action)

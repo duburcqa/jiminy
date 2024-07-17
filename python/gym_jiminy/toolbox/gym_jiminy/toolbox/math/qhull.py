@@ -354,7 +354,7 @@ def compute_convex_chebyshev_center(
     A = np.concatenate((
         equations[:, :-1], np.ones((len(equations), 1))), axis=1)
     b = - equations[:, -1:]
-    c = np.array([*(0.0,) * (num_dims - 1), -1.0])
+    c = np.array([*((0.0,) * (num_dims - 1)), -1.0])
     res = linprog(c, A_ub=A, b_ub=b, bounds=(None, None))
     return res.x[:-1], res.x[-1]
 

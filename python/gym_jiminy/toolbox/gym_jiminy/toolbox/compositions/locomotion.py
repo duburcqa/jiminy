@@ -7,7 +7,7 @@ import numba as nb
 
 from gym_jiminy.common.compositions import CUTOFF_ESP
 from gym_jiminy.common.bases import (
-    InterfaceJiminyEnv, QuantityEvalMode, BaseQuantityReward)
+    InterfaceJiminyEnv, QuantityEvalMode, QuantityReward)
 
 from ..quantities import StabilityMarginProjectedSupportPolygon
 
@@ -29,14 +29,14 @@ def tanh_normalization(value: float,
                   be bounded or unbounded, and signed or not, without
                   restrictions.
     :param cutoff: Cut-off threshold to consider.
-    :param order: Order of Lp-Norm that will be used as distance metric.
+    :param order: Order of L^p-norm that will be used as distance metric.
     """
     value_rel = (
         cutoff_high + cutoff_low - 2 * value) / (cutoff_high - cutoff_low)
     return 1.0 / (1.0 + math.pow(CUTOFF_ESP / (1.0 - CUTOFF_ESP), value_rel))
 
 
-class MaximizeStability(BaseQuantityReward):
+class MaximizeRobusntess(QuantityReward):
     """Encourage the agent to maintain itself in postures as robust as possible
     to external disturbances.
 
@@ -66,21 +66,21 @@ class MaximizeStability(BaseQuantityReward):
     """
     def __init__(self,
                  env: InterfaceJiminyEnv,
-                 cutoff_inner: float,
-                 cutoff_outer: float) -> None:
+                 cutoff: float,
+                 cutoff_outer: float = 0.0) -> None:
         """
         :param env: Base or wrapped jiminy environment.
-        :param cutoff_inner: Cutoff threshold when the ZMP lies inside the
-                             support polygon. The reward will be larger than
-                             '1.0 - CUTOFF_ESP' if the distance from the border
-                             is larger than 'cutoff_inner'.
+        :param cutoff: Cutoff threshold when the ZMP lies inside the support
+                       polygon. The reward will be larger than
+                       '1.0 - CUTOFF_ESP' if the distance from the border is
+                       larger than 'cutoff_inner'.
         :param cutoff_outer: Cutoff threshold when the ZMP lies outside the
                              support polygon. The reward will be smaller than
                              'CUTOFF_ESP' if the ZMP is further away from the
                              border of the support polygon than 'cutoff_outer'.
         """
         # Backup some user argument(s)
-        self.cutoff_inner = cutoff_inner
+        self.cutoff_inner = cutoff
         self.cutoff_outer = cutoff_outer
 
         # The cutoff thresholds must be positive
@@ -91,7 +91,7 @@ class MaximizeStability(BaseQuantityReward):
         # Call base implementation
         super().__init__(
             env,
-            "reward_momentum",
+            "reward_robustness",
             (StabilityMarginProjectedSupportPolygon, dict(
                 mode=QuantityEvalMode.TRUE
             )),

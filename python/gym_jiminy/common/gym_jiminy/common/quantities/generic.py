@@ -4,10 +4,12 @@ its topology (multiple or single branch, fixed or floating base...) and the
 application (locomotion, grasping...).
 """
 import warnings
-from enum import Enum
+from enum import IntEnum
+from functools import partial
 from dataclasses import dataclass
 from typing import (
-    List, Dict, Optional, Protocol, Sequence, Tuple, Union, runtime_checkable)
+    List, Dict, Optional, Protocol, Sequence, Tuple, Union, Callable,
+    runtime_checkable)
 
 import numpy as np
 import numba as nb
@@ -16,6 +18,7 @@ import jiminy_py.core as jiminy
 from jiminy_py.core import (  # pylint: disable=no-name-in-module
     array_copyto, multi_array_copyto)
 import pinocchio as pin
+import hppfcl as fcl
 
 from ..bases import (
     InterfaceJiminyEnv, InterfaceQuantity, AbstractQuantity, StateQuantity,
@@ -24,7 +27,8 @@ from ..utils import (
     matrix_to_rpy, matrix_to_quat, quat_apply, remove_yaw_from_quat,
     quat_interpolate_middle)
 
-from .transform import StackedQuantity, MaskedQuantity
+from .transform import (
+    StackedQuantity, MaskedQuantity, UnaryOpQuantity, BinaryOpQuantity)
 
 
 @runtime_checkable
@@ -42,7 +46,7 @@ class FrameQuantity(Protocol):
 
 
 @runtime_checkable
-class MultiFramesQuantity(Protocol):
+class MultiFrameQuantity(Protocol):
     """Protocol that must be satisfied by all quantities associated with
     a particular set of frames for which the same batched intermediary
     quantities must be computed.
@@ -76,19 +80,21 @@ def aggregate_frame_names(quantity: InterfaceQuantity) -> Tuple[
         active set must be decided by cache owners.
 
     :param quantity: Quantity whose parent implements either `FrameQuantity` or
-                     `MultiFramesQuantity` protocol. All the parents of all its
+                     `MultiFrameQuantity` protocol. All the parents of all its
                      cache owners must also implement one of these protocol.
     """
     # Make sure that parent quantity implement multi- or single-frame protocol
-    assert isinstance(quantity.parent, (FrameQuantity, MultiFramesQuantity))
+    assert isinstance(quantity.parent, (FrameQuantity, MultiFrameQuantity))
     quantities = (quantity.cache.owners if quantity.has_cache else (quantity,))
 
     # First, order all multi-frame quantities by decreasing length
     frame_names_chunks: List[Tuple[str, ...]] = []
     for owner in quantities:
-        if owner.parent.is_active(any_cache_owner=False):
-            if isinstance(owner.parent, MultiFramesQuantity):
-                frame_names_chunks.append(owner.parent.frame_names)
+        parent = owner.parent
+        assert parent is not None
+        if parent.is_active(any_cache_owner=False):
+            if isinstance(parent, MultiFrameQuantity):
+                frame_names_chunks.append(parent.frame_names)
 
     # Next, process ordered multi-frame quantities sequentially.
     # For each of them, we first check if its set of frames is completely
@@ -128,9 +134,11 @@ def aggregate_frame_names(quantity: InterfaceQuantity) -> Tuple[
     # Otherwise, we just move to the next quantity.
     frame_name_chunks: List[str] = []
     for owner in quantities:
-        if owner.parent.is_active(any_cache_owner=False):
-            if isinstance(owner.parent, FrameQuantity):
-                frame_name_chunks.append(owner.parent.frame_name)
+        parent = owner.parent
+        assert parent is not None
+        if parent.is_active(any_cache_owner=False):
+            if isinstance(parent, FrameQuantity):
+                frame_name_chunks.append(parent.frame_name)
                 frame_name = frame_name_chunks[-1]
                 if frame_name not in frame_names:
                     frame_names.append(frame_name)
@@ -196,7 +204,7 @@ class _BatchedFramesRotationMatrix(
         :param mode: Desired mode of evaluation for this quantity.
         """
         # Make sure that a parent has been specified
-        assert isinstance(parent, (FrameQuantity, MultiFramesQuantity))
+        assert isinstance(parent, (FrameQuantity, MultiFrameQuantity))
 
         # Call base implementation
         super().__init__(
@@ -259,7 +267,7 @@ class _BatchedFramesRotationMatrix(
         return self._rot_mat_map
 
 
-class OrientationType(Enum):
+class OrientationType(IntEnum):
     """Specify the desired vector representation of the frame orientations.
     """
 
@@ -278,6 +286,11 @@ class OrientationType(Enum):
     ANGLE_AXIS = 3
     """Angle-Axis representation (theta * AxisX, theta * AxisY, theta * AxisZ).
     """
+
+
+# Define proxies for fast lookup
+_MATRIX, _EULER, _QUATERNION, _ANGLE_AXIS = (  # pylint: disable=invalid-name
+    OrientationType)
 
 
 @dataclass(unsafe_hash=True)
@@ -312,7 +325,7 @@ class _BatchedFramesOrientation(
     """
 
     mode: QuantityEvalMode
-    """Specify on which state to evaluate this quantity. See `Mode`
+    """Specify on which state to evaluate this quantity. See `QuantityEvalMode`
     documentation for details about each mode.
 
     .. warning::
@@ -322,12 +335,12 @@ class _BatchedFramesOrientation(
 
     def __init__(self,
                  env: InterfaceJiminyEnv,
-                 parent: Union["FrameOrientation", "MultiFramesOrientation"],
+                 parent: Union["FrameOrientation", "MultiFrameOrientation"],
                  type: OrientationType,
                  mode: QuantityEvalMode) -> None:
         """
         :param env: Base or wrapped jiminy environment.
-        :param parent: `FrameOrientation` or `MultiFramesOrientation` instance
+        :param parent: `FrameOrientation` or `MultiFrameOrientation` instance
                        from which this quantity is a requirement.
         :param type: Desired vector representation of the orientation for all
                      frames. Note that `OrientationType.ANGLE_AXIS` is not
@@ -335,7 +348,7 @@ class _BatchedFramesOrientation(
         :param mode: Desired mode of evaluation for this quantity.
         """
         # Make sure that a suitable parent has been provided
-        assert isinstance(parent, (FrameOrientation, MultiFramesOrientation))
+        assert isinstance(parent, (FrameOrientation, MultiFrameOrientation))
 
         # Make sure that the specified orientation representation is supported
         if type not in (OrientationType.MATRIX,
@@ -351,7 +364,7 @@ class _BatchedFramesOrientation(
 
         # Initialize the ordered list of frame names.
         # Note that this must be done BEFORE calling base `__init__`, otherwise
-        # `isinstance(..., (FrameQuantity, MultiFramesQuantity))` will fail.
+        # `isinstance(..., (FrameQuantity, MultiFrameQuantity))` will fail.
         self.frame_names: Tuple[str, ...] = ()
 
         # Call base implementation
@@ -403,12 +416,13 @@ class _BatchedFramesOrientation(
 
     def refresh(self) -> Dict[Union[str, Tuple[str, ...]], np.ndarray]:
         # Get the complete batch of rotation matrices managed by this instance
-        rot_mat_batch = self.rot_mat_map[self.frame_names]
+        value = self.rot_mat_map.get()
+        rot_mat_batch = value[self.frame_names]
 
         # Convert all rotation matrices at once to the desired representation
-        if self.type == OrientationType.EULER:
+        if self.type == _EULER:
             matrix_to_rpy(rot_mat_batch, self._data_batch)
-        elif self.type == OrientationType.QUATERNION:
+        elif self.type == _QUATERNION:
             matrix_to_quat(rot_mat_batch, self._data_batch)
         else:
             # Slice data.
@@ -437,7 +451,7 @@ class FrameOrientation(InterfaceQuantity[np.ndarray]):
     """
 
     mode: QuantityEvalMode
-    """Specify on which state to evaluate this quantity. See `Mode`
+    """Specify on which state to evaluate this quantity. See `QuantityEvalMode`
     documentation for details about each mode.
 
     .. warning::
@@ -486,14 +500,18 @@ class FrameOrientation(InterfaceQuantity[np.ndarray]):
 
         # Force re-initializing shared data if the active set has changed
         if not was_active:
-            self.requirements["data"].reset(reset_tracking=True)
+            # Must reset the tracking for shared computation systematically,
+            # just in case the optimal computation path has changed to the
+            # point that relying on batched quantity is no longer relevant.
+            self.data.reset(reset_tracking=True)
 
     def refresh(self) -> np.ndarray:
-        return self.data[self.frame_name]
+        value = self.data.get()
+        return value[self.frame_name]
 
 
 @dataclass(unsafe_hash=True)
-class MultiFramesOrientation(InterfaceQuantity[np.ndarray]):
+class MultiFrameOrientation(InterfaceQuantity[np.ndarray]):
     """Vector representation of the orientation of a given set of frames in
     world reference frame at the end of the agent step.
 
@@ -512,7 +530,7 @@ class MultiFramesOrientation(InterfaceQuantity[np.ndarray]):
     """
 
     mode: QuantityEvalMode
-    """Specify on which state to evaluate this quantity. See `Mode`
+    """Specify on which state to evaluate this quantity. See `QuantityEvalMode`
     documentation for details about each mode.
 
     .. warning::
@@ -566,16 +584,14 @@ class MultiFramesOrientation(InterfaceQuantity[np.ndarray]):
 
         # Force re-initializing shared data if the active set has changed
         if not was_active:
-            # Must reset the tracking for shared computation systematically,
-            # just in case the optimal computation path has changed to the
-            # point that relying on batched quantity is no longer relevant.
-            self.requirements["data"].reset(reset_tracking=True)
+            self.data.reset(reset_tracking=True)
 
     def refresh(self) -> np.ndarray:
         # Return a slice of batched data.
         # Note that mapping from frame names to frame index in batched data
         # cannot be pre-computed as it may changed dynamically.
-        return self.data[self.frame_names]
+        value = self.data.get()
+        return value[self.frame_names]
 
 
 @dataclass(unsafe_hash=True)
@@ -597,16 +613,16 @@ class _BatchedFramesPosition(
 
     def __init__(self,
                  env: InterfaceJiminyEnv,
-                 parent: Union["FramePosition", "MultiFramesPosition"],
+                 parent: Union["FramePosition", "MultiFramePosition"],
                  mode: QuantityEvalMode) -> None:
         """
         :param env: Base or wrapped jiminy environment.
-        :param parent: `FramePosition` or `MultiFramesPosition` instance from
+        :param parent: `FramePosition` or `MultiFramePosition` instance from
                        which this quantity is a requirement.
         :param mode: Desired mode of evaluation for this quantity.
         """
         # Make sure that a suitable parent has been provided
-        assert isinstance(parent, (FramePosition, MultiFramesPosition))
+        assert isinstance(parent, (FramePosition, MultiFramePosition))
 
         # Initialize the ordered list of frame names
         self.frame_names: Tuple[str, ...] = ()
@@ -679,7 +695,7 @@ class FramePosition(InterfaceQuantity[np.ndarray]):
     """
 
     mode: QuantityEvalMode
-    """Specify on which state to evaluate this quantity. See `Mode`
+    """Specify on which state to evaluate this quantity. See `QuantityEvalMode`
     documentation for details about each mode.
 
     .. warning::
@@ -722,14 +738,15 @@ class FramePosition(InterfaceQuantity[np.ndarray]):
 
         # Force re-initializing shared data if the active set has changed
         if not was_active:
-            self.requirements["data"].reset(reset_tracking=True)
+            self.data.reset(reset_tracking=True)
 
     def refresh(self) -> np.ndarray:
-        return self.data[self.frame_name]
+        value = self.data.get()
+        return value[self.frame_name]
 
 
 @dataclass(unsafe_hash=True)
-class MultiFramesPosition(InterfaceQuantity[np.ndarray]):
+class MultiFramePosition(InterfaceQuantity[np.ndarray]):
     """Position vector (X, Y, Z) of a given set of frames in world reference
     frame at the end of the agent step.
     """
@@ -739,7 +756,7 @@ class MultiFramesPosition(InterfaceQuantity[np.ndarray]):
     """
 
     mode: QuantityEvalMode
-    """Specify on which state to evaluate this quantity. See `Mode`
+    """Specify on which state to evaluate this quantity. See `QuantityEvalMode`
     documentation for details about each mode.
 
     .. warning::
@@ -785,10 +802,11 @@ class MultiFramesPosition(InterfaceQuantity[np.ndarray]):
 
         # Force re-initializing shared data if the active set has changed
         if not was_active:
-            self.requirements["data"].reset(reset_tracking=True)
+            self.data.reset(reset_tracking=True)
 
     def refresh(self) -> np.ndarray:
-        return self.data[self.frame_names]
+        value = self.data.get()
+        return value[self.frame_names]
 
 
 @dataclass(unsafe_hash=True)
@@ -803,7 +821,7 @@ class FrameXYZQuat(InterfaceQuantity[np.ndarray]):
     """
 
     mode: QuantityEvalMode
-    """Specify on which state to evaluate this quantity. See `Mode`
+    """Specify on which state to evaluate this quantity. See `QuantityEvalMode`
     documentation for details about each mode.
 
     .. warning::
@@ -848,16 +866,16 @@ class FrameXYZQuat(InterfaceQuantity[np.ndarray]):
 
     def refresh(self) -> np.ndarray:
         # Copy the position of all frames at once in contiguous buffer
-        array_copyto(self._xyzquat[:3], self.position)
+        array_copyto(self._xyzquat[:3], self.position.get())
 
         # Copy the quaternion of all frames at once in contiguous buffer
-        array_copyto(self._xyzquat[-4:], self.quat)
+        array_copyto(self._xyzquat[-4:], self.quat.get())
 
         return self._xyzquat
 
 
 @dataclass(unsafe_hash=True)
-class MultiFramesXYZQuat(InterfaceQuantity[np.ndarray]):
+class MultiFrameXYZQuat(InterfaceQuantity[np.ndarray]):
     """Spatial vector representation (X, Y, Z, QuatX, QuatY, QuatZ, QuatW) of
     the transform of a given set of frames in world reference frame at the end
     of the agent step.
@@ -868,7 +886,7 @@ class MultiFramesXYZQuat(InterfaceQuantity[np.ndarray]):
     """
 
     mode: QuantityEvalMode
-    """Specify on which state to evaluate this quantity. See `Mode`
+    """Specify on which state to evaluate this quantity. See `QuantityEvalMode`
     documentation for details about each mode.
 
     .. warning::
@@ -902,30 +920,30 @@ class MultiFramesXYZQuat(InterfaceQuantity[np.ndarray]):
             env,
             parent,
             requirements=dict(
-                positions=(MultiFramesPosition, dict(
+                positions=(MultiFramePosition, dict(
                     frame_names=frame_names,
                     mode=mode)),
-                quats=(MultiFramesOrientation, dict(
+                quats=(MultiFrameOrientation, dict(
                     frame_names=frame_names,
                     type=OrientationType.QUATERNION,
                     mode=mode))),
             auto_refresh=False)
 
         # Pre-allocate memory for storing the pose XYZQuat of all frames
-        self._xyzquats = np.zeros((7, len(frame_names)), order='F')
+        self._xyzquats = np.zeros((7, len(frame_names)), order='C')
 
     def refresh(self) -> np.ndarray:
         # Copy the position of all frames at once in contiguous buffer
-        array_copyto(self._xyzquats[:3], self.positions)
+        array_copyto(self._xyzquats[:3], self.positions.get())
 
         # Copy the quaternion of all frames at once in contiguous buffer
-        array_copyto(self._xyzquats[-4:], self.quats)
+        array_copyto(self._xyzquats[-4:], self.quats.get())
 
         return self._xyzquats
 
 
 @dataclass(unsafe_hash=True)
-class MultiFramesMeanXYZQuat(InterfaceQuantity[np.ndarray]):
+class MultiFrameMeanXYZQuat(InterfaceQuantity[np.ndarray]):
     """Spatial vector representation (X, Y, Z, QuatX, QuatY, QuatZ, QuatW) of
     the average transform of a given set of frames in world reference frame at
     the end of the agent step.
@@ -946,7 +964,7 @@ class MultiFramesMeanXYZQuat(InterfaceQuantity[np.ndarray]):
     """
 
     mode: QuantityEvalMode
-    """Specify on which state to evaluate this quantity. See `Mode`
+    """Specify on which state to evaluate this quantity. See `QuantityEvalMode`
     documentation for details about each mode.
 
     .. warning::
@@ -980,16 +998,16 @@ class MultiFramesMeanXYZQuat(InterfaceQuantity[np.ndarray]):
             env,
             parent,
             requirements=dict(
-                positions=(MultiFramesPosition, dict(
+                positions=(MultiFramePosition, dict(
                     frame_names=frame_names,
                     mode=mode)),
-                quats=(MultiFramesOrientation, dict(
+                quats=(MultiFrameOrientation, dict(
                     frame_names=frame_names,
                     type=OrientationType.QUATERNION,
                     mode=mode))),
             auto_refresh=False)
 
-        # Define jit-able specialization of `np.mean` for `axis=-1`
+        # Jit-able method specialization of `np.mean` for `axis=-1`
         @nb.jit(nopython=True, cache=True, fastmath=True)
         def position_average(value: np.ndarray, out: np.ndarray) -> None:
             """Compute the mean of an array over its last axis only.
@@ -1002,7 +1020,7 @@ class MultiFramesMeanXYZQuat(InterfaceQuantity[np.ndarray]):
 
         self._position_average = position_average
 
-        # Define jit-able specialization of `quat_average` for 2D matrices
+        # Jit-able specialization of `quat_average` for 2D matrices
         @nb.jit(nopython=True, cache=True, fastmath=True)
         def quat_average_2d(quat: np.ndarray, out: np.ndarray) -> None:
             """Compute the average of a batch of quaternions [qx, qy, qz, qw].
@@ -1036,12 +1054,154 @@ class MultiFramesMeanXYZQuat(InterfaceQuantity[np.ndarray]):
 
     def refresh(self) -> np.ndarray:
         # Compute the mean translation
-        self._position_average(self.positions, self._position_mean_view)
+        self._position_average(self.positions.get(), self._position_mean_view)
 
         # Compute the mean quaternion
-        self._quat_average(self.quats, self._quat_mean_view)
+        self._quat_average(self.quats.get(), self._quat_mean_view)
 
         return self._xyzquat_mean
+
+
+@dataclass(unsafe_hash=True)
+class MultiFrameCollisionDetection(InterfaceQuantity[bool]):
+    """Check if some geometry objects are colliding with each other.
+
+    It takes into account some safety margins by which their volume will be
+    inflated / deflated.
+
+    .. note::
+        Jiminy enforces all collision geometries to be either primitive shapes
+        or convex polyhedra for efficiency. In practice, tf meshes where
+        specified in the original URDF file, then they will be converted into
+        their respective convex hull.
+    """
+
+    frame_names: Tuple[str, ...]
+    """Name of the bodies of the robot to consider for collision detection.
+
+    All the geometry objects sharing with them the same parent joint will be
+    taking into account.
+    """
+
+    security_margin: float
+    """Signed distance below which a pair of geometry objects is stated in
+    collision.
+
+    This can be interpreted as inflating or deflating the geometry objects by
+    the safety margin depending on whether it is positive or negative
+    respectively. Therefore, the actual geometry objects do no have to be in
+    contact to be stated in collision if the satefy margin is positive. On the
+    contrary, the penetration depth must be large enough if the security margin
+    is positive.
+    """
+
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 parent: Optional[InterfaceQuantity],
+                 frame_names: Sequence[str],
+                 *,
+                 security_margin: float = 0.0) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param parent: Higher-level quantity from which this quantity is a
+                       requirement if any, `None` otherwise.
+        :param frame_names: Name of the bodies of the robot to consider for
+                            collision detection. All the geometry objects
+                            sharing with them the same parent joint will be
+                            taking into account.
+        :param security_margin: Signed distance below which a pair of geometry
+                                objects is stated in collision.
+                                Optional: 0.0 by default.
+        """
+        # Backup some user-arguments
+        self.frame_names = tuple(frame_names)
+        self.security_margin = security_margin
+
+        # Call base implementation
+        super().__init__(
+            env,
+            parent,
+            requirements={},
+            auto_refresh=False)
+
+        # Initialize a broadphase manager for each collision group
+        self._collision_groups = [
+            fcl.DynamicAABBTreeCollisionManager() for _ in frame_names]
+
+        # Initialize pair-wise collision requests between groups of bodies
+        self._requests: List[Tuple[
+            fcl.BroadPhaseCollisionManager,
+            fcl.BroadPhaseCollisionManager,
+            fcl.CollisionCallBackBase]] = []
+        for i in range(len(frame_names)):
+            for j in range(i + 1, len(frame_names)):
+                manager_1 = self._collision_groups[i]
+                manager_2 = self._collision_groups[j]
+                callback = fcl.CollisionCallBackDefault()
+                request: fcl.CollisionRequest = (
+                    callback.data.request)  # pylint: disable=no-member
+                request.gjk_initial_guess = jiminy.GJKInitialGuess.CachedGuess
+                # request.gjk_variant = fcl.GJKVariant.NesterovAcceleration
+                # request.break_distance = 0.1
+                request.gjk_tolerance = 1e-6
+                request.distance_upper_bound = 1e-6
+                request.num_max_contacts = 1
+                request.security_margin = security_margin
+                self._requests.append((manager_1, manager_2, callback))
+
+        # Store callable responsible to updating transform of colision objects
+        self._transform_updates: List[Callable[[], None]] = []
+
+    def initialize(self) -> None:
+        # Call base implementation
+        super().initialize()
+
+        # Define robot proxy for convenience
+        robot = self.env.robot
+
+        # Clear all collision managers
+        for manager in self._collision_groups:
+            manager.clear()
+
+        # Get the list of parent joint indices mapping
+        frame_indices_map: Dict[int, int] = {}
+        for i, frame_name in enumerate(self.frame_names):
+            frame_index = robot.pinocchio_model.getFrameId(frame_name)
+            frame = robot.pinocchio_model.frames[frame_index]
+            frame_indices_map[frame.parent] = i
+
+        # Add collision objects to their corresponding manager
+        self._transform_updates.clear()
+        for i, geom in enumerate(robot.collision_model.geometryObjects):
+            j = frame_indices_map.get(geom.parentJoint)
+            if j is not None:
+                obj = fcl.CollisionObject(geom.geometry)
+                self._collision_groups[j].registerObject(obj)
+                pose = robot.collision_data.oMg[i]
+                translation, rotation = pose.translation, pose.rotation
+                self._transform_updates += (
+                    partial(obj.setTranslation, translation),
+                    partial(obj.setRotation, rotation))
+
+        # Initialize collision detection facilities
+        for manager in self._collision_groups:
+            manager.setup()
+
+    def refresh(self) -> bool:
+        # Update collision object placement
+        for transform_update in self._transform_updates:
+            transform_update()
+
+        # Update all collision managers
+        # for manager in self._collision_groups:
+        #     manager.update()
+
+        # Check collision for all candidate pairs
+        for manager_1, manager_2, callback in self._requests:
+            manager_1.collide(manager_2, callback)
+            if callback.data.result.isCollision():
+                return True
+        return False
 
 
 @dataclass(unsafe_hash=True)
@@ -1062,7 +1222,7 @@ class _DifferenceFrameXYZQuat(InterfaceQuantity[np.ndarray]):
     """
 
     mode: QuantityEvalMode
-    """Specify on which state to evaluate this quantity. See `Mode`
+    """Specify on which state to evaluate this quantity. See `QuantityEvalMode`
     documentation for details about each mode.
 
     .. warning::
@@ -1102,7 +1262,7 @@ class _DifferenceFrameXYZQuat(InterfaceQuantity[np.ndarray]):
                     quantity=(FrameXYZQuat, dict(
                         frame_name=frame_name,
                         mode=mode)),
-                    num_stack=2))),
+                    max_stack=2))),
             auto_refresh=False)
 
         # Define specialize difference operator on SE3 Lie group
@@ -1118,7 +1278,7 @@ class _DifferenceFrameXYZQuat(InterfaceQuantity[np.ndarray]):
         # point. This should never occur in practice as it will be fine at
         # the end of the first step already, before the reward and termination
         # conditions are evaluated.
-        xyzquat_prev, xyzquat = self.xyzquat_stack
+        xyzquat_prev, xyzquat = self.xyzquat_stack.get()
 
         # Compute average frame velocity in local frame since previous step
         self._data[:] = self._difference(xyzquat_prev, xyzquat)
@@ -1151,7 +1311,7 @@ class AverageFrameXYZQuat(InterfaceQuantity[np.ndarray]):
     """
 
     mode: QuantityEvalMode
-    """Specify on which state to evaluate this quantity. See `Mode`
+    """Specify on which state to evaluate this quantity. See `QuantityEvalMode`
     documentation for details about each mode.
 
     .. warning::
@@ -1196,7 +1356,8 @@ class AverageFrameXYZQuat(InterfaceQuantity[np.ndarray]):
 
     def refresh(self) -> np.ndarray:
         # Interpolate the average spatial velocity at midpoint
-        return self._integrate(self.xyzquat_next, - 0.5 * self.xyzquat_diff)
+        return self._integrate(
+            self.xyzquat_next.get(), - 0.5 * self.xyzquat_diff.get())
 
 
 @dataclass(unsafe_hash=True)
@@ -1215,7 +1376,7 @@ class AverageFrameRollPitch(InterfaceQuantity[np.ndarray]):
     """
 
     mode: QuantityEvalMode
-    """Specify on which state to evaluate this quantity. See `Mode`
+    """Specify on which state to evaluate this quantity. See `QuantityEvalMode`
     documentation for details about each mode.
 
     .. warning::
@@ -1259,13 +1420,13 @@ class AverageFrameRollPitch(InterfaceQuantity[np.ndarray]):
 
     def refresh(self) -> np.ndarray:
         # Compute Yaw-free average orientation
-        remove_yaw_from_quat(self.quat_mean, self._quat_no_yaw_mean)
+        remove_yaw_from_quat(self.quat_mean.get(), self._quat_no_yaw_mean)
 
         return self._quat_no_yaw_mean
 
 
 @dataclass(unsafe_hash=True)
-class AverageFrameSpatialVelocity(InterfaceQuantity[np.ndarray]):
+class FrameSpatialAverageVelocity(InterfaceQuantity[np.ndarray]):
     """Average spatial velocity of a given frame at the end of the agent step.
 
     The average spatial velocity is obtained by finite difference. More
@@ -1295,7 +1456,7 @@ class AverageFrameSpatialVelocity(InterfaceQuantity[np.ndarray]):
     """
 
     mode: QuantityEvalMode
-    """Specify on which state to evaluate this quantity. See `Mode`
+    """Specify on which state to evaluate this quantity. See `QuantityEvalMode`
     documentation for details about each mode.
 
     .. warning::
@@ -1360,47 +1521,70 @@ class AverageFrameSpatialVelocity(InterfaceQuantity[np.ndarray]):
 
     def refresh(self) -> np.ndarray:
         # Compute average frame velocity in local frame since previous step
-        np.multiply(self.xyzquat_diff, self._inv_step_dt, self._v_spatial)
+        np.multiply(
+            self.xyzquat_diff.get(), self._inv_step_dt, self._v_spatial)
 
         # Translate local velocity to world frame
         if self.reference_frame == pin.LOCAL_WORLD_ALIGNED:
             # Define world frame as the "middle" between prev and next pose.
             # Here, we only care about the middle rotation, so we can consider
             # SO3 Lie Group algebra instead of SE3.
-            quat_apply(self.quat_mean, self._v_lin_ang, self._v_lin_ang)
+            quat_apply(self.quat_mean.get(), self._v_lin_ang, self._v_lin_ang)
 
         return self._v_spatial
 
 
 @dataclass(unsafe_hash=True)
-class ActuatedJointsPosition(AbstractQuantity[np.ndarray]):
-    """Concatenation of the current position of all the actuated joints
-    of the robot.
+class MultiActuatedJointKinematic(AbstractQuantity[np.ndarray]):
+    """Current position, velocity or acceleration of all the actuated joints
+    of the robot before or after the mechanical transmissions.
 
-    In practice, all actuated joints must be 1DoF for now. The principal angle
-    is used in case of revolute unbounded revolute joints.
-
-    .. warning::
-        Revolute unbounded joints are not supported for now.
+    In practice, all actuated joints must be 1DoF for now. In the case of
+    revolute unbounded revolute joints, the principal angle 'theta' is used to
+    encode the position, not the polar coordinates `(cos(theta), sin(theta))`.
 
     .. warning::
         Data is extracted from the true configuration vector instead of using
         sensor data. As a result, this quantity is appropriate for computing
         reward components and termination conditions but must be avoided in
         observers and controllers.
+
+    .. warning::
+        Revolute unbounded joints are not supported for now.
+    """
+
+    kinematic_level: pin.KinematicLevel
+    """Kinematic level to consider, ie position, velocity or acceleration.
+    """
+
+    is_motor_side: bool
+    """Whether the compute kinematic data on motor- or joint-side, ie before or
+    after their respective mechanical transmision.
     """
 
     def __init__(self,
                  env: InterfaceJiminyEnv,
                  parent: Optional[InterfaceQuantity],
                  *,
+                 kinematic_level: pin.KinematicLevel = pin.POSITION,
+                 is_motor_side: bool = False,
                  mode: QuantityEvalMode = QuantityEvalMode.TRUE) -> None:
         """
         :param env: Base or wrapped jiminy environment.
         :param parent: Higher-level quantity from which this quantity is a
                        requirement if any, `None` otherwise.
+        :param kinematic_level: Desired kinematic level, ie position, velocity
+                                or acceleration.
+        :param is_motor_side: Whether the compute kinematic data on motor- or
+                              joint-side, ie before or after the mechanical
+                              transmisions.
+                              Optional: False by default.
         :param mode: Desired mode of evaluation for this quantity.
         """
+        # Backup some of the user-arguments
+        self.kinematic_level = kinematic_level
+        self.is_motor_side = is_motor_side
+
         # Call base implementation
         super().__init__(
             env,
@@ -1415,10 +1599,13 @@ class ActuatedJointsPosition(AbstractQuantity[np.ndarray]):
         # Note that it will only be used in last resort if it can be written as
         # a slice. Indeed, "fancy" indexing returns a copy of the original data
         # instead of a view, which requires fetching data at every refresh.
-        self.position_indices: List[int] = []
+        self.kinematic_indices: List[int] = []
+
+        # Keep track of the mechanical reduction ratio for all the motors
+        self._joint_to_motor_ratios = np.array([])
 
         # Buffer storing mechanical joint positions
-        self.data = np.array([])
+        self._data = np.array([])
 
         # Whether mechanical joint positions must be updated at every refresh
         self._must_refresh = False
@@ -1427,25 +1614,41 @@ class ActuatedJointsPosition(AbstractQuantity[np.ndarray]):
         # Call base implementation
         super().initialize()
 
-        # Refresh mechanical joint position indices
-        self.position_indices.clear()
-        for motor in self.env.robot.motors:
-            joint_index = self.pinocchio_model.getJointId(motor.joint_name)
-            joint = self.pinocchio_model.joints[joint_index]
+        # Make sure that the state data meet requirements
+        state = self.state.get()
+        if ((self.kinematic_level == pin.ACCELERATION and state.a is None) or
+                (self.kinematic_level >= pin.VELOCITY and state.v is None)):
+            raise RuntimeError(
+                "Available state data do not meet requirements for kinematic "
+                f"level '{self.kinematic_level}'.")
+
+        # Refresh mechanical joint position indices and reduction ratio
+        joint_to_motor_ratios = []
+        self.kinematic_indices.clear()
+        for motor in self.robot.motors:
+            joint = self.pinocchio_model.joints[motor.joint_index]
             joint_type = jiminy.get_joint_type(joint)
             if joint_type == jiminy.JointModelType.ROTARY_UNBOUNDED:
                 raise ValueError(
                     "Revolute unbounded joints are not supported for now.")
-            self.position_indices += range(joint.idx_q, joint.idx_q + joint.nq)
+            if self.kinematic_level == pin.KinematicLevel.POSITION:
+                kin_first, kin_last = joint.idx_q, joint.idx_q + joint.nq
+            else:
+                kin_first, kin_last = joint.idx_v, joint.idx_v + joint.nv
+            motor_options = motor.get_options()
+            mechanical_reduction = motor_options["mechanicalReduction"]
+            joint_to_motor_ratios.append(mechanical_reduction)
+            self.kinematic_indices += range(kin_first, kin_last)
+        self._joint_to_motor_ratios = np.array(joint_to_motor_ratios)
 
         # Determine whether data can be extracted from state by reference
-        position_first = min(self.position_indices)
-        position_last = max(self.position_indices)
+        kin_first = min(self.kinematic_indices)
+        kin_last = max(self.kinematic_indices)
         self._must_refresh = True
         if self.mode == QuantityEvalMode.TRUE:
             try:
-                if (np.array(self.position_indices) == np.arange(
-                        position_first, position_last + 1)).all():
+                if np.all(np.array(self.kinematic_indices) == np.arange(
+                        kin_first, kin_last + 1)):
                     self._must_refresh = False
                 else:
                     warnings.warn(
@@ -1456,13 +1659,165 @@ class ActuatedJointsPosition(AbstractQuantity[np.ndarray]):
 
         # Try extracting mechanical joint positions by reference if possible
         if self._must_refresh:
-            self.data = np.full((len(self.position_indices),), float("nan"))
+            self._data = np.full((len(self.kinematic_indices),), float("nan"))
         else:
-            self.data = self.state.q[slice(position_first, position_last + 1)]
+            state = self.state.get()
+            if self.kinematic_level == pin.KinematicLevel.POSITION:
+                self._data = state.q[slice(kin_first, kin_last + 1)]
+            elif self.kinematic_level == pin.KinematicLevel.VELOCITY:
+                self._data = state.v[slice(kin_first, kin_last + 1)]
+            else:
+                self._data = state.a[slice(kin_first, kin_last + 1)]
 
     def refresh(self) -> np.ndarray:
         # Update mechanical joint positions only if necessary
+        state = self.state.get()
         if self._must_refresh:
-            self.state.q.take(self.position_indices, None, self.data, "clip")
+            if self.kinematic_level == pin.KinematicLevel.POSITION:
+                data = state.q
+            elif self.kinematic_level == pin.KinematicLevel.VELOCITY:
+                data = state.v
+            else:
+                data = state.a
+            data.take(self.kinematic_indices, None, self._data, "clip")
 
-        return self.data
+        # Translate encoder data at joint level
+        if self.is_motor_side:
+            self._data *= self._joint_to_motor_ratios
+
+        return self._data
+
+
+class EnergyGenerationMode(IntEnum):
+    """Specify what happens to the energy generated by motors when breaking.
+    """
+
+    CHARGE = 0
+    """The energy flows back to the battery to charge them without any kind of
+    losses in the process if negative overall.
+    """
+
+    LOST_EACH = 1
+    """The generated energy by each motor individually is lost by thermal
+    dissipation, without flowing back to the battery nor powering other motors
+    consuming energy if any.
+    """
+
+    LOST_GLOBAL = 2
+    """The energy is lost by thermal dissipation without flowing back to the
+    battery if negative overall.
+    """
+
+    PENALIZE = 3
+    """The generated energy by each motor individually is treated as consumed.
+    """
+
+
+# Define proxies for fast lookup
+_CHARGE, _LOST_EACH, _LOST_GLOBAL, _PENALIZE = map(int, EnergyGenerationMode)
+
+
+@dataclass(unsafe_hash=True)
+class AverageMechanicalPowerConsumption(InterfaceQuantity[float]):
+    """Average mechanical power consumption by all the motors over a sliding
+    time window.
+    """
+
+    max_stack: int
+    """Time horizon over which values of the instantaneous power consumption
+    will be stacked for computing the average.
+    """
+
+    generator_mode: EnergyGenerationMode
+    """Specify what happens to the energy generated by motors when breaking.
+    See `EnergyGenerationMode` documentation for details.
+    """
+
+    mode: QuantityEvalMode
+    """Specify on which state to evaluate this quantity. See `QuantityEvalMode`
+    documentation for details about each mode.
+
+    .. warning::
+        Mode `REFERENCE` requires a reference trajectory to be selected
+        manually prior to evaluating this quantity for the first time.
+    """
+
+    def __init__(
+            self,
+            env: InterfaceJiminyEnv,
+            parent: Optional[InterfaceQuantity],
+            *,
+            horizon: float,
+            generator_mode: EnergyGenerationMode = EnergyGenerationMode.CHARGE,
+            mode: QuantityEvalMode = QuantityEvalMode.TRUE) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param parent: Higher-level quantity from which this quantity is a
+                       requirement if any, `None` otherwise.
+        :param horizon: Horizon over which values of the quantity will be
+                        stacked before computing the average.
+        :param generator_mode: Specify what happens to the energy generated by
+                               motors when breaking.
+                               Optional: `EnergyGenerationMode.CHARGE` by
+                               default.
+        :param mode: Desired mode of evaluation for this quantity.
+        """
+        # Convert horizon in stack length, assuming constant env timestep
+        max_stack = max(int(np.ceil(horizon / env.step_dt)), 1)
+
+        # Backup some of the user-arguments
+        self.max_stack = max_stack
+        self.generator_mode = generator_mode
+        self.mode = mode
+
+        # Jit-able method computing the total instantaneous power consumption
+        @nb.jit(nopython=True, cache=True, fastmath=True)
+        def _compute_power(generator_mode: int,  # EnergyGenerationMode
+                           motor_velocities: np.ndarray,
+                           motor_efforts: np.ndarray) -> float:
+            """Compute the total instantaneous mechanical power consumption of
+            all motors.
+
+            :param generator_mode: Specify what happens to the energy generated
+                                   by motors when breaking.
+            :param motor_velocities: Velocity of all the motors before
+                                     transmission as a 1D array. The order must
+                                     be consistent with the motor indices.
+            :param motor_efforts: Effort of all the motors before transmission
+                                  as a 1D array. The order must be consistent
+                                  with the motor indices.
+            """
+            if generator_mode in (_CHARGE, _LOST_GLOBAL):
+                total_power = np.dot(motor_velocities, motor_efforts)
+                if generator_mode == _CHARGE:
+                    return total_power
+                return max(total_power, 0.0)
+            motor_powers = motor_velocities * motor_efforts
+            if generator_mode == _LOST_EACH:
+                return np.sum(np.maximum(motor_powers, 0.0))
+            return np.sum(np.abs(motor_powers))
+
+        # Call base implementation
+        super().__init__(
+            env,
+            parent,
+            requirements=dict(
+                total_power_stack=(StackedQuantity, dict(
+                    quantity=(BinaryOpQuantity, dict(
+                        quantity_left=(UnaryOpQuantity, dict(
+                            quantity=(StateQuantity, dict(
+                                update_kinematics=False,
+                                mode=self.mode)),
+                            op=lambda state: state.command)),
+                        quantity_right=(MultiActuatedJointKinematic, dict(
+                            kinematic_level=pin.KinematicLevel.VELOCITY,
+                            is_motor_side=True,
+                            mode=self.mode)),
+                        op=partial(_compute_power, int(self.generator_mode)))),
+                    max_stack=self.max_stack,
+                    as_array=True,
+                    mode='slice'))),
+            auto_refresh=False)
+
+    def refresh(self) -> float:
+        return np.mean(self.total_power_stack.get())

@@ -145,12 +145,16 @@ namespace jiminy
     template<>
     HeightmapFunction convertFromJson<HeightmapFunction>(const Json::Value & /* value */)
     {
-        return {
-            [](const Eigen::Vector2d & /* xy */, double & height, Eigen::Vector3d & normal) -> void
-            {
-                height = 0.0;
-                normal = Eigen::Vector3d::UnitZ();
-            }};
+        return {[](const Eigen::Vector2d & /* xy */,
+                   double & height,
+                   std::optional<Eigen::Ref<Eigen::Vector3d>> normal) -> void
+                {
+                    height = 0.0;
+                    if (normal.has_value())
+                    {
+                        normal.value() = Eigen::Vector3d::UnitZ();
+                    }
+                }};
     }
 
     template<>

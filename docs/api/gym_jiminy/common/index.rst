@@ -8,6 +8,6 @@ Gym Jiminy API
    blocks/index
    envs/index
    quantities/index
-   rewards/index
+   compositions/index
    wrappers/index
    utils/index

@@ -16,12 +16,12 @@ import pinocchio as pin
 from ..bases import (
     InterfaceJiminyEnv, InterfaceQuantity, AbstractQuantity, StateQuantity,
     QuantityEvalMode)
+from ..quantities import (
+    MaskedQuantity, FramePosition, MultiFramePosition, MultiFrameXYZQuat,
+    MultiFrameMeanXYZQuat, MultiFrameCollisionDetection,
+    FrameSpatialAverageVelocity, AverageFrameRollPitch)
 from ..utils import (
     matrix_to_yaw, quat_to_yaw, quat_to_matrix, quat_multiply, quat_apply)
-
-from ..quantities import (
-    MaskedQuantity, MultiFramesXYZQuat, MultiFramesMeanXYZQuat,
-    AverageFrameSpatialVelocity, AverageFrameRollPitch)
 
 
 def sanitize_foot_frame_names(
@@ -105,6 +105,62 @@ def translate_position_odom(position: np.ndarray,
 
 
 @dataclass(unsafe_hash=True)
+class BaseRelativeHeight(InterfaceQuantity[float]):
+    """Relative height of the floating base of the robot wrt lowest contact
+    point or collision body in world frame.
+    """
+
+    mode: QuantityEvalMode
+    """Specify on which state to evaluate this quantity. See `QuantityEvalMode`
+    documentation for details about each mode.
+
+    .. warning::
+        Mode `REFERENCE` requires a reference trajectory to be selected
+        manually prior to evaluating this quantity for the first time.
+    """
+
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 parent: Optional[InterfaceQuantity],
+                 *,
+                 mode: QuantityEvalMode = QuantityEvalMode.TRUE) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param parent: Higher-level quantity from which this quantity is a
+                       requirement if any, `None` otherwise.
+        :param mode: Desired mode of evaluation for this quantity.
+                     Optional: 'QuantityEvalMode.TRUE' by default.
+        """
+        # Backup some user argument(s)
+        self.mode = mode
+
+        # Get all frame constraints associated with contacts and collisions
+        frame_names: List[str] = []
+        for constraint in env.robot.constraints.contact_frames.values():
+            assert isinstance(constraint, jiminy.FrameConstraint)
+            frame_names.append(constraint.frame_name)
+        for constraints_body in env.robot.constraints.collision_bodies:
+            for constraint in constraints_body:
+                assert isinstance(constraint, jiminy.FrameConstraint)
+                frame_names.append(constraint.frame_name)
+
+        # Call base implementation
+        super().__init__(
+            env,
+            parent,
+            requirements=dict(
+                base_pos=(FramePosition, dict(
+                    frame_name="root_joint")),
+                contacts_pos=(MultiFramePosition, dict(
+                    frame_names=frame_names))),
+            auto_refresh=False)
+
+    def refresh(self) -> float:
+        base_pos, contacts_pos = self.base_pos.get(), self.contacts_pos.get()
+        return base_pos[2] - np.min(contacts_pos[2])
+
+
+@dataclass(unsafe_hash=True)
 class BaseOdometryPose(AbstractQuantity[np.ndarray]):
     """Odometry pose of the floating base of the robot at the end of the agent
     step.
@@ -112,6 +168,11 @@ class BaseOdometryPose(AbstractQuantity[np.ndarray]):
     The odometry pose fully specifies the position and heading of the robot in
     2D world plane. As such, it comprises the linear translation (X, Y) and
     the rotation around Z axis (namely rate of change of Yaw Euler angle).
+    Mathematically, one is supposed to rely on se2 Lie Algebra for performing
+    operations on odometry poses such as differentiation. In practice, the
+    double geodesic metric space is used instead to prevent coupling between
+    the linear and angular parts by considering them independently. Strictly
+    speaking, it corresponds to the cartesian space (R^2 x SO(2)).
     """
 
     def __init__(self,
@@ -165,12 +226,12 @@ class BaseOdometryPose(AbstractQuantity[np.ndarray]):
 
 
 @dataclass(unsafe_hash=True)
-class AverageBaseSpatialVelocity(InterfaceQuantity[np.ndarray]):
+class BaseSpatialAverageVelocity(InterfaceQuantity[np.ndarray]):
     """Average base spatial velocity of the floating base of the robot in
     local odometry frame at the end of the agent step.
 
     The average spatial velocity is obtained by finite difference. See
-    `AverageFrameSpatialVelocity` documentation for details.
+    `FrameSpatialAverageVelocity` documentation for details.
 
     Roughly speaking, the local odometry reference frame is half-way between
     `pinocchio.LOCAL` and `pinocchio.LOCAL_WORLD_ALIGNED`. The z-axis is
@@ -180,7 +241,7 @@ class AverageBaseSpatialVelocity(InterfaceQuantity[np.ndarray]):
     """
 
     mode: QuantityEvalMode
-    """Specify on which state to evaluate this quantity. See `Mode`
+    """Specify on which state to evaluate this quantity. See `QuantityEvalMode`
     documentation for details about each mode.
 
     .. warning::
@@ -208,7 +269,7 @@ class AverageBaseSpatialVelocity(InterfaceQuantity[np.ndarray]):
             env,
             parent,
             requirements=dict(
-                v_spatial=(AverageFrameSpatialVelocity, dict(
+                v_spatial=(FrameSpatialAverageVelocity, dict(
                     frame_name="root_joint",
                     reference_frame=pin.LOCAL,
                     mode=mode)),
@@ -225,25 +286,26 @@ class AverageBaseSpatialVelocity(InterfaceQuantity[np.ndarray]):
 
     def refresh(self) -> np.ndarray:
         # Translate spatial base velocity from local to odometry frame
-        quat_apply(self.quat_no_yaw_mean,
-                   self.v_spatial.reshape((2, 3)).T,
+        v_spatial = self.v_spatial.get()
+        quat_apply(self.quat_no_yaw_mean.get(),
+                   v_spatial.reshape((2, 3)).T,
                    self._v_lin_ang)
 
         return self._v_spatial
 
 
 @dataclass(unsafe_hash=True)
-class AverageBaseOdometryVelocity(InterfaceQuantity[np.ndarray]):
+class BaseOdometryAverageVelocity(InterfaceQuantity[np.ndarray]):
     """Average odometry velocity of the floating base of the robot in local
     odometry frame at the end of the agent step.
 
     The odometry velocity fully specifies the linear and angular velocity of
-    the robot in 2D world plane. See `AverageBaseSpatialVelocity` and
+    the robot in 2D world plane. See `BaseSpatialAverageVelocity` and
     `BaseOdometryPose`, documentations for details.
     """
 
     mode: QuantityEvalMode
-    """Specify on which state to evaluate this quantity. See `Mode`
+    """Specify on which state to evaluate this quantity. See `QuantityEvalMode`
     documentation for details about each mode.
 
     .. warning::
@@ -272,13 +334,13 @@ class AverageBaseOdometryVelocity(InterfaceQuantity[np.ndarray]):
             parent,
             requirements=dict(
                 data=(MaskedQuantity, dict(
-                    quantity=(AverageBaseSpatialVelocity, dict(
+                    quantity=(BaseSpatialAverageVelocity, dict(
                         mode=mode)),
                     keys=(0, 1, 5)))),
             auto_refresh=False)
 
     def refresh(self) -> np.ndarray:
-        return self.data
+        return self.data.get()
 
 
 @dataclass(unsafe_hash=True)
@@ -319,7 +381,7 @@ class AverageBaseMomentum(AbstractQuantity[np.ndarray]):
             parent,
             requirements=dict(
                 v_angular=(MaskedQuantity, dict(
-                    quantity=(AverageFrameSpatialVelocity, dict(
+                    quantity=(FrameSpatialAverageVelocity, dict(
                         frame_name="root_joint",
                         reference_frame=pin.LOCAL,
                         mode=mode)),
@@ -344,10 +406,11 @@ class AverageBaseMomentum(AbstractQuantity[np.ndarray]):
 
     def refresh(self) -> np.ndarray:
         # Compute the local angular momentum of inertia
-        np.matmul(self._inertia_local, self.v_angular, self._h_angular)
+        np.matmul(self._inertia_local, self.v_angular.get(), self._h_angular)
 
         # Apply quaternion rotation of the local angular momentum of inertia
-        quat_apply(self.quat_no_yaw_mean, self._h_angular, self._h_angular)
+        quat_apply(
+            self.quat_no_yaw_mean.get(), self._h_angular, self._h_angular)
 
         return self._h_angular
 
@@ -373,7 +436,7 @@ class MultiFootMeanXYZQuat(InterfaceQuantity[np.ndarray]):
     """
 
     mode: QuantityEvalMode
-    """Specify on which state to evaluate this quantity. See `Mode`
+    """Specify on which state to evaluate this quantity. See `QuantityEvalMode`
     documentation for details about each mode.
 
     .. warning::
@@ -406,13 +469,13 @@ class MultiFootMeanXYZQuat(InterfaceQuantity[np.ndarray]):
             env,
             parent,
             requirements=dict(
-                data=(MultiFramesMeanXYZQuat, dict(
+                data=(MultiFrameMeanXYZQuat, dict(
                     frame_names=self.frame_names,
                     mode=mode))),
             auto_refresh=False)
 
     def refresh(self) -> np.ndarray:
-        return self.data
+        return self.data.get()
 
 
 @dataclass(unsafe_hash=True)
@@ -437,7 +500,7 @@ class MultiFootMeanOdometryPose(InterfaceQuantity[np.ndarray]):
     """
 
     mode: QuantityEvalMode
-    """Specify on which state to evaluate this quantity. See `Mode`
+    """Specify on which state to evaluate this quantity. See `QuantityEvalMode`
     documentation for details about each mode.
 
     .. warning::
@@ -485,10 +548,11 @@ class MultiFootMeanOdometryPose(InterfaceQuantity[np.ndarray]):
 
     def refresh(self) -> np.ndarray:
         # Copy translation part
-        array_copyto(self._xy_view, self.xyzquat_mean[:2])
+        xyzquat_mean = self.xyzquat_mean.get()
+        array_copyto(self._xy_view, xyzquat_mean[:2])
 
         # Compute Yaw angle
-        quat_to_yaw(self.xyzquat_mean[-4:], self._yaw_view)
+        quat_to_yaw(xyzquat_mean[-4:], self._yaw_view)
 
         return self._odom_pose
 
@@ -505,7 +569,7 @@ class MultiFootRelativeXYZQuat(InterfaceQuantity[np.ndarray]):
     wrt the others. Notably, in particular case where there is only two frames,
     it is one is the opposite of the other. As a result, the last relative pose
     is always dropped from the returned value, based on the same ordering as
-    'self.frame_names'. As for `MultiFramesXYZQuat`, the data associated with
+    'self.frame_names'. As for `MultiFrameXYZQuat`, the data associated with
     each frame are returned as a 2D contiguous array. The first dimension
     gathers the 7 components (X, Y, Z, QuatX, QuatY, QuatZ, QuaW), while the
     last one corresponds to individual relative frames poses.
@@ -519,7 +583,7 @@ class MultiFootRelativeXYZQuat(InterfaceQuantity[np.ndarray]):
     """
 
     mode: QuantityEvalMode
-    """Specify on which state to evaluate this quantity. See `Mode`
+    """Specify on which state to evaluate this quantity. See `QuantityEvalMode`
     documentation for details about each mode.
 
     .. warning::
@@ -556,12 +620,12 @@ class MultiFootRelativeXYZQuat(InterfaceQuantity[np.ndarray]):
                 xyzquat_mean=(MultiFootMeanXYZQuat, dict(
                     frame_names=self.frame_names,
                     mode=mode)),
-                xyzquats=(MultiFramesXYZQuat, dict(
+                xyzquats=(MultiFrameXYZQuat, dict(
                     frame_names=self.frame_names,
                     mode=mode))),
             auto_refresh=False)
 
-        # Define jit-able method translating multiple positions to local frame
+        # Jit-able method translating multiple positions to local frame
         @nb.jit(nopython=True, cache=True, fastmath=True)
         def translate_positions(position: np.ndarray,
                                 position_ref: np.ndarray,
@@ -595,7 +659,7 @@ class MultiFootRelativeXYZQuat(InterfaceQuantity[np.ndarray]):
 
     def refresh(self) -> np.ndarray:
         # Extract mean and individual frame position and quaternion vectors
-        xyzquats, xyzquat_mean = self.xyzquats, self.xyzquat_mean
+        xyzquats, xyzquat_mean = self.xyzquats.get(), self.xyzquat_mean.get()
         positions, position_mean = xyzquats[:3, :-1], xyzquat_mean[:3]
         quats, quat_mean = xyzquats[-4:, :-1], xyzquat_mean[-4:]
 
@@ -651,8 +715,8 @@ class CenterOfMass(AbstractQuantity[np.ndarray]):
         :param env: Base or wrapped jiminy environment.
         :param parent: Higher-level quantity from which this quantity is a
                        requirement if any, `None` otherwise.
-        :para kinematic_level: Desired kinematic level, ie position, velocity
-                               or acceleration.
+        :param kinematic_level: Desired kinematic level, ie position, velocity
+                                or acceleration.
         :param mode: Desired mode of evaluation for this quantity.
                      Optional: 'QuantityEvalMode.TRUE' by default.
         """
@@ -677,7 +741,7 @@ class CenterOfMass(AbstractQuantity[np.ndarray]):
         super().initialize()
 
         # Make sure that the state data meet requirements
-        state = self.state
+        state = self.state.get()
         if ((self.kinematic_level == pin.ACCELERATION and state.a is None) or
                 (self.kinematic_level >= pin.VELOCITY and state.v is None)):
             raise RuntimeError(
@@ -773,7 +837,8 @@ class ZeroMomentPoint(AbstractQuantity[np.ndarray]):
         super().initialize()
 
         # Make sure that the state data meet requirements
-        if self.state.v is None or self.state.a is None:
+        state = self.state.get()
+        if state.v is None or state.a is None:
             raise RuntimeError(
                 "State data do not meet requirements. Velocity and "
                 "acceleration are missing.")
@@ -788,7 +853,7 @@ class ZeroMomentPoint(AbstractQuantity[np.ndarray]):
 
     def refresh(self) -> np.ndarray:
         # Extract intermediary quantities for convenience
-        (dhg_linear, dhg_angular), com = self.dhg, self.com_position
+        (dhg_linear, dhg_angular), com = self.dhg, self.com_position.get()
 
         # Compute the vertical force applied by the robot
         f_z = dhg_linear[2] + self._robot_weight
@@ -801,7 +866,7 @@ class ZeroMomentPoint(AbstractQuantity[np.ndarray]):
 
         # Translate the ZMP from world to local odometry frame if requested
         if self.reference_frame == pin.LOCAL:
-            translate_position_odom(self._zmp, self.odom_pose, self._zmp)
+            translate_position_odom(self._zmp, self.odom_pose.get(), self._zmp)
 
         return self._zmp
 
@@ -878,7 +943,8 @@ class CapturePoint(AbstractQuantity[np.ndarray]):
         super().initialize()
 
         # Make sure that the state data meet requirements
-        if self.state.v is None:
+        state = self.state.get()
+        if state.v is None:
             raise RuntimeError(
                 "State data do not meet requirements. Velocity is missing.")
 
@@ -902,29 +968,30 @@ class CapturePoint(AbstractQuantity[np.ndarray]):
 
     def refresh(self) -> np.ndarray:
         # Compute the DCM in world frame
-        com_position, com_velocity = self.com_position, self.com_velocity
+        com_position = self.com_position.get()
+        com_velocity = self.com_velocity.get()
         self._dcm[:] = com_position[:2] + com_velocity[:2] / self.omega
 
         # Translate the ZMP from world to local odometry frame if requested
         if self.reference_frame == pin.LOCAL:
-            translate_position_odom(self._dcm, self.odom_pose, self._dcm)
+            translate_position_odom(self._dcm, self.odom_pose.get(), self._dcm)
 
         return self._dcm
 
 
 @dataclass(unsafe_hash=True)
-class MultiContactRelativeForceTangential(AbstractQuantity[np.ndarray]):
-    """Standardized tangential forces apply on all contact points and collision
+class MultiContactNormalizedSpatialForce(AbstractQuantity[np.ndarray]):
+    """Standardized spatial forces apply on all contact points and collision
     bodies in their respective local contact frame.
 
     The local contact frame is defined as the frame having the normal of the
     ground as vertical axis, and the vector orthogonal to the x-axis in world
     frame as y-axis.
 
-    The tangential force is rescaled by the weight of the robot rather than the
+    The spatial force is rescaled by the weight of the robot rather than the
     actual vertical force. It has the advantage to guarantee that the resulting
     quantity is never poorly conditioned, which would be the case otherwise.
-    Moreover, the effect of the vertical force is not canceled out, which is
+    Moreover, the contribution of the vertical force is still present, which is
     interesting for deriving a reward, as it allows for indirectly penalize
     jerky contact states and violent impacts. The side effect is not being able
     to guarantee that this quantity is bounded. Indeed, only the ratio of the
@@ -954,14 +1021,14 @@ class MultiContactRelativeForceTangential(AbstractQuantity[np.ndarray]):
             mode=mode,
             auto_refresh=False)
 
-        # Define jit-able method compute the normalized tangential forces
+        # Jit-able method computing the normalized spatial forces
         @nb.jit(nopython=True, cache=True, fastmath=True)
-        def normalize_tangential_forces(lambda_c: np.ndarray,
-                                        index_start: int,
-                                        index_end: int,
-                                        robot_weight: float,
-                                        out: np.ndarray) -> None:
-            """Compute the tangential forces of all the constraints associated
+        def normalize_spatial_forces(lambda_c: np.ndarray,
+                                     index_start: int,
+                                     index_end: int,
+                                     robot_weight: float,
+                                     out: np.ndarray) -> None:
+            """Compute the spatial forces of all the constraints associated
             with contact frames and collision bodies, normalized by the total
             weight of the robot.
 
@@ -971,20 +1038,20 @@ class MultiContactRelativeForceTangential(AbstractQuantity[np.ndarray]):
             :param index_end: One-past-last index of the constraints associated
                               with contact frames and collisions bodies.
             :param robot_weight: Total weight of the robot which will be used
-                                 to rescale the tangential forces.
+                                 to rescale the spatial forces.
             :param out: Pre-allocated array in which to store the result.
             """
             # Extract constraint lambdas of contacts and collisions from state
             lambda_ = lambda_c[index_start:index_end].reshape((-1, 4)).T
 
-            # Extract references to all the tangential forces
-            # f_lin, f_ang = lambda_[:3], np.array([0.0, 0.0, lambda_[3]])
-            forces_tangential = lambda_[:2]
+            # Extract references to all the spatial forces
+            forces_linear, forces_angular_z = lambda_[:3], lambda_[3]
 
-            # Scale the tangential forces by the weight of the robot
-            np.divide(forces_tangential, robot_weight, out)
+            # Scale the spatial forces by the weight of the robot
+            out[:3] = forces_linear / robot_weight
+            out[5] = forces_angular_z / robot_weight
 
-        self._normalize_tangential_forces = normalize_tangential_forces
+        self._normalize_spatial_forces = normalize_spatial_forces
 
         # Weight of the robot
         self._robot_weight: float = float("nan")
@@ -992,15 +1059,16 @@ class MultiContactRelativeForceTangential(AbstractQuantity[np.ndarray]):
         # Slice of constraint lambda multipliers for contacts and collisions
         self._contact_slice: Tuple[int, int] = (0, 0)
 
-        # Stacked tangential forces on all contact points and collision bodies
-        self._force_tangential_rel_batch = np.array([])
+        # Stacked spatial forces on all contact points and collision bodies
+        self._force_spatial_rel_batch = np.empty((6, 0))
 
     def initialize(self) -> None:
         # Call base implementation
         super().initialize()
 
         # Make sure that the state data meet requirements
-        if self.state.lambda_c is None:
+        state = self.state.get()
+        if state.lambda_c is None:
             raise RuntimeError("State data do not meet requirements. "
                                "Constraints lambda multipliers are missing.")
 
@@ -1042,22 +1110,23 @@ class MultiContactRelativeForceTangential(AbstractQuantity[np.ndarray]):
             map(len, self.robot.constraints.collision_bodies))
         assert 4 * num_contraints == index_last - index_first
 
-        # Pre-allocated memory for stacked normalized tangential forces
-        self._force_tangential_rel_batch = np.zeros(
-            (2, num_contraints), order='F')
+        # Pre-allocated memory for stacked normalized spatial forces
+        self._force_spatial_rel_batch = np.zeros(
+            (6, num_contraints), order='C')
 
     def refresh(self) -> np.ndarray:
-        self._normalize_tangential_forces(
-            self.state.lambda_c,
+        state = self.state.get()
+        self._normalize_spatial_forces(
+            state.lambda_c,
             *self._contact_slice,
             self._robot_weight,
-            self._force_tangential_rel_batch)
+            self._force_spatial_rel_batch)
 
-        return self._force_tangential_rel_batch
+        return self._force_spatial_rel_batch
 
 
 @dataclass(unsafe_hash=True)
-class MultiFootRelativeForceVertical(AbstractQuantity[np.ndarray]):
+class MultiFootNormalizedForceVertical(AbstractQuantity[np.ndarray]):
     """Standardized total vertical forces apply on each foot in world frame.
 
     The lambda multipliers of the contact constraints are used to compute the
@@ -1107,7 +1176,7 @@ class MultiFootRelativeForceVertical(AbstractQuantity[np.ndarray]):
             mode=mode,
             auto_refresh=False)
 
-        # Define jit-able method compute the normalized tangential forces
+        # Jit-able method computing the normalized vertical forces
         @nb.jit(nopython=True, cache=True, fastmath=True)
         def normalize_vertical_forces(
                 lambda_c: np.ndarray,
@@ -1132,7 +1201,7 @@ class MultiFootRelativeForceVertical(AbstractQuantity[np.ndarray]):
                 dimension gathers the 3 spatial coordinates while the second
                 corresponds to the N individual constraints on each foot.
             :param robot_weight: Total weight  of the robot which will be used
-                                 to rescale the tangential forces.
+                                 to rescale the vertical forces.
             :param out: Pre-allocated array in which to store the result.
             """
             for i, ((index_start, index_end), vertical_transforms) in (
@@ -1141,11 +1210,11 @@ class MultiFootRelativeForceVertical(AbstractQuantity[np.ndarray]):
                 lambda_ = lambda_c[index_start:index_end].reshape((-1, 4)).T
 
                 # Extract references to all the linear forces
-                # f_ang = np.array([0.0, 0.0, lambda_[3]])
-                f_lin = lambda_[:3]
+                # forces_angular = np.array([0.0, 0.0, lambda_[3]])
+                forces_linear = lambda_[:3]
 
                 # Compute vertical forces in world frame and aggregate them
-                f_z_world = np.sum(vertical_transforms * f_lin)
+                f_z_world = np.sum(vertical_transforms * forces_linear)
 
                 # Scale the vertical forces by the weight of the robot
                 out[i] = f_z_world / robot_weight
@@ -1175,7 +1244,8 @@ class MultiFootRelativeForceVertical(AbstractQuantity[np.ndarray]):
         super().initialize()
 
         # Make sure that the state data meet requirements
-        if self.state.lambda_c is None:
+        state = self.state.get()
+        if state.lambda_c is None:
             raise RuntimeError("State data do not meet requirements. "
                                "Constraints lambda multipliers are missing.")
 
@@ -1244,10 +1314,63 @@ class MultiFootRelativeForceVertical(AbstractQuantity[np.ndarray]):
                            self._vertical_transform_list)
 
         # Compute the normalized sum of the vertical forces in world frame
-        self._normalize_vertical_forces(self.state.lambda_c,
+        state = self.state.get()
+        self._normalize_vertical_forces(state.lambda_c,
                                         self._foot_slices,
                                         self._vertical_transform_batches,
                                         self._robot_weight,
                                         self._vertical_force_batch)
 
         return self._vertical_force_batch
+
+
+@dataclass(unsafe_hash=True)
+class MultiFootCollisionDetection(InterfaceQuantity[bool]):
+    """Check if some of the feet of the robot are colliding with each other.
+
+    It takes into account some safety margins by which their volume will be
+    inflated / deflated. See `MultiFrameCollisionDetection` documentation for
+    details.
+    """
+
+    frame_names: Tuple[str, ...]
+    """Name of the frames corresponding to some feet of the robot.
+
+    These frames must be part of the end-effectors, ie being associated with a
+    leaf joint in the kinematic tree of the robot.
+    """
+
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 parent: Optional[InterfaceQuantity],
+                 frame_names: Union[Sequence[str], Literal['auto']] = 'auto',
+                 *,
+                 security_margin: float = 0.0) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param parent: Higher-level quantity from which this quantity is a
+                       requirement if any, `None` otherwise.
+        :param frame_names: Name of the frames corresponding to some feet of
+                            the robot. 'auto' to automatically detect them from
+                            the set of contact and force sensors of the robot.
+                            Optional: 'auto' by default.
+        :param security_margin: Signed distance below which a pair of geometry
+                                objects is stated in collision.
+                                Optional: 0.0 by default.
+        """
+        # Backup some user argument(s)
+        self.frame_names = tuple(sanitize_foot_frame_names(env, frame_names))
+
+        # Call base implementation
+        super().__init__(
+            env,
+            parent,
+            requirements=dict(
+                is_colliding=(MultiFrameCollisionDetection, dict(
+                    frame_names=self.frame_names,
+                    security_margin=security_margin
+                ))),
+            auto_refresh=False)
+
+    def refresh(self) -> bool:
+        return self.is_colliding.get()

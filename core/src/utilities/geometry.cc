@@ -1,7 +1,9 @@
 #include "hpp/fcl/BVH/BVH_model.h"  // `hpp::fcl::CollisionGeometry`, `hpp::fcl::BVHModel`, `hpp::fcl::OBBRSS`
 #include "hpp/fcl/shape/geometric_shapes.h"  // `hpp::fcl::Halfspace`
 #include "hpp/fcl/hfield.h"                  // `hpp::fcl::HeightField`
+
 #include "jiminy/core/utilities/geometry.h"
+#include "jiminy/core/utilities/random.h"
 
 
 namespace jiminy
@@ -621,8 +623,7 @@ namespace jiminy
         for (Eigen::Index i = 0; i < vertices.rows(); ++i)
         {
             auto vertex = vertices.row(i);
-            Eigen::Vector3d normal;
-            heightmap(vertex.head<2>(), vertex[2], normal);
+            heightmap(vertex.head<2>(), vertex[2], std::nullopt);
         }
 
         // Check if the heightmap is flat
@@ -692,78 +693,126 @@ namespace jiminy
 
     HeightmapFunction sumHeightmaps(const std::vector<HeightmapFunction> & heightmaps)
     {
+        // Make sure that at least one heightmap has been specified
+        if (heightmaps.empty())
+        {
+            JIMINY_THROW(bad_control_flow, "At least one heightmap must be specified.");
+        }
+
+        // Early return if a single heightmap has been specified. Nothing to do.
         if (heightmaps.size() == 1)
         {
             return heightmaps[0];
         }
-        return [heightmaps](
-                   const Eigen::Vector2d & pos, double & height, Eigen::Vector3d & normal) -> void
-        {
-            thread_local static double height_i;
-            thread_local static Eigen::Vector3d normal_i;
 
+        return [heightmaps](const Eigen::Vector2d & pos,
+                            double & height,
+                            std::optional<Eigen::Ref<Eigen::Vector3d>> normal) -> void
+        {
             height = 0.0;
-            normal.setZero();
-            for (const HeightmapFunction & heightmap : heightmaps)
+            if (normal.has_value())
             {
-                heightmap(pos, height_i, normal_i);
-                height += height_i;
-                normal += normal_i;
+                normal->setZero();
+                for (const HeightmapFunction & heightmap : heightmaps)
+                {
+                    double height_i;
+                    Eigen::Vector3d normal_i;
+                    heightmap(pos, height_i, normal_i);
+                    height += height_i;
+                    normal.value() += normal_i;
+                }
+                normal->normalize();
             }
-            normal.normalize();
+            else
+            {
+                for (const HeightmapFunction & heightmap : heightmaps)
+                {
+                    double height_i;
+                    heightmap(pos, height_i, std::nullopt);
+                    height += height_i;
+                }
+            }
         };
     }
 
     HeightmapFunction mergeHeightmaps(const std::vector<HeightmapFunction> & heightmaps)
     {
+        // Make sure that at least one heightmap has been specified
+        if (heightmaps.empty())
+        {
+            JIMINY_THROW(bad_control_flow, "At least one heightmap must be specified.");
+        }
+
+        // Early return if a single heightmap has been specified. Nothing to do.
         if (heightmaps.size() == 1)
         {
             return heightmaps[0];
         }
-        return [heightmaps](
-                   const Eigen::Vector2d & pos, double & height, Eigen::Vector3d & normal) -> void
-        {
-            thread_local static double height_i;
-            thread_local static Eigen::Vector3d normal_i;
 
+        return [heightmaps](const Eigen::Vector2d & pos,
+                            double & height,
+                            std::optional<Eigen::Ref<Eigen::Vector3d>> normal) -> void
+        {
             height = -INF;
-            bool is_dirty = false;
-            for (const HeightmapFunction & heightmap : heightmaps)
+            if (normal.has_value())
             {
-                heightmap(pos, height_i, normal_i);
-                if (std::abs(height_i - height) < EPS)
+                bool is_dirty = false;
+                for (const HeightmapFunction & heightmap : heightmaps)
                 {
-                    normal += normal_i;
-                    is_dirty = true;
+                    double height_i;
+                    Eigen::Vector3d normal_i;
+                    heightmap(pos, height_i, normal_i);
+                    if (std::abs(height_i - height) < EPS)
+                    {
+                        normal.value() += normal_i;
+                        is_dirty = true;
+                    }
+                    else if (height_i > height)
+                    {
+                        height = height_i;
+                        normal.value() = normal_i;
+                        is_dirty = false;
+                    }
                 }
-                else if (height_i > height)
+                if (is_dirty)
                 {
-                    height = height_i;
-                    normal = normal_i;
-                    is_dirty = false;
+                    normal->normalize();
                 }
             }
-            if (is_dirty)
+            else
             {
-                normal.normalize();
+                for (const HeightmapFunction & heightmap : heightmaps)
+                {
+                    double height_i;
+                    heightmap(pos, height_i, std::nullopt);
+                    if (height_i > height)
+                    {
+                        height = height_i;
+                    }
+                }
             }
         };
     }
 
-    HeightmapFunction stairs(
+    HeightmapFunction periodicStairs(
         double stepWidth, double stepHeight, uint32_t stepNumber, double orientation)
     {
         const double interpDelta = 0.01;
-        const Eigen::Rotation2D<double> rot_mat(orientation);
 
-        return [stepWidth, stepHeight, stepNumber, rot_mat, interpDelta](
-                   const Eigen::Vector2d & pos, double & height, Eigen::Vector3d & normal) -> void
+        // Define the projection axis
+        const Eigen::Vector2d axis{std::cos(orientation), std::sin(orientation)};
+
+        return [stepWidth, stepHeight, stepNumber, axis, interpDelta](
+                   const Eigen::Vector2d & pos,
+                   double & height,
+                   std::optional<Eigen::Ref<Eigen::Vector3d>> normal) -> void
         {
             // Compute position in stairs reference frame
-            Eigen::Vector2d posRel = rot_mat.inverse() * pos;
-            const double modPos = std::fmod(std::abs(posRel[0]), stepWidth * stepNumber * 2);
+            // Eigen::Vector2d posRel = rotMat.inverse() * pos;
+            const double posRel = axis.dot(pos);
+            const double modPos = std::fmod(std::abs(posRel), stepWidth * stepNumber * 2);
 
-            // Compute the default height and normal
+            // Compute the default height
             uint32_t stairIndex = static_cast<uint32_t>(modPos / stepWidth);
             int8_t staircaseSlopeSign = 1;
             if (stairIndex >= stepNumber)
@@ -772,27 +821,126 @@ namespace jiminy
                 staircaseSlopeSign = -1;
             }
             height = stairIndex * stepHeight;
-            normal = Eigen::Vector3d::UnitZ();
 
             // Avoid unsupported vertical edge
-            const double posRelOnStep = std::fmod(modPos, stepWidth) / stepWidth;
+            const double posRelOnStep =
+                std::fmod(modPos + std::numeric_limits<float>::epsilon(), stepWidth) / stepWidth;
             if (1.0 - posRelOnStep < interpDelta)
             {
+                // Compute the slope of the vertical edge of the stair
                 const double slope = staircaseSlopeSign * stepHeight / interpDelta;
+
                 // Update height
                 height += slope * (posRelOnStep - (1.0 - interpDelta));
+
+                if (normal.has_value())
+                {
+                    // Compute the inverse of the normal's Euclidean norm
+                    const double normInv = 1.0 / std::sqrt(1.0 + std::pow(slope, 2));
+
+                    // Update normal vector
+                    // step 1. compute normal in stairs reference frame:
+                    // normal << -slope * normInv, 0.0, normInv;
+                    // step 2. Rotate normal vector in world plane reference frame:
+                    // normal.head<2>() = rotMat * normal.head<2>();
+                    // Or simply in a single operation:
+                    normal.value() << -slope * normInv * axis, normInv;
+                }
+            }
+            else if (normal.has_value())
+            {
+                normal.value() = Eigen::Vector3d::UnitZ();
+            }
+        };
+    }
+
+    template<template<unsigned int> class AnyPerlinProcess>
+    static HeightmapFunction generateHeightmapFromPerlinProcess1D(AnyPerlinProcess<1> && fun,
+                                                                  double orientation)
+    {
+        // Define the projection axis
+        const Eigen::Vector2d axis{std::cos(orientation), std::sin(orientation)};
+
+        return
+            [fun = std::move(fun), axis](const Eigen::Vector2d & pos,
+                                         double & height,
+                                         std::optional<Eigen::Ref<Eigen::Vector3d>> normal) mutable
+        {
+            // Compute the position along axis
+            const Vector1<double> posAxis = Vector1<double>{axis.dot(pos)};
+
+            // Compute the height
+            height = fun(posAxis);
+
+            if (normal.has_value())
+            {
+                // Compute the gradient of the Perlin Proces
+                const double slope = fun.grad(posAxis)[0];
 
                 // Compute the inverse of the normal's Euclidean norm
                 const double normInv = 1.0 / std::sqrt(1.0 + std::pow(slope, 2));
 
                 // Update normal vector
-                // step 1. compute normal in stairs reference frame:
-                // normal << -slope * normInv, 0.0, normInv;
-                // step 2. Rotate normal vector in world plane reference frame:
-                // normal.head<2>() = rot_mat * normal.head<2>();
-                // Or simply in a single operation:
-                normal << -slope * normInv * rot_mat.toRotationMatrix().col(0), normInv;
+                normal.value() << -slope * normInv * axis, normInv;
             }
         };
+    }
+
+    template<template<unsigned int> class AnyPerlinProcess>
+    static HeightmapFunction generateHeightmapFromPerlinProcess2D(AnyPerlinProcess<2> && fun)
+    {
+        return [fun = std::move(fun)](const Eigen::Vector2d & pos,
+                                      double & height,
+                                      std::optional<Eigen::Ref<Eigen::Vector3d>> normal) mutable
+        {
+            // Compute the height
+            height = fun(pos);
+
+            if (normal.has_value())
+            {
+                // Compute the gradient of the Perlin Proces
+                const auto grad = fun.grad(pos);
+
+                // Compute the inverse of the normal's Euclidean norm
+                const double normInv = 1.0 / std::sqrt(1.0 + grad.squaredNorm());
+
+                // Update normal vector
+                normal.value() << -normInv * grad.template head<2>(), normInv;
+            }
+        };
+    }
+
+    HeightmapFunction unidirectionalRandomPerlinGround(
+        double wavelength, std::size_t numOctaves, double orientation, uint32_t seed)
+    {
+        auto fun = RandomPerlinProcess<1>(wavelength, numOctaves);
+        fun.reset(PCG32(seed));
+        return generateHeightmapFromPerlinProcess1D(std::move(fun), orientation);
+    }
+
+    HeightmapFunction randomPerlinGround(double wavelength, std::size_t numOctaves, uint32_t seed)
+    {
+        auto fun = RandomPerlinProcess<2>(wavelength, numOctaves);
+        fun.reset(PCG32(seed));
+        return generateHeightmapFromPerlinProcess2D(std::move(fun));
+    }
+
+    HeightmapFunction periodicPerlinGround(
+        double wavelength, double period, std::size_t numOctaves, uint32_t seed)
+    {
+        auto fun = PeriodicPerlinProcess<2>(wavelength, period, numOctaves);
+        fun.reset(PCG32(seed));
+        return generateHeightmapFromPerlinProcess2D(std::move(fun));
+    }
+
+    HeightmapFunction unidirectionalPeriodicPerlinGround(double wavelength,
+                                                         double period,
+                                                         std::size_t numOctaves,
+                                                         double orientation,
+                                                         uint32_t seed)
+    {
+        auto fun = PeriodicPerlinProcess<1>(wavelength, period, numOctaves);
+        fun.reset(PCG32(seed));
+        return generateHeightmapFromPerlinProcess1D(std::move(fun), orientation);
     }
 }

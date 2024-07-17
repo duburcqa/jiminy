@@ -1,5 +1,6 @@
 """ TODO: Write documentation
 """
+import sys
 import math
 import unittest
 
@@ -15,24 +16,29 @@ from gym_jiminy.common.utils import (
     remove_yaw_from_quat)
 from gym_jiminy.common.bases import QuantityEvalMode, DatasetTrajectoryQuantity
 from gym_jiminy.common.quantities import (
+    EnergyGenerationMode,
     OrientationType,
     QuantityManager,
-    FrameOrientation,
-    MultiFramesOrientation,
-    FrameXYZQuat,
-    MultiFramesMeanXYZQuat,
+    StackedQuantity,
     MaskedQuantity,
+    MultiFrameMeanXYZQuat,
+    MultiFrameOrientation,
     MultiFootMeanOdometryPose,
     MultiFootRelativeXYZQuat,
-    AverageFrameSpatialVelocity,
-    AverageBaseOdometryVelocity,
+    MultiFrameCollisionDetection,
+    MultiActuatedJointKinematic,
+    MultiContactNormalizedSpatialForce,
+    MultiFootNormalizedForceVertical,
+    FrameOrientation,
+    FrameXYZQuat,
+    FrameSpatialAverageVelocity,
+    BaseOdometryAverageVelocity,
+    BaseRelativeHeight,
     AverageBaseMomentum,
-    ActuatedJointsPosition,
+    AverageMechanicalPowerConsumption,
     CenterOfMass,
     CapturePoint,
-    ZeroMomentPoint,
-    MultiContactRelativeForceTangential,
-    MultiFootRelativeForceVertical)
+    ZeroMomentPoint)
 
 
 class Quantities(unittest.TestCase):
@@ -57,24 +63,30 @@ class Quantities(unittest.TestCase):
         assert len(quantities["com"].cache.owners) == 2
 
         zmp_0 = quantity_manager.zmp.copy()
-        assert quantities["com"].cache.has_value
-        assert not quantities["acom"].cache.has_value
-        assert not quantities["com"]._is_initialized
-        assert quantities["zmp"].requirements["com_position"]._is_initialized
+        assert quantities["com"].cache.sm_state == 2
+        assert quantities["acom"].cache.sm_state == 0
+        is_initialized_all = [
+            owner._is_initialized for owner in quantities["com"].cache.owners]
+        assert len(is_initialized_all) == 2
+        assert len(set(is_initialized_all)) == 2
 
         env.step(env.action_space.sample())
         zmp_1 = quantity_manager["zmp"].copy()
         assert np.all(zmp_0 == zmp_1)
         quantity_manager.clear()
-        assert quantities["zmp"].requirements["com_position"]._is_initialized
-        assert not quantities["com"].cache.has_value
+        is_initialized_all = [
+            owner._is_initialized for owner in quantities["com"].cache.owners]
+        assert any(is_initialized_all)
+        assert quantities["com"].cache.sm_state == 1
         zmp_1 = quantity_manager.zmp.copy()
         assert np.any(zmp_0 != zmp_1)
 
         env.step(env.action_space.sample())
         quantity_manager.reset()
-        assert not quantities["zmp"].requirements[
-            "com_position"]._is_initialized
+        assert quantities["com"].cache.sm_state == 0
+        is_initialized_all = [
+            owner._is_initialized for owner in quantities["com"].cache.owners]
+        assert not any(is_initialized_all)
         zmp_2 = quantity_manager.zmp.copy()
         assert np.any(zmp_1 != zmp_2)
 
@@ -101,19 +113,19 @@ class Quantities(unittest.TestCase):
                 ("rpy_2", FrameOrientation, dict(
                     frame_name=frame_names[-1],
                     type=OrientationType.EULER)),
-                ("rpy_batch_0", MultiFramesOrientation, dict(  # Intersection
+                ("rpy_batch_0", MultiFrameOrientation, dict(  # Intersection
                     frame_names=(frame_names[-3], frame_names[1]),
                     type=OrientationType.EULER)),
-                ("rpy_batch_1", MultiFramesOrientation, dict(  # Inclusion
+                ("rpy_batch_1", MultiFrameOrientation, dict(  # Inclusion
                     frame_names=(frame_names[1], frame_names[-1]),
                     type=OrientationType.EULER)),
-                ("rpy_batch_2", MultiFramesOrientation, dict(  # Disjoint
+                ("rpy_batch_2", MultiFrameOrientation, dict(  # Disjoint
                     frame_names=(frame_names[1], frame_names[-4]),
                     type=OrientationType.EULER)),
-                ("rot_mat_batch", MultiFramesOrientation, dict(
+                ("rot_mat_batch", MultiFrameOrientation, dict(
                     frame_names=(frame_names[1], frame_names[-1]),
                     type=OrientationType.MATRIX)),
-                ("quat_batch", MultiFramesOrientation, dict(
+                ("quat_batch", MultiFrameOrientation, dict(
                     frame_names=(frame_names[1], frame_names[-4]),
                     type=OrientationType.QUATERNION))):
             quantity_manager[name] = (cls, kwargs)
@@ -121,43 +133,39 @@ class Quantities(unittest.TestCase):
 
         xyzquat_0 = quantity_manager.xyzquat_0.copy()
         rpy_0 = quantity_manager.rpy_0.copy()
-        assert len(quantities['rpy_0'].requirements['data'].frame_names) == 1
+        assert len(quantities['rpy_0'].data.cache.owners[0].frame_names) == 1
         assert np.all(rpy_0 == quantity_manager.rpy_1)
         rpy_2 = quantity_manager.rpy_2.copy()
         assert np.any(rpy_0 != rpy_2)
-        assert len(quantities['rpy_2'].requirements['data'].frame_names) == 2
+        assert len(quantities['rpy_2'].data.cache.owners[0].frame_names) == 2
         assert tuple(quantity_manager.rpy_batch_0.shape) == (3, 2)
-        assert len(quantities['rpy_batch_0'].requirements['data'].
-                   frame_names) == 3
+        assert len(quantities['rpy_batch_0'].data.cache.owners[0].frame_names) == 3
         quantity_manager.rpy_batch_1
-        assert len(quantities['rpy_batch_1'].requirements['data'].
-                   frame_names) == 3
+        assert len(quantities['rpy_batch_1'].data.cache.owners[0].frame_names) == 3
         quantity_manager.rpy_batch_2
-        assert len(quantities['rpy_batch_2'].requirements['data'].
-                   frame_names) == 5
+        assert len(quantities['rpy_batch_2'].data.cache.owners[0].frame_names) == 5
         assert tuple(quantity_manager.rot_mat_batch.shape) == (3, 3, 2)
         assert tuple(quantity_manager.quat_batch.shape) == (4, 2)
-        assert len(quantities['quat_batch'].requirements['data'].
-                   requirements['rot_mat_map'].frame_names) == 8
+        assert len(quantities['quat_batch'].data.rot_mat_map.cache.owners[0].frame_names) == 8
 
         env.step(env.action_space.sample())
         quantity_manager.reset()
         rpy_0_next = quantity_manager.rpy_0
-        xyzquat_0_next =  quantity_manager.xyzquat_0.copy()
+        xyzquat_0_next = quantity_manager.xyzquat_0.copy()
         assert np.any(rpy_0 != rpy_0_next)
         assert np.any(xyzquat_0 != xyzquat_0_next)
-        assert len(quantities['rpy_2'].requirements['data'].frame_names) == 2
+        assert len(quantities['rpy_2'].data.cache.owners[0].frame_names) == 5
 
-        assert len(quantities['rpy_1'].requirements['data'].cache.owners) == 6
+        assert len(quantities['rpy_1'].data.cache.owners) == 6
         del quantity_manager['rpy_2']
-        assert len(quantities['rpy_1'].requirements['data'].cache.owners) == 5
+        assert len(quantities['rpy_1'].data.cache.owners) == 5
         quantity_manager.rpy_1
-        assert len(quantities['rpy_1'].requirements['data'].frame_names) == 1
+        assert len(quantities['rpy_1'].data.cache.owners[0].frame_names) == 1
 
         quantity_manager.reset(reset_tracking=True)
         assert np.all(rpy_0_next == quantity_manager.rpy_0)
         assert np.all(xyzquat_0_next == quantity_manager.xyzquat_0)
-        assert len(quantities['rpy_0'].requirements['data'].frame_names) == 1
+        assert len(quantities['rpy_0'].data.cache.owners[0].frame_names) == 1
 
     def test_discard(self):
         """ TODO: Write documentation
@@ -177,17 +185,17 @@ class Quantities(unittest.TestCase):
         quantities = quantity_manager.registry
 
         assert len(quantities['rpy_1'].cache.owners) == 2
-        assert len(quantities['rpy_2'].requirements['data'].cache.owners) == 3
+        assert len(quantities['rpy_2'].data.cache.owners) == 3
 
         del quantity_manager['rpy_0']
         assert len(quantities['rpy_1'].cache.owners) == 1
-        assert len(quantities['rpy_2'].requirements['data'].cache.owners) == 2
+        assert len(quantities['rpy_2'].data.cache.owners) == 2
 
         del quantity_manager['rpy_1']
-        assert len(quantities['rpy_2'].requirements['data'].cache.owners) == 1
+        assert len(quantities['rpy_2'].data.cache.owners) == 1
 
         del quantity_manager['rpy_2']
-        for (cls, _), cache in quantity_manager._caches.items():
+        for (cls, _), cache in quantity_manager._caches:
             assert len(cache.owners) == (cls is DatasetTrajectoryQuantity)
 
     def test_env(self):
@@ -204,13 +212,13 @@ class Quantities(unittest.TestCase):
         env.reset(seed=0)
         assert np.all(zmp_0 == env.quantities["zmp"])
 
-    def test_stack(self):
+    def test_stack_auto_refresh(self):
         """ TODO: Write documentation
         """
         env = gym.make("gym_jiminy.envs:atlas")
         env.reset(seed=0)
 
-        quantity_cls = AverageFrameSpatialVelocity
+        quantity_cls = FrameSpatialAverageVelocity
         quantity_kwargs = dict(
             frame_name=env.robot.pinocchio_model.frames[1].name)
         env.quantities["v_avg"] = (quantity_cls, quantity_kwargs)
@@ -227,6 +235,47 @@ class Quantities(unittest.TestCase):
         env.step(env.action_space.sample())
         assert np.all(v_avg != env.quantities["v_avg"])
 
+    def test_stack_api(self):
+        """ TODO: Write documentation
+        """
+        env = gym.make("gym_jiminy.envs:atlas")
+
+        for max_stack, as_array, mode in (
+                (None, False, "slice"),
+                (3, False, "slice"),
+                (3, True, "slice"),
+                (3, False, "zeros"),
+                (3, True, "zeros")):
+            quantity_creator = (StackedQuantity, dict(
+                quantity=(MultiFootRelativeXYZQuat, {}),
+                max_stack=max_stack or sys.maxsize,
+                as_array=as_array,
+                mode=mode))
+            env.quantities["xyzquat_stack"] = quantity_creator
+            env.reset(seed=0)
+
+            value = env.quantities["xyzquat_stack"]
+            if as_array:
+                assert isinstance(value, np.ndarray)
+            else:
+                assert isinstance(value, list)
+            for i in range(1, (max_stack or 5) + 2):
+                num_stack = max_stack or i
+                if mode == "slice":
+                    num_stack = min(i, num_stack)
+                value = env.quantities["xyzquat_stack"]
+                if as_array:
+                    assert value.shape[-1] == num_stack
+                    if mode == "zeros":
+                        np.testing.assert_allclose(value[..., :-i], 0.0)
+                else:
+                    assert len(value) == num_stack
+                    if mode == "zeros":
+                        np.testing.assert_allclose(value[:-i], 0.0)
+                env.step(env.action)
+
+            del env.quantities["xyzquat_stack"]
+
     def test_masked(self):
         """ TODO: Write documentation
         """
@@ -240,8 +289,9 @@ class Quantities(unittest.TestCase):
             keys=(0, 1, 5)))
         quantity = env.quantities.registry["v_masked"]
         assert not quantity._slices
+        value = quantity.quantity.get()
         np.testing.assert_allclose(
-            env.quantities["v_masked"], quantity.data[[0, 1, 5]])
+            env.quantities["v_masked"], value[[0, 1, 5]])
         del env.quantities["v_masked"]
 
         # 2. From boolean mask
@@ -249,8 +299,9 @@ class Quantities(unittest.TestCase):
             quantity=(FrameXYZQuat, dict(frame_name="root_joint")),
             keys=(True, True, False, False, False, True)))
         quantity = env.quantities.registry["v_masked"]
+        value = quantity.quantity.get()
         np.testing.assert_allclose(
-            env.quantities["v_masked"], quantity.data[[0, 1, 5]])
+            env.quantities["v_masked"], value[[0, 1, 5]])
         del env.quantities["v_masked"]
 
         # 3. From slice-able indices
@@ -258,9 +309,11 @@ class Quantities(unittest.TestCase):
             quantity=(FrameXYZQuat, dict(frame_name="root_joint")),
             keys=(0, 2, 4)))
         quantity = env.quantities.registry["v_masked"]
-        assert len(quantity._slices) == 1 and quantity._slices[0] == slice(0, 5, 2)
+        assert len(quantity._slices) == 1 and (
+            quantity._slices[0] == slice(0, 5, 2))
+        value = quantity.quantity.get()
         np.testing.assert_allclose(
-            env.quantities["v_masked"], quantity.data[[0, 2, 4]])
+            env.quantities["v_masked"], value[[0, 2, 4]])
 
     def test_true_vs_reference(self):
         env = gym.make("gym_jiminy.envs:atlas", debug=False)
@@ -278,17 +331,23 @@ class Quantities(unittest.TestCase):
                 lambda mode: (FrameXYZQuat, dict(
                     frame_name=frame_names[2],
                     mode=mode)),
-                lambda mode: (MultiFramesMeanXYZQuat, dict(
+                lambda mode: (MultiFrameMeanXYZQuat, dict(
                     frame_names=tuple(frame_names[i] for i in (1, 3, -2)),
                     mode=mode)),
                 lambda mode: (MultiFootMeanOdometryPose, dict(
                     mode=mode)),
-                lambda mode: (AverageFrameSpatialVelocity, dict(
+                lambda mode: (FrameSpatialAverageVelocity, dict(
                     frame_name=frame_names[1],
                     mode=mode)),
-                lambda mode: (AverageBaseOdometryVelocity, dict(
+                lambda mode: (BaseOdometryAverageVelocity, dict(
                     mode=mode)),
-                lambda mode: (ActuatedJointsPosition, dict(
+                lambda mode: (MultiActuatedJointKinematic, dict(
+                    kinematic_level=pin.KinematicLevel.POSITION,
+                    is_motor_side=False,
+                    mode=mode)),
+                lambda mode: (MultiActuatedJointKinematic, dict(
+                    kinematic_level=pin.KinematicLevel.VELOCITY,
+                    is_motor_side=True,
                     mode=mode)),
                 lambda mode: (CenterOfMass, dict(
                     kinematic_level=pin.KinematicLevel.ACCELERATION,
@@ -337,7 +396,7 @@ class Quantities(unittest.TestCase):
         env = gym.make("gym_jiminy.envs:atlas")
 
         env.quantities["odometry_velocity"] = (
-            AverageBaseOdometryVelocity, dict(
+            BaseOdometryAverageVelocity, dict(
                 mode=QuantityEvalMode.TRUE))
         quantity = env.quantities.registry["odometry_velocity"]
 
@@ -356,7 +415,7 @@ class Quantities(unittest.TestCase):
             rot_mat @ base_velocity_mean_local[3:]))
 
         np.testing.assert_allclose(
-            quantity.requirements['data'].data, base_velocity_mean_world)
+            quantity.data.quantity.get(), base_velocity_mean_world)
         base_odom_velocity = base_velocity_mean_world[[0, 1, 5]]
         np.testing.assert_allclose(
             env.quantities["odometry_velocity"], base_odom_velocity)
@@ -383,25 +442,51 @@ class Quantities(unittest.TestCase):
         np.testing.assert_allclose(
             env.quantities["base_momentum"], angular_momentum)
 
-    def test_motor_positions(self):
+    def test_actuated_joints_kinematic(self):
         """ TODO: Write documentation
         """
-        env = gym.make("gym_jiminy.envs:atlas")
+        env = gym.make("gym_jiminy.envs:cassie")
 
-        env.quantities["actuated_joint_positions"] = (
-            ActuatedJointsPosition, dict(mode=QuantityEvalMode.TRUE))
+        for level in (
+                pin.KinematicLevel.POSITION,
+                pin.KinematicLevel.VELOCITY,
+                pin.KinematicLevel.ACCELERATION):
+            env.quantities[f"joint_{level}"] = (
+                MultiActuatedJointKinematic, dict(
+                    kinematic_level=level,
+                    is_motor_side=False,
+                    mode=QuantityEvalMode.TRUE))
+            if level < 2:
+                env.quantities[f"motor_{level}"] = (
+                    MultiActuatedJointKinematic, dict(
+                        kinematic_level=level,
+                        is_motor_side=True,
+                        mode=QuantityEvalMode.TRUE))
 
-        env.reset(seed=0)
-        env.step(env.action_space.sample())
+            env.reset(seed=0)
+            env.step(env.action_space.sample())
 
-        position_indices = []
-        for motor in env.robot.motors:
-            joint = env.robot.pinocchio_model.joints[motor.joint_index]
-            position_indices += range(joint.idx_q, joint.idx_q + joint.nq)
+            kinematic_indices = []
+            for motor in env.robot.motors:
+                joint = env.robot.pinocchio_model.joints[motor.joint_index]
+                if level == pin.KinematicLevel.POSITION:
+                    kin_first, kin_last = joint.idx_q, joint.idx_q + joint.nq
+                else:
+                    kin_first, kin_last = joint.idx_v, joint.idx_v + joint.nv
+                kinematic_indices += range(kin_first, kin_last)
+            if level == pin.KinematicLevel.POSITION:
+                joint_value = env.robot_state.q[kinematic_indices]
+            elif level == pin.KinematicLevel.VELOCITY:
+                joint_value = env.robot_state.v[kinematic_indices]
+            else:
+                joint_value = env.robot_state.a[kinematic_indices]
+            encoder_data = env.robot.sensor_measurements["EncoderSensor"]
 
-        np.testing.assert_allclose(
-            env.quantities["actuated_joint_positions"],
-            env.robot_state.q[position_indices])
+            np.testing.assert_allclose(
+                env.quantities[f"joint_{level}"], joint_value)
+            if level < 2:
+                np.testing.assert_allclose(
+                    env.quantities[f"motor_{level}"], encoder_data[level])
 
     def test_capture_point(self):
         """ TODO: Write documentation
@@ -432,9 +517,9 @@ class Quantities(unittest.TestCase):
         env.step(env.action_space.sample())
 
         com_position = env.robot.pinocchio_data.com[0]
-        np.testing.assert_allclose(quantity.com_position, com_position)
+        np.testing.assert_allclose(quantity.com_position.get(), com_position)
         com_velocity = env.robot.pinocchio_data.vcom[0]
-        np.testing.assert_allclose(quantity.com_velocity, com_velocity)
+        np.testing.assert_allclose(quantity.com_velocity.get(), com_velocity)
         np.testing.assert_allclose(
             env.quantities["dcm"],
             com_position[:2] + com_velocity[:2] / omega)
@@ -448,7 +533,7 @@ class Quantities(unittest.TestCase):
             frame.name for frame in env.robot.pinocchio_model.frames]
 
         env.quantities["mean_pose"] = (
-            MultiFramesMeanXYZQuat, dict(
+            MultiFrameMeanXYZQuat, dict(
                 frame_names=frame_names[:5],
                 mode=QuantityEvalMode.TRUE))
 
@@ -509,18 +594,18 @@ class Quantities(unittest.TestCase):
         for frame_name in ("l_foot", "r_foot"):
             frame_index = env.robot.pinocchio_model.getFrameId(frame_name)
             foot_poses.append(env.robot.pinocchio_data.oMf[frame_index])
-        pos_feet = np.stack(tuple(
-            foot_pose.translation for foot_pose in foot_poses), axis=-1)
-        quat_feet = np.stack(tuple(
+        pos_feet = np.stack([
+            foot_pose.translation for foot_pose in foot_poses], axis=-1)
+        quat_feet = np.stack([
             matrix_to_quat(foot_pose.rotation)
-            for foot_pose in foot_poses), axis=-1)
+            for foot_pose in foot_poses], axis=-1)
 
         pos_mean = np.mean(pos_feet, axis=-1, keepdims=True)
         rot_mean = quat_to_matrix(quat_average(quat_feet))
         pos_rel = rot_mean.T @ (pos_feet - pos_mean)
-        quat_rel = np.stack(tuple(
+        quat_rel = np.stack([
             matrix_to_quat(rot_mean.T @ foot_pose.rotation)
-            for foot_pose in foot_poses), axis=-1)
+            for foot_pose in foot_poses], axis=-1)
         quat_rel[-4:] *= np.sign(quat_rel[-1])
 
         value = env.quantities["foot_rel_poses"].copy()
@@ -529,13 +614,13 @@ class Quantities(unittest.TestCase):
         np.testing.assert_allclose(value[:3], pos_rel[:, :-1])
         np.testing.assert_allclose(value[-4:], quat_rel[:, :-1])
 
-    def test_tangential_forces(self):
+    def test_contact_spatial_forces(self):
         """ TODO: Write documentation
         """
         env = gym.make("gym_jiminy.envs:atlas")
 
-        env.quantities["force_tangential_rel"] = (
-            MultiContactRelativeForceTangential, {})
+        env.quantities["force_spatial_rel"] = (
+            MultiContactNormalizedSpatialForce, {})
 
         env.reset(seed=0)
         for _ in range(10):
@@ -543,20 +628,20 @@ class Quantities(unittest.TestCase):
 
         gravity = abs(env.robot.pinocchio_model.gravity.linear[2])
         robot_weight = env.robot.pinocchio_data.mass[0] * gravity
-        force_tangential_rel = np.stack(tuple(
-            constraint.lambda_c[:2]
-            for constraint in env.robot.constraints.contact_frames.values()),
+        force_spatial_rel = np.stack([np.concatenate(
+            (constraint.lambda_c[:3], np.zeros((2,)), constraint.lambda_c[[3]])
+            ) for constraint in env.robot.constraints.contact_frames.values()],
             axis=-1) / robot_weight
         np.testing.assert_allclose(
-            force_tangential_rel, env.quantities["force_tangential_rel"])
+            force_spatial_rel, env.quantities["force_spatial_rel"])
 
-    def test_vertical_forces(self):
+    def test_foot_vertical_forces(self):
         """ TODO: Write documentation
         """
         env = gym.make("gym_jiminy.envs:atlas-pid")
 
         env.quantities["force_vertical_rel"] = (
-            MultiFootRelativeForceVertical, {})
+            MultiFootNormalizedForceVertical, {})
 
         env.reset(seed=0)
         for _ in range(10):
@@ -575,3 +660,88 @@ class Quantities(unittest.TestCase):
         np.testing.assert_allclose(
             force_vertical_rel, env.quantities["force_vertical_rel"])
         np.testing.assert_allclose(np.sum(force_vertical_rel), 1.0, atol=1e-3)
+
+    def test_base_height(self):
+        env = gym.make("gym_jiminy.envs:atlas-pid")
+
+        env.quantities["base_height"] = (BaseRelativeHeight, {})
+
+        env.reset(seed=0)
+        action = env.action_space.sample()
+        for _ in range(10):
+            env.step(action)
+
+        value = env.quantities["base_height"]
+        base_z = env.robot.pinocchio_data.oMf[1].translation[[2]]
+        contacts_z = []
+        for constraint in env.robot.constraints.contact_frames.values():
+            frame_index = constraint.frame_index
+            frame_pos = env.robot.pinocchio_data.oMf[frame_index]
+            contacts_z.append(frame_pos.translation[[2]])
+        np.testing.assert_allclose(base_z - np.min(contacts_z), value)
+
+    def test_frames_collision(self):
+        env = gym.make("gym_jiminy.envs:atlas-pid", step_dt=0.01)
+
+        env.quantities["frames_collision"] = (
+            MultiFrameCollisionDetection, dict(
+                frame_names=("l_foot", "r_foot"),
+                security_margin=0.0))
+
+        motor_names = [motor.name for motor in env.robot.motors]
+        left_motor_index = motor_names.index('l_leg_hpx')
+        right_motor_index = motor_names.index('r_leg_hpx')
+        action = np.zeros((len(motor_names),))
+        action[[left_motor_index, right_motor_index]] = -0.5, 0.5
+
+        env.robot.remove_contact_points([])
+        env.eval()
+        env.reset(seed=0)
+        assert not env.quantities["frames_collision"]
+        for _ in range(20):
+            env.step(action)
+            if env.quantities["frames_collision"]:
+                break
+        else:
+            raise AssertionError("No collision detected.")
+
+    def test_power_consumption(self):
+        env = gym.make("gym_jiminy.envs:cassie")
+
+        for mode in (
+                EnergyGenerationMode.CHARGE,
+                EnergyGenerationMode.LOST_EACH,
+                EnergyGenerationMode.LOST_GLOBAL,
+                EnergyGenerationMode.PENALIZE):
+            env.quantities["mean_power_consumption"] = (
+                AverageMechanicalPowerConsumption, dict(
+                    horizon=0.2,
+                    generator_mode=mode))
+            quantity = env.quantities.registry["mean_power_consumption"]
+            env.reset(seed=0)
+
+            total_power_stack = [0.0,]
+            encoder_data = env.robot.sensor_measurements["EncoderSensor"]
+            _, motor_velocities = encoder_data
+            for _ in range(8):
+                motor_efforts = 0.1 * env.action_space.sample()
+                env.step(motor_efforts)
+
+                motor_powers = motor_efforts * motor_velocities
+                if mode == EnergyGenerationMode.CHARGE:
+                    total_power = np.sum(motor_powers)
+                elif mode == EnergyGenerationMode.LOST_EACH:
+                    total_power = np.sum(np.maximum(motor_powers, 0.0))
+                elif mode == EnergyGenerationMode.LOST_GLOBAL:
+                    total_power = max(np.sum(motor_powers), 0.0)
+                else:
+                    total_power = np.sum(np.abs(motor_powers))
+                total_power_stack.append(total_power)
+                mean_total_power = np.mean(
+                    total_power_stack[-quantity.max_stack:])
+
+                value = quantity.total_power_stack.get()
+                np.testing.assert_allclose(total_power, value[-1])
+                np.testing.assert_allclose(mean_total_power, quantity.get())
+
+            del env.quantities["mean_power_consumption"]
