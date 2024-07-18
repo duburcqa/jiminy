@@ -2,7 +2,7 @@
 
 [engine.stepper]
 verbose = false
-odeSolver = "runge_kutta_dopri5"
+odeSolver = "runge_kutta_dopri"
 sensorsUpdatePeriod = 0.005
 controllerUpdatePeriod = 0.005
 tolRel = 1.0e-6
@@ -21,16 +21,16 @@ enableVelocity = false
 enableAcceleration = false
 enableForceExternal = false
 enableCommand = true
-enableMotorEffort = false
+enableEffort = false
 enableEnergy = false
 
 [robot.controller]
 telemetryEnable = true
 
 [robot.telemetry]
-enableEffortSensors = true
-enableEncoderSensors = true
-enableImuSensors = true
+EffortSensor = true
+EncoderSensor = true
+ImuSensor = true
 
 # =============== Flexibilities ===============
 
@@ -47,12 +47,15 @@ inertiaBodiesBiasStd = 0.0
 massBodiesBiasStd = 0.0
 centerOfMassPositionBodiesBiasStd = 0.0
 relativePositionBodiesBiasStd = 0.0
-enableFlexibleModel = true
+enableFlexibility = true
 
 # ================== Motors ===================
 
 [robot.motors.PendulumJoint]
-enableCommandLimit = true
+velocityLimitFromUrdf = true
+velocityLimit = 1000.0
+effortLimitFromUrdf = true
+effortLimit = 1000.0
 enableFriction = true
 enableArmature = true
 frictionDryNegative = -5.0

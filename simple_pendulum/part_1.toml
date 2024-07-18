@@ -3,8 +3,9 @@ sensorsUpdatePeriod = 0.0
 controllerUpdatePeriod = 0.0
 
 [robot.model.dynamics]
-enableFlexibleModel = false
+enableFlexibility = false
 
 [robot.motors.PendulumJoint]
-enableCommandLimit = false
+velocityLimitFromUrdf = false
+effortLimitFromUrdf = false
 enableFriction = false
