@@ -1920,7 +1920,7 @@ class Viewer:
 
         # Add camera
         Viewer._backend_obj.gui.add_camera(
-            camera_name, (width, height), is_depthmap)
+            camera_name, is_depthmap, (width, height))
 
     @staticmethod
     @_with_lock
