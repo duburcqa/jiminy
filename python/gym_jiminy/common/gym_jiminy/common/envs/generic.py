@@ -46,8 +46,8 @@ from ..utils import (FieldNested,
                      get_fieldnames,
                      register_variables)
 from ..bases import (DT_EPS,
-                     ObsT,
-                     ActT,
+                     Obs,
+                     Act,
                      InfoType,
                      SensorMeasurementStackMap,
                      EngineObsType,
@@ -84,8 +84,8 @@ class _LazyDictItemFilter(Mapping):
         return len(self.dict_packed)
 
 
-class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
-                    Generic[ObsT, ActT]):
+class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
+                    Generic[Obs, Act]):
     """Base class to train an agent in Gym OpenAI using Jiminy simulator for
     physics computations.
 
@@ -237,8 +237,8 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         self._initialize_seed()
 
         # Initialize the observation and action buffers
-        self.observation: ObsT = zeros(self.observation_space)
-        self.action: ActT = zeros(self.action_space)
+        self.observation: Obs = zeros(self.observation_space)
+        self.action: Act = zeros(self.action_space)
 
         # Check that the action space and 'compute_command' are consistent
         if (BaseJiminyEnv.compute_command is type(self).compute_command and
@@ -774,7 +774,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         # Make sure the state is valid, otherwise there `refresh_observation`
         # and `_initialize_observation_space` are probably inconsistent.
         try:
-            obs: ObsT = cast(ObsT, self._get_clipped_env_observation())
+            obs: Obs = cast(Obs, self._get_clipped_env_observation())
         except (TypeError, ValueError) as e:
             raise RuntimeError(
                 "The observation computed by `refresh_observation` is "
@@ -822,7 +822,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         self.simulator.close()
 
     def step(self,  # type: ignore[override]
-             action: ActT
+             action: Act
              ) -> Tuple[DataNested, SupportsFloat, bool, bool, InfoType]:
         """Integration timestep of the environment's dynamics under prescribed
         agent's action over a single timestep, i.e. collect one transition step
@@ -1167,7 +1167,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
     def evaluate(self,
                  policy_fn: Callable[[
                     DataNested, Optional[float], bool, InfoType
-                    ], ActT],
+                    ], Act],
                  seed: Optional[int] = None,
                  horizon: Optional[int] = None,
                  enable_stats: bool = True,
@@ -1189,7 +1189,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
             |            **reward**: Optional[float],
             |            **done_or_truncated**: bool,
             |            **info**: InfoType
-            |            \) -> ActT  # **action**
+            |            \) -> Act  # **action**
         :param seed: Seed of the environment to be used for the evaluation of
                      the policy.
                      Optional: Random seed if not provided.
@@ -1450,7 +1450,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         efficiency.
 
         By default, it sets the observation to the value of the measurement,
-        which would not work unless `ObsT` corresponds to `EngineObsType`.
+        which would not work unless `Obs` corresponds to `EngineObsType`.
 
         .. note::
             This method is called and the end of every low-level `Engine.step`.
@@ -1480,7 +1480,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         for sensor_type in self._sensors_types:
             array_copyto(sensors_out[sensor_type], sensors_in[sensor_type])
 
-    def compute_command(self, action: ActT, command: np.ndarray) -> None:
+    def compute_command(self, action: Act, command: np.ndarray) -> None:
         """Compute the motors efforts to apply on the robot.
 
         By default, all it does is forwarding the input action as is, without
@@ -1537,9 +1537,9 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
 
     def _key_to_action(self,
                        key: str,
-                       obs: ObsT,
+                       obs: Obs,
                        reward: Optional[float],
-                       **kwargs: Any) -> Optional[ActT]:
+                       **kwargs: Any) -> Optional[Act]:
         """Mapping from input keyboard keys to actions.
 
         .. note::

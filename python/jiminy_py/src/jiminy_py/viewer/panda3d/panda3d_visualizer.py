@@ -207,6 +207,7 @@ def make_gradient_skybox(sky_color: Tuple4FType,
     node = GeomNode("prism")
     node.add_geom(geom)
     node.set_bounds(OmniBoundingVolume())
+    node.set_final(True)
     prism = NodePath(node)
     prism.set_color_scale((*(3 * (1.1,)), 1.0))
     prism.set_bin("background", 0)
@@ -423,6 +424,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         config.set_value('notify-level', 'fatal')
         config.set_value('notify-level-x11display', 'fatal')
         config.set_value('notify-level-device', 'fatal')
+        config.set_value('notify-level-glgsg', 'fatal')
         config.set_value('default-directnotify-level', 'error')
         loadPrcFileData('', str(config))
 
@@ -489,7 +491,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         # Create gradient for skybox
         self.skybox = make_gradient_skybox(
             SKY_TOP_COLOR, SKY_BOTTOM_COLOR, 0.35, 0.17)
-        self.skybox.set_shader_auto()
+        self.skybox.set_shader_off()
         self.skybox.set_light_off()
         self.skybox.hide(self.LightMask | self.UserDepthCameraMask)
 
@@ -1078,7 +1080,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         if self.win.gsg.driver_vendor.startswith('NVIDIA'):
             node.set_render_mode_thickness(4)
         node.set_antialias(AntialiasAttrib.MLine)
-        node.set_shader_auto()
+        node.set_shader_off()
         node.set_light_off()
         node.hide(self.LightMask | self.UserCameraMask)
         node.set_tag("is_virtual", "1")
@@ -1230,7 +1232,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         if self.win.gsg.driver_vendor.startswith('NVIDIA'):
             node.set_render_mode_thickness(4)
         node.set_antialias(AntialiasAttrib.MLine)
-        node.set_shader_auto()
+        node.set_shader_off()
         node.set_light_off()
         node.hide(self.LightMask | self.UserCameraMask)
         node.set_tag("is_virtual", "1")
@@ -1470,12 +1472,17 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
 
         # Load non-interactive backend unrelated to the current one
         try:
-            backend_registry = matplotlib.backends.backend_registry
+            # pylint: disable=no-member
+            backend_registry = (
+                matplotlib.backends.
+                backend_registry)  # type: ignore[attr-defined,unused-ignore]
             plt_agg = backend_registry.load_backend_module('Agg')
         except AttributeError:
             # Fallback for matplotlib < 3.9.0
+            # pylint: disable=no-member
             plt_agg = importlib.import_module(
-                matplotlib.cbook._backend_module_name('Agg'))
+                matplotlib.cbook.  # type: ignore[attr-defined,unused-ignore]
+                _backend_module_name('Agg'))
 
         # Remove existing legend, if any
         if self._legend is not None:
@@ -1823,7 +1830,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         """
         if framerate is not None:
             self.clock.set_mode(ClockObject.MLimited)
-            self.clock.set_frame_rate(PANDA3D_FRAMERATE_MAX)
+            self.clock.set_frame_rate(framerate)
         else:
             self.clock.set_mode(ClockObject.MNormal)
         self.framerate = framerate

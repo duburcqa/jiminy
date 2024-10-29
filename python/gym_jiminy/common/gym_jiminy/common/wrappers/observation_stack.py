@@ -14,22 +14,22 @@ from jiminy_py.core import (  # pylint: disable=no-name-in-module
 from jiminy_py.tree import flatten_with_path, unflatten_as
 
 from ..bases import (DT_EPS,
-                     NestedObsT,
-                     ActT,
+                     NestedObs,
+                     Act,
                      EngineObsType,
                      InterfaceJiminyEnv,
                      BasePipelineWrapper)
 from ..utils import is_breakpoint, zeros, copy
 
 
-StackedObsT: TypeAlias = NestedObsT
+StackedObs: TypeAlias = NestedObs
 
 LOGGER = logging.getLogger(__name__)
 
 
 class StackObservation(
-        BasePipelineWrapper[StackedObsT, ActT, NestedObsT, ActT],
-        Generic[NestedObsT, ActT]):
+        BasePipelineWrapper[StackedObs, Act, NestedObs, Act],
+        Generic[NestedObs, Act]):
     """Partially stack observations in a rolling manner.
 
     This wrapper combines and extends OpenAI Gym wrappers `FrameStack` and
@@ -55,7 +55,7 @@ class StackObservation(
         the left.
     """
     def __init__(self,
-                 env: InterfaceJiminyEnv[NestedObsT, ActT],
+                 env: InterfaceJiminyEnv[NestedObs, Act],
                  *,
                  num_stack: int,
                  nested_filter_keys: Optional[Sequence[
@@ -253,7 +253,7 @@ class StackObservation(
             self._n_last_stack = -1
             self._was_stack_shifted = True
 
-    def compute_command(self, action: ActT, command: np.ndarray) -> None:
+    def compute_command(self, action: Act, command: np.ndarray) -> None:
         """Compute the motors efforts to apply on the robot.
 
         It simply forwards the command computed by the wrapped environment

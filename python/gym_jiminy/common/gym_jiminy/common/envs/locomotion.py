@@ -279,8 +279,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                         sensor_options[name] = sample(
                             scale=(self.std_ratio['sensors'] *
                                    SENSOR_NOISE_SCALE[cls]),
-                            shape=(len(
-                                cls.fieldnames),),  # type: ignore[arg-type]
+                            shape=(len(cls.fieldnames),),
                             rg=self.np_random)
 
         # Randomize the flexibility parameters

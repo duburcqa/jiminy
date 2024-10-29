@@ -533,7 +533,8 @@ def _restore_default_connectors() -> None:
             if isinstance(loader, MetaPathFinder):
                 module_info = loader.find_module(module_name, path=None)
             else:
-                module_info = loader.find_module(module_name)
+                module_info = loader.find_module(  # type: ignore[union-attr]
+                    module_name)
             assert module_info is not None
             module = module_info.load_module(module_name)
             for name, obj in module.__dict__.items():

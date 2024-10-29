@@ -14,7 +14,7 @@ from jiminy_py.core import (  # pylint: disable=no-name-in-module
 
 import pinocchio as pin
 
-from ..bases import BaseActT, BaseObsT, BaseObserverBlock, InterfaceJiminyEnv
+from ..bases import BaseAct, BaseObs, BaseObserverBlock, InterfaceJiminyEnv
 from ..utils import (DataNested,
                      matrices_to_quat,
                      quat_multiply,
@@ -415,7 +415,7 @@ def get_flexibility_imu_frame_chains(
 
 
 class DeformationEstimator(
-        BaseObserverBlock[np.ndarray, np.ndarray, BaseObsT, BaseActT]):
+        BaseObserverBlock[np.ndarray, np.ndarray, BaseObs, BaseAct]):
     """Compute the local deformation at an arbitrary set of flexibility points
     that are presumably responsible for most of the whole deformation of the
     mechanical structure.
@@ -498,7 +498,7 @@ class DeformationEstimator(
     """
     def __init__(self,
                  name: str,
-                 env: InterfaceJiminyEnv[BaseObsT, BaseActT],
+                 env: InterfaceJiminyEnv[BaseObs, BaseAct],
                  *,
                  imu_frame_names: Sequence[str],
                  flex_frame_names: Sequence[str],
@@ -761,7 +761,7 @@ class DeformationEstimator(
         return [[f"{name}.Quat{e}" for name in self.flexibility_frame_names]
                 for e in ("x", "y", "z", "w")]
 
-    def refresh_observation(self, measurement: BaseObsT) -> None:
+    def refresh_observation(self, measurement: BaseObs) -> None:
         # Translate encoder data at joint level
         joint_positions = self.encoder_to_joint_ratio * self.encoder_data
 

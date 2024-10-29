@@ -26,10 +26,10 @@ if TYPE_CHECKING:
 DT_EPS: float = 1e-6  # 'SIMULATION_MIN_TIMESTEP'
 
 
-ObsT = TypeVar('ObsT', bound=DataNested)
-ActT = TypeVar('ActT', bound=DataNested)
-BaseObsT = TypeVar('BaseObsT', bound=DataNested)
-BaseActT = TypeVar('BaseActT', bound=DataNested)
+Obs = TypeVar('Obs', bound=DataNested)
+Act = TypeVar('Act', bound=DataNested)
+BaseObs = TypeVar('BaseObs', bound=DataNested)
+BaseAct = TypeVar('BaseAct', bound=DataNested)
 
 SensorMeasurementStackMap = Dict[str, npt.NDArray[np.float64]]
 InfoType = Dict[str, Any]
@@ -53,12 +53,12 @@ class EngineObsType(TypedDict):
     """
 
 
-class InterfaceObserver(ABC, Generic[ObsT, BaseObsT]):
+class InterfaceObserver(ABC, Generic[Obs, BaseObs]):
     """Observer interface for both observers and environments.
     """
     observe_dt: float = -1
-    observation_space: gym.Space  # [ObsT]
-    observation: ObsT
+    observation_space: gym.Space  # [Obs]
+    observation: Obs
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         """Initialize the observer interface.
@@ -79,7 +79,7 @@ class InterfaceObserver(ABC, Generic[ObsT, BaseObsT]):
         """
 
     @abstractmethod
-    def refresh_observation(self, measurement: BaseObsT) -> None:
+    def refresh_observation(self, measurement: BaseObs) -> None:
         """Compute observed features based on the current simulation state and
         lower-level measure.
 
@@ -96,11 +96,11 @@ class InterfaceObserver(ABC, Generic[ObsT, BaseObsT]):
         """
 
 
-class InterfaceController(ABC, Generic[ActT, BaseActT]):
+class InterfaceController(ABC, Generic[Act, BaseAct]):
     """Controller interface for both controllers and environments.
     """
     control_dt: float = -1
-    action_space: gym.Space  # [ActT]
+    action_space: gym.Space  # [Act]
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         """Initialize the controller interface.
@@ -121,7 +121,7 @@ class InterfaceController(ABC, Generic[ActT, BaseActT]):
         """
 
     @abstractmethod
-    def compute_command(self, action: ActT, command: BaseActT) -> None:
+    def compute_command(self, action: Act, command: BaseAct) -> None:
         """Compute the command to send to the subsequent block, based on the
         action and current observation of the environment.
 
@@ -170,10 +170,10 @@ class InterfaceController(ABC, Generic[ActT, BaseActT]):
 # Similarly, `gym.Env` must be last to make sure all the other initialization
 # methods are called first.
 class InterfaceJiminyEnv(
-        InterfaceObserver[ObsT, EngineObsType],
-        InterfaceController[ActT, np.ndarray],
-        gym.Env[ObsT, ActT],
-        Generic[ObsT, ActT]):
+        InterfaceObserver[Obs, EngineObsType],
+        InterfaceController[Act, np.ndarray],
+        gym.Env[Obs, Act],
+        Generic[Obs, Act]):
     """Observer plus controller interface for both generic pipeline blocks,
     including environments.
     """
@@ -202,7 +202,7 @@ class InterfaceJiminyEnv(
 
     quantities: "QuantityManager"
 
-    action: ActT
+    action: Act
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         # Track whether the observation has been refreshed manually since the

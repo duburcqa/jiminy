@@ -18,7 +18,7 @@ from .dynamics import State, Trajectory
 
 
 FieldNested = Union[Dict[str, 'FieldNested'], Sequence['FieldNested'], str]
-
+UpdateHook = Callable[[float, np.ndarray, Optional[np.ndarray]], None]
 
 read_log = jiminy.core.Engine.read_log
 
@@ -296,9 +296,7 @@ def extract_trajectories_from_log(
 
 
 def update_sensor_measurements_from_log(
-        log_data: Dict[str, Any],
-        robot: jiminy.Model
-        ) -> Callable[[float, np.ndarray, np.ndarray], None]:
+        log_data: Dict[str, Any], robot: jiminy.Model) -> UpdateHook:
     """Helper to make it easy to emulate sensor data update based on log data.
 
     .. note::
@@ -330,7 +328,7 @@ def update_sensor_measurements_from_log(
 
     def update_hook(t: float,
                     q: np.ndarray,  # pylint: disable=unused-argument
-                    v: np.ndarray  # pylint: disable=unused-argument
+                    v: Optional[np.ndarray]  # pylint: disable=unused-argument
                     ) -> None:
         nonlocal times, sensor_data_map
 

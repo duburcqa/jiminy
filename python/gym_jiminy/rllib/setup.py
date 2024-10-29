@@ -36,6 +36,8 @@ setup(
         # * > 2.5.0: multi-GPU support
         # * 1.11.0 / 2.2.0 / 2.5.0 / 2.9.0: Breaking changes
         "ray[rllib]~=2.9.0",
+        # Ray 2.9.0 does not support Numpy 2.X
+        "numpy<2.0",
         # Used for monitoring (logging and publishing) learning progress
         "tensorboardX",
         # Plot data directly in terminal to monitor stats without X-server

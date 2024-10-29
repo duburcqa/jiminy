@@ -10,7 +10,7 @@ import gymnasium as gym
 
 from jiminy_py.core import ImuSensor  # pylint: disable=no-name-in-module
 
-from ..bases import BaseObsT, BaseActT, BaseObserverBlock, InterfaceJiminyEnv
+from ..bases import BaseObs, BaseAct, BaseObserverBlock, InterfaceJiminyEnv
 from ..utils import (fill,
                      matrices_to_quat,
                      swing_from_vector,
@@ -144,7 +144,7 @@ def update_twist(q: np.ndarray,
 
 
 class MahonyFilter(
-        BaseObserverBlock[np.ndarray, np.ndarray, BaseObsT, BaseActT]):
+        BaseObserverBlock[np.ndarray, np.ndarray, BaseObs, BaseAct]):
     """Mahony's Nonlinear Complementary Filter on SO(3).
 
     .. seealso::
@@ -162,7 +162,7 @@ class MahonyFilter(
     """
     def __init__(self,
                  name: str,
-                 env: InterfaceJiminyEnv[BaseObsT, BaseActT],
+                 env: InterfaceJiminyEnv[BaseObs, BaseAct],
                  *,
                  twist_time_constant: Optional[float] = 0.0,
                  exact_init: bool = True,
@@ -335,7 +335,7 @@ class MahonyFilter(
         return [[f"{sensor.name}.Quat{e}" for sensor in imu_sensors]
                 for e in ("x", "y", "z", "w")]
 
-    def refresh_observation(self, measurement: BaseObsT) -> None:
+    def refresh_observation(self, measurement: BaseObs) -> None:
         # Re-initialize the quaternion estimate if no simulation running.
         # It corresponds to the rotation transforming 'acc' in 'e_z'.
         if not self._is_initialized:

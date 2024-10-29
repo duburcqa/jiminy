@@ -242,15 +242,8 @@ namespace jiminy::python
                  &internal::model::getTheoreticalVelocityFromExtended,
                  (bp::arg("self"), "flexibility_velocity"))
 
-            // FIXME: Disable automatic typing because typename returned by 'py_type_str' is
-            // missing module prefix, which makes it impossible to distinguish 'pinocchio.Model'
-            // from 'jiminy.Model' classes.
-            .def_readonly("pinocchio_model_th",
-                          &Model::pinocchioModelTh_,
-                          "fget( (Model)self) -> pinocchio.Model")
-            .def_readonly("pinocchio_model",
-                          &Model::pinocchioModel_,
-                          "fget( (Model)self) -> pinocchio.Model")
+            .DEF_READONLY("pinocchio_model_th", &Model::pinocchioModelTh_)
+            .DEF_READONLY("pinocchio_model", &Model::pinocchioModel_)
             .DEF_READONLY("collision_model_th", &Model::collisionModelTh_)
             .DEF_READONLY("collision_model", &Model::collisionModel_)
             .DEF_READONLY("visual_model_th", &Model::visualModelTh_)

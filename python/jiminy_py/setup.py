@@ -35,12 +35,10 @@ if np_ver < (1, 25):
         np_req += ",<1.20.0"
     elif np_ver < (1, 22):
         np_req += ",!=1.21.0,!=1.21.1,!=1.21.2,!=1.21.3,!=1.21.4"
+elif np_ver >= (2, 1):
+    np_req = f"numpy>=1.19,<{np_ver[0]}.{np_ver[1] + 1}"
 else:
-    if np_ver < (2, 1):
-        np_req = "numpy>=1.24"  # All version down to 1.19 are supported
-    else:
-        raise ImportError("'numpy>2.0' not supported at built-time for now.")
-    np_req += f",<{np_ver[0]}.{np_ver[1] + 1}"
+    np_req = f"numpy>=1.24,<{np_ver[0]}.{np_ver[1] + 1}"
 
 
 setup(
@@ -149,7 +147,7 @@ setup(
         "dev": [
             # Generate Python type hints files (aka. stubs) for C extensions.
             # Natively, it only supports PyBind11, but it has been patched to
-            # partially support of Boost::Python (`build_tools/stub_gen.py`).
+            # partially support of Boost::Python (`build_tools/stubgen.py`).
             "pybind11_stubgen<1.0",
             # Used in unit tests for checking if viewer screen captures match
             "pillow",

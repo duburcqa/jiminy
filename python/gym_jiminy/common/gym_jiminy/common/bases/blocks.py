@@ -14,19 +14,19 @@ import gymnasium as gym
 
 from ..utils import FieldNested, DataNested, get_fieldnames, zeros
 
-from .interfaces import (ObsT,
-                         ActT,
-                         BaseObsT,
-                         BaseActT,
+from .interfaces import (Obs,
+                         Act,
+                         BaseObs,
+                         BaseAct,
                          InterfaceController,
                          InterfaceObserver,
                          InterfaceJiminyEnv)
 
 
-BlockStateT = TypeVar('BlockStateT', bound=Union[DataNested, None])
+BlockState = TypeVar('BlockState', bound=Union[DataNested, None])
 
 
-class InterfaceBlock(ABC, Generic[BlockStateT, BaseObsT, BaseActT]):
+class InterfaceBlock(ABC, Generic[BlockState, BaseObs, BaseAct]):
     """Base class for blocks used for pipeline control design. Blocks can be
     either observers and controllers.
 
@@ -35,17 +35,17 @@ class InterfaceBlock(ABC, Generic[BlockStateT, BaseObsT, BaseActT]):
         and `get_state` must be overloaded accordingly. The internal state will
         be added automatically to the observation space of the environment.
     """
-    env: InterfaceJiminyEnv[BaseObsT, BaseActT]
+    env: InterfaceJiminyEnv[BaseObs, BaseAct]
     name: str
     update_ratio: int
-    state_space: gym.Space[BlockStateT]
+    state_space: gym.Space[BlockState]
 
     # Type of the block, ie 'observer' or 'controller'.
     type: str = ""
 
     def __init__(self,
                  name: str,
-                 env: InterfaceJiminyEnv[BaseObsT, BaseActT],
+                 env: InterfaceJiminyEnv[BaseObs, BaseAct],
                  update_ratio: int = 1,
                  **kwargs: Any) -> None:
         """Initialize the block interface.
@@ -105,12 +105,12 @@ class InterfaceBlock(ABC, Generic[BlockStateT, BaseObsT, BaseActT]):
     def _initialize_state_space(self) -> None:
         """Configure the internal state space of the controller.
         """
-        self.state_space = cast(gym.Space[BlockStateT], None)
+        self.state_space = cast(gym.Space[BlockState], None)
 
-    def get_state(self) -> BlockStateT:
+    def get_state(self) -> BlockState:
         """Get the internal state space of the controller.
         """
-        return cast(BlockStateT, None)
+        return cast(BlockState, None)
 
     @property
     @abstractmethod
@@ -119,9 +119,9 @@ class InterfaceBlock(ABC, Generic[BlockStateT, BaseObsT, BaseActT]):
         """
 
 
-class BaseObserverBlock(InterfaceObserver[ObsT, BaseObsT],
-                        InterfaceBlock[BlockStateT, BaseObsT, BaseActT],
-                        Generic[ObsT, BlockStateT, BaseObsT, BaseActT]):
+class BaseObserverBlock(InterfaceObserver[Obs, BaseObs],
+                        InterfaceBlock[BlockState, BaseObs, BaseAct],
+                        Generic[Obs, BlockState, BaseObs, BaseAct]):
     """Base class to implement observe that can be used compute observation
     features of a `BaseJiminyEnv` environment, through any number of
     lower-level observer.
@@ -155,7 +155,7 @@ class BaseObserverBlock(InterfaceObserver[ObsT, BaseObsT],
         super().__init__(*args, **kwargs)
 
         # Allocate observation buffer
-        self.observation: ObsT = zeros(self.observation_space)
+        self.observation: Obs = zeros(self.observation_space)
 
     def _setup(self) -> None:
         # Compute the update period
@@ -182,9 +182,9 @@ class BaseObserverBlock(InterfaceObserver[ObsT, BaseObsT],
 
 
 class BaseControllerBlock(
-        InterfaceController[ActT, BaseActT],
-        InterfaceBlock[BlockStateT, BaseObsT, BaseActT],
-        Generic[ActT, BlockStateT, BaseObsT, BaseActT]):
+        InterfaceController[Act, BaseAct],
+        InterfaceBlock[BlockState, BaseObs, BaseAct],
+        Generic[Act, BlockState, BaseObs, BaseAct]):
     """Base class to implement controller that can be used compute targets to
     apply to the robot of a `BaseJiminyEnv` environment, through any number of
     lower-level controllers.

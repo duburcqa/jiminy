@@ -1,16 +1,58 @@
+diff --git a/include/eigenpy/fwd.hpp b/include/eigenpy/fwd.hpp
+--- a/include/eigenpy/fwd.hpp
++++ b/include/eigenpy/fwd.hpp
+@@ -65,6 +65,7 @@
+ #define EIGENPY_DOCUMENTATION_END_IGNORE    /// \endcond
+ 
+ #include "eigenpy/config.hpp"
++#include <boost/type_traits/is_base_of.hpp>
+ 
+ // Silence a warning about a deprecated use of boost bind by boost python
+ // at least fo boost 1.73 to 1.75
+diff --git a/include/eigenpy/numpy.hpp b/include/eigenpy/numpy.hpp
+--- a/include/eigenpy/numpy.hpp
++++ b/include/eigenpy/numpy.hpp
+@@ -5,12 +5,17 @@
+ #ifndef __eigenpy_numpy_hpp__
+ #define __eigenpy_numpy_hpp__
+ 
+-#include "eigenpy/fwd.hpp"
++#include "eigenpy/config.hpp"
+ 
+ #ifndef PY_ARRAY_UNIQUE_SYMBOL
+ #define PY_ARRAY_UNIQUE_SYMBOL EIGENPY_ARRAY_API
+ #endif
+ 
++// For compatibility with Numpy 2.x
++// See
++// https://numpy.org/devdocs/reference/c-api/array.html#c.NPY_API_SYMBOL_ATTRIBUTE
++#define NPY_API_SYMBOL_ATTRIBUTE EIGENPY_DLLAPI
++
+ #include <numpy/numpyconfig.h>
+ #ifdef NPY_1_8_API_VERSION
+ #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
+@@ -50,6 +55,8 @@
+ #define EIGENPY_GET_PY_ARRAY_TYPE(array) PyArray_MinScalarType(array)->type_num
+ #endif
+ 
++#include <complex>
++
+ namespace eigenpy {
+ void EIGENPY_DLLAPI import_numpy();
+ int EIGENPY_DLLAPI PyArray_TypeNum(PyTypeObject* type);
 diff --git a/CMakeLists.txt b/CMakeLists.txt
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -210,6 +210,9 @@
+@@ -336,6 +336,9 @@
  
  add_library(${PROJECT_NAME} SHARED ${${PROJECT_NAME}_SOURCES}
                                     ${${PROJECT_NAME}_HEADERS})
 +if(APPLE)
 +  set_target_properties(${PROJECT_NAME} PROPERTIES LINK_FLAGS "-undefined dynamic_lookup")
 +endif(APPLE)
+ set_standard_output_directory(${PROJECT_NAME})
  target_include_directories(
    ${PROJECT_NAME} SYSTEM
-   PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
 diff --git a/cmake/boost.cmake b/cmake/boost.cmake
 --- a/cmake/boost.cmake
 +++ b/cmake/boost.cmake
@@ -35,7 +77,7 @@ diff --git a/cmake/boost.cmake b/cmake/boost.cmake
 diff --git a/cmake/python.cmake b/cmake/python.cmake
 --- a/cmake/python.cmake
 +++ b/cmake/python.cmake
-@@ -168,7 +168,9 @@
+@@ -166,7 +166,9 @@
        set(Python${_PYTHON_VERSION_MAJOR}_INCLUDE_DIR ${PYTHON_INCLUDE_DIR})
  
        find_package("Python${_PYTHON_VERSION_MAJOR}" REQUIRED

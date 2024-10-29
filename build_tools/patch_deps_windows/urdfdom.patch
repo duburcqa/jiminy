@@ -1,15 +1,15 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -74,7 +74,7 @@
+@@ -67,7 +67,7 @@
  
  set(PKG_NAME ${PROJECT_NAME})
  set(PKG_LIBRARIES urdfdom_sensor urdfdom_model_state urdfdom_model urdfdom_world)
--set(PKG_DEPENDS urdfdom_headers console_bridge)
-+set(PKG_DEPENDS urdfdom_headers console_bridge TinyXML)
+-set(PKG_DEPENDS urdfdom_headers)
++set(PKG_DEPENDS urdfdom_headers console_bridge tinyxml2)
  set(PKG_EXPORTS urdfdom)
- set(cmake_conf_file "cmake/urdfdom-config.cmake")
- configure_file("${CMAKE_CURRENT_SOURCE_DIR}/${cmake_conf_file}.in" "${CMAKE_BINARY_DIR}/${cmake_conf_file}" @ONLY)
+ set(cmake_conf_file "cmake/urdfdom-config")
+ include(CMakePackageConfigHelpers)
 diff --git a/urdf_parser/CMakeLists.txt b/urdf_parser/CMakeLists.txt
 --- a/urdf_parser/CMakeLists.txt
 +++ b/urdf_parser/CMakeLists.txt
@@ -20,5 +20,5 @@ diff --git a/urdf_parser/CMakeLists.txt b/urdf_parser/CMakeLists.txt
 -  add_library(${add_urdfdom_library_LIBNAME} SHARED
 +  add_library(${add_urdfdom_library_LIBNAME}
      ${add_urdfdom_library_SOURCES})
-   target_include_directories(${add_urdfdom_library_LIBNAME} SYSTEM PUBLIC
-     ${TinyXML_INCLUDE_DIRS})
+   add_library(urdfdom::${add_urdfdom_library_LIBNAME} ALIAS ${add_urdfdom_library_LIBNAME})
+   target_include_directories(${add_urdfdom_library_LIBNAME} PUBLIC

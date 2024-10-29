@@ -1,6 +1,6 @@
+<?xml version="1.0" ?>
 <!-- This URDF describes a simple disk: it is meant to test the wheel constraint.
 -->
-<?xml version="1.0" ?>
 <robot name="wheel">
     <link name="MassBody">
         <inertial>

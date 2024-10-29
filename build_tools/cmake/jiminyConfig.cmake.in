@@ -65,11 +65,15 @@ else()
     get_filename_component(BOOST_ROOT "${BOOST_INCLUDE_DIR}" DIRECTORY)
 endif()
 
-# Make sure the right version of urdfdom, pinocchio, and eigen are available
-find_package(urdfdom REQUIRED NO_MODULE)
-if(NOT "${urdfdom_LIBRARIES}" MATCHES ".*tinyxml.*")
-    list(APPEND urdfdom_LIBRARIES "tinyxml")
+# Make sure that the right version of tinyxml2, urdfdom, pinocchio, eigen are available
+if(NOT TARGET tinyxml2::tinyxml2)
+    unset(TinyXML2_FOUND CACHE)
 endif()
+find_package(TinyXML2 REQUIRED NO_MODULE)
+if(NOT TARGET urdfdom::urdfdom)
+    unset(urdfdom_FOUND CACHE)
+endif()
+find_package(urdfdom REQUIRED NO_MODULE)
 if(NOT TARGET pinocchio::pinocchio)
     unset(pinocchio_FOUND CACHE)
 endif()
@@ -152,7 +156,7 @@ target_link_libraries(
     jiminy::core INTERFACE
     pinocchio::pinocchio
     hpp-fcl::hpp-fcl
-    ${urdfdom_LIBRARIES}
+    urdfdom::urdf_parser
     Eigen3::Eigen
 )
 

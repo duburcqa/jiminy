@@ -9,13 +9,13 @@ import numpy as np
 import gymnasium as gym
 from gymnasium import spaces
 
-from gym_jiminy.common.bases import ObsT, ActT, InfoType
+from gym_jiminy.common.bases import Obs, Act, InfoType
 
 DataTreeT = Dict[Any, Tuple[Any, "DataTreeT"]]
 
 
-class HierarchicalTaskSettableEnv(gym.Env[ObsT, ActT],
-                                  Generic[ObsT, ActT]):
+class HierarchicalTaskSettableEnv(gym.Env[Obs, Act],
+                                  Generic[Obs, Act]):
     """Extension of gym.Env to define a task-settable Env.
 
     .. note::
@@ -51,12 +51,12 @@ class HierarchicalTaskSettableEnv(gym.Env[ObsT, ActT],
 
 
 class TaskSchedulingWrapper(
-        gym.Wrapper,  # [ObsT, ActT, ObsT, ActT],
-        Generic[ObsT, ActT]):
+        gym.Wrapper,  # [Obs, Act, Obs, Act],
+        Generic[Obs, Act]):
     """ TODO: Write documentation.
     """
     def __init__(self,
-                 env: HierarchicalTaskSettableEnv[ObsT, ActT],
+                 env: HierarchicalTaskSettableEnv[Obs, Act],
                  initial_task_tree: Optional[DataTreeT] = None
                  ) -> None:
         """ TODO: Write documentation.
@@ -122,7 +122,7 @@ class TaskSchedulingWrapper(
               *,
               seed: Optional[int] = None,
               options: Optional[Dict[str, Any]] = None
-              ) -> Tuple[ObsT, InfoType]:
+              ) -> Tuple[Obs, InfoType]:
         """ TODO: Write documentation.
         """
         # Sample new task
