@@ -1,8 +1,7 @@
 """This module implements two block transformations for normalizing the
 observation and action spaces of the environment respectively.
 """
-from typing import Generic
-from typing_extensions import TypeAlias
+from typing import Generic, TypeAlias
 
 import numpy as np
 

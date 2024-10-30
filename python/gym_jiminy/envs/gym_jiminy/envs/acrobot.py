@@ -1,5 +1,5 @@
 import os
-import sys
+from importlib.resources import files
 from typing import Dict, Any, Optional, Tuple
 
 import numpy as np
@@ -11,11 +11,6 @@ from jiminy_py.simulator import Simulator
 from gym_jiminy.common.bases import InfoType, EngineObsType
 from gym_jiminy.common.envs import BaseJiminyEnv
 from gym_jiminy.common.utils import sample
-
-if sys.version_info < (3, 9):
-    from importlib_resources import files
-else:
-    from importlib.resources import files
 
 
 # Stepper update period

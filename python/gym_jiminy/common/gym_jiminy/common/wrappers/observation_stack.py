@@ -4,8 +4,8 @@ This wrapper
 """
 import logging
 from collections import deque
-from typing import List, Optional, Tuple, Set, Sequence, Union, Generic
-from typing_extensions import TypeAlias
+from typing import (
+    List, Optional, Tuple, Set, Sequence, Union, Generic, TypeAlias)
 
 import numpy as np
 import gymnasium as gym

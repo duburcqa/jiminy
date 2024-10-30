@@ -1,10 +1,10 @@
 """ TODO: Write documentation
 """
 import os
-import sys
 import shutil
 import tempfile
 import unittest
+from importlib.resources import files
 
 import numpy as np
 import gymnasium as gym
@@ -17,11 +17,6 @@ from jiminy_py.viewer.replay import (
 import pinocchio as pin
 
 from gym_jiminy.common.utils import math
-
-if sys.version_info < (3, 9):
-    from importlib_resources import files
-else:
-    from importlib.resources import files
 
 
 class Miscellaneous(unittest.TestCase):

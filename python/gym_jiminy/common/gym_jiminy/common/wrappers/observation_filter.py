@@ -5,8 +5,8 @@ from operator import getitem
 from functools import reduce
 from collections import OrderedDict
 from typing import (
-    Sequence, Set, Tuple, Union, Generic, TypeVar, Type, no_type_check)
-from typing_extensions import TypeAlias
+    Sequence, Set, Tuple, Union, Generic, TypeVar, Type, TypeAlias,
+    no_type_check)
 
 import gymnasium as gym
 from jiminy_py.tree import (

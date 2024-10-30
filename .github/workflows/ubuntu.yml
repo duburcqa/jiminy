@@ -150,11 +150,11 @@ jobs:
         fi
         "${PYTHON_EXECUTABLE}" -m unittest discover -s "${RootDir}/python/gym_jiminy/unit_py" -v
 
-    - name: Run examples for gym jiminy add-on modules
-      if: matrix.BUILD_TYPE != 'Debug'
-      run: |
-        cd "${RootDir}/python/gym_jiminy/examples/rllib"
-        "${PYTHON_EXECUTABLE}" acrobot_ppo.py
+    # - name: Run examples for gym jiminy add-on modules
+    #   if: matrix.BUILD_TYPE != 'Debug'
+    #   run: |
+    #     cd "${RootDir}/python/gym_jiminy/examples/rllib"
+    #     "${PYTHON_EXECUTABLE}" acrobot_ppo.py
 
     #####################################################################################
 

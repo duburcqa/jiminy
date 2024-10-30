@@ -2,8 +2,7 @@
 space of the environment.
 """
 from functools import reduce
-from typing import Generic, Optional
-from typing_extensions import TypeAlias
+from typing import Generic, Optional, TypeAlias
 
 import numpy as np
 from numpy import typing as npt

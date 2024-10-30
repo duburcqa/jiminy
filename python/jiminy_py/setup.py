@@ -60,15 +60,13 @@ setup(
     author_email="alexis.duburcq@gmail.com",
     maintainer="Alexis Duburcq",
     license="MIT",
-    python_requires=">=3.8,<3.13",
+    python_requires=">=3.10,<3.13",
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Science/Research",
         "Topic :: Scientific/Engineering :: Physics",
         "Topic :: Software Development :: Libraries :: Python Modules",
         "License :: OSI Approved :: MIT License",
-        "Programming Language :: Python :: 3.8",
-        "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12"
@@ -141,8 +139,7 @@ setup(
             "pillow",
             # Used internally by Viewer to enable recording video
             # programmatically with Meshcat as backend.
-            # - 1.43 is broken
-            "playwright<1.43"
+            "playwright>=1.43"
         ],
         "dev": [
             # Generate Python type hints files (aka. stubs) for C extensions.
