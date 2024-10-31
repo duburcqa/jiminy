@@ -104,7 +104,7 @@ jobs:
               -DCMAKE_CXX_FLAGS="${env:CXX_FLAGS} $(
               ) -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC -DBOOST_CORE_USE_GENERIC_CMATH $(
               ) -DEIGENPY_STATIC -DURDFDOM_STATIC -DHPP_FCL_STATIC -DPINOCCHIO_STATIC"
-        cmake --build . --target ALL_BUILD --config "${{ matrix.BUILD_TYPE }}" --parallel 2
+        cmake --build . --target ALL_BUILD --config "${{ matrix.BUILD_TYPE }}" --parallel 4
 
         if (-not (Test-Path -PathType Container "$RootDir/build/pypi/jiminy_py/src/jiminy_py")) {
           New-Item -ItemType "directory" -Force -Path "$RootDir/build/pypi/jiminy_py/src/jiminy_py/core"

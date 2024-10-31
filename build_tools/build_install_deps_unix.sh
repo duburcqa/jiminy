@@ -295,7 +295,7 @@ mkdir -p "${RootDir}/boost/build"
      cxxflags="${CXX_FLAGS} ${CXX_FLAGS_B2}" \
      linkflags="${LINKER_FLAGS} ${CXX_FLAGS_B2}" \
      toolset="$(basename -- ${C_COMPILER})" \
-     variant="$BuildTypeB2" install -q -d0 -j2
+     variant="$BuildTypeB2" install -q -d0 -j4
 
 # Disable Boost::Python assert systematically, even in debug, to avoid
 # raising an exception for trying to re-register an existing converter.
@@ -307,7 +307,7 @@ mkdir -p "${RootDir}/boost/build"
      cxxflags="${CXX_FLAGS} ${CXX_FLAGS_B2} -DNDEBUG" \
      linkflags="${LINKER_FLAGS} ${CXX_FLAGS_B2} " \
      toolset="$(basename -- ${C_COMPILER})" \
-     variant="$BuildTypeB2" install -q -d0 -j2
+     variant="$BuildTypeB2" install -q -d0 -j4
 
 #################################### Build and install eigen3 ##########################################
 
@@ -316,7 +316,7 @@ cmake "${RootDir}/eigen3" -Wno-dev -DCMAKE_CXX_STANDARD=17 \
       -DCMAKE_C_COMPILER="${C_COMPILER}" -DCMAKE_CXX_COMPILER="${CXX_COMPILER}" \
       -DCMAKE_INSTALL_PREFIX="${InstallDir}" \
       -DBUILD_TESTING=OFF -DEIGEN_BUILD_PKGCONFIG=ON
-make install -j2
+make install -j4
 
 ################################### Build and install eigenpy ##########################################
 
@@ -333,7 +333,7 @@ cmake "${RootDir}/eigenpy" -Wno-dev -DCMAKE_CXX_STANDARD=17 \
       -DGENERATE_PYTHON_STUBS=OFF -DBUILD_TESTING=OFF -DBUILD_TESTING_SCIPY=OFF -DINSTALL_DOCUMENTATION=OFF \
       -DCMAKE_CXX_FLAGS_RELEASE_INIT="" -DCMAKE_CXX_FLAGS="${CXX_FLAGS} $(
       ) -Wno-strict-aliasing -Wno-maybe-uninitialized" -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
-make install -j2
+make install -j4
 
 ################################## Build and install tinyxml ###########################################
 
@@ -345,7 +345,7 @@ cmake "${RootDir}/tinyxml2" -Wno-dev -DCMAKE_CXX_STANDARD=17 \
       -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
       -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON -DCMAKE_EXE_LINKER_FLAGS="${LINKER_FLAGS}" \
       -DCMAKE_CXX_FLAGS_RELEASE_INIT="" -DCMAKE_CXX_FLAGS="${CXX_FLAGS}" -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
-make install -j2
+make install -j4
 
 ############################## Build and install console_bridge ########################################
 
@@ -357,7 +357,7 @@ cmake "${RootDir}/console_bridge" -Wno-dev -DCMAKE_CXX_STANDARD=17 \
       -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
       -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON \
       -DCMAKE_CXX_FLAGS_RELEASE_INIT="" -DCMAKE_CXX_FLAGS="${CXX_FLAGS}" -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
-make install -j2
+make install -j4
 
 ############################### Build and install urdfdom_headers ######################################
 
@@ -365,7 +365,7 @@ cd "${RootDir}/urdfdom_headers/build"
 cmake "${RootDir}/urdfdom_headers" -Wno-dev -DCMAKE_CXX_STANDARD=17 \
       -DCMAKE_C_COMPILER="${C_COMPILER}" -DCMAKE_CXX_COMPILER="${CXX_COMPILER}" \
       -DCMAKE_INSTALL_PREFIX="${InstallDir}" -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
-make install -j2
+make install -j4
 
 ################################## Build and install urdfdom ###########################################
 
@@ -378,7 +378,7 @@ cmake "${RootDir}/urdfdom" -Wno-dev -DCMAKE_CXX_STANDARD=17 \
       -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON -DCMAKE_EXE_LINKER_FLAGS="${LINKER_FLAGS}" \
       -DBUILD_TESTING=OFF \
       -DCMAKE_CXX_FLAGS_RELEASE_INIT="" -DCMAKE_CXX_FLAGS="${CXX_FLAGS}" -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
-make install -j2
+make install -j4
 
 ################################### Build and install CppAD ##########################################
 
@@ -389,7 +389,7 @@ cmake "${RootDir}/cppad" -Wno-dev -DCMAKE_CXX_STANDARD=17 \
       -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${OSX_DEPLOYMENT_TARGET}" \
       -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
       -DCMAKE_CXX_FLAGS_RELEASE_INIT="" -DCMAKE_CXX_FLAGS="${CXX_FLAGS}" -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
-make install -j2
+make install -j4
 
 ################################### Build and install CppADCodeGen ##########################################
 
@@ -401,7 +401,7 @@ cmake "${RootDir}/cppadcodegen" -Wno-dev -DCMAKE_CXX_STANDARD=17 \
       -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
       -DGOOGLETEST_GIT=ON \
       -DCMAKE_CXX_FLAGS_RELEASE_INIT="" -DCMAKE_CXX_FLAGS="${CXX_FLAGS}" -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
-make install -j2
+make install -j4
 
 ###################################### Build and install assimp ########################################
 
@@ -420,7 +420,7 @@ cmake "${RootDir}/assimp" -Wno-dev -DCMAKE_CXX_STANDARD=17 \
       -DCMAKE_CXX_FLAGS="${CXX_FLAGS} -Wno-strict-overflow -Wno-tautological-compare -Wno-array-compare $(
       ) -Wno-alloc-size-larger-than -Wno-unknown-warning-option -Wno-unknown-warning -Wno-error=array-bounds" \
       -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
-make install -j2
+make install -j4
 
 ############################# Build and install qhull and hpp-fcl ######################################
 
@@ -434,7 +434,7 @@ cmake "${RootDir}/hpp-fcl/third-parties/qhull" -Wno-dev -DCMAKE_CXX_STANDARD=17 
       -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON -DCMAKE_EXE_LINKER_FLAGS="${LINKER_FLAGS}" \
       -DCMAKE_C_FLAGS="${CXX_FLAGS}" -DCMAKE_CXX_FLAGS="${CXX_FLAGS} -Wno-conversion" \
       -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
-make install -j2
+make install -j4
 
 cd "${RootDir}/hpp-fcl/build"
 cmake "${RootDir}/hpp-fcl" -Wno-dev -DCMAKE_CXX_STANDARD=17 \
@@ -452,7 +452,7 @@ cmake "${RootDir}/hpp-fcl" -Wno-dev -DCMAKE_CXX_STANDARD=17 \
       ) -Wno-unused-parameter -Wno-class-memaccess -Wno-sign-compare-Wno-conversion -Wno-ignored-qualifiers $(
       ) -Wno-uninitialized -Wno-maybe-uninitialized -Wno-deprecated-copy -Wno-unknown-warning-option $(
       ) -Wno-unknown-warning" -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
-make install -j2
+make install -j4
 
 ################################# Build and install Pinocchio ##########################################
 
@@ -473,7 +473,7 @@ cmake "${RootDir}/pinocchio" -Wno-dev -DCMAKE_CXX_STANDARD=17 \
       -DCMAKE_CXX_FLAGS_RELEASE_INIT="" -DCMAKE_CXX_FLAGS="${CXX_FLAGS} -DBOOST_BIND_GLOBAL_PLACEHOLDERS $(
       ) -Wno-uninitialized -Wno-type-limits -Wno-unused-local-typedefs -Wno-extra $(
       ) -Wno-unknown-warning-option -Wno-unknown-warning" -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
-make install -j2
+make install -j4
 
 # Copy cmake configuration files for cppad and cppadcodegen
 cp -r ${RootDir}/pinocchio/cmake/find-external/**/*cppad* ${RootDir}/build_tools/cmake

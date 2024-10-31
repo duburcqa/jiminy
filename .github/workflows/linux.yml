@@ -96,7 +96,7 @@ jobs:
               -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON \
               -DINSTALL_GYM_JIMINY=${{ (matrix.PYTHON_VERSION == '3.13' && 'OFF') || 'ON' }} \
               -DCMAKE_CXX_FLAGS="${CXX_FLAGS}" -DCMAKE_BUILD_TYPE="${{ matrix.BUILD_TYPE }}"
-        make install -j2
+        make install -j4
 
         echo "LD_LIBRARY_PATH=$InstallDir/lib:$InstallDir/lib64:/usr/local/lib" >> $GITHUB_ENV
 

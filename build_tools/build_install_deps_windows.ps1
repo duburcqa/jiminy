@@ -355,7 +355,7 @@ if (${ARCHITECTURE} -eq "x64") {
          threading=single link=static runtime-link=shared `
          cxxflags="${CXX_FLAGS} /std=c++17 /wd4244" `
          linkflags="${LINKER_FLAGS}" `
-         variant="$BuildTypeB2" install -q -d0 -j2
+         variant="$BuildTypeB2" install -q -d0 -j4
 
 # Disable Boost::Python assert systematically, even in debug, to avoid
 # raising an exception for trying to re-register an existing converter.
@@ -367,7 +367,7 @@ if (${ARCHITECTURE} -eq "x64") {
          threading=single link=shared runtime-link=shared `
          cxxflags="${CXX_FLAGS} /std=c++17 /wd4244 /DNDEBUG" `
          linkflags="${LINKER_FLAGS}" `
-         variant="$BuildTypeB2" install -q -d0 -j2
+         variant="$BuildTypeB2" install -q -d0 -j4
 Pop-Location
 
 #################################### Build and install eigen3 ##########################################
@@ -376,7 +376,7 @@ Push-Location -Path "$RootDir/eigen3/build"
 cmake "$RootDir/eigen3" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM="${ARCHITECTURE}" `
       -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" `
       -DBUILD_TESTING=OFF -DEIGEN_BUILD_PKGCONFIG=OFF
-cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 2
+cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 4
 Pop-Location
 
 ################################### Build and install eigenpy ##########################################
@@ -392,7 +392,7 @@ cmake "$RootDir/eigenpy" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM="
       -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON `
       -DCMAKE_CXX_FLAGS="${CXX_FLAGS} /wd4005 -DBOOST_ALL_NO_LIB $(
 )     -DBOOST_CORE_USE_GENERIC_CMATH -DEIGENPY_STATIC"
-cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 2
+cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 4
 Pop-Location
 
 ################################## Build and install tinyxml ###########################################
@@ -403,7 +403,7 @@ cmake "$RootDir/tinyxml2" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM=
       -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" `
       -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON -DCMAKE_EXE_LINKER_FLAGS="${LINKER_FLAGS}" `
       -DCMAKE_CXX_FLAGS="${CXX_FLAGS}"
-cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 2
+cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 4
 Pop-Location
 
 ############################## Build and install console_bridge ########################################
@@ -414,7 +414,7 @@ cmake "$RootDir/console_bridge" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLA
       -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" `
       -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON `
       -DCMAKE_CXX_FLAGS="${CXX_FLAGS}"
-cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 2
+cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 4
 Pop-Location
 
 ############################### Build and install urdfdom_headers ######################################
@@ -422,7 +422,7 @@ Pop-Location
 Push-Location -Path "$RootDir/urdfdom_headers/build"
 cmake "$RootDir/urdfdom_headers" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM="${ARCHITECTURE}" `
       -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir"
-cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 2
+cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 4
 Pop-Location
 
 ################################## Build and install urdfdom ###########################################
@@ -434,7 +434,7 @@ cmake "$RootDir/urdfdom" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM="
       -DCMAKE_FIND_PACKAGE_PREFER_CONFIG=ON -DBUILD_TESTING=OFF `
       -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON -DCMAKE_EXE_LINKER_FLAGS="${LINKER_FLAGS}" `
       -DCMAKE_CXX_FLAGS="${CXX_FLAGS} -DURDFDOM_STATIC"
-cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 2
+cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 4
 Pop-Location
 
 ################################### Build and install CppAD ##########################################
@@ -444,7 +444,7 @@ cmake "$RootDir/cppad" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM="${
       -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
       -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" `
       -DCMAKE_CXX_FLAGS="${CXX_FLAGS}"
-cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 2
+cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 4
 Pop-Location
 
 ################################### Build and install CppADCodeGen ##########################################
@@ -455,7 +455,7 @@ cmake "$RootDir/cppadcodegen" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATF
       -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" `
       -DGOOGLETEST_GIT=ON `
       -DCMAKE_CXX_FLAGS="${CXX_FLAGS}"
-cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 2
+cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 4
 Pop-Location
 
 ###################################### Build and install assimp ########################################
@@ -468,7 +468,7 @@ cmake "$RootDir/assimp" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM="$
       -DASSIMP_BUILD_SAMPLES=OFF -DBUILD_DOCS=OFF -DASSIMP_INSTALL_PDB=OFF `
       -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON `
       -DCMAKE_C_FLAGS="${CXX_FLAGS}" -DCMAKE_CXX_FLAGS="${CXX_FLAGS} /wd4005 /wd5105"
-cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 2
+cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 4
 Pop-Location
 
 ############################# Build and install qhull and hpp-fcl ######################################
@@ -482,7 +482,7 @@ cmake "$RootDir/hpp-fcl/third-parties/qhull" -Wno-dev -G "${GENERATOR}" -DCMAKE_
       -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" `
       -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON -DCMAKE_EXE_LINKER_FLAGS="${LINKER_FLAGS}" `
       -DCMAKE_C_FLAGS="${CXX_FLAGS}" -DCMAKE_CXX_FLAGS="${CXX_FLAGS}"
-cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 2
+cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 4
 Pop-Location
 
 ### Build hpp-fcl
@@ -498,7 +498,7 @@ cmake "$RootDir/hpp-fcl" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM="
       -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON `
       -DCMAKE_CXX_FLAGS="${CXX_FLAGS} /wd4068 /wd4267 /wd4005 /wd4081 -DBOOST_ALL_NO_LIB $(
 )     -DBOOST_CORE_USE_GENERIC_CMATH -DEIGENPY_STATIC -DHPP_FCL_STATIC"
-cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 2
+cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 4
 Pop-Location
 
 ################################ Build and install Pinocchio ##########################################
@@ -518,7 +518,7 @@ cmake "$RootDir/pinocchio" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM
       -DCMAKE_CXX_FLAGS="${CXX_FLAGS} /wd4068 /wd4081 /wd4715 /wd4834 /wd4005 /wd5104 /wd5105 $(
 )     -DBOOST_ALL_NO_LIB -DBOOST_CORE_USE_GENERIC_CMATH -DEIGENPY_STATIC -DURDFDOM_STATIC -DHPP_FCL_STATIC $(
 )     -DPINOCCHIO_STATIC"
-cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 2
+cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 4
 Pop-Location
 
 ### Copy cmake configuration files for cppad and cppadcodegen

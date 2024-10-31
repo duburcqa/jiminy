@@ -70,7 +70,7 @@ cmake "$RootDir" -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="/opt/
       -DPYTHON_EXECUTABLE="$(python3 -c 'import sys; sys.stdout.write(sys.executable)')" \
       -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON \
       -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
-make install -j2
+make install -j4
 ```
 
 ## Including dependencies on Unix-based OS
@@ -109,7 +109,7 @@ cmake "$RootDir" -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$Inst
       -DBoost_USE_STATIC_LIBS=OFF -DPYTHON_EXECUTABLE="$PythonExe" \
       -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON \
       -DCMAKE_BUILD_TYPE="$BuildType"
-make install -j2
+make install -j4
 ```
 
 ## Including dependencies on Windows 10+
@@ -162,7 +162,7 @@ cmake "$RootDir" -G "Visual Studio 17 2022" -DCMAKE_GENERATOR_PLATFORM=x64 `
       -DCMAKE_CXX_FLAGS=" $(
       ) -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC -DBOOST_CORE_USE_GENERIC_CMATH $(
       ) -DEIGENPY_STATIC -DURDFDOM_STATIC -DHPP_FCL_STATIC -DPINOCCHIO_STATIC"
-cmake --build . --target ALL_BUILD --config "${env:BUILD_TYPE}" --parallel 2
+cmake --build . --target ALL_BUILD --config "${env:BUILD_TYPE}" --parallel 4
 
 if (-not (Test-Path -PathType Container "$RootDir/build/pypi/jiminy_py/src/jiminy_py")) {
   New-Item -ItemType "directory" -Force -Path "$RootDir/build/pypi/jiminy_py/src/jiminy_py/core"

@@ -104,9 +104,9 @@ jobs:
               -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON \
               -DCMAKE_BUILD_TYPE="${{ matrix.BUILD_TYPE }}"
         if [[ "${{ matrix.GENERATOR }}" == 'Ninja' ]] ; then
-          ninja install -j2
+          ninja install -j4
         else
-          make install -j2
+          make install -j4
         fi
 
     #####################################################################################

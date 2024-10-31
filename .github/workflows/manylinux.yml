@@ -89,7 +89,7 @@ jobs:
               -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON \
               -DINSTALL_GYM_JIMINY=${{ (matrix.PYTHON_VERSION == 'cp312' && 'OFF') || 'ON' }} \
               -DCMAKE_CXX_FLAGS="${CXX_FLAGS}" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
-        make -j2
+        make -j4
 
         # Bundle the boost python dependencies with jiminy
         mkdir -p "$RootDir/build/pypi/jiminy_py/src/jiminy_py"
