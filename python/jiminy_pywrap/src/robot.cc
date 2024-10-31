@@ -6,9 +6,8 @@
 #include "jiminy/core/control/abstract_controller.h"
 #include "jiminy/core/robot/robot.h"
 
-#include "pinocchio/bindings/python/fwd.hpp"
-#include "pinocchio/bindings/python/utils/copyable.hpp"
-
+#define NO_IMPORT_ARRAY
+#include "jiminy/python/fwd.h"
 #include "jiminy/python/utilities.h"
 #include "jiminy/python/robot.h"
 

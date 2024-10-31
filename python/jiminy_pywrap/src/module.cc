@@ -1,4 +1,4 @@
-/* If defined the python type of __init__ method "self" parameters is properly generated, Undefined
+/* If defined the python type of __init__ method "self" parameters is properly generated, undefined
    by default because it increases binary size by about 14%. */
 #define BOOST_PYTHON_PY_SIGNATURES_PROPER_INIT_SELF_TYPE
 
@@ -8,11 +8,7 @@
 
 #include <hpp/fcl/narrowphase/narrowphase.h>
 
-/* Eigenpy must be imported first, since it sets pre-processor definitions used by Boost Python
-   to configure Python C API. */
-#include "pinocchio/bindings/python/fwd.hpp"
-#include <boost/python/numpy.hpp>
-
+#include "jiminy/python/fwd.h"
 #include "jiminy/python/compatibility.h"
 #include "jiminy/python/utilities.h"
 #include "jiminy/python/helpers.h"
@@ -31,6 +27,15 @@ namespace jiminy::python
     namespace bp = boost::python;
     namespace np = boost::python::numpy;
 
+    void import_numpy()
+    {
+        if (_import_array() < 0)
+        {
+            PyErr_Print();
+            PyErr_SetString(PyExc_ImportError, "numpy.core.multiarray failed to import");
+        }
+    }
+
     template<typename T>
     void exposeTimeStateFunc(const std::string_view & name)
     {
@@ -46,13 +51,16 @@ namespace jiminy::python
 
     BOOST_PYTHON_MODULE(PYTHON_LIBRARY_NAME)
     {
-        /* Initialized boost::python::numpy.
-           It is required to handle boost::python::numpy::ndarray object directly.
+        /* Initialized Numpy C API.
+           This is required to handle raw `numpy::ndarray` objects manually. */
+        import_numpy();
 
-           Note that numpy scalar to native type automatic converters are disabled because they are
-           messing up with the docstring. */
+        /* Initialized "shared" Numpy C API.
+           It is required to handle `boost::python::numpy::ndarray` objects manually. Note that
+           numpy scalar to native type automatic converters are disabled because they are messing
+           up with the docstring. */
         np::initialize(false);
-        // Initialized EigenPy, enabling PyArrays<->Eigen automatic converters
+        // Initialized "shared" EigenPy, enabling PyArrays<->Eigen automatic converters
         eigenpy::enableEigenPy();
 
         if (!eigenpy::register_symbolic_link_to_registered_type<hpp::fcl::GJKInitialGuess>())

@@ -8,12 +8,12 @@
 #include "jiminy/core/utilities/pinocchio.h"
 #include "jiminy/core/utilities/random.h"
 
-#include <boost/optional.hpp>
-
-#include "pinocchio/bindings/python/fwd.hpp"
-
+#define NO_IMPORT_ARRAY
+#include "jiminy/python/fwd.h"
 #include "jiminy/python/utilities.h"
 #include "jiminy/python/helpers.h"
+
+#include <boost/optional.hpp>
 
 
 namespace jiminy::python

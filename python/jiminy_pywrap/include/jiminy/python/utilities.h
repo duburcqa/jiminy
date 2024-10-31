@@ -11,7 +11,8 @@
 
 #include <boost/mpl/vector.hpp>
 
-#include "pinocchio/bindings/python/fwd.hpp"
+#define NO_IMPORT_ARRAY
+#include "jiminy/python/fwd.h"
 
 #include <boost/python/numpy.hpp>
 #include <boost/python/signature.hpp>
@@ -1198,8 +1199,8 @@ namespace jiminy::python
     };
 
     template<typename R, typename... Args>
-    ConvertGeneratorFromPythonAndInvoke(
-        R (*)(Args...)) -> ConvertGeneratorFromPythonAndInvoke<R(Args...), void>;
+    ConvertGeneratorFromPythonAndInvoke(R (*)(Args...))
+        -> ConvertGeneratorFromPythonAndInvoke<R(Args...), void>;
 
     template<typename T, typename R, typename Generator, typename... Args>
     class ConvertGeneratorFromPythonAndInvoke<R(Generator, Args...), T>
@@ -1225,8 +1226,8 @@ namespace jiminy::python
     };
 
     template<typename T, typename R, typename... Args>
-    ConvertGeneratorFromPythonAndInvoke(
-        R (T::*)(Args...)) -> ConvertGeneratorFromPythonAndInvoke<R(Args...), T>;
+    ConvertGeneratorFromPythonAndInvoke(R (T::*)(Args...))
+        -> ConvertGeneratorFromPythonAndInvoke<R(Args...), T>;
 
     // **************************** Automatic From Python converter **************************** //
 
