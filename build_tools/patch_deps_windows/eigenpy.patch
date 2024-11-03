@@ -1,15 +1,46 @@
+diff --git a/include/eigenpy/numpy.hpp b/include/eigenpy/numpy.hpp
+index f74349d..92edaaa 100644
+--- a/include/eigenpy/numpy.hpp
++++ b/include/eigenpy/numpy.hpp
+@@ -11,20 +11,19 @@
+ #define PY_ARRAY_UNIQUE_SYMBOL EIGENPY_ARRAY_API
+ #endif
+ 
+-// For compatibility with Numpy 2.x
+-// See
++// For compatibility with Numpy 2.x. See:
+ // https://numpy.org/devdocs/reference/c-api/array.html#c.NPY_API_SYMBOL_ATTRIBUTE
+-#define NPY_API_SYMBOL_ATTRIBUTE EIGENPY_DLLAPI
++#define NPY_API_SYMBOL_ATTRIBUTE
+ 
++// Import the right Python library depending on build type
++#include <boost/python/detail/wrap_python.hpp>
+ #include <numpy/numpyconfig.h>
+ #ifdef NPY_1_8_API_VERSION
+ #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
+ #endif
+ 
+-/* Allow compiling against NumPy 1.x and 2.x
+-   see:
+-   https://github.com/numpy/numpy/blob/afea8fd66f6bdbde855f5aff0b4e73eb0213c646/doc/source/reference/c-api/array.rst#L1224
+-*/
++// Allow compiling against NumPy 1.x and 2.x. See:
++// https://github.com/numpy/numpy/blob/afea8fd66f6bdbde855f5aff0b4e73eb0213c646/doc/source/reference/c-api/array.rst#L1224
+ #if NPY_ABI_VERSION < 0x02000000
+ #define PyArray_DescrProto PyArray_Descr
+ #endif
 diff --git a/CMakeLists.txt b/CMakeLists.txt
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -206,7 +206,7 @@
-     src/optional.cpp
+@@ -357,7 +357,7 @@
+     src/type_info.cpp
      src/version.cpp)
  
 -add_library(${PROJECT_NAME} SHARED ${${PROJECT_NAME}_SOURCES}
 +add_library(${PROJECT_NAME} ${${PROJECT_NAME}_SOURCES}
                                     ${${PROJECT_NAME}_HEADERS})
- target_include_directories(
-   ${PROJECT_NAME} SYSTEM
+ add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
+ set_standard_output_directory(${PROJECT_NAME})
 diff --git a/cmake/boost.cmake b/cmake/boost.cmake
 --- a/cmake/boost.cmake
 +++ b/cmake/boost.cmake

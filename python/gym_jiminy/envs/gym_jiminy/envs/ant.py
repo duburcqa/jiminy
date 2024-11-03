@@ -9,7 +9,7 @@ advanced motions or locomotion tasks, as well as model-based observers and
 controllers usually intended for robotic applications.
 """
 import os
-import sys
+from importlib.resources import files
 from typing import Any, Tuple, Sequence
 
 import gymnasium as gym
@@ -21,11 +21,6 @@ from jiminy_py.simulator import Simulator
 from gym_jiminy.common.bases import InfoType, EngineObsType
 from gym_jiminy.common.envs import BaseJiminyEnv
 from gym_jiminy.common.utils import sample
-
-if sys.version_info < (3, 9):
-    from importlib_resources import files
-else:
-    from importlib.resources import files
 
 
 # Stepper update period

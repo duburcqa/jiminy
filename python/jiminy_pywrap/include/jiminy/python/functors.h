@@ -6,8 +6,8 @@
 #include "jiminy/core/hardware/abstract_sensor.h"
 #include "jiminy/core/control/controller_functor.h"
 
-#include "pinocchio/bindings/python/fwd.hpp"
-
+#define NO_IMPORT_ARRAY
+#include "jiminy/python/fwd.h"
 #include "jiminy/python/utilities.h"
 
 

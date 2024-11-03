@@ -28,10 +28,10 @@ from gymnasium.envs.registration import EnvSpec
 from jiminy_py.dynamics import Trajectory
 
 from .interfaces import (DT_EPS,
-                         ObsT,
-                         ActT,
-                         BaseObsT,
-                         BaseActT,
+                         Obs,
+                         Act,
+                         BaseObs,
+                         BaseAct,
                          InfoType,
                          EngineObsType,
                          InterfaceJiminyEnv)
@@ -43,19 +43,19 @@ if TYPE_CHECKING:
     from ..envs.generic import BaseJiminyEnv
 
 
-OtherObsT = TypeVar('OtherObsT', bound=DataNested)
-OtherStateT = TypeVar('OtherStateT', bound=DataNested)
-NestedObsT = TypeVar('NestedObsT', bound=Dict[str, DataNested])
-TransformedObsT = TypeVar('TransformedObsT', bound=DataNested)
-TransformedActT = TypeVar('TransformedActT', bound=DataNested)
+OtherObs = TypeVar('OtherObs', bound=DataNested)
+OtherState = TypeVar('OtherState', bound=DataNested)
+NestedObs = TypeVar('NestedObs', bound=Dict[str, DataNested])
+TransformedObs = TypeVar('TransformedObs', bound=DataNested)
+TransformedAct = TypeVar('TransformedAct', bound=DataNested)
 
 
 LOGGER = logging.getLogger(__name__)
 
 
 class BasePipelineWrapper(
-        InterfaceJiminyEnv[ObsT, ActT],
-        Generic[ObsT, ActT, BaseObsT, BaseActT]):
+        InterfaceJiminyEnv[Obs, Act],
+        Generic[Obs, Act, BaseObs, BaseAct]):
     """Base class for wrapping a `BaseJiminyEnv` Gym environment so that it
     appears as a single, unified, environment. The environment may have been
     wrapped multiple times already.
@@ -74,10 +74,10 @@ class BasePipelineWrapper(
         It is recommended to add the controllers and observers into the
         policy itself if they have to be trainable.
     """
-    env: InterfaceJiminyEnv[BaseObsT, BaseActT]
+    env: InterfaceJiminyEnv[BaseObs, BaseAct]
 
     def __init__(self,
-                 env: InterfaceJiminyEnv[BaseObsT, BaseActT],
+                 env: InterfaceJiminyEnv[BaseObs, BaseAct],
                  **kwargs: Any) -> None:
         """
         :param env: Base or already wrapped jiminy environment.
@@ -101,7 +101,7 @@ class BasePipelineWrapper(
         # Define specialized operator(s) for efficiency.
         # Note that it cannot be done at this point because the action
         # may be overwritten by derived classes afterward.
-        self._copyto_action: Callable[[ActT], None] = lambda action: None
+        self._copyto_action: Callable[[Act], None] = lambda action: None
 
     def __getattr__(self, name: str) -> Any:
         """Convenient fallback attribute getter.
@@ -241,7 +241,7 @@ class BasePipelineWrapper(
         return self.env.reset(seed=seed, options={"reset_hook": reset_hook})
 
     def step(self,  # type: ignore[override]
-             action: ActT
+             action: Act
              ) -> Tuple[DataNested, SupportsFloat, bool, bool, InfoType]:
         """Run a simulation step for a given action.
 
@@ -338,8 +338,8 @@ class BasePipelineWrapper(
 
 
 class ComposedJiminyEnv(
-        BasePipelineWrapper[ObsT, ActT, ObsT, ActT],
-        Generic[ObsT, ActT]):
+        BasePipelineWrapper[Obs, Act, Obs, Act],
+        Generic[Obs, Act]):
     """Extend an environment, eventually already wrapped, by plugging ad-hoc
     reward components and termination conditions, including their accompanying
     trajectory database if any.
@@ -358,7 +358,7 @@ class ComposedJiminyEnv(
         This class is final, ie not meant to be derived.
     """
     def __init__(self,
-                 env: InterfaceJiminyEnv[ObsT, ActT],
+                 env: InterfaceJiminyEnv[Obs, Act],
                  *,
                  reward: Optional[AbstractReward] = None,
                  terminations: Sequence[AbstractTerminationCondition] = (),
@@ -484,7 +484,7 @@ class ComposedJiminyEnv(
 
         return terminated, truncated
 
-    def compute_command(self, action: ActT, command: np.ndarray) -> None:
+    def compute_command(self, action: Act, command: np.ndarray) -> None:
         """Compute the motors efforts to apply on the robot.
 
         It simply forwards the command computed by the wrapped environment
@@ -522,8 +522,8 @@ class ComposedJiminyEnv(
 
 
 class ObservedJiminyEnv(
-        BasePipelineWrapper[NestedObsT, ActT, BaseObsT, ActT],
-        Generic[NestedObsT, ActT, BaseObsT]):
+        BasePipelineWrapper[NestedObs, Act, BaseObs, Act],
+        Generic[NestedObs, Act, BaseObs]):
     """Wrap a `BaseJiminyEnv` Gym environment and a single observer.
 
     .. aafig::
@@ -567,9 +567,9 @@ class ObservedJiminyEnv(
         if it has to be trainable.
     """
     def __init__(self,
-                 env: InterfaceJiminyEnv[BaseObsT, ActT],
+                 env: InterfaceJiminyEnv[BaseObs, Act],
                  observer: BaseObserverBlock[
-                     OtherObsT, OtherStateT, BaseObsT, ActT],
+                     OtherObs, OtherState, BaseObs, Act],
                  **kwargs: Any):
         """
         :param env: Environment to control. It can be an already controlled
@@ -634,7 +634,7 @@ class ObservedJiminyEnv(
         features = observation.setdefault('features', OrderedDict())
         assert isinstance(features, OrderedDict)
         features[self.observer.name] = self.observer.observation
-        self.observation = cast(NestedObsT, observation)
+        self.observation = cast(NestedObs, observation)
 
         # Register the observer's internal state and feature to the telemetry
         if state is not None:
@@ -710,7 +710,7 @@ class ObservedJiminyEnv(
         if is_breakpoint(self.stepper_state.t, self.observe_dt, DT_EPS):
             self.observer.refresh_observation(self.env.observation)
 
-    def compute_command(self, action: ActT, command: np.ndarray) -> None:
+    def compute_command(self, action: Act, command: np.ndarray) -> None:
         """Compute the motors efforts to apply on the robot.
 
         It simply forwards the command computed by the wrapped environment
@@ -723,8 +723,8 @@ class ObservedJiminyEnv(
 
 
 class ControlledJiminyEnv(
-        BasePipelineWrapper[NestedObsT, ActT, BaseObsT, BaseActT],
-        Generic[NestedObsT, ActT, BaseObsT, BaseActT]):
+        BasePipelineWrapper[NestedObs, Act, BaseObs, BaseAct],
+        Generic[NestedObs, Act, BaseObs, BaseAct]):
     """Wrap a `BaseJiminyEnv` Gym environment and a single controller.
 
     .. aafig::
@@ -768,9 +768,9 @@ class ControlledJiminyEnv(
         the controllers into the policy itself if it has to be trainable.
     """  # noqa: E501  # pylint: disable=line-too-long
     def __init__(self,
-                 env: InterfaceJiminyEnv[BaseObsT, BaseActT],
+                 env: InterfaceJiminyEnv[BaseObs, BaseAct],
                  controller: BaseControllerBlock[
-                     ActT, OtherStateT, BaseObsT, BaseActT],
+                     Act, OtherState, BaseObs, BaseAct],
                  augment_observation: bool = False,
                  **kwargs: Any):
         """
@@ -829,7 +829,7 @@ class ControlledJiminyEnv(
         super().__init__(env, **kwargs)
 
         # Allocate action buffer
-        self.action: ActT = zeros(self.action_space)
+        self.action: Act = zeros(self.action_space)
 
         # Initialize the observation
         observation: Dict[str, DataNested] = OrderedDict()
@@ -852,7 +852,7 @@ class ControlledJiminyEnv(
             actions = observation.setdefault('actions', OrderedDict())
             assert isinstance(actions, OrderedDict)
             actions[self.controller.name] = self.action
-        self.observation = cast(NestedObsT, observation)
+        self.observation = cast(NestedObs, observation)
 
         # Register the controller's internal state and target to the telemetry
         if state is not None:
@@ -931,7 +931,7 @@ class ControlledJiminyEnv(
         """
         self.env.refresh_observation(measurement)
 
-    def compute_command(self, action: ActT, command: np.ndarray) -> None:
+    def compute_command(self, action: Act, command: np.ndarray) -> None:
         """Compute the motors efforts to apply on the robot.
 
         In practice, it updates whenever necessary:
@@ -962,8 +962,8 @@ class ControlledJiminyEnv(
 
 
 class BaseTransformObservation(
-        BasePipelineWrapper[TransformedObsT, ActT, ObsT, ActT],
-        Generic[TransformedObsT, ObsT, ActT]):
+        BasePipelineWrapper[TransformedObs, Act, Obs, Act],
+        Generic[TransformedObs, Obs, Act]):
     """Apply some transform on the observation of the wrapped environment.
 
     The observation transform is only applied once per step, as post-processing
@@ -984,7 +984,7 @@ class BaseTransformObservation(
         taken into account when calling `evaluate` or `play_interactive` on the
         wrapped environment.
     """
-    def __init__(self, env: InterfaceJiminyEnv[ObsT, ActT]) -> None:
+    def __init__(self, env: InterfaceJiminyEnv[Obs, Act]) -> None:
         # Initialize base class
         super().__init__(env)
 
@@ -1021,7 +1021,7 @@ class BaseTransformObservation(
         """
         self.action_space = self.env.action_space
 
-    def compute_command(self, action: ActT, command: np.ndarray) -> None:
+    def compute_command(self, action: Act, command: np.ndarray) -> None:
         """Compute the motors efforts to apply on the robot.
 
         It simply forwards the command computed by the wrapped environment
@@ -1070,8 +1070,8 @@ class BaseTransformObservation(
 
 
 class BaseTransformAction(
-        BasePipelineWrapper[ObsT, TransformedActT, ObsT, ActT],
-        Generic[TransformedActT, ObsT, ActT]):
+        BasePipelineWrapper[Obs, TransformedAct, Obs, Act],
+        Generic[TransformedAct, Obs, Act]):
     """Apply some transform on the action of the wrapped environment.
 
     The action transform is only applied once per step, as pre-processing
@@ -1091,7 +1091,7 @@ class BaseTransformAction(
         taken into account when calling `evaluate` or `play_interactive` on the
         wrapped environment.
     """
-    def __init__(self, env: InterfaceJiminyEnv[ObsT, ActT]) -> None:
+    def __init__(self, env: InterfaceJiminyEnv[Obs, Act]) -> None:
         # Initialize base class
         super().__init__(env)
 
@@ -1099,7 +1099,7 @@ class BaseTransformAction(
         self._step_dt = self.env.step_dt
 
         # Pre-allocated memory for the action
-        self.action: TransformedActT = zeros(self.action_space)
+        self.action: TransformedAct = zeros(self.action_space)
 
         # Bind observation of the base environment
         assert self.observation_space.contains(self.env.observation)
@@ -1141,7 +1141,7 @@ class BaseTransformAction(
         self.env.refresh_observation(measurement)
 
     def compute_command(self,
-                        action: TransformedActT,
+                        action: TransformedAct,
                         command: np.ndarray) -> None:
         """Compute the motors efforts to apply on the robot.
 
@@ -1164,7 +1164,7 @@ class BaseTransformAction(
         self.env.compute_command(self.env.action, command)
 
     @abstractmethod
-    def transform_action(self, action: TransformedActT) -> None:
+    def transform_action(self, action: TransformedAct) -> None:
         """Compute the transformed action from the provided wrapped environment
         action.
 

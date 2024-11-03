@@ -1,17 +1,12 @@
 """ TODO: Write documentation.
 """
 import os
-import sys
+from importlib.resources import files
 from typing import Any
 
 from gym_jiminy.common.envs import WalkerJiminyEnv
 from gym_jiminy.common.blocks import PDController, PDAdapter, MahonyFilter
 from gym_jiminy.common.utils import build_pipeline
-
-if sys.version_info < (3, 9):
-    from importlib_resources import files
-else:
-    from importlib.resources import files
 
 
 # Default simulation duration (:float [s])

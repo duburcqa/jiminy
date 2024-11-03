@@ -59,7 +59,7 @@ echo "-- Python writable site-packages: ${PYTHON_SITELIB}"
 apt update && \
 apt install -y python3-pip && \
 ${SUDO_CMD} python3 -m pip install setuptools wheel "pip>=20.3" && \
-${SUDO_CMD} python3 -m pip install "numpy>=1.24,<2.0" "numba>=0.54.0"
+${SUDO_CMD} python3 -m pip install "numpy>=1.24" "numba>=0.54.0"
 
 # Install standard linux utilities
 apt install -y gnupg curl wget build-essential cmake doxygen graphviz pandoc
@@ -81,8 +81,9 @@ fi
 # Note that `apt-get` is used instead of `apt` because it supports wildcard in package names
 apt-mark unhold "robotpkg-py3*-eigenpy" "robotpkg-py3*-hpp-fcl" "robotpkg-py3*-pinocchio"
 apt-get install -y --allow-downgrades --allow-unauthenticated \
-    robotpkg-urdfdom-headers=1.0.4 robotpkg-hpp-fcl=2.4.4 robotpkg-pinocchio=2.7.0 \
-    robotpkg-py3*-eigenpy=3.4.0 robotpkg-py3*-hpp-fcl=2.4.4 robotpkg-py3*-pinocchio=2.7.0
+    robotpkg-urdfdom=4.0.1 robotpkg-urdfdom-headers=1.1.2 \
+    robotpkg-hpp-fcl=2.4.4 robotpkg-pinocchio=2.7.0 \
+    robotpkg-py3*-eigenpy=3.5.0 robotpkg-py3*-hpp-fcl=2.4.4r1 robotpkg-py3*-pinocchio=2.7.0
 apt-mark hold "robotpkg-py3*-eigenpy" "robotpkg-py3*-hpp-fcl" "robotpkg-py3*-pinocchio"
 
 # Add openrobots libraries to python packages search path

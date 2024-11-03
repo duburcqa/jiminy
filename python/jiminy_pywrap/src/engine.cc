@@ -8,12 +8,13 @@
 #include "jiminy/core/engine/engine.h"
 #include "jiminy/core/stepper/abstract_stepper.h"
 
-#include "pinocchio/bindings/python/fwd.hpp"
-#include <boost/python/raw_function.hpp>
-
+#define NO_IMPORT_ARRAY
+#include "jiminy/python/fwd.h"
 #include "jiminy/python/utilities.h"
 #include "jiminy/python/functors.h"
 #include "jiminy/python/engine.h"
+
+#include <boost/python/raw_function.hpp>
 
 
 namespace jiminy::python

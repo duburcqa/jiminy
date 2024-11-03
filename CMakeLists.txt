@@ -16,6 +16,13 @@ if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.27.0)
     set(CMAKE_POLICY_DEFAULT_CMP0144 NEW)
 endif()
 
+# Keep relying on CMake FindBoost module instead of the one shipping with Boost itself.
+# Required by our "hack" to support a mix of shared and static boost components.
+if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.30.0)
+    cmake_policy(SET CMP0167 OLD)
+    set(CMAKE_POLICY_DEFAULT_CMP0167 OLD)
+endif()
+
 # Set compatibility
 set(COMPATIBILITY_VERSION SameMinorVersion)
 
@@ -31,13 +38,13 @@ list(GET _VERSION 1 BUILD_VERSION_MINOR)
 # Add definition of Jiminy version for C++ headers
 add_definitions("-DJIMINY_VERSION=\"${BUILD_VERSION}\"")
 
-# Enable C++ language
-enable_language(CXX)
-
 # Project and library name
 project(jiminy VERSION ${BUILD_VERSION})
 set(LIBRARY_NAME ${PROJECT_NAME})
 set(PYTHON_LIBRARY_NAME "core")
+
+# Enable C++ language
+enable_language(CXX)
 
 # Set build environment and standard dependencies
 include(${CMAKE_SOURCE_DIR}/build_tools/cmake/base.cmake)
@@ -77,19 +84,19 @@ if(MSVC)
     set(CMAKE_CXX_FLAGS_DEBUG "/Zi /Od")
     set(CMAKE_CXX_FLAGS_RELEASE "/DNDEBUG /O2 /Ob3")
     set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELEASE} /Zi")
-    set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_SHARED_LINKER_FLAGS} /DEBUG:FULL /INCREMENTAL:NO /OPT:REF /OPT:ICF")
-    set(CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO "${CMAKE_SHARED_LINKER_FLAGS_DEBUG}")
-    set(CMAKE_SHARED_LINKER_FLAGS_DEBUG "${CMAKE_SHARED_LINKER_FLAGS} /DEBUG:FULL /INCREMENTAL:NO /OPT:REF /OPT:ICF")
-    set(CMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO "${CMAKE_SHARED_LINKER_FLAGS_DEBUG}")
+    foreach(TARGET_TYPE IN ITEMS "EXE" "SHARED")
+        set(CMAKE_${TARGET_TYPE}_LINKER_FLAGS_DEBUG "${CMAKE_${TARGET_TYPE}_LINKER_FLAGS} /DEBUG:FULL /INCREMENTAL:NO /OPT:REF /OPT:ICF")
+        set(CMAKE_${TARGET_TYPE}_LINKER_FLAGS_RELWITHDEBINFO "${CMAKE_${TARGET_TYPE}_LINKER_FLAGS_DEBUG}")
+    endforeach()
 else()
     string(REGEX MATCHALL "(^| )-m[a-z0-9\.-]+=?[a-zA-Z0-9_-]*( |$)" CMAKE_CXX_ARCH "${CMAKE_CXX_FLAGS}")
     set(CMAKE_CXX_FLAGS_DEBUG "-DBOOST_PYTHON_DEBUG -g -O0 -fno-omit-frame-pointer")
     set(CMAKE_CXX_FLAGS_RELEASE "-DNDEBUG -O3 -Wfatal-errors -Werror")
     set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELEASE} -g -fno-omit-frame-pointer -fno-sanitize-recover")
-    set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_SHARED_LINKER_FLAGS} -fno-omit-frame-pointer")
-    set(CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO "${CMAKE_SHARED_LINKER_FLAGS_DEBUG}")
-    set(CMAKE_SHARED_LINKER_FLAGS_DEBUG "${CMAKE_SHARED_LINKER_FLAGS} -fno-omit-frame-pointer")
-    set(CMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO "${CMAKE_SHARED_LINKER_FLAGS_DEBUG}")
+    foreach(TARGET_TYPE IN ITEMS "EXE" "SHARED")
+        set(CMAKE_${TARGET_TYPE}_LINKER_FLAGS_DEBUG "${CMAKE_${TARGET_TYPE}_LINKER_FLAGS} -fno-omit-frame-pointer")
+        set(CMAKE_${TARGET_TYPE}_LINKER_FLAGS_RELWITHDEBINFO "${CMAKE_${TARGET_TYPE}_LINKER_FLAGS_DEBUG}")
+    endforeach()
 endif()
 list(REMOVE_DUPLICATES CMAKE_CXX_ARCH)
 list(TRANSFORM CMAKE_CXX_ARCH STRIP)

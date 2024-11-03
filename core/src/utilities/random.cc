@@ -568,14 +568,15 @@ namespace jiminy
         interpThr.array() /= size.array();
 
         const Eigen::Vector2d offset = Eigen::Vector2d::NullaryExpr(
-            [&size, seed](Eigen::Index i) -> double {
+            [&size, seed](Eigen::Index i) -> double
+            {
                 return size[i] *
                        uniformSparseFromState(Vector1<Eigen::Index>::Constant(i), 1, seed);
             });
 
         const Eigen::Rotation2D<double> rotMat(orientation);
 
-        return [size, heightMax, interpDelta, rotMat, sparsity, interpThr, offset, seed](
+        return [size, heightMax, rotMat, sparsity, interpThr, offset, seed](
                    const Eigen::Vector2d & pos,
                    double & height,
                    std::optional<Eigen::Ref<Eigen::Vector3d>> normal) -> void

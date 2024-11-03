@@ -6,10 +6,10 @@ import sys
 import warnings
 from copy import deepcopy
 from dataclasses import dataclass
+from types import EllipsisType
 from typing import (
     Any, Optional, Sequence, Tuple, TypeVar, Union, Generic, ClassVar,
     Callable, Literal, List, overload, cast)
-from typing_extensions import TypeAlias
 
 import numpy as np
 
@@ -18,8 +18,6 @@ from jiminy_py.core import (  # pylint: disable=no-name-in-module
 
 from ..bases import InterfaceJiminyEnv, InterfaceQuantity, QuantityCreator
 
-
-EllipsisType: TypeAlias = Any  # TODO: `EllipsisType` introduced in Python 3.10
 
 ValueT = TypeVar('ValueT')
 OtherValueT = TypeVar('OtherValueT')

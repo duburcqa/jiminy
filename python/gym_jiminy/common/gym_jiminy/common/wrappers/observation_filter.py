@@ -5,28 +5,28 @@ from operator import getitem
 from functools import reduce
 from collections import OrderedDict
 from typing import (
-    Sequence, Set, Tuple, Union, Generic, TypeVar, Type, no_type_check)
-from typing_extensions import TypeAlias
+    Sequence, Set, Tuple, Union, Generic, TypeVar, Type, TypeAlias,
+    no_type_check)
 
 import gymnasium as gym
 from jiminy_py.tree import (
     flatten_with_path, issubclass_mapping, issubclass_sequence)
 
-from ..bases import (NestedObsT,
-                     ActT,
+from ..bases import (NestedObs,
+                     Act,
                      InterfaceJiminyEnv,
                      BaseTransformObservation)
 from ..utils import DataNested, copy
 
 
-SpaceOrDataT = TypeVar(
-    'SpaceOrDataT', bound=Union[DataNested, gym.Space[DataNested]])
-FilteredObsT: TypeAlias = NestedObsT
+SpaceOrData = TypeVar(
+    'SpaceOrData', bound=Union[DataNested, gym.Space[DataNested]])
+FilteredObs: TypeAlias = NestedObs
 
 
 @no_type_check
-def _copy_filtered(data: SpaceOrDataT,
-                   path_filtered_leaves: Set[Tuple[str, ...]]) -> SpaceOrDataT:
+def _copy_filtered(data: SpaceOrData,
+                   path_filtered_leaves: Set[Tuple[str, ...]]) -> SpaceOrData:
     """Partially shallow copy some nested data structure, so that all leaves
     being filtered in are still references but their corresponding containers
     are copies.
@@ -132,8 +132,8 @@ def _copy_filtered(data: SpaceOrDataT,
 
 
 class FilterObservation(
-        BaseTransformObservation[FilteredObsT, NestedObsT, ActT],
-        Generic[NestedObsT, ActT]):
+        BaseTransformObservation[FilteredObs, NestedObs, Act],
+        Generic[NestedObs, Act]):
     """Filter nested observation space.
 
     This wrapper does nothing but providing an observation only exposing a
@@ -142,7 +142,7 @@ class FilterObservation(
     `FlattenObservation` as yet another layer.
     """
     def __init__(self,
-                 env: InterfaceJiminyEnv[NestedObsT, ActT],
+                 env: InterfaceJiminyEnv[NestedObs, Act],
                  nested_filter_keys: Sequence[
                     Union[Sequence[Union[str, int]], Union[str, int]]]
                  ) -> None:

@@ -124,7 +124,7 @@ def meshcat_recorder(meshcat_url: str,
     # Download browser if necessary
     try:
         subprocess.run(
-            [str(compute_driver_executable()), "install", "chromium"],
+            [*compute_driver_executable(), "install", "chromium"],
             timeout=PLAYWRIGHT_DOWNLOAD_TIMEOUT,
             env=get_driver_env(),
             check=True)

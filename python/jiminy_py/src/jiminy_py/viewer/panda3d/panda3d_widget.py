@@ -1,9 +1,10 @@
 """ TODO: Write documentation.
 """
-# pylint: disable=no-name-in-module,invalid-name
+# pylint: disable=no-name-in-module,invalid-name,import-error,unused-import
 from typing import Optional, Tuple, Any
 
-from matplotlib.backends.qt_compat import (
+from matplotlib.backends import qt_compat  # noqa: F401
+from qt_compat import (  # type: ignore[attr-defined,unused-ignore]
     QT_API, QT_API_PYSIDE6, QT_API_PYQT5, QtCore, QtWidgets, QtGui)
 
 from .panda3d_visualizer import Panda3dApp

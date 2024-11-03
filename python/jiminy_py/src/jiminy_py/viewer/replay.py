@@ -28,7 +28,8 @@ import pinocchio as pin
 
 from .. import core as jiminy
 from ..dynamics import Trajectory
-from ..log import (read_log,
+from ..log import (UpdateHook,
+                   read_log,
                    build_robot_from_log,
                    extract_trajectory_from_log,
                    update_sensor_measurements_from_log)
@@ -150,10 +151,8 @@ def _with_lock(fun: Callable[..., Any]) -> Callable[..., Any]:
 def play_trajectories(
         trajectories: Union[  # pylint: disable=unused-argument
             Trajectory, Sequence[Trajectory]],
-        update_hooks: Optional[Union[
-            Callable[[float, np.ndarray, np.ndarray], None],
-            Sequence[Optional[Callable[[float, np.ndarray, np.ndarray], None]]]
-            ]] = None,
+        update_hooks: Optional[
+            Union[UpdateHook, Sequence[Optional[UpdateHook]]]] = None,
         time_interval: Union[np.ndarray, Tuple[float, float]] = (0.0, np.inf),
         speed_ratio: float = 1.0,
         xyz_offsets: Optional[
@@ -192,17 +191,17 @@ def play_trajectories(
         available CPU power.
 
     :param trajectories: List of trajectories.
-    :param update_hooks: Callables associated with each robot that can be used
-                         to update non-kinematic robot data, for instance to
-                         emulate sensors data from log using the hook provided
-                         by `update_sensor_measurements_from_log` method.
-                         `None` to disable, otherwise it must have signature:
+    :param update_hooks:
+        Callables associated with each robot that can be used to update
+        non-kinematic robot data, for instance to emulate sensors data from log
+        using the hook provided by `update_sensor_measurements_from_log`
+        method. `None` to disable, otherwise it must have signature:
 
-                         .. code-block:: python
+        .. code-block:: python
 
-                             f(t: float, q: ndarray, v: ndarray) -> None
+            f(t: float, q: ndarray, v: Optional[ndarray]) -> None
 
-                         Optional: None by default.
+        Optional: None by default.
     :param time_interval: Replay only timesteps in this interval of time.
                           It does not have to be finite.
                           Optional: [0, inf] by default.
@@ -744,9 +743,7 @@ def play_trajectories(
 def extract_replay_data_from_log(
         log_data: Dict[str, np.ndarray],
         robot: Optional[jiminy.Robot] = None) -> Tuple[
-            Trajectory,
-            Optional[Callable[[float, np.ndarray, np.ndarray], None]],
-            Dict[str, Any]]:
+            Trajectory, Optional[UpdateHook], Dict[str, Any]]:
     """Extract replay data from log data.
 
     :param robot: Jiminy robot for which to extract log data.

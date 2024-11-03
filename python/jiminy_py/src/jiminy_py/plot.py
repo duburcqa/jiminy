@@ -78,9 +78,8 @@ class _ButtonBlit(Button):
                 # It is necessary to flush events beforehand to make sure
                 # figure refresh cannot get interrupted by button blitting.
                 # Otherwise the figure would be blank.
-                # FIXME: `flush_events` on 'matplotlib>=3.8' causes deadlock
                 assert self.ax.figure is not None
-                # self.ax.figure.canvas.flush_events()
+                self.ax.figure.canvas.flush_events()
                 self.ax.draw_artist(self.ax)
                 self.ax.figure.canvas.blit(self.ax.bbox)
 
@@ -333,8 +332,7 @@ class TabbedFigure:
         """Refresh canvas drawing.
         """
         self.figure.canvas.draw()
-        # FIXME: `flush_events` on 'matplotlib>=3.8' causes deadlock
-        # self.figure.canvas.flush_events()
+        self.figure.canvas.flush_events()
 
     def add_tab(self,  # pylint: disable=unused-argument
                 tab_name: str,

@@ -22,7 +22,7 @@ env.viewer.add_marker("sphere",
                       radius=0.1,
                       always_foreground=False)
 
-Viewer.add_camera("rgb", height=200, width=200, is_depthmap=False)
+Viewer.add_camera("rgb", height=200, width=150, is_depthmap=False)
 Viewer.add_camera("depth", height=128, width=128, is_depthmap=True)
 Viewer.set_camera_transform(
     position=[2.5, -1.4, 1.6],  # [3.0, 0.0, 0.0],

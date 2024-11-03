@@ -1,7 +1,7 @@
+<?xml version="1.0" ?>
 <!-- This URDF describes a punctual mass moving along a single axis: it is
 meant to unit test the interaction between two sysmtes in Jiminy.
 -->
-<?xml version="1.0" ?>
 <robot name="linear_mass">
     <link name="world"/>
     <joint name="Joint" type="prismatic">

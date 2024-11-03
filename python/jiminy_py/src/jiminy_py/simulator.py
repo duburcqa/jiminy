@@ -21,7 +21,7 @@ import numpy as np
 from . import core as jiminy
 from .robot import BaseJiminyRobot, generate_default_hardware_description_file
 from .dynamics import Trajectory
-from .log import read_log, build_robot_from_log
+from .log import UpdateHook, read_log, build_robot_from_log
 from .viewer import (CameraPoseType,
                      interactive_mode,
                      get_default_backend,
@@ -635,7 +635,7 @@ class Simulator:
                     nonlocal update_progress_bar
                     return update_progress_bar() and callback()
 
-                callback = partial(callback_wrapper, self, callback)
+                callback = partial(callback_wrapper, callback)
 
         # Run the simulation
         err = None
@@ -851,8 +851,7 @@ class Simulator:
 
         # Extract trajectory data from pairs (robot, log)
         trajectories: List[Trajectory] = []
-        update_hooks: List[
-            Optional[Callable[[float, np.ndarray, np.ndarray], None]]] = []
+        update_hooks: List[Optional[UpdateHook]] = []
         extra_kwargs: Dict[str, Any] = {}
         for robot, log_data in zip(robots, logs_data):
             if log_data:

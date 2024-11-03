@@ -50,7 +50,7 @@ python -m pip install --prefer-binary gym-jiminy[all]
 
 ## Excluding dependencies on Ubuntu 18+
 
-First, one must install the pre-compiled libraries of the dependencies. Most of them are available on `robotpkg` APT repository. Just run the bash script to install them automatically for Ubuntu 18 and upward. It should be straightforward to adapt it to any other distribution for which `robotpkg` is available. Note that if you plan to use a virtual environment (`venv`, `pyenv`, ...), you must install the Python dependencies manually using `pip`, i.e. `"wheel", "numpy>=1.24,<2.0"`.
+First, one must install the pre-compiled libraries of the dependencies. Most of them are available on `robotpkg` APT repository. Just run the bash script to install them automatically for Ubuntu 18 and upward. It should be straightforward to adapt it to any other distribution for which `robotpkg` is available. Note that if you plan to use a virtual environment (`venv`, `pyenv`, ...), you must install the Python dependencies manually using `pip`, i.e. `"wheel", "numpy>=1.24"`.
 
 ```bash
 sudo env "PATH=$PATH" ./build_tools/easy_install_deps_ubuntu.sh
@@ -70,7 +70,7 @@ cmake "$RootDir" -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="/opt/
       -DPYTHON_EXECUTABLE="$(python3 -c 'import sys; sys.stdout.write(sys.executable)')" \
       -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON \
       -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
-make install -j2
+make install -j4
 ```
 
 ## Including dependencies on Unix-based OS
@@ -79,7 +79,7 @@ make install -j2
 
 ```bash
 sudo apt install -y gnupg curl wget build-essential cmake doxygen graphviz
-python -m pip install "wheel", "numpy>=1.24,<2.0"
+python -m pip install "wheel", "numpy>=1.24"
 ```
 
 ### Jiminy dependencies build and install
@@ -109,7 +109,7 @@ cmake "$RootDir" -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$Inst
       -DBoost_USE_STATIC_LIBS=OFF -DPYTHON_EXECUTABLE="$PythonExe" \
       -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON \
       -DCMAKE_BUILD_TYPE="$BuildType"
-make install -j2
+make install -j4
 ```
 
 ## Including dependencies on Windows 10+
@@ -121,7 +121,7 @@ You have to preinstall by yourself the (free) MSVC 2019+ toolchain.
 Then, install `setuptools`, `wheel` and `numpy`.
 
 ```powershell
-python -m pip install setuptools wheel "numpy>=1.24,<2.0"
+python -m pip install setuptools wheel "numpy>=1.24"
 ```
 
 ### Jiminy dependencies build and install
@@ -155,14 +155,14 @@ Set-Location -Path $RootDir/build
 cmake "$RootDir" -G "Visual Studio 17 2022" -DCMAKE_GENERATOR_PLATFORM=x64 `
       -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
       -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" `
-      -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF -DCMAKE_VERBOSE_MAKEFILE=ON `
+      -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DCMAKE_VERBOSE_MAKEFILE=ON `
       -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" `
       -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE -DBoost_USE_STATIC_LIBS=ON `
       -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON ``
-      -DCMAKE_CXX_FLAGS="${env:CMAKE_CXX_FLAGS} $(
+      -DCMAKE_CXX_FLAGS=" $(
       ) -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC -DBOOST_CORE_USE_GENERIC_CMATH $(
       ) -DEIGENPY_STATIC -DURDFDOM_STATIC -DHPP_FCL_STATIC -DPINOCCHIO_STATIC"
-cmake --build . --target ALL_BUILD --config "${env:BUILD_TYPE}" --parallel 2
+cmake --build . --target ALL_BUILD --config "${env:BUILD_TYPE}" --parallel 4
 
 if (-not (Test-Path -PathType Container "$RootDir/build/pypi/jiminy_py/src/jiminy_py")) {
   New-Item -ItemType "directory" -Force -Path "$RootDir/build/pypi/jiminy_py/src/jiminy_py/core"

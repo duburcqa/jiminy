@@ -819,11 +819,11 @@ def sync(fun: Callable[..., None]) -> Callable[..., None]:
         cls = type(self)
         for owner in (self.cache.owners if self.has_cache else (self,)):
             assert isinstance(owner, cls)
-            value = fun(owner, *args, **kwargs)
+            value = fun(  # type: ignore[func-returns-value]
+                owner, *args, **kwargs)
             if value is not None:
                 raise NotImplementedError(
-                    "Instance methods that does not return `None` are not "
-                    "supported.")
+                    "Only instance methods that returns `None` are supported.")
 
     return fun_safe
 

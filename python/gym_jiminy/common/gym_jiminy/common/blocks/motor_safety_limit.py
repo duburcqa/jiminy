@@ -11,7 +11,7 @@ from jiminy_py.core import EncoderSensor  # pylint: disable=no-name-in-module
 
 from .proportional_derivative_controller import get_encoder_to_motor_map
 
-from ..bases import (BaseObsT,
+from ..bases import (BaseObs,
                      InterfaceJiminyEnv,
                      BaseControllerBlock,
                      BasePipelineWrapper,
@@ -79,7 +79,7 @@ def apply_safety_limits(command: np.ndarray,
 
 
 class MotorSafetyLimit(
-        BaseControllerBlock[np.ndarray, np.ndarray, BaseObsT, np.ndarray]):
+        BaseControllerBlock[np.ndarray, np.ndarray, BaseObs, np.ndarray]):
     """Safety mechanism primarily designed to prevent hardware damage and
     premature wear, but also to temper violent, sporadic and dangerous motions.
 
@@ -108,7 +108,7 @@ class MotorSafetyLimit(
     """  # noqa: E501  # pylint: disable=line-too-long
     def __init__(self,
                  name: str,
-                 env: InterfaceJiminyEnv[BaseObsT, np.ndarray],
+                 env: InterfaceJiminyEnv[BaseObs, np.ndarray],
                  *,
                  kp: float,
                  kd: float,
