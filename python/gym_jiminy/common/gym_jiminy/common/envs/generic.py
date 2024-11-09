@@ -586,9 +586,19 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         return self
 
     def train(self) -> None:
+        if self.is_simulation_running:
+            raise RuntimeError(
+                "Swtiching between training and evaluation modes is forbidden "
+                "if a simulation is already running. Please call `stop` "
+                "method beforehand.")
         self._is_training = True
 
     def eval(self) -> None:
+        if self.is_simulation_running:
+            raise RuntimeError(
+                "Swtiching between training and evaluation modes is forbidden "
+                "if a simulation is already running. Please call `stop` "
+                "method beforehand.")
         self._is_training = False
 
     def reset(self,  # type: ignore[override]
@@ -620,12 +630,12 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         :returns: Initial observation of the episode and some auxiliary
                   information for debugging or monitoring purpose.
         """
+        # Stop the episode if one is still running
+        self.stop()
+
         # Reset the seed if requested
         if seed is not None:
             self._initialize_seed(seed)
-
-        # Stop the episode if one is still running
-        self.stop()
 
         # Remove external forces, if any
         self.simulator.remove_all_forces()
@@ -927,10 +937,10 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         else:
             if self.is_training and self._num_steps_beyond_terminate == 0:
                 LOGGER.error(
-                    "Calling `step` after termination causes the reward to be "
-                    "'nan' systematically and is strongly discouraged in "
-                    "train mode. Please call `reset` to avoid further "
-                    "undefined behavior.")
+                    "Calling `step` after termination is an undefined "
+                    "behavior, and as such, is strongly discouraged in "
+                    "training mode. The reward will be forced to 'nan' from "
+                    "now on. Please call `reset`.")
             self._num_steps_beyond_terminate += 1
 
         # Compute reward if not beyond termination
@@ -1105,6 +1115,9 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         :param kwargs: Extra keyword arguments to forward to `_key_to_action`
                        method.
         """
+        # Stop the episode if one is still running
+        self.stop()
+
         # Enable play interactive flag and make sure training flag is disabled
         is_training = self.is_training
         self._is_interactive = True
@@ -1221,6 +1234,9 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
             enable_replay = (
                 (Viewer.backend or get_default_backend()) != "panda3d-sync" or
                 interactive_mode() >= 2)
+
+        # Stop the episode if one is still running
+        self.stop()
 
         # Make sure evaluation mode is enabled
         is_training = self.is_training
