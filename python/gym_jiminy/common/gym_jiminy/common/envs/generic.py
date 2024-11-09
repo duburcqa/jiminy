@@ -1195,8 +1195,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
 
     def evaluate(self,
                  policy_fn: Callable[[
-                    DataNested, Optional[float], bool, InfoType
-                    ], Act],
+                    Obs, Optional[Act], Optional[float], bool, InfoType], Act],
                  seed: Optional[int] = None,
                  horizon: Optional[int] = None,
                  enable_stats: bool = True,
@@ -1214,7 +1213,8 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
                 Policy to evaluate as a callback function. It must have the
                 following signature (**rew** = None at reset):
 
-            | policy_fn\(**obs**: DataNested,
+            | policy_fn\(**obs**: Obs,
+            |            **action_prev**: Optional[Act],
             |            **reward**: Optional[float],
             |            **done_or_truncated**: bool,
             |            **info**: InfoType
@@ -1255,7 +1255,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
 
         # Initialize the simulation
         obs, info = self.reset()
-        reward, terminated, truncated = None, False, False
+        action, reward, terminated, truncated = None, None, False, False
 
         # Run the simulation
         info_episode = [info]
@@ -1263,7 +1263,8 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
             env = self.derived
             while not (terminated or truncated or (
                     horizon is not None and self.num_steps > horizon)):
-                action = policy_fn(obs, reward, terminated or truncated, info)
+                action = policy_fn(
+                    obs, action, reward, terminated or truncated, info)
                 obs, reward, terminated, truncated, info = env.step(action)
                 info_episode.append(info)
             self.stop()
