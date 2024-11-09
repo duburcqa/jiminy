@@ -1071,7 +1071,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
             kwargs['close_backend'] = not self.simulator.is_viewer_available
 
         # Stop any running simulation before replay if `has_terminated` is True
-        if any(self.derived.has_terminated({})):
+        if self.is_simulation_running and any(self.derived.has_terminated({})):
             self.stop()
 
         with viewer_lock:
