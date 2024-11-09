@@ -110,8 +110,8 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
                  simulator: Simulator,
                  step_dt: float,
                  simulation_duration_max: float = 86400.0,
-                 debug: bool = False,
                  render_mode: Optional[str] = None,
+                 debug: bool = False,
                  **kwargs: Any) -> None:
         r"""
         :param simulator: Jiminy Python simulator used for physics
@@ -129,8 +129,6 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
             error if the episode is lasting for too long without reset.
             Optional: About 4GB of log data assuming 5ms control update period
             and telemetry disabled for everything but the robot configuration.
-        :param debug: Whether the debug mode must be enabled. Doing it enables
-                      telemetry recording.
         :param render_mode: Desired rendering mode, ie "human" or "rgb_array".
                             If "human" is specified, calling `render` will open
                             a graphical window for visualization, otherwise a
@@ -143,6 +141,8 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
                             machine environment. Note that "rgb_array" does not
                             require a graphical window manager.
                             Optional: None by default.
+        :param debug: Whether the debug mode must be enabled. Doing it enables
+                      telemetry recording.
         :param kwargs: Extra keyword arguments that may be useful for derived
                        environments with multiple inheritance, and to allow
                        automatic pipeline wrapper generation.
@@ -207,11 +207,19 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         self.log_fieldnames: MappingT[str, FieldNested] = _LazyDictItemFilter(
             self._registered_variables, 0)
 
-        # Internal buffers for physics computations
+        # Random number generator.
+        # This is used for generating random observations and actions, sampling
+        # the initial state of the robot, and domain randomization.
         self.np_random = np.random.Generator(np.random.SFC64())
+
+        # Log of the "previous" simulation in debug and evaluation mode
         self.log_path: Optional[str] = None
 
-        # Whether evaluation mode is active
+        # Original simulation options of the ongoing episode before partially
+        # overwriting it.
+        self._simu_options_orig: Optional[Dict[str, Any]] = None
+
+        # Whether training mode is active, as opposed to evaluation mode
         self._is_training = True
 
         # Whether play interactive mode is active
@@ -331,10 +339,11 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
                                ) -> spaces.Dict:
         """Get state space.
 
-        This method is not meant to be overloaded in general since the
-        definition of the state space is mostly consensual. One must rather
-        overload `_initialize_observation_space` to customize the observation
-        space as a whole.
+        .. warning:
+            This method is not meant to be overloaded in general since the
+            definition of the state space is mostly consensual. One must rather
+            overload `_initialize_observation_space` to customize the
+            observation space as a whole.
 
         :param use_theoretical_model: Whether to compute the state space
                                       associated with the theoretical model
@@ -742,7 +751,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         for header, value in self._registered_variables.values():
             register_variables(self.robot.controller, header, value)
 
-        # Start the engine
+        # Start the simulation
         self.simulator.start(q_init, v_init)
 
         # Refresh robot_state proxies. It must be done here because memory is
@@ -858,7 +867,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
 
         # Update of the action to perform if relevant
         if action is not self.action:
-            # Make sure the action is valid if debug
+            # Make sure the action is valid in debug mode
             if self.debug:
                 for value in tree.flatten(action):
                     if is_nan(value):
@@ -1280,14 +1289,22 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         .. note::
             This method is called internally by `reset` methods.
         """
+        # Restore the original simulation options
+        if self._simu_options_orig is not None:
+            self.simulator.set_simulation_options(self._simu_options_orig)
+
         # Call base implementation
         super()._setup()
+
+        # Backup simulation options
+        self._simu_options_orig = self.simulator.get_simulation_options()
 
         # Configure the low-level integrator
         engine_options = self.simulator.get_options()
         engine_options["stepper"]["iterMax"] = 0
         if self.debug:
             engine_options["stepper"]["verbose"] = True
+        if self.debug or not self.is_training:
             engine_options["stepper"]["logInternalStepperSteps"] = True
 
         # Set maximum computation time for single internal integration steps
@@ -1297,12 +1314,19 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
 
         # Enable full logging in debug and evaluation mode
         if self.debug or not self.is_training:
-            # Enable telemetry at engine-level
+            # Enable all telemetry data at engine-level
             telemetry_options = engine_options["telemetry"]
             for key in telemetry_options.keys():
-                telemetry_options[key] = True
+                if key.startswith("enable"):
+                    telemetry_options[key] = True
 
-            # Enable telemetry at robot-level
+            # Enable telemetry persistence.
+            # The visual and collision meshes will be stored in log file, so
+            # that the robot can be loaded on any machine with access to the
+            # original URDF and mesh files.
+            engine_options["telemetry"]["isPersistent"] = True
+
+            # Enable all telemetry data at robot-level
             robot_options = self.robot.get_options()
             robot_telemetry_options = robot_options["telemetry"]
             for key in robot_telemetry_options.keys():

@@ -341,7 +341,7 @@ class InterfaceJiminyEnv(
         self.__is_observation_refreshed = False
 
     def stop(self) -> None:
-        """Stop the episode immediately without waiting for a termination or
+        """Stop the episode immediately, without waiting for a termination or
         truncation condition to be satisfied.
 
         .. note::
@@ -351,6 +351,9 @@ class InterfaceJiminyEnv(
             data will not be available during replay using object-oriented
             method `replay`. Helper method `play_logs_data` must be preferred
             to replay an episode that cannot be stopped at the time being.
+
+        .. warning:
+            This method is never called internally by the engine.
         """
         self.simulator.stop()
 
