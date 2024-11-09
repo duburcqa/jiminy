@@ -678,11 +678,6 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         self.num_steps[()] = 0
         self._num_steps_beyond_terminate = None
 
-        # Create a new log file
-        if self.debug:
-            fd, self.log_path = tempfile.mkstemp(suffix=".data")
-            os.close(fd)
-
         # Extract the observer/controller update period.
         # The controller update period is used by default for the observer if
         # it was not specify by the user in `_setup`.
@@ -959,14 +954,26 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
             # Update cumulative reward
             self.total_reward += reward
 
-        # Write log file if simulation has just terminated in debug mode
-        if self.debug and self._num_steps_beyond_terminate == 0:
-            self.simulator.write_log(self.log_path, format="binary")
-
         # Clip (and copy) the most derived observation before returning it
         obs = self._get_clipped_env_observation()
 
         return obs, reward, terminated, truncated, deepcopy(self._info)
+
+    def stop(self) -> None:
+        # Write log of previous simulation before starting a new one if not
+        # already done.
+        # This would be the case if the previous episode was never terminated
+        # nor truncated, or because it was wrapped with a non-jiminy-specific
+        # layer such as `TimeLimit`.
+        if self.is_simulation_running and self.num_steps > 0:
+            self.log_path = None
+            if self.debug or not self.is_training:
+                fd, self.log_path = tempfile.mkstemp(suffix=".data")
+                os.close(fd)
+                self.simulator.write_log(self.log_path, format="binary")
+
+        # Call base implementation
+        super().stop()
 
     def render(self) -> Optional[Union[RenderFrame, List[RenderFrame]]]:
         """Render the agent in its environment.
