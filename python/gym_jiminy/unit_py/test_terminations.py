@@ -102,8 +102,9 @@ class TerminationConditions(unittest.TestCase):
                 ) for name, (quantity_cls, quantity_kwargs), low, high, op in (
                     termination_pos_config, termination_rot_config))
 
-            self.env.reset(seed=0)
+            self.env.stop()
             self.env.eval()
+            self.env.reset(seed=0)
             action = self.env.action_space.sample()
             oMf = self.env.robot.pinocchio_data.oMf[1]
             position, rotation = oMf.translation, oMf.rotation
@@ -173,8 +174,9 @@ class TerminationConditions(unittest.TestCase):
                 ) for name, (quantity_cls, quantity_kwargs), thr, op in (
                     termination_pos_config, termination_rot_config))
 
-            self.env.reset(seed=0)
+            self.env.stop()
             self.env.eval()
+            self.env.reset(seed=0)
             action = self.env.action_space.sample()
             oMf = self.env.robot.pinocchio_data.oMf[1]
             position, rotation = oMf.translation, oMf.rotation
@@ -255,6 +257,7 @@ class TerminationConditions(unittest.TestCase):
         action[[left_motor_index, right_motor_index]] = -0.5, 0.5
 
         self.env.robot.remove_contact_points([])
+        self.env.stop()
         self.env.eval()
         self.env.reset(seed=0)
         for _ in range(10):
@@ -370,8 +373,9 @@ class TerminationConditions(unittest.TestCase):
                     self.env, 0.2, 0.5),
                 ShiftTrackingFootOdometryOrientationsTermination(
                     self.env, 0.1, 0.5)):
-            self.env.reset(seed=0)
+            self.env.stop()
             self.env.eval()
+            self.env.reset(seed=0)
             action = self.env.action_space.sample()
             for _ in range(20):
                 _, _, terminated, _, _ = self.env.step(action)

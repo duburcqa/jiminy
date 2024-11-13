@@ -5,7 +5,7 @@ observer/controller block must inherit and implement those interfaces.
 from abc import abstractmethod, ABC
 from collections import OrderedDict
 from typing import (
-    Dict, Any, Tuple, TypeVar, Generic, TypedDict, no_type_check,
+    Dict, Any, Tuple, TypeVar, Generic, TypedDict, Optional, no_type_check,
     TYPE_CHECKING)
 
 import numpy as np
@@ -356,6 +356,25 @@ class InterfaceJiminyEnv(
             This method is never called internally by the engine.
         """
         self.simulator.stop()
+
+    @abstractmethod
+    def update_pipeline(self, derived: Optional["InterfaceJiminyEnv"]) -> None:
+        """Dynamically update which blocks are declared as part of the
+        environment pipeline.
+
+        Internally, this method first unregister all blocks of the old
+        pipeline, then register all blocks of the new pipeline, and finally
+        notify the base environment that the top-most block of the pipeline as
+        changed and must be updated accordingly.
+
+        .. warning::
+            This method is not supposed to be called manually nor overloaded.
+
+        :param derived: Either the top-most block of the pipeline or None.
+                        If None, unregister all blocks of the old pipeline. If
+                        not None, first unregister all blocks of the old
+                        pipeline, then register all blocks of the new pipeline.
+        """
 
     @abstractmethod
     def has_terminated(self, info: InfoType) -> Tuple[bool, bool]:

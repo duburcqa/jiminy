@@ -103,6 +103,9 @@ class BasePipelineWrapper(
         # may be overwritten by derived classes afterward.
         self._copyto_action: Callable[[Act], None] = lambda action: None
 
+        # Whether the block is registered in a environment pipeline
+        self._is_registered = False
+
     def __getattr__(self, name: str) -> Any:
         """Convenient fallback attribute getter.
 
@@ -115,6 +118,7 @@ class BasePipelineWrapper(
             Calling this method in script mode while a simulation is already
             running would trigger a warning to avoid relying on it by mistake.
         """
+        # Make sure that no simulaton is running
         if (self.is_simulation_running and self.env.is_training and
                 not hasattr(sys, 'ps1')):
             # `hasattr(sys, 'ps1')` is used to detect whether the method was
@@ -123,6 +127,19 @@ class BasePipelineWrapper(
             LOGGER.warning(
                 "Relying on fallback attribute getter is inefficient and "
                 "strongly discouraged at runtime.")
+
+        # Ensure that the block that has been declared as top-most layer of the
+        # environment pipeline is consistent with the callee of this method,
+        # i.e. `self.env.derived` is a parent of `self`. If not, set the callee
+        # as parent if no simulation is running. Otherwise, aise an exception.
+        if not self._is_registered:
+            if self.is_simulation_running:
+                raise RuntimeError(
+                    "This block is not registered as part of the environment "
+                    "pipeline. Please stop the simulation before adding new "
+                    "blocks.")
+            self.update_pipeline(self)
+
         return getattr(self.__getattribute__('env'), name)
 
     def __dir__(self) -> List[str]:
@@ -181,6 +198,16 @@ class BasePipelineWrapper(
     def eval(self) -> None:
         self.env.eval()
 
+    def update_pipeline(self, derived: Optional[InterfaceJiminyEnv]) -> None:
+        if derived is None:
+            self._is_registered = False
+            self.env.update_pipeline(None)
+        else:
+            self.unwrapped.update_pipeline(None)
+            assert not self._is_registered
+            self.env.update_pipeline(derived)
+            self._is_registered = True
+
     def reset(self,  # type: ignore[override]
               *,
               seed: Optional[int] = None,
@@ -191,11 +218,15 @@ class BasePipelineWrapper(
         In practice, it resets the environment and initializes the generic
         pipeline internal buffers through the use of 'controller_hook'.
 
-        :param controller_hook: Used internally for chaining multiple
-                                `BasePipelineWrapper`. It is not meant to be
-                                defined manually.
-                                Optional: None by default.
-        :param kwargs: Extra keyword arguments to comply with OpenAI Gym API.
+        :param seed: Random seed, as a positive integer.
+                     Optional: `None` by default. If `None`, then the internal
+                     random generator of the environment will be kept as-is,
+                     without updating its seed.
+        :param options: Additional information to specify how the environment
+                        is reset. The field 'reset_hook' is reserved for
+                        chaining multiple `BasePipelineWrapper`. It is not
+                        meant to be defined manually.
+                        Optional: None by default.
         """
         # Create weak reference to self.
         # This is necessary to avoid circular reference that would make the

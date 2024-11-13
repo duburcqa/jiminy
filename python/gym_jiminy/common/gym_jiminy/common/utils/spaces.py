@@ -21,6 +21,7 @@ from numpy import typing as npt
 import gymnasium as gym
 
 from jiminy_py import tree
+from jiminy_py.tree import StructNested
 from jiminy_py.core import array_copyto  # pylint: disable=no-name-in-module
 
 
@@ -28,9 +29,6 @@ ValueT = TypeVar('ValueT')
 ValueInT = TypeVar('ValueInT')
 ValueOutT = TypeVar('ValueOutT')
 
-StructNested = Union[MappingT[str, 'StructNested[ValueT]'],
-                     Iterable['StructNested[ValueT]'],
-                     ValueT]
 FieldNested = StructNested[str]
 DataNested = StructNested[np.ndarray]
 DataNestedT = TypeVar('DataNestedT', bound=DataNested)

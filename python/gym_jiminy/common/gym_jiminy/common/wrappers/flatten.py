@@ -44,8 +44,8 @@ class FlattenObservation(BaseTransformObservation[FlattenedObs, Obs, Act],
         """
         # Find most appropriate dtype if not specified
         if dtype is None:
-            obs_flat = tree.map_structure(
-                lambda value: value.dtype, tree.flatten(env.observation))
+            obs_flat = tuple(
+                value.dtype for value in tree.flatten(env.observation))
             if env.observation:
                 dtype = reduce(np.promote_types, obs_flat)
             else:
@@ -68,10 +68,10 @@ class FlattenObservation(BaseTransformObservation[FlattenedObs, Obs, Act],
         """Configure the observation space.
         """
         # Compute bounds of flattened observation space
-        min_max_bounds_leaves = tree.map_structure(
-            lambda space: map(
-                np.ravel, get_bounds(space)),  # type: ignore[arg-type]
-            tree.flatten(self.env.observation_space))
+        obs_space_all = tree.flatten(self.env.observation_space)
+        min_max_bounds_leaves = tuple(
+            tuple(map(np.ravel, get_bounds(space)))  # type: ignore[arg-type]
+            for space in obs_space_all)
         low, high = (
             np.concatenate(  # pylint: disable=unexpected-keyword-arg
                 bound_leaves, dtype=self.dtype)
@@ -132,10 +132,10 @@ class FlattenAction(BaseTransformAction[FlattenedAct, Obs, Act],
         """Configure the action space.
         """
         # Compute bounds of flattened action space
-        min_max_bounds_leaves = tree.map_structure(
-            lambda space: map(
-                np.ravel, get_bounds(space)),  # type: ignore[arg-type]
-            tree.flatten(self.env.action_space))
+        action_space_all = tree.flatten(self.env.action_space)
+        min_max_bounds_leaves = tuple(
+            tuple(map(np.ravel, get_bounds(space)))  # type: ignore[arg-type]
+            for space in action_space_all)
         low, high = (
             np.concatenate(  # pylint: disable=unexpected-keyword-arg
                 bound_leaves, dtype=self.dtype)
@@ -143,11 +143,6 @@ class FlattenAction(BaseTransformAction[FlattenedAct, Obs, Act],
 
         # Initialize the action space with proper dtype
         self.action_space = gym.spaces.Box(low, high, dtype=self.dtype)
-
-        # Initialize the action space with proper dtype
-        dtype = low.dtype
-        assert dtype is not None and issubclass(dtype.type, np.floating)
-        self.action_space = gym.spaces.Box(low, high, dtype=dtype.type)
 
     def transform_action(self, action: FlattenedAct) -> None:
         """Update in-place the pre-allocated action buffer of the wrapped
