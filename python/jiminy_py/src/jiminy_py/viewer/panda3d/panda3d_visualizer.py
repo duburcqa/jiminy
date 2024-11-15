@@ -792,14 +792,10 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                    size: Tuple[int, int]) -> None:
         """Add a RGB or depth camera to the scene.
 
-        The user is responsible for managing it, ie set its pose in world, get
-        screenshot from it, and remove it when no longer relevant. Manually
-        added cameras is mainly useful for simulating exteroceptive sensors.
-
         :param name: Name of the camera to be added.
         :param is_depthmap: Whether the camera output gathers 3 8-bits integers
                             RGB channels or 1 32-bits floats depth channel.
-        :param size: Resolution (height and width) in pixel of the image being
+        :param size: Resolution (height and width) in pixel of the image
                      captured by the camera.
         """
         # TODO: Expose optional parameters to set lens type and properties.

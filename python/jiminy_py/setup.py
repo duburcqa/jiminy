@@ -139,6 +139,7 @@ setup(
             "pillow",
             # Used internally by Viewer to enable recording video
             # programmatically with Meshcat as backend.
+            # - 1.43 is not backward compatible
             "playwright>=1.43"
         ],
         "dev": [
