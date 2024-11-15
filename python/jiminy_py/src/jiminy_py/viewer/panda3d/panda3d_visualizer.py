@@ -69,8 +69,10 @@ WATERMARK_SCALE_MAX = 0.2
 CLOCK_SCALE = 0.1
 WIDGET_MARGIN_REL = 0.02
 
-PANDA3D_FRAMERATE_MAX = 40
-PANDA3D_REQUEST_TIMEOUT = 30.0
+FRAMERATE_MAX = 40
+REQUEST_TIMEOUT = 30.0
+
+FORCE_TINYDISPLAY_DRIVER = "JIMINY_PANDA3D_FORCE_TINYDISPLAY" in os.environ
 
 
 Tuple3FType = Union[Tuple[float, float, float], np.ndarray]
@@ -411,11 +413,14 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         # config.set_value('want-pstats', True)
         config.set_value('framebuffer-software', False)
         config.set_value('framebuffer-hardware', False)
-        config.set_value('load-display', 'pandagl')
-        config.set_value('aux-display',
-                         'p3headlessgl'
-                         '\naux-display pandadx9'
-                         '\naux-display p3tinydisplay')
+        if FORCE_TINYDISPLAY_DRIVER:
+            config.set_value('load-display', 'p3tinydisplay')
+        else:
+            config.set_value('load-display', 'pandagl')
+            config.set_value('aux-display',
+                             'p3headlessgl'
+                             '\naux-display pandadx9'
+                             '\naux-display p3tinydisplay')
         config.set_value('window-type', 'offscreen')
         config.set_value('sync-video', False)
         config.set_value('default-near', 0.1)
@@ -652,7 +657,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
             self.picker_traverser.addCollider(picker_np, self.picker_queue)
 
             # Limit framerate to reduce computation cost
-            self.set_framerate(PANDA3D_FRAMERATE_MAX)
+            self.set_framerate(FRAMERATE_MAX)
 
         # Create resizeable offscreen buffer
         self._open_offscreen_window(size)
@@ -2054,7 +2059,7 @@ class Panda3dProxy(mp.Process):
             self._host_conn.send((name, args, kwargs, self._is_async))
             if self._is_async:
                 return None
-            if self._host_conn.poll(PANDA3D_REQUEST_TIMEOUT):
+            if self._host_conn.poll(REQUEST_TIMEOUT):
                 reply = self._host_conn.recv()
             else:
                 # Something is wrong... aborting to prevent potential deadlock
