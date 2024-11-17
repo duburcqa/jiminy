@@ -72,6 +72,7 @@ disable =
     abstract-method,
     protected-access,
     useless-parent-delegation,
+    unbalanced-tuple-unpacking,
     use-dict-literal,
     unspecified-encoding,
     undefined-loop-variable,

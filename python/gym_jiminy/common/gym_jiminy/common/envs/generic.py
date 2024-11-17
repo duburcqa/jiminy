@@ -64,6 +64,10 @@ TIMEOUT_RATIO = 15
 OBS_CONTAINS_TOL = 0.01
 
 
+PolicyCallbackFun = Callable[
+    [Obs, Optional[Act], Optional[float], bool, bool, InfoType], Act]
+
+
 LOGGER = logging.getLogger(__name__)
 
 
@@ -1204,8 +1208,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
             self.train()
 
     def evaluate(self,
-                 policy_fn: Callable[[
-                    Obs, Optional[Act], Optional[float], bool, InfoType], Act],
+                 policy_fn: PolicyCallbackFun,
                  seed: Optional[int] = None,
                  horizon: Optional[int] = None,
                  enable_stats: bool = True,
@@ -1226,7 +1229,8 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
             | policy_fn\(**obs**: Obs,
             |            **action_prev**: Optional[Act],
             |            **reward**: Optional[float],
-            |            **done_or_truncated**: bool,
+            |            **terminated**: bool,
+            |            **truncated**: bool,
             |            **info**: InfoType
             |            \) -> Act  # **action**
         :param seed: Seed of the environment to be used for the evaluation of
@@ -1272,10 +1276,14 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         info_episode = [info]
         try:
             env = self.derived
-            while not (terminated or truncated or (
-                    horizon is not None and self.num_steps > horizon)):
+            while horizon is None or self.num_steps < horizon:
                 action = policy_fn(
-                    obs, action, reward, terminated or truncated, info)
+                    obs, action, reward, terminated, truncated, info)
+                if terminated or truncated:
+                    # Break AFTER calling the policy callback if the episode is
+                    # terminated or truncated, which gives the policy the
+                    # opportunity to observe and record the final state.
+                    break
                 obs, reward, terminated, truncated, info = env.step(action)
                 info_episode.append(info)
             self.stop()
