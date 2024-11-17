@@ -10,8 +10,8 @@ from functools import partial
 from collections import OrderedDict
 from collections.abc import Mapping, MutableMapping, Sequence, MutableSequence
 from typing import (
-    Any, Dict, Optional, Union, Sequence as SequenceT, Mapping as MappingT,
-    Iterable, Tuple, Literal, SupportsFloat, TypeVar, Type, Callable,
+    Any, Dict, Optional, Union, Sequence as SequenceT, Tuple, Literal,
+    Mapping as MappingT, Iterable, SupportsFloat, TypeVar, Type, Callable,
     no_type_check, cast)
 
 import numba as nb
@@ -21,7 +21,6 @@ from numpy import typing as npt
 import gymnasium as gym
 
 from jiminy_py import tree
-from jiminy_py.tree import StructNested
 from jiminy_py.core import array_copyto  # pylint: disable=no-name-in-module
 
 
@@ -29,6 +28,10 @@ ValueT = TypeVar('ValueT')
 ValueInT = TypeVar('ValueInT')
 ValueOutT = TypeVar('ValueOutT')
 
+
+StructNested = Union[MappingT[str, 'StructNested[ValueT]'],
+                     Iterable['StructNested[ValueT]'],
+                     ValueT]
 FieldNested = StructNested[str]
 DataNested = StructNested[np.ndarray]
 DataNestedT = TypeVar('DataNestedT', bound=DataNested)
@@ -145,12 +148,11 @@ def zeros(space: gym.Space[DataNestedT],
     value = None
     if isinstance(space, gym.spaces.Dict):
         value = OrderedDict()
-        for field, subspace in space.spaces.items():
+        for field, subspace in space.items():
             value[field] = zeros(subspace, dtype=dtype)
         return value
     if isinstance(space, gym.spaces.Tuple):
-        value = tuple(zeros(subspace, dtype=dtype)
-                      for subspace in space.spaces.values())
+        value = tuple(zeros(subspace, dtype=dtype) for subspace in space)
     elif isinstance(space, gym.spaces.Box):
         value = np.zeros(space.shape, dtype=dtype or space.dtype)
     elif isinstance(space, gym.spaces.Discrete):
@@ -233,11 +235,11 @@ def clip(data: DataNested, space: gym.Space[DataNested]) -> DataNested:
     if tree.issubclass_mapping(data_type):
         return data_type({
             field: clip(data[field], subspace)
-            for field, subspace in space.spaces.items()})
+            for field, subspace in space.items()})
     if tree.issubclass_sequence(data_type):
         return data_type([
             clip(data[i], subspace)
-            for i, subspace in enumerate(space.spaces)])
+            for i, subspace in enumerate(space)])
     return _array_clip(data, *get_bounds(space))
 
 
@@ -262,10 +264,10 @@ def contains(data: DataNested,
     data_type = type(data)
     if tree.issubclass_mapping(data_type):
         return all(contains(data[field], subspace, tol_abs, tol_rel)
-                   for field, subspace in space.spaces.items())
+                   for field, subspace in space.items())
     if tree.issubclass_sequence(data_type):
         return all(contains(data[i], subspace, tol_abs, tol_rel)
-                   for i, subspace in enumerate(space.spaces))
+                   for i, subspace in enumerate(space))
     return _array_contains(data, *get_bounds(space), tol_abs, tol_rel)
 
 
