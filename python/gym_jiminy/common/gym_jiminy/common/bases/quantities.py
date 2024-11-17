@@ -16,7 +16,7 @@ import re
 import weakref
 from enum import IntEnum
 from weakref import ReferenceType
-from abc import ABC, abstractmethod
+from abc import abstractmethod, ABCMeta
 from collections import OrderedDict
 from collections.abc import MutableSet
 from dataclasses import dataclass, replace
@@ -361,7 +361,7 @@ class SharedCache(Generic[ValueT]):
         return value
 
 
-class InterfaceQuantity(ABC, Generic[ValueT]):
+class InterfaceQuantity(Generic[ValueT], metaclass=ABCMeta):
     """Interface for generic quantities involved observer-controller blocks,
     reward components or termination conditions.
 

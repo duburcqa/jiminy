@@ -2,7 +2,7 @@
 specifically design for Jiminy engine, and defined as mixin classes. Any
 observer/controller block must inherit and implement those interfaces.
 """
-from abc import abstractmethod, ABC
+from abc import abstractmethod, ABCMeta
 from collections import OrderedDict
 from typing import (
     Dict, Any, Tuple, TypeVar, Generic, TypedDict, Optional, no_type_check,
@@ -53,7 +53,7 @@ class EngineObsType(TypedDict):
     """
 
 
-class InterfaceObserver(ABC, Generic[Obs, BaseObs]):
+class InterfaceObserver(Generic[Obs, BaseObs], metaclass=ABCMeta):
     """Observer interface for both observers and environments.
     """
     observe_dt: float = -1
@@ -96,7 +96,7 @@ class InterfaceObserver(ABC, Generic[Obs, BaseObs]):
         """
 
 
-class InterfaceController(ABC, Generic[Act, BaseAct]):
+class InterfaceController(Generic[Act, BaseAct], metaclass=ABCMeta):
     """Controller interface for both controllers and environments.
     """
     control_dt: float = -1

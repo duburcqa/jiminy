@@ -6,7 +6,7 @@ the low-level observers and controllers.
 This modular approach allows for standardization of usual metrics. Overall, it
 greatly reduces code duplication and bugs.
 """
-from abc import ABC, abstractmethod
+from abc import abstractmethod, ABCMeta
 from enum import IntEnum
 from typing import Tuple, Sequence, Callable, Union, Optional, Generic, TypeVar
 
@@ -23,7 +23,7 @@ ArrayOrScalar = Union[np.ndarray, np.number, Number]
 ArrayLikeOrScalar = Union[ArrayOrScalar, Sequence[Union[Number, np.number]]]
 
 
-class AbstractReward(ABC):
+class AbstractReward(metaclass=ABCMeta):
     """Abstract class from which all reward component must derived.
 
     This goal of the agent is to maximize the expectation of the cumulative sum
@@ -400,7 +400,7 @@ class EpisodeState(IntEnum):
     """
 
 
-class AbstractTerminationCondition(ABC):
+class AbstractTerminationCondition(metaclass=ABCMeta):
     """Abstract class from which all termination conditions must derived.
 
     Request the ongoing episode to stop immediately as soon as a termination
