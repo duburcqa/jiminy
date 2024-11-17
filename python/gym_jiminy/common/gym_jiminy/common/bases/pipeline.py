@@ -527,9 +527,8 @@ class ComposedJiminyEnv(
         self.env.compute_command(action, command)
 
     def compute_reward(self, terminated: bool, info: InfoType) -> float:
-        """Compute the total reward, ie the sum of the original reward from the
-        wrapped environment with the ad-hoc reward components that has been
-        plugged on top of it.
+        """Compute the sum of the ad-hoc reward components that have been
+        plugged on top of the wrapped environment.
 
         .. seealso::
             See `InterfaceController.compute_reward` documentation for details.
@@ -541,15 +540,12 @@ class ComposedJiminyEnv(
 
         :returns: Aggregated reward for the current step.
         """
-        # Compute base reward
-        reward = self.env.compute_reward(terminated, info)
+        # Early return if no composed reward is defined
+        if self.reward is None:
+            return 0.0
 
-        # Add composed reward if any
-        if self.reward is not None:
-            reward += self.reward(terminated, info)
-
-        # Return total reward
-        return reward
+        # Evaluated and return composed reward
+        return self.reward(terminated, info)
 
 
 class ObservedJiminyEnv(
