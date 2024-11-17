@@ -713,7 +713,8 @@ class ObservedJiminyEnv(
             'features', gym.spaces.Dict())
         assert isinstance(feature_spaces, gym.spaces.Dict)
         feature_spaces[self.observer.name] = self.observer.observation_space
-        self.observation_space = gym.spaces.Dict(observation_space)
+        self.observation_space = cast(
+            gym.Space[NestedObs], gym.spaces.Dict(observation_space))
 
     def refresh_observation(self, measurement: EngineObsType) -> None:
         """Compute high-level features based on the current wrapped
@@ -938,7 +939,8 @@ class ControlledJiminyEnv(
                 'actions', gym.spaces.Dict())
             assert isinstance(action_spaces, gym.spaces.Dict)
             action_spaces[self.controller.name] = self.controller.action_space
-        self.observation_space = gym.spaces.Dict(observation_space)
+        self.observation_space = cast(
+            gym.Space[NestedObs], gym.spaces.Dict(observation_space))
 
     def refresh_observation(self, measurement: EngineObsType) -> None:
         """Compute the unified observation based on the current wrapped

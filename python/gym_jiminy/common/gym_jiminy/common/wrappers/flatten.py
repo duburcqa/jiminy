@@ -2,7 +2,7 @@
 space of the environment.
 """
 from functools import reduce
-from typing import Generic, Optional, TypeAlias
+from typing import Generic, Optional, Iterable, Tuple, TypeAlias, cast
 
 import numpy as np
 from numpy import typing as npt
@@ -68,10 +68,9 @@ class FlattenObservation(BaseTransformObservation[FlattenedObs, Obs, Act],
         """Configure the observation space.
         """
         # Compute bounds of flattened observation space
-        obs_space_all = tree.flatten(self.env.observation_space)
-        min_max_bounds_leaves = tuple(
+        min_max_bounds_leaves = cast(Iterable[Tuple[np.ndarray, np.ndarray]], (
             tuple(map(np.ravel, get_bounds(space)))  # type: ignore[arg-type]
-            for space in obs_space_all)
+            for space in tree.flatten(self.env.observation_space)))
         low, high = (
             np.concatenate(  # pylint: disable=unexpected-keyword-arg
                 bound_leaves, dtype=self.dtype)
@@ -132,10 +131,9 @@ class FlattenAction(BaseTransformAction[FlattenedAct, Obs, Act],
         """Configure the action space.
         """
         # Compute bounds of flattened action space
-        action_space_all = tree.flatten(self.env.action_space)
-        min_max_bounds_leaves = tuple(
+        min_max_bounds_leaves = cast(Iterable[Tuple[np.ndarray, np.ndarray]], (
             tuple(map(np.ravel, get_bounds(space)))  # type: ignore[arg-type]
-            for space in action_space_all)
+            for space in tree.flatten(self.env.action_space)))
         low, high = (
             np.concatenate(  # pylint: disable=unexpected-keyword-arg
                 bound_leaves, dtype=self.dtype)

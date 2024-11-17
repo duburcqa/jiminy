@@ -57,7 +57,7 @@ class InterfaceObserver(Generic[Obs, BaseObs], metaclass=ABCMeta):
     """Observer interface for both observers and environments.
     """
     observe_dt: float = -1
-    observation_space: gym.Space  # [Obs]
+    observation_space: gym.Space[Obs]
     observation: Obs
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -100,7 +100,7 @@ class InterfaceController(Generic[Act, BaseAct], metaclass=ABCMeta):
     """Controller interface for both controllers and environments.
     """
     control_dt: float = -1
-    action_space: gym.Space  # [Act]
+    action_space: gym.Space[Act]
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         """Initialize the controller interface.
@@ -182,6 +182,11 @@ class InterfaceJiminyEnv(
         "render_modes": (
             ['rgb_array'] + (['human'] if is_display_available() else []))
     }
+
+    # FIXME: Re-definition in derived class to stop mypy from complaining about
+    # incompatible types between the multiple base classes.
+    action_space: gym.Space[Act]
+    observation_space: gym.Space[Obs]
 
     simulator: Simulator
     robot: jiminy.Robot

@@ -477,8 +477,8 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
             motor.effort_limit for motor in self.robot.motors])
 
         # Set the action space
-        self.action_space = spaces.Box(
-            low=-command_limit, high=command_limit, dtype=np.float64)
+        self.action_space = cast(spaces.Space[Act], spaces.Box(
+            low=-command_limit, high=command_limit, dtype=np.float64))
 
     def _initialize_seed(self, seed: Optional[int] = None) -> None:
         """Specify the seed of the environment.
@@ -799,7 +799,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         # Make sure the state is valid, otherwise there `refresh_observation`
         # and `_initialize_observation_space` are probably inconsistent.
         try:
-            obs: Obs = cast(Obs, self._get_clipped_env_observation())
+            obs = self._get_clipped_env_observation()
         except (TypeError, ValueError) as e:
             raise RuntimeError(
                 "The observation computed by `refresh_observation` is "
@@ -1388,7 +1388,8 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         observation_spaces['states'] = spaces.Dict(
             agent=self._get_agent_state_space())
         observation_spaces['measurements'] = self._get_measurements_space()
-        self.observation_space = spaces.Dict(observation_spaces)
+        self.observation_space = cast(
+            spaces.Space[Obs], spaces.Dict(observation_spaces))
 
     def _neutral(self) -> np.ndarray:
         """Returns a neutral valid configuration for the agent.
