@@ -32,7 +32,7 @@ class AbstractReward(metaclass=ABCMeta):
     indefinite (aka. objective).
 
     Defining cost is allowed by not recommended. Although it encourages the
-    agent to achieve the task at hands as quickly as possible if success is the
+    agent to achieve the task at hand as quickly as possible if success is the
     only termination condition, it has the side-effect to give the opportunity
     to the agent to maximize the return by killing itself whenever this is an
     option, which is rarely the desired behavior. No restriction is enforced as
@@ -470,7 +470,7 @@ class AbstractTerminationCondition(metaclass=ABCMeta):
 
     @abstractmethod
     def compute(self, info: InfoType) -> bool:
-        """Evaluate the termination condition at hands.
+        """Evaluate the termination condition at hand.
 
         :param info: Dictionary of extra information for monitoring. It will be
                      updated in-place for storing terminated and truncated

@@ -408,7 +408,7 @@ class ComposedJiminyEnv(
                              checked along with the one enforced by the wrapped
                              environment. If provided, these termination
                              conditions must be already instantiated and
-                             associated with the environment at hands.
+                             associated with the environment at hand.
                              Optional: Empty sequence by default.
         :param trajectories: Set of named trajectories as a dictionary whose
                              (key, value) pairs are respectively the name of

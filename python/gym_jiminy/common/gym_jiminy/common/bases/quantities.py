@@ -133,19 +133,19 @@ class QuantityStateMachine(IntEnum):
     """
 
     IS_RESET = 0
-    """The quantity at hands has just been reset. The quantity must first be
+    """The quantity at hand has just been reset. The quantity must first be
     initialized, then refreshed and finally stored in cached before to retrieve
     its value.
     """
 
     IS_INITIALIZED = 1
-    """The quantity at hands has been initialized but never evaluated for the
+    """The quantity at hand has been initialized but never evaluated for the
     current robot state. Its value must still be refreshed and stored in cache
     before to retrieve it.
     """
 
     IS_CACHED = 2
-    """The quantity at hands has been evaluated and its value stored in cache.
+    """The quantity at hand has been evaluated and its value stored in cache.
     As such, its value can be retrieve from cache directly.
     """
 
@@ -223,7 +223,7 @@ class SharedCache(Generic[ValueT]):
 
     def add(self, owner: "InterfaceQuantity[ValueT]") -> None:
         """Add a given quantity instance to the set of co-owners associated
-        with the shared cache at hands.
+        with the shared cache at hand.
 
         .. warning::
             All shared cache co-owners must be instances of the same unique
@@ -253,7 +253,7 @@ class SharedCache(Generic[ValueT]):
 
     def discard(self, owner: "InterfaceQuantity[ValueT]") -> None:
         """Remove a given quantity instance from the set of co-owners
-        associated with the shared cache at hands.
+        associated with the shared cache at hand.
 
         :param owner: Quantity instance to remove from the set of co-owners.
         """
@@ -628,7 +628,6 @@ class InterfaceQuantity(Generic[ValueT], metaclass=ABCMeta):
                                     ignore_other_instances=True)
 
             # Reset shared cache
-            # pylint: disable=unexpected-keyword-arg
             self.cache.reset(
                 ignore_auto_refresh=not self.env.is_simulation_running,
                 reset_state_machine=True)

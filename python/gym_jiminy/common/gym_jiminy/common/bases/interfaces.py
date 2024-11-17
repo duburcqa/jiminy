@@ -164,9 +164,9 @@ class InterfaceController(Generic[Act, BaseAct], metaclass=ABCMeta):
         return 0.0
 
 
-# Note that `InterfaceJiminyEnv` must inherit from `InterfaceObserver`
-# before `InterfaceController` to initialize the action space before the
-# observation space since the action itself may be part of the observation.
+# Note that `InterfaceJiminyEnv` must inherit from `InterfaceObserver` before
+# `InterfaceController` to initialize the action space before the observation
+# space since the action itself may be part of the observation.
 # Similarly, `gym.Env` must be last to make sure all the other initialization
 # methods are called first.
 class InterfaceJiminyEnv(

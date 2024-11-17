@@ -102,7 +102,7 @@ class TabData:
     """
 
     button: _ButtonBlit
-    """Button on which to click to switch to the tab at hands.
+    """Button on which to click to switch to the tab at hand.
     """
 
     button_axcut: Axes

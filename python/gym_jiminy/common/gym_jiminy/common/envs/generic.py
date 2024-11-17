@@ -1570,7 +1570,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
 
         By default, it always returns `terminated=False`, and `truncated=True`
         iif the observation is out-of-bounds. One can overload this method to
-        implement custom termination conditions for the environment at hands.
+        implement custom termination conditions for the environment at hand.
 
         .. warning::
             No matter what, truncation will happen when reaching the maximum
