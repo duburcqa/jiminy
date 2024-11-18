@@ -150,21 +150,20 @@ jobs:
         fi
         "${PYTHON_EXECUTABLE}" -m unittest discover -s "${RootDir}/python/gym_jiminy/unit_py" -v
 
-    # - name: Run examples for gym jiminy add-on modules
-    #   if: matrix.BUILD_TYPE != 'Debug'
-    #   run: |
-    #     cd "${RootDir}/python/gym_jiminy/examples/rllib"
-    #     "${PYTHON_EXECUTABLE}" acrobot_ppo.py
+    - name: Run examples for gym jiminy add-on modules
+      if: matrix.BUILD_TYPE != 'Debug'
+      run: |
+        cd "${RootDir}/python/gym_jiminy/examples/rllib"
+        "${PYTHON_EXECUTABLE}" acrobot_ppo.py
 
     #####################################################################################
 
     - name: Python linter
       if: matrix.OS == 'ubuntu-24.04' && matrix.BUILD_TYPE != 'Debug' && matrix.COMPILER == 'gcc'
       run: |
-        # FIXME: Add back "rllib"
         cd "${RootDir}/python/jiminy_py/"
         pylint --rcfile="${RootDir}/.pylintrc" "src/"
-        for name in "common" "toolbox" ; do
+        for name in "common" "toolbox" "rllib" ; do
           cd "${RootDir}/python/gym_jiminy/$name"
           pylint --rcfile="${RootDir}/.pylintrc" "gym_jiminy/"
         done

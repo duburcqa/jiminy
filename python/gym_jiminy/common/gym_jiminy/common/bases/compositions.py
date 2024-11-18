@@ -6,7 +6,7 @@ the low-level observers and controllers.
 This modular approach allows for standardization of usual metrics. Overall, it
 greatly reduces code duplication and bugs.
 """
-from abc import ABC, abstractmethod
+from abc import abstractmethod, ABCMeta
 from enum import IntEnum
 from typing import Tuple, Sequence, Callable, Union, Optional, Generic, TypeVar
 
@@ -23,7 +23,7 @@ ArrayOrScalar = Union[np.ndarray, np.number, Number]
 ArrayLikeOrScalar = Union[ArrayOrScalar, Sequence[Union[Number, np.number]]]
 
 
-class AbstractReward(ABC):
+class AbstractReward(metaclass=ABCMeta):
     """Abstract class from which all reward component must derived.
 
     This goal of the agent is to maximize the expectation of the cumulative sum
@@ -32,7 +32,7 @@ class AbstractReward(ABC):
     indefinite (aka. objective).
 
     Defining cost is allowed by not recommended. Although it encourages the
-    agent to achieve the task at hands as quickly as possible if success is the
+    agent to achieve the task at hand as quickly as possible if success is the
     only termination condition, it has the side-effect to give the opportunity
     to the agent to maximize the return by killing itself whenever this is an
     option, which is rarely the desired behavior. No restriction is enforced as
@@ -400,7 +400,7 @@ class EpisodeState(IntEnum):
     """
 
 
-class AbstractTerminationCondition(ABC):
+class AbstractTerminationCondition(metaclass=ABCMeta):
     """Abstract class from which all termination conditions must derived.
 
     Request the ongoing episode to stop immediately as soon as a termination
@@ -470,7 +470,7 @@ class AbstractTerminationCondition(ABC):
 
     @abstractmethod
     def compute(self, info: InfoType) -> bool:
-        """Evaluate the termination condition at hands.
+        """Evaluate the termination condition at hand.
 
         :param info: Dictionary of extra information for monitoring. It will be
                      updated in-place for storing terminated and truncated

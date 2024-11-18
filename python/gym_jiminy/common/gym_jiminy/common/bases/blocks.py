@@ -7,7 +7,7 @@ It implements:
     - the base controller block
     - the base observer block
 """
-from abc import abstractmethod, ABC
+from abc import abstractmethod, ABCMeta
 from typing import Any, Union, Generic, TypeVar, cast
 
 import gymnasium as gym
@@ -26,7 +26,7 @@ from .interfaces import (Obs,
 BlockState = TypeVar('BlockState', bound=Union[DataNested, None])
 
 
-class InterfaceBlock(ABC, Generic[BlockState, BaseObs, BaseAct]):
+class InterfaceBlock(Generic[BlockState, BaseObs, BaseAct], metaclass=ABCMeta):
     """Base class for blocks used for pipeline control design. Blocks can be
     either observers and controllers.
 

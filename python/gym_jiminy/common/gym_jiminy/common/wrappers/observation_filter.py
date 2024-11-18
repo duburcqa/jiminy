@@ -67,8 +67,6 @@ def _copy_filtered(data: SpaceOrData,
             type_filtered_nodes.append(parent_type)
             if parent_type in (list, dict, OrderedDict):
                 continue
-            if issubclass(parent_type, gym.Space):
-                parent = parent.spaces
             if issubclass_mapping(parent_type):
                 parent = dict(parent.items())
             elif issubclass_sequence(parent_type):

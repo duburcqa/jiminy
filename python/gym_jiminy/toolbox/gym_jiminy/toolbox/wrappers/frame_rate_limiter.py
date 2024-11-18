@@ -12,7 +12,7 @@ from jiminy_py.viewer import sleep
 from gym_jiminy.common.bases import Obs, Act, InfoType, InterfaceJiminyEnv
 
 
-class FrameRateLimiter(gym.Wrapper,  # [Obs, Act, Obs, Act],
+class FrameRateLimiter(gym.Wrapper[Obs, Act, Obs, Act],
                        Generic[Obs, Act]):
     """Limit the rendering framerate of an environment to a given threshold,
     which is typically useful if human rendering is enabled.

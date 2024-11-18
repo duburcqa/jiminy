@@ -1906,12 +1906,23 @@ class Viewer:
                    width: int,
                    height: int,
                    is_depthmap: bool) -> None:
-        """TODO: Write documentation.
+        """Add a RGB or depth camera to the scene.
+
+        Manually added cameras are mainly useful for simulating exteroceptive
+        sensors. The user is responsible for managing them, i.e. to set their
+        respective poses in world, to get screenshot from them, and to remove
+        them when no longer relevant.
 
         .. warning::
             This method is only supported by Panda3d for now.
 
+        :param camera_name: Name of the camera to be added.
+        :param width: Width ofthe image captured by the camera in pixels.
+        :param height: Height of the image captured by the camera in pixels.
+        :param is_depthmap: Whether the camera output gathers 3 8-bits integers
+                            RGB channels or 1 32-bits floats depth channel.
         """
+
         # Assert(s) for type checker
         assert Viewer.backend is not None
         assert Viewer._backend_obj is not None
@@ -1931,8 +1942,7 @@ class Viewer:
     def capture_frame(width: Optional[int] = None,
                       height: Optional[int] = None,
                       camera_name: Optional[str] = None,
-                      raw_data: bool = False
-                      ) -> Union[np.ndarray, bytes]:
+                      raw_data: bool = False) -> Union[np.ndarray, bytes]:
         """Take a snapshot and return associated data.
 
         .. warning::

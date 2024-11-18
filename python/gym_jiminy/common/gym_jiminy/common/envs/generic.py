@@ -64,6 +64,10 @@ TIMEOUT_RATIO = 15
 OBS_CONTAINS_TOL = 0.01
 
 
+PolicyCallbackFun = Callable[
+    [Obs, Optional[Act], Optional[float], bool, bool, InfoType], Act]
+
+
 LOGGER = logging.getLogger(__name__)
 
 
@@ -101,7 +105,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
     customize by overloading it to fit the vast majority of users' needs.
     """
 
-    derived: "InterfaceJiminyEnv"
+    derived: InterfaceJiminyEnv
     """Top-most block from which this environment is part of when leveraging
     modular pipeline design capability.
     """
@@ -129,8 +133,6 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
             error if the episode is lasting for too long without reset.
             Optional: About 4GB of log data assuming 5ms control update period
             and telemetry disabled for everything but the robot configuration.
-        :param debug: Whether the debug mode must be enabled. Doing it enables
-                      telemetry recording.
         :param render_mode: Desired rendering mode, ie "human" or "rgb_array".
                             If "human" is specified, calling `render` will open
                             a graphical window for visualization, otherwise a
@@ -143,6 +145,8 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
                             machine environment. Note that "rgb_array" does not
                             require a graphical window manager.
                             Optional: None by default.
+        :param debug: Whether the debug mode must be enabled. Doing it enables
+                      telemetry recording.
         :param kwargs: Extra keyword arguments that may be useful for derived
                        environments with multiple inheritance, and to allow
                        automatic pipeline wrapper generation.
@@ -207,11 +211,19 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         self.log_fieldnames: MappingT[str, FieldNested] = _LazyDictItemFilter(
             self._registered_variables, 0)
 
-        # Internal buffers for physics computations
+        # Random number generator.
+        # This is used for generating random observations and actions, sampling
+        # the initial state of the robot, and domain randomization.
         self.np_random = np.random.Generator(np.random.SFC64())
+
+        # Log of the "previous" simulation in debug and evaluation mode
         self.log_path: Optional[str] = None
 
-        # Whether evaluation mode is active
+        # Original simulation options of the ongoing episode before partially
+        # overwriting it.
+        self._simu_options_orig: Optional[Dict[str, Any]] = None
+
+        # Whether training mode is active, as opposed to evaluation mode
         self._is_training = True
 
         # Whether play interactive mode is active
@@ -331,10 +343,11 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
                                ) -> spaces.Dict:
         """Get state space.
 
-        This method is not meant to be overloaded in general since the
-        definition of the state space is mostly consensual. One must rather
-        overload `_initialize_observation_space` to customize the observation
-        space as a whole.
+        .. warning:
+            This method is not meant to be overloaded in general since the
+            definition of the state space is mostly consensual. One must rather
+            overload `_initialize_observation_space` to customize the
+            observation space as a whole.
 
         :param use_theoretical_model: Whether to compute the state space
                                       associated with the theoretical model
@@ -468,8 +481,8 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
             motor.effort_limit for motor in self.robot.motors])
 
         # Set the action space
-        self.action_space = spaces.Box(
-            low=-command_limit, high=command_limit, dtype=np.float64)
+        self.action_space = cast(spaces.Space[Act], spaces.Box(
+            low=-command_limit, high=command_limit, dtype=np.float64))
 
     def _initialize_seed(self, seed: Optional[int] = None) -> None:
         """Specify the seed of the environment.
@@ -577,10 +590,27 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         return self
 
     def train(self) -> None:
+        if self.is_simulation_running:
+            raise RuntimeError(
+                "Switching between training and evaluation modes is forbidden "
+                "if a simulation is already running. Please call `stop` "
+                "method beforehand.")
         self._is_training = True
 
     def eval(self) -> None:
+        if self.is_simulation_running:
+            raise RuntimeError(
+                "Switching between training and evaluation modes is forbidden "
+                "if a simulation is already running. Please call `stop` "
+                "method beforehand.")
         self._is_training = False
+
+    def update_pipeline(self, derived: Optional[InterfaceJiminyEnv]) -> None:
+        if self.derived is not self:
+            derived_old = self.derived
+            self.derived = self
+            derived_old.update_pipeline(None)
+        self.derived = derived or self
 
     def reset(self,  # type: ignore[override]
               *,
@@ -600,8 +630,9 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
             log variable.
 
         :param seed: Random seed, as a positive integer.
-                     Optional: A strongly random seed will be generated by gym
-                     if omitted.
+                     Optional: `None` by default. If `None`, then the internal
+                     random generator of the environment will be kept as-is,
+                     without updating its seed.
         :param options: Additional information to specify how the environment
                         is reset. The field 'reset_hook' is reserved for
                         chaining multiple `BasePipelineWrapper`. It is not
@@ -611,12 +642,12 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         :returns: Initial observation of the episode and some auxiliary
                   information for debugging or monitoring purpose.
         """
+        # Stop the episode if one is still running
+        self.stop()
+
         # Reset the seed if requested
         if seed is not None:
             self._initialize_seed(seed)
-
-        # Stop the episode if one is still running
-        self.stop()
 
         # Remove external forces, if any
         self.simulator.remove_all_forces()
@@ -658,11 +689,6 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         # Reset some internal buffers
         self.num_steps[()] = 0
         self._num_steps_beyond_terminate = None
-
-        # Create a new log file
-        if self.debug:
-            fd, self.log_path = tempfile.mkstemp(suffix=".data")
-            os.close(fd)
 
         # Extract the observer/controller update period.
         # The controller update period is used by default for the observer if
@@ -725,7 +751,10 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
             env_derived = reset_hook() or env
             assert env_derived.unwrapped is self
             env = env_derived
-        self.derived = env
+
+        # Update the environment pipeline if necessary
+        if env is not self.derived:
+            env.update_pipeline(env)
 
         # Re-initialize the quantity manager.
         # Note that computation graph tracking is never reset automatically.
@@ -742,7 +771,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         for header, value in self._registered_variables.values():
             register_variables(self.robot.controller, header, value)
 
-        # Start the engine
+        # Start the simulation
         self.simulator.start(q_init, v_init)
 
         # Refresh robot_state proxies. It must be done here because memory is
@@ -774,7 +803,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         # Make sure the state is valid, otherwise there `refresh_observation`
         # and `_initialize_observation_space` are probably inconsistent.
         try:
-            obs: Obs = cast(Obs, self._get_clipped_env_observation())
+            obs = self._get_clipped_env_observation()
         except (TypeError, ValueError) as e:
             raise RuntimeError(
                 "The observation computed by `refresh_observation` is "
@@ -858,7 +887,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
 
         # Update of the action to perform if relevant
         if action is not self.action:
-            # Make sure the action is valid if debug
+            # Make sure the action is valid in debug mode
             if self.debug:
                 for value in tree.flatten(action):
                     if is_nan(value):
@@ -918,10 +947,10 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         else:
             if self.is_training and self._num_steps_beyond_terminate == 0:
                 LOGGER.error(
-                    "Calling `step` after termination causes the reward to be "
-                    "'nan' systematically and is strongly discouraged in "
-                    "train mode. Please call `reset` to avoid further "
-                    "undefined behavior.")
+                    "Calling `step` after termination is an undefined "
+                    "behavior, and as such, is strongly discouraged in "
+                    "training mode. The reward will be forced to 'nan' from "
+                    "now on. Please call `reset`.")
             self._num_steps_beyond_terminate += 1
 
         # Compute reward if not beyond termination
@@ -940,14 +969,26 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
             # Update cumulative reward
             self.total_reward += reward
 
-        # Write log file if simulation has just terminated in debug mode
-        if self.debug and self._num_steps_beyond_terminate == 0:
-            self.simulator.write_log(self.log_path, format="binary")
-
         # Clip (and copy) the most derived observation before returning it
         obs = self._get_clipped_env_observation()
 
         return obs, reward, terminated, truncated, deepcopy(self._info)
+
+    def stop(self) -> None:
+        # Write log of previous simulation before starting a new one if not
+        # already done.
+        # This would be the case if the previous episode was never terminated
+        # nor truncated, or because it was wrapped with a non-jiminy-specific
+        # layer such as `TimeLimit`.
+        if self.is_simulation_running and self.num_steps > 0:
+            self.log_path = None
+            if self.debug or not self.is_training:
+                fd, self.log_path = tempfile.mkstemp(suffix=".data")
+                os.close(fd)
+                self.simulator.write_log(self.log_path, format="binary")
+
+        # Call base implementation
+        super().stop()
 
     def render(self) -> Optional[Union[RenderFrame, List[RenderFrame]]]:
         """Render the agent in its environment.
@@ -1045,7 +1086,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
             kwargs['close_backend'] = not self.simulator.is_viewer_available
 
         # Stop any running simulation before replay if `has_terminated` is True
-        if any(self.derived.has_terminated({})):
+        if self.is_simulation_running and any(self.derived.has_terminated({})):
             self.stop()
 
         with viewer_lock:
@@ -1096,6 +1137,9 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         :param kwargs: Extra keyword arguments to forward to `_key_to_action`
                        method.
         """
+        # Stop the episode if one is still running
+        self.stop()
+
         # Enable play interactive flag and make sure training flag is disabled
         is_training = self.is_training
         self._is_interactive = True
@@ -1108,9 +1152,8 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         if viewer is None or not viewer.has_gui():
             self.simulator.render(update_ground_profile=False)
 
-        # Reset the environnement
-        self.reset()
-        obs = self.observation
+        # Initialize the simulation
+        obs, _ = self.derived.reset()
         reward = None
 
         # Refresh the ground profile
@@ -1165,9 +1208,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
             self.train()
 
     def evaluate(self,
-                 policy_fn: Callable[[
-                    DataNested, Optional[float], bool, InfoType
-                    ], Act],
+                 policy_fn: PolicyCallbackFun,
                  seed: Optional[int] = None,
                  horizon: Optional[int] = None,
                  enable_stats: bool = True,
@@ -1185,14 +1226,17 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
                 Policy to evaluate as a callback function. It must have the
                 following signature (**rew** = None at reset):
 
-            | policy_fn\(**obs**: DataNested,
+            | policy_fn\(**obs**: Obs,
+            |            **action_prev**: Optional[Act],
             |            **reward**: Optional[float],
-            |            **done_or_truncated**: bool,
+            |            **terminated**: bool,
+            |            **truncated**: bool,
             |            **info**: InfoType
             |            \) -> Act  # **action**
         :param seed: Seed of the environment to be used for the evaluation of
                      the policy.
-                     Optional: Random seed if not provided.
+                     Optional: `None` by default. If not specified, then a
+                     strongly random seed will be generated by gym.
         :param horizon: Horizon of the simulation, namely maximum number of
                         steps before termination. `None` to disable.
                         Optional: Disabled by default.
@@ -1213,6 +1257,9 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
                 (Viewer.backend or get_default_backend()) != "panda3d-sync" or
                 interactive_mode() >= 2)
 
+        # Stop the episode if one is still running
+        self.stop()
+
         # Make sure evaluation mode is enabled
         is_training = self.is_training
         if is_training:
@@ -1222,16 +1269,21 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         self._initialize_seed(seed)
 
         # Initialize the simulation
-        obs, info = self.reset()
-        reward, terminated, truncated = None, False, False
+        obs, info = self.derived.reset()
+        action, reward, terminated, truncated = None, None, False, False
 
         # Run the simulation
         info_episode = [info]
         try:
             env = self.derived
-            while not (terminated or truncated or (
-                    horizon is not None and self.num_steps > horizon)):
-                action = policy_fn(obs, reward, terminated or truncated, info)
+            while horizon is None or self.num_steps < horizon:
+                action = policy_fn(
+                    obs, action, reward, terminated, truncated, info)
+                if terminated or truncated:
+                    # Break AFTER calling the policy callback if the episode is
+                    # terminated or truncated, which gives the policy the
+                    # opportunity to observe and record the final state.
+                    break
                 obs, reward, terminated, truncated, info = env.step(action)
                 info_episode.append(info)
             self.stop()
@@ -1280,14 +1332,22 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         .. note::
             This method is called internally by `reset` methods.
         """
+        # Restore the original simulation options
+        if self._simu_options_orig is not None:
+            self.simulator.set_simulation_options(self._simu_options_orig)
+
         # Call base implementation
         super()._setup()
+
+        # Backup simulation options
+        self._simu_options_orig = self.simulator.get_simulation_options()
 
         # Configure the low-level integrator
         engine_options = self.simulator.get_options()
         engine_options["stepper"]["iterMax"] = 0
         if self.debug:
             engine_options["stepper"]["verbose"] = True
+        if self.debug or not self.is_training:
             engine_options["stepper"]["logInternalStepperSteps"] = True
 
         # Set maximum computation time for single internal integration steps
@@ -1297,12 +1357,19 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
 
         # Enable full logging in debug and evaluation mode
         if self.debug or not self.is_training:
-            # Enable telemetry at engine-level
+            # Enable all telemetry data at engine-level
             telemetry_options = engine_options["telemetry"]
             for key in telemetry_options.keys():
-                telemetry_options[key] = True
+                if key.startswith("enable"):
+                    telemetry_options[key] = True
 
-            # Enable telemetry at robot-level
+            # Enable telemetry persistence.
+            # The visual and collision meshes will be stored in log file, so
+            # that the robot can be loaded on any machine with access to the
+            # original URDF and mesh files.
+            engine_options["telemetry"]["isPersistent"] = True
+
+            # Enable all telemetry data at robot-level
             robot_options = self.robot.get_options()
             robot_telemetry_options = robot_options["telemetry"]
             for key in robot_telemetry_options.keys():
@@ -1329,7 +1396,8 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         observation_spaces['states'] = spaces.Dict(
             agent=self._get_agent_state_space())
         observation_spaces['measurements'] = self._get_measurements_space()
-        self.observation_space = spaces.Dict(observation_spaces)
+        self.observation_space = cast(
+            spaces.Space[Obs], spaces.Dict(observation_spaces))
 
     def _neutral(self) -> np.ndarray:
         """Returns a neutral valid configuration for the agent.
@@ -1510,7 +1578,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
 
         By default, it always returns `terminated=False`, and `truncated=True`
         iif the observation is out-of-bounds. One can overload this method to
-        implement custom termination conditions for the environment at hands.
+        implement custom termination conditions for the environment at hand.
 
         .. warning::
             No matter what, truncation will happen when reaching the maximum

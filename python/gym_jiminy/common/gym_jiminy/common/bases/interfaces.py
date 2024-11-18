@@ -2,10 +2,10 @@
 specifically design for Jiminy engine, and defined as mixin classes. Any
 observer/controller block must inherit and implement those interfaces.
 """
-from abc import abstractmethod, ABC
+from abc import abstractmethod, ABCMeta
 from collections import OrderedDict
 from typing import (
-    Dict, Any, Tuple, TypeVar, Generic, TypedDict, no_type_check,
+    Dict, Any, Tuple, TypeVar, Generic, TypedDict, Optional, no_type_check,
     TYPE_CHECKING)
 
 import numpy as np
@@ -53,11 +53,11 @@ class EngineObsType(TypedDict):
     """
 
 
-class InterfaceObserver(ABC, Generic[Obs, BaseObs]):
+class InterfaceObserver(Generic[Obs, BaseObs], metaclass=ABCMeta):
     """Observer interface for both observers and environments.
     """
     observe_dt: float = -1
-    observation_space: gym.Space  # [Obs]
+    observation_space: gym.Space[Obs]
     observation: Obs
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -96,11 +96,11 @@ class InterfaceObserver(ABC, Generic[Obs, BaseObs]):
         """
 
 
-class InterfaceController(ABC, Generic[Act, BaseAct]):
+class InterfaceController(Generic[Act, BaseAct], metaclass=ABCMeta):
     """Controller interface for both controllers and environments.
     """
     control_dt: float = -1
-    action_space: gym.Space  # [Act]
+    action_space: gym.Space[Act]
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         """Initialize the controller interface.
@@ -164,9 +164,9 @@ class InterfaceController(ABC, Generic[Act, BaseAct]):
         return 0.0
 
 
-# Note that `InterfaceJiminyEnv` must inherit from `InterfaceObserver`
-# before `InterfaceController` to initialize the action space before the
-# observation space since the action itself may be part of the observation.
+# Note that `InterfaceJiminyEnv` must inherit from `InterfaceObserver` before
+# `InterfaceController` to initialize the action space before the observation
+# space since the action itself may be part of the observation.
 # Similarly, `gym.Env` must be last to make sure all the other initialization
 # methods are called first.
 class InterfaceJiminyEnv(
@@ -182,6 +182,11 @@ class InterfaceJiminyEnv(
         "render_modes": (
             ['rgb_array'] + (['human'] if is_display_available() else []))
     }
+
+    # FIXME: Re-definition in derived class to stop mypy from complaining about
+    # incompatible types between the multiple base classes.
+    action_space: gym.Space[Act]
+    observation_space: gym.Space[Obs]
 
     simulator: Simulator
     robot: jiminy.Robot
@@ -341,7 +346,7 @@ class InterfaceJiminyEnv(
         self.__is_observation_refreshed = False
 
     def stop(self) -> None:
-        """Stop the episode immediately without waiting for a termination or
+        """Stop the episode immediately, without waiting for a termination or
         truncation condition to be satisfied.
 
         .. note::
@@ -351,8 +356,30 @@ class InterfaceJiminyEnv(
             data will not be available during replay using object-oriented
             method `replay`. Helper method `play_logs_data` must be preferred
             to replay an episode that cannot be stopped at the time being.
+
+        .. warning:
+            This method is never called internally by the engine.
         """
         self.simulator.stop()
+
+    @abstractmethod
+    def update_pipeline(self, derived: Optional["InterfaceJiminyEnv"]) -> None:
+        """Dynamically update which blocks are declared as part of the
+        environment pipeline.
+
+        Internally, this method first unregister all blocks of the old
+        pipeline, then register all blocks of the new pipeline, and finally
+        notify the base environment that the top-most block of the pipeline as
+        changed and must be updated accordingly.
+
+        .. warning::
+            This method is not supposed to be called manually nor overloaded.
+
+        :param derived: Either the top-most block of the pipeline or None.
+                        If None, unregister all blocks of the old pipeline. If
+                        not None, first unregister all blocks of the old
+                        pipeline, then register all blocks of the new pipeline.
+        """
 
     @abstractmethod
     def has_terminated(self, info: InfoType) -> Tuple[bool, bool]:

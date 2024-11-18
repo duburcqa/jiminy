@@ -15,8 +15,7 @@ jobs:
 
     strategy:
       matrix:
-        # FIXME: Panda3d software rendering is partially broken on Apple Silicon
-        OS: ['macos-13']  # 'macos-13': Intel (x86), 'macos-14+': Apple Silicon (arm64)
+        OS: ['macos-14']  # 'macos-13': Intel (x86), 'macos-14+': Apple Silicon (arm64)
         PYTHON_VERSION: ['3.10', '3.11', '3.12']  # `setup-python` does not support Python<3.10 on Apple Silicon
         BUILD_TYPE: ['Release']
         include:
@@ -128,8 +127,10 @@ jobs:
         # (see https://github.com/python/mypy/issues/17396)
         "${PYTHON_EXECUTABLE}" -m pip install "numpy<2.0"
         stubgen -p jiminy_py -o ${RootDir}/build/pypi/jiminy_py/src
-        # FIXME: Python 3.10 on Intel x86-64 crashes when generating stubs without any backtrace...
-        if [[ ("${{ matrix.OS }}" != 'macos-13') || ("${{ matrix.PYTHON_VERSION }}" != '3.10') ]] ; then
+        # FIXME: Python 3.10 crashes when generating stubs without any backtrace...
+        if [[ "${{ matrix.PYTHON_VERSION }}" != '3.10' ]] ; then
+          # lldb --batch -o "settings set target.process.stop-on-exec false" \
+          #   -o "break set -n main" -o "run" -k "bt" -k "quit" -- \
           "${PYTHON_EXECUTABLE}" "${RootDir}/build_tools/stubgen.py" \
             -o ${RootDir}/build/stubs --ignore-invalid=all jiminy_py
           cp ${RootDir}/build/stubs/jiminy_py-stubs/core/__init__.pyi \
@@ -183,12 +184,20 @@ jobs:
         ctest --output-on-failure --test-dir "${RootDir}/build/core/unit"
 
         cd "${RootDir}/python/jiminy_py/unit_py"
+        # FIXME: Panda3d software rendering is partially broken on Apple Silicon
+        if [[ "${{ matrix.OS }}" != 'macos-13' ]] ; then
+          export JIMINY_PANDA3D_FORCE_TINYDISPLAY=
+        fi
         "${PYTHON_EXECUTABLE}" -m unittest discover -v
 
     - name: Run unit tests for gym jiminy base module
       run: |
         export LD_LIBRARY_PATH="${InstallDir}/lib/:/usr/local/lib"
 
+        # FIXME: Panda3d software rendering is partially broken on Apple Silicon
+        if [[ "${{ matrix.OS }}" != 'macos-13' ]] ; then
+          export JIMINY_PANDA3D_FORCE_TINYDISPLAY=
+        fi
         # FIXME: Disabling `test_pipeline_control.py` on MacOS because `test_pid_standing` is
         # failing for 'panda3d-sync' backend due to meshes still loading at screenshot time.
         if [[ "${{ matrix.BUILD_TYPE }}" == 'Debug' ]] ; then
@@ -197,11 +206,15 @@ jobs:
         "${PYTHON_EXECUTABLE}" -m unittest discover -s "${RootDir}/python/gym_jiminy/unit_py" -v
 
     - name: Run examples for gym jiminy add-on modules
-      if: matrix.BUILD_TYPE != 'Debug' && matrix.PYTHON_VERSION != '3.12'
+      if: matrix.BUILD_TYPE != 'Debug'
       run: |
         export LD_LIBRARY_PATH="${InstallDir}/lib/:/usr/local/lib"
 
         cd "${RootDir}/python/gym_jiminy/examples/rllib"
+        # FIXME: Panda3d software rendering is partially broken on Apple Silicon
+        if [[ "${{ matrix.OS }}" != 'macos-13' ]] ; then
+          export JIMINY_PANDA3D_FORCE_TINYDISPLAY=
+        fi
         "${PYTHON_EXECUTABLE}" acrobot_ppo.py
 
 #########################################################################################
