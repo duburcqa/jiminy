@@ -51,7 +51,7 @@ namespace jiminy::python
 
     BOOST_PYTHON_MODULE(PYTHON_LIBRARY_NAME)
     {
-        /* Initialized Numpy C API.
+        /* Initialized "local" Numpy C API.
            This is required to handle raw `numpy::ndarray` objects manually. */
         import_numpy();
 

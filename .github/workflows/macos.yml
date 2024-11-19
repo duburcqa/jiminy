@@ -15,12 +15,15 @@ jobs:
 
     strategy:
       matrix:
-        OS: ['macos-14']  # 'macos-13': Intel (x86), 'macos-14+': Apple Silicon (arm64)
+        OS: ['macos-15']  # 'macos-13': Intel (x86), 'macos-14+': Apple Silicon (arm64)
         PYTHON_VERSION: ['3.10', '3.11', '3.12']  # `setup-python` does not support Python<3.10 on Apple Silicon
         BUILD_TYPE: ['Release']
         include:
           - OS: 'macos-13'
-            PYTHON_VERSION: '3.11'
+            PYTHON_VERSION: '3.10'
+            BUILD_TYPE: 'Release'
+          - OS: 'macos-15'
+            PYTHON_VERSION: '3.12'
             BUILD_TYPE: 'Debug'
             LINKER_FLAGS: '-Wl,-ld_classic'  # New "ld_prime" linker (XCode 15+) causes build failures
 
@@ -61,13 +64,18 @@ jobs:
         echo "RootDir=${GITHUB_WORKSPACE}" >> $GITHUB_ENV
         echo "InstallDir=${GITHUB_WORKSPACE}/install" >> $GITHUB_ENV
 
+        # FIXME: Panda3d software rendering is partially broken on Apple Silicon
+        if [[ "${{ matrix.OS }}" != 'macos-13' ]] ; then
+          echo "JIMINY_PANDA3D_FORCE_TINYDISPLAY=" >> $GITHUB_ENV
+        fi
+
         "${PYTHON_EXECUTABLE}" -m pip install setuptools wheel "pip>=20.3"
         "${PYTHON_EXECUTABLE}" -m pip install delocate twine
     - name: Install pre-compiled binaries for additional gym-jiminy dependencies
       if: matrix.PYTHON_VERSION != '3.13'
       run: |
         "${PYTHON_EXECUTABLE}" -m pip install "torch" -f https://download.pytorch.org/whl/torch
-        "${PYTHON_EXECUTABLE}" -m pip install "gymnasium>=0.28,<1.0" "stable_baselines3>=2.0"
+        "${PYTHON_EXECUTABLE}" -m pip install "gymnasium>=0.28,<1.0" "stable_baselines3>=2.0,<2.4"
     - name: Install latest numpy version at build-time for run-time binary compatibility
       run: |
         "${PYTHON_EXECUTABLE}" -m pip install --upgrade "numpy>=1.24"
@@ -148,7 +156,7 @@ jobs:
             -p "macosx_${OSX_DEPLOYMENT_TARGET//./_}_${WHEEL_ARCH}" "${RootDir}/build/wheelhouse/"*.whl
         "${PYTHON_EXECUTABLE}" -m pip install --force-reinstall --no-deps "${RootDir}/build/wheelhouse/"*.whl
     - name: Upload the wheel for Linux of jiminy_py
-      if: matrix.BUILD_TYPE != 'Debug'
+      if: matrix.BUILD_TYPE != 'Debug' && matrix.OS != 'macos-15'
       uses: actions/upload-artifact@v4
       with:
         name: wheelhouse-${{ matrix.PYTHON_VERSION }}
@@ -184,22 +192,12 @@ jobs:
         ctest --output-on-failure --test-dir "${RootDir}/build/core/unit"
 
         cd "${RootDir}/python/jiminy_py/unit_py"
-        # FIXME: Panda3d software rendering is partially broken on Apple Silicon
-        if [[ "${{ matrix.OS }}" != 'macos-13' ]] ; then
-          export JIMINY_PANDA3D_FORCE_TINYDISPLAY=
-        fi
         "${PYTHON_EXECUTABLE}" -m unittest discover -v
 
     - name: Run unit tests for gym jiminy base module
       run: |
         export LD_LIBRARY_PATH="${InstallDir}/lib/:/usr/local/lib"
 
-        # FIXME: Panda3d software rendering is partially broken on Apple Silicon
-        if [[ "${{ matrix.OS }}" != 'macos-13' ]] ; then
-          export JIMINY_PANDA3D_FORCE_TINYDISPLAY=
-        fi
-        # FIXME: Disabling `test_pipeline_control.py` on MacOS because `test_pid_standing` is
-        # failing for 'panda3d-sync' backend due to meshes still loading at screenshot time.
         if [[ "${{ matrix.BUILD_TYPE }}" == 'Debug' ]] ; then
           export JIMINY_BUILD_DEBUG=
         fi
@@ -211,10 +209,6 @@ jobs:
         export LD_LIBRARY_PATH="${InstallDir}/lib/:/usr/local/lib"
 
         cd "${RootDir}/python/gym_jiminy/examples/rllib"
-        # FIXME: Panda3d software rendering is partially broken on Apple Silicon
-        if [[ "${{ matrix.OS }}" != 'macos-13' ]] ; then
-          export JIMINY_PANDA3D_FORCE_TINYDISPLAY=
-        fi
         "${PYTHON_EXECUTABLE}" acrobot_ppo.py
 
 #########################################################################################

@@ -120,7 +120,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         r"""
         :param simulator: Jiminy Python simulator used for physics
                           computations. It must be fully initialized.
-        :param step_dt: Simulation timestep for learning. Note that it is
+        :param step_dt: Environment timestep for learning. Note that it is
                         independent from the controller and observation update
                         periods. The latter are configured via
                         `engine.set_options`.
