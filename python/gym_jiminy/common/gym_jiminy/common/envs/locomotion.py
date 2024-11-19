@@ -99,7 +99,10 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                               used if available.
         :param simulation_duration_max: Maximum duration of a simulation before
                                         returning done.
-        :param step_dt: Simulation timestep for learning.
+        :param step_dt: Environment timestep for learning. Note that it is
+                        independent from the controller and observation update
+                        periods. The latter are configured via
+                        `engine.set_options`.
         :param reward_mixture: Weighting factors of selected contributions to
                                total reward.
         :param std_ratio: Relative standard deviation of selected contributions

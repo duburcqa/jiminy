@@ -522,6 +522,13 @@ def train(algo_config: AlgorithmConfig,
         }
     )
 
+    # Help making training more deterministic if a seed is specified
+    seed = cast(Optional[int], algo_config.seed)
+    if seed is not None:
+        algo_config.reporting(
+            min_time_s_per_iteration=None
+        )
+
     # Disable default logger but configure logging directory nonetheless
     algo_config.debugging(
         logger_config=dict(
@@ -603,7 +610,6 @@ def train(algo_config: AlgorithmConfig,
         return_threshold = env_spec.reward_threshold
 
     # Set the seed of the training and evaluation environments
-    seed = cast(Optional[int], algo_config.seed)
     if seed is not None:
         seed_seq_gen = np.random.SeedSequence(seed)
         seed_seq = seed_seq_gen.generate_state(2)
@@ -789,7 +795,7 @@ def train(algo_config: AlgorithmConfig,
 
             # Backup the policy
             if checkpoint_period > 0 and iter_num % checkpoint_period == 0:
-                algo.save(str(Path(logdir) / f"checkpoint_{iter_num:06d}"))
+                algo.save(os.path.join(logdir, f"checkpoint_{iter_num:06d}"))
 
             # Check terminal conditions
             num_timesteps = result[NUM_ENV_STEPS_SAMPLED_LIFETIME]
@@ -820,7 +826,7 @@ def train(algo_config: AlgorithmConfig,
 
     # Backup trained agent and return file location
     checkpoint_result = algo.save(
-        str(Path(logdir) / f"checkpoint_{iter_num:06d}"))
+        os.path.join(logdir, f"checkpoint_{iter_num:06d}"))
     assert checkpoint_result.metrics is not None
     assert checkpoint_result.checkpoint is not None
 
