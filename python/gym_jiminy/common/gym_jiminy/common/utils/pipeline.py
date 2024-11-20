@@ -294,6 +294,11 @@ def build_pipeline(env_config: EnvConfig,
         # Get its constructor keyword-arguments
         kwargs = composition_config.get("kwargs", {}).copy()
 
+        # Special treatment for "none"
+        for key, value in kwargs.items():
+            if isinstance(value, str) and value == "none":
+                kwargs[key] = None
+
         # Special handling for `MixtureReward`
         if is_reward and issubclass(cls, MixtureReward):
             kwargs["components"] = tuple(
@@ -502,6 +507,12 @@ def build_pipeline(env_config: EnvConfig,
         # Handling of default keyword arguments
         block_kwargs = block_config.get("kwargs", {})
         wrapper_kwargs = wrapper_config.get("kwargs", {})
+
+        # Special treatment for "none"
+        for kwargs in (block_kwargs, wrapper_kwargs):
+            for key, value in kwargs.items():
+                if isinstance(value, str) and value == "none":
+                    kwargs[key] = None
 
         # Handling of default wrapper class type
         if wrapper_cls_ is None:
