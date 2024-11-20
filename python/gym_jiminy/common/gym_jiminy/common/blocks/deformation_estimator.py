@@ -539,6 +539,11 @@ class DeformationEstimator(
                              match the simulation timestep of the environment.
                              Optional: `1` by default.
         """
+        # Make sure that the list of IMU and flexibility frames are not empty
+        if not imu_frame_names or not flex_frame_names:
+            raise RuntimeError(
+                "Please specify at least one IMU and one deformation point.")
+
         # Sanitize user argument(s)
         imu_frame_names, flex_frame_names = map(
             list, (imu_frame_names, flex_frame_names))
