@@ -494,6 +494,7 @@ def rpy_to_quat(rpy: np.ndarray,
     cos_roll, sin_roll = np.cos(roll / 2), np.sin(roll / 2)
     cos_pitch, sin_pitch = np.cos(pitch / 2), np.sin(pitch / 2)
     cos_yaw, sin_yaw = np.cos(yaw / 2), np.sin(yaw / 2)
+
     # q_x, q_y, q_z, q_w = out_
     out_[0] = sin_roll * cos_pitch * cos_yaw - cos_roll * sin_pitch * sin_yaw
     out_[1] = cos_roll * sin_pitch * cos_yaw + sin_roll * cos_pitch * sin_yaw
@@ -568,11 +569,14 @@ def quat_multiply(quat_left: np.ndarray,
     s_l = -1 if is_left_conjugate else 1
     s_r = -1 if is_right_conjugate else 1
 
+    # Note that we assign all components at once to allow multiply in-place
     # qx_out, qy_out, qz_out, qw_out = out_
-    out_[0] = s_l * qw_l * qx_r + qx_l * s_r * qw_r + qy_l * qz_r - qz_l * qy_r
-    out_[1] = s_l * qw_l * qy_r - qx_l * qz_r + qy_l * s_r * qw_r + qz_l * qx_r
-    out_[2] = s_l * qw_l * qz_r + qx_l * qy_r - qy_l * qx_r + qz_l * s_r * qw_r
-    out_[3] = s_l * qw_l * s_r * qw_r - qx_l * qx_r - qy_l * qy_r - qz_l * qz_r
+    out_[0], out_[1], out_[2], out_[3] = (
+        s_l * qw_l * qx_r + qx_l * s_r * qw_r + qy_l * qz_r - qz_l * qy_r,
+        s_l * qw_l * qy_r - qx_l * qz_r + qy_l * s_r * qw_r + qz_l * qx_r,
+        s_l * qw_l * qz_r + qx_l * qy_r - qy_l * qx_r + qz_l * s_r * qw_r,
+        s_l * qw_l * s_r * qw_r - qx_l * qx_r - qy_l * qy_r - qz_l * qz_r,
+    )
 
     if out is None:
         return out_
