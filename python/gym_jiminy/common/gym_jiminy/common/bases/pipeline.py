@@ -310,6 +310,9 @@ class BasePipelineWrapper(
 
         return obs, reward, terminated, truncated, info
 
+    def stop(self) -> None:
+        self.env.stop()
+
     # methods to override:
     # ----------------------------
 
@@ -412,7 +415,7 @@ class ComposedJiminyEnv(
                              Optional: Empty sequence by default.
         :param trajectories: Set of named trajectories as a dictionary whose
                              (key, value) pairs are respectively the name of
-                             each trajectory and the trajectory itself.  `None`
+                             each trajectory and the trajectory itself. `None`
                              for not considering any trajectory.
                              Optional: `None` by default.
         """

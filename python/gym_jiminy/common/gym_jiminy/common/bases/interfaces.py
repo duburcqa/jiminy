@@ -345,6 +345,7 @@ class InterfaceJiminyEnv(
         # '_controller_handle' as it is never called more often than necessary.
         self.__is_observation_refreshed = False
 
+    @abstractmethod
     def stop(self) -> None:
         """Stop the episode immediately, without waiting for a termination or
         truncation condition to be satisfied.
@@ -360,7 +361,6 @@ class InterfaceJiminyEnv(
         .. warning:
             This method is never called internally by the engine.
         """
-        self.simulator.stop()
 
     @abstractmethod
     def update_pipeline(self, derived: Optional["InterfaceJiminyEnv"]) -> None:
