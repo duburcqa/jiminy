@@ -130,7 +130,7 @@ def update_twist(q: np.ndarray,
     dtwist = (- q_y * omega[0] + q_x * omega[1]) / q_w + omega[2]
 
     # Update twist angle using Leaky Integrator scheme to avoid long-term drift
-    twist *= 1.0 - time_constant_inv * dt
+    twist *= max(0.0, 1.0 - time_constant_inv * dt)
     twist += dtwist * dt
 
     # Update quaternion to add estimated twist
