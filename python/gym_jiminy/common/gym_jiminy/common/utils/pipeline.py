@@ -214,7 +214,7 @@ class LayerConfig(TypedDict, total=False):
 
 
 def build_pipeline(env_config: EnvConfig,
-                   layers_config: SequenceT[LayerConfig],
+                   layers_config: SequenceT[LayerConfig] = (),
                    *,
                    root_path: Optional[Union[str, pathlib.Path]] = None
                    ) -> Callable[..., InterfaceJiminyEnv]:
