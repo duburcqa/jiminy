@@ -1,7 +1,10 @@
+# mypy: disable-error-code="no-untyped-def, var-annotated"
 """ TODO: Write documentation
 """
 import unittest
-from functools import reduce
+from functools import reduce, partial
+
+import numpy as np
 
 from gym_jiminy.envs import AtlasPDControlJiminyEnv
 from gym_jiminy.common.wrappers import (
@@ -20,9 +23,9 @@ class Wrappers(unittest.TestCase):
         env = reduce(
             lambda env, wrapper: wrapper(env),
             (
-                NormalizeObservation,
+                partial(NormalizeObservation, ignore_unbounded=True),
                 NormalizeAction,
-                FlattenObservation,
+                partial(FlattenObservation, dtype=np.float32),
                 FlattenAction
             ),
             FilterObservation(

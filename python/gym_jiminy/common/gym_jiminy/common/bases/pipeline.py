@@ -310,6 +310,9 @@ class BasePipelineWrapper(
 
         return obs, reward, terminated, truncated, info
 
+    def stop(self) -> None:
+        self.env.stop()
+
     # methods to override:
     # ----------------------------
 
@@ -412,7 +415,7 @@ class ComposedJiminyEnv(
                              Optional: Empty sequence by default.
         :param trajectories: Set of named trajectories as a dictionary whose
                              (key, value) pairs are respectively the name of
-                             each trajectory and the trajectory itself.  `None`
+                             each trajectory and the trajectory itself. `None`
                              for not considering any trajectory.
                              Optional: `None` by default.
         """
@@ -820,8 +823,8 @@ class ControlledJiminyEnv(
                     to stack several controllers with `BaseJiminyEnv`.
         :param controller: Controller to use to send targets to the subsequent
                            block.
-        :param augment_observation: Whether to gather the target state of the
-                                    controller with the observation of the
+        :param augment_observation: Whether to add the target state of the
+                                    controller to the observation of the
                                     environment. Regardless, the internal state
                                     of the controller will be added if any.
                                     Optional: Disabled by default.

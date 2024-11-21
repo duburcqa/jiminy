@@ -743,7 +743,8 @@ class Simulator:
                     self.engine.robots, self.engine.robot_states):
                 # Create a single viewer instance
                 robot_name = (
-                    robot.name or robot.pinocchio_model.name or "robot")
+                    robot.name or robot.pinocchio_model.name or "robot"
+                    ).replace("-", "_")
                 viewer = Viewer(
                     robot,
                     use_theoretical_model=False,

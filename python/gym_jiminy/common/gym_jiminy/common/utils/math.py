@@ -12,7 +12,7 @@ import numba as nb
 from .spaces import ArrayOrScalar
 
 
-TWIST_SWING_SINGULARITY_THR = 1e-6
+TWIST_SWING_SINGULAR_THR = 1e-5
 
 
 @overload
@@ -494,6 +494,7 @@ def rpy_to_quat(rpy: np.ndarray,
     cos_roll, sin_roll = np.cos(roll / 2), np.sin(roll / 2)
     cos_pitch, sin_pitch = np.cos(pitch / 2), np.sin(pitch / 2)
     cos_yaw, sin_yaw = np.cos(yaw / 2), np.sin(yaw / 2)
+
     # q_x, q_y, q_z, q_w = out_
     out_[0] = sin_roll * cos_pitch * cos_yaw - cos_roll * sin_pitch * sin_yaw
     out_[1] = cos_roll * sin_pitch * cos_yaw + sin_roll * cos_pitch * sin_yaw
@@ -568,11 +569,14 @@ def quat_multiply(quat_left: np.ndarray,
     s_l = -1 if is_left_conjugate else 1
     s_r = -1 if is_right_conjugate else 1
 
+    # Note that we assign all components at once to allow multiply in-place
     # qx_out, qy_out, qz_out, qw_out = out_
-    out_[0] = s_l * qw_l * qx_r + qx_l * s_r * qw_r + qy_l * qz_r - qz_l * qy_r
-    out_[1] = s_l * qw_l * qy_r - qx_l * qz_r + qy_l * s_r * qw_r + qz_l * qx_r
-    out_[2] = s_l * qw_l * qz_r + qx_l * qy_r - qy_l * qx_r + qz_l * s_r * qw_r
-    out_[3] = s_l * qw_l * s_r * qw_r - qx_l * qx_r - qy_l * qy_r - qz_l * qz_r
+    out_[0], out_[1], out_[2], out_[3] = (
+        s_l * qw_l * qx_r + qx_l * s_r * qw_r + qy_l * qz_r - qz_l * qy_r,
+        s_l * qw_l * qy_r - qx_l * qz_r + qy_l * s_r * qw_r + qz_l * qx_r,
+        s_l * qw_l * qz_r + qx_l * qy_r - qy_l * qx_r + qz_l * s_r * qw_r,
+        s_l * qw_l * s_r * qw_r - qx_l * qx_r - qy_l * qy_r - qz_l * qz_r,
+    )
 
     if out is None:
         return out_
@@ -1035,22 +1039,47 @@ def swing_from_vector(
     # ensure continuity of q_w is picked arbitrarily using SVD decomposition.
     # See `Eigen::Quaternion::FromTwoVectors` implementation for details.
     if q.ndim > 1:
-        is_singular = np.any(v_z < -1.0 + TWIST_SWING_SINGULARITY_THR)
+        is_singular = np.any(v_z < -1.0 + TWIST_SWING_SINGULAR_THR)
     else:
-        is_singular = v_z < -1.0 + TWIST_SWING_SINGULARITY_THR
+        is_singular = v_z < -1.0 + TWIST_SWING_SINGULAR_THR
     if is_singular:
         if q.ndim > 1:
             for i, q_i in enumerate(q.T):
                 swing_from_vector((v_x[i], v_y[i], v_z[i]), q_i)
         else:
-            _, _, v_h = np.linalg.svd(np.array((
-                (v_x, v_y, v_z),
-                (0.0, 0.0, 1.0))
-            ), full_matrices=True)
-            w_2 = (1 + max(v_z, -1)) / 2
-            q[:3], q[3] = v_h[-1] * np.sqrt(1 - w_2), np.sqrt(w_2)
+            # pylint: disable=possibly-used-before-assignment
+            eps_thr = np.sqrt(TWIST_SWING_SINGULAR_THR)
+            eps_x = -TWIST_SWING_SINGULAR_THR < v_x < TWIST_SWING_SINGULAR_THR
+            eps_y = -TWIST_SWING_SINGULAR_THR < v_y < TWIST_SWING_SINGULAR_THR
+            if eps_x and not eps_y:
+                ratio = v_x / v_y
+                esp_ratio = - eps_thr < ratio < eps_thr
+            elif eps_y and not eps_x:
+                ratio = v_y / v_x
+                esp_ratio = - eps_thr < ratio < eps_thr
+            w_2 = (1.0 + max(v_z, -1.0)) / 2.0
+            if eps_x and eps_y:
+                # Both q_x and q_y would do fine. Picking q_y arbitrarily.
+                q[0] = 0.0
+                q[1] = np.sqrt(1.0 - w_2)
+            elif esp_ratio and eps_x:
+                q[0] = - np.sqrt(1.0 - w_2) * (1 - 0.5 * ratio ** 2)
+                q[1] = + np.sqrt(1.0 - w_2) * (ratio - 0.5 * ratio ** 3)
+            elif esp_ratio and eps_y:
+                q[0] = - np.sqrt(1.0 - w_2) * (ratio - 0.5 * ratio ** 3)
+                q[1] = + np.sqrt(1.0 - w_2) * (1 - 0.5 * ratio ** 2)
+            else:
+                q[0] = - np.sqrt((1.0 - w_2) / (1 + (v_x / v_y) ** 2))
+                q[1] = + np.sqrt((1.0 - w_2) / (1 + (v_y / v_x) ** 2))
+            q[2] = 0.0
+            q[3] = np.sqrt(w_2)
+            # _, _, v_h = np.linalg.svd(np.array((
+            #     (v_x, v_y, v_z),
+            #     (0.0, 0.0, 1.0))
+            # ), full_matrices=True)
+            # q[:3], q[3] = v_h[-1] * np.sqrt(1.0 - w_2), np.sqrt(w_2)
     else:
-        s = np.sqrt(2 * (1 + v_z))
+        s = np.sqrt(2.0 * (1.0 + v_z))
         q[0], q[1], q[2], q[3] = v_y / s, - v_x / s, 0.0, s / 2
 
     # First order quaternion normalization to prevent compounding of errors.
@@ -1125,7 +1154,7 @@ def remove_yaw_from_quat(quat: np.ndarray,
 
 # FIXME: Enabling cache causes segfault on Apple Silicon
 @nb.jit(nopython=True, cache=False)
-def remove_twist_from_quat(q: np.ndarray,
+def remove_twist_from_quat(quat: np.ndarray,
                            out: Optional[np.ndarray] = None) -> None:
     """Remove the twist part of the Twist-after-Swing decomposition of given
     orientations in quaternion representation.
@@ -1154,11 +1183,18 @@ def remove_twist_from_quat(q: np.ndarray,
                 update the input quaternion in-place.
                 Optional: `None` by default.
     """
+    # Update in-place in no out has been specified
+    if out is None:
+        out_ = quat
+    else:
+        assert out.shape == quat.shape
+        out_ = out
+
     # Compute e_z in R(q) frame (Euler-Rodrigues Formula): R(q).T @ e_z
-    v_a = compute_tilt_from_quat(q)
+    v_a = compute_tilt_from_quat(quat)
 
     # Compute the "smallest" rotation transforming vector 'v_a' in 'e_z'
-    swing_from_vector(v_a, q if out is None else out)
+    swing_from_vector(v_a, out_)
 
 
 def quat_average(quat: np.ndarray,

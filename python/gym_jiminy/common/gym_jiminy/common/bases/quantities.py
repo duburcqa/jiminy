@@ -836,11 +836,11 @@ class DatasetTrajectoryQuantity(InterfaceQuantity[State]):
     has been selecting, its state at the current simulation can be easily
     retrieved.
 
-    This class does not require to only adding trajectories for which all
-    attributes of the underlying state sequence have been specified. Missing
+    This class supports trajectories for which only part of the attributes of
+    the underlying state sequence have been specified. Obviously, missing
     attributes of a trajectory will also be missing from the retrieved state.
-    It is the responsible of the user to make sure all cases are properly
-    handled if needed.
+    It is the responsibility of the practitioner to make sure that all the
+    information that is necessary for its own application is available.
 
     All instances of this quantity sharing the same cache are synchronized,
     which means that adding, discarding, or selecting a trajectory on any of
@@ -1111,7 +1111,7 @@ class StateQuantity(InterfaceQuantity[State]):
         # not the case at the observer update period. It sounds more efficient
         # refresh to the state the first time any quantity gets computed.
         # However, systematically checking if the state must be refreshed for
-        # all quantities adds overheat and may be fairly costly overall. The
+        # all quantities adds overhead and may be fairly costly overall. The
         # optimal trade-off is to rely on auto-refresh if the evaluation mode
         # is TRUE, since refreshing the state only consists in copying some
         # data, which is very cheap. On the contrary, it is more efficient to

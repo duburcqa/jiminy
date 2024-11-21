@@ -1,3 +1,4 @@
+# mypy: disable-error-code="no-untyped-def, var-annotated"
 """ TODO: Write documentation
 """
 import os
@@ -324,7 +325,7 @@ class PipelineControl(unittest.TestCase):
             env, skip_frames_ratio=-1, num_stack=2, nested_filter_keys=[["t"]])
         env_filter = FilterObservation(
             env, nested_filter_keys=env.observation_space.keys())
-        env_obs_norm = NormalizeObservation(env)
+        env_obs_norm = NormalizeObservation(env, ignore_unbounded=True)
         for env in (env, env_stack, env_filter, env_obs_norm):
             env.reset(seed=0)
             assert [*env.observation_space.keys()] == [*env.observation.keys()]

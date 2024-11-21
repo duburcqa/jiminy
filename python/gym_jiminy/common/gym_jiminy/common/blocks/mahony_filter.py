@@ -2,7 +2,8 @@
 reinforcement learning pipeline environment design.
 """
 import logging
-from typing import List, Union, Optional
+from collections import OrderedDict
+from typing import List, Union, Dict, Optional
 
 import numpy as np
 import numba as nb
@@ -130,7 +131,7 @@ def update_twist(q: np.ndarray,
     dtwist = (- q_y * omega[0] + q_x * omega[1]) / q_w + omega[2]
 
     # Update twist angle using Leaky Integrator scheme to avoid long-term drift
-    twist *= 1.0 - time_constant_inv * dt
+    twist *= max(0.0, 1.0 - time_constant_inv * dt)
     twist += dtwist * dt
 
     # Update quaternion to add estimated twist
@@ -144,7 +145,8 @@ def update_twist(q: np.ndarray,
 
 
 class MahonyFilter(
-        BaseObserverBlock[np.ndarray, np.ndarray, BaseObs, BaseAct]):
+        BaseObserverBlock[np.ndarray, Dict[str, np.ndarray], BaseObs, BaseAct]
+        ):
     """Mahony's Nonlinear Complementary Filter on SO(3).
 
     .. seealso::
@@ -174,11 +176,12 @@ class MahonyFilter(
         :param env: Environment to connect with.
         :param twist_time_constant:
             If specified, it corresponds to the time constant of the leaky
-            integrator used to estimate the twist part of twist-after-swing
-            decomposition of the estimated orientation in place of the Mahony
-            Filter. If `0.0`, then its is kept constant equal to zero. `None`
-            to kept the original estimate provided by Mahony Filter. See
-            `remove_twist_from_quat` and `update_twist` doc for details.
+            integrator (Exponential Moving Average) used to estimate the twist
+            part of twist-after-swing decomposition of the estimated
+            orientation in place of the Mahony Filter. If `0.0`, then its is
+            kept constant equal to zero. `None` to kept the original estimate
+            provided by Mahony Filter. See `remove_twist_from_quat` and
+            `update_twist` documentations for details.
             Optional: `0.0` by default.
         :param exact_init: Whether to initialize orientation estimate using
                            accelerometer measurements or ground truth. `False`
@@ -249,6 +252,11 @@ class MahonyFilter(
         # Allocate twist angle estimate around z-axis in world frame
         self._twist = np.zeros((1, num_imu_sensors))
 
+        # Define the state of the filter
+        self._state = {"bias": self._bias}
+        if self._update_twist:
+            self._state["twist"] = self._twist
+
         # Store the estimate angular velocity to avoid redundant computations
         self._omega = np.zeros((3, num_imu_sensors))
 
@@ -268,10 +276,17 @@ class MahonyFilter(
         # observation must be provided anyway when integrating the observable
         # dynamics by definition.
         num_imu_sensors = len(self.env.robot.sensors[ImuSensor.type])
-        self.state_space = gym.spaces.Box(
+        state_space: Dict[str, gym.Space] = OrderedDict()
+        state_space["bias"] = gym.spaces.Box(
             low=np.full((3, num_imu_sensors), -np.inf),
             high=np.full((3, num_imu_sensors), np.inf),
             dtype=np.float64)
+        if self._update_twist:
+            state_space["twist"] = gym.spaces.Box(
+                low=np.full((num_imu_sensors,), -np.inf),
+                high=np.full((num_imu_sensors,), np.inf),
+                dtype=np.float64)
+        self.state_space = gym.spaces.Dict(state_space)
 
     def _initialize_observation_space(self) -> None:
         """Configure the observation space of the observer.
@@ -326,8 +341,8 @@ class MahonyFilter(
         # Consider that the observer is not initialized anymore
         self._is_initialized = False
 
-    def get_state(self) -> np.ndarray:
-        return self._bias
+    def get_state(self) -> Dict[str, np.ndarray]:
+        return self._state
 
     @property
     def fieldnames(self) -> List[List[str]]:

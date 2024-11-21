@@ -975,20 +975,25 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         return obs, reward, terminated, truncated, deepcopy(self._info)
 
     def stop(self) -> None:
+        # Check whether it is worth saving log file
+        has_simulation_data = self.is_simulation_running and self.num_steps > 0
+
+        # Stop the engine.
+        # This must be done BEFORE writing log, otherwise the final simulation
+        # state will be missing as it gets flushed after stopping.
+        self.simulator.stop()
+
         # Write log of previous simulation before starting a new one if not
         # already done.
         # This would be the case if the previous episode was never terminated
         # nor truncated, or because it was wrapped with a non-jiminy-specific
         # layer such as `TimeLimit`.
-        if self.is_simulation_running and self.num_steps > 0:
+        if has_simulation_data:
             self.log_path = None
             if self.debug or not self.is_training:
                 fd, self.log_path = tempfile.mkstemp(suffix=".data")
                 os.close(fd)
                 self.simulator.write_log(self.log_path, format="binary")
-
-        # Call base implementation
-        super().stop()
 
     def render(self) -> Optional[Union[RenderFrame, List[RenderFrame]]]:
         """Render the agent in its environment.

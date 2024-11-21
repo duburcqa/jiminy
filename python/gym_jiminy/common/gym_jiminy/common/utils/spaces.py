@@ -1070,7 +1070,9 @@ def build_contains(data: DataNested,
 def build_normalize(space: gym.Space[DataNested],
                     dst: DataNested,
                     src: Optional[DataNested] = None,
-                    *, is_reversed: bool = False) -> Callable[..., None]:
+                    *,
+                    ignore_unbounded: bool = False,
+                    is_reversed: bool = False) -> Callable[..., None]:
     """Generate a normalization or de-normalization method specialized for a
     given pre-allocated destination.
 
@@ -1116,6 +1118,9 @@ def build_normalize(space: gym.Space[DataNested],
     for subspace in tree.flatten(space):
         assert isinstance(subspace, gym.spaces.Box)
         assert np.issubdtype(subspace.dtype, np.floating)
+        if not ignore_unbounded and not subspace.is_bounded():
+            raise RuntimeError(
+                "All leaf spaces must be bounded if `ignore_unbounded=False`.")
 
     dataset = [dst,]
     if src is not None:
