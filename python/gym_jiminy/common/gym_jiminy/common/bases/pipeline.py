@@ -823,8 +823,8 @@ class ControlledJiminyEnv(
                     to stack several controllers with `BaseJiminyEnv`.
         :param controller: Controller to use to send targets to the subsequent
                            block.
-        :param augment_observation: Whether to gather the target state of the
-                                    controller with the observation of the
+        :param augment_observation: Whether to add the target state of the
+                                    controller to the observation of the
                                     environment. Regardless, the internal state
                                     of the controller will be added if any.
                                     Optional: Disabled by default.

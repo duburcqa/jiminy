@@ -56,13 +56,18 @@ class NormalizeObservation(
     .. warning::
         All leaves of the observation space must have type `gym.spaces.Box`.
     """
-    def __init__(self, env: InterfaceJiminyEnv[Obs, Act]) -> None:
+    def __init__(self,
+                 env: InterfaceJiminyEnv[Obs, Act],
+                 ignore_unbounded: bool = False) -> None:
         # Initialize base class
         super().__init__(env)
 
         # Define specialized operator(s) for efficiency
         self._normalize_observation = build_normalize(
-            self.env.observation_space, self.observation, self.env.observation)
+            self.env.observation_space,
+            self.observation,
+            self.env.observation,
+            ignore_unbounded=ignore_unbounded)
 
     def _initialize_observation_space(self) -> None:
         """Configure the observation space.
@@ -86,13 +91,18 @@ class NormalizeAction(BaseTransformAction[NormalizedAct, Obs, Act],
     .. warning::
         All leaves of the action space must have type `gym.spaces.Box`.
     """
-    def __init__(self, env: InterfaceJiminyEnv[Obs, Act]) -> None:
+    def __init__(self,
+                 env: InterfaceJiminyEnv[Obs, Act],
+                 ignore_unbounded: bool = False) -> None:
         # Initialize base class
         super().__init__(env)
 
         # Define specialized operator(s) for efficiency
         self._denormalize_to_env_action = build_normalize(
-            self.env.action_space, self.env.action, is_reversed=True)
+            self.env.action_space,
+            self.env.action,
+            ignore_unbounded=ignore_unbounded,
+            is_reversed=True)
 
     def _initialize_action_space(self) -> None:
         """Configure the action space.
