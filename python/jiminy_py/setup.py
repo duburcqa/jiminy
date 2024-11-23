@@ -99,7 +99,7 @@ setup(
         #   see: https://numpy.org/devdocs/dev/depending_on_numpy.html
         np_req,
         # Parser for Jiminy's hardware description file.
-        "toml",
+        "tomlkit",
         # Standalone cross-platform mesh visualizer used as Viewer's backend.
         # Panda3d is NOT supported by PyPy even if built from source.
         # - 1.10.12 fixes numerous bugs
@@ -154,7 +154,6 @@ setup(
             # Stub for static type checking
             "types-psutil>=5.9.5.20240511",
             "types-Pillow",
-            "types-toml",
             "types-tqdm",
             # Check PEP8 conformance of Python native code
             "flake8",

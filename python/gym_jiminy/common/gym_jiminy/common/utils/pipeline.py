@@ -18,7 +18,7 @@ from typing import (
     TypedDict, Literal, overload, cast)
 
 import h5py
-import toml
+import tomlkit
 import numpy as np
 import gymnasium as gym
 
@@ -554,13 +554,21 @@ def load_pipeline(fullpath: Union[str, pathlib.Path]
 
     :param: Fullpath of the configuration file.
     """
+    # Extract root path from configuration file
     fullpath = pathlib.Path(fullpath)
     root_path, file_ext = fullpath.parent, fullpath.suffix
+
+    # Load configuration file
     with open(fullpath, 'r') as f:
         if file_ext == '.json':
-            return build_pipeline(**json.load(f), root_path=root_path)
+            # Parse JSON configuration file
+            all_config = json.load(f)
         if file_ext == '.toml':
-            return build_pipeline(**toml.load(f), root_path=root_path)
+            # Parse TOML configuration file
+            all_config = tomlkit.load(f).unwrap()
+
+        # Build pipeline
+        return build_pipeline(**all_config, root_path=root_path)
     raise ValueError("Only json and toml formats are supported.")
 
 
