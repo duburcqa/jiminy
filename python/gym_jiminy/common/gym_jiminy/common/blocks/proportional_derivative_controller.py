@@ -13,7 +13,7 @@ from jiminy_py.core import (  # pylint: disable=no-name-in-module
     EncoderSensor, array_copyto)
 
 from ..bases import BaseObs, InterfaceJiminyEnv, BaseControllerBlock
-from ..utils import fill
+from ..utils import zeros, fill
 
 
 # Name of the n-th position derivative
@@ -391,6 +391,9 @@ class PDController(
 
         # Initialize the controller
         super().__init__(name, env, update_ratio)
+
+        # Make sure that the state is within bounds
+        self._command_state[:2] = zeros(self.state_space)
 
         # References to command acceleration for fast access
         self._command_acceleration = self._command_state[2]

@@ -435,7 +435,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
             joint_type = jiminy.get_joint_type(joint)
             if joint_type == jiminy.JointModelType.ROTARY_UNBOUNDED:
                 sensor_position_lower = - np.pi
-                sensor_position_upper = np.pi
+                sensor_position_upper = + np.pi
             else:
                 try:
                     motor = self.robot.motors[sensor.motor_index]
