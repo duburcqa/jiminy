@@ -1031,6 +1031,8 @@ def swing_from_vector(
               components of quaternions (x, y, z, w) and columns are the N
               independent orientations.
     """
+    # pylint: disable=possibly-used-before-assignment
+
     # Extract individual tilt components
     v_x, v_y, v_z = v_a
 
@@ -1047,7 +1049,6 @@ def swing_from_vector(
             for i, q_i in enumerate(q.T):
                 swing_from_vector((v_x[i], v_y[i], v_z[i]), q_i)
         else:
-            # pylint: disable=possibly-used-before-assignment
             eps_thr = np.sqrt(TWIST_SWING_SINGULAR_THR)
             eps_x = -TWIST_SWING_SINGULAR_THR < v_x < TWIST_SWING_SINGULAR_THR
             eps_y = -TWIST_SWING_SINGULAR_THR < v_y < TWIST_SWING_SINGULAR_THR

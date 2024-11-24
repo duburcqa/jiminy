@@ -11,8 +11,8 @@ from collections import OrderedDict
 from collections.abc import Mapping, MutableMapping, Sequence, MutableSequence
 from typing import (
     Any, Dict, Optional, Union, Sequence as SequenceT, Tuple, Literal,
-    Mapping as MappingT, Iterable, SupportsFloat, TypeVar, Type, Callable,
-    no_type_check, cast)
+    Mapping as MappingT, SupportsFloat, TypeVar, Type, Callable, no_type_check,
+    overload)
 
 import numba as nb
 import numpy as np
@@ -30,7 +30,7 @@ ValueOutT = TypeVar('ValueOutT')
 
 
 StructNested = Union[MappingT[str, 'StructNested[ValueT]'],
-                     Iterable['StructNested[ValueT]'],
+                     SequenceT['StructNested[ValueT]'],
                      ValueT]
 FieldNested = StructNested[str]
 DataNested = StructNested[np.ndarray]
@@ -210,13 +210,24 @@ def copyto(dst: DataNested, src: DataNested) -> None:
         array_copyto(data, value)
 
 
+@overload
 def copy(data: DataNestedT) -> DataNestedT:
+    ...
+
+
+@overload
+def copy(data: gym.Space[DataNestedT]) -> gym.Space[DataNestedT]:
+    ...
+
+
+def copy(data: Union[DataNestedT, gym.Space[DataNestedT]]
+         ) -> Union[DataNestedT, gym.Space[DataNestedT]]:
     """Shallow copy recursively 'data' from `gym.Space`, so that only leaves
     are still references.
 
     :param data: Hierarchical data structure to copy without allocation.
     """
-    return cast(DataNestedT, tree.unflatten_as(data, tree.flatten(data)))
+    return tree.unflatten_as(data, tree.flatten(data))
 
 
 @no_type_check

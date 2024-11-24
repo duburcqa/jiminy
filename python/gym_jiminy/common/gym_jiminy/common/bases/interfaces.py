@@ -170,7 +170,7 @@ class InterfaceController(Generic[Act, BaseAct], metaclass=ABCMeta):
 # Similarly, `gym.Env` must be last to make sure all the other initialization
 # methods are called first.
 class InterfaceJiminyEnv(
-        InterfaceObserver[Obs, EngineObsType],
+        InterfaceObserver[Obs, EngineObsType],  # type: ignore[type-var]
         InterfaceController[Act, np.ndarray],
         gym.Env[Obs, Act],
         Generic[Obs, Act]):

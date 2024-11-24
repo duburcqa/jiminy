@@ -1274,13 +1274,13 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         self._initialize_seed(seed)
 
         # Initialize the simulation
-        obs, info = self.derived.reset()
+        env = self.derived
+        obs, info = env.reset()
         action, reward, terminated, truncated = None, None, False, False
 
         # Run the simulation
         info_episode = [info]
         try:
-            env = self.derived
             while horizon is None or self.num_steps < horizon:
                 action = policy_fn(
                     obs, action, reward, terminated, truncated, info)

@@ -6,8 +6,8 @@ from operator import getitem
 from functools import reduce
 from collections import OrderedDict
 from typing import (
-    Sequence, Set, Tuple, List, Union, Generic, TypeVar, Type, Optional, Dict,
-    cast, overload)
+    Sequence, Tuple, List, Union, Generic, TypeVar, Type, Optional, Dict, cast,
+    overload)
 from typing_extensions import Unpack
 
 import numpy as np

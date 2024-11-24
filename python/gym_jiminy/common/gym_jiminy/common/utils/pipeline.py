@@ -566,9 +566,11 @@ def load_pipeline(fullpath: Union[str, pathlib.Path]
         if file_ext == '.json':
             # Parse JSON configuration file
             all_config = json.load(f)
-        if file_ext == '.toml':
+        elif file_ext == '.toml':
             # Parse TOML configuration file
             all_config = tomlkit.load(f).unwrap()
+        else:
+            raise ValueError(f"File extension '{file_ext}' not supported.")
 
         # Build pipeline
         return build_pipeline(**all_config, root_path=root_path)
