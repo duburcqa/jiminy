@@ -224,11 +224,14 @@ def build_pipeline(env_config: EnvConfig,
 
     :param env_config:
         Configuration of the environment, as a dict of type `EnvConfig`.
-
     :param layers_config:
         Configuration of the blocks, as a list. The list is ordered from the
         lowest level layer to the highest, each element corresponding to the
         configuration of a individual layer, as a dict of type `LayerConfig`.
+    :param root_path: Optional path used as root for loading reference
+                      trajectories from relative path if any. It will raise
+                      an exception if required but not provided.
+                      Optional: `None` by default.
     """
     # Define helper to sanitize composition configuration
     def sanitize_composition_config(composition_config: CompositionConfig,
