@@ -41,7 +41,7 @@ def extract_vertices_and_faces_from_geometry(
             vertices = geom.points()
             num_faces, get_faces = geom.num_polygons, geom.polygons
         elif isinstance(geom, hppfcl.BVHModelBase):
-            vertices = geom.vertices().astype(np.float32)
+            vertices = geom.vertices()
             num_faces, get_faces = geom.num_tris, geom.tri_indices
         else:
             raise ValueError(f"CollisionGeometry '{geom}' is not supported.")
@@ -52,4 +52,4 @@ def extract_vertices_and_faces_from_geometry(
             for j in range(3):
                 faces[i, j] = tri[j]
 
-    return vertices, faces
+    return vertices.astype(np.float32), faces
