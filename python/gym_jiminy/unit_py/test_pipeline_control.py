@@ -134,7 +134,8 @@ class PipelineControl(unittest.TestCase):
         """
         # Instantiate and reset the environment
         env = AtlasPDControlJiminyEnv()
-        assert isinstance(env.observer, MahonyFilter)
+        observer = env.observer
+        assert isinstance(observer, MahonyFilter)
 
         # Define a constant action that move the upper-body in all directions
         robot = env.robot
@@ -150,16 +151,18 @@ class PipelineControl(unittest.TestCase):
         # Check that the estimate IMU orientation is accurate over the episode
         for twist_time_constant in (None, float("inf"), 0.0):
             # Reinitialize the observer
-            env.observer = MahonyFilter(
-                env.observer.name,
-                env.observer.env,
+            env.observer = observer = MahonyFilter(
+                observer.name,
+                observer.env,
                 kp=0.0,
                 ki=0.0,
                 twist_time_constant=twist_time_constant,
-                exact_init=True)
+                exact_init=True,
+                compute_rpy=True)
 
             # Reset the environment
             env.reset(seed=0)
+            rpy_est = observer.observation["rpy"][:, 0]
 
             # Run of few simulation steps
             for i in range(200):
@@ -170,13 +173,9 @@ class PipelineControl(unittest.TestCase):
                     obs_true = matrix_to_quat(imu_rot)
                     remove_twist_from_quat(obs_true)
                     rpy_true = quat_to_rpy(obs_true)
-                    obs_est = env.observer.observation[:, 0].copy()
-                    remove_twist_from_quat(obs_est)
-                    rpy_est = quat_to_rpy(obs_est)
                 else:
                     # The twist is either measured or estimated
                     rpy_true = matrix_to_rpy(imu_rot)
-                    rpy_est = quat_to_rpy(env.observer.observation[:, 0])
 
                 np.testing.assert_allclose(rpy_true, rpy_est, atol=5e-3)
 
