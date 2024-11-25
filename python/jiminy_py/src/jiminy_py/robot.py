@@ -13,7 +13,7 @@ from collections import OrderedDict, defaultdict
 from types import ModuleType
 from typing import Optional, Dict, Any, Sequence, Literal, Set, List, get_args
 
-import toml
+import tomlkit
 import numpy as np
 import trimesh
 import trimesh.parent
@@ -513,7 +513,7 @@ def generate_default_hardware_description_file(
         hardware_path = str(pathlib.Path(
             urdf_path).with_suffix('')) + '_hardware.toml'
     with open(hardware_path, 'w') as f:
-        toml.dump(hardware_info, f)
+        tomlkit.dump(hardware_info, f)
 
 
 def load_hardware_description_file(
@@ -546,7 +546,8 @@ def load_hardware_description_file(
     else:
         LOGGER.setLevel(logging.ERROR)
 
-    hardware_info = toml.load(hardware_path)
+    with open(hardware_path, 'r') as f:
+        hardware_info = tomlkit.load(f).unwrap()
     extra_info = hardware_info.pop('Global', {})
     motors_info = hardware_info.pop('Motor', {})
     sensors_info = hardware_info.pop('Sensor', {})

@@ -20,13 +20,13 @@ from functools import lru_cache
 from itertools import chain, starmap
 from collections.abc import (Mapping, ValuesView, Sequence, Set)
 from typing import (
-    Any, Union, Mapping as MappingT, Iterable, Iterator as Iterator, Tuple,
-    TypeVar, Callable, Type)
+    Any, Union, Mapping as MappingT, Sequence as SequenceT, Iterable,
+    Iterator as Iterator, Tuple, TypeVar, Callable, Type)
 
 
 ValueT = TypeVar('ValueT')
 StructNested = Union[MappingT[str, 'StructNested[ValueT]'],
-                     Iterable['StructNested[ValueT]'],
+                     SequenceT['StructNested[ValueT]'],
                      ValueT]
 
 

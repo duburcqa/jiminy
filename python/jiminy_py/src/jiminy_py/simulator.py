@@ -15,10 +15,10 @@ from copy import deepcopy
 from functools import partial
 from typing import Any, List, Dict, Optional, Union, Sequence, Callable
 
-import toml
+import tomlkit
 import numpy as np
 
-from . import core as jiminy
+from . import core as jiminy, tree
 from .robot import BaseJiminyRobot, generate_default_hardware_description_file
 from .dynamics import Trajectory
 from .log import UpdateHook, read_log, build_robot_from_log
@@ -969,10 +969,18 @@ class Simulator:
                             generated file. The extension '.toml' will be
                             enforced.
         """
+        # Get all simulation options
+        simu_options = self.get_simulation_options()
+
+        # Convert all numpy array options to list
+        simu_options = tree.unflatten_as(simu_options, [
+            value.tolist() if isinstance(value, np.ndarray) else value
+            for path, value in tree.flatten_with_path(simu_options)])
+
+        # Dump all simulation options in the same configuration file
         config_path = pathlib.Path(config_path).with_suffix('.toml')
         with open(config_path, 'w') as f:
-            toml.dump(
-                self.get_simulation_options(), f, toml.TomlNumpyEncoder())
+            tomlkit.dump(simu_options, f)  # type: ignore[arg-type]
 
     def import_options(self, config_path: Union[str, os.PathLike]) -> None:
         """Import all the options of the simulator at once, ie the engine
@@ -985,7 +993,7 @@ class Simulator:
         :param config_path: Full path of the configuration file to load.
         """
         def deep_update(original: Dict[str, Any],
-                        new_dict: Dict[str, Any],
+                        new_dict: Union[Dict[str, Any], tomlkit.TOMLDocument],
                         *, _key_root: str = "") -> Dict[str, Any]:
             """Updates `original` dict with values from `new_dict` recursively.
             If a new key should be introduced, then an error is thrown instead.
@@ -1009,6 +1017,13 @@ class Simulator:
                     original[key] = new_dict[key]
             return original
 
-        options = deep_update(
-            self.get_simulation_options(), toml.load(str(config_path)))
-        self.set_simulation_options(options)
+        # Load (partial) simulation options
+        with open(config_path, 'r') as f:
+            simu_options = tomlkit.load(f).unwrap()
+
+        # Fill any missing key with their current value
+        simu_options_full = deep_update(
+            self.get_simulation_options(), simu_options)
+
+        # Set all options at once
+        self.set_simulation_options(simu_options_full)
