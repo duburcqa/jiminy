@@ -314,7 +314,7 @@ namespace jiminy
         standardToeplitzCholeskyLower(const Eigen::MatrixBase<Derived> & coeffs, double reg = 0.0);
     }
 
-    class JIMINY_TEMPLATE_DLLAPI PeriodicTabularProcess
+    class JIMINY_DLLAPI PeriodicTabularProcess
     {
     public:
         explicit PeriodicTabularProcess(double wavelength, double period);
@@ -337,7 +337,7 @@ namespace jiminy
         Eigen::VectorXd grads_{numTimes_};
     };
 
-    class JIMINY_TEMPLATE_DLLAPI PeriodicGaussianProcess final : public PeriodicTabularProcess
+    class JIMINY_DLLAPI PeriodicGaussianProcess final : public PeriodicTabularProcess
     {
     public:
         explicit PeriodicGaussianProcess(double wavelength, double period);
@@ -358,7 +358,8 @@ namespace jiminy
         Eigen::MatrixXd covSqrtRoot_{internal::standardToeplitzCholeskyLower(
             Eigen::VectorXd::NullaryExpr(
                 numTimes_,
-                [numTimes = static_cast<double>(numTimes_), wavelength = wavelength_](double i) {
+                [numTimes = static_cast<double>(numTimes_), wavelength = wavelength_](double i)
+                {
                     return std::exp(-2.0 *
                                     std::pow(std::sin(M_PI / numTimes * i) / wavelength, 2));
                 }),
@@ -385,7 +386,7 @@ namespace jiminy
     /// \see For references about the derivatives of a Gaussian Process:
     ///      http://herbsusmann.com/2020/07/06/gaussian-process-derivatives
     ///      https://arxiv.org/abs/1810.12283
-    class JIMINY_TEMPLATE_DLLAPI PeriodicFourierProcess final : public PeriodicTabularProcess
+    class JIMINY_DLLAPI PeriodicFourierProcess final : public PeriodicTabularProcess
     {
     public:
         explicit PeriodicFourierProcess(double wavelength, double period);
