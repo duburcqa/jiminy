@@ -285,4 +285,7 @@ if __name__ == "__main__":
     rl_module = build_module_from_checkpoint(checkpoint_path)
     policy_fn = build_module_wrapper(rl_module)
     for seed in (1, 1, 2):
-        env.evaluate(policy_fn, seed=seed)  # type: ignore[attr-defined]
+        env.evaluate(  # type: ignore[attr-defined]
+            policy_fn,
+            seed=seed,
+            horizon=env.spec.max_episode_steps)  # type: ignore[union-attr]

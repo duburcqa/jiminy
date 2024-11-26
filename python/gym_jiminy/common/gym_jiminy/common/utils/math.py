@@ -121,6 +121,9 @@ def quat_to_rpy(quat: np.ndarray,
     """Compute the Yaw-Pitch-Roll Euler angles representation of a single or a
     batch of quaternions.
 
+    The Roll, Pitch and Yaw angles are guaranteed to be within range [-pi,pi],
+    [-pi/2,pi/2], [-pi,pi], respectively.
+
     :param quat: N-dimensional array whose first dimension gathers the 4
                  quaternion coordinates (qx, qy, qz, qw).
     :param out: Pre-allocated array in which to store the result. If not
@@ -1111,7 +1114,9 @@ def remove_yaw_from_quat(quat: np.ndarray,
         Note that this decomposition is rarely used in practice, mainly because
         of singularity issues related to the Roll-Pitch-Yaw decomposition. It
         is usually preferable to remove the twist part of the Twist-after-Swing
-        decomposition. See `remove_twist_from_quat` documentation for details.
+        decomposition. Note that in both cases, the Roll and Pitch angles from
+        their corresponding Yaw-Pitch-Roll Euler angles representation matches
+        exactly. See `remove_twist_from_quat` documentation for details.
 
     :param quat: N-dimensional array whose first dimension gathers the 4
                  quaternion coordinates (qx, qy, qz, qw).
@@ -1165,9 +1170,10 @@ def remove_twist_from_quat(quat: np.ndarray,
         R = R_z * R_s
 
     where R_z (the twist) is a rotation around e_z and R_s (the swing) is
-    the "smallest" rotation matrix such that t(R_s) = t(R). Note that although
-    the swing is not free of rotation around z-axis, the latter only depends on
-    the rotation around e_x, e_y, which is the main motivation for using this
+    the "smallest" rotation matrix (in terms of angle of its corresponding
+    Axis-Angle representation) such that s(R_s) = s(R). Note that although the
+    swing is not free of rotation around z-axis, the latter only depends on the
+    rotation around e_x, e_y, which is the main motivation for using this
     decomposition. One must use `remove_yaw_from_quat` to completely cancel you
     the rotation around z-axis.
 

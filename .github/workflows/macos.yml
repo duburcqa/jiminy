@@ -10,7 +10,7 @@ on:
 jobs:
   build-and-test-osx:
     name: >-
-      (${{ matrix.PYTHON_VERSION }}) (${{ matrix.BUILD_TYPE }})
+      (${{ matrix.OS }}) (${{ matrix.PYTHON_VERSION }}) (${{ matrix.BUILD_TYPE }})
       Build and run the unit tests. Then generate and publish the wheels on PyPi.
 
     strategy:
