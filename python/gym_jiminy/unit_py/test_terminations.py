@@ -1,3 +1,4 @@
+# mypy: disable-error-code="no-untyped-def, var-annotated"
 """ TODO: Write documentation
 """
 from operator import sub
@@ -45,8 +46,8 @@ class TerminationConditions(unittest.TestCase):
         trajectory = extract_trajectory_from_log(self.env.log_data)
         self.env.train()
 
-        self.env.quantities.add_trajectory("reference", trajectory)
-        self.env.quantities.select_trajectory("reference")
+        self.env.quantities.trajectory_dataset.add("reference", trajectory)
+        self.env.quantities.trajectory_dataset.select("reference")
 
     def test_composition(self):
         """ TODO: Write documentation

@@ -1,3 +1,4 @@
+# mypy: disable-error-code="no-untyped-def, var-annotated"
 """ TODO: Write documentation.
 """
 import os

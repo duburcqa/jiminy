@@ -981,7 +981,7 @@ class CapturePoint(AbstractQuantity[np.ndarray]):
 
 @dataclass(unsafe_hash=True)
 class MultiContactNormalizedSpatialForce(AbstractQuantity[np.ndarray]):
-    """Standardized spatial forces apply on all contact points and collision
+    """Standardized spatial forces applied on all contact points and collision
     bodies in their respective local contact frame.
 
     The local contact frame is defined as the frame having the normal of the

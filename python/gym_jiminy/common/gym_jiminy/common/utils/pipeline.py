@@ -82,13 +82,14 @@ class TrajectoryDatabaseConfig(TypedDict, total=False):
     name: str
     """Name of the selected trajectory if any.
 
-    This attribute can be omitted.
+    This attribute can be omitted. If so, the first trajectory being specified
+    will be selected by default.
     """
 
     mode: Literal['raise', 'wrap', 'clip']
     """Interpolation mode of the selected trajectory if any.
 
-    This attribute can be omitted.
+    This attribute can be omitted. If so, 'raise' mode is used by default.
     """
 
 
@@ -373,7 +374,7 @@ def build_pipeline(env_config: EnvConfig,
             name = trajectories_config.get("name")
             if name is not None:
                 mode = trajectories_config.get("mode", "raise")
-                env.quantities.select_trajectory(name, mode)
+                env.quantities.trajectory_dataset.select(name, mode)
 
         return env
 

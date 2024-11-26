@@ -8,7 +8,7 @@
 # pylint: disable=invalid-name,no-member
 import logging
 from bisect import bisect_left
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from typing import List, Union, Optional, Tuple, Sequence, Callable, Literal
 
 import numpy as np
@@ -205,24 +205,20 @@ class Trajectory:
         self._index_prev = 1
 
         # List of optional state fields that are provided
-        self._has_velocity = False
-        self._has_acceleration = False
-        self._has_effort = False
-        self._has_command = False
-        self._has_external_forces = False
-        self._has_constraints = False
-        if states:
-            state = states[0]
-            self._has_velocity = state.v is not None
-            self._has_acceleration = state.a is not None
-            self._has_effort = state.u is not None
-            self._has_command = state.command is not None
-            self._has_external_forces = state.f_external is not None
-            self._has_constraints = state.lambda_c is not None
-            self._fields = tuple(
-                field for field in (
-                    "v", "a", "u", "command", "f_external", "lambda_c")
-                if getattr(state, field) is not None)
+        # Note that looking for keys in such a small set is not worth the
+        # hassle of using Python `set`, which breaks ordering and index access.
+        fields_: List[str] = []
+        fields_candidates = [field.name for field in fields(State)[2:]]
+        for state in states:
+            for field in fields_candidates:
+                if getattr(state, field) is None:
+                    if field in fields_:
+                        raise ValueError(
+                            "The state information being set must be the same "
+                            "for all the timesteps of a given trajectory.")
+                else:
+                    fields_.append(field)
+        self._fields = tuple(fields_)
 
     @property
     def has_data(self) -> bool:
@@ -234,37 +230,44 @@ class Trajectory:
     def has_velocity(self) -> bool:
         """Whether the trajectory contains the velocity vector.
         """
-        return self._has_velocity
+        return "v" in self._fields
 
     @property
     def has_acceleration(self) -> bool:
         """Whether the trajectory contains the acceleration vector.
         """
-        return self._has_acceleration
+        return "a" in self._fields
 
     @property
     def has_effort(self) -> bool:
         """Whether the trajectory contains the effort vector.
         """
-        return self._has_acceleration
+        return "u" in self._fields
 
     @property
     def has_command(self) -> bool:
         """Whether the trajectory contains motor commands.
         """
-        return self._has_command
+        return "command" in self._fields
 
     @property
     def has_external_forces(self) -> bool:
         """Whether the trajectory contains external forces.
         """
-        return self._has_external_forces
+        return "f_external" in self._fields
 
     @property
     def has_constraints(self) -> bool:
         """Whether the trajectory contains lambda multipliers of constraints.
         """
-        return self._has_constraints
+        return "lambda_c" in self._fields
+
+    @property
+    def optional_fields(self) -> Tuple[str, ...]:
+        """Optional state information being specified for all the timesteps of
+        the trajectory.
+        """
+        return self._fields
 
     @property
     def time_interval(self) -> Tuple[float, float]:
@@ -349,7 +352,6 @@ class Trajectory:
             value_right = getattr(s_right, field)
             data[field] = value_left + alpha * (value_right - value_left)
         return State(t=t_orig, **data)
-
 
 # #####################################################################
 # ################### Kinematic and dynamics ##########################

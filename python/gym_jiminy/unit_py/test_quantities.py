@@ -1,3 +1,4 @@
+# mypy: disable-error-code="no-untyped-def, var-annotated"
 """ TODO: Write documentation
 """
 import sys
@@ -375,8 +376,8 @@ class Quantities(unittest.TestCase):
                 env.reset(seed=0)
                 env.quantities["ref"]
 
-            env.quantities.add_trajectory("reference", trajectory)
-            env.quantities.select_trajectory("reference")
+            env.quantities.trajectory_dataset.add("reference", trajectory)
+            env.quantities.trajectory_dataset.select("reference")
 
             env.reset(seed=0)
             for value in values:
@@ -386,7 +387,7 @@ class Quantities(unittest.TestCase):
                 np.testing.assert_allclose(value, env.quantities["ref"])
             env.stop()
 
-            env.quantities.discard_trajectory("reference")
+            env.quantities.trajectory_dataset.discard("reference")
             del env.quantities["true"]
             del env.quantities["ref"]
 
