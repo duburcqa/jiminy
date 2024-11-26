@@ -1,6 +1,6 @@
-"""
-@brief This file aims at verifying the sanity of the physics and the
-       integration method of jiminy on simple models.
+# mypy: disable-error-code="no-untyped-def, var-annotated"
+"""This file aims at verifying the sanity of the physics and the integration
+method of jiminy on simple models.
 """
 import os
 import io
