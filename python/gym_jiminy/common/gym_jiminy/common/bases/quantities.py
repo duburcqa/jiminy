@@ -22,7 +22,7 @@ from collections.abc import MutableSet
 from dataclasses import dataclass, replace
 from functools import wraps
 from typing import (
-    Any, Dict, List, Optional, Tuple, Generic, TypeVar, Type, Iterator,
+    Any, Dict, List, Optional, Tuple, Generic, TypeVar, Type, Iterator, Set,
     Collection, Callable, Literal, ClassVar, TYPE_CHECKING)
 
 import numpy as np
@@ -377,8 +377,8 @@ class InterfaceQuantity(Generic[ValueT], metaclass=ABCMeta):
     .. warning::
         The user is responsible for implementing the dunder methods `__eq__`
         and `__hash__` that characterize identical quantities. This property is
-        used internally by `QuantityManager` to synchronize cache  between
-        them. It is advised to use decorator `@dataclass(unsafe_hash=True)` for
+        used internally by `QuantityManager` to synchronize cache between them.
+        It is advised to use decorator `@dataclass(unsafe_hash=True)` for
         convenience, but it can also be done manually.
     """
 
@@ -862,6 +862,9 @@ class DatasetTrajectoryQuantity(InterfaceQuantity[State]):
         # Ordered set of named reference trajectories as a dictionary
         self.registry: OrderedDict[str, Trajectory] = OrderedDict()
 
+        # Whether the dataset is locked, ie no traj can be added/discarded
+        self._lock = False
+
         # Name of the trajectory that is currently selected
         self._name = ""
 
@@ -920,6 +923,12 @@ class DatasetTrajectoryQuantity(InterfaceQuantity[State]):
                      overwriting it by mistake.
         :param trajectory: Trajectory instance to register.
         """
+        # Make sure that the dataset is not locked
+        if self._lock:
+            raise RuntimeError(
+                "Trajectory dataset already locked. Impossible to add any "
+                "trajectory.")
+
         # Make sure that no trajectory with the exact same name already exists
         if name in self.registry:
             raise KeyError(
@@ -950,6 +959,12 @@ class DatasetTrajectoryQuantity(InterfaceQuantity[State]):
 
         :param name: Name of the trajectory to discard.
         """
+        # Make sure that the dataset is not locked
+        if self._lock:
+            raise RuntimeError(
+                "Trajectory dataset already locked. Impossible to discard any "
+                "trajectory.")
+
         # Un-select trajectory if it corresponds to the discarded one
         if self._name == name:
             self._trajectory = None
@@ -959,13 +974,45 @@ class DatasetTrajectoryQuantity(InterfaceQuantity[State]):
         del self.registry[name]
 
     @sync
+    def clear(self) -> None:
+        """Clear the trajectory dataset from the local internal registry of all
+        instances sharing the same cache as this quantity.
+        """
+        # Make sure that the dataset is not locked
+        if self._lock:
+            raise RuntimeError(
+                "Trajectory dataset already locked. Impossible to clear the "
+                "dataset.")
+
+        # Un-select trajectory
+        self._trajectory = None
+        self._name = ""
+
+        # Delete the whole registry
+        self.registry.clear()
+
+    def __iter__(self) -> Iterator[Trajectory]:
+        """Iterate over all the trajectories in the dataset.
+        """
+        return iter(self.registry.values())
+
+    def __bool__(self) -> bool:
+        """Whether the dataset of trajectory is currently empty.
+        """
+        return bool(self.registry)
+
+    @sync
     def select(self,
                name: str,
                mode: Literal['raise', 'wrap', 'clip'] = 'raise') -> None:
-        """Jointly select a trajectory in the internal registry of all
-        instances sharing the same cache as this quantity.
+        """Select an existing trajectory from the database shared synchronized
+        all managed quantities.
 
-        :param name: Name of the trajectory to discard.
+        .. note::
+            There is no way to select a different reference trajectory for
+            individual quantities at the time being.
+
+        :param name: Name of the trajectory to select.
         :param mode: Specifies how to deal with query time of are out of the
                      time interval of the trajectory. See `Trajectory.get`
                      documentation for details.
@@ -983,6 +1030,11 @@ class DatasetTrajectoryQuantity(InterfaceQuantity[State]):
 
         # Un-initialize quantity when the selected trajectory changes
         self.reset(reset_tracking=False)
+
+    def lock(self) -> None:
+        """Forbid adding/discarding trajectories to the dataset from now on.
+        """
+        self._lock = True
 
     @property
     def name(self) -> str:
