@@ -630,9 +630,12 @@ def load_trajectory_from_hdf5(
     for args in zip(*states_dict.values()):
         states.append(State(**dict(zip(states_dict.keys(), args))))
 
+    # Load whether to use the theoretical model of the robot
+    dataset = hdf_obj['robot']
+    use_theoretical_model = dataset.attrs["use_theoretical_model"]
+
     # Build trajectory from data.
     # Null char '\0' must be added at the end to match original string length.
-    dataset = hdf_obj['robot']
     robot_data = dataset[()]
     robot_data += b'\0' * (
         dataset.nbytes - len(robot_data))  # pylint: disable=no-member
@@ -643,12 +646,9 @@ def load_trajectory_from_hdf5(
             "Impossible to build robot from serialized binary data. Make sure "
             "that data has been generated on a machine with the same hardware "
             "as this one.") from e
-
-    # Load whether to use the theoretical model of the robot
-    use_theoretical_model = dataset.attrs["use_theoretical_model"]
-
-    # Close the HDF5 file
-    hdf_obj.close()
+    finally:
+        # Close the HDF5 file
+        hdf_obj.close()
 
     # Re-construct the whole trajectory
     return Trajectory(states, robot, use_theoretical_model)
