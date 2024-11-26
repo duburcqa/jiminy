@@ -123,7 +123,8 @@ setup(
     extras_require={
         "plot": [
             # Standard library to generate figures.
-            # - 3.7.0: introduces 'outside' keyword for legend location
+            # - 3.7.0: introduces Button blitting and 'outside' keyword for
+            #   legend location
             "matplotlib>=3.7.0"
         ],
         "meshcat": [

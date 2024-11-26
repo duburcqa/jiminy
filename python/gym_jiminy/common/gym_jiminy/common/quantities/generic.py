@@ -1363,7 +1363,7 @@ class AverageFrameXYZQuat(InterfaceQuantity[np.ndarray]):
 @dataclass(unsafe_hash=True)
 class AverageFrameRollPitch(InterfaceQuantity[np.ndarray]):
     """Quaternion representation of the average Yaw-free orientation from the
-    Roll-Pitch_yaw decomposition of a given frame over the whole agent step.
+    Roll-Pitch-Yaw decomposition of a given frame over the whole agent step.
 
     .. seealso::
         See `remove_yaw_from_quat` and `AverageFrameXYZQuat` for details about

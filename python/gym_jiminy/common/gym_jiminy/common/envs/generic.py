@@ -13,7 +13,7 @@ from collections.abc import Mapping, Sequence
 from functools import partial
 from typing import (
     Dict, Any, List, cast, no_type_check, Optional, Tuple, Callable, Union,
-    SupportsFloat, Iterator,  Generic, Sequence as SequenceT,
+    SupportsFloat, Iterator, Generic, Sequence as SequenceT,
     Mapping as MappingT, MutableMapping as MutableMappingT)
 
 import numpy as np
@@ -1047,32 +1047,44 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
             if not enable_block_states and key.endswith(".state"):
                 continue
 
-            # Extract action hierarchical time series.
+            # Store fieldnames in dict systematically to avoid code duplication
+            if not isinstance(fieldnames, dict):
+                fieldnames = {"": fieldnames}
+
+            # Extract hierarchical time series.
             # Fieldnames stored in a dictionary cannot be nested. In such a
             # case, keys corresponds to subplots, and values are individual
             # scalar data over time to be displayed to the same subplot.
             t = log_vars["Global.Time"]
-            tab_data: Dict[str, Union[np.ndarray, Dict[str, np.ndarray]]] = {}
-            if isinstance(fieldnames, dict):
-                for group, subfieldnames in fieldnames.items():
-                    if not isinstance(subfieldnames, list):
-                        LOGGER.error(
-                            "Action space not supported by this method.")
-                        return figure
-                    value_map = extract_variables_from_log(
-                        log_vars, subfieldnames, "controller", as_dict=True)
-                    tab_data[group] = {
-                        key.split(".", 2)[2]: value
-                        for key, value in value_map.items()}
-            elif isinstance(fieldnames, list):
-                value_map = extract_variables_from_log(
-                    log_vars, fieldnames, "controller", as_dict=True)
-                tab_data.update({
-                    key.split(".", 2)[2]: value
-                    for key, value in value_map.items()})
+            base_name = key.replace(".", " ")
+            for group, subfieldnames in fieldnames.items():
+                if not isinstance(subfieldnames, (list, tuple)):
+                    LOGGER.error(
+                        "Action space not supported by this method.")
+                    return figure
 
-            # Add action tab
-            figure.add_tab(key.replace(".", " "), t, tab_data)
+                tab_name = " ".join(filter(None, (base_name, group)))
+                value_map = extract_variables_from_log(
+                    log_vars, subfieldnames, "controller", as_dict=True)
+                tab_data = {key.split(".", 2)[2]: value
+                            for key, value in value_map.items()}
+
+                grid_spec: Tuple[Optional[int], Optional[int]] = (None, None)
+                nrows = len(subfieldnames)
+                if nrows and isinstance(subfieldnames[0], (list, tuple)):
+                    ncols_all = set(map(len, subfieldnames))
+                    if len(ncols_all) == 1:
+                        grid_spec = (nrows, next(iter(ncols_all)))
+
+                try:
+                    figure.add_tab(tab_name,
+                                   t,
+                                   tab_data,  # type: ignore[arg-type]
+                                   nrows=grid_spec[0],
+                                   ncols=grid_spec[1])
+                except ValueError:
+                    LOGGER.error("Invalid plot spec for variable %s. Moving "
+                                 "to the next one", key)
 
         # Return figure for convenience and consistency with Matplotlib
         return figure
