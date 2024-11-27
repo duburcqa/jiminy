@@ -10,7 +10,7 @@ from jiminy_py.simulator import Simulator
 
 from gym_jiminy.common.bases import InfoType, EngineObsType
 from gym_jiminy.common.envs import BaseJiminyEnv
-from gym_jiminy.common.utils import sample
+from gym_jiminy.common.utils import sample, get_robot_state_space
 
 
 # Stepper update period
@@ -150,7 +150,8 @@ class AcrobotJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         Only the state is observable, while by default, the current time,
         state, and sensors data are available.
         """
-        state_space = self._get_agent_state_space(use_theoretical_model=True)
+        state_space = get_robot_state_space(
+            self.robot, use_theoretical_model=True)
         position_space, velocity_space = state_space['q'], state_space['v']
         assert isinstance(position_space, gym.spaces.Box)
         assert isinstance(velocity_space, gym.spaces.Box)

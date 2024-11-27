@@ -20,7 +20,7 @@ from jiminy_py.core import array_copyto  # pylint: disable=no-name-in-module
 from jiminy_py.simulator import Simulator
 from gym_jiminy.common.bases import InfoType, EngineObsType
 from gym_jiminy.common.envs import BaseJiminyEnv
-from gym_jiminy.common.utils import sample
+from gym_jiminy.common.utils import sample, get_robot_state_space
 
 
 # Stepper update period
@@ -143,7 +143,8 @@ class AntJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         """
         # http://www.mujoco.org/book/APIreference.html#mjData
 
-        position_space, velocity_space = self._get_agent_state_space().values()
+        state_space = get_robot_state_space(self.robot)
+        position_space, velocity_space = state_space["q"], state_space["v"]
         assert isinstance(position_space, gym.spaces.Box)
         assert isinstance(velocity_space, gym.spaces.Box)
 

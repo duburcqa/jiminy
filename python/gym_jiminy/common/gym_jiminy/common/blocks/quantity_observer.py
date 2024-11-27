@@ -1,26 +1,20 @@
 """Implementation of Mahony filter block compatible with gym_jiminy
 reinforcement learning pipeline environment design.
 """
-import logging
 from collections import OrderedDict
-from typing import Any, List, Union, Dict, Optional, Type, TypeVar, cast
+from typing import Any, Type, TypeVar, cast
 
 import numpy as np
-import numba as nb
 import gymnasium as gym
 
-from jiminy_py.core import ImuSensor  # pylint: disable=no-name-in-module
 from jiminy_py import tree
 
 from ..bases import (
     BaseObs, BaseAct, BaseObserverBlock, InterfaceJiminyEnv, InterfaceQuantity)
-from ..utils import DataNested, fill, build_copyto
+from ..utils import DataNested, build_copyto
 
 
 ValueT = TypeVar('ValueT', bound=DataNested)
-
-
-LOGGER = logging.getLogger(__name__)
 
 
 def get_space(data: DataNested) -> gym.Space[DataNested]:

@@ -9,9 +9,7 @@ redundant intermediary quantities only once per step, and gathering similar
 quantities in a large batch to leverage vectorization of math instructions.
 """
 from collections.abc import MutableMapping
-from typing import Any, Dict, List, Tuple, Iterator, Literal, Type, cast
-
-from jiminy_py.dynamics import Trajectory
+from typing import Any, Dict, List, Tuple, Iterator, Type, cast
 
 from ..bases import (
     QuantityCreator, InterfaceJiminyEnv, InterfaceQuantity, SharedCache,

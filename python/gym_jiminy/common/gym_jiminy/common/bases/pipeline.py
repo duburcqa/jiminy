@@ -17,7 +17,7 @@ from copy import deepcopy
 from abc import abstractmethod
 from collections import OrderedDict
 from typing import (
-    Dict, Any, List, Sequence, Optional, Tuple, Set, Union, Generic, TypeVar,
+    Dict, Any, List, Sequence, Optional, Tuple, Union, Generic, TypeVar,
     Type, Mapping, SupportsFloat, Callable, cast, overload, TYPE_CHECKING)
 
 import numpy as np
@@ -38,7 +38,6 @@ from .interfaces import (DT_EPS,
                          InfoType,
                          EngineObsType,
                          InterfaceJiminyEnv)
-from .quantities import DatasetTrajectoryQuantity
 from .compositions import AbstractReward, AbstractTerminationCondition
 from .blocks import BaseControllerBlock, BaseObserverBlock
 
@@ -93,13 +92,29 @@ def _merge_base_env_with_block(
         block_feature: Optional[NestedSpaceOrData],
         block_action: Optional[NestedSpaceOrData],
         ) -> NestedSpaceOrData:
-    """ TODO: Write documentation
+    """Merge the observation space of a base environment with the state,
+    feature and action spaces of a given block.
 
-    :param block_name: TODO: Write documentation
-    :param base_observation: TODO: Write documentation
-    :param block_state: TODO: Write documentation
-    :param block_feature: TODO: Write documentation
-    :param block_action: TODO: Write documentation
+    This method supports specifying both spaces or values for all the input
+    arguments at once. In both cases, the base observation is shallow copy
+    first to avoid altering it while sharing memory with the original leaves.
+
+    If the base observation space is a mapping, then the state, feature and
+    action of the block are added under nested keys ("states", block_name),
+    ("feature", block_name), and ("action", block_name). Otherwise, the base
+    observation is first stored under nested key ("measurement",) of a new
+    mapping, while block spaces are stored under the same hierarchy as before.
+
+    :param block_name: Name of the block. It will be used as parent key of the
+                       state, feature and action spaces.
+    :param base_observation: Observation space or value of the base
+                             environment.
+    :param block_state: State space or value of the block. `None` if it does
+                        not exist for the block at hand.
+    :param block_feature: Feature space or value of the block. `None` if it
+                          does not exist for the block at hand.
+    :param block_action: Action space or value of the block. `None` if it does
+                         not exist for the block at hand.
     """
     observation: Dict[str, NestedSpaceOrData] = OrderedDict()
 

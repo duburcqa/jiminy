@@ -96,7 +96,7 @@ def velocityXYZQuatToXYZRPY(xyzquat: np.ndarray,
 # #################### State and Trajectory ###########################
 # #####################################################################
 
-@dataclass(unsafe_hash=True)
+@dataclass
 class State:
     """Basic data structure storing kinematics and dynamics information at a
     given time.
@@ -143,7 +143,7 @@ class State:
     """
 
 
-@dataclass(unsafe_hash=True)
+@dataclass
 class Trajectory:
     """Trajectory of a robot.
 
@@ -199,6 +199,14 @@ class Trajectory:
             self._pinocchio_model = robot.pinocchio_model_th
         else:
             self._pinocchio_model = robot.pinocchio_model
+
+        # Compute the trajectory stride.
+        # Ensure continuity of the freeflyer when time is wrapping.
+        self._stride_offset_log6: Optional[np.ndarray] = None
+        if self.robot.has_freeflyer and self.has_data:
+            M_start = pin.XYZQUATToSE3(self.states[0].q[:7])
+            M_end = pin.XYZQUATToSE3(self.states[-1].q[:7])
+            self._stride_offset_log6 = pin.log6(M_end * M_start.inverse())
 
         # Keep track of last request to speed up nearest neighbors search
         self._t_prev = 0.0
@@ -309,13 +317,15 @@ class Trajectory:
         t_orig = t
 
         # Handling of the desired mode
+        n_steps = 0.0
         t_start, t_end = self.time_interval
         if mode == "raise":
             if t - t_end > TRAJ_INTERP_TOL or t_start - t > TRAJ_INTERP_TOL:
                 raise RuntimeError("Time is out-of-range.")
         elif mode == "wrap":
             if t_end > t_start:
-                t = ((t - t_start) % (t_end - t_start)) + t_start
+                n_steps, t_rel = divmod(t - t_start, t_end - t_start)
+                t = t_rel + t_start
             else:
                 t = t_start
         else:
@@ -334,7 +344,7 @@ class Trajectory:
             self._times, t, self._index_prev, len(self._times) - 1)
         self._t_prev = t
 
-        # Skip interpolation if not necessary.
+        # Skip interpolation if not necessary
         index_left, index_right = self._index_prev - 1, self._index_prev
         t_left, s_left = self._times[index_left], self.states[index_left]
         if t - t_left < TRAJ_INTERP_TOL:
@@ -345,13 +355,22 @@ class Trajectory:
         alpha = (t - t_left) / (t_right - t_left)
 
         # Interpolate state
-        data = {"q": pin.interpolate(
-            self._pinocchio_model, s_left.q, s_right.q, alpha)}
+        position = pin.interpolate(
+            self._pinocchio_model, s_left.q, s_right.q, alpha)
+        data = {"q": position}
         for field in self._fields:
             value_left = getattr(s_left, field)
             value_right = getattr(s_right, field)
             data[field] = value_left + alpha * (value_right - value_left)
+
+        # Perform odometry if the time is wrapping
+        if self._stride_offset_log6 is not None and n_steps:
+            stride_offset = pin.exp6(n_steps * self._stride_offset_log6)
+            ff_xyzquat = stride_offset * pin.XYZQUATToSE3(position[:7])
+            position[:7] = pin.SE3ToXYZQUAT(ff_xyzquat)
+
         return State(t=t_orig, **data)
+
 
 # #####################################################################
 # ################### Kinematic and dynamics ##########################

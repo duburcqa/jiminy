@@ -15,7 +15,7 @@ from functools import partial
 from collections.abc import Sequence
 from typing import (
     Dict, Any, Optional, Union, Type, Sequence as SequenceT, Callable,
-    TypedDict, List, Literal, overload, cast)
+    TypedDict, Literal, overload, cast)
 
 import h5py
 import tomlkit

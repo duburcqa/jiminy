@@ -22,7 +22,7 @@ from collections.abc import MutableSet
 from dataclasses import dataclass, replace
 from functools import wraps
 from typing import (
-    Any, Dict, List, Optional, Tuple, Generic, TypeVar, Type, Iterator, Set,
+    Any, Dict, List, Optional, Tuple, Generic, TypeVar, Type, Iterator,
     Collection, Callable, Literal, ClassVar, TYPE_CHECKING)
 
 import numpy as np

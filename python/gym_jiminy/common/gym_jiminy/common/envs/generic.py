@@ -1274,7 +1274,8 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
             order to define a custom observation space.
         """
         observation_spaces: Dict[str, spaces.Space] = OrderedDict()
-        observation_spaces['t'] = spaces.Box(low=0.0,
+        observation_spaces['t'] = spaces.Box(
+            low=0.0,
             high=self.simulation_duration_max,
             shape=(),
             dtype=np.float64)
