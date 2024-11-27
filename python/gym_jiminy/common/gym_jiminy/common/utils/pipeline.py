@@ -478,6 +478,13 @@ def build_pipeline(env_config: EnvConfig,
                 path = pathlib.Path(root_path) / path
             trajectories[name] = load_trajectory_from_hdf5(path)
 
+    # Add extra user-specified reward, termination conditions and trajectories
+    pipeline_creator = partial(build_composition_layer,
+                               pipeline_creator,
+                               reward_config,
+                               terminations_config,
+                               trajectories_config)
+
     # Generate pipeline recursively
     for layer_config in layers_config:
         # Extract block and wrapper config
@@ -540,13 +547,6 @@ def build_pipeline(env_config: EnvConfig,
                                    wrapper_kwargs,
                                    block_cls_,
                                    block_kwargs)
-
-    # Add extra user-specified reward, termination conditions and trajectories
-    pipeline_creator = partial(build_composition_layer,
-                               pipeline_creator,
-                               reward_config,
-                               terminations_config,
-                               trajectories_config)
 
     return pipeline_creator
 
