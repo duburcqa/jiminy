@@ -18,14 +18,17 @@ from abc import abstractmethod
 from collections import OrderedDict
 from typing import (
     Dict, Any, List, Sequence, Optional, Tuple, Union, Generic, TypeVar,
-    SupportsFloat, Callable, cast, TYPE_CHECKING)
+    Type, Mapping, SupportsFloat, Callable, cast, overload, TYPE_CHECKING)
 
 import numpy as np
 
 import gymnasium as gym
 from gymnasium.core import RenderFrame
 from gymnasium.envs.registration import EnvSpec
+
+from jiminy_py.core import array_copyto  # pylint: disable=no-name-in-module
 from jiminy_py.dynamics import Trajectory
+from jiminy_py.tree import issubclass_mapping
 
 from .interfaces import (DT_EPS,
                          Obs,
@@ -38,7 +41,12 @@ from .interfaces import (DT_EPS,
 from .compositions import AbstractReward, AbstractTerminationCondition
 from .blocks import BaseControllerBlock, BaseObserverBlock
 
-from ..utils import DataNested, is_breakpoint, zeros, build_copyto, copy
+from ..utils import (DataNested,
+                     is_breakpoint,
+                     zeros,
+                     build_copyto,
+                     copy,
+                     get_robot_state_space)
 if TYPE_CHECKING:
     from ..envs.generic import BaseJiminyEnv
 
@@ -49,8 +57,92 @@ NestedObs = TypeVar('NestedObs', bound=Dict[str, DataNested])
 TransformedObs = TypeVar('TransformedObs', bound=DataNested)
 TransformedAct = TypeVar('TransformedAct', bound=DataNested)
 
+NestedSpaceOrData = Union[DataNested, gym.Space[DataNested]]
+
 
 LOGGER = logging.getLogger(__name__)
+
+
+@overload
+def _merge_base_env_with_block(
+        block_name: str,
+        base_observation: DataNested,
+        block_state: Optional[DataNested],
+        block_feature: Optional[DataNested],
+        block_action: Optional[DataNested]
+        ) -> DataNested:
+    ...
+
+
+@overload
+def _merge_base_env_with_block(
+        block_name: str,
+        base_observation: gym.Space[DataNested],
+        block_state: Optional[gym.Space[DataNested]],
+        block_feature: Optional[gym.Space[DataNested]],
+        block_action: Optional[gym.Space[DataNested]]
+        ) -> gym.Space[DataNested]:
+    ...
+
+
+def _merge_base_env_with_block(
+        block_name: str,
+        base_observation: NestedSpaceOrData,
+        block_state: Optional[NestedSpaceOrData],
+        block_feature: Optional[NestedSpaceOrData],
+        block_action: Optional[NestedSpaceOrData],
+        ) -> NestedSpaceOrData:
+    """Merge the observation space of a base environment with the state,
+    feature and action spaces of a given block.
+
+    This method supports specifying both spaces or values for all the input
+    arguments at once. In both cases, the base observation is shallow copy
+    first to avoid altering it while sharing memory with the original leaves.
+
+    If the base observation space is a mapping, then the state, feature and
+    action of the block are added under nested keys ("states", block_name),
+    ("feature", block_name), and ("action", block_name). Otherwise, the base
+    observation is first stored under nested key ("measurement",) of a new
+    mapping, while block spaces are stored under the same hierarchy as before.
+
+    :param block_name: Name of the block. It will be used as parent key of the
+                       state, feature and action spaces.
+    :param base_observation: Observation space or value of the base
+                             environment.
+    :param block_state: State space or value of the block. `None` if it does
+                        not exist for the block at hand.
+    :param block_feature: Feature space or value of the block. `None` if it
+                          does not exist for the block at hand.
+    :param block_action: Action space or value of the block. `None` if it does
+                         not exist for the block at hand.
+    """
+    observation: Dict[str, NestedSpaceOrData] = OrderedDict()
+
+    # Get the right map container
+    if isinstance(base_observation, gym.Space):
+        mapping_cls: Type[Mapping] = gym.spaces.Dict
+    else:
+        mapping_cls = OrderedDict
+
+    # Deal with the base observation
+    base_observation = copy(base_observation)
+    if issubclass_mapping(type(base_observation)):
+        observation.update(base_observation)  # type: ignore[arg-type]
+    else:
+        observation['measurement'] = base_observation
+
+    # Deal with the block state, feature and action
+    for group_name, block_group in (
+            ('states', block_state),
+            ('features', block_feature),
+            ('actions', block_action)):
+        if block_group is not None:
+            base_group = observation.setdefault(
+                group_name, mapping_cls())
+            assert issubclass_mapping(type(base_group))
+            base_group[block_name] = block_group  # type: ignore[index]
+
+    return mapping_cls(observation)  # type: ignore[call-arg]
 
 
 class BasePipelineWrapper(
@@ -95,6 +187,9 @@ class BasePipelineWrapper(
         # Backup the parent environment
         self.env = env
 
+        # Whether the block is registered in a environment pipeline
+        self._is_registered = False
+
         # Call base implementation
         super().__init__()  # Do not forward any argument
 
@@ -102,9 +197,6 @@ class BasePipelineWrapper(
         # Note that it cannot be done at this point because the action
         # may be overwritten by derived classes afterward.
         self._copyto_action: Callable[[Act], None] = lambda action: None
-
-        # Whether the block is registered in a environment pipeline
-        self._is_registered = False
 
     def __getattr__(self, name: str) -> Any:
         """Convenient fallback attribute getter.
@@ -118,27 +210,32 @@ class BasePipelineWrapper(
             Calling this method in script mode while a simulation is already
             running would trigger a warning to avoid relying on it by mistake.
         """
-        # Make sure that no simulaton is running
-        if (self.is_simulation_running and self.env.is_training and
-                not hasattr(sys, 'ps1')):
-            # `hasattr(sys, 'ps1')` is used to detect whether the method was
-            # called from an interpreter or within a script. For details, see:
-            # https://stackoverflow.com/a/64523765/4820605
-            LOGGER.warning(
-                "Relying on fallback attribute getter is inefficient and "
-                "strongly discouraged at runtime.")
+        try:
+            # Make sure that no simulaton is running
+            if (self.__getattribute__('is_simulation_running') and
+                    self.env.is_training and not hasattr(sys, 'ps1')):
+                # `hasattr(sys, 'ps1')` is used to detect whether the method
+                # was called from an interpreter or within a script. For
+                # details, see: https://stackoverflow.com/a/64523765/4820605
+                LOGGER.warning(
+                    "Relying on fallback attribute getter is inefficient and "
+                    "strongly discouraged at runtime.")
 
-        # Ensure that the block that has been declared as top-most layer of the
-        # environment pipeline is consistent with the callee of this method,
-        # i.e. `self.env.derived` is a parent of `self`. If not, set the callee
-        # as parent if no simulation is running. Otherwise, aise an exception.
-        if not self._is_registered:
-            if self.is_simulation_running:
-                raise RuntimeError(
-                    "This block is not registered as part of the environment "
-                    "pipeline. Please stop the simulation before adding new "
-                    "blocks.")
-            self.update_pipeline(self)
+            # Ensure that the block that has been declared as top-most layer of
+            # the environment pipeline is consistent with the callee of this
+            # method, i.e. `self.env.derived` is a parent of `self`. If not,
+            # set the callee as parent if no simulation is running. Otherwise,
+            # raise an exception.
+            if not self.__getattribute__('_is_registered'):
+                if self.is_simulation_running:
+                    raise RuntimeError(
+                        "This block is not registered as part of the "
+                        "environment pipeline. Please stop the simulation "
+                        "before adding new blocks.")
+                self.update_pipeline(self)
+        except AttributeError:
+            # The block is not fully initialized at this point. Skipping check.
+            pass
 
         return getattr(self.__getattribute__('env'), name)
 
@@ -371,22 +468,29 @@ class BasePipelineWrapper(
         self.env.close()
 
 
-class ComposedJiminyEnv(
-        BasePipelineWrapper[Obs, Act, Obs, Act],
-        Generic[Obs, Act]):
+class ComposedJiminyEnv(BasePipelineWrapper[Obs, Act, Obs, Act],
+                        Generic[Obs, Act]):
     """Extend an environment, eventually already wrapped, by plugging ad-hoc
     reward components and termination conditions, including their accompanying
     trajectory database if any.
 
-    This wrappers leaves unchanged the observation and action spaces of the
-    environment. This can be done by adding observation and/or control blocks
-    through `ObservedJiminyEnv` and `ControlledJiminyEnv` wrappers.
+    This wrappers optionally adds the current state of the reference trajectory
+    to the observation space under nested key ('states', 'reference'), while
+    leaving its action space unchanged. Transformation of the observation and
+    action space is done via additional observation and/or control blocks.
 
     .. note::
         This wrapper derives from `BasePipelineWrapper`, and such as, it is
-        considered as internal unlike `gym.Wrapper`. This means that it will be
-        taken into account when calling `evaluate` or `play_interactive` on the
-        wrapped environment.
+        considered as part of the environment pipeline unlike `gym.Wrapper`.
+        This means that it will be taken into account when calling `evaluate`
+        or `play_interactive` on the wrapped environment.
+
+    .. warning::
+        Setting 'augment_observation=True' enforces several restriction on the
+        trajectory database to make sure that the observation space remains
+        invariant. First, the database is locked, so that no trajectory can be
+        added nor removed anymore. Then, the robot model must be the same for
+        all the trajectories.
 
     .. warning::
         This class is final, ie not meant to be derived.
@@ -396,7 +500,8 @@ class ComposedJiminyEnv(
                  *,
                  reward: Optional[AbstractReward] = None,
                  terminations: Sequence[AbstractTerminationCondition] = (),
-                 trajectories: Optional[Dict[str, Trajectory]] = None) -> None:
+                 trajectories: Optional[Dict[str, Trajectory]] = None,
+                 augment_observation: bool = False) -> None:
         """
         :param env: Environment to extend, eventually already wrapped.
         :param reward: Reward object deriving from `AbstractReward`. It will be
@@ -413,11 +518,15 @@ class ComposedJiminyEnv(
                              conditions must be already instantiated and
                              associated with the environment at hand.
                              Optional: Empty sequence by default.
-        :param trajectories: Set of named trajectories as a dictionary whose
-                             (key, value) pairs are respectively the name of
-                             each trajectory and the trajectory itself. `None`
-                             for not considering any trajectory.
+        :param trajectories: Ordered set of named trajectories as a dictionary.
+                             The first trajectory being specified, in any, will
+                             be selected as reference by default. `None` to
+                             skip the whole process.
                              Optional: `None` by default.
+        :param augment_observation: Whether to add the current state of the
+                                    reference trajectory to the observation
+                                    of the environment if any.
+                                    Optional: False by default.
         """
         # Make sure that the unwrapped environment of compositions matches
         assert reward is None or env.unwrapped is reward.env.unwrapped
@@ -425,22 +534,66 @@ class ComposedJiminyEnv(
                    for termination in terminations)
 
         # Backup user argument(s)
+        self.augment_observation = augment_observation
         self.reward = reward
         self.terminations = tuple(terminations)
+
+        # Keep track of the "global" trajectory database
+        self._trajectory_dataset = env.quantities.trajectory_dataset
+        self._trajectory_optional_fields: Tuple[str, ...] = ()
+
+        # Handling of reference trajectories if any
+        if trajectories is not None:
+            # Add reference trajectories to managed quantities
+            for name, trajectory in trajectories.items():
+                self._trajectory_dataset.add(name, trajectory)
+
+            # Select the first trajectory with 'raise' mode by default
+            if not self._trajectory_dataset.name:
+                name = next(iter(trajectories.keys()))
+                self._trajectory_dataset.select(name, "raise")
+
+        # Enforces some restrictions on the trajectory database if necessary
+        if self.augment_observation:
+            # Lock the dataset at this point
+            self._trajectory_dataset.lock()
+
+            # Make sure that the robot model is identical for all trajectories
+            traj = self._trajectory_dataset.trajectory
+            for traj_ in self._trajectory_dataset:
+                if traj.robot.pinocchio_model != traj_.robot.pinocchio_model:
+                    raise ValueError(
+                        "The robot model must be identical for all "
+                        "trajectories in the dataset.")
+
+            # Determine the state information that are common to all
+            # trajectories, not just the one being selected.
+            self._trajectory_optional_fields = traj.optional_fields
+            for traj_ in self._trajectory_dataset:
+                self._trajectory_optional_fields = tuple(
+                    field for field in traj_.optional_fields
+                    if field in self._trajectory_optional_fields)
 
         # Initialize base class
         super().__init__(env)
 
-        # Add reference trajectories to all managed quantities if requested
-        if trajectories is not None:
-            for name, trajectory in trajectories.items():
-                self.env.quantities.add_trajectory(name, trajectory)
+        # Bind action of the base environment
+        assert self.action_space.contains(env.action)
+        self.action = env.action
 
-        # Bind observation and action of the base environment
-        assert self.observation_space.contains(self.env.observation)
-        assert self.action_space.contains(self.env.action)
-        self.observation = self.env.observation
-        self.action = self.env.action
+        # Allocate memory for the trajectory state if necessary
+        self._trajectory_state: Optional[Dict[str, np.ndarray]] = None
+        if self.augment_observation and self._trajectory_dataset:
+            self._trajectory_state = zeros(self.observation_space[
+                "states"]["reference"])  # type: ignore[index]
+
+        # Initialize the observation
+        self.observation = cast(Obs, _merge_base_env_with_block(
+            "reference",
+            self.env.observation,
+            self._trajectory_state,
+            None,
+            None))
 
     def _initialize_action_space(self) -> None:
         """Configure the action space.
@@ -451,10 +604,48 @@ class ComposedJiminyEnv(
 
     def _initialize_observation_space(self) -> None:
         """Configure the observation space.
-
-        It simply copy the observation space of the wrapped environment.
         """
-        self.observation_space = self.env.observation_space
+        # Define the trajectory space if necessary
+        trajectory_space: Optional[gym.spaces.Dict] = None
+        if self.augment_observation and self._trajectory_dataset:
+            state_space: Dict[str, gym.Space] = OrderedDict()
+            traj = self._trajectory_dataset.trajectory
+            robot_state_space = get_robot_state_space(traj.robot)
+            state_space["q"] = robot_state_space["q"]
+            if "v" in self._trajectory_optional_fields:
+                state_space["v"] = robot_state_space["v"]
+            if "a" in self._trajectory_optional_fields:
+                state_space["a"] = deepcopy(robot_state_space["v"])
+            if "u" in self._trajectory_optional_fields:
+                state_space["u"] = deepcopy(robot_state_space["v"])
+            if "command" in self._trajectory_optional_fields:
+                command_limit = np.array([
+                    motor.effort_limit for motor in traj.robot.motors])
+                state_space["command"] = gym.spaces.Box(
+                    low=-command_limit, high=command_limit, dtype=np.float64)
+            if "f_external" in self._trajectory_optional_fields:
+                state_space["f_external"] = gym.spaces.Box(
+                    low=float("-inf"),
+                    high=float("inf"),
+                    shape=(traj.robot.pinocchio_model.njoints, 6),
+                    dtype=np.float64)
+            if "lambda_c" in self._trajectory_optional_fields:
+                length_lambda_c = len(traj.robot.log_constraint_fieldnames)
+                state_space["lambda_c"] = gym.spaces.Box(
+                    low=float("-inf"),
+                    high=float("inf"),
+                    shape=(length_lambda_c,),
+                    dtype=np.float64)
+            trajectory_space = gym.spaces.Dict(state_space)
+
+        # Aggregate the reference trajectory space with the base observation
+        self.observation_space = cast(
+            gym.Space[Obs], _merge_base_env_with_block(
+                "reference",
+                self.env.observation_space,
+                trajectory_space,
+                None,
+                None))
 
     def _setup(self) -> None:
         """Configure the wrapper.
@@ -479,7 +670,16 @@ class ComposedJiminyEnv(
         :param measurement: Low-level measure from the environment to process
                             to get higher-level observation.
         """
+        # Refresh environment observation
         self.env.refresh_observation(measurement)
+
+        # Update trajectory reference state if necessary
+        if self._trajectory_state is not None:
+            trajectory_state = self._trajectory_dataset.get()
+            array_copyto(self._trajectory_state["q"], trajectory_state.q)
+            for field in self._trajectory_optional_fields:
+                array_copyto(self._trajectory_state[field],
+                             getattr(trajectory_state, field))
 
     def has_terminated(self, info: InfoType) -> Tuple[bool, bool]:
         """Determine whether the practitioner is instructed to stop the ongoing
@@ -640,31 +840,14 @@ class ObservedJiminyEnv(
         assert self.action_space.contains(env.action)
         self.action = env.action
 
-        # Initialize the observation.
-        # One part is bound to the environment while the other is bound to the
-        # observer. In this way, no memory at all must be allocated.
-        observation: Dict[str, DataNested] = OrderedDict()
-        base_observation = self.env.observation
-        if isinstance(base_observation, dict):
-            # Bind values but not dict itself, otherwise the base observation
-            # would be altered when adding extra keys.
-            observation.update(base_observation)
-            if base_features := base_observation.get('features'):
-                assert isinstance(observation['features'], dict)
-                observation['features'] = copy(base_features)
-            if base_states := base_observation.get('states'):
-                assert isinstance(observation['states'], dict)
-                observation['states'] = copy(base_states)
-        else:
-            observation['measurement'] = base_observation
-        if (state := self.observer.get_state()) is not None:
-            states = observation.setdefault('states', OrderedDict())
-            assert isinstance(states, OrderedDict)
-            states[self.observer.name] = state
-        features = observation.setdefault('features', OrderedDict())
-        assert isinstance(features, OrderedDict)
-        features[self.observer.name] = self.observer.observation
-        self.observation = cast(NestedObs, observation)
+        # Initialize the observation
+        state = self.observer.get_state()
+        self.observation = cast(NestedObs, _merge_base_env_with_block(
+            self.observer.name,
+            self.env.observation,
+            state,
+            self.observer.observation,
+            None))
 
         # Register the observer's internal state and feature to the telemetry
         if state is not None:
@@ -701,23 +884,13 @@ class ObservedJiminyEnv(
     def _initialize_observation_space(self) -> None:
         """Configure the observation space.
         """
-        observation_space: Dict[str, gym.Space[DataNested]] = OrderedDict()
-        base_observation_space = deepcopy(self.env.observation_space)
-        if isinstance(base_observation_space, gym.spaces.Dict):
-            observation_space.update(base_observation_space)
-        else:
-            observation_space['measurement'] = base_observation_space
-        if self.observer.state_space is not None:
-            state_spaces = observation_space.setdefault(
-                'states', gym.spaces.Dict())
-            assert isinstance(state_spaces, gym.spaces.Dict)
-            state_spaces[self.observer.name] = self.observer.state_space
-        feature_spaces = observation_space.setdefault(
-            'features', gym.spaces.Dict())
-        assert isinstance(feature_spaces, gym.spaces.Dict)
-        feature_spaces[self.observer.name] = self.observer.observation_space
         self.observation_space = cast(
-            gym.Space[NestedObs], gym.spaces.Dict(observation_space))
+            gym.Space[NestedObs], _merge_base_env_with_block(
+                self.observer.name,
+                self.env.observation_space,
+                self.observer.state_space,
+                self.observer.observation_space,
+                None))
 
     def refresh_observation(self, measurement: EngineObsType) -> None:
         """Compute high-level features based on the current wrapped
@@ -863,27 +1036,13 @@ class ControlledJiminyEnv(
         self.action: Act = zeros(self.action_space)
 
         # Initialize the observation
-        observation: Dict[str, DataNested] = OrderedDict()
-        base_observation = self.env.observation
-        if isinstance(base_observation, dict):
-            observation.update(base_observation)
-            if base_actions := base_observation.get('actions'):
-                assert isinstance(observation['actions'], dict)
-                observation['actions'] = copy(base_actions)
-            if base_states := base_observation.get('states'):
-                assert isinstance(observation['states'], dict)
-                observation['states'] = copy(base_states)
-        else:
-            observation['measurement'] = base_observation
-        if (state := self.controller.get_state()) is not None:
-            states = observation.setdefault('states', OrderedDict())
-            assert isinstance(states, OrderedDict)
-            states[self.controller.name] = state
-        if self.augment_observation:
-            actions = observation.setdefault('actions', OrderedDict())
-            assert isinstance(actions, OrderedDict)
-            actions[self.controller.name] = self.action
-        self.observation = cast(NestedObs, observation)
+        state = self.controller.get_state()
+        self.observation = cast(NestedObs, _merge_base_env_with_block(
+            self.controller.name,
+            self.env.observation,
+            state,
+            None,
+            self.action if self.augment_observation else None))
 
         # Register the controller's internal state and target to the telemetry
         if state is not None:
@@ -925,25 +1084,14 @@ class ControlledJiminyEnv(
         internal state to of the controller, and optionally the target computed
         by the controller if requested.
         """
-        # Append the controller's target to the observation if requested
-        observation_space: Dict[str, gym.Space[DataNested]] = OrderedDict()
-        base_observation_space = deepcopy(self.env.observation_space)
-        if isinstance(base_observation_space, gym.spaces.Dict):
-            observation_space.update(base_observation_space)
-        else:
-            observation_space['measurement'] = base_observation_space
-        if self.controller.state_space is not None:
-            state_spaces = observation_space.setdefault(
-                'states', gym.spaces.Dict())
-            assert isinstance(state_spaces, gym.spaces.Dict)
-            state_spaces[self.controller.name] = self.controller.state_space
-        if self.augment_observation:
-            action_spaces = observation_space.setdefault(
-                'actions', gym.spaces.Dict())
-            assert isinstance(action_spaces, gym.spaces.Dict)
-            action_spaces[self.controller.name] = self.controller.action_space
         self.observation_space = cast(
-            gym.Space[NestedObs], gym.spaces.Dict(observation_space))
+            gym.Space[NestedObs], _merge_base_env_with_block(
+                self.controller.name,
+                self.env.observation_space,
+                self.controller.state_space,
+                None,
+                (self.controller.action_space
+                    if self.augment_observation else None)))
 
     def refresh_observation(self, measurement: EngineObsType) -> None:
         """Compute the unified observation based on the current wrapped

@@ -8,7 +8,7 @@
 # pylint: disable=invalid-name,no-member
 import logging
 from bisect import bisect_left
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from typing import List, Union, Optional, Tuple, Sequence, Callable, Literal
 
 import numpy as np
@@ -96,7 +96,7 @@ def velocityXYZQuatToXYZRPY(xyzquat: np.ndarray,
 # #################### State and Trajectory ###########################
 # #####################################################################
 
-@dataclass(unsafe_hash=True)
+@dataclass
 class State:
     """Basic data structure storing kinematics and dynamics information at a
     given time.
@@ -143,7 +143,7 @@ class State:
     """
 
 
-@dataclass(unsafe_hash=True)
+@dataclass
 class Trajectory:
     """Trajectory of a robot.
 
@@ -200,29 +200,33 @@ class Trajectory:
         else:
             self._pinocchio_model = robot.pinocchio_model
 
+        # Compute the trajectory stride.
+        # Ensure continuity of the freeflyer when time is wrapping.
+        self._stride_offset_log6: Optional[np.ndarray] = None
+        if self.robot.has_freeflyer and self.has_data:
+            M_start = pin.XYZQUATToSE3(self.states[0].q[:7])
+            M_end = pin.XYZQUATToSE3(self.states[-1].q[:7])
+            self._stride_offset_log6 = pin.log6(M_end * M_start.inverse())
+
         # Keep track of last request to speed up nearest neighbors search
         self._t_prev = 0.0
         self._index_prev = 1
 
         # List of optional state fields that are provided
-        self._has_velocity = False
-        self._has_acceleration = False
-        self._has_effort = False
-        self._has_command = False
-        self._has_external_forces = False
-        self._has_constraints = False
-        if states:
-            state = states[0]
-            self._has_velocity = state.v is not None
-            self._has_acceleration = state.a is not None
-            self._has_effort = state.u is not None
-            self._has_command = state.command is not None
-            self._has_external_forces = state.f_external is not None
-            self._has_constraints = state.lambda_c is not None
-            self._fields = tuple(
-                field for field in (
-                    "v", "a", "u", "command", "f_external", "lambda_c")
-                if getattr(state, field) is not None)
+        # Note that looking for keys in such a small set is not worth the
+        # hassle of using Python `set`, which breaks ordering and index access.
+        fields_: List[str] = []
+        fields_candidates = [field.name for field in fields(State)[2:]]
+        for state in states:
+            for field in fields_candidates:
+                if getattr(state, field) is None:
+                    if field in fields_:
+                        raise ValueError(
+                            "The state information being set must be the same "
+                            "for all the timesteps of a given trajectory.")
+                else:
+                    fields_.append(field)
+        self._fields = tuple(fields_)
 
     @property
     def has_data(self) -> bool:
@@ -234,37 +238,44 @@ class Trajectory:
     def has_velocity(self) -> bool:
         """Whether the trajectory contains the velocity vector.
         """
-        return self._has_velocity
+        return "v" in self._fields
 
     @property
     def has_acceleration(self) -> bool:
         """Whether the trajectory contains the acceleration vector.
         """
-        return self._has_acceleration
+        return "a" in self._fields
 
     @property
     def has_effort(self) -> bool:
         """Whether the trajectory contains the effort vector.
         """
-        return self._has_acceleration
+        return "u" in self._fields
 
     @property
     def has_command(self) -> bool:
         """Whether the trajectory contains motor commands.
         """
-        return self._has_command
+        return "command" in self._fields
 
     @property
     def has_external_forces(self) -> bool:
         """Whether the trajectory contains external forces.
         """
-        return self._has_external_forces
+        return "f_external" in self._fields
 
     @property
     def has_constraints(self) -> bool:
         """Whether the trajectory contains lambda multipliers of constraints.
         """
-        return self._has_constraints
+        return "lambda_c" in self._fields
+
+    @property
+    def optional_fields(self) -> Tuple[str, ...]:
+        """Optional state information being specified for all the timesteps of
+        the trajectory.
+        """
+        return self._fields
 
     @property
     def time_interval(self) -> Tuple[float, float]:
@@ -306,13 +317,15 @@ class Trajectory:
         t_orig = t
 
         # Handling of the desired mode
+        n_steps = 0.0
         t_start, t_end = self.time_interval
         if mode == "raise":
             if t - t_end > TRAJ_INTERP_TOL or t_start - t > TRAJ_INTERP_TOL:
                 raise RuntimeError("Time is out-of-range.")
         elif mode == "wrap":
             if t_end > t_start:
-                t = ((t - t_start) % (t_end - t_start)) + t_start
+                n_steps, t_rel = divmod(t - t_start, t_end - t_start)
+                t = t_rel + t_start
             else:
                 t = t_start
         else:
@@ -331,7 +344,7 @@ class Trajectory:
             self._times, t, self._index_prev, len(self._times) - 1)
         self._t_prev = t
 
-        # Skip interpolation if not necessary.
+        # Skip interpolation if not necessary
         index_left, index_right = self._index_prev - 1, self._index_prev
         t_left, s_left = self._times[index_left], self.states[index_left]
         if t - t_left < TRAJ_INTERP_TOL:
@@ -342,12 +355,20 @@ class Trajectory:
         alpha = (t - t_left) / (t_right - t_left)
 
         # Interpolate state
-        data = {"q": pin.interpolate(
-            self._pinocchio_model, s_left.q, s_right.q, alpha)}
+        position = pin.interpolate(
+            self._pinocchio_model, s_left.q, s_right.q, alpha)
+        data = {"q": position}
         for field in self._fields:
             value_left = getattr(s_left, field)
             value_right = getattr(s_right, field)
             data[field] = value_left + alpha * (value_right - value_left)
+
+        # Perform odometry if the time is wrapping
+        if self._stride_offset_log6 is not None and n_steps:
+            stride_offset = pin.exp6(n_steps * self._stride_offset_log6)
+            ff_xyzquat = stride_offset * pin.XYZQUATToSE3(position[:7])
+            position[:7] = pin.SE3ToXYZQUAT(ff_xyzquat)
+
         return State(t=t_orig, **data)
 
 

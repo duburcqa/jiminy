@@ -20,8 +20,10 @@ from numpy import typing as npt
 
 import gymnasium as gym
 
+import jiminy_py.core as jiminy
+from jiminy_py.core import (  # pylint: disable=no-name-in-module
+    EncoderSensor, EffortSensor, array_copyto)
 from jiminy_py import tree
-from jiminy_py.core import array_copyto  # pylint: disable=no-name-in-module
 
 
 ValueT = TypeVar('ValueT')
@@ -113,6 +115,136 @@ def _array_contains(value: np.ndarray,
     if high is not None and (value.item() > high.item() + tol_0d):
         return False
     return True
+
+
+def get_robot_state_space(robot: jiminy.Robot,
+                          use_theoretical_model: bool = False,
+                          ignore_velocity_limit: bool = True
+                          ) -> gym.spaces.Dict:
+    """Get the state space associated with a given robot.
+
+    .. warning:
+        This method is not meant to be overloaded in general since the
+        definition of the state space is mostly consensual. One must rather
+        overload `_initialize_observation_space` to customize the observation
+        space as a whole.
+
+    :param robot: Jiminy robot to consider.
+    :param use_theoretical_model: Whether to compute the state space associated
+                                  with the theoretical model instead of the
+                                  extended simulation model.
+    :param ignore_velocity_limit: Whether to ignore the velocity bounds
+                                  specified in model.
+    """
+    # Define some proxies for convenience
+    pinocchio_model = robot.pinocchio_model
+    position_limit_lower = pinocchio_model.lowerPositionLimit
+    position_limit_upper = pinocchio_model.upperPositionLimit
+    velocity_limit = pinocchio_model.velocityLimit
+
+    # Deduce bounds associated the theoretical model from the extended one
+    if use_theoretical_model:
+        position_limit_lower, position_limit_upper = map(
+            robot.get_theoretical_position_from_extended,
+            (position_limit_lower, position_limit_upper))
+        velocity_limit = (
+            robot.get_theoretical_velocity_from_extended(velocity_limit))
+
+    # Ignore velocity bounds in requested
+    if ignore_velocity_limit:
+        velocity_limit = np.full_like(velocity_limit, float("inf"))
+
+    # Aggregate position and velocity bounds to define state space
+    return gym.spaces.Dict(OrderedDict(
+        q=gym.spaces.Box(low=position_limit_lower,
+                         high=position_limit_upper,
+                         dtype=np.float64),
+        v=gym.spaces.Box(low=float("-inf"),
+                         high=float("inf"),
+                         shape=(robot.pinocchio_model.nv,),
+                         dtype=np.float64)))
+
+
+def get_robot_measurements_space(robot: jiminy.Robot) -> gym.spaces.Dict:
+    """Get the sensor space associated with a given robot.
+
+    It gathers the sensors data in a dictionary. It maps each available type of
+    sensor to the associated data matrix. Rows correspond to the sensor type's
+    fields, and columns correspond to each individual sensor.
+
+    .. note:
+        The mapping between row `i` of data matrix and associated sensor type's
+        field is given by:
+
+        .. code-block:: python
+
+            field = getattr(jiminy_py.core, key).fieldnames[i]
+
+        The mapping between column `j` of data matrix and associated sensor
+        name and object are given by:
+
+        .. code-block:: python
+
+            sensor = env.robot.sensors[key][j]
+
+    :param robot: Jiminy robot to consider.
+    """
+    # Make sure that the robot is initialized
+    assert robot.is_initialized
+
+    # Define some proxies for convenience
+    position_limit_lower = robot.pinocchio_model.lowerPositionLimit
+    position_limit_upper = robot.pinocchio_model.upperPositionLimit
+
+    # Initialize the bounds of the sensor space
+    sensor_measurements = robot.sensor_measurements
+    sensor_space_lower = OrderedDict(
+        (key, np.full(value.shape, -np.inf))
+        for key, value in sensor_measurements.items())
+    sensor_space_upper = OrderedDict(
+        (key, np.full(value.shape, np.inf))
+        for key, value in sensor_measurements.items())
+
+    # Replace inf bounds of the encoder sensor space
+    for sensor in robot.sensors.get(EncoderSensor.type, ()):
+        # Get the position bounds of the sensor.
+        # Note that for rotary unbounded encoders, the sensor bounds cannot be
+        # extracted from the motor because only the principal value of the
+        # angle is observed by the sensor.
+        assert isinstance(sensor, EncoderSensor)
+        joint = robot.pinocchio_model.joints[sensor.joint_index]
+        joint_type = jiminy.get_joint_type(joint)
+        if joint_type == jiminy.JointModelType.ROTARY_UNBOUNDED:
+            sensor_position_lower = - np.pi
+            sensor_position_upper = + np.pi
+        else:
+            try:
+                motor = robot.motors[sensor.motor_index]
+                sensor_position_lower = motor.position_limit_lower
+                sensor_position_upper = motor.position_limit_upper
+            except IndexError:
+                sensor_position_lower = position_limit_lower[joint.idx_q]
+                sensor_position_upper = position_limit_upper[joint.idx_q]
+
+        # Update the bounds accordingly
+        sensor_space_lower[EncoderSensor.type][0, sensor.index] = (
+            sensor_position_lower)
+        sensor_space_upper[EncoderSensor.type][0, sensor.index] = (
+            sensor_position_upper)
+
+    # Replace inf bounds of the effort sensor space
+    for sensor in robot.sensors.get(EffortSensor.type, ()):
+        assert isinstance(sensor, EffortSensor)
+        motor = robot.motors[sensor.motor_index]
+        sensor_space_lower[EffortSensor.type][0, sensor.index] = (
+            - motor.effort_limit)
+        sensor_space_upper[EffortSensor.type][0, sensor.index] = (
+            motor.effort_limit)
+
+    return gym.spaces.Dict(OrderedDict(
+        (key, gym.spaces.Box(low=min_val, high=max_val, dtype=np.float64))
+        for (key, min_val), max_val in zip(
+            sensor_space_lower.items(), sensor_space_upper.values())))
 
 
 def get_bounds(space: gym.Space

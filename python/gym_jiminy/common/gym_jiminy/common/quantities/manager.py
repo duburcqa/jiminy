@@ -9,9 +9,7 @@ redundant intermediary quantities only once per step, and gathering similar
 quantities in a large batch to leverage vectorization of math instructions.
 """
 from collections.abc import MutableMapping
-from typing import Any, Dict, List, Tuple, Iterator, Literal, Type
-
-from jiminy_py.dynamics import Trajectory
+from typing import Any, Dict, List, Tuple, Iterator, Type, cast
 
 from ..bases import (
     QuantityCreator, InterfaceJiminyEnv, InterfaceQuantity, SharedCache,
@@ -33,11 +31,21 @@ class QuantityManager(MutableMapping):
     selecting one beforehand would raise an exception.
 
     .. note::
+        There is no way to select a different reference trajectory for
+        individual quantities at the time being.
+
+    .. note::
         Individual quantities can be accessed either as instance properties or
         items of a dictionary. Choosing one or the other is only a matter of
         taste since both options have been heavily optimized to  minimize
         overhead and should be equally efficient.
     """
+
+    trajectory_dataset: DatasetTrajectoryQuantity
+    """Database of reference trajectories synchronized between all managed
+    quantities.
+    """
+
     def __init__(self, env: InterfaceJiminyEnv) -> None:
         """
         :param env: Base or wrapped jiminy environment.
@@ -64,8 +72,9 @@ class QuantityManager(MutableMapping):
         # Instantiate trajectory database.
         # Note that this quantity is not added to the global registry to avoid
         # exposing directly to the user. This way, it cannot be deleted.
-        self._trajectory_dataset = self._build_quantity(
-            (DatasetTrajectoryQuantity, {}))
+        self.trajectory_dataset = cast(
+            DatasetTrajectoryQuantity, self._build_quantity(
+                (DatasetTrajectoryQuantity, {})))
 
     def reset(self, reset_tracking: bool = False) -> None:
         """Consider that all managed quantity must be re-initialized before
@@ -95,44 +104,6 @@ class QuantityManager(MutableMapping):
         """
         for _, cache in self._caches:
             cache.reset(ignore_auto_refresh=not self.env.is_simulation_running)
-
-    def add_trajectory(self, name: str, trajectory: Trajectory) -> None:
-        """Add a new reference trajectory to the database synchronized between
-        all managed quantities.
-
-        :param name: Desired name of the trajectory. It must be unique. If a
-                     trajectory with the exact same name already exists, then
-                     it must be discarded first, so as to prevent silently
-                     overwriting it by mistake.
-        :param trajectory: Trajectory instance to register.
-        """
-        self._trajectory_dataset.add(name, trajectory)
-
-    def discard_trajectory(self, name: str) -> None:
-        """Discard a trajectory from the database synchronized between all
-        managed quantities.
-
-        :param name: Name of the trajectory to discard.
-        """
-        self._trajectory_dataset.discard(name)
-
-    def select_trajectory(self,
-                          name: str,
-                          mode: Literal['raise', 'wrap', 'clip'] = 'raise'
-                          ) -> None:
-        """Select an existing trajectory from the database shared synchronized
-        all managed quantities.
-
-        .. note::
-            There is no way to select a different reference trajectory for
-            individual quantities at the time being.
-
-        :param name: Name of the trajectory to select.
-        :param mode: Specifies how to deal with query time of are out of the
-                     time interval of the trajectory. See `Trajectory.get`
-                     documentation for details.
-        """
-        self._trajectory_dataset.select(name, mode)
 
     def __getattr__(self, name: str) -> Any:
         """Get access managed quantities as first-class properties, rather than
@@ -228,7 +199,7 @@ class QuantityManager(MutableMapping):
                 "delete it first before adding a new one.")
 
         # Instantiate new quantity
-        quantity = self._build_quantity(quantity_creator)
+        quantity: InterfaceQuantity = self._build_quantity(quantity_creator)
 
         # Add it to the global registry of already managed quantities
         self.registry[name] = quantity

@@ -23,10 +23,14 @@ import numpy as np
 import gymnasium as gym
 
 import jiminy_py.core as jiminy
+import pinocchio as pin
 from jiminy_py.dynamics import State, Trajectory
 
-from ..bases import (InterfaceJiminyEnv,
+from ..quantities import EnergyGenerationMode
+from ..bases import (QuantityEvalMode,
+                     InterfaceJiminyEnv,
                      InterfaceBlock,
+                     InterfaceQuantity,
                      BaseControllerBlock,
                      BaseObserverBlock,
                      BasePipelineWrapper,
@@ -36,7 +40,15 @@ from ..bases import (InterfaceJiminyEnv,
                      AbstractReward,
                      MixtureReward,
                      AbstractTerminationCondition)
+from ..blocks import QuantityObserver
 from ..envs import BaseJiminyEnv
+
+
+ENUM_TYPES = (EnergyGenerationMode,
+              QuantityEvalMode,
+              pin.KinematicLevel)
+ENUM_NAME_TO_MODULE_MAP = {enum_type.__name__: enum_type.__module__.split(".")
+                           for enum_type in ENUM_TYPES}
 
 
 class CompositionConfig(TypedDict, total=False):
@@ -82,13 +94,14 @@ class TrajectoryDatabaseConfig(TypedDict, total=False):
     name: str
     """Name of the selected trajectory if any.
 
-    This attribute can be omitted.
+    This attribute can be omitted. If so, the first trajectory being specified
+    will be selected by default.
     """
 
     mode: Literal['raise', 'wrap', 'clip']
     """Interpolation mode of the selected trajectory if any.
 
-    This attribute can be omitted.
+    This attribute can be omitted. If so, 'raise' mode is used by default.
     """
 
 
@@ -233,6 +246,34 @@ def build_pipeline(env_config: EnvConfig,
                       an exception if required but not provided.
                       Optional: `None` by default.
     """
+    # Define helper to replace enums string by its corresponding object value
+    def sanitize_enum_string(kwargs: Dict[str, Any]) -> None:
+        """Replace in-place enum string representation with their object
+        counterpart.
+
+        :param kwargs: Nested dictionary of options.
+        """
+        for key, value in kwargs.items():
+            if isinstance(value, dict):
+                sanitize_enum_string(value)
+                continue
+
+            if not isinstance(value, str):
+                continue
+
+            if value == "none":
+                kwargs[key] = None
+                continue
+
+            value_path = value.split(".")
+            enum_type = value_path[-2] if len(value_path) > 1 else None
+            if enum_type in ENUM_NAME_TO_MODULE_MAP.keys():
+                for path_ in ENUM_NAME_TO_MODULE_MAP[enum_type][::-1]:
+                    if path_ not in value_path:
+                        value_path.insert(0, path_)
+                kwargs[key] = locate(".".join(value_path))
+                continue
+
     # Define helper to sanitize composition configuration
     def sanitize_composition_config(composition_config: CompositionConfig,
                                     is_reward: bool) -> None:
@@ -255,6 +296,9 @@ def build_pipeline(env_config: EnvConfig,
 
         # Get its constructor keyword-arguments
         kwargs = composition_config.get("kwargs", {})
+
+        # Special treatment for "none" and enum string
+        sanitize_enum_string(kwargs)
 
         # Special handling for `MixtureReward`
         if is_reward and issubclass(cls, MixtureReward):
@@ -297,10 +341,8 @@ def build_pipeline(env_config: EnvConfig,
         # Get its constructor keyword-arguments
         kwargs = composition_config.get("kwargs", {}).copy()
 
-        # Special treatment for "none"
-        for key, value in kwargs.items():
-            if isinstance(value, str) and value == "none":
-                kwargs[key] = None
+        # Special treatment for "none" and enum string
+        sanitize_enum_string(kwargs)
 
         # Special handling for `MixtureReward`
         if is_reward and issubclass(cls, MixtureReward):
@@ -373,7 +415,7 @@ def build_pipeline(env_config: EnvConfig,
             name = trajectories_config.get("name")
             if name is not None:
                 mode = trajectories_config.get("mode", "raise")
-                env.quantities.select_trajectory(name, mode)
+                env.quantities.trajectory_dataset.select(name, mode)
 
         return env
 
@@ -385,7 +427,7 @@ def build_pipeline(env_config: EnvConfig,
             block_cls: Optional[Type[InterfaceBlock]],
             block_kwargs: Dict[str, Any],
             **env_kwargs: Any
-            ) -> BasePipelineWrapper:
+            ) -> InterfaceJiminyEnv:
         """Helper wrapping a base environment or a pipeline with an additional
         observer-controller layer.
 
@@ -478,13 +520,20 @@ def build_pipeline(env_config: EnvConfig,
                 path = pathlib.Path(root_path) / path
             trajectories[name] = load_trajectory_from_hdf5(path)
 
+    # Add extra user-specified reward, termination conditions and trajectories
+    pipeline_creator = partial(build_composition_layer,
+                               pipeline_creator,
+                               reward_config,
+                               terminations_config,
+                               trajectories_config)
+
     # Generate pipeline recursively
     for layer_config in layers_config:
         # Extract block and wrapper config
         block_config = layer_config.get("block") or {}
         wrapper_config = layer_config.get("wrapper") or {}
 
-        # Make sure block and wrappers are class type and parse them if string
+        # Make sure block and wrappers are class types and parse them if string
         block_cls = block_config.get("cls")
         block_cls_: Optional[Type[InterfaceBlock]] = None
         if isinstance(block_cls, str):
@@ -511,11 +560,18 @@ def build_pipeline(env_config: EnvConfig,
         block_kwargs = block_config.get("kwargs", {})
         wrapper_kwargs = wrapper_config.get("kwargs", {})
 
-        # Special treatment for "none"
+        # Special treatment for "none" and enum string
         for kwargs in (block_kwargs, wrapper_kwargs):
-            for key, value in kwargs.items():
-                if isinstance(value, str) and value == "none":
-                    kwargs[key] = None
+            sanitize_enum_string(kwargs)
+
+        # Special treatment for "quantity" arg of `QuantityObserver` blocks
+        if block_cls_ is not None and issubclass(block_cls_, QuantityObserver):
+            quantity_cls = block_config["kwargs"].get("quantity")
+            if isinstance(quantity_cls, str):
+                obj = locate(quantity_cls)
+                assert (isinstance(obj, type) and
+                        issubclass(obj, InterfaceQuantity))
+                block_config["kwargs"]["quantity"] = obj
 
         # Handling of default wrapper class type
         if wrapper_cls_ is None:
@@ -540,13 +596,6 @@ def build_pipeline(env_config: EnvConfig,
                                    wrapper_kwargs,
                                    block_cls_,
                                    block_kwargs)
-
-    # Add extra user-specified reward, termination conditions and trajectories
-    pipeline_creator = partial(build_composition_layer,
-                               pipeline_creator,
-                               reward_config,
-                               terminations_config,
-                               trajectories_config)
 
     return pipeline_creator
 
@@ -630,9 +679,12 @@ def load_trajectory_from_hdf5(
     for args in zip(*states_dict.values()):
         states.append(State(**dict(zip(states_dict.keys(), args))))
 
+    # Load whether to use the theoretical model of the robot
+    dataset = hdf_obj['robot']
+    use_theoretical_model = dataset.attrs["use_theoretical_model"]
+
     # Build trajectory from data.
     # Null char '\0' must be added at the end to match original string length.
-    dataset = hdf_obj['robot']
     robot_data = dataset[()]
     robot_data += b'\0' * (
         dataset.nbytes - len(robot_data))  # pylint: disable=no-member
@@ -643,12 +695,9 @@ def load_trajectory_from_hdf5(
             "Impossible to build robot from serialized binary data. Make sure "
             "that data has been generated on a machine with the same hardware "
             "as this one.") from e
-
-    # Load whether to use the theoretical model of the robot
-    use_theoretical_model = dataset.attrs["use_theoretical_model"]
-
-    # Close the HDF5 file
-    hdf_obj.close()
+    finally:
+        # Close the HDF5 file
+        hdf_obj.close()
 
     # Re-construct the whole trajectory
     return Trajectory(states, robot, use_theoretical_model)
