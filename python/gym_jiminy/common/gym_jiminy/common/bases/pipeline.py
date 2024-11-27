@@ -95,6 +95,9 @@ class BasePipelineWrapper(
         # Backup the parent environment
         self.env = env
 
+        # Whether the block is registered in a environment pipeline
+        self._is_registered = False
+
         # Call base implementation
         super().__init__()  # Do not forward any argument
 
@@ -102,9 +105,6 @@ class BasePipelineWrapper(
         # Note that it cannot be done at this point because the action
         # may be overwritten by derived classes afterward.
         self._copyto_action: Callable[[Act], None] = lambda action: None
-
-        # Whether the block is registered in a environment pipeline
-        self._is_registered = False
 
     def __getattr__(self, name: str) -> Any:
         """Convenient fallback attribute getter.
@@ -118,27 +118,32 @@ class BasePipelineWrapper(
             Calling this method in script mode while a simulation is already
             running would trigger a warning to avoid relying on it by mistake.
         """
-        # Make sure that no simulaton is running
-        if (self.is_simulation_running and self.env.is_training and
-                not hasattr(sys, 'ps1')):
-            # `hasattr(sys, 'ps1')` is used to detect whether the method was
-            # called from an interpreter or within a script. For details, see:
-            # https://stackoverflow.com/a/64523765/4820605
-            LOGGER.warning(
-                "Relying on fallback attribute getter is inefficient and "
-                "strongly discouraged at runtime.")
+        try:
+            # Make sure that no simulaton is running
+            if (self.__getattribute__('is_simulation_running') and
+                    self.env.is_training and not hasattr(sys, 'ps1')):
+                # `hasattr(sys, 'ps1')` is used to detect whether the method
+                # was called from an interpreter or within a script. For
+                # details, see: https://stackoverflow.com/a/64523765/4820605
+                LOGGER.warning(
+                    "Relying on fallback attribute getter is inefficient and "
+                    "strongly discouraged at runtime.")
 
-        # Ensure that the block that has been declared as top-most layer of the
-        # environment pipeline is consistent with the callee of this method,
-        # i.e. `self.env.derived` is a parent of `self`. If not, set the callee
-        # as parent if no simulation is running. Otherwise, aise an exception.
-        if not self._is_registered:
-            if self.is_simulation_running:
-                raise RuntimeError(
-                    "This block is not registered as part of the environment "
-                    "pipeline. Please stop the simulation before adding new "
-                    "blocks.")
-            self.update_pipeline(self)
+            # Ensure that the block that has been declared as top-most layer of
+            # the environment pipeline is consistent with the callee of this
+            # method, i.e. `self.env.derived` is a parent of `self`. If not,
+            # set the callee as parent if no simulation is running. Otherwise,
+            # raise an exception.
+            if not self.__getattribute__('_is_registered'):
+                if self.is_simulation_running:
+                    raise RuntimeError(
+                        "This block is not registered as part of the "
+                        "environment pipeline. Please stop the simulation "
+                        "before adding new blocks.")
+                self.update_pipeline(self)
+        except AttributeError:
+            # The block is not fully initialized at this point. Skipping check.
+            pass
 
         return getattr(self.__getattribute__('env'), name)
 
