@@ -15,7 +15,7 @@ from functools import partial
 from collections.abc import Sequence
 from typing import (
     Dict, Any, Optional, Union, Type, Sequence as SequenceT, Callable,
-    TypedDict, Literal, overload, cast)
+    TypedDict, List, Literal, overload, cast)
 
 import h5py
 import tomlkit
@@ -27,6 +27,7 @@ from jiminy_py.dynamics import State, Trajectory
 
 from ..bases import (InterfaceJiminyEnv,
                      InterfaceBlock,
+                     InterfaceQuantity,
                      BaseControllerBlock,
                      BaseObserverBlock,
                      BasePipelineWrapper,
@@ -36,6 +37,7 @@ from ..bases import (InterfaceJiminyEnv,
                      AbstractReward,
                      MixtureReward,
                      AbstractTerminationCondition)
+from ..blocks import QuantityObserver
 from ..envs import BaseJiminyEnv
 
 
@@ -386,7 +388,7 @@ def build_pipeline(env_config: EnvConfig,
             block_cls: Optional[Type[InterfaceBlock]],
             block_kwargs: Dict[str, Any],
             **env_kwargs: Any
-            ) -> BasePipelineWrapper:
+            ) -> InterfaceJiminyEnv:
         """Helper wrapping a base environment or a pipeline with an additional
         observer-controller layer.
 
@@ -492,7 +494,7 @@ def build_pipeline(env_config: EnvConfig,
         block_config = layer_config.get("block") or {}
         wrapper_config = layer_config.get("wrapper") or {}
 
-        # Make sure block and wrappers are class type and parse them if string
+        # Make sure block and wrappers are class types and parse them if string
         block_cls = block_config.get("cls")
         block_cls_: Optional[Type[InterfaceBlock]] = None
         if isinstance(block_cls, str):
@@ -519,11 +521,38 @@ def build_pipeline(env_config: EnvConfig,
         block_kwargs = block_config.get("kwargs", {})
         wrapper_kwargs = wrapper_config.get("kwargs", {})
 
-        # Special treatment for "none"
+        # Special treatment for some values
         for kwargs in (block_kwargs, wrapper_kwargs):
             for key, value in kwargs.items():
-                if isinstance(value, str) and value == "none":
+                if not isinstance(value, str):
+                    continue
+
+                if value == "none":
                     kwargs[key] = None
+                    continue
+
+                value_path = value.split(".")
+                enum_type = value_path[-2] if len(value_path) > 1 else None
+                if enum_type in ("QuantityEvalMode", "KinematicLevel"):
+                    module_path: Sequence[str]
+                    if enum_type == "QuantityEvalMode":
+                        module_path = ("gym_jiminy", "common", "bases")
+                    else:
+                        module_path = ("pinocchio",)
+                    for path_ in module_path[::-1]:
+                        if path_ not in value_path:
+                            value_path.insert(0, path_)
+                    kwargs[key] = locate(".".join(value_path))
+                    continue
+
+        # Special treatment for "quantity" arg of `QuantityObserver` blocks
+        if block_cls_ is not None and issubclass(block_cls_, QuantityObserver):
+            quantity_cls = block_config["kwargs"].get("quantity")
+            if isinstance(quantity_cls, str):
+                obj = locate(quantity_cls)
+                assert (isinstance(obj, type) and
+                        issubclass(obj, InterfaceQuantity))
+                block_config["kwargs"]["quantity"] = obj
 
         # Handling of default wrapper class type
         if wrapper_cls_ is None:

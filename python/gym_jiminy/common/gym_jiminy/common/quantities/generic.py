@@ -1537,7 +1537,7 @@ class FrameSpatialAverageVelocity(InterfaceQuantity[np.ndarray]):
 @dataclass(unsafe_hash=True)
 class MultiActuatedJointKinematic(AbstractQuantity[np.ndarray]):
     """Current position, velocity or acceleration of all the actuated joints
-    of the robot before or after the mechanical transmissions.
+    of the robot in motor order, before or after the mechanical transmissions.
 
     In practice, all actuated joints must be 1DoF for now. In the case of
     revolute unbounded revolute joints, the principal angle 'theta' is used to
@@ -1547,7 +1547,7 @@ class MultiActuatedJointKinematic(AbstractQuantity[np.ndarray]):
         Data is extracted from the true configuration vector instead of using
         sensor data. As a result, this quantity is appropriate for computing
         reward components and termination conditions but must be avoided in
-        observers and controllers.
+        observers and controllers, unless `mode=QuantityEvalMode.REFERENCE`.
 
     .. warning::
         Revolute unbounded joints are not supported for now.
@@ -1650,7 +1650,7 @@ class MultiActuatedJointKinematic(AbstractQuantity[np.ndarray]):
                 if np.all(np.array(self.kinematic_indices) == np.arange(
                         kin_first, kin_last + 1)):
                     self._must_refresh = False
-                else:
+                elif sorted(self.kinematic_indices) != self.kinematic_indices:
                     warnings.warn(
                         "Consider using the same ordering for motors and "
                         "joints for optimal performance.")
