@@ -433,8 +433,8 @@ def build_reduce(fn: Callable[..., ValueInT],
     .. warning::
         It is assumed without checking that all nested data structures are
         consistent together and with the space if provided. It holds true both
-        data known at generation-time or runtime. Yet, it is only required for
-        data provided at runtime if any to include the original data structure,
+        data known at generation-time or runtime. It is only required for data
+        that may be provided at runtime to include the original data structure,
         so it may contain additional branches which will be ignored.
 
     .. warning::
@@ -462,8 +462,8 @@ def build_reduce(fn: Callable[..., ValueInT],
                after transform. See 'functools.reduce' documentation for
                details. `None` to only apply transform on all leaves without
                reduction. This is useful when apply in-place transform.
-    :param data: Pre-allocated nested data structure. Optional if the space is
-                 provided but hardly relevant.
+    :param dataset: Pre-allocated nested data structure. Optional if the space
+                    is provided.
     :param space: Container space on which to operate (eg `gym.spaces.Dict` or
                   `gym.spaces.Tuple`). Optional iif the nested data structure
                   is provided.
@@ -522,17 +522,18 @@ def build_reduce(fn: Callable[..., ValueInT],
                   has been specified.
         """
         # Extract extra arguments from functor if necessary to preserve order
+        has_args = False
         is_out_1, is_out_2 = fn_1.func is not fn, fn_2.func is not fn
         if not is_out_1:
             fn_1, dataset, args_1 = fn_1.func, fn_1.args[:-1], fn_1.args[-1]
-            has_args = bool(args_1)
+            has_args |= bool(args_1)
             if arity == 0:
                 fn_1 = partial(fn_1, *dataset, *args_1)
             elif dataset:
                 fn_1 = partial(fn_1, *dataset)
         if not is_out_2:
             fn_2, dataset, args_2 = fn_2.func, fn_2.args[:-1], fn_2.args[-1]
-            has_args = bool(args_2)
+            has_args |= bool(args_2)
             if arity == 0:
                 fn_2 = partial(fn_2, *dataset, *args_2)
             elif dataset:
@@ -669,7 +670,7 @@ def build_reduce(fn: Callable[..., ValueInT],
         :returns: Specialized key-forwarding callable.
         """
         is_out = post_fn.func is not fn
-        if parent is None and not is_out:
+        if not is_out:
             # Extract extra arguments from functor to preserve arguments order
             dataset, args = post_fn.args[:-1], post_fn.args[-1]
             post_fn = post_fn.func
@@ -686,22 +687,31 @@ def build_reduce(fn: Callable[..., ValueInT],
                         post_fn()
                     return partial(_forward, post_fn)
                 if has_args:
-                    if field is None:
+                    if parent is None and field is None:
                         def _forward(post_fn, args, delayed):
                             post_fn(delayed, *args)
                         return partial(_forward, post_fn, args)
+                    if (parent is None) ^ (field is None):
+                        def _forward(post_fn, field, args, delayed):
+                            post_fn(delayed[field], *args)
+                        return partial(
+                            _forward, post_fn, parent or field, args)
 
-                    def _forward(post_fn, field, args, delayed):
-                        post_fn(delayed[field], *args)
-                    return partial(_forward, post_fn, field, args)
-                if field is None:
+                    def _forward(post_fn, parent, field, args, delayed):
+                        post_fn(delayed[parent][field], *args)
+                    return partial(_forward, post_fn, parent, field, args)
+                if parent is None and field is None:
                     def _forward(post_fn, delayed):
                         post_fn(delayed)
                     return partial(_forward, post_fn)
+                if (parent is None) ^ (field is None):
+                    def _forward(post_fn, field, delayed):
+                        post_fn(delayed[field])
+                    return partial(_forward, post_fn, parent or field)
 
-                def _forward(post_fn, field, delayed):
-                    post_fn(delayed[field])
-                return partial(_forward, post_fn, field)
+                def _forward(post_fn, parent, field, delayed):
+                    post_fn(delayed[parent][field])
+                return partial(_forward, post_fn, parent, field)
 
             # Specialization if op is specified
             if arity == 0:
@@ -714,22 +724,31 @@ def build_reduce(fn: Callable[..., ValueInT],
                     return post_fn()
                 return partial(_forward, post_fn)
             if is_initialized:
-                if field is None:
+                if parent is None and field is None:
                     def _forward(op, post_fn, args, out, delayed):
                         return op(out, post_fn(delayed, *args))
                     return partial(_forward, op, post_fn, args)
+                if (parent is None) ^ (field is None):
+                    def _forward(op, post_fn, field, args, out, delayed):
+                        return op(out, post_fn(delayed[field], *args))
+                    return partial(
+                        _forward, op, post_fn, parent or field, args)
 
-                def _forward(op, post_fn, field, args, out, delayed):
-                    return op(out, post_fn(delayed[field], *args))
-                return partial(_forward, op, post_fn, field, args)
-            if field is None:
+                def _forward(op, post_fn, parent, field, args, out, delayed):
+                    return op(out, post_fn(delayed[parent][field], *args))
+                return partial(_forward, op, post_fn, parent, field, args)
+            if parent is None and field is None:
                 def _forward(post_fn, args, out, delayed):
                     return post_fn(delayed, *args)
                 return partial(_forward, post_fn, args)
+            if (parent is None) ^ (field is None):
+                def _forward(post_fn, field, args, out, delayed):
+                    return post_fn(delayed[field], *args)
+                return partial(_forward, post_fn, parent or field, args)
 
-            def _forward(post_fn, field, args, out, delayed):
-                return post_fn(delayed[field], *args)
-            return partial(_forward, post_fn, field, args)
+            def _forward(post_fn, parent, field, args, out, delayed):
+                return post_fn(delayed[parent][field], *args)
+            return partial(_forward, post_fn, parent, field, args)
 
         # No key to forward for main entry-point of zero arity
         if parent is None or arity == 0:
