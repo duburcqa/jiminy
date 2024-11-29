@@ -5,6 +5,6 @@ Wrappers
    :maxdepth: 1
 
    flatten
-   normalize
-   observation_filter
+   scale
+   observation_layout
    observation_stack

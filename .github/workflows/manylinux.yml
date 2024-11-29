@@ -120,6 +120,7 @@ jobs:
           -o $RootDir/build/stubs --ignore-invalid=all jiminy_py
         \cp $RootDir/build/stubs/jiminy_py-stubs/core/__init__.pyi \
             $RootDir/build/pypi/jiminy_py/src/jiminy_py/core/core.pyi
+        "${PYTHON_EXECUTABLE}" -m pip install --upgrade "numpy>=1.24"
 
         # Generate wheels
         cd "$RootDir/build"
