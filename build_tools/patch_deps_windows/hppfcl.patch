@@ -152,7 +152,7 @@ diff --git a/include/hpp/fcl/serialization/convex.h b/include/hpp/fcl/serializat
      }
    }
  
-+  for (int i = 0; i <= convex_base.num_points ; ++i)
++  for (int i = 0; i < convex_base.num_points ; ++i)
    {
 -    typedef Eigen::Matrix<FCL_REAL, 3, Eigen::Dynamic> MatrixPoints;
 -    Eigen::Map<MatrixPoints> points_map(

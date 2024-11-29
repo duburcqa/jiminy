@@ -78,7 +78,14 @@ jobs:
         "${PYTHON_EXECUTABLE}" -m pip install "gymnasium>=0.28,<1.0" "stable_baselines3>=2.0,<2.4"
     - name: Install latest numpy version at build-time for run-time binary compatibility
       run: |
-        "${PYTHON_EXECUTABLE}" -m pip install --upgrade "numpy>=1.24"
+        if [[ "${{ matrix.BUILD_TYPE }}" != 'Debug' && "${{ matrix.OS }}" != 'macos-13' ]] ; then
+          "${PYTHON_EXECUTABLE}" -m pip install --upgrade "numpy>=1.24" numba torch
+        else
+          # FIXME: torch on MacOS x86 for Python 3.10 does not support Numpy 2.X
+          # but does not enforce such restriction in requirements.
+          "${PYTHON_EXECUTABLE}" -m pip install --upgrade "numpy>=1.24,<2.0" numba torch
+        fi
+
     - name: Build jiminy dependencies
       run: |
         OSX_DEPLOYMENT_TARGET=${OSX_DEPLOYMENT_TARGET} OSX_ARCHITECTURES=${OSX_ARCHITECTURES} \
@@ -131,20 +138,22 @@ jobs:
         export DYLD_FALLBACK_LIBRARY_PATH="${LD_LIBRARY_PATH}"
 
         # Generate stubs
-        # FIXME: stubgen does not work with Numpy 2.X
-        # (see https://github.com/python/mypy/issues/17396)
-        "${PYTHON_EXECUTABLE}" -m pip install "numpy<2.0"
-        stubgen -p jiminy_py -o ${RootDir}/build/pypi/jiminy_py/src
-        # FIXME: Python 3.10 crashes when generating stubs without any backtrace...
-        if [[ "${{ matrix.PYTHON_VERSION }}" != '3.10' ]] ; then
-          # lldb --batch -o "settings set target.process.stop-on-exec false" \
-          #   -o "break set -n main" -o "run" -k "bt" -k "quit" -- \
-          "${PYTHON_EXECUTABLE}" "${RootDir}/build_tools/stubgen.py" \
-            -o ${RootDir}/build/stubs --ignore-invalid=all jiminy_py
-          cp ${RootDir}/build/stubs/jiminy_py-stubs/core/__init__.pyi \
-             ${RootDir}/build/pypi/jiminy_py/src/jiminy_py/core/core.pyi
+        if [[ "${{ matrix.BUILD_TYPE }}" != 'Debug' && "${{ matrix.OS }}" != 'macos-13' ]] ; then
+          # FIXME: stubgen does not work with Numpy 2.X
+          # (see https://github.com/python/mypy/issues/17396)
+          "${PYTHON_EXECUTABLE}" -m pip install "numpy<2.0"
+          stubgen -p jiminy_py -o ${RootDir}/build/pypi/jiminy_py/src
+          # FIXME: Python 3.10 crashes when generating stubs without any backtrace...
+          if [[ "${{ matrix.PYTHON_VERSION }}" != '3.10' ]] ; then
+            # lldb --batch -o "settings set target.process.stop-on-exec false" \
+            #   -o "break set -n main" -o "run" -k "bt" -k "quit" -- \
+            "${PYTHON_EXECUTABLE}" "${RootDir}/build_tools/stubgen.py" \
+              -o ${RootDir}/build/stubs --ignore-invalid=all jiminy_py
+            cp ${RootDir}/build/stubs/jiminy_py-stubs/core/__init__.pyi \
+              ${RootDir}/build/pypi/jiminy_py/src/jiminy_py/core/core.pyi
+          fi
+          "${PYTHON_EXECUTABLE}" -m pip install --upgrade "numpy>=1.24" numba torch
         fi
-        "${PYTHON_EXECUTABLE}" -m pip install --upgrade "numpy>=1.24"
 
         # Generate wheels
         cd "${RootDir}/build"
