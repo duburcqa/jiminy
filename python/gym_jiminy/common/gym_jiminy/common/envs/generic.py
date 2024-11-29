@@ -325,6 +325,12 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
 
     def __del__(self) -> None:
         try:
+            if self.log_path is not None:
+                try:
+                    os.remove(self.log_path)
+                except FileNotFoundError:
+                    pass
+                self.log_path = None
             self.close()
         except Exception:   # pylint: disable=broad-except
             # This method must not fail under any circumstances
@@ -854,7 +860,9 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         # nor truncated, or because it was wrapped with a non-jiminy-specific
         # layer such as `TimeLimit`.
         if has_simulation_data:
-            self.log_path = None
+            if self.log_path is not None:
+                os.remove(self.log_path)
+                self.log_path = None
             if self.debug or not self.is_training:
                 fd, self.log_path = tempfile.mkstemp(suffix=".data")
                 os.close(fd)

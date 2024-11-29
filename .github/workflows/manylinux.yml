@@ -65,7 +65,7 @@ jobs:
         "${PYTHON_EXECUTABLE}" -m pip install twine cmake
     - name: Install latest numpy version at build-time for run-time binary compatibility
       run: |
-        "${PYTHON_EXECUTABLE}" -m pip install --upgrade "numpy>=1.24"
+        "${PYTHON_EXECUTABLE}" -m pip install --upgrade "numpy>=1.24" numba
     - name: Build project dependencies
       run: |
         ./build_tools/build_install_deps_unix.sh
@@ -120,7 +120,7 @@ jobs:
           -o $RootDir/build/stubs --ignore-invalid=all jiminy_py
         \cp $RootDir/build/stubs/jiminy_py-stubs/core/__init__.pyi \
             $RootDir/build/pypi/jiminy_py/src/jiminy_py/core/core.pyi
-        "${PYTHON_EXECUTABLE}" -m pip install --upgrade "numpy>=1.24"
+        "${PYTHON_EXECUTABLE}" -m pip install --upgrade "numpy>=1.24" numba
 
         # Generate wheels
         cd "$RootDir/build"

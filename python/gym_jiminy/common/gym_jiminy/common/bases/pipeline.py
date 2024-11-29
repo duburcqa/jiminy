@@ -543,7 +543,7 @@ class ComposedJiminyEnv(BasePipelineWrapper[Obs, Act, Obs, Act],
         self._trajectory_optional_fields: Tuple[str, ...] = ()
 
         # Handling of reference trajectories if any
-        if trajectories is not None:
+        if trajectories:
             # Add reference trajectories to managed quantities
             for name, trajectory in trajectories.items():
                 self._trajectory_dataset.add(name, trajectory)

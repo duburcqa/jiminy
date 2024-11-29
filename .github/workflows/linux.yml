@@ -75,7 +75,7 @@ jobs:
         "${PYTHON_EXECUTABLE}" -m pip install "gymnasium>=0.28,<1.0" "stable_baselines3>=2.0,<2.4"
     - name: Install latest numpy version at build-time for run-time binary compatibility
       run: |
-        "${PYTHON_EXECUTABLE}" -m pip install --upgrade "numpy>=1.24"
+        "${PYTHON_EXECUTABLE}" -m pip install --upgrade "numpy>=1.24" numba torch
     - name: Build jiminy dependencies
       run: |
         BUILD_TYPE="${{ matrix.BUILD_TYPE }}" ./build_tools/build_install_deps_unix.sh
@@ -149,7 +149,7 @@ jobs:
           -o ${RootDir}/build/stubs --ignore-invalid=all jiminy_py
         cp ${RootDir}/build/stubs/jiminy_py-stubs/core/__init__.pyi \
            ${RootDir}/build/pypi/jiminy_py/src/jiminy_py/core/core.pyi
-        "${PYTHON_EXECUTABLE}" -m pip install --upgrade "numpy>=1.24"
+        "${PYTHON_EXECUTABLE}" -m pip install --upgrade "numpy>=1.24" numba torch
 
         # Re-install jiminy with stubs
         cd "${RootDir}/build"
