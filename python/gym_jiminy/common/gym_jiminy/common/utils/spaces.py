@@ -552,7 +552,7 @@ def build_reduce(fn: Callable[..., ValueInT],
                     fn_1(delayed)
                 return partial(_reduce, fn_1, fn_2)
             if is_out_1 and not is_out_2:
-                if has_args:  # pylint: disable=possibly-used-before-assignment
+                if has_args:
                     def _reduce(fn_1, fn_2, field_2, args_2, delayed):
                         fn_2(delayed[field_2], *args_2)
                         fn_1(delayed)

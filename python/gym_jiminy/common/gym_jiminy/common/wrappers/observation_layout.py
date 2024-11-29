@@ -95,27 +95,27 @@ def _adapt_layout(
     # Shallow copy the input data structure
     data = copy(data)
 
-    # Convert all parent containers to their mutable counterpart.
+    # Convert all parent containers to their mutable counterpart
     container_types_in: Dict[NestedKey, Type] = {}
-    for key_nested, _ in flatten_with_path(data):
-        for i in range(1, len(key_nested) + 1):
+    for nested_key, _ in flatten_with_path(data):
+        for i in range(1, len(nested_key) + 1):
             # Extract parent container
-            key_nested_parent = key_nested[:(i - 1)]
-            if key_nested_parent:
-                *key_nested_container, key_parent = key_nested_parent
-                container = reduce(getitem, key_nested_container, data)
+            nested_key_parent = nested_key[:(i - 1)]
+            if nested_key_parent:
+                *nested_key_container, key_parent = nested_key_parent
+                container = reduce(getitem, nested_key_container, data)
                 parent = container[key_parent]
             else:
                 parent = data
 
             # Convert parent container to mutable dictionary
             parent_type = type(parent)
-            if key_nested_parent not in container_types_in:
-                container_types_in[key_nested_parent] = parent_type
+            if nested_key_parent not in container_types_in:
+                container_types_in[nested_key_parent] = parent_type
             if parent_type in (list, dict, OrderedDict):
                 continue
             if issubclass_mapping(parent_type):
-                parent = dict(parent.items())
+                parent = OrderedDict(parent.items())
             elif issubclass_sequence(parent_type):
                 parent = list(parent)
             else:
@@ -123,7 +123,7 @@ def _adapt_layout(
                     f"Unsupported container type: '{parent_type}'")
 
             # Re-assign parent data structure
-            if key_nested_parent:
+            if nested_key_parent:
                 container[key_parent] = parent
             else:
                 data = parent
@@ -275,22 +275,22 @@ def _adapt_layout(
     path_all, _ = zip(*flatten_with_path(out))
     depth = max(map(len, path_all))
     for i in range(depth)[::-1]:
-        for key_nested in path_all:
+        for nested_key in path_all:
             # Skip if the node is not a container
-            if len(key_nested) <= i:
+            if len(nested_key) <= i:
                 continue
 
             # Extract parent container
-            key_nested_parent = key_nested[:i]
-            if key_nested_parent:
-                *key_nested_container, key_parent = key_nested_parent
-                container = reduce(getitem, key_nested_container, out)
+            nested_key_parent = nested_key[:i]
+            if nested_key_parent:
+                *nested_key_container, key_parent = nested_key_parent
+                container = reduce(getitem, nested_key_container, out)
                 parent = container[key_parent]
             else:
                 parent = out
 
             # Restore original container type if not already done
-            parent_type = container_types_out[key_nested_parent]
+            parent_type = container_types_out[nested_key_parent]
             if isinstance(parent, parent_type):
                 continue
             if issubclass_mapping(parent_type):
@@ -299,7 +299,7 @@ def _adapt_layout(
                 parent = parent_type(tuple(parent))
 
             # Re-assign output data structure
-            if key_nested_parent:
+            if nested_key_parent:
                 container[key_parent] = parent
             else:
                 out = parent
@@ -499,10 +499,10 @@ class FilterObservation(
         # Make sure all nested keys are stored in sequence
         assert not isinstance(nested_filter_keys, str)
         self.nested_filter_keys: Sequence[NestedKey] = []
-        for key_nested in nested_filter_keys:
-            if isinstance(key_nested, (str, int)):
-                key_nested = (key_nested,)
-            self.nested_filter_keys.append(tuple(key_nested))
+        for nested_key in nested_filter_keys:
+            if isinstance(nested_key, (str, int)):
+                nested_key = (nested_key,)
+            self.nested_filter_keys.append(tuple(nested_key))
 
         # Get all paths associated with leaf values that must be kept.
         # Re-order filtered leaves to match the original nested data structure.
