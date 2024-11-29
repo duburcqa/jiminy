@@ -132,6 +132,7 @@ jobs:
           -o $RootDir/build/stubs --ignore-invalid=all jiminy_py
         Copy-Item -Force -Path "$RootDir/build/stubs/jiminy_py-stubs/core/__init__.pyi" `
                   -Destination "$RootDir/build/pypi/jiminy_py/src/jiminy_py/core/core.pyi"
+        python -m pip install --upgrade "numpy>=1.24"
 
         # Generate wheels
         Set-Location -Path "$RootDir/build"
