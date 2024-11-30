@@ -169,9 +169,18 @@ namespace jiminy::python
             if (dstNdim == srcNdim && PyArray_CompareLists(dstShape, srcShape, dstNdim) &&
                 PyArray_EquivArrTypes(dstPyArray, srcPyArray))
             {
-                // Get memory layout of source and destination arrays
+                // Extract data pointers
                 char * dstPyData = PyArray_BYTES(dstPyArray);
                 char * srcPyData = PyArray_BYTES(srcPyArray);
+
+                // Check if source and destination are the referring to the same memory location
+                if ((dstPyData == srcPyData) &&
+                    (PyArray_BASE(dstPyArray) == PyArray_BASE(srcPyArray)))
+                {
+                    return;
+                }
+
+                // Get memory layout of source and destination arrays
                 const npy_intp itemsize = PyArray_ITEMSIZE(dstPyArray);
                 const int srcPyFlags = PyArray_FLAGS(srcPyArray);
                 const int commonPyFlags = dstPyFlags & srcPyFlags;
@@ -302,21 +311,40 @@ namespace jiminy::python
 
     void multiArrayCopyTo(PyObject * dstPy, PyObject * srcPy)
     {
-        PyObject * dstSeqPy = PySequence_Fast(dstPy, "Only tuple or list is supported for 'dst'.");
-        PyObject * srcSeqPy = PySequence_Fast(srcPy, "Only tuple or list is supported for 'src'.");
+        // Wrap the input arguments as tuple or list if not already the case
+        PyObject * dstSeqPy = PySequence_Fast(dstPy, "'dst' must be a sequence or an iterable.");
+        if (dstSeqPy == nullptr)
+        {
+            throw bp::error_already_set();
+        }
+        PyObject * srcSeqPy = PySequence_Fast(srcPy, "'src' must be a sequence or an iterable.");
+        if (srcSeqPy == nullptr)
+        {
+            Py_DECREF(dstSeqPy);
+            throw bp::error_already_set();
+        }
+
+        // Make sure that source and destination have the same length
         const Py_ssize_t dstSize = PySequence_Fast_GET_SIZE(dstSeqPy);
         const Py_ssize_t srcSize = PySequence_Fast_GET_SIZE(srcSeqPy);
         if (dstSize != srcSize)
         {
+            Py_DECREF(dstSeqPy);
+            Py_DECREF(srcSeqPy);
             JIMINY_THROW(std::runtime_error, "Length mismatch between 'src' and 'dst'.");
         }
 
-        PyObject ** dstItemsPy = PySequence_Fast_ITEMS(dstPy);
-        PyObject ** srcItemsPy = PySequence_Fast_ITEMS(srcPy);
+        // Loop over all pairs one-by-one
+        PyObject ** dstItemsPy = PySequence_Fast_ITEMS(dstSeqPy);
+        PyObject ** srcItemsPy = PySequence_Fast_ITEMS(srcSeqPy);
         for (uint32_t i = 0; i < dstSize; ++i)
         {
             arrayCopyTo(dstItemsPy[i], srcItemsPy[i]);
         }
+
+        // Release memory
+        Py_DECREF(dstSeqPy);
+        Py_DECREF(srcSeqPy);
     }
 
     void exposeHelpers()
