@@ -26,7 +26,8 @@ import gymnasium as gym
 from gymnasium.core import RenderFrame
 from gymnasium.envs.registration import EnvSpec
 
-from jiminy_py.core import array_copyto  # pylint: disable=no-name-in-module
+from jiminy_py.core import (  # pylint: disable=no-name-in-module
+    is_breakpoint, array_copyto)
 from jiminy_py.dynamics import Trajectory
 from jiminy_py.tree import issubclass_mapping
 
@@ -42,7 +43,6 @@ from .compositions import AbstractReward, AbstractTerminationCondition
 from .blocks import BaseControllerBlock, BaseObserverBlock
 
 from ..utils import (DataNested,
-                     is_breakpoint,
                      zeros,
                      build_copyto,
                      copy,
@@ -192,6 +192,11 @@ class BasePipelineWrapper(
 
         # Call base implementation
         super().__init__()  # Do not forward any argument
+
+        # Enable direct forwarding by default for efficiency
+        if BasePipelineWrapper.has_terminated is type(self).has_terminated:
+            self.has_terminated = (  # type: ignore[method-assign]
+                self.env.has_terminated)
 
         # Define specialized operator(s) for efficiency.
         # Note that it cannot be done at this point because the action
@@ -577,6 +582,11 @@ class ComposedJiminyEnv(BasePipelineWrapper[Obs, Act, Obs, Act],
         # Initialize base class
         super().__init__(env)
 
+        # Enable direct forwarding by default for efficiency
+        if ComposedJiminyEnv.compute_command is type(self).compute_command:
+            self.compute_command = (  # type: ignore[method-assign]
+                self.env.compute_command)
+
         # Bind action of the base environment
         assert self.action_space.contains(env.action)
         self.action = env.action
@@ -836,6 +846,11 @@ class ObservedJiminyEnv(
         # Initialize base wrapper
         super().__init__(env, **kwargs)
 
+        # Enable direct forwarding by default for efficiency
+        if ObservedJiminyEnv.compute_command is type(self).compute_command:
+            self.compute_command = (  # type: ignore[method-assign]
+                self.env.compute_command)
+
         # Bind action of the base environment
         assert self.action_space.contains(env.action)
         self.action = env.action
@@ -911,7 +926,7 @@ class ObservedJiminyEnv(
         self.env.refresh_observation(measurement)
 
         # Update observed features if necessary
-        if is_breakpoint(self.stepper_state.t, self.observe_dt, DT_EPS):
+        if is_breakpoint(self.stepper_state, self.observe_dt, DT_EPS):
             self.observer.refresh_observation(self.env.observation)
 
     def compute_command(self, action: Act, command: np.ndarray) -> None:
@@ -1032,6 +1047,12 @@ class ControlledJiminyEnv(
         # Initialize base wrapper
         super().__init__(env, **kwargs)
 
+        # Enable direct forwarding by default for efficiency
+        if (ControlledJiminyEnv.refresh_observation is
+                type(self).refresh_observation):
+            self.refresh_observation = (  # type: ignore[method-assign]
+                self.env.refresh_observation)
+
         # Allocate action buffer
         self.action: Act = zeros(self.action_space)
 
@@ -1127,7 +1148,7 @@ class ControlledJiminyEnv(
         # Note that `observation` buffer has already been updated right before
         # calling this method by `_controller_handle`, so it can be used as
         # measure argument without issue.
-        if is_breakpoint(self.stepper_state.t, self.control_dt, DT_EPS):
+        if is_breakpoint(self.stepper_state, self.control_dt, DT_EPS):
             self.controller.compute_command(action, self.env.action)
 
         # Update the command to send to the actuators of the robot.
@@ -1168,7 +1189,13 @@ class BaseTransformObservation(
         # Initialize base class
         super().__init__(env)
 
-        # Initialize some proxies for fast lookup
+        # Enable direct forwarding by default for efficiency
+        if (BaseTransformObservation.compute_command is
+                type(self).compute_command):
+            self.compute_command = (  # type: ignore[method-assign]
+                self.env.compute_command)
+
+        # Define base env proxies for fast access
         self._step_dt = self.env.step_dt
 
         # Pre-allocated memory for the observation
@@ -1186,9 +1213,6 @@ class BaseTransformObservation(
         """
         # Call base implementation
         super()._setup()
-
-        # Refresh some proxies for fast lookup
-        self._step_dt = self.env.step_dt
 
         # Copy observe and control update periods from wrapped environment
         self.observe_dt = self.env.observe_dt
@@ -1230,7 +1254,7 @@ class BaseTransformObservation(
         self.env.refresh_observation(measurement)
 
         # Transform observation at the end of the step only
-        if is_breakpoint(self.stepper_state.t, self._step_dt, DT_EPS):
+        if is_breakpoint(self.stepper_state, self._step_dt, DT_EPS):
             self.transform_observation()
 
     @abstractmethod
@@ -1275,7 +1299,13 @@ class BaseTransformAction(
         # Initialize base class
         super().__init__(env)
 
-        # Initialize some proxies for fast lookup
+        # Enable direct forwarding by default for efficiency
+        if (BaseTransformAction.refresh_observation is
+                type(self).refresh_observation):
+            self.refresh_observation = (  # type: ignore[method-assign]
+                self.env.refresh_observation)
+
+        # Initialize some proxies for fast access
         self._step_dt = self.env.step_dt
 
         # Pre-allocated memory for the action
@@ -1293,9 +1323,6 @@ class BaseTransformAction(
         """
         # Call base implementation
         super()._setup()
-
-        # Refresh some proxies for fast lookup
-        self._step_dt = self.env.step_dt
 
         # Copy observe and control update periods from wrapped environment
         self.observe_dt = self.env.observe_dt
@@ -1337,7 +1364,7 @@ class BaseTransformAction(
         :param command: Lower-level command to update in-place.
         """
         # Transform action at the beginning of the step only
-        if is_breakpoint(self.stepper_state.t, self._step_dt, DT_EPS):
+        if is_breakpoint(self.stepper_state, self._step_dt, DT_EPS):
             self.transform_action(action)
 
         # Delegate command computation to wrapped environment

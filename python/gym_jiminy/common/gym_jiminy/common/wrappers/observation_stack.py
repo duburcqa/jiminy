@@ -10,7 +10,7 @@ from typing import (
 import numpy as np
 import gymnasium as gym
 from jiminy_py.core import (  # pylint: disable=no-name-in-module
-    array_copyto, multi_array_copyto)
+    is_breakpoint, array_copyto, multi_array_copyto)
 from jiminy_py.tree import flatten_with_path, unflatten_as
 
 from ..bases import (DT_EPS,
@@ -19,7 +19,7 @@ from ..bases import (DT_EPS,
                      EngineObsType,
                      InterfaceJiminyEnv,
                      BasePipelineWrapper)
-from ..utils import is_breakpoint, zeros, copy
+from ..utils import zeros, copy
 
 
 StackedObs: TypeAlias = NestedObs
@@ -220,7 +220,7 @@ class StackObservation(
 
     def refresh_observation(self, measurement: EngineObsType) -> None:
         # Skip update if nothing to do
-        if not is_breakpoint(self.stepper_state.t, self.observe_dt, DT_EPS):
+        if not is_breakpoint(self.stepper_state, self.observe_dt, DT_EPS):
             return
 
         # Refresh environment observation
@@ -231,7 +231,7 @@ class StackObservation(
         if self.is_simulation_running:
             self._n_last_stack += 1
             if self.skip_frames_ratio < 0:
-                if is_breakpoint(self.stepper_state.t, self._step_dt, DT_EPS):
+                if is_breakpoint(self.stepper_state, self._step_dt, DT_EPS):
                     update_stack = True
             elif self._n_last_stack == self.skip_frames_ratio:
                 update_stack = True

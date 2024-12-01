@@ -345,7 +345,9 @@ class PDController(
         self.motors_effort_limit = np.array([
             motor.effort_limit for motor in env.robot.motors])
 
-        # Refresh mechanical reduction ratio
+        # Refresh mechanical reduction ratio.
+        # FIXME: Is it considered invariant ? If not, it should be refreshed in
+        # `_setup`, as done for `DeformationEstimator`.
         encoder_to_joint_ratio = []
         for motor in env.robot.motors:
             motor_options = motor.get_options()

@@ -10,7 +10,7 @@ from functools import partial
 from collections import OrderedDict
 from collections.abc import Mapping, MutableMapping, Sequence, MutableSequence
 from typing import (
-    Any, Dict, Optional, Union, Sequence as SequenceT, Tuple, Literal,
+    Any, List, Dict, Optional, Union, Sequence as SequenceT, Tuple, Literal,
     Mapping as MappingT, SupportsFloat, TypeVar, Type, Callable, no_type_check,
     overload)
 
@@ -22,7 +22,7 @@ import gymnasium as gym
 
 import jiminy_py.core as jiminy
 from jiminy_py.core import (  # pylint: disable=no-name-in-module
-    EncoderSensor, EffortSensor, array_copyto)
+    EncoderSensor, EffortSensor, array_copyto, multi_array_copyto)
 from jiminy_py import tree
 
 
@@ -338,8 +338,7 @@ def copyto(dst: DataNested, src: DataNested) -> None:
     :param dst: Hierarchical data structure to update, possibly flattened.
     :param value: Hierarchical data to copy, possibly flattened.
     """
-    for data, value in zip(*map(tree.flatten, (dst, src))):
-        array_copyto(data, value)
+    multi_array_copyto(tree.flatten(dst), tree.flatten(src))
 
 
 @overload
@@ -1153,9 +1152,50 @@ def build_copyto(dst: DataNested) -> Callable[[DataNested], None]:
     """Generate specialized `copyto` method for a given pre-allocated
     destination.
 
+    Note that the key ordering of source and destination data structures do NOT
+    have to match, only the hierarchy has to be the same. Beside, additional
+    subtrees of the output data structure will be ignored if any.
+
     :param dst: Nested data structure to be updated.
     """
-    return build_reduce(array_copyto, None, (dst,), None, 1)
+    # Special case if parent is not a container
+    dst_type = type(dst)
+    if not (tree.issubclass_mapping(dst_type) or
+            tree.issubclass_sequence(dst_type)):
+        return partial(array_copyto, dst)
+
+    # Build specialized flattening method, appending all leaves in a buffer
+    src_flat: List[np.ndarray] = []
+    flatten = build_reduce(
+        src_flat.append, None, (), dst, 1, forward_bounds=False)
+
+    # Flatten the nested data structure to update on-the-spot for efficiency
+    dst_flat = tree.flatten(dst)
+
+    # Define helper that gathers all operations
+    def _flatten_and_copyto(src_flat: List[np.ndarray],
+                            flatten: Callable[[DataNested], None],
+                            dst_flat: Sequence[np.ndarray],
+                            src: DataNested) -> None:
+        """Internal method that flattens the input data structure before
+        copying data from source to destination all at once.
+
+        :param src_flat: Buffer storing the result of the specialized
+                         flattening operator.
+        :param flatten: Flattening operator specialized for a given output data
+                        structure.
+        :param src_flat: Pre-computed flattened output data structure.
+        :param src: Nested input data structure whose output data structure is
+                    a subtree.
+        """
+        # Populate buffer with flattened input data structure
+        src_flat.clear()
+        flatten(src)
+
+        # Copy from source to destination all arrays at once
+        multi_array_copyto(dst_flat, src_flat)
+
+    return partial(_flatten_and_copyto, src_flat, flatten, dst_flat)
 
 
 def build_clip(data: DataNested,
@@ -1179,6 +1219,10 @@ def build_contains(data: DataNested,
     :param data: Pre-allocated nested data structure whose leaves must be
                  within bounds if defined and ignored otherwise.
     :param space: `gym.Space` on which to operate.
+    :param tol_abs: Absolute tolerance for floating point equality check.
+                    Optional: `0.0` by default.
+    :param tol_rel: Relative tolerance for floating point aprox equality check.
+                    Optional: `0.0` by default.
     """
     # Define a special exception involved in short-circuit mechanism
     class ShortCircuitContains(Exception):
@@ -1326,16 +1370,18 @@ def build_flatten(data_nested: DataNested,
     # hacky since only passing `DataNested` instances is officially supported,
     # but it is currently the easiest way to keep track of some internal state
     # and specify leaf-specific constants.
-    flat_slices = []
+    start_indices, stop_indices = [], []
     idx_start = 0
     for data in data_leaves:
         idx_end = idx_start + max(math.prod(data.shape), 1)
-        flat_slices.append((idx_start, idx_end))
+        start_indices.append(idx_start)
+        stop_indices.append(idx_end)
         idx_start = idx_end
 
     @nb.jit(nopython=True, cache=True)
     def _flatten(data: np.ndarray,
-                 flat_slice: Tuple[int, int],
+                 idx_start: int,
+                 idx_end: int,
                  data_flat: np.ndarray,
                  is_reversed: bool) -> None:
         """Synchronize the flatten and un-flatten representation of the data
@@ -1346,26 +1392,28 @@ def build_flatten(data_nested: DataNested,
 
         :param data: Multi-dimensional array that will be either updated or
                      copied as a whole depending on 'is_reversed'.
-        :param flat_slice: Start and stop indices of the slice of 'data_flat'
-                           to synchronized with 'data'.
+        :param idx_start: First index of the slice of 'data_flat' to
+                          synchronized with 'data'.
+        :param idx_end: One-after-last index of the slice of 'data_flat' to
+                        synchronized with 'data'.
         :param data_flat: 1D array from which to extract that will be either
                           updated or copied depending on 'is_reversed'.
         :param is_reversed: True to update the multi-dimensional array 'data'
                             by copying the value from slice 'flat_slice' of
                             vector 'data_flat', False for doing the contrary.
         """
-        # For some reason, passing a slice as input argument is much slower
-        # in numba than creating it inside the method.
+        # Note that passing slices as input argument is very slow in numba
         if is_reversed:
-            data.ravel()[:] = data_flat[slice(*flat_slice)]
+            data.ravel()[:] = data_flat[idx_start:idx_end]
         else:
-            data_flat[slice(*flat_slice)] = data.ravel()
+            data_flat[idx_start:idx_end] = data.ravel()
 
     args = (is_reversed,)
     if data_flat is not None:
         args = (data_flat, *args)  # type: ignore[assignment]
-    out_fn = build_reduce(
-        _flatten, None, (data_leaves, flat_slices), None, 2 - len(args), *args)
+    arity = 2 - len(args)
+    out_fn = build_reduce(_flatten, None, (
+        data_leaves, start_indices, stop_indices), None, arity, *args)
     if data_flat is None:
         def _repeat(out_fn: Callable[[DataNested], None],
                     n_leaves: int,
