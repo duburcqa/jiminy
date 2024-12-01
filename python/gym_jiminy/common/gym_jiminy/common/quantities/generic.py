@@ -16,7 +16,7 @@ import numba as nb
 
 import jiminy_py.core as jiminy
 from jiminy_py.core import (  # pylint: disable=no-name-in-module
-    array_copyto, multi_array_copyto)
+    multi_array_copyto)
 import pinocchio as pin
 import hppfcl as fcl
 
@@ -864,12 +864,15 @@ class FrameXYZQuat(InterfaceQuantity[np.ndarray]):
         # Pre-allocate memory for storing the pose XYZQuat of all frames
         self._xyzquat = np.zeros((7,))
 
-    def refresh(self) -> np.ndarray:
-        # Copy the position of all frames at once in contiguous buffer
-        array_copyto(self._xyzquat[:3], self.position.get())
+        # Define position and orientation memory views for fast assignment
+        self._xyzquat_views = (self._xyzquat[:3], self._xyzquat[-4:])
 
-        # Copy the quaternion of all frames at once in contiguous buffer
-        array_copyto(self._xyzquat[-4:], self.quat.get())
+    def refresh(self) -> np.ndarray:
+        # Compute the position and orientation of all frames at once
+        xyz_quat = (self.position.get(), self.quat.get())
+
+        # Copy data in contiguous buffer
+        multi_array_copyto(self._xyzquat_views, xyz_quat)
 
         return self._xyzquat
 
@@ -932,12 +935,15 @@ class MultiFrameXYZQuat(InterfaceQuantity[np.ndarray]):
         # Pre-allocate memory for storing the pose XYZQuat of all frames
         self._xyzquats = np.zeros((7, len(frame_names)), order='C')
 
-    def refresh(self) -> np.ndarray:
-        # Copy the position of all frames at once in contiguous buffer
-        array_copyto(self._xyzquats[:3], self.positions.get())
+        # Define position and orientation memory views for fast assignment
+        self._xyzquats_views = (self._xyzquats[:3], self._xyzquats[-4:])
 
-        # Copy the quaternion of all frames at once in contiguous buffer
-        array_copyto(self._xyzquats[-4:], self.quats.get())
+    def refresh(self) -> np.ndarray:
+        # Compute the position and orientation of all frames at once
+        xyz_quat_batch = (self.positions.get(), self.quats.get())
+
+        # Copy data in contiguous buffer
+        multi_array_copyto(self._xyzquats_views, xyz_quat_batch)
 
         return self._xyzquats
 

@@ -145,7 +145,7 @@ class AbstractReward(metaclass=ABCMeta):
             return 0.0
 
         # Make sure that terminal flag is honored
-        if self.is_terminal is not None and self.is_terminal ^ terminated:
+        if bool(self.is_terminal) ^ terminated:
             raise ValueError("Flag 'is_terminal' not honored.")
 
         # Make sure that the reward is scalar
@@ -262,7 +262,7 @@ class QuantityReward(AbstractReward, Generic[ValueT]):
         :returns: Scalar value if the reward was evaluated, `None` otherwise.
         """
         # Early return depending on whether the reward and state are terminal
-        if self.is_terminal is not None and self.is_terminal ^ terminated:
+        if bool(self.is_terminal) ^ terminated:
             return None
 
         # Evaluate raw quantity
@@ -359,7 +359,7 @@ class MixtureReward(AbstractReward):
         the environment, then aggregate them in one.
         """
         # Early return depending on whether the reward and state are terminal
-        if self.is_terminal is not None and self.is_terminal ^ terminated:
+        if bool(self.is_terminal) ^ terminated:
             return None
 
         # Compute all reward components

@@ -22,7 +22,8 @@ from gymnasium.core import RenderFrame
 
 import jiminy_py.core as jiminy
 from jiminy_py import tree
-from jiminy_py.core import array_copyto  # pylint: disable=no-name-in-module
+from jiminy_py.core import (  # pylint: disable=no-name-in-module
+    array_copyto, multi_array_copyto)
 from jiminy_py.dynamics import compute_freeflyer_state_from_fixed_body
 from jiminy_py.log import extract_variables_from_log
 from jiminy_py.simulator import Simulator, TabbedFigure
@@ -253,23 +254,54 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         self.observation: Obs = zeros(self.observation_space)
         self.action: Act = zeros(self.action_space)
 
-        # Check that the action space and 'compute_command' are consistent
-        if (BaseJiminyEnv.compute_command is type(self).compute_command and
-                BaseJiminyEnv._initialize_action_space is not
-                type(self)._initialize_action_space):
+        # Check that the action and observation spaces are consistent with
+        # 'compute_command' and 'refresh_observation' respectively.
+        cls = type(self)
+        is_action_space_custom = (
+            BaseJiminyEnv._initialize_action_space is not
+            cls._initialize_action_space)
+        if (BaseJiminyEnv.compute_command is cls.compute_command and
+                is_action_space_custom):
             raise NotImplementedError(
-                "`BaseJiminyEnv.compute_command` must be overloaded in case "
-                "of custom action spaces.")
+                "`BaseJiminyEnv.compute_command` must be overloaded when "
+                "defining a custom action space.")
+        is_observation_space_custom = (
+            BaseJiminyEnv._initialize_observation_space is not
+            cls._initialize_observation_space)
+        if (BaseJiminyEnv.refresh_observation is cls.refresh_observation and
+                is_observation_space_custom):
+            raise NotImplementedError(
+                "`BaseJiminyEnv.refresh_observation` must be overloaded when "
+                "defining a custom observation space.")
+
+        # Define flattened default observation for efficiency if not overloaded
+        self._observation_flat: Sequence[np.ndarray] = ()
+        if not is_observation_space_custom:
+            assert isinstance(self.observation, dict)
+            self._observation_flat = (
+                self.observation['t'],
+                self.observation['states']['agent']['q'],
+                self.observation['states']['agent']['v'],
+                *self.observation['measurements'].values())
 
         # Define specialized operators for efficiency.
         # Note that a partial view of observation corresponding to measurement
         # must be extracted since only this one must be updated during refresh.
         self._copyto_action = build_copyto(self.action)
-        self._contains_observation = build_contains(
-            self.observation, self.observation_space, tol_rel=OBS_CONTAINS_TOL)
         self._contains_action = build_contains(self.action, self.action_space)
-        self._get_clipped_env_observation: Callable[
-            [], DataNested] = OrderedDict
+        reduced_obs_space: spaces.Space[DataNested] = self.observation_space
+        if not is_observation_space_custom:
+            # Note that time is removed from the observation space because it
+            # will be checked independently.
+            assert isinstance(reduced_obs_space, spaces.Dict)
+            reduced_obs_space = spaces.Dict(OrderedDict(
+                (key, value)
+                for key, value in reduced_obs_space.items()
+                if key != 't'))
+        self._contains_observation = build_contains(
+            self.observation, reduced_obs_space, tol_rel=OBS_CONTAINS_TOL)
+        self._get_clipped_env_observation: Callable[[], DataNested] = (
+            OrderedDict)
 
         # Set robot in neutral configuration
         q = self._neutral()
@@ -1432,16 +1464,16 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
             `self.robot_state` would not be valid if an adaptive stepper is
             being used for physics integration.
         """
-        observation = self.observation
-        array_copyto(observation["t"], measurement["t"])
-        agent_state_out = observation['states']['agent']
+        # Manually flatten measurement
         agent_state_in = measurement['states']['agent']
-        array_copyto(agent_state_out['q'], agent_state_in['q'])
-        array_copyto(agent_state_out['v'], agent_state_in['v'])
-        sensors_out = observation['measurements']
-        sensors_in = measurement['measurements']
-        for sensor_type in self._sensors_types:
-            array_copyto(sensors_out[sensor_type], sensors_in[sensor_type])
+        measurement_flat = (
+            measurement['t'],
+            agent_state_in['q'],
+            agent_state_in['v'],
+            *measurement['measurements'].values())
+
+        # Copy all arrays at once
+        multi_array_copyto(self._observation_flat, measurement_flat)
 
     def compute_command(self, action: Act, command: np.ndarray) -> None:
         """Compute the motors efforts to apply on the robot.

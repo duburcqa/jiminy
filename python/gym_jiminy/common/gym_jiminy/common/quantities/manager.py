@@ -102,8 +102,9 @@ class QuantityManager(MutableMapping):
             environment has changed (ie either the agent or world itself),
             thereby invalidating the value currently stored in cache if any.
         """
+        ignore_auto_refresh = not self.env.is_simulation_running
         for _, cache in self._caches:
-            cache.reset(ignore_auto_refresh=not self.env.is_simulation_running)
+            cache.reset(ignore_auto_refresh=ignore_auto_refresh)
 
     def __getattr__(self, name: str) -> Any:
         """Get access managed quantities as first-class properties, rather than

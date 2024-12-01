@@ -14,7 +14,7 @@ from typing import (
 import numpy as np
 
 from jiminy_py.core import (  # pylint: disable=no-name-in-module
-    multi_array_copyto)
+    array_copyto, multi_array_copyto)
 
 from ..bases import InterfaceJiminyEnv, InterfaceQuantity, QuantityCreator
 
@@ -126,10 +126,10 @@ class StackedQuantity(
                          auto_refresh=True)
 
         # Allocate stack buffer.
-        # Note that using a plain list is more efficient in practice. Although
-        # front deletion is very fast compared to list, casting deque to tuple
-        # or list is very slow, which ultimately prevail. The matter gets worst
-        # as the maximum length gets longer.
+        # Note that using a plain old list is more efficient than dequeue in
+        # practice. Although front deletion is very fast compared to list,
+        # casting deque to tuple or list is very slow, which ultimately
+        # prevail. The matter gets worst as the maximum length gets longer.
         self._value_list: List[ValueT] = []
 
         # Continuous memory to store the whole stack if requested.
@@ -197,11 +197,18 @@ class StackedQuantity(
                         "environment after adding this quantity.")
                 value = self.quantity.get()
                 if isinstance(value, np.ndarray):
-                    value_list.append(value.copy())  # type: ignore[arg-type]
+                    # Avoid memory allocation if possible, which is much faster
+                    if len(value_list) == self.max_stack:
+                        buffer = value_list.pop(0)
+                        array_copyto(buffer, value)
+                        value_list.append(buffer)
+                    else:
+                        value_list.append(
+                            value.copy())  # type: ignore[arg-type]
                 else:
+                    if len(value_list) == self.max_stack:
+                        del value_list[0]
                     value_list.append(deepcopy(value))
-                if len(value_list) > self.max_stack:
-                    del value_list[0]
                 self._num_steps_prev += 1
 
         # Aggregate data in contiguous array only if requested

@@ -576,8 +576,8 @@ class InterfaceQuantity(Generic[ValueT], metaclass=ABCMeta):
         """Consider that the quantity must be re-initialized before being
         evaluated once again.
 
-        If shared cache is available, then it will be cleared and all identity
-        quantities will jointly be reset.
+        If shared cache is available, then it will be cleared first then all
+        identical quantities will be jointly reset.
 
         .. note::
             This method must be called right before performing any agent step,
@@ -610,27 +610,31 @@ class InterfaceQuantity(Generic[ValueT], metaclass=ABCMeta):
         if self.env.is_simulation_running and not self.allow_update_graph:
             return
 
-        # No longer consider this exact instance as active
+        # No longer consider this exact instance as active if requested
         if reset_tracking:
             self._is_active = False
 
         # No longer consider this exact instance as initialized
         self._is_initialized = False
 
-        # More work must to be done if shared cache if appropriate
-        if self.has_cache:
-            # Reset all identical quantities.
-            # Note that auto-refresh will be done afterward if requested.
-            if not ignore_other_instances:
-                for owner in self.cache.owners:
-                    if owner is not self:
-                        owner.reset(reset_tracking=reset_tracking,
-                                    ignore_other_instances=True)
-
-            # Reset shared cache
+        # More work must to be done if this quantity has a shared cache that
+        # has not been completely reset yet.
+        if self.has_cache and self.cache.sm_state is not _IS_RESET:
+            # Reset shared cache state machine first, to avoid triggering reset
+            # propagation to all identical quantities.
             self.cache.reset(
-                ignore_auto_refresh=not self.env.is_simulation_running,
-                reset_state_machine=True)
+                ignore_auto_refresh=True, reset_state_machine=True)
+
+            # Reset all identical quantities except itself since already done
+            for owner in self.cache.owners:
+                if owner is not self:
+                    owner.reset(reset_tracking=reset_tracking,
+                                ignore_other_instances=True)
+
+            # Reset shared cache afterward with auto-refresh enabled if needed
+            if self.env.is_simulation_running:
+                self.cache.reset(
+                    ignore_auto_refresh=False, reset_state_machine=False)
 
     def initialize(self) -> None:
         """Initialize internal buffers.
