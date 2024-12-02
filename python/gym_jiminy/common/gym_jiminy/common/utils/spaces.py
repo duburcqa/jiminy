@@ -83,36 +83,26 @@ def _array_clip(value: np.ndarray,
 @nb.jit(nopython=True, cache=True, fastmath=True)
 def _array_contains(value: np.ndarray,
                     low: Optional[ArrayOrScalar],
-                    high: Optional[ArrayOrScalar],
-                    tol_abs: float,
-                    tol_rel: float) -> bool:
+                    high: Optional[ArrayOrScalar]) -> bool:
     """Check that all array elements are withing bounds, up to some tolerance
-    threshold. If both absolute and relative tolerances are provided, then
-    satisfying only one of the two criteria is considered sufficient.
+    threshold.
 
     :param value: Array holding values to check.
     :param low: Optional lower bound.
     :param high: Optional upper bound.
-    :param tol_abs: Absolute tolerance.
-    :param tol_rel: Relative tolerance. It will be ignored if either the lower
-                    or upper is not specified.
     """
-    if value.ndim:
-        tol_nd = np.full_like(value, tol_abs)
-        if low is not None and high is not None and tol_rel > 0.0:
-            tol_nd = np.maximum((high - low) * tol_rel, tol_nd)
+    value_ = np.asarray(value)
+    if value_.ndim:
+        value_1d = np.atleast_1d(value_)
         # Reversed bound check because 'all' is always true for empty arrays
-        if low is not None and not (low - tol_nd <= value).all():
+        if low is not None and not (low <= value_1d).all():
             return False
-        if high is not None and not (value <= high + tol_nd).all():
+        if high is not None and not (value_1d <= high).all():
             return False
         return True
-    tol_0d = tol_abs
-    if low is not None and high is not None and tol_rel > 0.0:
-        tol_0d = max((high.item() - low.item()) * tol_rel, tol_0d)
-    if low is not None and (low.item() - tol_0d > value.item()):
+    if low is not None and (low.item() > value_.item()):
         return False
-    if high is not None and (value.item() > high.item() + tol_0d):
+    if high is not None and (value_.item() > high.item()):
         return False
     return True
 
@@ -247,21 +237,48 @@ def get_robot_measurements_space(robot: jiminy.Robot) -> gym.spaces.Dict:
             sensor_space_lower.items(), sensor_space_upper.values())))
 
 
-def get_bounds(space: gym.Space
+def get_bounds(space: gym.Space,
+               tol_abs: float = 0.0,
+               tol_rel: float = 0.0,
                ) -> Tuple[Optional[ArrayOrScalar], Optional[ArrayOrScalar]]:
     """Get the lower and upper bounds of a given 'gym.Space' if any.
 
     :param space: `gym.Space` on which to operate.
+    :param tol_abs: Absolute tolerance.
+                    Optional: 0.0 by default
+    :param tol_rel: Relative tolerance. It will be ignored if either the lower
+                    or upper is not specified.
+                    Optional: 0.0 by default.
 
     :returns: Lower and upper bounds as a tuple.
     """
+    # Extract lower and upper bounds depending on the gym space
+    dtype: npt.DTypeLike
+    low: Optional[ArrayOrScalar] = None
+    high: Optional[ArrayOrScalar] = None
     if isinstance(space, gym.spaces.Box):
-        return space.low, space.high
+        low, high = space.low, space.high
+        dtype = low.dtype
     if isinstance(space, gym.spaces.Discrete):
-        return space.start, space.n
+        low, high = space.start, space.n
+        dtype = np.dtype(int)
     if isinstance(space, gym.spaces.MultiDiscrete):
-        return 0, space.nvec
-    return None, None
+        low, high = 0, space.nvec
+        dtype = np.dtype(int)
+
+    # Take into account the absolute and relative tolerances
+    # assert tol_abs >= 0.0 and tol_rel >= 0.0
+    if tol_abs or tol_rel and (low is not None or high is not None):
+        tol_nd = np.full_like(low, tol_abs)
+        if tol_rel and low is not None and high is not None:
+            tol_nd = np.maximum(
+                (high - low) * tol_rel, tol_nd)  # type: ignore[operator]
+        if low is not None:
+            low = (low - tol_nd).astype(dtype)
+        if high is not None:
+            high = (high + tol_nd).astype(dtype)
+
+    return low, high
 
 
 @no_type_check
@@ -410,7 +427,7 @@ def contains(data: DataNested,
     if tree.issubclass_sequence(data_type):
         return all(contains(data[i], subspace, tol_abs, tol_rel)
                    for i, subspace in enumerate(space))
-    return _array_contains(data, *get_bounds(space), tol_abs, tol_rel)
+    return _array_contains(data, *get_bounds(space, tol_abs, tol_rel))
 
 
 @no_type_check
@@ -421,7 +438,9 @@ def build_reduce(fn: Callable[..., ValueInT],
                  arity: Optional[Literal[0, 1]],
                  *args: Any,
                  initializer: Optional[Callable[[], ValueOutT]] = None,
-                 forward_bounds: bool = True) -> Callable[..., ValueOutT]:
+                 forward_bounds: bool = True,
+                 tol_abs: float = 0.0,
+                 tol_rel: float = 0.0) -> Callable[..., ValueOutT]:
     """Generate specialized callable applying transform and reduction on all
     leaves of given nested space.
 
@@ -484,6 +503,12 @@ def build_reduce(fn: Callable[..., ValueInT],
                            sure all leaves have bounds, otherwise it will raise
                            an exception at generation-time. This argument is
                            ignored if not space is specified.
+    :param tol_abs: Absolute tolerance added to the lower and upper bounds of
+                    the `gym.Space` associated with each leaf.
+                    Optional: 0.0 by default.
+    :param tol_rel: Relative tolerance added to the lower and upper bounds of
+                    the `gym.Space` associated with each leaf.
+                    Optional: 0.0 by default.
 
     :returns: Fully-specialized reduction callable.
     """
@@ -803,7 +828,8 @@ def build_reduce(fn: Callable[..., ValueInT],
             post_fn = fn if not dataset else partial(fn, *dataset)
             post_args = args
             if forward_bounds and space is not None:
-                post_args = (*get_bounds(space), *post_args)
+                post_args = (
+                    *get_bounds(space, tol_abs, tol_rel), *post_args)
             post_fn = partial(post_fn, post_args)
             if parent is None:
                 post_fn = _build_forward(
@@ -906,8 +932,9 @@ def build_map(fn: Callable[..., ValueT],
               space: Optional[gym.Space[DataNested]],
               arity: Optional[Literal[0, 1]],
               *args: Any,
-              forward_bounds: bool = True
-              ) -> Callable[[], StructNested[ValueT]]:
+              forward_bounds: bool = True,
+              tol_abs: float = 0.0,
+              tol_rel: float = 0.0) -> Callable[[], StructNested[ValueT]]:
     """Generate specialized callable returning applying out-of-place transform
     to all leaves of given nested space.
 
@@ -950,6 +977,12 @@ def build_map(fn: Callable[..., ValueT],
                            an exception at generation-time. This argument is
                            ignored if not space is specified.
                            Optional: `True` by default.
+    :param tol_abs: Absolute tolerance added to the lower and upper bounds of
+                    the `gym.Space` associated with each leaf.
+                    Optional: 0.0 by default.
+    :param tol_rel: Relative tolerance added to the lower and upper bounds of
+                    the `gym.Space` associated with each leaf.
+                    Optional: 0.0 by default.
 
     :returns: Fully-specialized mapping callable.
     """
@@ -1087,7 +1120,8 @@ def build_map(fn: Callable[..., ValueT],
             post_fn = fn if data is None else partial(fn, data)
             post_args = args
             if forward_bounds and space is not None:
-                post_args = (*get_bounds(space), *post_args)
+                post_args = (
+                    *get_bounds(space, tol_abs, tol_rel), *post_args)
             post_fn = partial(post_fn, post_args)
             if parent is None:
                 post_fn = _build_setitem(arity, None, post_fn, None)
@@ -1232,9 +1266,7 @@ def build_contains(data: DataNested,
     @nb.jit(nopython=True, cache=True)
     def _contains_or_raises(value: np.ndarray,
                             low: Optional[ArrayOrScalar],
-                            high: Optional[ArrayOrScalar],
-                            tol_abs: float,
-                            tol_rel: float) -> bool:
+                            high: Optional[ArrayOrScalar]) -> bool:
         """Thin wrapper around original `_array_contains` method to raise
         an exception if the test fails. It enables short-circuit mechanism
         to abort checking remaining leaves if any.
@@ -1247,10 +1279,8 @@ def build_contains(data: DataNested,
         :param value: Array holding values to check.
         :param low: Lower bound.
         :param high: Upper bound.
-        :param tol_abs: Absolute tolerance.
-        :param tol_rel: Relative tolerance.
         """
-        if not _array_contains(value, low, high, tol_abs, tol_rel):
+        if not _array_contains(value, low, high):
             raise ShortCircuitContains("Short-circuit exception.")
         return True
 
@@ -1270,7 +1300,14 @@ def build_contains(data: DataNested,
         return True
 
     return partial(_exception_handling, build_reduce(
-        _contains_or_raises, None, (data,), space, 0, tol_abs, tol_rel))
+        _contains_or_raises,
+        None,
+        (data,),
+        space,
+        arity=0,
+        forward_bounds=True,
+        tol_abs=tol_abs,
+        tol_rel=tol_rel))
 
 
 def build_normalize(space: gym.Space[DataNested],
