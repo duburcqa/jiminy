@@ -1,21 +1,23 @@
 
 """ TODO: Write documentation.
 """
+import os
+import sys
+import time
 import asyncio
 import signal
 import subprocess
 import multiprocessing
 import multiprocessing.managers
-import os
-import time
 from contextlib import redirect_stderr
 from ctypes import c_char_p
 from pathlib import Path
-from typing import Any, Optional, Dict
+from typing import Any, Optional, Dict, List
 
 import psutil
 
-from playwright.sync_api import sync_playwright, Page, Error, ViewportSize
+from playwright.sync_api import (
+    sync_playwright, Page, Error, ConsoleMessage, ViewportSize)
 from playwright._impl._driver import compute_driver_executable, get_driver_env
 
 
@@ -121,10 +123,28 @@ def meshcat_recorder(meshcat_url: str,
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
 
+    # Pick the most reliable browser config depending on the operating system
+    if sys.platform == "darwin":
+        browser_name = "firefox"
+        args: List[str] = []
+        ignore_default_args: List[str] = []
+    else:
+        browser_name = "chromium"
+        args = [
+            "--enable-gpu",
+            "--enable-webgl",
+            "--enable-unsafe-webgpu",
+            "--disable-gpu-vsync",
+            "--ignore-gpu-blacklist",
+        ]
+        ignore_default_args = [
+            "--disable-field-trial-config",
+        ]
+
     # Download browser if necessary
     try:
         subprocess.run(
-            [str(compute_driver_executable()), "install", "chromium"],
+            [*compute_driver_executable(), "install", browser_name],
             timeout=PLAYWRIGHT_DOWNLOAD_TIMEOUT,
             env=get_driver_env(),
             check=True)
@@ -136,16 +156,11 @@ def meshcat_recorder(meshcat_url: str,
     playwright = sync_playwright().start()
     try:
         with open(os.devnull, 'w') as stderr, redirect_stderr(stderr):
-            browser = playwright.chromium.launch(
+            browser = getattr(playwright, browser_name).launch(
                 headless=True,
                 handle_sigint=False,
-                args=[
-                    "--enable-gpu",
-                    "--enable-webgl",
-                    "--enable-unsafe-webgpu",
-                    "--disable-gpu-vsync",
-                    "--ignore-gpu-blacklist"
-                ],
+                args=args,
+                ignore_default_args=ignore_default_args,
                 timeout=PLAYWRIGHT_START_TIMEOUT)
         client = browser.new_page(
             viewport=ViewportSize(
@@ -153,11 +168,28 @@ def meshcat_recorder(meshcat_url: str,
                 height=WINDOW_SIZE_DEFAULT[1]),
             java_script_enabled=True,
             accept_downloads=True)
+
+        console_exceptions: List[str] = []
+
+        def _handle_console_exceptions(msg: ConsoleMessage) -> None:
+            """Inspect console messages asynchronously and catches fatal errors
+            while filtering out all other messages. Report fatal errors to
+            parent python thread if any, to raise a Python exception later on.
+            """
+            nonlocal console_exceptions
+            if msg.type == "error":
+                if "webgl" in msg.text.lower():
+                    console_exceptions.append(msg.text)
+
+        client.on("console", _handle_console_exceptions)
         client.goto(
             meshcat_url, wait_until="load", timeout=PLAYWRIGHT_START_TIMEOUT)
+        if console_exceptions:
+            raise RuntimeError("\n".join(console_exceptions))
+
         message_shm.value = str(
             browser._impl_obj._browser_type._connection._transport._proc.pid)
-    except Error as e:
+    except (Error, RuntimeError) as e:
         request_shm.value = "quit"
         message_shm.value = str(e)
 
@@ -172,19 +204,19 @@ def meshcat_recorder(meshcat_url: str,
             request = request_shm.value
             if request != "":
                 # pylint: disable=broad-exception-caught
-                args = map(str.strip, message_shm.value.split("|"))
+                request_args = map(str.strip, message_shm.value.split("|"))
                 output = None
                 try:
                     if request == "take_snapshot":
-                        width, height = map(int, args)
+                        width, height = map(int, request_args)
                         output = _capture_frame(client, width, height)
                     elif request == "start_record":
-                        fps, width, height = map(int, args)
+                        fps, width, height = map(int, request_args)
                         _start_video_recording(client, fps, width, height)
                     elif request == "add_frame":
                         _add_video_frame(client)
                     elif request == "stop_and_save_record":
-                        (path,) = args
+                        (path,) = request_args
                         _stop_and_save_video(client, Path(path))
                     else:
                         continue

@@ -124,7 +124,7 @@ def register_variables(controller: jiminy.AbstractController,
     :param fieldnames: Nested variable names, as returned by `get_fieldnames`
                        method. It can be a nested list or/and dict. The leaves
                        are str corresponding to the name of each scalar data.
-    :param data: Data from `gym.spaces.Space` to register.
+    :param data: Data from `gym.Space` to register.
     """
     for fieldname, value in zip(
             tree.flatten_up_to(data, fieldnames), tree.flatten(data)):

@@ -171,7 +171,7 @@ class AdditiveMixtureReward(MixtureReward):
                         if any_value:
                             total = max(total, weight * value)
                         else:
-                            total = value
+                            total = weight * value
                     else:
                         total += weight * math.pow(value, order)
                     any_value = True

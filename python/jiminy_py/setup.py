@@ -35,12 +35,10 @@ if np_ver < (1, 25):
         np_req += ",<1.20.0"
     elif np_ver < (1, 22):
         np_req += ",!=1.21.0,!=1.21.1,!=1.21.2,!=1.21.3,!=1.21.4"
+elif np_ver >= (2, 1):
+    np_req = f"numpy>=1.19,<{np_ver[0]}.{np_ver[1] + 1}"
 else:
-    if np_ver < (2, 1):
-        np_req = "numpy>=1.24"  # All version down to 1.19 are supported
-    else:
-        raise ImportError("'numpy>2.0' not supported at built-time for now.")
-    np_req += f",<{np_ver[0]}.{np_ver[1] + 1}"
+    np_req = f"numpy>=1.24,<{np_ver[0]}.{np_ver[1] + 1}"
 
 
 setup(
@@ -62,15 +60,13 @@ setup(
     author_email="alexis.duburcq@gmail.com",
     maintainer="Alexis Duburcq",
     license="MIT",
-    python_requires=">=3.8,<3.13",
+    python_requires=">=3.10,<3.13",
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Science/Research",
         "Topic :: Scientific/Engineering :: Physics",
         "Topic :: Software Development :: Libraries :: Python Modules",
         "License :: OSI Approved :: MIT License",
-        "Programming Language :: Python :: 3.8",
-        "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12"
@@ -103,7 +99,7 @@ setup(
         #   see: https://numpy.org/devdocs/dev/depending_on_numpy.html
         np_req,
         # Parser for Jiminy's hardware description file.
-        "toml",
+        "tomlkit",
         # Standalone cross-platform mesh visualizer used as Viewer's backend.
         # Panda3d is NOT supported by PyPy even if built from source.
         # - 1.10.12 fixes numerous bugs
@@ -127,7 +123,8 @@ setup(
     extras_require={
         "plot": [
             # Standard library to generate figures.
-            # - 3.7.0: introduces 'outside' keyword for legend location
+            # - 3.7.0: introduces Button blitting and 'outside' keyword for
+            #   legend location
             "matplotlib>=3.7.0"
         ],
         "meshcat": [
@@ -143,13 +140,13 @@ setup(
             "pillow",
             # Used internally by Viewer to enable recording video
             # programmatically with Meshcat as backend.
-            # - 1.43 is broken
-            "playwright<1.43"
+            # - 1.43 is not backward compatible
+            "playwright>=1.43"
         ],
         "dev": [
             # Generate Python type hints files (aka. stubs) for C extensions.
             # Natively, it only supports PyBind11, but it has been patched to
-            # partially support of Boost::Python (`build_tools/stub_gen.py`).
+            # partially support of Boost::Python (`build_tools/stubgen.py`).
             "pybind11_stubgen<1.0",
             # Used in unit tests for checking if viewer screen captures match
             "pillow",
@@ -158,7 +155,6 @@ setup(
             # Stub for static type checking
             "types-psutil>=5.9.5.20240511",
             "types-Pillow",
-            "types-toml",
             "types-tqdm",
             # Check PEP8 conformance of Python native code
             "flake8",

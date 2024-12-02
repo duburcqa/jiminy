@@ -1,9 +1,9 @@
 """ TODO: Write documentation.
 """
 import os
-import sys
 import math
 from pathlib import Path
+from importlib.resources import files
 from typing import Any, Sequence, Union
 
 import numpy as np
@@ -19,11 +19,6 @@ from pinocchio import neutral, SE3, buildReducedModel
 from gym_jiminy.common.envs import WalkerJiminyEnv
 from gym_jiminy.common.blocks import PDController, PDAdapter, MahonyFilter
 from gym_jiminy.common.utils import build_pipeline
-
-if sys.version_info < (3, 9):
-    from importlib_resources import files
-else:
-    from importlib.resources import files
 
 
 # Parameters of neutral configuration

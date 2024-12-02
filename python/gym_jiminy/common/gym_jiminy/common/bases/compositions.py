@@ -6,11 +6,13 @@ the low-level observers and controllers.
 This modular approach allows for standardization of usual metrics. Overall, it
 greatly reduces code duplication and bugs.
 """
-from abc import ABC, abstractmethod
+from abc import abstractmethod, ABCMeta
 from enum import IntEnum
 from typing import Tuple, Sequence, Callable, Union, Optional, Generic, TypeVar
 
 import numpy as np
+
+from ..utils.spaces import _array_contains
 
 from .interfaces import InfoType, InterfaceJiminyEnv
 from .quantities import QuantityCreator
@@ -23,7 +25,7 @@ ArrayOrScalar = Union[np.ndarray, np.number, Number]
 ArrayLikeOrScalar = Union[ArrayOrScalar, Sequence[Union[Number, np.number]]]
 
 
-class AbstractReward(ABC):
+class AbstractReward(metaclass=ABCMeta):
     """Abstract class from which all reward component must derived.
 
     This goal of the agent is to maximize the expectation of the cumulative sum
@@ -32,7 +34,7 @@ class AbstractReward(ABC):
     indefinite (aka. objective).
 
     Defining cost is allowed by not recommended. Although it encourages the
-    agent to achieve the task at hands as quickly as possible if success is the
+    agent to achieve the task at hand as quickly as possible if success is the
     only termination condition, it has the side-effect to give the opportunity
     to the agent to maximize the return by killing itself whenever this is an
     option, which is rarely the desired behavior. No restriction is enforced as
@@ -145,7 +147,7 @@ class AbstractReward(ABC):
             return 0.0
 
         # Make sure that terminal flag is honored
-        if self.is_terminal is not None and self.is_terminal ^ terminated:
+        if bool(self.is_terminal) ^ terminated:
             raise ValueError("Flag 'is_terminal' not honored.")
 
         # Make sure that the reward is scalar
@@ -262,7 +264,7 @@ class QuantityReward(AbstractReward, Generic[ValueT]):
         :returns: Scalar value if the reward was evaluated, `None` otherwise.
         """
         # Early return depending on whether the reward and state are terminal
-        if self.is_terminal is not None and self.is_terminal ^ terminated:
+        if bool(self.is_terminal) ^ terminated:
             return None
 
         # Evaluate raw quantity
@@ -359,7 +361,7 @@ class MixtureReward(AbstractReward):
         the environment, then aggregate them in one.
         """
         # Early return depending on whether the reward and state are terminal
-        if self.is_terminal is not None and self.is_terminal ^ terminated:
+        if bool(self.is_terminal) ^ terminated:
             return None
 
         # Compute all reward components
@@ -400,7 +402,7 @@ class EpisodeState(IntEnum):
     """
 
 
-class AbstractTerminationCondition(ABC):
+class AbstractTerminationCondition(metaclass=ABCMeta):
     """Abstract class from which all termination conditions must derived.
 
     Request the ongoing episode to stop immediately as soon as a termination
@@ -470,7 +472,7 @@ class AbstractTerminationCondition(ABC):
 
     @abstractmethod
     def compute(self, info: InfoType) -> bool:
-        """Evaluate the termination condition at hands.
+        """Evaluate the termination condition at hand.
 
         :param info: Dictionary of extra information for monitoring. It will be
                      updated in-place for storing terminated and truncated
@@ -580,8 +582,8 @@ class QuantityTermination(AbstractTerminationCondition, Generic[ValueT]):
                                  Optional: False by default.
         """
         # Backup user argument(s)
-        self.low = low
-        self.high = high
+        self.low = np.asarray(low) if isinstance(low, Sequence) else low
+        self.high = np.asarray(high) if isinstance(high, Sequence) else high
 
         # Call base implementation
         super().__init__(
@@ -617,13 +619,10 @@ class QuantityTermination(AbstractTerminationCondition, Generic[ValueT]):
         # Evaluate the quantity
         value = self.data.get()
 
-        # Check if the quantity is out-of-bounds bound.
+        # Check if the quantity is out-of-bounds.
         # Note that it may be `None` if the quantity is ill-defined for the
         # current simulation state, which triggers termination unconditionally.
-        is_done = value is None
-        is_done |= self.low is not None and bool(np.any(self.low > value))
-        is_done |= self.high is not None and bool(np.any(value > self.high))
-        return is_done
+        return value is None or not _array_contains(value, self.low, self.high)
 
 
 QuantityTermination.name.__doc__ = \

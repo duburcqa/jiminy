@@ -12,8 +12,8 @@ import jiminy_py.core as jiminy
 from jiminy_py.core import (  # pylint: disable=no-name-in-module
     EncoderSensor, array_copyto)
 
-from ..bases import BaseObsT, InterfaceJiminyEnv, BaseControllerBlock
-from ..utils import fill
+from ..bases import BaseObs, InterfaceJiminyEnv, BaseControllerBlock
+from ..utils import zeros, fill
 
 
 # Name of the n-th position derivative
@@ -258,7 +258,7 @@ def get_encoder_to_motor_map(robot: jiminy.Robot) -> Union[slice, List[int]]:
 
 
 class PDController(
-        BaseControllerBlock[np.ndarray, np.ndarray, BaseObsT, np.ndarray]):
+        BaseControllerBlock[np.ndarray, np.ndarray, BaseObs, np.ndarray]):
     """Low-level Proportional-Derivative controller.
 
     The action are the target motors accelerations. The latter are integrated
@@ -282,7 +282,7 @@ class PDController(
     """
     def __init__(self,
                  name: str,
-                 env: InterfaceJiminyEnv[BaseObsT, np.ndarray],
+                 env: InterfaceJiminyEnv[BaseObs, np.ndarray],
                  *,
                  update_ratio: int = 1,
                  kp: Union[float, List[float], np.ndarray],
@@ -345,7 +345,9 @@ class PDController(
         self.motors_effort_limit = np.array([
             motor.effort_limit for motor in env.robot.motors])
 
-        # Refresh mechanical reduction ratio
+        # Refresh mechanical reduction ratio.
+        # FIXME: Is it considered invariant ? If not, it should be refreshed in
+        # `_setup`, as done for `DeformationEstimator`.
         encoder_to_joint_ratio = []
         for motor in env.robot.motors:
             motor_options = motor.get_options()
@@ -391,6 +393,9 @@ class PDController(
 
         # Initialize the controller
         super().__init__(name, env, update_ratio)
+
+        # Make sure that the state is within bounds
+        self._command_state[:2] = zeros(self.state_space)
 
         # References to command acceleration for fast access
         self._command_acceleration = self._command_state[2]
@@ -490,7 +495,7 @@ class PDController(
 
 
 class PDAdapter(
-        BaseControllerBlock[np.ndarray, np.ndarray, BaseObsT, np.ndarray]):
+        BaseControllerBlock[np.ndarray, np.ndarray, BaseObs, np.ndarray]):
     """Adapt the action of a lower-level Proportional-Derivative controller
     to be the target motor positions or velocities rather than accelerations.
 
@@ -516,7 +521,7 @@ class PDAdapter(
     """
     def __init__(self,
                  name: str,
-                 env: InterfaceJiminyEnv[BaseObsT, np.ndarray],
+                 env: InterfaceJiminyEnv[BaseObs, np.ndarray],
                  *,
                  update_ratio: int = -1,
                  order: int = 1) -> None:

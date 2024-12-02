@@ -1,5 +1,3 @@
-
-
 # Get the required information to build Python bindings
 
 # Get Python executable

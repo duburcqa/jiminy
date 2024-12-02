@@ -16,7 +16,7 @@ import numba as nb
 
 import jiminy_py.core as jiminy
 from jiminy_py.core import (  # pylint: disable=no-name-in-module
-    array_copyto, multi_array_copyto)
+    multi_array_copyto)
 import pinocchio as pin
 import hppfcl as fcl
 
@@ -864,12 +864,15 @@ class FrameXYZQuat(InterfaceQuantity[np.ndarray]):
         # Pre-allocate memory for storing the pose XYZQuat of all frames
         self._xyzquat = np.zeros((7,))
 
-    def refresh(self) -> np.ndarray:
-        # Copy the position of all frames at once in contiguous buffer
-        array_copyto(self._xyzquat[:3], self.position.get())
+        # Define position and orientation memory views for fast assignment
+        self._xyzquat_views = (self._xyzquat[:3], self._xyzquat[-4:])
 
-        # Copy the quaternion of all frames at once in contiguous buffer
-        array_copyto(self._xyzquat[-4:], self.quat.get())
+    def refresh(self) -> np.ndarray:
+        # Compute the position and orientation of all frames at once
+        xyz_quat = (self.position.get(), self.quat.get())
+
+        # Copy data in contiguous buffer
+        multi_array_copyto(self._xyzquat_views, xyz_quat)
 
         return self._xyzquat
 
@@ -932,12 +935,15 @@ class MultiFrameXYZQuat(InterfaceQuantity[np.ndarray]):
         # Pre-allocate memory for storing the pose XYZQuat of all frames
         self._xyzquats = np.zeros((7, len(frame_names)), order='C')
 
-    def refresh(self) -> np.ndarray:
-        # Copy the position of all frames at once in contiguous buffer
-        array_copyto(self._xyzquats[:3], self.positions.get())
+        # Define position and orientation memory views for fast assignment
+        self._xyzquats_views = (self._xyzquats[:3], self._xyzquats[-4:])
 
-        # Copy the quaternion of all frames at once in contiguous buffer
-        array_copyto(self._xyzquats[-4:], self.quats.get())
+    def refresh(self) -> np.ndarray:
+        # Compute the position and orientation of all frames at once
+        xyz_quat_batch = (self.positions.get(), self.quats.get())
+
+        # Copy data in contiguous buffer
+        multi_array_copyto(self._xyzquats_views, xyz_quat_batch)
 
         return self._xyzquats
 
@@ -1363,7 +1369,7 @@ class AverageFrameXYZQuat(InterfaceQuantity[np.ndarray]):
 @dataclass(unsafe_hash=True)
 class AverageFrameRollPitch(InterfaceQuantity[np.ndarray]):
     """Quaternion representation of the average Yaw-free orientation from the
-    Roll-Pitch_yaw decomposition of a given frame over the whole agent step.
+    Roll-Pitch-Yaw decomposition of a given frame over the whole agent step.
 
     .. seealso::
         See `remove_yaw_from_quat` and `AverageFrameXYZQuat` for details about
@@ -1537,7 +1543,7 @@ class FrameSpatialAverageVelocity(InterfaceQuantity[np.ndarray]):
 @dataclass(unsafe_hash=True)
 class MultiActuatedJointKinematic(AbstractQuantity[np.ndarray]):
     """Current position, velocity or acceleration of all the actuated joints
-    of the robot before or after the mechanical transmissions.
+    of the robot in motor order, before or after the mechanical transmissions.
 
     In practice, all actuated joints must be 1DoF for now. In the case of
     revolute unbounded revolute joints, the principal angle 'theta' is used to
@@ -1547,7 +1553,7 @@ class MultiActuatedJointKinematic(AbstractQuantity[np.ndarray]):
         Data is extracted from the true configuration vector instead of using
         sensor data. As a result, this quantity is appropriate for computing
         reward components and termination conditions but must be avoided in
-        observers and controllers.
+        observers and controllers, unless `mode=QuantityEvalMode.REFERENCE`.
 
     .. warning::
         Revolute unbounded joints are not supported for now.
@@ -1650,7 +1656,7 @@ class MultiActuatedJointKinematic(AbstractQuantity[np.ndarray]):
                 if np.all(np.array(self.kinematic_indices) == np.arange(
                         kin_first, kin_last + 1)):
                     self._must_refresh = False
-                else:
+                elif sorted(self.kinematic_indices) != self.kinematic_indices:
                     warnings.warn(
                         "Consider using the same ordering for motors and "
                         "joints for optimal performance.")

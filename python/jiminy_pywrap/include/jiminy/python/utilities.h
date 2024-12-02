@@ -11,7 +11,8 @@
 
 #include <boost/mpl/vector.hpp>
 
-#include "pinocchio/bindings/python/fwd.hpp"
+#define NO_IMPORT_ARRAY
+#include "jiminy/python/fwd.h"
 
 #include <boost/python/numpy.hpp>
 #include <boost/python/signature.hpp>
@@ -132,23 +133,43 @@ namespace jiminy::python
         // bp::objects::add_to_namespace(ns, "func", func);
     }
 
-    inline const char * py_type_str(const bp::detail::signature_element & s)
+    inline std::string get_qualname(const PyTypeObject * py_type)
+    {
+        if (py_type->tp_flags & Py_TPFLAGS_HEAPTYPE)
+        {
+            const char * type_name =
+                PyUnicode_AsUTF8(reinterpret_cast<const PyHeapTypeObject *>(py_type)->ht_qualname);
+            PyObject * module_name_obj = PyDict_GetItemString(py_type->tp_dict, "__module__");
+            if (module_name_obj)
+            {
+                const std::string_view module_name{PyUnicode_AsUTF8(module_name_obj)};
+                if (!module_name.empty())
+                {
+                    return toString(module_name, ".", type_name);
+                }
+            }
+            return type_name;
+        }
+        return py_type->tp_name;
+    }
+
+    inline std::string py_type_str(const bp::detail::signature_element & s)
     {
         if (strncmp(s.basename, "void", 4) == 0)
         {
-            static char constexpr none[] = "None";
-            return none;
+            return "None";
         }
-        const PyTypeObject * py_type = s.pytype_f ? s.pytype_f() : nullptr;
-        if (py_type)
+
+        if (s.pytype_f)
         {
-            return py_type->tp_name;
+            const PyTypeObject * py_type = s.pytype_f();
+            if (py_type)
+            {
+                return get_qualname(py_type);
+            }
         }
-        else
-        {
-            static char constexpr object[] = "object";
-            return object;
-        }
+
+        return "object";
     }
 
     template<typename ReturnT, typename... Args>
@@ -174,7 +195,7 @@ namespace jiminy::python
         const PyTypeObject * py_type = bp::converter::to_python_target_type<ReturnT>::get_pytype();
         if (py_type)
         {
-            stringStream << py_type->tp_name;
+            stringStream << get_qualname(py_type);
         }
         else
         {
@@ -1178,8 +1199,8 @@ namespace jiminy::python
     };
 
     template<typename R, typename... Args>
-    ConvertGeneratorFromPythonAndInvoke(
-        R (*)(Args...)) -> ConvertGeneratorFromPythonAndInvoke<R(Args...), void>;
+    ConvertGeneratorFromPythonAndInvoke(R (*)(Args...))
+        -> ConvertGeneratorFromPythonAndInvoke<R(Args...), void>;
 
     template<typename T, typename R, typename Generator, typename... Args>
     class ConvertGeneratorFromPythonAndInvoke<R(Generator, Args...), T>
@@ -1205,8 +1226,8 @@ namespace jiminy::python
     };
 
     template<typename T, typename R, typename... Args>
-    ConvertGeneratorFromPythonAndInvoke(
-        R (T::*)(Args...)) -> ConvertGeneratorFromPythonAndInvoke<R(Args...), T>;
+    ConvertGeneratorFromPythonAndInvoke(R (T::*)(Args...))
+        -> ConvertGeneratorFromPythonAndInvoke<R(Args...), T>;
 
     // **************************** Automatic From Python converter **************************** //
 

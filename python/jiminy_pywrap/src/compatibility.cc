@@ -1,6 +1,5 @@
-#include "pinocchio/bindings/python/fwd.hpp"
-#include <boost/python/numpy.hpp>
-
+#define NO_IMPORT_ARRAY
+#include "jiminy/python/fwd.h"
 #include "jiminy/python/compatibility.h"
 
 

@@ -1,6 +1,7 @@
 """Implementation of a stateless kinematic deformation estimator block
 compatible with gym_jiminy reinforcement learning pipeline environment design.
 """
+from collections import OrderedDict
 from collections.abc import Mapping
 from typing import List, Dict, Sequence, Tuple, Optional
 
@@ -14,8 +15,9 @@ from jiminy_py.core import (  # pylint: disable=no-name-in-module
 
 import pinocchio as pin
 
-from ..bases import BaseActT, BaseObsT, BaseObserverBlock, InterfaceJiminyEnv
+from ..bases import BaseAct, BaseObs, BaseObserverBlock, InterfaceJiminyEnv
 from ..utils import (DataNested,
+                     quat_to_rpy,
                      matrices_to_quat,
                      quat_multiply,
                      compute_tilt_from_quat,
@@ -414,8 +416,8 @@ def get_flexibility_imu_frame_chains(
     return flex_imu_name_chains
 
 
-class DeformationEstimator(
-        BaseObserverBlock[np.ndarray, np.ndarray, BaseObsT, BaseActT]):
+class DeformationEstimator(BaseObserverBlock[
+        Dict[str, np.ndarray], np.ndarray, BaseObs, BaseAct]):
     """Compute the local deformation at an arbitrary set of flexibility points
     that are presumably responsible for most of the whole deformation of the
     mechanical structure.
@@ -481,12 +483,15 @@ class DeformationEstimator(
          having known orientation. The other ones will be set to identity. For
          a legged robot, this corresponds to one of the contact bodies, usually
          the one holding most of the total weight.
-
     .. warning::
         (2) and (3) are not supported for now, as it requires using one
         additional observation layer responsible for estimating the theoretical
         configuration of the robot including its freeflyer, along with the name
         of the reference frame, ie the one having known orientation.
+
+    .. note::
+        The feature space of this observer is the same as `MahonyFilter`. See
+        documentation for details.
 
     .. seealso::
         Matthieu Vigne, Antonio El Khoury, Marine Pétriaux, Florent Di Meglio,
@@ -498,13 +503,14 @@ class DeformationEstimator(
     """
     def __init__(self,
                  name: str,
-                 env: InterfaceJiminyEnv[BaseObsT, BaseActT],
+                 env: InterfaceJiminyEnv[BaseObs, BaseAct],
                  *,
                  imu_frame_names: Sequence[str],
                  flex_frame_names: Sequence[str],
                  ignore_twist: bool = True,
-                 nested_imu_key: Sequence[str] = ("features", "mahony_filter"),
-                 # root_frame: str = "root_joint",
+                 nested_imu_key: Sequence[str] = (
+                    "features", "mahony_filter", "quat"),
+                 compute_rpy: bool = True,
                  update_ratio: int = 1) -> None:
         """
         .. warning::
@@ -534,16 +540,26 @@ class DeformationEstimator(
                                to the IMU quaternion estimates. Their ordering
                                must be consistent with the true IMU sensors of
                                the robot.
+        :param compute_rpy: Whether to compute the Yaw-Pitch-Roll Euler angles
+                            representation for the 3D orientation of the IMU,
+                            in addition to the quaternion representation.
+                            Optional: False by default.
         :param update_ratio: Ratio between the update period of the observer
                              and the one of the subsequent observer. -1 to
                              match the simulation timestep of the environment.
                              Optional: `1` by default.
         """
+        # Make sure that the list of IMU and flexibility frames are not empty
+        if not imu_frame_names or not flex_frame_names:
+            raise RuntimeError(
+                "Please specify at least one IMU and one deformation point.")
+
         # Sanitize user argument(s)
         imu_frame_names, flex_frame_names = map(
             list, (imu_frame_names, flex_frame_names))
 
         # Backup some of the user-argument(s)
+        self.compute_rpy = compute_rpy
         self.ignore_twist = ignore_twist
 
         # Create flexible dynamic model.
@@ -682,6 +698,13 @@ class DeformationEstimator(
         # Initialize the observer
         super().__init__(name, env, update_ratio)
 
+        # Define some proxies for fast access
+        self._quat = self.observation["quat"]
+        if self.compute_rpy:
+            self._rpy = self.observation["rpy"]
+        else:
+            self._rpy = np.array([])
+
         # Define chunks associated with each independent flexibility-imu chain
         self._deformation_flex_quats, self._obs_imu_indices = [], []
         flex_start_index = 0
@@ -689,7 +712,7 @@ class DeformationEstimator(
                 self.flex_imu_frame_names_chains):
             flex_last_index = flex_start_index + len(flex_frame_names_)
             self._deformation_flex_quats.append(
-                self.observation[:, flex_start_index:flex_last_index])
+                self._quat[:, flex_start_index:flex_last_index])
             flex_start_index = flex_last_index
             imu_frame_names_filtered = tuple(filter(None, imu_frame_names_))
             imu_indices = tuple(
@@ -700,10 +723,18 @@ class DeformationEstimator(
         nflex = sum(
             len(flex_frame_names)
             for flex_frame_names, _, _ in self.flex_imu_frame_names_chains)
-        self.observation_space = gym.spaces.Box(
+        observation_space: Dict[str, gym.Space] = OrderedDict()
+        observation_space["quat"] = gym.spaces.Box(
             low=np.full((4, nflex), -1.0 - 1e-9),
             high=np.full((4, nflex), 1.0 + 1e-9),
             dtype=np.float64)
+        if self.compute_rpy:
+            high = np.array([np.pi, np.pi/2, np.pi]) + 1e-9
+            observation_space["rpy"] = gym.spaces.Box(
+                low=-high[:, np.newaxis].repeat(nflex, axis=1),
+                high=high[:, np.newaxis].repeat(nflex, axis=1),
+                dtype=np.float64)
+        self.observation_space = gym.spaces.Dict(observation_space)
 
     def _setup(self) -> None:
         # Call base implementation
@@ -720,7 +751,7 @@ class DeformationEstimator(
         self.pinocchio_data_th = self.pinocchio_model_th.createData()
 
         # Fix initialization of the observation to be valid quaternions
-        self.observation[-1] = 1.0
+        self._quat[-1] = 1.0
 
         # Refresh flexibility and IMU frame orientation proxies
         self._kin_flex_rots.clear()
@@ -757,11 +788,18 @@ class DeformationEstimator(
             self._is_compiled = True
 
     @property
-    def fieldnames(self) -> List[List[str]]:
-        return [[f"{name}.Quat{e}" for name in self.flexibility_frame_names]
-                for e in ("x", "y", "z", "w")]
+    def fieldnames(self) -> Dict[str, List[List[str]]]:
+        fieldnames: Dict[str, List[List[str]]] = {}
+        fieldnames["quat"] = [
+            [f"{name}.Quat{e}" for name in self.flexibility_frame_names]
+            for e in ("x", "y", "z", "w")]
+        if self.compute_rpy:
+            fieldnames["rpy"] = [
+                [".".join((name, e)) for name in self.flexibility_frame_names]
+                for e in ("Roll", "Pitch", "Yaw")]
+        return fieldnames
 
-    def refresh_observation(self, measurement: BaseObsT) -> None:
+    def refresh_observation(self, measurement: BaseObs) -> None:
         # Translate encoder data at joint level
         joint_positions = self.encoder_to_joint_ratio * self.encoder_data
 
@@ -790,3 +828,7 @@ class DeformationEstimator(
                 self._deformation_flex_quats):
             flexibility_estimator(
                 self._obs_imu_quats, *args, self.ignore_twist)
+
+        # Compute the RPY representation if requested
+        if self.compute_rpy:
+            quat_to_rpy(self._quat, self._rpy)

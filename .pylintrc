@@ -49,6 +49,9 @@ max-bool-expr = 6
 # Maximum number of public methods for a class
 max-public-methods=40
 
+# Maximum number of positional arguments per method
+max-positional-arguments=30
+
 [tool.pylint.logging]
 # The type of string formatting that logging methods do ("old": %, "new": `{}`)
 logging-format-style = old
@@ -69,6 +72,7 @@ disable =
     abstract-method,
     protected-access,
     useless-parent-delegation,
+    unbalanced-tuple-unpacking,
     use-dict-literal,
     unspecified-encoding,
     undefined-loop-variable,

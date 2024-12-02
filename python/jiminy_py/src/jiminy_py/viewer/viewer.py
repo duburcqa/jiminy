@@ -49,6 +49,7 @@ from ..core import (  # pylint: disable=no-name-in-module
     discretize_heightmap)
 from ..robot import _DuplicateFilter
 from ..dynamics import Trajectory
+from ..log import UpdateHook
 from .meshcat.utilities import interactive_mode
 from .panda3d.panda3d_visualizer import (
     Tuple3FType, Tuple4FType, ShapeType, Panda3dApp, Panda3dViewer,
@@ -142,7 +143,7 @@ def is_display_available() -> bool:
         return False
     if not sys.platform.startswith("linux"):
         return True
-    if os.environ.get("DISPLAY"):
+    if os.environ.get("DISPLAY"):  # type: ignore[unreachable,unused-ignore]
         return True
     return False
 
@@ -554,7 +555,9 @@ class Viewer:
         # Handling of default arguments
         if robot_name is None:
             uniq_id = next(tempfile._get_candidate_names())
-            base_name = robot.name or robot.pinocchio_model.name or "robot"
+            base_name = (
+                robot.name or robot.pinocchio_model.name or "robot"
+                ).replace("-", "_")
             robot_name = "_".join((base_name, uniq_id))
 
         # Pick the default backend if unspecified and none is already selected
@@ -964,7 +967,9 @@ class Viewer:
                 except AttributeError:
                     kernel_id = None
                 if kernel_id is not None:
-                    server_pid = Process(os.getpid()).parent().pid
+                    parent_proc = Process(os.getpid()).parent()
+                    assert parent_proc is not None
+                    parent_pid = parent_proc.pid
                     server_list = []
                     try:
                         from notebook import notebookapp
@@ -978,7 +983,7 @@ class Viewer:
                     except ImportError:
                         pass
                     for server_cfg in server_list:
-                        if server_cfg['pid'] != server_pid:
+                        if server_cfg['pid'] != parent_pid:
                             continue
                         ws_url = (
                             f"ws{server_cfg['url'][4:]}api/kernels/{kernel_id}"
@@ -1903,12 +1908,23 @@ class Viewer:
                    width: int,
                    height: int,
                    is_depthmap: bool) -> None:
-        """TODO: Write documentation.
+        """Add a RGB or depth camera to the scene.
+
+        Manually added cameras are mainly useful for simulating exteroceptive
+        sensors. The user is responsible for managing them, i.e. to set their
+        respective poses in world, to get screenshot from them, and to remove
+        them when no longer relevant.
 
         .. warning::
             This method is only supported by Panda3d for now.
 
+        :param camera_name: Name of the camera to be added.
+        :param width: Width ofthe image captured by the camera in pixels.
+        :param height: Height of the image captured by the camera in pixels.
+        :param is_depthmap: Whether the camera output gathers 3 8-bits integers
+                            RGB channels or 1 32-bits floats depth channel.
         """
+
         # Assert(s) for type checker
         assert Viewer.backend is not None
         assert Viewer._backend_obj is not None
@@ -1920,7 +1936,7 @@ class Viewer:
 
         # Add camera
         Viewer._backend_obj.gui.add_camera(
-            camera_name, (width, height), is_depthmap)
+            camera_name, is_depthmap, (width, height))
 
     @staticmethod
     @_with_lock
@@ -1928,8 +1944,7 @@ class Viewer:
     def capture_frame(width: Optional[int] = None,
                       height: Optional[int] = None,
                       camera_name: Optional[str] = None,
-                      raw_data: bool = False
-                      ) -> Union[np.ndarray, bytes]:
+                      raw_data: bool = False) -> Union[np.ndarray, bytes]:
         """Take a snapshot and return associated data.
 
         .. warning::
@@ -2577,8 +2592,7 @@ class Viewer:
                    np.ndarray, Tuple[float, float]] = (0.0, np.inf),
                speed_ratio: float = 1.0,
                xyz_offset: Optional[np.ndarray] = None,
-               update_hook: Optional[Callable[
-                   [float, np.ndarray, np.ndarray], None]] = None,
+               update_hook: Optional[UpdateHook] = None,
                enable_clock: bool = False,
                wait: bool = False) -> None:
         """Replay a complete robot trajectory at a given real-time ratio.
@@ -2600,15 +2614,16 @@ class Viewer:
         :param xyz_offset: Freeflyer position offset. Note that it does not
                            check for the robot actually have a freeflyer.
                            Optional: None by default.
-        :param update_hook: Callable that will be called periodically between
-                            every state update. `None` to disable, otherwise it
-                            must have the following signature:
+        :param update_hook:
+            Callable that will be called periodically between every state
+            update. `None` to disable, otherwise it must have the following
+            signature:
 
-                            .. code-block:: python
+            .. code-block:: python
 
-                                f(t:float, q: ndarray, v: ndarray) -> None
+                f(t:float, q: ndarray, v: Optional[ndarray]) -> None
 
-                            Optional: No update hook by default.
+            Optional: No update hook by default.
         :param wait: Whether to wait for rendering to finish.
         """
         # Early return if nothing to replay
@@ -2635,7 +2650,7 @@ class Viewer:
         t = t_start
         time_init = time.time()
         time_prev = time_init
-        v, update_hook_t = None, None
+        update_hook_t = None
         while True:
             try:
                 # Update clock if enabled
@@ -2658,7 +2673,7 @@ class Viewer:
                 # Update display
                 if update_hook is not None:
                     update_hook_t = partial(update_hook, t, state.q, state.v)
-                self.display(state.q, v, xyz_offset, update_hook_t, wait)
+                self.display(state.q, state.v, xyz_offset, update_hook_t, wait)
 
                 # Sleep for a while if computing faster than display framerate
                 sleep(1.0 / REPLAY_FRAMERATE - (time.time() - time_prev))

@@ -69,8 +69,10 @@ WATERMARK_SCALE_MAX = 0.2
 CLOCK_SCALE = 0.1
 WIDGET_MARGIN_REL = 0.02
 
-PANDA3D_FRAMERATE_MAX = 40
-PANDA3D_REQUEST_TIMEOUT = 30.0
+FRAMERATE_MAX = 40
+REQUEST_TIMEOUT = 30.0
+
+FORCE_TINYDISPLAY_DRIVER = "JIMINY_PANDA3D_FORCE_TINYDISPLAY" in os.environ
 
 
 Tuple3FType = Union[Tuple[float, float, float], np.ndarray]
@@ -207,6 +209,7 @@ def make_gradient_skybox(sky_color: Tuple4FType,
     node = GeomNode("prism")
     node.add_geom(geom)
     node.set_bounds(OmniBoundingVolume())
+    node.set_final(True)
     prism = NodePath(node)
     prism.set_color_scale((*(3 * (1.1,)), 1.0))
     prism.set_bin("background", 0)
@@ -410,11 +413,14 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         # config.set_value('want-pstats', True)
         config.set_value('framebuffer-software', False)
         config.set_value('framebuffer-hardware', False)
-        config.set_value('load-display', 'pandagl')
-        config.set_value('aux-display',
-                         'p3headlessgl'
-                         '\naux-display pandadx9'
-                         '\naux-display p3tinydisplay')
+        if FORCE_TINYDISPLAY_DRIVER:
+            config.set_value('load-display', 'p3tinydisplay')
+        else:
+            config.set_value('load-display', 'pandagl')
+            config.set_value('aux-display',
+                             'p3headlessgl'
+                             '\naux-display pandadx9'
+                             '\naux-display p3tinydisplay')
         config.set_value('window-type', 'offscreen')
         config.set_value('sync-video', False)
         config.set_value('default-near', 0.1)
@@ -423,6 +429,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         config.set_value('notify-level', 'fatal')
         config.set_value('notify-level-x11display', 'fatal')
         config.set_value('notify-level-device', 'fatal')
+        config.set_value('notify-level-glgsg', 'fatal')
         config.set_value('default-directnotify-level', 'error')
         loadPrcFileData('', str(config))
 
@@ -489,7 +496,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         # Create gradient for skybox
         self.skybox = make_gradient_skybox(
             SKY_TOP_COLOR, SKY_BOTTOM_COLOR, 0.35, 0.17)
-        self.skybox.set_shader_auto()
+        self.skybox.set_shader_off()
         self.skybox.set_light_off()
         self.skybox.hide(self.LightMask | self.UserDepthCameraMask)
 
@@ -650,7 +657,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
             self.picker_traverser.addCollider(picker_np, self.picker_queue)
 
             # Limit framerate to reduce computation cost
-            self.set_framerate(PANDA3D_FRAMERATE_MAX)
+            self.set_framerate(FRAMERATE_MAX)
 
         # Create resizeable offscreen buffer
         self._open_offscreen_window(size)
@@ -790,14 +797,10 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
                    size: Tuple[int, int]) -> None:
         """Add a RGB or depth camera to the scene.
 
-        The user is responsible for managing it, ie set its pose in world, get
-        screenshot from it, and remove it when no longer relevant. Manually
-        added cameras is mainly useful for simulating exteroceptive sensors.
-
         :param name: Name of the camera to be added.
         :param is_depthmap: Whether the camera output gathers 3 8-bits integers
                             RGB channels or 1 32-bits floats depth channel.
-        :param size: Resolution (height and width) in pixel of the image being
+        :param size: Resolution (height and width) in pixel of the image
                      captured by the camera.
         """
         # TODO: Expose optional parameters to set lens type and properties.
@@ -1078,7 +1081,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         if self.win.gsg.driver_vendor.startswith('NVIDIA'):
             node.set_render_mode_thickness(4)
         node.set_antialias(AntialiasAttrib.MLine)
-        node.set_shader_auto()
+        node.set_shader_off()
         node.set_light_off()
         node.hide(self.LightMask | self.UserCameraMask)
         node.set_tag("is_virtual", "1")
@@ -1230,7 +1233,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         if self.win.gsg.driver_vendor.startswith('NVIDIA'):
             node.set_render_mode_thickness(4)
         node.set_antialias(AntialiasAttrib.MLine)
-        node.set_shader_auto()
+        node.set_shader_off()
         node.set_light_off()
         node.hide(self.LightMask | self.UserCameraMask)
         node.set_tag("is_virtual", "1")
@@ -1470,12 +1473,17 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
 
         # Load non-interactive backend unrelated to the current one
         try:
-            backend_registry = matplotlib.backends.backend_registry
+            # pylint: disable=no-member
+            backend_registry = (
+                matplotlib.backends.
+                backend_registry)  # type: ignore[attr-defined,unused-ignore]
             plt_agg = backend_registry.load_backend_module('Agg')
         except AttributeError:
             # Fallback for matplotlib < 3.9.0
+            # pylint: disable=no-member
             plt_agg = importlib.import_module(
-                matplotlib.cbook._backend_module_name('Agg'))
+                matplotlib.cbook.  # type: ignore[attr-defined,unused-ignore]
+                _backend_module_name('Agg'))
 
         # Remove existing legend, if any
         if self._legend is not None:
@@ -1823,7 +1831,7 @@ class Panda3dApp(panda3d_viewer.viewer_app.ViewerApp):
         """
         if framerate is not None:
             self.clock.set_mode(ClockObject.MLimited)
-            self.clock.set_frame_rate(PANDA3D_FRAMERATE_MAX)
+            self.clock.set_frame_rate(framerate)
         else:
             self.clock.set_mode(ClockObject.MNormal)
         self.framerate = framerate
@@ -2051,7 +2059,7 @@ class Panda3dProxy(mp.Process):
             self._host_conn.send((name, args, kwargs, self._is_async))
             if self._is_async:
                 return None
-            if self._host_conn.poll(PANDA3D_REQUEST_TIMEOUT):
+            if self._host_conn.poll(REQUEST_TIMEOUT):
                 reply = self._host_conn.recv()
             else:
                 # Something is wrong... aborting to prevent potential deadlock

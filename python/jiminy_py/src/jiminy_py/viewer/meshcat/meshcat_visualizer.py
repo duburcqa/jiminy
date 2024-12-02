@@ -121,7 +121,7 @@ class DaeMeshGeometryWithTexture(ReferenceSceneElement):
         img_resource_paths = []
         img_lib_element = Et.parse(dae_path).find(
             "{http://www.collada.org/2005/11/COLLADASchema}library_images")
-        if img_lib_element:
+        if img_lib_element is not None:
             img_resource_paths = [
                 e.text for e in img_lib_element.iter()
                 if e.tag.count('init_from') and e.text is not None]

@@ -125,10 +125,7 @@ target_include_directories(${PROJECT_NAME}-object SYSTEM PUBLIC
 
 # Linking with other libraries (as a way to avoid any warnings compiling them)
 target_link_libraries_system(${PROJECT_NAME}-object pinocchio::pinocchio hpp-fcl::hpp-fcl Eigen3::Eigen)
-if(NOT "${urdfdom_LIBRARIES}" MATCHES ".*tinyxml.*")
-    list(APPEND urdfdom_LIBRARIES "tinyxml")
-endif()
-target_link_libraries(${PROJECT_NAME}-object ${urdfdom_LIBRARIES})
+target_link_libraries(${PROJECT_NAME}-object urdfdom::urdf_parser)
 target_link_libraries(${PROJECT_NAME}-object jsoncpp::jsoncpp hdf5::hdf5_cpp hdf5::hdf5 hdf5::zlib)  # Beware the order is critical !
 if(WIN32)
     # Adding this dependency on Windows is necessary since HDF5 >= 1.14.3.

@@ -20,14 +20,14 @@ jobs:
 
     env:
       GENERATOR: "Visual Studio 17 2022"
-      CMAKE_CXX_FLAGS: "/DEIGEN_MPL2_ONLY /d2ReducedOptimizeHugeFunctions /fp:contract /arch:AVX2"
+      CXX_FLAGS: "/DEIGEN_MPL2_ONLY /d2ReducedOptimizeHugeFunctions /fp:contract /arch:AVX2"
 
     strategy:
       matrix:
-        PYTHON_VERSION: ['3.8', '3.9', '3.10', '3.11', '3.12']
+        PYTHON_VERSION: ['3.10', '3.11', '3.12']
         BUILD_TYPE: ['Release']
         include:
-          - PYTHON_VERSION: '3.10'
+          - PYTHON_VERSION: '3.12'
             BUILD_TYPE: 'Debug'
 
     #####################################################################################
@@ -61,10 +61,10 @@ jobs:
       if: matrix.PYTHON_VERSION != '3.13'
       run: |
         python -m pip install "torch" -f https://download.pytorch.org/whl/torch
-        python -m pip install "gymnasium>=0.28,<1.0" "stable_baselines3>=2.0"
+        python -m pip install "gymnasium>=0.28,<1.0" "stable_baselines3>=2.0,<2.4"
     - name: Install latest numpy version at build-time for run-time binary compatibility
       run: |
-        python -m pip install --upgrade "numpy>=1.24,<2.0"
+        python -m pip install --upgrade "numpy>=1.24" numba torch
     - name: Build jiminy dependencies
       run: |
         ${env:BUILD_TYPE} = "${{ matrix.BUILD_TYPE }}"
@@ -95,16 +95,16 @@ jobs:
         cmake "$RootDir" -Wdev -G "${env:GENERATOR}" -DCMAKE_GENERATOR_PLATFORM=x64 `
               -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
               -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" `
-              -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF -DCMAKE_VERBOSE_MAKEFILE=ON `
+              -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DCMAKE_VERBOSE_MAKEFILE=ON `
               -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" `
               -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE `
               -DBoost_USE_STATIC_LIBS=ON -DPYTHON_REQUIRED_VERSION="${{ matrix.PYTHON_VERSION }}" `
               -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON `
               -DINSTALL_GYM_JIMINY=${{ ((matrix.PYTHON_VERSION == '3.13') && 'OFF') || 'ON' }} `
-              -DCMAKE_CXX_FLAGS="${env:CMAKE_CXX_FLAGS} $(
+              -DCMAKE_CXX_FLAGS="${env:CXX_FLAGS} $(
               ) -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC -DBOOST_CORE_USE_GENERIC_CMATH $(
               ) -DEIGENPY_STATIC -DURDFDOM_STATIC -DHPP_FCL_STATIC -DPINOCCHIO_STATIC"
-        cmake --build . --target ALL_BUILD --config "${{ matrix.BUILD_TYPE }}" --parallel 2
+        cmake --build . --target ALL_BUILD --config "${{ matrix.BUILD_TYPE }}" --parallel 4
 
         if (-not (Test-Path -PathType Container "$RootDir/build/pypi/jiminy_py/src/jiminy_py")) {
           New-Item -ItemType "directory" -Force -Path "$RootDir/build/pypi/jiminy_py/src/jiminy_py/core"
@@ -124,11 +124,15 @@ jobs:
         ${env:Path} += ";$InstallDir/lib"
 
         # Generate stubs
+        # FIXME: stubgen does not work with Numpy 2.X
+        # (see https://github.com/python/mypy/issues/17396)
+        python -m pip install "numpy<2.0"
         stubgen -p jiminy_py -o $RootDir/build/pypi/jiminy_py/src
-        python "$RootDir/build_tools/stub_gen.py" `
+        python "$RootDir/build_tools/stubgen.py" `
           -o $RootDir/build/stubs --ignore-invalid=all jiminy_py
         Copy-Item -Force -Path "$RootDir/build/stubs/jiminy_py-stubs/core/__init__.pyi" `
                   -Destination "$RootDir/build/pypi/jiminy_py/src/jiminy_py/core/core.pyi"
+        python -m pip install --upgrade "numpy>=1.24" numba torch
 
         # Generate wheels
         Set-Location -Path "$RootDir/build"
@@ -175,7 +179,7 @@ jobs:
         cmake "$RootDir/core/examples/external_project/" -G "${env:GENERATOR}" -DCMAKE_GENERATOR_PLATFORM=x64 `
               -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" `
               -DPYTHON_REQUIRED_VERSION="${{ matrix.PYTHON_VERSION }}" `
-              -DCMAKE_CXX_FLAGS="${env:CMAKE_CXX_FLAGS}"
+              -DCMAKE_CXX_FLAGS="${env:CXX_FLAGS}"
         cmake --build . --target INSTALL --config "${{ matrix.BUILD_TYPE }}"
 
         & "$InstallDir/bin/pip_double_pendulum.exe"
@@ -198,13 +202,10 @@ jobs:
         python -m unittest discover -s "$RootDir/python/gym_jiminy/unit_py" -v
 
     - name: Run examples for gym jiminy add-on modules
-      if: matrix.BUILD_TYPE != 'Debug' && matrix.PYTHON_VERSION != '3.11' && matrix.PYTHON_VERSION != '3.12'
+      if: matrix.BUILD_TYPE != 'Debug'
       run: |
         $RootDir = "${env:GITHUB_WORKSPACE}/workspace" -replace '\\', '/'
 
-        # FIXME: Python 3.11 was not supported by ray on Windows until very recently.
-        # It has been fixed on master but not on the latest available release (2.93).
-        # See: https://github.com/ray-project/ray/pull/42097
         Set-Location -Path "$RootDir/python/gym_jiminy/examples/rllib"
         python acrobot_ppo.py
 
@@ -212,7 +213,7 @@ jobs:
 
   publish-pypi-win10:
     name: (Windows) Publish on PyPi the wheel for Windows of jiminy_py
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     permissions:
       id-token: write
 
@@ -227,7 +228,7 @@ jobs:
         merge-multiple: true
         path: wheelhouse
     - name: Publish on PyPi the wheels
-      uses: pypa/gh-action-pypi-publish@v1.8.11
+      uses: pypa/gh-action-pypi-publish@v1.10.3
       with:
         packages-dir: wheelhouse
         verify-metadata: false

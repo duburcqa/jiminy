@@ -13,7 +13,7 @@ from collections.abc import Mapping, Sequence
 from functools import partial
 from typing import (
     Dict, Any, List, cast, no_type_check, Optional, Tuple, Callable, Union,
-    SupportsFloat, Iterator,  Generic, Sequence as SequenceT,
+    SupportsFloat, Iterator, Generic, Sequence as SequenceT,
     Mapping as MappingT, MutableMapping as MutableMappingT)
 
 import numpy as np
@@ -23,7 +23,7 @@ from gymnasium.core import RenderFrame
 import jiminy_py.core as jiminy
 from jiminy_py import tree
 from jiminy_py.core import (  # pylint: disable=no-name-in-module
-    EncoderSensor, EffortSensor, array_copyto)
+    array_copyto, multi_array_copyto)
 from jiminy_py.dynamics import compute_freeflyer_state_from_fixed_body
 from jiminy_py.log import extract_variables_from_log
 from jiminy_py.simulator import Simulator, TabbedFigure
@@ -44,10 +44,12 @@ from ..utils import (FieldNested,
                      build_copyto,
                      build_contains,
                      get_fieldnames,
+                     get_robot_state_space,
+                     get_robot_measurements_space,
                      register_variables)
 from ..bases import (DT_EPS,
-                     ObsT,
-                     ActT,
+                     Obs,
+                     Act,
                      InfoType,
                      SensorMeasurementStackMap,
                      EngineObsType,
@@ -62,6 +64,10 @@ TIMEOUT_RATIO = 15
 
 # Absolute tolerance when checking that observations are valid
 OBS_CONTAINS_TOL = 0.01
+
+
+PolicyCallbackFun = Callable[
+    [Obs, Optional[Act], Optional[float], bool, bool, InfoType], Act]
 
 
 LOGGER = logging.getLogger(__name__)
@@ -84,8 +90,8 @@ class _LazyDictItemFilter(Mapping):
         return len(self.dict_packed)
 
 
-class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
-                    Generic[ObsT, ActT]):
+class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
+                    Generic[Obs, Act]):
     """Base class to train an agent in Gym OpenAI using Jiminy simulator for
     physics computations.
 
@@ -101,7 +107,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
     customize by overloading it to fit the vast majority of users' needs.
     """
 
-    derived: "InterfaceJiminyEnv"
+    derived: InterfaceJiminyEnv
     """Top-most block from which this environment is part of when leveraging
     modular pipeline design capability.
     """
@@ -116,7 +122,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         r"""
         :param simulator: Jiminy Python simulator used for physics
                           computations. It must be fully initialized.
-        :param step_dt: Simulation timestep for learning. Note that it is
+        :param step_dt: Environment timestep for learning. Note that it is
                         independent from the controller and observation update
                         periods. The latter are configured via
                         `engine.set_options`.
@@ -129,8 +135,6 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
             error if the episode is lasting for too long without reset.
             Optional: About 4GB of log data assuming 5ms control update period
             and telemetry disabled for everything but the robot configuration.
-        :param debug: Whether the debug mode must be enabled. Doing it enables
-                      telemetry recording.
         :param render_mode: Desired rendering mode, ie "human" or "rgb_array".
                             If "human" is specified, calling `render` will open
                             a graphical window for visualization, otherwise a
@@ -143,6 +147,8 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
                             machine environment. Note that "rgb_array" does not
                             require a graphical window manager.
                             Optional: None by default.
+        :param debug: Whether the debug mode must be enabled. Doing it enables
+                      telemetry recording.
         :param kwargs: Extra keyword arguments that may be useful for derived
                        environments with multiple inheritance, and to allow
                        automatic pipeline wrapper generation.
@@ -207,11 +213,19 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         self.log_fieldnames: MappingT[str, FieldNested] = _LazyDictItemFilter(
             self._registered_variables, 0)
 
-        # Internal buffers for physics computations
+        # Random number generator.
+        # This is used for generating random observations and actions, sampling
+        # the initial state of the robot, and domain randomization.
         self.np_random = np.random.Generator(np.random.SFC64())
+
+        # Log of the "previous" simulation in debug and evaluation mode
         self.log_path: Optional[str] = None
 
-        # Whether evaluation mode is active
+        # Original simulation options of the ongoing episode before partially
+        # overwriting it.
+        self._simu_options_orig: Optional[Dict[str, Any]] = None
+
+        # Whether training mode is active, as opposed to evaluation mode
         self._is_training = True
 
         # Whether play interactive mode is active
@@ -237,26 +251,57 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         self._initialize_seed()
 
         # Initialize the observation and action buffers
-        self.observation: ObsT = zeros(self.observation_space)
-        self.action: ActT = zeros(self.action_space)
+        self.observation: Obs = zeros(self.observation_space)
+        self.action: Act = zeros(self.action_space)
 
-        # Check that the action space and 'compute_command' are consistent
-        if (BaseJiminyEnv.compute_command is type(self).compute_command and
-                BaseJiminyEnv._initialize_action_space is not
-                type(self)._initialize_action_space):
+        # Check that the action and observation spaces are consistent with
+        # 'compute_command' and 'refresh_observation' respectively.
+        cls = type(self)
+        is_action_space_custom = (
+            BaseJiminyEnv._initialize_action_space is not
+            cls._initialize_action_space)
+        if (BaseJiminyEnv.compute_command is cls.compute_command and
+                is_action_space_custom):
             raise NotImplementedError(
-                "`BaseJiminyEnv.compute_command` must be overloaded in case "
-                "of custom action spaces.")
+                "`BaseJiminyEnv.compute_command` must be overloaded when "
+                "defining a custom action space.")
+        is_observation_space_custom = (
+            BaseJiminyEnv._initialize_observation_space is not
+            cls._initialize_observation_space)
+        if (BaseJiminyEnv.refresh_observation is cls.refresh_observation and
+                is_observation_space_custom):
+            raise NotImplementedError(
+                "`BaseJiminyEnv.refresh_observation` must be overloaded when "
+                "defining a custom observation space.")
+
+        # Define flattened default observation for efficiency if not overloaded
+        self._observation_flat: Sequence[np.ndarray] = ()
+        if not is_observation_space_custom:
+            assert isinstance(self.observation, dict)
+            self._observation_flat = (
+                self.observation['t'],
+                self.observation['states']['agent']['q'],
+                self.observation['states']['agent']['v'],
+                *self.observation['measurements'].values())
 
         # Define specialized operators for efficiency.
         # Note that a partial view of observation corresponding to measurement
         # must be extracted since only this one must be updated during refresh.
         self._copyto_action = build_copyto(self.action)
-        self._contains_observation = build_contains(
-            self.observation, self.observation_space, tol_rel=OBS_CONTAINS_TOL)
         self._contains_action = build_contains(self.action, self.action_space)
-        self._get_clipped_env_observation: Callable[
-            [], DataNested] = OrderedDict
+        reduced_obs_space: spaces.Space[DataNested] = self.observation_space
+        if not is_observation_space_custom:
+            # Note that time is removed from the observation space because it
+            # will be checked independently.
+            assert isinstance(reduced_obs_space, spaces.Dict)
+            reduced_obs_space = spaces.Dict(OrderedDict(
+                (key, value)
+                for key, value in reduced_obs_space.items()
+                if key != 't'))
+        self._contains_observation = build_contains(
+            self.observation, reduced_obs_space, tol_rel=OBS_CONTAINS_TOL)
+        self._get_clipped_env_observation: Callable[[], DataNested] = (
+            OrderedDict)
 
         # Set robot in neutral configuration
         q = self._neutral()
@@ -312,145 +357,16 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
 
     def __del__(self) -> None:
         try:
+            if self.log_path is not None:
+                try:
+                    os.remove(self.log_path)
+                except FileNotFoundError:
+                    pass
+                self.log_path = None
             self.close()
         except Exception:   # pylint: disable=broad-except
             # This method must not fail under any circumstances
             pass
-
-    def _get_time_space(self) -> spaces.Box:
-        """Get time space.
-        """
-        return spaces.Box(low=0.0,
-                          high=self.simulation_duration_max,
-                          shape=(),
-                          dtype=np.float64)
-
-    def _get_agent_state_space(self,
-                               use_theoretical_model: bool = False,
-                               ignore_velocity_limit: bool = True
-                               ) -> spaces.Dict:
-        """Get state space.
-
-        This method is not meant to be overloaded in general since the
-        definition of the state space is mostly consensual. One must rather
-        overload `_initialize_observation_space` to customize the observation
-        space as a whole.
-
-        :param use_theoretical_model: Whether to compute the state space
-                                      associated with the theoretical model
-                                      instead of the extended simulation model.
-        :param ignore_velocity_limit: Whether to ignore the velocity bounds
-                                      specified in model.
-        """
-        # Define some proxies for convenience
-        pinocchio_model = self.robot.pinocchio_model
-        position_limit_lower = pinocchio_model.lowerPositionLimit
-        position_limit_upper = pinocchio_model.upperPositionLimit
-        velocity_limit = pinocchio_model.velocityLimit
-
-        # Deduce bounds associated the theoretical model from the extended one
-        if use_theoretical_model:
-            position_limit_lower, position_limit_upper = map(
-                self.robot.get_theoretical_position_from_extended,
-                (position_limit_lower, position_limit_upper))
-            velocity_limit = self.robot.get_theoretical_velocity_from_extended(
-                velocity_limit)
-
-        # Ignore velocity bounds in requested
-        if ignore_velocity_limit:
-            velocity_limit = np.full_like(velocity_limit, float("inf"))
-
-        # Aggregate position and velocity bounds to define state space
-        return spaces.Dict(OrderedDict(
-            q=spaces.Box(low=position_limit_lower,
-                         high=position_limit_upper,
-                         dtype=np.float64),
-            v=spaces.Box(low=float("-inf"),
-                         high=float("inf"),
-                         shape=(self.robot.pinocchio_model.nv,),
-                         dtype=np.float64)))
-
-    def _get_measurements_space(self) -> spaces.Dict:
-        """Get sensor space.
-
-        It gathers the sensors data in a dictionary. It maps each available
-        type of sensor to the associated data matrix. Rows correspond to the
-        sensor type's fields, and columns correspond to each individual sensor.
-
-        .. note:
-            The mapping between row `i` of data matrix and associated sensor
-            type's field is given by:
-
-            .. code-block:: python
-
-                field = getattr(jiminy_py.core, key).fieldnames[i]
-
-            The mapping between column `j` of data matrix and associated sensor
-            name and object are given by:
-
-            .. code-block:: python
-
-                sensor = env.robot.sensors[key][j]
-
-        .. warning:
-            This method is not meant to be overloaded in general since the
-            definition of the sensor space is mostly consensual. One must
-            rather overload `_initialize_observation_space` to customize the
-            observation space as a whole.
-        """
-        # Define some proxies for convenience
-        position_limit_lower = self.robot.pinocchio_model.lowerPositionLimit
-        position_limit_upper = self.robot.pinocchio_model.upperPositionLimit
-
-        # Initialize the bounds of the sensor space
-        sensor_measurements = self.robot.sensor_measurements
-        sensor_space_lower = OrderedDict(
-            (key, np.full(value.shape, -np.inf))
-            for key, value in sensor_measurements.items())
-        sensor_space_upper = OrderedDict(
-            (key, np.full(value.shape, np.inf))
-            for key, value in sensor_measurements.items())
-
-        # Replace inf bounds of the encoder sensor space
-        for sensor in self.robot.sensors.get(EncoderSensor.type, ()):
-            # Get the position bounds of the sensor.
-            # Note that for rotary unbounded encoders, the sensor bounds
-            # cannot be extracted from the motor because only the principal
-            # value of the angle is observed by the sensor.
-            assert isinstance(sensor, EncoderSensor)
-            joint = self.robot.pinocchio_model.joints[sensor.joint_index]
-            joint_type = jiminy.get_joint_type(joint)
-            if joint_type == jiminy.JointModelType.ROTARY_UNBOUNDED:
-                sensor_position_lower = - np.pi
-                sensor_position_upper = np.pi
-            else:
-                try:
-                    motor = self.robot.motors[sensor.motor_index]
-                    sensor_position_lower = motor.position_limit_lower
-                    sensor_position_upper = motor.position_limit_upper
-                except IndexError:
-                    sensor_position_lower = position_limit_lower[joint.idx_q]
-                    sensor_position_upper = position_limit_upper[joint.idx_q]
-
-            # Update the bounds accordingly
-            sensor_space_lower[EncoderSensor.type][0, sensor.index] = (
-                sensor_position_lower)
-            sensor_space_upper[EncoderSensor.type][0, sensor.index] = (
-                sensor_position_upper)
-
-        # Replace inf bounds of the effort sensor space
-        for sensor in self.robot.sensors.get(EffortSensor.type, ()):
-            assert isinstance(sensor, EffortSensor)
-            motor = self.robot.motors[sensor.motor_index]
-            sensor_space_lower[EffortSensor.type][0, sensor.index] = (
-                - motor.effort_limit)
-            sensor_space_upper[EffortSensor.type][0, sensor.index] = (
-                motor.effort_limit)
-
-        return spaces.Dict(OrderedDict(
-            (key, spaces.Box(low=min_val, high=max_val, dtype=np.float64))
-            for (key, min_val), max_val in zip(
-                sensor_space_lower.items(), sensor_space_upper.values())))
 
     def _initialize_action_space(self) -> None:
         """Configure the action space of the environment.
@@ -468,8 +384,8 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
             motor.effort_limit for motor in self.robot.motors])
 
         # Set the action space
-        self.action_space = spaces.Box(
-            low=-command_limit, high=command_limit, dtype=np.float64)
+        self.action_space = cast(spaces.Space[Act], spaces.Box(
+            low=-command_limit, high=command_limit, dtype=np.float64))
 
     def _initialize_seed(self, seed: Optional[int] = None) -> None:
         """Specify the seed of the environment.
@@ -577,10 +493,27 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         return self
 
     def train(self) -> None:
+        if self.is_simulation_running:
+            raise RuntimeError(
+                "Switching between training and evaluation modes is forbidden "
+                "if a simulation is already running. Please call `stop` "
+                "method beforehand.")
         self._is_training = True
 
     def eval(self) -> None:
+        if self.is_simulation_running:
+            raise RuntimeError(
+                "Switching between training and evaluation modes is forbidden "
+                "if a simulation is already running. Please call `stop` "
+                "method beforehand.")
         self._is_training = False
+
+    def update_pipeline(self, derived: Optional[InterfaceJiminyEnv]) -> None:
+        if self.derived is not self:
+            derived_old = self.derived
+            self.derived = self
+            derived_old.update_pipeline(None)
+        self.derived = derived or self
 
     def reset(self,  # type: ignore[override]
               *,
@@ -600,8 +533,9 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
             log variable.
 
         :param seed: Random seed, as a positive integer.
-                     Optional: A strongly random seed will be generated by gym
-                     if omitted.
+                     Optional: `None` by default. If `None`, then the internal
+                     random generator of the environment will be kept as-is,
+                     without updating its seed.
         :param options: Additional information to specify how the environment
                         is reset. The field 'reset_hook' is reserved for
                         chaining multiple `BasePipelineWrapper`. It is not
@@ -611,12 +545,12 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         :returns: Initial observation of the episode and some auxiliary
                   information for debugging or monitoring purpose.
         """
+        # Stop the episode if one is still running
+        self.stop()
+
         # Reset the seed if requested
         if seed is not None:
             self._initialize_seed(seed)
-
-        # Stop the episode if one is still running
-        self.stop()
 
         # Remove external forces, if any
         self.simulator.remove_all_forces()
@@ -658,11 +592,6 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         # Reset some internal buffers
         self.num_steps[()] = 0
         self._num_steps_beyond_terminate = None
-
-        # Create a new log file
-        if self.debug:
-            fd, self.log_path = tempfile.mkstemp(suffix=".data")
-            os.close(fd)
 
         # Extract the observer/controller update period.
         # The controller update period is used by default for the observer if
@@ -725,7 +654,10 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
             env_derived = reset_hook() or env
             assert env_derived.unwrapped is self
             env = env_derived
-        self.derived = env
+
+        # Update the environment pipeline if necessary
+        if env is not self.derived:
+            env.update_pipeline(env)
 
         # Re-initialize the quantity manager.
         # Note that computation graph tracking is never reset automatically.
@@ -742,7 +674,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         for header, value in self._registered_variables.values():
             register_variables(self.robot.controller, header, value)
 
-        # Start the engine
+        # Start the simulation
         self.simulator.start(q_init, v_init)
 
         # Refresh robot_state proxies. It must be done here because memory is
@@ -774,7 +706,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         # Make sure the state is valid, otherwise there `refresh_observation`
         # and `_initialize_observation_space` are probably inconsistent.
         try:
-            obs: ObsT = cast(ObsT, self._get_clipped_env_observation())
+            obs = self._get_clipped_env_observation()
         except (TypeError, ValueError) as e:
             raise RuntimeError(
                 "The observation computed by `refresh_observation` is "
@@ -822,7 +754,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         self.simulator.close()
 
     def step(self,  # type: ignore[override]
-             action: ActT
+             action: Act
              ) -> Tuple[DataNested, SupportsFloat, bool, bool, InfoType]:
         """Integration timestep of the environment's dynamics under prescribed
         agent's action over a single timestep, i.e. collect one transition step
@@ -858,7 +790,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
 
         # Update of the action to perform if relevant
         if action is not self.action:
-            # Make sure the action is valid if debug
+            # Make sure the action is valid in debug mode
             if self.debug:
                 for value in tree.flatten(action):
                     if is_nan(value):
@@ -918,10 +850,10 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         else:
             if self.is_training and self._num_steps_beyond_terminate == 0:
                 LOGGER.error(
-                    "Calling `step` after termination causes the reward to be "
-                    "'nan' systematically and is strongly discouraged in "
-                    "train mode. Please call `reset` to avoid further "
-                    "undefined behavior.")
+                    "Calling `step` after termination is an undefined "
+                    "behavior, and as such, is strongly discouraged in "
+                    "training mode. The reward will be forced to 'nan' from "
+                    "now on. Please call `reset`.")
             self._num_steps_beyond_terminate += 1
 
         # Compute reward if not beyond termination
@@ -940,14 +872,33 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
             # Update cumulative reward
             self.total_reward += reward
 
-        # Write log file if simulation has just terminated in debug mode
-        if self.debug and self._num_steps_beyond_terminate == 0:
-            self.simulator.write_log(self.log_path, format="binary")
-
         # Clip (and copy) the most derived observation before returning it
         obs = self._get_clipped_env_observation()
 
         return obs, reward, terminated, truncated, deepcopy(self._info)
+
+    def stop(self) -> None:
+        # Check whether it is worth saving log file
+        has_simulation_data = self.is_simulation_running and self.num_steps > 0
+
+        # Stop the engine.
+        # This must be done BEFORE writing log, otherwise the final simulation
+        # state will be missing as it gets flushed after stopping.
+        self.simulator.stop()
+
+        # Write log of previous simulation before starting a new one if not
+        # already done.
+        # This would be the case if the previous episode was never terminated
+        # nor truncated, or because it was wrapped with a non-jiminy-specific
+        # layer such as `TimeLimit`.
+        if has_simulation_data:
+            if self.log_path is not None:
+                os.remove(self.log_path)
+                self.log_path = None
+            if self.debug or not self.is_training:
+                fd, self.log_path = tempfile.mkstemp(suffix=".data")
+                os.close(fd)
+                self.simulator.write_log(self.log_path, format="binary")
 
     def render(self) -> Optional[Union[RenderFrame, List[RenderFrame]]]:
         """Render the agent in its environment.
@@ -1001,32 +952,44 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
             if not enable_block_states and key.endswith(".state"):
                 continue
 
-            # Extract action hierarchical time series.
+            # Store fieldnames in dict systematically to avoid code duplication
+            if not isinstance(fieldnames, dict):
+                fieldnames = {"": fieldnames}
+
+            # Extract hierarchical time series.
             # Fieldnames stored in a dictionary cannot be nested. In such a
             # case, keys corresponds to subplots, and values are individual
             # scalar data over time to be displayed to the same subplot.
             t = log_vars["Global.Time"]
-            tab_data: Dict[str, Union[np.ndarray, Dict[str, np.ndarray]]] = {}
-            if isinstance(fieldnames, dict):
-                for group, subfieldnames in fieldnames.items():
-                    if not isinstance(subfieldnames, list):
-                        LOGGER.error(
-                            "Action space not supported by this method.")
-                        return figure
-                    value_map = extract_variables_from_log(
-                        log_vars, subfieldnames, "controller", as_dict=True)
-                    tab_data[group] = {
-                        key.split(".", 2)[2]: value
-                        for key, value in value_map.items()}
-            elif isinstance(fieldnames, list):
-                value_map = extract_variables_from_log(
-                    log_vars, fieldnames, "controller", as_dict=True)
-                tab_data.update({
-                    key.split(".", 2)[2]: value
-                    for key, value in value_map.items()})
+            base_name = key.replace(".", " ")
+            for group, subfieldnames in fieldnames.items():
+                if not isinstance(subfieldnames, (list, tuple)):
+                    LOGGER.error(
+                        "Action space not supported by this method.")
+                    return figure
 
-            # Add action tab
-            figure.add_tab(key.replace(".", " "), t, tab_data)
+                tab_name = " ".join(filter(None, (base_name, group)))
+                value_map = extract_variables_from_log(
+                    log_vars, subfieldnames, "controller", as_dict=True)
+                tab_data = {key.split(".", 2)[2]: value
+                            for key, value in value_map.items()}
+
+                grid_spec: Tuple[Optional[int], Optional[int]] = (None, None)
+                nrows = len(subfieldnames)
+                if nrows and isinstance(subfieldnames[0], (list, tuple)):
+                    ncols_all = set(map(len, subfieldnames))
+                    if len(ncols_all) == 1:
+                        grid_spec = (nrows, next(iter(ncols_all)))
+
+                try:
+                    figure.add_tab(tab_name,
+                                   t,
+                                   tab_data,  # type: ignore[arg-type]
+                                   nrows=grid_spec[0],
+                                   ncols=grid_spec[1])
+                except ValueError:
+                    LOGGER.error("Invalid plot spec for variable %s. Moving "
+                                 "to the next one", key)
 
         # Return figure for convenience and consistency with Matplotlib
         return figure
@@ -1045,7 +1008,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
             kwargs['close_backend'] = not self.simulator.is_viewer_available
 
         # Stop any running simulation before replay if `has_terminated` is True
-        if any(self.derived.has_terminated({})):
+        if self.is_simulation_running and any(self.derived.has_terminated({})):
             self.stop()
 
         with viewer_lock:
@@ -1096,6 +1059,9 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         :param kwargs: Extra keyword arguments to forward to `_key_to_action`
                        method.
         """
+        # Stop the episode if one is still running
+        self.stop()
+
         # Enable play interactive flag and make sure training flag is disabled
         is_training = self.is_training
         self._is_interactive = True
@@ -1108,9 +1074,8 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         if viewer is None or not viewer.has_gui():
             self.simulator.render(update_ground_profile=False)
 
-        # Reset the environnement
-        self.reset()
-        obs = self.observation
+        # Initialize the simulation
+        obs, _ = self.derived.reset()
         reward = None
 
         # Refresh the ground profile
@@ -1165,9 +1130,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
             self.train()
 
     def evaluate(self,
-                 policy_fn: Callable[[
-                    DataNested, Optional[float], bool, InfoType
-                    ], ActT],
+                 policy_fn: PolicyCallbackFun,
                  seed: Optional[int] = None,
                  horizon: Optional[int] = None,
                  enable_stats: bool = True,
@@ -1185,16 +1148,19 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
                 Policy to evaluate as a callback function. It must have the
                 following signature (**rew** = None at reset):
 
-            | policy_fn\(**obs**: DataNested,
+            | policy_fn\(**obs**: Obs,
+            |            **action_prev**: Optional[Act],
             |            **reward**: Optional[float],
-            |            **done_or_truncated**: bool,
+            |            **terminated**: bool,
+            |            **truncated**: bool,
             |            **info**: InfoType
-            |            \) -> ActT  # **action**
+            |            \) -> Act  # **action**
         :param seed: Seed of the environment to be used for the evaluation of
                      the policy.
-                     Optional: Random seed if not provided.
+                     Optional: `None` by default. If not specified, then a
+                     strongly random seed will be generated by gym.
         :param horizon: Horizon of the simulation, namely maximum number of
-                        steps before termination. `None` to disable.
+                        env steps before termination. `None` to disable.
                         Optional: Disabled by default.
         :param enable_stats: Whether to print high-level statistics after the
                              simulation.
@@ -1213,6 +1179,9 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
                 (Viewer.backend or get_default_backend()) != "panda3d-sync" or
                 interactive_mode() >= 2)
 
+        # Stop the episode if one is still running
+        self.stop()
+
         # Make sure evaluation mode is enabled
         is_training = self.is_training
         if is_training:
@@ -1222,16 +1191,21 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         self._initialize_seed(seed)
 
         # Initialize the simulation
-        obs, info = self.reset()
-        reward, terminated, truncated = None, False, False
+        env = self.derived
+        obs, info = env.reset()
+        action, reward, terminated, truncated = None, None, False, False
 
         # Run the simulation
         info_episode = [info]
         try:
-            env = self.derived
-            while not (terminated or truncated or (
-                    horizon is not None and self.num_steps > horizon)):
-                action = policy_fn(obs, reward, terminated or truncated, info)
+            while horizon is None or self.num_steps < horizon:
+                action = policy_fn(
+                    obs, action, reward, terminated, truncated, info)
+                if terminated or truncated:
+                    # Break AFTER calling the policy callback if the episode is
+                    # terminated or truncated, which gives the policy the
+                    # opportunity to observe and record the final state.
+                    break
                 obs, reward, terminated, truncated, info = env.step(action)
                 info_episode.append(info)
             self.stop()
@@ -1280,14 +1254,22 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         .. note::
             This method is called internally by `reset` methods.
         """
+        # Restore the original simulation options
+        if self._simu_options_orig is not None:
+            self.simulator.set_simulation_options(self._simu_options_orig)
+
         # Call base implementation
         super()._setup()
+
+        # Backup simulation options
+        self._simu_options_orig = self.simulator.get_simulation_options()
 
         # Configure the low-level integrator
         engine_options = self.simulator.get_options()
         engine_options["stepper"]["iterMax"] = 0
         if self.debug:
             engine_options["stepper"]["verbose"] = True
+        if self.debug or not self.is_training:
             engine_options["stepper"]["logInternalStepperSteps"] = True
 
         # Set maximum computation time for single internal integration steps
@@ -1297,12 +1279,19 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
 
         # Enable full logging in debug and evaluation mode
         if self.debug or not self.is_training:
-            # Enable telemetry at engine-level
+            # Enable all telemetry data at engine-level
             telemetry_options = engine_options["telemetry"]
             for key in telemetry_options.keys():
-                telemetry_options[key] = True
+                if key.startswith("enable"):
+                    telemetry_options[key] = True
 
-            # Enable telemetry at robot-level
+            # Enable telemetry persistence.
+            # The visual and collision meshes will be stored in log file, so
+            # that the robot can be loaded on any machine with access to the
+            # original URDF and mesh files.
+            engine_options["telemetry"]["isPersistent"] = True
+
+            # Enable all telemetry data at robot-level
             robot_options = self.robot.get_options()
             robot_telemetry_options = robot_options["telemetry"]
             for key in robot_telemetry_options.keys():
@@ -1325,11 +1314,17 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
             order to define a custom observation space.
         """
         observation_spaces: Dict[str, spaces.Space] = OrderedDict()
-        observation_spaces['t'] = self._get_time_space()
-        observation_spaces['states'] = spaces.Dict(
-            agent=self._get_agent_state_space())
-        observation_spaces['measurements'] = self._get_measurements_space()
-        self.observation_space = spaces.Dict(observation_spaces)
+        observation_spaces['t'] = spaces.Box(
+            low=0.0,
+            high=self.simulation_duration_max,
+            shape=(),
+            dtype=np.float64)
+        observation_spaces['states'] = (
+            spaces.Dict(agent=get_robot_state_space(self.robot)))
+        observation_spaces['measurements'] = (
+            get_robot_measurements_space(self.robot))
+        self.observation_space = cast(
+            spaces.Space[Obs], spaces.Dict(observation_spaces))
 
     def _neutral(self) -> np.ndarray:
         """Returns a neutral valid configuration for the agent.
@@ -1450,7 +1445,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
         efficiency.
 
         By default, it sets the observation to the value of the measurement,
-        which would not work unless `ObsT` corresponds to `EngineObsType`.
+        which would not work unless `Obs` corresponds to `EngineObsType`.
 
         .. note::
             This method is called and the end of every low-level `Engine.step`.
@@ -1469,18 +1464,18 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
             `self.robot_state` would not be valid if an adaptive stepper is
             being used for physics integration.
         """
-        observation = self.observation
-        array_copyto(observation["t"], measurement["t"])
-        agent_state_out = observation['states']['agent']
+        # Manually flatten measurement
         agent_state_in = measurement['states']['agent']
-        array_copyto(agent_state_out['q'], agent_state_in['q'])
-        array_copyto(agent_state_out['v'], agent_state_in['v'])
-        sensors_out = observation['measurements']
-        sensors_in = measurement['measurements']
-        for sensor_type in self._sensors_types:
-            array_copyto(sensors_out[sensor_type], sensors_in[sensor_type])
+        measurement_flat = (
+            measurement['t'],
+            agent_state_in['q'],
+            agent_state_in['v'],
+            *measurement['measurements'].values())
 
-    def compute_command(self, action: ActT, command: np.ndarray) -> None:
+        # Copy all arrays at once
+        multi_array_copyto(self._observation_flat, measurement_flat)
+
+    def compute_command(self, action: Act, command: np.ndarray) -> None:
         """Compute the motors efforts to apply on the robot.
 
         By default, all it does is forwarding the input action as is, without
@@ -1510,7 +1505,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
 
         By default, it always returns `terminated=False`, and `truncated=True`
         iif the observation is out-of-bounds. One can overload this method to
-        implement custom termination conditions for the environment at hands.
+        implement custom termination conditions for the environment at hand.
 
         .. warning::
             No matter what, truncation will happen when reaching the maximum
@@ -1537,9 +1532,9 @@ class BaseJiminyEnv(InterfaceJiminyEnv[ObsT, ActT],
 
     def _key_to_action(self,
                        key: str,
-                       obs: ObsT,
+                       obs: Obs,
                        reward: Optional[float],
-                       **kwargs: Any) -> Optional[ActT]:
+                       **kwargs: Any) -> Optional[Act]:
         """Mapping from input keyboard keys to actions.
 
         .. note::

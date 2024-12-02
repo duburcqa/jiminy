@@ -1,12 +1,12 @@
 """ TODO: Write documentation.
 """
 import os
-import sys
 import logging
-from typing import Dict, Any, Optional, Tuple
+from importlib.resources import files
+from typing import Dict, Any, Optional, Tuple, cast
 
 import numpy as np
-from gymnasium import spaces
+import gymnasium as gym
 
 import jiminy_py.core as jiminy
 from jiminy_py.core import array_copyto  # pylint: disable=no-name-in-module
@@ -15,11 +15,6 @@ from jiminy_py.simulator import Simulator
 from gym_jiminy.common.bases import InfoType, EngineObsType
 from gym_jiminy.common.envs import BaseJiminyEnv
 from gym_jiminy.common.utils import sample
-
-if sys.version_info < (3, 9):
-    from importlib_resources import files
-else:
-    from importlib.resources import files
 
 
 # Stepper update period
@@ -170,7 +165,7 @@ class CartPoleJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         # Set the observation space
         state_limit_upper = np.concatenate((
             position_limit_upper, velocity_limit))
-        self.observation_space = spaces.Box(
+        self.observation_space = gym.spaces.Box(
             low=-state_limit_upper, high=state_limit_upper, dtype=np.float64)
 
     def _initialize_action_space(self) -> None:
@@ -180,7 +175,9 @@ class CartPoleJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         'continuous'.
         """
         if not self.continuous:
-            self.action_space = spaces.Discrete(len(self.AVAIL_CTRL))
+            self.action_space = cast(
+                gym.Space[np.ndarray],
+                gym.spaces.Discrete(len(self.AVAIL_CTRL)))
         else:
             super()._initialize_action_space()
 

@@ -12,7 +12,7 @@ if (-not (Test-Path env:PYTHON_EXECUTABLE)) {
 } else {
   ${PYTHON_EXECUTABLE} = "${env:PYTHON_EXECUTABLE}"
 }
-$PYTHON_VERSION = ( & "${PYTHON_EXECUTABLE}" -c "import sys ; print(''.join(map(str, sys.version_info[:2])), end='')" )
+$PYTHON_VERSION = ( & "${PYTHON_EXECUTABLE}" -c "import sysconfig; print(sysconfig.get_config_var('py_version_short'))" )
 Write-Output "PYTHON_VERSION: ${PYTHON_VERSION}"
 
 ### Set the build type to "Release" if undefined
@@ -47,17 +47,17 @@ if (-not (Test-Path env:GENERATOR)) {
 # * Flag "DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR" is a dirty workaround to deal with VC runtime
 #   conflict related to different search path ordering at compile-time / run-time causing segfault:
 #   https://github.com/actions/runner-images/issues/10004
-${CMAKE_CXX_FLAGS} =  "${env:CMAKE_CXX_FLAGS} $(
+${CXX_FLAGS} =  "${env:CXX_FLAGS} $(
 ) /MP2 /EHsc /bigobj /Gy /Zc:inline /Zc:preprocessor /Zc:__cplusplus /permissive- $(
 ) /DWIN32 /D_USE_MATH_DEFINES /D_DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR /DNOMINMAX"
 if (${BUILD_TYPE} -eq "Debug") {
-  ${CMAKE_CXX_FLAGS} = "${CMAKE_CXX_FLAGS} /Zi /Od"
+  ${CXX_FLAGS} = "${CXX_FLAGS} /Zi /FS /Od"
 } else {
-  ${CMAKE_CXX_FLAGS} = "${CMAKE_CXX_FLAGS} /DNDEBUG /O2 /Ob3"
+  ${CXX_FLAGS} = "${CXX_FLAGS} /DNDEBUG /O2 /Ob3"
 }
-Write-Output "CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}"
+Write-Output "CXX_FLAGS: ${CXX_FLAGS}"
 
-### Set common CMAKE_SHARED_LINKER_FLAGS
+### Set common LINKER_FLAGS
 #   - Note that, on Windows OS, linking against Python debug binaries requires
 #     recompiling all Python C-modules including `numpy`, otherwise they will
 #     fail at import. To get around this issue, CXX flag '/DBOOST_PYTHON_DEBUG'
@@ -67,11 +67,11 @@ Write-Output "CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}"
 #   - To avoid additional side-effects, it is recommanded to install Python
 #     WITHOUT debugging symbols, otherwise cmake would pick the wrong one,
 #     unlesss `set(Python_FIND_ABI "OFF" "ANY" "ANY")` has been specified.
-${CMAKE_SHARED_LINKER_FLAGS} = "${env:CMAKE_SHARED_LINKER_FLAGS}"
+${LINKER_FLAGS} = "${env:LINKER_FLAGS}"
 if (${BUILD_TYPE} -eq "Debug") {
-  ${CMAKE_SHARED_LINKER_FLAGS} = "${CMAKE_SHARED_LINKER_FLAGS} /DEBUG:FULL /INCREMENTAL:NO /OPT:REF /OPT:ICF"
+  ${LINKER_FLAGS} = "${LINKER_FLAGS} /DEBUG:FULL /INCREMENTAL:NO /OPT:REF /OPT:ICF /FS"
 }
-Write-Output "CMAKE_SHARED_LINKER_FLAGS: ${CMAKE_SHARED_LINKER_FLAGS}"
+Write-Output "LINKER_FLAGS: ${LINKER_FLAGS}"
 
 ### Get the fullpath of Jiminy project
 $RootDir = (Split-Path -Parent "$PSScriptRoot")
@@ -103,12 +103,13 @@ if (Test-Path -PathType Container "$RootDir/boost/build") {
 New-Item -ItemType "directory" -Force -Path "$RootDir/boost/build"
 Push-Location -Path "$RootDir/boost"
 git reset --hard
-git fetch origin "boost-1.78.0"
+git fetch origin "boost-1.86.0"
 git checkout --force FETCH_HEAD
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --depth 1 --jobs 8
-cd "$RootDir/boost/libs/python"
-git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_unix/boost-python.patch"
+Push-Location -Path "$RootDir/boost/libs/python"
+git fetch origin 4fc3afa3ac1a1edb61a92fccd31d305ba38213f8
+git checkout --force FETCH_HEAD
 Pop-Location
 
 ### Checkout eigen3
@@ -136,22 +137,22 @@ if (Test-Path -PathType Container "$RootDir/eigenpy/build") {
 New-Item -ItemType "directory" -Force -Path "$RootDir/eigenpy/build"
 Push-Location -Path "$RootDir/eigenpy"
 git reset --hard
-git fetch origin "v3.4.0"
+git fetch origin "v3.10.0"
 git checkout --force FETCH_HEAD
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --depth 1 --jobs 8
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_windows/eigenpy.patch"
 Pop-Location
 
-### Checkout tinyxml (robotology fork for cmake compatibility)
-if (-not (Test-Path -PathType Container "$RootDir/tinyxml")) {
-  git clone --depth=1 https://github.com/robotology-dependencies/tinyxml.git "$RootDir/tinyxml"
+### Checkout tinyxml2 (robotology fork for cmake compatibility)
+if (-not (Test-Path -PathType Container "$RootDir/tinyxml2")) {
+  git clone --depth=1 https://github.com/leethomason/tinyxml2 "$RootDir/tinyxml2"
 }
-if (Test-Path -PathType Container "$RootDir/tinyxml/build") {
-  Remove-Item -Recurse -Force -Path "$RootDir/tinyxml/build"
+if (Test-Path -PathType Container "$RootDir/tinyxml2/build") {
+  Remove-Item -Recurse -Force -Path "$RootDir/tinyxml2/build"
 }
-New-Item -ItemType "directory" -Force -Path "$RootDir/tinyxml/build"
-Push-Location -Path "$RootDir/tinyxml"
+New-Item -ItemType "directory" -Force -Path "$RootDir/tinyxml2/build"
+Push-Location -Path "$RootDir/tinyxml2"
 git reset --hard
 git fetch origin "master"
 git checkout --force FETCH_HEAD
@@ -181,7 +182,7 @@ if (Test-Path -PathType Container "$RootDir/urdfdom_headers/build") {
 New-Item -ItemType "directory" -Force -Path "$RootDir/urdfdom_headers/build"
 Push-Location -Path "$RootDir/urdfdom_headers"
 git reset --hard
-git fetch origin "1.0.5"
+git fetch origin "1.1.2"
 git checkout --force FETCH_HEAD
 Pop-Location
 
@@ -195,7 +196,7 @@ if (Test-Path -PathType Container "$RootDir/urdfdom/build") {
 New-Item -ItemType "directory" -Force -Path "$RootDir/urdfdom/build"
 Push-Location -Path "$RootDir/urdfdom"
 git reset --hard
-git fetch origin "3.0.0"
+git fetch origin "4.0.1"
 git checkout --force FETCH_HEAD
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_windows/urdfdom.patch"
 Pop-Location
@@ -210,7 +211,7 @@ if (Test-Path -PathType Container "$RootDir/cppad/build") {
 New-Item -ItemType "directory" -Force -Path "$RootDir/cppad/build"
 Push-Location -Path "$RootDir/cppad"
 git reset --hard
-git fetch origin "20240000.2"
+git fetch origin "20240000.7"
 git checkout --force FETCH_HEAD
 Pop-Location
 
@@ -224,7 +225,7 @@ if (Test-Path -PathType Container "$RootDir/cppadcodegen/build") {
 New-Item -ItemType "directory" -Force -Path "$RootDir/cppadcodegen/build"
 Push-Location -Path "$RootDir/cppadcodegen"
 git reset --hard
-git fetch origin "v2.4.3"
+git fetch origin "v2.5.0"
 git checkout --force FETCH_HEAD
 Pop-Location
 
@@ -238,7 +239,7 @@ if (Test-Path -PathType Container "$RootDir/assimp/build") {
 New-Item -ItemType "directory" -Force -Path "$RootDir/assimp/build"
 Push-Location -Path "$RootDir/assimp"
 git reset --hard
-git fetch origin "v5.2.5"
+git fetch origin "v5.4.3"
 git checkout --force FETCH_HEAD
 Pop-Location
 
@@ -252,7 +253,7 @@ if (Test-Path -PathType Container "$RootDir/hpp-fcl/build") {
 New-Item -ItemType "directory" -Force -Path "$RootDir/hpp-fcl/build"
 Push-Location -Path "$RootDir/hpp-fcl"
 git reset --hard
-git fetch origin "v2.4.4"
+git fetch origin "v2.4.5"
 git checkout --force FETCH_HEAD
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --depth 1 --jobs 8
@@ -277,7 +278,7 @@ if (Test-Path -PathType Container "$RootDir/pinocchio/build") {
 New-Item -ItemType "directory" -Force -Path "$RootDir/pinocchio/build"
 Push-Location -Path "$RootDir/pinocchio"
 git reset --hard
-git fetch origin "v2.7.0"
+git fetch origin "v2.7.1"
 git checkout --force FETCH_HEAD
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --depth 1 --jobs 8
@@ -295,7 +296,16 @@ Pop-Location
 
 ### Build and install the build tool b2 (build-ception !)
 Push-Location -Path "$RootDir/boost"
-./bootstrap.bat --prefix="$InstallDir" --with-python="${PYTHON_EXECUTABLE}"
+./bootstrap.bat
+
+### File "project-config.jam" create by bootstrap must be edited manually
+#   to specify Python include dir manually.
+$PYTHON_INCLUDE_DIRS = ( & "${PYTHON_EXECUTABLE}" -c "import sysconfig as sysconfig; print(sysconfig.get_path('include'))" )
+New-Item -Force -Path "$RootDir/boost/user-config.jam" -Value `
+  (@"
+import toolset : using ;
+using python : ${PYTHON_VERSION} : "${PYTHON_EXECUTABLE}" : "${PYTHON_INCLUDE_DIRS}" ;
+"@ -replace "\\", "/")
 
 ### Build and install and install boost
 #   (Replace -d0 option by -d1 and remove -q option to check compilation errors)
@@ -314,7 +324,7 @@ if (${BUILD_TYPE} -eq "Release") {
   $BuildTypeB2 = "debug"
   $DebugOptionsB2 = @{
     "debug-symbols" = "on"
-    # "python-debugging" = "on"
+    "python-debugging" = "off"
   }
 # } elseif (${BUILD_TYPE} -eq "RelWithDebInfo") {
 #   $BuildTypeB2 = "profile"
@@ -328,25 +338,36 @@ if (${ARCHITECTURE} -eq "x64") {
   $ArchiB2 = "arm"
 }
 
+# Clean all targets first
+./b2.exe --prefix="$InstallDir" --build-dir="$RootDir/boost/build" `
+         --user-config="$RootDir/boost/user-config.jam" --debug-configuration `
+         --clean-all `
+         architecture=${ArchiB2} address-model=64 `
+         variant="$BuildTypeB2"
+
 # Compiling everything with static linkage except Boost::Python
 ./b2.exe --prefix="$InstallDir" --build-dir="$RootDir/boost/build" `
+         --user-config="$RootDir/boost/user-config.jam" `
          --with-chrono --with-timer --with-date_time --with-system --with-test `
          --with-filesystem --with-atomic --with-serialization --with-thread `
-         --build-type=minimal --layout=system --lto=off `
+         --build-type=minimal --layout=system --lto=on `
          architecture=${ArchiB2} address-model=64 @DebugOptionsB2 `
          threading=single link=static runtime-link=shared `
-         cxxflags="-std=c++11 ${CMAKE_CXX_FLAGS}" `
-         linkflags="${CMAKE_SHARED_LINKER_FLAGS}" `
-         variant="$BuildTypeB2" install -q -d0 -j2
+         cxxflags="${CXX_FLAGS} /std=c++17 /wd4244" `
+         linkflags="${LINKER_FLAGS}" `
+         variant="$BuildTypeB2" install -q -d0 -j4
 
+# Disable Boost::Python assert systematically, even in debug, to avoid
+# raising an exception for trying to re-register an existing converter.
 ./b2.exe --prefix="$InstallDir" --build-dir="$RootDir/boost/build" `
+         --user-config="$RootDir/boost/user-config.jam" `
          --with-python `
-         --build-type=minimal --layout=system --lto=off `
+         --build-type=minimal --layout=system --lto=on `
          architecture=${ArchiB2} address-model=64 @DebugOptionsB2 `
          threading=single link=shared runtime-link=shared `
-         cxxflags="-std=c++11 ${CMAKE_CXX_FLAGS}" `
-         linkflags="${CMAKE_SHARED_LINKER_FLAGS}" `
-         variant="$BuildTypeB2" install -q -d0 -j2
+         cxxflags="${CXX_FLAGS} /std=c++17 /wd4244 /DNDEBUG" `
+         linkflags="${LINKER_FLAGS}" `
+         variant="$BuildTypeB2" install -q -d0 -j4
 Pop-Location
 
 #################################### Build and install eigen3 ##########################################
@@ -355,7 +376,7 @@ Push-Location -Path "$RootDir/eigen3/build"
 cmake "$RootDir/eigen3" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM="${ARCHITECTURE}" `
       -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" `
       -DBUILD_TESTING=OFF -DEIGEN_BUILD_PKGCONFIG=OFF
-cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 2
+cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 4
 Pop-Location
 
 ################################### Build and install eigenpy ##########################################
@@ -364,25 +385,25 @@ Push-Location -Path "$RootDir/eigenpy/build"
 cmake "$RootDir/eigenpy" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM="${ARCHITECTURE}" `
       -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
       -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" `
-      -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" `
+      -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" `
       -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" `
-      -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE -DGENERATE_PYTHON_STUBS=OFF `
-      -DBUILD_TESTING=OFF -DINSTALL_DOCUMENTATION=OFF -DCMAKE_DISABLE_FIND_PACKAGE_Doxygen=ON `
-      -DBUILD_SHARED_LIBS=OFF -DCMAKE_SHARED_LINKER_FLAGS="${CMAKE_SHARED_LINKER_FLAGS}" `
-      -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} /wd4005 -DBOOST_ALL_NO_LIB $(
+      -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE -DGENERATE_PYTHON_STUBS=OFF -DBUILD_TESTING=OFF `
+      -DBUILD_TESTING_SCIPY=OFF -DINSTALL_DOCUMENTATION=OFF -DCMAKE_DISABLE_FIND_PACKAGE_Doxygen=ON `
+      -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON `
+      -DCMAKE_CXX_FLAGS="${CXX_FLAGS} /wd4005 -DBOOST_ALL_NO_LIB $(
 )     -DBOOST_CORE_USE_GENERIC_CMATH -DEIGENPY_STATIC"
-cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 2
+cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 4
 Pop-Location
 
 ################################## Build and install tinyxml ###########################################
 
-Push-Location -Path "$RootDir/tinyxml/build"
-cmake "$RootDir/tinyxml" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM="${ARCHITECTURE}" `
+Push-Location -Path "$RootDir/tinyxml2/build"
+cmake "$RootDir/tinyxml2" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM="${ARCHITECTURE}" `
       -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
       -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" `
-      -DBUILD_SHARED_LIBS=OFF -DCMAKE_SHARED_LINKER_FLAGS="${CMAKE_SHARED_LINKER_FLAGS}" `
-      -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -DTIXML_USE_STL"
-cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 2
+      -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON -DCMAKE_EXE_LINKER_FLAGS="${LINKER_FLAGS}" `
+      -DCMAKE_CXX_FLAGS="${CXX_FLAGS}"
+cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 4
 Pop-Location
 
 ############################## Build and install console_bridge ########################################
@@ -391,9 +412,9 @@ Push-Location -Path "$RootDir/console_bridge/build"
 cmake "$RootDir/console_bridge" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM="${ARCHITECTURE}" `
       -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
       -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" `
-      -DBUILD_SHARED_LIBS=OFF -DCMAKE_SHARED_LINKER_FLAGS="${CMAKE_SHARED_LINKER_FLAGS}" `
-      -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}"
-cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 2
+      -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON `
+      -DCMAKE_CXX_FLAGS="${CXX_FLAGS}"
+cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 4
 Pop-Location
 
 ############################### Build and install urdfdom_headers ######################################
@@ -401,7 +422,7 @@ Pop-Location
 Push-Location -Path "$RootDir/urdfdom_headers/build"
 cmake "$RootDir/urdfdom_headers" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM="${ARCHITECTURE}" `
       -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir"
-cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 2
+cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 4
 Pop-Location
 
 ################################## Build and install urdfdom ###########################################
@@ -410,10 +431,10 @@ Push-Location -Path "$RootDir/urdfdom/build"
 cmake "$RootDir/urdfdom" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM="${ARCHITECTURE}" `
       -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
       -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" `
-      -DCMAKE_FIND_PACKAGE_PREFER_CONFIG=ON -DBUILD_TESTING=OFF -DBUILD_SHARED_LIBS=OFF `
-      -DCMAKE_SHARED_LINKER_FLAGS="${CMAKE_SHARED_LINKER_FLAGS}" `
-      -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -DURDFDOM_STATIC"
-cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 2
+      -DCMAKE_FIND_PACKAGE_PREFER_CONFIG=ON -DBUILD_TESTING=OFF `
+      -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON -DCMAKE_EXE_LINKER_FLAGS="${LINKER_FLAGS}" `
+      -DCMAKE_CXX_FLAGS="${CXX_FLAGS} -DURDFDOM_STATIC"
+cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 4
 Pop-Location
 
 ################################### Build and install CppAD ##########################################
@@ -422,8 +443,8 @@ Push-Location -Path "$RootDir/cppad/build"
 cmake "$RootDir/cppad" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM="${ARCHITECTURE}" `
       -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
       -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" `
-      -DCMAKE_SHARED_LINKER_FLAGS="${CMAKE_SHARED_LINKER_FLAGS}" -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}"
-cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 2
+      -DCMAKE_CXX_FLAGS="${CXX_FLAGS}"
+cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 4
 Pop-Location
 
 ################################### Build and install CppADCodeGen ##########################################
@@ -432,9 +453,9 @@ Push-Location -Path "$RootDir/cppadcodegen/build"
 cmake "$RootDir/cppadcodegen" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM="${ARCHITECTURE}" `
       -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
       -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" `
-      -DGOOGLETEST_GIT=ON -DCMAKE_SHARED_LINKER_FLAGS="${CMAKE_SHARED_LINKER_FLAGS}" `
-      -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}"
-cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 2
+      -DGOOGLETEST_GIT=ON `
+      -DCMAKE_CXX_FLAGS="${CXX_FLAGS}"
+cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 4
 Pop-Location
 
 ###################################### Build and install assimp ########################################
@@ -443,11 +464,11 @@ Push-Location -Path "$RootDir/assimp/build"
 cmake "$RootDir/assimp" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM="${ARCHITECTURE}" `
       -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
       -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" `
-      -DASSIMP_BUILD_ASSIMP_TOOLS=OFF -DASSIMP_BUILD_ZLIB=OFF -DASSIMP_BUILD_TESTS=OFF `
+      -DASSIMP_BUILD_ASSIMP_TOOLS=OFF -DASSIMP_BUILD_ZLIB=ON -DASSIMP_BUILD_TESTS=OFF `
       -DASSIMP_BUILD_SAMPLES=OFF -DBUILD_DOCS=OFF -DASSIMP_INSTALL_PDB=OFF `
-      -DBUILD_SHARED_LIBS=OFF -DCMAKE_SHARED_LINKER_FLAGS="${CMAKE_SHARED_LINKER_FLAGS}" `
-      -DCMAKE_C_FLAGS="${CMAKE_CXX_FLAGS}" -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} /wd4005 /wd5105"
-cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 2
+      -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON `
+      -DCMAKE_C_FLAGS="${CXX_FLAGS}" -DCMAKE_CXX_FLAGS="${CXX_FLAGS} /wd4005 /wd5105"
+cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 4
 Pop-Location
 
 ############################# Build and install qhull and hpp-fcl ######################################
@@ -459,10 +480,9 @@ Pop-Location
 Push-Location -Path "$RootDir/hpp-fcl/third-parties/qhull/build"
 cmake "$RootDir/hpp-fcl/third-parties/qhull" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM="${ARCHITECTURE}" `
       -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" `
-      -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON `
-      -DCMAKE_SHARED_LINKER_FLAGS="${CMAKE_SHARED_LINKER_FLAGS}" `
-      -DCMAKE_C_FLAGS="${CMAKE_CXX_FLAGS}" -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}"
-cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 2
+      -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON -DCMAKE_EXE_LINKER_FLAGS="${LINKER_FLAGS}" `
+      -DCMAKE_C_FLAGS="${CXX_FLAGS}" -DCMAKE_CXX_FLAGS="${CXX_FLAGS}"
+cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 4
 Pop-Location
 
 ### Build hpp-fcl
@@ -470,15 +490,15 @@ Push-Location -Path "$RootDir/hpp-fcl/build"
 cmake "$RootDir/hpp-fcl" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM="${ARCHITECTURE}" `
       -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
       -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" `
-      -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" `
+      -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" `
       -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" `
       -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE `
       -DBUILD_PYTHON_INTERFACE=ON -DHPP_FCL_HAS_QHULL=ON -DGENERATE_PYTHON_STUBS=OFF -DBUILD_TESTING=OFF `
       -DINSTALL_DOCUMENTATION=OFF -DENABLE_PYTHON_DOXYGEN_AUTODOC=OFF -DCMAKE_DISABLE_FIND_PACKAGE_Doxygen=ON `
-      -DBUILD_SHARED_LIBS=OFF -DCMAKE_SHARED_LINKER_FLAGS="${CMAKE_SHARED_LINKER_FLAGS}" `
-      -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} /wd4068 /wd4267 /wd4005 /wd4081 -DBOOST_ALL_NO_LIB $(
+      -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON `
+      -DCMAKE_CXX_FLAGS="${CXX_FLAGS} /wd4068 /wd4267 /wd4005 /wd4081 -DBOOST_ALL_NO_LIB $(
 )     -DBOOST_CORE_USE_GENERIC_CMATH -DEIGENPY_STATIC -DHPP_FCL_STATIC"
-cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 2
+cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 4
 Pop-Location
 
 ################################ Build and install Pinocchio ##########################################
@@ -488,17 +508,17 @@ Push-Location -Path "$RootDir/pinocchio/build"
 cmake "$RootDir/pinocchio" -Wno-dev -G "${GENERATOR}" -DCMAKE_GENERATOR_PLATFORM="${ARCHITECTURE}" `
       -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
       -DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" `
-      -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" `
+      -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" `
       -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" `
       -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE -DGENERATE_PYTHON_STUBS=OFF `
       -DBUILD_WITH_URDF_SUPPORT=ON -DBUILD_WITH_COLLISION_SUPPORT=ON -DBUILD_PYTHON_INTERFACE=ON `
       -DBUILD_WITH_AUTODIFF_SUPPORT=OFF -DBUILD_WITH_CASADI_SUPPORT=OFF -DBUILD_WITH_CODEGEN_SUPPORT=OFF `
       -DBUILD_TESTING=OFF -DINSTALL_DOCUMENTATION=OFF -DCMAKE_DISABLE_FIND_PACKAGE_Doxygen=ON `
-      -DBUILD_SHARED_LIBS=OFF -DCMAKE_SHARED_LINKER_FLAGS="${CMAKE_SHARED_LINKER_FLAGS}" `
-      -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} /wd4068 /wd4081 /wd4715 /wd4834 /wd4005 /wd5104 /wd5105 $(
+      -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON `
+      -DCMAKE_CXX_FLAGS="${CXX_FLAGS} /wd4068 /wd4081 /wd4715 /wd4834 /wd4005 /wd5104 /wd5105 $(
 )     -DBOOST_ALL_NO_LIB -DBOOST_CORE_USE_GENERIC_CMATH -DEIGENPY_STATIC -DURDFDOM_STATIC -DHPP_FCL_STATIC $(
 )     -DPINOCCHIO_STATIC"
-cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 2
+cmake --build . --target INSTALL --config "${BUILD_TYPE}" --parallel 4
 Pop-Location
 
 ### Copy cmake configuration files for cppad and cppadcodegen

@@ -16,7 +16,7 @@ import re
 import weakref
 from enum import IntEnum
 from weakref import ReferenceType
-from abc import ABC, abstractmethod
+from abc import abstractmethod, ABCMeta
 from collections import OrderedDict
 from collections.abc import MutableSet
 from dataclasses import dataclass, replace
@@ -133,19 +133,19 @@ class QuantityStateMachine(IntEnum):
     """
 
     IS_RESET = 0
-    """The quantity at hands has just been reset. The quantity must first be
+    """The quantity at hand has just been reset. The quantity must first be
     initialized, then refreshed and finally stored in cached before to retrieve
     its value.
     """
 
     IS_INITIALIZED = 1
-    """The quantity at hands has been initialized but never evaluated for the
+    """The quantity at hand has been initialized but never evaluated for the
     current robot state. Its value must still be refreshed and stored in cache
     before to retrieve it.
     """
 
     IS_CACHED = 2
-    """The quantity at hands has been evaluated and its value stored in cache.
+    """The quantity at hand has been evaluated and its value stored in cache.
     As such, its value can be retrieve from cache directly.
     """
 
@@ -223,7 +223,7 @@ class SharedCache(Generic[ValueT]):
 
     def add(self, owner: "InterfaceQuantity[ValueT]") -> None:
         """Add a given quantity instance to the set of co-owners associated
-        with the shared cache at hands.
+        with the shared cache at hand.
 
         .. warning::
             All shared cache co-owners must be instances of the same unique
@@ -253,7 +253,7 @@ class SharedCache(Generic[ValueT]):
 
     def discard(self, owner: "InterfaceQuantity[ValueT]") -> None:
         """Remove a given quantity instance from the set of co-owners
-        associated with the shared cache at hands.
+        associated with the shared cache at hand.
 
         :param owner: Quantity instance to remove from the set of co-owners.
         """
@@ -361,7 +361,7 @@ class SharedCache(Generic[ValueT]):
         return value
 
 
-class InterfaceQuantity(ABC, Generic[ValueT]):
+class InterfaceQuantity(Generic[ValueT], metaclass=ABCMeta):
     """Interface for generic quantities involved observer-controller blocks,
     reward components or termination conditions.
 
@@ -377,8 +377,8 @@ class InterfaceQuantity(ABC, Generic[ValueT]):
     .. warning::
         The user is responsible for implementing the dunder methods `__eq__`
         and `__hash__` that characterize identical quantities. This property is
-        used internally by `QuantityManager` to synchronize cache  between
-        them. It is advised to use decorator `@dataclass(unsafe_hash=True)` for
+        used internally by `QuantityManager` to synchronize cache between them.
+        It is advised to use decorator `@dataclass(unsafe_hash=True)` for
         convenience, but it can also be done manually.
     """
 
@@ -576,8 +576,8 @@ class InterfaceQuantity(ABC, Generic[ValueT]):
         """Consider that the quantity must be re-initialized before being
         evaluated once again.
 
-        If shared cache is available, then it will be cleared and all identity
-        quantities will jointly be reset.
+        If shared cache is available, then it will be cleared first then all
+        identical quantities will be jointly reset.
 
         .. note::
             This method must be called right before performing any agent step,
@@ -610,28 +610,31 @@ class InterfaceQuantity(ABC, Generic[ValueT]):
         if self.env.is_simulation_running and not self.allow_update_graph:
             return
 
-        # No longer consider this exact instance as active
+        # No longer consider this exact instance as active if requested
         if reset_tracking:
             self._is_active = False
 
         # No longer consider this exact instance as initialized
         self._is_initialized = False
 
-        # More work must to be done if shared cache if appropriate
-        if self.has_cache:
-            # Reset all identical quantities.
-            # Note that auto-refresh will be done afterward if requested.
-            if not ignore_other_instances:
-                for owner in self.cache.owners:
-                    if owner is not self:
-                        owner.reset(reset_tracking=reset_tracking,
-                                    ignore_other_instances=True)
-
-            # Reset shared cache
-            # pylint: disable=unexpected-keyword-arg
+        # More work must to be done if this quantity has a shared cache that
+        # has not been completely reset yet.
+        if self.has_cache and self.cache.sm_state is not _IS_RESET:
+            # Reset shared cache state machine first, to avoid triggering reset
+            # propagation to all identical quantities.
             self.cache.reset(
-                ignore_auto_refresh=not self.env.is_simulation_running,
-                reset_state_machine=True)
+                ignore_auto_refresh=True, reset_state_machine=True)
+
+            # Reset all identical quantities except itself since already done
+            for owner in self.cache.owners:
+                if owner is not self:
+                    owner.reset(reset_tracking=reset_tracking,
+                                ignore_other_instances=True)
+
+            # Reset shared cache afterward with auto-refresh enabled if needed
+            if self.env.is_simulation_running:
+                self.cache.reset(
+                    ignore_auto_refresh=False, reset_state_machine=False)
 
     def initialize(self) -> None:
         """Initialize internal buffers.
@@ -819,11 +822,11 @@ def sync(fun: Callable[..., None]) -> Callable[..., None]:
         cls = type(self)
         for owner in (self.cache.owners if self.has_cache else (self,)):
             assert isinstance(owner, cls)
-            value = fun(owner, *args, **kwargs)
+            value = fun(  # type: ignore[func-returns-value]
+                owner, *args, **kwargs)
             if value is not None:
                 raise NotImplementedError(
-                    "Instance methods that does not return `None` are not "
-                    "supported.")
+                    "Only instance methods that returns `None` are supported.")
 
     return fun_safe
 
@@ -837,11 +840,11 @@ class DatasetTrajectoryQuantity(InterfaceQuantity[State]):
     has been selecting, its state at the current simulation can be easily
     retrieved.
 
-    This class does not require to only adding trajectories for which all
-    attributes of the underlying state sequence have been specified. Missing
+    This class supports trajectories for which only part of the attributes of
+    the underlying state sequence have been specified. Obviously, missing
     attributes of a trajectory will also be missing from the retrieved state.
-    It is the responsible of the user to make sure all cases are properly
-    handled if needed.
+    It is the responsibility of the practitioner to make sure that all the
+    information that is necessary for its own application is available.
 
     All instances of this quantity sharing the same cache are synchronized,
     which means that adding, discarding, or selecting a trajectory on any of
@@ -862,6 +865,9 @@ class DatasetTrajectoryQuantity(InterfaceQuantity[State]):
 
         # Ordered set of named reference trajectories as a dictionary
         self.registry: OrderedDict[str, Trajectory] = OrderedDict()
+
+        # Whether the dataset is locked, ie no traj can be added/discarded
+        self._lock = False
 
         # Name of the trajectory that is currently selected
         self._name = ""
@@ -921,6 +927,12 @@ class DatasetTrajectoryQuantity(InterfaceQuantity[State]):
                      overwriting it by mistake.
         :param trajectory: Trajectory instance to register.
         """
+        # Make sure that the dataset is not locked
+        if self._lock:
+            raise RuntimeError(
+                "Trajectory dataset already locked. Impossible to add any "
+                "trajectory.")
+
         # Make sure that no trajectory with the exact same name already exists
         if name in self.registry:
             raise KeyError(
@@ -951,6 +963,12 @@ class DatasetTrajectoryQuantity(InterfaceQuantity[State]):
 
         :param name: Name of the trajectory to discard.
         """
+        # Make sure that the dataset is not locked
+        if self._lock:
+            raise RuntimeError(
+                "Trajectory dataset already locked. Impossible to discard any "
+                "trajectory.")
+
         # Un-select trajectory if it corresponds to the discarded one
         if self._name == name:
             self._trajectory = None
@@ -960,13 +978,45 @@ class DatasetTrajectoryQuantity(InterfaceQuantity[State]):
         del self.registry[name]
 
     @sync
+    def clear(self) -> None:
+        """Clear the trajectory dataset from the local internal registry of all
+        instances sharing the same cache as this quantity.
+        """
+        # Make sure that the dataset is not locked
+        if self._lock:
+            raise RuntimeError(
+                "Trajectory dataset already locked. Impossible to clear the "
+                "dataset.")
+
+        # Un-select trajectory
+        self._trajectory = None
+        self._name = ""
+
+        # Delete the whole registry
+        self.registry.clear()
+
+    def __iter__(self) -> Iterator[Trajectory]:
+        """Iterate over all the trajectories in the dataset.
+        """
+        return iter(self.registry.values())
+
+    def __bool__(self) -> bool:
+        """Whether the dataset of trajectory is currently empty.
+        """
+        return bool(self.registry)
+
+    @sync
     def select(self,
                name: str,
                mode: Literal['raise', 'wrap', 'clip'] = 'raise') -> None:
-        """Jointly select a trajectory in the internal registry of all
-        instances sharing the same cache as this quantity.
+        """Select an existing trajectory from the database shared synchronized
+        all managed quantities.
 
-        :param name: Name of the trajectory to discard.
+        .. note::
+            There is no way to select a different reference trajectory for
+            individual quantities at the time being.
+
+        :param name: Name of the trajectory to select.
         :param mode: Specifies how to deal with query time of are out of the
                      time interval of the trajectory. See `Trajectory.get`
                      documentation for details.
@@ -984,6 +1034,11 @@ class DatasetTrajectoryQuantity(InterfaceQuantity[State]):
 
         # Un-initialize quantity when the selected trajectory changes
         self.reset(reset_tracking=False)
+
+    def lock(self) -> None:
+        """Forbid adding/discarding trajectories to the dataset from now on.
+        """
+        self._lock = True
 
     @property
     def name(self) -> str:
@@ -1112,7 +1167,7 @@ class StateQuantity(InterfaceQuantity[State]):
         # not the case at the observer update period. It sounds more efficient
         # refresh to the state the first time any quantity gets computed.
         # However, systematically checking if the state must be refreshed for
-        # all quantities adds overheat and may be fairly costly overall. The
+        # all quantities adds overhead and may be fairly costly overall. The
         # optimal trade-off is to rely on auto-refresh if the evaluation mode
         # is TRUE, since refreshing the state only consists in copying some
         # data, which is very cheap. On the contrary, it is more efficient to

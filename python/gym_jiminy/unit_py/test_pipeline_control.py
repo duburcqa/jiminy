@@ -1,3 +1,4 @@
+# mypy: disable-error-code="no-untyped-def, var-annotated"
 """ TODO: Write documentation
 """
 import os
@@ -108,8 +109,6 @@ class PipelineControl(unittest.TestCase):
         self.assertTrue(np.all(
             np.abs(velocity_mes[time > time[-1] - 1.0]) < 1.0e-3))
 
-    @unittest.skipIf(DEBUG and sys.platform == "darwin",
-                     "skipping when compiled in debug on Mac OS")
     def test_pid_standing(self):
         for backend in ('panda3d-sync', 'meshcat'):
             for Env in (AtlasPDControlJiminyEnv,
@@ -135,7 +134,8 @@ class PipelineControl(unittest.TestCase):
         """
         # Instantiate and reset the environment
         env = AtlasPDControlJiminyEnv()
-        assert isinstance(env.observer, MahonyFilter)
+        observer = env.observer
+        assert isinstance(observer, MahonyFilter)
 
         # Define a constant action that move the upper-body in all directions
         robot = env.robot
@@ -151,16 +151,18 @@ class PipelineControl(unittest.TestCase):
         # Check that the estimate IMU orientation is accurate over the episode
         for twist_time_constant in (None, float("inf"), 0.0):
             # Reinitialize the observer
-            env.observer = MahonyFilter(
-                env.observer.name,
-                env.observer.env,
+            env.observer = observer = MahonyFilter(
+                observer.name,
+                observer.env,
                 kp=0.0,
                 ki=0.0,
                 twist_time_constant=twist_time_constant,
-                exact_init=True)
+                exact_init=True,
+                compute_rpy=True)
 
             # Reset the environment
             env.reset(seed=0)
+            rpy_est = observer.observation["rpy"][:, 0]
 
             # Run of few simulation steps
             for i in range(200):
@@ -171,13 +173,9 @@ class PipelineControl(unittest.TestCase):
                     obs_true = matrix_to_quat(imu_rot)
                     remove_twist_from_quat(obs_true)
                     rpy_true = quat_to_rpy(obs_true)
-                    obs_est = env.observer.observation[:, 0].copy()
-                    remove_twist_from_quat(obs_est)
-                    rpy_est = quat_to_rpy(obs_est)
                 else:
                     # The twist is either measured or estimated
                     rpy_true = matrix_to_rpy(imu_rot)
-                    rpy_est = quat_to_rpy(env.observer.observation[:, 0])
 
                 np.testing.assert_allclose(rpy_true, rpy_est, atol=5e-3)
 
@@ -326,7 +324,7 @@ class PipelineControl(unittest.TestCase):
             env, skip_frames_ratio=-1, num_stack=2, nested_filter_keys=[["t"]])
         env_filter = FilterObservation(
             env, nested_filter_keys=env.observation_space.keys())
-        env_obs_norm = NormalizeObservation(env)
+        env_obs_norm = NormalizeObservation(env, ignore_unbounded=True)
         for env in (env, env_stack, env_filter, env_obs_norm):
             env.reset(seed=0)
             assert [*env.observation_space.keys()] == [*env.observation.keys()]

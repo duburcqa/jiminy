@@ -2,216 +2,238 @@
 pipelines using Ray-RLlib framework.
 
 The main focus are:
-  * making it easy to build a policy from a checkpoint
+  * making it easy to build a policy from a checkpoint,
   * enabling evaluating the performance of a given policy without having to
-    fire up a whole ray server instance, which is normally required
+    fire up a dedicated ray server instance, which is normally required.
 """
 import os
 import re
 import json
-import time
 import shutil
 import socket
 import ctypes
-import pathlib
+import pickle
 import logging
 import inspect
 import tracemalloc
+from pathlib import Path
 from contextlib import redirect_stdout
-from importlib.abc import MetaPathFinder
+from functools import partial
 from itertools import chain
 from datetime import datetime
 from collections import defaultdict
-from tempfile import mkstemp, mkdtemp
-from pkgutil import walk_packages
-from operator import attrgetter, itemgetter
+from tempfile import mkdtemp
 from typing import (
-    Optional, Callable, Dict, Any, Union, List, Sequence, Tuple, Type, cast)
+    Optional, Any, Union, Sequence, Tuple, List, Literal, Dict, Set, Type,
+    DefaultDict, overload, cast)
 
-import gymnasium as gym
-import numpy as np
-import plotext as plt
 import tree
+import numpy as np
+import gymnasium as gym
+import plotext as plt
 
 import ray
-import ray.rllib.connectors
 from ray._private import services
-from ray._private.state import GlobalState
-from ray._private.gcs_utils import AvailableResources
+from ray._private.internal_api import get_state_from_address
 from ray._private.test_utils import monitor_memory_usage
-from ray._raylet import GcsClientOptions  # type: ignore[attr-defined]
 from ray.exceptions import RayTaskError
-from ray.tune.logger import Logger
-from ray.tune.result import TRAINING_ITERATION, TIME_TOTAL_S, TIMESTEPS_TOTAL
+from ray.tune.logger import NoopLogger
+from ray.tune.result import TRAINING_ITERATION, TIME_TOTAL_S
 from ray.tune.utils import flatten_dict
 from ray.tune.utils.util import SafeFallbackEncoder
-from ray.train._internal.session import _TrainingResult
-from ray.rllib.connectors.connector import Connector, ConnectorContext
-from ray.rllib.connectors.registry import register_connector
-from ray.rllib.connectors.util import (
-    get_agent_connectors_from_config, get_action_connectors_from_config)
+from ray.rllib.core import (
+    DEFAULT_MODULE_ID, COMPONENT_LEARNER_GROUP, COMPONENT_LEARNER,
+    COMPONENT_RL_MODULE)
+from ray.rllib.core.columns import Columns
+from ray.rllib.core.rl_module import RLModule
+from ray.rllib.core.rl_module.torch.torch_rl_module import TorchRLModule
+from ray.rllib.connectors.module_to_env import (
+    GetActions, ListifyDataForVectorEnv, ModuleToEnvPipeline,
+    RemoveSingleTsTimeRankFromBatch, TensorToNumpy,
+    UnBatchToIndividualItems)
+from ray.rllib.connectors.env_to_module import (
+    AddObservationsFromEpisodesToBatch, AddStatesFromEpisodesToBatch,
+    BatchIndividualItems, EnvToModulePipeline, NumpyToTensor)
+from ray.rllib.algorithms.callbacks import DefaultCallbacks
 from ray.rllib.algorithms.algorithm import Algorithm
 from ray.rllib.algorithms.algorithm_config import AlgorithmConfig
-from ray.rllib.models import ModelCatalog
-from ray.rllib.policy.policy import Policy, PolicySpec
-from ray.rllib.policy.policy_map import PolicyMap
-from ray.rllib.policy.sample_batch import SampleBatch, DEFAULT_POLICY_ID
-from ray.rllib.evaluation.worker_set import WorkerSet
-from ray.rllib.evaluation.rollout_worker import RolloutWorker
-from ray.rllib.evaluation.metrics import collect_metrics
-from ray.rllib.utils.checkpoints import get_checkpoint_info
-from ray.rllib.utils.metrics import NUM_ENV_STEPS_SAMPLED_THIS_ITER
-from ray.rllib.utils.typing import (EnvCreator,
-                                    EnvID,
-                                    AgentID,
-                                    PolicyID,
-                                    ActionConnectorDataType,
-                                    AgentConnectorDataType)
+from ray.rllib.env.single_agent_episode import SingleAgentEpisode
+from ray.rllib.env.env_runner import EnvRunner
+from ray.rllib.env.single_agent_env_runner import SingleAgentEnvRunner
+from ray.rllib.env.env_runner_group import EnvRunnerGroup
+from ray.rllib.utils.metrics import (
+    NUM_ENV_STEPS_SAMPLED_LIFETIME, NUM_AGENT_STEPS_SAMPLED_LIFETIME,
+    NUM_EPISODES_LIFETIME, EPISODE_RETURN_MEAN, EPISODE_RETURN_MAX,
+    EPISODE_LEN_MEAN, EVALUATION_RESULTS, ENV_RUNNER_RESULTS, NUM_EPISODES)
+from ray.rllib.utils.metrics.metrics_logger import MetricsLogger
+from ray.rllib.utils.typing import EpisodeID, ResultDict, EpisodeType
 
 from jiminy_py.viewer import async_play_and_record_logs_files
-from gym_jiminy.common.envs import BaseJiminyEnv
-from gym_jiminy.common.utils import DataNested
+from gym_jiminy.common.bases import Obs, Act
+from gym_jiminy.common.envs import BaseJiminyEnv, PolicyCallbackFun
 
 
 HISTOGRAM_BINS = 15
 
-PRINT_RESULT_FIELDS_FILTER = [
-    "training_iteration",
-    "time_total_s",
-    "timesteps_total",
-    "episodes_total",
-    "episode_reward_max",
-    "episode_reward_mean",
-    "episode_len_mean"
-]
+PRINT_RESULT_FIELDS_FILTER = (
+    TRAINING_ITERATION,
+    TIME_TOTAL_S,
+    NUM_ENV_STEPS_SAMPLED_LIFETIME,
+    NUM_EPISODES_LIFETIME,
+    "/".join((ENV_RUNNER_RESULTS, EPISODE_RETURN_MAX)),
+    "/".join((ENV_RUNNER_RESULTS, EPISODE_RETURN_MEAN)),
+    "/".join((ENV_RUNNER_RESULTS, EPISODE_LEN_MEAN)),
+)
 
 VALID_SUMMARY_TYPES = (int, float, np.float32, np.float64, np.int32, np.int64)
 
 LOGGER = logging.getLogger(__name__)
 
 
-class TBXLogger(Logger):
-    """TensorBoardX Logger.
+class MonitorEpisodeCallback(DefaultCallbacks):
+    """Extend monitoring of training batches.
 
-    Note that hparams will be written only after a trial has terminated.
-    This logger automatically flattens nested dicts to show on TensorBoard:
-
-        {"a": {"b": 1, "c": 2}} -> {"a/b": 1, "a/c": 2}
+    This method extends monitoring in several ways:
+      * Log raw dictionary of extra information returned by the environment.
+      * Log reduced statistics (mean, max, min) about the episode length
+        (#timesteps) and return (undiscounted cumulative reward).
+        Note that it is already done natively, but the original implementation
+        is buggy. More specially, the same samples are repeated multiple time.
+      * Log a histogram of the episode durations (seconds).
     """
-    # pylint: disable=attribute-defined-outside-init
+    def __init__(self) -> None:
+        # Unique ID of the ongoing episode for each environments being
+        # managed by the runner associated with this callback instance.
+        self._ongoing_episodes: Dict[int, EpisodeID] = {}
 
-    VALID_HPARAMS = (str, bool, int, float, list, type(None))
-    VALID_NP_HPARAMS = (np.bool_, np.float32, np.float64, np.int32, np.int64)
+        # Episodes that were started by never reached termination before the
+        # end of the previous sampling iteration.
+        self._partial_episodes: DefaultDict[
+            EpisodeID, List[EpisodeType]] = defaultdict(list)
 
-    def _init(self) -> None:
-        # pylint: disable=import-outside-toplevel
+        # Keep track of all manually registered logger metrics
+        self._clear_metrics_keys: Set[str] = set()
 
-        from tensorboardX import SummaryWriter
-        self._file_writer = SummaryWriter(self.logdir, flush_secs=30)
-        self.last_result: Optional[Dict[str, Union[
-            int, float, np.floating, np.integer, Sequence[Union[
-                int, float, np.floating, np.integer]], np.ndarray]]] = None
+        # Whether to clear all manually registered logger metrics at the end of
+        # the next episode.
+        self._must_clear_metrics = False
 
-    def on_result(self, result: Dict) -> None:
-        step = result.get(TIMESTEPS_TOTAL) or result[TRAINING_ITERATION]
+    def on_episode_start(self,
+                         *,
+                         episode: EpisodeType,
+                         env_runner: EnvRunner,
+                         metrics_logger: MetricsLogger,
+                         env: gym.Env,
+                         env_index: int,
+                         rl_module: RLModule,
+                         **kwargs: Any) -> None:
+        # Drop all partial episodes associated with the environment at hand
+        # when starting a fresh new one since it will never be done anyway.
+        if env_index in self._ongoing_episodes:
+            self._partial_episodes.pop(self._ongoing_episodes[env_index], None)
+        self._ongoing_episodes[env_index] = episode.id_
 
-        # Remove keys that are not supposed to be logged
-        tmp = result.copy()
-        for k in ("config", "pid", "timestamp", TIME_TOTAL_S,
-                  TRAINING_ITERATION):
-            tmp.pop(k, None)
+    def on_episode_end(self,
+                       *,
+                       episode: EpisodeType,
+                       env_runner: EnvRunner,
+                       metrics_logger: MetricsLogger,
+                       env: gym.Env,
+                       env_index: int,
+                       rl_module: RLModule,
+                       **kwargs: Any) -> None:
+        # Force clearing all custom metrics if necessary.
+        # If not cleared manually, the internal buffer of all metrics that are
+        # not already cleared automatically when reduced would keep filling-up
+        # and contain the whole history of data, not just the ones collected at
+        # the current sampling iteration.
+        # This is problematic, because at the end of each simple iteration, the
+        # internal buffer of these metrics will get merged with the global
+        # logger at algorithm-level, which already contain the whole history
+        # except the current sampling iteration. As a result, the history will
+        # be stored twice, recursively.
+        # It is not possible to store "lifetime" metrics at runner-level
+        # because of this design flaw. From there, the only option that makes
+        # sense is clearing all metrics at the beginning of every sampling
+        # iteration, so that the global logger never ends up corrupted.
+        if self._must_clear_metrics:
+            for key in self._clear_metrics_keys:
+                metrics_logger.stats.pop(key, None)
+            self._must_clear_metrics = False
 
-        flat_result = flatten_dict(tmp, delimiter="/")
-        path = ["ray", "tune"]
-        valid_result: Dict[str, Union[
-            int, float, np.floating, np.integer, Sequence[Union[
-                int, float, np.floating, np.integer]], np.ndarray]] = {}
+        # Get all the chunks associated with the episode at hand
+        episodes = (*self._partial_episodes.pop(episode.id_, []), episode)
 
-        for attr, value in flat_result.items():
-            full_attr = "/".join(path + [attr])
-            if isinstance(value, VALID_SUMMARY_TYPES) and not np.isnan(value):
-                valid_result[full_attr] = value
-                self._file_writer.add_scalar(
-                    full_attr, value, global_step=step)
-            elif (isinstance(value, list) and len(value) > 0) or (
-                isinstance(value, np.ndarray) and value.size > 0
-            ):
-                valid_result[full_attr] = value
+        # Get window size.
+        # Note that `log_value` already forces `clear_on_reduce=True` based on
+        # window size to avoid memory overflow.
+        window = env_runner.config.metrics_num_episodes_for_smoothing
+        clear_on_reduce = window in (None, float("inf"))
 
-                # Must be video
-                if isinstance(value, np.ndarray) and value.ndim == 5:
-                    self._file_writer.add_video(
-                        full_attr, value, global_step=step, fps=20)
-                    continue
+        # Log raw infos without any scalar reduction (mean, "max, min...)
+        for info in episode.get_infos():
+            metrics_logger.log_dict(info, reduce=None, clear_on_reduce=True)
 
-                try:
-                    self._file_writer.add_histogram(
-                        full_attr, value, global_step=step)
-                # In case TensorboardX still doesn't think it's a valid value
-                # (e.g. `[[]]`), warn and move on.
-                except (ValueError, TypeError):
-                    LOGGER.warning(
-                        "You are trying to log an invalid value (%s=%s) "
-                        "via %s!", full_attr, value, type(self).__name__)
+        # Log reduced (min, max, mean) cumulative reward and episode length.
+        # Note that the window size must be set to `float("inf")` instead of
+        # `None` to avoid triggering Exponential Moving Average (EMA).
+        episode_return = sum(episode.get_return() for episode in episodes)
+        # Beware `episode.env_steps()` does NOT correspond to the absolute
+        # "index" of the last step of the episode before termination, but
+        # rather the total number of steps in this chunk.
+        assert isinstance(episode, SingleAgentEpisode)
+        num_steps = episode.t
+        for reduce in ("min", "max", "mean"):
+            metrics_logger.log_value(f"episode_return_{reduce}",
+                                     episode_return,
+                                     reduce=reduce,
+                                     window=window,
+                                     clear_on_reduce=clear_on_reduce)
+            metrics_logger.log_value(f"episode_len_{reduce}",
+                                     num_steps,
+                                     reduce=reduce,
+                                     window=window,
+                                     clear_on_reduce=clear_on_reduce)
+            if not clear_on_reduce:
+                self._clear_metrics_keys.update((
+                    f"episode_return_{reduce}", f"episode_len_{reduce}"))
 
-        self.last_result = valid_result
-        self._file_writer.flush()
+        # Log the duration of all episodes without any scalar reduction.
+        # Note that relying on `num_steps` is not possible as the environment
+        # has already been reset at this point.
+        assert isinstance(env.unwrapped, gym.vector.SyncVectorEnv)
+        env_unwrapped = env.unwrapped.envs[env_index].unwrapped
+        assert isinstance(env_unwrapped, BaseJiminyEnv)
+        step_dt = env_unwrapped.step_dt
+        duration = step_dt * num_steps
+        metrics_logger.log_value("episode_duration",
+                                 duration,
+                                 reduce=None,
+                                 clear_on_reduce=True)
 
-    def flush(self) -> None:
-        if self._file_writer is not None:
-            self._file_writer.flush()
+    def on_sample_end(self,
+                      *,
+                      env_runner: EnvRunner,
+                      metrics_logger: MetricsLogger,
+                      samples: List[EpisodeType],
+                      **kwargs: Any) -> None:
+        # Store all the partial episodes that did not reached done yet.
+        # Note that they are already "finalized" at this point.
+        for episode in samples:
+            if episode.is_done:
+                continue
+            self._partial_episodes[episode.id_].append(episode)
 
-    def close(self) -> None:
-        if self._file_writer is not None:
-            if self.trial and self.trial.evaluated_params and self.last_result:
-                flat_result = flatten_dict(self.last_result, delimiter="/")
-                scrubbed_result = {
-                    k: value
-                    for k, value in flat_result.items()
-                    if isinstance(value, tuple(VALID_SUMMARY_TYPES))
-                }
-                self._try_log_hparams(scrubbed_result)
-            self._file_writer.close()
+        # Last change to clear all custom metrics if no episode has been
+        # collected with this runner during this sampling iteration.
+        if self._must_clear_metrics:
+            for key in self._clear_metrics_keys:
+                metrics_logger.stats.pop(key, None)
 
-    def _try_log_hparams(self,
-                         result: Dict[
-                             str, Union[int, float, np.floating, np.integer]]
-                         ) -> None:
-        # pylint: disable=import-outside-toplevel
-
-        # TBX currently errors if the hparams value is None.
-        assert self.trial and self.trial.evaluated_params
-        flat_params = flatten_dict(self.trial.evaluated_params)
-        scrubbed_params = {
-            k: v for k, v in flat_params.items()
-            if isinstance(v, self.VALID_HPARAMS)}
-
-        np_params = {
-            k: v.tolist() for k, v in flat_params.items()
-            if isinstance(v, self.VALID_NP_HPARAMS)}
-
-        scrubbed_params.update(np_params)
-
-        removed = {
-            k: v for k, v in flat_params.items()
-            if not isinstance(v, self.VALID_HPARAMS + self.VALID_NP_HPARAMS)}
-        if removed:
-            LOGGER.info(
-                "Removed the following hyperparameter values when logging to "
-                "tensorboard: %s", str(removed))
-
-        from tensorboardX.summary import hparams
-
-        try:
-            experiment_tag, session_start_tag, session_end_tag = hparams(
-                hparam_dict=scrubbed_params, metric_dict=result)
-            self._file_writer.file_writer.add_summary(experiment_tag)
-            self._file_writer.file_writer.add_summary(session_start_tag)
-            self._file_writer.file_writer.add_summary(session_end_tag)
-        except Exception:  # pylint: disable=broad-exception-caught
-            LOGGER.exception(
-                "TensorboardX failed to log hparams. This may be due to an "
-                "unsupported type in the hyperparameter values.")
+        # Clear all metrics after sampling.
+        # Note that this action must be delayed until the next training
+        # iteration, as this method is called before merging metrics.
+        self._must_clear_metrics = True
 
 
 def initialize(num_cpus: int,
@@ -257,7 +279,7 @@ def initialize(num_cpus: int,
 
     :returns: Fully-qualified path of the logging directory.
     """
-    # handling of default log directory
+    # Handling of default log directory
     if log_root_path is None:
         log_root_path = mkdtemp()
 
@@ -265,29 +287,15 @@ def initialize(num_cpus: int,
     # are available.
     is_cluster_running, ray_address = False, None
     for ray_address in services.find_gcs_addresses():
-        # Connect to redis global state accessor
-        state = GlobalState()
-        options = GcsClientOptions.from_gcs_address(ray_address)
-        state._initialize_global_state(options)
-        state._really_init_global_state()
-        global_state_accessor = state.global_state_accessor
-        assert global_state_accessor is not None
-
         # Get available resources
-        resources: Dict[str, Union[int, float]] = defaultdict(int)
-        for info in global_state_accessor.get_all_available_resources():
-            # pylint: disable=no-member
-            message = AvailableResources.FromString(info)
-            for field, capacity in message.resources_available.items():
-                resources[field] += capacity
-
-        # Disconnect global state accessor
-        time.sleep(0.1)
+        state = get_state_from_address(ray_address)
+        resources = state.available_resources()
         state.disconnect()
 
         # Check if enough computation resources are available
         is_cluster_running = (
-            resources["CPU"] >= num_cpus and resources["GPU"] >= num_gpus)
+            resources.get("CPU", 0) >= num_cpus and
+            resources.get("GPU", 0) >= num_gpus)
 
         # Stop looking as soon as a cluster with enough resources is found
         if is_cluster_running:
@@ -361,21 +369,93 @@ def initialize(num_cpus: int,
 
     # Create log directory
     log_path = os.path.join(log_root_path, log_name)
-    pathlib.Path(log_path).mkdir(parents=True, exist_ok=True)
+    Path(log_path).mkdir(parents=True, exist_ok=True)
     if verbose:
         print(f"Experiment logfiles directory: {log_path}")
 
     return log_path
 
 
-def train(algo: Algorithm,
+def make_multi_callbacks(
+        callback_class_list: Sequence[Type[DefaultCallbacks]]
+        ) -> Type[DefaultCallbacks]:
+    """Allows combining multiple sub-callbacks into one new callbacks class.
+
+    The resulting DefaultCallbacks will call all the sub-callbacks' callbacks
+    when called.
+
+    .. warning::
+        This wrapper only supports the new API, unlike the original helper
+        `ray.rllib.algorithms.callbacks.make_multi_callbacks`.
+
+    :param callback_class_list: The list of sub-classes of DefaultCallbacks to
+                                be baked into the to-be-returned class. All of
+                                these sub-classes' implemented methods will be
+                                called in the given order.
+    """
+    class MultiCallbacks(DefaultCallbacks):
+        """A DefaultCallbacks subclass that combines all the given sub-classes.
+        """
+        def __init__(self) -> None:
+            self._callback_list = [
+                callback_class() for callback_class in callback_class_list]
+
+        def on_algorithm_init(self, **kwargs: Any) -> None:
+            for callback in self._callback_list:
+                callback.on_algorithm_init(**kwargs)
+
+        def on_workers_recreated(self, **kwargs: Any) -> None:
+            for callback in self._callback_list:
+                callback.on_workers_recreated(**kwargs)
+
+        def on_checkpoint_loaded(self, **kwargs: Any) -> None:
+            for callback in self._callback_list:
+                callback.on_checkpoint_loaded(**kwargs)
+
+        def on_environment_created(self, **kwargs: Any) -> None:
+            for callback in self._callback_list:
+                callback.on_environment_created(**kwargs)
+
+        def on_episode_start(self, **kwargs: Any) -> None:
+            for callback in self._callback_list:
+                callback.on_episode_start(**kwargs)
+
+        def on_episode_step(self, **kwargs: Any) -> None:
+            for callback in self._callback_list:
+                callback.on_episode_step(**kwargs)
+
+        def on_episode_end(self, **kwargs: Any) -> None:
+            for callback in self._callback_list:
+                callback.on_episode_end(**kwargs)
+
+        def on_evaluate_start(self, **kwargs: Any) -> None:
+            for callback in self._callback_list:
+                callback.on_evaluate_start(**kwargs)
+
+        def on_evaluate_end(self, **kwargs: Any) -> None:
+            for callback in self._callback_list:
+                callback.on_evaluate_end(**kwargs)
+
+        def on_sample_end(self, **kwargs: Any) -> None:
+            for callback in self._callback_list:
+                callback.on_sample_end(**kwargs)
+
+        def on_train_result(self, **kwargs: Any) -> None:
+            for callback in self._callback_list:
+                callback.on_train_result(**kwargs)
+
+    return MultiCallbacks
+
+
+def train(algo_config: AlgorithmConfig,
+          logdir: str,
           max_timesteps: int = 0,
           max_iters: int = 0,
-          logger_cls: type = TBXLogger,
-          logdir: Optional[Logger] = None,
           checkpoint_period: int = 0,
+          enable_evaluation_replay: bool = False,
+          enable_evaluation_record_video: bool = False,
           verbose: bool = True,
-          debug: bool = False) -> _TrainingResult:
+          debug: bool = False) -> Tuple[Dict[str, Any], str]:
     """Train a model on a specific environment using a given algorithm.
 
     The algorithm is associated with a given reinforcement learning algorithm,
@@ -386,53 +466,184 @@ def train(algo: Algorithm,
         This function can be aborted using CTRL+C without raising an exception.
 
     :param algo: Training algorithm.
+    :param logdir: Directory where to store the logfiles created by the logger.
     :param max_timesteps: Maximum number of training timesteps. 0 to disable.
                           Optional: Disabled by default.
     :param max_iters: Maximum number of training iterations. 0 to disable.
                       Optional: Disabled by default.
-    :param logger_cls: Logger class deriving from `ray.tune.logger.Logger`.
-                       Optional: `ray.tune.logger.TBXLogger` by default.
-    :param logdir: Directory where to store the logfiles created by the logger.
-                   Optional: None by default.
     :param checkpoint_period: Backup trainer every given number of training
                               steps in log folder if requested. 0 to disable.
                               Optional: Disabled by default.
+    :param enable_evaluation_replay:
+        Whether to replay a video of the best and worst trials after completing
+        evaluation.
+        Optional: False by default.
+    :param enable_evaluation_record_video:
+        Whether to record a video of the best and worst trials after completing
+        evaluation. This video would be stored in `algo.logdir` with suffix
+        `algo.iteration`.
+        Optional: False by default.
     :param verbose: Whether to print high-level information after each training
                     iteration.
                     Optional: True by default.
-    :param debug: Whether to monitor memory allocation to debug memory leaks.
-                  Optional: Disabled by default.
 
-    :returns: Ray-specific `_TrainingResult` object, which are named tuple
-    (checkpoint: ray.train.Checkpoint, metrics: Dict[str, Any]). The fullpath
-    of algorithm's final state dump can be retrieve via `.checkpoint.path`. The
-    latter includes the trained policy model.
+    :returns: tuple (metrics: Dict[str, Any], checkpoint_path: str) where
+    `metrics` gathers some highl-level metrics, and `checkpoint_path` is the
+    fullpath of algorithm's final state dump, including the trained module.
     """
-    # Get environment's reward threshold, if any
-    assert isinstance(algo.workers, WorkerSet)
-    env_spec, *_ = chain(*algo.workers.foreach_env(attrgetter('spec')))
-    if env_spec is None or env_spec.reward_threshold is None:
-        reward_threshold = float('inf')
+    # Copy original configuration before customizing it
+    algo_config = algo_config.copy()
+
+    # PyTorch is the only ML framework supported by `gym_jiminy.rllib`
+    algo_config.framework(
+        framework="torch"
+    )
+
+    # Force new API stack as the old one is not supported anymore
+    algo_config.api_stack(
+        enable_rl_module_and_learner=True,
+        enable_env_runner_and_connector_v2=True,
+    )
+
+    # Disable multi-threading by default at worker level
+    algo_config.python_environment(
+        # Extra python env vars to set for worker processes
+        extra_python_environs_for_worker={
+            # Disable multi-threaded linear algebra at worker-level
+            **dict(
+                OMP_NUM_THREADS=1,
+                OPENBLAS_NUM_THREADS=1,
+                MKL_NUM_THREADS=1,
+                VECLIB_MAXIMUM_THREADS=1,
+                NUMEXPR_NUM_THREADS=1,
+                NUMBA_NUM_THREADS=1,
+            ),
+            **algo_config.extra_python_environs_for_worker,
+        }
+    )
+
+    # Help making training more deterministic if a seed is specified
+    seed = cast(Optional[int], algo_config.seed)
+    if seed is not None:
+        algo_config.reporting(
+            min_time_s_per_iteration=None
+        )
+
+    # Disable default logger but configure logging directory nonetheless
+    algo_config.debugging(
+        logger_config=dict(
+            type=NoopLogger,
+            logdir=logdir
+        )
+    )
+
+    # Keep custom metrics as-is, without reducing them as (max, min, mean)
+    algo_config.reporting(
+        keep_per_episode_custom_metrics=True
+    )
+
+    # Enable monitoring callbacks
+    if algo_config.callbacks_class is DefaultCallbacks:
+        algo_config.callbacks(MonitorEpisodeCallback)
     else:
-        reward_threshold = env_spec.reward_threshold
+        algo_config.callbacks(make_multi_callbacks(
+            [algo_config.callbacks_class, MonitorEpisodeCallback]))
+
+    # Configure evaluation
+    algo_config.evaluation(
+        custom_evaluation_function=partial(
+            evaluate_from_algo,
+            print_stats=True,
+            enable_replay=enable_evaluation_replay,
+            record_video=enable_evaluation_record_video,
+            _return_metrics=False,
+        ),
+    )
+    evaluation_config = cast(
+        Optional[AlgorithmConfig], algo_config.evaluation_config)
+    if evaluation_config is None:
+        algo_config.evaluation(
+            evaluation_config=dict(
+                env=algo_config.env,
+                env_config={
+                    **algo_config.env_config,
+                    **dict(
+                        debug=debug
+                    ),
+                },
+                render_env=False,
+                explore=False,
+            )
+        )
+    else:
+        evaluation_config.environment(
+            env_config={
+                **evaluation_config.env_config,
+                **dict(
+                    debug=debug
+                ),
+            },
+            render_env=False,
+        )
+
+    # Initialize the learning algorithm
+    algo = algo_config.build()
+
+    # Assert(s) for type checker
+    assert algo.env_runner_group is not None
+
+    # Get the reward threshold of the environment, if any.
+    # Note that the original environment is always re-registered as an new gym
+    # entry-point "rllib-single-agent-env-v0". Most of the original spec are
+    # lost in the process when the environment is a callable that has been
+    # registered through `ray.tune.registry.register_env`. The only way to
+    # access the original spec is by instantiating the entry-point manually
+    # without relying on `gym.make`.
+    env_spec, *_ = chain(*algo.env_runner_group.foreach_worker(
+        lambda worker: worker.env.get_attr('spec')))
+    assert env_spec is not None
+    if env_spec.reward_threshold is None:
+        env_spec = env_spec.entry_point().spec
+    if env_spec is None or env_spec.reward_threshold is None:
+        return_threshold = float('inf')
+    else:
+        return_threshold = env_spec.reward_threshold
+
+    # Set the seed of the training and evaluation environments
+    if seed is not None:
+        seed_seq_gen = np.random.SeedSequence(seed)
+        seed_seq = seed_seq_gen.generate_state(2)
+        for seed_seq_gen_i, workers in zip(
+                tuple(map(np.random.SeedSequence, seed_seq)),
+                (algo.env_runner_group, algo.eval_env_runner_group)):
+            if workers is None:
+                continue
+            num_env_runners = workers.num_remote_env_runners() + 1
+            seed_seq = seed_seq_gen_i.generate_state(num_env_runners).tolist()
+            workers.foreach_worker_with_id(
+                lambda idx, worker: worker.env.reset(
+                    seed=seed_seq[idx]))  # pylint: disable=cell-var-from-loop
 
     # Instantiate logger that will be used throughout the experiment
-    result_logger = None
-    if logdir is not None:
-        result_logger = logger_cls({}, logdir=logdir)
+    try:
+        # pylint: disable=import-outside-toplevel,import-error
+        from tensorboardX import SummaryWriter
+        file_writer = SummaryWriter(logdir, flush_secs=30)
+    except ImportError:
+        LOGGER.warning("Tensorboard not available. Cannot start server.")
 
     # Backup some information
     if algo.iteration == 0:
         # Make sure log dir exists
-        os.makedirs(algo.logdir, exist_ok=True)
+        os.makedirs(logdir, exist_ok=True)
 
-        # Backup environment's source file
-        (env_type,) = set(
-            chain(*algo.workers.foreach_env(lambda e: type(e.unwrapped))))
+        # Backup all environment's source files
+        (env_type,) = set(chain(*algo.env_runner_group.foreach_worker(
+            lambda worker: [type(env.unwrapped) for env in worker.env.envs])))
         while True:
             try:
                 path = inspect.getfile(env_type)
-                shutil.copy2(path, algo.logdir, follow_symlinks=True)
+                shutil.copy2(path, logdir, follow_symlinks=True)
             except TypeError:
                 pass
             try:
@@ -445,18 +656,18 @@ def train(algo: Algorithm,
         root_file = frame_info_0.filename
         if os.path.exists(root_file):
             source_file = frame_info_1.filename
-            main_backup_name = f"{algo.logdir}/main.py"
+            main_backup_name = f"{logdir}/main.py"
             shutil.copy2(source_file, main_backup_name, follow_symlinks=True)
 
         # Backup RLlib config
-        with open(f"{algo.logdir}/params.json", 'w') as file:
-            config = cast(AlgorithmConfig, algo.config)
-            json.dump(config.to_dict(),
+        with open(f"{logdir}/params.json", 'w') as file:
+            json.dump(algo_config.to_dict(),
                       file,
                       indent=2,
                       sort_keys=True,
                       cls=SafeFallbackEncoder)
 
+    # Monitor memory allocations to detect leaks if any
     if debug:
         tracemalloc.start(10)
         snapshot = tracemalloc.take_snapshot()
@@ -466,13 +677,102 @@ def train(algo: Algorithm,
         while True:
             # Perform one iteration of training the policy
             result = algo.train()
-            iter_num = result["training_iteration"]
 
             # Log results
-            if result_logger is not None:
-                result_logger.on_result(result)
+            iter_num = result[TRAINING_ITERATION]
+            if file_writer is not None:
+                # Flatten result dict after excluding irrelevant special keys
+                masked_fields = (
+                    "config", "pid", "date", "hostname", "node_ip", "trial_id",
+                    "timestamp", TIME_TOTAL_S, TRAINING_ITERATION)
+                result_filtered = result.copy()
+                for k in masked_fields:
+                    result_filtered.pop(k, None)
+                result_flat = flatten_dict(result_filtered, delimiter="/")
 
-            # Monitor memory allocation since the beginning and between iters
+                # Keep track of the tag of all the scalar fields
+                scalar_tags: List[str] = []
+
+                # Logger variables in accordance with their respective types
+                for attr, value in result_flat.items():
+                    # First, try to log the variable as a scalar
+                    full_attr = "/".join(("ray", "tune", attr))
+                    try:
+                        file_writer.add_scalar(
+                            full_attr, value, global_step=iter_num)
+                        scalar_tags.append(full_attr)
+                        continue
+                    except (TypeError, AssertionError, NotImplementedError):
+                        pass
+
+                    if isinstance(value, np.ndarray):
+                        # Assuming single image
+                        if value.ndim == 3:
+                            file_writer.add_image(
+                                full_attr, value, global_step=iter_num)
+                            continue
+
+                        # Assuming batch of images
+                        if value.ndim == 4:
+                            file_writer.add_images(
+                                full_attr, value, global_step=iter_num)
+                            continue
+
+                        # Assuming video with arbitrary FPS
+                        if value.ndim == 5:
+                            file_writer.add_video(
+                                full_attr, value, global_step=iter_num, fps=20)
+                            continue
+
+                    # In last resort, try to log the variable as an histogram
+                    if isinstance(value, list):
+                        if not value:
+                            continue
+                        try:
+                            file_writer.add_histogram(
+                                full_attr, value, global_step=iter_num)
+                            continue
+                        except (ValueError, TypeError):
+                            pass
+
+                    # Warn and move on if it was impossible to log the variable
+                    LOGGER.warning(
+                        "You are trying to log an invalid value (%s=%s).",
+                        full_attr, value)
+
+                # Add multiline charts for dictionary of named scalar metrics
+                # stored under key `ENV_RUNNER_RESULTS`.
+                custom_layout_data: Dict[str, Tuple[str, List[str]]] = {}
+                metrics_nested_list: List[Tuple[str, Dict[str, Any]]] = [(
+                    "/".join(("ray", "tune", "env_runners")),
+                    result[ENV_RUNNER_RESULTS])]
+                while metrics_nested_list:
+                    # Pop out the first element in queue
+                    title, metrics_nested = metrics_nested_list.pop(0)
+
+                    # Check if it corresponds to a dict of named scalar metrics
+                    tags = ["/".join((title, name))
+                            for name in metrics_nested.keys()]
+                    for tag, data in zip(tags, metrics_nested.values()):
+                        if tag not in scalar_tags:
+                            break
+                    else:
+                        # If so, add multiline chart with all named scalars
+                        custom_layout_data[title] = ('Multiline', tags)
+                        continue
+
+                    # If not, add candidate values to the queue
+                    for tag, data in zip(tags, metrics_nested.values()):
+                        if isinstance(data, dict) and len(data) > 1:
+                            metrics_nested_list.append((tag, data))
+
+                # Create all multiline chart at once due to API limitations
+                file_writer.add_custom_scalars({"default": custom_layout_data})
+
+                # Flush the log file
+                file_writer.flush()
+
+            # Monitor memory allocations since the beginning and between iters
             if debug:
                 snapshot_new = tracemalloc.take_snapshot()
                 top_stats = snapshot_new.compare_to(snapshot, 'lineno')
@@ -485,326 +785,271 @@ def train(algo: Algorithm,
                 snapshot = snapshot_new
 
             # Print current training result summary
-            msg_data = []
-            for field in PRINT_RESULT_FIELDS_FILTER:
-                if field in result.keys():
-                    msg_data.append(f"{field}: {result[field]:.5g}")
-            print(" - ".join(msg_data))
+            if verbose or debug:
+                msg_data = []
+                result_flat = flatten_dict(result, delimiter="/")
+                for field in PRINT_RESULT_FIELDS_FILTER:
+                    if field in result_flat.keys():
+                        msg_data.append(f"{field}: {result_flat[field]:.5g}")
+                print(" - ".join(msg_data))
 
             # Backup the policy
             if checkpoint_period > 0 and iter_num % checkpoint_period == 0:
-                algo.save(
-                    checkpoint_dir=f"{algo.logdir}/checkpoint_{iter_num:06d}")
+                algo.save(os.path.join(logdir, f"checkpoint_{iter_num:06d}"))
 
             # Check terminal conditions
-            if 0 < max_timesteps < result["timesteps_total"]:
+            num_timesteps = result[NUM_ENV_STEPS_SAMPLED_LIFETIME]
+            if 0 < max_timesteps < num_timesteps:
+                if verbose or debug:
+                    print("Reached maximum number of environment steps.")
                 break
             if 0 < max_iters < iter_num:
+                if verbose or debug:
+                    print("Reached maximum number of iterations.")
                 break
-            if reward_threshold < result["episode_reward_mean"]:
-                if verbose:
-                    print("Problem solved successfully!")
-                break
+            if result[ENV_RUNNER_RESULTS][NUM_EPISODES] > 0:
+                return_mean = result[ENV_RUNNER_RESULTS][EPISODE_RETURN_MEAN]
+                if return_threshold < return_mean:
+                    if verbose or debug:
+                        print("Problem solved successfully!")
+                    break
     except KeyboardInterrupt:
-        if verbose:
+        if verbose or debug:
             print("Interrupting training...")
     except RayTaskError as e:
         LOGGER.warning("%s", e)
 
     # Flush and close logger before returning
-    if result_logger is not None:
-        result_logger.flush()
-        result_logger.close()
+    if file_writer is not None:
+        file_writer.flush()
+        file_writer.close()
 
     # Backup trained agent and return file location
-    return algo.save(
-        checkpoint_dir=f"{algo.logdir}/checkpoint_{iter_num:06d}")
+    checkpoint_result = algo.save(
+        os.path.join(logdir, f"checkpoint_{iter_num:06d}"))
+    assert checkpoint_result.metrics is not None
+    assert checkpoint_result.checkpoint is not None
+
+    # Stop the algorithm
+    algo.stop()
+
+    return (checkpoint_result.metrics, checkpoint_result.checkpoint.path)
 
 
-def _restore_default_connectors() -> None:
-    """Restore default connectors.
+def _sample_initialize(worker: EnvRunner) -> Sequence[bool]:
+    """Initialize evaluation sampling.
 
-    They would no longer exists after calling `ray.shutdown`, otherwise this
-    is a no-op. This is necessary to restore policies resorting on agent and
-    action connectors to pre- and post-process observations and actions.
-    """
-    for root_pkg in (ray.rllib.connectors.action, ray.rllib.connectors.agent):
-        for loader, module_name, _ in walk_packages(root_pkg.__path__):
-            if isinstance(loader, MetaPathFinder):
-                module_info = loader.find_module(module_name, path=None)
-            else:
-                module_info = loader.find_module(module_name)
-            assert module_info is not None
-            module = module_info.load_module(module_name)
-            for name, obj in module.__dict__.items():
-                if isinstance(obj, type) and issubclass(obj, Connector):
-                    register_connector(name, obj)
-
-
-def _extract_eval_worker_info_from_checkpoint(
-        checkpoint_path: str
-        ) -> Tuple[Type[Policy], EnvCreator, Dict, AlgorithmConfig]:
-    """Internal helper to extract the information required to build a local
-    evaluation worker or a multi-agent policy from a checkpoint and restore
-    the weight of the model.
-
-    :param checkpoint_path: Checkpoint directory to be restored.
-    """
-    # Restore default connectors if needed
-    _restore_default_connectors()
-
-    # Load checkpoint data
-    checkpoint_info = get_checkpoint_info(checkpoint_path)
-    state = Algorithm._checkpoint_info_to_algorithm_state(checkpoint_info)
-    worker_state = state["worker"]
-
-    # Extract algorithm class and config
-    algorithm_class, config = state.get("algorithm_class"), state.get("config")
-    config = algorithm_class.get_default_config().update_from_dict(config)
-
-    # Extract original evaluation config and tweak it to be local only
-    config.output = None
-    config.evaluation_num_workers = 0
-    config.num_envs_per_worker = 1
-    config.evaluation_parallel_to_training = False
-    evaluation_config = config.get_evaluation_config_object()
-    if (evaluation_config.off_policy_estimation_methods or
-            config.input_ == "dataset"):
-        raise ValueError("Offline evaluation is not supported for now.")
-
-    # Extract policy class and env creator
-    policy_class = algorithm_class.get_default_policy_class(config)
-    _, env_creator = algorithm_class._get_env_id_and_creator(
-        evaluation_config.env, evaluation_config)
-
-    return policy_class, env_creator, worker_state, evaluation_config
-
-
-def build_eval_policy_from_checkpoint(checkpoint_path: str) -> PolicyMap:
-    """Build a multi-agent evaluation policy from a checkpoint generated by
-    calling `algo.save()` during training of the policy.
-
-    .. note::
-        Internally, the method `ray.rllib.policy.policy.Policy.from_checkpoint`
-        is not called because the configuration of the policy must be tweaked
-        for the purpose of evaluation.
-
-    :param checkpoint_path: Checkpoint directory to be restored.
-    """
-    # Extract local evaluation worker information
-    _, _, worker_state, config = \
-        _extract_eval_worker_info_from_checkpoint(checkpoint_path)
-
-    # Create empty preprocessor and filter maps
-    preprocessing_enabled = not config._disable_preprocessor_api and (
-        config.model.get("custom_preprocessor") or
-        config.preprocessor_pref is not None)
-
-    # Create empty policy map
-    policy_map = PolicyMap(
-        capacity=config.policy_map_capacity,
-        policy_states_are_swappable=config.policy_states_are_swappable)
-
-    # Restore all saved policies
-    policy_states = worker_state["policy_states"]
-    for pid, policy_state in policy_states.items():
-        # Extract policy spec
-        spec = policy_state["policy_spec"]
-        policy_spec = PolicySpec.deserialize(spec) if (
-            config.enable_connectors or
-            isinstance(spec, dict)) else spec
-        if isinstance(policy_spec.config, AlgorithmConfig):
-            merged_conf = policy_spec.config
-        else:
-            merged_conf = config.copy(copy_frozen=False)
-            merged_conf.update_from_dict(policy_spec.config or {})
-        merged_conf.worker_index = 0
-
-        # Get post-processed observation space
-        obs_space = policy_spec.observation_space
-        if preprocessing_enabled:
-            preprocessor = ModelCatalog.get_preprocessor_for_space(
-                obs_space, merged_conf.model)
-            if preprocessor is not None:
-                obs_space = preprocessor.observation_space
-
-        # Instantiate the policy
-        policy_map[pid] = policy_spec.policy_class(
-            obs_space,
-            policy_spec.action_space,
-            merged_conf)
-
-        # Restore its state
-        policy_map[pid].set_state(policy_state)
-
-    return policy_map
-
-
-def build_policy_wrapper(policy_map: PolicyMap,
-                         policy_id: PolicyID = DEFAULT_POLICY_ID,
-                         env_id: EnvID = 0,
-                         agent_id: AgentID = 0,
-                         **kwargs: Any) -> Callable[[
-                             DataNested, Optional[float], bool, Dict[str, Any]
-                             ], DataNested]:
-    """Wrap a single policy into a simple callable. This function can then be
-    passed to `BaseJiminyEnv.evaluate` to assess its performance on a given
-    environment.
-
-    .. note::
-        The internal state of the policy, if any, is managed internally. To do
-        so, it leverages connectors to perform observation and action pre- and
-        post-processing. This is especially convenient to handle automatically
-        policy view requirements and store the internal state of the policy if
-        any without having to manage buffer manually.
-
-    :param policy: Single policy to evaluate.
-    :param kwargs: Extra keyword arguments that must correspond to a valid
-                   subset of options from `AlgorithmConfig`. These options take
-                   precedence over the original configuration of the policy.
-                   For instance, `clip_actions=False` or `explore=False`.
-    """
-    # Pick the desired policy
-    policy = policy_map[policy_id]
-
-    # Extract policy configuration
-    if isinstance(policy.config, AlgorithmConfig):
-        config = policy.config.copy(copy_frozen=False)
-    else:
-        config = AlgorithmConfig().update_from_dict(policy.config or {})
-    config.update_from_dict(kwargs)
-    config.worker_index = 0
-
-    # Create custom connectors, ignoring the existing ones if any, in order to
-    # enforce the desired configuration. For reference, see
-    # `ray.rllib.connectors.util.create_connectors_for_policy`.
-    ctx = ConnectorContext.from_policy(policy)
-    agent_connectors = get_agent_connectors_from_config(ctx, config)
-    action_connectors = get_action_connectors_from_config(ctx, config)
-
-    # Set inference mode to avoid spending time on training-only connectors
-    agent_connectors.in_eval()
-    action_connectors.in_eval()
-
-    def forward(obs: DataNested,
-                reward: Optional[float],
-                done: bool,
-                info: Dict[str, Any]) -> DataNested:
-        """Pre-process the observation, compute the action and post-process it.
-
-        .. seealso::
-            See `ray.rllib.utils.policy.local_policy_inference` for reference.
-        """
-        # Bind local connectors managing the internal state of the policy
-        nonlocal agent_connectors, action_connectors
-
-        # Reset the connectors at initialization rather than termination
-        # to ease debug, namely when `reward` is `None`.
-        if reward is None:
-            agent_connectors.reset(env_id)
-
-        # Store available input data in a dictionary
-        input_dict: Dict[str, Any] = {
-            SampleBatch.NEXT_OBS: obs,
-            SampleBatch.DONES: done,
-            SampleBatch.INFOS: info}
-        input_dict[SampleBatch.REWARDS] = reward
-
-        # Pre-process the input
-        acd_list = [AgentConnectorDataType(
-            env_id, agent_id, input_dict)]  # type: ignore[arg-type]
-        (ac_output,) = agent_connectors(acd_list)
-
-        # Compute a single action from raw post-processed input dict.
-        # Note that input has to be batched because it is assumed as such
-        # by AgentCollector. Because of this, the Policy output is also
-        # batched, so the single action must be unpacked.
-        policy_output = policy.compute_actions_from_input_dict(
-            ac_output.data.sample_batch, explore=config.explore)
-        policy_output = tree.map_structure(itemgetter(0), policy_output)
-
-        # Post-process the policy output
-        action_connector_data = ActionConnectorDataType(
-            env_id,  # type: ignore[arg-type]
-            agent_id,
-            ac_output.data.raw_dict,
-            policy_output)
-        acd = action_connectors(action_connector_data)
-        action, _, _ = acd.output
-
-        # Notify agent connectors with this new policy output.
-        # Necessary for state buffering agent connectors, for example.
-        agent_connectors.on_policy_output(action_connector_data)
-
-        return action
-
-    return forward
-
-
-def build_eval_worker_from_checkpoint(
-        checkpoint_path: str) -> RolloutWorker:
-    """Build an evaluation worker from a checkpoint generated by calling
-    `algo.save()` during training of the policy.
-
-    This local worker can then be passed to `worker_evaluation` in order to
-    evaluate the performance of a policy without requiring initialization of
-    Ray distributed computing backend.
+    In practice, it stops any ongoing episodes, then backup the current
+    training/evaluation mode before switching to evaluation mode.
 
     .. warning::
-        This method is *NOT* standalone in the event where a custom connector
-        or environment has been registered by calling
-        `ray.rllib.connectors.registry.register_connector` or
-        `ray.tune.registry.register_env` and then used during training. In such
-        a case, it is necessary to ensure this registration has been done prior
-        to calling this method otherwise it will raise an exception.
+        This method is designed to be used in conjunction with
+        `_sample_one_episode_and_collect_metrics` and `_sample_finalize`.
 
-    :param checkpoint_path: Checkpoint directory to be restored.
+    :param worker: Environment runner that will be used for collecting samples.
     """
-    # Extract local evaluation worker information
-    policy_class, env_creator, worker_state, config = \
-        _extract_eval_worker_info_from_checkpoint(checkpoint_path)
+    # Assert(s) for type checker
+    assert isinstance(worker, SingleAgentEnvRunner)
 
-    # Build and restore worker state
-    worker = RolloutWorker(
-        env_creator=env_creator,
-        default_policy_class=policy_class,
-        config=config,
-        num_workers=0)
-    worker.set_state(worker_state)
+    # Stop any simulation that may be running
+    worker.env.call('stop')
 
-    return worker
+    # Switch the environment to evaluation mode
+    is_training_all = worker.env.get_attr('is_training')
+    worker.env.call('eval')
+
+    return is_training_all
 
 
-class _WriteLogHook:
-    """Stateful function used has a temporary wrapper around an original
-    `on_episode_end` callback instance method to force writing log right after
-    termination and before reset. This is necessary because `worker.sample()`
-    always reset the environment at the end by design.
+def _sample_one_episode_and_collect_metrics(worker: EnvRunner) -> Tuple[
+        ResultDict, Sequence[EpisodeType], Sequence[str]]:
+    """Sample a single evaluation episode and collect metrics.
+
+    TODO: It would be more efficient to sample as many episodes as environments
+    being managed by the runner (ie. `worker.num_envs`), because, internally,
+    they will be collected anyway and discarded afterward.
+
+    .. warning::
+        This method is designed to be used in conjunction with
+        `_sample_initialize` and `_sample_finalize`.
+
+    :param worker: Environment runner to use for collecting samples.
     """
-    def __init__(self, on_episode_end: Callable[..., Any]) -> None:
-        self.__func__ = on_episode_end
+    # Assert(s) for type checker
+    assert isinstance(worker, SingleAgentEnvRunner)
 
-    def __call__(self, *, worker: RolloutWorker, **kwargs: Any) -> None:
-        def write_log(env: gym.Env) -> str:
-            fd, log_path = mkstemp(prefix="log_", suffix=".hdf5")
-            os.close(fd)
-            env.write_log(  # type: ignore[attr-defined]
-                log_path, format="hdf5")
-            return log_path
+    # Drop all existing log files as they are not associated with the
+    # ongoing evaluation.
+    # Note that `set_attr` on vector envs is buggy on Gymnasium < 1.0, as
+    # it creates the attributes at wrapper level even if it exists in the
+    # unwrapped environments. Assuming `SyncVectorEnv` to get around this
+    # issue.
+    # worker.env.set_attr('log_path', None)
+    assert isinstance(worker.env.unwrapped, gym.vector.SyncVectorEnv)
+    for env in worker.env.envs:
+        env.unwrapped.log_path = None
 
-        worker.callbacks.log_paths = (  # type: ignore[attr-defined]
-            worker.foreach_env(write_log))
-        self.__func__(worker=worker, **kwargs)
+    # Run a single episode and extract the path of the log file.
+    # Note that episodes are sorted by environment indices by design.
+    episodes = worker.sample(num_episodes=1, random_actions=False)
+    log_paths: Tuple[str, ...] = tuple(
+        filter(None, worker.env.get_attr('log_path')))
+
+    # Collect metrics
+    metrics = worker.get_metrics()
+
+    return metrics, episodes, log_paths
 
 
-def _toggle_write_log_hook(worker: RolloutWorker) -> None:
-    """Add write log callback hook if not already setup, remove otherwise.
+def _sample_finalize(worker: EnvRunner,
+                     is_training_all: Sequence[bool]) -> None:
+    """Finalize evaluation sampling.
+
+    In practice, it stops any ongoing episodes, then restore the orginal
+    training/evaluation mode that was previously backed up.
+
+    .. warning::
+        This method is designed to be used in conjunction with
+        `_sample_initialize` and `_sample_one_episode_and_collect_metrics`.
+
+    :param worker: Environment runner that was previously used to collect
+                   sample.
+    :param is_training_all: Original training/evaluation mode of all the
+                            environment being managed by the environment runner
+                            as a sequence.
     """
-    callbacks = worker.callbacks
-    if isinstance(callbacks.on_episode_end, _WriteLogHook):
-        callbacks.on_episode_end = callbacks.on_episode_end.__func__
+    # Assert(s) for type checker
+    assert isinstance(worker, SingleAgentEnvRunner)
+
+    # Stop any simulation that may be running
+    worker.env.call('stop')
+
+    # Restore the original training/evaluation mode.
+    # FIXME: Rely on `set_attr` when moving to `gymnasium>=1.0`, which fixes
+    # attribute lookup in wrapped layers.
+    # worker.env.set_attr('is_training', is_training)
+    assert isinstance(worker.env.unwrapped, gym.vector.SyncVectorEnv)
+    for env, is_training in zip(worker.env.envs, is_training_all):
+        if is_training:
+            env.train()
+
+
+def sample_from_runner(
+        env_runner: EnvRunner,
+        num_episodes: int
+        ) -> Tuple[List[ResultDict], List[EpisodeType], List[str]]:
+    """Sample multiple evaluation episodes on any of the environments being
+    managed by a given evaluation runner.
+
+    :param worker: Environment runner to use for collecting samples.
+    :param num_episodes: Number of episodes to collect.
+
+    :returns: tuple gathering logged high-level metrics, raw episode data, and
+    simulation log paths for all the episode that were collected.
+    """
+    # Assert(s) for type checker
+    assert isinstance(env_runner, SingleAgentEnvRunner)
+
+    # This method only supports environments deriving from `BaseJiminyEnv`
+    (env_type,) = set(type(env.unwrapped) for env in env_runner.env.envs)
+    if not issubclass(env_type, BaseJiminyEnv):
+        raise RuntimeError("Test env must inherit from `BaseJiminyEnv`.")
+
+    # Initialize sampling
+    is_training_all = _sample_initialize(env_runner)
+
+    # Collect episodes one-by-one until completion
+    all_metrics: List[ResultDict] = []
+    all_episodes: List[EpisodeType] = []
+    all_log_paths: List[str] = []
+    for _ in range(num_episodes):
+        metrics, episodes, log_paths = (
+            _sample_one_episode_and_collect_metrics(env_runner))
+        all_metrics.append(metrics)
+        all_episodes += episodes
+        all_log_paths += log_paths
+
+    # Finalize sampling
+    _sample_finalize(env_runner, is_training_all)
+
+    return all_metrics, all_episodes, all_log_paths
+
+
+def sample_from_runner_group(
+        workers: EnvRunnerGroup,
+        num_episodes: int,
+        evaluation_sample_timeout_s: Optional[float] = None
+        ) -> Tuple[List[ResultDict], List[EpisodeType], List[str]]:
+    """Sample multiple evaluation episodes on any of the environments being
+    managed by all the remote and local evaluation runners of a given group.
+
+    Sampling would be distributed across all remote runners if any, otherwise
+    it will be sequential on the local runner.
+
+    :param workers: Group of environment runners to use for collecting samples.
+    :param num_episodes: Number of episodes to collect.
+    :param evaluation_sample_timeout_s:
+        Timeout in seconds for evaluation runners to sample a complete episode
+        of remote evluation. After this time, the user receives a warning and
+        instructions on how to fix the issue.
+
+    :returns: tuple gathering logged high-level metrics, raw episode data, and
+    simulation log paths for all the episode that were collected.
+    """
+    # This method only supports environments deriving from `BaseJiminyEnv`
+    (env_type,) = set(chain(*workers.foreach_worker(
+        lambda worker: [type(env.unwrapped) for env in worker.env.envs])))
+    if not issubclass(env_type, BaseJiminyEnv):
+        raise RuntimeError("Test env must inherit from `BaseJiminyEnv`.")
+
+    if workers.num_remote_env_runners() == 0:
+        all_metrics, all_episodes, all_log_paths = (
+            sample_from_runner(workers.local_env_runner, num_episodes))
+    elif workers.num_healthy_remote_workers() > 0:
+        # Initialize evaluation
+        is_training_all = dict(workers.foreach_worker_with_id(
+            func=lambda index, worker: (index, _sample_initialize(worker)),
+            local_env_runner=False))
+
+        # Collect episodes one-by-one from each worker until completion
+        all_metrics, all_episodes, all_log_paths = [], [], []
+        while (delta_episodes := num_episodes - len(all_episodes)) > 0:
+            # Stop if all of the remote evaluation workers died for some reason
+            if workers.num_healthy_remote_workers() == 0:
+                break
+
+            # Select proper number of evaluation workers for this round
+            selected_eval_worker_ids = [
+                worker_id for i, worker_id in enumerate(
+                    workers.healthy_worker_ids()) if i < delta_episodes]
+
+            # Run a complete episode per selected worker and collect metrics
+            results = workers.foreach_worker(
+                func=_sample_one_episode_and_collect_metrics,
+                local_env_runner=False,
+                remote_worker_ids=selected_eval_worker_ids,
+                timeout_seconds=evaluation_sample_timeout_s)
+            for metrics, episodes, log_paths in results:
+                all_metrics.append(metrics)
+                all_episodes += episodes
+                all_log_paths += log_paths
+            if len(results) != len(selected_eval_worker_ids):
+                LOGGER.warning(
+                    "Calling `sample()` on your remote evaluation worker(s) "
+                    "resulted in a timeout. Please configure the parameter "
+                    "`evaluation_sample_timeout_s` accordingly.")
+                break
+
+        # Finalize evaluation
+        workers.foreach_worker_with_id(
+            func=lambda index, worker: _sample_finalize(
+                worker, is_training_all[index]),
+            local_env_runner=False)
+
     else:
-        callbacks.on_episode_end = _WriteLogHook(callbacks.on_episode_end)
+        raise RuntimeError("No runner available for running the evaluation.")
+
+    return all_metrics, all_episodes, all_log_paths
 
 
 def _pretty_print_statistics(data: Sequence[Tuple[str, np.ndarray]]) -> None:
@@ -837,24 +1082,224 @@ def _pretty_print_statistics(data: Sequence[Tuple[str, np.ndarray]]) -> None:
                 f"(min = {np.min(values):.2f}, max = {np.max(values):.2f})")
 
 
-def evaluate_local_worker(worker: RolloutWorker,
-                          evaluation_num: int = 1,
-                          print_stats: Optional[bool] = None,
-                          enable_replay: Optional[bool] = None,
-                          block: bool = True,
-                          **kwargs: Any
-                          ) -> Tuple[List[SampleBatch], List[str]]:
+def _pretty_print_episode_metrics(all_episodes: List[EpisodeType],
+                                  step_dt: Optional[float]) -> None:
+    """Render ASCII histograms horizontally side-by-side of high-level
+    performance metrics about the batch of episodes.
+
+    In practice, one histogram on the left corresponds to the episode duration
+    (seconds) or length (#timesteps) on the left depending on whether the
+    timestep unit has been specified, while the right one corresponds to the
+    return (undiscounted cumulative reward).
+
+    :param all_episodes: Batch of episodes from which to extract high-level
+                         metrics. Note that the number of episodes must be
+                         larger than 10.
+    :param step_dt: Unique timestep of the environment for the whole batch of
+                    episodes if applicable, `None` otherwise.
+    """
+    # Keep track of basic info
+    all_num_env_steps = np.array([
+        episode.env_steps() for episode in all_episodes])
+    all_returns = np.array([
+        episode.get_return() for episode in all_episodes])
+
+    # Early return if not enough data is available
+    if len(all_episodes) < 10:
+        LOGGER.warning(
+            "The number of episodes must be larger than 10 for printing "
+            "meaningful statistics.")
+        return
+
+    # Gather meaningful statistics
+    episode_stats = []
+    if step_dt is not None:
+        # Print the episode duration if the environment timestep is identical
+        # for all instances, which is extremely likely but not mandorary.
+        all_env_durations = step_dt * all_num_env_steps
+        episode_stats.append(("Episode duration", all_env_durations))
+    else:
+        # Print the episode length as a fallback
+        episode_stats.append(("Episode length", all_num_env_steps))
+    episode_stats.append(("Return", all_returns))
+
+    # Print ASCII histograms as horizontal subplots
+    _pretty_print_statistics(episode_stats)
+
+
+@overload
+def evaluate_from_algo(algo: Algorithm,
+                       workers: Optional[EnvRunnerGroup] = ...,
+                       print_stats: bool = ...,
+                       enable_replay: Optional[bool] = ...,
+                       record_video: bool = ...,
+                       _return_metrics: Literal[True] = ...) -> ResultDict:
+    ...
+
+
+@overload
+def evaluate_from_algo(algo: Algorithm,
+                       workers: Optional[EnvRunnerGroup] = ...,
+                       print_stats: bool = ...,
+                       enable_replay: Optional[bool] = ...,
+                       record_video: bool = ...,
+                       _return_metrics: Literal[False] = ...
+                       ) -> Tuple[ResultDict, int, int]:
+    ...
+
+
+def evaluate_from_algo(algo: Algorithm,
+                       workers: Optional[EnvRunnerGroup] = None,
+                       print_stats: bool = True,
+                       enable_replay: Optional[bool] = False,
+                       record_video: bool = False,
+                       _return_metrics: bool = True
+                       ) -> Union[ResultDict, Tuple[ResultDict, int, int]]:
+    """Evaluates the current algorithm under `evaluation_config` configuration,
+    then returns some performance metrics to monitor the training progress.
+
+    The log files associated with the best and worst trials among the complete
+    evaluation batch (respectively the two episodes with highest and lowest
+    return) will be stored in `algo.logdir` with suffix `algo.iteration`.
+
+    .. warning::
+        This method is specifically tailored for Gym environments inheriting
+        from `BaseJiminyEnv`.
+
+    :param workers: Rollout workers for evaluation.
+                    Optional: `algo.eval_workers` by default.
+    :param print_stats: Whether to print high-level statistics.
+                        Optional: True by default.
+    :param enable_replay: Whether to replay a video after completing evaluation
+                          of the two episodes with highest and lowest return.
+                          Optional: False by default.
+    :param record_video: Whether to record a video after completing evaluation
+                         of the two episodes with highest and lowest return.
+                         Optional: False by default.
+    :param _return_metrics: Whether to return aggregated metrics. If not, then
+                            a tuple `(None, num_env_steps, num_agent_steps)` is
+                            returned instead. Must be set to `False` if passed
+                            as `custom_evaluation_function` to the algorithm.
+    """
+    # Handling of default argument(s)
+    if workers is None:
+        workers = algo.eval_env_runner_group
+    assert workers is not None
+
+    # Extract evaluation config
+    eval_cfg = algo.evaluation_config
+    assert eval_cfg is not None
+    if eval_cfg.evaluation_duration_unit == "auto":
+        raise ValueError("evaluation_duration_unit='timesteps' not supported.")
+    num_episodes: Union[int, str] = eval_cfg.evaluation_duration
+    if num_episodes == "auto":
+        raise ValueError("evaluation_duration='auto' not supported.")
+    assert isinstance(num_episodes, int)
+
+    # Sample episodes
+    all_metrics, all_episodes, all_log_paths = sample_from_runner_group(
+        workers, num_episodes, eval_cfg.evaluation_sample_timeout_s)
+
+    # Print stats in ASCII histograms if requested
+    if print_stats:
+        try:
+            (step_dt,) = set(chain(*workers.foreach_worker(
+                lambda worker: worker.env.get_attr('step_dt'))))
+        except ValueError:
+            step_dt = None
+        _pretty_print_episode_metrics(all_episodes, step_dt)
+
+    # Backup only the log file corresponding to the best and worst trial
+    all_returns = np.array([
+        episode.get_return() for episode in all_episodes])
+    idx_worst, idx_best = np.argsort(all_returns)[[0, -1]]
+    log_labels, log_paths = ("best", "worst")[:num_episodes], []
+    for suffix, idx in zip(log_labels, (idx_best, idx_worst)):
+        ext = Path(all_log_paths[idx]).suffix
+        log_path = f"{algo.logdir}/iter_{algo.iteration}-{suffix}{ext}"
+        shutil.move(all_log_paths[idx], log_path)
+        log_paths.append(log_path)
+
+    # Replay and/or record a video of the best and worst trials if requested.
+    # Async to enable replaying and recording while training keeps going.
+    viewer_kwargs, *_ = chain(*workers.foreach_worker(
+        lambda worker: worker.env.get_attr('viewer_kwargs')))
+    viewer_kwargs.update(
+        scene_name=f"iter_{algo.iteration}",
+        robots_colors=('green', 'red') if num_episodes > 1 else None,
+        legend=log_labels if num_episodes > 1 else None,
+        close_backend=True)
+    if record_video:
+        viewer_kwargs.setdefault(
+            "record_video_path", f"{algo.logdir}/iter_{algo.iteration}.mp4")
+    async_play_and_record_logs_files(
+        log_paths, enable_replay=enable_replay, **viewer_kwargs)
+
+    # Centralized all metrics in algorithm logger
+    algo.metrics.merge_and_log_n_dicts(
+        all_metrics, key=(EVALUATION_RESULTS, ENV_RUNNER_RESULTS))
+
+    # Early return if computing reduced metrics is not requested.
+    # Note that it expects a non-empty `ResultDict` as first output, even
+    # though it is not used anywhere in practice. Using a mock value instead.
+    num_env_steps = sum(episode.env_steps() for episode in all_episodes)
+    num_agent_steps = sum(episode.agent_steps() for episode in all_episodes)
+    if not _return_metrics:
+        return {"_": None}, num_env_steps, num_agent_steps
+
+    # Update lifetime statistics in global logger
+    algo.metrics.log_dict(
+        {
+            NUM_ENV_STEPS_SAMPLED_LIFETIME: num_env_steps,
+            NUM_AGENT_STEPS_SAMPLED_LIFETIME: num_agent_steps,
+            NUM_EPISODES_LIFETIME: algo.metrics.peek(
+                (EVALUATION_RESULTS, ENV_RUNNER_RESULTS, NUM_EPISODES),
+                default=0)
+        },
+        key=EVALUATION_RESULTS,
+        reduce="sum")
+
+    # Compute reduced metrics
+    results = algo.metrics.reduce(
+        key=EVALUATION_RESULTS, return_stats_obj=False)
+
+    # Compute off-policy estimates
+    estimates = defaultdict(list)
+    for name, estimator in algo.reward_estimators.items():
+        for episode in all_episodes:
+            estimate_result = estimator.estimate(
+                episode,
+                split_batch_by_episode=eval_cfg.ope_split_batch_by_episode)
+            estimates[name].append(estimate_result)
+
+    # Accumulate estimates from all episodes
+    if estimates:
+        results["off_policy_estimator"] = {}
+        for name, estimate_list in estimates.items():
+            avg_estimate = tree.map_structure(
+                lambda *x: np.mean(x, axis=0), *estimate_list)
+            results["off_policy_estimator"][name] = avg_estimate
+
+    return results
+
+
+def evaluate_from_runner(env_runner: EnvRunner,
+                         num_episodes: int = 1,
+                         print_stats: Optional[bool] = None,
+                         enable_replay: Optional[bool] = None,
+                         block: bool = True,
+                         **kwargs: Any) -> Tuple[List[EpisodeType], List[str]]:
     """Evaluates the performance of a given local worker.
 
     This method is specifically tailored for Gym environments inheriting from
     `BaseJiminyEnv`.
 
-    :param worker: Rollout workers for evaluation.
-    :param evaluation_num: How any evaluation to run. The log files of the best
-                           performing trial will be exported.
-                           Optional: 1 by default.
+    :param env_runner: Local environment runner for evaluation.
+    :param num_episodes: Number of episodes to sample. The log files of the
+                         best and worst performing trials will be exported.
+                         Optional: 1 by default.
     :param print_stats: Whether to print high-level statistics.
-                        Optional: `evaluation_num >= 10` by default.
+                        Optional: `num_episodes >= 10` by default.
     :param enable_replay: Whether to enable replay of the simulation.
                           Optional: True by default if `record_video_path` is
                           not provided and the default/current backend supports
@@ -863,68 +1308,40 @@ def evaluate_local_worker(worker: RolloutWorker,
                   Optional: True by default.
     :param kwargs: Extra keyword arguments to forward to the viewer if any.
 
-    :returns: One sample batch per evaluation.
+    :returns: Tuple gathering the sequences of episodes and log files.
     """
+    # Assert(s) for type checker
+    assert isinstance(env_runner, SingleAgentEnvRunner)
+
     # Handling of default argument(s)
     if print_stats is None:
-        print_stats = evaluation_num >= 10
+        print_stats = num_episodes >= 10
 
-    # Enforce restriction(s) for using this method
-    (env_type,) = set(worker.foreach_env(lambda e: type(e.unwrapped)))
-    if not issubclass(env_type, BaseJiminyEnv):
-        raise RuntimeError("Test env must inherit from `BaseJiminyEnv`.")
+    # Sample episodes
+    _, all_episodes, all_log_paths = (
+        sample_from_runner(env_runner, num_episodes))
 
-    # Collect samples.
-    # `sample` either produces 1 episode or exactly `evaluation_duration` based
-    # on `unit` being set to "episodes" or "timesteps" respectively.
-    # See https://github.com/ray-project/ray/blob/ray-2.2.0/rllib/algorithms/algorithm.py#L937  # noqa: E501  # pylint: disable=line-too-long
-    all_batches, all_log_paths = [], []
-    all_num_steps, all_total_rewards = [], []
-    _toggle_write_log_hook(worker)
-    for _ in range(evaluation_num):
-        # Run a complete episode
-        batch = worker.sample().as_multi_agent()[DEFAULT_POLICY_ID]
-        num_steps = batch.env_steps()
-        total_reward = np.sum(batch[batch.REWARDS])
-
-        # Backup the log files
-        (log_path,) = worker.callbacks.log_paths  # type: ignore[attr-defined]
-        all_log_paths.append(log_path)
-
-        # Store all batches for later use
-        all_batches.append(batch)
-
-        # Keep track of basic info
-        all_num_steps.append(num_steps)
-        all_total_rewards.append(total_reward)
-    _toggle_write_log_hook(worker)
-
-    # Ascii histogram if requested
+    # Print stats in ASCII histograms if requested
     if print_stats:
-        # Get the step size of the environment
-        (env_dt,) = set(worker.foreach_env(attrgetter("step_dt")))
-
-        # Print statistics if enough data available
-        if evaluation_num >= 10:
-            _pretty_print_statistics((
-                ("Episode duration", env_dt * np.array(all_num_steps)),
-                ("Total reward", np.array(all_total_rewards))))
-        else:
-            LOGGER.warning(
-                "'evaluation_duration' must be at least 10 to print "
-                "meaningful statistics.")
+        try:
+            (step_dt,) = set(env_runner.env.get_attr('step_dt'))
+        except ValueError:
+            step_dt = None
+        _pretty_print_episode_metrics(all_episodes, step_dt)
 
     # Extract the indices of the best and worst trial
-    idx_worst, idx_best = np.argsort(all_total_rewards)[[0, -1]]
+    all_returns = np.array([
+        episode.get_return() for episode in all_episodes])
+    idx_worst, idx_best = np.argsort(all_returns)[[0, -1]]
 
     # Replay and/or record a video of the best and worst trials if requested.
     # Async to enable replaying and recording while training keeps going.
-    viewer_kwargs, *_ = worker.foreach_env(attrgetter("viewer_kwargs"))
+    viewer_kwargs, *_ = env_runner.env.get_attr("viewer_kwargs")
     viewer_kwargs = {
         **viewer_kwargs, **dict(
-            robots_colors=('green', 'red') if evaluation_num > 1 else None),
+            robots_colors=('green', 'red') if num_episodes > 1 else None),
         **kwargs, **dict(
-            legend=("best", "worst") if evaluation_num > 1 else None,
+            legend=("best", "worst") if num_episodes > 1 else None,
             close_backend=True)}
     thread = async_play_and_record_logs_files(
         list(set(all_log_paths[idx] for idx in (idx_best, idx_worst))),
@@ -939,184 +1356,231 @@ def evaluate_local_worker(worker: RolloutWorker,
                 ctypes.c_long(thread.ident), ctypes.py_object(SystemExit))
 
     # Return all collected data
-    return all_batches, all_log_paths
+    return all_episodes, all_log_paths
 
 
-def evaluate_algo(algo: Algorithm,
-                  eval_workers: Optional[WorkerSet] = None,
-                  print_stats: bool = True,
-                  enable_replay: Optional[bool] = None,
-                  record_video: bool = False) -> Dict[str, Any]:
-    """Evaluates the current algorithm under `evaluation_config` configuration,
-    then returns some performance metrics.
+def build_eval_runner_from_checkpoint(checkpoint_path: str) -> EnvRunner:
+    """Build a local evaluation runner from a checkpoint generated by calling
+    `algo.save()` during training of the policy.
 
-    This method is specifically tailored for Gym environments inheriting from
-    `BaseJiminyEnv`. It can be used to monitor the training progress.
+    This local env runner can then be passed to `evaluate_from_runner` for
+    evaluating the performance of a policy without having to initialize Ray
+    distributed computing backend.
 
-    :param eval_workers: Rollout workers for evaluation.
-                         Optional: `algo.eval_workers` by default.
-    :param print_stats: Whether to print high-level statistics.
-                        Optional: True by default.
-    :param enable_replay: Whether to enable replay of the simulation.
-                          Optional: The opposite of `record_video` by default.
-    :param record_video: Whether to enable video recording during evaluation.
-                         The video will feature the best and worst trials.
-                         Optional: False by default.
+    .. warning::
+        This method is *NOT* standalone in the event where the evaluation
+        env has been registered by calling `ray.tune.registry.register_env`.
+        In such a case, one must ensure that this registration has been done
+        prior to calling this method, otherwise it will raise an exception.
+
+    :param checkpoint_path: Checkpoint directory to be restored.
     """
-    # Handling of default argument(s)
-    if eval_workers is None:
-        eval_workers = algo.evaluation_workers
-    assert eval_workers is not None
-    if isinstance(eval_workers, RolloutWorker):
-        local_worker = eval_workers
-    else:
-        local_worker = eval_workers.local_worker()
+    # Restore evaluation runner
+    eval_runner_checkpoint_path = Path(checkpoint_path) / "eval_env_runner"
+    class_and_ctor_args_fullpath = (
+        eval_runner_checkpoint_path / "class_and_ctor_args.pkl")
+    with open(class_and_ctor_args_fullpath, "rb") as f:
+        ctor_info = pickle.load(f)
+    ctor = ctor_info["class"]
+    env_runner = ctor.from_checkpoint(eval_runner_checkpoint_path)
 
-    # Extract evaluation config
-    eval_cfg = algo.evaluation_config
-    assert isinstance(eval_cfg, AlgorithmConfig)
-    algo_cfg = algo.config
+    # Restore trained RLModule
+    rl_module = RLModule.from_checkpoint(
+        Path(checkpoint_path) / COMPONENT_LEARNER_GROUP / COMPONENT_LEARNER /
+        COMPONENT_RL_MODULE / DEFAULT_MODULE_ID)
 
-    # Enforce restriction(s) for using this method
-    (env_type,) = set(
-        chain(*eval_workers.foreach_env(lambda e: type(e.unwrapped))))
-    if not issubclass(env_type, BaseJiminyEnv):
-        raise RuntimeError("Test env must inherit from `BaseJiminyEnv`.")
-    if algo_cfg["evaluation_duration_unit"] == "auto":
-        raise ValueError("evaluation_duration_unit='timesteps' not supported.")
-    num_episodes = algo_cfg["evaluation_duration"]
-    if num_episodes == "auto":
-        raise ValueError("evaluation_duration='auto' not supported.")
+    # Sync the weights from the learner to the evaluation runner.
+    # Note that it is necessary to load the learner module because weights are
+    # not up-to-date at runner-level.
+    rl_module = RLModule.from_checkpoint(
+        Path(checkpoint_path) / COMPONENT_LEARNER_GROUP / COMPONENT_LEARNER /
+        COMPONENT_RL_MODULE / DEFAULT_MODULE_ID)
+    env_runner.set_state({COMPONENT_RL_MODULE: rl_module.get_state()})
 
-    # Collect samples.
-    # `sample` either produces 1 episode or exactly `evaluation_duration` based
-    # on `unit` being set to "episodes" or "timesteps" respectively. See:
-    # https://github.com/ray-project/ray/blob/ray-2.2.0/rllib/algorithms/algorithm.py#L937  # noqa: E501  # pylint: disable=line-too-long
-    eval_workers.foreach_worker(_toggle_write_log_hook)
-    if eval_workers.num_remote_workers() == 0:
-        # Collect the data
-        all_batches, all_log_paths = evaluate_local_worker(
-            local_worker, num_episodes, print_stats=False, enable_replay=False)
+    return env_runner
 
-        # Extract some high-level statistics
-        all_num_steps = [batch.env_steps() for batch in all_batches]
-        all_total_rewards = [
-            np.sum(batch[batch.REWARDS]) for batch in all_batches]
-    elif eval_workers.num_healthy_remote_workers() > 0:
-        all_batches, all_log_paths = [], []
-        all_num_steps, all_total_rewards = [], []
-        while (delta_episodes := num_episodes - len(all_log_paths)) > 0:
-            if eval_workers.num_healthy_remote_workers() == 0:
-                # All of the remote evaluation workers died. Stopping.
-                break
 
-            # Select proper number of evaluation workers for this round
-            selected_eval_worker_ids = [
-                worker_id for i, worker_id in enumerate(
-                    eval_workers.healthy_worker_ids()) if i < delta_episodes]
+def build_module_from_checkpoint(checkpoint_path: str) -> RLModule:
+    """Build a single-agent evaluation policy from a checkpoint generated by
+    calling `algo.save()` during training of the policy.
 
-            # Run a complete episode per selected worker
-            batches = eval_workers.foreach_worker(
-                func=lambda w: w.sample(),
-                local_worker=False,
-                remote_worker_ids=selected_eval_worker_ids,
-                timeout_seconds=algo_cfg["evaluation_sample_timeout_s"])
-            if len(batches) != len(selected_eval_worker_ids):
-                LOGGER.warning(
-                    "Calling `sample()` on your remote evaluation worker(s) "
-                    "resulted in a timeout. Please configure the parameter "
-                    "`evaluation_sample_timeout_s` accordingly.")
-                break
+    .. warning::
+        This method only supports single-agent policy is standalone, that is:
+          * without custom connectors, i.e.
+            `config.module_to_env_connector = None`,
+            `config.env_to_module_connector = None`.
+          * with default connectors enables, i.e.
+            `config.add_default_connectors_to_module_to_env_pipeline = True`,
+            `config.add_default_connectors_to_module_to_env_pipeline = True`.
+          * without action normalization or clipping at runner-level, i.e.
+            `config.normalize_actions = False`,
+            `config.clip_actions = False`.
 
-            # Keep track of basic info
-            for ma_batch in batches:
-                batch = ma_batch.as_multi_agent()[DEFAULT_POLICY_ID]
-                all_num_steps.append(batch.env_steps())
-                all_total_rewards.append(np.sum(batch[batch.REWARDS]))
-            all_log_paths += chain(*eval_workers.foreach_worker(
-                lambda w: w.callbacks.log_paths, local_worker=False))
+        As an alternative to rllib-specific pre- and post- processors at
+        runner-level such as action normalization and clipping, one can
+        leverage the environment pipeline design introduced by jiminy, e.g. by
+        adding `NormalizeAction` and/or `ClipAction` layers.
 
-            # Store all batches for later use
-            if algo.reward_estimators:
-                all_batches.extend(batches)
-    else:
-        # Can't find a good way to run the evaluation. Wait for next iteration.
-        return {}
-    eval_workers.foreach_worker(_toggle_write_log_hook)
+    :param checkpoint_path: Checkpoint directory to be restored.
+    """
+    # Restore a complete runner instead of just the policy, in order to perform
+    # checks regarding the pre- and post- processing of the policy.
+    env_runner = build_eval_runner_from_checkpoint(checkpoint_path)
+    config = env_runner.config
 
-    # Compute high-level performance metrics
-    metrics = collect_metrics(
-        eval_workers,
-        keep_custom_metrics=eval_cfg["keep_per_episode_custom_metrics"],
-        timeout_seconds=eval_cfg["metrics_episode_collection_timeout_s"])
-    metrics[NUM_ENV_STEPS_SAMPLED_THIS_ITER] = sum(all_num_steps)
+    # Assert(s) for type checker
+    assert isinstance(env_runner, SingleAgentEnvRunner)
 
-    # Ascii histogram if requested
-    if print_stats:
-        # Get the step size of the environment
-        (env_dt,) = set(chain(
-            *eval_workers.foreach_env(attrgetter("step_dt"))))
+    # Make sure that the environment is single-agent
+    if config.is_multi_agent():
+        raise RuntimeError("Multi-agent environments are not supported")
 
-        # Print statistics if enough data available
-        if num_episodes >= 10:
-            _pretty_print_statistics((
-                ("Episode duration", env_dt * np.array(all_num_steps)),
-                ("Total reward", np.array(all_total_rewards))))
+    # Make sure that no custom module from/to env connector has been specified
+    if config._module_to_env_connector is not None:
+        raise RuntimeError("Custom module to env connectors are not supported")
+    if config._env_to_module_connector is not None:
+        raise RuntimeError("Custom env to module connectors are not supported")
+
+    # Make sure that default module from/to env connectors are enabled
+    if not config.add_default_connectors_to_env_to_module_pipeline:
+        raise RuntimeError(
+            "Disabling default env to module connectors are not supported")
+    if not config.add_default_connectors_to_module_to_env_pipeline:
+        raise RuntimeError(
+            "Disabling default module to env connectors are not supported")
+
+    # Make sure that action normalization and clipping is disabled
+    if config.normalize_actions or config.clip_actions:
+        raise RuntimeError(
+            "Action normalization and/or clipping is not supported")
+
+    return env_runner.module
+
+
+def build_module_wrapper(rl_module: RLModule,
+                         explore: bool = False) -> PolicyCallbackFun:
+    """Wrap a single-agent RL module into a simple callable that can be passed
+    to `BaseJiminyEnv.evaluate` for assessing the performance of the underlying
+    policy on a given environment.
+
+    .. note::
+        Internally, this method leverages connectors to perform observation and
+        action pre- and post-processing. This is especially convenient to h
+        andle automatically module view requirements, and store the internal
+        state of the policy, if any, without having to manage buffer manually.
+        In practice, this methods keeps tracks of all the data being collected
+        at every timesteps since the beginning of the ongoing episode. This
+        information is passed as input of every connectors. This means that
+        connectors are now stateless, which is much better for reproducibility
+        and observability.
+
+    :param rl_module: Single-agent RL module to evaluate.
+    :param explore: Whether to enable exploration during policy inference.
+    """
+    # Enable evaluation module
+    assert isinstance(rl_module, TorchRLModule)
+    rl_module.eval()
+
+    # Instantiate default env_to_module and module_to_env pipelines
+    env_to_module = EnvToModulePipeline(
+        input_observation_space=rl_module.observation_space,
+        input_action_space=rl_module.action_space,
+        connectors=[
+            AddObservationsFromEpisodesToBatch(),
+            AddStatesFromEpisodesToBatch(),
+            BatchIndividualItems(),
+            NumpyToTensor()])
+    module_to_env = ModuleToEnvPipeline(
+        input_observation_space=rl_module.observation_space,
+        input_action_space=rl_module.action_space,
+        connectors=[
+            GetActions(),
+            TensorToNumpy(),
+            UnBatchToIndividualItems(),
+            RemoveSingleTsTimeRankFromBatch(),
+            ListifyDataForVectorEnv()])
+
+    # Pre-allocate nonlocal memory buffers
+    episode = SingleAgentEpisode()
+    extra_model_outputs_prev: Dict[str, Any] = {}
+    shared_data: Dict[str, Any] = {}
+
+    def forward(obs: Obs,
+                action_prev: Optional[Act],
+                reward: Optional[float],
+                terminated: bool,
+                truncated: bool,
+                info: Dict[str, Any]) -> Act:
+        """Pre-process the observation, compute the action and post-process it.
+        """
+        # Bind local connectors and buffers managing the internal state
+        nonlocal rl_module, module_to_env, env_to_module, episode, \
+            extra_model_outputs_prev, shared_data, explore
+
+        # Reset the internal buffer at initialization of the episode, namely
+        # when `reward` is `None`.
+        if reward is None:
+            # Instantiate new empty episode
+            episode = SingleAgentEpisode(
+                observations=[obs],
+                observation_space=rl_module.observation_space,
+                action_space=rl_module.action_space)
+
+            # Clear shared data buffer
+            shared_data.clear()
+
+        # Update observation buffer
         else:
-            LOGGER.warning(
-                "'evaluation_num' must be at least 10 to print meaningful "
-                "statistics.")
+            episode.add_env_step(
+                obs,
+                action_prev,
+                reward,
+                infos=info,
+                terminated=terminated,
+                truncated=truncated,
+                extra_model_outputs=extra_model_outputs_prev)
 
-    # Backup only the log file corresponding to the best and worst trial
-    idx_worst, idx_best = np.argsort(all_total_rewards)[[0, -1]]
-    log_labels, log_paths = ("best", "worst")[:num_episodes], []
-    for suffix, idx in zip(log_labels, (idx_best, idx_worst)):
-        log_path = f"{algo.logdir}/iter_{algo.iteration}-{suffix}.hdf5"
-        shutil.move(all_log_paths[idx], log_path)
-        log_paths.append(log_path)
+        # Observation pre-processing
+        to_module = env_to_module(
+            rl_module=rl_module,
+            episodes=(episode,),
+            explore=explore,
+            shared_data=shared_data)
 
-    # Replay and/or record a video of the best and worst trials if requested.
-    # Async to enable replaying and recording while training keeps going.
-    viewer_kwargs, *_ = chain(*eval_workers.foreach_env(
-        attrgetter("viewer_kwargs")))
-    viewer_kwargs.update(
-        scene_name=f"iter_{algo.iteration}",
-        robots_colors=('green', 'red') if num_episodes > 1 else None,
-        legend=log_labels if num_episodes > 1 else None,
-        close_backend=True)
-    if record_video:
-        viewer_kwargs.setdefault(
-            "record_video_path", f"{algo.logdir}/iter_{algo.iteration}.mp4")
-    async_play_and_record_logs_files(
-        log_paths, enable_replay=enable_replay, **viewer_kwargs)
+        # RLModule forward pass
+        if explore:
+            to_env = rl_module.forward_exploration(to_module, t=episode.t)
+        else:
+            to_env = rl_module.forward_inference(to_module)
 
-    # Compute off-policy estimates
-    estimates = defaultdict(list)
-    for name, estimator in algo.reward_estimators.items():
-        for batch in all_batches:
-            estimate_result = estimator.estimate(
-                batch,
-                split_batch_by_episode=algo_cfg[
-                    "ope_split_batch_by_episode"])
-            estimates[name].append(estimate_result)
+        # Action post-processing
+        to_env = module_to_env(
+            rl_module=rl_module,
+            batch=to_env,
+            episodes=(episode,),
+            explore=explore,
+            shared_data=shared_data)
 
-    # Accumulate estimates from all batches
-    if estimates:
-        metrics["off_policy_estimator"] = {}
-        for name, estimate_list in estimates.items():
-            avg_estimate = tree.map_structure(
-                lambda *x: np.mean(x, axis=0), *estimate_list)
-            metrics["off_policy_estimator"][name] = avg_estimate
+        # Extract the (vectorized) actions to be sent to the env
+        actions = to_env.pop(Columns.ACTIONS)
+        actions_for_env = to_env.pop(Columns.ACTIONS_FOR_ENV, actions)
 
-    return metrics
+        # Backup extra module outputs
+        extra_model_outputs_prev = {k: v[0] for k, v in to_env.items()}
+
+        return actions_for_env[0]
+
+    return forward
 
 
 __all__ = [
     "initialize",
     "train",
-    "build_eval_policy_from_checkpoint",
-    "build_policy_wrapper",
-    "build_eval_worker_from_checkpoint",
-    "evaluate_local_worker",
-    "evaluate_algo"
+    "sample_from_runner",
+    "sample_from_runner_group",
+    "evaluate_from_algo",
+    "evaluate_from_runner",
+    "build_eval_runner_from_checkpoint",
+    "build_module_from_checkpoint",
+    "build_module_wrapper",
 ]

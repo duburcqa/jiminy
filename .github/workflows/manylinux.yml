@@ -13,17 +13,17 @@ jobs:
 
     strategy:
       matrix:
-        PYTHON_VERSION: ['cp38', 'cp39', 'cp310', 'cp311', 'cp312']
-        OS: [ubuntu-22.04] #, macos-14]
+        PYTHON_VERSION: ['cp310', 'cp311', 'cp312']
+        OS: [ubuntu-24.04]
         include:
-          - OS: ubuntu-22.04
+          - OS: ubuntu-24.04
             CONTAINER: 'quay.io/pypa/manylinux_2_28_x86_64:latest'
             # Enabling AVX2 would bring about 10% speeds-up but breaks compatibility with
             # libraries not compiled for AVX2 as it requires 256 bits memory alignment.
-            CMAKE_CXX_FLAGS_ARCH: "-march=x86-64-v3 -mno-avx -mno-avx2"
-          #- OS: macos-14
+            CXX_FLAGS_ARCH: "-march=x86-64-v3 -mno-avx -mno-avx2"
+          #- OS: macos-15
           #  CONTAINER: 'quay.io/pypa/manylinux_2_28_aarch64:latest'
-          #  CMAKE_CXX_FLAGS_ARCH: ""
+          #  CXX_FLAGS_ARCH: ""
 
     runs-on: ${{ matrix.OS }}
     container: ${{ matrix.CONTAINER }}
@@ -35,7 +35,7 @@ jobs:
 
     env:
       BUILD_TYPE: "Release"
-      CMAKE_CXX_FLAGS: "-DEIGEN_MPL2_ONLY ${{ matrix.CMAKE_CXX_FLAGS_ARCH }}"
+      CXX_FLAGS: "-DEIGEN_MPL2_ONLY ${{ matrix.CXX_FLAGS_ARCH }}"
 
     #####################################################################################
 
@@ -65,7 +65,7 @@ jobs:
         "${PYTHON_EXECUTABLE}" -m pip install twine cmake
     - name: Install latest numpy version at build-time for run-time binary compatibility
       run: |
-        "${PYTHON_EXECUTABLE}" -m pip install --upgrade "numpy>=1.24,<2.0"
+        "${PYTHON_EXECUTABLE}" -m pip install --upgrade "numpy>=1.24" numba
     - name: Build project dependencies
       run: |
         ./build_tools/build_install_deps_unix.sh
@@ -87,9 +87,9 @@ jobs:
               -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
               -DBoost_USE_STATIC_LIBS=ON -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
               -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON \
-              -DINSTALL_GYM_JIMINY=${{ (matrix.PYTHON_VERSION == 'cp312' && 'OFF') || 'ON' }} \
-              -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
-        make -j2
+              -DINSTALL_GYM_JIMINY=${{ (matrix.PYTHON_VERSION == 'cp313' && 'OFF') || 'ON' }} \
+              -DCMAKE_CXX_FLAGS="${CXX_FLAGS}" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+        make -j4
 
         # Bundle the boost python dependencies with jiminy
         mkdir -p "$RootDir/build/pypi/jiminy_py/src/jiminy_py"
@@ -112,11 +112,15 @@ jobs:
         export LD_LIBRARY_PATH="$InstallDir/lib:$InstallDir/lib64:/usr/local/lib"
 
         # Generate stubs
+        # FIXME: stubgen does not work with Numpy 2.X
+        # (see https://github.com/python/mypy/issues/17396)
+        "${PYTHON_EXECUTABLE}" -m pip install "numpy<2.0"
         stubgen -p jiminy_py -o $RootDir/build/pypi/jiminy_py/src
-        "${PYTHON_EXECUTABLE}" "$RootDir/build_tools/stub_gen.py" \
+        "${PYTHON_EXECUTABLE}" "$RootDir/build_tools/stubgen.py" \
           -o $RootDir/build/stubs --ignore-invalid=all jiminy_py
         \cp $RootDir/build/stubs/jiminy_py-stubs/core/__init__.pyi \
             $RootDir/build/pypi/jiminy_py/src/jiminy_py/core/core.pyi
+        "${PYTHON_EXECUTABLE}" -m pip install --upgrade "numpy>=1.24" numba
 
         # Generate wheels
         cd "$RootDir/build"
@@ -133,7 +137,7 @@ jobs:
         name: wheelhouse-jiminy-${{ matrix.PYTHON_VERSION }}
         path: build/wheelhouse
     - name: Upload the wheels of Gym Jiminy
-      if: success() && matrix.PYTHON_VERSION == 'cp38'
+      if: success() && matrix.PYTHON_VERSION == 'cp312'
       uses: actions/upload-artifact@v4
       with:
         name: wheelhouse-gym_jiminy
@@ -147,7 +151,7 @@ jobs:
 
     strategy:
       matrix:
-        OS: [ubuntu-22.04] #, macos-14]
+        OS: [ubuntu-24.04] #, macos-15]
 
     runs-on: ${{ matrix.OS }}
 
@@ -174,7 +178,7 @@ jobs:
     - name: Installing requirements
       run: |
         sudo env "PATH=$PATH" "$RootDir/build_tools/easy_install_deps_ubuntu.sh"
-        "${PYTHON_EXECUTABLE}" -m pip install --prefer-binary pillow scipy
+        "${PYTHON_EXECUTABLE}" -m pip install --prefer-binary pillow scipy "numpy<2.0"
 
     #####################################################################################
 
@@ -186,9 +190,9 @@ jobs:
         path: wheelhouse
     - name: Install the best wheel among the previously generated
       run: |
-        # extract the "best" wheel for our system out of the wheelhouse, using pip's own resolution
-        # we cannot directly install with find-links because it does not guarantee precedence of local wheels
-        # see https://github.com/pypa/pip/issues/2589 (pip>=21.1)
+        # Extract the "best" wheel for our system out of the wheelhouse, using pip's own resolution.
+        # We cannot directly install with find-links because it does not guarantee precedence of
+        # local wheels for `pip>=21.1` (see https://github.com/pypa/pip/issues/2589).
         "${PYTHON_EXECUTABLE}" -m pip download \
           --no-index --find-links="$RootDir/wheelhouse" --no-deps --dest="$RootDir/dist" jiminy_py
         # rely on bash to expand the full wheel name
@@ -200,9 +204,11 @@ jobs:
       run: |
         mkdir -p "$RootDir/core/examples/external_project/build"
         cd "$RootDir/core/examples/external_project/build"
-        cmake "$RootDir/core/examples/external_project/" -DCMAKE_INSTALL_PREFIX="$InstallDir" \
-               -DCMAKE_PREFIX_PATH="$InstallDir" -DCMAKE_VERBOSE_MAKEFILE=ON \
-               -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
+        cmake "$RootDir/core/examples/external_project/" \
+               -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" \
+               -DCMAKE_VERBOSE_MAKEFILE=ON \
+               -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
+               -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
         make install
 
         "$InstallDir/bin/pip_double_pendulum"
@@ -214,7 +220,7 @@ jobs:
 
   publish-pypi-manylinux:
     name: Publish on PyPi the wheel for Linux of jiminy_py and gym_jiminy
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     permissions:
       id-token: write
 
@@ -229,7 +235,7 @@ jobs:
         merge-multiple: true
         path: wheelhouse
     - name: Publish the wheels on PyPi
-      uses: pypa/gh-action-pypi-publish@v1.8.11
+      uses: pypa/gh-action-pypi-publish@v1.10.3
       with:
         packages-dir: wheelhouse
         verify-metadata: false

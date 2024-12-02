@@ -1,7 +1,7 @@
 #include "jiminy/core/hardware/basic_motors.h"
 
-#include "pinocchio/bindings/python/fwd.hpp"
-
+#define NO_IMPORT_ARRAY
+#include "jiminy/python/fwd.h"
 #include "jiminy/python/utilities.h"
 #include "jiminy/python/motors.h"
 

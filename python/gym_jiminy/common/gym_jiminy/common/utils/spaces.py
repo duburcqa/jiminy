@@ -10,9 +10,9 @@ from functools import partial
 from collections import OrderedDict
 from collections.abc import Mapping, MutableMapping, Sequence, MutableSequence
 from typing import (
-    Any, Dict, Optional, Union, Sequence as SequenceT, Mapping as MappingT,
-    Iterable, Tuple, Literal, SupportsFloat, TypeVar, Type, Callable,
-    no_type_check, cast)
+    Any, List, Dict, Optional, Union, Sequence as SequenceT, Tuple, Literal,
+    Mapping as MappingT, SupportsFloat, TypeVar, Type, Callable, no_type_check,
+    overload)
 
 import numba as nb
 import numpy as np
@@ -20,16 +20,19 @@ from numpy import typing as npt
 
 import gymnasium as gym
 
+import jiminy_py.core as jiminy
+from jiminy_py.core import (  # pylint: disable=no-name-in-module
+    EncoderSensor, EffortSensor, array_copyto, multi_array_copyto)
 from jiminy_py import tree
-from jiminy_py.core import array_copyto  # pylint: disable=no-name-in-module
 
 
 ValueT = TypeVar('ValueT')
 ValueInT = TypeVar('ValueInT')
 ValueOutT = TypeVar('ValueOutT')
 
+
 StructNested = Union[MappingT[str, 'StructNested[ValueT]'],
-                     Iterable['StructNested[ValueT]'],
+                     SequenceT['StructNested[ValueT]'],
                      ValueT]
 FieldNested = StructNested[str]
 DataNested = StructNested[np.ndarray]
@@ -80,55 +83,202 @@ def _array_clip(value: np.ndarray,
 @nb.jit(nopython=True, cache=True, fastmath=True)
 def _array_contains(value: np.ndarray,
                     low: Optional[ArrayOrScalar],
-                    high: Optional[ArrayOrScalar],
-                    tol_abs: float,
-                    tol_rel: float) -> bool:
+                    high: Optional[ArrayOrScalar]) -> bool:
     """Check that all array elements are withing bounds, up to some tolerance
-    threshold. If both absolute and relative tolerances are provided, then
-    satisfying only one of the two criteria is considered sufficient.
+    threshold.
 
     :param value: Array holding values to check.
     :param low: Optional lower bound.
     :param high: Optional upper bound.
-    :param tol_abs: Absolute tolerance.
-    :param tol_rel: Relative tolerance. It will be ignored if either the lower
-                    or upper is not specified.
     """
-    if value.ndim:
-        tol_nd = np.full_like(value, tol_abs)
-        if low is not None and high is not None and tol_rel > 0.0:
-            tol_nd = np.maximum((high - low) * tol_rel, tol_nd)
+    value_ = np.asarray(value)
+    if value_.ndim:
+        value_1d = np.atleast_1d(value_)
         # Reversed bound check because 'all' is always true for empty arrays
-        if low is not None and not (low - tol_nd <= value).all():
+        if low is not None and not (low <= value_1d).all():
             return False
-        if high is not None and not (value <= high + tol_nd).all():
+        if high is not None and not (value_1d <= high).all():
             return False
         return True
-    tol_0d = tol_abs
-    if low is not None and high is not None and tol_rel > 0.0:
-        tol_0d = max((high.item() - low.item()) * tol_rel, tol_0d)
-    if low is not None and (low.item() - tol_0d > value.item()):
+    if low is not None and (low.item() > value_.item()):
         return False
-    if high is not None and (value.item() > high.item() + tol_0d):
+    if high is not None and (value_.item() > high.item()):
         return False
     return True
 
 
-def get_bounds(space: gym.Space
+def get_robot_state_space(robot: jiminy.Robot,
+                          use_theoretical_model: bool = False,
+                          ignore_velocity_limit: bool = True
+                          ) -> gym.spaces.Dict:
+    """Get the state space associated with a given robot.
+
+    .. warning:
+        This method is not meant to be overloaded in general since the
+        definition of the state space is mostly consensual. One must rather
+        overload `_initialize_observation_space` to customize the observation
+        space as a whole.
+
+    :param robot: Jiminy robot to consider.
+    :param use_theoretical_model: Whether to compute the state space associated
+                                  with the theoretical model instead of the
+                                  extended simulation model.
+    :param ignore_velocity_limit: Whether to ignore the velocity bounds
+                                  specified in model.
+    """
+    # Define some proxies for convenience
+    pinocchio_model = robot.pinocchio_model
+    position_limit_lower = pinocchio_model.lowerPositionLimit
+    position_limit_upper = pinocchio_model.upperPositionLimit
+    velocity_limit = pinocchio_model.velocityLimit
+
+    # Deduce bounds associated the theoretical model from the extended one
+    if use_theoretical_model:
+        position_limit_lower, position_limit_upper = map(
+            robot.get_theoretical_position_from_extended,
+            (position_limit_lower, position_limit_upper))
+        velocity_limit = (
+            robot.get_theoretical_velocity_from_extended(velocity_limit))
+
+    # Ignore velocity bounds in requested
+    if ignore_velocity_limit:
+        velocity_limit = np.full_like(velocity_limit, float("inf"))
+
+    # Aggregate position and velocity bounds to define state space
+    return gym.spaces.Dict(OrderedDict(
+        q=gym.spaces.Box(low=position_limit_lower,
+                         high=position_limit_upper,
+                         dtype=np.float64),
+        v=gym.spaces.Box(low=float("-inf"),
+                         high=float("inf"),
+                         shape=(robot.pinocchio_model.nv,),
+                         dtype=np.float64)))
+
+
+def get_robot_measurements_space(robot: jiminy.Robot) -> gym.spaces.Dict:
+    """Get the sensor space associated with a given robot.
+
+    It gathers the sensors data in a dictionary. It maps each available type of
+    sensor to the associated data matrix. Rows correspond to the sensor type's
+    fields, and columns correspond to each individual sensor.
+
+    .. note:
+        The mapping between row `i` of data matrix and associated sensor type's
+        field is given by:
+
+        .. code-block:: python
+
+            field = getattr(jiminy_py.core, key).fieldnames[i]
+
+        The mapping between column `j` of data matrix and associated sensor
+        name and object are given by:
+
+        .. code-block:: python
+
+            sensor = env.robot.sensors[key][j]
+
+    :param robot: Jiminy robot to consider.
+    """
+    # Make sure that the robot is initialized
+    assert robot.is_initialized
+
+    # Define some proxies for convenience
+    position_limit_lower = robot.pinocchio_model.lowerPositionLimit
+    position_limit_upper = robot.pinocchio_model.upperPositionLimit
+
+    # Initialize the bounds of the sensor space
+    sensor_measurements = robot.sensor_measurements
+    sensor_space_lower = OrderedDict(
+        (key, np.full(value.shape, -np.inf))
+        for key, value in sensor_measurements.items())
+    sensor_space_upper = OrderedDict(
+        (key, np.full(value.shape, np.inf))
+        for key, value in sensor_measurements.items())
+
+    # Replace inf bounds of the encoder sensor space
+    for sensor in robot.sensors.get(EncoderSensor.type, ()):
+        # Get the position bounds of the sensor.
+        # Note that for rotary unbounded encoders, the sensor bounds cannot be
+        # extracted from the motor because only the principal value of the
+        # angle is observed by the sensor.
+        assert isinstance(sensor, EncoderSensor)
+        joint = robot.pinocchio_model.joints[sensor.joint_index]
+        joint_type = jiminy.get_joint_type(joint)
+        if joint_type == jiminy.JointModelType.ROTARY_UNBOUNDED:
+            sensor_position_lower = - np.pi
+            sensor_position_upper = + np.pi
+        else:
+            try:
+                motor = robot.motors[sensor.motor_index]
+                sensor_position_lower = motor.position_limit_lower
+                sensor_position_upper = motor.position_limit_upper
+            except IndexError:
+                sensor_position_lower = position_limit_lower[joint.idx_q]
+                sensor_position_upper = position_limit_upper[joint.idx_q]
+
+        # Update the bounds accordingly
+        sensor_space_lower[EncoderSensor.type][0, sensor.index] = (
+            sensor_position_lower)
+        sensor_space_upper[EncoderSensor.type][0, sensor.index] = (
+            sensor_position_upper)
+
+    # Replace inf bounds of the effort sensor space
+    for sensor in robot.sensors.get(EffortSensor.type, ()):
+        assert isinstance(sensor, EffortSensor)
+        motor = robot.motors[sensor.motor_index]
+        sensor_space_lower[EffortSensor.type][0, sensor.index] = (
+            - motor.effort_limit)
+        sensor_space_upper[EffortSensor.type][0, sensor.index] = (
+            motor.effort_limit)
+
+    return gym.spaces.Dict(OrderedDict(
+        (key, gym.spaces.Box(low=min_val, high=max_val, dtype=np.float64))
+        for (key, min_val), max_val in zip(
+            sensor_space_lower.items(), sensor_space_upper.values())))
+
+
+def get_bounds(space: gym.Space,
+               tol_abs: float = 0.0,
+               tol_rel: float = 0.0,
                ) -> Tuple[Optional[ArrayOrScalar], Optional[ArrayOrScalar]]:
     """Get the lower and upper bounds of a given 'gym.Space' if any.
 
     :param space: `gym.Space` on which to operate.
+    :param tol_abs: Absolute tolerance.
+                    Optional: 0.0 by default
+    :param tol_rel: Relative tolerance. It will be ignored if either the lower
+                    or upper is not specified.
+                    Optional: 0.0 by default.
 
     :returns: Lower and upper bounds as a tuple.
     """
+    # Extract lower and upper bounds depending on the gym space
+    dtype: npt.DTypeLike
+    low: Optional[ArrayOrScalar] = None
+    high: Optional[ArrayOrScalar] = None
     if isinstance(space, gym.spaces.Box):
-        return space.low, space.high
+        low, high = space.low, space.high
+        dtype = low.dtype
     if isinstance(space, gym.spaces.Discrete):
-        return space.start, space.n
+        low, high = space.start, space.n
+        dtype = np.dtype(int)
     if isinstance(space, gym.spaces.MultiDiscrete):
-        return 0, space.nvec
-    return None, None
+        low, high = 0, space.nvec
+        dtype = np.dtype(int)
+
+    # Take into account the absolute and relative tolerances
+    # assert tol_abs >= 0.0 and tol_rel >= 0.0
+    if tol_abs or tol_rel and (low is not None or high is not None):
+        tol_nd = np.full_like(low, tol_abs)
+        if tol_rel and low is not None and high is not None:
+            tol_nd = np.maximum(
+                (high - low) * tol_rel, tol_nd)  # type: ignore[operator]
+        if low is not None:
+            low = (low - tol_nd).astype(dtype)
+        if high is not None:
+            high = (high + tol_nd).astype(dtype)
+
+    return low, high
 
 
 @no_type_check
@@ -147,12 +297,11 @@ def zeros(space: gym.Space[DataNestedT],
     value = None
     if isinstance(space, gym.spaces.Dict):
         value = OrderedDict()
-        for field, subspace in space.spaces.items():
+        for field, subspace in space.items():
             value[field] = zeros(subspace, dtype=dtype)
         return value
     if isinstance(space, gym.spaces.Tuple):
-        value = tuple(zeros(subspace, dtype=dtype)
-                      for subspace in space.spaces.values())
+        value = tuple(zeros(subspace, dtype=dtype) for subspace in space)
     elif isinstance(space, gym.spaces.Box):
         value = np.zeros(space.shape, dtype=dtype or space.dtype)
     elif isinstance(space, gym.spaces.Discrete):
@@ -206,17 +355,27 @@ def copyto(dst: DataNested, src: DataNested) -> None:
     :param dst: Hierarchical data structure to update, possibly flattened.
     :param value: Hierarchical data to copy, possibly flattened.
     """
-    for data, value in zip(*map(tree.flatten, (dst, src))):
-        array_copyto(data, value)
+    multi_array_copyto(tree.flatten(dst), tree.flatten(src))
 
 
+@overload
 def copy(data: DataNestedT) -> DataNestedT:
+    ...
+
+
+@overload
+def copy(data: gym.Space[DataNestedT]) -> gym.Space[DataNestedT]:
+    ...
+
+
+def copy(data: Union[DataNestedT, gym.Space[DataNestedT]]
+         ) -> Union[DataNestedT, gym.Space[DataNestedT]]:
     """Shallow copy recursively 'data' from `gym.Space`, so that only leaves
     are still references.
 
     :param data: Hierarchical data structure to copy without allocation.
     """
-    return cast(DataNestedT, tree.unflatten_as(data, tree.flatten(data)))
+    return tree.unflatten_as(data, tree.flatten(data))
 
 
 @no_type_check
@@ -235,11 +394,11 @@ def clip(data: DataNested, space: gym.Space[DataNested]) -> DataNested:
     if tree.issubclass_mapping(data_type):
         return data_type({
             field: clip(data[field], subspace)
-            for field, subspace in space.spaces.items()})
+            for field, subspace in space.items()})
     if tree.issubclass_sequence(data_type):
         return data_type([
             clip(data[i], subspace)
-            for i, subspace in enumerate(space.spaces)])
+            for i, subspace in enumerate(space)])
     return _array_clip(data, *get_bounds(space))
 
 
@@ -264,11 +423,11 @@ def contains(data: DataNested,
     data_type = type(data)
     if tree.issubclass_mapping(data_type):
         return all(contains(data[field], subspace, tol_abs, tol_rel)
-                   for field, subspace in space.spaces.items())
+                   for field, subspace in space.items())
     if tree.issubclass_sequence(data_type):
         return all(contains(data[i], subspace, tol_abs, tol_rel)
-                   for i, subspace in enumerate(space.spaces))
-    return _array_contains(data, *get_bounds(space), tol_abs, tol_rel)
+                   for i, subspace in enumerate(space))
+    return _array_contains(data, *get_bounds(space, tol_abs, tol_rel))
 
 
 @no_type_check
@@ -279,7 +438,9 @@ def build_reduce(fn: Callable[..., ValueInT],
                  arity: Optional[Literal[0, 1]],
                  *args: Any,
                  initializer: Optional[Callable[[], ValueOutT]] = None,
-                 forward_bounds: bool = True) -> Callable[..., ValueOutT]:
+                 forward_bounds: bool = True,
+                 tol_abs: float = 0.0,
+                 tol_rel: float = 0.0) -> Callable[..., ValueOutT]:
     """Generate specialized callable applying transform and reduction on all
     leaves of given nested space.
 
@@ -290,8 +451,8 @@ def build_reduce(fn: Callable[..., ValueInT],
     .. warning::
         It is assumed without checking that all nested data structures are
         consistent together and with the space if provided. It holds true both
-        data known at generation-time or runtime. Yet, it is only required for
-        data provided at runtime if any to include the original data structure,
+        data known at generation-time or runtime. It is only required for data
+        that may be provided at runtime to include the original data structure,
         so it may contain additional branches which will be ignored.
 
     .. warning::
@@ -319,8 +480,8 @@ def build_reduce(fn: Callable[..., ValueInT],
                after transform. See 'functools.reduce' documentation for
                details. `None` to only apply transform on all leaves without
                reduction. This is useful when apply in-place transform.
-    :param data: Pre-allocated nested data structure. Optional if the space is
-                 provided but hardly relevant.
+    :param dataset: Pre-allocated nested data structure. Optional if the space
+                    is provided.
     :param space: Container space on which to operate (eg `gym.spaces.Dict` or
                   `gym.spaces.Tuple`). Optional iif the nested data structure
                   is provided.
@@ -342,6 +503,12 @@ def build_reduce(fn: Callable[..., ValueInT],
                            sure all leaves have bounds, otherwise it will raise
                            an exception at generation-time. This argument is
                            ignored if not space is specified.
+    :param tol_abs: Absolute tolerance added to the lower and upper bounds of
+                    the `gym.Space` associated with each leaf.
+                    Optional: 0.0 by default.
+    :param tol_rel: Relative tolerance added to the lower and upper bounds of
+                    the `gym.Space` associated with each leaf.
+                    Optional: 0.0 by default.
 
     :returns: Fully-specialized reduction callable.
     """
@@ -379,17 +546,18 @@ def build_reduce(fn: Callable[..., ValueInT],
                   has been specified.
         """
         # Extract extra arguments from functor if necessary to preserve order
+        has_args = False
         is_out_1, is_out_2 = fn_1.func is not fn, fn_2.func is not fn
         if not is_out_1:
             fn_1, dataset, args_1 = fn_1.func, fn_1.args[:-1], fn_1.args[-1]
-            has_args = bool(args_1)
+            has_args |= bool(args_1)
             if arity == 0:
                 fn_1 = partial(fn_1, *dataset, *args_1)
             elif dataset:
                 fn_1 = partial(fn_1, *dataset)
         if not is_out_2:
             fn_2, dataset, args_2 = fn_2.func, fn_2.args[:-1], fn_2.args[-1]
-            has_args = bool(args_2)
+            has_args |= bool(args_2)
             if arity == 0:
                 fn_2 = partial(fn_2, *dataset, *args_2)
             elif dataset:
@@ -408,7 +576,7 @@ def build_reduce(fn: Callable[..., ValueInT],
                     fn_1(delayed)
                 return partial(_reduce, fn_1, fn_2)
             if is_out_1 and not is_out_2:
-                if has_args:  # pylint: disable=possibly-used-before-assignment
+                if has_args:
                     def _reduce(fn_1, fn_2, field_2, args_2, delayed):
                         fn_2(delayed[field_2], *args_2)
                         fn_1(delayed)
@@ -526,7 +694,7 @@ def build_reduce(fn: Callable[..., ValueInT],
         :returns: Specialized key-forwarding callable.
         """
         is_out = post_fn.func is not fn
-        if parent is None and not is_out:
+        if not is_out:
             # Extract extra arguments from functor to preserve arguments order
             dataset, args = post_fn.args[:-1], post_fn.args[-1]
             post_fn = post_fn.func
@@ -543,22 +711,31 @@ def build_reduce(fn: Callable[..., ValueInT],
                         post_fn()
                     return partial(_forward, post_fn)
                 if has_args:
-                    if field is None:
+                    if parent is None and field is None:
                         def _forward(post_fn, args, delayed):
                             post_fn(delayed, *args)
                         return partial(_forward, post_fn, args)
+                    if (parent is None) ^ (field is None):
+                        def _forward(post_fn, field, args, delayed):
+                            post_fn(delayed[field], *args)
+                        return partial(
+                            _forward, post_fn, parent or field, args)
 
-                    def _forward(post_fn, field, args, delayed):
-                        post_fn(delayed[field], *args)
-                    return partial(_forward, post_fn, field, args)
-                if field is None:
+                    def _forward(post_fn, parent, field, args, delayed):
+                        post_fn(delayed[parent][field], *args)
+                    return partial(_forward, post_fn, parent, field, args)
+                if parent is None and field is None:
                     def _forward(post_fn, delayed):
                         post_fn(delayed)
                     return partial(_forward, post_fn)
+                if (parent is None) ^ (field is None):
+                    def _forward(post_fn, field, delayed):
+                        post_fn(delayed[field])
+                    return partial(_forward, post_fn, parent or field)
 
-                def _forward(post_fn, field, delayed):
-                    post_fn(delayed[field])
-                return partial(_forward, post_fn, field)
+                def _forward(post_fn, parent, field, delayed):
+                    post_fn(delayed[parent][field])
+                return partial(_forward, post_fn, parent, field)
 
             # Specialization if op is specified
             if arity == 0:
@@ -571,22 +748,31 @@ def build_reduce(fn: Callable[..., ValueInT],
                     return post_fn()
                 return partial(_forward, post_fn)
             if is_initialized:
-                if field is None:
+                if parent is None and field is None:
                     def _forward(op, post_fn, args, out, delayed):
                         return op(out, post_fn(delayed, *args))
                     return partial(_forward, op, post_fn, args)
+                if (parent is None) ^ (field is None):
+                    def _forward(op, post_fn, field, args, out, delayed):
+                        return op(out, post_fn(delayed[field], *args))
+                    return partial(
+                        _forward, op, post_fn, parent or field, args)
 
-                def _forward(op, post_fn, field, args, out, delayed):
-                    return op(out, post_fn(delayed[field], *args))
-                return partial(_forward, op, post_fn, field, args)
-            if field is None:
+                def _forward(op, post_fn, parent, field, args, out, delayed):
+                    return op(out, post_fn(delayed[parent][field], *args))
+                return partial(_forward, op, post_fn, parent, field, args)
+            if parent is None and field is None:
                 def _forward(post_fn, args, out, delayed):
                     return post_fn(delayed, *args)
                 return partial(_forward, post_fn, args)
+            if (parent is None) ^ (field is None):
+                def _forward(post_fn, field, args, out, delayed):
+                    return post_fn(delayed[field], *args)
+                return partial(_forward, post_fn, parent or field, args)
 
-            def _forward(post_fn, field, args, out, delayed):
-                return post_fn(delayed[field], *args)
-            return partial(_forward, post_fn, field, args)
+            def _forward(post_fn, parent, field, args, out, delayed):
+                return post_fn(delayed[parent][field], *args)
+            return partial(_forward, post_fn, parent, field, args)
 
         # No key to forward for main entry-point of zero arity
         if parent is None or arity == 0:
@@ -642,7 +828,8 @@ def build_reduce(fn: Callable[..., ValueInT],
             post_fn = fn if not dataset else partial(fn, *dataset)
             post_args = args
             if forward_bounds and space is not None:
-                post_args = (*get_bounds(space), *post_args)
+                post_args = (
+                    *get_bounds(space, tol_abs, tol_rel), *post_args)
             post_fn = partial(post_fn, post_args)
             if parent is None:
                 post_fn = _build_forward(
@@ -745,8 +932,9 @@ def build_map(fn: Callable[..., ValueT],
               space: Optional[gym.Space[DataNested]],
               arity: Optional[Literal[0, 1]],
               *args: Any,
-              forward_bounds: bool = True
-              ) -> Callable[[], StructNested[ValueT]]:
+              forward_bounds: bool = True,
+              tol_abs: float = 0.0,
+              tol_rel: float = 0.0) -> Callable[[], StructNested[ValueT]]:
     """Generate specialized callable returning applying out-of-place transform
     to all leaves of given nested space.
 
@@ -789,6 +977,12 @@ def build_map(fn: Callable[..., ValueT],
                            an exception at generation-time. This argument is
                            ignored if not space is specified.
                            Optional: `True` by default.
+    :param tol_abs: Absolute tolerance added to the lower and upper bounds of
+                    the `gym.Space` associated with each leaf.
+                    Optional: 0.0 by default.
+    :param tol_rel: Relative tolerance added to the lower and upper bounds of
+                    the `gym.Space` associated with each leaf.
+                    Optional: 0.0 by default.
 
     :returns: Fully-specialized mapping callable.
     """
@@ -926,7 +1120,8 @@ def build_map(fn: Callable[..., ValueT],
             post_fn = fn if data is None else partial(fn, data)
             post_args = args
             if forward_bounds and space is not None:
-                post_args = (*get_bounds(space), *post_args)
+                post_args = (
+                    *get_bounds(space, tol_abs, tol_rel), *post_args)
             post_fn = partial(post_fn, post_args)
             if parent is None:
                 post_fn = _build_setitem(arity, None, post_fn, None)
@@ -991,9 +1186,50 @@ def build_copyto(dst: DataNested) -> Callable[[DataNested], None]:
     """Generate specialized `copyto` method for a given pre-allocated
     destination.
 
+    Note that the key ordering of source and destination data structures do NOT
+    have to match, only the hierarchy has to be the same. Beside, additional
+    subtrees of the output data structure will be ignored if any.
+
     :param dst: Nested data structure to be updated.
     """
-    return build_reduce(array_copyto, None, (dst,), None, 1)
+    # Special case if parent is not a container
+    dst_type = type(dst)
+    if not (tree.issubclass_mapping(dst_type) or
+            tree.issubclass_sequence(dst_type)):
+        return partial(array_copyto, dst)
+
+    # Build specialized flattening method, appending all leaves in a buffer
+    src_flat: List[np.ndarray] = []
+    flatten = build_reduce(
+        src_flat.append, None, (), dst, 1, forward_bounds=False)
+
+    # Flatten the nested data structure to update on-the-spot for efficiency
+    dst_flat = tree.flatten(dst)
+
+    # Define helper that gathers all operations
+    def _flatten_and_copyto(src_flat: List[np.ndarray],
+                            flatten: Callable[[DataNested], None],
+                            dst_flat: Sequence[np.ndarray],
+                            src: DataNested) -> None:
+        """Internal method that flattens the input data structure before
+        copying data from source to destination all at once.
+
+        :param src_flat: Buffer storing the result of the specialized
+                         flattening operator.
+        :param flatten: Flattening operator specialized for a given output data
+                        structure.
+        :param src_flat: Pre-computed flattened output data structure.
+        :param src: Nested input data structure whose output data structure is
+                    a subtree.
+        """
+        # Populate buffer with flattened input data structure
+        src_flat.clear()
+        flatten(src)
+
+        # Copy from source to destination all arrays at once
+        multi_array_copyto(dst_flat, src_flat)
+
+    return partial(_flatten_and_copyto, src_flat, flatten, dst_flat)
 
 
 def build_clip(data: DataNested,
@@ -1017,6 +1253,10 @@ def build_contains(data: DataNested,
     :param data: Pre-allocated nested data structure whose leaves must be
                  within bounds if defined and ignored otherwise.
     :param space: `gym.Space` on which to operate.
+    :param tol_abs: Absolute tolerance for floating point equality check.
+                    Optional: `0.0` by default.
+    :param tol_rel: Relative tolerance for floating point aprox equality check.
+                    Optional: `0.0` by default.
     """
     # Define a special exception involved in short-circuit mechanism
     class ShortCircuitContains(Exception):
@@ -1026,9 +1266,7 @@ def build_contains(data: DataNested,
     @nb.jit(nopython=True, cache=True)
     def _contains_or_raises(value: np.ndarray,
                             low: Optional[ArrayOrScalar],
-                            high: Optional[ArrayOrScalar],
-                            tol_abs: float,
-                            tol_rel: float) -> bool:
+                            high: Optional[ArrayOrScalar]) -> bool:
         """Thin wrapper around original `_array_contains` method to raise
         an exception if the test fails. It enables short-circuit mechanism
         to abort checking remaining leaves if any.
@@ -1041,10 +1279,8 @@ def build_contains(data: DataNested,
         :param value: Array holding values to check.
         :param low: Lower bound.
         :param high: Upper bound.
-        :param tol_abs: Absolute tolerance.
-        :param tol_rel: Relative tolerance.
         """
-        if not _array_contains(value, low, high, tol_abs, tol_rel):
+        if not _array_contains(value, low, high):
             raise ShortCircuitContains("Short-circuit exception.")
         return True
 
@@ -1064,13 +1300,22 @@ def build_contains(data: DataNested,
         return True
 
     return partial(_exception_handling, build_reduce(
-        _contains_or_raises, None, (data,), space, 0, tol_abs, tol_rel))
+        _contains_or_raises,
+        None,
+        (data,),
+        space,
+        arity=0,
+        forward_bounds=True,
+        tol_abs=tol_abs,
+        tol_rel=tol_rel))
 
 
 def build_normalize(space: gym.Space[DataNested],
                     dst: DataNested,
                     src: Optional[DataNested] = None,
-                    *, is_reversed: bool = False) -> Callable[..., None]:
+                    *,
+                    ignore_unbounded: bool = False,
+                    is_reversed: bool = False) -> Callable[..., None]:
     """Generate a normalization or de-normalization method specialized for a
     given pre-allocated destination.
 
@@ -1116,6 +1361,9 @@ def build_normalize(space: gym.Space[DataNested],
     for subspace in tree.flatten(space):
         assert isinstance(subspace, gym.spaces.Box)
         assert np.issubdtype(subspace.dtype, np.floating)
+        if not ignore_unbounded and not subspace.is_bounded():
+            raise RuntimeError(
+                "All leaf spaces must be bounded if `ignore_unbounded=False`.")
 
     dataset = [dst,]
     if src is not None:
@@ -1159,16 +1407,18 @@ def build_flatten(data_nested: DataNested,
     # hacky since only passing `DataNested` instances is officially supported,
     # but it is currently the easiest way to keep track of some internal state
     # and specify leaf-specific constants.
-    flat_slices = []
+    start_indices, stop_indices = [], []
     idx_start = 0
     for data in data_leaves:
         idx_end = idx_start + max(math.prod(data.shape), 1)
-        flat_slices.append((idx_start, idx_end))
+        start_indices.append(idx_start)
+        stop_indices.append(idx_end)
         idx_start = idx_end
 
     @nb.jit(nopython=True, cache=True)
     def _flatten(data: np.ndarray,
-                 flat_slice: Tuple[int, int],
+                 idx_start: int,
+                 idx_end: int,
                  data_flat: np.ndarray,
                  is_reversed: bool) -> None:
         """Synchronize the flatten and un-flatten representation of the data
@@ -1179,26 +1429,28 @@ def build_flatten(data_nested: DataNested,
 
         :param data: Multi-dimensional array that will be either updated or
                      copied as a whole depending on 'is_reversed'.
-        :param flat_slice: Start and stop indices of the slice of 'data_flat'
-                           to synchronized with 'data'.
+        :param idx_start: First index of the slice of 'data_flat' to
+                          synchronized with 'data'.
+        :param idx_end: One-after-last index of the slice of 'data_flat' to
+                        synchronized with 'data'.
         :param data_flat: 1D array from which to extract that will be either
                           updated or copied depending on 'is_reversed'.
         :param is_reversed: True to update the multi-dimensional array 'data'
                             by copying the value from slice 'flat_slice' of
                             vector 'data_flat', False for doing the contrary.
         """
-        # For some reason, passing a slice as input argument is much slower
-        # in numba than creating it inside the method.
+        # Note that passing slices as input argument is very slow in numba
         if is_reversed:
-            data.ravel()[:] = data_flat[slice(*flat_slice)]
+            data.ravel()[:] = data_flat[idx_start:idx_end]
         else:
-            data_flat[slice(*flat_slice)] = data.ravel()
+            data_flat[idx_start:idx_end] = data.ravel()
 
     args = (is_reversed,)
     if data_flat is not None:
         args = (data_flat, *args)  # type: ignore[assignment]
-    out_fn = build_reduce(
-        _flatten, None, (data_leaves, flat_slices), None, 2 - len(args), *args)
+    arity = 2 - len(args)
+    out_fn = build_reduce(_flatten, None, (
+        data_leaves, start_indices, stop_indices), None, arity, *args)
     if data_flat is None:
         def _repeat(out_fn: Callable[[DataNested], None],
                     n_leaves: int,

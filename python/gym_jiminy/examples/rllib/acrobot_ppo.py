@@ -4,38 +4,38 @@ algorithm of Ray RLlib reinforcement learning framework.
 It solves it consistently in less than 100000 timesteps in average.
 
 .. warning::
-    This script has been tested for pytorch~=2.3 and ray[rllib]~=2.9.3
+    This script has been tested for pytorch~=2.5.0 and ray[rllib]~=2.38.0
 """
 
 # ====================== Configure Python workspace =======================
 
 import os
-import logging
+from copy import deepcopy
 from functools import partial
 
+import torch
 import gymnasium as gym
+
 import ray
 from ray.tune.registry import register_env
 from ray.rllib.models import MODEL_DEFAULTS
-from ray.tune.logger import NoopLogger
 
-from gym_jiminy.toolbox.wrappers import FrameRateLimiter
+from gym_jiminy.common.wrappers import FlattenObservation
 from gym_jiminy.rllib.ppo import PPOConfig
 from gym_jiminy.rllib.utilities import (initialize,
                                         train,
-                                        build_eval_policy_from_checkpoint,
-                                        build_policy_wrapper,
-                                        build_eval_worker_from_checkpoint,
-                                        evaluate_local_worker,
-                                        evaluate_algo)
+                                        evaluate_from_runner,
+                                        build_eval_runner_from_checkpoint,
+                                        build_module_from_checkpoint,
+                                        build_module_wrapper)
 
-# ============================ User parameters ============================
+# ============================== User parameters ==============================
 
 GYM_ENV_NAME = "gym_jiminy.envs:acrobot"
 GYM_ENV_KWARGS = {
     'continuous': True
 }
-ENABLE_RECORDING = True
+ENABLE_RECORDING = False
 ENABLE_VIEWER = "JIMINY_VIEWER_DISABLE" not in os.environ
 DEBUG = False
 SEED = 0
@@ -50,75 +50,48 @@ if __name__ == "__main__":
         num_cpus=N_THREADS, num_gpus=N_GPU, debug=DEBUG, verbose=True)
 
     # Register the environment
-    register_env("env", lambda env_config: FrameRateLimiter(
-        gym.make(GYM_ENV_NAME, **env_config), speed_ratio=1.0))
+    env_creator = lambda env_config: gym.make(GYM_ENV_NAME, **env_config)
+    register_env("env", env_creator)
 
-    # ====================== Configure policy's network =======================
-
-    # Default model configuration
-    model_config = MODEL_DEFAULTS.copy()
-
-    # Fully-connected network settings
-    model_config.update(dict(
-        # Nonlinearity for built-in fully connected net
-        fcnet_activation="tanh",
-        # Number of hidden layers for fully connected net
-        fcnet_hiddens=[64, 64],
-        # The last half of the output layer does not dependent on the input
-        free_log_std=True,
-        # Whether to share layers between the policy and value function
-        vf_share_layers=False
-    ))
-
-    # ===================== Configure learning algorithm ======================
+    # ========================== Configure resources ==========================
 
     # Default PPO configuration
     algo_config = PPOConfig()
 
     # Resources settings
-    algo_config.resources(
-        # Number of GPUs to reserve for the trainer process
-        num_gpus=N_GPU,
+    algo_config.env_runners(
         # Number of CPUs to reserve per worker processes
-        num_cpus_per_worker=1,
-        # Number of CPUs to allocate for trainer process
-        num_gpus_per_worker=0,
+        num_cpus_per_env_runner=1,
+        # Number of GPUs to allocate for trainer process
+        num_gpus_per_env_runner=0,
     )
-    algo_config.rollouts(
+    algo_config.learners(
+        # Number of Learner workers used for updating the policy
+        num_learners=N_GPU if N_GPU > 1 else 0,
+        # Number of CPUs allocated per Learner worker
+        num_cpus_per_learner=1,
+        # Number of GPUs allocated per Learner worker
+        num_gpus_per_learner=min(1, N_GPU),
+    )
+    algo_config.env_runners(
         # Number of rollout worker processes for parallel sampling
-        num_rollout_workers=N_THREADS-1,
+        num_env_runners=N_THREADS-1,
         # Number of environments per worker processes
-        num_envs_per_worker=1,
-        # Whether to create the envs per worker in individual remote processes
-        remote_worker_envs=False,
-        # Duration worker processes are waiting when polling environments
-        remote_env_batch_wait_ms=0,
+        num_envs_per_env_runner=1,
     )
-    algo_config.python_environment(
-        # Extra python env vars to set for trainer process
-        extra_python_environs_for_driver = {},
-        # Extra python env vars to set for worker processes
-        extra_python_environs_for_worker = {
-            # Disable multi-threaded linear algebra at worker-level
-            "OMP_NUM_THREADS": "1"
-        }
-    )
+
+    # ========================= Configure monitoring ==========================
 
     # Debugging and monitoring settings
     algo_config.fault_tolerance(
         # Whether to attempt to continue training if a worker crashes
-        recreate_failed_workers=False
+        recreate_failed_env_runners=False
     )
     algo_config.debugging(
         # Set the log level for the whole learning process
-        log_level=logging.DEBUG if DEBUG else logging.ERROR,
+        log_level="DEBUG" if DEBUG else "ERROR",
         # Monitor system resource metrics (requires `psutil` and `gputil`)
         log_sys_usage=True,
-        # Disable default logger but configure logging directory nonetheless
-        logger_config=dict(
-            type=NoopLogger,
-            logdir=logdir
-        )
     )
     algo_config.reporting(
         # Smooth metrics over this many episodes
@@ -126,10 +99,23 @@ if __name__ == "__main__":
         # Wait for metric batches for this duration
         metrics_episode_collection_timeout_s=180,
         # Minimum training timesteps to accumulate between each reporting
-        min_train_timesteps_per_iteration=0,
-        # Whether to store custom metrics without calculating max, min, mean
-        keep_per_episode_custom_metrics=True
+        min_train_timesteps_per_iteration=0
     )
+
+    algo_config.evaluation(
+        # Evaluate every `evaluation_interval` training iterations
+        evaluation_interval=20,
+        # Number of "evaluation steps" based on specified unit
+        evaluation_duration=10,
+        # The unit with which to count the evaluation duration
+        evaluation_duration_unit="episodes",
+        # Number of parallel workers to use for evaluation
+        evaluation_num_env_runners=1,         # TODO: 0
+        # Whether to run evaluation in parallel to a Algorithm.train()
+        evaluation_parallel_to_training=True  # TODO: Try false
+    )
+
+    # =========================== Configure rollout ===========================
 
     # Environment settings
     algo_config.environment(
@@ -142,19 +128,22 @@ if __name__ == "__main__":
         # Whether to clip rewards during postprocessing by the policy
         clip_rewards=False,
         # Arguments to pass to the env creator
-        env_config=GYM_ENV_KWARGS
+        env_config=dict(
+            **GYM_ENV_KWARGS,
+            viewer_kwargs=dict(
+                display_com=False,
+                display_dcm=False,
+                display_f_external=False,
+            )
+        ),
     )
 
     # Rollout settings
-    algo_config.rollouts(
+    algo_config.env_runners(
         # Number of collected samples per environments
         rollout_fragment_length="auto",
         # Whether to rollout "complete_episodes" or "truncate_episodes"
         batch_mode="truncate_episodes",
-        # Use a background thread for sampling (slightly off-policy)
-        sample_async=False,
-        # Element-wise observation filter ["NoFilter", "MeanStdFilter"]
-        observation_filter="NoFilter",
         # Whether to LZ4 compress individual observations
         compress_observations=False,
     )
@@ -163,73 +152,16 @@ if __name__ == "__main__":
         seed=SEED
     )
 
-    # Model settings
-    algo_config.training(
-        # Policy model configuration
-        model=model_config
-    )
+    # ===================== Configure learning algorithm ======================
 
-    # Learning settings
+    # Batch settings settings
     algo_config.training(
         # Sample batches are concatenated together into batches of this size
-        train_batch_size=2000,
+        train_batch_size_per_learner=2000/max(1, N_GPU),
         # Learning rate
         lr=5.0e-4,
         # Discount factor of the MDP (0.991: ~1% after 500 step)
         gamma=0.991,
-    )
-    algo_config.exploration(
-        # Whether to disable exploration completely
-        explore=True,
-        exploration_config=dict(
-            # The Exploration class to use ["EpsilonGreedy", "Random", ...]
-            type="StochasticSampling",
-        )
-    )
-
-    # ====================== Configure agent evaluation =======================
-
-    algo_config.evaluation(
-        # Evaluate every `evaluation_interval` training iterations
-        evaluation_interval=20,
-        # Number of evaluation steps based on specified unit
-        evaluation_duration=10,
-        # The unit with which to count the evaluation duration
-        evaluation_duration_unit="episodes",
-        # Number of parallel workers to use for evaluation
-        evaluation_num_workers=1,
-        # Whether to run evaluation in parallel to a Algorithm.train()
-        evaluation_parallel_to_training=True,
-        # Custom evaluation method
-        custom_evaluation_function=partial(
-            evaluate_algo,
-            print_stats=True,
-            enable_replay=ENABLE_VIEWER,
-            record_video=ENABLE_RECORDING
-        ),
-        # Partially override configuration for evaluation
-        evaluation_config=dict(
-            env="env",
-            env_config=dict(
-                **GYM_ENV_KWARGS,
-                viewer_kwargs=dict(
-                    display_com=False,
-                    display_dcm=False,
-                    display_f_external=False
-                )
-            ),
-            # Real-time rendering during evaluation (no post-processing)
-            render_env=False,
-            explore=False,
-            horizon=None
-        )
-    )
-
-    # ===================== Configure learning algorithm ======================
-
-    algo_config.framework(
-        # PyTorch is the only ML framework supported by `gym_jiminy.rllib`
-        framework="torch"
     )
 
     # Estimators settings
@@ -242,7 +174,7 @@ if __name__ == "__main__":
         lambda_=0.95,
     )
 
-    # Learning settings
+    # PPO-specific settings
     algo_config.training(
         # Initial coefficient for KL divergence. (0.0 for L^CLIP)
         kl_coeff=0.0,
@@ -262,13 +194,15 @@ if __name__ == "__main__":
 
     # Regularization settings
     algo_config.training(
-        enable_adversarial_noise=True,
-        temporal_barrier_threshold=0.5,
-        temporal_barrier_reg=1e-1,
-        caps_temporal_reg=5e-3,
-        caps_spatial_reg=1e-2,
-        caps_global_reg=1e-4,
-        l2_reg=1e-6,
+        enable_adversarial_noise=False,
+        temporal_barrier_threshold=6.0,
+        temporal_barrier_reg=1.0,
+        symmetric_policy_reg=0.1,
+        enable_symmetry_surrogate_loss=False,
+        caps_temporal_reg=0.005,
+        caps_spatial_reg=0.1,
+        caps_global_reg=0.001,
+        l2_reg=1e-8,
     )
 
     # Optimization settings
@@ -276,44 +210,82 @@ if __name__ == "__main__":
         # Learning rate schedule
         lr_schedule=None,
         # Minibatch size of each SGD epoch
-        sgd_minibatch_size=250,
+        minibatch_size=250,
         # Number of SGD epochs to execute per training iteration
-        num_sgd_iter=8,
+        num_epochs=8,
         # Whether to shuffle sequences in the batch when training
-        shuffle_sequences=True,
+        shuffle_batch_per_epoch=True,
         # Clamp the norm of the gradient during optimization (None to disable)
         grad_clip=None,
     )
 
+    # ================== Configure policy and value networks ==================
+
+    # Default model configuration
+    model_config = deepcopy(MODEL_DEFAULTS)
+
+    # Fully-connected network settings
+    model_config.update(
+        # Nonlinearity for built-in fully connected net
+        fcnet_activation="tanh",
+        # Number of hidden layers for fully connected net
+        fcnet_hiddens=[64, 64],
+        # The last half of the output layer does not dependent on the input
+        free_log_std=True,
+        # Whether to share layers between the policy and value function
+        vf_share_layers=False
+    )
+
+    # Number of preceeding steps incl. current involved in policy computations
+    algo_config.env_runners(
+        episode_lookback_horizon = 1,
+    )
+
+    # Model settings
+    algo_config.training(
+        # Policy model configuration
+        model=model_config
+    )
+
+    # Exploration settings.
+    # The exploration strategy must be implemented at "policy"-level, by
+    # overwritting `_forward_exploration` or/and `forward_inference`.
+    algo_config.env_runners(
+        # Whether to disable exploration completely
+        explore=True,
+    )
+
     # ========================= Run the optimization ==========================
 
-    # Initialize the learning algorithm
-    algo = algo_config.build()
-
-    # Train the agent
-    result = train(algo, max_timesteps=200000, logdir=algo.logdir)
-    checkpoint_path = result.checkpoint.path
+    # Initialize the learning algorithm and train the agent
+    result, checkpoint_path = train(
+        algo_config,
+        logdir,
+        max_timesteps=200000,
+        enable_evaluation_replay=ENABLE_VIEWER,
+        enable_evaluation_record_video=ENABLE_RECORDING,
+        debug=DEBUG)
 
     # ========================= Terminate Ray backend =========================
 
-    algo.stop()
     ray.shutdown()
 
     # ===================== Enjoy a trained agent locally =====================
 
     # Build a standalone local evaluation worker (not requiring ray backend)
-    register_env("env", lambda env_config: FrameRateLimiter(
-        gym.make(GYM_ENV_NAME, **env_config), speed_ratio=1.0))
-    worker = build_eval_worker_from_checkpoint(checkpoint_path)
-    evaluate_local_worker(worker,
-                          evaluation_num=1,
-                          close_backend=True,
-                          enable_replay=ENABLE_VIEWER)
+    register_env("env", env_creator)
+    env_runner = build_eval_runner_from_checkpoint(checkpoint_path)
+    evaluate_from_runner(env_runner,
+                         num_episodes=1,
+                         close_backend=True,
+                         enable_replay=ENABLE_VIEWER)
 
     # Build a standalone single-agent evaluation policy
-    env = gym.make(GYM_ENV_NAME, **algo_config.env_config)
-    policy_map = build_eval_policy_from_checkpoint(checkpoint_path)
-    policy_fn = build_policy_wrapper(
-        policy_map, clip_actions=False, explore=False)
+    env = env_creator(algo_config.env_config)
+    rl_module = build_module_from_checkpoint(checkpoint_path)
+    policy_fn = build_module_wrapper(rl_module)
     for seed in (1, 1, 2):
-        env.evaluate(policy_fn, seed=seed, horizon=env._max_episode_steps)
+        env.evaluate(  # type: ignore[attr-defined]
+            policy_fn,
+            seed=seed,
+            horizon=env.spec.max_episode_steps)  # type: ignore[union-attr]

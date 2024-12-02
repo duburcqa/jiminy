@@ -135,7 +135,23 @@ def init_function_signature(self, name, args='*args, **kwargs', rtype='None', va
             logger.log(lvl, " " * (e.offset - 1) + "^-- Invalid syntax")
 
 
-def to_lines_classmember_replace_self(self):
+parse_class_orig = pybind11_stubgen.ClassStubsGenerator.parse
+
+def parse_class(self):
+    module_name = self.klass.__module__
+    self.klass.__module__ = self.fully_qualified_name(self.klass)
+    rslt = parse_class_orig(self)
+    self.klass.__module__ = module_name
+    return rslt
+
+
+def fully_qualified_name_classmember(self, member):
+    # Boost::Python is no longer storing the class name in "__module__" field
+    # name member functions, so now it is necessary to rely on `module_name`.
+    return ".".join((self.module_name, member.__name__))
+
+
+def to_lines_classmember(self):
     result = []
     docstring = self.sanitize_docstring(self.member.__doc__)
     if not docstring and not (
@@ -151,8 +167,9 @@ def to_lines_classmember_replace_self(self):
         # Thus, the condition should be based on type rather than name.
         args_splitted = sig.split_arguments()
         if args_splitted:
-            if args_splitted[0].split(':', 1)[-1].strip() not in (
-                    self.member.__module__, "typing.Any"):
+            arg_1_type = args_splitted[0].split(':', 1)[-1].strip()
+            if not self.module_name.endswith(arg_1_type) and (
+                    arg_1_type != "typing.Any"):
                 if sargs.startswith("cls"):
                     result.append("@classmethod")
                     args = ",".join(["cls"] + args_splitted[1:])
@@ -221,13 +238,15 @@ def remove_signatures(docstring):
 
 pybind11_stubgen.logger.setLevel(logging.INFO)
 pybind11_stubgen.__builtins__['issubclass'] = _issubclass
-pybind11_stubgen.ClassMemberStubsGenerator.to_lines = to_lines_classmember_replace_self
+pybind11_stubgen.ClassMemberStubsGenerator.to_lines = to_lines_classmember
+pybind11_stubgen.ClassMemberStubsGenerator.fully_qualified_name = fully_qualified_name_classmember
 pybind11_stubgen.FunctionSignature.__init__ = init_function_signature
 pybind11_stubgen.StubsGenerator.property_signature_from_docstring = staticmethod(get_property_signature)
 pybind11_stubgen.StubsGenerator.remove_signatures = remove_signatures
 pybind11_stubgen.ClassStubsGenerator.__init__ = partialmethod(
     pybind11_stubgen.ClassStubsGenerator.__init__,
     base_class_blacklist=("object", "instance"))
+pybind11_stubgen.ClassStubsGenerator.parse = parse_class
 
 
 if __name__ == "__main__":

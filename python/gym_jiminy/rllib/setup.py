@@ -14,17 +14,16 @@ setup(
     author_email="alexis.duburcq@gmail.com",
     maintainer="Alexis Duburcq",
     license="MIT",
-    python_requires=">=3.8,<3.12",
+    python_requires=">=3.10,<3.13",
     classifiers=[
         "Development Status :: 2 - Pre-Alpha",
         "Intended Audience :: Science/Research",
         "Topic :: Scientific/Engineering :: Artificial Intelligence",
         "Topic :: Software Development :: Libraries :: Python Modules",
         "License :: OSI Approved :: MIT License",
-        "Programming Language :: Python :: 3.8",
-        "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
-        "Programming Language :: Python :: 3.11"
+        "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12"
     ],
     keywords="reinforcement-learning robotics gym jiminy",
     packages=find_namespace_packages(),
@@ -32,13 +31,10 @@ setup(
     install_requires=[
         f"gym-jiminy~={gym_jiminy_version}",
         # Highly efficient distributed computation library used for RL
-        # * <1.6.0: GPU detection must be patched to work
-        # * > 2.5.0: multi-GPU support
-        # * 1.11.0 / 2.2.0 / 2.5.0 / 2.9.0: Breaking changes
-        "ray[rllib]~=2.9.0",
+        "ray[rllib]>=2.38,<=2.39",
         # Used for monitoring (logging and publishing) learning progress
         "tensorboardX",
-        # Plot data directly in terminal to monitor stats without X-server
+        # Plot data directly in terminal to monitor stats w/o display server
         "plotext>=5.0.0"
     ],
     zip_safe=False

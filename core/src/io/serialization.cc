@@ -10,9 +10,10 @@
 #include "pinocchio/serialization/geometry.hpp"  // `serialize<pinocchio::GeometryObject>`, `serialize<pinocchio::CollisionPair>`
 
 #define HPP_FCL_SKIP_EIGEN_BOOST_SERIALIZATION
-#include "hpp/fcl/serialization/geometric_shapes.h"  // `serialize<hpp::fcl::ShapeBase>`
-#include "hpp/fcl/serialization/convex.h"            // `serialize<hpp::fcl::ConvexBase>`
-#include "hpp/fcl/serialization/BVH_model.h"         // `serialize<hpp::fcl::BVHModel>`
+#include "hpp/fcl/serialization/hfield.h"     // `serialize<hpp::fcl::HeightField>`
+#include "hpp/fcl/serialization/convex.h"     // `serialize<hpp::fcl::Convex<T>>`
+#include "hpp/fcl/serialization/BVH_model.h"  // `serialize<hpp::fcl::BVHModel<T>>`
+// #include "hpp/fcl/serialization/octree.h"  // `serialize<hpp::fcl::OcTree>`
 #undef HPP_FCL_SKIP_EIGEN_BOOST_SERIALIZATION
 
 #ifdef _MSC_VER                     /* Microsoft Visual C++ -- warning level 3 */
@@ -40,6 +41,7 @@
 // Opt-in serialization specialization for "advanced" containers
 #include <boost/serialization/unordered_map.hpp>
 #include <boost/serialization/variant.hpp>
+#include <boost/serialization/shared_ptr.hpp>
 
 #include <boost/serialization/export.hpp>  // `BOOST_CLASS_EXPORT`
 
@@ -147,62 +149,24 @@ namespace boost::serialization
     void
     serialize(Archive & ar, pinocchio::GeometryObject & geom, const unsigned int /* version */)
     {
+        /* Casting from BVHModelTpl / ConvexTpl to BVHModelBase / ConvexBase is not automatically
+           registered because the serialization is made through intermediary accessors
+           `internal::BVHModelAccessor<BV>` / `internal::ConvexAccessor<PolygonT>`. */
+        void_cast_register<hpp::fcl::Convex<hpp::fcl::Triangle>, hpp::fcl::ConvexBase>();
+        void_cast_register<hpp::fcl::Convex<hpp::fcl::Quadrilateral>, hpp::fcl::ConvexBase>();
+        void_cast_register<hpp::fcl::BVHModel<hpp::fcl::AABB>, hpp::fcl::BVHModelBase>();
+        void_cast_register<hpp::fcl::BVHModel<hpp::fcl::OBB>, hpp::fcl::BVHModelBase>();
+        void_cast_register<hpp::fcl::BVHModel<hpp::fcl::RSS>, hpp::fcl::BVHModelBase>();
+        void_cast_register<hpp::fcl::BVHModel<hpp::fcl::OBBRSS>, hpp::fcl::BVHModelBase>();
+        void_cast_register<hpp::fcl::BVHModel<hpp::fcl::kIOS>, hpp::fcl::BVHModelBase>();
+        void_cast_register<hpp::fcl::BVHModel<hpp::fcl::KDOP<16>>, hpp::fcl::BVHModelBase>();
+        void_cast_register<hpp::fcl::BVHModel<hpp::fcl::KDOP<18>>, hpp::fcl::BVHModelBase>();
+        void_cast_register<hpp::fcl::BVHModel<hpp::fcl::KDOP<24>>, hpp::fcl::BVHModelBase>();
+
         ar & make_nvp("name", geom.name);
         ar & make_nvp("parentFrame", geom.parentFrame);
         ar & make_nvp("parentJoint", geom.parentJoint);
-
-        /* Manual polymorphic up-casting to avoid relying on boost serialization for doing it,
-           otherwise it would conflict with any pinocchio bindings exposing the same objects. */
-        hpp::fcl::NODE_TYPE nodeType;
-        if (Archive::is_saving::value)
-        {
-            nodeType = geom.geometry->getNodeType();
-        }
-        ar & make_nvp("nodeType", nodeType);
-
-#define UPCAST_FROM_TYPENAME(TYPENAME, CLASS)                            \
-    case hpp::fcl::NODE_TYPE::TYPENAME:                                  \
-        if (Archive::is_loading::value)                                  \
-        {                                                                \
-            geom.geometry = std::make_shared<CLASS>();                   \
-        }                                                                \
-        ar & make_nvp("geometry", static_cast<CLASS &>(*geom.geometry)); \
-        break;
-
-        switch (nodeType)
-        {  // clang-format off
-        UPCAST_FROM_TYPENAME(GEOM_TRIANGLE, hpp::fcl::TriangleP)
-        UPCAST_FROM_TYPENAME(GEOM_SPHERE, hpp::fcl::Sphere)
-        UPCAST_FROM_TYPENAME(GEOM_BOX, hpp::fcl::Box)
-        UPCAST_FROM_TYPENAME(GEOM_CAPSULE, hpp::fcl::Capsule)
-        UPCAST_FROM_TYPENAME(GEOM_CONE, hpp::fcl::Cone)
-        UPCAST_FROM_TYPENAME(GEOM_CYLINDER, hpp::fcl::Cylinder)
-        UPCAST_FROM_TYPENAME(GEOM_HALFSPACE, hpp::fcl::Halfspace)
-        UPCAST_FROM_TYPENAME(GEOM_PLANE, hpp::fcl::Plane)
-        UPCAST_FROM_TYPENAME(GEOM_ELLIPSOID, hpp::fcl::Ellipsoid)
-        UPCAST_FROM_TYPENAME(GEOM_CONVEX, hpp::fcl::Convex<hpp::fcl::Triangle>)
-        UPCAST_FROM_TYPENAME(BV_AABB, hpp::fcl::BVHModel<hpp::fcl::AABB>)
-        UPCAST_FROM_TYPENAME(BV_OBB, hpp::fcl::BVHModel<hpp::fcl::OBB>)
-        UPCAST_FROM_TYPENAME(BV_RSS, hpp::fcl::BVHModel<hpp::fcl::RSS>)
-        UPCAST_FROM_TYPENAME(BV_OBBRSS, hpp::fcl::BVHModel<hpp::fcl::OBBRSS>)
-        UPCAST_FROM_TYPENAME(BV_kIOS, hpp::fcl::BVHModel<hpp::fcl::kIOS>)
-        UPCAST_FROM_TYPENAME(BV_KDOP16, hpp::fcl::BVHModel<hpp::fcl::KDOP<16>>)
-        UPCAST_FROM_TYPENAME(BV_KDOP18, hpp::fcl::BVHModel<hpp::fcl::KDOP<18>>)
-        UPCAST_FROM_TYPENAME(BV_KDOP24, hpp::fcl::BVHModel<hpp::fcl::KDOP<24>>)
-        // clang-format on
-        case hpp::fcl::NODE_TYPE::GEOM_OCTREE:
-        case hpp::fcl::NODE_TYPE::HF_AABB:
-        case hpp::fcl::NODE_TYPE::HF_OBBRSS:
-        case hpp::fcl::NODE_TYPE::BV_UNKNOWN:
-        case hpp::fcl::NODE_TYPE::NODE_COUNT:
-        default:
-            // Falling back to polymorphism
-            ar & make_nvp("geometry", geom.geometry);
-            break;
-        }
-
-#undef UPCAST_FROM_TYPENAME
-
+        ar & make_nvp("geometry", geom.geometry);
         ar & make_nvp("placement", geom.placement);
         ar & make_nvp("meshPath", geom.meshPath);
         ar & make_nvp("meshScale", geom.meshScale);
@@ -211,9 +175,63 @@ namespace boost::serialization
         ar & make_nvp("meshTexturePath", geom.meshTexturePath);
     }
 
+    EXPLICIT_TEMPLATE_INSTANTIATION_SERIALIZE(hpp::fcl::CollisionGeometry)
+    EXPLICIT_TEMPLATE_INSTANTIATION_SERIALIZE(hpp::fcl::ShapeBase)
+    EXPLICIT_TEMPLATE_INSTANTIATION_SERIALIZE(hpp::fcl::TriangleP)
+    EXPLICIT_TEMPLATE_INSTANTIATION_SERIALIZE(hpp::fcl::Sphere)
+    EXPLICIT_TEMPLATE_INSTANTIATION_SERIALIZE(hpp::fcl::Box)
+    EXPLICIT_TEMPLATE_INSTANTIATION_SERIALIZE(hpp::fcl::Capsule)
+    EXPLICIT_TEMPLATE_INSTANTIATION_SERIALIZE(hpp::fcl::Cone)
+    EXPLICIT_TEMPLATE_INSTANTIATION_SERIALIZE(hpp::fcl::Cylinder)
+    EXPLICIT_TEMPLATE_INSTANTIATION_SERIALIZE(hpp::fcl::Halfspace)
+    EXPLICIT_TEMPLATE_INSTANTIATION_SERIALIZE(hpp::fcl::Ellipsoid)
+    EXPLICIT_TEMPLATE_INSTANTIATION_SERIALIZE(hpp::fcl::Plane)
+    EXPLICIT_TEMPLATE_INSTANTIATION_SERIALIZE(hpp::fcl::ConvexBase)
+    EXPLICIT_TEMPLATE_INSTANTIATION_SERIALIZE(hpp::fcl::Convex<hpp::fcl::Triangle>)
+    EXPLICIT_TEMPLATE_INSTANTIATION_SERIALIZE(hpp::fcl::Convex<hpp::fcl::Quadrilateral>)
+    EXPLICIT_TEMPLATE_INSTANTIATION_SERIALIZE(hpp::fcl::HeightField<hpp::fcl::AABB>)
+    EXPLICIT_TEMPLATE_INSTANTIATION_SERIALIZE(hpp::fcl::HeightField<hpp::fcl::OBB>)
+    EXPLICIT_TEMPLATE_INSTANTIATION_SERIALIZE(hpp::fcl::HeightField<hpp::fcl::OBBRSS>)
+    EXPLICIT_TEMPLATE_INSTANTIATION_SERIALIZE(hpp::fcl::BVHModelBase)
+    EXPLICIT_TEMPLATE_INSTANTIATION_SERIALIZE(hpp::fcl::BVHModel<hpp::fcl::AABB>)
+    EXPLICIT_TEMPLATE_INSTANTIATION_SERIALIZE(hpp::fcl::BVHModel<hpp::fcl::OBB>)
+    EXPLICIT_TEMPLATE_INSTANTIATION_SERIALIZE(hpp::fcl::BVHModel<hpp::fcl::RSS>)
+    EXPLICIT_TEMPLATE_INSTANTIATION_SERIALIZE(hpp::fcl::BVHModel<hpp::fcl::OBBRSS>)
+    EXPLICIT_TEMPLATE_INSTANTIATION_SERIALIZE(hpp::fcl::BVHModel<hpp::fcl::kIOS>)
+    EXPLICIT_TEMPLATE_INSTANTIATION_SERIALIZE(hpp::fcl::BVHModel<hpp::fcl::KDOP<16>>)
+    EXPLICIT_TEMPLATE_INSTANTIATION_SERIALIZE(hpp::fcl::BVHModel<hpp::fcl::KDOP<18>>)
+    EXPLICIT_TEMPLATE_INSTANTIATION_SERIALIZE(hpp::fcl::BVHModel<hpp::fcl::KDOP<24>>)
+    // EXPLICIT_TEMPLATE_INSTANTIATION_SERIALIZE(hpp::fcl::OcTree)
+
     EXPLICIT_TEMPLATE_INSTANTIATION_LOAD_CONSTRUCT(pinocchio::GeometryObject)
     EXPLICIT_TEMPLATE_INSTANTIATION_SERIALIZE(pinocchio::GeometryObject)
 }
+
+BOOST_CLASS_EXPORT(hpp::fcl::CollisionGeometry)
+BOOST_CLASS_EXPORT(hpp::fcl::ShapeBase)
+BOOST_CLASS_EXPORT(hpp::fcl::TriangleP)
+BOOST_CLASS_EXPORT(hpp::fcl::Sphere)
+BOOST_CLASS_EXPORT(hpp::fcl::Box)
+BOOST_CLASS_EXPORT(hpp::fcl::Capsule)
+BOOST_CLASS_EXPORT(hpp::fcl::Cone)
+BOOST_CLASS_EXPORT(hpp::fcl::Cylinder)
+BOOST_CLASS_EXPORT(hpp::fcl::Halfspace)
+BOOST_CLASS_EXPORT(hpp::fcl::Ellipsoid)
+BOOST_CLASS_EXPORT(hpp::fcl::Plane)
+BOOST_CLASS_EXPORT(hpp::fcl::Convex<hpp::fcl::Triangle>)
+BOOST_CLASS_EXPORT(hpp::fcl::Convex<hpp::fcl::Quadrilateral>)
+BOOST_CLASS_EXPORT(hpp::fcl::HeightField<hpp::fcl::AABB>)
+BOOST_CLASS_EXPORT(hpp::fcl::HeightField<hpp::fcl::OBB>)
+BOOST_CLASS_EXPORT(hpp::fcl::HeightField<hpp::fcl::OBBRSS>)
+BOOST_CLASS_EXPORT(hpp::fcl::BVHModel<hpp::fcl::AABB>)
+BOOST_CLASS_EXPORT(hpp::fcl::BVHModel<hpp::fcl::OBB>)
+BOOST_CLASS_EXPORT(hpp::fcl::BVHModel<hpp::fcl::RSS>)
+BOOST_CLASS_EXPORT(hpp::fcl::BVHModel<hpp::fcl::OBBRSS>)
+BOOST_CLASS_EXPORT(hpp::fcl::BVHModel<hpp::fcl::kIOS>)
+BOOST_CLASS_EXPORT(hpp::fcl::BVHModel<hpp::fcl::KDOP<16>>)
+BOOST_CLASS_EXPORT(hpp::fcl::BVHModel<hpp::fcl::KDOP<18>>)
+BOOST_CLASS_EXPORT(hpp::fcl::BVHModel<hpp::fcl::KDOP<24>>)
+// BOOST_CLASS_EXPORT(hpp::fcl::OcTree)
 
 BOOST_CLASS_EXPORT(pinocchio::GeometryObject)
 

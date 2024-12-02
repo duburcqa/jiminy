@@ -20,13 +20,13 @@ from functools import lru_cache
 from itertools import chain, starmap
 from collections.abc import (Mapping, ValuesView, Sequence, Set)
 from typing import (
-    Any, Union, Mapping as MappingT, Iterable, Iterator as Iterator, Tuple,
-    TypeVar, Callable, Type)
+    Any, Union, Mapping as MappingT, Sequence as SequenceT, Iterable,
+    Iterator as Iterator, Tuple, TypeVar, Callable, Type)
 
 
 ValueT = TypeVar('ValueT')
 StructNested = Union[MappingT[str, 'StructNested[ValueT]'],
-                     Iterable['StructNested[ValueT]'],
+                     SequenceT['StructNested[ValueT]'],
                      ValueT]
 
 
@@ -35,8 +35,11 @@ def issubclass_mapping(cls: Type[Any]) -> bool:
     """Determine whether a given class is a mapping, ie its derives from
     'collections.abc.Mapping'.
 
-    Specialization of `issubclass` builtin function leveraging LRU cache for
-    speed-up.
+    `issubclass` is very slow when checking against for abstract collection
+    types instead of specific types, because it needs to go through all the
+    methods of the abstract interface and make sure it has been implemented.
+    This specialization of `issubclass` builtin function leveraging LRU cache
+    for speed-up, ensuring constant query time whatever the object.
 
     :param cls: candidate class.
     """
@@ -50,7 +53,7 @@ def issubclass_sequence(cls: Type[Any]) -> bool:
     'collections.abc.ValuesView' but not from 'str'.
 
     Specialization of `issubclass` builtin function leveraging LRU cache for
-    speed-up.
+    speed-up. See `issubclass_mapping` for details.
 
     :param cls: candidate class.
     """

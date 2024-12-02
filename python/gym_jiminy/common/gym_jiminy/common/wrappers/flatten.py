@@ -2,8 +2,7 @@
 space of the environment.
 """
 from functools import reduce
-from typing import Generic, Optional
-from typing_extensions import TypeAlias
+from typing import Generic, Optional, Iterable, Tuple, TypeAlias, cast
 
 import numpy as np
 from numpy import typing as npt
@@ -12,20 +11,20 @@ import gymnasium as gym
 
 from jiminy_py import tree
 
-from ..bases import (ObsT,
-                     ActT,
+from ..bases import (Obs,
+                     Act,
                      InterfaceJiminyEnv,
                      BaseTransformObservation,
                      BaseTransformAction)
 from ..utils import get_bounds, build_flatten
 
 
-FlattenedObsT: TypeAlias = npt.NDArray[np.float64]
-FlattenedActT: TypeAlias = npt.NDArray[np.float64]
+FlattenedObs: TypeAlias = npt.NDArray[np.float64]
+FlattenedAct: TypeAlias = npt.NDArray[np.float64]
 
 
-class FlattenObservation(BaseTransformObservation[FlattenedObsT, ObsT, ActT],
-                         Generic[ObsT, ActT]):
+class FlattenObservation(BaseTransformObservation[FlattenedObs, Obs, Act],
+                         Generic[Obs, Act]):
     """Flatten the observation space of a pipeline environment. It will appear
     as a simple one-dimension vector.
 
@@ -33,7 +32,7 @@ class FlattenObservation(BaseTransformObservation[FlattenedObsT, ObsT, ActT],
         All leaves of the observation space must have type `gym.spaces.Box`.
     """
     def __init__(self,
-                 env: InterfaceJiminyEnv[ObsT, ActT],
+                 env: InterfaceJiminyEnv[Obs, Act],
                  dtype: Optional[npt.DTypeLike] = None) -> None:
         """
         :param env: Environment to wrap.
@@ -45,10 +44,10 @@ class FlattenObservation(BaseTransformObservation[FlattenedObsT, ObsT, ActT],
         """
         # Find most appropriate dtype if not specified
         if dtype is None:
-            obs_flat = tree.map_structure(
-                lambda value: value.dtype, tree.flatten(env.observation))
             if env.observation:
-                dtype = reduce(np.promote_types, obs_flat)
+                dtype_all = [
+                    value.dtype for value in tree.flatten(env.observation)]
+                dtype = reduce(np.promote_types, dtype_all)
             else:
                 dtype = np.float64
 
@@ -69,10 +68,9 @@ class FlattenObservation(BaseTransformObservation[FlattenedObsT, ObsT, ActT],
         """Configure the observation space.
         """
         # Compute bounds of flattened observation space
-        min_max_bounds_leaves = tree.map_structure(
-            lambda space: map(
-                np.ravel, get_bounds(space)),  # type: ignore[arg-type]
-            tree.flatten(self.env.observation_space))
+        min_max_bounds_leaves = cast(Iterable[Tuple[np.ndarray, np.ndarray]], (
+            tuple(map(np.ravel, get_bounds(space)))  # type: ignore[arg-type]
+            for space in tree.flatten(self.env.observation_space)))
         low, high = (
             np.concatenate(  # pylint: disable=unexpected-keyword-arg
                 bound_leaves, dtype=self.dtype)
@@ -88,8 +86,8 @@ class FlattenObservation(BaseTransformObservation[FlattenedObsT, ObsT, ActT],
         self._flatten_observation()
 
 
-class FlattenAction(BaseTransformAction[FlattenedActT, ObsT, ActT],
-                    Generic[ObsT, ActT]):
+class FlattenAction(BaseTransformAction[FlattenedAct, Obs, Act],
+                    Generic[Obs, Act]):
     """Flatten the action space of a pipeline environment. It will appear as a
     simple one-dimension vector.
 
@@ -97,7 +95,7 @@ class FlattenAction(BaseTransformAction[FlattenedActT, ObsT, ActT],
         All leaves of the action space must have type `gym.spaces.Box`.
     """
     def __init__(self,
-                 env: InterfaceJiminyEnv[ObsT, ActT],
+                 env: InterfaceJiminyEnv[Obs, Act],
                  dtype: Optional[npt.DTypeLike] = None) -> None:
         """
         :param env: Environment to wrap.
@@ -133,10 +131,9 @@ class FlattenAction(BaseTransformAction[FlattenedActT, ObsT, ActT],
         """Configure the action space.
         """
         # Compute bounds of flattened action space
-        min_max_bounds_leaves = tree.map_structure(
-            lambda space: map(
-                np.ravel, get_bounds(space)),  # type: ignore[arg-type]
-            tree.flatten(self.env.action_space))
+        min_max_bounds_leaves = cast(Iterable[Tuple[np.ndarray, np.ndarray]], (
+            tuple(map(np.ravel, get_bounds(space)))  # type: ignore[arg-type]
+            for space in tree.flatten(self.env.action_space)))
         low, high = (
             np.concatenate(  # pylint: disable=unexpected-keyword-arg
                 bound_leaves, dtype=self.dtype)
@@ -145,12 +142,7 @@ class FlattenAction(BaseTransformAction[FlattenedActT, ObsT, ActT],
         # Initialize the action space with proper dtype
         self.action_space = gym.spaces.Box(low, high, dtype=self.dtype)
 
-        # Initialize the action space with proper dtype
-        dtype = low.dtype
-        assert dtype is not None and issubclass(dtype.type, np.floating)
-        self.action_space = gym.spaces.Box(low, high, dtype=dtype.type)
-
-    def transform_action(self, action: FlattenedActT) -> None:
+    def transform_action(self, action: FlattenedAct) -> None:
         """Update in-place the pre-allocated action buffer of the wrapped
         environment with the un-flattened action.
         """

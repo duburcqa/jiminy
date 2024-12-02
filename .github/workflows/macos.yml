@@ -10,25 +10,22 @@ on:
 jobs:
   build-and-test-osx:
     name: >-
-      (${{ matrix.PYTHON_VERSION }}) (${{ matrix.BUILD_TYPE }})
+      (${{ matrix.OS }}) (${{ matrix.PYTHON_VERSION }}) (${{ matrix.BUILD_TYPE }})
       Build and run the unit tests. Then generate and publish the wheels on PyPi.
 
     strategy:
       matrix:
-        OS: ['macos-13']  # 'macos-13': Intel (x86), 'macos-14': Apple Silicon (arm64)
-                          # meshcat video recorder 'playwright' is not working on 'macos-14' runners.
+        OS: ['macos-15']  # 'macos-13': Intel (x86), 'macos-14+': Apple Silicon (arm64)
         PYTHON_VERSION: ['3.10', '3.11', '3.12']  # `setup-python` does not support Python<3.10 on Apple Silicon
         BUILD_TYPE: ['Release']
         include:
           - OS: 'macos-13'
-            PYTHON_VERSION: '3.8'
+            PYTHON_VERSION: '3.10'
             BUILD_TYPE: 'Release'
-          - OS: 'macos-13'
-            PYTHON_VERSION: '3.9'
-            BUILD_TYPE: 'Release'
-          - OS: 'macos-13'
-            PYTHON_VERSION: '3.11'
+          - OS: 'macos-15'
+            PYTHON_VERSION: '3.12'
             BUILD_TYPE: 'Debug'
+            LINKER_FLAGS: '-Wl,-ld_classic'  # New "ld_prime" linker (XCode 15+) causes build failures
 
     runs-on: ${{ matrix.OS }}
 
@@ -37,9 +34,9 @@ jobs:
         shell: bash -ieo pipefail {0}
 
     env:
-      CMAKE_C_COMPILER: "/usr/bin/clang"
-      CMAKE_CXX_COMPILER: "/usr/bin/clang++"
-      CMAKE_CXX_FLAGS: "-DEIGEN_MPL2_ONLY -D_LIBCPP_ENABLE_CXX17_REMOVED_UNARY_BINARY_FUNCTION -Wno-deprecated-declarations"
+      C_COMPILER: "/usr/bin/clang"
+      CXX_COMPILER: "/usr/bin/clang++"
+      CXX_FLAGS: "-DEIGEN_MPL2_ONLY -Wno-deprecated-declarations"
       OSX_DEPLOYMENT_TARGET: "11.0"
       OSX_ARCHITECTURES: "x86_64;arm64"
       WHEEL_ARCH: "universal2"
@@ -67,20 +64,33 @@ jobs:
         echo "RootDir=${GITHUB_WORKSPACE}" >> $GITHUB_ENV
         echo "InstallDir=${GITHUB_WORKSPACE}/install" >> $GITHUB_ENV
 
+        # FIXME: Panda3d software rendering is partially broken on Apple Silicon
+        if [[ "${{ matrix.OS }}" != 'macos-13' ]] ; then
+          echo "JIMINY_PANDA3D_FORCE_TINYDISPLAY=" >> $GITHUB_ENV
+        fi
+
         "${PYTHON_EXECUTABLE}" -m pip install setuptools wheel "pip>=20.3"
         "${PYTHON_EXECUTABLE}" -m pip install delocate twine
     - name: Install pre-compiled binaries for additional gym-jiminy dependencies
       if: matrix.PYTHON_VERSION != '3.13'
       run: |
         "${PYTHON_EXECUTABLE}" -m pip install "torch" -f https://download.pytorch.org/whl/torch
-        "${PYTHON_EXECUTABLE}" -m pip install "gymnasium>=0.28,<1.0" "stable_baselines3>=2.0"
+        "${PYTHON_EXECUTABLE}" -m pip install "gymnasium>=0.28,<1.0" "stable_baselines3>=2.0,<2.4"
     - name: Install latest numpy version at build-time for run-time binary compatibility
       run: |
-        "${PYTHON_EXECUTABLE}" -m pip install --upgrade "numpy>=1.24,<2.0"
+        if [[ "${{ matrix.BUILD_TYPE }}" != 'Debug' && "${{ matrix.OS }}" != 'macos-13' ]] ; then
+          "${PYTHON_EXECUTABLE}" -m pip install --upgrade "numpy>=1.24" numba torch
+        else
+          # FIXME: torch on MacOS x86 for Python 3.10 does not support Numpy 2.X
+          # but does not enforce such restriction in requirements.
+          "${PYTHON_EXECUTABLE}" -m pip install --upgrade "numpy>=1.24,<2.0" numba torch
+        fi
+
     - name: Build jiminy dependencies
       run: |
         OSX_DEPLOYMENT_TARGET=${OSX_DEPLOYMENT_TARGET} OSX_ARCHITECTURES=${OSX_ARCHITECTURES} \
-          BUILD_TYPE="${{ matrix.BUILD_TYPE }}" ./build_tools/build_install_deps_unix.sh
+        LINKER_FLAGS="${{ matrix.LINKER_FLAGS }}" BUILD_TYPE="${{ matrix.BUILD_TYPE }}" \
+          ./build_tools/build_install_deps_unix.sh
 
     #####################################################################################
 
@@ -93,8 +103,10 @@ jobs:
         cd "${RootDir}/build"
         export LD_LIBRARY_PATH="${InstallDir}/lib/:/usr/local/lib"
         cmake "${RootDir}" -Wdev \
+              -DCMAKE_EXE_LINKER_FLAGS="${{ matrix.LINKER_FLAGS }}" \
+              -DCMAKE_SHARED_LINKER_FLAGS="${{ matrix.LINKER_FLAGS }}" \
               -DCMAKE_INSTALL_PREFIX="${InstallDir}" -DCMAKE_PREFIX_PATH="${InstallDir}" \
-              -DCMAKE_C_COMPILER="${CMAKE_C_COMPILER}" -DCMAKE_CXX_COMPILER="${CMAKE_CXX_COMPILER}" \
+              -DCMAKE_C_COMPILER="${C_COMPILER}" -DCMAKE_CXX_COMPILER="${CXX_COMPILER}" \
               -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" \
               -DCMAKE_OSX_DEPLOYMENT_TARGET="${OSX_DEPLOYMENT_TARGET}" \
               -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON \
@@ -103,8 +115,8 @@ jobs:
               -DBoost_USE_STATIC_LIBS=ON -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
               -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON \
               -DINSTALL_GYM_JIMINY=${{ (matrix.PYTHON_VERSION == '3.13' && 'OFF') || 'ON' }} \
-              -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}" -DCMAKE_BUILD_TYPE="${{ matrix.BUILD_TYPE }}"
-        make -j2
+              -DCMAKE_CXX_FLAGS="${CXX_FLAGS}" -DCMAKE_BUILD_TYPE="${{ matrix.BUILD_TYPE }}"
+        make -j4
 
         # Bundle the boost python dependencies with jiminy
         mkdir -p "${RootDir}/build/pypi/jiminy_py/src/jiminy_py"
@@ -126,11 +138,22 @@ jobs:
         export DYLD_FALLBACK_LIBRARY_PATH="${LD_LIBRARY_PATH}"
 
         # Generate stubs
-        stubgen -p jiminy_py -o ${RootDir}/build/pypi/jiminy_py/src
-        "${PYTHON_EXECUTABLE}" "${RootDir}/build_tools/stub_gen.py" \
-          -o ${RootDir}/build/stubs --ignore-invalid=all jiminy_py
-        cp ${RootDir}/build/stubs/jiminy_py-stubs/core/__init__.pyi \
-           ${RootDir}/build/pypi/jiminy_py/src/jiminy_py/core/core.pyi
+        if [[ "${{ matrix.BUILD_TYPE }}" != 'Debug' && "${{ matrix.OS }}" != 'macos-13' ]] ; then
+          # FIXME: stubgen does not work with Numpy 2.X
+          # (see https://github.com/python/mypy/issues/17396)
+          "${PYTHON_EXECUTABLE}" -m pip install "numpy<2.0"
+          stubgen -p jiminy_py -o ${RootDir}/build/pypi/jiminy_py/src
+          # FIXME: Python 3.10 crashes when generating stubs without any backtrace...
+          if [[ "${{ matrix.PYTHON_VERSION }}" != '3.10' ]] ; then
+            # lldb --batch -o "settings set target.process.stop-on-exec false" \
+            #   -o "break set -n main" -o "run" -k "bt" -k "quit" -- \
+            "${PYTHON_EXECUTABLE}" "${RootDir}/build_tools/stubgen.py" \
+              -o ${RootDir}/build/stubs --ignore-invalid=all jiminy_py
+            cp ${RootDir}/build/stubs/jiminy_py-stubs/core/__init__.pyi \
+              ${RootDir}/build/pypi/jiminy_py/src/jiminy_py/core/core.pyi
+          fi
+          "${PYTHON_EXECUTABLE}" -m pip install --upgrade "numpy>=1.24" numba torch
+        fi
 
         # Generate wheels
         cd "${RootDir}/build"
@@ -143,7 +166,7 @@ jobs:
             -p "macosx_${OSX_DEPLOYMENT_TARGET//./_}_${WHEEL_ARCH}" "${RootDir}/build/wheelhouse/"*.whl
         "${PYTHON_EXECUTABLE}" -m pip install --force-reinstall --no-deps "${RootDir}/build/wheelhouse/"*.whl
     - name: Upload the wheel for Linux of jiminy_py
-      if: matrix.BUILD_TYPE != 'Debug'
+      if: matrix.BUILD_TYPE != 'Debug' && matrix.OS != 'macos-15'
       uses: actions/upload-artifact@v4
       with:
         name: wheelhouse-${{ matrix.PYTHON_VERSION }}
@@ -159,10 +182,13 @@ jobs:
 
         mkdir -p "${RootDir}/core/examples/external_project/build"
         cd "${RootDir}/core/examples/external_project/build"
-        cmake "${RootDir}/core/examples/external_project/" -DCMAKE_INSTALL_PREFIX="${InstallDir}" \
-              -DCMAKE_C_COMPILER="${CMAKE_C_COMPILER}" -DCMAKE_CXX_COMPILER="${CMAKE_CXX_COMPILER}" \
-              -DCMAKE_PREFIX_PATH="${InstallDir}" -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
-              -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}" -DCMAKE_BUILD_TYPE="${{ matrix.BUILD_TYPE }}"
+        cmake "${RootDir}/core/examples/external_project/" \
+              -DCMAKE_EXE_LINKER_FLAGS="${{ matrix.LINKER_FLAGS }}" \
+              -DCMAKE_SHARED_LINKER_FLAGS="${{ matrix.LINKER_FLAGS }}" \
+              -DCMAKE_C_COMPILER="${C_COMPILER}" -DCMAKE_CXX_COMPILER="${CXX_COMPILER}" \
+              -DCMAKE_INSTALL_PREFIX="${InstallDir}" -DCMAKE_PREFIX_PATH="${InstallDir}" \
+              -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
+              -DCMAKE_CXX_FLAGS="${CXX_FLAGS}" -DCMAKE_BUILD_TYPE="${{ matrix.BUILD_TYPE }}"
         make install
 
         "${InstallDir}/bin/pip_double_pendulum"
@@ -182,15 +208,13 @@ jobs:
       run: |
         export LD_LIBRARY_PATH="${InstallDir}/lib/:/usr/local/lib"
 
-        # FIXME: Disabling `test_pipeline_control.py` on MacOS because `test_pid_standing` is
-        # failing for 'panda3d-sync' backend due to meshes still loading at screenshot time.
         if [[ "${{ matrix.BUILD_TYPE }}" == 'Debug' ]] ; then
           export JIMINY_BUILD_DEBUG=
         fi
         "${PYTHON_EXECUTABLE}" -m unittest discover -s "${RootDir}/python/gym_jiminy/unit_py" -v
 
     - name: Run examples for gym jiminy add-on modules
-      if: matrix.BUILD_TYPE != 'Debug' && matrix.PYTHON_VERSION != '3.12'
+      if: matrix.BUILD_TYPE != 'Debug'
       run: |
         export LD_LIBRARY_PATH="${InstallDir}/lib/:/usr/local/lib"
 
@@ -201,7 +225,7 @@ jobs:
 
   publish-pypi-macos:
     name: (MacOS CI) Publish on PyPi the wheel for OS X of jiminy_py
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     permissions:
       id-token: write
 
@@ -216,7 +240,7 @@ jobs:
         merge-multiple: true
         path: wheelhouse
     - name: Publish the wheel
-      uses: pypa/gh-action-pypi-publish@v1.8.11
+      uses: pypa/gh-action-pypi-publish@v1.10.3
       with:
         packages-dir: wheelhouse
         verify-metadata: false

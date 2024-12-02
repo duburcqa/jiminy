@@ -31,7 +31,6 @@ except RuntimeError as e:
     # You can get a runtime error if Matplotlib is installed but cannot be
     # imported because of some conflicts with jupyter event loop for instance.
     raise ImportError("Matplotlib cannot be imported.") from e
-from matplotlib import colors
 from matplotlib.axes import Axes
 from matplotlib.lines import Line2D
 from matplotlib.artist import Artist
@@ -67,22 +66,47 @@ SENSORS_FIELDS: Dict[
 }
 
 
-class _ButtonBlit(Button):
-    def _motion(self, event: Event) -> None:
-        if self.ignore(event):
-            return
-        c = self.hovercolor if event.inaxes == self.ax else self.color
-        if not colors.same_color(c, self.ax.get_facecolor()):
-            self.ax.set_facecolor(c)
-            if self.drawon:
-                # It is necessary to flush events beforehand to make sure
-                # figure refresh cannot get interrupted by button blitting.
-                # Otherwise the figure would be blank.
-                # FIXME: `flush_events` on 'matplotlib>=3.8' causes deadlock
-                assert self.ax.figure is not None
-                # self.ax.figure.canvas.flush_events()
-                self.ax.draw_artist(self.ax)
-                self.ax.figure.canvas.blit(self.ax.bbox)
+def _get_grid_spec(width: float,
+                   height: float,
+                   nplots: int,
+                   nrows: Optional[int] = None,
+                   ncols: Optional[int] = None) -> Tuple[int, int]:
+    """Compute the optimal grid spec (i.e. number of rows and columns) for a
+    subplot grid, so that the width of each subplot is as close as possible to
+    their height.
+
+    :param width: Width of the plotting area for the subplot grid.
+    :param height: Width of the plotting area for the subplot grid.
+    :param nplots: Expected number of subplots.
+    :param nrows: Desired number of rows for the subplot grid if any.
+                  If not specified, it will be determined automatically,
+                  so that the actual width of each subplot is as close as
+                  possible to their height.
+                  Optional: `None` by default.
+    :param ncols: Desired number of columns for the subplot grid if any.
+                  If not specified, it will be determined automatically,
+                  so that the actual width of each subplot is as close as
+                  possible to their height.
+                  Optional: `None` by default.
+    """
+    if nrows is None and ncols is None:
+        ratio = width / height
+        nrows_1 = max(1, floor(sqrt(nplots / ratio)))
+        ncols_1 = ceil(nplots / nrows_1)
+        ncols_2 = ceil(sqrt(nplots * ratio))
+        nrows_2 = ceil(nplots / ncols_2)
+        if nrows_1 * ncols_1 < nrows_2 * ncols_2:
+            nrows, ncols = map(int, (nrows_1, ncols_1))
+        else:
+            nrows, ncols = map(int, (nrows_2, ncols_2))
+    elif nrows is None and ncols is not None:
+        nrows = int(ceil(nplots / ncols))
+    elif nrows is not None and ncols is None:
+        ncols = int(ceil(nplots / nrows))
+    elif nrows is not None and ncols is not None:
+        assert nrows * ncols >= nplots
+    assert nrows is not None and ncols is not None
+    return nrows, ncols
 
 
 @dataclass
@@ -94,6 +118,10 @@ class TabData:
     """Matpolib `Axes` handles of every subplots.
     """
 
+    gridspec: Tuple[Optional[int], Optional[int]]
+    """The requested shape (nrows, ncols) of the subplot grid.
+    """
+
     legend_data: Tuple[List[Artist], List[str]]
     """Matpolib Legend data as returned by `get_legend_handles_labels` method.
 
@@ -102,8 +130,8 @@ class TabData:
     them.
     """
 
-    button: _ButtonBlit
-    """Button on which to click to switch to the tab at hands.
+    button: Button
+    """Button on which to click to switch to the tab at hand.
     """
 
     button_axcut: Axes
@@ -194,7 +222,7 @@ class TabbedFigure:
         # Customize figure subplot layout and reserve space for buttons
         # self.figure.get_layout_engine().set(w_pad=0.1, h_pad=0.1)
         self.subfigs = self.figure.subfigures(
-            2, 1, wspace=0.1, height_ratios=[0.94, 0.06])
+            2, 1, wspace=0.1, height_ratios=[0.95, 0.06])
 
         # Set window size
         if self.offscreen:
@@ -242,18 +270,12 @@ class TabbedFigure:
 
         # Re-arrange subplots in case figure aspect ratio has changed
         axes = self.tab_active.axes
-        num_subplots = len(axes)
         figure_extent = self.figure.get_window_extent()
-        figure_ratio = figure_extent.width / figure_extent.height
-        num_rows_1 = max(1, floor(sqrt(num_subplots / figure_ratio)))
-        num_cols_1 = ceil(num_subplots / num_rows_1)
-        num_cols_2 = ceil(sqrt(num_subplots * figure_ratio))
-        num_rows_2 = ceil(num_subplots / num_cols_2)
-        if num_rows_1 * num_cols_1 < num_rows_2 * num_cols_2:
-            num_rows, num_cols = map(int, (num_rows_1, num_cols_1))
-        else:
-            num_rows, num_cols = map(int, (num_rows_2, num_cols_2))
-        grid_spec = self.subfigs[0].add_gridspec(num_rows, num_cols)
+        nrows, ncols = _get_grid_spec(figure_extent.width,
+                                      figure_extent.height,
+                                      len(axes),
+                                      *self.tab_active.gridspec)
+        grid_spec = self.subfigs[0].add_gridspec(nrows, ncols)
         for i, ax in enumerate(axes, 1):
             ax.set_subplotspec(grid_spec[i - 1])
 
@@ -333,8 +355,7 @@ class TabbedFigure:
         """Refresh canvas drawing.
         """
         self.figure.canvas.draw()
-        # FIXME: `flush_events` on 'matplotlib>=3.8' causes deadlock
-        # self.figure.canvas.flush_events()
+        self.figure.canvas.flush_events()
 
     def add_tab(self,  # pylint: disable=unused-argument
                 tab_name: str,
@@ -342,7 +363,10 @@ class TabbedFigure:
                 data: Union[np.ndarray, Dict[str, Union[
                     Dict[str, np.ndarray], np.ndarray]]],
                 plot_method: Optional[
-                    Union[Callable[..., Any], str]] = None, *,
+                    Union[Callable[..., Any], str]] = None,
+                *,
+                nrows: Optional[int] = None,
+                ncols: Optional[int] = None,
                 refresh_canvas: bool = True,
                 **kwargs: Any) -> None:
         """Create a new tab holding the provided data.
@@ -374,6 +398,16 @@ class TabbedFigure:
                             array in argument, or string instance method of
                             `matplotlib.axes.Axes`.
                             Optional: `step(..., where='post')` by default.
+        :param nrows: Desired number of rows for the subplot grid if any.
+                      If not specified, it will be determined automatically,
+                      so that the actual width of each subplot is as close as
+                      possible to their height.
+                      Optional: `None` by default.
+        :param ncols: Desired number of columns for the subplot grid if any.
+                      If not specified, it will be determined automatically,
+                      so that the actual width of each subplot is as close as
+                      possible to their height.
+                      Optional: `None` by default.
         :param refresh_canvas: Whether to refresh the figure. This step can be
                                skipped if other tabs are going to be added or
                                deleted soon, to avoid useless computation and
@@ -397,12 +431,20 @@ class TabbedFigure:
             assert callable(plot_method)
 
         if isinstance(data, dict):
-            # Compute plot grid arrangement
-            n_cols = len(data)
-            n_rows = 1
-            while n_cols > n_rows + 2:
-                n_rows = n_rows + 1
-                n_cols = int(np.ceil(len(data) / n_rows))
+            # Make sure that data are valid
+            if data and len(set(
+                    tuple(sorted(e.keys()))
+                    for e in data.values() if isinstance(e, dict))) > 1:
+                raise ValueError(
+                    "Line names must be the same for all subplots.")
+
+            # Compute (temporary) plot grid arrangement.
+            # It will be adjusted automatically at the end.
+            ncols = nplots = len(data)
+            nrows = 1
+            while ncols > nrows + 2:
+                nrows = nrows + 1
+                ncols = int(np.ceil(nplots / nrows))
 
             # Initialize axes, and early return if none
             axes: List[plt.Axes] = []
@@ -410,7 +452,7 @@ class TabbedFigure:
             for i, plot_name in enumerate(data.keys()):
                 uniq_label = '_'.join((tab_name, plot_name))
                 ax = self.subfigs[0].add_subplot(
-                    n_rows, n_cols, i+1, label=uniq_label)
+                    nrows, ncols, i+1, label=uniq_label)
                 ax.autoscale(True, axis='x', tight=True)
                 ax.autoscale(True, axis='y', tight=False)
                 ax.ticklabel_format(axis='x', style='plain', useOffset=True)
@@ -455,16 +497,22 @@ class TabbedFigure:
         uniq_label = '_'.join((tab_name, "button"))
         button_axcut = self.subfigs[1].add_axes(
             [0.0, 0.0, 0.0, 0.0], label=uniq_label)
-        button = _ButtonBlit(button_axcut,
-                             tab_name.replace(' ', '\n'),
-                             color='white')
+        button = Button(button_axcut,
+                        tab_name.replace(' ', '\n'),
+                        color='white')
+        button.label.set_fontsize(9)
 
         # Register buttons events
         button.on_clicked(self.__click)
 
         # Create new tab data container
-        self.tabs_data[tab_name] = TabData(
-            axes, legend_data, button, button_axcut, nav_stack=[], nav_pos=-1)
+        self.tabs_data[tab_name] = TabData(axes,
+                                           (nrows, ncols),
+                                           legend_data,
+                                           button,
+                                           button_axcut,
+                                           nav_stack=[],
+                                           nav_pos=-1)
 
         # Check if it is the first tab to be added
         if self.tab_active is None:
@@ -844,8 +892,8 @@ def plot_log_interactive() -> None:
                     [header[i] for header in matching_fieldnames])
 
     # Create figure
-    n_plot = len(plotted_elements)
-    if not n_plot:
+    nplots = len(plotted_elements)
+    if not nplots:
         print("Nothing to plot. Exiting...")
         return
     fig = plt.figure(layout="constrained")
@@ -858,13 +906,11 @@ def plot_log_interactive() -> None:
     fig.set_size_inches(14, 8)
 
     # Create subplots, arranging them in a rectangular fashion.
-    # Do not allow for n_cols to be more than n_rows + 2.
-    n_cols = n_plot
-    n_rows = 1
-    while n_cols > n_rows + 2:
-        n_rows = int(n_rows + 1)
-        n_cols = int(np.ceil(n_plot / (1.0 * n_rows)))
-    axes = fig.subplots(n_rows, n_cols, sharex=True, squeeze=False).flat[:]
+    # Do not allow for ncols to be more than nrows + 2.
+    figure_extent = fig.get_window_extent()
+    nrows, ncols = _get_grid_spec(
+        figure_extent.width, figure_extent.height, nplots)
+    axes = fig.subplots(nrows, ncols, sharex=True, squeeze=False).flat[:]
 
     # Store lines in dictionary {file_name: plotted lines}, to enable to
     # toggle individually the visibility the data related to each of them.

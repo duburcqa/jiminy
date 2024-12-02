@@ -1,11 +1,11 @@
 # pylint: disable=missing-module-docstring
 
 from .frame_rate_limiter import FrameRateLimiter
-from .meta_envs import HierarchicalTaskSettableEnv, TaskSchedulingWrapper
+from .meta_envs import TaskSettableEnv, TaskSchedulingWrapper
 
 
 __all__ = [
     "FrameRateLimiter",
-    "HierarchicalTaskSettableEnv",
+    "TaskSettableEnv",
     "TaskSchedulingWrapper"
 ]

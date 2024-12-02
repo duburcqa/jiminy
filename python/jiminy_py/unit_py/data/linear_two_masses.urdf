@@ -1,3 +1,4 @@
+<?xml version="1.0" ?>
 <!-- This URDF describes two punctual masses moving along a single axis: it is
 meant to simulate a linear system of spring and masses for simulation testing.
 This is best described by the following diagram:
@@ -5,7 +6,6 @@ This is best described by the following diagram:
               __        __
     //| <><> |__| <><> |__|
 -->
-<?xml version="1.0" ?>
 <robot name="linear_masses">
     <link name="world">
         <inertial>

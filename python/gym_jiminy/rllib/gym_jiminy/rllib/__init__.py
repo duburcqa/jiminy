@@ -2,13 +2,11 @@
 
 from . import ppo
 from . import utilities
-from . import callbacks
 
 
 __all__ = [
     "ppo",
     "utilities",
-    "callbacks"
 ]
 
 try:

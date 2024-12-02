@@ -6,8 +6,8 @@
 #include "jiminy/core/constraints/sphere_constraint.h"
 #include "jiminy/core/constraints/wheel_constraint.h"
 
-#include "pinocchio/bindings/python/fwd.hpp"
-
+#define NO_IMPORT_ARRAY
+#include "jiminy/python/fwd.h"
 #include "jiminy/python/utilities.h"
 #include "jiminy/python/functors.h"
 #include "jiminy/python/constraints.h"

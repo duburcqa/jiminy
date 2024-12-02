@@ -99,7 +99,10 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                               used if available.
         :param simulation_duration_max: Maximum duration of a simulation before
                                         returning done.
-        :param step_dt: Simulation timestep for learning.
+        :param step_dt: Environment timestep for learning. Note that it is
+                        independent from the controller and observation update
+                        periods. The latter are configured via
+                        `engine.set_options`.
         :param reward_mixture: Weighting factors of selected contributions to
                                total reward.
         :param std_ratio: Relative standard deviation of selected contributions
@@ -279,8 +282,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                         sensor_options[name] = sample(
                             scale=(self.std_ratio['sensors'] *
                                    SENSOR_NOISE_SCALE[cls]),
-                            shape=(len(
-                                cls.fieldnames),),  # type: ignore[arg-type]
+                            shape=(len(cls.fieldnames),),
                             rg=self.np_random)
 
         # Randomize the flexibility parameters

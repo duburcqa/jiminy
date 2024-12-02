@@ -1,3 +1,4 @@
+# mypy: disable-error-code="no-untyped-def, var-annotated"
 """ TODO: Write documentation
 """
 import os
@@ -32,7 +33,8 @@ class DeformationEstimatorBlock(unittest.TestCase):
             true_imu_rots.append(frame_rot)
         true_imu_quats = matrices_to_quat(tuple(true_imu_rots))
 
-        est_imu_quats = env.observation['features']['mahony_filter']
+        features = env.observation['features']
+        est_imu_quats = features['mahony_filter']['quat']
         np.testing.assert_allclose(
             true_imu_quats, est_imu_quats, atol=imu_atol)
 
@@ -40,9 +42,8 @@ class DeformationEstimatorBlock(unittest.TestCase):
         model_options = env.robot.get_model_options()
         flexibility_frame_names = [
             flex_options["frameName"]
-            for flex_options in model_options["dynamics"]["flexibilityConfig"]
-        ]
-        est_flex_quats = env.observation['features']['deformation_estimator']
+            for flex_options in model_options["dynamics"]["flexibilityConfig"]]
+        est_flex_quats = features['deformation_estimator']['quat']
         est_flex_quats[:] *= np.sign(est_flex_quats[-1])
         for frame_name, joint_index in zip(
                 flexibility_frame_names, env.robot.flexibility_joint_indices):
@@ -212,7 +213,7 @@ class DeformationEstimatorBlock(unittest.TestCase):
                 model_options["dynamics"]["enableFlexibility"] = True
                 self.robot.set_model_options(model_options)
 
-        # Create pipeline with Mahony filter and DeformationObserver blocks
+        # Create pipeline with Mahony filter and DeformationEstimator blocks
         PipelineEnv = build_pipeline(
             env_config=dict(
                 cls=FlexAntJiminyEnv
