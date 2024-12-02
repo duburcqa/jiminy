@@ -587,9 +587,10 @@ def play_trajectories(
             out = av.open(record_video_path, mode='w')
             out.metadata['title'] = scene_name
             stream = out.add_stream('libx264', rate=VIDEO_FRAMERATE)
+            assert isinstance(stream, av.video.stream.VideoStream)
             stream.width, stream.height = record_video_size
             stream.pix_fmt = 'yuv420p'
-            stream.bit_rate = VIDEO_QUALITY * (8 * 1024 ** 2)
+            stream.bit_rate = int(VIDEO_QUALITY * (8 * 1024 ** 2))
             stream.options = {"preset": "veryfast", "tune": "zerolatency"}
 
             # Create frame storage
@@ -600,6 +601,7 @@ def play_trajectories(
         update_hook_t = None
         time_global = np.arange(
             time_interval[0], time_max + 1e-10, speed_ratio / VIDEO_FRAMERATE)
+        assert isinstance(stream, av.video.stream.VideoStream)
         for t in tqdm(
                 time_global, desc="Rendering frames",
                 disable=(not verbose and not record_video_html_embedded)):
