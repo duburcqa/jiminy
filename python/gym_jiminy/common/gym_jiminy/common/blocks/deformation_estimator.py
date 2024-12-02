@@ -3,7 +3,7 @@ compatible with gym_jiminy reinforcement learning pipeline environment design.
 """
 from collections import OrderedDict
 from collections.abc import Mapping
-from typing import List, Dict, Sequence, Tuple, Optional
+from typing import List, Dict, Sequence, Tuple, Union, Optional
 
 import numpy as np
 import numba as nb
@@ -16,6 +16,7 @@ from jiminy_py.core import (  # pylint: disable=no-name-in-module
 import pinocchio as pin
 
 from ..bases import BaseAct, BaseObs, BaseObserverBlock, InterfaceJiminyEnv
+from ..wrappers.observation_layout import NestedData
 from ..utils import (DataNested,
                      quat_to_rpy,
                      matrices_to_quat,
@@ -508,7 +509,7 @@ class DeformationEstimator(BaseObserverBlock[
                  imu_frame_names: Sequence[str],
                  flex_frame_names: Sequence[str],
                  ignore_twist: bool = True,
-                 nested_imu_key: Sequence[str] = (
+                 nested_imu_key: NestedData = (
                     "features", "mahony_filter", "quat"),
                  compute_rpy: bool = True,
                  update_ratio: int = 1) -> None:
@@ -649,11 +650,26 @@ class DeformationEstimator(BaseObserverBlock[
             self._is_flex_flipped.append(np.array(is_flipped))
             self._is_chain_orphan.append((is_parent_orphan, is_child_orphan))
 
-        # Define IMU and encoder measurement proxy for fast access
+        # Define IMU observation proxy for fast access
         obs_imu_quats: DataNested = env.observation
         for key in nested_imu_key:
-            assert isinstance(obs_imu_quats, Mapping)
-            obs_imu_quats = obs_imu_quats[key]
+            if isinstance(key, str):
+                assert isinstance(obs_imu_quats, Mapping)
+                obs_imu_quats = obs_imu_quats[key]
+            elif isinstance(key, int):
+                assert isinstance(obs_imu_quats, Sequence)
+                obs_imu_quats = obs_imu_quats[key]
+            else:
+                assert isinstance(obs_imu_quats, np.ndarray)
+                slices: List[Union[int, slice]] = []
+                for start_end in key:
+                    if isinstance(start_end, int):
+                        slices.append(start_end)
+                    elif not start_end:
+                        slices.append(slice(None,))
+                    else:
+                        slices.append(slice(*start_end))
+                obs_imu_quats = obs_imu_quats[tuple(slices)]
         assert isinstance(obs_imu_quats, np.ndarray)
         self._obs_imu_quats = obs_imu_quats
 
