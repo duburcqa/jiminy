@@ -64,7 +64,7 @@ class Getch:
         return it. Any previous characters not fetched before calling this
         method will be discarded.
         """
-        if os.name == "nt":
+        if os.name == "posix":
             char = ''
             try:
                 import termios
