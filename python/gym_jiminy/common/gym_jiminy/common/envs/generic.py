@@ -50,7 +50,6 @@ from ..bases import (DT_EPS,
                      Obs,
                      Act,
                      InfoType,
-                     SensorMeasurementStackMap,
                      EngineObsType,
                      InterfaceJiminyEnv)
 from ..quantities import QuantityManager
@@ -200,8 +199,6 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         self._robot_state_q = np.array([])
         self._robot_state_v = np.array([])
         self._robot_state_a = np.array([])
-        self.sensor_measurements: SensorMeasurementStackMap = OrderedDict(
-            self.robot.sensor_measurements)
 
         # Top-most block of the pipeline is the environment itself by default
         self.derived = self
@@ -563,7 +560,6 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         # It is necessary because the robot may have changed.
         self.robot = self.simulator.robot
         self.robot_state = self.simulator.robot_state
-        self.sensor_measurements = OrderedDict(self.robot.sensor_measurements)
 
         # Reset action
         fill(self.action, 0)
@@ -670,8 +666,9 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         # Start the simulation
         self.simulator.start(q_init, v_init)
 
-        # Refresh robot_state proxies. It must be done here because memory is
-        # only allocated by the engine when starting a simulation.
+        # Refresh robot_state proxies.
+        # Note that it must be done here because memory is only allocated by
+        # the engine when starting a simulation.
         self._robot_state_q = self.robot_state.q
         self._robot_state_v = self.robot_state.v
         self._robot_state_a = self.robot_state.a
@@ -793,7 +790,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
             # Update the action
             self._copyto_action(action)
 
-        # Try performing a single simulation step
+        # Try performing a single environment step
         try:
             self.simulator.step(self.step_dt)
         except Exception:

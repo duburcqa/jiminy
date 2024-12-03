@@ -196,7 +196,6 @@ class InterfaceJiminyEnv(
     robot: jiminy.Robot
     stepper_state: jiminy.StepperState
     robot_state: jiminy.RobotState
-    sensor_measurements: SensorMeasurementStackMap
     measurements: EngineObsType
     is_simulation_running: npt.NDArray[np.bool_]
 
@@ -281,10 +280,6 @@ class InterfaceJiminyEnv(
         :param v: Current extended velocity vector of the robot.
         :param sensor_measurements: Current sensor data.
         """
-        # Early return if no simulation is running
-        if not self.is_simulation_running:
-            return
-
         # Reset the quantity manager.
         # In principle, the internal cache of quantities should be cleared each
         # time the state of the robot and/or its derivative changes. This is

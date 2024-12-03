@@ -265,9 +265,9 @@ class MahonyFilter(BaseObserverBlock[
         # triggering yet another compilation.
         self._is_compiled = False
 
-        # Define gyroscope and accelerometer proxies for fast access.
-        # Note that they will be initialized in `_setup` method.
-        self.gyro, self.acc = np.array([]), np.array([])
+        # Define gyroscope and accelerometer proxies for fast access
+        self.gyro, self.acc = np.split(
+            env.measurement["measurements"][ImuSensor.type], 2)
 
         # Allocate gyroscope bias estimate
         self._bias = np.zeros((3, num_imu_sensors))
@@ -358,10 +358,6 @@ class MahonyFilter(BaseObserverBlock[
             raise ValueError(
                 "This block does not support time-continuous update.")
 
-        # Refresh gyroscope and accelerometer proxies
-        self.gyro, self.acc = np.split(
-            self.env.sensor_measurements[ImuSensor.type], 2)
-
         # Reset the sensor bias estimate
         fill(self._bias, 0)
 
@@ -411,9 +407,10 @@ class MahonyFilter(BaseObserverBlock[
         if not self._is_initialized:
             if not self.exact_init:
                 if (np.abs(self.acc) < 0.1 * EARTH_SURFACE_GRAVITY).all():
-                    LOGGER.warning(
-                        "The robot is free-falling. Impossible to initialize "
-                        "Mahony filter for 'exact_init=False'.")
+                    if self._is_compiled:
+                        LOGGER.warning(
+                            "The robot is free-falling. Impossible to "
+                            "initialize Mahony filter for 'exact_init=False'.")
                 else:
                     # Try to determine the orientation of the IMU from its
                     # measured acceleration at initialization. This approach is
