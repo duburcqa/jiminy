@@ -113,17 +113,6 @@ namespace jiminy::python
         return bp::extract<np::ndarray>(objPy);
     }
 
-    bool isBreakpoint(StepperState & stepperState, double dt, double eps)
-    {
-        if (dt < eps)
-        {
-            return true;
-        }
-        const double dtPrev = std::fmod(stepperState.t, dt);
-        const double dtNext = dt - dtPrev;
-        return (dtPrev < eps) || (dtNext < eps);
-    }
-
     template<typename T>
     void EigenMapTransposeAssign(char * dstData, char * srcData, npy_intp rows, npy_intp cols)
     {
@@ -407,8 +396,6 @@ namespace jiminy::python
                 &getFrameIndices,
                 bp::return_value_policy<result_converter<true>>(),
                 (bp::arg("pinocchio_model"), "joint_names"));
-
-        bp::def("is_breakpoint", &isBreakpoint, (bp::arg("stepper_state"), "dt", "eps"));
 
         bp::def("array_copyto", &arrayCopyTo, (bp::arg("dst"), "src"));
         bp::def("multi_array_copyto", &multiArrayCopyTo, (bp::arg("dst"), "src"));

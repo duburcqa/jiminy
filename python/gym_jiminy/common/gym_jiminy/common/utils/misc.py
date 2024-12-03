@@ -34,7 +34,7 @@ class RandomDistribution(Protocol):
         ...
 
 
-def is_breakpoint(t: float, dt: float, eps: float) -> bool:
+def is_breakpoint(t: ArrayOrScalar, dt: float, eps: float) -> bool:
     """Check if 't' is multiple of 'dt' at a given precision 'eps'.
 
     :param t: Current time.
@@ -45,8 +45,8 @@ def is_breakpoint(t: float, dt: float, eps: float) -> bool:
     """
     if dt < eps:
         return True
-    dt_prev = t % dt
-    return (dt_prev < eps / 2) or (dt - dt_prev <= eps / 2)
+    dt_prev = float(t) % dt
+    return (dt_prev < eps) or (dt - dt_prev <= eps)
 
 
 @nb.jit(nopython=True, cache=True, inline='always')

@@ -26,8 +26,7 @@ import gymnasium as gym
 from gymnasium.core import RenderFrame
 from gymnasium.envs.registration import EnvSpec
 
-from jiminy_py.core import (  # pylint: disable=no-name-in-module
-    is_breakpoint, array_copyto)
+from jiminy_py.core import array_copyto  # pylint: disable=no-name-in-module
 from jiminy_py.dynamics import Trajectory
 from jiminy_py.tree import issubclass_mapping
 
@@ -46,7 +45,8 @@ from ..utils import (DataNested,
                      zeros,
                      build_copyto,
                      copy,
-                     get_robot_state_space)
+                     get_robot_state_space,
+                     is_breakpoint)
 if TYPE_CHECKING:
     from ..envs.generic import BaseJiminyEnv
 
@@ -928,7 +928,7 @@ class ObservedJiminyEnv(
         self.env.refresh_observation(measurement)
 
         # Update observed features if necessary
-        if is_breakpoint(self.stepper_state, self.observe_dt, DT_EPS):
+        if is_breakpoint(measurement["t"], self.observe_dt, DT_EPS):
             self.observer.refresh_observation(self.env.observation)
 
     def compute_command(self, action: Act, command: np.ndarray) -> None:
@@ -1150,7 +1150,7 @@ class ControlledJiminyEnv(
         # Note that `observation` buffer has already been updated right before
         # calling this method by `_controller_handle`, so it can be used as
         # measure argument without issue.
-        if is_breakpoint(self.stepper_state, self.control_dt, DT_EPS):
+        if is_breakpoint(self.measurement["t"], self.control_dt, DT_EPS):
             self.controller.compute_command(action, self.env.action)
 
         # Update the command to send to the actuators of the robot.
@@ -1256,7 +1256,7 @@ class BaseTransformObservation(
         self.env.refresh_observation(measurement)
 
         # Transform observation at the end of the step only
-        if is_breakpoint(self.stepper_state, self._step_dt, DT_EPS):
+        if is_breakpoint(measurement["t"], self._step_dt, DT_EPS):
             self.transform_observation()
 
     @abstractmethod
@@ -1366,7 +1366,7 @@ class BaseTransformAction(
         :param command: Lower-level command to update in-place.
         """
         # Transform action at the beginning of the step only
-        if is_breakpoint(self.stepper_state, self._step_dt, DT_EPS):
+        if is_breakpoint(self.measurement["t"], self._step_dt, DT_EPS):
             self.transform_action(action)
 
         # Delegate command computation to wrapped environment
