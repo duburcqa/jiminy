@@ -193,6 +193,10 @@ class BasePipelineWrapper(
         # Call base implementation
         super().__init__()  # Do not forward any argument
 
+        # Bind engine measurement
+        self.measurement = env.measurement
+        self._measurement_flat = env._measurement_flat
+
         # Enable direct forwarding by default for efficiency
         if BasePipelineWrapper.has_terminated is type(self).has_terminated:
             self.has_terminated = (  # type: ignore[method-assign]
