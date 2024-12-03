@@ -180,7 +180,6 @@ class BasePipelineWrapper(
         self.stepper_state = env.stepper_state
         self.robot = env.robot
         self.robot_state = env.robot_state
-        self.sensor_measurements = env.sensor_measurements
         self.is_simulation_running = env.is_simulation_running
         self.num_steps = env.num_steps
 
@@ -437,7 +436,6 @@ class BasePipelineWrapper(
         # Refresh some proxies for fast lookup
         self.robot = self.env.robot
         self.robot_state = self.env.robot_state
-        self.sensor_measurements = self.env.sensor_measurements
 
         # Initialize specialized operator(s) for efficiency
         self._copyto_action = build_copyto(self.action)

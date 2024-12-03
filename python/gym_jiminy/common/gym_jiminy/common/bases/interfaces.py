@@ -196,7 +196,6 @@ class InterfaceJiminyEnv(
     robot: jiminy.Robot
     stepper_state: jiminy.StepperState
     robot_state: jiminy.RobotState
-    sensor_measurements: SensorMeasurementStackMap
     measurements: EngineObsType
     is_simulation_running: npt.NDArray[np.bool_]
 
@@ -281,6 +280,10 @@ class InterfaceJiminyEnv(
         :param v: Current extended velocity vector of the robot.
         :param sensor_measurements: Current sensor data.
         """
+        # Update engine measurement
+        measurement_flat = (t, q, v, *sensor_measurements.values())
+        multi_array_copyto(self._measurement_flat, measurement_flat)
+
         # Early return if no simulation is running
         if not self.is_simulation_running:
             return
@@ -305,14 +308,6 @@ class InterfaceJiminyEnv(
         # that is supposed to be executed before `refresh_observation` is being
         # called for the first time of an episode.
         if not self.__is_observation_refreshed:
-            # Update engine measurement
-            measurement_flat = (t, q, v, *sensor_measurements.values())
-            multi_array_copyto(self._measurement_flat, measurement_flat)
-
-            # Early return if no simulation is running
-            if not self.is_simulation_running:
-                return
-
             # Refresh observation
             try:
                 self.refresh_observation(self.measurement)

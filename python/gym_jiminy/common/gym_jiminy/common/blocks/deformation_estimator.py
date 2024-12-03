@@ -698,9 +698,9 @@ class DeformationEstimator(BaseObserverBlock[
                     "Revolute unbounded joints are not supported for now.")
             self.encoder_to_position_map[sensor.index] = joint.idx_q
 
-        # Extract measured motor / joint positions for fast access.
-        # Note that they will be initialized in `_setup` method.
-        self.encoder_data = np.array([])
+        # Extract measured motor / joint positions for fast access
+        self.encoder_data, _ = (
+            env.measurement["measurements"][EncoderSensor.type])
 
         # Ratio to translate encoder data to joint side
         self.encoder_to_joint_ratio = np.array([])
@@ -782,9 +782,6 @@ class DeformationEstimator(BaseObserverBlock[
                 for frame_names in (flex_frame_names, imu_frame_names))
             self._kin_flex_rots.append(kin_flex_rots)
             self._kin_imu_rots.append(kin_imu_rots)
-
-        # Refresh measured motor position proxy
-        self.encoder_data, _ = self.env.sensor_measurements[EncoderSensor.type]
 
         # Refresh mechanical reduction ratio
         encoder_to_joint_ratio = []

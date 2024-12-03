@@ -172,9 +172,9 @@ class MotorSafetyLimit(
                 "Consider using the same ordering for encoders and motors for "
                 "optimal performance.")
 
-        # Extract measured motor positions and velocities for fast access.
-        # Note that they will be initialized in `_setup` method.
-        self.q_measured, self.v_measured = np.array([]), np.array([])
+        # Extract measured motor positions and velocities for fast access
+        self.q_measured, self.v_measured = (
+            env.measurement["measurements"][EncoderSensor.type])
 
         # Initialize the controller
         super().__init__(name, env, update_ratio=1)
@@ -185,14 +185,6 @@ class MotorSafetyLimit(
         The action spaces corresponds to the command motors efforts.
         """
         self.action_space = self.env.action_space
-
-    def _setup(self) -> None:
-        # Call base implementation
-        super()._setup()
-
-        # Refresh measured motor positions and velocities proxies
-        self.q_measured, self.v_measured = (
-            self.env.sensor_measurements[EncoderSensor.type])
 
     @property
     def fieldnames(self) -> List[str]:
