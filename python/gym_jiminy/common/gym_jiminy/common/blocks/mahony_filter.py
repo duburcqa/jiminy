@@ -162,15 +162,16 @@ class MahonyFilter(BaseObserverBlock[
 
     .. note::
         The feature space of this observer is a dictionary storing quaternion
-        estimates under key 'quat', and optionally, their corresponding
-        Yaw-Pitch-Roll Euler angles representations under key 'key' if
-        `compute_rpy=True`. Both leaves are 2D array of shape (N, M), where
-        N is the number of components of the representation while M is the
-        number of IMUs of the robot. More specifically, `N=4` for quaternions
-        (Qx, Qy, Qz, Qw) and 'N=3' for Euler angles (Roll-Pitch-Yaw). Indeed,
-        the Yaw angle of the Yaw-Pitch-Roll Euler angles representations is
-        systematically included in the feature space, even if its value is
-        meaningless, i.e. `ignore_twist=True`.
+        estimates under key 'quat', optionally, their corresponding
+        Yaw-Pitch-Roll Euler angles representations under key 'rpy' if
+        `compute_rpy=True`, and finally, the angular velocity in local frame
+        estimates under key 'omega'. Both leaves are 2D array of shape (N, M),
+        where N is the number of components of the representation while M is
+        the number of IMUs of the robot. Specifically, `N=4` for quaternions
+        (Qx, Qy, Qz, Qw), 'N=3' for both the Euler angles (Roll-Pitch-Yaw) and
+        the angular velocity. The Yaw angle of the Yaw-Pitch-Roll Euler angles
+        representations is systematically included in the feature space, even
+        if its value is meaningless, i.e. `ignore_twist=True`.
 
     .. warning::
         This filter works best for 'observe_dt' smaller or equal to 5ms. Its
@@ -186,7 +187,7 @@ class MahonyFilter(BaseObserverBlock[
                  exact_init: bool = True,
                  kp: Union[np.ndarray, float] = 1.0,
                  ki: Union[np.ndarray, float] = 0.1,
-                 compute_rpy: bool = True,
+                 compute_rpy: bool = False,
                  update_ratio: int = 1) -> None:
         """
         :param name: Name of the block.
@@ -205,14 +206,14 @@ class MahonyFilter(BaseObserverBlock[
                            is not recommended because the robot is often
                            free-falling at init, which is not realistic anyway.
                            Optional: `True` by default.
-        :param mahony_kp: Proportional gain used for gyro-accel sensor fusion.
-                          Set it to 0.0 to use only the gyroscope. In such a
-                          case, the orientation estimate would be exact if the
-                          sensor is bias- and noise-free, and the update period
-                          matches the simulation integrator timestep.
-                          Optional: `1.0` by default.
-        :param mahony_ki: Integral gain used for gyro bias estimate.
-                          Optional: `0.1` by default.
+        :param kp: Proportional gain used for gyro-accel sensor fusion. Set it
+                   to 0.0 to use only the gyroscope. In such a case, the
+                   orientation estimate would be exact if the sensor is bias-
+                   and noise-free, and the update period matches the
+                   simulation integrator timestep.
+                   Optional: `1.0` by default.
+        :param ki: Integral gain used for gyro bias estimate.
+                   Optional: `0.1` by default.
         :param compute_rpy: Whether to compute the Yaw-Pitch-Roll Euler angles
                             representation for the 3D orientation of the IMU,
                             in addition to the quaternion representation.
@@ -279,9 +280,6 @@ class MahonyFilter(BaseObserverBlock[
         if self._update_twist:
             self._state["twist"] = self._twist
 
-        # Store the estimate angular velocity to avoid redundant computations
-        self._omega = np.zeros((3, num_imu_sensors))
-
         # Initialize the observer
         super().__init__(name, env, update_ratio)
 
@@ -291,6 +289,7 @@ class MahonyFilter(BaseObserverBlock[
             self._rpy = self.observation["rpy"]
         else:
             self._rpy = np.array([])
+        self._omega = self.observation["omega"]
 
     def _initialize_state_space(self) -> None:
         """Configure the internal state space of the observer.
@@ -340,6 +339,11 @@ class MahonyFilter(BaseObserverBlock[
                 low=-high[:, np.newaxis].repeat(num_imu_sensors, axis=1),
                 high=high[:, np.newaxis].repeat(num_imu_sensors, axis=1),
                 dtype=np.float64)
+        observation_space["omega"] = gym.spaces.Box(
+            low=float('-inf'),
+            high=float('inf'),
+            shape=(3, num_imu_sensors),
+            dtype=np.float64)
         self.observation_space = gym.spaces.Dict(observation_space)
 
     def _setup(self) -> None:
@@ -390,8 +394,11 @@ class MahonyFilter(BaseObserverBlock[
         imu_sensors = self.env.robot.sensors[ImuSensor.type]
         fieldnames: Dict[str, List[List[str]]] = {}
         fieldnames["quat"] = [
-            [f"{sensor.name}.Quat{e}" for sensor in imu_sensors]
-            for e in ("x", "y", "z", "w")]
+            [".".join((sensor.name, f"Quat{e}")) for sensor in imu_sensors]
+            for e in ("X", "Y", "Z", "W")]
+        fieldnames["omega"] = [
+            [".".join((sensor.name, e)) for sensor in imu_sensors]
+            for e in ("X", "Y", "Z")]
         if self.compute_rpy:
             fieldnames["rpy"] = [
                 [".".join((sensor.name, e)) for sensor in imu_sensors]
@@ -425,7 +432,7 @@ class MahonyFilter(BaseObserverBlock[
                     rot = robot.pinocchio_data.oMf[sensor.frame_index].rotation
                     imu_rots.append(rot)
 
-                # Convert it to quaternions
+                # Convert the rotation matrices of the IMUs to quaternions
                 matrices_to_quat(tuple(imu_rots), self._quat)
 
                 # Keep track of tilt if necessary
@@ -433,6 +440,11 @@ class MahonyFilter(BaseObserverBlock[
                     self._twist[:] = np.arctan2(self._quat[2], self._quat[3])
 
                 self._is_initialized = True
+
+            # Compute the RPY representation if requested
+            if self.compute_rpy:
+                quat_to_rpy(self._quat, self._rpy)
+
             return
 
         # Run an iteration of the filter, computing the next state estimate
