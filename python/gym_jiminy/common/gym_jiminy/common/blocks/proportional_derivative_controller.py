@@ -384,9 +384,9 @@ class PDController(
                                               motors_velocity_limit,
                                               acceleration_limit], axis=0)
 
-        # Extract measured motor positions and velocities for fast access.
-        # Note that they will be initialized in `_setup` method.
-        self.q_measured, self.v_measured = np.array([]), np.array([])
+        # Extract measured motor positions and velocities for fast access
+        self.q_measured, self.v_measured = (
+            env.measurement["measurements"][EncoderSensor.type])
 
         # Allocate memory for the command state
         self._command_state = np.zeros((3, env.robot.nmotors))
@@ -429,10 +429,6 @@ class PDController(
         if self.env.control_dt <= 0.0:
             raise ValueError(
                 "This block does not support time-continuous update.")
-
-        # Refresh measured motor positions and velocities proxies
-        self.q_measured, self.v_measured = (
-            self.env.sensor_measurements[EncoderSensor.type])
 
         # Reset the command state
         fill(self._command_state, 0)
