@@ -1060,7 +1060,8 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
                        method.
         """
         # Stop the episode if one is still running
-        self.stop()
+        env = self.derived
+        env.stop()
 
         # Enable play interactive flag and make sure training flag is disabled
         is_training = self.is_training
@@ -1075,7 +1076,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
             self.simulator.render(update_ground_profile=False)
 
         # Initialize the simulation
-        obs, _ = self.derived.reset()
+        obs, _ = env.reset()
         reward = None
 
         # Refresh the ground profile
@@ -1099,13 +1100,11 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         # Define interactive loop
         def _interact(key: Optional[str] = None) -> bool:
             nonlocal obs, reward, enable_is_done
-            if key is not None:
-                action = self._key_to_action(
-                    key, obs, reward, **{"verbose": verbose, **kwargs})
+            action = self._key_to_action(
+                key, obs, reward, **{"verbose": verbose, **kwargs})
             if action is None:
                 action = self.action
-            _, reward, terminated, truncated, _ = self.step(action)
-            obs = self.observation
+            obs, reward, terminated, truncated, _ = env.step(action)
             self.render()
             if not enable_is_done and self.robot.has_freeflyer:
                 return self._robot_state_q[2] < 0.0
@@ -1122,7 +1121,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
 
         # Stop the simulation to unlock the robot.
         # It will enable to display contact forces for replay.
-        self.stop()
+        env.stop()
 
         # Disable play interactive mode flag and restore training flag
         self._is_interactive = False
@@ -1180,7 +1179,8 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
                 interactive_mode() >= 2)
 
         # Stop the episode if one is still running
-        self.stop()
+        env = self.derived
+        env.stop()
 
         # Make sure evaluation mode is enabled
         is_training = self.is_training
@@ -1191,7 +1191,6 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         self._initialize_seed(seed)
 
         # Initialize the simulation
-        env = self.derived
         obs, info = env.reset()
         action, reward, terminated, truncated = None, None, False, False
 
@@ -1208,7 +1207,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
                     break
                 obs, reward, terminated, truncated, info = env.step(action)
                 info_episode.append(info)
-            self.stop()
+            env.stop()
         except KeyboardInterrupt:
             pass
 
@@ -1531,7 +1530,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         return False, truncated
 
     def _key_to_action(self,
-                       key: str,
+                       key: Optional[str],
                        obs: Obs,
                        reward: Optional[float],
                        **kwargs: Any) -> Optional[Act]:
@@ -1561,6 +1560,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         :param kwargs: Extra keyword argument provided by the user when calling
                        `play_interactive` method.
 
-        :returns: Action to forward to the environment.
+        :returns: Action to forward to the environment. None to hold the
+        previous action without updating it.
         """
         raise NotImplementedError

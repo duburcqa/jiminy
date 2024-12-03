@@ -215,10 +215,12 @@ class CartPoleJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         return 1.0 if not terminated else 0.0
 
     def _key_to_action(self,
-                       key: str,
+                       key: Optional[str],
                        obs: np.ndarray,
                        reward: Optional[float],
                        **kwargs: Any) -> Optional[np.ndarray]:
+        if key is None:
+            return None
         if key == "Left":
             return np.array(1)
         if key == "Right":
