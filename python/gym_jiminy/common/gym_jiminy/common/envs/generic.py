@@ -22,8 +22,7 @@ from gymnasium.core import RenderFrame
 
 import jiminy_py.core as jiminy
 from jiminy_py import tree
-from jiminy_py.core import (  # pylint: disable=no-name-in-module
-    array_copyto, multi_array_copyto)
+from jiminy_py.core import array_copyto  # pylint: disable=no-name-in-module
 from jiminy_py.dynamics import compute_freeflyer_state_from_fixed_body
 from jiminy_py.log import extract_variables_from_log
 from jiminy_py.simulator import Simulator, TabbedFigure
@@ -274,15 +273,9 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
                 "`BaseJiminyEnv.refresh_observation` must be overloaded when "
                 "defining a custom observation space.")
 
-        # Define flattened default observation for efficiency if not overloaded
-        self._observation_flat: Sequence[np.ndarray] = ()
+        # Bind the observation to the engine measurements by default
         if not is_observation_space_custom:
-            assert isinstance(self.observation, dict)
-            self._observation_flat = (
-                self.observation['t'],
-                self.observation['states']['agent']['q'],
-                self.observation['states']['agent']['v'],
-                *self.observation['measurements'].values())
+            self.observation = cast(Obs, self.measurement)
 
         # Define specialized operators for efficiency.
         # Note that a partial view of observation corresponding to measurement
@@ -1463,16 +1456,6 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
             `self.robot_state` would not be valid if an adaptive stepper is
             being used for physics integration.
         """
-        # Manually flatten measurement
-        agent_state_in = measurement['states']['agent']
-        measurement_flat = (
-            measurement['t'],
-            agent_state_in['q'],
-            agent_state_in['v'],
-            *measurement['measurements'].values())
-
-        # Copy all arrays at once
-        multi_array_copyto(self._observation_flat, measurement_flat)
 
     def compute_command(self, action: Act, command: np.ndarray) -> None:
         """Compute the motors efforts to apply on the robot.
