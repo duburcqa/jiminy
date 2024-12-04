@@ -22,8 +22,7 @@ from gymnasium.core import RenderFrame
 
 import jiminy_py.core as jiminy
 from jiminy_py import tree
-from jiminy_py.core import (  # pylint: disable=no-name-in-module
-    array_copyto, multi_array_copyto)
+from jiminy_py.core import array_copyto  # pylint: disable=no-name-in-module
 from jiminy_py.dynamics import compute_freeflyer_state_from_fixed_body
 from jiminy_py.log import extract_variables_from_log
 from jiminy_py.simulator import Simulator, TabbedFigure
@@ -51,7 +50,6 @@ from ..bases import (DT_EPS,
                      Obs,
                      Act,
                      InfoType,
-                     SensorMeasurementStackMap,
                      EngineObsType,
                      InterfaceJiminyEnv)
 from ..quantities import QuantityManager
@@ -201,8 +199,6 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         self._robot_state_q = np.array([])
         self._robot_state_v = np.array([])
         self._robot_state_a = np.array([])
-        self.sensor_measurements: SensorMeasurementStackMap = OrderedDict(
-            self.robot.sensor_measurements)
 
         # Top-most block of the pipeline is the environment itself by default
         self.derived = self
@@ -274,15 +270,9 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
                 "`BaseJiminyEnv.refresh_observation` must be overloaded when "
                 "defining a custom observation space.")
 
-        # Define flattened default observation for efficiency if not overloaded
-        self._observation_flat: Sequence[np.ndarray] = ()
+        # Bind the observation to the engine measurements by default
         if not is_observation_space_custom:
-            assert isinstance(self.observation, dict)
-            self._observation_flat = (
-                self.observation['t'],
-                self.observation['states']['agent']['q'],
-                self.observation['states']['agent']['v'],
-                *self.observation['measurements'].values())
+            self.observation = cast(Obs, self.measurement)
 
         # Define specialized operators for efficiency.
         # Note that a partial view of observation corresponding to measurement
@@ -570,7 +560,6 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         # It is necessary because the robot may have changed.
         self.robot = self.simulator.robot
         self.robot_state = self.simulator.robot_state
-        self.sensor_measurements = OrderedDict(self.robot.sensor_measurements)
 
         # Reset action
         fill(self.action, 0)
@@ -677,8 +666,9 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         # Start the simulation
         self.simulator.start(q_init, v_init)
 
-        # Refresh robot_state proxies. It must be done here because memory is
-        # only allocated by the engine when starting a simulation.
+        # Refresh robot_state proxies.
+        # Note that it must be done here because memory is only allocated by
+        # the engine when starting a simulation.
         self._robot_state_q = self.robot_state.q
         self._robot_state_v = self.robot_state.v
         self._robot_state_a = self.robot_state.a
@@ -800,7 +790,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
             # Update the action
             self._copyto_action(action)
 
-        # Try performing a single simulation step
+        # Try performing a single environment step
         try:
             self.simulator.step(self.step_dt)
         except Exception:
@@ -1060,7 +1050,8 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
                        method.
         """
         # Stop the episode if one is still running
-        self.stop()
+        env = self.derived
+        env.stop()
 
         # Enable play interactive flag and make sure training flag is disabled
         is_training = self.is_training
@@ -1075,7 +1066,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
             self.simulator.render(update_ground_profile=False)
 
         # Initialize the simulation
-        obs, _ = self.derived.reset()
+        obs, _ = env.reset()
         reward = None
 
         # Refresh the ground profile
@@ -1099,13 +1090,11 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         # Define interactive loop
         def _interact(key: Optional[str] = None) -> bool:
             nonlocal obs, reward, enable_is_done
-            if key is not None:
-                action = self._key_to_action(
-                    key, obs, reward, **{"verbose": verbose, **kwargs})
+            action = self._key_to_action(
+                key, obs, reward, **{"verbose": verbose, **kwargs})
             if action is None:
                 action = self.action
-            _, reward, terminated, truncated, _ = self.step(action)
-            obs = self.observation
+            obs, reward, terminated, truncated, _ = env.step(action)
             self.render()
             if not enable_is_done and self.robot.has_freeflyer:
                 return self._robot_state_q[2] < 0.0
@@ -1122,7 +1111,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
 
         # Stop the simulation to unlock the robot.
         # It will enable to display contact forces for replay.
-        self.stop()
+        env.stop()
 
         # Disable play interactive mode flag and restore training flag
         self._is_interactive = False
@@ -1180,7 +1169,8 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
                 interactive_mode() >= 2)
 
         # Stop the episode if one is still running
-        self.stop()
+        env = self.derived
+        env.stop()
 
         # Make sure evaluation mode is enabled
         is_training = self.is_training
@@ -1191,7 +1181,6 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         self._initialize_seed(seed)
 
         # Initialize the simulation
-        env = self.derived
         obs, info = env.reset()
         action, reward, terminated, truncated = None, None, False, False
 
@@ -1208,7 +1197,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
                     break
                 obs, reward, terminated, truncated, info = env.step(action)
                 info_episode.append(info)
-            self.stop()
+            env.stop()
         except KeyboardInterrupt:
             pass
 
@@ -1464,16 +1453,6 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
             `self.robot_state` would not be valid if an adaptive stepper is
             being used for physics integration.
         """
-        # Manually flatten measurement
-        agent_state_in = measurement['states']['agent']
-        measurement_flat = (
-            measurement['t'],
-            agent_state_in['q'],
-            agent_state_in['v'],
-            *measurement['measurements'].values())
-
-        # Copy all arrays at once
-        multi_array_copyto(self._observation_flat, measurement_flat)
 
     def compute_command(self, action: Act, command: np.ndarray) -> None:
         """Compute the motors efforts to apply on the robot.
@@ -1531,7 +1510,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         return False, truncated
 
     def _key_to_action(self,
-                       key: str,
+                       key: Optional[str],
                        obs: Obs,
                        reward: Optional[float],
                        **kwargs: Any) -> Optional[Act]:
@@ -1561,6 +1540,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         :param kwargs: Extra keyword argument provided by the user when calling
                        `play_interactive` method.
 
-        :returns: Action to forward to the environment.
+        :returns: Action to forward to the environment. None to hold the
+        previous action without updating it.
         """
         raise NotImplementedError

@@ -13,8 +13,12 @@ import numpy.typing as npt
 import gymnasium as gym
 
 import jiminy_py.core as jiminy
+from jiminy_py.core import (  # pylint: disable=no-name-in-module
+    multi_array_copyto)
 from jiminy_py.simulator import Simulator
 from jiminy_py.viewer.viewer import is_display_available
+
+import pinocchio as pin
 
 from ..utils import DataNested
 if TYPE_CHECKING:
@@ -192,7 +196,7 @@ class InterfaceJiminyEnv(
     robot: jiminy.Robot
     stepper_state: jiminy.StepperState
     robot_state: jiminy.RobotState
-    sensor_measurements: SensorMeasurementStackMap
+    measurements: EngineObsType
     is_simulation_running: npt.NDArray[np.bool_]
 
     num_steps: npt.NDArray[np.int64]
@@ -217,12 +221,24 @@ class InterfaceJiminyEnv(
         self.__is_observation_refreshed = True
 
         # Store latest engine measurement for efficiency
-        self.__measurement = EngineObsType(
+        self.measurement = EngineObsType(
             t=np.array(0.0),
             states=OrderedDict(
-                agent=OrderedDict(q=np.array([]), v=np.array([]))),
-            measurements=OrderedDict(self.robot.sensor_measurements))
+                agent=OrderedDict(
+                    q=pin.neutral(self.robot.pinocchio_model),
+                    v=np.zeros(self.robot.pinocchio_model.nv))),
+            measurements=OrderedDict(zip(
+                self.robot.sensor_measurements.keys(),
+                map(np.copy, self.robot.sensor_measurements.values()))))
         self._sensors_types = tuple(self.robot.sensor_measurements.keys())
+
+        # Define flattened engine measurement for efficiency
+        agent_state = self.measurement['states']['agent']
+        assert isinstance(agent_state, dict)
+        self._measurement_flat = (self.measurement['t'],
+                                  agent_state['q'],
+                                  agent_state['v'],
+                                  *self.measurement['measurements'].values())
 
         # Call super to allow mixing interfaces through multiple inheritance
         super().__init__(*args, **kwargs)
@@ -264,6 +280,10 @@ class InterfaceJiminyEnv(
         :param v: Current extended velocity vector of the robot.
         :param sensor_measurements: Current sensor data.
         """
+        # Update engine measurement
+        measurement_flat = (t, q, v, *sensor_measurements.values())
+        multi_array_copyto(self._measurement_flat, measurement_flat)
+
         # Early return if no simulation is running
         if not self.is_simulation_running:
             return
@@ -288,16 +308,9 @@ class InterfaceJiminyEnv(
         # that is supposed to be executed before `refresh_observation` is being
         # called for the first time of an episode.
         if not self.__is_observation_refreshed:
-            measurement = self.__measurement
-            measurement["t"][()] = t
-            measurement["states"]["agent"]["q"] = q
-            measurement["states"]["agent"]["v"] = v
-            measurement_sensors = measurement["measurements"]
-            sensor_measurements_it = iter(sensor_measurements.values())
-            for sensor_type in self._sensors_types:
-                measurement_sensors[sensor_type] = next(sensor_measurements_it)
+            # Refresh observation
             try:
-                self.refresh_observation(measurement)
+                self.refresh_observation(self.measurement)
             except RuntimeError as e:
                 raise RuntimeError(
                     "The observation space must be invariant.") from e
