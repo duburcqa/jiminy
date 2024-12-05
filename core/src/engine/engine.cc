@@ -512,7 +512,8 @@ namespace jiminy
         // Remove corresponding coupling forces if any
         couplingForces_.erase(std::remove_if(couplingForces_.begin(),
                                              couplingForces_.end(),
-                                             [&robotName1, &robotName2](const auto & force) {
+                                             [&robotName1, &robotName2](const auto & force)
+                                             {
                                                  return (force.robotName1 == robotName1 &&
                                                          force.robotName2 == robotName2);
                                              }),
@@ -534,7 +535,8 @@ namespace jiminy
         // Remove corresponding coupling forces if any
         couplingForces_.erase(std::remove_if(couplingForces_.begin(),
                                              couplingForces_.end(),
-                                             [&robotName](const auto & force) {
+                                             [&robotName](const auto & force)
+                                             {
                                                  return (force.robotName1 == robotName ||
                                                          force.robotName2 == robotName);
                                              }),
@@ -1109,7 +1111,7 @@ namespace jiminy
             }
         }
 
-        /* Call reset if the internal state of the engine is not clean. Not doing it robotatically
+        /* Call reset if the internal state of the engine is not clean. Not doing it systematically
            gives the opportunity to the user to customize the robot by resetting first the engine
            manually and then to alter the robot before starting a simulation, e.g. to change the
            inertia of a specific body. */
