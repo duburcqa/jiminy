@@ -1138,6 +1138,10 @@ class MultiFootNormalizedForceVertical(AbstractQuantity[np.ndarray]):
     on the foot, eg to create disturbances. Relying on sensors to get the
     desired information is not an option either, because they do not give
     access to the ground truth.
+
+    .. warning::
+        Contact frames associated with identical parent body must be
+        consecutive to be able to extract constraint data by reference.
     """
 
     frame_names: Tuple[str, ...]
@@ -1263,6 +1267,7 @@ class MultiFootNormalizedForceVertical(AbstractQuantity[np.ndarray]):
 
         # Get constraint names and vertical axis transforms for each foot
         num_contraints = 0
+        foot_parents: List[int] = []
         foot_lookup_names: List[List[str]] = [[] for _ in self.frame_names]
         vertical_transforms: List[List[np.ndarray]] = [
             [] for _ in self.frame_names]
@@ -1283,12 +1288,23 @@ class MultiFootNormalizedForceVertical(AbstractQuantity[np.ndarray]):
                         for i in range(constraint.size))
                     vertical_transforms[foot_index].append(
                         constraint.local_rotation[2])
+                    foot_parents.append(frame.parent)
                     num_contraints += 1
                 except IndexError:
                     pass
         assert 4 * num_contraints == sum(map(len, foot_lookup_names))
         self._vertical_transform_list = tuple(
             e for values in vertical_transforms for e in values)
+
+        # Make sure that contact frames are ordered in contiguous slices
+        for parent in np.unique(foot_parents):
+            index_first = foot_parents.index(parent)
+            index_last = len(foot_parents) - foot_parents[::-1].index(parent)
+            for i in range(index_first, index_last):
+                if foot_parents[i] != parent:
+                    raise ValueError(
+                        "Contact frames associated with identical parent body "
+                        "must be consecutive.")
 
         # Extract constraint lambda multiplier slices associated with each foot
         self._foot_slices = tuple(
