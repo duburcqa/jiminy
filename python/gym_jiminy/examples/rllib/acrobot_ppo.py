@@ -11,16 +11,13 @@ It solves it consistently in less than 100000 timesteps in average.
 
 import os
 from copy import deepcopy
-from functools import partial
 
-import torch
 import gymnasium as gym
 
 import ray
 from ray.tune.registry import register_env
 from ray.rllib.models import MODEL_DEFAULTS
 
-from gym_jiminy.common.wrappers import FlattenObservation
 from gym_jiminy.rllib.ppo import PPOConfig
 from gym_jiminy.rllib.utilities import (initialize,
                                         train,

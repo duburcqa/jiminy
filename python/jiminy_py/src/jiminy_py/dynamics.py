@@ -308,6 +308,8 @@ class Trajectory:
                      is useful to store periodic trajectories as finite state
                      sequences.
         """
+        # pylint: disable=possibly-used-before-assignment
+
         # Raise exception if state sequence is empty
         if not self.has_data:
             raise RuntimeError(

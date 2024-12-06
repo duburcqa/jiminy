@@ -579,6 +579,8 @@ def play_trajectories(
             Viewer._backend_obj.start_recording(
                 VIDEO_FRAMERATE, *record_video_size)
         else:
+            # pylint: disable=unsubscriptable-object
+
             # Sanitize the recording path to enforce '.mp4' extension
             record_video_path = str(
                 pathlib.Path(record_video_path).with_suffix('.mp4'))
