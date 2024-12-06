@@ -1313,7 +1313,7 @@ class BaseTransformAction(
         # Pre-allocated memory for the action
         self.action: TransformedAct = zeros(self.action_space)
 
-        # Bind observation of the base environment
+        # Bind observation and action of the base environment
         assert self.observation_space.contains(self.env.observation)
         self.observation = self.env.observation
 
