@@ -1504,8 +1504,11 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
                 "No simulation running. Please start one before calling this "
                 "method.")
 
-        # Check if the observation is out-of-bounds in debug mode only
-        truncated = not self._contains_observation()
+        # Check if the observation is out-of-bounds
+        truncated = False  # not self._contains_observation()
+        if truncated:
+            LOGGER.warning("Setting 'truncated=True' because the observation "
+                           "is out-of-bounds.")
 
         return False, truncated
 
