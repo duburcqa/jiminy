@@ -17,6 +17,7 @@ import gymnasium as gym
 import ray
 from ray.tune.registry import register_env
 from ray.rllib.models import MODEL_DEFAULTS
+from ray.rllib.core.rl_module.default_model_config import DefaultModelConfig
 
 from gym_jiminy.rllib.ppo import PPOConfig
 from gym_jiminy.rllib.utilities import (initialize,
@@ -218,30 +219,19 @@ if __name__ == "__main__":
 
     # ================== Configure policy and value networks ==================
 
-    # Default model configuration
-    model_config = deepcopy(MODEL_DEFAULTS)
-
-    # Fully-connected network settings
-    model_config.update(
-        # Nonlinearity for built-in fully connected net
-        fcnet_activation="tanh",
-        # Number of hidden layers for fully connected net
-        fcnet_hiddens=[64, 64],
-        # The last half of the output layer does not dependent on the input
-        free_log_std=True,
-        # Whether to share layers between the policy and value function
-        vf_share_layers=False
-    )
-
-    # Number of preceeding steps incl. current involved in policy computations
-    algo_config.env_runners(
-        episode_lookback_horizon = 1,
-    )
-
     # Model settings
-    algo_config.training(
+    algo_config.rl_module(
         # Policy model configuration
-        model=model_config
+        model_config=DefaultModelConfig(
+            # Number of hidden layers for fully connected net
+            fcnet_hiddens=[64, 64],
+            # Nonlinearity for built-in fully connected net
+            fcnet_activation="tanh",
+            # Whether to share layers between the policy and value function
+            vf_share_layers=False,
+            # The last half of the output layer does not dependent on the input
+            free_log_std=True,
+        )
     )
 
     # Exploration settings.
