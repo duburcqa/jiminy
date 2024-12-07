@@ -50,8 +50,11 @@ class SurviveReward(AbstractReward):
         return True
 
     def compute(self, terminated: bool, info: InfoType) -> Optional[float]:
-        """Return a constant positive reward equal to 1.0 no matter what.
+        """Return a constant positive reward equal to 1.0 systematically,
+        useless the episode is terminated.
         """
+        if terminated:
+            return None
         return 1.0
 
 

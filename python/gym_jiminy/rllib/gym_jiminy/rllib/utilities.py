@@ -451,7 +451,7 @@ def train(algo_config: AlgorithmConfig,
           logdir: str,
           max_timesteps: int = 0,
           max_iters: int = 0,
-          checkpoint_period: int = 0,
+          checkpoint_interval: int = 0,
           enable_evaluation_replay: bool = False,
           enable_evaluation_record_video: bool = False,
           verbose: bool = True,
@@ -471,9 +471,9 @@ def train(algo_config: AlgorithmConfig,
                           Optional: Disabled by default.
     :param max_iters: Maximum number of training iterations. 0 to disable.
                       Optional: Disabled by default.
-    :param checkpoint_period: Backup trainer every given number of training
-                              steps in log folder if requested. 0 to disable.
-                              Optional: Disabled by default.
+    :param checkpoint_interval: Backup trainer every given number of training
+                                steps in log folder if requested. 0 to disable.
+                                Optional: Disabled by default.
     :param enable_evaluation_replay:
         Whether to replay a video of the best and worst trials after completing
         evaluation.
@@ -591,6 +591,13 @@ def train(algo_config: AlgorithmConfig,
 
     # Assert(s) for type checker
     assert algo.env_runner_group is not None
+
+    # Restore checkpoint if any
+    checkpoints_paths = sorted([
+        str(path) for path in Path(logdir).iterdir()
+        if path.is_dir() and path.name.startswith("checkpoint_")])
+    if checkpoints_paths:
+        algo.restore(checkpoints_paths[-1])
 
     # Get the reward threshold of the environment, if any.
     # Note that the original environment is always re-registered as an new gym
@@ -794,7 +801,7 @@ def train(algo_config: AlgorithmConfig,
                 print(" - ".join(msg_data))
 
             # Backup the policy
-            if checkpoint_period > 0 and iter_num % checkpoint_period == 0:
+            if checkpoint_interval > 0 and iter_num % checkpoint_interval == 0:
                 algo.save(os.path.join(logdir, f"checkpoint_{iter_num:06d}"))
 
             # Check terminal conditions
@@ -1405,7 +1412,7 @@ def build_module_from_checkpoint(checkpoint_path: str) -> RLModule:
     calling `algo.save()` during training of the policy.
 
     .. warning::
-        This method only supports single-agent policy is standalone, that is:
+        This method supports single-agent policies, with further restrictions:
           * without custom connectors, i.e.
             `config.module_to_env_connector = None`,
             `config.env_to_module_connector = None`.

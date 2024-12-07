@@ -595,7 +595,8 @@ def play_trajectories(
 
             # Create frame storage
             frame = av.VideoFrame(*record_video_size, 'rgb24')
-            frame_bytes = memoryview(frame.planes[0])
+            frame_bytes = memoryview(
+                frame.planes[0])  # pylint: disable=unsubscriptable-object
 
         # Add frames to video sequentially
         update_hook_t = None

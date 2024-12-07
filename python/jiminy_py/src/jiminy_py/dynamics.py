@@ -308,6 +308,8 @@ class Trajectory:
                      is useful to store periodic trajectories as finite state
                      sequences.
         """
+        # pylint: disable=possibly-used-before-assignment
+
         # Raise exception if state sequence is empty
         if not self.has_data:
             raise RuntimeError(
@@ -344,24 +346,35 @@ class Trajectory:
             self._times, t, self._index_prev, len(self._times) - 1)
         self._t_prev = t
 
-        # Skip interpolation if not necessary
+        # Extract left and right states, then compute interpolation ratio
         index_left, index_right = self._index_prev - 1, self._index_prev
         t_left, s_left = self._times[index_left], self.states[index_left]
-        if t - t_left < TRAJ_INTERP_TOL:
-            return s_left
-        t_right, s_right = self._times[index_right], self.states[index_right]
-        if t_right - t < TRAJ_INTERP_TOL:
-            return s_right
-        alpha = (t - t_left) / (t_right - t_left)
+        return_left = t - t_left < TRAJ_INTERP_TOL
+        if not return_left:
+            t_right = self._times[index_right]
+            s_right = self.states[index_right]
+            return_right = t_right - t < TRAJ_INTERP_TOL
+            alpha = (t - t_left) / (t_right - t_left)
 
         # Interpolate state
-        position = pin.interpolate(
-            self._pinocchio_model, s_left.q, s_right.q, alpha)
+        if return_left:
+            position = s_left.q.copy()
+        elif return_right:
+            position = s_right.q.copy()
+        else:
+            position = pin.interpolate(
+                self._pinocchio_model, s_left.q, s_right.q, alpha)
         data = {"q": position}
         for field in self._fields:
             value_left = getattr(s_left, field)
+            if return_left:
+                data[field] = value_left.copy()
+                continue
             value_right = getattr(s_right, field)
-            data[field] = value_left + alpha * (value_right - value_left)
+            if return_right:
+                data[field] = value_right.copy()
+            else:
+                data[field] = value_left + alpha * (value_right - value_left)
 
         # Perform odometry if the time is wrapping
         if self._stride_offset_log6 is not None and n_steps:

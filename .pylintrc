@@ -6,13 +6,14 @@ jobs = 0  # 0: the number of processors available
 extension-pkg-allow-list =
     numpy,
     scipy.spatial._qhull,
+    av,
     ray._raylet,
     torch,
     eigenpy,
     pinocchio,
     hppfcl,
-    jiminy_py.core
-    panda3d.core
+    jiminy_py.core,
+    panda3d.core,
     matplotlib.backends
 
 [tool.pylint.typecheck]

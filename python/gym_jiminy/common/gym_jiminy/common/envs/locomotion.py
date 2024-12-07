@@ -47,15 +47,15 @@ SENSOR_DELAY_SCALE = {
 SENSOR_NOISE_SCALE = {
     EncoderSensor: np.array([0.0, 0.02]),
     EffortSensor: np.array([10.0]),
-    ContactSensor: np.array([2.0, 2.0, 2.0, 10.0, 10.0, 10.0]),
-    ForceSensor: np.array([2.0, 2.0, 2.0]),
+    ContactSensor: np.array([2.0, 2.0, 2.0]),
+    ForceSensor: np.array([2.0, 2.0, 2.0, 10.0, 10.0, 10.0]),
     ImuSensor: np.array([0.0, 0.0, 0.0, 0.01, 0.01, 0.01, 0.2, 0.2, 0.2])
 }
 SENSOR_BIAS_SCALE = {
     EncoderSensor: np.array([0.0, 0.0]),
     EffortSensor: np.array([0.0]),
-    ContactSensor: np.array([4.0, 4.0, 4.0, 20.0, 20.0, 20.0]),
-    ForceSensor: np.array([4.0, 4.0, 4.0]),
+    ContactSensor: np.array([4.0, 4.0, 4.0]),
+    ForceSensor: np.array([4.0, 4.0, 4.0, 20.0, 20.0, 20.0]),
     ImuSensor: np.array([0.01, 0.01, 0.01, 0.02, 0.02, 0.02, 0.0, 0.0, 0.0])
 }
 

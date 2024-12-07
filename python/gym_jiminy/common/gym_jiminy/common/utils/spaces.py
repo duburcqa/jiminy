@@ -269,14 +269,14 @@ def get_bounds(space: gym.Space,
     # Take into account the absolute and relative tolerances
     # assert tol_abs >= 0.0 and tol_rel >= 0.0
     if tol_abs or tol_rel and (low is not None or high is not None):
-        tol_nd = np.full_like(low, tol_abs)
+        tol_abs_nd = np.full_like(low, tol_abs)
         if tol_rel and low is not None and high is not None:
-            tol_nd = np.maximum(
-                (high - low) * tol_rel, tol_nd)  # type: ignore[operator]
+            tol_abs_nd = np.maximum(
+                (high - low) * tol_rel, tol_abs_nd)  # type: ignore[operator]
         if low is not None:
-            low = (low - tol_nd).astype(dtype)
+            low = (low - tol_abs_nd).astype(dtype)
         if high is not None:
-            high = (high + tol_nd).astype(dtype)
+            high = (high + tol_abs_nd).astype(dtype)
 
     return low, high
 
