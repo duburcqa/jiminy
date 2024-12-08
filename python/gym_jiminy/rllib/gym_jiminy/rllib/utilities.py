@@ -686,7 +686,7 @@ def train(algo_config: AlgorithmConfig,
             result = algo.train()
 
             # Log results
-            iter_num = result[TRAINING_ITERATION]
+            step_num = result[NUM_ENV_STEPS_SAMPLED_LIFETIME]
             if file_writer is not None:
                 # Flatten result dict after excluding irrelevant special keys
                 masked_fields = (
@@ -706,7 +706,7 @@ def train(algo_config: AlgorithmConfig,
                     full_attr = "/".join(("ray", "tune", attr))
                     try:
                         file_writer.add_scalar(
-                            full_attr, value, global_step=iter_num)
+                            full_attr, value, global_step=step_num)
                         scalar_tags.append(full_attr)
                         continue
                     except (TypeError, AssertionError, NotImplementedError):
@@ -716,19 +716,19 @@ def train(algo_config: AlgorithmConfig,
                         # Assuming single image
                         if value.ndim == 3:
                             file_writer.add_image(
-                                full_attr, value, global_step=iter_num)
+                                full_attr, value, global_step=step_num)
                             continue
 
                         # Assuming batch of images
                         if value.ndim == 4:
                             file_writer.add_images(
-                                full_attr, value, global_step=iter_num)
+                                full_attr, value, global_step=step_num)
                             continue
 
                         # Assuming video with arbitrary FPS
                         if value.ndim == 5:
                             file_writer.add_video(
-                                full_attr, value, global_step=iter_num, fps=20)
+                                full_attr, value, fps=20, global_step=step_num)
                             continue
 
                     # In last resort, try to log the variable as an histogram
@@ -737,7 +737,7 @@ def train(algo_config: AlgorithmConfig,
                             continue
                         try:
                             file_writer.add_histogram(
-                                full_attr, value, global_step=iter_num)
+                                full_attr, value, global_step=step_num)
                             continue
                         except (ValueError, TypeError):
                             pass
@@ -801,6 +801,7 @@ def train(algo_config: AlgorithmConfig,
                 print(" - ".join(msg_data))
 
             # Backup the policy
+            iter_num = result[TRAINING_ITERATION]
             if checkpoint_interval > 0 and iter_num % checkpoint_interval == 0:
                 algo.save(os.path.join(logdir, f"checkpoint_{iter_num:06d}"))
 
@@ -1220,12 +1221,18 @@ def evaluate_from_algo(algo: Algorithm,
     all_returns = np.array([
         episode.get_return() for episode in all_episodes])
     idx_worst, idx_best = np.argsort(all_returns)[[0, -1]]
-    log_labels, log_paths = ("best", "worst")[:num_episodes], []
-    for suffix, idx in zip(log_labels, (idx_best, idx_worst)):
+    log_labels, log_paths = [], []
+    for label, idx in (
+            ("best", idx_best), ("worst", idx_worst))[:num_episodes]:
         ext = Path(all_log_paths[idx]).suffix
-        log_path = f"{algo.logdir}/iter_{algo.iteration}-{suffix}{ext}"
-        shutil.move(all_log_paths[idx], log_path)
-        log_paths.append(log_path)
+        log_path = f"{algo.logdir}/iter_{algo.iteration}-{label}{ext}"
+        try:
+            shutil.move(all_log_paths[idx], log_path)
+        except FileNotFoundError:
+            LOGGER.warning("Failed to save log file during evaluation.")
+        else:
+            log_paths.append(log_path)
+            log_labels.append(label)
 
     # Replay and/or record a video of the best and worst trials if requested.
     # Async to enable replaying and recording while training keeps going.

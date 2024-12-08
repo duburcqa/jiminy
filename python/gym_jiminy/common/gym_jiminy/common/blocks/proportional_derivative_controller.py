@@ -175,6 +175,7 @@ def pd_adapter(action: np.ndarray,
                command_state_lower: np.ndarray,
                command_state_upper: np.ndarray,
                dt: float,
+               is_instantaneous: bool,
                out: np.ndarray) -> None:
     """Compute the target motor accelerations that must be held constant for a
     given time interval in order to reach the desired value of some derivative
@@ -191,6 +192,8 @@ def pd_adapter(action: np.ndarray,
     :param order: Derivative order of the position associated with the action.
     :param command_state: Current command state, namely, all the derivatives of
                           the target motors positions up to acceleration order.
+                          If 'is_instantaneous=True', then it will be updated
+                          in-place.
     :param command_state_lower: Lower bound of the command state that must be
                                 satisfied at all cost.
     :param command_state_upper: Upper bound of the command state that must be
@@ -200,20 +203,25 @@ def pd_adapter(action: np.ndarray,
     :param out: Pre-allocated memory to store the target motor accelerations.
     """
     # Update command accelerations based on the action and its derivative order
-    if order == 2:
-        # The action corresponds to the command motor accelerations
-        out[:] = action
+    if is_instantaneous:
+        # Update the command state directly
+        if order == 0:
+            command_state[0] = action
+            command_state[1] = 0.0
+        else:
+            command_state[1] = action
+        out[:] = 0.0
     else:
         if order == 0:
             # Compute command velocity
             velocity = (action - command_state[0]) / dt
-
-            # Clip command velocity
-            velocity = np.minimum(np.maximum(
-                velocity, command_state_lower[1]), command_state_upper[1])
         else:
             # The action corresponds to the command motor velocities
             velocity = action
+
+        # Clip command velocity
+        velocity = np.minimum(np.maximum(
+            velocity, command_state_lower[1]), command_state_upper[1])
 
         # Compute command acceleration
         out[:] = (velocity - command_state[1]) / dt
@@ -520,7 +528,8 @@ class PDAdapter(
                  env: InterfaceJiminyEnv[BaseObs, np.ndarray],
                  *,
                  update_ratio: int = -1,
-                 order: int = 1) -> None:
+                 order: int = 1,
+                 is_instantaneous: bool = False) -> None:
         """
         :param update_ratio: Ratio between the update period of the controller
                              and the one of the subsequent controller. -1 to
@@ -529,6 +538,11 @@ class PDAdapter(
         :param order: Derivative order of the action. It accepts position or
                       velocity (respectively 0 or 1).
                       Optional: 1 by default.
+        :param is_instantaneous: Whether to consider that the command state
+                                 must be updated instantaneously, breaking
+                                 continuity of higher-order derivatives, or
+                                 continuously by updating the target
+                                 acceleration instead.
         """
         # Make sure that the specified derivative order is valid
         assert order in (0, 1), "Derivative order out-of-bounds"
@@ -542,6 +556,7 @@ class PDAdapter(
 
         # Backup some user argument(s)
         self.order = order
+        self.is_instantaneous = is_instantaneous
 
         # Define some proxies for convenience
         self._pd_controller = controller
@@ -579,4 +594,5 @@ class PDAdapter(
             self._pd_controller._command_state_lower,
             self._pd_controller._command_state_upper,
             self.control_dt,
+            self.is_instantaneous,
             command)
