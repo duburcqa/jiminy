@@ -61,13 +61,13 @@ def mahony_filter(q: np.ndarray,
     v_x, v_y, v_z = compute_tilt_from_quat(q)
 
     # Compute the angular velocity using Explicit Complementary Filter:
-    # omega_mes = v_a_hat x v_a, where x is the cross product.
+    # omega_mes = (- v_a) x v_a_hat, where x is the cross product.
     v_x_hat, v_y_hat, v_z_hat = acc / EARTH_SURFACE_GRAVITY
     omega_mes = np.stack((
         v_y_hat * v_z - v_z_hat * v_y,
         v_z_hat * v_x - v_x_hat * v_z,
-        v_x_hat * v_y - v_y_hat * v_x), 0)
-    omega[:] = gyro - bias_hat + kp * omega_mes
+        v_x_hat * v_y - v_y_hat * v_x), 0)  # eq. 32c
+    omega[:] = gyro - bias_hat + kp * omega_mes  # eq. 32a (right hand)
 
     # Early return if there is no IMU motion
     if (np.abs(omega) < 1e-6).all():
@@ -86,13 +86,13 @@ def mahony_filter(q: np.ndarray,
         q_y * p_w + q_z * p_x + q_w * p_y - q_x * p_z,
         q_z * p_w - q_y * p_x + q_x * p_y + q_w * p_z,
         q_w * p_w - q_x * p_x - q_y * p_y - q_z * p_z,
-    )
+    )  # eq. 32a (left hand)
 
     # First order quaternion normalization to prevent compounding of errors
     q *= (3.0 - np.sum(np.square(q), 0)) / 2
 
     # Update Gyro bias
-    bias_hat -= dt * ki * omega_mes
+    bias_hat -= ki * dt * omega_mes  # eq. 32b
 
 
 @nb.jit(nopython=True, cache=True)
