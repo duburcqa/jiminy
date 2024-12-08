@@ -402,6 +402,11 @@ class EpisodeState(IntEnum):
     """
 
 
+# Define proxies for fast lookup
+_CONTINUED, _TERMINATED, _TRUNCATED = (  # pylint: disable=invalid-name
+    EpisodeState)
+
+
 class AbstractTerminationCondition(metaclass=ABCMeta):
     """Abstract class from which all termination conditions must derived.
 
@@ -522,11 +527,11 @@ class AbstractTerminationCondition(metaclass=ABCMeta):
             info[self.name] = termination_info
         else:
             if is_terminated:
-                episode_state = EpisodeState.TERMINATED
+                episode_state = _TERMINATED
             elif is_truncated:
-                episode_state = EpisodeState.TRUNCATED
+                episode_state = _TRUNCATED
             else:
-                episode_state = EpisodeState.CONTINUED
+                episode_state = _CONTINUED
             info[self.name] = episode_state
 
         # Returning terminated and truncated flags

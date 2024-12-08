@@ -721,13 +721,30 @@ class ComposedJiminyEnv(BasePipelineWrapper[Obs, Act, Obs, Act],
         """
         # Call unwrapped environment implementation
         terminated, truncated = self.env.has_terminated(info)
+        if terminated or truncated:
+            if terminated:
+                assert "terminated" not in info
+                info["terminated"] = -1
+            else:
+                assert "truncated" not in info
+                info["terminated"] = -1
+            return terminated, truncated
 
-        # Evaluate conditions one-by-one as long as none has been triggered
-        for termination in self.terminations:
-            if terminated or truncated:
-                break
+        # Evaluate conditions one-by-one as long as none has been triggered.
+        # Termination condition information are aggregated under a single key.
+        # Termination conditions are evaluated in order, matching constructor
+        # arguments, with short-circuit mechanism to skip subsequent evaluation
+        # as soon as one condition is triggered.
+        for i, termination in enumerate(self.terminations):
             terminated, truncated = termination(info)
-
+            if terminated:
+                assert "terminated" not in info
+                info["terminated"] = i
+                break
+            if truncated:
+                assert "truncated" not in info
+                info["truncated"] = i
+                break
         return terminated, truncated
 
     def compute_command(self, action: Act, command: np.ndarray) -> None:
