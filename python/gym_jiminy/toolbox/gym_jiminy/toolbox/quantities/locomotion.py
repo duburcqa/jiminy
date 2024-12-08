@@ -4,7 +4,7 @@ from typing import List, Optional, Tuple
 from dataclasses import dataclass
 
 import numpy as np
-from scipy.spatial import ConvexHull
+from scipy.spatial import ConvexHull, QhullError
 
 from jiminy_py.core import (  # pylint: disable=no-name-in-module
     multi_array_copyto)
@@ -124,11 +124,15 @@ class ProjectedSupportPolygon(AbstractQuantity[ConvexHull2D]):
         # separately rather than all at once.
         candidate_xy_refs: List[np.ndarray] = []
         for positions in contact_positions:
-            convhull = ConvexHull(np.stack(positions, axis=0))
-            candidate_indices = set(
-                range(len(positions))).intersection(convhull.vertices)
-            candidate_xy_refs += (
-                positions[j][:2] for j in candidate_indices)
+            try:
+                convhull = ConvexHull(np.stack(positions, axis=0))
+                candidate_indices = set(
+                    range(len(positions))).intersection(convhull.vertices)
+                candidate_xy_refs += (
+                    positions[j][:2] for j in candidate_indices)
+            except QhullError:
+                # Assuming all the candidate points are part of the convex hull
+                candidate_xy_refs += (position[:2] for position in positions)
         self._candidate_xy_refs = tuple(candidate_xy_refs)
 
         # Allocate memory for stacked position of candidate contact points.
