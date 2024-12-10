@@ -42,7 +42,7 @@ if [ -z ${CXX_COMPILER} ]; then
 fi
 
 ### Set common CMAKE_C/CXX_FLAGS
-CXX_FLAGS="${CXX_FLAGS} -Wno-enum-constexpr-conversion"
+CXX_FLAGS="${CXX_FLAGS} -Wno-unknown-warning-option -Wno-enum-constexpr-conversion"
 if [ "${BUILD_TYPE}" == "Release" ]; then
   CXX_FLAGS="${CXX_FLAGS} -DNDEBUG -O3"
 elif [ "${BUILD_TYPE}" == "Debug" ]; then
@@ -51,6 +51,13 @@ elif [ "${BUILD_TYPE}" == "RelWithDebInfo" ]; then
   CXX_FLAGS="${CXX_FLAGS} -DNDEBUG -O2 -g"
 fi
 echo "CXX_FLAGS: ${CXX_FLAGS}"
+
+### Set common LINKER_FLAGS for clang
+if [ "$(basename -- ${C_COMPILER})" == "clang" ]; then
+  # FIXME: Force linker config for clang-15 on linux
+  # FIXME: Disable LTO for clang < 15
+  LINKER_FLAGS="${LINKER_FLAGS} -fuse-ld=lld -Wl,-mllvm,--opaque-pointers"
+fi
 
 ### Get the fullpath of Jiminy project
 ScriptDir="$(cd "$(dirname -- $0)" >/dev/null 2>&1 && pwd)"
@@ -245,7 +252,9 @@ PATH="${PATH}:$(dirname -- ${C_COMPILER})"
 
 ### Build and install the build tool b2 (build-ception !)
 cd "${RootDir}/boost"
-./bootstrap.sh --prefix="${InstallDir}" --with-python="${PYTHON_EXECUTABLE}"
+./bootstrap.sh --with-toolset="$(basename -- ${C_COMPILER})" \
+               --prefix="${InstallDir}" \
+               --with-python="${PYTHON_EXECUTABLE}"
 
 ### File "project-config.jam" create by bootstrap must be edited manually
 #   to specify Python include dir manually, since it is not detected
@@ -320,6 +329,7 @@ make install -j4
 
 ################################### Build and install eigenpy ##########################################
 
+# Eigenpy segfault at import when compiled with Clang-14 for Release build type
 cd "${RootDir}/eigenpy/build"
 cmake "${RootDir}/eigenpy" -Wno-dev -DCMAKE_CXX_STANDARD=17 \
       -DCMAKE_C_COMPILER="${C_COMPILER}" -DCMAKE_CXX_COMPILER="${CXX_COMPILER}" \
@@ -337,12 +347,13 @@ make install -j4
 
 ################################## Build and install tinyxml ###########################################
 
+# Interprocedural optimization is causing linking failure with Clang-14
 cd "${RootDir}/tinyxml2/build"
 cmake "${RootDir}/tinyxml2" -Wno-dev -DCMAKE_CXX_STANDARD=17 \
       -DCMAKE_C_COMPILER="${C_COMPILER}" -DCMAKE_CXX_COMPILER="${CXX_COMPILER}" \
       -DCMAKE_INSTALL_PREFIX="${InstallDir}" \
       -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${OSX_DEPLOYMENT_TARGET}" \
-      -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+      -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
       -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON -DCMAKE_EXE_LINKER_FLAGS="${LINKER_FLAGS}" \
       -DCMAKE_CXX_FLAGS_RELEASE_INIT="" -DCMAKE_CXX_FLAGS="${CXX_FLAGS}" -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
 make install -j4
@@ -405,43 +416,46 @@ make install -j4
 
 ###################################### Build and install assimp ########################################
 
-# C flag 'HAVE_HIDDEN' must be specified to hide internal symbols of zlib that may not be exposed at
+# * C flag 'HAVE_HIDDEN' must be specified to hide internal symbols of zlib that may not be exposed at
 # runtime causing undefined symbol error when loading hpp-fcl shared library.
+# * Interprocedural Optimization is failing for static libraries with Clang-15
 cd "${RootDir}/assimp/build"
 cmake "${RootDir}/assimp" -Wno-dev -DCMAKE_CXX_STANDARD=17 \
       -DCMAKE_C_COMPILER="${C_COMPILER}" -DCMAKE_CXX_COMPILER="${CXX_COMPILER}" \
       -DCMAKE_INSTALL_PREFIX="${InstallDir}" \
       -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${OSX_DEPLOYMENT_TARGET}" \
-      -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+      -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
       -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON \
       -DASSIMP_BUILD_ASSIMP_TOOLS=OFF -DASSIMP_BUILD_ZLIB=ON -DASSIMP_BUILD_TESTS=OFF \
       -DASSIMP_BUILD_SAMPLES=OFF -DBUILD_DOCS=OFF -DBUILD_TESTING=OFF \
       -DCMAKE_C_FLAGS="${CXX_FLAGS} -DHAVE_HIDDEN" -DCMAKE_CXX_FLAGS_RELEASE_INIT="" \
       -DCMAKE_CXX_FLAGS="${CXX_FLAGS} -Wno-strict-overflow -Wno-tautological-compare -Wno-array-compare $(
-      ) -Wno-alloc-size-larger-than -Wno-unknown-warning-option -Wno-unknown-warning -Wno-error=array-bounds" \
+      ) -Wno-alloc-size-larger-than -Wno-unknown-warning -Wno-error=array-bounds" \
       -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
 make install -j4
 
 ############################# Build and install qhull and hpp-fcl ######################################
 
+# * Interprocedural Optimization is failing for static libraries with Clang-15
 mkdir -p "${RootDir}/hpp-fcl/third-parties/qhull/build"
 cd "${RootDir}/hpp-fcl/third-parties/qhull/build"
 cmake "${RootDir}/hpp-fcl/third-parties/qhull" -Wno-dev -DCMAKE_CXX_STANDARD=17 \
       -DCMAKE_C_COMPILER="${C_COMPILER}" -DCMAKE_CXX_COMPILER="${CXX_COMPILER}" \
       -DCMAKE_INSTALL_PREFIX="${InstallDir}" \
       -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${OSX_DEPLOYMENT_TARGET}" \
-      -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+      -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
       -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON -DCMAKE_EXE_LINKER_FLAGS="${LINKER_FLAGS}" \
       -DCMAKE_C_FLAGS="${CXX_FLAGS}" -DCMAKE_CXX_FLAGS="${CXX_FLAGS} -Wno-conversion" \
       -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
 make install -j4
 
+# * Interprocedural Optimization is failing when linking against static libraries with Clang-15
 cd "${RootDir}/hpp-fcl/build"
 cmake "${RootDir}/hpp-fcl" -Wno-dev -DCMAKE_CXX_STANDARD=17 \
       -DCMAKE_C_COMPILER="${C_COMPILER}" -DCMAKE_CXX_COMPILER="${CXX_COMPILER}" \
       -DCMAKE_INSTALL_PREFIX="${InstallDir}" -DCMAKE_PREFIX_PATH="${InstallDir}" \
       -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" -DCMAKE_OSX_DEPLOYMENT_TARGET="${OSX_DEPLOYMENT_TARGET}" \
-      -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+      -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
       -DBUILD_SHARED_LIBS=ON -DBUILD_STATIC_LIBS=OFF -DCMAKE_SHARED_LINKER_FLAGS="${LINKER_FLAGS}" \
       -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" -DPYTHON_STANDARD_LAYOUT=ON \
       -DCMAKE_DISABLE_FIND_PACKAGE_Doxygen=ON -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
@@ -450,7 +464,7 @@ cmake "${RootDir}/hpp-fcl" -Wno-dev -DCMAKE_CXX_STANDARD=17 \
       -DBUILD_TESTING=OFF -DINSTALL_DOCUMENTATION=OFF -DENABLE_PYTHON_DOXYGEN_AUTODOC=OFF \
       -DCMAKE_CXX_FLAGS_RELEASE_INIT="" -DCMAKE_CXX_FLAGS="${CXX_FLAGS} $(
       ) -Wno-unused-parameter -Wno-class-memaccess -Wno-sign-compare-Wno-conversion -Wno-ignored-qualifiers $(
-      ) -Wno-uninitialized -Wno-maybe-uninitialized -Wno-deprecated-copy -Wno-unknown-warning-option $(
+      ) -Wno-uninitialized -Wno-maybe-uninitialized -Wno-deprecated-copy $(
       ) -Wno-unknown-warning" -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
 make install -j4
 
@@ -472,7 +486,7 @@ cmake "${RootDir}/pinocchio" -Wno-dev -DCMAKE_CXX_STANDARD=17 \
       -DBUILD_WITH_OPENMP_SUPPORT=OFF -DGENERATE_PYTHON_STUBS=OFF -DBUILD_TESTING=OFF -DINSTALL_DOCUMENTATION=OFF \
       -DCMAKE_CXX_FLAGS_RELEASE_INIT="" -DCMAKE_CXX_FLAGS="${CXX_FLAGS} -DBOOST_BIND_GLOBAL_PLACEHOLDERS $(
       ) -Wno-uninitialized -Wno-type-limits -Wno-unused-local-typedefs -Wno-extra $(
-      ) -Wno-unknown-warning-option -Wno-unknown-warning" -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
+      ) -Wno-unknown-warning" -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
 make install -j4
 
 # Copy cmake configuration files for cppad and cppadcodegen

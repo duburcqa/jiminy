@@ -60,7 +60,10 @@ from .internal import loop_interactive
 # Maximum realtime slowdown of simulation steps before triggering timeout error
 TIMEOUT_RATIO = 15
 
-# Absolute tolerance when checking that observations are valid
+# Absolute tolerance when checking that observations are valid.
+# Note that the joint positions are out-of-bounds when hitting the mechanical
+# stops. Because of this, some tolerance must be added to avoid trigeering
+# termination too easily.
 OBS_CONTAINS_TOL = 0.01
 
 
@@ -868,20 +871,13 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         return obs, reward, terminated, truncated, deepcopy(self._info)
 
     def stop(self) -> None:
-        # Check whether it is worth saving log file
-        has_simulation_data = self.is_simulation_running and self.num_steps > 0
-
         # Stop the engine.
         # This must be done BEFORE writing log, otherwise the final simulation
         # state will be missing as it gets flushed after stopping.
         self.simulator.stop()
 
-        # Write log of previous simulation before starting a new one if not
-        # already done.
-        # This would be the case if the previous episode was never terminated
-        # nor truncated, or because it was wrapped with a non-jiminy-specific
-        # layer such as `TimeLimit`.
-        if has_simulation_data:
+        # Write log of the simulation if the agent performed at least one step
+        if self.num_steps > 0:
             if self.log_path is not None:
                 os.remove(self.log_path)
                 self.log_path = None
@@ -889,6 +885,9 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
                 fd, self.log_path = tempfile.mkstemp(suffix=".data")
                 os.close(fd)
                 self.simulator.write_log(self.log_path, format="binary")
+
+        # Reset the number of simulation steps performed
+        self.num_steps[()] = -1
 
     def render(self) -> Optional[Union[RenderFrame, List[RenderFrame]]]:
         """Render the agent in its environment.

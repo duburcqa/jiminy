@@ -897,9 +897,11 @@ def _sample_one_episode_and_collect_metrics(worker: EnvRunner) -> Tuple[
     for env in worker.env.envs:
         env.unwrapped.log_path = None
 
-    # Run a single episode and extract the path of the log file.
+    # Run a single episode.
     # Note that episodes are sorted by environment indices by design.
     episodes = worker.sample(num_episodes=1, random_actions=False)
+
+    # Extract the path of the log files
     log_paths: Tuple[str, ...] = tuple(
         filter(None, worker.env.get_attr('log_path')))
 
@@ -1057,6 +1059,8 @@ def sample_from_runner_group(
     else:
         raise RuntimeError("No runner available for running the evaluation.")
 
+    # FIXME: understand what is causing this issue. Zero-length episode (failing at reset)?
+    # assert len(all_log_paths) == len(all_episodes)
     return all_metrics, all_episodes, all_log_paths
 
 
@@ -1218,8 +1222,8 @@ def evaluate_from_algo(algo: Algorithm,
         _pretty_print_episode_metrics(all_episodes, step_dt)
 
     # Backup only the log file corresponding to the best and worst trial
-    all_returns = np.array([
-        episode.get_return() for episode in all_episodes])
+    all_returns = [
+        episode.get_return() for episode in all_episodes]
     idx_worst, idx_best = np.argsort(all_returns)[[0, -1]]
     log_labels, log_paths = [], []
     for label, idx in (
