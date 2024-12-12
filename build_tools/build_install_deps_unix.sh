@@ -42,7 +42,7 @@ if [ -z ${CXX_COMPILER} ]; then
 fi
 
 ### Set common CMAKE_C/CXX_FLAGS
-CXX_FLAGS="${CXX_FLAGS} -Wno-enum-constexpr-conversion"
+CXX_FLAGS="${CXX_FLAGS} -Wno-unknown-warning-option -Wno-enum-constexpr-conversion"
 if [ "${BUILD_TYPE}" == "Release" ]; then
   CXX_FLAGS="${CXX_FLAGS} -DNDEBUG -O3"
 elif [ "${BUILD_TYPE}" == "Debug" ]; then
@@ -94,7 +94,7 @@ unset Boost_ROOT
 #   - Boost >= 1.75 is required to compile ouf-of-the-box on MacOS for intel and Apple Silicon
 #   - Boost < 1.77 causes compilation failure with gcc-12 if not patched
 #   - Boost >= 1.77 affects the memory layout to improve alignment, breaking retro-compatibility
-#   - Boost.Python == 1.87 fixes memory alignment issues (commit 4fc3afa3ac1a1edb61a92fccd31d305ba38213f8)
+#   - Boost.Python == 1.87 fixes memory alignment issues
 if [ ! -d "${RootDir}/boost" ]; then
   git clone --depth 1 https://github.com/boostorg/boost.git "${RootDir}/boost"
 fi
@@ -102,11 +102,9 @@ rm -rf "${RootDir}/boost/build"
 mkdir -p "${RootDir}/boost/build"
 cd "${RootDir}/boost"
 git reset --hard
-git fetch origin "boost-1.86.0" && git checkout --force FETCH_HEAD || true
+git fetch origin "boost-1.87.0" && git checkout --force FETCH_HEAD || true
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --depth 1 --jobs 8
-cd "${RootDir}/boost/libs/python"
-git fetch origin 4fc3afa3ac1a1edb61a92fccd31d305ba38213f8 && git checkout --force FETCH_HEAD || true
 
 ### Checkout eigen3
 if [ ! -d "${RootDir}/eigen3" ]; then
@@ -245,7 +243,9 @@ PATH="${PATH}:$(dirname -- ${C_COMPILER})"
 
 ### Build and install the build tool b2 (build-ception !)
 cd "${RootDir}/boost"
-./bootstrap.sh --prefix="${InstallDir}" --with-python="${PYTHON_EXECUTABLE}"
+./bootstrap.sh --with-toolset="$(basename -- ${C_COMPILER})" \
+               --prefix="${InstallDir}" \
+               --with-python="${PYTHON_EXECUTABLE}"
 
 ### File "project-config.jam" create by bootstrap must be edited manually
 #   to specify Python include dir manually, since it is not detected
@@ -258,6 +258,9 @@ ${PYTHON_CONFIG_JAM}
 
 ### Build and install and install boost
 #   (Replace -d0 option by -d1 and remove -q option to check compilation errors)
+if [[ ${OSX_ARCHITECTURES} == *";"* ]] ; then
+  ArchB2="arm+x86"
+fi
 if [ "${BUILD_TYPE}" == "Release" ]; then
   BuildTypeB2="release"
 elif [ "${BUILD_TYPE}" == "Debug" ]; then
@@ -281,7 +284,7 @@ fi
 ./b2 --prefix="$InstallDir" --build-dir="$RootDir/boost/build" \
      --debug-configuration \
      --clean-all \
-     architecture= address-model=64 \
+     architecture="$ArchB2" address-model=64 \
      variant="$BuildTypeB2"
 
 # Compiling everything with static linkage except Boost::Python
@@ -290,7 +293,7 @@ mkdir -p "${RootDir}/boost/build"
      --with-chrono --with-timer --with-date_time --with-system --with-test \
      --with-filesystem --with-atomic --with-serialization --with-thread \
      --build-type=minimal --layout=system --lto=on \
-     architecture= address-model=64 $DebugOptionsB2 \
+     architecture="$ArchB2" address-model=64 $DebugOptionsB2 \
      threading=single link=static runtime-link=static \
      cxxflags="${CXX_FLAGS} ${CXX_FLAGS_B2}" \
      linkflags="${LINKER_FLAGS} ${CXX_FLAGS_B2}" \
@@ -302,7 +305,7 @@ mkdir -p "${RootDir}/boost/build"
 ./b2 --prefix="${InstallDir}" --build-dir="${RootDir}/boost/build" \
      --with-python \
      --build-type=minimal --layout=system --lto=on \
-     architecture= address-model=64 $DebugOptionsB2 \
+     architecture="$ArchB2" address-model=64 $DebugOptionsB2 \
      threading=single link=shared runtime-link=shared \
      cxxflags="${CXX_FLAGS} ${CXX_FLAGS_B2} -DNDEBUG" \
      linkflags="${LINKER_FLAGS} ${CXX_FLAGS_B2} " \
@@ -450,7 +453,7 @@ cmake "${RootDir}/hpp-fcl" -Wno-dev -DCMAKE_CXX_STANDARD=17 \
       -DBUILD_TESTING=OFF -DINSTALL_DOCUMENTATION=OFF -DENABLE_PYTHON_DOXYGEN_AUTODOC=OFF \
       -DCMAKE_CXX_FLAGS_RELEASE_INIT="" -DCMAKE_CXX_FLAGS="${CXX_FLAGS} $(
       ) -Wno-unused-parameter -Wno-class-memaccess -Wno-sign-compare-Wno-conversion -Wno-ignored-qualifiers $(
-      ) -Wno-uninitialized -Wno-maybe-uninitialized -Wno-deprecated-copy -Wno-unknown-warning-option $(
+      ) -Wno-uninitialized -Wno-maybe-uninitialized -Wno-deprecated-copy $(
       ) -Wno-unknown-warning" -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
 make install -j4
 
@@ -472,7 +475,7 @@ cmake "${RootDir}/pinocchio" -Wno-dev -DCMAKE_CXX_STANDARD=17 \
       -DBUILD_WITH_OPENMP_SUPPORT=OFF -DGENERATE_PYTHON_STUBS=OFF -DBUILD_TESTING=OFF -DINSTALL_DOCUMENTATION=OFF \
       -DCMAKE_CXX_FLAGS_RELEASE_INIT="" -DCMAKE_CXX_FLAGS="${CXX_FLAGS} -DBOOST_BIND_GLOBAL_PLACEHOLDERS $(
       ) -Wno-uninitialized -Wno-type-limits -Wno-unused-local-typedefs -Wno-extra $(
-      ) -Wno-unknown-warning-option -Wno-unknown-warning" -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
+      ) -Wno-unknown-warning" -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
 make install -j4
 
 # Copy cmake configuration files for cppad and cppadcodegen
