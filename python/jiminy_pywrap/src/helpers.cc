@@ -371,7 +371,7 @@ namespace jiminy::python
         bp::def("load_from_binary",
                 &buildRobotFromBinary,
                 (bp::arg("data"),
-                 bp::arg("mesh_path_dir") = bp::object(),
+                 bp::arg("mesh_dir_path") = bp::object(),
                  bp::arg("mesh_package_dirs") = bp::list()));
 
         bp::def("get_joint_type", &getJointType, bp::arg("joint_model"));

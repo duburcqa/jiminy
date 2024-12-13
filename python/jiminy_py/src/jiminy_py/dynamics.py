@@ -648,16 +648,16 @@ def compute_transform_contact(
     collision_model = robot.collision_model
 
     # Compute the transform in the world of the contact points
-    contact_frames_transform = []
+    contact_frame_transforms = []
     for frame_index in robot.contact_frame_indices:
         transform = robot.pinocchio_data.oMf[frame_index]
-        contact_frames_transform.append(transform)
+        contact_frame_transforms.append(transform)
 
     # Compute the transform of the ground at these points
     if ground_profile is not None:
         contact_ground_transform = []
         ground_pos = np.zeros(3)
-        for frame_transform in contact_frames_transform:
+        for frame_transform in contact_frame_transforms:
             ground_pos[2], normal = ground_profile(
                 frame_transform.translation[:2])
             ground_rot = pin.Quaternion.FromTwoVectors(
@@ -665,13 +665,13 @@ def compute_transform_contact(
             contact_ground_transform.append(pin.SE3(ground_rot, ground_pos))
     else:
         contact_ground_transform = [
-            pin.SE3.Identity() for _ in contact_frames_transform]
+            pin.SE3.Identity() for _ in contact_frame_transforms]
 
     # Compute the position and normal of the contact points wrt their
     # respective ground transform.
     contact_frames_pos_rel = []
     for frame_transform, ground_transform in \
-            zip(contact_frames_transform, contact_ground_transform):
+            zip(contact_frame_transforms, contact_ground_transform):
         transform_rel = ground_transform.actInv(frame_transform)
         contact_frames_pos_rel.append(transform_rel.translation)
 
@@ -707,7 +707,7 @@ def compute_transform_contact(
     rot_offset = pin.Quaternion.FromTwoVectors(
         normal_offset, np.array([0.0, 0.0, 1.0])).matrix()
     if contact_frames_pos_rel:
-        contact_frame_pos = contact_frames_transform[
+        contact_frame_pos = contact_frame_transforms[
             contact_frames_order[0]].translation
         pos_shift = (
             rot_offset @ contact_frame_pos)[2] - contact_frame_pos[2]

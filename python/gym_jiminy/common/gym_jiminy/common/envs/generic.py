@@ -961,7 +961,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
                 tab_name = " ".join(filter(None, (base_name, group)))
                 value_map = extract_variables_from_log(
                     log_vars, subfieldnames, "controller", as_dict=True)
-                tab_data = {key.split(".", 2)[2]: value
+                tab_data = {key.split(".", 2)[-1]: value
                             for key, value in value_map.items()}
 
                 grid_spec: Tuple[Optional[int], Optional[int]] = (None, None)

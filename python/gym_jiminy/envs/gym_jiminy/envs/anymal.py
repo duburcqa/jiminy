@@ -67,7 +67,7 @@ class ANYmalJiminyEnv(WalkerJiminyEnv):
         # Initialize the walker environment
         super().__init__(
             urdf_path=urdf_path,
-            mesh_path_dir=data_dir,
+            mesh_dir_path=data_dir,
             avoid_instable_collisions=True,
             debug=debug,
             **{**dict(

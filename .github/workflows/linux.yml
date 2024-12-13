@@ -90,6 +90,7 @@ jobs:
         cd "${RootDir}/build"
         cmake "${RootDir}" -Wdev \
               -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" \
+              -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=${{ (matrix.BUILD_TYPE == 'Debug' && 'OFF') || 'ON' }} \
               -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" \
               -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE -DBoost_USE_STATIC_LIBS=ON \
               -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \

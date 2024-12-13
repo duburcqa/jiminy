@@ -103,14 +103,10 @@ if (Test-Path -PathType Container "$RootDir/boost/build") {
 New-Item -ItemType "directory" -Force -Path "$RootDir/boost/build"
 Push-Location -Path "$RootDir/boost"
 git reset --hard
-git fetch origin "boost-1.86.0"
+git fetch origin "boost-1.87.0"
 git checkout --force FETCH_HEAD
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --depth 1 --jobs 8
-Push-Location -Path "$RootDir/boost/libs/python"
-git fetch origin 4fc3afa3ac1a1edb61a92fccd31d305ba38213f8
-git checkout --force FETCH_HEAD
-Pop-Location
 
 ### Checkout eigen3
 #   A specific commit from Aug 25, 2021 (post 3.4.0) fixes CXX STANDARD detection with MSVC

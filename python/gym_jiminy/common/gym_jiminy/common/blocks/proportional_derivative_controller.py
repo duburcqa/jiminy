@@ -206,10 +206,28 @@ def pd_adapter(action: np.ndarray,
     if is_instantaneous:
         # Update the command state directly
         if order == 0:
+            # Compute command velocity
+            velocity = (action - command_state[0]) / dt
+
+            # Clip command velocity
+            velocity = np.minimum(np.maximum(
+                velocity, command_state_lower[1]), command_state_upper[1])
+
+            # Update command position instantaneously
             command_state[0] = action
             command_state[1] = 0.0
         else:
-            command_state[1] = action
+            # Compute command acceleration
+            acceleration = (action - command_state[1]) / dt
+
+            # Clip command acceleration
+            acceleration = np.minimum(np.maximum(
+                acceleration, command_state_lower[2]), command_state_upper[2])
+
+            # Update command velocity instantaneously
+            command_state[1] += acceleration * dt
+
+        # Hold the acceleration constant equal to zero
         out[:] = 0.0
     else:
         if order == 0:
