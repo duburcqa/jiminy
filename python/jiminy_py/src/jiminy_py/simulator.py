@@ -839,6 +839,7 @@ class Simulator:
         for viewer in self._viewers[1:]:
             viewer.delete_robot_on_close = True
             viewer.close()
+        del self._viewers[1:]
 
         # Extract log data and robot from extra log files
         robots = [self.robot]
