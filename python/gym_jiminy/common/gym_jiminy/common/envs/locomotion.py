@@ -77,7 +77,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
     def __init__(self,
                  urdf_path: Optional[str],
                  hardware_path: Optional[str] = None,
-                 mesh_path_dir: Optional[str] = None,
+                 mesh_dir_path: Optional[str] = None,
                  simulation_duration_max: float = DEFAULT_SIMULATION_DURATION,
                  step_dt: float = DEFAULT_STEP_DT,
                  reward_mixture: Optional[dict] = None,
@@ -94,7 +94,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         :param hardware_path: Path of Jiminy hardware description toml file.
                               Optional: Looking for '\*_hardware.toml' file in
                               the same folder and with the same name.
-        :param mesh_path_dir: Path to the folder containing the model meshes.
+        :param mesh_dir_path: Path to the folder containing the model meshes.
                               Optional: Env variable 'JIMINY_DATA_PATH' will be
                               used if available.
         :param simulation_duration_max: Maximum duration of a simulation before
@@ -123,7 +123,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                       enables telemetry recording.
         :param robot: Robot being simulated, already instantiated and
                       initialized. Build default robot using 'urdf_path',
-                      'hardware_path' and 'mesh_path_dir' if omitted.
+                      'hardware_path' and 'mesh_dir_path' if omitted.
                       Optional: None by default.
         :param viewer_kwargs: Keyword arguments used to override the original
                               default values whenever a viewer is instantiated.
@@ -155,7 +155,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         # Backup user arguments
         self.reward_mixture = reward_mixture
         self.urdf_path = urdf_path
-        self.mesh_path_dir = mesh_path_dir
+        self.mesh_dir_path = mesh_dir_path
         self.hardware_path = hardware_path
         self.config_path = config_path
         self.std_ratio = std_ratio
@@ -174,7 +174,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
             simulator = Simulator.build(
                 urdf_path=self.urdf_path,
                 hardware_path=self.hardware_path,
-                mesh_path_dir=self.mesh_path_dir,
+                mesh_dir_path=self.mesh_dir_path,
                 config_path=self.config_path,
                 avoid_instable_collisions=self.avoid_instable_collisions,
                 debug=debug,
