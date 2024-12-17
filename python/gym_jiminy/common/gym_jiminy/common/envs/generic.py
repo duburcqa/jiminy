@@ -246,10 +246,6 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         # Initialize the seed of the environment
         self._initialize_seed()
 
-        # Initialize the observation and action buffers
-        self.observation: Obs = zeros(self.observation_space)
-        self.action: Act = zeros(self.action_space)
-
         # Check that the action and observation spaces are consistent with
         # 'compute_command' and 'refresh_observation' respectively.
         cls = type(self)
@@ -270,9 +266,14 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
                 "`BaseJiminyEnv.refresh_observation` must be overloaded when "
                 "defining a custom observation space.")
 
-        # Bind the observation to the engine measurements by default
+        # Initialize the observation and action buffers if necessary
         if not is_observation_space_custom:
+            # Bind the observation to the engine measurements by default
             self.observation = cast(Obs, self.measurement)
+        else:
+            self.observation: Obs = zeros(self.observation_space)
+        if not hasattr(self, "action"):
+            self.action: Act = zeros(self.action_space)
 
         # Define specialized operators for efficiency.
         # Note that a partial view of observation corresponding to measurement
