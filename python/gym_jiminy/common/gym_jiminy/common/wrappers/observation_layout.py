@@ -145,7 +145,10 @@ def _adapt_layout(
             nested_key_in = cast(NestedKey, nested_spec_in)
 
         # Extract the input chunk recursively
-        value_in = reduce(getitem, nested_key_in, data)
+        try:
+            value_in = reduce(getitem, nested_key_in, data)
+        except KeyError as e:
+            raise KeyError(f"Nested key '{nested_key_in}' is missing.") from e
         if block_spec_in is not None:
             # Convert array block specification to slices
             slices = []
