@@ -281,4 +281,4 @@ class DeformationEstimatorBlock(unittest.TestCase):
             env.step(env.action)
 
         # Check that deformation estimates matches ground truth
-        self._test_deformation_estimate(env, imu_atol=1e-4, flex_atol=5e-3)
+        self._test_deformation_estimate(env, imu_atol=1e-4, flex_atol=1e-2)

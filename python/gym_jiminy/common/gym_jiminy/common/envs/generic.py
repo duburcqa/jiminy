@@ -402,8 +402,10 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         self.np_random.bit_generator.state = np.random.SFC64(np_seed).state
 
         # Reset the seed of the action and observation spaces
-        self.observation_space.seed(seed)
-        self.action_space.seed(seed)
+        obs_seed, act_seed = map(int, self.np_random.integers(
+            np.iinfo(int).max, size=(2,), dtype=int))
+        self.observation_space.seed(obs_seed)
+        self.action_space.seed(act_seed)
 
         # Reset the seed of Jiminy Engine
         self.simulator.seed(engine_seed)
