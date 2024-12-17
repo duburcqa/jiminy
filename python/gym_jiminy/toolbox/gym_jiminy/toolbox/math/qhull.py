@@ -431,23 +431,29 @@ class ConvexHull2D:
                        a single query point.
         """
         # Make sure that the input is at least 2D
-        if points.ndim < 2:
-            points = np.atleast_2d(points)
+        assert points.ndim in (1, 2) and points.shape[-1] == 2
+        points2d = np.atleast_2d(points)
 
         # Compute the signed distance between query points and convex hull
         if self.npoints > 2:
-            return compute_distance_convex_to_point(
-                self.vertices, self.vectors, points)
+            dist2d = compute_distance_convex_to_point(
+                self.vertices, self.vectors, points2d)
 
         # Compute the distance between query points and segment
-        if self.npoints == 2:
+        elif self.npoints == 2:
             vec = self.vertices[1] - self.vertices[0]
-            ratio = (points - self.vertices[0]) @ vec / np.dot(vec, vec)
+            ratio = (points2d - self.vertices[0]) @ vec / np.dot(vec, vec)
             proj = self.vertices[0] + np.outer(np.clip(ratio, 0.0, 1.0), vec)
-            return np.linalg.norm(points - proj, axis=1)
+            dist2d = np.linalg.norm(points2d - proj, axis=1)
 
         # Compute the distance between query points and point
-        return np.linalg.norm(points - self.vertices, axis=1)
+        else:
+            dist2d = np.linalg.norm(points2d - self.vertices, axis=1)
+
+        # Ravel extra dimension before returning if not present initially
+        if points.ndim < 2:
+            return dist2d[0]
+        return dist2d
 
     def get_distance_to_ray(self,
                             vector: np.ndarray,
