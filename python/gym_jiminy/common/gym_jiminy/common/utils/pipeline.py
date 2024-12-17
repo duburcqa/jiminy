@@ -26,7 +26,7 @@ import jiminy_py.core as jiminy
 import pinocchio as pin
 from jiminy_py.dynamics import State, Trajectory
 
-from ..quantities import EnergyGenerationMode
+from ..quantities import EnergyGenerationMode, OrientationType
 from ..bases import (QuantityEvalMode,
                      InterfaceJiminyEnv,
                      InterfaceBlock,
@@ -46,6 +46,7 @@ from ..envs import BaseJiminyEnv
 
 ENUM_TYPES = (EnergyGenerationMode,
               QuantityEvalMode,
+              OrientationType,
               pin.KinematicLevel)
 ENUM_NAME_TO_MODULE_MAP = {enum_type.__name__: enum_type.__module__.split(".")
                            for enum_type in ENUM_TYPES}
@@ -247,15 +248,17 @@ def build_pipeline(env_config: EnvConfig,
                       Optional: `None` by default.
     """
     # Define helper to replace enums string by its corresponding object value
-    def sanitize_enum_string(kwargs: Dict[str, Any]) -> None:
-        """Replace in-place enum string representation with their object
-        counterpart.
+    def sanitize_special_string(kwargs: Dict[str, Any]) -> None:
+        """Replace in-place some special strings with their object counterpart.
+
+        This method deals with enums, None ("none") and special floats ("nan",
+        "+/-inf").
 
         :param kwargs: Nested dictionary of options.
         """
         for key, value in kwargs.items():
             if isinstance(value, dict):
-                sanitize_enum_string(value)
+                sanitize_special_string(value)
                 continue
 
             if not isinstance(value, str):
@@ -263,6 +266,9 @@ def build_pipeline(env_config: EnvConfig,
 
             if value == "none":
                 kwargs[key] = None
+                continue
+            if value == "nan" or value.endswith("inf"):
+                kwargs[key] = float(value)
                 continue
 
             value_path = value.split(".")
@@ -297,8 +303,8 @@ def build_pipeline(env_config: EnvConfig,
         # Get its constructor keyword-arguments
         kwargs = composition_config.get("kwargs", {})
 
-        # Special treatment for "none" and enum string
-        sanitize_enum_string(kwargs)
+        # Special treatment for "none", "nan", "+/-inf" and enum string
+        sanitize_special_string(kwargs)
 
         # Special handling for `MixtureReward`
         if is_reward and issubclass(cls, MixtureReward):
@@ -341,8 +347,8 @@ def build_pipeline(env_config: EnvConfig,
         # Get its constructor keyword-arguments
         kwargs = composition_config.get("kwargs", {}).copy()
 
-        # Special treatment for "none" and enum string
-        sanitize_enum_string(kwargs)
+        # Special treatment for "none", "nan", "+/-inf" and enum string
+        sanitize_special_string(kwargs)
 
         # Special handling for `MixtureReward`
         if is_reward and issubclass(cls, MixtureReward):
@@ -560,9 +566,9 @@ def build_pipeline(env_config: EnvConfig,
         block_kwargs = block_config.get("kwargs", {})
         wrapper_kwargs = wrapper_config.get("kwargs", {})
 
-        # Special treatment for "none" and enum string
+        # Special treatment for "none", "nan", "+/-inf" and enum string
         for kwargs in (block_kwargs, wrapper_kwargs):
-            sanitize_enum_string(kwargs)
+            sanitize_special_string(kwargs)
 
         # Special treatment for "quantity" arg of `QuantityObserver` blocks
         if block_cls_ is not None and issubclass(block_cls_, QuantityObserver):

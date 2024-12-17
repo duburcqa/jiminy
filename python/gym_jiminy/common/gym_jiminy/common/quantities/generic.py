@@ -1077,7 +1077,7 @@ class MultiFrameCollisionDetection(InterfaceQuantity[bool]):
 
     .. note::
         Jiminy enforces all collision geometries to be either primitive shapes
-        or convex polyhedra for efficiency. In practice, tf meshes where
+        or convex polyhedra for efficiency. In practice, if meshes has been
         specified in the original URDF file, then they will be converted into
         their respective convex hull.
     """
