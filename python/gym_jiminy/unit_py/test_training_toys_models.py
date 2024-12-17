@@ -16,7 +16,7 @@ from utilities import train
 
 
 # Fix the seed and number of threads for CI stability
-SEED = 0
+SEED = 42
 N_THREADS = 5
 
 # Skip some tests if Jiminy has been compiled in debug

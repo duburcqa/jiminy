@@ -368,13 +368,22 @@ class BasePipelineWrapper(
 
             return env_derived
 
+        # Reset base pipeline.
+        # Note that it is important to reset the base environment first,
+        # otherwise adding extra layers on top of an existing pipeline would
+        # affect random number sampling, and therefore mess up with
+        # repeatability.
+        obs, info = self.env.reset(
+            seed=seed, options={"reset_hook": reset_hook})
+
         # Reset the seed of the action and observation spaces
         if seed is not None:
-            self.observation_space.seed(seed)
-            self.action_space.seed(seed)
+            obs_seed, act_seed = map(int, self.np_random.integers(
+                np.iinfo(int).max, size=(2,), dtype=int))
+            self.observation_space.seed(obs_seed)
+            self.action_space.seed(act_seed)
 
-        # Reset base pipeline
-        return self.env.reset(seed=seed, options={"reset_hook": reset_hook})
+        return obs, info
 
     def step(self,  # type: ignore[override]
              action: Act
