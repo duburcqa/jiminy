@@ -40,6 +40,10 @@ namespace jiminy
     {
         // Check if the friction parameters make sense
         // Make sure the user-defined position limit has the right dimension
+        if (boost::get<double>(motorOptions.at("velocityEffortInvSlope")) < 0.0)
+        {
+            JIMINY_THROW(std::invalid_argument, "'velocityEffortInvSlope' must be positive.");
+        }
         if (boost::get<double>(motorOptions.at("frictionViscousPositive")) > 0.0)
         {
             JIMINY_THROW(std::invalid_argument, "'frictionViscousPositive' must be negative.");
@@ -104,12 +108,15 @@ namespace jiminy
             effortMax = effortLimit_;
             if (motorOptions_->enableVelocityLimit)
             {
-                const double velocityThr = std::max(
-                    velocityLimit_ - effortLimit_ * motorOptions_->velocityEffortInvSlope, 0.0);
-                effortMin *= std::clamp(
-                    (velocityLimit_ + vMotor) / (velocityLimit_ - velocityThr), 0.0, 1.0);
-                effortMax *= std::clamp(
-                    (velocityLimit_ - vMotor) / (velocityLimit_ - velocityThr), 0.0, 1.0);
+                const double velocityDelta = effortLimit_ * motorOptions_->velocityEffortInvSlope;
+                if (velocityDelta > 0.0)
+                {
+                    const double velocityThr = std::max(velocityLimit_ - velocityDelta, 0.0);
+                    effortMin *= std::clamp(
+                        (velocityLimit_ + vMotor) / (velocityLimit_ - velocityThr), 0.0, 1.0);
+                    effortMax *= std::clamp(
+                        (velocityLimit_ - vMotor) / (velocityLimit_ - velocityThr), 0.0, 1.0);
+                }
             }
         }
         uMotor = std::clamp(command, effortMin, effortMax);
