@@ -58,9 +58,12 @@ from .internal import loop_interactive
 
 
 # Maximum realtime slowdown of simulation steps before triggering timeout error
-TIMEOUT_RATIO = 15
+TIMEOUT_RATIO = 25
 
-# Absolute tolerance when checking that observations are valid
+# Absolute tolerance when checking that observations are valid.
+# Note that the joint positions are out-of-bounds when hitting the mechanical
+# stops. Because of this, some tolerance must be added to avoid trigeering
+# termination too easily.
 OBS_CONTAINS_TOL = 0.01
 
 
