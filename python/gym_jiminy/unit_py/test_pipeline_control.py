@@ -17,9 +17,9 @@ from PIL import Image
 from jiminy_py.core import ImuSensor
 from jiminy_py.viewer import Viewer
 
-from gym_jiminy.envs import (
-    AtlasPDControlJiminyEnv, CassiePDControlJiminyEnv, DigitPDControlJiminyEnv)
-from gym_jiminy.common.blocks import PDController, PDAdapter, MahonyFilter
+from gym_jiminy.common.bases import ObservedJiminyEnv
+from gym_jiminy.common.blocks import (
+    PDController, PDAdapter, MahonyFilter, BodyObserver)
 from gym_jiminy.common.blocks.proportional_derivative_controller import (
     integrate_zoh)
 from gym_jiminy.common.wrappers import (
@@ -27,6 +27,8 @@ from gym_jiminy.common.wrappers import (
     FlattenObservation)
 from gym_jiminy.common.utils import (
     quat_to_rpy, matrix_to_rpy, matrix_to_quat, remove_twist_from_quat)
+from gym_jiminy.envs import (
+    AtlasPDControlJiminyEnv, CassiePDControlJiminyEnv, DigitPDControlJiminyEnv)
 
 
 IMAGE_DIFF_THRESHOLD = 5.0
@@ -128,14 +130,25 @@ class PipelineControl(unittest.TestCase):
                 self._test_pid_standing()
                 Viewer.close()
 
-    def test_mahony_filter(self):
+    def test_mahony_filter_plus_body_observer(self):
         """Check consistency between IMU orientation estimation provided by
         Mahony filter and ground truth for moderately slow motions.
         """
         # Instantiate and reset the environment
         env = AtlasPDControlJiminyEnv()
-        observer = env.observer
-        assert isinstance(observer, MahonyFilter)
+
+        # Overwrite Mahony filter to specify custom constructor arguments
+        assert isinstance(env, ObservedJiminyEnv)
+        assert isinstance(env.observer, MahonyFilter)
+        mahony_filter = MahonyFilter(
+            "mahony_filter",
+            env.env,
+            kp=0.0,
+            ki=0.0,
+            ignore_twist=False,
+            exact_init=True,
+            compute_rpy=False)
+        env = ObservedJiminyEnv(env.env, mahony_filter)
 
         # Define a constant action that move the upper-body in all directions
         robot = env.robot
@@ -150,23 +163,21 @@ class PipelineControl(unittest.TestCase):
 
         # Check that the estimate IMU orientation is accurate over the episode
         for twist_time_constant in (None, float("inf"), 0.0):
-            # Reinitialize the observer
-            env.observer = observer = MahonyFilter(
-                observer.name,
-                observer.env,
-                kp=0.0,
-                ki=0.0,
+            # Add body observer
+            observer = BodyObserver(
+                "body_observer",
+                env,
                 twist_time_constant=twist_time_constant,
-                exact_init=True,
                 compute_rpy=True)
+            env_derived = ObservedJiminyEnv(env, observer)
 
             # Reset the environment
-            env.reset(seed=0)
+            env_derived.reset(seed=0)
             rpy_est = observer.observation["rpy"][:, 0]
 
             # Run of few simulation steps
             for i in range(200):
-                env.step(action * (1 - 2 * ((i // 50) % 2)))
+                env_derived.step(action * (1 - 2 * ((i // 50) % 2)))
 
                 if twist_time_constant == 0.0:
                     # The twist must be ignored as it is not observable

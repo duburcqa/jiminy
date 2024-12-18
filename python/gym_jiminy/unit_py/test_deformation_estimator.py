@@ -131,7 +131,7 @@ class DeformationEstimatorBlock(unittest.TestCase):
             env,
             kp=0.0,
             ki=0.0,
-            twist_time_constant=None,
+            ignore_twist=False,
             exact_init=True,
             update_ratio=1)
         env = ObservedJiminyEnv(env, mahony_filter)
@@ -253,7 +253,7 @@ class DeformationEstimatorBlock(unittest.TestCase):
                         kwargs=dict(
                             kp=0.0,
                             ki=0.0,
-                            twist_time_constant=None,
+                            ignore_twist=False,
                             exact_init=True,
                             update_ratio=1,
                         )
