@@ -3,7 +3,7 @@ reinforcement learning pipeline environment design.
 """
 import logging
 from collections import OrderedDict
-from typing import List, Union, Dict, Optional
+from typing import List, Sequence, Union, Dict
 
 import numpy as np
 import numba as nb
@@ -95,56 +95,6 @@ def mahony_filter(q: np.ndarray,
     bias_hat -= ki * dt * omega_mes  # eq. 32b
 
 
-@nb.jit(nopython=True, cache=True)
-def update_twist(q: np.ndarray,
-                 twist: np.ndarray,
-                 omega: np.ndarray,
-                 time_constant_inv: float,
-                 dt: float) -> None:
-    """Update the twist estimate of the Twist-after-Swing decomposition of
-    given orientations in quaternion representation using leaky integrator.
-
-    :param q: Current swing estimate as a quaternion. It will be updated
-              in-place to add the estimated twist.
-    :param twist: Current twist estimate to update in-place.
-    :param omega: Current angular velocity estimate in local frame.
-    :param time_constant_inv: Inverse of the time constant of the leaky
-                              integrator used to update the twist estimate.
-    :param dt: Time step, in seconds, between consecutive Quaternions.
-    """
-    # Compute the derivative of the twist angle:
-    # The element-wise time-derivative of a quaternion is given by:
-    #   dq = 0.5 * q * Quaternion(axis=gyro, w=0.0)        [1]
-    # The twist around a given axis can be computed as follows:
-    #   p = q_axis.dot(twist_axis) * twist_axis            [2]
-    #   twist = pin.Quaternion(np.array((*p, q_w))).normalized()
-    # The twist angle can be inferred from this expression:
-    #   twist = 2 * atan2(q_axis.dot(twist_axis), q_w)     [3]
-    # The derivative of twist angle can be derived:
-    #  dtwist = 2 * (
-    #     (dq_axis * q_w - q_axis * dq_w).dot(twist_axis)  [4]
-    #  ) / (q_axis.dot(twist_axis) ** 2 + q_w ** 2)
-    # One can show that if q_s is the swing part of the orientation, then:
-    #   q_s_axis.dot(twist_axis) = 0
-    # It yields:
-    #  dtwist = 2 * dq_s_axis.dot(twist_axis) / q_s_w      [5]
-    q_x, q_y, _, q_w = q
-    dtwist = (- q_y * omega[0] + q_x * omega[1]) / q_w + omega[2]
-
-    # Update twist angle using Leaky Integrator scheme to avoid long-term drift
-    twist *= max(0.0, 1.0 - time_constant_inv * dt)
-    twist += dtwist * dt
-
-    # Update quaternion to add estimated twist
-    p_z, p_w = np.sin(0.5 * twist), np.cos(0.5 * twist)
-    q[0], q[1], q[2], q[3] = (
-        p_w * q_x - p_z * q_y,
-        p_z * q_x + p_w * q_y,
-        p_z * q_w,
-        p_w * q_w,
-    )
-
-
 class MahonyFilter(BaseObserverBlock[
         Dict[str, np.ndarray], Dict[str, np.ndarray], BaseObs, BaseAct]):
     """Mahony's Nonlinear Complementary Filter on SO(3).
@@ -183,24 +133,17 @@ class MahonyFilter(BaseObserverBlock[
                  name: str,
                  env: InterfaceJiminyEnv[BaseObs, BaseAct],
                  *,
-                 twist_time_constant: Optional[float] = 0.0,
+                 ignore_twist: bool = False,
                  exact_init: bool = True,
-                 kp: Union[np.ndarray, float] = 1.0,
-                 ki: Union[np.ndarray, float] = 0.1,
+                 kp: Union[np.ndarray, Sequence[float], float] = 1.0,
+                 ki: Union[np.ndarray, Sequence[float], float] = 0.1,
                  compute_rpy: bool = False,
                  update_ratio: int = 1) -> None:
         """
         :param name: Name of the block.
         :param env: Environment to connect with.
-        :param twist_time_constant:
-            If specified, it corresponds to the time constant of the leaky
-            integrator (Exponential Moving Average) used to estimate the twist
-            part of twist-after-swing decomposition of the estimated
-            orientation in place of the Mahony Filter. If `0.0`, then its is
-            kept constant equal to zero. `None` to kept the original estimate
-            provided by Mahony Filter. See `remove_twist_from_quat` and
-            `update_twist` documentations for details.
-            Optional: `0.0` by default.
+        :param ignore_twist: Whether to ignore the twist of the IMU quaternion
+                             estimate.
         :param exact_init: Whether to initialize orientation estimate using
                            accelerometer measurements or ground truth. `False`
                            is not recommended because the robot is often
@@ -226,35 +169,22 @@ class MahonyFilter(BaseObserverBlock[
         # Handling of default argument(s)
         num_imu_sensors = len(env.robot.sensors[ImuSensor.type])
         if isinstance(kp, float):
-            kp = np.full((num_imu_sensors,), kp)
+            kp = (kp,) * num_imu_sensors
         if isinstance(ki, float):
-            ki = np.full((num_imu_sensors,), ki)
+            ki = (ki,) * num_imu_sensors
 
         # Backup some of the user arguments
-        self.compute_rpy = compute_rpy
+        self.ignore_twist = ignore_twist
         self.exact_init = exact_init
-        self.kp = kp
-        self.ki = ki
-
-        # Keep track of how the twist must be computed
-        self.twist_time_constant_inv: Optional[float]
-        if twist_time_constant is None:
-            self.twist_time_constant_inv = None
-        else:
-            if twist_time_constant > 0.0:
-                self.twist_time_constant_inv = 1.0 / twist_time_constant
-            else:
-                self.twist_time_constant_inv = float("inf")
-        self._remove_twist = self.twist_time_constant_inv is not None
-        self._update_twist = (
-            self.twist_time_constant_inv is not None and
-            np.isfinite(self.twist_time_constant_inv))
+        self.kp = np.asarray(kp)
+        self.ki = np.asarray(ki)
+        self.compute_rpy = compute_rpy
 
         # Whether the observer has been initialized.
         # This flag must be managed internally because relying on
         # `self.env.is_simulation_running` is not possible for observer blocks.
         # Unlike `compute_command`, the simulation is already running when
-        # `refresh_observation`` is called for the first time of an episode.
+        # `refresh_observation` is called for the first time of an episode.
         self._is_initialized = False
 
         # Whether the observer has been compiled already.
@@ -272,13 +202,8 @@ class MahonyFilter(BaseObserverBlock[
         # Allocate gyroscope bias estimate
         self._bias = np.zeros((3, num_imu_sensors))
 
-        # Allocate twist angle estimate around z-axis in world frame
-        self._twist = np.zeros((1, num_imu_sensors))
-
         # Define the state of the filter
         self._state = {"bias": self._bias}
-        if self._update_twist:
-            self._state["twist"] = self._twist
 
         # Initialize the observer
         super().__init__(name, env, update_ratio)
@@ -294,9 +219,7 @@ class MahonyFilter(BaseObserverBlock[
     def _initialize_state_space(self) -> None:
         """Configure the internal state space of the observer.
 
-        It corresponds to the current gyroscope bias estimate. The twist angle
-        is not part of the internal state although being integrated over time
-        because it is uniquely determined from the orientation estimate.
+        It corresponds to the current gyroscope bias estimate.
         """
         # Strictly speaking, 'q_prev' is part of the internal state of the
         # observer since it is involved in its computations. Yet, it is not an
@@ -309,11 +232,6 @@ class MahonyFilter(BaseObserverBlock[
             low=np.full((3, num_imu_sensors), -np.inf),
             high=np.full((3, num_imu_sensors), np.inf),
             dtype=np.float64)
-        if self._update_twist:
-            state_space["twist"] = gym.spaces.Box(
-                low=np.full((num_imu_sensors,), -np.inf),
-                high=np.full((num_imu_sensors,), np.inf),
-                dtype=np.float64)
         self.state_space = gym.spaces.Dict(state_space)
 
     def _initialize_observation_space(self) -> None:
@@ -350,6 +268,9 @@ class MahonyFilter(BaseObserverBlock[
         # Call base implementation
         super()._setup()
 
+        # Initialize observation
+        fill(self.observation, 0)
+
         # Fix initialization of the observation to be valid quaternions
         self._quat[-1] = 1.0
 
@@ -361,9 +282,6 @@ class MahonyFilter(BaseObserverBlock[
         # Reset the sensor bias estimate
         fill(self._bias, 0)
 
-        # Reset the twist estimate
-        fill(self._twist, 0)
-
         # Warn if 'observe_dt' is too large to provide a meaningful
         if self.observe_dt > 0.01 + 1e-6:
             LOGGER.warning(
@@ -373,11 +291,15 @@ class MahonyFilter(BaseObserverBlock[
 
         # Call `refresh_observation` manually to make sure that all the jitted
         # method of it control flow has been compiled.
+        # Note that setup must be called once again because compilation will
+        # mess up with the internal state of the filter.
         if not self._is_compiled:
             self._is_initialized = False
             for _ in range(2):
                 self.refresh_observation(self.env.observation)
             self._is_compiled = True
+            self._setup()
+            return
 
         # Consider that the observer is not initialized anymore
         self._is_initialized = False
@@ -432,10 +354,6 @@ class MahonyFilter(BaseObserverBlock[
                 # Convert the rotation matrices of the IMUs to quaternions
                 matrices_to_quat(tuple(imu_rots), self._quat)
 
-                # Keep track of tilt if necessary
-                if self._update_twist:
-                    self._twist[:] = np.arctan2(self._quat[2], self._quat[3])
-
                 self._is_initialized = True
 
             # Compute the RPY representation if requested
@@ -455,15 +373,8 @@ class MahonyFilter(BaseObserverBlock[
                       self.observe_dt)
 
         # Remove twist if requested
-        if self._remove_twist:
+        if self.ignore_twist:
             remove_twist_from_quat(self._quat)
-
-        if self._update_twist:
-            update_twist(self._quat,
-                         self._twist,
-                         self._omega,
-                         self.twist_time_constant_inv,
-                         self.observe_dt)
 
         # Compute the RPY representation if requested
         if self.compute_rpy:

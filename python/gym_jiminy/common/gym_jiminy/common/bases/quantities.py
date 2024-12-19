@@ -782,8 +782,13 @@ class AbstractQuantity(InterfaceQuantity, Generic[ValueT]):
         # Call base implementation
         super().initialize()
 
-        # Force initializing state quantity
-        self.state.initialize()
+        # Force initializing state quantity if possible
+        try:
+            self.state.initialize()
+        except RuntimeError:
+            # No simulation running. This may be problematic but it is not
+            # blocking at this point.
+            pass
 
         # Refresh robot proxy
         assert isinstance(self.state, StateQuantity)

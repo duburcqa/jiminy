@@ -3238,8 +3238,8 @@ namespace jiminy
     {
         typedef boost::fusion::vector<
             const Eigen::VectorXd & /* q */,
-            const Eigen::VectorXd & /* positionLimitMin */,
-            const Eigen::VectorXd & /* positionLimitMax */,
+            const Eigen::VectorXd & /* positionLimitLower */,
+            const Eigen::VectorXd & /* positionLimitUpper */,
             const std::unique_ptr<const Engine::EngineOptions> & /* engineOptions */,
             const std::shared_ptr<AbstractConstraintBase> & /* constraint */>
             ArgsType;
@@ -3252,16 +3252,16 @@ namespace jiminy
                                 void>
         algo(const pinocchio::JointModelBase<JointModel> & joint,
              const Eigen::VectorXd & q,
-             const Eigen::VectorXd & positionLimitMin,
-             const Eigen::VectorXd & positionLimitMax,
+             const Eigen::VectorXd & positionLimitLower,
+             const Eigen::VectorXd & positionLimitUpper,
              const std::unique_ptr<const Engine::EngineOptions> & engineOptions,
              const std::shared_ptr<AbstractConstraintBase> & constraint)
         {
             // Define some proxies for convenience
             const Eigen::Index positionIndex = joint.idx_q();
             const double qJoint = q[positionIndex];
-            const double qJointMin = positionLimitMin[positionIndex];
-            const double qJointMax = positionLimitMax[positionIndex];
+            const double qJointMin = positionLimitLower[positionIndex];
+            const double qJointMax = positionLimitUpper[positionIndex];
             const double transitionEps = engineOptions->contacts.transitionEps;
 
             // Check if out-of-bounds
@@ -3287,8 +3287,8 @@ namespace jiminy
                                 void>
         algo(const pinocchio::JointModelBase<JointModel> & /* joint */,
              const Eigen::VectorXd & /* q */,
-             const Eigen::VectorXd & /* positionLimitMin */,
-             const Eigen::VectorXd & /* positionLimitMax */,
+             const Eigen::VectorXd & /* positionLimitLower */,
+             const Eigen::VectorXd & /* positionLimitUpper */,
              const std::unique_ptr<const Engine::EngineOptions> & /* engineOptions */,
              const std::shared_ptr<AbstractConstraintBase> & constraint)
         {
@@ -3307,8 +3307,8 @@ namespace jiminy
                                 void>
         algo(const pinocchio::JointModelBase<JointModel> & /* joint */,
              const Eigen::VectorXd & /* q */,
-             const Eigen::VectorXd & /* positionLimitMin */,
-             const Eigen::VectorXd & /* positionLimitMax */,
+             const Eigen::VectorXd & /* positionLimitLower */,
+             const Eigen::VectorXd & /* positionLimitUpper */,
              const std::unique_ptr<const Engine::EngineOptions> & /* engineOptions */,
              const std::shared_ptr<AbstractConstraintBase> & constraint)
         {
@@ -3332,8 +3332,8 @@ namespace jiminy
 
         /* Enforce position limits for all joints having bounds constraints, ie mechanical and
            backlash joints. */
-        const Eigen::VectorXd & positionLimitMin = robot->pinocchioModel_.lowerPositionLimit;
-        const Eigen::VectorXd & positionLimitMax = robot->pinocchioModel_.upperPositionLimit;
+        const Eigen::VectorXd & positionLimitLower = robot->pinocchioModel_.lowerPositionLimit;
+        const Eigen::VectorXd & positionLimitUpper = robot->pinocchioModel_.upperPositionLimit;
         for (auto & constraintItem : constraints.boundJoints)
         {
             auto & constraint = constraintItem.second;
@@ -3342,7 +3342,7 @@ namespace jiminy
             computePositionLimitsForcesAlgo::run(
                 model.joints[jointIndex],
                 typename computePositionLimitsForcesAlgo::ArgsType(
-                    q, positionLimitMin, positionLimitMax, engineOptions_, constraint));
+                    q, positionLimitLower, positionLimitUpper, engineOptions_, constraint));
         }
 
         // Compute the flexibilities (only support `JointModelType::SPHERICAL` so far)

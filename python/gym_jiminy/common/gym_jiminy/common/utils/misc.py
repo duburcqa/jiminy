@@ -167,7 +167,7 @@ def sample(low: Union[float, np.ndarray] = -1.0,
                  Optional: 'uniform' by default.
     :param scale: Shrink the standard deviation of the distribution around the
                   mean by this factor.
-                  Optional: No scaling by default?
+                  Optional: No scaling by default
     :param enable_log_scale: The sampled values are power of 10.
     :param shape: Enforce of the sampling shape. Only available if 'low',
                   'high' and 'scale' are floats. `None` to disable.

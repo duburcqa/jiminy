@@ -137,8 +137,8 @@ namespace jiminy
         {
             GenericConfig config;
             config["positionLimitFromUrdf"] = true;
-            config["positionLimitMin"] = Eigen::VectorXd{};
-            config["positionLimitMax"] = Eigen::VectorXd{};
+            config["positionLimitLower"] = Eigen::VectorXd{};
+            config["positionLimitUpper"] = Eigen::VectorXd{};
 
             return config;
         };
@@ -181,13 +181,13 @@ namespace jiminy
         {
             const bool positionLimitFromUrdf;
             /// \brief Min position limit of all the mechanical joints of the theoretical model.
-            const Eigen::VectorXd positionLimitMin;
-            const Eigen::VectorXd positionLimitMax;
+            const Eigen::VectorXd positionLimitLower;
+            const Eigen::VectorXd positionLimitUpper;
 
             JointOptions(const GenericConfig & options) :
             positionLimitFromUrdf{boost::get<bool>(options.at("positionLimitFromUrdf"))},
-            positionLimitMin{boost::get<Eigen::VectorXd>(options.at("positionLimitMin"))},
-            positionLimitMax{boost::get<Eigen::VectorXd>(options.at("positionLimitMax"))}
+            positionLimitLower{boost::get<Eigen::VectorXd>(options.at("positionLimitLower"))},
+            positionLimitUpper{boost::get<Eigen::VectorXd>(options.at("positionLimitUpper"))}
             {
             }
         };
