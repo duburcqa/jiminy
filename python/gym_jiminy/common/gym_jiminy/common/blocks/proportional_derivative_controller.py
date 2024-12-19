@@ -2,7 +2,7 @@
 with gym_jiminy reinforcement learning pipeline environment design.
 """
 import warnings
-from typing import List, Union
+from typing import List, Union, Optional
 
 import numpy as np
 import numba as nb
@@ -101,14 +101,14 @@ def integrate_zoh(state: np.ndarray,
 
 
 @nb.jit(nopython=True, cache=True, fastmath=True)
-def pd_controller(q_measured: np.ndarray,
-                  v_measured: np.ndarray,
+def pd_controller(encoder_data: np.ndarray,
                   command_state: np.ndarray,
                   command_state_lower: np.ndarray,
                   command_state_upper: np.ndarray,
                   kp: np.ndarray,
                   kd: np.ndarray,
                   motors_effort_limit: np.ndarray,
+                  motors_velocity_deadband: Optional[np.ndarray],
                   control_dt: float,
                   out: np.ndarray) -> None:
     """Compute command torques under discrete-time proportional-derivative
@@ -133,8 +133,7 @@ def pd_controller(q_measured: np.ndarray,
         See `PDController` documentation to get more information, and
         `integrate_zoh` documentation for details about the state integration.
 
-    :param q_measured: Current position of the actuators.
-    :param v_measured: Current velocity of the actuators.
+    :param encoder_data: Current position and velocity of the actuators.
     :param command_state: Current command state, namely, all the derivatives of
                           the target motors positions up to acceleration order.
     :param command_state_lower: Lower bound of the command state that must be
@@ -144,6 +143,8 @@ def pd_controller(q_measured: np.ndarray,
     :param kp: PD controller position-proportional gain in motor order.
     :param kd: PD controller velocity-proportional gain in motor order.
     :param motors_effort_limit: Maximum effort that the actuators can output.
+    :param velocity_deadband: Target velocity deadband for which the target
+                              motor velocity will be cancelled out completely.
     :param control_dt: Controller update period. It will be involved in the
                        integration of the command state.
     :param out: Pre-allocated memory to store the command motor torques.
@@ -154,11 +155,13 @@ def pd_controller(q_measured: np.ndarray,
                   command_state_upper,
                   control_dt)
 
-    # Extract targets motors positions and velocities from command state
-    q_target, v_target, _ = command_state
+    # Velocity/Acceleration dead-band to avoid slow drift of target position
+    if motors_velocity_deadband is not None:
+        is_zero_velocity = np.abs(command_state[1]) < motors_velocity_deadband
+        command_state[1, is_zero_velocity] = 0.0
 
     # Compute the joint tracking error
-    q_error, v_error = q_target - q_measured, v_target - v_measured
+    q_error, v_error = command_state[:2] - encoder_data
 
     # Compute PD command
     out[:] = kp * (q_error + kd * v_error)
@@ -174,8 +177,8 @@ def pd_adapter(action: np.ndarray,
                command_state: np.ndarray,
                command_state_lower: np.ndarray,
                command_state_upper: np.ndarray,
-               dt: float,
                is_instantaneous: bool,
+               step_dt: float,
                out: np.ndarray) -> None:
     """Compute the target motor accelerations that must be held constant for a
     given time interval in order to reach the desired value of some derivative
@@ -198,41 +201,45 @@ def pd_adapter(action: np.ndarray,
                                 satisfied at all cost.
     :param command_state_upper: Upper bound of the command state that must be
                                 satisfied at all cost.
-    :param dt: Time interval during which the target motor accelerations will
-               be held constant.
+    :param step_dt: Time interval during which the target motor accelerations
+                    will be held constant.
     :param out: Pre-allocated memory to store the target motor accelerations.
     """
+    # Early return if timestep is too small
+    if abs(step_dt) < 1e-9:
+        return
+
     # Update command accelerations based on the action and its derivative order
     if is_instantaneous:
         # Update the command state directly
         if order == 0:
             # Compute command velocity
-            velocity = (action - command_state[0]) / dt
+            velocity = (action - command_state[0]) / step_dt
 
             # Clip command velocity
             velocity = np.minimum(np.maximum(
                 velocity, command_state_lower[1]), command_state_upper[1])
 
             # Update command position instantaneously
-            command_state[0] = action
+            command_state[0] += velocity * step_dt
             command_state[1] = 0.0
         else:
             # Compute command acceleration
-            acceleration = (action - command_state[1]) / dt
+            acceleration = (action - command_state[1]) / step_dt
 
             # Clip command acceleration
             acceleration = np.minimum(np.maximum(
                 acceleration, command_state_lower[2]), command_state_upper[2])
 
             # Update command velocity instantaneously
-            command_state[1] += acceleration * dt
+            command_state[1] += acceleration * step_dt
 
         # Hold the acceleration constant equal to zero
         out[:] = 0.0
     else:
         if order == 0:
             # Compute command velocity
-            velocity = (action - command_state[0]) / dt
+            velocity = (action - command_state[0]) / step_dt
         else:
             # The action corresponds to the command motor velocities
             velocity = action
@@ -242,7 +249,7 @@ def pd_adapter(action: np.ndarray,
             velocity, command_state_lower[1]), command_state_upper[1])
 
         # Compute command acceleration
-        out[:] = (velocity - command_state[1]) / dt
+        out[:] = (velocity - command_state[1]) / step_dt
 
 
 def get_encoder_to_motor_map(robot: jiminy.Robot) -> Union[slice, List[int]]:
@@ -315,7 +322,8 @@ class PDController(
                  kd: Union[float, List[float], np.ndarray],
                  joint_position_margin: float = 0.0,
                  joint_velocity_limit: float = float("inf"),
-                 joint_acceleration_limit: float = float("inf")) -> None:
+                 joint_velocity_deadband: float = 0.0,
+                 joint_acceleration_limit: Optional[float] = None) -> None:
         """
         :param name: Name of the block.
         :param env: Environment to connect with.
@@ -328,11 +336,24 @@ class PDController(
         :param joint_position_margin: Minimum distance of the joint target
                                       positions from their respective bounds.
                                       Optional: 0.0 by default.
-        :param joint_velocity_limit: Restrict maximum joint target velocities
-                                     wrt their hardware specifications.
-                                     Optional: "inf" by default.
-        :param joint_acceleration_limit: Maximum joint target acceleration.
-                                         Optional: "inf" by default.
+        :param joint_velocity_limit:
+            Further restrict maximum joint target velocities wrt their
+            hardware specifications.
+            Optional: 'inf' by default.
+        :param joint_velocity_deadband:
+            Target velocity deadband to avoid high-frequency vibrations and
+            drifting of the target motor positions that would result internal
+            efforts in the mechanical structure for hyperstatic postures.
+            Note that it is only enabled during evaluation, not training.
+            Optional: 0.0 by default.
+        :param joint_acceleration_limit:
+            Maximum joint target acceleration. `None` to infer acceleration
+            bounds (from prescribed PD gains plus maximum motor velocities and
+            efforts) that would be as restrictive as possible while allowing
+            bang-band control (i.e. unrestricted jump in target velocity or
+            command torque in a single environment timestep, depending on which
+            of these two criteria is the most limiting).
+            Optional: None by default.
         """
         # Make sure the action space of the environment has not been altered
         if env.action_space is not env.unwrapped.action_space:
@@ -391,16 +412,20 @@ class PDController(
         motors_velocity_limit = np.array([
             min(motor.velocity_limit, ratio * joint_velocity_limit)
             for motor, ratio in zip(env.robot.motors, encoder_to_joint_ratio)])
+        self._motors_velocity_deadband = np.array([
+            ratio * joint_velocity_deadband
+            for motor, ratio in zip(env.robot.motors, encoder_to_joint_ratio)])
 
         # Define acceleration bounds allowing unrestricted bang-bang control
-        range_limit = 2 * motors_velocity_limit / env.step_dt
-        effort_limit = self.motors_effort_limit / (
-            self.kp * env.step_dt * np.maximum(env.step_dt / 2, self.kd))
-        target_acceleration_limit = np.array([
-            ratio * joint_acceleration_limit
-            for ratio in encoder_to_joint_ratio])
-        acceleration_limit = np.minimum(
-            np.minimum(range_limit, effort_limit), target_acceleration_limit)
+        if joint_acceleration_limit is None:
+            range_limit = 2 * motors_velocity_limit / env.step_dt
+            effort_limit = self.motors_effort_limit / (
+                self.kp * env.step_dt * np.maximum(env.step_dt, self.kd))
+            acceleration_limit = np.minimum(range_limit, effort_limit)
+        else:
+            acceleration_limit = np.array([
+                ratio * joint_acceleration_limit
+                for ratio in encoder_to_joint_ratio])
 
         # Compute command state bounds
         self._command_state_lower = np.stack([motors_position_lower,
@@ -411,8 +436,7 @@ class PDController(
                                               acceleration_limit], axis=0)
 
         # Extract measured motor positions and velocities for fast access
-        self.q_measured, self.v_measured = (
-            env.measurement["measurements"][EncoderSensor.type])
+        self.encoder_data = env.measurement["measurements"][EncoderSensor.type]
 
         # Allocate memory for the command state
         self._command_state = np.zeros((3, env.robot.nmotors))
@@ -480,23 +504,21 @@ class PDController(
         :param action: Desired target motor acceleration.
         :param command: Current motor torques that will be updated in-place.
         """
+        # Extract motor positions and velocity from encoder data
+        encoder_data = self.encoder_data
+        if not self._is_same_order:
+            encoder_data = encoder_data[:, self.encoder_to_motor_map]
+
         # Re-initialize the command state to the current motor state if the
         # simulation is not running. This must be done here because the
         # command state must be valid prior to calling `refresh_observation`
         # for the first time, which happens at `reset`.
         is_simulation_running = self.env.is_simulation_running
         if not is_simulation_running:
-            for i, value in enumerate((self.q_measured, self.v_measured)):
-                np.clip(value,
-                        self._command_state_lower[i],
-                        self._command_state_upper[i],
-                        out=self._command_state[i])
-
-        # Extract motor positions and velocity from encoder data
-        q_measured, v_measured = self.q_measured, self.v_measured
-        if not self._is_same_order:
-            q_measured = q_measured[self.encoder_to_motor_map]
-            v_measured = v_measured[self.encoder_to_motor_map]
+            np.clip(encoder_data,
+                    self._command_state_lower[:2],
+                    self._command_state_upper[:2],
+                    out=self._command_state[:2])
 
         # Update target motor accelerations
         array_copyto(self._command_acceleration, action)
@@ -504,14 +526,14 @@ class PDController(
         # Compute the motor efforts using PD control.
         # The command state must not be updated if no simulation is running.
         pd_controller(
-            q_measured,
-            v_measured,
+            encoder_data,
             self._command_state,
             self._command_state_lower,
             self._command_state_upper,
             self.kp,
             self.kd,
             self.motors_effort_limit,
+            None if self.env.is_training else self._motors_velocity_deadband,
             self.control_dt if is_simulation_running else 0.0,
             command)
 
@@ -611,6 +633,6 @@ class PDAdapter(
             self._pd_controller._command_state,
             self._pd_controller._command_state_lower,
             self._pd_controller._command_state_upper,
-            self.control_dt,
             self.is_instantaneous,
+            self.control_dt if self.env.is_simulation_running else 0.0,
             command)

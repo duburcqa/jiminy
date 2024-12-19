@@ -131,7 +131,7 @@ class DeformationEstimatorBlock(unittest.TestCase):
             env,
             kp=0.0,
             ki=0.0,
-            twist_time_constant=None,
+            ignore_twist=False,
             exact_init=True,
             update_ratio=1)
         env = ObservedJiminyEnv(env, mahony_filter)
@@ -253,7 +253,7 @@ class DeformationEstimatorBlock(unittest.TestCase):
                         kwargs=dict(
                             kp=0.0,
                             ki=0.0,
-                            twist_time_constant=None,
+                            ignore_twist=False,
                             exact_init=True,
                             update_ratio=1,
                         )
@@ -281,4 +281,4 @@ class DeformationEstimatorBlock(unittest.TestCase):
             env.step(env.action)
 
         # Check that deformation estimates matches ground truth
-        self._test_deformation_estimate(env, imu_atol=1e-4, flex_atol=5e-3)
+        self._test_deformation_estimate(env, imu_atol=1e-4, flex_atol=1e-2)

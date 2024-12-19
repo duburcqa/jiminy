@@ -58,9 +58,12 @@ from .internal import loop_interactive
 
 
 # Maximum realtime slowdown of simulation steps before triggering timeout error
-TIMEOUT_RATIO = 15
+TIMEOUT_RATIO = 25
 
-# Absolute tolerance when checking that observations are valid
+# Absolute tolerance when checking that observations are valid.
+# Note that the joint positions are out-of-bounds when hitting the mechanical
+# stops. Because of this, some tolerance must be added to avoid trigeering
+# termination too easily.
 OBS_CONTAINS_TOL = 0.01
 
 
@@ -246,10 +249,6 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         # Initialize the seed of the environment
         self._initialize_seed()
 
-        # Initialize the observation and action buffers
-        self.observation: Obs = zeros(self.observation_space)
-        self.action: Act = zeros(self.action_space)
-
         # Check that the action and observation spaces are consistent with
         # 'compute_command' and 'refresh_observation' respectively.
         cls = type(self)
@@ -270,9 +269,14 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
                 "`BaseJiminyEnv.refresh_observation` must be overloaded when "
                 "defining a custom observation space.")
 
-        # Bind the observation to the engine measurements by default
+        # Initialize the observation and action buffers if necessary
         if not is_observation_space_custom:
+            # Bind the observation to the engine measurements by default
             self.observation = cast(Obs, self.measurement)
+        else:
+            self.observation: Obs = zeros(self.observation_space)
+        if not hasattr(self, "action"):
+            self.action: Act = zeros(self.action_space)
 
         # Define specialized operators for efficiency.
         # Note that a partial view of observation corresponding to measurement
@@ -402,8 +406,10 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         self.np_random.bit_generator.state = np.random.SFC64(np_seed).state
 
         # Reset the seed of the action and observation spaces
-        self.observation_space.seed(seed)
-        self.action_space.seed(seed)
+        obs_seed, act_seed = map(int, self.np_random.integers(
+            np.iinfo(int).max, size=(2,), dtype=int))
+        self.observation_space.seed(obs_seed)
+        self.action_space.seed(act_seed)
 
         # Reset the seed of Jiminy Engine
         self.simulator.seed(engine_seed)

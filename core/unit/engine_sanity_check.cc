@@ -68,9 +68,9 @@ TEST(EngineSanity, EnergyConservation)
     GenericConfig & modelOptions = boost::get<GenericConfig>(robotOptions.at("model"));
     GenericConfig & jointsOptions = boost::get<GenericConfig>(modelOptions.at("joints"));
     boost::get<bool>(jointsOptions.at("positionLimitFromUrdf")) = false;
-    boost::get<Eigen::VectorXd>(jointsOptions.at("positionLimitMin")) =
+    boost::get<Eigen::VectorXd>(jointsOptions.at("positionLimitLower")) =
         Eigen::Vector2d::Constant(-INF);
-    boost::get<Eigen::VectorXd>(jointsOptions.at("positionLimitMax")) =
+    boost::get<Eigen::VectorXd>(jointsOptions.at("positionLimitUpper")) =
         Eigen::Vector2d::Constant(+INF);
 
     // Disable velocity and torque limits
