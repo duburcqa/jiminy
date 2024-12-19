@@ -42,6 +42,7 @@ from .compositions import AbstractReward, AbstractTerminationCondition
 from .blocks import BaseControllerBlock, BaseObserverBlock
 
 from ..utils import (DataNested,
+                     fill,
                      zeros,
                      build_copyto,
                      copy,
@@ -1116,6 +1117,9 @@ class ControlledJiminyEnv(
 
         # Call base implementation
         super()._setup()
+
+        # Reset action
+        fill(self.action, 0)
 
         # Compute the observe and control update periods
         self.observe_dt = self.env.observe_dt
