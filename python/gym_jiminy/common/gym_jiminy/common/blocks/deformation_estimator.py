@@ -135,7 +135,7 @@ def _compute_deformation_from_deviation(kin_flex_rots: Tuple[np.ndarray, ...],
 
     # Conjugate deformation quaternion if triplet (parent IMU, flex, child IMU)
     # is reversed wrt to the standard joint ordering from URDF.
-    deformation_flex_quats[-1][is_flex_flipped] *= -1
+    deformation_flex_quats[-1, is_flex_flipped] *= -1
 
 
 # FIXME: Enabling cache causes segfault on Apple Silicon

@@ -28,6 +28,7 @@ LOGGER = logging.getLogger(__name__)
 @nb.jit(nopython=True, cache=True)
 def mahony_filter(q: np.ndarray,
                   omega: np.ndarray,
+                  cf: np.ndarray,
                   gyro: np.ndarray,
                   acc: np.ndarray,
                   bias_hat: np.ndarray,
@@ -45,7 +46,9 @@ def mahony_filter(q: np.ndarray,
               The twist part of its twist-after-swing decomposition may have
               been removed.
     :param omega: Pre-allocated memory that will be updated to store the
-                  estimate of the angular velocity in local frame.
+                  estimate of the angular velocity in local frame (unbiased).
+    :param cf: Pre-allocated memory that will be updated to store the value of
+               the complementary filter in local frame.
     :param gyro: Sample of tri-axial Gyroscope in rad/s. It corresponds to the
                  angular velocity in local frame.
     :param acc: Sample of tri-axial Accelerometer in m/s^2. It corresponds to
@@ -60,6 +63,9 @@ def mahony_filter(q: np.ndarray,
     # Compute expected Earth's gravity (Euler-Rodrigues Formula): R(q).T @ e_z
     v_x, v_y, v_z = compute_tilt_from_quat(q)
 
+    # Update the estimate of the angular velocity
+    omega[:] = gyro - bias_hat
+
     # Compute the angular velocity using Explicit Complementary Filter:
     # omega_mes = (- v_a) x v_a_hat, where x is the cross product.
     v_x_hat, v_y_hat, v_z_hat = acc / EARTH_SURFACE_GRAVITY
@@ -67,19 +73,19 @@ def mahony_filter(q: np.ndarray,
         v_y_hat * v_z - v_z_hat * v_y,
         v_z_hat * v_x - v_x_hat * v_z,
         v_x_hat * v_y - v_y_hat * v_x), 0)  # eq. 32c
-    omega[:] = gyro - bias_hat + kp * omega_mes  # eq. 32a (right hand)
+    cf[:] = omega + kp * omega_mes  # eq. 32a (right hand)
 
     # Early return if there is no IMU motion
-    if (np.abs(omega) < 1e-6).all():
+    if (np.abs(cf) < 1e-6).all():
         return
 
-    # Compute Axis-Angle repr. of the angular velocity: exp3(dt * omega)
-    theta = np.sqrt(np.sum(omega * omega, 0))
-    axis = omega / theta
+    # Compute Axis-Angle repr. of the angular velocity: exp3(dt * cf)
+    theta = np.sqrt(np.sum(cf * cf, 0))
+    axis = cf / theta
     theta *= dt / 2
     (p_x, p_y, p_z), p_w = (axis * np.sin(theta)), np.cos(theta)
 
-    # Integrate the orientation: q * exp3(dt * omega)
+    # Integrate the orientation: q * exp3(dt * cf)
     q_x, q_y, q_z, q_w = q
     q[0], q[1], q[2], q[3] = (
         q_x * p_w + q_w * p_x - q_z * p_y + q_y * p_z,
@@ -199,8 +205,11 @@ class MahonyFilter(BaseObserverBlock[
         self.gyro, self.acc = np.split(
             env.measurement["measurements"][ImuSensor.type], 2)
 
-        # Allocate gyroscope bias estimate
+        # Gyroscope bias estimate
         self._bias = np.zeros((3, num_imu_sensors))
+
+        # Explicit complementary filter
+        self._cf = np.zeros((3, num_imu_sensors))
 
         # Define the state of the filter
         self._state = {"bias": self._bias}
@@ -365,6 +374,7 @@ class MahonyFilter(BaseObserverBlock[
         # Run an iteration of the filter, computing the next state estimate
         mahony_filter(self._quat,
                       self._omega,
+                      self._cf,
                       self.gyro,
                       self.acc,
                       self._bias,
