@@ -29,7 +29,7 @@ from ..utils import (DataNested,
 @nb.jit(nopython=True, cache=False, inline='always')
 def _compute_orientation_error(obs_imu_quats: np.ndarray,
                                obs_imu_indices: Tuple[int, ...],
-                               inv_obs_imu_quats: np.ndarray,
+                               obs_imu_quats_ordered: np.ndarray,
                                kin_imu_rots: Tuple[np.ndarray, ...],
                                kin_imu_quats: np.ndarray,
                                dev_imu_quats: np.ndarray,
@@ -39,7 +39,7 @@ def _compute_orientation_error(obs_imu_quats: np.ndarray,
     """
     # Re-order IMU data
     for i, imu_index in enumerate(obs_imu_indices):
-        inv_obs_imu_quats[:, i] = obs_imu_quats[:, imu_index]
+        obs_imu_quats_ordered[:, i] = obs_imu_quats[:, imu_index]
 
     # Compute orientation error
     if ignore_twist:
@@ -51,33 +51,29 @@ def _compute_orientation_error(obs_imu_quats: np.ndarray,
         # deviation directly, but much faster as it does not require computing
         # the observed IMU quaternions nor to compose rotations.
 
-        # Extract observed tilt: w_R_obs.T @ e_z
-        obs_imu_tilts = np.stack(compute_tilt_from_quat(inv_obs_imu_quats), 1)
+        # Extract observed tilt: w_tilt_obs = w_R_obs.T @ e_z
+        dev_imu_tilts = np.stack(
+            compute_tilt_from_quat(obs_imu_quats_ordered), 1)
 
         # Apply theoretical kinematic IMU rotation on observed tilt.
         # The result can be interpreted as the tilt error between observed
         # and theoretical kinematic IMU orientation in world frame, ie:
-        # w_tilt_err = (w_R_kin @ w_R_obs.T) @ e_z
+        # w_tilt_err = (w_R_obs @ w_R_kin.T).T @ e_z = w_R_kin @ w_tilt_obs
         for i, kin_imu_rot in enumerate(kin_imu_rots):
-            obs_imu_tilts[i] = kin_imu_rot @ obs_imu_tilts[i]
+            dev_imu_tilts[i] = kin_imu_rot @ dev_imu_tilts[i]
 
         # Compute "smallest" rotation that can explain the tilt error.
-        swing_from_vector(obs_imu_tilts.T, dev_imu_quats)
-
-        # Conjugate quaternion of IMU deviation
-        dev_imu_quats[-1] *= -1
+        swing_from_vector(dev_imu_tilts.T, dev_imu_quats)
     else:
         # Convert kinematic IMU rotation matrices to quaternions
         matrices_to_quat(kin_imu_rots, kin_imu_quats)
 
-        # Conjugate quaternion of IMU orientation
-        inv_obs_imu_quats[-1] *= -1
-
         # Compute one-by-one difference between observed and theoretical
-        # kinematic IMU orientations.
-        quat_multiply(kin_imu_quats,
-                      inv_obs_imu_quats,
-                      dev_imu_quats)
+        # kinematic IMU orientations, ie: w_err = w_R_obs @ w_R_kin.T
+        quat_multiply(obs_imu_quats_ordered,
+                      kin_imu_quats,
+                      is_right_conjugate=True,
+                      out=dev_imu_quats)
 
 
 @nb.jit(nopython=True, cache=True, inline='always')
@@ -86,7 +82,7 @@ def _compute_deformation_from_deviation(kin_flex_rots: Tuple[np.ndarray, ...],
                                         is_flex_flipped: np.ndarray,
                                         is_chain_orphan: Tuple[bool, bool],
                                         dev_imu_quats: np.ndarray,
-                                        inv_child_dev_imu_quats: np.ndarray,
+                                        child_dev_imu_quats: np.ndarray,
                                         parent_dev_imu_quats: np.ndarray,
                                         deformation_flex_quats: np.ndarray
                                         ) -> None:
@@ -105,10 +101,10 @@ def _compute_deformation_from_deviation(kin_flex_rots: Tuple[np.ndarray, ...],
         if is_flex_child_orphan:
             quat_multiply(dev_imu_quats,
                           kin_flex_quats[:, :-1],
-                          inv_child_dev_imu_quats[:, :-1])
+                          child_dev_imu_quats[:, :-1])
         else:
             quat_multiply(
-                dev_imu_quats, kin_flex_quats, inv_child_dev_imu_quats)
+                dev_imu_quats, kin_flex_quats, child_dev_imu_quats)
     else:
         nflexs = len(kin_flex_rots)
         quat_multiply(
@@ -116,22 +112,22 @@ def _compute_deformation_from_deviation(kin_flex_rots: Tuple[np.ndarray, ...],
         if is_flex_child_orphan:
             quat_multiply(dev_imu_quats[:, 1:],
                           kin_flex_quats[:, :-1],
-                          inv_child_dev_imu_quats[:, :-1])
+                          child_dev_imu_quats[:, :-1])
         else:
             quat_multiply(
-                dev_imu_quats[:, 1:], kin_flex_quats, inv_child_dev_imu_quats)
+                dev_imu_quats[:, 1:], kin_flex_quats, child_dev_imu_quats)
 
+    # Deal with orphan flex frames
     if is_flex_parent_orphan:
         parent_dev_imu_quats[:, 0] = kin_flex_quats[:, 0]
     if is_flex_child_orphan:
-        inv_child_dev_imu_quats[:, -1] = kin_flex_quats[:, -1]
-
-    inv_child_dev_imu_quats[-1] *= -1
+        child_dev_imu_quats[:, -1] = kin_flex_quats[:, -1]
 
     # Project observed total deformation on flexibility frames
-    quat_multiply(inv_child_dev_imu_quats,
-                  parent_dev_imu_quats,
-                  deformation_flex_quats)
+    quat_multiply(parent_dev_imu_quats,
+                  child_dev_imu_quats,
+                  is_left_conjugate=True,
+                  out=deformation_flex_quats)
 
     # Conjugate deformation quaternion if triplet (parent IMU, flex, child IMU)
     # is reversed wrt to the standard joint ordering from URDF.
@@ -142,7 +138,7 @@ def _compute_deformation_from_deviation(kin_flex_rots: Tuple[np.ndarray, ...],
 @nb.jit(nopython=True, cache=False)
 def flexibility_estimator(obs_imu_quats: np.ndarray,
                           obs_imu_indices: Tuple[int, ...],
-                          inv_obs_imu_quats: np.ndarray,
+                          obs_imu_quats_ordered: np.ndarray,
                           kin_imu_rots: Tuple[np.ndarray, ...],
                           kin_imu_quats: np.ndarray,
                           kin_flex_rots: Tuple[np.ndarray, ...],
@@ -150,7 +146,7 @@ def flexibility_estimator(obs_imu_quats: np.ndarray,
                           is_flex_flipped: np.ndarray,
                           is_chain_orphan: Tuple[bool, bool],
                           dev_imu_quats: np.ndarray,
-                          inv_child_dev_imu_quats: np.ndarray,
+                          child_dev_imu_quats: np.ndarray,
                           parent_dev_imu_quats: np.ndarray,
                           deformation_flex_quats: np.ndarray,
                           ignore_twist: bool) -> None:
@@ -169,10 +165,10 @@ def flexibility_estimator(obs_imu_quats: np.ndarray,
                           the second corresponds to N independent IMU data.
     :param obs_imu_indices: M-tuple of ordered IMU indices of interest for
                             which the total deviation will be computed.
-    :param inv_obs_imu_quats: Pre-allocated memory for storing the inverse of
-                              the orientation estimates for an ordered subset
-                              of the IMU data `obs_imu_quats` according to
-                              `obs_imu_indices`.
+    :param obs_imu_quats_ordered: Pre-allocated memory for storing the inverse
+                                  of the orientation estimates for an ordered
+                                  subset of the IMU data `obs_imu_quats`
+                                  according to `obs_imu_indices`.
     :param kin_imu_rots: Tuple of M kinematic frame orientations corresponding
                          to the ordered subset of IMUs `obs_imu_indices`, for
                          the configuration of the theoretical robot model.
@@ -201,7 +197,7 @@ def flexibility_estimator(obs_imu_quats: np.ndarray,
                           subset of IMUs of interest, as a 2D array whose first
                           dimension gathers the 4 quaternion coordinates while
                           the second corresponds to the M independent IMUs.
-    :param inv_child_dev_imu_quats:
+    :param child_dev_imu_quats:
         Total deviation observed IMU data in child flexibility frame as a 2D
         array whose first dimension gathers the 4 quaternion coordinates while
         the second corresponds to the K independent flexibility frames.
@@ -222,7 +218,7 @@ def flexibility_estimator(obs_imu_quats: np.ndarray,
     # Compute error between observed and theoretical kinematic IMU orientation
     _compute_orientation_error(obs_imu_quats,
                                obs_imu_indices,
-                               inv_obs_imu_quats,
+                               obs_imu_quats_ordered,
                                kin_imu_rots,
                                kin_imu_quats,
                                dev_imu_quats,
@@ -234,7 +230,7 @@ def flexibility_estimator(obs_imu_quats: np.ndarray,
                                         is_flex_flipped,
                                         is_chain_orphan,
                                         dev_imu_quats,
-                                        inv_child_dev_imu_quats,
+                                        child_dev_imu_quats,
                                         parent_dev_imu_quats,
                                         deformation_flex_quats)
 
@@ -628,7 +624,7 @@ class DeformationEstimator(BaseObserverBlock[
         self._is_chain_orphan = []
         self._is_flex_flipped = []
         self._kin_flex_quats = []
-        self._inv_obs_imu_quats = []
+        self._obs_imu_quats_ordered = []
         self._kin_imu_quats = []
         self._dev_imu_quats = []
         self._dev_parent_imu_quats = []
@@ -639,7 +635,7 @@ class DeformationEstimator(BaseObserverBlock[
             num_imus = len(tuple(filter(None, imu_frame_names_)))
             self._kin_flex_quats.append(np.empty((4, num_flexs)))
             self._kin_imu_quats.append(np.empty((4, num_imus)))
-            self._inv_obs_imu_quats.append(np.empty((4, num_imus)))
+            self._obs_imu_quats_ordered.append(np.empty((4, num_imus)))
             self._dev_imu_quats.append(np.empty((4, num_imus)))
             dev_parent_imu_quats = np.empty((4, num_flexs))
             is_parent_orphan = imu_frame_names_[0] is None
@@ -772,14 +768,31 @@ class DeformationEstimator(BaseObserverBlock[
         # Refresh flexibility and IMU frame orientation proxies
         self._kin_flex_rots.clear()
         self._kin_imu_rots.clear()
+        pinocchio_model = self.env.robot.pinocchio_model
+        flexibility_joint_names = self.env.robot.flexibility_joint_names
         for flex_frame_names, imu_frame_names_, _ in (
                 self.flex_imu_frame_names_chains):
+            # Determine the parent frame of the deformation points
+            parent_flex_frame_names = []
+            for name in flex_frame_names:
+                frame_idx = pinocchio_model.getFrameId(name)
+                joint_idx = pinocchio_model.frames[frame_idx].parent
+                while True:
+                    joint_idx = pinocchio_model.parents[joint_idx]
+                    frame_name = pinocchio_model.names[joint_idx]
+                    if frame_name not in flexibility_joint_names:
+                        break
+                parent_flex_frame_names.append(frame_name)
+
+            # Filter out missing parent and child IMU in the chain
             imu_frame_names = list(filter(None, imu_frame_names_))
+
+            # Extract the rotation matrices of the IMU and flexibility frames
             kin_flex_rots, kin_imu_rots = (tuple(
                 self.pinocchio_data_th.oMf[frame_index].rotation
                 for frame_index in get_frame_indices(
                     self.pinocchio_model_th, frame_names))
-                for frame_names in (flex_frame_names, imu_frame_names))
+                for frame_names in (parent_flex_frame_names, imu_frame_names))
             self._kin_flex_rots.append(kin_flex_rots)
             self._kin_imu_rots.append(kin_imu_rots)
 
@@ -828,7 +841,7 @@ class DeformationEstimator(BaseObserverBlock[
         # It loops over each flexibility-imu chain independently.
         for args in zip(
                 self._obs_imu_indices,
-                self._inv_obs_imu_quats,
+                self._obs_imu_quats_ordered,
                 self._kin_imu_rots,
                 self._kin_imu_quats,
                 self._kin_flex_rots,
