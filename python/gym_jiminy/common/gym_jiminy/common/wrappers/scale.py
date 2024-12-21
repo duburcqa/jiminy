@@ -223,6 +223,9 @@ class ScaleObservation(BaseTransformObservation[ScaledObs, Obs, Act],
         self._scale_ops = tuple(scale_ops_dict.values())
         self.observation = unflatten_as(self.env.observation, observation_flat)
 
+        # Apply transform at least one to make sure the observation is valid
+        self.transform_observation()
+
     def _initialize_observation_space(self) -> None:
         self.observation_space = _get_rescale_space(
             self.env.observation_space,
