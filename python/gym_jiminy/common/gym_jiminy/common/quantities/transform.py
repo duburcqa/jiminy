@@ -4,7 +4,6 @@ application (locomotion, grasping...).
 """
 import sys
 import warnings
-from copy import deepcopy
 from dataclasses import dataclass
 from types import EllipsisType
 from typing import (

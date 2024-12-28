@@ -7,7 +7,6 @@ import math
 import weakref
 import logging
 import tempfile
-from copy import deepcopy
 from collections import OrderedDict
 from collections.abc import Mapping, Sequence
 from functools import partial
@@ -737,7 +736,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
             if viewer.has_gui():
                 viewer.refresh()
 
-        return obs, deepcopy(self._info)
+        return obs, tree.deepcopy(self._info)
 
     def close(self) -> None:
         """Clean up the environment after the user has finished using it.
@@ -871,7 +870,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         # Clip (and copy) the most derived observation before returning it
         obs = self._get_clipped_env_observation()
 
-        return obs, reward, terminated, truncated, deepcopy(self._info)
+        return obs, reward, terminated, truncated, tree.deepcopy(self._info)
 
     def stop(self) -> None:
         # Check whether it is worth saving log file
