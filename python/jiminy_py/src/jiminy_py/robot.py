@@ -488,11 +488,10 @@ def generate_default_hardware_description_file(
             assert joint_limit_descr is not None
             if float(joint_limit_descr.attrib['effort']) == 0.0:
                 continue
-            motors_info[SimpleMotor.type][joint_name] = OrderedDict(
+            motors_info['SimpleMotor'][joint_name] = OrderedDict(
                 joint_name=joint_name,
                 armature=0.0,
-                **joints_options.pop(joint_name)
-            )
+                **joints_options.pop(joint_name))
             sensors_info[EffortSensor.type][joint_name] = OrderedDict(
                 motor_name=joint_name)
 
