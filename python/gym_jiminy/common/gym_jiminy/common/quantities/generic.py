@@ -24,7 +24,7 @@ from ..bases import (
     InterfaceJiminyEnv, InterfaceQuantity, AbstractQuantity, StateQuantity,
     QuantityEvalMode)
 from ..utils import (
-    matrix_to_rpy, matrix_to_quat, quat_apply, remove_yaw_from_quat,
+    mean, matrix_to_rpy, matrix_to_quat, quat_apply, remove_yaw_from_quat,
     quat_interpolate_middle)
 
 from .transform import (
@@ -1826,4 +1826,4 @@ class AverageMechanicalPowerConsumption(InterfaceQuantity[float]):
             auto_refresh=False)
 
     def refresh(self) -> float:
-        return np.mean(self.total_power_stack.get())
+        return mean(self.total_power_stack.get())

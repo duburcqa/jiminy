@@ -12,6 +12,7 @@ from typing import (
 
 import numpy as np
 
+from jiminy_py import tree
 from jiminy_py.core import (  # pylint: disable=no-name-in-module
     array_copyto, multi_array_copyto)
 
@@ -207,7 +208,7 @@ class StackedQuantity(
                 else:
                     if len(value_list) == self.max_stack:
                         del value_list[0]
-                    value_list.append(deepcopy(value))
+                    value_list.append(tree.deepcopy(value))
                 self._num_steps_prev += 1
 
         # Aggregate data in contiguous array only if requested
