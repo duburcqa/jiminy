@@ -941,8 +941,8 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
                 "Nothing to plot. Please run a simulation before calling "
                 "`plot` method.")
 
-        # Plot all registered variables
-        for key, fieldnames in self.log_fieldnames.items():
+        # Plot all registered variables from high-level to low-level blocks
+        for key, fieldnames in reversed(list(self.log_fieldnames.items())):
             # Filter state if requested
             if not enable_block_states and key.endswith(".state"):
                 continue
