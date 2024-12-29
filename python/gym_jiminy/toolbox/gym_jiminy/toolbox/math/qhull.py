@@ -58,7 +58,7 @@ def compute_convex_hull_vertices(points: np.ndarray) -> np.ndarray:
 
     .. seealso::
         Internally, it leverages using Andrew's monotone chain algorithm, which
-        as almost optimal complexity O(n*log(n)) but is only applicable in 2D
+        has almost optimal complexity O(n*log(n)) but is only applicable in 2D
         space. For an overview of all the existing algorithms to this day, see:
         https://en.wikipedia.org/wiki/Convex_hull_algorithms
 

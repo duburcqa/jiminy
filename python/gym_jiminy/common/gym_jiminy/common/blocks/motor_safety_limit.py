@@ -198,6 +198,9 @@ class MotorSafetyLimit(
         # Initialize the controller
         super().__init__(name, env, update_ratio=1)
 
+        # Whether to enforce soft effort limits
+        self._enable_limit_soft = True
+
     def _initialize_action_space(self) -> None:
         """Configure the action space of the controller.
 
@@ -209,6 +212,14 @@ class MotorSafetyLimit(
     def fieldnames(self) -> List[str]:
         return [f"currentMotorTorque{motor.name}"
                 for motor in self.env.robot.motors]
+
+    def _setup(self) -> None:
+        # Call base implementation
+        super()._setup()
+
+        # Unbounded effort limits in evaluation mode.
+        # Note that training/evaluation cannot be changed at this point.
+        self._enable_limit_soft = self.env.is_training
 
     def compute_command(self,
                         action: np.ndarray,
@@ -227,7 +238,7 @@ class MotorSafetyLimit(
             v_measured = v_measured[self.encoder_to_motor_map]
 
         # Pick the right effort limits depending on training / evaluation mode
-        if self.env.is_training:
+        if self._enable_limit_soft:
             motors_effort_limit = self.motors_effort_limit_soft
         else:
             motors_effort_limit = self.motors_effort_limit_true

@@ -444,6 +444,9 @@ class PDController(
         # Initialize the controller
         super().__init__(name, env, update_ratio)
 
+        # Whether deadband is enabled
+        self._enable_deadband = False
+
         # Make sure that the state is within bounds
         self._command_state[:2] = zeros(self.state_space)
 
@@ -482,6 +485,10 @@ class PDController(
 
         # Reset the command state
         fill(self._command_state, 0)
+
+        # Enable deadband in evaluation mode only.
+        # Note that training/evaluation cannot be changed at this point.
+        self._enable_deadband = not self.env.is_training
 
     @property
     def fieldnames(self) -> List[str]:
@@ -533,7 +540,7 @@ class PDController(
             self.kp,
             self.kd,
             self.motors_effort_limit,
-            None if self.env.is_training else self._motors_velocity_deadband,
+            self._motors_velocity_deadband if self._enable_deadband else None,
             self.control_dt if is_simulation_running else 0.0,
             command)
 

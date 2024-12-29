@@ -201,6 +201,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         self._robot_state_q = np.array([])
         self._robot_state_v = np.array([])
         self._robot_state_a = np.array([])
+        self._sensor_measurements = self.robot.sensor_measurements
 
         # Top-most block of the pipeline is the environment itself by default
         self.derived = self
@@ -565,6 +566,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         # It is necessary because the robot may have changed.
         self.robot = self.simulator.robot
         self.robot_state = self.simulator.robot_state
+        self._sensor_measurements = self.robot.sensor_measurements
 
         # Reset action
         fill(self.action, 0)
@@ -692,7 +694,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
             self.stepper_state.t,
             self._robot_state_q,
             self._robot_state_v,
-            self.robot.sensor_measurements)
+            self._sensor_measurements)
 
         # Initialize specialized most-derived observation clipping operator
         self._get_clipped_env_observation = build_clip(
@@ -825,7 +827,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
             self.stepper_state.t,
             self._robot_state_q,
             self._robot_state_v,
-            self.robot.sensor_measurements)
+            self._sensor_measurements)
 
         # Reset the extra information buffer
         self._info.clear()
