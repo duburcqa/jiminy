@@ -212,14 +212,10 @@ class DeformationEstimatorBlock(unittest.TestCase):
                         step_dt=self.step_dt),
                         **kwargs})
 
-            def _setup(self) -> None:
-                # Call base implementation
-                super()._setup()
-
                 # Configure the controller and sensor update periods
                 engine_options = self.simulator.get_options()
-                engine_options['stepper']['controllerUpdatePeriod'] = 0.0001
-                engine_options['stepper']['sensorsUpdatePeriod'] = 0.0001
+                engine_options['stepper']['controllerUpdatePeriod'] = 0.0002
+                engine_options['stepper']['sensorsUpdatePeriod'] = 0.0002
                 self.simulator.set_options(engine_options)
 
         # Create pipeline with Mahony filter and DeformationEstimator blocks

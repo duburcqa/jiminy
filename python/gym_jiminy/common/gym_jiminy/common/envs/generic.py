@@ -589,15 +589,6 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         self.num_steps[()] = 0
         self._num_steps_beyond_terminate = None
 
-        # Extract the observer/controller update period.
-        # The controller update period is used by default for the observer if
-        # it was not specify by the user in `_setup`.
-        engine_options = self.simulator.get_options()
-        self.control_dt = float(
-            engine_options['stepper']['controllerUpdatePeriod'])
-        if self.observe_dt < 0.0:
-            self.observe_dt = self.control_dt
-
         # Make sure that both the observer and the controller are running
         # faster than the environment to which it is attached for the action to
         # take effect and be observable. Moreover, their respective update
@@ -1260,8 +1251,15 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         # Backup simulation options
         self._simu_options_orig = self.simulator.get_simulation_options()
 
-        # Configure the low-level integrator
+        # Extract the observer/controller update period.
+        # The controller update period is used by default for the observer if
+        # it was not specify by the user in `_setup`.
         engine_options = self.simulator.get_options()
+        self.control_dt = float(
+            engine_options['stepper']['controllerUpdatePeriod'])
+        self.observe_dt = self.control_dt
+
+        # Configure the low-level integrator
         engine_options["stepper"]["iterMax"] = 0
         if self.debug:
             engine_options["stepper"]["verbose"] = True
