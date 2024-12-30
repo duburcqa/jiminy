@@ -320,7 +320,6 @@ namespace jiminy
             config["timeout"] = 0.0;  // <= 0.0: disable
             config["sensorsUpdatePeriod"] = 0.0;
             config["controllerUpdatePeriod"] = 0.0;
-            config["logInternalStepperSteps"] = false;
 
             return config;
         };
@@ -329,6 +328,7 @@ namespace jiminy
         {
             GenericConfig config;
             config["isPersistent"] = false;
+            config["logInternalStepperSteps"] = false;
             config["enableConfiguration"] = true;
             config["enableVelocity"] = true;
             config["enableAcceleration"] = true;
@@ -416,7 +416,6 @@ namespace jiminy
             const double timeout;
             const double sensorsUpdatePeriod;
             const double controllerUpdatePeriod;
-            const bool logInternalStepperSteps;
 
             StepperOptions(const GenericConfig & options) :
             verbose{boost::get<bool>(options.at("verbose"))},
@@ -430,8 +429,7 @@ namespace jiminy
             iterMax{boost::get<uint32_t>(options.at("iterMax"))},
             timeout{boost::get<double>(options.at("timeout"))},
             sensorsUpdatePeriod{boost::get<double>(options.at("sensorsUpdatePeriod"))},
-            controllerUpdatePeriod{boost::get<double>(options.at("controllerUpdatePeriod"))},
-            logInternalStepperSteps{boost::get<bool>(options.at("logInternalStepperSteps"))}
+            controllerUpdatePeriod{boost::get<double>(options.at("controllerUpdatePeriod"))}
             {
             }
         };
@@ -439,6 +437,7 @@ namespace jiminy
         struct TelemetryOptions
         {
             const bool isPersistent;
+            const bool logInternalStepperSteps;
             const bool enableConfiguration;
             const bool enableVelocity;
             const bool enableAcceleration;
@@ -450,6 +449,7 @@ namespace jiminy
 
             TelemetryOptions(const GenericConfig & options) :
             isPersistent{boost::get<bool>(options.at("isPersistent"))},
+            logInternalStepperSteps{boost::get<bool>(options.at("logInternalStepperSteps"))},
             enableConfiguration{boost::get<bool>(options.at("enableConfiguration"))},
             enableVelocity{boost::get<bool>(options.at("enableVelocity"))},
             enableAcceleration{boost::get<bool>(options.at("enableAcceleration"))},
@@ -775,8 +775,7 @@ namespace jiminy
     private:
         template<typename Scalar,
                  int Options,
-                 template<typename, int>
-                 class JointCollectionTpl,
+                 template<typename, int> class JointCollectionTpl,
                  typename ConfigVectorType,
                  typename TangentVectorType>
         inline Scalar
@@ -787,8 +786,7 @@ namespace jiminy
                       bool update_kinematics);
         template<typename Scalar,
                  int Options,
-                 template<typename, int>
-                 class JointCollectionTpl,
+                 template<typename, int> class JointCollectionTpl,
                  typename ConfigVectorType,
                  typename TangentVectorType1,
                  typename TangentVectorType2,
@@ -803,8 +801,7 @@ namespace jiminy
                  const vector_aligned_t<ForceDerived> & fext);
         template<typename Scalar,
                  int Options,
-                 template<typename, int>
-                 class JointCollectionTpl,
+                 template<typename, int> class JointCollectionTpl,
                  typename ConfigVectorType,
                  typename TangentVectorType1,
                  typename TangentVectorType2,

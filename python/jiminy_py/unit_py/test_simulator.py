@@ -66,7 +66,7 @@ class SimulatorTest(unittest.TestCase):
         engine_options["stepper"]["odeSolver"] = "euler_explicit"
         engine_options["stepper"]["dtMax"] = 1e-3
         engine_options["stepper"]["sensorUpdatePeriod"] = 0.0
-        engine_options["stepper"]["logInternalStepperSteps"] = True
+        engine_options["telemetry"]["logInternalStepperSteps"] = True
         engine_options['contacts']['model'] = "constraint"
 
         # Run multiple simulations with different options

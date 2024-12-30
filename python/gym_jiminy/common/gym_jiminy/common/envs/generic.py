@@ -1264,8 +1264,6 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         engine_options["stepper"]["iterMax"] = 0
         if self.debug:
             engine_options["stepper"]["verbose"] = True
-        if self.debug or not self.is_training:
-            engine_options["stepper"]["logInternalStepperSteps"] = True
 
         # Set maximum computation time for single internal integration steps
         engine_options["stepper"]["timeout"] = self.step_dt * TIMEOUT_RATIO
@@ -1285,6 +1283,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
             # that the robot can be loaded on any machine with access to the
             # original URDF and mesh files.
             engine_options["telemetry"]["isPersistent"] = True
+            engine_options["telemetry"]["logInternalStepperSteps"] = True
 
             # Enable all telemetry data at robot-level
             robot_options = self.robot.get_options()
