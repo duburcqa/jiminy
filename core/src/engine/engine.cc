@@ -3720,11 +3720,11 @@ namespace jiminy
                    often. */
                 if ((fext[i].toVector().array().abs() > EPS).any())
                 {
-                    if (!isStateUpToDate)
-                    {
-                        pinocchio::getJointJacobian(
-                            model, data, i, pinocchio::LOCAL, robotData.jointJacobians[i]);
-                    }
+                    /* The jacobian only depends on the position, which means that updating it
+                       could be skipped in principle. However, it is only computed if need, and as
+                       such, one cannot count on it. */
+                    pinocchio::getJointJacobian(
+                        model, data, i, pinocchio::LOCAL, robotData.jointJacobians[i]);
                     data.u.noalias() +=
                         robotData.jointJacobians[i].transpose() * fext[i].toVector();
                 }
