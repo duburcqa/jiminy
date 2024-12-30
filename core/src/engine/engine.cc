@@ -1855,15 +1855,17 @@ namespace jiminy
                     }
                 }
 
-                // Update the breakpoint time iterator if necessary
+                /* Update the breakpoint time iterator if necessary.
+                   Even though 'impulseForceBreakpoints' is already sorted and does not contain any
+                   duplicated values, the difference between two successive breakpoints may be
+                   smaller than 'STEPPER_MIN_TIMESTEP', which means that it may be necessary to
+                   increment the breakpoint iterator multiple times at once. */
                 auto & tBreakpointNextIt = robotData.impulseForceBreakpointNextIt;
-                if (tBreakpointNextIt != robotData.impulseForceBreakpoints.end())
+                while (tBreakpointNextIt != robotData.impulseForceBreakpoints.end() &&
+                       *tBreakpointNextIt - t < STEPPER_MIN_TIMESTEP)
                 {
-                    if (t >= *tBreakpointNextIt - STEPPER_MIN_TIMESTEP)
-                    {
-                        // The current breakpoint is behind in time. Switching to the next one.
-                        ++tBreakpointNextIt;
-                    }
+                    // The current breakpoint is behind in time. Switching to the next one
+                    ++tBreakpointNextIt;
                 }
 
                 // Get the next breakpoint time if any
@@ -2462,8 +2464,6 @@ namespace jiminy
             JIMINY_THROW(std::invalid_argument,
                          "Impossible to apply external forces to the universe itself!");
         }
-
-        // TODO: Make sure that the forces do NOT overlap while taking into account dt.
 
         std::ptrdiff_t robotIndex = getRobotIndex(robotName);
         pinocchio::FrameIndex frameIndex =
@@ -3447,8 +3447,8 @@ namespace jiminy
         for (; impulseForceIt != robotData.impulseForces.end();
              ++isImpulseForceActiveIt, ++impulseForceIt)
         {
-            /* Do not check if the force is active at this point. This is managed at stepper level
-               to be able to disambiguate t- versus t+. */
+            /* Do not check if the force is supported to be active at this point. This is managed
+               at stepper level to be able to disambiguate t- versus t+. */
             if (*isImpulseForceActiveIt)
             {
                 const pinocchio::FrameIndex frameIndex = impulseForceIt->frameIndex;
