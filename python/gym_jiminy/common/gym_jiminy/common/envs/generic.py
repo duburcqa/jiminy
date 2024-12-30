@@ -657,9 +657,10 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         self.robot.controller = jiminy.FunctionalController(
             partial(type(env)._controller_handle, weakref.proxy(env)))
 
-        # Register user-specified variables to the telemetry
-        for header, value in self._registered_variables.values():
-            register_variables(self.robot.controller, header, value)
+        # Register user-specified variables to the telemetry in evaluation mode
+        if self.debug or not self.is_training:
+            for header, value in self._registered_variables.values():
+                register_variables(self.robot.controller, header, value)
 
         # Start the simulation
         self.simulator.start(q_init, v_init)
