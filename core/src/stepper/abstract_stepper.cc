@@ -23,7 +23,7 @@ namespace jiminy
         stepper::StatusInfo status{stepper::ReturnCode::IS_SUCCESS, {}};
 
         // Update buffers
-        double t_next = t + dt;
+        const double t_next = t + dt;
         state_.q = qSplit;
         state_.v = vSplit;
         stateDerivative_.v = vSplit;
