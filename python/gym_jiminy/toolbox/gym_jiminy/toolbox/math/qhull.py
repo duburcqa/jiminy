@@ -20,6 +20,7 @@ except ImportError:
     Figure = type(None)  # type: ignore[misc,assignment,unused-ignore]
 
 from jiminy_py.viewer import interactive_mode
+from gym_jiminy.common.utils import mean
 
 
 @nb.jit(nopython=True, cache=True, inline='always')
@@ -28,9 +29,9 @@ def _amin_last_axis(array: np.ndarray) -> np.ndarray:
 
     :param array: Input array.
     """
-    res = np.empty(array.shape[0])
-    for i in range(array.shape[0]):
-        res[i] = np.min(array[i])
+    res = np.empty(len(array), dtype=array.dtype)
+    for i, row in enumerate(array):
+        res[i] = np.min(row)
     return res
 
 
@@ -41,9 +42,9 @@ def _all_last_axis(array: np.ndarray) -> np.ndarray:
 
     :param array: Input array.
     """
-    res = np.empty(array.shape[0], dtype=np.bool_)
-    for i in range(array.shape[0]):
-        res[i] = np.all(array[i])
+    res = np.empty(len(array), dtype=np.bool_)
+    for i, row in enumerate(array):
+        res[i] = np.all(row)
     return res
 
 
@@ -57,7 +58,7 @@ def compute_convex_hull_vertices(points: np.ndarray) -> np.ndarray:
 
     .. seealso::
         Internally, it leverages using Andrew's monotone chain algorithm, which
-        as almost optimal complexity O(n*log(n)) but is only applicable in 2D
+        has almost optimal complexity O(n*log(n)) but is only applicable in 2D
         space. For an overview of all the existing algorithms to this day, see:
         https://en.wikipedia.org/wiki/Convex_hull_algorithms
 
@@ -410,7 +411,7 @@ class ConvexHull2D:
             to compute than the barycenter. For details about the Chebyshev
             center, see `compute_convex_chebyshev_center`.
         """
-        return np.mean(self.vertices, axis=0)
+        return mean(self.vertices, axis=0)
 
     def get_distance_to_point(self, points: np.ndarray) -> np.ndarray:
         """Compute the signed distance of a single or a batch of query points

@@ -91,6 +91,7 @@ int main(int /* argc */, char * /* argv */[])
     GenericConfig simuOptions = engine.getOptions();
     GenericConfig & telemetryOptions = boost::get<GenericConfig>(simuOptions.at("telemetry"));
     boost::get<bool>(telemetryOptions.at("isPersistent")) = true;
+    boost::get<bool>(telemetryOptions.at("logInternalStepperSteps")) = false;
     boost::get<bool>(telemetryOptions.at("enableConfiguration")) = true;
     boost::get<bool>(telemetryOptions.at("enableVelocity")) = true;
     boost::get<bool>(telemetryOptions.at("enableAcceleration")) = true;
@@ -110,7 +111,6 @@ int main(int /* argc */, char * /* argv */[])
     boost::get<double>(stepperOptions.at("timeout")) = -1;         // -1 to disable
     boost::get<double>(stepperOptions.at("sensorsUpdatePeriod")) = 1.0e-3;
     boost::get<double>(stepperOptions.at("controllerUpdatePeriod")) = 1.0e-3;
-    boost::get<bool>(stepperOptions.at("logInternalStepperSteps")) = false;
     boost::get<VectorX<uint32_t>>(stepperOptions.at("randomSeedSeq")) =
         VectorX<uint32_t>::Zero(1);  // `time(nullptr)` for random seed
     GenericConfig & contactsOptions = boost::get<GenericConfig>(simuOptions.at("contacts"));

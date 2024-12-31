@@ -237,7 +237,7 @@ class PipelineDesign(unittest.TestCase):
         def configure_telemetry() -> InterfaceJiminyEnv:
             engine_options = env.simulator.get_options()
             engine_options['telemetry']['enableCommand'] = True
-            engine_options['stepper']['logInternalStepperSteps'] = False
+            engine_options['telemetry']['logInternalStepperSteps'] = False
             env.simulator.set_options(engine_options)
             return env
 

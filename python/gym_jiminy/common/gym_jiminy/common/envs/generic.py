@@ -7,7 +7,6 @@ import math
 import weakref
 import logging
 import tempfile
-from copy import deepcopy
 from collections import OrderedDict
 from collections.abc import Mapping, Sequence
 from functools import partial
@@ -202,6 +201,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         self._robot_state_q = np.array([])
         self._robot_state_v = np.array([])
         self._robot_state_a = np.array([])
+        self._sensor_measurements = self.robot.sensor_measurements
 
         # Top-most block of the pipeline is the environment itself by default
         self.derived = self
@@ -566,6 +566,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         # It is necessary because the robot may have changed.
         self.robot = self.simulator.robot
         self.robot_state = self.simulator.robot_state
+        self._sensor_measurements = self.robot.sensor_measurements
 
         # Reset action
         fill(self.action, 0)
@@ -587,15 +588,6 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         # Reset some internal buffers
         self.num_steps[()] = 0
         self._num_steps_beyond_terminate = None
-
-        # Extract the observer/controller update period.
-        # The controller update period is used by default for the observer if
-        # it was not specify by the user in `_setup`.
-        engine_options = self.simulator.get_options()
-        self.control_dt = float(
-            engine_options['stepper']['controllerUpdatePeriod'])
-        if self.observe_dt < 0.0:
-            self.observe_dt = self.control_dt
 
         # Make sure that both the observer and the controller are running
         # faster than the environment to which it is attached for the action to
@@ -665,9 +657,10 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         self.robot.controller = jiminy.FunctionalController(
             partial(type(env)._controller_handle, weakref.proxy(env)))
 
-        # Register user-specified variables to the telemetry
-        for header, value in self._registered_variables.values():
-            register_variables(self.robot.controller, header, value)
+        # Register user-specified variables to the telemetry in evaluation mode
+        if self.debug or not self.is_training:
+            for header, value in self._registered_variables.values():
+                register_variables(self.robot.controller, header, value)
 
         # Start the simulation
         self.simulator.start(q_init, v_init)
@@ -693,7 +686,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
             self.stepper_state.t,
             self._robot_state_q,
             self._robot_state_v,
-            self.robot.sensor_measurements)
+            self._sensor_measurements)
 
         # Initialize specialized most-derived observation clipping operator
         self._get_clipped_env_observation = build_clip(
@@ -737,7 +730,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
             if viewer.has_gui():
                 viewer.refresh()
 
-        return obs, deepcopy(self._info)
+        return obs, tree.deepcopy(self._info)
 
     def close(self) -> None:
         """Clean up the environment after the user has finished using it.
@@ -826,7 +819,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
             self.stepper_state.t,
             self._robot_state_q,
             self._robot_state_v,
-            self.robot.sensor_measurements)
+            self._sensor_measurements)
 
         # Reset the extra information buffer
         self._info.clear()
@@ -871,7 +864,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         # Clip (and copy) the most derived observation before returning it
         obs = self._get_clipped_env_observation()
 
-        return obs, reward, terminated, truncated, deepcopy(self._info)
+        return obs, reward, terminated, truncated, tree.deepcopy(self._info)
 
     def stop(self) -> None:
         # Check whether it is worth saving log file
@@ -942,8 +935,8 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
                 "Nothing to plot. Please run a simulation before calling "
                 "`plot` method.")
 
-        # Plot all registered variables
-        for key, fieldnames in self.log_fieldnames.items():
+        # Plot all registered variables from high-level to low-level blocks
+        for key, fieldnames in reversed(list(self.log_fieldnames.items())):
             # Filter state if requested
             if not enable_block_states and key.endswith(".state"):
                 continue
@@ -1259,13 +1252,18 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         # Backup simulation options
         self._simu_options_orig = self.simulator.get_simulation_options()
 
-        # Configure the low-level integrator
+        # Extract the observer/controller update period.
+        # The controller update period is used by default for the observer if
+        # it was not specify by the user in `_setup`.
         engine_options = self.simulator.get_options()
+        self.control_dt = float(
+            engine_options['stepper']['controllerUpdatePeriod'])
+        self.observe_dt = self.control_dt
+
+        # Configure the low-level integrator
         engine_options["stepper"]["iterMax"] = 0
         if self.debug:
             engine_options["stepper"]["verbose"] = True
-        if self.debug or not self.is_training:
-            engine_options["stepper"]["logInternalStepperSteps"] = True
 
         # Set maximum computation time for single internal integration steps
         engine_options["stepper"]["timeout"] = self.step_dt * TIMEOUT_RATIO
@@ -1285,6 +1283,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
             # that the robot can be loaded on any machine with access to the
             # original URDF and mesh files.
             engine_options["telemetry"]["isPersistent"] = True
+            engine_options["telemetry"]["logInternalStepperSteps"] = True
 
             # Enable all telemetry data at robot-level
             robot_options = self.robot.get_options()

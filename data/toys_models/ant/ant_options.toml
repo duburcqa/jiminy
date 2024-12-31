@@ -5,8 +5,12 @@ verbose = false
 odeSolver = "runge_kutta_4"
 sensorsUpdatePeriod = 0.01
 controllerUpdatePeriod = 0.01
-logInternalStepperSteps = false
 randomSeedSeq = [0,]
+
+# ============== Telemetry options ===============
+
+[engine.telemetry]
+logInternalStepperSteps = false
 
 # ============== Contact dynamics ===============
 

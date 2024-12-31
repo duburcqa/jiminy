@@ -10,7 +10,8 @@ namespace jiminy
         state.sumInPlace(stateDerivative, dt);
 
         // Compute the next state derivative
-        stateDerivative = f(t, state);
+        const double t_next = t + dt;
+        stateDerivative = f(t_next, state);
 
         /* By default INF is returned no matter what for fixed-timestep integrators.
            The user is responsible for managing it externally. */

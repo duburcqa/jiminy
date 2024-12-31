@@ -47,6 +47,7 @@ class PipelineControl(unittest.TestCase):
         """ TODO: Write documentation
         """
         # Reset the environment
+        self.env.eval()
         self.env.reset(seed=0)
 
         # Zero target motors velocities, so that the robot stands still
@@ -272,6 +273,7 @@ class PipelineControl(unittest.TestCase):
         controller._command_state_upper[2] = float("inf")
 
         # Run a few environment steps
+        env.eval()
         env.reset(seed=0)
         env.unwrapped._height_neutral = float("-inf")
         while env.stepper_state.t < 2.0:
@@ -282,13 +284,13 @@ class PipelineControl(unittest.TestCase):
         adapter_name, controller_name = adapter.name, controller.name
         n_motors = len(controller.fieldnames)
         target_pos = env.log_data["variables"][".".join((
-            "controller", controller_name, "state", str(n_motors - 1)))]
+            "controller", controller_name, "state", str(n_motors - 1)))][1::2]
         target_vel = env.log_data["variables"][".".join((
-            "controller", controller_name, "state", str(2 * n_motors - 1)))]
+            "controller", controller_name, "state", str(2 * n_motors - 1)))][1::2]
         target_accel = env.log_data["variables"][".".join((
-            "controller", controller_name, controller.fieldnames[-1]))]
+            "controller", controller_name, controller.fieldnames[-1]))][1::2]
         command_vel = env.log_data["variables"][".".join((
-            "controller", adapter_name, adapter.fieldnames[-1]))]
+            "controller", adapter_name, adapter.fieldnames[-1]))][1::2]
 
         # Make sure that the position and velocity targets are consistent
         target_vel_diff = np.diff(target_pos) / controller.control_dt

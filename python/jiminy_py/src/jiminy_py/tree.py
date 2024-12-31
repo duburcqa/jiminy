@@ -16,12 +16,15 @@ of use and versatility rather with optimal performance.
     Unlike `dm-tree`, all functions preserves key ordering instead of sorting
     them.
 """
+from copy import copy
 from functools import lru_cache
 from itertools import chain, starmap
-from collections.abc import (Mapping, ValuesView, Sequence, Set)
+from collections.abc import Hashable, Mapping, ValuesView, Sequence, Set
 from typing import (
-    Any, Union, Mapping as MappingT, Sequence as SequenceT, Iterable,
-    Iterator as Iterator, Tuple, TypeVar, Callable, Type)
+    Any, Union, Mapping as MappingT, Sequence as SequenceT, Callable,
+    Iterable, Iterator as Iterator, Tuple, TypeVar, Type)
+
+import numpy as np
 
 
 ValueT = TypeVar('ValueT')
@@ -59,6 +62,24 @@ def issubclass_sequence(cls: Type[Any]) -> bool:
     """
     return issubclass(cls, (
         chain, Sequence, Set, ValuesView)) and not issubclass(cls, str)
+
+
+@lru_cache(maxsize=None)
+def issubclass_hashable(cls: Type[Any]) -> bool:
+    """Determine whether a given class is hashable, ie its derives from
+    'collections.abc.Hashable', typically bool, str, int, float, np.generic
+    (np.bool_, np.float64, ...).
+
+    This check is used as a surrogate to detect whether instances of a given
+    class are immutable (read-only) and therefore can be passed by reference
+    without issue.
+
+    Specialization of `issubclass` builtin function leveraging LRU cache for
+    speed-up. See `issubclass_mapping` for details.
+
+    :param cls: candidate class.
+    """
+    return issubclass(cls, Hashable)
 
 
 def _flatten_with_path_up_to(
@@ -138,7 +159,6 @@ def flatten_up_to(data_shallow: Any, data_nested: Any) -> Tuple[Any, ...]:
     :returns: partially flattened representation of the provided nested data
     structure as a tuple.
     """
-    # Specialized implementation for speed-up
     return tuple(_flatten_up_to(data_shallow, data_nested))
 
 
@@ -146,7 +166,6 @@ def _flatten(data: Any) -> Union[chain, Iterable]:
     """Internal method flattening a given nested data structure by calling
     itself recursively on each top-level nodes that are not leaves.
     """
-    # Specialized implementation for speed-up
     data_type = type(data)
     if issubclass_mapping(data_type):  # type: ignore[arg-type]
         nodes = data.values()
@@ -238,3 +257,20 @@ def map_structure(fn: Callable, *data_nested: StructNested[Any]
         return ()
     return unflatten_as(
         data_nested[0], starmap(fn, zip(*map(flatten, data_nested))))
+
+
+def deepcopy(data: Any) -> Any:
+    """Deep copy a possibly nested data structure.
+
+    :param data: Possibly nested data structure.
+    """
+    data_type = type(data)
+    if issubclass_hashable(data_type):  # type: ignore[arg-type]
+        return data
+    if issubclass(data_type, np.ndarray):
+        return data.copy()
+    if issubclass_mapping(data_type):  # type: ignore[arg-type]
+        return data_type({key: deepcopy(value) for key, value in data.items()})
+    if issubclass_sequence(data_type):  # type: ignore[arg-type]
+        return data_type(map(deepcopy, data))
+    return copy(data)
