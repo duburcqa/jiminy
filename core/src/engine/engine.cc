@@ -1823,7 +1823,7 @@ namespace jiminy
         // Perform the integration. Do not simulate extremely small time steps.
         while (tEnd - t >= STEPPER_MIN_TIMESTEP)
         {
-            // Initialize next breakpoint time to the one recommended by the stepper
+            // Initialize next breakpoint time to the current time
             double tNext = t;
 
             // Update the active set and get the next breakpoint of impulse forces
@@ -2564,6 +2564,8 @@ namespace jiminy
         std::ptrdiff_t robotIndex = getRobotIndex(robotName);
         RobotData & robotData = robotDataVec_[robotIndex];
         robotData.impulseForces.clear();
+        robotData.impulseForceBreakpoints.clear();
+        robotData.isImpulseForceActiveVec.clear();
     }
 
     void Engine::removeImpulseForces()
@@ -2578,6 +2580,8 @@ namespace jiminy
         for (auto & robotData : robotDataVec_)
         {
             robotData.impulseForces.clear();
+            robotData.impulseForceBreakpoints.clear();
+            robotData.isImpulseForceActiveVec.clear();
         }
     }
 
