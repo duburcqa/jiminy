@@ -386,7 +386,7 @@ class ShiftTrackingQuantityTermination(QuantityTermination[np.ndarray]):
                          shift_tracking_quantity,  # type: ignore[arg-type]
                          None,
                          np.array(thr),
-                         grace_period,
+                         max(grace_period, horizon),
                          is_truncation=is_truncation,
                          is_training_only=is_training_only)
 
