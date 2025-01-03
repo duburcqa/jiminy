@@ -175,8 +175,17 @@ class QuantityManager(MutableMapping):
                     if quantity == owner:
                         break
             else:
+                # Partially sort cache entries to reset all quantity instances
+                # of the same class at once.
+                # The objective is to avoid resetting multiple times the same
+                # quantity because of the auto-refresh mechanism.
                 cache = SharedCache()
-                self._caches.append((key, cache))
+                for i, (cache_key, _) in enumerate(self._caches):
+                    if key[0] == cache_key[0]:
+                        self._caches.insert(i + 1, (key, cache))
+                        break
+                else:
+                    self._caches.append((key, cache))
 
             # Set shared cache of the quantity
             quantity.cache = cache
