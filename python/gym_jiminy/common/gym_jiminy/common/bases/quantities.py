@@ -786,9 +786,11 @@ class AbstractQuantity(InterfaceQuantity, Generic[ValueT]):
         try:
             self.state.initialize()
         except RuntimeError:
-            # No simulation running. This may be problematic but it is not
-            # blocking at this point.
-            pass
+            # It may have failed because no simulation running, which may be
+            # problematic but not blocking at this point. Just checking that
+            # the pinocchio model has been properly initialized.
+            if self.state.pinocchio_model.nq == 0:
+                raise
 
         # Refresh robot proxy
         assert isinstance(self.state, StateQuantity)
