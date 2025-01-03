@@ -192,8 +192,6 @@ class QuantityManager(MutableMapping):
 
         return top_quantity
 
-        return top_quantity
-
     def __setitem__(self,
                     name: str,
                     quantity_creator: QuantityCreator) -> None:

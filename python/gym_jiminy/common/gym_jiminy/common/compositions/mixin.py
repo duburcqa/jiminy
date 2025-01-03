@@ -115,7 +115,7 @@ class AdditiveMixtureReward(MixtureReward):
             raise ValueError(
                 "Exactly one weight per reward component must be specified.")
 
-        # Filter out components whose weight are zero
+        # Filter out components whose weight is zero
         weights, components = zip(*(
             (weight, reward)
             for weight, reward in zip(weights, components)

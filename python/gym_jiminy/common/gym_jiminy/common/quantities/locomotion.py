@@ -857,11 +857,15 @@ class ZeroMomentPoint(AbstractQuantity[np.ndarray]):
         # Compute the vertical force applied by the robot
         f_z = dhg_linear[2] + self._robot_weight
 
+        # Early return if impossible to compute ZMP (robot is free falling)
+        if abs(f_z) < np.finfo(np.float32).eps:
+            self._zmp[:] = float("nan")
+            return self._zmp
+
         # Compute the ZMP in world frame
         self._zmp[:] = com[:2] * (self._robot_weight / f_z)
-        if abs(f_z) > np.finfo(np.float32).eps:
-            self._zmp[0] -= (dhg_angular[1] + dhg_linear[0] * com[2]) / f_z
-            self._zmp[1] += (dhg_angular[0] - dhg_linear[1] * com[2]) / f_z
+        self._zmp[0] -= (dhg_angular[1] + dhg_linear[0] * com[2]) / f_z
+        self._zmp[1] += (dhg_angular[0] - dhg_linear[1] * com[2]) / f_z
 
         # Translate the ZMP from world to local odometry frame if requested
         if self.reference_frame == pin.LOCAL:
