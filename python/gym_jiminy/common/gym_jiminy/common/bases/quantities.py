@@ -601,7 +601,9 @@ class InterfaceQuantity(Generic[ValueT], metaclass=ABCMeta):
                 "Automatic refresh enabled but no shared cache is available. "
                 "Please add one before calling this method.")
 
-        # Reset all requirements first
+        # Reset all requirements first.
+        # This is necessary to avoid auto-refreshing quantities with deprecated
+        # cache if enabled.
         if not ignore_other_instances:
             for quantity in self.requirements.values():
                 quantity.reset(reset_tracking, ignore_other_instances=False)
