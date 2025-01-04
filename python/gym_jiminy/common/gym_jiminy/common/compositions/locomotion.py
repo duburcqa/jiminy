@@ -136,6 +136,9 @@ class TrackingFootOrientationsReward(TrackingQuantityReward):
     """Reward the agent for tracking the relative orientation of the feet wrt
     each other.
 
+    The error corresponds to the sum of squared total angles of the differences
+    between the true and reference relative orientations for each foot.
+
     .. seealso::
         See `TrackingQuantityReward` documentation for technical details.
     """

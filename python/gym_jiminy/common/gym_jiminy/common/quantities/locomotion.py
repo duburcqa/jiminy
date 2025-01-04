@@ -10,7 +10,6 @@ import numba as nb
 import jiminy_py.core as jiminy
 from jiminy_py.core import (  # pylint: disable=no-name-in-module
     array_copyto, multi_array_copyto)
-from jiminy_py.dynamics import update_quantities
 import pinocchio as pin
 
 from ..bases import (
@@ -858,11 +857,15 @@ class ZeroMomentPoint(AbstractQuantity[np.ndarray]):
         # Compute the vertical force applied by the robot
         f_z = dhg_linear[2] + self._robot_weight
 
+        # Early return if impossible to compute ZMP (robot is free falling)
+        if abs(f_z) < np.finfo(np.float32).eps:
+            self._zmp[:] = float("nan")
+            return self._zmp
+
         # Compute the ZMP in world frame
         self._zmp[:] = com[:2] * (self._robot_weight / f_z)
-        if abs(f_z) > np.finfo(np.float32).eps:
-            self._zmp[0] -= (dhg_angular[1] + dhg_linear[0] * com[2]) / f_z
-            self._zmp[1] += (dhg_angular[0] - dhg_linear[1] * com[2]) / f_z
+        self._zmp[0] -= (dhg_angular[1] + dhg_linear[0] * com[2]) / f_z
+        self._zmp[1] += (dhg_angular[0] - dhg_linear[1] * com[2]) / f_z
 
         # Translate the ZMP from world to local odometry frame if requested
         if self.reference_frame == pin.LOCAL:
@@ -951,19 +954,17 @@ class CapturePoint(AbstractQuantity[np.ndarray]):
         # Compute the natural frequency of linear pendulum approximate model.
         # Note that the height of the robot is defined as the position of the
         # center of mass of the robot in neutral configuration.
-        update_quantities(
-            self.robot,
-            pin.neutral(self.robot.pinocchio_model_th),
-            update_dynamics=False,
-            update_centroidal=True,
-            update_energy=False,
-            update_jacobian=False,
-            update_collisions=False,
-            use_theoretical_model=True)
+        pinocchio_data = self.pinocchio_data.copy()
+        pin.framesForwardKinematics(self.pinocchio_model,
+                                    pinocchio_data,
+                                    pin.neutral(self.pinocchio_model))
+        pin.centerOfMass(self.pinocchio_model,
+                         pinocchio_data,
+                         pin.POSITION)
         min_height = min(
-            oMf.translation[2] for oMf in self.robot.pinocchio_data_th.oMf)
+            oMf.translation[2] for oMf in pinocchio_data.oMf)
         gravity = abs(self.pinocchio_model.gravity.linear[2])
-        robot_height = self.robot.pinocchio_data_th.com[0][2] - min_height
+        robot_height = pinocchio_data.com[0][2] - min_height
         self.omega = math.sqrt(gravity / robot_height)
 
     def refresh(self) -> np.ndarray:

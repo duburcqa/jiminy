@@ -181,6 +181,11 @@ class StabilityMarginProjectedSupportPolygon(InterfaceQuantity[float]):
     .. note::
         This quantity is only supported for robots with specified contact
         points but no collision bodies for now.
+
+    .. note::
+        The ZMP is not defined if the robot is free falling. In this particular
+        case, this quantity assumes by convention, as if the ZMP was infinetly
+        far from the border of the support polygon, and as such, returns -inf.
     """
 
     mode: QuantityEvalMode
@@ -220,5 +225,13 @@ class StabilityMarginProjectedSupportPolygon(InterfaceQuantity[float]):
             auto_refresh=False)
 
     def refresh(self) -> float:
-        support_polygon, zmp = self.support_polygon.get(), self.zmp.get()
+        # Compute the ZMP
+        zmp = self.zmp.get()
+
+        # Early return if the ZMP is ill-defined
+        if np.any(np.isnan(zmp)):
+            return float("-inf")
+
+        # Get the distance of the ZMP from the borders of the support polygin
+        support_polygon = self.support_polygon.get()
         return - support_polygon.get_distance_to_point(zmp).item()

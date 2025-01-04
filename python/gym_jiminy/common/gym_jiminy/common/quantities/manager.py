@@ -89,7 +89,6 @@ class QuantityManager(MutableMapping):
         :param reset_tracking: Do not consider any quantity as active anymore.
                                Optional: False by default.
         """
-        # Reset all quantities sequentially
         for quantity in self.registry.values():
             quantity.reset(reset_tracking)
 
@@ -154,12 +153,20 @@ class QuantityManager(MutableMapping):
         quantity_cls, quantity_kwargs = quantity_creator
         top_quantity = quantity_cls(self.env, None, **(quantity_kwargs or {}))
 
-        # Set a shared cache entry for all quantities involved in computations
-        quantities_all = [top_quantity]
+        # Get the list of all quantities involved in computations of the top
+        # level quantity, sorted from highest level to lowest level.
+        quantities_all, quantities_sorted_all = [top_quantity], [top_quantity]
         while quantities_all:
-            # Deal with the first quantity in the process queue
-            quantity = quantities_all.pop()
+            quantities = quantities_all.pop().requirements.values()
+            quantities_all += quantities
+            quantities_sorted_all += quantities
 
+        # Set a shared cache entry for all quantities involved in computations.
+        # Make sure that the cache associated with requirements precedes their
+        # parents in global cache registry. This is essential for automatic
+        # refresh, to ensure that cached values of all the intermediary
+        # quantities have been cleared before refresh.
+        for quantity in quantities_sorted_all[::-1]:
             # Get already available cache entry if any, otherwise create it
             key = (type(quantity), hash(quantity))
             for cache_key, cache in self._caches:
@@ -168,14 +175,20 @@ class QuantityManager(MutableMapping):
                     if quantity == owner:
                         break
             else:
+                # Partially sort cache entries to reset all quantity instances
+                # of the same class at once.
+                # The objective is to avoid resetting multiple times the same
+                # quantity because of the auto-refresh mechanism.
                 cache = SharedCache()
-                self._caches.append((key, cache))
+                for i, (cache_key, _) in enumerate(self._caches):
+                    if key[0] == cache_key[0]:
+                        self._caches.insert(i + 1, (key, cache))
+                        break
+                else:
+                    self._caches.append((key, cache))
 
             # Set shared cache of the quantity
             quantity.cache = cache
-
-            # Add all the requirements of the new quantity in the process queue
-            quantities_all += quantity.requirements.values()
 
         return top_quantity
 

@@ -292,7 +292,7 @@ class SharedCache(Generic[ValueT]):
                                     Optional: False by default.
         """
         # Clear cache
-        if self.sm_state is _IS_CACHED:
+        if self.sm_state == _IS_CACHED:
             self.sm_state = _IS_INITIALIZED
 
         # Special branch if case quantities must be reset on the way
@@ -320,13 +320,13 @@ class SharedCache(Generic[ValueT]):
         """Return cached value if any, otherwise evaluate it and store it.
         """
         # Get value already stored
-        if self.sm_state is _IS_CACHED:
+        if self.sm_state == _IS_CACHED:
             # return cast(ValueT, self._value)
             return self._value  # type: ignore[return-value]
 
         # Evaluate quantity
         try:
-            if self.sm_state is _IS_RESET:
+            if self.sm_state == _IS_RESET:
                 # Cache the list of owning quantities
                 self.owners = tuple(self._weakrefs)
 
@@ -601,7 +601,9 @@ class InterfaceQuantity(Generic[ValueT], metaclass=ABCMeta):
                 "Automatic refresh enabled but no shared cache is available. "
                 "Please add one before calling this method.")
 
-        # Reset all requirements first
+        # Reset all requirements first.
+        # This is necessary to avoid auto-refreshing quantities with deprecated
+        # cache if enabled.
         if not ignore_other_instances:
             for quantity in self.requirements.values():
                 quantity.reset(reset_tracking, ignore_other_instances=False)
@@ -786,9 +788,11 @@ class AbstractQuantity(InterfaceQuantity, Generic[ValueT]):
         try:
             self.state.initialize()
         except RuntimeError:
-            # No simulation running. This may be problematic but it is not
-            # blocking at this point.
-            pass
+            # It may have failed because no simulation running, which may be
+            # problematic but not blocking at this point. Just checking that
+            # the pinocchio model has been properly initialized.
+            if self.state.pinocchio_model.nq == 0:
+                raise
 
         # Refresh robot proxy
         assert isinstance(self.state, StateQuantity)
@@ -1179,7 +1183,7 @@ class StateQuantity(InterfaceQuantity[State]):
         # only refresh the state when needed if the evaluation mode is TRAJ.
         # * Update state: 500ns (TRUE) | 5.0us (TRAJ)
         # * Check cache state: 70ns
-        auto_refresh = mode is QuantityEvalMode.TRUE
+        auto_refresh = mode == QuantityEvalMode.TRUE
 
         # Call base implementation.
         super().__init__(
@@ -1189,9 +1193,9 @@ class StateQuantity(InterfaceQuantity[State]):
             auto_refresh=auto_refresh)
 
         # Robot for which the quantity must be evaluated
-        self.robot = env.robot
-        self.pinocchio_model = env.robot.pinocchio_model
-        self.pinocchio_data = env.robot.pinocchio_data
+        self.robot = jiminy.Robot()
+        self.pinocchio_model = self.robot.pinocchio_model
+        self.pinocchio_data = self.robot.pinocchio_data
 
         # State for which the quantity must be evaluated
         self._state = State(t=np.nan, q=np.array([]))
@@ -1326,7 +1330,7 @@ class StateQuantity(InterfaceQuantity[State]):
         """Compute the current state depending on the mode of evaluation, and
         make sure that kinematics and dynamics quantities are up-to-date.
         """
-        if self.mode is _TRUE:
+        if self.mode == _TRUE:
             # Update the current simulation time
             self._state.t = self.env.stepper_state.t
 
