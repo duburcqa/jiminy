@@ -9,6 +9,7 @@ import logging
 import tempfile
 from collections import OrderedDict
 from collections.abc import Mapping, Sequence
+from traceback import TracebackException
 from functools import partial
 from typing import (
     Dict, Any, List, cast, no_type_check, Optional, Tuple, Callable, Union,
@@ -1215,7 +1216,8 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
                 self.replay(**kwargs)
             except Exception as e:  # pylint: disable=broad-except
                 # Do not fail because of replay/recording exception
-                LOGGER.warning("%s", e)
+                traceback = TracebackException.from_exception(e)
+                LOGGER.warning(''.join(traceback.format()))
 
         return info_episode
 

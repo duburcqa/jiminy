@@ -21,6 +21,7 @@ import tempfile
 import subprocess
 import webbrowser
 import multiprocessing
+from traceback import TracebackException
 from urllib.request import urlopen
 from functools import wraps, partial
 from threading import RLock
@@ -665,7 +666,8 @@ class Viewer:
             except RuntimeError as e:
                 # Convert exception into warning if it fails. It is probably
                 # because no display is available.
-                LOGGER.warning("%s", e)
+                traceback = TracebackException.from_exception(e)
+                LOGGER.warning(''.join(traceback.format()))
         except Exception as e:
             self.close()
             raise RuntimeError(
