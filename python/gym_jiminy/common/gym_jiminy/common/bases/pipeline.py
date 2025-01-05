@@ -577,7 +577,7 @@ class ComposedJiminyEnv(BasePipelineWrapper[Obs, Act, Obs, Act],
 
             # Make sure that the robot model is identical for all trajectories
             traj = self._trajectory_dataset.trajectory
-            for traj_ in self._trajectory_dataset:
+            for traj_ in self._trajectory_dataset.registry.values():
                 if traj.robot.pinocchio_model != traj_.robot.pinocchio_model:
                     raise ValueError(
                         "The robot model must be identical for all "
@@ -586,7 +586,7 @@ class ComposedJiminyEnv(BasePipelineWrapper[Obs, Act, Obs, Act],
             # Determine the state information that are common to all
             # trajectories, not just the one being selected.
             self._trajectory_optional_fields = traj.optional_fields
-            for traj_ in self._trajectory_dataset:
+            for traj_ in self._trajectory_dataset.registry.values():
                 self._trajectory_optional_fields = tuple(
                     field for field in traj_.optional_fields
                     if field in self._trajectory_optional_fields)

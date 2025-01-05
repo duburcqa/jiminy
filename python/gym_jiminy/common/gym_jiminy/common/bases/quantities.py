@@ -824,7 +824,7 @@ def sync(fun: Callable[..., None]) -> Callable[..., None]:
         if not self.__is_synched__ and must_sync:
             raise RuntimeError(
                 "This quantity went out-of-sync. Make sure that no synched "
-                "method is called priori to setting shared cache.")
+                "method is called prior to setting shared cache.")
         self.__is_synched__ = self.has_cache  # type: ignore[attr-defined]
 
         # Call instance method on all co-owners of shared cache
@@ -881,11 +881,53 @@ class DatasetTrajectoryQuantity(InterfaceQuantity[State]):
         # Name of the trajectory that is currently selected
         self._name = ""
 
+        # Absolute time offset between selected trajectory and simulation
+        self._time_offset = 0.0
+
         # Selected trajectory if any
         self._trajectory: Optional[Trajectory] = None
 
         # Specifies how to deal with query time that are out-of-bounds
         self._mode: Literal['raise', 'wrap', 'clip'] = 'raise'
+
+    def __contains__(self, name: str) -> bool:
+        """Whether a given trajectory name is part of the dataset.
+        """
+        return name in self.registry
+
+    def __iter__(self) -> Iterator[str]:
+        """Iterate over the names of all the trajectories in the dataset.
+        """
+        return iter(self.registry.keys())
+
+    def __len__(self) -> int:
+        """Number of trajectory in the dataset.
+        """
+        return len(self.registry)
+
+    def __bool__(self) -> bool:
+        """Whether the dataset of trajectory is currently empty.
+        """
+        return bool(self.registry)
+
+    @property
+    def name(self) -> str:
+        """Name of the trajectory that is currently selected.
+        """
+        return self._name
+
+    @property
+    def robot(self) -> jiminy.Robot:
+        """Robot associated with the selected trajectory.
+        """
+        return self.trajectory.robot
+
+    @property
+    def use_theoretical_model(self) -> bool:
+        """Whether the selected trajectory is associated with the theoretical
+        dynamical model or extended simulation model of the robot.
+        """
+        return self.trajectory.use_theoretical_model
 
     @property
     def trajectory(self) -> Trajectory:
@@ -900,17 +942,39 @@ class DatasetTrajectoryQuantity(InterfaceQuantity[State]):
         return self._trajectory
 
     @property
-    def robot(self) -> jiminy.Robot:
-        """Robot associated with the selected trajectory.
+    def time_offset(self) -> float:
+        """Absolute time offset between the current simulation time and the
+        selected trajectory.
         """
-        return self.trajectory.robot
+        # Make sure that a trajectory has been selected
+        if self._trajectory is None:
+            raise RuntimeError("No trajectory has been selected.")
 
-    @property
-    def use_theoretical_model(self) -> bool:
-        """Whether the selected trajectory is associated with the theoretical
-        dynamical model or extended simulation model of the robot.
-        """
-        return self.trajectory.use_theoretical_model
+        # Return the absolute time offset
+        return self._time_offset
+
+    @InterfaceQuantity.cache.setter  # type: ignore[attr-defined]
+    def cache(self, cache: Optional[SharedCache[ValueT]]) -> None:
+        # Get existing registry if any and making sure not already out-of-sync
+        owner: Optional[InterfaceQuantity] = None
+        if cache is not None and cache.owners:
+            owner = next(iter(cache.owners))
+            assert isinstance(owner, DatasetTrajectoryQuantity)
+            if self._trajectory:
+                raise RuntimeError(
+                    "Trajectory dataset not empty. Impossible to add a shared "
+                    "cache already having owners.")
+
+        # Call base implementation
+        InterfaceQuantity.cache.fset(self, cache)  # type: ignore[attr-defined]
+
+        # Catch-up synchronization
+        if owner:
+            # Shallow copy the original registry, so that deletion / addition
+            # does not propagate to other instances.
+            self.registry = owner.registry.copy()
+            if owner._trajectory is not None:
+                self.select(owner._name, owner._mode)
 
     @sync
     def _add(self, name: str, trajectory: Trajectory) -> None:
@@ -1004,20 +1068,11 @@ class DatasetTrajectoryQuantity(InterfaceQuantity[State]):
         # Delete the whole registry
         self.registry.clear()
 
-    def __iter__(self) -> Iterator[Trajectory]:
-        """Iterate over all the trajectories in the dataset.
-        """
-        return iter(self.registry.values())
-
-    def __bool__(self) -> bool:
-        """Whether the dataset of trajectory is currently empty.
-        """
-        return bool(self.registry)
-
     @sync
     def select(self,
                name: str,
-               mode: Literal['raise', 'wrap', 'clip'] = 'raise') -> None:
+               mode: Literal['raise', 'wrap', 'clip'] = 'raise',
+               time_offset_ratio: Optional[float] = None) -> None:
         """Select an existing trajectory from the database shared synchronized
         all managed quantities.
 
@@ -1029,6 +1084,13 @@ class DatasetTrajectoryQuantity(InterfaceQuantity[State]):
         :param mode: Specifies how to deal with query time of are out of the
                      time interval of the trajectory. See `Trajectory.get`
                      documentation for details.
+                     Optional: 'raise' by default.
+        :param time_offset_ratio:
+            Enforces a given relative time offset between the current
+            simulation time and the trajectory. Note that 0.0 and 1.0
+            correspond to the initial and final time of the trajectory,
+            respectively. `None` to disable time shift.
+            Optional: `None` by default.
         """
         # Make sure that at least one trajectory has been specified
         if not self.registry:
@@ -1041,6 +1103,14 @@ class DatasetTrajectoryQuantity(InterfaceQuantity[State]):
         # Backup user-specified mode
         self._mode = mode
 
+        # Keep track of the absolute time offset
+        if time_offset_ratio is None:
+            self._time_offset = 0.0
+        else:
+            time_start, time_end = self._trajectory.time_interval
+            time_delta = time_end - time_start
+            self._time_offset = time_start + time_offset_ratio * time_delta
+
         # Un-initialize quantity when the selected trajectory changes
         self.reset(reset_tracking=False)
 
@@ -1049,39 +1119,11 @@ class DatasetTrajectoryQuantity(InterfaceQuantity[State]):
         """
         self._lock = True
 
-    @property
-    def name(self) -> str:
-        """Name of the trajectory that is currently selected.
-        """
-        return self._name
-
-    @InterfaceQuantity.cache.setter  # type: ignore[attr-defined]
-    def cache(self, cache: Optional[SharedCache[ValueT]]) -> None:
-        # Get existing registry if any and making sure not already out-of-sync
-        owner: Optional[InterfaceQuantity] = None
-        if cache is not None and cache.owners:
-            owner = next(iter(cache.owners))
-            assert isinstance(owner, DatasetTrajectoryQuantity)
-            if self._trajectory:
-                raise RuntimeError(
-                    "Trajectory dataset not empty. Impossible to add a shared "
-                    "cache already having owners.")
-
-        # Call base implementation
-        InterfaceQuantity.cache.fset(self, cache)  # type: ignore[attr-defined]
-
-        # Catch-up synchronization
-        if owner:
-            # Shallow copy the original registry, so that deletion / addition
-            # does not propagate to other instances.
-            self.registry = owner.registry.copy()
-            if owner._trajectory is not None:
-                self.select(owner._name, owner._mode)
-
     def refresh(self) -> State:
         """Compute state of selected trajectory at current simulation time.
         """
-        return self.trajectory.get(self.env.stepper_state.t, self._mode)
+        t_traj = self.env.stepper_state.t + self._time_offset
+        return self.trajectory.get(t_traj, self._mode)
 
 
 @dataclass(unsafe_hash=True)
