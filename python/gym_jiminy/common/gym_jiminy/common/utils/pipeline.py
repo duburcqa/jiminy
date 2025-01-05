@@ -93,16 +93,23 @@ class TrajectoryDatabaseConfig(TypedDict, total=False):
     """
 
     name: str
-    """Name of the selected trajectory if any.
+    """Name of the selected trajectory.
 
     This attribute can be omitted. If so, the first trajectory being specified
     will be selected by default.
     """
 
     mode: Literal['raise', 'wrap', 'clip']
-    """Interpolation mode of the selected trajectory if any.
+    """Interpolation mode of the selected trajectory.
 
     This attribute can be omitted. If so, 'raise' mode is used by default.
+    """
+
+    augment_observation: bool
+    """Whether to add the current state of the reference trajectory to the
+    observation of the environment.
+
+    This attribute can be omitted. If so, `False` is used by default.
     """
 
 
@@ -404,17 +411,21 @@ def build_pipeline(env_config: EnvConfig,
             for termination_config in terminations_config)
 
         # Get trajectory dataset
+        augment_observation = False
         trajectories: Dict[str, Trajectory] = {}
         if trajectories_config is not None:
             trajectories = cast(
                 Dict[str, Trajectory], trajectories_config["dataset"])
+            augment_observation = trajectories_config.get(
+                "augment_observation", False)
 
         # Instantiate the composition wrapper if necessary
         if reward or terminations or trajectories:
             env = ComposedJiminyEnv(env,
                                     reward=reward,
                                     terminations=terminations,
-                                    trajectories=trajectories)
+                                    trajectories=trajectories,
+                                    augment_observation=augment_observation)
 
         # Select the reference trajectory if specified
         if trajectories_config is not None:
