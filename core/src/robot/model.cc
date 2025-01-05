@@ -1079,8 +1079,9 @@ namespace jiminy
         // Simply copy the theoretical model by default
         pinocchioModel_ = pinocchioModelTh_;
 
-        // Initially set effortLimit to zero systematically
-        pinocchioModel_.effortLimit.setZero();
+        // Set velocity and effort limits to infinity systematically as they are non-physical
+        pinocchioModel_.effortLimit.setConstant(INF);
+        pinocchioModel_.velocityLimit.setConstant(INF);
     }
 
     void Model::addFlexibilityJointsToExtendedModel()
