@@ -205,9 +205,8 @@ def sample(low: Union[float, np.ndarray] = -1.0,
     else:
         dist_fn = dist
 
-    # Generate samples from distribution.
-    # Make sure that the result is always returned as np.ndarray.
-    value = np.asarray(dist_fn(rg or GLOBAL_RNG, size=shape))
+    # Generate samples from distribution
+    value = dist_fn(rg or GLOBAL_RNG, size=shape)
 
     # Apply mean and standard deviation transformation
     value = mean + dev * value
