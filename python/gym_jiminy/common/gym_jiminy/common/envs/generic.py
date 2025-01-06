@@ -9,6 +9,7 @@ import logging
 import tempfile
 from collections import OrderedDict
 from collections.abc import Mapping, Sequence
+from traceback import TracebackException
 from functools import partial
 from typing import (
     Dict, Any, List, cast, no_type_check, Optional, Tuple, Callable, Union,
@@ -232,9 +233,6 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
 
         # Information about the learning process
         self._info: InfoType = {}
-
-        # Keep track of cumulative reward
-        self.total_reward = 0.0
 
         # Number of simulation steps performed
         self.num_steps = np.array(-1, dtype=np.int64)
@@ -718,9 +716,6 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
                 "The simulation has already terminated at `reset`. Check the "
                 "implementation of `has_terminated` if overloaded.")
 
-        # Reset cumulative reward
-        self.total_reward = 0.0
-
         # Note that the viewer must be reset if available, otherwise it would
         # keep using the old robot model for display, which must be avoided.
         if self.simulator.is_viewer_available:
@@ -857,9 +852,6 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
                 raise RuntimeError(
                     "The reward is 'nan'. Something went wrong with "
                     "`compute_reward` implementation.")
-
-            # Update cumulative reward
-            self.total_reward += reward
 
         # Clip (and copy) the most derived observation before returning it
         obs = self._get_clipped_env_observation()
@@ -1123,7 +1115,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
                  horizon: Optional[int] = None,
                  enable_stats: bool = True,
                  enable_replay: Optional[bool] = None,
-                 **kwargs: Any) -> List[InfoType]:
+                 **kwargs: Any) -> Tuple[List[float], List[InfoType]]:
         r"""Evaluate a policy on the environment over a complete episode.
 
         .. warning::
@@ -1176,14 +1168,12 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         if is_training:
             self.eval()
 
-        # Set the seed without forcing full reset of the environment
-        self._initialize_seed(seed)
-
         # Initialize the simulation
-        obs, info = env.reset()
+        obs, info = env.reset(seed=seed)
         action, reward, terminated, truncated = None, None, False, False
 
         # Run the simulation
+        reward_episode: List[float] = []
         info_episode = [info]
         try:
             while horizon is None or self.num_steps < horizon:
@@ -1196,6 +1186,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
                     break
                 obs, reward, terminated, truncated, info = env.step(action)
                 info_episode.append(info)
+                reward_episode.append(float(reward))
             env.stop()
         except KeyboardInterrupt:
             pass
@@ -1207,7 +1198,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         # Display some statistic if requested
         if enable_stats:
             print("env.num_steps:", self.num_steps)
-            print("cumulative reward:", self.total_reward)
+            print("cumulative reward:", sum(reward_episode))
 
         # Replay the result if requested
         if enable_replay:
@@ -1215,9 +1206,10 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
                 self.replay(**kwargs)
             except Exception as e:  # pylint: disable=broad-except
                 # Do not fail because of replay/recording exception
-                LOGGER.warning("%s", e)
+                traceback = TracebackException.from_exception(e)
+                LOGGER.warning(''.join(traceback.format()))
 
-        return info_episode
+        return reward_episode, info_episode
 
     # methods to override:
     # ----------------------------

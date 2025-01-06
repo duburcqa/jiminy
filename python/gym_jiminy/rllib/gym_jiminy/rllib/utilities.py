@@ -23,6 +23,7 @@ from itertools import chain
 from datetime import datetime
 from collections import defaultdict
 from tempfile import mkdtemp
+from traceback import TracebackException
 from typing import (
     Optional, Any, Union, Sequence, Tuple, List, Literal, Dict, Set, Type,
     DefaultDict, overload, cast)
@@ -825,7 +826,8 @@ def train(algo_config: AlgorithmConfig,
         if verbose or debug:
             print("Interrupting training...")
     except RayTaskError as e:
-        LOGGER.warning("%s", e)
+        traceback = TracebackException.from_exception(e)
+        LOGGER.warning(''.join(traceback.format()))
 
     # Flush and close logger before returning
     if file_writer is not None:
