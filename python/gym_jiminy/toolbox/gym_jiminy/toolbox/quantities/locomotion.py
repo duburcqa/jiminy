@@ -1,5 +1,6 @@
 """Quantities mainly relevant for locomotion tasks on floating-base robots.
 """
+import math
 from typing import List, Optional, Tuple
 from dataclasses import dataclass
 
@@ -229,7 +230,8 @@ class StabilityMarginProjectedSupportPolygon(InterfaceQuantity[float]):
         zmp = self.zmp.get()
 
         # Early return if the ZMP is ill-defined
-        if np.any(np.isnan(zmp)):
+        # Note that it is sufficient to check whether x or y component is nan.
+        if math.isnan(zmp[0]):
             return float("-inf")
 
         # Get the distance of the ZMP from the borders of the support polygin

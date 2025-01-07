@@ -166,7 +166,7 @@ class StackedQuantity(
                     "returning N-dimensional arrays as value.")
             value = np.asarray(value)
 
-            # Full the queue with zero if necessary
+            # Fill the queue with zero if necessary
             if self.mode == 'zeros':
                 for _ in range(self.max_stack):
                     self._value_list.append(

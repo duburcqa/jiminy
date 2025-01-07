@@ -343,7 +343,12 @@ class SharedCache(Generic[ValueT]):
             # assert self._owner is not None
             owner = self._owner  # type: ignore[assignment]
 
-            # Make sure that the state has been refreshed
+            # Make sure that the state has been refreshed.
+            # This is necessary because it would update the internal state of
+            # the associated 'pinocchio_data'. Note that auto-refresh is not
+            # enabled for StateQuantity in TRAJECTORY mode as it is costly to
+            # evaluate. Instead, it is postponed here, right before updating
+            # any quantity that may rely on it.
             if owner._force_update_state:
                 owner.state.get()
 
@@ -1213,16 +1218,17 @@ class StateQuantity(InterfaceQuantity[State]):
         # up-to-date when refreshing quantities. The latter are involved one
         # way of the other in the computation of any quantity, which means that
         # pre-computing it does not induce any unnecessary computations as long
-        # as the user fetches the value of at least one quantity. Although this
-        # assumption is very likely to be true at the step update period, it is
-        # not the case at the observer update period. It sounds more efficient
-        # refresh to the state the first time any quantity gets computed.
-        # However, systematically checking if the state must be refreshed for
-        # all quantities adds overhead and may be fairly costly overall. The
-        # optimal trade-off is to rely on auto-refresh if the evaluation mode
-        # is TRUE, since refreshing the state only consists in copying some
-        # data, which is very cheap. On the contrary, it is more efficient to
-        # only refresh the state when needed if the evaluation mode is TRAJ.
+        # as the user fetches the value of at least one quantity.
+        # Although this assumption is very likely to be true at the step update
+        # period, it is not the case at the observer update period. It sounds
+        # more efficient refresh to the state the first time any quantity gets
+        # computed. However, systematically checking if the state must be
+        # refreshed for all quantities adds overhead and may be fairly costly
+        # overall. The optimal trade-off is to rely on auto-refresh if the
+        # evaluation mode is TRUE, since refreshing the state only consists in
+        # copying some data, which is very cheap. On the contrary, it is more
+        # efficient to only refresh the state when needed if the evaluation
+        # mode is TRAJ.
         # * Update state: 500ns (TRUE) | 5.0us (TRAJ)
         # * Check cache state: 70ns
         auto_refresh = mode == QuantityEvalMode.TRUE
@@ -1324,8 +1330,8 @@ class StateQuantity(InterfaceQuantity[State]):
         self._f_external_slices = tuple(self._f_external_batch)
 
         # Allocate memory for lambda vector
-        self._constraint_lambda_batch = np.zeros(
-            (len(self.robot.log_constraint_fieldnames),))
+        constraint_fieldnames = self.robot.log_constraint_fieldnames
+        self._constraint_lambda_batch = np.zeros((len(constraint_fieldnames),))
 
         # Refresh mapping from lambda multipliers to corresponding slice
         self._constraint_lambda_list.clear()
@@ -1340,9 +1346,10 @@ class StateQuantity(InterfaceQuantity[State]):
                         self.robot.constraints.collision_bodies)
                     for name, constraint in constraints.items()}),
                 ("User", self.robot.constraints.user)))
+
         i = 0
-        while i < len(self.robot.log_constraint_fieldnames):
-            fieldname = self.robot.log_constraint_fieldnames[i]
+        while i < len(constraint_fieldnames):
+            fieldname = constraint_fieldnames[i]
             for registry_type, registry in constraint_lookup_pairs:
                 if fieldname.startswith(registry_type):
                     break

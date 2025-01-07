@@ -146,12 +146,12 @@ class AbstractReward(metaclass=ABCMeta):
         if value is None:
             return 0.0
 
+        # Make sure that the reward is a scalar
+        value = float(value)
+
         # Make sure that terminal flag is honored
         if bool(self.is_terminal) ^ terminated:
             raise ValueError("Flag 'is_terminal' not honored.")
-
-        # Make sure that the reward is scalar
-        assert np.ndim(value) == 0
 
         # Make sure that the reward is normalized
         if self.is_normalized and (value < 0.0 or value > 1.0):
@@ -163,10 +163,7 @@ class AbstractReward(metaclass=ABCMeta):
             raise KeyError(
                 f"Key '{self.name}' already reserved in 'info'. Impossible to "
                 "store value of reward component.")
-        if reward_info:
-            info[self.name] = reward_info
-        else:
-            info[self.name] = value
+        info[self.name] = reward_info or value
 
         # Returning the reward
         return value
