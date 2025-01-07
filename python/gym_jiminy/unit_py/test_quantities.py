@@ -4,6 +4,7 @@
 import sys
 import math
 import unittest
+from copy import deepcopy
 
 import numpy as np
 import gymnasium as gym
@@ -241,40 +242,50 @@ class Quantities(unittest.TestCase):
         """
         env = gym.make("gym_jiminy.envs:atlas")
 
-        for max_stack, as_array, mode in (
-                (None, False, "slice"),
-                (3, False, "slice"),
-                (3, True, "slice"),
-                (3, False, "zeros"),
-                (3, True, "zeros")):
+        for max_stack, as_array, is_wrapping in (
+                (None, False, False),
+                (5, False, False),
+                (5, True, False),
+                (5, False, True),
+                (5, True, True)):
             quantity_creator = (StackedQuantity, dict(
                 quantity=(MultiFootRelativeXYZQuat, {}),
                 max_stack=max_stack or sys.maxsize,
-                as_array=as_array,
-                mode=mode))
+                is_wrapping=is_wrapping,
+                as_array=as_array))
+            env.quantities["xyzquat"] = (MultiFootRelativeXYZQuat, {})
             env.quantities["xyzquat_stack"] = quantity_creator
             env.reset(seed=0)
 
-            value = env.quantities["xyzquat_stack"]
+            values = env.quantities["xyzquat_stack"]
             if as_array:
-                assert isinstance(value, np.ndarray)
+                assert isinstance(values, np.ndarray)
             else:
-                assert isinstance(value, list)
+                assert isinstance(values, tuple)
+            index = -1
             for i in range(1, (max_stack or 5) + 2):
-                num_stack = max_stack or i
-                if mode == "slice":
-                    num_stack = min(i, num_stack)
-                value = env.quantities["xyzquat_stack"]
-                if as_array:
-                    assert value.shape[-1] == num_stack
-                    if mode == "zeros":
-                        np.testing.assert_allclose(value[..., :-i], 0.0)
-                else:
-                    assert len(value) == num_stack
-                    if mode == "zeros":
-                        np.testing.assert_allclose(value[:-i], 0.0)
                 env.step(env.action)
+                values_prev = deepcopy(values)
+                values = env.quantities["xyzquat_stack"]
+                value = env.quantities["xyzquat"]
+                num_stack = min(i + 1, max_stack or (i + 1))
+                if is_wrapping:
+                    index = i
+                    if max_stack is not None:
+                        index = index % max_stack
+                if as_array:
+                    assert values.shape[-1] == num_stack
+                    np.testing.assert_allclose(values[..., index], value)
+                    if max_stack is None or num_stack < max_stack:
+                        np.testing.assert_allclose(
+                            values_prev, values[..., :-1])
+                else:
+                    assert len(values) == num_stack
+                    np.testing.assert_allclose(values[index], value)
+                    if max_stack is None or num_stack < max_stack:
+                        np.testing.assert_allclose(values_prev, values[:-1])
 
+            del env.quantities["xyzquat"]
             del env.quantities["xyzquat_stack"]
 
     def test_masked(self):
@@ -741,8 +752,11 @@ class Quantities(unittest.TestCase):
                 mean_total_power = np.mean(
                     total_power_stack[-quantity.max_stack:])
 
-                value = quantity.total_power_stack.get()
-                np.testing.assert_allclose(total_power, value[-1])
+                values = quantity.total_power_stack.get()
+                index = -1
+                if quantity.total_power_stack.is_wrapping:
+                    index = env.num_steps % quantity.max_stack
+                np.testing.assert_allclose(total_power, values[index])
                 np.testing.assert_allclose(mean_total_power, quantity.get())
 
             del env.quantities["mean_power_consumption"]

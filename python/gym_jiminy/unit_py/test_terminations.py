@@ -194,10 +194,15 @@ class TerminationConditions(unittest.TestCase):
                 for termination, (terminated, truncated), values, info in (
                         (termination_pos, flags_pos, positions, info_pos),
                         (termination_rot, flags_rot, rotations, info_rot)):
+                    left = termination.data.quantity_left.get()
                     values = values[-termination.max_stack:]
                     stack = np.stack(values, axis=-1)
-                    left = termination.data.quantity_left.get()
+                    if termination.data.quantity_left.is_wrapping:
+                        shift = max(
+                            self.env.num_steps + 1 - termination.max_stack, 0)
+                        stack = np.roll(stack, shift=shift, axis=-1)
                     np.testing.assert_allclose(stack, left)
+
                     right = termination.data.quantity_right.get()
                     diff = termination.op(left, right)
                     shift = np.min(np.linalg.norm(

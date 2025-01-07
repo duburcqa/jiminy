@@ -486,7 +486,8 @@ def build_reduce(fn: Callable[..., ValueInT],
                   `gym.spaces.Tuple`). Optional iif the nested data structure
                   is provided.
     :param arity: Arity of the generated callable. `None` to indicate that it
-                  must be determined at runtime, which is slower.
+                  must be determined at runtime, which is slower. Either way,
+                  only 0 or 1 arity is supported for now.
     :param args: Extra arguments to systematically forward as transform input
                  for all leaves. Note that, as for Python built-ins methods,
                  keywords are not supported for the sake of efficiency.
@@ -873,7 +874,8 @@ def build_reduce(fn: Callable[..., ValueInT],
         """
         if not delayed:
             return post_fn_0()
-        return post_fn_1(delayed[0])
+        (arg,) = delayed
+        return post_fn_1(arg)
 
     def _build_init(
             arity: Literal[0, 1],
@@ -964,7 +966,8 @@ def build_map(fn: Callable[..., ValueT],
     :param space: `gym.spaces.Dict` on which to operate. Optional iif the
                   nested data structure is provided.
     :param arity: Arity of the generated callable. `None` to indicate that it
-                  must be determined at runtime, which is slower.
+                  must be determined at runtime, which is slower. Either way,
+                  only 0 or 1 arity is supported for now.
     :param args: Extra arguments to systematically forward as transform input
                  for all leaves. Note that, as for Python built-ins methods,
                  keywords are not supported for the sake of efficiency.
@@ -1159,7 +1162,8 @@ def build_map(fn: Callable[..., ValueT],
         """
         if not delayed:
             return post_fn_0()
-        return post_fn_1(delayed[0])
+        (arg,) = delayed
+        return post_fn_1(arg)
 
     # Check that the combination of input arguments are valid
     if space is None and data is None:
