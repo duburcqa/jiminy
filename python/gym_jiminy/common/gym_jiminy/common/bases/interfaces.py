@@ -410,11 +410,13 @@ class InterfaceJiminyEnv(
         """
 
     @abstractmethod
-    def train(self) -> None:
-        """Sets the environment in training mode.
+    def train(self, mode: bool = True) -> None:
+        """Sets the environment in training or evaluation mode.
+
+        :param mode: Whether to set training (True) or evaluation mode (False).
+                     Optional: `True` by default.
         """
 
-    @abstractmethod
     def eval(self) -> None:
         """Sets the environment in evaluation mode.
 
@@ -423,6 +425,19 @@ class InterfaceJiminyEnv(
         time specifically. See documentations of a given environment for
         details about their behaviors in training and evaluation modes.
         """
+        self.train(False)
+
+    @property
+    @abstractmethod
+    def training(self) -> bool:
+        """Check whether the environment is in training or evaluation mode.
+        """
+
+    @training.setter
+    def training(self, mode: bool) -> None:
+        """Sets the environment in training or evaluation mode.
+        """
+        self.train(mode)
 
     @property
     @abstractmethod
@@ -435,10 +450,4 @@ class InterfaceJiminyEnv(
     @abstractmethod
     def step_dt(self) -> float:
         """Get timestep of a single 'step'.
-        """
-
-    @property
-    @abstractmethod
-    def is_training(self) -> bool:
-        """Check whether the environment is in 'train' or 'eval' mode.
         """

@@ -892,7 +892,7 @@ def _sample_initialize(worker: EnvRunner) -> Sequence[bool]:
     worker.env.unwrapped.call('stop')
 
     # Switch the environment to evaluation mode
-    is_training_all = worker.env.unwrapped.get_attr('is_training')
+    is_training_all = worker.env.unwrapped.get_attr('training')
     worker.env.unwrapped.call('eval')
 
     return is_training_all
@@ -967,13 +967,12 @@ def _sample_finalize(worker: EnvRunner,
 
     # Restore the original training/evaluation mode
     if parse_version(gym.__version__) >= parse_version("1.0"):
-        worker.env.unwrapped.set_attr('is_training', is_training_all)
+        worker.env.unwrapped.set_attr('training', is_training_all)
     else:
         assert isinstance(worker.env.unwrapped, gym.vector.SyncVectorEnv)
         for env, is_training in zip(
                 worker.env.unwrapped.envs, is_training_all):
-            if is_training:
-                env.get_wrapper_attr("train")()
+            env.get_wrapper_attr("train")(is_training)
 
 
 def sample_from_runner(

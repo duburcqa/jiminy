@@ -222,7 +222,7 @@ class BasePipelineWrapper(
         try:
             # Make sure that no simulaton is running
             if (self.__getattribute__('is_simulation_running') and
-                    self.env.is_training and not hasattr(sys, 'ps1')):
+                    self.env.training and not hasattr(sys, 'ps1')):
                 # `hasattr(sys, 'ps1')` is used to detect whether the method
                 # was called from an interpreter or within a script. For
                 # details, see: https://stackoverflow.com/a/64523765/4820605
@@ -294,15 +294,12 @@ class BasePipelineWrapper(
     def step_dt(self) -> float:
         return self.env.step_dt
 
-    @property
-    def is_training(self) -> bool:
-        return self.env.is_training
+    @InterfaceJiminyEnv.training.getter  # type: ignore[attr-defined]
+    def training(self) -> bool:
+        return self.env.training
 
-    def train(self) -> None:
-        self.env.train()
-
-    def eval(self) -> None:
-        self.env.eval()
+    def train(self, mode: bool = True) -> None:
+        self.env.train(mode)
 
     def update_pipeline(self, derived: Optional[InterfaceJiminyEnv]) -> None:
         if derived is None:

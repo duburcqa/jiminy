@@ -281,7 +281,7 @@ class BaseRollPitchTermination(QuantityTermination):
                  high: Optional[ArrayLikeOrScalar],
                  grace_period: float = 0.0,
                  *,
-                 is_training_only: bool = False) -> None:
+                 training_only: bool = False) -> None:
         """
         :param env: Base or wrapped jiminy environment.
         :param low: Lower bound below which termination is triggered.
@@ -290,10 +290,10 @@ class BaseRollPitchTermination(QuantityTermination):
                              of the episode, during which the latter is bound
                              to continue whatever happens.
                              Optional: 0.0 by default.
-        :param is_training_only: Whether the termination condition should be
-                                 completely by-passed if the environment is in
-                                 evaluation mode.
-                                 Optional: False by default.
+        :param training_only: Whether the termination condition should be
+                              completely by-passed if the environment is in
+                              evaluation mode.
+                              Optional: False by default.
         """
         super().__init__(
             env,
@@ -308,7 +308,7 @@ class BaseRollPitchTermination(QuantityTermination):
             high,
             grace_period,
             is_truncation=False,
-            is_training_only=is_training_only)
+            training_only=training_only)
 
 
 class FallingTermination(QuantityTermination):
@@ -328,7 +328,7 @@ class FallingTermination(QuantityTermination):
                  min_base_height: float,
                  grace_period: float = 0.0,
                  *,
-                 is_training_only: bool = False) -> None:
+                 training_only: bool = False) -> None:
         """
         :param env: Base or wrapped jiminy environment.
         :param min_base_height: Minimum height of the floating base of the
@@ -337,10 +337,10 @@ class FallingTermination(QuantityTermination):
                              of the episode, during which the latter is bound
                              to continue whatever happens.
                              Optional: 0.0 by default.
-        :param is_training_only: Whether the termination condition should be
-                                 completely by-passed if the environment is in
-                                 evaluation mode.
-                                 Optional: False by default.
+        :param training_only: Whether the termination condition should be
+                              completely by-passed if the environment is in
+                              evaluation mode.
+                              Optional: False by default.
         """
         super().__init__(
             env,
@@ -350,7 +350,7 @@ class FallingTermination(QuantityTermination):
             None,
             grace_period,
             is_truncation=False,
-            is_training_only=is_training_only)
+            training_only=training_only)
 
 
 class FootCollisionTermination(QuantityTermination):
@@ -367,7 +367,7 @@ class FootCollisionTermination(QuantityTermination):
                  grace_period: float = 0.0,
                  frame_names: Union[Sequence[str], Literal['auto']] = 'auto',
                  *,
-                 is_training_only: bool = False) -> None:
+                 training_only: bool = False) -> None:
         """
         :param env: Base or wrapped jiminy environment.
         :param security_margin:
@@ -383,10 +383,10 @@ class FootCollisionTermination(QuantityTermination):
                             robot. 'auto' to automatically detect them from the
                             set of contact and force sensors of the robot.
                             Optional: 'auto' by default.
-        :param is_training_only: Whether the termination condition should be
-                                 completely by-passed if the environment is in
-                                 evaluation mode.
-                                 Optional: False by default.
+        :param training_only: Whether the termination condition should be
+                              completely by-passed if the environment is in
+                              evaluation mode.
+                              Optional: False by default.
         """
         super().__init__(
             env,
@@ -398,7 +398,7 @@ class FootCollisionTermination(QuantityTermination):
             False,
             grace_period,
             is_truncation=False,
-            is_training_only=is_training_only)
+            training_only=training_only)
 
 
 @dataclass(unsafe_hash=True)
@@ -511,7 +511,7 @@ class FlyingTermination(QuantityTermination):
                  max_height: float,
                  grace_period: float = 0.0,
                  *,
-                 is_training_only: bool = False) -> None:
+                 training_only: bool = False) -> None:
         """
         :param env: Base or wrapped jiminy environment.
         :param max_height: Maximum height of the lowest contact points wrt the
@@ -520,10 +520,10 @@ class FlyingTermination(QuantityTermination):
                              of the episode, during which the latter is bound
                              to continue whatever happens.
                              Optional: 0.0 by default.
-        :param is_training_only: Whether the termination condition should be
-                                 completely by-passed if the environment is in
-                                 evaluation mode.
-                                 Optional: False by default.
+        :param training_only: Whether the termination condition should be
+                              completely by-passed if the environment is in
+                              evaluation mode.
+                              Optional: False by default.
         """
         super().__init__(
             env,
@@ -533,7 +533,7 @@ class FlyingTermination(QuantityTermination):
             max_height,
             grace_period,
             is_truncation=False,
-            is_training_only=is_training_only)
+            training_only=training_only)
 
 
 class ImpactForceTermination(QuantityTermination):
@@ -548,7 +548,7 @@ class ImpactForceTermination(QuantityTermination):
                  max_force_rel: float,
                  grace_period: float = 0.0,
                  *,
-                 is_training_only: bool = False) -> None:
+                 training_only: bool = False) -> None:
         """
         :param env: Base or wrapped jiminy environment.
         :param max_force_rel: Maximum vertical force applied on any of the
@@ -558,10 +558,10 @@ class ImpactForceTermination(QuantityTermination):
                              of the episode, during which the latter is bound
                              to continue whatever happens.
                              Optional: 0.0 by default.
-        :param is_training_only: Whether the termination condition should be
-                                 completely by-passed if the environment is in
-                                 evaluation mode.
-                                 Optional: False by default.
+        :param training_only: Whether the termination condition should be
+                              completely by-passed if the environment is in
+                              evaluation mode.
+                              Optional: False by default.
         """
         super().__init__(
             env,
@@ -574,7 +574,7 @@ class ImpactForceTermination(QuantityTermination):
             max_force_rel,
             grace_period,
             is_truncation=False,
-            is_training_only=is_training_only)
+            training_only=training_only)
 
 
 @nb.jit(nopython=True, cache=True, fastmath=True, inline='always')
@@ -617,7 +617,7 @@ class DriftTrackingBaseOdometryPositionTermination(
                  horizon: float,
                  grace_period: float = 0.0,
                  *,
-                 is_training_only: bool = False) -> None:
+                 training_only: bool = False) -> None:
         """
         :param env: Base or wrapped jiminy environment.
         :param max_position_err:
@@ -629,10 +629,10 @@ class DriftTrackingBaseOdometryPositionTermination(
                              of the episode, during which the latter is bound
                              to continue whatever happens.
                              Optional: 0.0 by default.
-        :param is_training_only: Whether the termination condition should be
-                                 completely by-passed if the environment is in
-                                 evaluation mode.
-                                 Optional: False by default.
+        :param training_only: Whether the termination condition should be
+                              completely by-passed if the environment is in
+                              evaluation mode.
+                              Optional: False by default.
         """
         super().__init__(
             env,
@@ -649,7 +649,7 @@ class DriftTrackingBaseOdometryPositionTermination(
             grace_period,
             post_fn=l2_norm,
             is_truncation=False,
-            is_training_only=is_training_only)
+            training_only=training_only)
 
 
 class DriftTrackingBaseOdometryOrientationTermination(
@@ -666,7 +666,7 @@ class DriftTrackingBaseOdometryOrientationTermination(
                  horizon: float,
                  grace_period: float = 0.0,
                  *,
-                 is_training_only: bool = False) -> None:
+                 training_only: bool = False) -> None:
         """
         :param env: Base or wrapped jiminy environment.
         :param max_orientation_err:
@@ -678,10 +678,10 @@ class DriftTrackingBaseOdometryOrientationTermination(
                              of the episode, during which the latter is bound
                              to continue whatever happens.
                              Optional: 0.0 by default.
-        :param is_training_only: Whether the termination condition should be
-                                 completely by-passed if the environment is in
-                                 evaluation mode.
-                                 Optional: False by default.
+        :param training_only: Whether the termination condition should be
+                              completely by-passed if the environment is in
+                              evaluation mode.
+                              Optional: False by default.
         """
         super().__init__(
             env,
@@ -697,7 +697,7 @@ class DriftTrackingBaseOdometryOrientationTermination(
             horizon,
             grace_period,
             is_truncation=False,
-            is_training_only=is_training_only)
+            training_only=training_only)
 
 
 class ShiftTrackingFootOdometryPositionsTermination(
@@ -717,7 +717,7 @@ class ShiftTrackingFootOdometryPositionsTermination(
                  grace_period: float = 0.0,
                  frame_names: Union[Sequence[str], Literal['auto']] = 'auto',
                  *,
-                 is_training_only: bool = False) -> None:
+                 training_only: bool = False) -> None:
         """
         :param env: Base or wrapped jiminy environment.
         :param max_position_err:
@@ -733,10 +733,10 @@ class ShiftTrackingFootOdometryPositionsTermination(
                             robot. 'auto' to automatically detect them from the
                             set of contact and force sensors of the robot.
                             Optional: 'auto' by default.
-        :param is_training_only: Whether the termination condition should be
-                                 completely by-passed if the environment is in
-                                 evaluation mode.
-                                 Optional: False by default.
+        :param training_only: Whether the termination condition should be
+                              completely by-passed if the environment is in
+                              evaluation mode.
+                              Optional: False by default.
         """
         super().__init__(
             env,
@@ -752,7 +752,7 @@ class ShiftTrackingFootOdometryPositionsTermination(
             horizon,
             grace_period,
             is_truncation=False,
-            is_training_only=is_training_only)
+            training_only=training_only)
 
 
 class ShiftTrackingFootOdometryOrientationsTermination(
@@ -772,7 +772,7 @@ class ShiftTrackingFootOdometryOrientationsTermination(
                  grace_period: float = 0.0,
                  frame_names: Union[Sequence[str], Literal['auto']] = 'auto',
                  *,
-                 is_training_only: bool = False) -> None:
+                 training_only: bool = False) -> None:
         """
         :param env: Base or wrapped jiminy environment.
             Maximum shift error in orientation (yaw,) in world plane above
@@ -787,10 +787,10 @@ class ShiftTrackingFootOdometryOrientationsTermination(
                             robot. 'auto' to automatically detect them from the
                             set of contact and force sensors of the robot.
                             Optional: 'auto' by default.
-        :param is_training_only: Whether the termination condition should be
-                                 completely by-passed if the environment is in
-                                 evaluation mode.
-                                 Optional: False by default.
+        :param training_only: Whether the termination condition should be
+                              completely by-passed if the environment is in
+                              evaluation mode.
+                              Optional: False by default.
         """
         # Call base implementation
         super().__init__(
@@ -808,4 +808,4 @@ class ShiftTrackingFootOdometryOrientationsTermination(
             horizon,
             grace_period,
             is_truncation=False,
-            is_training_only=is_training_only)
+            training_only=training_only)

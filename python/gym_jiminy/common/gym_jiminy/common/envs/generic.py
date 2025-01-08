@@ -478,29 +478,21 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
     def step_dt(self) -> float:
         return self._step_dt
 
-    @property
-    def is_training(self) -> bool:
+    @InterfaceJiminyEnv.training.getter  # type: ignore[attr-defined]
+    def training(self) -> bool:
         return self._is_training
 
     @property
     def unwrapped(self) -> "BaseJiminyEnv":
         return self
 
-    def train(self) -> None:
+    def train(self, mode: bool = True) -> None:
         if self.is_simulation_running:
             raise RuntimeError(
                 "Switching between training and evaluation modes is forbidden "
                 "if a simulation is already running. Please call `stop` "
                 "method beforehand.")
-        self._is_training = True
-
-    def eval(self) -> None:
-        if self.is_simulation_running:
-            raise RuntimeError(
-                "Switching between training and evaluation modes is forbidden "
-                "if a simulation is already running. Please call `stop` "
-                "method beforehand.")
-        self._is_training = False
+        self._is_training = mode
 
     def update_pipeline(self, derived: Optional[InterfaceJiminyEnv]) -> None:
         if self.derived is not self:
@@ -656,7 +648,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
             partial(type(env)._controller_handle, weakref.proxy(env)))
 
         # Register user-specified variables to the telemetry in evaluation mode
-        if self.debug or not self.is_training:
+        if self.debug or not self.training:
             for header, value in self._registered_variables.values():
                 register_variables(self.robot.controller, header, value)
 
@@ -832,7 +824,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
             if terminated:
                 self._num_steps_beyond_terminate = 0
         else:
-            if self.is_training and self._num_steps_beyond_terminate == 0:
+            if self.training and self._num_steps_beyond_terminate == 0:
                 LOGGER.error(
                     "Calling `step` after termination is an undefined "
                     "behavior, and as such, is strongly discouraged in "
@@ -876,7 +868,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
             if self.log_path is not None:
                 os.remove(self.log_path)
                 self.log_path = None
-            if self.debug or not self.is_training:
+            if self.debug or not self.training:
                 fd, self.log_path = tempfile.mkstemp(suffix=".data")
                 os.close(fd)
                 self.simulator.write_log(self.log_path, format="binary")
@@ -1045,7 +1037,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         env.stop()
 
         # Enable play interactive flag and make sure training flag is disabled
-        is_training = self.is_training
+        is_training = self.training
         self._is_interactive = True
         if is_training:
             self.eval()
@@ -1164,7 +1156,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         env.stop()
 
         # Make sure evaluation mode is enabled
-        is_training = self.is_training
+        is_training = self.training
         if is_training:
             self.eval()
 
@@ -1263,7 +1255,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
             engine_options["stepper"]["timeout"] = 0.0
 
         # Enable full logging in debug and evaluation mode
-        if self.debug or not self.is_training:
+        if self.debug or not self.training:
             # Enable all telemetry data at engine-level
             telemetry_options = engine_options["telemetry"]
             for key in telemetry_options.keys():
