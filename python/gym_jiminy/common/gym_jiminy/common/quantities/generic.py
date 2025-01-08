@@ -1821,8 +1821,8 @@ class AverageMechanicalPowerConsumption(InterfaceQuantity[float]):
                             mode=self.mode)),
                         op=partial(_compute_power, int(self.generator_mode)))),
                     max_stack=self.max_stack,
-                    as_array=True,
-                    mode='slice'))),
+                    is_wrapping=True,
+                    as_array=True))),
             auto_refresh=False)
 
     def refresh(self) -> float:

@@ -17,6 +17,7 @@ from jiminy_py.core import (  # pylint: disable=no-name-in-module
     array_copyto, multi_array_copyto)
 
 from ..bases import InterfaceJiminyEnv, InterfaceQuantity, QuantityCreator
+from ..utils import DataNested, build_reduce
 
 
 ValueT = TypeVar('ValueT')
@@ -50,9 +51,9 @@ class StackedQuantity(
     whose last dimension gathers the value of individual timesteps.
     """
 
-    mode: Literal['slice', 'zeros']
-    """Fallback strategy in case of incomplete stack. "slice" returns only
-    available data, "zeros" returns a zero-padded fixed-length stack.
+    is_wrapping: bool
+    """Whether to wrap the stack around (i.e. starting filling data back from
+    the start when full) when full instead of shifting data to the left.
     """
 
     allow_update_graph: ClassVar[bool] = False
@@ -66,8 +67,8 @@ class StackedQuantity(
                  quantity: QuantityCreator[ValueT],
                  *,
                  max_stack: int,
-                 as_array: Literal[False],
-                 mode: Literal['slice', 'zeros']) -> None:
+                 is_wrapping: bool,
+                 as_array: Literal[False]) -> None:
         ...
 
     @overload
@@ -77,8 +78,8 @@ class StackedQuantity(
                  quantity: QuantityCreator[Union[np.ndarray, float]],
                  *,
                  max_stack: int,
-                 as_array: Literal[True],
-                 mode: Literal['slice', 'zeros']) -> None:
+                 is_wrapping: bool,
+                 as_array: Literal[True]) -> None:
         ...
 
     def __init__(self,
@@ -87,8 +88,8 @@ class StackedQuantity(
                  quantity: QuantityCreator[Any],
                  *,
                  max_stack: int = sys.maxsize,
-                 as_array: bool = False,
-                 mode: Literal['slice', 'zeros'] = 'slice') -> None:
+                 is_wrapping: bool = False,
+                 as_array: bool = False) -> None:
         """
         :param env: Base or wrapped jiminy environment.
         :param parent: Higher-level quantity from which this quantity is a
@@ -100,30 +101,39 @@ class StackedQuantity(
                           starting to discard the oldest one (FIFO).
                           Optional: The maxium sequence length by default, ie
                           `sys.maxsize` (2^63 - 1).
+        :param is_wrapping: Whether to wrap the stack around (i.e. starting
+                            filling data back from the start when full) when
+                            full instead of shifting data to the left. Note
+                            that wrapping around is much faster for large stack
+                            but does not preserve temporal ordering.
+                            Optional: False by default.
         :param as_array: Whether to return data as a list or a contiguous
                          N-dimensional array whose last dimension gathers the
                          value of individual timesteps.
-        :param mode: Fallback strategy in case of incomplete stack.
-                     'zeros' is only supported by quantities returning
-                     fixed-size N-D array.
-                     Optional: 'slice' by default.
         """
         # Make sure that the input arguments are valid
-        if max_stack > 10000 and (mode != 'slice' or as_array):
+        if max_stack > 10000 and (as_array and not is_wrapping):
             warnings.warn(
                 "Very large stack length is strongly discourages for "
-                "`mode != 'slice'` or `as_array=True`.")
+                "`as_array=True` and `is_wrapping=False`.")
 
         # Backup user arguments
         self.max_stack = max_stack
+        self.is_wrapping = is_wrapping
         self.as_array = as_array
-        self.mode = mode
 
         # Call base implementation
         super().__init__(env,
                          parent,
                          requirements=dict(quantity=quantity),
                          auto_refresh=True)
+
+        # Define specialized flattening operators for efficiency
+        self._use_deepcopy = False
+        self._dst_flat: List[np.ndarray] = []
+        self._src_flat: List[np.ndarray] = []
+        self._flatten_dst: Callable[[DataNested], None] = lambda data: None
+        self._flatten_src: Callable[[DataNested], None] = lambda data: None
 
         # Allocate stack buffer.
         # Note that using a plain old list is more efficient than dequeue in
@@ -136,7 +146,6 @@ class StackedQuantity(
         # Note that it will be allocated lazily since the dimension of the
         # quantity is not known in advance.
         self._data = np.array([])
-        self._data_views: Tuple[np.ndarray, ...] = ()
 
         # Define proxy to number of steps of current episode for fast access
         self._num_steps = np.array(-1)
@@ -154,80 +163,137 @@ class StackedQuantity(
         # Clear stack buffer
         self._value_list.clear()
 
-        # Initialize buffers if necessary
-        if self.as_array or self.mode == 'zeros':
-            # Get current value of base quantity
-            value = self.quantity.get()
+        # Get current value of base quantity
+        value = self.quantity.get()
 
-            # Make sure that the quantity is an array or a scalar
-            if not isinstance(value, (int, float, np.ndarray)):
+        # Try to define specialized operators based on value.
+        # This would succeeded if and only if all leaves are `np.ndarray`.
+        # Do not try again if deepcopy mode was previously enabled.
+        if not self.as_array and not self._use_deepcopy:
+            try:
+                self._flatten_dst = build_reduce(fn=self._dst_flat.append,
+                                                 op=None,
+                                                 dataset=(),
+                                                 space=value,
+                                                 arity=1,
+                                                 forward_bounds=False)
+                self._flatten_src = build_reduce(fn=self._src_flat.append,
+                                                 op=None,
+                                                 dataset=(),
+                                                 space=value,
+                                                 arity=1,
+                                                 forward_bounds=False)
+            except AssertionError:
+                # Falling back to generic deepcopy
+                self._use_deepcopy = True
+
+        # Initialize buffers if necessary
+        if self.as_array:
+            # Make sure that the value of the quantity is supported
+            if not isinstance(value, (int, float, np.ndarray, np.number)):
                 raise ValueError(
                     "'as_array=True' is only supported by quantities "
                     "returning N-dimensional arrays as value.")
-            value = np.asarray(value)
+            _value = np.asarray(value)
 
-            # Full the queue with zero if necessary
-            if self.mode == 'zeros':
-                for _ in range(self.max_stack):
-                    self._value_list.append(
-                        np.zeros_like(value))  # type: ignore[arg-type]
-
-            # Allocate stack memory if necessary
-            if self.as_array:
-                self._data = np.zeros((*value.shape, self.max_stack),
-                                      order='F',
-                                      dtype=value.dtype)
-                self._data_views = tuple(
-                    self._data[..., i] for i in range(self.max_stack))
+            # Allocate contiguous memory if necessary
+            self._data = np.zeros(
+                (*_value.shape, self.max_stack), order='F', dtype=_value.dtype)
 
         # Reset step counter
         self._num_steps_prev = -1
 
     def refresh(self) -> OtherValueT:
-        # Append value to the queue only once per step and only if a simulation
-        # is running. Note that data must be deep-copied to make sure it does
-        # not get altered afterward.
-        value_list = self._value_list
+        # Check if there is anything to do
+        must_refresh = True
+        num_steps = self._num_steps.item()
         if self.env.is_simulation_running:
-            num_steps = self._num_steps.item()
-            if num_steps != self._num_steps_prev:
-                if num_steps != self._num_steps_prev + 1:
-                    raise RuntimeError(
-                        "Previous step missing in the stack. Please reset the "
-                        "environment after adding this quantity.")
-                value = self.quantity.get()
-                if isinstance(value, np.ndarray):
-                    # Avoid memory allocation if possible, which is much faster
-                    if len(value_list) == self.max_stack:
-                        buffer = value_list.pop(0)
-                        array_copyto(buffer, value)
-                        value_list.append(buffer)
-                    else:
-                        value_list.append(
-                            value.copy())  # type: ignore[arg-type]
-                else:
-                    if len(value_list) == self.max_stack:
-                        del value_list[0]
-                    value_list.append(tree.deepcopy(value))
-                self._num_steps_prev += 1
+            # Early return if the stack if already up to date
+            if num_steps == self._num_steps_prev:
+                must_refresh = False
 
-        # Aggregate data in contiguous array only if requested
+            # Make sure that no steps are missing in the stack
+            elif num_steps != self._num_steps_prev + 1:
+                raise RuntimeError(
+                    "Previous step missing in the stack. Please reset the "
+                    "environment after adding this quantity.")
+
+        # Extract contiguous slice of (future) available data if necessary
         if self.as_array:
-            is_padded = self.mode == 'zeros'
-            offset = - self._num_steps_prev - 1
-            data, data_views = self._data, self._data_views
-            if offset > - self.max_stack:
-                if is_padded:
-                    value_list = value_list[offset:]
+            data = self._data
+            num_stack = num_steps + 1
+            if num_stack < self.max_stack:
+                data = self._data[..., :num_stack]
+
+        # Get current index if wrapping around
+        if self.is_wrapping:
+            index = num_steps % self.max_stack
+
+        # Append current value of the quantity to the history buffer or update
+        # aggregated continuous array directly if necessary.
+        is_stack_full = num_steps >= self.max_stack
+        if must_refresh:
+            # Get the current value of the quantity
+            value = self.quantity.get()
+
+            # Append value to the history or aggregate data directly
+            if self.as_array:
+                if self.is_wrapping:
+                    array_copyto(data[..., index], value)
                 else:
-                    data = data[..., offset:]
-                data_views = self._data_views[offset:]
-            multi_array_copyto(data_views, value_list)
+                    # Shift all available data one timestep to the left.
+                    # Operate on (future) available data only for efficiency.
+                    if is_stack_full:
+                        array_copyto(data[..., :-1], data[..., 1:])
+
+                    # Update most recent value in stack with the current one
+                    array_copyto(data[..., -1], value)
+            else:
+                # Remove oldest value in the stack if full
+                update_buffer = is_stack_full and not self._use_deepcopy
+                update_in_place = update_buffer and self.is_wrapping
+                if update_in_place:
+                    buffer = self._value_list[index]
+                elif update_buffer:
+                    buffer = self._value_list.pop(0)
+
+                # Copy of the current value, while avoiding memory allocation
+                # if possible for efficiency. Note that data must be
+                # "deep-copied" to make sure it does not get altered afterward.
+                if update_buffer:
+                    # pylint: disable=used-before-assignment
+                    try:
+                        self._dst_flat.clear()
+                        self._flatten_dst(buffer)
+                        self._src_flat.clear()
+                        self._flatten_src(value)  # type: ignore[arg-type]
+                        multi_array_copyto(self._dst_flat, self._src_flat)
+                    except AssertionError:
+                        # The value of the quantity has changed its memory
+                        # layout wrt initialization. Enabling generic deepcopy
+                        # fallback from now on.
+                        buffer = tree.deepcopy(value)
+                        self._use_deepcopy = True
+                else:
+                    buffer = tree.deepcopy(value)
+
+                # Add copied value to the stack if necessary
+                if not update_in_place:
+                    if is_stack_full and self.is_wrapping:
+                        self._value_list.insert(0, buffer)
+                    else:
+                        self._value_list.append(buffer)
+
+            # Increment step counter
+            self._num_steps_prev += 1
+
+        # Return aggregate data if requested
+        if self.as_array:
             return cast(OtherValueT, data)
 
         # Return the whole stack as a list to preserve the integrity of the
         # underlying container and make the API robust to internal changes.
-        return cast(OtherValueT, value_list)
+        return cast(OtherValueT, tuple(self._value_list))
 
 
 @dataclass(unsafe_hash=True)

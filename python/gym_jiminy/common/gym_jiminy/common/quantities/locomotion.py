@@ -103,6 +103,19 @@ def translate_position_odom(position: np.ndarray,
     out[1] = - sin_yaw * pos_rel_x + cos_yaw * pos_rel_y
 
 
+@nb.jit(nopython=True, cache=True, fastmath=True)
+def compute_height(base_pos: np.ndarray, contacts_pos: np.ndarray) -> float:
+    """Compute the height of the robot, which is defined as the maximum
+    vertical difference between the base of the robot and the contact points.
+
+    :param base_pos: Position of the base of the robot as a 1D array.
+    :param contacts_pos: Position of all the contact points of the robot as a
+                         2D array whose first dimension are the (X, Y, Z)
+                         components while the second gathers individual points.
+    """
+    return base_pos[2] - np.min(contacts_pos[2])
+
+
 @dataclass(unsafe_hash=True)
 class BaseRelativeHeight(InterfaceQuantity[float]):
     """Relative height of the floating base of the robot wrt lowest contact
@@ -155,8 +168,7 @@ class BaseRelativeHeight(InterfaceQuantity[float]):
             auto_refresh=False)
 
     def refresh(self) -> float:
-        base_pos, contacts_pos = self.base_pos.get(), self.contacts_pos.get()
-        return base_pos[2] - np.min(contacts_pos[2])
+        return compute_height(self.base_pos.get(), self.contacts_pos.get())
 
 
 @dataclass(unsafe_hash=True)
@@ -962,7 +974,8 @@ class CapturePoint(AbstractQuantity[np.ndarray]):
                          pinocchio_data,
                          pin.POSITION)
         min_height = min(
-            oMf.translation[2] for oMf in pinocchio_data.oMf)
+            pinocchio_data.oMf[i].translation[2]
+            for i in self.robot.contact_frame_indices)
         gravity = abs(self.pinocchio_model.gravity.linear[2])
         robot_height = pinocchio_data.com[0][2] - min_height
         self.omega = math.sqrt(gravity / robot_height)

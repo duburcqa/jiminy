@@ -15,7 +15,7 @@ from .spaces import ArrayOrScalar
 TWIST_SWING_SINGULAR_THR = 1e-5
 
 
-@nb.jit(nopython=True, cache=True, inline='always')
+@nb.jit(nopython=True, cache=True, fastmath=True, inline='always')
 def _mean(array: np.ndarray) -> np.ndarray:
     """Compute the arithmetic mean over flattened array.
 
@@ -24,7 +24,7 @@ def _mean(array: np.ndarray) -> np.ndarray:
     return np.mean(array)
 
 
-@nb.jit(nopython=True, cache=True, inline='always')
+@nb.jit(nopython=True, cache=True, fastmath=True, inline='always')
 def _mean_axis(array: np.ndarray, axis: int) -> np.ndarray:
     """Compute the arithmetic mean along a given axis.
 

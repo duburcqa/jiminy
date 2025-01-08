@@ -371,7 +371,7 @@ class ShiftTrackingQuantityTermination(QuantityTermination[np.ndarray]):
         stack_creator = lambda mode: (StackedQuantity, dict(  # noqa: E731
             quantity=quantity_creator(mode),
             max_stack=max_stack,
-            mode='slice',
+            is_wrapping=True,
             as_array=True))
 
         # Add drift quantity to the set of quantities managed by environment

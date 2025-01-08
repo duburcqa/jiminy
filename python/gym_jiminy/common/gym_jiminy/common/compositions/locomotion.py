@@ -577,6 +577,16 @@ class ImpactForceTermination(QuantityTermination):
             is_training_only=is_training_only)
 
 
+@nb.jit(nopython=True, cache=True, fastmath=True, inline='always')
+def l2_norm(array: np.ndarray) -> np.floating:
+    """Compute the L2-norm of a N-dimensional array as after flattening as a
+    vector.
+
+    :param array: Input array.
+    """
+    return np.linalg.norm(array.reshape((-1,)))
+
+
 class DriftTrackingBaseOdometryPositionTermination(
         DriftTrackingQuantityTermination):
     """Terminate the episode if the current base odometry position is drifting
@@ -637,7 +647,7 @@ class DriftTrackingBaseOdometryPositionTermination(
             max_position_err,
             horizon,
             grace_period,
-            post_fn=np.linalg.norm,
+            post_fn=l2_norm,
             is_truncation=False,
             is_training_only=is_training_only)
 
