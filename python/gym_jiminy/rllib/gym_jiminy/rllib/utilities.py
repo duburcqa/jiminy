@@ -54,7 +54,8 @@ from ray.rllib.connectors.module_to_env import (
     UnBatchToIndividualItems)
 from ray.rllib.connectors.env_to_module import (
     AddObservationsFromEpisodesToBatch, AddStatesFromEpisodesToBatch,
-    BatchIndividualItems, EnvToModulePipeline, NumpyToTensor)
+    BatchIndividualItems, EnvToModulePipeline, NumpyToTensor,
+    MeanStdFilter as _MeanStdFilter)
 from ray.rllib.algorithms.callbacks import DefaultCallbacks
 from ray.rllib.algorithms.algorithm import Algorithm
 from ray.rllib.algorithms.algorithm_config import AlgorithmConfig
@@ -67,7 +68,7 @@ from ray.rllib.utils.metrics import (
     NUM_EPISODES_LIFETIME, EPISODE_RETURN_MEAN, EPISODE_RETURN_MAX,
     EPISODE_LEN_MEAN, EVALUATION_RESULTS, ENV_RUNNER_RESULTS, NUM_EPISODES)
 from ray.rllib.utils.metrics.metrics_logger import MetricsLogger
-from ray.rllib.utils.typing import EpisodeID, ResultDict, EpisodeType
+from ray.rllib.utils.typing import AgentID, EpisodeID, ResultDict, EpisodeType
 
 from jiminy_py.viewer import async_play_and_record_logs_files
 from gym_jiminy.common.bases import Obs, Act
@@ -89,6 +90,28 @@ PRINT_RESULT_FIELDS_FILTER = (
 VALID_SUMMARY_TYPES = (int, float, np.float32, np.float64, np.int32, np.int64)
 
 LOGGER = logging.getLogger(__name__)
+
+
+class MeanStdFilter(_MeanStdFilter):
+    @staticmethod
+    def _get_state_from_filters(filters: Dict[AgentID, Dict[str, Any]]
+                                ) -> Dict[AgentID, Dict[str, Any]]:
+        # Statistics accumulation is currently broken for ray<=2.40 because it
+        # returns 'running_stats' (which is accummulated across all workers)
+        # instead of 'buffer' (which is local).
+        # See PR for details: https://github.com/ray-project/ray/pull/49718
+        ret = {}
+        for agent_id, agent_filter in filters.items():
+            ret[agent_id] = {
+                "shape": agent_filter.shape,
+                "de_mean_to_zero": agent_filter.demean,
+                "de_std_to_one": agent_filter.destd,
+                "clip_by_value": agent_filter.clip,
+                "running_stats": [
+                    s.to_state() for s in tree.flatten(agent_filter.buffer)
+                ],
+            }
+        return ret
 
 
 class MonitorEpisodeCallback(DefaultCallbacks):
