@@ -45,6 +45,23 @@ ObsMirrorMat = Union[np.ndarray, Sequence[np.ndarray]]
 ActMirrorMat = Union[np.ndarray, Sequence[np.ndarray]]
 
 
+def copy_batch(batch: SampleBatch) -> SampleBatch:
+    """Creates a shallow copy of a given batch.
+
+    .. note::
+        The original implementation for shallow copy `batch.copy(shallow=True)`
+        is extremely slow, and as such, its uses must be avoided.
+
+    :param batch: Batch to copy.
+    """
+    return SampleBatch(
+        dict(batch),
+        _time_major=batch.time_major,
+        _zero_padded=batch.zero_padded,
+        _max_seq_len=batch.max_seq_len,
+        _num_grad_updates=batch.num_grad_updates)
+
+
 def get_adversarial_observation_sgld(
         module: RLModule,
         batch: SampleBatch,
@@ -65,10 +82,11 @@ def get_adversarial_observation_sgld(
     # Be careful accessing fields using the original batch to properly keep
     # track of accessed keys, which will be used to automatically discard
     # useless components of policy's view requirements.
-    batch_copy = batch.copy(shallow=True)
+    batch_copy = copy_batch(batch)
 
     # Extract original observation
     observation_true = batch[Columns.OBS]
+    batch_size = len(batch)
 
     # Define observation upper and lower bounds for clipping
     obs_lb_flat = observation_true - noise_scale
@@ -434,7 +452,7 @@ class PPOTorchLearner(_PPOTorchLearner):
         batch_all = {}
         if config.caps_temporal_reg > 0.0 or config.temporal_barrier_reg > 0.0:
             # Shallow copy the original training batch
-            batch_copy = batch.copy(shallow=True)
+            batch_copy = copy_batch(batch)
 
             # Replace current observation and state by the next one
             batch_copy[Columns.OBS] = batch.pop(Columns.NEXT_OBS)
@@ -445,7 +463,7 @@ class PPOTorchLearner(_PPOTorchLearner):
             batch_all["next"] = batch_copy
         if config.caps_spatial_reg > 0.0 or config.caps_global_reg > 0.0:
             # Shallow copy the original training batch
-            batch_copy = batch.copy(shallow=True)
+            batch_copy = copy_batch(batch)
 
             if config.enable_adversarial_noise:
                 # Compute adversarial observation maximizing action difference
@@ -467,7 +485,7 @@ class PPOTorchLearner(_PPOTorchLearner):
             batch_all["noisy"] = batch_copy
         if config.symmetric_policy_reg > 0.0:
             # Shallow copy the original training batch
-            batch_copy = batch.copy(shallow=True)
+            batch_copy = copy_batch(batch)
 
             # Compute mirrored observation
             observation_mirrored = _compute_mirrored_value(
