@@ -81,8 +81,8 @@ HISTOGRAM_BINS = 15
 PRINT_RESULT_FIELDS_FILTER = (
     TRAINING_ITERATION,
     TIME_TOTAL_S,
-    NUM_ENV_STEPS_SAMPLED_LIFETIME,
-    NUM_EPISODES_LIFETIME,
+    "/".join((ENV_RUNNER_RESULTS, NUM_ENV_STEPS_SAMPLED_LIFETIME)),
+    "/".join((ENV_RUNNER_RESULTS, NUM_EPISODES_LIFETIME)),
     "/".join((ENV_RUNNER_RESULTS, EPISODE_RETURN_MAX)),
     "/".join((ENV_RUNNER_RESULTS, EPISODE_RETURN_MEAN)),
     "/".join((ENV_RUNNER_RESULTS, EPISODE_LEN_MEAN)),
@@ -823,7 +823,9 @@ def train(algo_config: AlgorithmConfig,
                 result_flat = flatten_dict(result, delimiter="/")
                 for field in PRINT_RESULT_FIELDS_FILTER:
                     if field in result_flat.keys():
-                        msg_data.append(f"{field}: {result_flat[field]:.5g}")
+                        msg_data.append(
+                            f"{field.split("/")[-1]}: "
+                            f"{result_flat[field]:.5g}")
                 print(" - ".join(msg_data))
 
             # Backup the policy
@@ -1131,7 +1133,7 @@ def _pretty_print_statistics(data: Sequence[Tuple[str, np.ndarray]]) -> None:
                 f"(min = {np.min(values):.2f}, max = {np.max(values):.2f})")
 
 
-def _pretty_print_episode_metrics(all_episodes: List[EpisodeType],
+def _pretty_print_episode_metrics(all_episodes: Sequence[EpisodeType],
                                   step_dt: Optional[float]) -> None:
     """Render ASCII histograms horizontally side-by-side of high-level
     performance metrics about the batch of episodes.
@@ -1292,7 +1294,7 @@ def evaluate_from_algo(algo: Algorithm,
 
     # Centralized all metrics in algorithm logger
     algo.metrics.merge_and_log_n_dicts(
-        all_metrics, key=(EVALUATION_RESULTS, ENV_RUNNER_RESULTS))
+        list(all_metrics), key=(EVALUATION_RESULTS, ENV_RUNNER_RESULTS))
 
     # Early return if computing reduced metrics is not requested.
     # Note that it expects a non-empty `ResultDict` as first output, even

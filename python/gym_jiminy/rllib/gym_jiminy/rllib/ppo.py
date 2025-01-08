@@ -3,14 +3,10 @@ to encourage smoothness of the action and clustering of the behavior of the
 policy without having to rework the reward function itself. It takes advantage
 of the analytical gradient of the policy.
 """
-import math
-import operator
-from functools import reduce
 from typing import (
     Optional, Union, Sequence, Type, Dict, Any, List, Tuple, cast)
 
 import numpy as np
-import gymnasium as gym
 import torch
 from torch.nn import functional as F
 
@@ -20,8 +16,6 @@ from ray.rllib.core.columns import Columns
 from ray.rllib.core.learner import Learner
 from ray.rllib.core.rl_module.rl_module import RLModule
 from ray.rllib.core.rl_module.torch.torch_rl_module import TorchRLModule
-from ray.rllib.env.single_agent_env_runner import SingleAgentEnvRunner
-from ray.rllib.env.env_runner_group import EnvRunnerGroup
 from ray.rllib.algorithms.algorithm_config import AlgorithmConfig
 from ray.rllib.algorithms.ppo import PPOConfig as _PPOConfig, PPO as _PPO
 from ray.rllib.algorithms.ppo.torch.ppo_torch_learner import (
@@ -36,9 +30,6 @@ from ray.rllib.utils.from_config import _NotProvided, NotProvided
 from ray.rllib.utils.typing import TensorType, EpisodeType, ModuleID
 
 from jiminy_py import tree
-from gym_jiminy.common.bases import BasePipelineWrapper
-from gym_jiminy.common.wrappers import FlattenObservation, FlattenAction
-from gym_jiminy.common.utils import zeros
 
 
 ObsMirrorMat = Union[np.ndarray, Sequence[np.ndarray]]
@@ -86,7 +77,6 @@ def get_adversarial_observation_sgld(
 
     # Extract original observation
     observation_true = batch[Columns.OBS]
-    batch_size = len(batch)
 
     # Define observation upper and lower bounds for clipping
     obs_lb_flat = observation_true - noise_scale
@@ -148,9 +138,9 @@ def _compute_mirrored_value(value: torch.Tensor,
     """Compute mirrored value from observation space based on provided
     mirroring transformation.
     """
-    batch_size, offset, data_mirrored_all = len(value), 0, []
+    offset, data_mirrored_all = 0, []
     for mirror_mat in mirror_mat_nested:
-        size = mirror_mat.shape[0]
+        size, _ = mirror_mat.shape
         data_mirrored_all.append(
             value[:, offset:(offset + size)] @ mirror_mat)
         offset += size

@@ -1,7 +1,6 @@
 """Implementation of Mahony filter block compatible with gym_jiminy
 reinforcement learning pipeline environment design.
 """
-from collections import OrderedDict
 from typing import Any, Type, TypeVar, cast
 
 import numpy as np

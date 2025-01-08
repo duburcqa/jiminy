@@ -143,7 +143,7 @@ def _merge_base_env_with_block(
             assert issubclass_mapping(type(base_group))
             base_group[block_name] = block_group  # type: ignore[index]
 
-    return mapping_cls(observation)  # type: ignore[call-arg]
+    return mapping_cls(**observation)
 
 
 class BasePipelineWrapper(

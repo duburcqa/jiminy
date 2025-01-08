@@ -159,8 +159,6 @@ class AcrobotJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
             low=np.concatenate((position_space.low, velocity_space.low)),
             high=np.concatenate((position_space.high, velocity_space.high)),
             dtype=np.float64)
-        self.observation_space.mirror_mat = (  # type: ignore[attr-defined]
-            np.diag([1.0, -1.0, 1.0, -1.0, -1.0, -1.0]))
 
     def refresh_observation(self, measurement: EngineObsType) -> None:
         angles, velocities = measurement['measurements']['EncoderSensor']
@@ -180,8 +178,6 @@ class AcrobotJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
                 gym.spaces.Discrete(len(self.AVAIL_CTRL)))
         else:
             super()._initialize_action_space()
-            self.action_space.mirror_mat = (  # type: ignore[attr-defined]
-                - np.eye(1))
 
     def _sample_state(self) -> Tuple[np.ndarray, np.ndarray]:
         """Returns a valid configuration and velocity for the robot.
