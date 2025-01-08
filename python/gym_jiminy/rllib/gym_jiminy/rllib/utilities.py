@@ -24,6 +24,7 @@ from datetime import datetime
 from collections import defaultdict
 from tempfile import mkdtemp
 from traceback import TracebackException
+from packaging.version import parse as parse_version
 from typing import (
     Optional, Any, Union, Sequence, Tuple, List, Literal, Dict, Set, Type,
     DefaultDict, overload, cast)
@@ -72,7 +73,7 @@ from ray.rllib.utils.typing import AgentID, EpisodeID, ResultDict, EpisodeType
 
 from jiminy_py.viewer import async_play_and_record_logs_files
 from gym_jiminy.common.bases import Obs, Act
-from gym_jiminy.common.envs import BaseJiminyEnv, PolicyCallbackFun
+from gym_jiminy.common.envs import PolicyCallbackFun, BaseJiminyEnv
 
 
 HISTOGRAM_BINS = 15
@@ -162,7 +163,7 @@ class MonitorEpisodeCallback(DefaultCallbacks):
                        episode: EpisodeType,
                        env_runner: EnvRunner,
                        metrics_logger: MetricsLogger,
-                       env: gym.Env,
+                       env: gym.vector.VectorEnv,
                        env_index: int,
                        rl_module: RLModule,
                        **kwargs: Any) -> None:
@@ -631,7 +632,7 @@ def train(algo_config: AlgorithmConfig,
     # access the original spec is by instantiating the entry-point manually
     # without relying on `gym.make`.
     env_spec, *_ = chain(*algo.env_runner_group.foreach_worker(
-        lambda worker: worker.env.get_attr('spec')))
+        lambda worker: worker.env.unwrapped.get_attr('spec')))
     assert env_spec is not None
     if env_spec.reward_threshold is None:
         env_spec = env_spec.entry_point().spec
@@ -670,7 +671,8 @@ def train(algo_config: AlgorithmConfig,
 
         # Backup all environment's source files
         (env_type,) = set(chain(*algo.env_runner_group.foreach_worker(
-            lambda worker: [type(env.unwrapped) for env in worker.env.envs])))
+            lambda worker: [
+                type(env.unwrapped) for env in worker.env.unwrapped.envs])))
         while True:
             try:
                 path = inspect.getfile(env_type)
@@ -885,11 +887,11 @@ def _sample_initialize(worker: EnvRunner) -> Sequence[bool]:
     assert isinstance(worker, SingleAgentEnvRunner)
 
     # Stop any simulation that may be running
-    worker.env.call('stop')
+    worker.env.unwrapped.call('stop')
 
     # Switch the environment to evaluation mode
-    is_training_all = worker.env.get_attr('is_training')
-    worker.env.call('eval')
+    is_training_all = worker.env.unwrapped.get_attr('is_training')
+    worker.env.unwrapped.call('eval')
 
     return is_training_all
 
@@ -913,14 +915,16 @@ def _sample_one_episode_and_collect_metrics(worker: EnvRunner) -> Tuple[
 
     # Drop all existing log files as they are not associated with the
     # ongoing evaluation.
-    # Note that `set_attr` on vector envs is buggy on Gymnasium < 1.0, as
-    # it creates the attributes at wrapper level even if it exists in the
-    # unwrapped environments. Assuming `SyncVectorEnv` to get around this
-    # issue.
-    # worker.env.set_attr('log_path', None)
-    assert isinstance(worker.env.unwrapped, gym.vector.SyncVectorEnv)
-    for env in worker.env.envs:
-        env.unwrapped.log_path = None
+    if parse_version(gym.__version__) >= parse_version("1.0"):
+        worker.env.unwrapped.set_attr('log_path', None)
+    else:
+        # Note that `set_attr` on vector envs is buggy on Gymnasium < 1.0, as
+        # it creates the attributes at wrapper level even if it exists in the
+        # unwrapped environments.
+        assert isinstance(worker.env.unwrapped, gym.vector.SyncVectorEnv)
+        for env in worker.env.unwrapped.envs:
+            assert isinstance(env.unwrapped, BaseJiminyEnv)
+            env.unwrapped.log_path = None
 
     # Run a single episode.
     # Note that episodes are sorted by environment indices by design.
@@ -928,7 +932,7 @@ def _sample_one_episode_and_collect_metrics(worker: EnvRunner) -> Tuple[
 
     # Extract the path of the log files
     log_paths: Tuple[str, ...] = tuple(
-        filter(None, worker.env.get_attr('log_path')))
+        filter(None, worker.env.unwrapped.get_attr('log_path')))
 
     # Collect metrics
     metrics = worker.get_metrics()
@@ -957,16 +961,17 @@ def _sample_finalize(worker: EnvRunner,
     assert isinstance(worker, SingleAgentEnvRunner)
 
     # Stop any simulation that may be running
-    worker.env.call('stop')
+    worker.env.unwrapped.call('stop')
 
-    # Restore the original training/evaluation mode.
-    # FIXME: Rely on `set_attr` when moving to `gymnasium>=1.0`, which fixes
-    # attribute lookup in wrapped layers.
-    # worker.env.set_attr('is_training', is_training)
-    assert isinstance(worker.env.unwrapped, gym.vector.SyncVectorEnv)
-    for env, is_training in zip(worker.env.envs, is_training_all):
-        if is_training:
-            env.train()
+    # Restore the original training/evaluation mode
+    if parse_version(gym.__version__) >= parse_version("1.0"):
+        worker.env.unwrapped.set_attr('is_training', is_training_all)
+    else:
+        assert isinstance(worker.env.unwrapped, gym.vector.SyncVectorEnv)
+        for env, is_training in zip(
+                worker.env.unwrapped.envs, is_training_all):
+            if is_training:
+                env.get_wrapper_attr("train")()
 
 
 def sample_from_runner(
@@ -975,6 +980,9 @@ def sample_from_runner(
         ) -> Tuple[List[ResultDict], List[EpisodeType], List[str]]:
     """Sample multiple evaluation episodes on any of the environments being
     managed by a given evaluation runner.
+
+    .. warning::
+        This method only supports environments deriving from `BaseJiminyEnv`.
 
     :param worker: Environment runner to use for collecting samples.
     :param num_episodes: Number of episodes to collect.
@@ -986,7 +994,9 @@ def sample_from_runner(
     assert isinstance(env_runner, SingleAgentEnvRunner)
 
     # This method only supports environments deriving from `BaseJiminyEnv`
-    (env_type,) = set(type(env.unwrapped) for env in env_runner.env.envs)
+    assert isinstance(env_runner.env.unwrapped, gym.vector.SyncVectorEnv)
+    (env_type,) = set(
+        type(env.unwrapped) for env in env_runner.env.unwrapped.envs)
     if not issubclass(env_type, BaseJiminyEnv):
         raise RuntimeError("Test env must inherit from `BaseJiminyEnv`.")
 
@@ -1021,6 +1031,9 @@ def sample_from_runner_group(
     Sampling would be distributed across all remote runners if any, otherwise
     it will be sequential on the local runner.
 
+    .. warning::
+        This method only supports environments deriving from `BaseJiminyEnv`.
+
     :param workers: Group of environment runners to use for collecting samples.
     :param num_episodes: Number of episodes to collect.
     :param evaluation_sample_timeout_s:
@@ -1033,7 +1046,8 @@ def sample_from_runner_group(
     """
     # This method only supports environments deriving from `BaseJiminyEnv`
     (env_type,) = set(chain(*workers.foreach_worker(
-        lambda worker: [type(env.unwrapped) for env in worker.env.envs])))
+        lambda worker: [
+            type(env.unwrapped) for env in worker.env.unwrapped.envs])))
     if not issubclass(env_type, BaseJiminyEnv):
         raise RuntimeError("Test env must inherit from `BaseJiminyEnv`.")
 
@@ -1239,7 +1253,7 @@ def evaluate_from_algo(algo: Algorithm,
     if print_stats:
         try:
             (step_dt,) = set(chain(*workers.foreach_worker(
-                lambda worker: worker.env.get_attr('step_dt'))))
+                lambda worker: worker.env.unwrapped.get_attr('step_dt'))))
         except ValueError:
             step_dt = None
         _pretty_print_episode_metrics(all_episodes, step_dt)
@@ -1264,7 +1278,7 @@ def evaluate_from_algo(algo: Algorithm,
     # Replay and/or record a video of the best and worst trials if requested.
     # Async to enable replaying and recording while training keeps going.
     viewer_kwargs, *_ = chain(*workers.foreach_worker(
-        lambda worker: worker.env.get_attr('viewer_kwargs')))
+        lambda worker: worker.env.unwrapped.get_attr('viewer_kwargs')))
     viewer_kwargs.update(
         scene_name=f"iter_{algo.iteration}",
         robots_colors=('green', 'red') if num_episodes > 1 else None,
@@ -1365,7 +1379,7 @@ def evaluate_from_runner(env_runner: EnvRunner,
     # Print stats in ASCII histograms if requested
     if print_stats:
         try:
-            (step_dt,) = set(env_runner.env.get_attr('step_dt'))
+            (step_dt,) = set(env_runner.env.unwrapped.get_attr('step_dt'))
         except ValueError:
             step_dt = None
         _pretty_print_episode_metrics(all_episodes, step_dt)
@@ -1377,7 +1391,7 @@ def evaluate_from_runner(env_runner: EnvRunner,
 
     # Replay and/or record a video of the best and worst trials if requested.
     # Async to enable replaying and recording while training keeps going.
-    viewer_kwargs, *_ = env_runner.env.get_attr("viewer_kwargs")
+    viewer_kwargs, *_ = env_runner.env.unwrapped.get_attr("viewer_kwargs")
     viewer_kwargs = {
         **viewer_kwargs, **dict(
             robots_colors=('green', 'red') if num_episodes > 1 else None),

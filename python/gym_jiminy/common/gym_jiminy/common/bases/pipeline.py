@@ -658,7 +658,8 @@ class ComposedJiminyEnv(BasePipelineWrapper[Obs, Act, Obs, Act],
                     high=float("inf"),
                     shape=(length_lambda_c,),
                     dtype=np.float64)
-            trajectory_space = gym.spaces.Dict(state_space)
+            trajectory_space = gym.spaces.Dict(
+                **state_space)  # type: ignore[arg-type]
 
         # Aggregate the reference trajectory space with the base observation
         self.observation_space = cast(

@@ -286,10 +286,10 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
             # Note that time is removed from the observation space because it
             # will be checked independently.
             assert isinstance(reduced_obs_space, spaces.Dict)
-            reduced_obs_space = spaces.Dict(OrderedDict(
+            reduced_obs_space = spaces.Dict([
                 (key, value)
                 for key, value in reduced_obs_space.items()
-                if key != 't'))
+                if key != 't'])
         self._contains_observation = build_contains(
             self.observation, reduced_obs_space, tol_rel=OBS_CONTAINS_TOL)
         self._get_clipped_env_observation: Callable[[], DataNested] = (
@@ -1309,8 +1309,8 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
             spaces.Dict(agent=get_robot_state_space(self.robot)))
         observation_spaces['measurements'] = (
             get_robot_measurements_space(self.robot))
-        self.observation_space = cast(
-            spaces.Space[Obs], spaces.Dict(observation_spaces))
+        self.observation_space = cast(spaces.Space[Obs], spaces.Dict(
+            **observation_spaces))  # type: ignore[arg-type]
 
     def _neutral(self) -> np.ndarray:
         """Returns a neutral valid configuration for the agent.

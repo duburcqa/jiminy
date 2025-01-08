@@ -145,14 +145,14 @@ def get_robot_state_space(robot: jiminy.Robot,
         velocity_limit = np.full_like(velocity_limit, float("inf"))
 
     # Aggregate position and velocity bounds to define state space
-    return gym.spaces.Dict(OrderedDict(
+    return gym.spaces.Dict(
         q=gym.spaces.Box(low=position_limit_lower,
                          high=position_limit_upper,
                          dtype=np.float64),
         v=gym.spaces.Box(low=float("-inf"),
                          high=float("inf"),
                          shape=(robot.pinocchio_model.nv,),
-                         dtype=np.float64)))
+                         dtype=np.float64))
 
 
 def get_robot_measurements_space(robot: jiminy.Robot) -> gym.spaces.Dict:
@@ -231,10 +231,10 @@ def get_robot_measurements_space(robot: jiminy.Robot) -> gym.spaces.Dict:
         sensor_space_upper[EffortSensor.type][0, sensor.index] = (
             motor.effort_limit)
 
-    return gym.spaces.Dict(OrderedDict(
+    return gym.spaces.Dict([
         (key, gym.spaces.Box(low=min_val, high=max_val, dtype=np.float64))
         for (key, min_val), max_val in zip(
-            sensor_space_lower.items(), sensor_space_upper.values())))
+            sensor_space_lower.items(), sensor_space_upper.values())])
 
 
 def get_bounds(space: gym.Space,

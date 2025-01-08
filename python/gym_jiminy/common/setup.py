@@ -54,10 +54,9 @@ setup(
         # - 0.56: Adds 'np.broadcast_shapes'
         "numba>=0.56.0",
         # Standard interface library for reinforcement learning.
-        # - `gym` has been replaced by `gymnasium` for 0.26.0+
         # - 0.28.0: fully typed
         # - bound version for resilience to recurrent API breakage
-        "gymnasium>=0.28,<1.0",
+        "gymnasium>=0.28,<=1.0",
         # For backward compatibility of latest Python typing features
         # - 'Unpack' was introduced with Python 3.11
         "typing_extensions>=4.1.0",

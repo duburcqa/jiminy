@@ -205,7 +205,8 @@ class BodyObserver(BaseObserverBlock[
             high=float('inf'),
             shape=(3, num_imu_sensors),
             dtype=np.float64)
-        self.observation_space = gym.spaces.Dict(observation_space)
+        self.observation_space = gym.spaces.Dict(
+            **observation_space)  # type: ignore[arg-type]
 
     def _setup(self) -> None:
         # Call base implementation

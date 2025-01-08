@@ -32,9 +32,9 @@ def get_space(data: DataNested) -> gym.Space[DataNested]:
     """
     data_type = type(data)
     if tree.issubclass_mapping(data_type):
-        return gym.spaces.Dict(OrderedDict([
+        return gym.spaces.Dict([
             (field, get_space(value))
-            for field, value in data.items()]))  # type: ignore[union-attr]
+            for field, value in data.items()])  # type: ignore[union-attr]
     if tree.issubclass_sequence(data_type):
         return gym.spaces.Tuple([get_space(value) for value in data])
     assert isinstance(data, np.ndarray)

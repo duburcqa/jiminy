@@ -241,7 +241,8 @@ class MahonyFilter(BaseObserverBlock[
             low=np.full((3, num_imu_sensors), -np.inf),
             high=np.full((3, num_imu_sensors), np.inf),
             dtype=np.float64)
-        self.state_space = gym.spaces.Dict(state_space)
+        self.state_space = gym.spaces.Dict(
+            **state_space)  # type: ignore[arg-type]
 
     def _initialize_observation_space(self) -> None:
         """Configure the observation space of the observer.
@@ -271,7 +272,8 @@ class MahonyFilter(BaseObserverBlock[
             high=float('inf'),
             shape=(3, num_imu_sensors),
             dtype=np.float64)
-        self.observation_space = gym.spaces.Dict(observation_space)
+        self.observation_space = gym.spaces.Dict(
+            **observation_space)  # type: ignore[arg-type]
 
     def _setup(self) -> None:
         # Call base implementation
