@@ -6,7 +6,8 @@ of the analytical gradient of the policy.
 import math
 import operator
 from functools import reduce
-from typing import Optional, Union, Type, Dict, Any, List, Tuple, cast
+from typing import (
+    Optional, Union, Sequence, Type, Dict, Any, List, Tuple, cast)
 
 import numpy as np
 import gymnasium as gym
@@ -38,6 +39,10 @@ from jiminy_py import tree
 from gym_jiminy.common.bases import BasePipelineWrapper
 from gym_jiminy.common.wrappers import FlattenObservation, FlattenAction
 from gym_jiminy.common.utils import zeros
+
+
+ObsMirrorMat = Union[np.ndarray, Sequence[np.ndarray]]
+ActMirrorMat = Union[np.ndarray, Sequence[np.ndarray]]
 
 
 def get_adversarial_observation_sgld(
@@ -120,17 +125,16 @@ def get_adversarial_observation_sgld(
 
 
 def _compute_mirrored_value(value: torch.Tensor,
-                            shape_nested: Tuple[Tuple[int, ...], ...],
                             mirror_mat_nested: Tuple[torch.Tensor, ...]
                             ) -> torch.Tensor:
     """Compute mirrored value from observation space based on provided
     mirroring transformation.
     """
     batch_size, offset, data_mirrored_all = len(value), 0, []
-    for shape, mirror_mat in zip(shape_nested, mirror_mat_nested):
-        size = reduce(operator.mul, shape)
-        data = value[:, offset:(offset + size)].reshape((batch_size, *shape))
-        data_mirrored_all.append(data @ mirror_mat)
+    for mirror_mat in mirror_mat_nested:
+        size = mirror_mat.shape[0]
+        data_mirrored_all.append(
+            value[:, offset:(offset + size)] @ mirror_mat)
         offset += size
     return torch.cat(data_mirrored_all, dim=1)
 
@@ -199,6 +203,7 @@ class PPOConfig(_PPOConfig):
         self.temporal_barrier_threshold = float('inf')
         self.temporal_barrier_reg = 0.0
         self.symmetric_policy_reg = 0.0
+        self.symmetric_spec: Tuple[ObsMirrorMat, ActMirrorMat] = ([], [])
         self.enable_symmetry_surrogate_loss = False
         self.caps_temporal_reg = 0.0
         self.caps_spatial_reg = 0.0
@@ -217,6 +222,8 @@ class PPOConfig(_PPOConfig):
         temporal_barrier_threshold: Union[_NotProvided, float] = NotProvided,
         temporal_barrier_reg: Union[_NotProvided, float] = NotProvided,
         symmetric_policy_reg: Union[_NotProvided, float] = NotProvided,
+        symmetric_spec: Union[
+            _NotProvided, Tuple[ObsMirrorMat, ActMirrorMat]] = NotProvided,
         enable_symmetry_surrogate_loss: Union[
             _NotProvided, bool] = NotProvided,
         caps_temporal_reg: Union[_NotProvided, float] = NotProvided,
@@ -244,9 +251,11 @@ class PPOConfig(_PPOConfig):
             self.temporal_barrier_reg = temporal_barrier_reg
         if not isinstance(symmetric_policy_reg, _NotProvided):
             self.symmetric_policy_reg = symmetric_policy_reg
+        if not isinstance(symmetric_spec, _NotProvided):
+            self.symmetric_spec = symmetric_spec
         if not isinstance(enable_symmetry_surrogate_loss, _NotProvided):
-            self.enable_symmetry_surrogate_loss = \
-                enable_symmetry_surrogate_loss
+            self.enable_symmetry_surrogate_loss = (
+                enable_symmetry_surrogate_loss)
         if not isinstance(caps_temporal_reg, _NotProvided):
             self.caps_temporal_reg = caps_temporal_reg
         if not isinstance(caps_spatial_reg, _NotProvided):
@@ -372,85 +381,18 @@ class PPOTorchLearner(_PPOTorchLearner):
         module_config: PPOConfig = cast(
             PPOConfig, self.config.get_config_for_module(DEFAULT_MODULE_ID))
 
-        # Early return if mirroring transforms are used in this context
-        if (not module_config.symmetric_policy_reg and
-                not module_config.enable_symmetry_surrogate_loss):
-            return
-
-        # Extract the original observation and acion spaces of the training
-        # environment before and after flattening if applicable.
-        # Note that keeping track of the "original" spaces before flattening is
-        # necessary, because the original shape of the data must be restored
-        # before mirroring the data by applying the block matrix product.
-        # Ideally, jiminy should provide some "apply_observation_transform" and
-        # "apply_reverse_observation_transform" helper methods. This way, one
-        # could cast the final observation into the original observation space
-        # (using `nan` as "fake" placeholder value for information that has
-        # been lost in the process). Then, the original mirroring transform
-        # could be applied. Finally, the observation could be projected back
-        # into the final observation space. If some `nan` values are still
-        # present in the end, then it means that some necessary bits of
-        # information was missing, so that observations cannot be mirrored
-        # losslessly. One option would be masking the unrecoverable information
-        # by filtering out `nan` values when computing the difference between
-        # the original and mirrored values.
-        rl_module = self.module[DEFAULT_MODULE_ID]
-        observation_space = rl_module.observation_space
-        assert isinstance(observation_space, gym.spaces.Box)
-        action_space = rl_module.action_space
-        assert isinstance(action_space, gym.spaces.Box)
-
-        config = self.config
-        algo_class = cast(Type[PPO], config.algo_class)
-        _, env_creator = algo_class._get_env_id_and_creator(config.env, config)
-        env_runner_group = EnvRunnerGroup(
-            env_creator=env_creator,
-            validate_env=None,
-            default_policy_class=algo_class.get_default_policy_class(config),
-            config=config,
-            num_env_runners=0,
-            local_env_runner=True)
-
-        worker = env_runner_group.local_env_runner
-        assert isinstance(worker, SingleAgentEnvRunner)
-        (env,) = worker.env.envs
-        while isinstance(env, (BasePipelineWrapper, gym.Wrapper)):
-            is_flatten_obs_wrapper = isinstance(env, FlattenObservation)
-            is_flatten_action_wrapper = isinstance(env, FlattenAction)
-            env = env.env
-            if is_flatten_obs_wrapper:
-                observation_space = env.observation_space
-            if is_flatten_action_wrapper:
-                action_space = env.action_space
-
-        # Define helper to extract flattened sequence of mirroring matrices and
-        # shape of all the leaves of the original space.
-        def _extract_mirror_mat_and_shape(space: gym.Space) -> Tuple[
-                Tuple[Tuple[int, ...], ...], Tuple[torch.Tensor, ...]]:
-            """Extract the flattened sequence of mirroring matrix blocks and
-            shapes of all the leaves of the original nested space.
-            """
-            # Extract flattened sequence of mirroring matrix blocks.
-            # Convert recursively each mirror matrix to `torch.Tensor` with
-            # dtype `torch.float32` which is stored on the expected device.
-            mirror_mat_nested = tuple(
+        # Extract flattened sequence of mirroring matrix blocks.
+        # Convert recursively each mirror matrix to `torch.Tensor` with
+        # dtype `torch.float32` which is stored on the expected device.
+        if (module_config.symmetric_policy_reg or
+                module_config.enable_symmetry_surrogate_loss):
+            self.obs_mirror_mat_nested, self.action_mirror_mat_nested = (tuple(
                 torch.tensor(
-                    space_leaf.mirror_mat,
+                    mirror_mat,
                     dtype=torch.float32,
                     device=self._device)
-                for space_leaf in tree.flatten(space))
-
-            # Extract flattened sequence of original shapes
-            shape_nested = tuple(
-                np.atleast_1d(zeros(space_leaf)).shape
-                for space_leaf in tree.flatten(space))
-
-            return shape_nested, mirror_mat_nested
-
-        self.obs_shape_nested, self.obs_mirror_mat_nested = (
-            _extract_mirror_mat_and_shape(observation_space))
-        self.action_shape_nested, self.action_mirror_mat_nested = (
-            _extract_mirror_mat_and_shape(action_space))
+                for mirror_mat in tree.flatten(mirror_mat_nested))
+                for mirror_mat_nested in module_config.symmetric_spec)
 
     @override(_PPOTorchLearner)
     def compute_loss_for_module(
@@ -529,9 +471,7 @@ class PPOTorchLearner(_PPOTorchLearner):
 
             # Compute mirrored observation
             observation_mirrored = _compute_mirrored_value(
-                observation_true,
-                self.obs_shape_nested,
-                self.obs_mirror_mat_nested)
+                observation_true, self.obs_mirror_mat_nested)
 
             # Replace current observation by the mirrored one
             batch_copy[Columns.OBS] = observation_mirrored
@@ -624,9 +564,7 @@ class PPOTorchLearner(_PPOTorchLearner):
         if config.symmetric_policy_reg > 0.0:
             # Compute the mirrored true action
             action_mirrored_mean = _compute_mirrored_value(
-                action_true_mean,
-                self.action_shape_nested,
-                self.action_mirror_mat_nested)
+                action_true_mean, self.action_mirror_mat_nested)
 
         if (config.symmetric_policy_reg > 0.0 and
                 not config.enable_symmetry_surrogate_loss):
