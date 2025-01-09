@@ -26,12 +26,13 @@ from tempfile import mkdtemp
 from traceback import TracebackException
 from typing import (
     Optional, Any, Union, Sequence, Tuple, List, Literal, Dict, Set, Type,
-    DefaultDict, overload, cast)
+    DefaultDict, Iterable, overload, cast)
 
 import tree
 import numpy as np
 import gymnasium as gym
 import plotext as plt
+from packaging.version import parse as parse_version
 
 import ray
 from ray._private import services
@@ -54,7 +55,8 @@ from ray.rllib.connectors.module_to_env import (
     UnBatchToIndividualItems)
 from ray.rllib.connectors.env_to_module import (
     AddObservationsFromEpisodesToBatch, AddStatesFromEpisodesToBatch,
-    BatchIndividualItems, EnvToModulePipeline, NumpyToTensor)
+    BatchIndividualItems, EnvToModulePipeline, NumpyToTensor,
+    MeanStdFilter as MeanStdFilterConnector)
 from ray.rllib.algorithms.callbacks import DefaultCallbacks
 from ray.rllib.algorithms.algorithm import Algorithm
 from ray.rllib.algorithms.algorithm_config import AlgorithmConfig
@@ -62,16 +64,17 @@ from ray.rllib.env.single_agent_episode import SingleAgentEpisode
 from ray.rllib.env.env_runner import EnvRunner
 from ray.rllib.env.single_agent_env_runner import SingleAgentEnvRunner
 from ray.rllib.env.env_runner_group import EnvRunnerGroup
+from ray.rllib.utils.filter import MeanStdFilter as _MeanStdFilter
 from ray.rllib.utils.metrics import (
     NUM_ENV_STEPS_SAMPLED_LIFETIME, NUM_AGENT_STEPS_SAMPLED_LIFETIME,
     NUM_EPISODES_LIFETIME, EPISODE_RETURN_MEAN, EPISODE_RETURN_MAX,
     EPISODE_LEN_MEAN, EVALUATION_RESULTS, ENV_RUNNER_RESULTS, NUM_EPISODES)
 from ray.rllib.utils.metrics.metrics_logger import MetricsLogger
-from ray.rllib.utils.typing import EpisodeID, ResultDict, EpisodeType
+from ray.rllib.utils.typing import AgentID, EpisodeID, ResultDict, EpisodeType
 
 from jiminy_py.viewer import async_play_and_record_logs_files
 from gym_jiminy.common.bases import Obs, Act
-from gym_jiminy.common.envs import BaseJiminyEnv, PolicyCallbackFun
+from gym_jiminy.common.envs import PolicyCallbackFun, BaseJiminyEnv
 
 
 HISTOGRAM_BINS = 15
@@ -79,8 +82,8 @@ HISTOGRAM_BINS = 15
 PRINT_RESULT_FIELDS_FILTER = (
     TRAINING_ITERATION,
     TIME_TOTAL_S,
-    NUM_ENV_STEPS_SAMPLED_LIFETIME,
-    NUM_EPISODES_LIFETIME,
+    "/".join((ENV_RUNNER_RESULTS, NUM_ENV_STEPS_SAMPLED_LIFETIME)),
+    "/".join((ENV_RUNNER_RESULTS, NUM_EPISODES_LIFETIME)),
     "/".join((ENV_RUNNER_RESULTS, EPISODE_RETURN_MAX)),
     "/".join((ENV_RUNNER_RESULTS, EPISODE_RETURN_MEAN)),
     "/".join((ENV_RUNNER_RESULTS, EPISODE_LEN_MEAN)),
@@ -89,6 +92,31 @@ PRINT_RESULT_FIELDS_FILTER = (
 VALID_SUMMARY_TYPES = (int, float, np.float32, np.float64, np.int32, np.int64)
 
 LOGGER = logging.getLogger(__name__)
+
+
+class MeanStdFilter(MeanStdFilterConnector):
+    """A connector used to mean-std-filter observations.
+
+    This class patches `ray.rllib.connectors.env_to_module.MeanStdFilter` to
+    fix statistics accumulation, which is currently broken for ray<=2.40.
+    See PR for details: https://github.com/ray-project/ray/pull/49718
+    """
+    @staticmethod
+    def _get_state_from_filters(
+            filters: Dict[AgentID, _MeanStdFilter]  # type: ignore[override]
+            ) -> Dict[AgentID, Dict[str, Any]]:
+        ret = {}
+        for agent_id, agent_filter in filters.items():
+            ret[agent_id] = {
+                "shape": agent_filter.shape,
+                "de_mean_to_zero": agent_filter.demean,
+                "de_std_to_one": agent_filter.destd,
+                "clip_by_value": agent_filter.clip,
+                "running_stats": [
+                    s.to_state() for s in tree.flatten(agent_filter.buffer)
+                ],
+            }
+        return ret
 
 
 class MonitorEpisodeCallback(DefaultCallbacks):
@@ -139,7 +167,7 @@ class MonitorEpisodeCallback(DefaultCallbacks):
                        episode: EpisodeType,
                        env_runner: EnvRunner,
                        metrics_logger: MetricsLogger,
-                       env: gym.Env,
+                       env: gym.vector.VectorEnv,
                        env_index: int,
                        rl_module: RLModule,
                        **kwargs: Any) -> None:
@@ -608,7 +636,7 @@ def train(algo_config: AlgorithmConfig,
     # access the original spec is by instantiating the entry-point manually
     # without relying on `gym.make`.
     env_spec, *_ = chain(*algo.env_runner_group.foreach_worker(
-        lambda worker: worker.env.get_attr('spec')))
+        lambda worker: worker.env.unwrapped.get_attr('spec')))
     assert env_spec is not None
     if env_spec.reward_threshold is None:
         env_spec = env_spec.entry_point().spec
@@ -647,7 +675,8 @@ def train(algo_config: AlgorithmConfig,
 
         # Backup all environment's source files
         (env_type,) = set(chain(*algo.env_runner_group.foreach_worker(
-            lambda worker: [type(env.unwrapped) for env in worker.env.envs])))
+            lambda worker: [
+                type(env.unwrapped) for env in worker.env.unwrapped.envs])))
         while True:
             try:
                 path = inspect.getfile(env_type)
@@ -798,7 +827,9 @@ def train(algo_config: AlgorithmConfig,
                 result_flat = flatten_dict(result, delimiter="/")
                 for field in PRINT_RESULT_FIELDS_FILTER:
                     if field in result_flat.keys():
-                        msg_data.append(f"{field}: {result_flat[field]:.5g}")
+                        msg_data.append(
+                            f"{field.rsplit('/', 1)[-1]}: "
+                            f"{result_flat[field]:.5g}")
                 print(" - ".join(msg_data))
 
             # Backup the policy
@@ -846,6 +877,17 @@ def train(algo_config: AlgorithmConfig,
     return (checkpoint_result.metrics, checkpoint_result.checkpoint.path)
 
 
+def partition(length: int, num_chunks: int) -> Iterable[int]:
+    """Generate partition with chunks of minimal variation in length.
+
+    :param length: Total number of elements to partition.
+    :param num_chunks: Size of each chunks.
+    """
+    num_chunks = min(length, num_chunks)
+    chunk_length_min, stepdown = divmod(length, num_chunks)
+    return (chunk_length_min + (i < stepdown) for i in range(num_chunks))
+
+
 def _sample_initialize(worker: EnvRunner) -> Sequence[bool]:
     """Initialize evaluation sampling.
 
@@ -854,7 +896,7 @@ def _sample_initialize(worker: EnvRunner) -> Sequence[bool]:
 
     .. warning::
         This method is designed to be used in conjunction with
-        `_sample_one_episode_and_collect_metrics` and `_sample_finalize`.
+        `_sample_collect` and `_sample_finalize`.
 
     :param worker: Environment runner that will be used for collecting samples.
     """
@@ -862,53 +904,53 @@ def _sample_initialize(worker: EnvRunner) -> Sequence[bool]:
     assert isinstance(worker, SingleAgentEnvRunner)
 
     # Stop any simulation that may be running
-    worker.env.call('stop')
+    worker.env.unwrapped.call('stop')
 
     # Switch the environment to evaluation mode
-    is_training_all = worker.env.get_attr('is_training')
-    worker.env.call('eval')
+    is_training_all = worker.env.unwrapped.get_attr('training')
+    worker.env.unwrapped.call('eval')
 
     return is_training_all
 
 
-def _sample_one_episode_and_collect_metrics(worker: EnvRunner) -> Tuple[
+def _sample_collect(worker: EnvRunner,
+                    num_episodes: int = 1) -> Tuple[
         ResultDict, Sequence[EpisodeType], Sequence[str]]:
-    """Sample a single evaluation episode and collect metrics.
-
-    TODO: It would be more efficient to sample as many episodes as environments
-    being managed by the runner (ie. `worker.num_envs`), because, internally,
-    they will be collected anyway and discarded afterward.
+    """Sample evaluation episodes and collect metrics.
 
     .. warning::
         This method is designed to be used in conjunction with
         `_sample_initialize` and `_sample_finalize`.
 
     :param worker: Environment runner to use for collecting samples.
+    :param num_episodes: Number of episodes to sample.
+                         Optional: 1 by default.
     """
     # Assert(s) for type checker
     assert isinstance(worker, SingleAgentEnvRunner)
 
-    # Drop all existing log files as they are not associated with the
-    # ongoing evaluation.
-    # Note that `set_attr` on vector envs is buggy on Gymnasium < 1.0, as
-    # it creates the attributes at wrapper level even if it exists in the
-    # unwrapped environments. Assuming `SyncVectorEnv` to get around this
-    # issue.
-    # worker.env.set_attr('log_path', None)
-    assert isinstance(worker.env.unwrapped, gym.vector.SyncVectorEnv)
-    for env in worker.env.envs:
-        env.unwrapped.log_path = None
+    # Collect a bunch of episodes
+    episodes = worker.sample(
+        num_episodes=num_episodes, random_actions=False)
+    assert len(episodes) == num_episodes
 
-    # Run a single episode.
-    # Note that episodes are sorted by environment indices by design.
-    episodes = worker.sample(num_episodes=1, random_actions=False)
+    # Stop any simulation that may be running.
+    # This is necessary to make sure that all log files have been written.
+    worker.env.unwrapped.call('stop')
 
-    # Extract the path of the log files
-    log_paths: Tuple[str, ...] = tuple(
-        filter(None, worker.env.get_attr('log_path')))
+    # Extract the log files of interest.
+    log_paths = tuple(episode.infos[0]['log_path'] for episode in episodes)
+
+    # Delete useless log files to avoid filling up the hard drive
+    for log_path in worker.env.unwrapped.get_attr('log_path'):
+        if log_path not in log_paths:
+            os.remove(log_path)
 
     # Collect metrics
     metrics = worker.get_metrics()
+
+    # Remove log paths from metrics to prevent irrelevant tensorboard logging
+    del metrics['log_path']
 
     return metrics, episodes, log_paths
 
@@ -922,7 +964,7 @@ def _sample_finalize(worker: EnvRunner,
 
     .. warning::
         This method is designed to be used in conjunction with
-        `_sample_initialize` and `_sample_one_episode_and_collect_metrics`.
+        `_sample_initialize` and `_sample_collect`.
 
     :param worker: Environment runner that was previously used to collect
                    sample.
@@ -933,25 +975,25 @@ def _sample_finalize(worker: EnvRunner,
     # Assert(s) for type checker
     assert isinstance(worker, SingleAgentEnvRunner)
 
-    # Stop any simulation that may be running
-    worker.env.call('stop')
-
-    # Restore the original training/evaluation mode.
-    # FIXME: Rely on `set_attr` when moving to `gymnasium>=1.0`, which fixes
-    # attribute lookup in wrapped layers.
-    # worker.env.set_attr('is_training', is_training)
-    assert isinstance(worker.env.unwrapped, gym.vector.SyncVectorEnv)
-    for env, is_training in zip(worker.env.envs, is_training_all):
-        if is_training:
-            env.train()
+    # Restore the original training/evaluation mode
+    if parse_version(gym.__version__) >= parse_version("1.0"):
+        worker.env.unwrapped.set_attr('training', is_training_all)
+    else:
+        assert isinstance(worker.env.unwrapped, gym.vector.SyncVectorEnv)
+        for env, is_training in zip(
+                worker.env.unwrapped.envs, is_training_all):
+            env.get_wrapper_attr("train")(is_training)
 
 
 def sample_from_runner(
         env_runner: EnvRunner,
         num_episodes: int
-        ) -> Tuple[List[ResultDict], List[EpisodeType], List[str]]:
+        ) -> Tuple[Sequence[ResultDict], Sequence[EpisodeType], Sequence[str]]:
     """Sample multiple evaluation episodes on any of the environments being
     managed by a given evaluation runner.
+
+    .. warning::
+        This method only supports environments deriving from `BaseJiminyEnv`.
 
     :param worker: Environment runner to use for collecting samples.
     :param num_episodes: Number of episodes to collect.
@@ -963,40 +1005,37 @@ def sample_from_runner(
     assert isinstance(env_runner, SingleAgentEnvRunner)
 
     # This method only supports environments deriving from `BaseJiminyEnv`
-    (env_type,) = set(type(env.unwrapped) for env in env_runner.env.envs)
+    assert isinstance(env_runner.env.unwrapped, gym.vector.SyncVectorEnv)
+    (env_type,) = set(
+        type(env.unwrapped) for env in env_runner.env.unwrapped.envs)
     if not issubclass(env_type, BaseJiminyEnv):
         raise RuntimeError("Test env must inherit from `BaseJiminyEnv`.")
 
     # Initialize sampling
     is_training_all = _sample_initialize(env_runner)
 
-    # Collect episodes one-by-one until completion
-    all_metrics: List[ResultDict] = []
-    all_episodes: List[EpisodeType] = []
-    all_log_paths: List[str] = []
-    for _ in range(num_episodes):
-        metrics, episodes, log_paths = (
-            _sample_one_episode_and_collect_metrics(env_runner))
-        all_metrics.append(metrics)
-        all_episodes += episodes
-        all_log_paths += log_paths
+    # Collect episodes
+    metrics, episodes, log_paths = _sample_collect(env_runner, num_episodes)
 
     # Finalize sampling
     _sample_finalize(env_runner, is_training_all)
 
-    return all_metrics, all_episodes, all_log_paths
+    return (metrics,), episodes, log_paths
 
 
 def sample_from_runner_group(
         workers: EnvRunnerGroup,
         num_episodes: int,
         evaluation_sample_timeout_s: Optional[float] = None
-        ) -> Tuple[List[ResultDict], List[EpisodeType], List[str]]:
+        ) -> Tuple[Sequence[ResultDict], Sequence[EpisodeType], Sequence[str]]:
     """Sample multiple evaluation episodes on any of the environments being
     managed by all the remote and local evaluation runners of a given group.
 
     Sampling would be distributed across all remote runners if any, otherwise
     it will be sequential on the local runner.
+
+    .. warning::
+        This method only supports environments deriving from `BaseJiminyEnv`.
 
     :param workers: Group of environment runners to use for collecting samples.
     :param num_episodes: Number of episodes to collect.
@@ -1010,54 +1049,47 @@ def sample_from_runner_group(
     """
     # This method only supports environments deriving from `BaseJiminyEnv`
     (env_type,) = set(chain(*workers.foreach_worker(
-        lambda worker: [type(env.unwrapped) for env in worker.env.envs])))
+        lambda worker: [
+            type(env.unwrapped) for env in worker.env.unwrapped.envs])))
     if not issubclass(env_type, BaseJiminyEnv):
         raise RuntimeError("Test env must inherit from `BaseJiminyEnv`.")
 
     if workers.num_remote_env_runners() == 0:
         all_metrics, all_episodes, all_log_paths = (
             sample_from_runner(workers.local_env_runner, num_episodes))
-    elif workers.num_healthy_remote_workers() > 0:
+    elif (num_workers := workers.num_healthy_remote_workers()) > 0:
         # Initialize evaluation
         is_training_all = dict(workers.foreach_worker_with_id(
-            func=lambda index, worker: (index, _sample_initialize(worker)),
+            func=lambda ident, worker: (ident, _sample_initialize(worker)),
             local_env_runner=False))
 
-        # Collect episodes one-by-one from each worker until completion
+        # Split workload across workers as fairly as possibly
+        chunks = dict(zip(workers.healthy_worker_ids(),
+                          partition(num_episodes, num_workers)))
+
+        # Run a complete episode per selected worker and collect metrics
+        results = workers.foreach_worker_with_id(
+            func=lambda ident, worker: _sample_collect(
+                worker, num_episodes=chunks[ident]),
+            local_env_runner=False,
+            remote_worker_ids=tuple(chunks.keys()),
+            timeout_seconds=evaluation_sample_timeout_s)
         all_metrics, all_episodes, all_log_paths = [], [], []
-        while (delta_episodes := num_episodes - len(all_episodes)) > 0:
-            # Stop if all of the remote evaluation workers died for some reason
-            if workers.num_healthy_remote_workers() == 0:
-                break
-
-            # Select proper number of evaluation workers for this round
-            selected_eval_worker_ids = [
-                worker_id for i, worker_id in enumerate(
-                    workers.healthy_worker_ids()) if i < delta_episodes]
-
-            # Run a complete episode per selected worker and collect metrics
-            results = workers.foreach_worker(
-                func=_sample_one_episode_and_collect_metrics,
-                local_env_runner=False,
-                remote_worker_ids=selected_eval_worker_ids,
-                timeout_seconds=evaluation_sample_timeout_s)
-            for metrics, episodes, log_paths in results:
-                all_metrics.append(metrics)
-                all_episodes += episodes
-                all_log_paths += log_paths
-            if len(results) != len(selected_eval_worker_ids):
-                LOGGER.warning(
-                    "Calling `sample()` on your remote evaluation worker(s) "
-                    "resulted in a timeout. Please configure the parameter "
-                    "`evaluation_sample_timeout_s` accordingly.")
-                break
+        for metrics, episodes, log_paths in results:
+            all_metrics.append(metrics)
+            all_episodes += episodes
+            all_log_paths += log_paths
+        if len(all_episodes) != num_episodes:
+            LOGGER.warning(
+                "Calling `sample()` on your remote evaluation worker(s) "
+                "resulted in a timeout. Please configure the parameter "
+                "`evaluation_sample_timeout_s` accordingly.")
 
         # Finalize evaluation
         workers.foreach_worker_with_id(
-            func=lambda index, worker: _sample_finalize(
-                worker, is_training_all[index]),
+            func=lambda ident, worker: _sample_finalize(
+                worker, is_training_all[ident]),
             local_env_runner=False)
-
     else:
         raise RuntimeError("No runner available for running the evaluation.")
 
@@ -1094,7 +1126,7 @@ def _pretty_print_statistics(data: Sequence[Tuple[str, np.ndarray]]) -> None:
                 f"(min = {np.min(values):.2f}, max = {np.max(values):.2f})")
 
 
-def _pretty_print_episode_metrics(all_episodes: List[EpisodeType],
+def _pretty_print_episode_metrics(all_episodes: Sequence[EpisodeType],
                                   step_dt: Optional[float]) -> None:
     """Render ASCII histograms horizontally side-by-side of high-level
     performance metrics about the batch of episodes.
@@ -1216,7 +1248,7 @@ def evaluate_from_algo(algo: Algorithm,
     if print_stats:
         try:
             (step_dt,) = set(chain(*workers.foreach_worker(
-                lambda worker: worker.env.get_attr('step_dt'))))
+                lambda worker: worker.env.unwrapped.get_attr('step_dt'))))
         except ValueError:
             step_dt = None
         _pretty_print_episode_metrics(all_episodes, step_dt)
@@ -1241,7 +1273,7 @@ def evaluate_from_algo(algo: Algorithm,
     # Replay and/or record a video of the best and worst trials if requested.
     # Async to enable replaying and recording while training keeps going.
     viewer_kwargs, *_ = chain(*workers.foreach_worker(
-        lambda worker: worker.env.get_attr('viewer_kwargs')))
+        lambda worker: worker.env.unwrapped.get_attr('viewer_kwargs')))
     viewer_kwargs.update(
         scene_name=f"iter_{algo.iteration}",
         robots_colors=('green', 'red') if num_episodes > 1 else None,
@@ -1255,7 +1287,7 @@ def evaluate_from_algo(algo: Algorithm,
 
     # Centralized all metrics in algorithm logger
     algo.metrics.merge_and_log_n_dicts(
-        all_metrics, key=(EVALUATION_RESULTS, ENV_RUNNER_RESULTS))
+        list(all_metrics), key=(EVALUATION_RESULTS, ENV_RUNNER_RESULTS))
 
     # Early return if computing reduced metrics is not requested.
     # Note that it expects a non-empty `ResultDict` as first output, even
@@ -1306,7 +1338,8 @@ def evaluate_from_runner(env_runner: EnvRunner,
                          print_stats: Optional[bool] = None,
                          enable_replay: Optional[bool] = None,
                          block: bool = True,
-                         **kwargs: Any) -> Tuple[List[EpisodeType], List[str]]:
+                         **kwargs: Any
+                         ) -> Tuple[Sequence[EpisodeType], Sequence[str]]:
     """Evaluates the performance of a given local worker.
 
     This method is specifically tailored for Gym environments inheriting from
@@ -1342,7 +1375,7 @@ def evaluate_from_runner(env_runner: EnvRunner,
     # Print stats in ASCII histograms if requested
     if print_stats:
         try:
-            (step_dt,) = set(env_runner.env.get_attr('step_dt'))
+            (step_dt,) = set(env_runner.env.unwrapped.get_attr('step_dt'))
         except ValueError:
             step_dt = None
         _pretty_print_episode_metrics(all_episodes, step_dt)
@@ -1354,7 +1387,7 @@ def evaluate_from_runner(env_runner: EnvRunner,
 
     # Replay and/or record a video of the best and worst trials if requested.
     # Async to enable replaying and recording while training keeps going.
-    viewer_kwargs, *_ = env_runner.env.get_attr("viewer_kwargs")
+    viewer_kwargs, *_ = env_runner.env.unwrapped.get_attr("viewer_kwargs")
     viewer_kwargs = {
         **viewer_kwargs, **dict(
             robots_colors=('green', 'red') if num_episodes > 1 else None),

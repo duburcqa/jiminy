@@ -99,7 +99,7 @@ class TerminationConditions(unittest.TestCase):
                     grace_period=0.2,
                     op=op,
                     is_truncation=is_truncation,
-                    is_training_only=is_training_only
+                    training_only=is_training_only
                 ) for name, (quantity_cls, quantity_kwargs), low, high, op in (
                     termination_pos_config, termination_rot_config))
 
@@ -130,7 +130,7 @@ class TerminationConditions(unittest.TestCase):
                     time = self.env.stepper_state.t
                     is_active = (
                         time >= termination.grace_period and
-                        not termination.is_training_only)
+                        not termination.training_only)
                     assert info == {
                         termination.name: EpisodeState.TERMINATED
                         if terminated else EpisodeState.TRUNCATED
@@ -156,7 +156,7 @@ class TerminationConditions(unittest.TestCase):
             0.3,
             quat_difference)
 
-        for i, (is_truncation, is_training_only) in enumerate((
+        for i, (is_truncation, training_only) in enumerate((
             (False, False), (True, False), (False, True))):
             termination_pos, termination_rot = (
                 ShiftTrackingQuantityTermination(
@@ -171,7 +171,7 @@ class TerminationConditions(unittest.TestCase):
                     grace_period=0.2,
                     op=op,
                     is_truncation=is_truncation,
-                    is_training_only=is_training_only
+                    training_only=training_only
                 ) for name, (quantity_cls, quantity_kwargs), thr, op in (
                     termination_pos_config, termination_rot_config))
 
@@ -213,7 +213,7 @@ class TerminationConditions(unittest.TestCase):
                     time = self.env.stepper_state.t
                     is_active = (
                         time >= termination.grace_period and
-                        not termination.is_training_only)
+                        not termination.training_only)
                     assert info == {
                         termination.name: EpisodeState.TERMINATED
                         if terminated else EpisodeState.TRUNCATED

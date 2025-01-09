@@ -31,7 +31,8 @@ setup(
     install_requires=[
         f"gym-jiminy~={gym_jiminy_version}",
         # Highly efficient distributed computation library used for RL
-        "ray[rllib]>=2.38,<=2.39",
+        # - bound version for resilience to recurrent API breakage
+        "ray[rllib]>=2.38,<=2.40",
         # Used for monitoring (logging and publishing) learning progress
         "tensorboardX",
         # Plot data directly in terminal to monitor stats w/o display server

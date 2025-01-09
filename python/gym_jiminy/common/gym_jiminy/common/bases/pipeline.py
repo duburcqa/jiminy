@@ -143,7 +143,7 @@ def _merge_base_env_with_block(
             assert issubclass_mapping(type(base_group))
             base_group[block_name] = block_group  # type: ignore[index]
 
-    return mapping_cls(observation)  # type: ignore[call-arg]
+    return mapping_cls(**observation)
 
 
 class BasePipelineWrapper(
@@ -222,7 +222,7 @@ class BasePipelineWrapper(
         try:
             # Make sure that no simulaton is running
             if (self.__getattribute__('is_simulation_running') and
-                    self.env.is_training and not hasattr(sys, 'ps1')):
+                    self.env.training and not hasattr(sys, 'ps1')):
                 # `hasattr(sys, 'ps1')` is used to detect whether the method
                 # was called from an interpreter or within a script. For
                 # details, see: https://stackoverflow.com/a/64523765/4820605
@@ -295,14 +295,15 @@ class BasePipelineWrapper(
         return self.env.step_dt
 
     @property
-    def is_training(self) -> bool:
-        return self.env.is_training
+    def training(self) -> bool:
+        return self._is_training
 
-    def train(self) -> None:
-        self.env.train()
+    @training.setter
+    def training(self, mode: bool) -> None:
+        self.env.train(mode)
 
-    def eval(self) -> None:
-        self.env.eval()
+    def train(self, mode: bool = True) -> None:
+        self.env.train(mode)
 
     def update_pipeline(self, derived: Optional[InterfaceJiminyEnv]) -> None:
         if derived is None:
@@ -658,7 +659,8 @@ class ComposedJiminyEnv(BasePipelineWrapper[Obs, Act, Obs, Act],
                     high=float("inf"),
                     shape=(length_lambda_c,),
                     dtype=np.float64)
-            trajectory_space = gym.spaces.Dict(state_space)
+            trajectory_space = gym.spaces.Dict(
+                **state_space)  # type: ignore[arg-type]
 
         # Aggregate the reference trajectory space with the base observation
         self.observation_space = cast(

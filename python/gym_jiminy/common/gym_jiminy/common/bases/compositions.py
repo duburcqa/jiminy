@@ -434,7 +434,7 @@ class AbstractTerminationCondition(metaclass=ABCMeta):
                  grace_period: float = 0.0,
                  *,
                  is_truncation: bool = False,
-                 is_training_only: bool = False) -> None:
+                 training_only: bool = False) -> None:
         """
         :param env: Base or wrapped jiminy environment.
         :param name: Desired name of the termination condition. This name will
@@ -451,16 +451,16 @@ class AbstractTerminationCondition(metaclass=ABCMeta):
                               terminated or truncated whenever the termination
                               condition is triggered.
                               Optional: False by default.
-        :param is_training_only: Whether the termination condition should be
-                                 completely by-passed if the environment is in
-                                 evaluation mode.
-                                 Optional: False by default.
+        :param training_only: Whether the termination condition should be
+                              completely by-passed if the environment is in
+                              evaluation mode.
+                              Optional: False by default.
         """
         self.env = env
         self._name = name
         self.grace_period = grace_period
         self.is_truncation = is_truncation
-        self.is_training_only = is_training_only
+        self.training_only = training_only
 
     @property
     def name(self) -> str:
@@ -505,7 +505,7 @@ class AbstractTerminationCondition(metaclass=ABCMeta):
         """
         # Skip termination condition in eval mode or during grace period
         termination_info: InfoType = {}
-        if (self.is_training_only and not self.env.is_training) or (
+        if (self.training_only and not self.env.training) or (
                 self.env.stepper_state.t < self.grace_period):
             # Always continue
             is_terminated, is_truncated = False, False
@@ -555,7 +555,7 @@ class QuantityTermination(AbstractTerminationCondition, Generic[ValueT]):
                  grace_period: float = 0.0,
                  *,
                  is_truncation: bool = False,
-                 is_training_only: bool = False) -> None:
+                 training_only: bool = False) -> None:
         """
         :param env: Base or wrapped jiminy environment.
         :param name: Desired name of the termination condition. This name will
@@ -578,10 +578,10 @@ class QuantityTermination(AbstractTerminationCondition, Generic[ValueT]):
                               terminated or truncated whenever the termination
                               condition is triggered.
                               Optional: False by default.
-        :param is_training_only: Whether the termination condition should be
-                                 completely by-passed if the environment is in
-                                 evaluation mode.
-                                 Optional: False by default.
+        :param training_only: Whether the termination condition should be
+                              completely by-passed if the environment is in
+                              evaluation mode.
+                              Optional: False by default.
         """
         # Backup user argument(s)
         self.low = np.asarray(low) if isinstance(low, Sequence) else low
@@ -593,7 +593,7 @@ class QuantityTermination(AbstractTerminationCondition, Generic[ValueT]):
             name,
             grace_period,
             is_truncation=is_truncation,
-            is_training_only=is_training_only)
+            training_only=training_only)
 
         # Add quantity to the set of quantities managed by the environment
         self.env.quantities[self.name] = quantity

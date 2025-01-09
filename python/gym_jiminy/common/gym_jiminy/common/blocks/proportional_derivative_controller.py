@@ -488,7 +488,7 @@ class PDController(
 
         # Enable deadband in evaluation mode only.
         # Note that training/evaluation cannot be changed at this point.
-        self._enable_deadband = not self.env.is_training
+        self._enable_deadband = not self.env.training
 
     @property
     def fieldnames(self) -> List[str]:

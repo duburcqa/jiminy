@@ -746,7 +746,8 @@ class DeformationEstimator(BaseObserverBlock[
                 low=-high[:, np.newaxis].repeat(nflex, axis=1),
                 high=high[:, np.newaxis].repeat(nflex, axis=1),
                 dtype=np.float64)
-        self.observation_space = gym.spaces.Dict(observation_space)
+        self.observation_space = gym.spaces.Dict(
+            **observation_space)  # type: ignore[arg-type]
 
     def _setup(self) -> None:
         # Call base implementation

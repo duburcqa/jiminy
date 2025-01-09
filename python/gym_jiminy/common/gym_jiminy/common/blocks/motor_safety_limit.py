@@ -219,7 +219,7 @@ class MotorSafetyLimit(
 
         # Unbounded effort limits in evaluation mode.
         # Note that training/evaluation cannot be changed at this point.
-        self._enable_limit_soft = self.env.is_training
+        self._enable_limit_soft = self.env.training
 
     def compute_command(self,
                         action: np.ndarray,

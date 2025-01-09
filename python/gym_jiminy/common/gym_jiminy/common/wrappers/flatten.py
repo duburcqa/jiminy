@@ -28,6 +28,21 @@ class FlattenObservation(BaseTransformObservation[FlattenedObs, Obs, Act],
     """Flatten the observation space of a pipeline environment. It will appear
     as a simple one-dimension vector.
 
+    .. note::
+        Following the general (but unusual) convention in Gym-Jiminy, the
+        batching dimensions appears last when aggregating homogeneous data to
+        vectorize computations. This design choice is motivated by efficiency
+        for the default memory layout of Numpy, i.e. row-major (C-style order).
+        Because of this, flattening a multi-dimensional array while pack
+        together components rather than batched element. This is undesirable
+        because values while be spread apart the whole vector after flattening
+        when adding new batch element, which makes it very difficult to compare
+        flattened vectors at first glance. It is also more challenging and
+        computationally expensive to perform operations directly on the
+        flattened vector representation such as mirroring. To get around this
+        issue, all multi-dimensional arrays are transposed before flattening,
+        which is sementically equivalent to `data.ravel(order='F')`.
+
     .. warning::
         All leaves of the observation space must have type `gym.spaces.Box`.
     """
@@ -62,7 +77,7 @@ class FlattenObservation(BaseTransformObservation[FlattenedObs, Obs, Act],
 
         # Define specialized operator(s) for efficiency
         self._flatten_observation = build_flatten(
-            self.env.observation, self.observation)
+            self.env.observation, self.observation, order='F')
 
     def _initialize_observation_space(self) -> None:
         """Configure the observation space.
@@ -90,6 +105,10 @@ class FlattenAction(BaseTransformAction[FlattenedAct, Obs, Act],
                     Generic[Obs, Act]):
     """Flatten the action space of a pipeline environment. It will appear as a
     simple one-dimension vector.
+
+    .. note::
+        Fortran-Style order is used when flattening multi-dimensional arrays.
+        See `FlattenObservation` documentation for details.
 
     .. warning::
         All leaves of the action space must have type `gym.spaces.Box`.
@@ -125,7 +144,7 @@ class FlattenAction(BaseTransformAction[FlattenedAct, Obs, Act],
 
         # Define specialized operator(s) for efficiency
         self._unflatten_to_env_action = build_flatten(
-            self.env.action, is_reversed=True)
+            self.env.action, order='F', is_reversed=True)
 
     def _initialize_action_space(self) -> None:
         """Configure the action space.

@@ -351,6 +351,6 @@ class PipelineControl(unittest.TestCase):
             if isinstance(value, dict):
                 obs_nodes += value.values()
             else:
-                all_values_flat.append(value.flatten())
+                all_values_flat.append(value.ravel(order='F'))
         obs_flat = np.concatenate(all_values_flat[::-1])
         np.testing.assert_allclose(env_flat.observation, obs_flat)
