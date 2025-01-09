@@ -3,6 +3,7 @@ to encourage smoothness of the action and clustering of the behavior of the
 policy without having to rework the reward function itself. It takes advantage
 of the analytical gradient of the policy.
 """
+import math
 from typing import (
     Optional, Union, Sequence, Type, Dict, Any, List, Tuple, cast)
 
@@ -25,6 +26,7 @@ from ray.rllib.connectors.common import AddObservationsFromEpisodesToBatch
 from ray.rllib.connectors.learner.\
     add_next_observations_from_episodes_to_train_batch import (
         AddNextObservationsFromEpisodesToTrainBatch)
+from ray.rllib.utils.torch_utils import l2_loss
 from ray.rllib.utils.annotations import override
 from ray.rllib.utils.from_config import _NotProvided, NotProvided
 from ray.rllib.utils.typing import TensorType, EpisodeType, ModuleID
@@ -559,8 +561,7 @@ class PPOTorchLearner(_PPOTorchLearner):
             # Note that noisy actions are used instead of the true ones. This
             # is on-purpose, as it extends the range of regularization beyond
             # the mean field.
-            caps_global_reg = torch.sum(
-                torch.square(actions_all["noisy"])) / batch_size
+            caps_global_reg = torch.mean(actions_all["noisy"] ** 2)
 
             # Add global smoothness loss to total loss
             total_loss += config.caps_global_reg * caps_global_reg
@@ -577,9 +578,8 @@ class PPOTorchLearner(_PPOTorchLearner):
         if (config.symmetric_policy_reg > 0.0 and
                 not config.enable_symmetry_surrogate_loss):
             # Minimize the assymetry of self output
-            symmetric_policy_reg = F.mse_loss(
-                actions_all["mirrored"], action_mirrored_mean, reduction='sum'
-                ) / batch_size
+            symmetric_policy_reg = torch.mean(
+                (actions_all["mirrored"] - action_mirrored_mean) ** 2)
 
             # Add policy symmetry loss to total loss
             total_loss += config.symmetric_policy_reg * symmetric_policy_reg
@@ -641,7 +641,7 @@ class PPOTorchLearner(_PPOTorchLearner):
             l2_reg = torch.zeros((), device=self._device)
             for name, params in rl_module.named_parameters():
                 if not name.endswith("bias") and params.requires_grad:
-                    l2_reg += torch.mean(torch.square(params))
+                    l2_reg += l2_loss(params)
 
             # Add l2-regularization loss to total loss
             total_loss += config.l2_reg * l2_reg

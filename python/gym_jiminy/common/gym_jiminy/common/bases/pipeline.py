@@ -294,9 +294,13 @@ class BasePipelineWrapper(
     def step_dt(self) -> float:
         return self.env.step_dt
 
-    @InterfaceJiminyEnv.training.getter  # type: ignore[attr-defined]
+    @property
     def training(self) -> bool:
-        return self.env.training
+        return self._is_training
+
+    @training.setter
+    def training(self, mode: bool) -> None:
+        self.env.train(mode)
 
     def train(self, mode: bool = True) -> None:
         self.env.train(mode)

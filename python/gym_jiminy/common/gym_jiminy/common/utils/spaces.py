@@ -1430,7 +1430,6 @@ def build_flatten(data_nested: DataNested,
     @nb.jit(nopython=True, cache=True, fastmath=True)
     def _flatten_nd(data: np.ndarray,
                     idx_start: int,
-                    idx_end: int,
                     data_flat: np.ndarray,
                     is_fortran: bool,
                     is_reversed: bool) -> None:
@@ -1442,7 +1441,8 @@ def build_flatten(data_nested: DataNested,
 
         :param data: Multi-dimensional array that will be either updated or
                      copied as a whole depending on 'is_reversed'.
-        :param idx_slice: Slice of 'data_flat' to synchronized with 'data'.
+        :param idx_start: First index of the slice of 'data_flat' to
+                          synchronized with 'data'.
         :param data_flat: 1D array from which to extract that will be either
                           updated or copied depending on 'is_reversed'.
         :param is_fortran: Order in which the elements of multi-dimensional
@@ -1513,8 +1513,7 @@ def build_flatten(data_nested: DataNested,
             return
 
         # General case looping over each element individually
-        _flatten_nd(
-            data, idx_start, idx_end, data_flat, is_fortran, is_reversed)
+        _flatten_nd(data, idx_start, data_flat, is_fortran, is_reversed)
 
     args = (order == 'F', is_reversed)
     if data_flat is not None:
