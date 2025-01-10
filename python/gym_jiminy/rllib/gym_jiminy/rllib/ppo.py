@@ -58,6 +58,7 @@ def copy_batch(batch: SampleBatch) -> SampleBatch:
 def get_adversarial_observation_sgld(
         module: RLModule,
         batch: SampleBatch,
+        fwd_out: Dict[str, TensorType],
         noise_scale: float,
         beta_inv: float,
         n_steps: int) -> torch.Tensor:
@@ -66,10 +67,10 @@ def get_adversarial_observation_sgld(
     Langevin dynamics algorithm (SGLD).
     """
     # Compute mean field action for true observation
-    action_dist_class = module.get_train_action_dist_cls()
-    action_dist = action_dist_class.from_logits(
-        batch[Columns.ACTION_DIST_INPUTS]).to_deterministic()
-    action_true_mean = action_dist.sample()
+    action_dist_class_train = module.get_train_action_dist_cls()
+    action_dist = action_dist_class_train.from_logits(
+        fwd_out[Columns.ACTION_DIST_INPUTS])
+    action_true_mean = action_dist.to_deterministic().sample()
 
     # Shallow copy the original training batch.
     # Be careful accessing fields using the original batch to properly keep
@@ -102,9 +103,9 @@ def get_adversarial_observation_sgld(
             # `forward_inference` to force computing the gradient.
             batch_copy[Columns.OBS] = observation_noisy
             outs = module.forward_train(batch_copy)
-            action_dist = action_dist_class.from_logits(
-                outs[Columns.ACTION_DIST_INPUTS]).to_deterministic()
-            action_noisy_mean = action_dist.sample()
+            action_dist = action_dist_class_train.from_logits(
+                outs[Columns.ACTION_DIST_INPUTS])
+            action_noisy_mean = action_dist.to_deterministic().sample()
 
             # Compute action different and associated gradient
             objective = torch.mean(torch.sum(
@@ -435,10 +436,10 @@ class PPOTorchLearner(_PPOTorchLearner):
         # No need to perform model forward pass since it was already done by
         # some connector in the learning pipeline, so just retrieving the value
         # from the training batch.
-        action_dist_class = rl_module.get_train_action_dist_cls()
-        action_dist = action_dist_class.from_logits(
-            batch[Columns.ACTION_DIST_INPUTS]).to_deterministic()
-        action_true_mean = action_dist.sample()
+        action_dist_class_train = rl_module.get_train_action_dist_cls()
+        action_dist_class = action_dist_class_train.from_logits(
+            fwd_out[Columns.ACTION_DIST_INPUTS])
+        action_true_mean = action_dist_class.to_deterministic().sample()
 
         # Define various training batches to forward to the model
         batch_all = {}
@@ -462,6 +463,7 @@ class PPOTorchLearner(_PPOTorchLearner):
                 observation_noisy = get_adversarial_observation_sgld(
                     rl_module,
                     batch,
+                    fwd_out,
                     config.spatial_noise_scale,
                     config.sgld_beta_inv,
                     config.sgld_n_steps)
@@ -592,7 +594,7 @@ class PPOTorchLearner(_PPOTorchLearner):
                 config.enable_symmetry_surrogate_loss):
             # Get the mirror policy probability distribution
             # i.e. `action -> pi(action | obs_mirrored)``
-            action_mirrored_dist = action_dist_class.from_logits(
+            action_mirrored_dist = action_dist_class_train.from_logits(
                 action_logits_all["mirrored"])
 
             # Compute probability of "mirrored action under true observation"
@@ -638,7 +640,7 @@ class PPOTorchLearner(_PPOTorchLearner):
 
         if config.l2_reg > 0.0:
             # Add actor l2-regularization loss
-            l2_reg = torch.zeros((), device=self._device)
+            l2_reg = torch.tensor(0.0, device=self._device)
             for name, params in rl_module.named_parameters():
                 if not name.endswith("bias") and params.requires_grad:
                     l2_reg += l2_loss(params)
