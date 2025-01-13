@@ -9,16 +9,21 @@ from typing import (
 
 import numpy as np
 import torch
-from torch.nn import functional as F
 
 from ray.rllib import SampleBatch
 from ray.rllib.core import DEFAULT_MODULE_ID
 from ray.rllib.core.columns import Columns
-from ray.rllib.core.learner import Learner
+from ray.rllib.core.learner.learner import (
+    POLICY_LOSS_KEY, VF_LOSS_KEY, ENTROPY_KEY, Learner)
 from ray.rllib.core.rl_module.rl_module import RLModule
 from ray.rllib.core.rl_module.torch.torch_rl_module import TorchRLModule
 from ray.rllib.algorithms.algorithm_config import AlgorithmConfig
-from ray.rllib.algorithms.ppo import PPOConfig as _PPOConfig, PPO as _PPO
+from ray.rllib.algorithms.ppo.ppo import (
+    LEARNER_RESULTS_KL_KEY,
+    LEARNER_RESULTS_VF_EXPLAINED_VAR_KEY,
+    LEARNER_RESULTS_VF_LOSS_UNCLIPPED_KEY,
+    PPOConfig as _PPOConfig,
+    PPO as _PPO)
 from ray.rllib.algorithms.ppo.torch.ppo_torch_learner import (
     PPOTorchLearner as _PPOTorchLearner)
 from ray.rllib.connectors.connector_v2 import ConnectorV2
@@ -26,7 +31,8 @@ from ray.rllib.connectors.common import AddObservationsFromEpisodesToBatch
 from ray.rllib.connectors.learner.\
     add_next_observations_from_episodes_to_train_batch import (
         AddNextObservationsFromEpisodesToTrainBatch)
-from ray.rllib.utils.torch_utils import l2_loss
+from ray.rllib.evaluation.postprocessing import Postprocessing
+from ray.rllib.utils.torch_utils import explained_variance, l2_loss
 from ray.rllib.utils.annotations import override
 from ray.rllib.utils.from_config import _NotProvided, NotProvided
 from ray.rllib.utils.typing import TensorType, EpisodeType, ModuleID
@@ -58,6 +64,7 @@ def copy_batch(batch: SampleBatch) -> SampleBatch:
 def get_adversarial_observation_sgld(
         module: RLModule,
         batch: SampleBatch,
+        fwd_out: Dict[str, TensorType],
         noise_scale: float,
         beta_inv: float,
         n_steps: int) -> torch.Tensor:
@@ -66,10 +73,10 @@ def get_adversarial_observation_sgld(
     Langevin dynamics algorithm (SGLD).
     """
     # Compute mean field action for true observation
-    action_dist_class = module.get_train_action_dist_cls()
-    action_dist = action_dist_class.from_logits(
-        batch[Columns.ACTION_DIST_INPUTS]).to_deterministic()
-    action_true_mean = action_dist.sample()
+    action_dist_class_train = module.get_train_action_dist_cls()
+    action_dist = action_dist_class_train.from_logits(
+        fwd_out[Columns.ACTION_DIST_INPUTS])
+    action_true_mean = action_dist.to_deterministic().sample()
 
     # Shallow copy the original training batch.
     # Be careful accessing fields using the original batch to properly keep
@@ -102,9 +109,9 @@ def get_adversarial_observation_sgld(
             # `forward_inference` to force computing the gradient.
             batch_copy[Columns.OBS] = observation_noisy
             outs = module.forward_train(batch_copy)
-            action_dist = action_dist_class.from_logits(
-                outs[Columns.ACTION_DIST_INPUTS]).to_deterministic()
-            action_noisy_mean = action_dist.sample()
+            action_dist = action_dist_class_train.from_logits(
+                outs[Columns.ACTION_DIST_INPUTS])
+            action_noisy_mean = action_dist.to_deterministic().sample()
 
             # Compute action different and associated gradient
             objective = torch.mean(torch.sum(
@@ -417,15 +424,99 @@ class PPOTorchLearner(_PPOTorchLearner):
         """
         # pylint: disable=possibly-used-before-assignment
 
-        # Call base implementation
-        total_loss = super().compute_loss_for_module(
-            module_id=module_id, config=config, batch=batch, fwd_out=fwd_out)
-
         # Extract the right RL Module
         rl_module = self.module[module_id].unwrapped()
 
         # Assert(s) for type checker
         assert isinstance(rl_module, TorchRLModule)
+
+        # FIXME: 'Fixed' base PPO implemented.
+        # Fix "broken" statistics computation keeping only most recent value
+        # instead of keeping track of all the gradient updates at each training
+        # iterations.
+        # Fix explained variance wrong computed due to being computed unmasked.
+        if Columns.LOSS_MASK in batch:
+            mask = batch[Columns.LOSS_MASK]
+
+            def possibly_masked_mean(data: torch.Tensor) -> torch.Tensor:
+                nonlocal mask
+                return torch.mean(data[mask])
+        else:
+            possibly_masked_mean = torch.mean  # type: ignore[assignment]
+
+        action_dist_class_train = rl_module.get_train_action_dist_cls()
+        action_dist_class_explore = rl_module.get_exploration_action_dist_cls()
+        curr_action_dist = action_dist_class_train.from_logits(
+            fwd_out[Columns.ACTION_DIST_INPUTS])
+        prev_action_dist = action_dist_class_explore.from_logits(
+            batch[Columns.ACTION_DIST_INPUTS])
+        logp_ratio = torch.exp(
+            curr_action_dist.logp(batch[Columns.ACTIONS]) -
+            batch[Columns.ACTION_LOGP])
+
+        if config.use_kl_loss:
+            kl_coef = self.curr_kl_coeffs_per_module[module_id]
+            action_kl = prev_action_dist.kl(curr_action_dist)
+            mean_kl_loss = possibly_masked_mean(action_kl)
+        else:
+            mean_kl_loss = torch.tensor(0.0, device=self._device)
+
+        entropy_sched = self.entropy_coeff_schedulers_per_module[module_id]
+        entropy_coef = entropy_sched.get_current_value()
+        curr_entropy = curr_action_dist.entropy()
+        mean_entropy = possibly_masked_mean(curr_entropy)
+
+        surrogate_loss = torch.min(
+            batch[Postprocessing.ADVANTAGES] * logp_ratio,
+            batch[Postprocessing.ADVANTAGES] * torch.clamp(
+                logp_ratio, 1 - config.clip_param, 1 + config.clip_param))
+        mean_surrogate_loss = possibly_masked_mean(surrogate_loss)
+
+        if config.use_critic:
+            value_fn_out = rl_module.compute_values(
+                batch, embeddings=fwd_out.get(Columns.EMBEDDINGS))
+            vf_target = batch[Postprocessing.VALUE_TARGETS]
+            vf_loss = torch.pow(value_fn_out - vf_target, 2.0)
+            vf_loss_clipped = torch.clamp(vf_loss, 0, config.vf_clip_param)
+            mean_vf_loss = possibly_masked_mean(vf_loss_clipped)
+            mean_vf_unclipped_loss = possibly_masked_mean(vf_loss)
+            # ------------------------------ FIX ------------------------------
+            if Columns.LOSS_MASK in batch:
+                vf_target = vf_target[mask]
+                value_fn_out = value_fn_out[mask]
+            vf_explained_var = explained_variance(vf_target, value_fn_out)
+            # -----------------------------------------------------------------
+        else:
+            z = torch.tensor(0.0, device=self._device)
+            vf_explained_var = mean_vf_unclipped_loss = mean_vf_loss = z
+
+        total_loss = (
+            - mean_surrogate_loss + config.vf_loss_coeff * mean_vf_loss -
+            entropy_coef * mean_entropy)
+        if config.use_kl_loss:
+            total_loss += kl_coef * mean_kl_loss
+
+        self.metrics.log_dict(
+            {
+                # ---------------------------- FIX ----------------------------
+                key: value.item()
+                # -------------------------------------------------------------
+                for key, value in (
+                    (POLICY_LOSS_KEY, -mean_surrogate_loss),
+                    (VF_LOSS_KEY, mean_vf_loss),
+                    (LEARNER_RESULTS_VF_LOSS_UNCLIPPED_KEY,
+                     mean_vf_unclipped_loss),
+                    (LEARNER_RESULTS_VF_EXPLAINED_VAR_KEY, vf_explained_var),
+                    (ENTROPY_KEY, mean_entropy),
+                    (LEARNER_RESULTS_KL_KEY, mean_kl_loss))
+            },
+            key=module_id,
+            # ------------------------------ FIX ------------------------------
+            reduce="mean",
+            window=float("inf"),
+            clear_on_reduce=True,
+            # -----------------------------------------------------------------
+            )
 
         # Extract some proxies from convenience
         observation_true = batch[Columns.OBS]
@@ -435,10 +526,7 @@ class PPOTorchLearner(_PPOTorchLearner):
         # No need to perform model forward pass since it was already done by
         # some connector in the learning pipeline, so just retrieving the value
         # from the training batch.
-        action_dist_class = rl_module.get_train_action_dist_cls()
-        action_dist = action_dist_class.from_logits(
-            batch[Columns.ACTION_DIST_INPUTS]).to_deterministic()
-        action_true_mean = action_dist.sample()
+        action_true_mean = curr_action_dist.to_deterministic().sample()
 
         # Define various training batches to forward to the model
         batch_all = {}
@@ -462,6 +550,7 @@ class PPOTorchLearner(_PPOTorchLearner):
                 observation_noisy = get_adversarial_observation_sgld(
                     rl_module,
                     batch,
+                    fwd_out,
                     config.spatial_noise_scale,
                     config.sgld_beta_inv,
                     config.sgld_n_steps)
@@ -503,72 +592,82 @@ class PPOTorchLearner(_PPOTorchLearner):
             batch_names = batch_all.keys()
             action_logits_all = dict(zip(batch_names, torch.split(
                 action_logits_cat, batch_size, dim=0)))
-            action_dist_cat = action_dist_class.from_logits(
-                outs_cat[Columns.ACTION_DIST_INPUTS]).to_deterministic()
-            actions_cat = action_dist_cat.sample()
+            action_dist_cat = action_dist_class_train.from_logits(
+                outs_cat[Columns.ACTION_DIST_INPUTS])
+            actions_cat = action_dist_cat.to_deterministic().sample()
             actions_all = dict(zip(batch_names, torch.split(
                 actions_cat, batch_size, dim=0)))
 
         # Update total loss
         if config.caps_temporal_reg > 0.0 or config.temporal_barrier_reg > 0.0:
             # Compute action temporal delta
-            action_delta = F.l1_loss(
-                actions_all["next"], action_true_mean, reduction='none')
+            action_delta = (actions_all["next"] - action_true_mean).abs()
 
             if config.caps_temporal_reg > 0.0:
                 # Minimize the difference between the successive action mean
-                caps_temporal_reg = torch.mean(action_delta)
+                mean_caps_temporal_reg = possibly_masked_mean(action_delta)
 
                 # Add temporal smoothness loss to total loss
-                total_loss += config.caps_temporal_reg * caps_temporal_reg
+                total_loss += config.caps_temporal_reg * mean_caps_temporal_reg
                 self.metrics.log_value(
                     (module_id, "temporal_smoothness"),
-                    caps_temporal_reg.item(),
-                    window=1)
+                    mean_caps_temporal_reg.item(),
+                    reduce="mean",
+                    window=float("inf"),
+                    clear_on_reduce=True)
 
             if config.temporal_barrier_reg > 0.0:
                 # Add temporal barrier loss to total loss:
                 # exp(scale * (err - thr)) - 1.0 if err > thr else 0.0
-                temporal_barrier_reg = torch.mean(torch.exp(torch.clamp(
+                temporal_barrier_reg = torch.exp(torch.clamp(
                     config.temporal_barrier_scale * (
                         action_delta - config.temporal_barrier_threshold),
-                    min=0.0, max=5.0)) - 1.0)
+                    min=0.0, max=5.0)) - 1.0
+                mean_temporal_barrier_reg = possibly_masked_mean(
+                    temporal_barrier_reg)
 
                 # Add spatial smoothness loss to total loss
                 total_loss += (
-                    config.temporal_barrier_reg * temporal_barrier_reg)
+                    config.temporal_barrier_reg * mean_temporal_barrier_reg)
                 self.metrics.log_value(
                     (module_id, "temporal_barrier"),
-                    temporal_barrier_reg.item(),
-                    window=1)
+                    mean_temporal_barrier_reg.item(),
+                    reduce="mean",
+                    window=float("inf"),
+                    clear_on_reduce=True)
 
         if config.caps_spatial_reg > 0.0:
             # Minimize the difference between the original action mean and the
             # perturbed one.
-            caps_spatial_reg = F.mse_loss(
-                actions_all["noisy"], action_true_mean, reduction='sum'
-                ) / batch_size
+            caps_spatial_reg = torch.sum(
+                (actions_all["noisy"] - action_true_mean) ** 2, dim=1)
+            mean_caps_spatial_reg = possibly_masked_mean(caps_spatial_reg)
 
             # Add spatial smoothness loss to total loss
-            total_loss += config.caps_spatial_reg * caps_spatial_reg
+            total_loss += config.caps_spatial_reg * mean_caps_spatial_reg
             self.metrics.log_value(
                 (module_id, "spatial_smoothness"),
-                caps_spatial_reg.item(),
-                window=1)
+                mean_caps_spatial_reg.item(),
+                reduce="mean",
+                window=float("inf"),
+                clear_on_reduce=True)
 
         if config.caps_global_reg > 0.0:
             # Minimize the magnitude of action mean.
             # Note that noisy actions are used instead of the true ones. This
             # is on-purpose, as it extends the range of regularization beyond
             # the mean field.
-            caps_global_reg = torch.mean(actions_all["noisy"] ** 2)
+            caps_global_reg = actions_all["noisy"] ** 2
+            mean_caps_global_reg = possibly_masked_mean(caps_global_reg)
 
             # Add global smoothness loss to total loss
-            total_loss += config.caps_global_reg * caps_global_reg
+            total_loss += config.caps_global_reg * mean_caps_global_reg
             self.metrics.log_value(
                 (module_id, "global_smoothness"),
-                caps_global_reg.item(),
-                window=1)
+                mean_caps_global_reg.item(),
+                reduce="mean",
+                window=float("inf"),
+                clear_on_reduce=True)
 
         if config.symmetric_policy_reg > 0.0:
             # Compute the mirrored true action
@@ -578,21 +677,26 @@ class PPOTorchLearner(_PPOTorchLearner):
         if (config.symmetric_policy_reg > 0.0 and
                 not config.enable_symmetry_surrogate_loss):
             # Minimize the assymetry of self output
-            symmetric_policy_reg = torch.mean(
-                (actions_all["mirrored"] - action_mirrored_mean) ** 2)
+            symmetric_policy_reg = (
+                actions_all["mirrored"] - action_mirrored_mean) ** 2
+            mean_symmetric_policy_reg = possibly_masked_mean(
+                symmetric_policy_reg)
 
             # Add policy symmetry loss to total loss
-            total_loss += config.symmetric_policy_reg * symmetric_policy_reg
+            total_loss += (
+                config.symmetric_policy_reg * mean_symmetric_policy_reg)
             self.metrics.log_value(
                 (module_id, "symmetry"),
-                symmetric_policy_reg.item(),
-                window=1)
+                mean_symmetric_policy_reg.item(),
+                reduce="mean",
+                window=float("inf"),
+                clear_on_reduce=True)
 
         if (config.symmetric_policy_reg > 0.0 and
                 config.enable_symmetry_surrogate_loss):
             # Get the mirror policy probability distribution
             # i.e. `action -> pi(action | obs_mirrored)``
-            action_mirrored_dist = action_dist_class.from_logits(
+            action_mirrored_dist = action_dist_class_train.from_logits(
                 action_logits_all["mirrored"])
 
             # Compute probability of "mirrored action under true observation"
@@ -622,25 +726,30 @@ class PPOTorchLearner(_PPOTorchLearner):
             # divergence to improve the objective are taken into account while
             # all the others are filtered out.
             advantages_true = batch[Columns.ADVANTAGES]
-            symmetry_surrogate_loss = - torch.mean(torch.min(
+            symmetry_surrogate_loss = torch.min(
                 advantages_true * action_symmetry_proba_ratio,
                 advantages_true * torch.clamp(
                     action_symmetry_proba_ratio,
                     1.0 - config.clip_param,
-                    1.0 + config.clip_param)))
+                    1.0 + config.clip_param))
+            mean_symmetry_surrogate_loss = possibly_masked_mean(
+                symmetry_surrogate_loss)
 
             # Add symmetry surrogate loss to total loss
-            total_loss += config.symmetric_policy_reg * symmetry_surrogate_loss
+            total_loss -= (
+                config.symmetric_policy_reg * mean_symmetry_surrogate_loss)
             self.metrics.log_value(
                 (module_id, "symmetry_surrogate"),
-                symmetry_surrogate_loss.item(),
-                window=1)
+                -mean_symmetry_surrogate_loss.item(),
+                reduce="mean",
+                window=float("inf"),
+                clear_on_reduce=True)
 
         if config.l2_reg > 0.0:
             # Add actor l2-regularization loss
-            l2_reg = torch.zeros((), device=self._device)
+            l2_reg = torch.tensor(0.0, device=self._device)
             for name, params in rl_module.named_parameters():
-                if not name.endswith("bias") and params.requires_grad:
+                if name.endswith(".weight") and params.requires_grad:
                     l2_reg += l2_loss(params)
 
             # Add l2-regularization loss to total loss
@@ -648,7 +757,9 @@ class PPOTorchLearner(_PPOTorchLearner):
             self.metrics.log_value(
                 (module_id, "l2_reg"),
                 l2_reg.item(),
-                window=1)
+                reduce="mean",
+                window=float("inf"),
+                clear_on_reduce=True)
 
         return total_loss
 

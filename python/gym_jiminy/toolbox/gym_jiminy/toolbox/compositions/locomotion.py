@@ -33,7 +33,8 @@ def tanh_normalization(value: float,
     """
     value_rel = (
         cutoff_high + cutoff_low - 2 * value) / (cutoff_high - cutoff_low)
-    return 1.0 / (1.0 + math.pow(CUTOFF_ESP / (1.0 - CUTOFF_ESP), value_rel))
+    factor = math.pow(CUTOFF_ESP / (1.0 - CUTOFF_ESP), abs(value_rel))
+    return 1.0 / (1.0 + factor) if value_rel > 0.0 else factor / (1.0 + factor)
 
 
 class MaximizeRobusntess(QuantityReward):
