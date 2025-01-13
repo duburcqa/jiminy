@@ -64,7 +64,7 @@ from ray.rllib.env.single_agent_episode import SingleAgentEpisode
 from ray.rllib.env.env_runner import EnvRunner
 from ray.rllib.env.single_agent_env_runner import SingleAgentEnvRunner
 from ray.rllib.env.env_runner_group import EnvRunnerGroup
-from ray.rllib.utils.filter import MeanStdFilter as _MeanStdFilter
+from ray.rllib.utils.filter import MeanStdFilter as _MeanStdFilter, RunningStat
 from ray.rllib.utils.metrics import (
     NUM_ENV_STEPS_SAMPLED_LIFETIME, NUM_AGENT_STEPS_SAMPLED_LIFETIME,
     NUM_EPISODES_LIFETIME, EPISODE_RETURN_MEAN, EPISODE_RETURN_MAX,
@@ -101,21 +101,60 @@ class MeanStdFilter(MeanStdFilterConnector):
     fix statistics accumulation, which is currently broken for ray<=2.40.
     See PR for details: https://github.com/ray-project/ray/pull/49718
     """
+    def merge_states(self, states: List[Dict[str, Any]]) -> Dict[str, Any]:
+        # Initialize filters if not already done, clear running stats otherwise
+        if self._filters is None:
+            self._init_new_filters()
+        else:
+            for _filter in self._filters.values():
+                _filter.running_stats = tree.map_structure(
+                    RunningStat, _filter.shape)
+        assert self._filters is not None
+
+        # Make sure data is uniform across given states.
+        ref = next(iter(states[0].values()))
+
+        for state in states:
+            for agent_id, agent_state in state.items():
+                _filter = _MeanStdFilter(
+                    ref["shape"],
+                    demean=ref["de_mean_to_zero"],
+                    destd=ref["de_std_to_one"],
+                    clip=ref["clip_by_value"],
+                )
+                # Override running stats of the filter with the ones stored in
+                # `agent_state`.
+                _filter.buffer = tree.unflatten_as(
+                    agent_state["shape"],
+                    [
+                        RunningStat.from_state(stats)
+                        # ------------------------ FIX ------------------------
+                        for stats in agent_state["buffer"]
+                        # -----------------------------------------------------
+                    ],
+                )
+
+                # Leave the buffers as-is, since they should always only
+                # reflect what has happened on the particular env runner.
+                self._filters[agent_id].apply_changes(
+                    _filter, with_buffer=False)
+
+        # Calling base `_get_state_from_filters` to avoid syncing `buffer` attr
+        return MeanStdFilterConnector._get_state_from_filters(
+            self._filters)  # type: ignore[arg-type]
+
     @staticmethod
     def _get_state_from_filters(
             filters: Dict[AgentID, _MeanStdFilter]  # type: ignore[override]
             ) -> Dict[AgentID, Dict[str, Any]]:
-        ret = {}
+        ret = MeanStdFilterConnector._get_state_from_filters(
+            filters)  # type: ignore[arg-type]
+        # -------------------------------- FIX --------------------------------
         for agent_id, agent_filter in filters.items():
-            ret[agent_id] = {
-                "shape": agent_filter.shape,
-                "de_mean_to_zero": agent_filter.demean,
-                "de_std_to_one": agent_filter.destd,
-                "clip_by_value": agent_filter.clip,
-                "running_stats": [
-                    s.to_state() for s in tree.flatten(agent_filter.buffer)
-                ],
-            }
+            if "buffer" not in ret[agent_id]:
+                ret[agent_id]["buffer"] = [
+                    s.to_state() for s in tree.flatten(agent_filter.buffer)]
+        # ---------------------------------------------------------------------
         return ret
 
 
@@ -199,9 +238,24 @@ class MonitorEpisodeCallback(DefaultCallbacks):
         window = env_runner.config.metrics_num_episodes_for_smoothing
         clear_on_reduce = window in (None, float("inf"))
 
-        # Log raw infos without any scalar reduction (mean, "max, min...)
+        # Log raw infos without any scalar reduction (mean, max, min...)
         for info in episode.get_infos():
             metrics_logger.log_dict(info, reduce=None, clear_on_reduce=True)
+
+        # Log the duration of all episodes without any scalar reduction.
+        # Note that relying on `num_steps` is not possible as the environment
+        # has already been reset at this point.
+        assert isinstance(episode, SingleAgentEpisode)
+        num_steps = episode.t
+        assert isinstance(env.unwrapped, gym.vector.SyncVectorEnv)
+        env_unwrapped = env.unwrapped.envs[env_index].unwrapped
+        assert isinstance(env_unwrapped, BaseJiminyEnv)
+        step_dt = env_unwrapped.step_dt
+        episode_duration = step_dt * num_steps
+        metrics_logger.log_value("episode_duration",
+                                 episode_duration,
+                                 reduce=None,
+                                 clear_on_reduce=True)
 
         # Log reduced (min, max, mean) cumulative reward and episode length.
         # Note that the window size must be set to `float("inf")` instead of
@@ -210,35 +264,18 @@ class MonitorEpisodeCallback(DefaultCallbacks):
         # Beware `episode.env_steps()` does NOT correspond to the absolute
         # "index" of the last step of the episode before termination, but
         # rather the total number of steps in this chunk.
-        assert isinstance(episode, SingleAgentEpisode)
-        num_steps = episode.t
         for reduce in ("min", "max", "mean"):
-            metrics_logger.log_value(f"episode_return_{reduce}",
-                                     episode_return,
-                                     reduce=reduce,
-                                     window=window,
-                                     clear_on_reduce=clear_on_reduce)
-            metrics_logger.log_value(f"episode_len_{reduce}",
-                                     num_steps,
-                                     reduce=reduce,
-                                     window=window,
-                                     clear_on_reduce=clear_on_reduce)
-            if not clear_on_reduce:
-                self._clear_metrics_keys.update((
-                    f"episode_return_{reduce}", f"episode_len_{reduce}"))
-
-        # Log the duration of all episodes without any scalar reduction.
-        # Note that relying on `num_steps` is not possible as the environment
-        # has already been reset at this point.
-        assert isinstance(env.unwrapped, gym.vector.SyncVectorEnv)
-        env_unwrapped = env.unwrapped.envs[env_index].unwrapped
-        assert isinstance(env_unwrapped, BaseJiminyEnv)
-        step_dt = env_unwrapped.step_dt
-        duration = step_dt * num_steps
-        metrics_logger.log_value("episode_duration",
-                                 duration,
-                                 reduce=None,
-                                 clear_on_reduce=True)
+            for field, value in (
+                    (f"episode_return_{reduce}", episode_return),
+                    (f"episode_len_{reduce}", num_steps),
+                    (f"episode_duration_{reduce}", episode_duration)):
+                metrics_logger.log_value(field,
+                                         value,
+                                         reduce=reduce,
+                                         window=window,
+                                         clear_on_reduce=clear_on_reduce)
+                if not clear_on_reduce:
+                    self._clear_metrics_keys.add(field)
 
     def on_sample_end(self,
                       *,
@@ -654,11 +691,12 @@ def train(algo_config: AlgorithmConfig,
                 (algo.env_runner_group, algo.eval_env_runner_group)):
             if workers is None:
                 continue
-            num_env_runners = workers.num_remote_env_runners() + 1
-            seed_seq = seed_seq_gen_i.generate_state(num_env_runners).tolist()
+            num_envs = workers.foreach_worker(lambda worker: worker.num_envs)
+            seeds = [seed_seq_gen_i.generate_state(n).tolist()
+                     for n in num_envs]
             workers.foreach_worker_with_id(
                 lambda idx, worker: worker.env.reset(
-                    seed=seed_seq[idx]))  # pylint: disable=cell-var-from-loop
+                    seed=seeds[idx]))  # pylint: disable=cell-var-from-loop
 
     # Instantiate logger that will be used throughout the experiment
     try:
@@ -711,12 +749,13 @@ def train(algo_config: AlgorithmConfig,
 
     # Run several training iterations until terminal condition is reached
     try:
+        iter_num = 0
         while True:
             # Perform one iteration of training the policy
             result = algo.train()
 
             # Log results
-            step_num = result[NUM_ENV_STEPS_SAMPLED_LIFETIME]
+            num_timesteps = result[NUM_ENV_STEPS_SAMPLED_LIFETIME]
             if file_writer is not None:
                 # Flatten result dict after excluding irrelevant special keys
                 masked_fields = (
@@ -733,11 +772,10 @@ def train(algo_config: AlgorithmConfig,
                 # Logger variables in accordance with their respective types
                 for attr, value in result_flat.items():
                     # First, try to log the variable as a scalar
-                    full_attr = "/".join(("ray", "tune", attr))
                     try:
                         file_writer.add_scalar(
-                            full_attr, value, global_step=step_num)
-                        scalar_tags.append(full_attr)
+                            attr, value, global_step=num_timesteps)
+                        scalar_tags.append(attr)
                         continue
                     except (TypeError, AssertionError, NotImplementedError):
                         pass
@@ -746,19 +784,19 @@ def train(algo_config: AlgorithmConfig,
                         # Assuming single image
                         if value.ndim == 3:
                             file_writer.add_image(
-                                full_attr, value, global_step=step_num)
+                                attr, value, global_step=num_timesteps)
                             continue
 
                         # Assuming batch of images
                         if value.ndim == 4:
                             file_writer.add_images(
-                                full_attr, value, global_step=step_num)
+                                attr, value, global_step=num_timesteps)
                             continue
 
                         # Assuming video with arbitrary FPS
                         if value.ndim == 5:
                             file_writer.add_video(
-                                full_attr, value, fps=20, global_step=step_num)
+                                attr, value, fps=20, global_step=num_timesteps)
                             continue
 
                     # In last resort, try to log the variable as an histogram
@@ -767,7 +805,7 @@ def train(algo_config: AlgorithmConfig,
                             continue
                         try:
                             file_writer.add_histogram(
-                                full_attr, value, global_step=step_num)
+                                attr, value, global_step=num_timesteps)
                             continue
                         except (ValueError, TypeError):
                             pass
@@ -775,7 +813,7 @@ def train(algo_config: AlgorithmConfig,
                     # Warn and move on if it was impossible to log the variable
                     LOGGER.warning(
                         "You are trying to log an invalid value (%s=%s).",
-                        full_attr, value)
+                        attr, value)
 
                 # Add multiline charts for dictionary of named scalar metrics
                 # stored under key `ENV_RUNNER_RESULTS`.
@@ -903,6 +941,21 @@ def _sample_initialize(worker: EnvRunner) -> Sequence[bool]:
     # Assert(s) for type checker
     assert isinstance(worker, SingleAgentEnvRunner)
 
+    # FIXME: When there is a single thread, the same environments are used for
+    # sampling during training and evaluation. One is expecting to sample
+    # complete episode from reset to termination during evaluation, which means
+    # that it is necessary to force reset the environment before sample.
+    # Although all the environments were initiallly reset systematically before
+    # sampling a given number of episodes, it is no longer the case after
+    # applying our on patch that specifically revert this behavior. This patch
+    # was necessary as it causes episodes from which the agent is performing
+    # poorly to be over-represented in training batches.
+    # Passing `force_reset=True` as input argument of `sample` is not suffisant
+    # in practice, as this input argument is ignored when specifying the number
+    # of episodes. The only option is to override the internal flag
+    # `_needs_initial_reset` used internally to automatically trigger reset.
+    worker._needs_initial_reset = True
+
     # Stop any simulation that may be running
     worker.env.unwrapped.call('stop')
 
@@ -974,6 +1027,10 @@ def _sample_finalize(worker: EnvRunner,
     """
     # Assert(s) for type checker
     assert isinstance(worker, SingleAgentEnvRunner)
+
+    # Enable once-again auto-reset, to avoid starting back training from where
+    # evaluation stopped.
+    worker._needs_initial_reset = True
 
     # Restore the original training/evaluation mode
     if parse_version(gym.__version__) >= parse_version("1.0"):

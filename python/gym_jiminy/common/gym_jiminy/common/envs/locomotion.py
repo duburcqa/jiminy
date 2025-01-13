@@ -316,7 +316,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                     0.0, self.simulation_duration_max, F_IMPULSE_PERIOD)[1:]:
                 t = t_ref + sample(scale=F_IMPULSE_DELTA, rg=self.np_random)
                 f_xy = sample(dist='normal', shape=(2,), rg=self.np_random)
-                f_xy /= np.linalg.norm(f_xy, ord=2)
+                f_xy /= float(np.linalg.norm(f_xy, ord=2))
                 f_xy *= sample(
                     0.0, self.std_ratio['disturbance']*F_IMPULSE_SCALE,
                     rg=self.np_random)

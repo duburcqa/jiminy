@@ -187,11 +187,11 @@ class AcrobotJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
 
         See documentation: https://gym.openai.com/envs/Acrobot-v1/.
         """
-        theta1, theta2 = sample(
+        thetas = sample(
             scale=THETA_RANDOM_MAX, shape=(2,), rg=self.np_random)
-        qpos = np.array([np.cos(theta1), np.sin(theta1),
-                         np.cos(theta2), np.sin(theta2)])
+        qpos = np.stack((np.cos(thetas), np.sin(thetas)), axis=1).reshape(-1)
         qvel = sample(scale=DTHETA_RANDOM_MAX, shape=(2,), rg=self.np_random)
+        assert isinstance(qvel, np.ndarray)
         return qpos, qvel
 
     def has_terminated(self, info: InfoType) -> Tuple[bool, bool]:

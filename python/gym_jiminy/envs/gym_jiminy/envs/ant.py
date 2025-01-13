@@ -128,6 +128,7 @@ class AntJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
                       scale=0.1,
                       shape=(self.robot.nv,),
                       rg=self.np_random)
+        assert isinstance(qvel, np.ndarray)
 
         return qpos, qvel
 

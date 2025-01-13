@@ -140,7 +140,7 @@ def sample(low: Union[float, np.ndarray] = -1.0,
            enable_log_scale: bool = False,
            shape: Optional[Sequence[int]] = None,
            rg: Optional[np.random.Generator] = None
-           ) -> np.ndarray:
+           ) -> Union[np.ndarray, float]:
     """Randomly sample values from a given distribution.
 
     .. note:
