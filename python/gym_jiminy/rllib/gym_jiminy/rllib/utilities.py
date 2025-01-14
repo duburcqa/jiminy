@@ -959,7 +959,7 @@ def _sample_initialize(worker: EnvRunner) -> Sequence[bool]:
     # Stop any simulation that may be running
     worker.env.unwrapped.call('stop')
 
-    # Switch the environment to evaluation mode
+    # Backup the current mode of the environment then switch to evaluation
     is_training_all = worker.env.unwrapped.get_attr('training')
     worker.env.unwrapped.call('eval')
 

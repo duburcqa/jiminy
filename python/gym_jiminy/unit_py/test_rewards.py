@@ -22,8 +22,8 @@ from gym_jiminy.common.compositions import (
     SurviveReward,
     AdditiveMixtureReward)
 from gym_jiminy.toolbox.compositions import (
-    tanh_normalization,
-    MaximizeRobusntess)
+    sigmoid_normalization,
+    MaximizeRobustness)
 
 
 class Rewards(unittest.TestCase):
@@ -121,8 +121,8 @@ class Rewards(unittest.TestCase):
         """ TODO: Write documentation
         """
         CUTOFF_INNER, CUTOFF_OUTER = 0.1, 0.5
-        reward_stability = MaximizeRobusntess(
-            self.env, cutoff=0.1, cutoff_outer=0.5)
+        reward_stability = MaximizeRobustness(
+            self.env, cutoff_inner=0.1, cutoff_outer=0.5)
         quantity = reward_stability.data
 
         self.env.reset(seed=0)
@@ -131,11 +131,16 @@ class Rewards(unittest.TestCase):
 
         support_polygon = quantity.support_polygon.get()
         dist = support_polygon.get_distance_to_point(quantity.zmp.get())
-        value = tanh_normalization(dist.item(), -CUTOFF_INNER, CUTOFF_OUTER)
-        np.testing.assert_allclose(tanh_normalization(
-            -CUTOFF_INNER, -CUTOFF_INNER, CUTOFF_OUTER), 1.0 - CUTOFF_ESP)
-        np.testing.assert_allclose(tanh_normalization(
-            CUTOFF_OUTER, -CUTOFF_INNER, CUTOFF_OUTER), CUTOFF_ESP)
+        value = sigmoid_normalization(
+            dist.item(), -CUTOFF_OUTER, CUTOFF_INNER, False)
+        np.testing.assert_allclose(
+            sigmoid_normalization(
+                -CUTOFF_INNER, -CUTOFF_OUTER, CUTOFF_INNER, False),
+            1.0 - CUTOFF_ESP)
+        np.testing.assert_allclose(
+            sigmoid_normalization(
+                CUTOFF_OUTER, -CUTOFF_OUTER, CUTOFF_INNER, False),
+            CUTOFF_ESP)
         np.testing.assert_allclose(reward_stability(terminated, {}), value)
 
     def test_friction(self):
