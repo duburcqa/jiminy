@@ -139,8 +139,7 @@ class AbstractReward(metaclass=ABCMeta):
                      in 'info' if it was truly evaluated.
         """
         # Evaluate the reward and store extra information
-        reward_info: InfoType = {}
-        value = self.compute(terminated, reward_info)
+        value = self.compute(terminated, info)
 
         # Early return if None, which means that the reward was not evaluated
         if value is None:
@@ -163,7 +162,7 @@ class AbstractReward(metaclass=ABCMeta):
             raise KeyError(
                 f"Key '{self.name}' already reserved in 'info'. Impossible to "
                 "store value of reward component.")
-        info[self.name] = reward_info or value
+        info[self.name] = value
 
         # Returning the reward
         return value
