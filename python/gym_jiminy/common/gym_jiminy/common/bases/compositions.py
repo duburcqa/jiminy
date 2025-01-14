@@ -503,32 +503,15 @@ class AbstractTerminationCondition(metaclass=ABCMeta):
         :returns: terminated and truncated flags.
         """
         # Skip termination condition in eval mode or during grace period
-        termination_info: InfoType = {}
         if (self.training_only and not self.env.training) or (
                 self.env.stepper_state.t < self.grace_period):
             # Always continue
             is_terminated, is_truncated = False, False
         else:
-            # Evaluate the reward and store extra information
-            is_done = self.compute(termination_info)
+            # Evaluate the termination condition and store extra information
+            is_done = self.compute(info)
             is_terminated = is_done and not self.is_truncation
             is_truncated = is_done and self.is_truncation
-
-        # Store episode state as info
-        if self.name in info.keys():
-            raise KeyError(
-                f"Key '{self.name}' already reserved in 'info'. Impossible to "
-                "store value of termination condition.")
-        if termination_info:
-            info[self.name] = termination_info
-        else:
-            if is_terminated:
-                episode_state = _TERMINATED
-            elif is_truncated:
-                episode_state = _TRUNCATED
-            else:
-                episode_state = _CONTINUED
-            info[self.name] = episode_state
 
         # Returning terminated and truncated flags
         return is_terminated, is_truncated
