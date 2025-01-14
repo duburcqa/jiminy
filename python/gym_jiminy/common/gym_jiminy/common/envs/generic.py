@@ -833,8 +833,8 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         # Note that 'truncated' is forced to True if the integration failed or
         # if the maximum number of steps will be exceeded next step.
         terminated, truncated = self.derived.has_terminated(self._info)
-        truncated = (
-            truncated or not self.is_simulation_running or
+        truncated |= (
+            not self.is_simulation_running or
             self.stepper_state.t + DT_EPS > self.simulation_duration_max)
 
         # Check if stepping after done and if it is an undefined behavior

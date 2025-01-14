@@ -734,12 +734,6 @@ class ComposedJiminyEnv(BasePipelineWrapper[Obs, Act, Obs, Act],
         # Call unwrapped environment implementation
         terminated, truncated = self.env.has_terminated(info)
         if terminated or truncated:
-            if terminated:
-                assert "terminated" not in info
-                info["terminated"] = -1
-            else:
-                assert "truncated" not in info
-                info["terminated"] = -1
             return terminated, truncated
 
         # Evaluate conditions one-by-one as long as none has been triggered.
@@ -790,6 +784,26 @@ class ComposedJiminyEnv(BasePipelineWrapper[Obs, Act, Obs, Act],
 
         # Evaluated and return composed reward
         return self.reward(terminated, info)
+
+    def step(self,
+             action: Act
+             ) -> Tuple[DataNested, SupportsFloat, bool, bool, InfoType]:
+        # Call base implementation
+        obs, reward, terminated, truncated, info = super().step(action)
+
+        # Record termination and truncation in 'info' if not already done.
+        # This would be the case if a termination condition of the base
+        # environment has been triggered rather than one defined via the
+        # composition wrapper. Note that it cannot be done in `has_terminated`
+        # because for termination condition may be hard-coded at `step`-level,
+        # typically the maximum simulation duration.
+        if terminated or truncated:
+            if terminated:
+                info.setdefault("terminated", -1)
+            else:
+                info.setdefault("truncated", -1)
+
+        return obs, reward, terminated, truncated, info
 
 
 class ObservedJiminyEnv(
