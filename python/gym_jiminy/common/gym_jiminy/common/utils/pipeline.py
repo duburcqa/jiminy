@@ -234,11 +234,12 @@ class LayerConfig(TypedDict, total=False):
     """
 
 
-def build_pipeline(env_config: EnvConfig,
-                   layers_config: SequenceT[LayerConfig] = (),
-                   *,
-                   root_path: Optional[Union[str, pathlib.Path]] = None
-                   ) -> Callable[..., InterfaceJiminyEnv]:
+def build_pipeline(
+        env_config: EnvConfig,
+        layers_config: SequenceT[LayerConfig] = (),
+        *,
+        root_path: Optional[Union[str, pathlib.Path]] = None
+        ) -> Callable[..., Union[BaseJiminyEnv, BasePipelineWrapper]]:
     """Wrap together an environment inheriting from `BaseJiminyEnv` with any
     number of layers, as a unified pipeline environment class inheriting from
     `BasePipelineWrapper`. Each layer is wrapped individually and successively.
@@ -373,11 +374,12 @@ def build_pipeline(env_config: EnvConfig,
 
     # Define helper to build reward
     def build_composition_layer(
-            env_creator: Callable[..., InterfaceJiminyEnv],
+            env_creator: Callable[..., Union[
+                BaseJiminyEnv, BasePipelineWrapper]],
             reward_config: Optional[CompositionConfig],
             terminations_config: SequenceT[CompositionConfig],
             trajectories_config: Optional[TrajectoryDatabaseConfig],
-            **env_kwargs: Any) -> InterfaceJiminyEnv:
+            **env_kwargs: Any) -> Union[BaseJiminyEnv, BasePipelineWrapper]:
         """Helper adding reward components and/or termination conditions on top
         of a base environment or a pipeline using `ComposedJiminyEnv` wrapper.
 
@@ -438,13 +440,14 @@ def build_pipeline(env_config: EnvConfig,
 
     # Define helper to wrap a single layer
     def build_controller_observer_layer(
-            env_creator: Callable[..., InterfaceJiminyEnv],
+            env_creator: Callable[..., Union[
+                BaseJiminyEnv, BasePipelineWrapper]],
             wrapper_cls: Type[BasePipelineWrapper],
             wrapper_kwargs: Dict[str, Any],
             block_cls: Optional[Type[InterfaceBlock]],
             block_kwargs: Dict[str, Any],
             **env_kwargs: Any
-            ) -> InterfaceJiminyEnv:
+            ) -> Union[BaseJiminyEnv, BasePipelineWrapper]:
         """Helper wrapping a base environment or a pipeline with an additional
         observer-controller layer.
 
@@ -506,7 +509,7 @@ def build_pipeline(env_config: EnvConfig,
         obj = locate(env_cls)
         assert isinstance(obj, type) and issubclass(obj, BaseJiminyEnv)
         env_cls = obj
-    pipeline_creator: Callable[..., InterfaceJiminyEnv] = partial(
+    pipeline_creator: Callable[..., BaseJiminyEnv] = partial(
         env_cls, **env_config.get("kwargs", {}))
 
     # Parse reward configuration
@@ -617,8 +620,9 @@ def build_pipeline(env_config: EnvConfig,
     return pipeline_creator
 
 
-def load_pipeline(fullpath: Union[str, pathlib.Path]
-                  ) -> Callable[..., InterfaceJiminyEnv]:
+def load_pipeline(
+        fullpath: Union[str, pathlib.Path]
+        ) -> Callable[..., Union[BaseJiminyEnv, BasePipelineWrapper]]:
     """Load pipeline from JSON or TOML configuration file.
 
     :param: Fullpath of the configuration file.
