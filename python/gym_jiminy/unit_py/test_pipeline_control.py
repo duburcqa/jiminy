@@ -17,9 +17,9 @@ from PIL import Image
 from jiminy_py.core import ImuSensor
 from jiminy_py.viewer import Viewer
 
-from gym_jiminy.envs import (
-    AtlasPDControlJiminyEnv, CassiePDControlJiminyEnv, DigitPDControlJiminyEnv)
-from gym_jiminy.common.blocks import PDController, PDAdapter, MahonyFilter
+from gym_jiminy.common.bases import ObservedJiminyEnv
+from gym_jiminy.common.blocks import (
+    PDController, PDAdapter, MahonyFilter, BodyObserver)
 from gym_jiminy.common.blocks.proportional_derivative_controller import (
     integrate_zoh)
 from gym_jiminy.common.wrappers import (
@@ -27,6 +27,8 @@ from gym_jiminy.common.wrappers import (
     FlattenObservation)
 from gym_jiminy.common.utils import (
     quat_to_rpy, matrix_to_rpy, matrix_to_quat, remove_twist_from_quat)
+from gym_jiminy.envs import (
+    AtlasPDControlJiminyEnv, CassiePDControlJiminyEnv, DigitPDControlJiminyEnv)
 
 
 IMAGE_DIFF_THRESHOLD = 5.0
@@ -45,6 +47,7 @@ class PipelineControl(unittest.TestCase):
         """ TODO: Write documentation
         """
         # Reset the environment
+        self.env.eval()
         self.env.reset(seed=0)
 
         # Zero target motors velocities, so that the robot stands still
@@ -128,14 +131,25 @@ class PipelineControl(unittest.TestCase):
                 self._test_pid_standing()
                 Viewer.close()
 
-    def test_mahony_filter(self):
+    def test_mahony_filter_plus_body_observer(self):
         """Check consistency between IMU orientation estimation provided by
         Mahony filter and ground truth for moderately slow motions.
         """
         # Instantiate and reset the environment
         env = AtlasPDControlJiminyEnv()
-        observer = env.observer
-        assert isinstance(observer, MahonyFilter)
+
+        # Overwrite Mahony filter to specify custom constructor arguments
+        assert isinstance(env, ObservedJiminyEnv)
+        assert isinstance(env.observer, MahonyFilter)
+        mahony_filter = MahonyFilter(
+            "mahony_filter",
+            env.env,
+            kp=0.0,
+            ki=0.0,
+            ignore_twist=False,
+            exact_init=True,
+            compute_rpy=False)
+        env = ObservedJiminyEnv(env.env, mahony_filter)
 
         # Define a constant action that move the upper-body in all directions
         robot = env.robot
@@ -150,23 +164,21 @@ class PipelineControl(unittest.TestCase):
 
         # Check that the estimate IMU orientation is accurate over the episode
         for twist_time_constant in (None, float("inf"), 0.0):
-            # Reinitialize the observer
-            env.observer = observer = MahonyFilter(
-                observer.name,
-                observer.env,
-                kp=0.0,
-                ki=0.0,
+            # Add body observer
+            observer = BodyObserver(
+                "body_observer",
+                env,
                 twist_time_constant=twist_time_constant,
-                exact_init=True,
                 compute_rpy=True)
+            env_derived = ObservedJiminyEnv(env, observer)
 
             # Reset the environment
-            env.reset(seed=0)
+            env_derived.reset(seed=0)
             rpy_est = observer.observation["rpy"][:, 0]
 
             # Run of few simulation steps
             for i in range(200):
-                env.step(action * (1 - 2 * ((i // 50) % 2)))
+                env_derived.step(action * (1 - 2 * ((i // 50) % 2)))
 
                 if twist_time_constant == 0.0:
                     # The twist must be ignored as it is not observable
@@ -261,6 +273,7 @@ class PipelineControl(unittest.TestCase):
         controller._command_state_upper[2] = float("inf")
 
         # Run a few environment steps
+        env.eval()
         env.reset(seed=0)
         env.unwrapped._height_neutral = float("-inf")
         while env.stepper_state.t < 2.0:
@@ -271,13 +284,13 @@ class PipelineControl(unittest.TestCase):
         adapter_name, controller_name = adapter.name, controller.name
         n_motors = len(controller.fieldnames)
         target_pos = env.log_data["variables"][".".join((
-            "controller", controller_name, "state", str(n_motors - 1)))]
+            "controller", controller_name, "state", str(n_motors - 1)))][1::2]
         target_vel = env.log_data["variables"][".".join((
-            "controller", controller_name, "state", str(2 * n_motors - 1)))]
+            "controller", controller_name, "state", str(2 * n_motors - 1)))][1::2]
         target_accel = env.log_data["variables"][".".join((
-            "controller", controller_name, controller.fieldnames[-1]))]
+            "controller", controller_name, controller.fieldnames[-1]))][1::2]
         command_vel = env.log_data["variables"][".".join((
-            "controller", adapter_name, adapter.fieldnames[-1]))]
+            "controller", adapter_name, adapter.fieldnames[-1]))][1::2]
 
         # Make sure that the position and velocity targets are consistent
         target_vel_diff = np.diff(target_pos) / controller.control_dt
@@ -338,6 +351,6 @@ class PipelineControl(unittest.TestCase):
             if isinstance(value, dict):
                 obs_nodes += value.values()
             else:
-                all_values_flat.append(value.flatten())
+                all_values_flat.append(value.ravel(order='F'))
         obs_flat = np.concatenate(all_values_flat[::-1])
         np.testing.assert_allclose(env_flat.observation, obs_flat)

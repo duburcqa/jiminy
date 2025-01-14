@@ -115,7 +115,7 @@ class AdditiveMixtureReward(MixtureReward):
             raise ValueError(
                 "Exactly one weight per reward component must be specified.")
 
-        # Filter out components whose weight are zero
+        # Filter out components whose weight is zero
         weights, components = zip(*(
             (weight, reward)
             for weight, reward in zip(weights, components)
@@ -131,7 +131,7 @@ class AdditiveMixtureReward(MixtureReward):
                     "recommended.", reward.name)
                 is_normalized = False
                 break
-            if order == 'inf':
+            if order == float('inf'):
                 scale = max(scale, weight)
             else:
                 scale += weight
@@ -145,7 +145,7 @@ class AdditiveMixtureReward(MixtureReward):
         # Jit-able method computing the weighted sum of reward components
         @nb.jit(nopython=True, cache=True, fastmath=True)
         def weighted_norm(weights: Tuple[float, ...],
-                          order: Union[int, float, Literal['inf']],
+                          order: Union[int, float],
                           values: Tuple[Optional[float], ...]
                           ) -> Optional[float]:
             """Compute the weighted L^p-norm of all the reward components that
@@ -164,10 +164,11 @@ class AdditiveMixtureReward(MixtureReward):
             :returns: Scalar value if at least one of the reward component has
                       been evaluated, `None` otherwise.
             """
+            is_max_norm = order == float('inf')
             total, any_value = 0.0, False
             for value, weight in zip(values, weights):
                 if value is not None:
-                    if isinstance(order, str):
+                    if is_max_norm:
                         if any_value:
                             total = max(total, weight * value)
                         else:
@@ -176,7 +177,7 @@ class AdditiveMixtureReward(MixtureReward):
                         total += weight * math.pow(value, order)
                     any_value = True
             if any_value:
-                if isinstance(order, str):
+                if is_max_norm:
                     return total
                 return math.pow(total, 1.0 / order)
             return None

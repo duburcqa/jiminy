@@ -363,6 +363,10 @@ namespace jiminy
         {
             JIMINY_THROW(std::ios_base::failure, "Corrupted log file.");
         }
+        if (file.peek() == std::ifstream::traits_type::eof())
+        {
+            JIMINY_THROW(std::invalid_argument, "Empty log file.");
+        }
 
         // Skip the version flag
         int32_t header_version_length = sizeof(int32_t);
@@ -389,12 +393,26 @@ namespace jiminy
         {
         }
 
+        // Make sure that the log file is valid
+        if (headerBuffer.empty())
+        {
+            JIMINY_THROW(std::runtime_error, "Invalid log file.");
+        }
+
         // Extract the number of integers and floats from the list of logged constants
         const std::string & headerNumIntEntries = headerBuffer[headerBuffer.size() - 2];
-        int64_t delimiter = headerNumIntEntries.find(TELEMETRY_CONSTANT_DELIMITER);
+        std::size_t delimiter = headerNumIntEntries.find(TELEMETRY_CONSTANT_DELIMITER);
+        if (delimiter == std::string::npos)
+        {
+            JIMINY_THROW(std::runtime_error, "Invalid log file.");
+        }
         const int32_t NumIntEntries = std::stoi(headerNumIntEntries.substr(delimiter + 1));
         const std::string & headerNumFloatEntries = headerBuffer[headerBuffer.size() - 1];
         delimiter = headerNumFloatEntries.find(TELEMETRY_CONSTANT_DELIMITER);
+        if (delimiter == std::string::npos)
+        {
+            JIMINY_THROW(std::runtime_error, "Invalid log file.");
+        }
         const int32_t NumFloatEntries = std::stoi(headerNumFloatEntries.substr(delimiter + 1));
 
         // Deduce the parameters required to parse the whole binary log file

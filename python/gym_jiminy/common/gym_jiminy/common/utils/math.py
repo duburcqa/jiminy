@@ -15,6 +15,46 @@ from .spaces import ArrayOrScalar
 TWIST_SWING_SINGULAR_THR = 1e-5
 
 
+@nb.jit(nopython=True, cache=True, fastmath=True, inline='always')
+def _mean(array: np.ndarray) -> np.ndarray:
+    """Compute the arithmetic mean over flattened array.
+
+    :param array: Input array.
+    """
+    return np.mean(array)
+
+
+@nb.jit(nopython=True, cache=True, fastmath=True, inline='always')
+def _mean_axis(array: np.ndarray, axis: int) -> np.ndarray:
+    """Compute the arithmetic mean along a given axis.
+
+    :param array: Input array.
+    """
+    return np.sum(array, axis) / array.shape[axis]
+
+
+@overload
+def mean(array: np.ndarray, axis: int) -> np.ndarray:
+    ...
+
+
+@overload
+def mean(array: np.ndarray, axis: Literal[None] = ...) -> float:
+    ...
+
+
+def mean(array: np.ndarray,
+         axis: Optional[int] = None) -> Union[float, np.ndarray]:
+    """Compute the arithmetic mean along the specified axis if specified, over
+    the flattened array otherwise.
+
+    :param array: Input array.
+    """
+    if axis is None:
+        return _mean(array)
+    return _mean_axis(array, axis)
+
+
 @overload
 def matrix_to_yaw(mat: np.ndarray, out: np.ndarray) -> None:
     ...

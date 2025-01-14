@@ -1079,8 +1079,9 @@ namespace jiminy
         // Simply copy the theoretical model by default
         pinocchioModel_ = pinocchioModelTh_;
 
-        // Initially set effortLimit to zero systematically
-        pinocchioModel_.effortLimit.setZero();
+        // Set velocity and effort limits to infinity systematically as they are non-physical
+        pinocchioModel_.effortLimit.setConstant(INF);
+        pinocchioModel_.velocityLimit.setConstant(INF);
     }
 
     void Model::addFlexibilityJointsToExtendedModel()
@@ -1368,8 +1369,8 @@ namespace jiminy
         }
 
         // Re-initialize position limits
-        Eigen::VectorXd positionLimitMin = Eigen::VectorXd::Constant(pinocchioModel_.nq, -INF);
-        Eigen::VectorXd positionLimitMax = Eigen::VectorXd::Constant(pinocchioModel_.nq, +INF);
+        Eigen::VectorXd positionLimitLower = Eigen::VectorXd::Constant(pinocchioModel_.nq, -INF);
+        Eigen::VectorXd positionLimitUpper = Eigen::VectorXd::Constant(pinocchioModel_.nq, +INF);
         Eigen::Index idx_q, nq;
         for (const auto & joint : pinocchioModel_.joints)
         {
@@ -1392,16 +1393,16 @@ namespace jiminy
             default:
                 continue;
             }
-            positionLimitMin.segment(idx_q, nq).setConstant(-1.0 - EPS);
-            positionLimitMax.segment(idx_q, nq).setConstant(+1.0 + EPS);
+            positionLimitLower.segment(idx_q, nq).setConstant(-1.0 - EPS);
+            positionLimitUpper.segment(idx_q, nq).setConstant(+1.0 + EPS);
         }
 
         // Copy backlash joint position limits as-is from extended model
         for (pinocchio::JointIndex jointIndex : backlashJointIndices_)
         {
             const Eigen::Index positionIndex = pinocchioModel_.idx_qs[jointIndex];
-            positionLimitMin[positionIndex] = pinocchioModel_.lowerPositionLimit[positionIndex];
-            positionLimitMax[positionIndex] = pinocchioModel_.upperPositionLimit[positionIndex];
+            positionLimitLower[positionIndex] = pinocchioModel_.lowerPositionLimit[positionIndex];
+            positionLimitUpper[positionIndex] = pinocchioModel_.upperPositionLimit[positionIndex];
         }
 
         // Set mechanical joint position limits from theoretical model or user options
@@ -1418,9 +1419,9 @@ namespace jiminy
                 }
                 const auto & joint = pinocchioModel_.joints[jointIndex];
                 const auto & jointTh = pinocchioModelTh_.joints[jointIndexTh];
-                positionLimitMin.segment(joint.idx_q(), joint.nq()) =
+                positionLimitLower.segment(joint.idx_q(), joint.nq()) =
                     pinocchioModelTh_.lowerPositionLimit.segment(jointTh.idx_q(), jointTh.nq());
-                positionLimitMax.segment(joint.idx_q(), joint.nq()) =
+                positionLimitUpper.segment(joint.idx_q(), joint.nq()) =
                     pinocchioModelTh_.upperPositionLimit.segment(jointTh.idx_q(), jointTh.nq());
             }
         }
@@ -1429,14 +1430,14 @@ namespace jiminy
             for (std::size_t i = 0; i < mechanicalJointPositionIndices_.size(); ++i)
             {
                 Eigen::Index positionIndex = mechanicalJointPositionIndices_[i];
-                positionLimitMin[positionIndex] = modelOptions_->joints.positionLimitMin[i];
-                positionLimitMax[positionIndex] = modelOptions_->joints.positionLimitMax[i];
+                positionLimitLower[positionIndex] = modelOptions_->joints.positionLimitLower[i];
+                positionLimitUpper[positionIndex] = modelOptions_->joints.positionLimitUpper[i];
             }
         }
 
         // Overwrite extended model position limits
-        pinocchioModel_.lowerPositionLimit = positionLimitMin;
-        pinocchioModel_.upperPositionLimit = positionLimitMax;
+        pinocchioModel_.lowerPositionLimit = positionLimitLower;
+        pinocchioModel_.upperPositionLimit = positionLimitUpper;
 
         // Initialize backup joint space acceleration
         jointSpatialAccelerations_ =
@@ -1557,33 +1558,33 @@ namespace jiminy
                 boost::get<bool>(jointOptionsHolder.at("positionLimitFromUrdf"));
             if (!positionLimitFromUrdf)
             {
-                const Eigen::VectorXd & jointsPositionLimitMin =
-                    boost::get<Eigen::VectorXd>(jointOptionsHolder.at("positionLimitMin"));
+                const Eigen::VectorXd & jointspositionLimitLower =
+                    boost::get<Eigen::VectorXd>(jointOptionsHolder.at("positionLimitLower"));
                 if (mechanicalJointPositionIndices_.size() !=
-                    static_cast<uint32_t>(jointsPositionLimitMin.size()))
+                    static_cast<uint32_t>(jointspositionLimitLower.size()))
                 {
                     JIMINY_THROW(std::invalid_argument,
-                                 "Wrong vector size for 'positionLimitMin'.");
+                                 "Wrong vector size for 'positionLimitLower'.");
                 }
-                const Eigen::VectorXd & jointsPositionLimitMax =
-                    boost::get<Eigen::VectorXd>(jointOptionsHolder.at("positionLimitMax"));
+                const Eigen::VectorXd & jointspositionLimitUpper =
+                    boost::get<Eigen::VectorXd>(jointOptionsHolder.at("positionLimitUpper"));
                 if (mechanicalJointPositionIndices_.size() !=
-                    static_cast<uint32_t>(jointsPositionLimitMax.size()))
+                    static_cast<uint32_t>(jointspositionLimitUpper.size()))
                 {
                     JIMINY_THROW(std::invalid_argument,
-                                 "Wrong vector size for 'positionLimitMax'.");
+                                 "Wrong vector size for 'positionLimitUpper'.");
                 }
                 if (mechanicalJointPositionIndices_.size() ==
-                    static_cast<uint32_t>(modelOptions_->joints.positionLimitMin.size()))
+                    static_cast<uint32_t>(modelOptions_->joints.positionLimitLower.size()))
                 {
-                    auto jointsPositionLimitMinDiff =
-                        jointsPositionLimitMin - modelOptions_->joints.positionLimitMin;
+                    auto jointspositionLimitLowerDiff =
+                        jointspositionLimitLower - modelOptions_->joints.positionLimitLower;
                     internalBuffersMustBeUpdated |=
-                        (jointsPositionLimitMinDiff.array().abs() >= EPS).all();
-                    auto jointsPositionLimitMaxDiff =
-                        jointsPositionLimitMax - modelOptions_->joints.positionLimitMax;
+                        (jointspositionLimitLowerDiff.array().abs() >= EPS).all();
+                    auto jointspositionLimitUpperDiff =
+                        jointspositionLimitUpper - modelOptions_->joints.positionLimitUpper;
                     internalBuffersMustBeUpdated |=
-                        (jointsPositionLimitMaxDiff.array().abs() >= EPS).all();
+                        (jointspositionLimitUpperDiff.array().abs() >= EPS).all();
                 }
                 else
                 {

@@ -292,7 +292,7 @@ class SharedCache(Generic[ValueT]):
                                     Optional: False by default.
         """
         # Clear cache
-        if self.sm_state is _IS_CACHED:
+        if self.sm_state == _IS_CACHED:
             self.sm_state = _IS_INITIALIZED
 
         # Special branch if case quantities must be reset on the way
@@ -320,13 +320,13 @@ class SharedCache(Generic[ValueT]):
         """Return cached value if any, otherwise evaluate it and store it.
         """
         # Get value already stored
-        if self.sm_state is _IS_CACHED:
+        if self.sm_state == _IS_CACHED:
             # return cast(ValueT, self._value)
             return self._value  # type: ignore[return-value]
 
         # Evaluate quantity
         try:
-            if self.sm_state is _IS_RESET:
+            if self.sm_state == _IS_RESET:
                 # Cache the list of owning quantities
                 self.owners = tuple(self._weakrefs)
 
@@ -343,7 +343,12 @@ class SharedCache(Generic[ValueT]):
             # assert self._owner is not None
             owner = self._owner  # type: ignore[assignment]
 
-            # Make sure that the state has been refreshed
+            # Make sure that the state has been refreshed.
+            # This is necessary because it would update the internal state of
+            # the associated 'pinocchio_data'. Note that auto-refresh is not
+            # enabled for StateQuantity in TRAJECTORY mode as it is costly to
+            # evaluate. Instead, it is postponed here, right before updating
+            # any quantity that may rely on it.
             if owner._force_update_state:
                 owner.state.get()
 
@@ -601,7 +606,9 @@ class InterfaceQuantity(Generic[ValueT], metaclass=ABCMeta):
                 "Automatic refresh enabled but no shared cache is available. "
                 "Please add one before calling this method.")
 
-        # Reset all requirements first
+        # Reset all requirements first.
+        # This is necessary to avoid auto-refreshing quantities with deprecated
+        # cache if enabled.
         if not ignore_other_instances:
             for quantity in self.requirements.values():
                 quantity.reset(reset_tracking, ignore_other_instances=False)
@@ -782,8 +789,15 @@ class AbstractQuantity(InterfaceQuantity, Generic[ValueT]):
         # Call base implementation
         super().initialize()
 
-        # Force initializing state quantity
-        self.state.initialize()
+        # Force initializing state quantity if possible
+        try:
+            self.state.initialize()
+        except RuntimeError:
+            # It may have failed because no simulation running, which may be
+            # problematic but not blocking at this point. Just checking that
+            # the pinocchio model has been properly initialized.
+            if self.state.pinocchio_model.nq == 0:
+                raise
 
         # Refresh robot proxy
         assert isinstance(self.state, StateQuantity)
@@ -815,7 +829,7 @@ def sync(fun: Callable[..., None]) -> Callable[..., None]:
         if not self.__is_synched__ and must_sync:
             raise RuntimeError(
                 "This quantity went out-of-sync. Make sure that no synched "
-                "method is called priori to setting shared cache.")
+                "method is called prior to setting shared cache.")
         self.__is_synched__ = self.has_cache  # type: ignore[attr-defined]
 
         # Call instance method on all co-owners of shared cache
@@ -872,11 +886,53 @@ class DatasetTrajectoryQuantity(InterfaceQuantity[State]):
         # Name of the trajectory that is currently selected
         self._name = ""
 
+        # Absolute time offset between selected trajectory and simulation
+        self._time_offset = 0.0
+
         # Selected trajectory if any
         self._trajectory: Optional[Trajectory] = None
 
         # Specifies how to deal with query time that are out-of-bounds
         self._mode: Literal['raise', 'wrap', 'clip'] = 'raise'
+
+    def __contains__(self, name: str) -> bool:
+        """Whether a given trajectory name is part of the dataset.
+        """
+        return name in self.registry
+
+    def __iter__(self) -> Iterator[str]:
+        """Iterate over the names of all the trajectories in the dataset.
+        """
+        return iter(self.registry.keys())
+
+    def __len__(self) -> int:
+        """Number of trajectory in the dataset.
+        """
+        return len(self.registry)
+
+    def __bool__(self) -> bool:
+        """Whether the dataset of trajectory is currently empty.
+        """
+        return bool(self.registry)
+
+    @property
+    def name(self) -> str:
+        """Name of the trajectory that is currently selected.
+        """
+        return self._name
+
+    @property
+    def robot(self) -> jiminy.Robot:
+        """Robot associated with the selected trajectory.
+        """
+        return self.trajectory.robot
+
+    @property
+    def use_theoretical_model(self) -> bool:
+        """Whether the selected trajectory is associated with the theoretical
+        dynamical model or extended simulation model of the robot.
+        """
+        return self.trajectory.use_theoretical_model
 
     @property
     def trajectory(self) -> Trajectory:
@@ -891,17 +947,39 @@ class DatasetTrajectoryQuantity(InterfaceQuantity[State]):
         return self._trajectory
 
     @property
-    def robot(self) -> jiminy.Robot:
-        """Robot associated with the selected trajectory.
+    def time_offset(self) -> float:
+        """Absolute time offset between the current simulation time and the
+        selected trajectory.
         """
-        return self.trajectory.robot
+        # Make sure that a trajectory has been selected
+        if self._trajectory is None:
+            raise RuntimeError("No trajectory has been selected.")
 
-    @property
-    def use_theoretical_model(self) -> bool:
-        """Whether the selected trajectory is associated with the theoretical
-        dynamical model or extended simulation model of the robot.
-        """
-        return self.trajectory.use_theoretical_model
+        # Return the absolute time offset
+        return self._time_offset
+
+    @InterfaceQuantity.cache.setter  # type: ignore[attr-defined]
+    def cache(self, cache: Optional[SharedCache[ValueT]]) -> None:
+        # Get existing registry if any and making sure not already out-of-sync
+        owner: Optional[InterfaceQuantity] = None
+        if cache is not None and cache.owners:
+            owner = next(iter(cache.owners))
+            assert isinstance(owner, DatasetTrajectoryQuantity)
+            if self._trajectory:
+                raise RuntimeError(
+                    "Trajectory dataset not empty. Impossible to add a shared "
+                    "cache already having owners.")
+
+        # Call base implementation
+        InterfaceQuantity.cache.fset(self, cache)  # type: ignore[attr-defined]
+
+        # Catch-up synchronization
+        if owner:
+            # Shallow copy the original registry, so that deletion / addition
+            # does not propagate to other instances.
+            self.registry = owner.registry.copy()
+            if owner._trajectory is not None:
+                self.select(owner._name, owner._mode)
 
     @sync
     def _add(self, name: str, trajectory: Trajectory) -> None:
@@ -995,20 +1073,11 @@ class DatasetTrajectoryQuantity(InterfaceQuantity[State]):
         # Delete the whole registry
         self.registry.clear()
 
-    def __iter__(self) -> Iterator[Trajectory]:
-        """Iterate over all the trajectories in the dataset.
-        """
-        return iter(self.registry.values())
-
-    def __bool__(self) -> bool:
-        """Whether the dataset of trajectory is currently empty.
-        """
-        return bool(self.registry)
-
     @sync
     def select(self,
                name: str,
-               mode: Literal['raise', 'wrap', 'clip'] = 'raise') -> None:
+               mode: Literal['raise', 'wrap', 'clip'] = 'raise',
+               time_offset_ratio: Optional[float] = None) -> None:
         """Select an existing trajectory from the database shared synchronized
         all managed quantities.
 
@@ -1020,6 +1089,13 @@ class DatasetTrajectoryQuantity(InterfaceQuantity[State]):
         :param mode: Specifies how to deal with query time of are out of the
                      time interval of the trajectory. See `Trajectory.get`
                      documentation for details.
+                     Optional: 'raise' by default.
+        :param time_offset_ratio:
+            Enforces a given relative time offset between the current
+            simulation time and the trajectory. Note that 0.0 and 1.0
+            correspond to the initial and final time of the trajectory,
+            respectively. `None` to disable time shift.
+            Optional: `None` by default.
         """
         # Make sure that at least one trajectory has been specified
         if not self.registry:
@@ -1032,6 +1108,14 @@ class DatasetTrajectoryQuantity(InterfaceQuantity[State]):
         # Backup user-specified mode
         self._mode = mode
 
+        # Keep track of the absolute time offset
+        if time_offset_ratio is None:
+            self._time_offset = 0.0
+        else:
+            time_start, time_end = self._trajectory.time_interval
+            time_delta = time_end - time_start
+            self._time_offset = time_start + time_offset_ratio * time_delta
+
         # Un-initialize quantity when the selected trajectory changes
         self.reset(reset_tracking=False)
 
@@ -1040,39 +1124,11 @@ class DatasetTrajectoryQuantity(InterfaceQuantity[State]):
         """
         self._lock = True
 
-    @property
-    def name(self) -> str:
-        """Name of the trajectory that is currently selected.
-        """
-        return self._name
-
-    @InterfaceQuantity.cache.setter  # type: ignore[attr-defined]
-    def cache(self, cache: Optional[SharedCache[ValueT]]) -> None:
-        # Get existing registry if any and making sure not already out-of-sync
-        owner: Optional[InterfaceQuantity] = None
-        if cache is not None and cache.owners:
-            owner = next(iter(cache.owners))
-            assert isinstance(owner, DatasetTrajectoryQuantity)
-            if self._trajectory:
-                raise RuntimeError(
-                    "Trajectory dataset not empty. Impossible to add a shared "
-                    "cache already having owners.")
-
-        # Call base implementation
-        InterfaceQuantity.cache.fset(self, cache)  # type: ignore[attr-defined]
-
-        # Catch-up synchronization
-        if owner:
-            # Shallow copy the original registry, so that deletion / addition
-            # does not propagate to other instances.
-            self.registry = owner.registry.copy()
-            if owner._trajectory is not None:
-                self.select(owner._name, owner._mode)
-
     def refresh(self) -> State:
         """Compute state of selected trajectory at current simulation time.
         """
-        return self.trajectory.get(self.env.stepper_state.t, self._mode)
+        t_traj = self.env.stepper_state.t + self._time_offset
+        return self.trajectory.get(t_traj, self._mode)
 
 
 @dataclass(unsafe_hash=True)
@@ -1162,19 +1218,20 @@ class StateQuantity(InterfaceQuantity[State]):
         # up-to-date when refreshing quantities. The latter are involved one
         # way of the other in the computation of any quantity, which means that
         # pre-computing it does not induce any unnecessary computations as long
-        # as the user fetches the value of at least one quantity. Although this
-        # assumption is very likely to be true at the step update period, it is
-        # not the case at the observer update period. It sounds more efficient
-        # refresh to the state the first time any quantity gets computed.
-        # However, systematically checking if the state must be refreshed for
-        # all quantities adds overhead and may be fairly costly overall. The
-        # optimal trade-off is to rely on auto-refresh if the evaluation mode
-        # is TRUE, since refreshing the state only consists in copying some
-        # data, which is very cheap. On the contrary, it is more efficient to
-        # only refresh the state when needed if the evaluation mode is TRAJ.
+        # as the user fetches the value of at least one quantity.
+        # Although this assumption is very likely to be true at the step update
+        # period, it is not the case at the observer update period. It sounds
+        # more efficient refresh to the state the first time any quantity gets
+        # computed. However, systematically checking if the state must be
+        # refreshed for all quantities adds overhead and may be fairly costly
+        # overall. The optimal trade-off is to rely on auto-refresh if the
+        # evaluation mode is TRUE, since refreshing the state only consists in
+        # copying some data, which is very cheap. On the contrary, it is more
+        # efficient to only refresh the state when needed if the evaluation
+        # mode is TRAJ.
         # * Update state: 500ns (TRUE) | 5.0us (TRAJ)
         # * Check cache state: 70ns
-        auto_refresh = mode is QuantityEvalMode.TRUE
+        auto_refresh = mode == QuantityEvalMode.TRUE
 
         # Call base implementation.
         super().__init__(
@@ -1184,9 +1241,9 @@ class StateQuantity(InterfaceQuantity[State]):
             auto_refresh=auto_refresh)
 
         # Robot for which the quantity must be evaluated
-        self.robot = env.robot
-        self.pinocchio_model = env.robot.pinocchio_model
-        self.pinocchio_data = env.robot.pinocchio_data
+        self.robot = jiminy.Robot()
+        self.pinocchio_model = self.robot.pinocchio_model
+        self.pinocchio_data = self.robot.pinocchio_data
 
         # State for which the quantity must be evaluated
         self._state = State(t=np.nan, q=np.array([]))
@@ -1273,8 +1330,8 @@ class StateQuantity(InterfaceQuantity[State]):
         self._f_external_slices = tuple(self._f_external_batch)
 
         # Allocate memory for lambda vector
-        self._constraint_lambda_batch = np.zeros(
-            (len(self.robot.log_constraint_fieldnames),))
+        constraint_fieldnames = self.robot.log_constraint_fieldnames
+        self._constraint_lambda_batch = np.zeros((len(constraint_fieldnames),))
 
         # Refresh mapping from lambda multipliers to corresponding slice
         self._constraint_lambda_list.clear()
@@ -1289,9 +1346,10 @@ class StateQuantity(InterfaceQuantity[State]):
                         self.robot.constraints.collision_bodies)
                     for name, constraint in constraints.items()}),
                 ("User", self.robot.constraints.user)))
+
         i = 0
-        while i < len(self.robot.log_constraint_fieldnames):
-            fieldname = self.robot.log_constraint_fieldnames[i]
+        while i < len(constraint_fieldnames):
+            fieldname = constraint_fieldnames[i]
             for registry_type, registry in constraint_lookup_pairs:
                 if fieldname.startswith(registry_type):
                     break
@@ -1321,7 +1379,7 @@ class StateQuantity(InterfaceQuantity[State]):
         """Compute the current state depending on the mode of evaluation, and
         make sure that kinematics and dynamics quantities are up-to-date.
         """
-        if self.mode is _TRUE:
+        if self.mode == _TRUE:
             # Update the current simulation time
             self._state.t = self.env.stepper_state.t
 

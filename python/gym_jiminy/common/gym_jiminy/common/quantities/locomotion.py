@@ -10,7 +10,6 @@ import numba as nb
 import jiminy_py.core as jiminy
 from jiminy_py.core import (  # pylint: disable=no-name-in-module
     array_copyto, multi_array_copyto)
-from jiminy_py.dynamics import update_quantities
 import pinocchio as pin
 
 from ..bases import (
@@ -104,6 +103,19 @@ def translate_position_odom(position: np.ndarray,
     out[1] = - sin_yaw * pos_rel_x + cos_yaw * pos_rel_y
 
 
+@nb.jit(nopython=True, cache=True, fastmath=True)
+def compute_height(base_pos: np.ndarray, contacts_pos: np.ndarray) -> float:
+    """Compute the height of the robot, which is defined as the maximum
+    vertical difference between the base of the robot and the contact points.
+
+    :param base_pos: Position of the base of the robot as a 1D array.
+    :param contacts_pos: Position of all the contact points of the robot as a
+                         2D array whose first dimension are the (X, Y, Z)
+                         components while the second gathers individual points.
+    """
+    return base_pos[2] - np.min(contacts_pos[2])
+
+
 @dataclass(unsafe_hash=True)
 class BaseRelativeHeight(InterfaceQuantity[float]):
     """Relative height of the floating base of the robot wrt lowest contact
@@ -156,8 +168,7 @@ class BaseRelativeHeight(InterfaceQuantity[float]):
             auto_refresh=False)
 
     def refresh(self) -> float:
-        base_pos, contacts_pos = self.base_pos.get(), self.contacts_pos.get()
-        return base_pos[2] - np.min(contacts_pos[2])
+        return compute_height(self.base_pos.get(), self.contacts_pos.get())
 
 
 @dataclass(unsafe_hash=True)
@@ -858,11 +869,15 @@ class ZeroMomentPoint(AbstractQuantity[np.ndarray]):
         # Compute the vertical force applied by the robot
         f_z = dhg_linear[2] + self._robot_weight
 
+        # Early return if impossible to compute ZMP (robot is free falling)
+        if abs(f_z) < np.finfo(np.float32).eps:
+            self._zmp[:] = float("nan")
+            return self._zmp
+
         # Compute the ZMP in world frame
         self._zmp[:] = com[:2] * (self._robot_weight / f_z)
-        if abs(f_z) > np.finfo(np.float32).eps:
-            self._zmp[0] -= (dhg_angular[1] + dhg_linear[0] * com[2]) / f_z
-            self._zmp[1] += (dhg_angular[0] - dhg_linear[1] * com[2]) / f_z
+        self._zmp[0] -= (dhg_angular[1] + dhg_linear[0] * com[2]) / f_z
+        self._zmp[1] += (dhg_angular[0] - dhg_linear[1] * com[2]) / f_z
 
         # Translate the ZMP from world to local odometry frame if requested
         if self.reference_frame == pin.LOCAL:
@@ -951,19 +966,18 @@ class CapturePoint(AbstractQuantity[np.ndarray]):
         # Compute the natural frequency of linear pendulum approximate model.
         # Note that the height of the robot is defined as the position of the
         # center of mass of the robot in neutral configuration.
-        update_quantities(
-            self.robot,
-            pin.neutral(self.robot.pinocchio_model_th),
-            update_dynamics=False,
-            update_centroidal=True,
-            update_energy=False,
-            update_jacobian=False,
-            update_collisions=False,
-            use_theoretical_model=True)
+        pinocchio_data = self.pinocchio_data.copy()
+        pin.framesForwardKinematics(self.pinocchio_model,
+                                    pinocchio_data,
+                                    pin.neutral(self.pinocchio_model))
+        pin.centerOfMass(self.pinocchio_model,
+                         pinocchio_data,
+                         pin.POSITION)
         min_height = min(
-            oMf.translation[2] for oMf in self.robot.pinocchio_data_th.oMf)
+            pinocchio_data.oMf[i].translation[2]
+            for i in self.robot.contact_frame_indices)
         gravity = abs(self.pinocchio_model.gravity.linear[2])
-        robot_height = self.robot.pinocchio_data_th.com[0][2] - min_height
+        robot_height = pinocchio_data.com[0][2] - min_height
         self.omega = math.sqrt(gravity / robot_height)
 
     def refresh(self) -> np.ndarray:
@@ -1138,6 +1152,10 @@ class MultiFootNormalizedForceVertical(AbstractQuantity[np.ndarray]):
     on the foot, eg to create disturbances. Relying on sensors to get the
     desired information is not an option either, because they do not give
     access to the ground truth.
+
+    .. warning::
+        Contact frames associated with identical parent body must be
+        consecutive to be able to extract constraint data by reference.
     """
 
     frame_names: Tuple[str, ...]
@@ -1263,6 +1281,7 @@ class MultiFootNormalizedForceVertical(AbstractQuantity[np.ndarray]):
 
         # Get constraint names and vertical axis transforms for each foot
         num_contraints = 0
+        foot_parents: List[int] = []
         foot_lookup_names: List[List[str]] = [[] for _ in self.frame_names]
         vertical_transforms: List[List[np.ndarray]] = [
             [] for _ in self.frame_names]
@@ -1283,12 +1302,23 @@ class MultiFootNormalizedForceVertical(AbstractQuantity[np.ndarray]):
                         for i in range(constraint.size))
                     vertical_transforms[foot_index].append(
                         constraint.local_rotation[2])
+                    foot_parents.append(frame.parent)
                     num_contraints += 1
                 except IndexError:
                     pass
         assert 4 * num_contraints == sum(map(len, foot_lookup_names))
         self._vertical_transform_list = tuple(
             e for values in vertical_transforms for e in values)
+
+        # Make sure that contact frames are ordered in contiguous slices
+        for parent in np.unique(foot_parents):
+            index_first = foot_parents.index(parent)
+            index_last = len(foot_parents) - foot_parents[::-1].index(parent)
+            for i in range(index_first, index_last):
+                if foot_parents[i] != parent:
+                    raise ValueError(
+                        "Contact frames associated with identical parent body "
+                        "must be consecutive.")
 
         # Extract constraint lambda multiplier slices associated with each foot
         self._foot_slices = tuple(

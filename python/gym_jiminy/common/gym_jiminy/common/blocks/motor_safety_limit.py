@@ -93,6 +93,9 @@ class MotorSafetyLimit(
     determines the scale of the bound on velocity, ie v+/- = -kp * (x - x+/-).
     These bounds on velocity are the ones determining the bounds on effort.
 
+    The output command would never exceed the maximum effort, not even if
+    needed to enforce safe operation.
+
     .. note::
         The prescribed position and velocity limits may be more respective that
         the actual hardware specification of the robot.
@@ -113,7 +116,8 @@ class MotorSafetyLimit(
                  kp: float,
                  kd: float,
                  soft_position_margin: float,
-                 soft_velocity_max: float) -> None:
+                 soft_velocity_max: float,
+                 soft_effort_rel_max: float = 1.0) -> None:
         """
         :param name: Name of the block.
         :param env: Environment to connect with.
@@ -125,7 +129,20 @@ class MotorSafetyLimit(
                                      before starting to break.
         :param soft_velocity_max: Maximum velocity of the joint before
                                   starting to break.
+        :param soft_effort_rel_max: Maximum effort of the motor before
+                                    applying artificial saturation on it. This
+                                    limitation is ignored in evaluation mode.
+                                    Optional: 1.0 by default.
         """
+        # Make sure that the parameters are valid
+        if soft_position_margin < 0.0:
+            raise ValueError("Soft position margin must be positive.")
+        if soft_velocity_max < 0.0:
+            raise ValueError("Soft maximum velocity must be positive.")
+        if soft_effort_rel_max < 0.0 or soft_effort_rel_max > 1.0:
+            raise ValueError(
+                "Soft relative maximum torque must be between 0.0 and 1.0.")
+
         # Make sure that no other controller has been added prior to this block
         env_unwrapped: InterfaceJiminyEnv = env
         while isinstance(env_unwrapped, BasePipelineWrapper):
@@ -156,10 +173,12 @@ class MotorSafetyLimit(
         self.motors_velocity_limit = np.array([
             min(motor.velocity_limit, ratio * soft_velocity_max)
             for motor, ratio in zip(env.robot.motors, encoder_to_joint_ratio)])
-        self.motors_effort_limit = np.array([
+        self.motors_effort_limit_true = np.array([
             motor.effort_limit for motor in env.robot.motors])
-        self.motors_effort_limit[
+        self.motors_effort_limit_true[
             self.motors_position_lower > self.motors_position_upper] = 0.0
+        self.motors_effort_limit_soft = (
+            self.motors_effort_limit_true * soft_effort_rel_max)
 
         # Mapping from motors to encoders
         self.encoder_to_motor_map = get_encoder_to_motor_map(env.robot)
@@ -172,12 +191,15 @@ class MotorSafetyLimit(
                 "Consider using the same ordering for encoders and motors for "
                 "optimal performance.")
 
-        # Extract measured motor positions and velocities for fast access.
-        # Note that they will be initialized in `_setup` method.
-        self.q_measured, self.v_measured = np.array([]), np.array([])
+        # Extract measured motor positions and velocities for fast access
+        self.q_measured, self.v_measured = (
+            env.measurement["measurements"][EncoderSensor.type])
 
         # Initialize the controller
         super().__init__(name, env, update_ratio=1)
+
+        # Whether to enforce soft effort limits
+        self._enable_limit_soft = True
 
     def _initialize_action_space(self) -> None:
         """Configure the action space of the controller.
@@ -186,18 +208,18 @@ class MotorSafetyLimit(
         """
         self.action_space = self.env.action_space
 
-    def _setup(self) -> None:
-        # Call base implementation
-        super()._setup()
-
-        # Refresh measured motor positions and velocities proxies
-        self.q_measured, self.v_measured = (
-            self.env.sensor_measurements[EncoderSensor.type])
-
     @property
     def fieldnames(self) -> List[str]:
         return [f"currentMotorTorque{motor.name}"
                 for motor in self.env.robot.motors]
+
+    def _setup(self) -> None:
+        # Call base implementation
+        super()._setup()
+
+        # Unbounded effort limits in evaluation mode.
+        # Note that training/evaluation cannot be changed at this point.
+        self._enable_limit_soft = self.env.training
 
     def compute_command(self,
                         action: np.ndarray,
@@ -215,6 +237,12 @@ class MotorSafetyLimit(
             q_measured = q_measured[self.encoder_to_motor_map]
             v_measured = v_measured[self.encoder_to_motor_map]
 
+        # Pick the right effort limits depending on training / evaluation mode
+        if self._enable_limit_soft:
+            motors_effort_limit = self.motors_effort_limit_soft
+        else:
+            motors_effort_limit = self.motors_effort_limit_true
+
         # Clip command according to safe effort bounds
         apply_safety_limits(action,
                             q_measured,
@@ -224,5 +252,5 @@ class MotorSafetyLimit(
                             self.motors_position_lower,
                             self.motors_position_upper,
                             self.motors_velocity_limit,
-                            self.motors_effort_limit,
+                            motors_effort_limit,
                             command)

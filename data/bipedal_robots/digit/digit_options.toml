@@ -7,8 +7,12 @@ tolAbs = 1e-5
 tolRel = 1e-4
 sensorsUpdatePeriod = 0.005
 controllerUpdatePeriod = 0.005
-logInternalStepperSteps = false
 randomSeedSeq = [0,]
+
+# ============== Telemetry options ===============
+
+[engine.telemetry]
+logInternalStepperSteps = false
 
 # ============== Contact dynamics ===============
 

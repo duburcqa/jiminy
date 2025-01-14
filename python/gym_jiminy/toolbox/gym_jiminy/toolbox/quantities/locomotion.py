@@ -1,10 +1,11 @@
 """Quantities mainly relevant for locomotion tasks on floating-base robots.
 """
+import math
 from typing import List, Optional, Tuple
 from dataclasses import dataclass
 
 import numpy as np
-from scipy.spatial import ConvexHull
+from scipy.spatial import ConvexHull, QhullError
 
 from jiminy_py.core import (  # pylint: disable=no-name-in-module
     multi_array_copyto)
@@ -124,11 +125,15 @@ class ProjectedSupportPolygon(AbstractQuantity[ConvexHull2D]):
         # separately rather than all at once.
         candidate_xy_refs: List[np.ndarray] = []
         for positions in contact_positions:
-            convhull = ConvexHull(np.stack(positions, axis=0))
-            candidate_indices = set(
-                range(len(positions))).intersection(convhull.vertices)
-            candidate_xy_refs += (
-                positions[j][:2] for j in candidate_indices)
+            try:
+                convhull = ConvexHull(np.stack(positions, axis=0))
+                candidate_indices = set(
+                    range(len(positions))).intersection(convhull.vertices)
+                candidate_xy_refs += (
+                    positions[j][:2] for j in candidate_indices)
+            except QhullError:
+                # Assuming all the candidate points are part of the convex hull
+                candidate_xy_refs += (position[:2] for position in positions)
         self._candidate_xy_refs = tuple(candidate_xy_refs)
 
         # Allocate memory for stacked position of candidate contact points.
@@ -177,6 +182,11 @@ class StabilityMarginProjectedSupportPolygon(InterfaceQuantity[float]):
     .. note::
         This quantity is only supported for robots with specified contact
         points but no collision bodies for now.
+
+    .. note::
+        The ZMP is not defined if the robot is free falling. In this particular
+        case, this quantity assumes by convention, as if the ZMP was infinetly
+        far from the border of the support polygon, and as such, returns -inf.
     """
 
     mode: QuantityEvalMode
@@ -216,5 +226,14 @@ class StabilityMarginProjectedSupportPolygon(InterfaceQuantity[float]):
             auto_refresh=False)
 
     def refresh(self) -> float:
-        support_polygon, zmp = self.support_polygon.get(), self.zmp.get()
+        # Compute the ZMP
+        zmp = self.zmp.get()
+
+        # Early return if the ZMP is ill-defined
+        # Note that it is sufficient to check whether x or y component is nan.
+        if math.isnan(zmp[0]):
+            return float("-inf")
+
+        # Get the distance of the ZMP from the borders of the support polygin
+        support_polygon = self.support_polygon.get()
         return - support_polygon.get_distance_to_point(zmp).item()

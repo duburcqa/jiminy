@@ -23,14 +23,16 @@ from itertools import chain
 from datetime import datetime
 from collections import defaultdict
 from tempfile import mkdtemp
+from traceback import TracebackException
 from typing import (
     Optional, Any, Union, Sequence, Tuple, List, Literal, Dict, Set, Type,
-    DefaultDict, overload, cast)
+    DefaultDict, Iterable, overload, cast)
 
 import tree
 import numpy as np
 import gymnasium as gym
 import plotext as plt
+from packaging.version import parse as parse_version
 
 import ray
 from ray._private import services
@@ -53,7 +55,8 @@ from ray.rllib.connectors.module_to_env import (
     UnBatchToIndividualItems)
 from ray.rllib.connectors.env_to_module import (
     AddObservationsFromEpisodesToBatch, AddStatesFromEpisodesToBatch,
-    BatchIndividualItems, EnvToModulePipeline, NumpyToTensor)
+    BatchIndividualItems, EnvToModulePipeline, NumpyToTensor,
+    MeanStdFilter as MeanStdFilterConnector)
 from ray.rllib.algorithms.callbacks import DefaultCallbacks
 from ray.rllib.algorithms.algorithm import Algorithm
 from ray.rllib.algorithms.algorithm_config import AlgorithmConfig
@@ -61,16 +64,17 @@ from ray.rllib.env.single_agent_episode import SingleAgentEpisode
 from ray.rllib.env.env_runner import EnvRunner
 from ray.rllib.env.single_agent_env_runner import SingleAgentEnvRunner
 from ray.rllib.env.env_runner_group import EnvRunnerGroup
+from ray.rllib.utils.filter import MeanStdFilter as _MeanStdFilter, RunningStat
 from ray.rllib.utils.metrics import (
     NUM_ENV_STEPS_SAMPLED_LIFETIME, NUM_AGENT_STEPS_SAMPLED_LIFETIME,
     NUM_EPISODES_LIFETIME, EPISODE_RETURN_MEAN, EPISODE_RETURN_MAX,
     EPISODE_LEN_MEAN, EVALUATION_RESULTS, ENV_RUNNER_RESULTS, NUM_EPISODES)
 from ray.rllib.utils.metrics.metrics_logger import MetricsLogger
-from ray.rllib.utils.typing import EpisodeID, ResultDict, EpisodeType
+from ray.rllib.utils.typing import AgentID, EpisodeID, ResultDict, EpisodeType
 
 from jiminy_py.viewer import async_play_and_record_logs_files
 from gym_jiminy.common.bases import Obs, Act
-from gym_jiminy.common.envs import BaseJiminyEnv, PolicyCallbackFun
+from gym_jiminy.common.envs import PolicyCallbackFun, BaseJiminyEnv
 
 
 HISTOGRAM_BINS = 15
@@ -78,8 +82,8 @@ HISTOGRAM_BINS = 15
 PRINT_RESULT_FIELDS_FILTER = (
     TRAINING_ITERATION,
     TIME_TOTAL_S,
-    NUM_ENV_STEPS_SAMPLED_LIFETIME,
-    NUM_EPISODES_LIFETIME,
+    "/".join((ENV_RUNNER_RESULTS, NUM_ENV_STEPS_SAMPLED_LIFETIME)),
+    "/".join((ENV_RUNNER_RESULTS, NUM_EPISODES_LIFETIME)),
     "/".join((ENV_RUNNER_RESULTS, EPISODE_RETURN_MAX)),
     "/".join((ENV_RUNNER_RESULTS, EPISODE_RETURN_MEAN)),
     "/".join((ENV_RUNNER_RESULTS, EPISODE_LEN_MEAN)),
@@ -88,6 +92,70 @@ PRINT_RESULT_FIELDS_FILTER = (
 VALID_SUMMARY_TYPES = (int, float, np.float32, np.float64, np.int32, np.int64)
 
 LOGGER = logging.getLogger(__name__)
+
+
+class MeanStdFilter(MeanStdFilterConnector):
+    """A connector used to mean-std-filter observations.
+
+    This class patches `ray.rllib.connectors.env_to_module.MeanStdFilter` to
+    fix statistics accumulation, which is currently broken for ray<=2.40.
+    See PR for details: https://github.com/ray-project/ray/pull/49718
+    """
+    def merge_states(self, states: List[Dict[str, Any]]) -> Dict[str, Any]:
+        # Initialize filters if not already done, clear running stats otherwise
+        if self._filters is None:
+            self._init_new_filters()
+        else:
+            for _filter in self._filters.values():
+                _filter.running_stats = tree.map_structure(
+                    RunningStat, _filter.shape)
+        assert self._filters is not None
+
+        # Make sure data is uniform across given states.
+        ref = next(iter(states[0].values()))
+
+        for state in states:
+            for agent_id, agent_state in state.items():
+                _filter = _MeanStdFilter(
+                    ref["shape"],
+                    demean=ref["de_mean_to_zero"],
+                    destd=ref["de_std_to_one"],
+                    clip=ref["clip_by_value"],
+                )
+                # Override running stats of the filter with the ones stored in
+                # `agent_state`.
+                _filter.buffer = tree.unflatten_as(
+                    agent_state["shape"],
+                    [
+                        RunningStat.from_state(stats)
+                        # ------------------------ FIX ------------------------
+                        for stats in agent_state["buffer"]
+                        # -----------------------------------------------------
+                    ],
+                )
+
+                # Leave the buffers as-is, since they should always only
+                # reflect what has happened on the particular env runner.
+                self._filters[agent_id].apply_changes(
+                    _filter, with_buffer=False)
+
+        # Calling base `_get_state_from_filters` to avoid syncing `buffer` attr
+        return MeanStdFilterConnector._get_state_from_filters(
+            self._filters)  # type: ignore[arg-type]
+
+    @staticmethod
+    def _get_state_from_filters(
+            filters: Dict[AgentID, _MeanStdFilter]  # type: ignore[override]
+            ) -> Dict[AgentID, Dict[str, Any]]:
+        ret = MeanStdFilterConnector._get_state_from_filters(
+            filters)  # type: ignore[arg-type]
+        # -------------------------------- FIX --------------------------------
+        for agent_id, agent_filter in filters.items():
+            if "buffer" not in ret[agent_id]:
+                ret[agent_id]["buffer"] = [
+                    s.to_state() for s in tree.flatten(agent_filter.buffer)]
+        # ---------------------------------------------------------------------
+        return ret
 
 
 class MonitorEpisodeCallback(DefaultCallbacks):
@@ -138,7 +206,7 @@ class MonitorEpisodeCallback(DefaultCallbacks):
                        episode: EpisodeType,
                        env_runner: EnvRunner,
                        metrics_logger: MetricsLogger,
-                       env: gym.Env,
+                       env: gym.vector.VectorEnv,
                        env_index: int,
                        rl_module: RLModule,
                        **kwargs: Any) -> None:
@@ -170,9 +238,24 @@ class MonitorEpisodeCallback(DefaultCallbacks):
         window = env_runner.config.metrics_num_episodes_for_smoothing
         clear_on_reduce = window in (None, float("inf"))
 
-        # Log raw infos without any scalar reduction (mean, "max, min...)
+        # Log raw infos without any scalar reduction (mean, max, min...)
         for info in episode.get_infos():
             metrics_logger.log_dict(info, reduce=None, clear_on_reduce=True)
+
+        # Log the duration of all episodes without any scalar reduction.
+        # Note that relying on `num_steps` is not possible as the environment
+        # has already been reset at this point.
+        assert isinstance(episode, SingleAgentEpisode)
+        num_steps = episode.t
+        assert isinstance(env.unwrapped, gym.vector.SyncVectorEnv)
+        env_unwrapped = env.unwrapped.envs[env_index].unwrapped
+        assert isinstance(env_unwrapped, BaseJiminyEnv)
+        step_dt = env_unwrapped.step_dt
+        episode_duration = step_dt * num_steps
+        metrics_logger.log_value("episode_duration",
+                                 episode_duration,
+                                 reduce=None,
+                                 clear_on_reduce=True)
 
         # Log reduced (min, max, mean) cumulative reward and episode length.
         # Note that the window size must be set to `float("inf")` instead of
@@ -181,35 +264,18 @@ class MonitorEpisodeCallback(DefaultCallbacks):
         # Beware `episode.env_steps()` does NOT correspond to the absolute
         # "index" of the last step of the episode before termination, but
         # rather the total number of steps in this chunk.
-        assert isinstance(episode, SingleAgentEpisode)
-        num_steps = episode.t
         for reduce in ("min", "max", "mean"):
-            metrics_logger.log_value(f"episode_return_{reduce}",
-                                     episode_return,
-                                     reduce=reduce,
-                                     window=window,
-                                     clear_on_reduce=clear_on_reduce)
-            metrics_logger.log_value(f"episode_len_{reduce}",
-                                     num_steps,
-                                     reduce=reduce,
-                                     window=window,
-                                     clear_on_reduce=clear_on_reduce)
-            if not clear_on_reduce:
-                self._clear_metrics_keys.update((
-                    f"episode_return_{reduce}", f"episode_len_{reduce}"))
-
-        # Log the duration of all episodes without any scalar reduction.
-        # Note that relying on `num_steps` is not possible as the environment
-        # has already been reset at this point.
-        assert isinstance(env.unwrapped, gym.vector.SyncVectorEnv)
-        env_unwrapped = env.unwrapped.envs[env_index].unwrapped
-        assert isinstance(env_unwrapped, BaseJiminyEnv)
-        step_dt = env_unwrapped.step_dt
-        duration = step_dt * num_steps
-        metrics_logger.log_value("episode_duration",
-                                 duration,
-                                 reduce=None,
-                                 clear_on_reduce=True)
+            for field, value in (
+                    (f"episode_return_{reduce}", episode_return),
+                    (f"episode_len_{reduce}", num_steps),
+                    (f"episode_duration_{reduce}", episode_duration)):
+                metrics_logger.log_value(field,
+                                         value,
+                                         reduce=reduce,
+                                         window=window,
+                                         clear_on_reduce=clear_on_reduce)
+                if not clear_on_reduce:
+                    self._clear_metrics_keys.add(field)
 
     def on_sample_end(self,
                       *,
@@ -451,7 +517,7 @@ def train(algo_config: AlgorithmConfig,
           logdir: str,
           max_timesteps: int = 0,
           max_iters: int = 0,
-          checkpoint_period: int = 0,
+          checkpoint_interval: int = 0,
           enable_evaluation_replay: bool = False,
           enable_evaluation_record_video: bool = False,
           verbose: bool = True,
@@ -471,9 +537,9 @@ def train(algo_config: AlgorithmConfig,
                           Optional: Disabled by default.
     :param max_iters: Maximum number of training iterations. 0 to disable.
                       Optional: Disabled by default.
-    :param checkpoint_period: Backup trainer every given number of training
-                              steps in log folder if requested. 0 to disable.
-                              Optional: Disabled by default.
+    :param checkpoint_interval: Backup trainer every given number of training
+                                steps in log folder if requested. 0 to disable.
+                                Optional: Disabled by default.
     :param enable_evaluation_replay:
         Whether to replay a video of the best and worst trials after completing
         evaluation.
@@ -592,6 +658,13 @@ def train(algo_config: AlgorithmConfig,
     # Assert(s) for type checker
     assert algo.env_runner_group is not None
 
+    # Restore checkpoint if any
+    checkpoints_paths = sorted([
+        str(path) for path in Path(logdir).iterdir()
+        if path.is_dir() and path.name.startswith("checkpoint_")])
+    if checkpoints_paths:
+        algo.restore(checkpoints_paths[-1])
+
     # Get the reward threshold of the environment, if any.
     # Note that the original environment is always re-registered as an new gym
     # entry-point "rllib-single-agent-env-v0". Most of the original spec are
@@ -600,7 +673,7 @@ def train(algo_config: AlgorithmConfig,
     # access the original spec is by instantiating the entry-point manually
     # without relying on `gym.make`.
     env_spec, *_ = chain(*algo.env_runner_group.foreach_worker(
-        lambda worker: worker.env.get_attr('spec')))
+        lambda worker: worker.env.unwrapped.get_attr('spec')))
     assert env_spec is not None
     if env_spec.reward_threshold is None:
         env_spec = env_spec.entry_point().spec
@@ -618,11 +691,12 @@ def train(algo_config: AlgorithmConfig,
                 (algo.env_runner_group, algo.eval_env_runner_group)):
             if workers is None:
                 continue
-            num_env_runners = workers.num_remote_env_runners() + 1
-            seed_seq = seed_seq_gen_i.generate_state(num_env_runners).tolist()
+            num_envs = workers.foreach_worker(lambda worker: worker.num_envs)
+            seeds = [seed_seq_gen_i.generate_state(n).tolist()
+                     for n in num_envs]
             workers.foreach_worker_with_id(
                 lambda idx, worker: worker.env.reset(
-                    seed=seed_seq[idx]))  # pylint: disable=cell-var-from-loop
+                    seed=seeds[idx]))  # pylint: disable=cell-var-from-loop
 
     # Instantiate logger that will be used throughout the experiment
     try:
@@ -639,7 +713,8 @@ def train(algo_config: AlgorithmConfig,
 
         # Backup all environment's source files
         (env_type,) = set(chain(*algo.env_runner_group.foreach_worker(
-            lambda worker: [type(env.unwrapped) for env in worker.env.envs])))
+            lambda worker: [
+                type(env.unwrapped) for env in worker.env.unwrapped.envs])))
         while True:
             try:
                 path = inspect.getfile(env_type)
@@ -674,12 +749,13 @@ def train(algo_config: AlgorithmConfig,
 
     # Run several training iterations until terminal condition is reached
     try:
+        iter_num = 0
         while True:
             # Perform one iteration of training the policy
             result = algo.train()
 
             # Log results
-            iter_num = result[TRAINING_ITERATION]
+            num_timesteps = result[NUM_ENV_STEPS_SAMPLED_LIFETIME]
             if file_writer is not None:
                 # Flatten result dict after excluding irrelevant special keys
                 masked_fields = (
@@ -696,11 +772,10 @@ def train(algo_config: AlgorithmConfig,
                 # Logger variables in accordance with their respective types
                 for attr, value in result_flat.items():
                     # First, try to log the variable as a scalar
-                    full_attr = "/".join(("ray", "tune", attr))
                     try:
                         file_writer.add_scalar(
-                            full_attr, value, global_step=iter_num)
-                        scalar_tags.append(full_attr)
+                            attr, value, global_step=num_timesteps)
+                        scalar_tags.append(attr)
                         continue
                     except (TypeError, AssertionError, NotImplementedError):
                         pass
@@ -709,19 +784,19 @@ def train(algo_config: AlgorithmConfig,
                         # Assuming single image
                         if value.ndim == 3:
                             file_writer.add_image(
-                                full_attr, value, global_step=iter_num)
+                                attr, value, global_step=num_timesteps)
                             continue
 
                         # Assuming batch of images
                         if value.ndim == 4:
                             file_writer.add_images(
-                                full_attr, value, global_step=iter_num)
+                                attr, value, global_step=num_timesteps)
                             continue
 
                         # Assuming video with arbitrary FPS
                         if value.ndim == 5:
                             file_writer.add_video(
-                                full_attr, value, global_step=iter_num, fps=20)
+                                attr, value, fps=20, global_step=num_timesteps)
                             continue
 
                     # In last resort, try to log the variable as an histogram
@@ -730,7 +805,7 @@ def train(algo_config: AlgorithmConfig,
                             continue
                         try:
                             file_writer.add_histogram(
-                                full_attr, value, global_step=iter_num)
+                                attr, value, global_step=num_timesteps)
                             continue
                         except (ValueError, TypeError):
                             pass
@@ -738,7 +813,7 @@ def train(algo_config: AlgorithmConfig,
                     # Warn and move on if it was impossible to log the variable
                     LOGGER.warning(
                         "You are trying to log an invalid value (%s=%s).",
-                        full_attr, value)
+                        attr, value)
 
                 # Add multiline charts for dictionary of named scalar metrics
                 # stored under key `ENV_RUNNER_RESULTS`.
@@ -790,11 +865,14 @@ def train(algo_config: AlgorithmConfig,
                 result_flat = flatten_dict(result, delimiter="/")
                 for field in PRINT_RESULT_FIELDS_FILTER:
                     if field in result_flat.keys():
-                        msg_data.append(f"{field}: {result_flat[field]:.5g}")
+                        msg_data.append(
+                            f"{field.rsplit('/', 1)[-1]}: "
+                            f"{result_flat[field]:.5g}")
                 print(" - ".join(msg_data))
 
             # Backup the policy
-            if checkpoint_period > 0 and iter_num % checkpoint_period == 0:
+            iter_num = result[TRAINING_ITERATION]
+            if checkpoint_interval > 0 and iter_num % checkpoint_interval == 0:
                 algo.save(os.path.join(logdir, f"checkpoint_{iter_num:06d}"))
 
             # Check terminal conditions
@@ -817,7 +895,8 @@ def train(algo_config: AlgorithmConfig,
         if verbose or debug:
             print("Interrupting training...")
     except RayTaskError as e:
-        LOGGER.warning("%s", e)
+        traceback = TracebackException.from_exception(e)
+        LOGGER.warning(''.join(traceback.format()))
 
     # Flush and close logger before returning
     if file_writer is not None:
@@ -836,6 +915,17 @@ def train(algo_config: AlgorithmConfig,
     return (checkpoint_result.metrics, checkpoint_result.checkpoint.path)
 
 
+def partition(length: int, num_chunks: int) -> Iterable[int]:
+    """Generate partition with chunks of minimal variation in length.
+
+    :param length: Total number of elements to partition.
+    :param num_chunks: Size of each chunks.
+    """
+    num_chunks = min(length, num_chunks)
+    chunk_length_min, stepdown = divmod(length, num_chunks)
+    return (chunk_length_min + (i < stepdown) for i in range(num_chunks))
+
+
 def _sample_initialize(worker: EnvRunner) -> Sequence[bool]:
     """Initialize evaluation sampling.
 
@@ -844,59 +934,76 @@ def _sample_initialize(worker: EnvRunner) -> Sequence[bool]:
 
     .. warning::
         This method is designed to be used in conjunction with
-        `_sample_one_episode_and_collect_metrics` and `_sample_finalize`.
+        `_sample_collect` and `_sample_finalize`.
 
     :param worker: Environment runner that will be used for collecting samples.
     """
     # Assert(s) for type checker
     assert isinstance(worker, SingleAgentEnvRunner)
 
+    # FIXME: When there is a single thread, the same environments are used for
+    # sampling during training and evaluation. One is expecting to sample
+    # complete episode from reset to termination during evaluation, which means
+    # that it is necessary to force reset the environment before sample.
+    # Although all the environments were initiallly reset systematically before
+    # sampling a given number of episodes, it is no longer the case after
+    # applying our on patch that specifically revert this behavior. This patch
+    # was necessary as it causes episodes from which the agent is performing
+    # poorly to be over-represented in training batches.
+    # Passing `force_reset=True` as input argument of `sample` is not suffisant
+    # in practice, as this input argument is ignored when specifying the number
+    # of episodes. The only option is to override the internal flag
+    # `_needs_initial_reset` used internally to automatically trigger reset.
+    worker._needs_initial_reset = True
+
     # Stop any simulation that may be running
-    worker.env.call('stop')
+    worker.env.unwrapped.call('stop')
 
     # Switch the environment to evaluation mode
-    is_training_all = worker.env.get_attr('is_training')
-    worker.env.call('eval')
+    is_training_all = worker.env.unwrapped.get_attr('training')
+    worker.env.unwrapped.call('eval')
 
     return is_training_all
 
 
-def _sample_one_episode_and_collect_metrics(worker: EnvRunner) -> Tuple[
+def _sample_collect(worker: EnvRunner,
+                    num_episodes: int = 1) -> Tuple[
         ResultDict, Sequence[EpisodeType], Sequence[str]]:
-    """Sample a single evaluation episode and collect metrics.
-
-    TODO: It would be more efficient to sample as many episodes as environments
-    being managed by the runner (ie. `worker.num_envs`), because, internally,
-    they will be collected anyway and discarded afterward.
+    """Sample evaluation episodes and collect metrics.
 
     .. warning::
         This method is designed to be used in conjunction with
         `_sample_initialize` and `_sample_finalize`.
 
     :param worker: Environment runner to use for collecting samples.
+    :param num_episodes: Number of episodes to sample.
+                         Optional: 1 by default.
     """
     # Assert(s) for type checker
     assert isinstance(worker, SingleAgentEnvRunner)
 
-    # Drop all existing log files as they are not associated with the
-    # ongoing evaluation.
-    # Note that `set_attr` on vector envs is buggy on Gymnasium < 1.0, as
-    # it creates the attributes at wrapper level even if it exists in the
-    # unwrapped environments. Assuming `SyncVectorEnv` to get around this
-    # issue.
-    # worker.env.set_attr('log_path', None)
-    assert isinstance(worker.env.unwrapped, gym.vector.SyncVectorEnv)
-    for env in worker.env.envs:
-        env.unwrapped.log_path = None
+    # Collect a bunch of episodes
+    episodes = worker.sample(
+        num_episodes=num_episodes, random_actions=False)
+    assert len(episodes) == num_episodes
 
-    # Run a single episode and extract the path of the log file.
-    # Note that episodes are sorted by environment indices by design.
-    episodes = worker.sample(num_episodes=1, random_actions=False)
-    log_paths: Tuple[str, ...] = tuple(
-        filter(None, worker.env.get_attr('log_path')))
+    # Stop any simulation that may be running.
+    # This is necessary to make sure that all log files have been written.
+    worker.env.unwrapped.call('stop')
+
+    # Extract the log files of interest.
+    log_paths = tuple(episode.infos[0]['log_path'] for episode in episodes)
+
+    # Delete useless log files to avoid filling up the hard drive
+    for log_path in worker.env.unwrapped.get_attr('log_path'):
+        if log_path not in log_paths:
+            os.remove(log_path)
 
     # Collect metrics
     metrics = worker.get_metrics()
+
+    # Remove log paths from metrics to prevent irrelevant tensorboard logging
+    del metrics['log_path']
 
     return metrics, episodes, log_paths
 
@@ -910,7 +1017,7 @@ def _sample_finalize(worker: EnvRunner,
 
     .. warning::
         This method is designed to be used in conjunction with
-        `_sample_initialize` and `_sample_one_episode_and_collect_metrics`.
+        `_sample_initialize` and `_sample_collect`.
 
     :param worker: Environment runner that was previously used to collect
                    sample.
@@ -921,25 +1028,29 @@ def _sample_finalize(worker: EnvRunner,
     # Assert(s) for type checker
     assert isinstance(worker, SingleAgentEnvRunner)
 
-    # Stop any simulation that may be running
-    worker.env.call('stop')
+    # Enable once-again auto-reset, to avoid starting back training from where
+    # evaluation stopped.
+    worker._needs_initial_reset = True
 
-    # Restore the original training/evaluation mode.
-    # FIXME: Rely on `set_attr` when moving to `gymnasium>=1.0`, which fixes
-    # attribute lookup in wrapped layers.
-    # worker.env.set_attr('is_training', is_training)
-    assert isinstance(worker.env.unwrapped, gym.vector.SyncVectorEnv)
-    for env, is_training in zip(worker.env.envs, is_training_all):
-        if is_training:
-            env.train()
+    # Restore the original training/evaluation mode
+    if parse_version(gym.__version__) >= parse_version("1.0"):
+        worker.env.unwrapped.set_attr('training', is_training_all)
+    else:
+        assert isinstance(worker.env.unwrapped, gym.vector.SyncVectorEnv)
+        for env, is_training in zip(
+                worker.env.unwrapped.envs, is_training_all):
+            env.get_wrapper_attr("train")(is_training)
 
 
 def sample_from_runner(
         env_runner: EnvRunner,
         num_episodes: int
-        ) -> Tuple[List[ResultDict], List[EpisodeType], List[str]]:
+        ) -> Tuple[Sequence[ResultDict], Sequence[EpisodeType], Sequence[str]]:
     """Sample multiple evaluation episodes on any of the environments being
     managed by a given evaluation runner.
+
+    .. warning::
+        This method only supports environments deriving from `BaseJiminyEnv`.
 
     :param worker: Environment runner to use for collecting samples.
     :param num_episodes: Number of episodes to collect.
@@ -951,40 +1062,37 @@ def sample_from_runner(
     assert isinstance(env_runner, SingleAgentEnvRunner)
 
     # This method only supports environments deriving from `BaseJiminyEnv`
-    (env_type,) = set(type(env.unwrapped) for env in env_runner.env.envs)
+    assert isinstance(env_runner.env.unwrapped, gym.vector.SyncVectorEnv)
+    (env_type,) = set(
+        type(env.unwrapped) for env in env_runner.env.unwrapped.envs)
     if not issubclass(env_type, BaseJiminyEnv):
         raise RuntimeError("Test env must inherit from `BaseJiminyEnv`.")
 
     # Initialize sampling
     is_training_all = _sample_initialize(env_runner)
 
-    # Collect episodes one-by-one until completion
-    all_metrics: List[ResultDict] = []
-    all_episodes: List[EpisodeType] = []
-    all_log_paths: List[str] = []
-    for _ in range(num_episodes):
-        metrics, episodes, log_paths = (
-            _sample_one_episode_and_collect_metrics(env_runner))
-        all_metrics.append(metrics)
-        all_episodes += episodes
-        all_log_paths += log_paths
+    # Collect episodes
+    metrics, episodes, log_paths = _sample_collect(env_runner, num_episodes)
 
     # Finalize sampling
     _sample_finalize(env_runner, is_training_all)
 
-    return all_metrics, all_episodes, all_log_paths
+    return (metrics,), episodes, log_paths
 
 
 def sample_from_runner_group(
         workers: EnvRunnerGroup,
         num_episodes: int,
         evaluation_sample_timeout_s: Optional[float] = None
-        ) -> Tuple[List[ResultDict], List[EpisodeType], List[str]]:
+        ) -> Tuple[Sequence[ResultDict], Sequence[EpisodeType], Sequence[str]]:
     """Sample multiple evaluation episodes on any of the environments being
     managed by all the remote and local evaluation runners of a given group.
 
     Sampling would be distributed across all remote runners if any, otherwise
     it will be sequential on the local runner.
+
+    .. warning::
+        This method only supports environments deriving from `BaseJiminyEnv`.
 
     :param workers: Group of environment runners to use for collecting samples.
     :param num_episodes: Number of episodes to collect.
@@ -998,54 +1106,47 @@ def sample_from_runner_group(
     """
     # This method only supports environments deriving from `BaseJiminyEnv`
     (env_type,) = set(chain(*workers.foreach_worker(
-        lambda worker: [type(env.unwrapped) for env in worker.env.envs])))
+        lambda worker: [
+            type(env.unwrapped) for env in worker.env.unwrapped.envs])))
     if not issubclass(env_type, BaseJiminyEnv):
         raise RuntimeError("Test env must inherit from `BaseJiminyEnv`.")
 
     if workers.num_remote_env_runners() == 0:
         all_metrics, all_episodes, all_log_paths = (
             sample_from_runner(workers.local_env_runner, num_episodes))
-    elif workers.num_healthy_remote_workers() > 0:
+    elif (num_workers := workers.num_healthy_remote_workers()) > 0:
         # Initialize evaluation
         is_training_all = dict(workers.foreach_worker_with_id(
-            func=lambda index, worker: (index, _sample_initialize(worker)),
+            func=lambda ident, worker: (ident, _sample_initialize(worker)),
             local_env_runner=False))
 
-        # Collect episodes one-by-one from each worker until completion
+        # Split workload across workers as fairly as possibly
+        chunks = dict(zip(workers.healthy_worker_ids(),
+                          partition(num_episodes, num_workers)))
+
+        # Run a complete episode per selected worker and collect metrics
+        results = workers.foreach_worker_with_id(
+            func=lambda ident, worker: _sample_collect(
+                worker, num_episodes=chunks[ident]),
+            local_env_runner=False,
+            remote_worker_ids=tuple(chunks.keys()),
+            timeout_seconds=evaluation_sample_timeout_s)
         all_metrics, all_episodes, all_log_paths = [], [], []
-        while (delta_episodes := num_episodes - len(all_episodes)) > 0:
-            # Stop if all of the remote evaluation workers died for some reason
-            if workers.num_healthy_remote_workers() == 0:
-                break
-
-            # Select proper number of evaluation workers for this round
-            selected_eval_worker_ids = [
-                worker_id for i, worker_id in enumerate(
-                    workers.healthy_worker_ids()) if i < delta_episodes]
-
-            # Run a complete episode per selected worker and collect metrics
-            results = workers.foreach_worker(
-                func=_sample_one_episode_and_collect_metrics,
-                local_env_runner=False,
-                remote_worker_ids=selected_eval_worker_ids,
-                timeout_seconds=evaluation_sample_timeout_s)
-            for metrics, episodes, log_paths in results:
-                all_metrics.append(metrics)
-                all_episodes += episodes
-                all_log_paths += log_paths
-            if len(results) != len(selected_eval_worker_ids):
-                LOGGER.warning(
-                    "Calling `sample()` on your remote evaluation worker(s) "
-                    "resulted in a timeout. Please configure the parameter "
-                    "`evaluation_sample_timeout_s` accordingly.")
-                break
+        for metrics, episodes, log_paths in results:
+            all_metrics.append(metrics)
+            all_episodes += episodes
+            all_log_paths += log_paths
+        if len(all_episodes) != num_episodes:
+            LOGGER.warning(
+                "Calling `sample()` on your remote evaluation worker(s) "
+                "resulted in a timeout. Please configure the parameter "
+                "`evaluation_sample_timeout_s` accordingly.")
 
         # Finalize evaluation
         workers.foreach_worker_with_id(
-            func=lambda index, worker: _sample_finalize(
-                worker, is_training_all[index]),
+            func=lambda ident, worker: _sample_finalize(
+                worker, is_training_all[ident]),
             local_env_runner=False)
-
     else:
         raise RuntimeError("No runner available for running the evaluation.")
 
@@ -1082,7 +1183,7 @@ def _pretty_print_statistics(data: Sequence[Tuple[str, np.ndarray]]) -> None:
                 f"(min = {np.min(values):.2f}, max = {np.max(values):.2f})")
 
 
-def _pretty_print_episode_metrics(all_episodes: List[EpisodeType],
+def _pretty_print_episode_metrics(all_episodes: Sequence[EpisodeType],
                                   step_dt: Optional[float]) -> None:
     """Render ASCII histograms horizontally side-by-side of high-level
     performance metrics about the batch of episodes.
@@ -1204,26 +1305,32 @@ def evaluate_from_algo(algo: Algorithm,
     if print_stats:
         try:
             (step_dt,) = set(chain(*workers.foreach_worker(
-                lambda worker: worker.env.get_attr('step_dt'))))
+                lambda worker: worker.env.unwrapped.get_attr('step_dt'))))
         except ValueError:
             step_dt = None
         _pretty_print_episode_metrics(all_episodes, step_dt)
 
     # Backup only the log file corresponding to the best and worst trial
-    all_returns = np.array([
-        episode.get_return() for episode in all_episodes])
+    all_returns = [
+        episode.get_return() for episode in all_episodes]
     idx_worst, idx_best = np.argsort(all_returns)[[0, -1]]
-    log_labels, log_paths = ("best", "worst")[:num_episodes], []
-    for suffix, idx in zip(log_labels, (idx_best, idx_worst)):
+    log_labels, log_paths = [], []
+    for label, idx in (
+            ("best", idx_best), ("worst", idx_worst))[:num_episodes]:
         ext = Path(all_log_paths[idx]).suffix
-        log_path = f"{algo.logdir}/iter_{algo.iteration}-{suffix}{ext}"
-        shutil.move(all_log_paths[idx], log_path)
-        log_paths.append(log_path)
+        log_path = f"{algo.logdir}/iter_{algo.iteration}-{label}{ext}"
+        try:
+            shutil.move(all_log_paths[idx], log_path)
+        except FileNotFoundError:
+            LOGGER.warning("Failed to save log file during evaluation.")
+        else:
+            log_paths.append(log_path)
+            log_labels.append(label)
 
     # Replay and/or record a video of the best and worst trials if requested.
     # Async to enable replaying and recording while training keeps going.
     viewer_kwargs, *_ = chain(*workers.foreach_worker(
-        lambda worker: worker.env.get_attr('viewer_kwargs')))
+        lambda worker: worker.env.unwrapped.get_attr('viewer_kwargs')))
     viewer_kwargs.update(
         scene_name=f"iter_{algo.iteration}",
         robots_colors=('green', 'red') if num_episodes > 1 else None,
@@ -1237,7 +1344,7 @@ def evaluate_from_algo(algo: Algorithm,
 
     # Centralized all metrics in algorithm logger
     algo.metrics.merge_and_log_n_dicts(
-        all_metrics, key=(EVALUATION_RESULTS, ENV_RUNNER_RESULTS))
+        list(all_metrics), key=(EVALUATION_RESULTS, ENV_RUNNER_RESULTS))
 
     # Early return if computing reduced metrics is not requested.
     # Note that it expects a non-empty `ResultDict` as first output, even
@@ -1288,7 +1395,8 @@ def evaluate_from_runner(env_runner: EnvRunner,
                          print_stats: Optional[bool] = None,
                          enable_replay: Optional[bool] = None,
                          block: bool = True,
-                         **kwargs: Any) -> Tuple[List[EpisodeType], List[str]]:
+                         **kwargs: Any
+                         ) -> Tuple[Sequence[EpisodeType], Sequence[str]]:
     """Evaluates the performance of a given local worker.
 
     This method is specifically tailored for Gym environments inheriting from
@@ -1324,7 +1432,7 @@ def evaluate_from_runner(env_runner: EnvRunner,
     # Print stats in ASCII histograms if requested
     if print_stats:
         try:
-            (step_dt,) = set(env_runner.env.get_attr('step_dt'))
+            (step_dt,) = set(env_runner.env.unwrapped.get_attr('step_dt'))
         except ValueError:
             step_dt = None
         _pretty_print_episode_metrics(all_episodes, step_dt)
@@ -1336,7 +1444,7 @@ def evaluate_from_runner(env_runner: EnvRunner,
 
     # Replay and/or record a video of the best and worst trials if requested.
     # Async to enable replaying and recording while training keeps going.
-    viewer_kwargs, *_ = env_runner.env.get_attr("viewer_kwargs")
+    viewer_kwargs, *_ = env_runner.env.unwrapped.get_attr("viewer_kwargs")
     viewer_kwargs = {
         **viewer_kwargs, **dict(
             robots_colors=('green', 'red') if num_episodes > 1 else None),
@@ -1405,7 +1513,7 @@ def build_module_from_checkpoint(checkpoint_path: str) -> RLModule:
     calling `algo.save()` during training of the policy.
 
     .. warning::
-        This method only supports single-agent policy is standalone, that is:
+        This method supports single-agent policies, with further restrictions:
           * without custom connectors, i.e.
             `config.module_to_env_connector = None`,
             `config.env_to_module_connector = None`.

@@ -145,14 +145,14 @@ def get_robot_state_space(robot: jiminy.Robot,
         velocity_limit = np.full_like(velocity_limit, float("inf"))
 
     # Aggregate position and velocity bounds to define state space
-    return gym.spaces.Dict(OrderedDict(
+    return gym.spaces.Dict(
         q=gym.spaces.Box(low=position_limit_lower,
                          high=position_limit_upper,
                          dtype=np.float64),
         v=gym.spaces.Box(low=float("-inf"),
                          high=float("inf"),
                          shape=(robot.pinocchio_model.nv,),
-                         dtype=np.float64)))
+                         dtype=np.float64))
 
 
 def get_robot_measurements_space(robot: jiminy.Robot) -> gym.spaces.Dict:
@@ -231,10 +231,10 @@ def get_robot_measurements_space(robot: jiminy.Robot) -> gym.spaces.Dict:
         sensor_space_upper[EffortSensor.type][0, sensor.index] = (
             motor.effort_limit)
 
-    return gym.spaces.Dict(OrderedDict(
+    return gym.spaces.Dict([
         (key, gym.spaces.Box(low=min_val, high=max_val, dtype=np.float64))
         for (key, min_val), max_val in zip(
-            sensor_space_lower.items(), sensor_space_upper.values())))
+            sensor_space_lower.items(), sensor_space_upper.values())])
 
 
 def get_bounds(space: gym.Space,
@@ -269,14 +269,14 @@ def get_bounds(space: gym.Space,
     # Take into account the absolute and relative tolerances
     # assert tol_abs >= 0.0 and tol_rel >= 0.0
     if tol_abs or tol_rel and (low is not None or high is not None):
-        tol_nd = np.full_like(low, tol_abs)
+        tol_abs_nd = np.full_like(low, tol_abs)
         if tol_rel and low is not None and high is not None:
-            tol_nd = np.maximum(
-                (high - low) * tol_rel, tol_nd)  # type: ignore[operator]
+            tol_abs_nd = np.maximum(
+                (high - low) * tol_rel, tol_abs_nd)  # type: ignore[operator]
         if low is not None:
-            low = (low - tol_nd).astype(dtype)
+            low = (low - tol_abs_nd).astype(dtype)
         if high is not None:
-            high = (high + tol_nd).astype(dtype)
+            high = (high + tol_abs_nd).astype(dtype)
 
     return low, high
 
@@ -486,7 +486,8 @@ def build_reduce(fn: Callable[..., ValueInT],
                   `gym.spaces.Tuple`). Optional iif the nested data structure
                   is provided.
     :param arity: Arity of the generated callable. `None` to indicate that it
-                  must be determined at runtime, which is slower.
+                  must be determined at runtime, which is slower. Either way,
+                  only 0 or 1 arity is supported for now.
     :param args: Extra arguments to systematically forward as transform input
                  for all leaves. Note that, as for Python built-ins methods,
                  keywords are not supported for the sake of efficiency.
@@ -873,7 +874,8 @@ def build_reduce(fn: Callable[..., ValueInT],
         """
         if not delayed:
             return post_fn_0()
-        return post_fn_1(delayed[0])
+        (arg,) = delayed
+        return post_fn_1(arg)
 
     def _build_init(
             arity: Literal[0, 1],
@@ -964,7 +966,8 @@ def build_map(fn: Callable[..., ValueT],
     :param space: `gym.spaces.Dict` on which to operate. Optional iif the
                   nested data structure is provided.
     :param arity: Arity of the generated callable. `None` to indicate that it
-                  must be determined at runtime, which is slower.
+                  must be determined at runtime, which is slower. Either way,
+                  only 0 or 1 arity is supported for now.
     :param args: Extra arguments to systematically forward as transform input
                  for all leaves. Note that, as for Python built-ins methods,
                  keywords are not supported for the sake of efficiency.
@@ -1159,7 +1162,8 @@ def build_map(fn: Callable[..., ValueT],
         """
         if not delayed:
             return post_fn_0()
-        return post_fn_1(delayed[0])
+        (arg,) = delayed
+        return post_fn_1(arg)
 
     # Check that the combination of input arguments are valid
     if space is None and data is None:
@@ -1374,7 +1378,9 @@ def build_normalize(space: gym.Space[DataNested],
 
 def build_flatten(data_nested: DataNested,
                   data_flat: Optional[DataNested] = None,
-                  *, is_reversed: Optional[bool] = None
+                  *,
+                  order: Literal['C', 'F'] = 'C',
+                  is_reversed: Optional[bool] = None
                   ) -> Callable[..., None]:
     """Generate a flattening or un-flattening method specialized for some
     pre-allocated nested data.
@@ -1389,6 +1395,10 @@ def build_flatten(data_nested: DataNested,
     :param data_flat: Flat array consistent with the nested data structure.
                       Optional iif `is_reversed` is `True`.
                       Optional: `None` by default.
+    :param order: Order in which the elements of multi-dimensional arrays are
+                  sorted into the flattened vector. See 'numpy.ravel'
+                  documentation for details. Only 'C' and 'F' are supported.
+                  Optiona: 'C' by default.
     :param is_reversed: True to update 'data_flat' (flattening), 'data_nested'
                         otherwise (un-flattening).
                         Optional: True if 'data_flat' is specified, False
@@ -1398,6 +1408,8 @@ def build_flatten(data_nested: DataNested,
     if is_reversed is None:
         is_reversed = data_flat is None
     assert is_reversed or data_flat is not None
+    if order not in ('C', 'F'):
+        raise ValueError("Order must be 'C' or 'F'.")
 
     # Flatten nested data while preserving leaves ordering
     data_leaves = tree.flatten(data_nested)
@@ -1415,11 +1427,62 @@ def build_flatten(data_nested: DataNested,
         stop_indices.append(idx_end)
         idx_start = idx_end
 
-    @nb.jit(nopython=True, cache=True)
+    @nb.jit(nopython=True, cache=True, fastmath=True)
+    def _flatten_nd(data: np.ndarray,
+                    idx_start: int,
+                    data_flat: np.ndarray,
+                    is_fortran: bool,
+                    is_reversed: bool) -> None:
+        """Synchronize the flatten and un-flatten representation of the data
+        associated with the same leaf space.
+
+        Generic implementation flattening multi-dimensional arrays by copying
+        from source to destination element-by-element without vectorization.
+
+        :param data: Multi-dimensional array that will be either updated or
+                     copied as a whole depending on 'is_reversed'.
+        :param idx_start: First index of the slice of 'data_flat' to
+                          synchronized with 'data'.
+        :param data_flat: 1D array from which to extract that will be either
+                          updated or copied depending on 'is_reversed'.
+        :param is_fortran: Order in which the elements of multi-dimensional
+                           arrays are sorted into the flattened vector.
+        :param is_reversed: True to update the multi-dimensional array 'data'
+                            by copying the value from slice 'flat_slice' of
+                            vector 'data_flat', False for doing the contrary.
+        """
+        # Note that passing string or slices as input argument is very slow
+        # in numba. Moreover, assignment does not appear to be vectorized, so
+        # looping element-by-element should be equally fast than directly
+        # assigning the whole flattened view of ND-array whenever possible.
+        if is_reversed:
+            if is_fortran:
+                idx = idx_start
+                for multi_index in np.ndindex(data.T.shape):
+                    data[multi_index[::-1]] = data_flat[idx]
+                    idx += 1
+            else:
+                idx = idx_start
+                for multi_index in np.ndindex(data.shape):
+                    data[multi_index] = data_flat[idx]
+                    idx += 1
+        else:
+            if is_fortran:
+                idx = idx_start
+                for multi_index in np.ndindex(data.T.shape):
+                    data_flat[idx] = data[multi_index[::-1]]
+                    idx += 1
+            else:
+                idx = idx_start
+                for multi_index in np.ndindex(data.shape):
+                    data_flat[idx] = data[multi_index]
+                    idx += 1
+
     def _flatten(data: np.ndarray,
                  idx_start: int,
                  idx_end: int,
                  data_flat: np.ndarray,
+                 is_fortran: bool,
                  is_reversed: bool) -> None:
         """Synchronize the flatten and un-flatten representation of the data
         associated with the same leaf space.
@@ -1435,20 +1498,27 @@ def build_flatten(data_nested: DataNested,
                         synchronized with 'data'.
         :param data_flat: 1D array from which to extract that will be either
                           updated or copied depending on 'is_reversed'.
+        :param is_fortran: Order in which the elements of multi-dimensional
+                           arrays are sorted into the flattened vector.
         :param is_reversed: True to update the multi-dimensional array 'data'
                             by copying the value from slice 'flat_slice' of
                             vector 'data_flat', False for doing the contrary.
         """
-        # Note that passing slices as input argument is very slow in numba
-        if is_reversed:
-            data.ravel()[:] = data_flat[idx_start:idx_end]
-        else:
-            data_flat[idx_start:idx_end] = data.ravel()
+        # Deal with special cases allowing fast vectorized implementation
+        if data.ndim == 1:
+            if is_reversed:
+                array_copyto(data, data_flat[idx_start:idx_end])
+            else:
+                array_copyto(data_flat[idx_start:idx_end], data)
+            return
 
-    args = (is_reversed,)
+        # General case looping over each element individually
+        _flatten_nd(data, idx_start, data_flat, is_fortran, is_reversed)
+
+    args = (order == 'F', is_reversed)
     if data_flat is not None:
         args = (data_flat, *args)  # type: ignore[assignment]
-    arity = 2 - len(args)
+    arity = 3 - len(args)
     out_fn = build_reduce(_flatten, None, (
         data_leaves, start_indices, stop_indices), None, arity, *args)
     if data_flat is None:

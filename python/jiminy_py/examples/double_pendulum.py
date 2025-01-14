@@ -49,6 +49,7 @@ if __name__ == '__main__':
 
     robot_options["telemetry"]["enableImuSensors"] = True
     engine_options["telemetry"]["isPersistent"] = True
+    engine_options["telemetry"]["logInternalStepperSteps"] = False
     engine_options["telemetry"]["enableConfiguration"] = True
     engine_options["telemetry"]["enableVelocity"] = True
     engine_options["telemetry"]["enableAcceleration"] = True
@@ -63,7 +64,6 @@ if __name__ == '__main__':
     engine_options["stepper"]["dtMax"] = 2.0e-3  # 2.0e-4 for "euler_explicit", 3.0e-3 for "runge_kutta_dopri"
     engine_options["stepper"]["sensorsUpdatePeriod"] = 1.0e-3
     engine_options["stepper"]["controllerUpdatePeriod"] = 1.0e-3
-    engine_options["stepper"]["logInternalStepperSteps"] = False
     engine_options["stepper"]["randomSeedSeq"] = np.array([0,], dtype=np.uint32)
     engine_options['contacts']['model'] = "spring_damper"
     engine_options['contacts']['stiffness'] = 1.0e6

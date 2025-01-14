@@ -1,5 +1,6 @@
 # pylint: disable=missing-module-docstring
 
+from . import patches  # noqa: F401
 from . import ppo
 from . import utilities
 

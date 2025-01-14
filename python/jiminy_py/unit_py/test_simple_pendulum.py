@@ -601,7 +601,7 @@ class SimulateSimplePendulum(unittest.TestCase):
         engine_options["world"]["gravity"] = np.zeros(6)
         engine_options["stepper"]["sensorsUpdatePeriod"] = 0.0
         engine_options["stepper"]["controllerUpdatePeriod"] = 0.0
-        engine_options["stepper"]["logInternalStepperSteps"] = True
+        engine_options["telemetry"]["logInternalStepperSteps"] = True
         engine.set_options(engine_options)
 
         # Run simulation and extract some information from log data
@@ -634,7 +634,7 @@ class SimulateSimplePendulum(unittest.TestCase):
         engine_options["world"]["gravity"] = np.zeros(6)
         engine_options["stepper"]["sensorsUpdatePeriod"] = 0.0
         engine_options["stepper"]["controllerUpdatePeriod"] = 0.0
-        engine_options["stepper"]["logInternalStepperSteps"] = True
+        engine_options["telemetry"]["logInternalStepperSteps"] = True
         engine.set_options(engine_options)
 
         # Configure the engine: Continuous time simulation

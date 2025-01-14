@@ -57,6 +57,7 @@ namespace jiminy
         state.sum(stateIncrement_, candidateSolution_);
 
         // Evaluate the solution's error for step adjustment
+        const double t_next = t + dt;
         const bool hasSucceeded = adjustStep(state, candidateSolution_, dt);
 
         // Update state and compute derivative if success
@@ -69,7 +70,7 @@ namespace jiminy
             }
             else
             {
-                stateDerivative = f(t, state);
+                stateDerivative = f(t_next, state);
             }
         }
 

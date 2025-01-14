@@ -146,12 +146,12 @@ class AbstractReward(metaclass=ABCMeta):
         if value is None:
             return 0.0
 
+        # Make sure that the reward is a scalar
+        value = float(value)
+
         # Make sure that terminal flag is honored
         if bool(self.is_terminal) ^ terminated:
             raise ValueError("Flag 'is_terminal' not honored.")
-
-        # Make sure that the reward is scalar
-        assert np.ndim(value) == 0
 
         # Make sure that the reward is normalized
         if self.is_normalized and (value < 0.0 or value > 1.0):
@@ -163,10 +163,7 @@ class AbstractReward(metaclass=ABCMeta):
             raise KeyError(
                 f"Key '{self.name}' already reserved in 'info'. Impossible to "
                 "store value of reward component.")
-        if reward_info:
-            info[self.name] = reward_info
-        else:
-            info[self.name] = value
+        info[self.name] = reward_info or value
 
         # Returning the reward
         return value
@@ -402,6 +399,11 @@ class EpisodeState(IntEnum):
     """
 
 
+# Define proxies for fast lookup
+_CONTINUED, _TERMINATED, _TRUNCATED = (  # pylint: disable=invalid-name
+    EpisodeState)
+
+
 class AbstractTerminationCondition(metaclass=ABCMeta):
     """Abstract class from which all termination conditions must derived.
 
@@ -432,7 +434,7 @@ class AbstractTerminationCondition(metaclass=ABCMeta):
                  grace_period: float = 0.0,
                  *,
                  is_truncation: bool = False,
-                 is_training_only: bool = False) -> None:
+                 training_only: bool = False) -> None:
         """
         :param env: Base or wrapped jiminy environment.
         :param name: Desired name of the termination condition. This name will
@@ -449,16 +451,16 @@ class AbstractTerminationCondition(metaclass=ABCMeta):
                               terminated or truncated whenever the termination
                               condition is triggered.
                               Optional: False by default.
-        :param is_training_only: Whether the termination condition should be
-                                 completely by-passed if the environment is in
-                                 evaluation mode.
-                                 Optional: False by default.
+        :param training_only: Whether the termination condition should be
+                              completely by-passed if the environment is in
+                              evaluation mode.
+                              Optional: False by default.
         """
         self.env = env
         self._name = name
         self.grace_period = grace_period
         self.is_truncation = is_truncation
-        self.is_training_only = is_training_only
+        self.training_only = training_only
 
     @property
     def name(self) -> str:
@@ -503,7 +505,7 @@ class AbstractTerminationCondition(metaclass=ABCMeta):
         """
         # Skip termination condition in eval mode or during grace period
         termination_info: InfoType = {}
-        if (self.is_training_only and not self.env.is_training) or (
+        if (self.training_only and not self.env.training) or (
                 self.env.stepper_state.t < self.grace_period):
             # Always continue
             is_terminated, is_truncated = False, False
@@ -522,11 +524,11 @@ class AbstractTerminationCondition(metaclass=ABCMeta):
             info[self.name] = termination_info
         else:
             if is_terminated:
-                episode_state = EpisodeState.TERMINATED
+                episode_state = _TERMINATED
             elif is_truncated:
-                episode_state = EpisodeState.TRUNCATED
+                episode_state = _TRUNCATED
             else:
-                episode_state = EpisodeState.CONTINUED
+                episode_state = _CONTINUED
             info[self.name] = episode_state
 
         # Returning terminated and truncated flags
@@ -553,7 +555,7 @@ class QuantityTermination(AbstractTerminationCondition, Generic[ValueT]):
                  grace_period: float = 0.0,
                  *,
                  is_truncation: bool = False,
-                 is_training_only: bool = False) -> None:
+                 training_only: bool = False) -> None:
         """
         :param env: Base or wrapped jiminy environment.
         :param name: Desired name of the termination condition. This name will
@@ -576,10 +578,10 @@ class QuantityTermination(AbstractTerminationCondition, Generic[ValueT]):
                               terminated or truncated whenever the termination
                               condition is triggered.
                               Optional: False by default.
-        :param is_training_only: Whether the termination condition should be
-                                 completely by-passed if the environment is in
-                                 evaluation mode.
-                                 Optional: False by default.
+        :param training_only: Whether the termination condition should be
+                              completely by-passed if the environment is in
+                              evaluation mode.
+                              Optional: False by default.
         """
         # Backup user argument(s)
         self.low = np.asarray(low) if isinstance(low, Sequence) else low
@@ -591,7 +593,7 @@ class QuantityTermination(AbstractTerminationCondition, Generic[ValueT]):
             name,
             grace_period,
             is_truncation=is_truncation,
-            is_training_only=is_training_only)
+            training_only=training_only)
 
         # Add quantity to the set of quantities managed by the environment
         self.env.quantities[self.name] = quantity

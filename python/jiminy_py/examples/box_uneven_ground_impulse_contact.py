@@ -36,7 +36,7 @@ if __name__ == '__main__':
     engine_options["constraints"]['regularization'] = 0.0
 
     # Configure integrator
-    engine_options["stepper"]['logInternalStepperSteps'] = True
+    engine_options["telemetry"]['logInternalStepperSteps'] = True
     engine_options['stepper']['odeSolver'] = 'runge_kutta_dopri'
     engine_options['stepper']['dtMax'] = 1.0e-3
 

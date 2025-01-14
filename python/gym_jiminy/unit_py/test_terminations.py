@@ -99,7 +99,7 @@ class TerminationConditions(unittest.TestCase):
                     grace_period=0.2,
                     op=op,
                     is_truncation=is_truncation,
-                    is_training_only=is_training_only
+                    training_only=is_training_only
                 ) for name, (quantity_cls, quantity_kwargs), low, high, op in (
                     termination_pos_config, termination_rot_config))
 
@@ -130,7 +130,7 @@ class TerminationConditions(unittest.TestCase):
                     time = self.env.stepper_state.t
                     is_active = (
                         time >= termination.grace_period and
-                        not termination.is_training_only)
+                        not termination.training_only)
                     assert info == {
                         termination.name: EpisodeState.TERMINATED
                         if terminated else EpisodeState.TRUNCATED
@@ -156,7 +156,7 @@ class TerminationConditions(unittest.TestCase):
             0.3,
             quat_difference)
 
-        for i, (is_truncation, is_training_only) in enumerate((
+        for i, (is_truncation, training_only) in enumerate((
             (False, False), (True, False), (False, True))):
             termination_pos, termination_rot = (
                 ShiftTrackingQuantityTermination(
@@ -171,7 +171,7 @@ class TerminationConditions(unittest.TestCase):
                     grace_period=0.2,
                     op=op,
                     is_truncation=is_truncation,
-                    is_training_only=is_training_only
+                    training_only=training_only
                 ) for name, (quantity_cls, quantity_kwargs), thr, op in (
                     termination_pos_config, termination_rot_config))
 
@@ -194,10 +194,15 @@ class TerminationConditions(unittest.TestCase):
                 for termination, (terminated, truncated), values, info in (
                         (termination_pos, flags_pos, positions, info_pos),
                         (termination_rot, flags_rot, rotations, info_rot)):
+                    left = termination.data.quantity_left.get()
                     values = values[-termination.max_stack:]
                     stack = np.stack(values, axis=-1)
-                    left = termination.data.quantity_left.get()
+                    if termination.data.quantity_left.is_wrapping:
+                        shift = max(
+                            self.env.num_steps + 1 - termination.max_stack, 0)
+                        stack = np.roll(stack, shift=shift, axis=-1)
                     np.testing.assert_allclose(stack, left)
+
                     right = termination.data.quantity_right.get()
                     diff = termination.op(left, right)
                     shift = np.min(np.linalg.norm(
@@ -208,7 +213,7 @@ class TerminationConditions(unittest.TestCase):
                     time = self.env.stepper_state.t
                     is_active = (
                         time >= termination.grace_period and
-                        not termination.is_training_only)
+                        not termination.training_only)
                     assert info == {
                         termination.name: EpisodeState.TERMINATED
                         if terminated else EpisodeState.TRUNCATED

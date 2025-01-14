@@ -186,11 +186,12 @@ class CartPoleJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
 
         Bounds of hypercube associated with initial state of robot.
         """
-        x, theta = sample(scale=np.array(
+        x, theta = sample(scale=np.array(  # type: ignore[misc]
             [X_RANDOM_MAX, THETA_RANDOM_MAX]), rg=self.np_random)
         qpos = np.array([x, np.cos(theta), np.sin(theta)])
         qvel = sample(scale=np.array([
             DX_RANDOM_MAX, DTHETA_RANDOM_MAX]), rg=self.np_random)
+        assert isinstance(qvel, np.ndarray)
         return qpos, qvel
 
     def refresh_observation(self, measurement: EngineObsType) -> None:
@@ -215,10 +216,12 @@ class CartPoleJiminyEnv(BaseJiminyEnv[np.ndarray, np.ndarray]):
         return 1.0 if not terminated else 0.0
 
     def _key_to_action(self,
-                       key: str,
+                       key: Optional[str],
                        obs: np.ndarray,
                        reward: Optional[float],
                        **kwargs: Any) -> Optional[np.ndarray]:
+        if key is None:
+            return None
         if key == "Left":
             return np.array(1)
         if key == "Right":

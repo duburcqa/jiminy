@@ -24,7 +24,7 @@ from ..bases import (
     InterfaceJiminyEnv, InterfaceQuantity, AbstractQuantity, StateQuantity,
     QuantityEvalMode)
 from ..utils import (
-    matrix_to_rpy, matrix_to_quat, quat_apply, remove_yaw_from_quat,
+    mean, matrix_to_rpy, matrix_to_quat, quat_apply, remove_yaw_from_quat,
     quat_interpolate_middle)
 
 from .transform import (
@@ -1077,7 +1077,7 @@ class MultiFrameCollisionDetection(InterfaceQuantity[bool]):
 
     .. note::
         Jiminy enforces all collision geometries to be either primitive shapes
-        or convex polyhedra for efficiency. In practice, tf meshes where
+        or convex polyhedra for efficiency. In practice, if meshes has been
         specified in the original URDF file, then they will be converted into
         their respective convex hull.
     """
@@ -1821,9 +1821,9 @@ class AverageMechanicalPowerConsumption(InterfaceQuantity[float]):
                             mode=self.mode)),
                         op=partial(_compute_power, int(self.generator_mode)))),
                     max_stack=self.max_stack,
-                    as_array=True,
-                    mode='slice'))),
+                    is_wrapping=True,
+                    as_array=True))),
             auto_refresh=False)
 
     def refresh(self) -> float:
-        return np.mean(self.total_power_stack.get())
+        return mean(self.total_power_stack.get())

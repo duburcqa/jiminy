@@ -24,7 +24,7 @@ DEBUG = "JIMINY_BUILD_DEBUG" in os.environ
 class DeformationEstimatorBlock(unittest.TestCase):
     """ TODO: Write documentation
     """
-    def _test_deformation_estimate(self, env, imu_atol, flex_atol):
+    def _test_deformation_estimate(self, env, atol):
         # Check that quaternion estimates from MahonyFilter are valid
         true_imu_rots = []
         for imu_sensor in env.robot.sensors['ImuSensor']:
@@ -36,7 +36,7 @@ class DeformationEstimatorBlock(unittest.TestCase):
         features = env.observation['features']
         est_imu_quats = features['mahony_filter']['quat']
         np.testing.assert_allclose(
-            true_imu_quats, est_imu_quats, atol=imu_atol)
+            true_imu_quats, est_imu_quats, atol=atol)
 
         # Check that deformation estimates from DeformationEstimator are valid
         model_options = env.robot.get_model_options()
@@ -52,7 +52,7 @@ class DeformationEstimatorBlock(unittest.TestCase):
             flex_index = env.observer.flexibility_frame_names.index(frame_name)
             est_flex_quat = est_flex_quats[:, flex_index]
             np.testing.assert_allclose(
-                true_flex_quat, est_flex_quat, atol=flex_atol)
+                true_flex_quat, est_flex_quat, atol=atol)
 
     def test_arm(self):
         """ TODO: Write documentation
@@ -131,7 +131,7 @@ class DeformationEstimatorBlock(unittest.TestCase):
             env,
             kp=0.0,
             ki=0.0,
-            twist_time_constant=None,
+            ignore_twist=False,
             exact_init=True,
             update_ratio=1)
         env = ObservedJiminyEnv(env, mahony_filter)
@@ -152,7 +152,7 @@ class DeformationEstimatorBlock(unittest.TestCase):
             env.step(env.action)
 
         # Check that deformation estimates matches ground truth
-        self._test_deformation_estimate(env, imu_atol=1e-6, flex_atol=1e-5)
+        self._test_deformation_estimate(env, atol=1e-6)
 
     def test_ant(self):
         """ TODO: Write documentation
@@ -188,16 +188,6 @@ class DeformationEstimatorBlock(unittest.TestCase):
                     self.robot.attach_sensor(sensor)
                     sensor.initialize(frame_name)
 
-            def _setup(self) -> None:
-                # Call base implementation
-                super()._setup()
-
-                # Configure the controller and sensor update periods
-                engine_options = self.simulator.get_options()
-                engine_options['stepper']['controllerUpdatePeriod'] = 0.0001
-                engine_options['stepper']['sensorsUpdatePeriod'] = 0.0001
-                self.simulator.set_options(engine_options)
-
                 # Add flexibility frames
                 model_options = self.robot.get_model_options()
                 model_options["dynamics"]["flexibilityConfig"] = []
@@ -212,6 +202,21 @@ class DeformationEstimatorBlock(unittest.TestCase):
                     )
                 model_options["dynamics"]["enableFlexibility"] = True
                 self.robot.set_model_options(model_options)
+
+                # Re-Initialize base class to take into account new sensors
+                BaseJiminyEnv.__init__(
+                    self,
+                    simulator=self.simulator,
+                    debug=debug,
+                    **{**dict(
+                        step_dt=self.step_dt),
+                        **kwargs})
+
+                # Configure the controller and sensor update periods
+                engine_options = self.simulator.get_options()
+                engine_options['stepper']['controllerUpdatePeriod'] = 0.0002
+                engine_options['stepper']['sensorsUpdatePeriod'] = 0.0002
+                self.simulator.set_options(engine_options)
 
         # Create pipeline with Mahony filter and DeformationEstimator blocks
         PipelineEnv = build_pipeline(
@@ -244,7 +249,7 @@ class DeformationEstimatorBlock(unittest.TestCase):
                         kwargs=dict(
                             kp=0.0,
                             ki=0.0,
-                            twist_time_constant=None,
+                            ignore_twist=False,
                             exact_init=True,
                             update_ratio=1,
                         )
@@ -272,4 +277,4 @@ class DeformationEstimatorBlock(unittest.TestCase):
             env.step(env.action)
 
         # Check that deformation estimates matches ground truth
-        self._test_deformation_estimate(env, imu_atol=1e-4, flex_atol=5e-3)
+        self._test_deformation_estimate(env, atol=1e-4)

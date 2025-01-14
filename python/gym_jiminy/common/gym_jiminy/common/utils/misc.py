@@ -34,7 +34,7 @@ class RandomDistribution(Protocol):
         ...
 
 
-def is_breakpoint(t: float, dt: float, eps: float) -> bool:
+def is_breakpoint(t: ArrayOrScalar, dt: float, eps: float) -> bool:
     """Check if 't' is multiple of 'dt' at a given precision 'eps'.
 
     :param t: Current time.
@@ -45,8 +45,8 @@ def is_breakpoint(t: float, dt: float, eps: float) -> bool:
     """
     if dt < eps:
         return True
-    dt_prev = t % dt
-    return (dt_prev < eps / 2) or (dt - dt_prev <= eps / 2)
+    dt_prev = float(t) % dt
+    return (dt_prev < eps) or (dt - dt_prev <= eps)
 
 
 @nb.jit(nopython=True, cache=True, inline='always')
@@ -140,7 +140,7 @@ def sample(low: Union[float, np.ndarray] = -1.0,
            enable_log_scale: bool = False,
            shape: Optional[Sequence[int]] = None,
            rg: Optional[np.random.Generator] = None
-           ) -> np.ndarray:
+           ) -> Union[np.ndarray, float]:
     """Randomly sample values from a given distribution.
 
     .. note:
@@ -167,7 +167,7 @@ def sample(low: Union[float, np.ndarray] = -1.0,
                  Optional: 'uniform' by default.
     :param scale: Shrink the standard deviation of the distribution around the
                   mean by this factor.
-                  Optional: No scaling by default?
+                  Optional: No scaling by default
     :param enable_log_scale: The sampled values are power of 10.
     :param shape: Enforce of the sampling shape. Only available if 'low',
                   'high' and 'scale' are floats. `None` to disable.
@@ -205,9 +205,8 @@ def sample(low: Union[float, np.ndarray] = -1.0,
     else:
         dist_fn = dist
 
-    # Generate samples from distribution.
-    # Make sure that the result is always returned as np.ndarray.
-    value = np.asarray(dist_fn(rg or GLOBAL_RNG, size=shape))
+    # Generate samples from distribution
+    value = dist_fn(rg or GLOBAL_RNG, size=shape)
 
     # Apply mean and standard deviation transformation
     value = mean + dev * value

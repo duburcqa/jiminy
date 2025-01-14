@@ -4,25 +4,26 @@ policy without having to rework the reward function itself. It takes advantage
 of the analytical gradient of the policy.
 """
 import math
-import operator
-from functools import reduce
-from typing import Optional, Union, Type, Dict, Any, List, Tuple, cast
+from typing import (
+    Optional, Union, Sequence, Type, Dict, Any, List, Tuple, cast)
 
 import numpy as np
-import gymnasium as gym
 import torch
-from torch.nn import functional as F
 
 from ray.rllib import SampleBatch
 from ray.rllib.core import DEFAULT_MODULE_ID
 from ray.rllib.core.columns import Columns
-from ray.rllib.core.learner import Learner
+from ray.rllib.core.learner.learner import (
+    POLICY_LOSS_KEY, VF_LOSS_KEY, ENTROPY_KEY, Learner)
 from ray.rllib.core.rl_module.rl_module import RLModule
 from ray.rllib.core.rl_module.torch.torch_rl_module import TorchRLModule
-from ray.rllib.env.single_agent_env_runner import SingleAgentEnvRunner
-from ray.rllib.env.env_runner_group import EnvRunnerGroup
 from ray.rllib.algorithms.algorithm_config import AlgorithmConfig
-from ray.rllib.algorithms.ppo import PPOConfig as _PPOConfig, PPO as _PPO
+from ray.rllib.algorithms.ppo.ppo import (
+    LEARNER_RESULTS_KL_KEY,
+    LEARNER_RESULTS_VF_EXPLAINED_VAR_KEY,
+    LEARNER_RESULTS_VF_LOSS_UNCLIPPED_KEY,
+    PPOConfig as _PPOConfig,
+    PPO as _PPO)
 from ray.rllib.algorithms.ppo.torch.ppo_torch_learner import (
     PPOTorchLearner as _PPOTorchLearner)
 from ray.rllib.connectors.connector_v2 import ConnectorV2
@@ -30,19 +31,40 @@ from ray.rllib.connectors.common import AddObservationsFromEpisodesToBatch
 from ray.rllib.connectors.learner.\
     add_next_observations_from_episodes_to_train_batch import (
         AddNextObservationsFromEpisodesToTrainBatch)
+from ray.rllib.evaluation.postprocessing import Postprocessing
+from ray.rllib.utils.torch_utils import explained_variance, l2_loss
 from ray.rllib.utils.annotations import override
 from ray.rllib.utils.from_config import _NotProvided, NotProvided
 from ray.rllib.utils.typing import TensorType, EpisodeType, ModuleID
 
 from jiminy_py import tree
-from gym_jiminy.common.bases import BasePipelineWrapper
-from gym_jiminy.common.wrappers import FlattenObservation, FlattenAction
-from gym_jiminy.common.utils import zeros
+
+
+ObsMirrorMat = Union[np.ndarray, Sequence[np.ndarray]]
+ActMirrorMat = Union[np.ndarray, Sequence[np.ndarray]]
+
+
+def copy_batch(batch: SampleBatch) -> SampleBatch:
+    """Creates a shallow copy of a given batch.
+
+    .. note::
+        The original implementation for shallow copy `batch.copy(shallow=True)`
+        is extremely slow, and as such, its uses must be avoided.
+
+    :param batch: Batch to copy.
+    """
+    return SampleBatch(
+        dict(batch),
+        _time_major=batch.time_major,
+        _zero_padded=batch.zero_padded,
+        _max_seq_len=batch.max_seq_len,
+        _num_grad_updates=batch.num_grad_updates)
 
 
 def get_adversarial_observation_sgld(
         module: RLModule,
         batch: SampleBatch,
+        fwd_out: Dict[str, TensorType],
         noise_scale: float,
         beta_inv: float,
         n_steps: int) -> torch.Tensor:
@@ -51,16 +73,16 @@ def get_adversarial_observation_sgld(
     Langevin dynamics algorithm (SGLD).
     """
     # Compute mean field action for true observation
-    action_dist_class = module.get_train_action_dist_cls()
-    action_dist = action_dist_class.from_logits(
-        batch[Columns.ACTION_DIST_INPUTS]).to_deterministic()
-    action_true_mean = action_dist.sample()
+    action_dist_class_train = module.get_train_action_dist_cls()
+    action_dist = action_dist_class_train.from_logits(
+        fwd_out[Columns.ACTION_DIST_INPUTS])
+    action_true_mean = action_dist.to_deterministic().sample()
 
     # Shallow copy the original training batch.
     # Be careful accessing fields using the original batch to properly keep
     # track of accessed keys, which will be used to automatically discard
     # useless components of policy's view requirements.
-    batch_copy = batch.copy(shallow=True)
+    batch_copy = copy_batch(batch)
 
     # Extract original observation
     observation_true = batch[Columns.OBS]
@@ -87,9 +109,9 @@ def get_adversarial_observation_sgld(
             # `forward_inference` to force computing the gradient.
             batch_copy[Columns.OBS] = observation_noisy
             outs = module.forward_train(batch_copy)
-            action_dist = action_dist_class.from_logits(
-                outs[Columns.ACTION_DIST_INPUTS]).to_deterministic()
-            action_noisy_mean = action_dist.sample()
+            action_dist = action_dist_class_train.from_logits(
+                outs[Columns.ACTION_DIST_INPUTS])
+            action_noisy_mean = action_dist.to_deterministic().sample()
 
             # Compute action different and associated gradient
             objective = torch.mean(torch.sum(
@@ -120,17 +142,16 @@ def get_adversarial_observation_sgld(
 
 
 def _compute_mirrored_value(value: torch.Tensor,
-                            shape_nested: Tuple[Tuple[int, ...], ...],
                             mirror_mat_nested: Tuple[torch.Tensor, ...]
                             ) -> torch.Tensor:
     """Compute mirrored value from observation space based on provided
     mirroring transformation.
     """
-    batch_size, offset, data_mirrored_all = len(value), 0, []
-    for shape, mirror_mat in zip(shape_nested, mirror_mat_nested):
-        size = reduce(operator.mul, shape)
-        data = value[:, offset:(offset + size)].reshape((batch_size, *shape))
-        data_mirrored_all.append(data @ mirror_mat)
+    offset, data_mirrored_all = 0, []
+    for mirror_mat in mirror_mat_nested:
+        size, _ = mirror_mat.shape
+        data_mirrored_all.append(
+            value[:, offset:(offset + size)] @ mirror_mat)
         offset += size
     return torch.cat(data_mirrored_all, dim=1)
 
@@ -199,6 +220,7 @@ class PPOConfig(_PPOConfig):
         self.temporal_barrier_threshold = float('inf')
         self.temporal_barrier_reg = 0.0
         self.symmetric_policy_reg = 0.0
+        self.symmetric_spec: Tuple[ObsMirrorMat, ActMirrorMat] = ([], [])
         self.enable_symmetry_surrogate_loss = False
         self.caps_temporal_reg = 0.0
         self.caps_spatial_reg = 0.0
@@ -217,6 +239,8 @@ class PPOConfig(_PPOConfig):
         temporal_barrier_threshold: Union[_NotProvided, float] = NotProvided,
         temporal_barrier_reg: Union[_NotProvided, float] = NotProvided,
         symmetric_policy_reg: Union[_NotProvided, float] = NotProvided,
+        symmetric_spec: Union[
+            _NotProvided, Tuple[ObsMirrorMat, ActMirrorMat]] = NotProvided,
         enable_symmetry_surrogate_loss: Union[
             _NotProvided, bool] = NotProvided,
         caps_temporal_reg: Union[_NotProvided, float] = NotProvided,
@@ -244,9 +268,11 @@ class PPOConfig(_PPOConfig):
             self.temporal_barrier_reg = temporal_barrier_reg
         if not isinstance(symmetric_policy_reg, _NotProvided):
             self.symmetric_policy_reg = symmetric_policy_reg
+        if not isinstance(symmetric_spec, _NotProvided):
+            self.symmetric_spec = symmetric_spec
         if not isinstance(enable_symmetry_surrogate_loss, _NotProvided):
-            self.enable_symmetry_surrogate_loss = \
-                enable_symmetry_surrogate_loss
+            self.enable_symmetry_surrogate_loss = (
+                enable_symmetry_surrogate_loss)
         if not isinstance(caps_temporal_reg, _NotProvided):
             self.caps_temporal_reg = caps_temporal_reg
         if not isinstance(caps_spatial_reg, _NotProvided):
@@ -372,85 +398,18 @@ class PPOTorchLearner(_PPOTorchLearner):
         module_config: PPOConfig = cast(
             PPOConfig, self.config.get_config_for_module(DEFAULT_MODULE_ID))
 
-        # Early return if mirroring transforms are used in this context
-        if (not module_config.symmetric_policy_reg and
-                not module_config.enable_symmetry_surrogate_loss):
-            return
-
-        # Extract the original observation and acion spaces of the training
-        # environment before and after flattening if applicable.
-        # Note that keeping track of the "original" spaces before flattening is
-        # necessary, because the original shape of the data must be restored
-        # before mirroring the data by applying the block matrix product.
-        # Ideally, jiminy should provide some "apply_observation_transform" and
-        # "apply_reverse_observation_transform" helper methods. This way, one
-        # could cast the final observation into the original observation space
-        # (using `nan` as "fake" placeholder value for information that has
-        # been lost in the process). Then, the original mirroring transform
-        # could be applied. Finally, the observation could be projected back
-        # into the final observation space. If some `nan` values are still
-        # present in the end, then it means that some necessary bits of
-        # information was missing, so that observations cannot be mirrored
-        # losslessly. One option would be masking the unrecoverable information
-        # by filtering out `nan` values when computing the difference between
-        # the original and mirrored values.
-        rl_module = self.module[DEFAULT_MODULE_ID]
-        observation_space = rl_module.observation_space
-        assert isinstance(observation_space, gym.spaces.Box)
-        action_space = rl_module.action_space
-        assert isinstance(action_space, gym.spaces.Box)
-
-        config = self.config
-        algo_class = cast(Type[PPO], config.algo_class)
-        _, env_creator = algo_class._get_env_id_and_creator(config.env, config)
-        env_runner_group = EnvRunnerGroup(
-            env_creator=env_creator,
-            validate_env=None,
-            default_policy_class=algo_class.get_default_policy_class(config),
-            config=config,
-            num_env_runners=0,
-            local_env_runner=True)
-
-        worker = env_runner_group.local_env_runner
-        assert isinstance(worker, SingleAgentEnvRunner)
-        (env,) = worker.env.envs
-        while isinstance(env, (BasePipelineWrapper, gym.Wrapper)):
-            is_flatten_obs_wrapper = isinstance(env, FlattenObservation)
-            is_flatten_action_wrapper = isinstance(env, FlattenAction)
-            env = env.env
-            if is_flatten_obs_wrapper:
-                observation_space = env.observation_space
-            if is_flatten_action_wrapper:
-                action_space = env.action_space
-
-        # Define helper to extract flattened sequence of mirroring matrices and
-        # shape of all the leaves of the original space.
-        def _extract_mirror_mat_and_shape(space: gym.Space) -> Tuple[
-                Tuple[Tuple[int, ...], ...], Tuple[torch.Tensor, ...]]:
-            """Extract the flattened sequence of mirroring matrix blocks and
-            shapes of all the leaves of the original nested space.
-            """
-            # Extract flattened sequence of mirroring matrix blocks.
-            # Convert recursively each mirror matrix to `torch.Tensor` with
-            # dtype `torch.float32` which is stored on the expected device.
-            mirror_mat_nested = tuple(
+        # Extract flattened sequence of mirroring matrix blocks.
+        # Convert recursively each mirror matrix to `torch.Tensor` with
+        # dtype `torch.float32` which is stored on the expected device.
+        if (module_config.symmetric_policy_reg or
+                module_config.enable_symmetry_surrogate_loss):
+            self.obs_mirror_mat_nested, self.action_mirror_mat_nested = (tuple(
                 torch.tensor(
-                    space_leaf.mirror_mat,
+                    mirror_mat,
                     dtype=torch.float32,
                     device=self._device)
-                for space_leaf in tree.flatten(space))
-
-            # Extract flattened sequence of original shapes
-            shape_nested = tuple(
-                np.atleast_1d(zeros(space_leaf)).shape
-                for space_leaf in tree.flatten(space))
-
-            return shape_nested, mirror_mat_nested
-
-        self.obs_shape_nested, self.obs_mirror_mat_nested = (
-            _extract_mirror_mat_and_shape(observation_space))
-        self.action_shape_nested, self.action_mirror_mat_nested = (
-            _extract_mirror_mat_and_shape(action_space))
+                for mirror_mat in tree.flatten(mirror_mat_nested))
+                for mirror_mat_nested in module_config.symmetric_spec)
 
     @override(_PPOTorchLearner)
     def compute_loss_for_module(
@@ -465,15 +424,99 @@ class PPOTorchLearner(_PPOTorchLearner):
         """
         # pylint: disable=possibly-used-before-assignment
 
-        # Call base implementation
-        total_loss = super().compute_loss_for_module(
-            module_id=module_id, config=config, batch=batch, fwd_out=fwd_out)
-
         # Extract the right RL Module
         rl_module = self.module[module_id].unwrapped()
 
         # Assert(s) for type checker
         assert isinstance(rl_module, TorchRLModule)
+
+        # FIXME: 'Fixed' base PPO implemented.
+        # Fix "broken" statistics computation keeping only most recent value
+        # instead of keeping track of all the gradient updates at each training
+        # iterations.
+        # Fix explained variance wrong computed due to being computed unmasked.
+        if Columns.LOSS_MASK in batch:
+            mask = batch[Columns.LOSS_MASK]
+
+            def possibly_masked_mean(data: torch.Tensor) -> torch.Tensor:
+                nonlocal mask
+                return torch.mean(data[mask])
+        else:
+            possibly_masked_mean = torch.mean  # type: ignore[assignment]
+
+        action_dist_class_train = rl_module.get_train_action_dist_cls()
+        action_dist_class_explore = rl_module.get_exploration_action_dist_cls()
+        curr_action_dist = action_dist_class_train.from_logits(
+            fwd_out[Columns.ACTION_DIST_INPUTS])
+        prev_action_dist = action_dist_class_explore.from_logits(
+            batch[Columns.ACTION_DIST_INPUTS])
+        logp_ratio = torch.exp(
+            curr_action_dist.logp(batch[Columns.ACTIONS]) -
+            batch[Columns.ACTION_LOGP])
+
+        if config.use_kl_loss:
+            kl_coef = self.curr_kl_coeffs_per_module[module_id]
+            action_kl = prev_action_dist.kl(curr_action_dist)
+            mean_kl_loss = possibly_masked_mean(action_kl)
+        else:
+            mean_kl_loss = torch.tensor(0.0, device=self._device)
+
+        entropy_sched = self.entropy_coeff_schedulers_per_module[module_id]
+        entropy_coef = entropy_sched.get_current_value()
+        curr_entropy = curr_action_dist.entropy()
+        mean_entropy = possibly_masked_mean(curr_entropy)
+
+        surrogate_loss = torch.min(
+            batch[Postprocessing.ADVANTAGES] * logp_ratio,
+            batch[Postprocessing.ADVANTAGES] * torch.clamp(
+                logp_ratio, 1 - config.clip_param, 1 + config.clip_param))
+        mean_surrogate_loss = possibly_masked_mean(surrogate_loss)
+
+        if config.use_critic:
+            value_fn_out = rl_module.compute_values(
+                batch, embeddings=fwd_out.get(Columns.EMBEDDINGS))
+            vf_target = batch[Postprocessing.VALUE_TARGETS]
+            vf_loss = torch.pow(value_fn_out - vf_target, 2.0)
+            vf_loss_clipped = torch.clamp(vf_loss, 0, config.vf_clip_param)
+            mean_vf_loss = possibly_masked_mean(vf_loss_clipped)
+            mean_vf_unclipped_loss = possibly_masked_mean(vf_loss)
+            # ------------------------------ FIX ------------------------------
+            if Columns.LOSS_MASK in batch:
+                vf_target = vf_target[mask]
+                value_fn_out = value_fn_out[mask]
+            vf_explained_var = explained_variance(vf_target, value_fn_out)
+            # -----------------------------------------------------------------
+        else:
+            z = torch.tensor(0.0, device=self._device)
+            vf_explained_var = mean_vf_unclipped_loss = mean_vf_loss = z
+
+        total_loss = (
+            - mean_surrogate_loss + config.vf_loss_coeff * mean_vf_loss -
+            entropy_coef * mean_entropy)
+        if config.use_kl_loss:
+            total_loss += kl_coef * mean_kl_loss
+
+        self.metrics.log_dict(
+            {
+                # ---------------------------- FIX ----------------------------
+                key: value.item()
+                # -------------------------------------------------------------
+                for key, value in (
+                    (POLICY_LOSS_KEY, -mean_surrogate_loss),
+                    (VF_LOSS_KEY, mean_vf_loss),
+                    (LEARNER_RESULTS_VF_LOSS_UNCLIPPED_KEY,
+                     mean_vf_unclipped_loss),
+                    (LEARNER_RESULTS_VF_EXPLAINED_VAR_KEY, vf_explained_var),
+                    (ENTROPY_KEY, mean_entropy),
+                    (LEARNER_RESULTS_KL_KEY, mean_kl_loss))
+            },
+            key=module_id,
+            # ------------------------------ FIX ------------------------------
+            reduce="mean",
+            window=float("inf"),
+            clear_on_reduce=True,
+            # -----------------------------------------------------------------
+            )
 
         # Extract some proxies from convenience
         observation_true = batch[Columns.OBS]
@@ -483,16 +526,13 @@ class PPOTorchLearner(_PPOTorchLearner):
         # No need to perform model forward pass since it was already done by
         # some connector in the learning pipeline, so just retrieving the value
         # from the training batch.
-        action_dist_class = rl_module.get_train_action_dist_cls()
-        action_dist = action_dist_class.from_logits(
-            batch[Columns.ACTION_DIST_INPUTS]).to_deterministic()
-        action_true_mean = action_dist.sample()
+        action_true_mean = curr_action_dist.to_deterministic().sample()
 
         # Define various training batches to forward to the model
         batch_all = {}
         if config.caps_temporal_reg > 0.0 or config.temporal_barrier_reg > 0.0:
             # Shallow copy the original training batch
-            batch_copy = batch.copy(shallow=True)
+            batch_copy = copy_batch(batch)
 
             # Replace current observation and state by the next one
             batch_copy[Columns.OBS] = batch.pop(Columns.NEXT_OBS)
@@ -503,13 +543,14 @@ class PPOTorchLearner(_PPOTorchLearner):
             batch_all["next"] = batch_copy
         if config.caps_spatial_reg > 0.0 or config.caps_global_reg > 0.0:
             # Shallow copy the original training batch
-            batch_copy = batch.copy(shallow=True)
+            batch_copy = copy_batch(batch)
 
             if config.enable_adversarial_noise:
                 # Compute adversarial observation maximizing action difference
                 observation_noisy = get_adversarial_observation_sgld(
                     rl_module,
                     batch,
+                    fwd_out,
                     config.spatial_noise_scale,
                     config.sgld_beta_inv,
                     config.sgld_n_steps)
@@ -525,13 +566,11 @@ class PPOTorchLearner(_PPOTorchLearner):
             batch_all["noisy"] = batch_copy
         if config.symmetric_policy_reg > 0.0:
             # Shallow copy the original training batch
-            batch_copy = batch.copy(shallow=True)
+            batch_copy = copy_batch(batch)
 
             # Compute mirrored observation
             observation_mirrored = _compute_mirrored_value(
-                observation_true,
-                self.obs_shape_nested,
-                self.obs_mirror_mat_nested)
+                observation_true, self.obs_mirror_mat_nested)
 
             # Replace current observation by the mirrored one
             batch_copy[Columns.OBS] = observation_mirrored
@@ -553,100 +592,111 @@ class PPOTorchLearner(_PPOTorchLearner):
             batch_names = batch_all.keys()
             action_logits_all = dict(zip(batch_names, torch.split(
                 action_logits_cat, batch_size, dim=0)))
-            action_dist_cat = action_dist_class.from_logits(
-                outs_cat[Columns.ACTION_DIST_INPUTS]).to_deterministic()
-            actions_cat = action_dist_cat.sample()
+            action_dist_cat = action_dist_class_train.from_logits(
+                outs_cat[Columns.ACTION_DIST_INPUTS])
+            actions_cat = action_dist_cat.to_deterministic().sample()
             actions_all = dict(zip(batch_names, torch.split(
                 actions_cat, batch_size, dim=0)))
 
         # Update total loss
         if config.caps_temporal_reg > 0.0 or config.temporal_barrier_reg > 0.0:
             # Compute action temporal delta
-            action_delta = F.l1_loss(
-                actions_all["next"], action_true_mean, reduction='none')
+            action_delta = (actions_all["next"] - action_true_mean).abs()
 
             if config.caps_temporal_reg > 0.0:
                 # Minimize the difference between the successive action mean
-                caps_temporal_reg = torch.mean(action_delta)
+                mean_caps_temporal_reg = possibly_masked_mean(action_delta)
 
                 # Add temporal smoothness loss to total loss
-                total_loss += config.caps_temporal_reg * caps_temporal_reg
+                total_loss += config.caps_temporal_reg * mean_caps_temporal_reg
                 self.metrics.log_value(
                     (module_id, "temporal_smoothness"),
-                    caps_temporal_reg.item(),
-                    window=1)
+                    mean_caps_temporal_reg.item(),
+                    reduce="mean",
+                    window=float("inf"),
+                    clear_on_reduce=True)
 
             if config.temporal_barrier_reg > 0.0:
                 # Add temporal barrier loss to total loss:
                 # exp(scale * (err - thr)) - 1.0 if err > thr else 0.0
-                temporal_barrier_reg = torch.mean(torch.exp(torch.clamp(
+                temporal_barrier_reg = torch.exp(torch.clamp(
                     config.temporal_barrier_scale * (
                         action_delta - config.temporal_barrier_threshold),
-                    min=0.0, max=5.0)) - 1.0)
+                    min=0.0, max=5.0)) - 1.0
+                mean_temporal_barrier_reg = possibly_masked_mean(
+                    temporal_barrier_reg)
 
                 # Add spatial smoothness loss to total loss
                 total_loss += (
-                    config.temporal_barrier_reg * temporal_barrier_reg)
+                    config.temporal_barrier_reg * mean_temporal_barrier_reg)
                 self.metrics.log_value(
                     (module_id, "temporal_barrier"),
-                    temporal_barrier_reg.item(),
-                    window=1)
+                    mean_temporal_barrier_reg.item(),
+                    reduce="mean",
+                    window=float("inf"),
+                    clear_on_reduce=True)
 
         if config.caps_spatial_reg > 0.0:
             # Minimize the difference between the original action mean and the
             # perturbed one.
-            caps_spatial_reg = F.mse_loss(
-                actions_all["noisy"], action_true_mean, reduction='sum'
-                ) / batch_size
+            caps_spatial_reg = torch.sum(
+                (actions_all["noisy"] - action_true_mean) ** 2, dim=1)
+            mean_caps_spatial_reg = possibly_masked_mean(caps_spatial_reg)
 
             # Add spatial smoothness loss to total loss
-            total_loss += config.caps_spatial_reg * caps_spatial_reg
+            total_loss += config.caps_spatial_reg * mean_caps_spatial_reg
             self.metrics.log_value(
                 (module_id, "spatial_smoothness"),
-                caps_spatial_reg.item(),
-                window=1)
+                mean_caps_spatial_reg.item(),
+                reduce="mean",
+                window=float("inf"),
+                clear_on_reduce=True)
 
         if config.caps_global_reg > 0.0:
             # Minimize the magnitude of action mean.
             # Note that noisy actions are used instead of the true ones. This
             # is on-purpose, as it extends the range of regularization beyond
             # the mean field.
-            caps_global_reg = torch.sum(
-                torch.square(actions_all["noisy"])) / batch_size
+            caps_global_reg = actions_all["noisy"] ** 2
+            mean_caps_global_reg = possibly_masked_mean(caps_global_reg)
 
             # Add global smoothness loss to total loss
-            total_loss += config.caps_global_reg * caps_global_reg
+            total_loss += config.caps_global_reg * mean_caps_global_reg
             self.metrics.log_value(
                 (module_id, "global_smoothness"),
-                caps_global_reg.item(),
-                window=1)
+                mean_caps_global_reg.item(),
+                reduce="mean",
+                window=float("inf"),
+                clear_on_reduce=True)
 
         if config.symmetric_policy_reg > 0.0:
             # Compute the mirrored true action
             action_mirrored_mean = _compute_mirrored_value(
-                action_true_mean,
-                self.action_shape_nested,
-                self.action_mirror_mat_nested)
+                action_true_mean, self.action_mirror_mat_nested)
 
         if (config.symmetric_policy_reg > 0.0 and
                 not config.enable_symmetry_surrogate_loss):
             # Minimize the assymetry of self output
-            symmetric_policy_reg = F.mse_loss(
-                actions_all["mirrored"], action_mirrored_mean, reduction='sum'
-                ) / batch_size
+            symmetric_policy_reg = (
+                actions_all["mirrored"] - action_mirrored_mean) ** 2
+            mean_symmetric_policy_reg = possibly_masked_mean(
+                symmetric_policy_reg)
 
             # Add policy symmetry loss to total loss
-            total_loss += config.symmetric_policy_reg * symmetric_policy_reg
+            total_loss += (
+                config.symmetric_policy_reg * mean_symmetric_policy_reg)
             self.metrics.log_value(
                 (module_id, "symmetry"),
-                symmetric_policy_reg.item(),
-                window=1)
+                mean_symmetric_policy_reg.item(),
+                reduce="mean",
+                window=float("inf"),
+                clear_on_reduce=True)
 
         if (config.symmetric_policy_reg > 0.0 and
                 config.enable_symmetry_surrogate_loss):
             # Get the mirror policy probability distribution
             # i.e. `action -> pi(action | obs_mirrored)``
-            action_mirrored_dist = action_dist_class.from_logits(
+            action_mirrored_dist = action_dist_class_train.from_logits(
                 action_logits_all["mirrored"])
 
             # Compute probability of "mirrored action under true observation"
@@ -676,33 +726,40 @@ class PPOTorchLearner(_PPOTorchLearner):
             # divergence to improve the objective are taken into account while
             # all the others are filtered out.
             advantages_true = batch[Columns.ADVANTAGES]
-            symmetry_surrogate_loss = - torch.mean(torch.min(
+            symmetry_surrogate_loss = torch.min(
                 advantages_true * action_symmetry_proba_ratio,
                 advantages_true * torch.clamp(
                     action_symmetry_proba_ratio,
                     1.0 - config.clip_param,
-                    1.0 + config.clip_param)))
+                    1.0 + config.clip_param))
+            mean_symmetry_surrogate_loss = possibly_masked_mean(
+                symmetry_surrogate_loss)
 
             # Add symmetry surrogate loss to total loss
-            total_loss += config.symmetric_policy_reg * symmetry_surrogate_loss
+            total_loss -= (
+                config.symmetric_policy_reg * mean_symmetry_surrogate_loss)
             self.metrics.log_value(
                 (module_id, "symmetry_surrogate"),
-                symmetry_surrogate_loss.item(),
-                window=1)
+                -mean_symmetry_surrogate_loss.item(),
+                reduce="mean",
+                window=float("inf"),
+                clear_on_reduce=True)
 
         if config.l2_reg > 0.0:
             # Add actor l2-regularization loss
-            l2_reg = torch.zeros((), device=self._device)
+            l2_reg = torch.tensor(0.0, device=self._device)
             for name, params in rl_module.named_parameters():
-                if not name.endswith("bias") and params.requires_grad:
-                    l2_reg += torch.mean(torch.square(params))
+                if name.endswith(".weight") and params.requires_grad:
+                    l2_reg += l2_loss(params)
 
             # Add l2-regularization loss to total loss
             total_loss += config.l2_reg * l2_reg
             self.metrics.log_value(
                 (module_id, "l2_reg"),
                 l2_reg.item(),
-                window=1)
+                reduce="mean",
+                window=float("inf"),
+                clear_on_reduce=True)
 
         return total_loss
 

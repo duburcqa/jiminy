@@ -72,12 +72,12 @@ def _gcd(a: float,
 
 
 def _fix_urdf_mesh_path(urdf_path: str,
-                        mesh_path_dir: str,
+                        mesh_dir_path: str,
                         output_root_path: Optional[str] = None) -> str:
     """Generate an URDF with updated mesh paths.
 
     :param urdf_path: Full path of the URDF file.
-    :param mesh_path_dir: Root path of the meshes.
+    :param mesh_dir_path: Root path of the meshes.
     :param output_root_path: Root directory of the fixed URDF file.
                              Optional: temporary directory by default.
 
@@ -102,14 +102,14 @@ def _fix_urdf_mesh_path(urdf_path: str,
             mesh_path_dir_orig = os.path.commonpath(list(pathlists))
     else:
         mesh_path_dir_orig = os.path.dirname(next(iter(pathlists)))
-    if mesh_path_dir == mesh_path_dir_orig:
+    if mesh_dir_path == mesh_path_dir_orig:
         return urdf_path
 
     # Create the output directory
     if output_root_path is None:
         output_root_path = tempfile.mkdtemp()
     fixed_urdf_dir = os.path.join(
-        output_root_path, "fixed_urdf" + mesh_path_dir.translate(
+        output_root_path, "fixed_urdf" + mesh_dir_path.translate(
             str.maketrans({k: '_' for k in '/:'})))  # type: ignore[arg-type]
     os.makedirs(fixed_urdf_dir, exist_ok=True)
     fixed_urdf_path = os.path.join(
@@ -118,7 +118,7 @@ def _fix_urdf_mesh_path(urdf_path: str,
     # Override the root mesh path with the desired one
     urdf_contents = urdf_contents.replace(
         '"'.join((mesh_tag, mesh_path_dir_orig)),
-        '"'.join((mesh_tag, mesh_path_dir)))
+        '"'.join((mesh_tag, mesh_dir_path)))
     with open(fixed_urdf_path, 'w') as f:
         f.write(urdf_contents)
 
@@ -488,11 +488,10 @@ def generate_default_hardware_description_file(
             assert joint_limit_descr is not None
             if float(joint_limit_descr.attrib['effort']) == 0.0:
                 continue
-            motors_info[SimpleMotor.type][joint_name] = OrderedDict(
+            motors_info['SimpleMotor'][joint_name] = OrderedDict(
                 joint_name=joint_name,
                 armature=0.0,
-                **joints_options.pop(joint_name)
-            )
+                **joints_options.pop(joint_name))
             sensors_info[EffortSensor.type][joint_name] = OrderedDict(
                 motor_name=joint_name)
 
@@ -879,7 +878,7 @@ class BaseJiminyRobot(jiminy.Robot):
     def initialize(self,  # type: ignore[override]
                    urdf_path: str,
                    hardware_path: Optional[str] = None,
-                   mesh_path_dir: Optional[str] = None,
+                   mesh_dir_path: Optional[str] = None,
                    mesh_package_dirs: Sequence[str] = (),
                    has_freeflyer: bool = True,
                    avoid_instable_collisions: bool = True,
@@ -893,14 +892,14 @@ class BaseJiminyRobot(jiminy.Robot):
                               the same folder and with the same name. If not
                               found, then no hardware is added to the robot,
                               which is valid and can be used for display.
-        :param mesh_path_dir: Path to the folder containing the URDF meshes. It
+        :param mesh_dir_path: Path to the folder containing the URDF meshes. It
                               will overwrite the common root of all absolute
                               mesh paths.
                               Optional: Env variable 'JIMINY_DATA_PATH' will be
                               used if available.
         :param mesh_package_dirs: Additional search paths for all relative mesh
                                   paths beginning with 'packages://' directive.
-                                  'mesh_path_dir' is systematically appended.
+                                  'mesh_dir_path' is systematically appended.
         :param has_freeflyer: Whether the robot is fixed-based wrt its root
                               link, or can move freely in the world.
         :param avoid_instable_collisions: Prevent numerical instabilities by
@@ -918,13 +917,13 @@ class BaseJiminyRobot(jiminy.Robot):
         self._urdf_path_orig = urdf_path
 
         # Fix the URDF mesh paths
-        if mesh_path_dir is not None:
-            urdf_path = _fix_urdf_mesh_path(urdf_path, mesh_path_dir)
+        if mesh_dir_path is not None:
+            urdf_path = _fix_urdf_mesh_path(urdf_path, mesh_dir_path)
 
         # Initialize the robot without motors nor sensors
         mesh_package_dirs = list(mesh_package_dirs)
-        if mesh_path_dir is not None:
-            mesh_package_dirs.append(mesh_path_dir)
+        if mesh_dir_path is not None:
+            mesh_package_dirs.append(mesh_dir_path)
         else:
             mesh_package_dirs.append(os.path.dirname(urdf_path))
         mesh_env_path = os.environ.get('JIMINY_DATA_PATH', None)

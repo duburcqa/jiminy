@@ -39,12 +39,12 @@ class SimulateFootedPendulum(unittest.TestCase):
 
         # Set options
         engine_options = simulator.get_options()
+        engine_options["telemetry"]["logInternalStepperSteps"] = True
         engine_options["telemetry"]["enableConfiguration"] = True
         engine_options["stepper"]["odeSolver"] = "runge_kutta_4"
         engine_options["stepper"]["dtMax"] = 1.0e-5
         engine_options["stepper"]["sensorsUpdatePeriod"] = 0.0
         engine_options["stepper"]["controllerUpdatePeriod"] = 1.0e-3
-        engine_options["stepper"]["logInternalStepperSteps"] = True
         engine_options['contacts']['model'] = "constraint"
         engine_options['contacts']['stabilizationFreq'] = 0.0
         engine_options['constraints']['regularization'] = 1e-9

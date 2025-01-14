@@ -87,7 +87,7 @@ def build_task_scheduling_callback(history_length: int,
                                    *,
                                    env_runner: EnvRunner,
                                    metrics_logger: MetricsLogger,
-                                   env: gym.Env,
+                                   env: gym.vector.VectorEnv,
                                    env_context: EnvContext,
                                    **kwargs: Any) -> None:
             # Early return if the callback is already initialized
@@ -256,7 +256,7 @@ def build_task_scheduling_callback(history_length: int,
                 assert isinstance(env_runner, SingleAgentEnvRunner)
                 env = env_runner.env.unwrapped
                 assert isinstance(env, gym.vector.SyncVectorEnv)
-                for env in env.envs:
+                for env in env.unwrapped.envs:
                     while not isinstance(env, TaskSchedulingWrapper):
                         assert isinstance(
                             env, (gym.Wrapper, BasePipelineWrapper))

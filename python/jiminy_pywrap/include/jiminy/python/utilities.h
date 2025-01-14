@@ -1165,15 +1165,25 @@ namespace jiminy::python
         }
 
         // If not, assuming it is a numpy random generator and try to extract the raw function
-        bp::object ctypes_addressof = bp::import("ctypes").attr("addressof");
-        bp::object next_uint32_ctype = generatorPy.attr("ctypes").attr("next_uint32");
-        uintptr_t next_uint32_addr = bp::extract<uintptr_t>(ctypes_addressof(next_uint32_ctype));
-        auto next_uint32 = *reinterpret_cast<uint32_t (**)(void *)>(next_uint32_addr);
-        bp::object state_ctype = generatorPy.attr("ctypes").attr("state_address");
-        void * state_ptr = reinterpret_cast<void *>(bp::extract<uintptr_t>(state_ctype)());
+        try
+        {
+            bp::object ctypes_addressof = bp::import("ctypes").attr("addressof");
+            bp::object next_uint32_ctype = generatorPy.attr("ctypes").attr("next_uint32");
+            uintptr_t next_uint32_addr =
+                bp::extract<uintptr_t>(ctypes_addressof(next_uint32_ctype));
+            auto next_uint32 = *reinterpret_cast<uint32_t (**)(void *)>(next_uint32_addr);
+            bp::object state_ctype = generatorPy.attr("ctypes").attr("state_address");
+            void * state_ptr = reinterpret_cast<void *>(bp::extract<uintptr_t>(state_ctype)());
 
-        return callable([state_ptr, next_uint32]() -> uint32_t { return next_uint32(state_ptr); },
-                        std::forward<Args>(args)...);
+            return callable([state_ptr, next_uint32]() -> uint32_t
+                            { return next_uint32(state_ptr); },
+                            std::forward<Args>(args)...);
+        }
+        catch (...)
+        {
+            JIMINY_THROW(std::invalid_argument,
+                         "This method only supports `numpy.BitGenerator` objects.");
+        }
     }
 
     template<typename Signature, typename>

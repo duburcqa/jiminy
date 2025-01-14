@@ -1,6 +1,7 @@
 # pylint: disable=missing-module-docstring
 
-from .math import (exp3,
+from .math import (mean,
+                   exp3,
                    exp6,
                    log3,
                    log6,
@@ -58,6 +59,7 @@ from .pipeline import (save_trajectory_to_hdf5,
 
 
 __all__ = [
+    'mean',
     'exp3',
     'exp6',
     'log3',

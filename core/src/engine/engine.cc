@@ -512,7 +512,8 @@ namespace jiminy
         // Remove corresponding coupling forces if any
         couplingForces_.erase(std::remove_if(couplingForces_.begin(),
                                              couplingForces_.end(),
-                                             [&robotName1, &robotName2](const auto & force) {
+                                             [&robotName1, &robotName2](const auto & force)
+                                             {
                                                  return (force.robotName1 == robotName1 &&
                                                          force.robotName2 == robotName2);
                                              }),
@@ -534,7 +535,8 @@ namespace jiminy
         // Remove corresponding coupling forces if any
         couplingForces_.erase(std::remove_if(couplingForces_.begin(),
                                              couplingForces_.end(),
-                                             [&robotName](const auto & force) {
+                                             [&robotName](const auto & force)
+                                             {
                                                  return (force.robotName1 == robotName ||
                                                          force.robotName2 == robotName);
                                              }),
@@ -1109,7 +1111,7 @@ namespace jiminy
             }
         }
 
-        /* Call reset if the internal state of the engine is not clean. Not doing it robotatically
+        /* Call reset if the internal state of the engine is not clean. Not doing it systematically
            gives the opportunity to the user to customize the robot by resetting first the engine
            manually and then to alter the robot before starting a simulation, e.g. to change the
            inertia of a specific body. */
@@ -1798,12 +1800,12 @@ namespace jiminy
            estimation of the optimal time step. */
         bool isBreakpointReached = false;
 
-        /* Flag monitoring if the dynamics has changed because of impulse forces or the command
-           (only in the case of discrete control).
+        /* Flag monitoring if the dynamics has changed between t- and t+ because of impulse forces
+           or command update in the case of discrete controllers.
 
-           `tryStep(rhs, x, dxdt, t, dt)` method of error controlled boost steppers leverage the
-           FSAL (first same as last) principle. It is implemented by considering at the value of
-           (x, dxdt) in argument have been initialized by the user with the robot dynamics at
+           `tryStep(rhs, x, dxdt, t, dt)` method of error controlled boost steppers leverages the
+           FSAL (First Same As Last) principle, which consists in assuming that the value of
+           `(x, dxdt)` in argument have been initialized by the user with the robot dynamics at
            current time t. Thus, if the robot dynamics is discontinuous, one has to manually
            integrate up to t-, then update dxdt to take into the acceleration at t+.
 
@@ -1811,8 +1813,8 @@ namespace jiminy
            supposed to have changed. On top of that, tPrev is invalid at this point because it has
            been updated just after the last successful step.
 
-           TODO: Maybe dt should be reschedule because the dynamics has changed and thereby the
-                 previously estimated dt is very meaningful anymore. */
+           TODO: In theory, dt should be reschedule because the dynamics has changed and thereby
+           the previously estimated dt is not appropriate anymore. */
         bool hasDynamicsChanged = false;
 
         // Start the timer used for timeout handling
@@ -1821,7 +1823,7 @@ namespace jiminy
         // Perform the integration. Do not simulate extremely small time steps.
         while (tEnd - t >= STEPPER_MIN_TIMESTEP)
         {
-            // Initialize next breakpoint time to the one recommended by the stepper
+            // Initialize next breakpoint time to the current time
             double tNext = t;
 
             // Update the active set and get the next breakpoint of impulse forces
@@ -1829,8 +1831,7 @@ namespace jiminy
             for (auto & robotData : robotDataVec_)
             {
                 /* Update the active set: activate an impulse force as soon as the current time
-                   gets close enough of the application time, and deactivate it once the following
-                   the same reasoning.
+                   gets close enough of the application time, and deactivate it the same way.
 
                    Note that breakpoints at the start/end of every impulse forces are already
                    enforced, so that the forces cannot get activated/deactivate too late. */
@@ -1854,15 +1855,17 @@ namespace jiminy
                     }
                 }
 
-                // Update the breakpoint time iterator if necessary
+                /* Update the breakpoint time iterator if necessary.
+                   Even though 'impulseForceBreakpoints' is already sorted and does not contain any
+                   duplicated values, the difference between two successive breakpoints may be
+                   smaller than 'STEPPER_MIN_TIMESTEP', which means that it may be necessary to
+                   increment the breakpoint iterator multiple times at once. */
                 auto & tBreakpointNextIt = robotData.impulseForceBreakpointNextIt;
-                if (tBreakpointNextIt != robotData.impulseForceBreakpoints.end())
+                while (tBreakpointNextIt != robotData.impulseForceBreakpoints.end() &&
+                       *tBreakpointNextIt - t < STEPPER_MIN_TIMESTEP)
                 {
-                    if (t >= *tBreakpointNextIt - STEPPER_MIN_TIMESTEP)
-                    {
-                        // The current breakpoint is behind in time. Switching to the next one.
-                        ++tBreakpointNextIt;
-                    }
+                    // The current breakpoint is behind in time. Switching to the next one
+                    ++tBreakpointNextIt;
                 }
 
                 // Get the next breakpoint time if any
@@ -1935,7 +1938,7 @@ namespace jiminy
                the same timestep will be logged twice, but this is permitted by the telemetry. */
             bool mustUpdateTelemetry = false;
             if (!std::isfinite(stepperUpdatePeriod_) ||
-                !engineOptions_->stepper.logInternalStepperSteps)
+                !engineOptions_->telemetry.logInternalStepperSteps)
             {
                 mustUpdateTelemetry = !std::isfinite(stepperUpdatePeriod_);
                 if (!mustUpdateTelemetry)
@@ -1959,7 +1962,7 @@ namespace jiminy
                 syncAllAccelerationsAndForces(robots_, contactForcesPrev_, fPrev_, aPrev_);
                 syncRobotsStateWithStepper(true);
                 hasDynamicsChanged = false;
-                if (mustUpdateTelemetry && engineOptions_->stepper.logInternalStepperSteps)
+                if (mustUpdateTelemetry && engineOptions_->telemetry.logInternalStepperSteps)
                 {
                     updateTelemetry();
                 }
@@ -2005,7 +2008,7 @@ namespace jiminy
                 {
                     // Log every stepper state only if the user asked for
                     mustUpdateTelemetry = successiveIterFailed == 0 &&
-                                          engineOptions_->stepper.logInternalStepperSteps;
+                                          engineOptions_->telemetry.logInternalStepperSteps;
                     if (mustUpdateTelemetry)
                     {
                         updateTelemetry();
@@ -2462,8 +2465,6 @@ namespace jiminy
                          "Impossible to apply external forces to the universe itself!");
         }
 
-        // TODO: Make sure that the forces do NOT overlap while taking into account dt.
-
         std::ptrdiff_t robotIndex = getRobotIndex(robotName);
         pinocchio::FrameIndex frameIndex =
             getFrameIndex(robots_[robotIndex]->pinocchioModel_, frameName);
@@ -2563,6 +2564,8 @@ namespace jiminy
         std::ptrdiff_t robotIndex = getRobotIndex(robotName);
         RobotData & robotData = robotDataVec_[robotIndex];
         robotData.impulseForces.clear();
+        robotData.impulseForceBreakpoints.clear();
+        robotData.isImpulseForceActiveVec.clear();
     }
 
     void Engine::removeImpulseForces()
@@ -2577,6 +2580,8 @@ namespace jiminy
         for (auto & robotData : robotDataVec_)
         {
             robotData.impulseForces.clear();
+            robotData.impulseForceBreakpoints.clear();
+            robotData.isImpulseForceActiveVec.clear();
         }
     }
 
@@ -3236,8 +3241,8 @@ namespace jiminy
     {
         typedef boost::fusion::vector<
             const Eigen::VectorXd & /* q */,
-            const Eigen::VectorXd & /* positionLimitMin */,
-            const Eigen::VectorXd & /* positionLimitMax */,
+            const Eigen::VectorXd & /* positionLimitLower */,
+            const Eigen::VectorXd & /* positionLimitUpper */,
             const std::unique_ptr<const Engine::EngineOptions> & /* engineOptions */,
             const std::shared_ptr<AbstractConstraintBase> & /* constraint */>
             ArgsType;
@@ -3250,16 +3255,16 @@ namespace jiminy
                                 void>
         algo(const pinocchio::JointModelBase<JointModel> & joint,
              const Eigen::VectorXd & q,
-             const Eigen::VectorXd & positionLimitMin,
-             const Eigen::VectorXd & positionLimitMax,
+             const Eigen::VectorXd & positionLimitLower,
+             const Eigen::VectorXd & positionLimitUpper,
              const std::unique_ptr<const Engine::EngineOptions> & engineOptions,
              const std::shared_ptr<AbstractConstraintBase> & constraint)
         {
             // Define some proxies for convenience
             const Eigen::Index positionIndex = joint.idx_q();
             const double qJoint = q[positionIndex];
-            const double qJointMin = positionLimitMin[positionIndex];
-            const double qJointMax = positionLimitMax[positionIndex];
+            const double qJointMin = positionLimitLower[positionIndex];
+            const double qJointMax = positionLimitUpper[positionIndex];
             const double transitionEps = engineOptions->contacts.transitionEps;
 
             // Check if out-of-bounds
@@ -3285,8 +3290,8 @@ namespace jiminy
                                 void>
         algo(const pinocchio::JointModelBase<JointModel> & /* joint */,
              const Eigen::VectorXd & /* q */,
-             const Eigen::VectorXd & /* positionLimitMin */,
-             const Eigen::VectorXd & /* positionLimitMax */,
+             const Eigen::VectorXd & /* positionLimitLower */,
+             const Eigen::VectorXd & /* positionLimitUpper */,
              const std::unique_ptr<const Engine::EngineOptions> & /* engineOptions */,
              const std::shared_ptr<AbstractConstraintBase> & constraint)
         {
@@ -3305,8 +3310,8 @@ namespace jiminy
                                 void>
         algo(const pinocchio::JointModelBase<JointModel> & /* joint */,
              const Eigen::VectorXd & /* q */,
-             const Eigen::VectorXd & /* positionLimitMin */,
-             const Eigen::VectorXd & /* positionLimitMax */,
+             const Eigen::VectorXd & /* positionLimitLower */,
+             const Eigen::VectorXd & /* positionLimitUpper */,
              const std::unique_ptr<const Engine::EngineOptions> & /* engineOptions */,
              const std::shared_ptr<AbstractConstraintBase> & constraint)
         {
@@ -3330,8 +3335,8 @@ namespace jiminy
 
         /* Enforce position limits for all joints having bounds constraints, ie mechanical and
            backlash joints. */
-        const Eigen::VectorXd & positionLimitMin = robot->pinocchioModel_.lowerPositionLimit;
-        const Eigen::VectorXd & positionLimitMax = robot->pinocchioModel_.upperPositionLimit;
+        const Eigen::VectorXd & positionLimitLower = robot->pinocchioModel_.lowerPositionLimit;
+        const Eigen::VectorXd & positionLimitUpper = robot->pinocchioModel_.upperPositionLimit;
         for (auto & constraintItem : constraints.boundJoints)
         {
             auto & constraint = constraintItem.second;
@@ -3340,7 +3345,7 @@ namespace jiminy
             computePositionLimitsForcesAlgo::run(
                 model.joints[jointIndex],
                 typename computePositionLimitsForcesAlgo::ArgsType(
-                    q, positionLimitMin, positionLimitMax, engineOptions_, constraint));
+                    q, positionLimitLower, positionLimitUpper, engineOptions_, constraint));
         }
 
         // Compute the flexibilities (only support `JointModelType::SPHERICAL` so far)
@@ -3446,8 +3451,8 @@ namespace jiminy
         for (; impulseForceIt != robotData.impulseForces.end();
              ++isImpulseForceActiveIt, ++impulseForceIt)
         {
-            /* Do not check if the force is active at this point. This is managed at stepper level
-               to get around the ambiguous t- versus t+. */
+            /* Do not check if the force is supported to be active at this point. This is managed
+               at stepper level to be able to disambiguate t- versus t+. */
             if (*isImpulseForceActiveIt)
             {
                 const pinocchio::FrameIndex frameIndex = impulseForceIt->frameIndex;
@@ -3719,11 +3724,11 @@ namespace jiminy
                    often. */
                 if ((fext[i].toVector().array().abs() > EPS).any())
                 {
-                    if (!isStateUpToDate)
-                    {
-                        pinocchio::getJointJacobian(
-                            model, data, i, pinocchio::LOCAL, robotData.jointJacobians[i]);
-                    }
+                    /* The jacobian only depends on the position, which means that updating it
+                       could be skipped in principle. However, it is only computed if need, and as
+                       such, one cannot count on it. */
+                    pinocchio::getJointJacobian(
+                        model, data, i, pinocchio::LOCAL, robotData.jointJacobians[i]);
                     data.u.noalias() +=
                         robotData.jointJacobians[i].transpose() * fext[i].toVector();
                 }

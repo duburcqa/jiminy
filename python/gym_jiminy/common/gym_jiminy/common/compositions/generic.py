@@ -50,8 +50,11 @@ class SurviveReward(AbstractReward):
         return True
 
     def compute(self, terminated: bool, info: InfoType) -> Optional[float]:
-        """Return a constant positive reward equal to 1.0 no matter what.
+        """Return a constant positive reward equal to 1.0 systematically,
+        useless the episode is terminated.
         """
+        if terminated:
+            return None
         return 1.0
 
 
@@ -173,7 +176,7 @@ class DriftTrackingQuantityTermination(QuantityTermination):
                  post_fn: Optional[Callable[
                     [ArrayOrScalar], ArrayOrScalar]] = None,
                  is_truncation: bool = False,
-                 is_training_only: bool = False) -> None:
+                 training_only: bool = False) -> None:
         """
         :param env: Base or wrapped jiminy environment.
         :param name: Desired name of the termination condition. This name will
@@ -211,10 +214,10 @@ class DriftTrackingQuantityTermination(QuantityTermination):
                               terminated or truncated whenever the termination
                               condition is triggered.
                               Optional: False by default.
-        :param is_training_only: Whether the termination condition should be
-                                 completely by-passed if the environment is in
-                                 evaluation mode.
-                                 Optional: False by default.
+        :param training_only: Whether the termination condition should be
+                              completely by-passed if the environment is in
+                              evaluation mode.
+                              Optional: False by default.
         """
         # pylint: disable=unnecessary-lambda-assignment
 
@@ -253,7 +256,7 @@ class DriftTrackingQuantityTermination(QuantityTermination):
                          high,
                          grace_period,
                          is_truncation=is_truncation,
-                         is_training_only=is_training_only)
+                         training_only=training_only)
 
     def _compute_drift_error(self,
                              left: np.ndarray,
@@ -295,7 +298,7 @@ class ShiftTrackingQuantityTermination(QuantityTermination[np.ndarray]):
                  *,
                  op: Callable[[np.ndarray, np.ndarray], np.ndarray] = sub,
                  is_truncation: bool = False,
-                 is_training_only: bool = False) -> None:
+                 training_only: bool = False) -> None:
         """
         :param env: Base or wrapped jiminy environment.
         :param name: Desired name of the termination condition. This name will
@@ -332,10 +335,10 @@ class ShiftTrackingQuantityTermination(QuantityTermination[np.ndarray]):
                               terminated or truncated whenever the termination
                               condition is triggered.
                               Optional: False by default.
-        :param is_training_only: Whether the termination condition should be
-                                 completely by-passed if the environment is in
-                                 evaluation mode.
-                                 Optional: False by default.
+        :param training_only: Whether the termination condition should be
+                              completely by-passed if the environment is in
+                              evaluation mode.
+                              Optional: False by default.
         """
         # pylint: disable=unnecessary-lambda-assignment
 
@@ -368,7 +371,7 @@ class ShiftTrackingQuantityTermination(QuantityTermination[np.ndarray]):
         stack_creator = lambda mode: (StackedQuantity, dict(  # noqa: E731
             quantity=quantity_creator(mode),
             max_stack=max_stack,
-            mode='slice',
+            is_wrapping=True,
             as_array=True))
 
         # Add drift quantity to the set of quantities managed by environment
@@ -383,9 +386,9 @@ class ShiftTrackingQuantityTermination(QuantityTermination[np.ndarray]):
                          shift_tracking_quantity,  # type: ignore[arg-type]
                          None,
                          np.array(thr),
-                         grace_period,
+                         max(grace_period, horizon),
                          is_truncation=is_truncation,
-                         is_training_only=is_training_only)
+                         training_only=training_only)
 
     def _compute_min_distance(self,
                               left: np.ndarray,
@@ -480,7 +483,7 @@ class MechanicalSafetyTermination(AbstractTerminationCondition):
                  velocity_max: float,
                  grace_period: float = 0.0,
                  *,
-                 is_training_only: bool = False) -> None:
+                 training_only: bool = False) -> None:
         """
         :param env: Base or wrapped jiminy environment.
         :param position_margin: Distance of actuated joints from their
@@ -493,10 +496,10 @@ class MechanicalSafetyTermination(AbstractTerminationCondition):
                              of the episode, during which the latter is bound
                              to continue whatever happens.
                              Optional: 0.0 by default.
-        :param is_training_only: Whether the termination condition should be
-                                 completely by-passed if the environment is in
-                                 evaluation mode.
-                                 Optional: False by default.
+        :param training_only: Whether the termination condition should be
+                              completely by-passed if the environment is in
+                              evaluation mode.
+                              Optional: False by default.
         """
         # Backup user argument(s)
         self.position_margin = position_margin
@@ -508,7 +511,7 @@ class MechanicalSafetyTermination(AbstractTerminationCondition):
             "termination_mechanical_safety",
             grace_period,
             is_truncation=False,
-            is_training_only=is_training_only)
+            training_only=training_only)
 
         # Add quantity to the set of quantities managed by the environment
         self.env.quantities["_".join((self.name, "position_delta"))] = (
@@ -574,7 +577,7 @@ class MechanicalPowerConsumptionTermination(QuantityTermination):
             generator_mode: EnergyGenerationMode = EnergyGenerationMode.CHARGE,
             grace_period: float = 0.0,
             *,
-            is_training_only: bool = False) -> None:
+            training_only: bool = False) -> None:
         """
         :param env: Base or wrapped jiminy environment.
         :param max_power: Maximum average mechanical power consumption applied
@@ -586,10 +589,10 @@ class MechanicalPowerConsumptionTermination(QuantityTermination):
                              Optional: 0.0 by default.
         :param horizon: Horizon over which values of the quantity will be
                         stacked before computing the average.
-        :param is_training_only: Whether the termination condition should be
-                                 completely by-passed if the environment is in
-                                 evaluation mode.
-                                 Optional: False by default.
+        :param training_only: Whether the termination condition should be
+                              completely by-passed if the environment is in
+                              evaluation mode.
+                              Optional: False by default.
         """
         # Backup user argument(s)
         self.max_power = max_power
@@ -607,7 +610,7 @@ class MechanicalPowerConsumptionTermination(QuantityTermination):
             self.max_power,
             grace_period,
             is_truncation=False,
-            is_training_only=is_training_only)
+            training_only=training_only)
 
 
 class ShiftTrackingMotorPositionsTermination(ShiftTrackingQuantityTermination):
@@ -635,7 +638,7 @@ class ShiftTrackingMotorPositionsTermination(ShiftTrackingQuantityTermination):
                  horizon: float,
                  grace_period: float = 0.0,
                  *,
-                 is_training_only: bool = False) -> None:
+                 training_only: bool = False) -> None:
         """
         :param env: Base or wrapped jiminy environment.
         :param thr: Maximum shift above which termination is triggered.
@@ -645,10 +648,10 @@ class ShiftTrackingMotorPositionsTermination(ShiftTrackingQuantityTermination):
                              of the episode, during which the latter is bound
                              to continue whatever happens.
                              Optional: 0.0 by default.
-        :param is_training_only: Whether the termination condition should be
-                                 completely by-passed if the environment is in
-                                 evaluation mode.
-                                 Optional: False by default.
+        :param training_only: Whether the termination condition should be
+                              completely by-passed if the environment is in
+                              evaluation mode.
+                              Optional: False by default.
         """
         # Call base implementation
         super().__init__(
@@ -662,4 +665,4 @@ class ShiftTrackingMotorPositionsTermination(ShiftTrackingQuantityTermination):
             horizon,
             grace_period,
             is_truncation=False,
-            is_training_only=is_training_only)
+            training_only=training_only)

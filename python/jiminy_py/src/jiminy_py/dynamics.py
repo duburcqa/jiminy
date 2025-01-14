@@ -8,8 +8,10 @@
 # pylint: disable=invalid-name,no-member
 import logging
 from bisect import bisect_left
+from functools import lru_cache
 from dataclasses import dataclass, fields
-from typing import List, Union, Optional, Tuple, Sequence, Callable, Literal
+from typing import (
+    List, Union, Optional, Tuple, Sequence, Dict, Callable, Literal)
 
 import numpy as np
 
@@ -27,7 +29,7 @@ from . import core as jiminy
 LOGGER = logging.getLogger(__name__)
 
 
-TRAJ_INTERP_TOL = 1e-12  # 0.01 * 'STEPPER_MIN_TIMESTEP'
+TRAJ_INTERP_TOL = 1e-10  # 'STEPPER_MIN_TIMESTEP'
 
 
 # #####################################################################
@@ -228,6 +230,9 @@ class Trajectory:
                     fields_.append(field)
         self._fields = tuple(fields_)
 
+        # Hacky way to enable argument-based function caching at instance-level
+        self.__dict__['_get'] = lru_cache(maxsize=None)(self._get)
+
     @property
     def has_data(self) -> bool:
         """Whether the trajectory has data, ie the state sequence is not empty.
@@ -288,6 +293,67 @@ class Trajectory:
                 "State sequence is empty. Time interval undefined.")
         return (self._times[0], self._times[-1])
 
+    def _get(self, t: float) -> Dict[str, np.ndarray]:
+        """Query the state at a given timestamp.
+
+        .. note::
+            This method is used internally by `get`. It is not meant to be
+            called manually.
+
+        :param t: Time of the state to extract from the trajectory.
+        """
+        # pylint: disable=possibly-used-before-assignment
+
+        # Get nearest neighbors timesteps for linear interpolation.
+        # Note that the left and right data points may be associated with the
+        # same timestamp, corresponding respectively t- and t+. These values
+        # are different for quantities that may change discontinuously such as
+        # the acceleration. If the state at such a timestamp is requested, then
+        # returning the left value is preferred, because it corresponds to the
+        # only state that was accessible to the user, ie after call `step`.
+        if t < self._t_prev:
+            self._index_prev = 1
+        self._index_prev = bisect_left(
+            self._times, t, self._index_prev, len(self._times) - 1)
+        self._t_prev = t
+
+        # Extract left and right states, then compute interpolation ratio
+        index_left, index_right = self._index_prev - 1, self._index_prev
+        t_left, s_left = self._times[index_left], self.states[index_left]
+        return_left = t - t_left < TRAJ_INTERP_TOL
+        if not return_left:
+            t_right = self._times[index_right]
+            s_right = self.states[index_right]
+            return_right = t_right - t < TRAJ_INTERP_TOL
+            alpha = (t - t_left) / (t_right - t_left)
+
+        # Interpolate state
+        if return_left:
+            position = s_left.q.copy()
+        elif return_right:
+            position = s_right.q.copy()
+        else:
+            position = pin.interpolate(
+                self._pinocchio_model, s_left.q, s_right.q, alpha)
+        data = {"q": position}
+        for field in self._fields:
+            value_left = getattr(s_left, field)
+            if return_left:
+                data[field] = value_left.copy()
+                continue
+            value_right = getattr(s_right, field)
+            if return_right:
+                data[field] = value_right.copy()
+            else:
+                data[field] = value_left + alpha * (value_right - value_left)
+
+        # Make sure that data are immutable.
+        # This is essential to make sure that cached values cannot be altered.
+        for arr in data.values():
+            arr.setflags(write=False)
+
+        return data
+
     def get(self,
             t: float,
             mode: Literal['raise', 'wrap', 'clip'] = 'raise') -> State:
@@ -331,45 +397,20 @@ class Trajectory:
         else:
             t = max(t, t_start)  # Clipping right it is sufficient
 
-        # Get nearest neighbors timesteps for linear interpolation.
-        # Note that the left and right data points may be associated with the
-        # same timestamp, corresponding respectively t- and t+. These values
-        # are different for quantities that may change discontinuously such as
-        # the acceleration. If the state at such a timestamp is requested, then
-        # returning the left value is preferred, because it corresponds to the
-        # only state that was accessible to the user, ie after call `step`.
-        if t < self._t_prev:
-            self._index_prev = 1
-        self._index_prev = bisect_left(
-            self._times, t, self._index_prev, len(self._times) - 1)
-        self._t_prev = t
+        # Rounding time to avoid cache miss issues
+        t = round(t / TRAJ_INTERP_TOL) * TRAJ_INTERP_TOL
 
-        # Skip interpolation if not necessary
-        index_left, index_right = self._index_prev - 1, self._index_prev
-        t_left, s_left = self._times[index_left], self.states[index_left]
-        if t - t_left < TRAJ_INTERP_TOL:
-            return s_left
-        t_right, s_right = self._times[index_right], self.states[index_right]
-        if t_right - t < TRAJ_INTERP_TOL:
-            return s_right
-        alpha = (t - t_left) / (t_right - t_left)
+        # Interpolate state at the desired time
+        state = State(t=t_orig, **self._get(t))
 
-        # Interpolate state
-        position = pin.interpolate(
-            self._pinocchio_model, s_left.q, s_right.q, alpha)
-        data = {"q": position}
-        for field in self._fields:
-            value_left = getattr(s_left, field)
-            value_right = getattr(s_right, field)
-            data[field] = value_left + alpha * (value_right - value_left)
-
-        # Perform odometry if the time is wrapping
+        # Perform odometry if time is wrapping
         if self._stride_offset_log6 is not None and n_steps:
+            state.q = position = state.q.copy()
             stride_offset = pin.exp6(n_steps * self._stride_offset_log6)
             ff_xyzquat = stride_offset * pin.XYZQUATToSE3(position[:7])
             position[:7] = pin.SE3ToXYZQUAT(ff_xyzquat)
 
-        return State(t=t_orig, **data)
+        return state
 
 
 # #####################################################################
@@ -635,16 +676,16 @@ def compute_transform_contact(
     collision_model = robot.collision_model
 
     # Compute the transform in the world of the contact points
-    contact_frames_transform = []
+    contact_frame_transforms = []
     for frame_index in robot.contact_frame_indices:
         transform = robot.pinocchio_data.oMf[frame_index]
-        contact_frames_transform.append(transform)
+        contact_frame_transforms.append(transform)
 
     # Compute the transform of the ground at these points
     if ground_profile is not None:
         contact_ground_transform = []
         ground_pos = np.zeros(3)
-        for frame_transform in contact_frames_transform:
+        for frame_transform in contact_frame_transforms:
             ground_pos[2], normal = ground_profile(
                 frame_transform.translation[:2])
             ground_rot = pin.Quaternion.FromTwoVectors(
@@ -652,13 +693,13 @@ def compute_transform_contact(
             contact_ground_transform.append(pin.SE3(ground_rot, ground_pos))
     else:
         contact_ground_transform = [
-            pin.SE3.Identity() for _ in contact_frames_transform]
+            pin.SE3.Identity() for _ in contact_frame_transforms]
 
     # Compute the position and normal of the contact points wrt their
     # respective ground transform.
     contact_frames_pos_rel = []
     for frame_transform, ground_transform in \
-            zip(contact_frames_transform, contact_ground_transform):
+            zip(contact_frame_transforms, contact_ground_transform):
         transform_rel = ground_transform.actInv(frame_transform)
         contact_frames_pos_rel.append(transform_rel.translation)
 
@@ -694,7 +735,7 @@ def compute_transform_contact(
     rot_offset = pin.Quaternion.FromTwoVectors(
         normal_offset, np.array([0.0, 0.0, 1.0])).matrix()
     if contact_frames_pos_rel:
-        contact_frame_pos = contact_frames_transform[
+        contact_frame_pos = contact_frame_transforms[
             contact_frames_order[0]].translation
         pos_shift = (
             rot_offset @ contact_frame_pos)[2] - contact_frame_pos[2]

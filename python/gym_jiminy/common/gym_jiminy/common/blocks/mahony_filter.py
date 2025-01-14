@@ -3,7 +3,7 @@ reinforcement learning pipeline environment design.
 """
 import logging
 from collections import OrderedDict
-from typing import List, Union, Dict, Optional
+from typing import List, Sequence, Union, Dict
 
 import numpy as np
 import numba as nb
@@ -28,6 +28,7 @@ LOGGER = logging.getLogger(__name__)
 @nb.jit(nopython=True, cache=True)
 def mahony_filter(q: np.ndarray,
                   omega: np.ndarray,
+                  cf: np.ndarray,
                   gyro: np.ndarray,
                   acc: np.ndarray,
                   bias_hat: np.ndarray,
@@ -45,7 +46,9 @@ def mahony_filter(q: np.ndarray,
               The twist part of its twist-after-swing decomposition may have
               been removed.
     :param omega: Pre-allocated memory that will be updated to store the
-                  estimate of the angular velocity in local frame.
+                  estimate of the angular velocity in local frame (unbiased).
+    :param cf: Pre-allocated memory that will be updated to store the value of
+               the complementary filter in local frame.
     :param gyro: Sample of tri-axial Gyroscope in rad/s. It corresponds to the
                  angular velocity in local frame.
     :param acc: Sample of tri-axial Accelerometer in m/s^2. It corresponds to
@@ -55,94 +58,47 @@ def mahony_filter(q: np.ndarray,
     :param kp: Proportional gain used for gyro-accel sensor fusion.
     :param ki: Integral gain used for gyro bias estimate.
     :param dt: Time step, in seconds, between consecutive Quaternions.
-
     """
     # Compute expected Earth's gravity (Euler-Rodrigues Formula): R(q).T @ e_z
     v_x, v_y, v_z = compute_tilt_from_quat(q)
 
-    # Compute the angular velocity using Explicit Complementary Filter:
-    # omega_mes = v_a_hat x v_a, where x is the cross product.
+    # Update the estimate of the angular velocity
+    omega[:] = gyro - bias_hat
+
+    # Compute a correction term based on measured IMU acceleration (eq. 32c):
+    # omega_mes = (- v_a) x v_a_hat, where x is the cross product.
     v_x_hat, v_y_hat, v_z_hat = acc / EARTH_SURFACE_GRAVITY
     omega_mes = np.stack((
         v_y_hat * v_z - v_z_hat * v_y,
         v_z_hat * v_x - v_x_hat * v_z,
         v_x_hat * v_y - v_y_hat * v_x), 0)
-    omega[:] = gyro - bias_hat + kp * omega_mes
+
+    # Apply Explicit Complementary Filter (eq. 32a - right hand)
+    cf[:] = omega + kp * omega_mes
 
     # Early return if there is no IMU motion
-    if (np.abs(omega) < 1e-6).all():
+    if (np.abs(cf) < 1e-6).all():
         return
 
-    # Compute Axis-Angle repr. of the angular velocity: exp3(dt * omega)
-    theta = np.sqrt(np.sum(omega * omega, 0))
-    axis = omega / theta
+    # Compute Axis-Angle repr. of the angular velocity: exp3(dt * cf)
+    theta = np.sqrt(np.sum(cf * cf, 0))
+    axis = cf / theta
     theta *= dt / 2
     (p_x, p_y, p_z), p_w = (axis * np.sin(theta)), np.cos(theta)
 
-    # Integrate the orientation: q * exp3(dt * omega)
+    # Integrate the orientation (eq. 32a - left hand): q * exp3(dt * cf)
     q_x, q_y, q_z, q_w = q
     q[0], q[1], q[2], q[3] = (
         q_x * p_w + q_w * p_x - q_z * p_y + q_y * p_z,
         q_y * p_w + q_z * p_x + q_w * p_y - q_x * p_z,
         q_z * p_w - q_y * p_x + q_x * p_y + q_w * p_z,
-        q_w * p_w - q_x * p_x - q_y * p_y - q_z * p_z,
-    )
+        q_w * p_w - q_x * p_x - q_y * p_y - q_z * p_z)
 
     # First order quaternion normalization to prevent compounding of errors
     q *= (3.0 - np.sum(np.square(q), 0)) / 2
 
-    # Update Gyro bias
-    bias_hat -= dt * ki * omega_mes
-
-
-@nb.jit(nopython=True, cache=True)
-def update_twist(q: np.ndarray,
-                 twist: np.ndarray,
-                 omega: np.ndarray,
-                 time_constant_inv: float,
-                 dt: float) -> None:
-    """Update the twist estimate of the Twist-after-Swing decomposition of
-    given orientations in quaternion representation using leaky integrator.
-
-    :param q: Current swing estimate as a quaternion. It will be updated
-              in-place to add the estimated twist.
-    :param twist: Current twist estimate to update in-place.
-    :param omega: Current angular velocity estimate in local frame.
-    :param time_constant_inv: Inverse of the time constant of the leaky
-                              integrator used to update the twist estimate.
-    :param dt: Time step, in seconds, between consecutive Quaternions.
-    """
-    # Compute the derivative of the twist angle:
-    # The element-wise time-derivative of a quaternion is given by:
-    #   dq = 0.5 * q * Quaternion(axis=gyro, w=0.0)        [1]
-    # The twist around a given axis can be computed as follows:
-    #   p = q_axis.dot(twist_axis) * twist_axis            [2]
-    #   twist = pin.Quaternion(np.array((*p, q_w))).normalized()
-    # The twist angle can be inferred from this expression:
-    #   twist = 2 * atan2(q_axis.dot(twist_axis), q_w)     [3]
-    # The derivative of twist angle can be derived:
-    #  dtwist = 2 * (
-    #     (dq_axis * q_w - q_axis * dq_w).dot(twist_axis)  [4]
-    #  ) / (q_axis.dot(twist_axis) ** 2 + q_w ** 2)
-    # One can show that if q_s is the swing part of the orientation, then:
-    #   q_s_axis.dot(twist_axis) = 0
-    # It yields:
-    #  dtwist = 2 * dq_s_axis.dot(twist_axis) / q_s_w      [5]
-    q_x, q_y, _, q_w = q
-    dtwist = (- q_y * omega[0] + q_x * omega[1]) / q_w + omega[2]
-
-    # Update twist angle using Leaky Integrator scheme to avoid long-term drift
-    twist *= max(0.0, 1.0 - time_constant_inv * dt)
-    twist += dtwist * dt
-
-    # Update quaternion to add estimated twist
-    p_z, p_w = np.sin(0.5 * twist), np.cos(0.5 * twist)
-    q[0], q[1], q[2], q[3] = (
-        p_w * q_x - p_z * q_y,
-        p_z * q_x + p_w * q_y,
-        p_z * q_w,
-        p_w * q_w,
-    )
+    # Update Gyro bias (eq. 32b)
+    bias_hat -= ki * dt * omega_mes
 
 
 class MahonyFilter(BaseObserverBlock[
@@ -162,15 +118,16 @@ class MahonyFilter(BaseObserverBlock[
 
     .. note::
         The feature space of this observer is a dictionary storing quaternion
-        estimates under key 'quat', and optionally, their corresponding
-        Yaw-Pitch-Roll Euler angles representations under key 'key' if
-        `compute_rpy=True`. Both leaves are 2D array of shape (N, M), where
-        N is the number of components of the representation while M is the
-        number of IMUs of the robot. More specifically, `N=4` for quaternions
-        (Qx, Qy, Qz, Qw) and 'N=3' for Euler angles (Roll-Pitch-Yaw). Indeed,
-        the Yaw angle of the Yaw-Pitch-Roll Euler angles representations is
-        systematically included in the feature space, even if its value is
-        meaningless, i.e. `ignore_twist=True`.
+        estimates under key 'quat', optionally, their corresponding
+        Yaw-Pitch-Roll Euler angles representations under key 'rpy' if
+        `compute_rpy=True`, and finally, the angular velocity in local frame
+        estimates under key 'omega'. Both leaves are 2D array of shape (N, M),
+        where N is the number of components of the representation while M is
+        the number of IMUs of the robot. Specifically, `N=4` for quaternions
+        (Qx, Qy, Qz, Qw), 'N=3' for both the Euler angles (Roll-Pitch-Yaw) and
+        the angular velocity. The Yaw angle of the Yaw-Pitch-Roll Euler angles
+        representations is systematically included in the feature space, even
+        if its value is meaningless, i.e. `ignore_twist=True`.
 
     .. warning::
         This filter works best for 'observe_dt' smaller or equal to 5ms. Its
@@ -182,37 +139,30 @@ class MahonyFilter(BaseObserverBlock[
                  name: str,
                  env: InterfaceJiminyEnv[BaseObs, BaseAct],
                  *,
-                 twist_time_constant: Optional[float] = 0.0,
+                 ignore_twist: bool = False,
                  exact_init: bool = True,
-                 kp: Union[np.ndarray, float] = 1.0,
-                 ki: Union[np.ndarray, float] = 0.1,
-                 compute_rpy: bool = True,
+                 kp: Union[np.ndarray, Sequence[float], float] = 1.0,
+                 ki: Union[np.ndarray, Sequence[float], float] = 0.1,
+                 compute_rpy: bool = False,
                  update_ratio: int = 1) -> None:
         """
         :param name: Name of the block.
         :param env: Environment to connect with.
-        :param twist_time_constant:
-            If specified, it corresponds to the time constant of the leaky
-            integrator (Exponential Moving Average) used to estimate the twist
-            part of twist-after-swing decomposition of the estimated
-            orientation in place of the Mahony Filter. If `0.0`, then its is
-            kept constant equal to zero. `None` to kept the original estimate
-            provided by Mahony Filter. See `remove_twist_from_quat` and
-            `update_twist` documentations for details.
-            Optional: `0.0` by default.
+        :param ignore_twist: Whether to ignore the twist of the IMU quaternion
+                             estimate.
         :param exact_init: Whether to initialize orientation estimate using
                            accelerometer measurements or ground truth. `False`
                            is not recommended because the robot is often
                            free-falling at init, which is not realistic anyway.
                            Optional: `True` by default.
-        :param mahony_kp: Proportional gain used for gyro-accel sensor fusion.
-                          Set it to 0.0 to use only the gyroscope. In such a
-                          case, the orientation estimate would be exact if the
-                          sensor is bias- and noise-free, and the update period
-                          matches the simulation integrator timestep.
-                          Optional: `1.0` by default.
-        :param mahony_ki: Integral gain used for gyro bias estimate.
-                          Optional: `0.1` by default.
+        :param kp: Proportional gain used for gyro-accel sensor fusion. Set it
+                   to 0.0 to use only the gyroscope. In such a case, the
+                   orientation estimate would be exact if the sensor is bias-
+                   and noise-free, and the update period matches the
+                   simulation integrator timestep.
+                   Optional: `1.0` by default.
+        :param ki: Integral gain used for gyro bias estimate.
+                   Optional: `0.1` by default.
         :param compute_rpy: Whether to compute the Yaw-Pitch-Roll Euler angles
                             representation for the 3D orientation of the IMU,
                             in addition to the quaternion representation.
@@ -225,35 +175,22 @@ class MahonyFilter(BaseObserverBlock[
         # Handling of default argument(s)
         num_imu_sensors = len(env.robot.sensors[ImuSensor.type])
         if isinstance(kp, float):
-            kp = np.full((num_imu_sensors,), kp)
+            kp = (kp,) * num_imu_sensors
         if isinstance(ki, float):
-            ki = np.full((num_imu_sensors,), ki)
+            ki = (ki,) * num_imu_sensors
 
         # Backup some of the user arguments
-        self.compute_rpy = compute_rpy
+        self.ignore_twist = ignore_twist
         self.exact_init = exact_init
-        self.kp = kp
-        self.ki = ki
-
-        # Keep track of how the twist must be computed
-        self.twist_time_constant_inv: Optional[float]
-        if twist_time_constant is None:
-            self.twist_time_constant_inv = None
-        else:
-            if twist_time_constant > 0.0:
-                self.twist_time_constant_inv = 1.0 / twist_time_constant
-            else:
-                self.twist_time_constant_inv = float("inf")
-        self._remove_twist = self.twist_time_constant_inv is not None
-        self._update_twist = (
-            self.twist_time_constant_inv is not None and
-            np.isfinite(self.twist_time_constant_inv))
+        self.kp = np.asarray(kp)
+        self.ki = np.asarray(ki)
+        self.compute_rpy = compute_rpy
 
         # Whether the observer has been initialized.
         # This flag must be managed internally because relying on
         # `self.env.is_simulation_running` is not possible for observer blocks.
         # Unlike `compute_command`, the simulation is already running when
-        # `refresh_observation`` is called for the first time of an episode.
+        # `refresh_observation` is called for the first time of an episode.
         self._is_initialized = False
 
         # Whether the observer has been compiled already.
@@ -264,23 +201,18 @@ class MahonyFilter(BaseObserverBlock[
         # triggering yet another compilation.
         self._is_compiled = False
 
-        # Define gyroscope and accelerometer proxies for fast access.
-        # Note that they will be initialized in `_setup` method.
-        self.gyro, self.acc = np.array([]), np.array([])
+        # Define gyroscope and accelerometer proxies for fast access
+        self.gyro, self.acc = np.split(
+            env.measurement["measurements"][ImuSensor.type], 2)
 
-        # Allocate gyroscope bias estimate
+        # Gyroscope bias estimate
         self._bias = np.zeros((3, num_imu_sensors))
 
-        # Allocate twist angle estimate around z-axis in world frame
-        self._twist = np.zeros((1, num_imu_sensors))
+        # Explicit complementary filter
+        self._cf = np.zeros((3, num_imu_sensors))
 
         # Define the state of the filter
         self._state = {"bias": self._bias}
-        if self._update_twist:
-            self._state["twist"] = self._twist
-
-        # Store the estimate angular velocity to avoid redundant computations
-        self._omega = np.zeros((3, num_imu_sensors))
 
         # Initialize the observer
         super().__init__(name, env, update_ratio)
@@ -291,13 +223,12 @@ class MahonyFilter(BaseObserverBlock[
             self._rpy = self.observation["rpy"]
         else:
             self._rpy = np.array([])
+        self._omega = self.observation["omega"]
 
     def _initialize_state_space(self) -> None:
         """Configure the internal state space of the observer.
 
-        It corresponds to the current gyroscope bias estimate. The twist angle
-        is not part of the internal state although being integrated over time
-        because it is uniquely determined from the orientation estimate.
+        It corresponds to the current gyroscope bias estimate.
         """
         # Strictly speaking, 'q_prev' is part of the internal state of the
         # observer since it is involved in its computations. Yet, it is not an
@@ -310,12 +241,8 @@ class MahonyFilter(BaseObserverBlock[
             low=np.full((3, num_imu_sensors), -np.inf),
             high=np.full((3, num_imu_sensors), np.inf),
             dtype=np.float64)
-        if self._update_twist:
-            state_space["twist"] = gym.spaces.Box(
-                low=np.full((num_imu_sensors,), -np.inf),
-                high=np.full((num_imu_sensors,), np.inf),
-                dtype=np.float64)
-        self.state_space = gym.spaces.Dict(state_space)
+        self.state_space = gym.spaces.Dict(
+            **state_space)  # type: ignore[arg-type]
 
     def _initialize_observation_space(self) -> None:
         """Configure the observation space of the observer.
@@ -340,11 +267,20 @@ class MahonyFilter(BaseObserverBlock[
                 low=-high[:, np.newaxis].repeat(num_imu_sensors, axis=1),
                 high=high[:, np.newaxis].repeat(num_imu_sensors, axis=1),
                 dtype=np.float64)
-        self.observation_space = gym.spaces.Dict(observation_space)
+        observation_space["omega"] = gym.spaces.Box(
+            low=float('-inf'),
+            high=float('inf'),
+            shape=(3, num_imu_sensors),
+            dtype=np.float64)
+        self.observation_space = gym.spaces.Dict(
+            **observation_space)  # type: ignore[arg-type]
 
     def _setup(self) -> None:
         # Call base implementation
         super()._setup()
+
+        # Initialize observation
+        fill(self.observation, 0)
 
         # Fix initialization of the observation to be valid quaternions
         self._quat[-1] = 1.0
@@ -354,15 +290,8 @@ class MahonyFilter(BaseObserverBlock[
             raise ValueError(
                 "This block does not support time-continuous update.")
 
-        # Refresh gyroscope and accelerometer proxies
-        self.gyro, self.acc = np.split(
-            self.env.sensor_measurements[ImuSensor.type], 2)
-
         # Reset the sensor bias estimate
         fill(self._bias, 0)
-
-        # Reset the twist estimate
-        fill(self._twist, 0)
 
         # Warn if 'observe_dt' is too large to provide a meaningful
         if self.observe_dt > 0.01 + 1e-6:
@@ -373,11 +302,15 @@ class MahonyFilter(BaseObserverBlock[
 
         # Call `refresh_observation` manually to make sure that all the jitted
         # method of it control flow has been compiled.
+        # Note that setup must be called once again because compilation will
+        # mess up with the internal state of the filter.
         if not self._is_compiled:
             self._is_initialized = False
             for _ in range(2):
                 self.refresh_observation(self.env.observation)
             self._is_compiled = True
+            self._setup()
+            return
 
         # Consider that the observer is not initialized anymore
         self._is_initialized = False
@@ -390,8 +323,11 @@ class MahonyFilter(BaseObserverBlock[
         imu_sensors = self.env.robot.sensors[ImuSensor.type]
         fieldnames: Dict[str, List[List[str]]] = {}
         fieldnames["quat"] = [
-            [f"{sensor.name}.Quat{e}" for sensor in imu_sensors]
-            for e in ("x", "y", "z", "w")]
+            [".".join((sensor.name, f"Quat{e}")) for sensor in imu_sensors]
+            for e in ("X", "Y", "Z", "W")]
+        fieldnames["omega"] = [
+            [".".join((sensor.name, e)) for sensor in imu_sensors]
+            for e in ("X", "Y", "Z")]
         if self.compute_rpy:
             fieldnames["rpy"] = [
                 [".".join((sensor.name, e)) for sensor in imu_sensors]
@@ -404,9 +340,10 @@ class MahonyFilter(BaseObserverBlock[
         if not self._is_initialized:
             if not self.exact_init:
                 if (np.abs(self.acc) < 0.1 * EARTH_SURFACE_GRAVITY).all():
-                    LOGGER.warning(
-                        "The robot is free-falling. Impossible to initialize "
-                        "Mahony filter for 'exact_init=False'.")
+                    if self._is_compiled:
+                        LOGGER.warning(
+                            "The robot is free-falling. Impossible to "
+                            "initialize Mahony filter for 'exact_init=False'.")
                 else:
                     # Try to determine the orientation of the IMU from its
                     # measured acceleration at initialization. This approach is
@@ -425,19 +362,21 @@ class MahonyFilter(BaseObserverBlock[
                     rot = robot.pinocchio_data.oMf[sensor.frame_index].rotation
                     imu_rots.append(rot)
 
-                # Convert it to quaternions
+                # Convert the rotation matrices of the IMUs to quaternions
                 matrices_to_quat(tuple(imu_rots), self._quat)
 
-                # Keep track of tilt if necessary
-                if self._update_twist:
-                    self._twist[:] = np.arctan2(self._quat[2], self._quat[3])
-
                 self._is_initialized = True
+
+            # Compute the RPY representation if requested
+            if self.compute_rpy:
+                quat_to_rpy(self._quat, self._rpy)
+
             return
 
         # Run an iteration of the filter, computing the next state estimate
         mahony_filter(self._quat,
                       self._omega,
+                      self._cf,
                       self.gyro,
                       self.acc,
                       self._bias,
@@ -446,15 +385,8 @@ class MahonyFilter(BaseObserverBlock[
                       self.observe_dt)
 
         # Remove twist if requested
-        if self._remove_twist:
+        if self.ignore_twist:
             remove_twist_from_quat(self._quat)
-
-        if self._update_twist:
-            update_twist(self._quat,
-                         self._twist,
-                         self._omega,
-                         self.twist_time_constant_inv,
-                         self.observe_dt)
 
         # Compute the RPY representation if requested
         if self.compute_rpy:

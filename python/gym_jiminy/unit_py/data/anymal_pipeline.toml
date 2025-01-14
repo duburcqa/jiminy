@@ -18,7 +18,7 @@ cls = "gym_jiminy.common.compositions.BaseRollPitchTermination"
 low = [-0.2, -0.05]
 high = [-0.05, 0.3]
 grace_period = 0.1
-is_training_only = false
+training_only = false
 
 # ========================== Ad-hoc reward components =========================
 

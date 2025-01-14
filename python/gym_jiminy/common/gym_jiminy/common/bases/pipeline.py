@@ -26,8 +26,7 @@ import gymnasium as gym
 from gymnasium.core import RenderFrame
 from gymnasium.envs.registration import EnvSpec
 
-from jiminy_py.core import (  # pylint: disable=no-name-in-module
-    is_breakpoint, array_copyto)
+from jiminy_py.core import array_copyto  # pylint: disable=no-name-in-module
 from jiminy_py.dynamics import Trajectory
 from jiminy_py.tree import issubclass_mapping
 
@@ -43,10 +42,12 @@ from .compositions import AbstractReward, AbstractTerminationCondition
 from .blocks import BaseControllerBlock, BaseObserverBlock
 
 from ..utils import (DataNested,
+                     fill,
                      zeros,
                      build_copyto,
                      copy,
-                     get_robot_state_space)
+                     get_robot_state_space,
+                     is_breakpoint)
 if TYPE_CHECKING:
     from ..envs.generic import BaseJiminyEnv
 
@@ -142,7 +143,7 @@ def _merge_base_env_with_block(
             assert issubclass_mapping(type(base_group))
             base_group[block_name] = block_group  # type: ignore[index]
 
-    return mapping_cls(observation)  # type: ignore[call-arg]
+    return mapping_cls(**observation)
 
 
 class BasePipelineWrapper(
@@ -180,7 +181,6 @@ class BasePipelineWrapper(
         self.stepper_state = env.stepper_state
         self.robot = env.robot
         self.robot_state = env.robot_state
-        self.sensor_measurements = env.sensor_measurements
         self.is_simulation_running = env.is_simulation_running
         self.num_steps = env.num_steps
 
@@ -192,6 +192,10 @@ class BasePipelineWrapper(
 
         # Call base implementation
         super().__init__()  # Do not forward any argument
+
+        # Bind engine measurement
+        self.measurement = env.measurement
+        self._measurement_flat = env._measurement_flat
 
         # Enable direct forwarding by default for efficiency
         if BasePipelineWrapper.has_terminated is type(self).has_terminated:
@@ -218,7 +222,7 @@ class BasePipelineWrapper(
         try:
             # Make sure that no simulaton is running
             if (self.__getattribute__('is_simulation_running') and
-                    self.env.is_training and not hasattr(sys, 'ps1')):
+                    self.env.training and not hasattr(sys, 'ps1')):
                 # `hasattr(sys, 'ps1')` is used to detect whether the method
                 # was called from an interpreter or within a script. For
                 # details, see: https://stackoverflow.com/a/64523765/4820605
@@ -291,14 +295,15 @@ class BasePipelineWrapper(
         return self.env.step_dt
 
     @property
-    def is_training(self) -> bool:
-        return self.env.is_training
+    def training(self) -> bool:
+        return self._is_training
 
-    def train(self) -> None:
-        self.env.train()
+    @training.setter
+    def training(self, mode: bool) -> None:
+        self.env.train(mode)
 
-    def eval(self) -> None:
-        self.env.eval()
+    def train(self, mode: bool = True) -> None:
+        self.env.train(mode)
 
     def update_pipeline(self, derived: Optional[InterfaceJiminyEnv]) -> None:
         if derived is None:
@@ -365,13 +370,22 @@ class BasePipelineWrapper(
 
             return env_derived
 
+        # Reset base pipeline.
+        # Note that it is important to reset the base environment first,
+        # otherwise adding extra layers on top of an existing pipeline would
+        # affect random number sampling, and therefore mess up with
+        # repeatability.
+        obs, info = self.env.reset(
+            seed=seed, options={"reset_hook": reset_hook})
+
         # Reset the seed of the action and observation spaces
         if seed is not None:
-            self.observation_space.seed(seed)
-            self.action_space.seed(seed)
+            obs_seed, act_seed = map(int, self.np_random.integers(
+                np.iinfo(int).max, size=(2,), dtype=int))
+            self.observation_space.seed(obs_seed)
+            self.action_space.seed(act_seed)
 
-        # Reset base pipeline
-        return self.env.reset(seed=seed, options={"reset_hook": reset_hook})
+        return obs, info
 
     def step(self,  # type: ignore[override]
              action: Act
@@ -433,7 +447,6 @@ class BasePipelineWrapper(
         # Refresh some proxies for fast lookup
         self.robot = self.env.robot
         self.robot_state = self.env.robot_state
-        self.sensor_measurements = self.env.sensor_measurements
 
         # Initialize specialized operator(s) for efficiency
         self._copyto_action = build_copyto(self.action)
@@ -565,7 +578,7 @@ class ComposedJiminyEnv(BasePipelineWrapper[Obs, Act, Obs, Act],
 
             # Make sure that the robot model is identical for all trajectories
             traj = self._trajectory_dataset.trajectory
-            for traj_ in self._trajectory_dataset:
+            for traj_ in self._trajectory_dataset.registry.values():
                 if traj.robot.pinocchio_model != traj_.robot.pinocchio_model:
                     raise ValueError(
                         "The robot model must be identical for all "
@@ -574,7 +587,7 @@ class ComposedJiminyEnv(BasePipelineWrapper[Obs, Act, Obs, Act],
             # Determine the state information that are common to all
             # trajectories, not just the one being selected.
             self._trajectory_optional_fields = traj.optional_fields
-            for traj_ in self._trajectory_dataset:
+            for traj_ in self._trajectory_dataset.registry.values():
                 self._trajectory_optional_fields = tuple(
                     field for field in traj_.optional_fields
                     if field in self._trajectory_optional_fields)
@@ -646,7 +659,8 @@ class ComposedJiminyEnv(BasePipelineWrapper[Obs, Act, Obs, Act],
                     high=float("inf"),
                     shape=(length_lambda_c,),
                     dtype=np.float64)
-            trajectory_space = gym.spaces.Dict(state_space)
+            trajectory_space = gym.spaces.Dict(
+                **state_space)  # type: ignore[arg-type]
 
         # Aggregate the reference trajectory space with the base observation
         self.observation_space = cast(
@@ -719,13 +733,30 @@ class ComposedJiminyEnv(BasePipelineWrapper[Obs, Act, Obs, Act],
         """
         # Call unwrapped environment implementation
         terminated, truncated = self.env.has_terminated(info)
+        if terminated or truncated:
+            if terminated:
+                assert "terminated" not in info
+                info["terminated"] = -1
+            else:
+                assert "truncated" not in info
+                info["terminated"] = -1
+            return terminated, truncated
 
-        # Evaluate conditions one-by-one as long as none has been triggered
-        for termination in self.terminations:
-            if terminated or truncated:
-                break
+        # Evaluate conditions one-by-one as long as none has been triggered.
+        # Termination condition information are aggregated under a single key.
+        # Termination conditions are evaluated in order, matching constructor
+        # arguments, with short-circuit mechanism to skip subsequent evaluation
+        # as soon as one condition is triggered.
+        for i, termination in enumerate(self.terminations):
             terminated, truncated = termination(info)
-
+            if terminated:
+                assert "terminated" not in info
+                info["terminated"] = i
+                break
+            if truncated:
+                assert "truncated" not in info
+                info["truncated"] = i
+                break
         return terminated, truncated
 
     def compute_command(self, action: Act, command: np.ndarray) -> None:
@@ -926,7 +957,7 @@ class ObservedJiminyEnv(
         self.env.refresh_observation(measurement)
 
         # Update observed features if necessary
-        if is_breakpoint(self.stepper_state, self.observe_dt, DT_EPS):
+        if is_breakpoint(measurement["t"], self.observe_dt, DT_EPS):
             self.observer.refresh_observation(self.env.observation)
 
     def compute_command(self, action: Act, command: np.ndarray) -> None:
@@ -1089,6 +1120,9 @@ class ControlledJiminyEnv(
         # Call base implementation
         super()._setup()
 
+        # Reset action
+        fill(self.action, 0)
+
         # Compute the observe and control update periods
         self.observe_dt = self.env.observe_dt
         self.control_dt = self.controller.control_dt
@@ -1148,7 +1182,7 @@ class ControlledJiminyEnv(
         # Note that `observation` buffer has already been updated right before
         # calling this method by `_controller_handle`, so it can be used as
         # measure argument without issue.
-        if is_breakpoint(self.stepper_state, self.control_dt, DT_EPS):
+        if is_breakpoint(self.measurement["t"], self.control_dt, DT_EPS):
             self.controller.compute_command(action, self.env.action)
 
         # Update the command to send to the actuators of the robot.
@@ -1254,7 +1288,7 @@ class BaseTransformObservation(
         self.env.refresh_observation(measurement)
 
         # Transform observation at the end of the step only
-        if is_breakpoint(self.stepper_state, self._step_dt, DT_EPS):
+        if is_breakpoint(measurement["t"], self._step_dt, DT_EPS):
             self.transform_observation()
 
     @abstractmethod
@@ -1364,7 +1398,7 @@ class BaseTransformAction(
         :param command: Lower-level command to update in-place.
         """
         # Transform action at the beginning of the step only
-        if is_breakpoint(self.stepper_state, self._step_dt, DT_EPS):
+        if is_breakpoint(self.measurement["t"], self._step_dt, DT_EPS):
             self.transform_action(action)
 
         # Delegate command computation to wrapped environment

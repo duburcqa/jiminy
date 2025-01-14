@@ -86,7 +86,7 @@ def extract_variables_from_log(log_vars: Dict[str, np.ndarray],
 
 def build_robot_from_log(
         log_data: Dict[str, Any],
-        mesh_path_dir: Optional[str] = None,
+        mesh_dir_path: Optional[str] = None,
         mesh_package_dirs: Sequence[str] = (),
         *, robot_name: Optional[str] = None
         ) -> jiminy.Robot:
@@ -107,7 +107,7 @@ def build_robot_from_log(
         the name for each of them.
 
     :param log_data: Logged data (constants plus variables) as a dictionary.
-    :param mesh_path_dir: Overwrite the common root of all absolute mesh paths.
+    :param mesh_dir_path: Overwrite the common root of all absolute mesh paths.
                           It may be necessary to read logs generated on
                           different environments.
     :param mesh_package_dirs: Prepend custom mesh package search path
@@ -144,12 +144,12 @@ def build_robot_from_log(
 
     # Load robot from binary data
     return jiminy.load_from_binary(
-        robot_data, mesh_path_dir, mesh_package_dirs)
+        robot_data, mesh_dir_path, mesh_package_dirs)
 
 
 def build_robots_from_log(
         log_data: Dict[str, Any],
-        mesh_path_dir: Optional[str] = None,
+        mesh_dir_path: Optional[str] = None,
         mesh_package_dirs: Sequence[str] = (),
         ) -> Sequence[jiminy.Robot]:
     """Build all the robots in the log of the simulation.
@@ -159,7 +159,7 @@ def build_robots_from_log(
         available robot. Refer to `build_robot_from_log` for more information.
 
     :param log_data: Logged data (constants and variables) as a dictionary.
-    :param mesh_path_dir: Overwrite the common root of all absolute mesh paths.
+    :param mesh_dir_path: Overwrite the common root of all absolute mesh paths.
                           It which may be necessary to read log generated on a
                           different environment.
     :param mesh_package_dirs: Prepend custom mesh package search path
@@ -180,7 +180,7 @@ def build_robots_from_log(
     robots = []
     for robot_name in robot_names:
         robot = build_robot_from_log(
-            log_data, mesh_path_dir, mesh_package_dirs, robot_name=robot_name)
+            log_data, mesh_dir_path, mesh_package_dirs, robot_name=robot_name)
         robots.append(robot)
 
     return robots

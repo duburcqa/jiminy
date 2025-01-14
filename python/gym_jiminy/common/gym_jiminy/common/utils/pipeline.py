@@ -26,7 +26,7 @@ import jiminy_py.core as jiminy
 import pinocchio as pin
 from jiminy_py.dynamics import State, Trajectory
 
-from ..quantities import EnergyGenerationMode
+from ..quantities import EnergyGenerationMode, OrientationType
 from ..bases import (QuantityEvalMode,
                      InterfaceJiminyEnv,
                      InterfaceBlock,
@@ -46,6 +46,7 @@ from ..envs import BaseJiminyEnv
 
 ENUM_TYPES = (EnergyGenerationMode,
               QuantityEvalMode,
+              OrientationType,
               pin.KinematicLevel)
 ENUM_NAME_TO_MODULE_MAP = {enum_type.__name__: enum_type.__module__.split(".")
                            for enum_type in ENUM_TYPES}
@@ -92,16 +93,23 @@ class TrajectoryDatabaseConfig(TypedDict, total=False):
     """
 
     name: str
-    """Name of the selected trajectory if any.
+    """Name of the selected trajectory.
 
     This attribute can be omitted. If so, the first trajectory being specified
     will be selected by default.
     """
 
     mode: Literal['raise', 'wrap', 'clip']
-    """Interpolation mode of the selected trajectory if any.
+    """Interpolation mode of the selected trajectory.
 
     This attribute can be omitted. If so, 'raise' mode is used by default.
+    """
+
+    augment_observation: bool
+    """Whether to add the current state of the reference trajectory to the
+    observation of the environment.
+
+    This attribute can be omitted. If so, `False` is used by default.
     """
 
 
@@ -247,15 +255,17 @@ def build_pipeline(env_config: EnvConfig,
                       Optional: `None` by default.
     """
     # Define helper to replace enums string by its corresponding object value
-    def sanitize_enum_string(kwargs: Dict[str, Any]) -> None:
-        """Replace in-place enum string representation with their object
-        counterpart.
+    def sanitize_special_string(kwargs: Dict[str, Any]) -> None:
+        """Replace in-place some special strings with their object counterpart.
+
+        This method deals with enums, None ("none") and special floats ("nan",
+        "+/-inf").
 
         :param kwargs: Nested dictionary of options.
         """
         for key, value in kwargs.items():
             if isinstance(value, dict):
-                sanitize_enum_string(value)
+                sanitize_special_string(value)
                 continue
 
             if not isinstance(value, str):
@@ -263,6 +273,9 @@ def build_pipeline(env_config: EnvConfig,
 
             if value == "none":
                 kwargs[key] = None
+                continue
+            if value == "nan" or value.endswith("inf"):
+                kwargs[key] = float(value)
                 continue
 
             value_path = value.split(".")
@@ -297,8 +310,8 @@ def build_pipeline(env_config: EnvConfig,
         # Get its constructor keyword-arguments
         kwargs = composition_config.get("kwargs", {})
 
-        # Special treatment for "none" and enum string
-        sanitize_enum_string(kwargs)
+        # Special treatment for "none", "nan", "+/-inf" and enum string
+        sanitize_special_string(kwargs)
 
         # Special handling for `MixtureReward`
         if is_reward and issubclass(cls, MixtureReward):
@@ -341,8 +354,8 @@ def build_pipeline(env_config: EnvConfig,
         # Get its constructor keyword-arguments
         kwargs = composition_config.get("kwargs", {}).copy()
 
-        # Special treatment for "none" and enum string
-        sanitize_enum_string(kwargs)
+        # Special treatment for "none", "nan", "+/-inf" and enum string
+        sanitize_special_string(kwargs)
 
         # Special handling for `MixtureReward`
         if is_reward and issubclass(cls, MixtureReward):
@@ -398,17 +411,21 @@ def build_pipeline(env_config: EnvConfig,
             for termination_config in terminations_config)
 
         # Get trajectory dataset
+        augment_observation = False
         trajectories: Dict[str, Trajectory] = {}
         if trajectories_config is not None:
             trajectories = cast(
                 Dict[str, Trajectory], trajectories_config["dataset"])
+            augment_observation = trajectories_config.get(
+                "augment_observation", False)
 
         # Instantiate the composition wrapper if necessary
         if reward or terminations or trajectories:
             env = ComposedJiminyEnv(env,
                                     reward=reward,
                                     terminations=terminations,
-                                    trajectories=trajectories)
+                                    trajectories=trajectories,
+                                    augment_observation=augment_observation)
 
         # Select the reference trajectory if specified
         if trajectories_config is not None:
@@ -560,9 +577,9 @@ def build_pipeline(env_config: EnvConfig,
         block_kwargs = block_config.get("kwargs", {})
         wrapper_kwargs = wrapper_config.get("kwargs", {})
 
-        # Special treatment for "none" and enum string
+        # Special treatment for "none", "nan", "+/-inf" and enum string
         for kwargs in (block_kwargs, wrapper_kwargs):
-            sanitize_enum_string(kwargs)
+            sanitize_special_string(kwargs)
 
         # Special treatment for "quantity" arg of `QuantityObserver` blocks
         if block_cls_ is not None and issubclass(block_cls_, QuantityObserver):

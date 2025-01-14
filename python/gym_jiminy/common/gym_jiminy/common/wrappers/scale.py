@@ -87,10 +87,10 @@ def _split_nested_key_and_slice(
 def _get_rescale_space(
         space: gym.Space[DataNested],
         nested_key_slices_scale_list: Tuple[Tuple[
-            NestedKey, Optional[Tuple[Union[int, slice], ...]], float], ...],
-        *, is_reversed: bool) -> gym.Space[DataNested]:
-    """Apply a sequence of scalar scaling factors on subtrees or leaves of a
-    given nested space out-of-place.
+            NestedKey, Optional[Tuple[Union[int, slice], ...]], float], ...]
+        ) -> gym.Space[DataNested]:
+    """Apply a sequence of (inverted) scalar scaling factors on subtrees or
+    leaves of a given nested space out-of-place.
 
     .. warning::
         All leaf space of the space being altered must be `gym.spaces.Box`
@@ -111,8 +111,6 @@ def _get_rescale_space(
     space_flat: List[gym.Space] = []
     for path, subspace in flatten_with_path(space):
         for nested_key, slices, scale in nested_key_slices_scale_list:
-            if is_reversed:
-                scale = 1.0 / scale
             if path[:len(nested_key)] == nested_key:
                 # Make sure that the space is supported
                 if (not isinstance(subspace, gym.spaces.Box) or
@@ -125,11 +123,11 @@ def _get_rescale_space(
                 # Rescale bounds
                 low, high = subspace.low, subspace.high
                 if slices is None:
-                    low *= scale
-                    high *= scale
+                    low /= scale
+                    high /= scale
                 else:
-                    low[slices] *= scale
-                    high[slices] *= scale
+                    low[slices] /= scale
+                    high[slices] /= scale
 
                 # Instantiate rescaled space
                 subspace = gym.spaces.Box(low=low,
@@ -225,11 +223,13 @@ class ScaleObservation(BaseTransformObservation[ScaledObs, Obs, Act],
         self._scale_ops = tuple(scale_ops_dict.values())
         self.observation = unflatten_as(self.env.observation, observation_flat)
 
+        # Apply transform at least one to make sure the observation is valid
+        self.transform_observation()
+
     def _initialize_observation_space(self) -> None:
         self.observation_space = _get_rescale_space(
             self.env.observation_space,
-            self._nested_key_slices_scale_list,
-            is_reversed=True)
+            self._nested_key_slices_scale_list)
 
     def transform_observation(self) -> None:
         # First, copy the value of some leaves.
@@ -349,7 +349,7 @@ class ScaleAction(BaseTransformAction[ScaledAct, Obs, Act],
         self._scale_action_inv = build_reduce(
             fn=_array_scale_chunks,
             op=None,
-            dataset=(nested_slices_scale_list, self.action),
+            dataset=(nested_slices_scale_list, self.env.action),
             space=self.action_space,
             arity=1,
             forward_bounds=False)
@@ -357,8 +357,7 @@ class ScaleAction(BaseTransformAction[ScaledAct, Obs, Act],
     def _initialize_action_space(self) -> None:
         self.action_space = _get_rescale_space(
             self.env.action_space,
-            self._nested_key_slices_scale_list,
-            is_reversed=False)
+            self._nested_key_slices_scale_list)
 
     def transform_action(self, action: ScaledAct) -> None:
         """Update in-place pre-allocated transformed action buffer with
