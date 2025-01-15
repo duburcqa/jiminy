@@ -447,6 +447,90 @@ class MaskedQuantity(InterfaceQuantity[np.ndarray]):
 
 
 @dataclass(unsafe_hash=True)
+class ConcatenatedQuantity(InterfaceQuantity[np.ndarray]):
+    """Concatenate a set of quantities whose value are N-dimensional arrays
+    along a given axis.
+
+    All the quantities must have the same shape, except for the dimension
+    corresponding to concatenation axis.
+    """
+
+    quantities: Tuple[InterfaceQuantity[np.ndarray], ...]
+    """Base quantities whose values must be concatenated.
+    """
+
+    axis: int
+    """Axis over which to concatenate values.
+    """
+
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 parent: Optional[InterfaceQuantity],
+                 quantities: Sequence[QuantityCreator[np.ndarray]],
+                 *,
+                 axis: int = 0) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param parent: Higher-level quantity from which this quantity is a
+                       requirement if any, `None` otherwise.
+        :param quantities: Sequence of tuples, each of which gathering the
+                           class of the quantity whose values must be
+                           extracted, plus any keyword-arguments of its
+                           constructor except 'env' and 'parent'.
+        :param axis: Axis over which to concatenate values.
+                     Optional: First axis by default.
+        """
+        # Backup user arguments
+        self.axis = axis
+
+        # Call base implementation
+        super().__init__(env,
+                         parent,
+                         requirements={
+                            str(i): quantity
+                            for i, quantity in enumerate(quantities)
+                         },
+                         auto_refresh=False)
+
+        # Define proxies for fast access
+        if len(quantities) < 2:
+            raise ValueError(
+                "Specifying less than 2 quantities is not allowed.")
+        self.quantities = tuple(self.requirements.values())
+
+        # Continuous memory to store the result
+        # Note that it will be allocated lazily since the dimension of the
+        # quantity is not known in advance.
+        self._data = np.array([])
+
+    def initialize(self) -> None:
+        # Call base implementation
+        super().initialize()
+
+        # Get current value of all the quantities
+        values = [quantity.get() for quantity in self.quantities]
+
+        # Allocate contiguous memory
+        self._data = np.concatenate(values, axis=self.axis)
+
+        # Compute slices of data associated with each individual quantity
+        self._data_slices: List[np.ndarray] = []
+        idx_start = 0
+        for data in values:
+            idx_end = idx_start + data.shape[self.axis]
+            self._data_slices.append(self._data[
+                (*((slice(None),) * self.axis), slice(idx_start, idx_end))])
+            idx_start = idx_end
+
+    def refresh(self) -> np.ndarray:
+        # Refresh the contiguous buffer
+        multi_array_copyto(self._data_slices,
+                           [quantity.get() for quantity in self.quantities])
+
+        return self._data
+
+
+@dataclass(unsafe_hash=True)
 class UnaryOpQuantity(InterfaceQuantity[ValueT],
                       Generic[ValueT, OtherValueT]):
     """Apply a given unary operator to a quantity.
