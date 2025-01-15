@@ -1,8 +1,9 @@
 """Quantities mainly relevant for locomotion tasks on floating-base robots.
 """
 import math
-from typing import List, Optional, Tuple, Sequence, Literal, Union
+from operator import attrgetter
 from dataclasses import dataclass
+from typing import List, Optional, Tuple, Sequence, Literal, Union
 
 import numpy as np
 import numba as nb
@@ -14,13 +15,15 @@ import pinocchio as pin
 
 from ..bases import (
     InterfaceJiminyEnv, InterfaceQuantity, AbstractQuantity, StateQuantity,
-    QuantityEvalMode)
+    QuantityEvalMode, QuantityCreator)
 from ..quantities import (
-    MaskedQuantity, FramePosition, MultiFramePosition, MultiFrameXYZQuat,
-    MultiFrameMeanXYZQuat, MultiFrameCollisionDetection,
-    FrameSpatialAverageVelocity, AverageFrameRollPitch)
+    OrientationType, UnaryOpQuantity, MultiAryOpQuantity, MaskedQuantity,
+    ConcatenatedQuantity, FramePosition, FrameOrientation, MultiFramePosition,
+    MultiFrameXYZQuat, MultiFrameMeanXYZQuat, FrameSpatialAverageVelocity,
+    AverageFrameRollPitch, MultiFrameCollisionDetection)
 from ..utils import (
-    matrix_to_yaw, quat_to_yaw, quat_to_matrix, quat_multiply, quat_apply)
+    matrix_to_yaw, quat_to_yaw, quat_to_matrix, quat_multiply, quat_apply,
+    rpy_to_quat)
 
 
 def sanitize_foot_frame_names(
@@ -566,6 +569,108 @@ class MultiFootMeanOdometryPose(InterfaceQuantity[np.ndarray]):
         quat_to_yaw(xyzquat_mean[-4:], self._yaw_view)
 
         return self._odom_pose
+
+
+@dataclass(unsafe_hash=True)
+class ReferencePositionWithTrueOdometryPose(InterfaceQuantity[np.ndarray]):
+    """Reference position vector (aka. configuration) of the robot, for which
+    the odometry pose (X, Y, Yaw) has been overwritten with the true one.
+
+    This quantity is useful to decouple tracking the odometry pose from the
+    pose of the various body parts or actuated joint configurations.
+
+    The odometry pose may be estimated directly from the pose of floating base
+    of the robot directly, or from the average pose of the feet. The latter is
+    recommanded. See `MultiFootMeanXYZQuat` documentation for details.
+    """
+
+    is_foot_based: bool
+    """ Whether to estimate the odometry pose from the mean foot pose instead
+    of the floating base pose.
+    """
+
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 parent: Optional[InterfaceQuantity],
+                 *,
+                 is_foot_based: bool = True) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param parent: Higher-level quantity from which this quantity is a
+                       requirement if any, `None` otherwise.
+        :para is_foot_based: Whether to estimate the odometry pose from the
+                             mean foot pose instead of the floating base pose.
+                             Optional: `True` by default.
+        """
+        # Backup some user argument(s)
+        self.is_foot_based = is_foot_based
+
+        # Define the quantity corresponding to the odometry pose.
+        # Note that even though it appears twice in the computation graph of
+        # this quantity, it will only be computed once thanks to the quantity
+        # caching mechanism. It works because the exact same quantity
+        # specification is used at both places, otherwise it would not work
+        # because equality check falls back to identity check for lambdas.
+        if is_foot_based:
+            odometry_pose: QuantityCreator = (MultiAryOpQuantity, dict(
+                quantities=(
+                    (BaseOdometryPose, dict(
+                        mode=QuantityEvalMode.REFERENCE)),
+                    (MultiFootMeanOdometryPose, dict(
+                        frame_names="auto",
+                        mode=QuantityEvalMode.TRUE)),
+                    (MultiFootMeanOdometryPose, dict(
+                        frame_names="auto",
+                        mode=QuantityEvalMode.REFERENCE))),
+                op=lambda args: args[0] + args[1] - args[2]))
+        else:
+            odometry_pose = (BaseOdometryPose, dict(
+                mode=QuantityEvalMode.TRUE))
+
+        # Call base implementation
+        super().__init__(
+            env, parent, requirements=dict(
+                data=(ConcatenatedQuantity, dict(
+                    quantities=(
+                        (MaskedQuantity, dict(
+                            quantity=odometry_pose,
+                            axis=0,
+                            keys=(0, 1))),
+                        (MaskedQuantity, dict(
+                            quantity=(FramePosition, dict(
+                                frame_name="root_joint",
+                                mode=QuantityEvalMode.REFERENCE)),
+                            axis=0,
+                            keys=(2,))),
+                        (UnaryOpQuantity, dict(
+                            quantity=(ConcatenatedQuantity, dict(
+                                quantities=(
+                                    (MaskedQuantity, dict(
+                                        quantity=(FrameOrientation, dict(
+                                            frame_name="root_joint",
+                                            type=OrientationType.EULER,
+                                            mode=QuantityEvalMode.REFERENCE)),
+                                        axis=0,
+                                        keys=(0, 1))),
+                                    (MaskedQuantity, dict(
+                                        quantity=odometry_pose,
+                                        axis=0,
+                                        keys=(2,)))),
+                                axis=0)),
+                            op=rpy_to_quat)),
+                        (MaskedQuantity, dict(
+                            quantity=(UnaryOpQuantity, dict(
+                                quantity=(StateQuantity, dict(
+                                    update_kinematics=False,
+                                    mode=QuantityEvalMode.REFERENCE)),
+                                op=attrgetter('q'))),
+                            axis=0,
+                            keys=(7, ...)))),
+                    axis=0))
+            ), auto_refresh=False)
+
+    def refresh(self) -> np.ndarray:
+        return self.data.get()
 
 
 @dataclass(unsafe_hash=True)
