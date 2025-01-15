@@ -122,7 +122,7 @@ class Rewards(unittest.TestCase):
         """
         CUTOFF_INNER, CUTOFF_OUTER = 0.1, 0.5
         reward_stability = MaximizeRobustness(
-            self.env, cutoff_inner=0.1, cutoff_outer=0.5)
+            self.env, cutoff_inner=CUTOFF_INNER, cutoff_outer=CUTOFF_OUTER)
         quantity = reward_stability.data
 
         self.env.reset(seed=0)
@@ -130,17 +130,18 @@ class Rewards(unittest.TestCase):
         _, _, terminated, _, _ = self.env.step(action)
 
         support_polygon = quantity.support_polygon.get()
-        dist = support_polygon.get_distance_to_point(quantity.zmp.get())
+        dist = - support_polygon.get_distance_to_point(quantity.zmp.get())
         value = sigmoid_normalization(
-            dist.item(), -CUTOFF_OUTER, CUTOFF_INNER, False)
-        np.testing.assert_allclose(
-            sigmoid_normalization(
-                -CUTOFF_INNER, -CUTOFF_OUTER, CUTOFF_INNER, False),
-            1.0 - CUTOFF_ESP)
-        np.testing.assert_allclose(
-            sigmoid_normalization(
-                CUTOFF_OUTER, -CUTOFF_OUTER, CUTOFF_INNER, False),
-            CUTOFF_ESP)
+            dist.item(), -CUTOFF_OUTER, CUTOFF_INNER, True)
+        for is_asymmetric in (True, False):
+            np.testing.assert_allclose(
+                sigmoid_normalization(
+                    CUTOFF_INNER, -CUTOFF_OUTER, CUTOFF_INNER, is_asymmetric),
+                1.0 - CUTOFF_ESP)
+            np.testing.assert_allclose(
+                sigmoid_normalization(
+                    -CUTOFF_OUTER, -CUTOFF_OUTER, CUTOFF_INNER, is_asymmetric),
+                CUTOFF_ESP)
         np.testing.assert_allclose(reward_stability(terminated, {}), value)
 
     def test_friction(self):

@@ -398,7 +398,8 @@ class Trajectory:
             t = max(t, t_start)  # Clipping right it is sufficient
 
         # Rounding time to avoid cache miss issues
-        t = round(t / TRAJ_INTERP_TOL) * TRAJ_INTERP_TOL
+        # Note that `int(x + 0.5)` is faster than `round(x)`.
+        t = int(t / TRAJ_INTERP_TOL + 0.5) * TRAJ_INTERP_TOL
 
         # Interpolate state at the desired time
         state = State(t=t_orig, **self._get(t))

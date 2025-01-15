@@ -976,16 +976,18 @@ def _sample_collect(worker: EnvRunner,
         `_sample_initialize` and `_sample_finalize`.
 
     :param worker: Environment runner to use for collecting samples.
-    :param num_episodes: Number of episodes to sample.
+    :param num_episodes: Minimum number of episodes to sample.
+                         There may be more, if several episodes terminated
+                         simultaneously.
                          Optional: 1 by default.
     """
     # Assert(s) for type checker
     assert isinstance(worker, SingleAgentEnvRunner)
 
     # Collect a bunch of episodes
+    assert num_episodes > 0
     episodes = worker.sample(
         num_episodes=num_episodes, random_actions=False)
-    assert len(episodes) == num_episodes
 
     # Stop any simulation that may be running.
     # This is necessary to make sure that all log files have been written.
@@ -1053,7 +1055,8 @@ def sample_from_runner(
         This method only supports environments deriving from `BaseJiminyEnv`.
 
     :param worker: Environment runner to use for collecting samples.
-    :param num_episodes: Number of episodes to collect.
+    :param num_episodes: Minimum number of episodes to collect. There may be
+                         more, if several episodes terminated simultaneously.
 
     :returns: tuple gathering logged high-level metrics, raw episode data, and
     simulation log paths for all the episode that were collected.
@@ -1095,7 +1098,8 @@ def sample_from_runner_group(
         This method only supports environments deriving from `BaseJiminyEnv`.
 
     :param workers: Group of environment runners to use for collecting samples.
-    :param num_episodes: Number of episodes to collect.
+    :param num_episodes: Minimum number of episodes to collect. There may be
+                         more, if several episodes terminated simultaneously.
     :param evaluation_sample_timeout_s:
         Timeout in seconds for evaluation runners to sample a complete episode
         of remote evluation. After this time, the user receives a warning and
@@ -1136,7 +1140,7 @@ def sample_from_runner_group(
             all_metrics.append(metrics)
             all_episodes += episodes
             all_log_paths += log_paths
-        if len(all_episodes) != num_episodes:
+        if len(all_episodes) < num_episodes:
             LOGGER.warning(
                 "Calling `sample()` on your remote evaluation worker(s) "
                 "resulted in a timeout. Please configure the parameter "

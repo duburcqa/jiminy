@@ -785,7 +785,7 @@ class ComposedJiminyEnv(BasePipelineWrapper[Obs, Act, Obs, Act],
         # Evaluated and return composed reward
         return self.reward(terminated, info)
 
-    def step(self,
+    def step(self,  # type: ignore[override]
              action: Act
              ) -> Tuple[DataNested, SupportsFloat, bool, bool, InfoType]:
         # Call base implementation

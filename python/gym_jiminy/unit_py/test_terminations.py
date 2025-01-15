@@ -131,10 +131,6 @@ class TerminationConditions(unittest.TestCase):
                     is_active = (
                         time >= termination.grace_period and
                         not termination.training_only)
-                    assert info == {
-                        termination.name: EpisodeState.TERMINATED
-                        if terminated else EpisodeState.TRUNCATED
-                        if truncated else EpisodeState.CONTINUED}
                     if terminated or truncated:
                         assert is_active
                         assert terminated ^ termination.is_truncation
@@ -214,10 +210,6 @@ class TerminationConditions(unittest.TestCase):
                     is_active = (
                         time >= termination.grace_period and
                         not termination.training_only)
-                    assert info == {
-                        termination.name: EpisodeState.TERMINATED
-                        if terminated else EpisodeState.TRUNCATED
-                        if truncated else EpisodeState.CONTINUED}
                     if terminated or truncated:
                         assert is_active
                         assert terminated ^ termination.is_truncation

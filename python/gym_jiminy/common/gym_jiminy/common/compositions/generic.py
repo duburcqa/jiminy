@@ -2,9 +2,8 @@
 regardless its topology (multiple or single branch, fixed or floating base...)
 and the application (locomotion, grasping...).
 """
-from operator import sub
 from functools import partial
-from operator import itemgetter
+from operator import sub, itemgetter
 from dataclasses import dataclass
 from typing import Optional, Callable, Tuple, TypeVar
 

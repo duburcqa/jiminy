@@ -346,16 +346,17 @@ class MaskedQuantity(InterfaceQuantity[np.ndarray]):
                      Optional: First axis by default.
         """
         # Convert boolean mask to indices
-        if any(isinstance(e, bool) for e in keys):
-            if not all(isinstance(e, bool) for e in keys):
+        if any(isinstance(e, (bool, np.bool_)) for e in keys):
+            if not all(isinstance(e, (bool, np.bool_)) for e in keys):
                 raise ValueError(
                     "Interleave boolean mask with ellipsis is not supported.")
             keys = tuple(np.flatnonzero(keys))  # type: ignore[arg-type]
 
         # Convert keys to tuple while removing consecutive ellipsis if any
         keys = tuple(
-            prev := e for e in keys
-            if e is not Ellipsis or prev != e)  # type: ignore[used-before-def]
+            e if e is Ellipsis else int(e)
+            for e, _next in zip(keys, (*keys[1:], object()))
+            if e is not Ellipsis or _next != e)
 
         # Replace intermediary ellipsis by indices if possible.
         # Note that it is important to do this substitution BEFORE storing
@@ -383,10 +384,10 @@ class MaskedQuantity(InterfaceQuantity[np.ndarray]):
                 "Specifying `keys=(...,)` is not allowed as it has no effect.")
 
         # Check if indices or ellipsis has been provided
-        if not all(e is Ellipsis or isinstance(e, int) for e in keys):
+        if not all((e is Ellipsis) or isinstance(e, int) for e in keys):
             raise ValueError(
                 "Argument 'keys' invalid. It must either be a boolean mask, "
-                "or a sequence of indices.")
+                "or a sequence of indices and ellipsis.")
 
         # Backup user arguments
         self.indices = keys
@@ -398,16 +399,17 @@ class MaskedQuantity(InterfaceQuantity[np.ndarray]):
         if len(keys) == 1:
             stride = 1
         elif all(e >= 0 for e in keys if e is not Ellipsis):
-            spaces = np.diff(keys_heads)
             if key_tail is Ellipsis:
-                spaces = np.array((*spaces, 1))
+                spaces = np.array((*np.diff(keys_heads), 1))
+            else:
+                spaces = np.diff((*keys_heads, key_tail))
             try:
                 (stride,) = np.unique(spaces)
-            except ValueError:
+            except ValueError as e:
                 if key_tail is Ellipsis:
                     raise ValueError(
                         "Ellipsis on the right end is only supported for "
-                        "sequence of indices with constant stride.")
+                        "sequence of indices with constant stride.") from e
 
         # Convert indices to slices if possible
         self._slices: Tuple[Union[slice, EllipsisType], ...] = ()
@@ -438,7 +440,8 @@ class MaskedQuantity(InterfaceQuantity[np.ndarray]):
             # Note that `take` is faster than classical advanced indexing via
             # `operator[]` (`__getitem__`) because the latter is more generic.
             # Notably, `operator[]` supports boolean mask but `take` does not.
-            return value.take(self.indices, self.axis)
+            return value.take(
+                self.indices, self.axis)  # type: ignore[arg-type]
         if self.axis is None:
             # `ravel` must be used instead of `flat` to get a view that can
             # be sliced without copy.
@@ -503,6 +506,9 @@ class ConcatenatedQuantity(InterfaceQuantity[np.ndarray]):
         # quantity is not known in advance.
         self._data = np.array([])
 
+        # Store slices of data associated with each individual quantity
+        self._data_slices: List[np.ndarray] = []
+
     def initialize(self) -> None:
         # Call base implementation
         super().initialize()
@@ -513,8 +519,8 @@ class ConcatenatedQuantity(InterfaceQuantity[np.ndarray]):
         # Allocate contiguous memory
         self._data = np.concatenate(values, axis=self.axis)
 
-        # Compute slices of data associated with each individual quantity
-        self._data_slices: List[np.ndarray] = []
+        # Compute slices of data
+        self._data_slices.clear()
         idx_start = 0
         for data in values:
             idx_end = idx_start + data.shape[self.axis]

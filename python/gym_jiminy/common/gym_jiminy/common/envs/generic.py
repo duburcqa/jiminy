@@ -670,7 +670,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
             partial(type(env)._controller_handle, weakref.proxy(env)))
 
         # Register user-specified variables to the telemetry in evaluation mode
-        is_eval =  self.debug or not self.training
+        is_eval = self.debug or not self.training
         for header, value, is_eval_only in self._registered_variables.values():
             if is_eval or not is_eval_only:
                 register_variables(self.robot.controller, header, value)
