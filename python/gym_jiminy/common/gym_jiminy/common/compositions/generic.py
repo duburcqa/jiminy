@@ -4,6 +4,7 @@ and the application (locomotion, grasping...).
 """
 from operator import sub
 from functools import partial
+from operator import itemgetter
 from dataclasses import dataclass
 from typing import Optional, Callable, Tuple, TypeVar
 
@@ -236,10 +237,10 @@ class DriftTrackingQuantityTermination(QuantityTermination):
         delta_creator = lambda mode: (BinaryOpQuantity, dict(  # noqa: E731
             quantity_left=(UnaryOpQuantity, dict(
                 quantity=stack_creator(mode),
-                op=lambda stack: stack[-1])),
+                op=itemgetter(-1))),
             quantity_right=(UnaryOpQuantity, dict(
                 quantity=stack_creator(mode),
-                op=lambda stack: stack[0])),
+                op=itemgetter(0))),
             op=op))
 
         # Add drift quantity to the set of quantities managed by environment
