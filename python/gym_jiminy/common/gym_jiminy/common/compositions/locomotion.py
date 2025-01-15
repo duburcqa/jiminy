@@ -1,6 +1,7 @@
 """Rewards mainly relevant for locomotion tasks on floating-base robots.
 """
 from functools import partial
+from operator import attrgetter
 from dataclasses import dataclass
 from typing import Optional, Union, Sequence, Literal, Callable, cast
 
@@ -49,7 +50,7 @@ class TrackingBaseHeightReward(TrackingQuantityReward):
                     quantity=(StateQuantity, dict(
                         update_kinematics=False,
                         mode=mode)),
-                    op=lambda state: state.q)),
+                    op=attrgetter("q"))),
                 axis=0,
                 keys=(2,))),
             cutoff)

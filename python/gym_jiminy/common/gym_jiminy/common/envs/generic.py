@@ -218,7 +218,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
 
         # Store references to the variables to register to the telemetry
         self._registered_variables: MutableMappingT[
-            str, Tuple[FieldNested, DataNested]] = {}
+            str, Tuple[FieldNested, DataNested, bool]] = {}
         self.log_fieldnames: MappingT[str, FieldNested] = _LazyDictItemFilter(
             self._registered_variables, 0)
 
@@ -420,7 +420,9 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
                           value: DataNested,
                           fieldnames: Optional[
                               Union[str, FieldNested]] = None,
-                          namespace: Optional[str] = None) -> None:
+                          namespace: Optional[str] = None,
+                          *,
+                          is_eval_only: bool = True) -> None:
         """Register variable to the telemetry.
 
         .. warning::
@@ -446,6 +448,9 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         :param namespace: Namespace used to prepend the base name 'name', using
                           '.' delimiter. Empty string to disable.
                           Optional: Disabled by default.
+        :param is_eval_only: Whether to register the variable to the telemetry
+                             only in evaluation mode.
+                             Optional: True by default.
         """
         # Create default fieldnames if not specified
         if fieldnames is None:
@@ -475,7 +480,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         name = ".".join(filter(None, (namespace, name)))
 
         # Store the header and a reference to the variable if successful
-        self._registered_variables[name] = (fieldnames, value)
+        self._registered_variables[name] = (fieldnames, value, is_eval_only)
 
     @property
     def step_dt(self) -> float:
@@ -546,6 +551,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         self.stop()
 
         # Create right away a new temporary log file if necessary
+        self.log_path = None
         if self.debug or not self.training:
             fd, self.log_path = tempfile.mkstemp(suffix=".data")
             os.close(fd)
@@ -664,8 +670,9 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
             partial(type(env)._controller_handle, weakref.proxy(env)))
 
         # Register user-specified variables to the telemetry in evaluation mode
-        if self.debug or not self.training:
-            for header, value in self._registered_variables.values():
+        is_eval = self.debug or not self.training
+        for header, value, is_eval_only in self._registered_variables.values():
+            if is_eval or not is_eval_only:
                 register_variables(self.robot.controller, header, value)
 
         # Start the simulation
@@ -833,8 +840,8 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         # Note that 'truncated' is forced to True if the integration failed or
         # if the maximum number of steps will be exceeded next step.
         terminated, truncated = self.derived.has_terminated(self._info)
-        truncated = (
-            truncated or not self.is_simulation_running or
+        truncated |= (
+            not self.is_simulation_running or
             self.stepper_state.t + DT_EPS > self.simulation_duration_max)
 
         # Check if stepping after done and if it is an undefined behavior

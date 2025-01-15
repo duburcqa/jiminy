@@ -419,7 +419,7 @@ class InterfaceQuantity(Generic[ValueT], metaclass=ABCMeta):
                              constructor except 'env' and 'parent'.
         :param auto_refresh: Whether this quantity must be refreshed
                              automatically as soon as its shared cache has been
-                             cleared if specified, otherwise this does nothing.
+                             cleared if specified.
         """
         # Backup some of user argument(s)
         self.env = env
@@ -747,7 +747,7 @@ class AbstractQuantity(InterfaceQuantity, Generic[ValueT]):
                      trajectory will be used instead.
         :param auto_refresh: Whether this quantity must be refreshed
                              automatically as soon as its shared cache has been
-                             cleared if specified, otherwise this does nothing.
+                             cleared if specified.
         """
         # Backup user argument(s)
         self.mode = mode

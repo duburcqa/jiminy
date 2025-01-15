@@ -326,6 +326,18 @@ class Quantities(unittest.TestCase):
         value = quantity.quantity.get()
         np.testing.assert_allclose(
             env.quantities["v_masked"], value[[0, 2, 4]])
+        del env.quantities["v_masked"]
+
+        # 4. From indices containing ellipsis
+        env.quantities["v_masked"] = (MaskedQuantity, dict(
+            quantity=(FrameXYZQuat, dict(frame_name="root_joint")),
+            keys=(2, ..., 3, ..., ...)))
+        quantity = env.quantities.registry["v_masked"]
+        assert len(quantity._slices) == 1 and (
+            quantity._slices[0] == slice(2, None, 1))
+        value = quantity.quantity.get()
+        np.testing.assert_allclose(
+            env.quantities["v_masked"], value[2:])
 
     def test_true_vs_reference(self):
         env = gym.make("gym_jiminy.envs:atlas", debug=False)

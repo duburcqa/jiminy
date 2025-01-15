@@ -13,9 +13,10 @@ from ..quantities import StabilityMarginProjectedSupportPolygon
 
 
 @nb.jit(nopython=True, cache=True)
-def tanh_normalization(value: float,
-                       cutoff_low: float,
-                       cutoff_high: float) -> float:
+def sigmoid_normalization(value: float,
+                          cutoff_low: float,
+                          cutoff_high: float,
+                          is_asymmetric: bool) -> float:
     """Normalize a given quantity between 0.0 and 1.0.
 
     The extremum 0.0 and 1.0 correspond to the upper and lower cutoff
@@ -28,16 +29,26 @@ def tanh_normalization(value: float,
     :param value: Value of the scalar floating-point quantity. The quantity may
                   be bounded or unbounded, and signed or not, without
                   restrictions.
-    :param cutoff: Cut-off threshold to consider.
-    :param order: Order of L^p-norm that will be used as distance metric.
+    :param cutoff_low: Lower cut-off threshold.
+    :param cutoff_high: Upper cut-off threshold.
+    :param is_asymmetric: Whether the positive and negative branches of the
+                          signmoid are normalized independently or the midpoint
+                          is chosen appropriately to enforce continuity.
+                          Optional: True by default.
     """
-    value_rel = (
-        cutoff_high + cutoff_low - 2 * value) / (cutoff_high - cutoff_low)
+    if is_asymmetric:
+        if value * cutoff_high > 0.0:
+            value_rel = value / cutoff_high
+        else:
+            value_rel = - value / cutoff_low
+    else:
+        value_rel = (
+            2 * value - cutoff_high - cutoff_low) / (cutoff_high - cutoff_low)
     factor = math.pow(CUTOFF_ESP / (1.0 - CUTOFF_ESP), abs(value_rel))
     return 1.0 / (1.0 + factor) if value_rel > 0.0 else factor / (1.0 + factor)
 
 
-class MaximizeRobusntess(QuantityReward):
+class MaximizeRobustness(QuantityReward):
     """Encourage the agent to maintain itself in postures as robust as possible
     to external disturbances.
 
@@ -67,8 +78,8 @@ class MaximizeRobusntess(QuantityReward):
     """
     def __init__(self,
                  env: InterfaceJiminyEnv,
-                 cutoff: float,
-                 cutoff_outer: float = 0.0) -> None:
+                 cutoff_inner: float,
+                 cutoff_outer: float) -> None:
         """
         :param env: Base or wrapped jiminy environment.
         :param cutoff: Cutoff threshold when the ZMP lies inside the support
@@ -81,13 +92,13 @@ class MaximizeRobusntess(QuantityReward):
                              border of the support polygon than 'cutoff_outer'.
         """
         # Backup some user argument(s)
-        self.cutoff_inner = cutoff
+        self.cutoff_inner = cutoff_inner
         self.cutoff_outer = cutoff_outer
 
         # The cutoff thresholds must be positive
         if self.cutoff_inner < 0.0 or self.cutoff_outer < 0.0:
             raise ValueError(
-                "The inner and outer cutoff must both be positive.")
+                "The inner and outer cutoff thresholds must both be positive.")
 
         # Call base implementation
         super().__init__(
@@ -96,8 +107,9 @@ class MaximizeRobusntess(QuantityReward):
             (StabilityMarginProjectedSupportPolygon, dict(
                 mode=QuantityEvalMode.TRUE
             )),
-            partial(tanh_normalization,
-                    cutoff_low=self.cutoff_inner,
-                    cutoff_high=-self.cutoff_outer),
+            partial(sigmoid_normalization,
+                    cutoff_low=-self.cutoff_outer,
+                    cutoff_high=self.cutoff_inner,
+                    is_asymmetric=True),
             is_normalized=True,
             is_terminal=False)
