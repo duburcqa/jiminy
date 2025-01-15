@@ -546,6 +546,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         self.stop()
 
         # Create right away a new temporary log file if necessary
+        self.log_path = None
         if self.debug or not self.training:
             fd, self.log_path = tempfile.mkstemp(suffix=".data")
             os.close(fd)
