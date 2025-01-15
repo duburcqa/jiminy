@@ -312,7 +312,7 @@ class MaskedQuantity(InterfaceQuantity[np.ndarray]):
     """Base quantity whose elements must be extracted.
     """
 
-    indices: Tuple[int, ...]
+    indices: Tuple[Union[int, EllipsisType], ...]
     """Indices of the elements to extract.
     """
 
@@ -324,7 +324,8 @@ class MaskedQuantity(InterfaceQuantity[np.ndarray]):
                  env: InterfaceJiminyEnv,
                  parent: Optional[InterfaceQuantity],
                  quantity: QuantityCreator[np.ndarray],
-                 keys: Union[Sequence[int], Sequence[bool]],
+                 keys: Union[Sequence[Union[int, EllipsisType]],
+                             Sequence[bool]],
                  *,
                  axis: Optional[int] = 0) -> None:
         """
@@ -336,38 +337,84 @@ class MaskedQuantity(InterfaceQuantity[np.ndarray]):
                          constructor except 'env' and 'parent'.
         :param keys: Sequence of indices or boolean mask that will be used to
                      extract elements from the quantity along one axis.
+                     Ellipsis can be specified to automatically extract any
+                     indices in between surrounding indices or at both ends.
+                     Ellipsis on the right end is only supported for indices
+                     with constant stride.
         :param axis: Axis over which to extract elements. `None` to consider
                      flattened array.
                      Optional: First axis by default.
         """
-        # Check if indices or boolean mask has been provided
-        if all(isinstance(e, bool) for e in keys):
-            keys = tuple(np.flatnonzero(keys))
-        elif not all(isinstance(e, int) for e in keys):
+        # Convert boolean mask to indices
+        if any(isinstance(e, bool) for e in keys):
+            if not all(isinstance(e, bool) for e in keys):
+                raise ValueError(
+                    "Interleave boolean mask with ellipsis is not supported.")
+            keys = tuple(np.flatnonzero(keys))  # type: ignore[arg-type]
+
+        # Convert keys to tuple while removing consecutive ellipsis if any
+        keys = tuple(
+            prev := e for e in keys
+            if e is not Ellipsis or prev != e)  # type: ignore[used-before-def]
+
+        # Replace intermediary ellipsis by indices if possible.
+        # Note that it is important to do this substitution BEFORE storing
+        # indices as attribute, otherwise masked quantities whose keys are
+        # different be actually corresponds to identicial indices would be
+        # identified as different as recomputed, e.g. (1, 2, 3) vs (..., 3).
+        if any(e is Ellipsis for e in keys):
+            for i in range(len(keys))[1:-1][::-1]:
+                if keys[i] is Ellipsis:
+                    indices = range(
+                        keys[i - 1], keys[i + 1])  # type: ignore[arg-type]
+                    keys = (*keys[:(i - 1)], *indices, *keys[(i + 1):])
+            if len(keys) > 1 and keys[0] is Ellipsis:
+                assert isinstance(keys[1], int)
+                keys = (*range(0, keys[1]), *keys[1:])
+
+        # Make sure that at least one index must be extracted
+        if not keys:
+            raise ValueError(
+                "No indices to extract from quantity. Data would be empty.")
+
+        # Make sure that at least one index must be extracted
+        if keys == (Ellipsis,):
+            raise ValueError(
+                "Specifying `keys=(...,)` is not allowed as it has no effect.")
+
+        # Check if indices or ellipsis has been provided
+        if not all(e is Ellipsis or isinstance(e, int) for e in keys):
             raise ValueError(
                 "Argument 'keys' invalid. It must either be a boolean mask, "
                 "or a sequence of indices.")
 
         # Backup user arguments
-        self.indices = tuple(keys)
+        self.indices = keys
         self.axis = axis
 
-        # Make sure that at least one index must be extracted
-        if not self.indices:
-            raise ValueError(
-                "No indices to extract from quantity. Data would be empty.")
-
         # Check if the indices are evenly spaced
-        self._slices: Tuple[Union[slice, EllipsisType], ...] = ()
         stride: Optional[int] = None
-        if len(self.indices) == 1:
+        keys_heads, key_tail = cast(Tuple[int, ...], keys[:-1]), keys[-1]
+        if len(keys) == 1:
             stride = 1
-        if len(self.indices) > 1 and all(e >= 0 for e in self.indices):
-            spacing = np.unique(np.diff(self.indices))
-            if spacing.size == 1:
-                stride = spacing[0]
+        elif all(e >= 0 for e in keys if e is not Ellipsis):
+            spaces = np.diff(keys_heads)
+            if key_tail is Ellipsis:
+                spaces = np.array((*spaces, 1))
+            try:
+                (stride,) = np.unique(spaces)
+            except ValueError:
+                if key_tail is Ellipsis:
+                    raise ValueError(
+                        "Ellipsis on the right end is only supported for "
+                        "sequence of indices with constant stride.")
+
+        # Convert indices to slices if possible
+        self._slices: Tuple[Union[slice, EllipsisType], ...] = ()
         if stride is not None:
-            slice_ = slice(self.indices[0], self.indices[-1] + 1, stride)
+            slice_ = slice(keys[0],
+                           None if key_tail is Ellipsis else key_tail + 1,
+                           stride)
             if axis is None:
                 self._slices = (slice_,)
             elif axis >= 0:
