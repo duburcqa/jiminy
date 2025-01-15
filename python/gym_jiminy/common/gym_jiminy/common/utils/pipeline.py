@@ -259,8 +259,8 @@ def build_pipeline(
     def sanitize_special_string(kwargs: Dict[str, Any]) -> None:
         """Replace in-place some special strings with their object counterpart.
 
-        This method deals with enums, None ("none") and special floats ("nan",
-        "+/-inf").
+        This method deals with enums, None ("none"), Ellipsis ("...") and
+        special floats ("nan", "+/-inf").
 
         :param kwargs: Nested dictionary of options.
         """
@@ -274,6 +274,9 @@ def build_pipeline(
 
             if value == "none":
                 kwargs[key] = None
+                continue
+            if value == "...":
+                kwargs[key] = Ellipsis
                 continue
             if value == "nan" or value.endswith("inf"):
                 kwargs[key] = float(value)
