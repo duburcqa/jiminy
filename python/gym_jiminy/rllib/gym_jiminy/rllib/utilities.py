@@ -926,20 +926,41 @@ def partition(length: int, num_chunks: int) -> Iterable[int]:
     return (chunk_length_min + (i < stepdown) for i in range(num_chunks))
 
 
-def _sample_initialize(worker: EnvRunner) -> Sequence[bool]:
-    """Initialize evaluation sampling.
+def sample_from_runner(
+        env_runner: EnvRunner,
+        num_episodes: int
+        ) -> Tuple[Sequence[ResultDict], Sequence[EpisodeType], Sequence[str]]:
+    """Sample multiple evaluation episodes on any of the environments being
+    managed by a given evaluation runner.
 
-    In practice, it stops any ongoing episodes, then backup the current
-    training/evaluation mode before switching to evaluation mode.
+    In practice, it stops any ongoing episodes, backup the current mode of each
+    environment (training vs. evaluation) before switching to evaluation mode,
+    collect the desired number of episodes, stops ongoing episodes if any and
+    delete their corresponding log files are now useless, then restore the
+    orginal mode of each environment.
 
     .. warning::
-        This method is designed to be used in conjunction with
-        `_sample_collect` and `_sample_finalize`.
+        This method only supports environments deriving from `BaseJiminyEnv`.
 
-    :param worker: Environment runner that will be used for collecting samples.
+    :param env_runner: Environment runner to use for collecting samples.
+    :param num_episodes: Minimum number of episodes to collect. There may be
+                         more, if several episodes terminated simultaneously.
+
+    :returns: tuple gathering logged high-level metrics, raw episode data, and
+    simulation log paths of all the episodes that were collected.
     """
+    # Make sure that the input argument(s) are valid
+    assert num_episodes > 0
+
     # Assert(s) for type checker
-    assert isinstance(worker, SingleAgentEnvRunner)
+    assert isinstance(env_runner, SingleAgentEnvRunner)
+
+    # This method only supports environments deriving from `BaseJiminyEnv`
+    assert isinstance(env_runner.env.unwrapped, gym.vector.SyncVectorEnv)
+    (env_type,) = set(
+        type(env.unwrapped) for env in env_runner.env.unwrapped.envs)
+    if not issubclass(env_type, BaseJiminyEnv):
+        raise RuntimeError("Test env must inherit from `BaseJiminyEnv`.")
 
     # FIXME: When there is a single thread, the same environments are used for
     # sampling during training and evaluation. One is expecting to sample
@@ -954,131 +975,54 @@ def _sample_initialize(worker: EnvRunner) -> Sequence[bool]:
     # in practice, as this input argument is ignored when specifying the number
     # of episodes. The only option is to override the internal flag
     # `_needs_initial_reset` used internally to automatically trigger reset.
-    worker._needs_initial_reset = True
+    env_runner._needs_initial_reset = True
 
     # Stop any simulation that may be running
-    worker.env.unwrapped.call('stop')
+    env_runner.env.unwrapped.call('stop')
 
     # Backup the current mode of the environment then switch to evaluation
-    is_training_all = worker.env.unwrapped.get_attr('training')
-    worker.env.unwrapped.call('eval')
-
-    return is_training_all
-
-
-def _sample_collect(worker: EnvRunner,
-                    num_episodes: int = 1) -> Tuple[
-        ResultDict, Sequence[EpisodeType], Sequence[str]]:
-    """Sample evaluation episodes and collect metrics.
-
-    .. warning::
-        This method is designed to be used in conjunction with
-        `_sample_initialize` and `_sample_finalize`.
-
-    :param worker: Environment runner to use for collecting samples.
-    :param num_episodes: Minimum number of episodes to sample.
-                         There may be more, if several episodes terminated
-                         simultaneously.
-                         Optional: 1 by default.
-    """
-    # Assert(s) for type checker
-    assert isinstance(worker, SingleAgentEnvRunner)
+    is_training_all = env_runner.env.unwrapped.get_attr('training')
+    env_runner.env.unwrapped.call('eval')
 
     # Collect a bunch of episodes
-    assert num_episodes > 0
-    episodes = worker.sample(
+    episodes = env_runner.sample(
         num_episodes=num_episodes, random_actions=False)
-
-    # Stop any simulation that may be running.
-    # This is necessary to make sure that all log files have been written.
-    worker.env.unwrapped.call('stop')
 
     # Extract the log files of interest.
     log_paths = tuple(episode.infos[0]['log_path'] for episode in episodes)
 
-    # Delete useless log files to avoid filling up the hard drive
-    for log_path in worker.env.unwrapped.get_attr('log_path'):
-        if log_path not in log_paths:
-            os.remove(log_path)
-
     # Collect metrics
-    metrics = worker.get_metrics()
+    metrics = env_runner.get_metrics()
 
     # Remove log paths from metrics to prevent irrelevant tensorboard logging
     del metrics['log_path']
 
-    return metrics, episodes, log_paths
-
-
-def _sample_finalize(worker: EnvRunner,
-                     is_training_all: Sequence[bool]) -> None:
-    """Finalize evaluation sampling.
-
-    In practice, it stops any ongoing episodes, then restore the orginal
-    training/evaluation mode that was previously backed up.
-
-    .. warning::
-        This method is designed to be used in conjunction with
-        `_sample_initialize` and `_sample_collect`.
-
-    :param worker: Environment runner that was previously used to collect
-                   sample.
-    :param is_training_all: Original training/evaluation mode of all the
-                            environment being managed by the environment runner
-                            as a sequence.
-    """
-    # Assert(s) for type checker
-    assert isinstance(worker, SingleAgentEnvRunner)
-
     # Enable once-again auto-reset, to avoid starting back training from where
     # evaluation stopped.
-    worker._needs_initial_reset = True
+    env_runner._needs_initial_reset = True
+
+    # Stop any simulation that may be running.
+    # This is necessary to make sure that all log files have been written.
+    env_runner.env.unwrapped.call('stop')
+
+    # Delete useless log files to avoid filling up the hard drive.
+    # Note that the log path would be `None` for environments has been reset
+    # right before ending sampling and terminating the simulation. This is
+    # expected as internally, try to step a vector environment will only call
+    # `reset` without performing a single step if the previous episode has just
+    # terminated.
+    for log_path in env_runner.env.unwrapped.get_attr('log_path'):
+        if log_path is not None and log_path not in log_paths:
+            os.remove(log_path)
 
     # Restore the original training/evaluation mode
     if parse_version(gym.__version__) >= parse_version("1.0"):
-        worker.env.unwrapped.set_attr('training', is_training_all)
+        env_runner.env.unwrapped.set_attr('training', is_training_all)
     else:
-        assert isinstance(worker.env.unwrapped, gym.vector.SyncVectorEnv)
+        assert isinstance(env_runner.env.unwrapped, gym.vector.SyncVectorEnv)
         for env, is_training in zip(
-                worker.env.unwrapped.envs, is_training_all):
+                env_runner.env.unwrapped.envs, is_training_all):
             env.get_wrapper_attr("train")(is_training)
-
-
-def sample_from_runner(
-        env_runner: EnvRunner,
-        num_episodes: int
-        ) -> Tuple[Sequence[ResultDict], Sequence[EpisodeType], Sequence[str]]:
-    """Sample multiple evaluation episodes on any of the environments being
-    managed by a given evaluation runner.
-
-    .. warning::
-        This method only supports environments deriving from `BaseJiminyEnv`.
-
-    :param worker: Environment runner to use for collecting samples.
-    :param num_episodes: Minimum number of episodes to collect. There may be
-                         more, if several episodes terminated simultaneously.
-
-    :returns: tuple gathering logged high-level metrics, raw episode data, and
-    simulation log paths for all the episode that were collected.
-    """
-    # Assert(s) for type checker
-    assert isinstance(env_runner, SingleAgentEnvRunner)
-
-    # This method only supports environments deriving from `BaseJiminyEnv`
-    assert isinstance(env_runner.env.unwrapped, gym.vector.SyncVectorEnv)
-    (env_type,) = set(
-        type(env.unwrapped) for env in env_runner.env.unwrapped.envs)
-    if not issubclass(env_type, BaseJiminyEnv):
-        raise RuntimeError("Test env must inherit from `BaseJiminyEnv`.")
-
-    # Initialize sampling
-    is_training_all = _sample_initialize(env_runner)
-
-    # Collect episodes
-    metrics, episodes, log_paths = _sample_collect(env_runner, num_episodes)
-
-    # Finalize sampling
-    _sample_finalize(env_runner, is_training_all)
 
     return (metrics,), episodes, log_paths
 
@@ -1119,38 +1063,28 @@ def sample_from_runner_group(
         all_metrics, all_episodes, all_log_paths = (
             sample_from_runner(workers.local_env_runner, num_episodes))
     elif (num_workers := workers.num_healthy_remote_workers()) > 0:
-        # Initialize evaluation
-        is_training_all = dict(workers.foreach_worker_with_id(
-            func=lambda ident, worker: (ident, _sample_initialize(worker)),
-            local_env_runner=False))
-
         # Split workload across workers as fairly as possibly
-        chunks = dict(zip(workers.healthy_worker_ids(),
-                          partition(num_episodes, num_workers)))
+        worker_ids = workers.healthy_worker_ids()
+        chunks = dict(zip(worker_ids, partition(num_episodes, num_workers)))
 
         # Run a complete episode per selected worker and collect metrics
         results = workers.foreach_worker_with_id(
-            func=lambda ident, worker: _sample_collect(
+            func=lambda ident, worker: sample_from_runner(
                 worker, num_episodes=chunks[ident]),
             local_env_runner=False,
-            remote_worker_ids=tuple(chunks.keys()),
+            remote_worker_ids=worker_ids,
             timeout_seconds=evaluation_sample_timeout_s)
         all_metrics, all_episodes, all_log_paths = [], [], []
-        for metrics, episodes, log_paths in results:
+        for worker_ids, (metrics, episodes, log_paths) in zip(
+                worker_ids, results):
+            if len(episodes) < chunks[worker_ids]:
+                LOGGER.warning(
+                    "Calling `sample()` on your remote evaluation worker(s) "
+                    "resulted in a timeout. Please configure the parameter "
+                    "`evaluation_sample_timeout_s` accordingly.")
             all_metrics.append(metrics)
             all_episodes += episodes
             all_log_paths += log_paths
-        if len(all_episodes) < num_episodes:
-            LOGGER.warning(
-                "Calling `sample()` on your remote evaluation worker(s) "
-                "resulted in a timeout. Please configure the parameter "
-                "`evaluation_sample_timeout_s` accordingly.")
-
-        # Finalize evaluation
-        workers.foreach_worker_with_id(
-            func=lambda ident, worker: _sample_finalize(
-                worker, is_training_all[ident]),
-            local_env_runner=False)
     else:
         raise RuntimeError("No runner available for running the evaluation.")
 
